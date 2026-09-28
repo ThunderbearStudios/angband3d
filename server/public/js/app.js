@@ -314,7 +314,7 @@ window.addEventListener('DOMContentLoaded', () => {
         btnStoreExamine.addEventListener('click', () => {
             if (audio) audio.unlock();
             if (audio) audio.playMenuNav();
-            network.sendKey('i');
+            network.sendKey('l');
         });
     }
     const btnStoreExit = document.getElementById('btn-store-exit');
@@ -1853,8 +1853,11 @@ window.addEventListener('DOMContentLoaded', () => {
             if (termEscapeBtn) termEscapeBtn.style.display = 'none'; // btn-store-exit handles exit cleanly
             if (termTouchControls) termTouchControls.style.display = 'none'; // Hide exploration dock inside shops
 
-            // If store prompt has -more- (e.g. storekeeper greeting), display Advance button
-            const isStoreMore = Boolean(frame.ui && frame.ui.more) || screenText.includes('-more-');
+            // If store prompt has -more- or confirmation (e.g. storekeeper greeting, buy/sell confirm), display Advance button
+            const isStoreMore = Boolean(frame.ui && frame.ui.more) ||
+                                screenText.includes('-more-') ||
+                                screenText.includes('any other key') ||
+                                screenText.includes('esc to cancel');
             const btnStoreAdv = document.getElementById('btn-store-advance');
             if (btnStoreAdv) {
                 btnStoreAdv.style.display = isStoreMore ? 'inline-flex' : 'none';
