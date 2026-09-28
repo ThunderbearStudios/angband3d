@@ -58,6 +58,28 @@
          - **Random Character Review Pause**: Auto-birth halts on the final character sheet, giving players full review of rolled stats, race, class, and history before entering town, with `⚔ Accept & Play (Enter)` and `🎲 Reroll Hero (R)` buttons.
           - **Store Entrance Auto-Display & Native Trigger Parity**: Fixed shop entrance navigation by removing erroneous artificial key injection on shop entrance tiles. Stepping onto a shop entrance tile automatically invokes `EVENT_ENTER_STORE` (`overlay: 2`), opening the store interface with store owner/title and inventory. Exiting returns directly to the 3D town world.
           - **Contextual Footer Action Menus & Touch Pills**: Fixed `isStore` misclassification in `updateTerminalToolbar`. Opening Inventory (`i`), Equipment (`e`), Throw (`v`), Quaff (`q`), Read (`r`), Cast (`m`), Fire (`f`), or Drop (`d`) in town or dungeon opens the contextual terminal modal with interactive item pills (`[a] Item Name`, `[b] Item Name`), dynamic titles (`🎒 INVENTORY PACK`, `🛡 EQUIPPED GEAR`, `🎯 THROW ITEM`, etc.), switch (`/`), and cancel (`Esc`) returning smoothly to 3D.
+          - **Keyboard Controls Parity & Zoomable Classic View Milestone**:
+             - **Strict Keyboard Invariant (NO WSAD for Movement)**:
+                - Removed `w`, `s`, `W`, `S` from `mainMenu`, `loadMenu`, and `pauseMenu` navigation. Menu navigation is strictly Arrow keys (Up/Down) or numbers.
+                - Restored complete 3D exploration keyboard controls by connecting `handleWorldKey` directly to movement dispatcher without dead methods.
+                - Movement is strictly Arrow keys (`ArrowUp`=forward, `ArrowDown`=back, `ArrowLeft`=turn left 90°, `ArrowRight`=turn right 90°, `Shift+ArrowLeft/Right`=strafe) and Number Pad (`Numpad8`=forward, `Numpad2`=back, `Numpad4`=strafe left, `Numpad6`=strafe right, `Numpad7,9,1,3`=diagonals, `Numpad5`=stay/rest/attack).
+                - Top-row digits (`Digit0`..`Digit9`) strictly pass through as repeat counts / quantities to the engine.
+                - All single-letter keys (`w`=wield/wear, `s`=spike door / sell in shop, `a`=aim wand, `d`=drop item, `i`=inventory, `e`=equipment, `m`=cast spell, `q`=quaff potion, `r`=read scroll, `g`=pickup, `o`=open, `c`=close, `f`=fire, `v`=throw) pass unhindered to the Angband engine.
+                - Removed stale `[4 / A]` and `[6 / D]` tooltip references on the 3D D-pad.
+             - **Zoomable Classic CRT Terminal Viewport**:
+                - Wrapped `<canvas id="terminal-canvas">` inside `<div id="terminal-viewport" class="terminal-viewport">` with hardware-accelerated touch panning and scrolling (`overflow: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y`).
+                - Added dedicated toolbar zoom controls: `[🔍 -]` (Zoom Out), `[100%]` (Reset / Fit), `[🔍 +]` (Zoom In) supporting smooth scaling from 0.6x to 2.5x.
+                - Added keyboard zoom shortcuts: `Ctrl + =` / `+` (Zoom In), `Ctrl + -` / `-` (Zoom Out), `Ctrl + 0` (Reset Zoom).
+                - Integrated touch pinch-to-zoom and mouse wheel zoom within the terminal viewport.
+                - Preserved pixel-accurate mouse/touch selection (`handleRowClick`) using `getBoundingClientRect()` across all zoom levels.
+             - **Scrapped Supplemental Choices Strip**:
+                - Removed artificial `#terminal-choices-container` and fragile regex scraping chips, eliminating broken buttons like `[0] 4 LB`.
+             - **Classic View D-Pad Navigation Dock**:
+                - Provided `#terminal-touch-controls` with 5-button directional D-pad (`▲`, `▼`, `◀`, `▶`, `⏎`) and action keys (`⎋ Esc`, `␣ Space`, `⛶ 3D View`, `🎒 Pack`, `🛡 Gear`, `✨ Cast`, `🚪 Open`, `⏳ Rest`).
+                - Kept D-pad dock active in stores and classic mode on touch devices, allowing seamless navigation of menu highlights and item selection.
+             - **Strict Store Overlay Classification Guard**:
+                - Enforced `isStore = inOverlay && !isItemPrompt && (isStoreFeat || hasStoreText)`.
+                - A store is only active when `ui.overlay > 0`. Walking around town near shop entrances (`ui.overlay === 0`) will never mislabel the town map as a shop.
           - **Mobile & Tablet UX Transformation & Visual Repair (Split-Thumb Layout & Overlap Resolution)**:
              - **Top-Right Telemetry & Header Overlap Fix (`dungeon.css`, `index.html`)**:
                 - Diagnosed and resolved severe header overlap across phone screens: `#top-right-bar` previously occupied ~530px across, colliding directly with `#review-hero-header`, `#splash-title`, `#main-menu-overlay`, and the top of `#message-feed-window`.

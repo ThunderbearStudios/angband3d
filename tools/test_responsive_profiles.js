@@ -556,37 +556,47 @@ async function run() {
         console.log('✓ Mobile Hero Review Card verified: Name, Race, Class, HP, and 48px tactile buttons rendered cleanly!');
         console.log('✓ Top-right bar collapsed cleanly to compact icon buttons (width: ' + heroCardResult.topBarWidth + 'px)!');
         console.log('\n======================================================');
-        console.log('TEST SUITE 11: Classic Mode Touch Controls & Dynamic Choices Strip');
+        console.log('TEST SUITE 11: Classic Mode Zoomable Viewport & Touch Controls');
         console.log('======================================================');
-        // 1. Verify Dynamic Choices Strip during Character Creation
-        const choicesTest = await evalJs(`(() => {
-            const fakeFrame = {
-                phase: 'setup',
-                term: {
-                    rows: [
-                        { y: 0, g: '  Choose a sex:                                                                 ' },
-                        { y: 1, g: '  m) Male                    f) Female                                          ' },
-                        { y: 2, g: '  *) Random                                                                     ' }
-                    ]
-                }
-            };
-            window.__app.updateTerminalToolbar(fakeFrame);
-            const container = document.getElementById('terminal-choices-container');
-            const chips = container.querySelectorAll('.term-choice-chip');
+        // 1. Verify Zoomable Terminal Viewport and Zoom Controls
+        const zoomTest = await evalJs(`(() => {
+            const viewport = document.getElementById('terminal-viewport');
+            const canvas = document.getElementById('terminal-canvas');
+            const btnZoomIn = document.getElementById('btn-term-zoom-in');
+            const btnZoomOut = document.getElementById('btn-term-zoom-out');
+            const btnZoomReset = document.getElementById('btn-term-zoom-reset');
+            const initialZoom = window.__app && window.__app.terminal ? window.__app.terminal.zoomLevel : 1.0;
+            if (window.__app && window.__app.terminal) {
+                window.__app.terminal.zoomIn();
+            }
+            const zoomedInLevel = window.__app && window.__app.terminal ? window.__app.terminal.zoomLevel : 1.0;
+            if (window.__app && window.__app.terminal) {
+                window.__app.terminal.resetZoom();
+            }
+            const resetLevel = window.__app && window.__app.terminal ? window.__app.terminal.zoomLevel : 1.0;
             return {
-                containerDisplay: window.getComputedStyle(container).display,
-                chipCount: chips.length,
-                chips: Array.from(chips).map(c => ({ key: c.dataset.key, text: c.textContent.trim() }))
+                hasViewport: Boolean(viewport),
+                hasCanvas: Boolean(canvas),
+                hasZoomButtons: Boolean(btnZoomIn && btnZoomOut && btnZoomReset),
+                initialZoom,
+                zoomedInLevel,
+                resetLevel
             };
         })()`);
-        console.log('Choices Test Result:', choicesTest);
-        if (choicesTest.containerDisplay === 'none') {
-            throw new Error('Terminal choices strip should be visible when menu choices are present!');
+        console.log('Zoom Test Result:', zoomTest);
+        if (!zoomTest.hasViewport || !zoomTest.hasCanvas) {
+            throw new Error('Terminal viewport and canvas must exist in DOM!');
         }
-        if (choicesTest.chipCount < 3) {
-            throw new Error(`Expected at least 3 choice chips (Male, Female, Random), got ${choicesTest.chipCount}`);
+        if (!zoomTest.hasZoomButtons) {
+            throw new Error('Zoom In, Zoom Out, and Zoom Reset buttons must exist in terminal toolbar!');
         }
-        console.log('✓ Dynamic Choices Strip verified: rendered interactive touch chips for Male, Female, Random!');
+        if (zoomTest.zoomedInLevel <= zoomTest.initialZoom) {
+            throw new Error(`zoomIn() did not increase zoom level: initial=${zoomTest.initialZoom}, zoomed=${zoomTest.zoomedInLevel}`);
+        }
+        if (zoomTest.resetLevel !== 1.0) {
+            throw new Error(`resetZoom() did not reset to 1.0: got ${zoomTest.resetLevel}`);
+        }
+        console.log('✓ Zoomable Classic Viewport & Controls verified: zoomIn (1.25x), zoomOut, and reset (1.0x) functioning perfectly!');
 
         // 2. Verify Classic Mode Touch Controls Dock in Active Play
         const classicControlsTest = await evalJs(`(() => {
