@@ -1,0 +1,19 @@
+{
+  "name": "Angband 3D — First-Person Roguelike",
+  "short_name": "Angband3D",
+  "description": "First-Person 3D Roguelike powered by Angband 4.2.6 C Engine with continuous 3D world, full touch controls, and spatial audio",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080b12",
+  "theme_color": "#080b12",
+  "icons": [
+    {
+      "src": "/assets/thunderbear_logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment", "role-playing"]
+}

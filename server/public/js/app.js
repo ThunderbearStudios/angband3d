@@ -7,6 +7,13 @@ window.addEventListener('DOMContentLoaded', () => {
     const loadingOverlay = document.getElementById('loading-overlay');
     const terminalContainer = document.getElementById('terminal-container');
 
+    // Register PWA Service Worker for home-screen installation & offline shell caching
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.warn('[SW] Registration failed:', err);
+        });
+    }
+
     // 1. Initialize Subsystems
     const audio = new SoundEngine();
     const network = new GameNetwork();
@@ -1543,6 +1550,13 @@ window.addEventListener('DOMContentLoaded', () => {
             choices.push({ key: 'escape', label: '⎋ Back (Esc)' });
         }
 
+        const isStoreMode = lower.includes('store inventory') ||
+                            lower.includes('home inventory') ||
+                            lower.includes('gold remaining') ||
+                            lower.includes('purchase which item') ||
+                            lower.includes('sell which item') ||
+                            lower.includes('examine which item');
+
         // Check for options pattern e.g. "a) Human", "m) Male", "*) Random", "@) Random"
         // Collect all interactive options across single and multi-column grid layouts
         for (const line of rows) {
@@ -1555,6 +1569,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     // Clean store prices or pound weights
                     label = label.replace(/\s{2,}\d+.*$/, '').trim();
                     if (label.length > 0 && !seenKeys.has(key)) {
+                        // In store mode, filter out terminal help/command lines so only actual items appear
+                        if (isStoreMode) {
+                            const isCommandHelp = /^(examine|purchase|buy|sell|exit|command|press|wear|wield|take off|drop|switch|more)/i.test(label);
+                            if (isCommandHelp) continue;
+                        }
                         seenKeys.add(key);
                         choices.push({ key, label });
                     }
@@ -1832,6 +1851,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (itemActionsBar) itemActionsBar.style.display = 'none';
             if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
             if (termEscapeBtn) termEscapeBtn.style.display = 'none'; // btn-store-exit handles exit cleanly
+            if (termTouchControls) termTouchControls.style.display = 'none'; // Hide exploration dock inside shops
 
             // If store prompt has -more- (e.g. storekeeper greeting), display Advance button
             const isStoreMore = Boolean(frame.ui && frame.ui.more) || screenText.includes('-more-');
@@ -1992,6 +2012,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const btnToggleMsg = document.getElementById('btn-toggle-msg-feed');
         const btnToggleMap = document.getElementById('btn-toggle-minimap');
+        const btnToggleDpad = document.getElementById('btn-toggle-dpad');
 
         if (needsTerm) {
             terminalContainer.classList.remove('hidden');
@@ -2003,6 +2024,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (touchControls) touchControls.style.display = 'none';
             if (btnToggleMsg) btnToggleMsg.style.display = 'none';
             if (btnToggleMap) btnToggleMap.style.display = 'none';
+            if (btnToggleDpad) btnToggleDpad.style.display = 'none';
 
             input.setTerminalMode(true);
             terminal.resize();
@@ -2060,8 +2082,10 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             wasInStore = inStore;
 
-            // D-Pad: Enabled across mobile and desktop clients for hybrid touch/mouse navigation
-            const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
+            // D-Pad: On desktop, default to hidden for a clean immersive screen unless toggled by player.
+            // On mobile / tablet touchscreens, default to visible.
+            const isDesktop = window.DeviceProfile && window.DeviceProfile.getTier() === 'desktop';
+            const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : !isDesktop;
             if (touchControls) touchControls.style.display = showTouch ? 'flex' : 'none';
 
             // Update top bar toggle indicators
@@ -2074,6 +2098,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 btnToggleMap.style.display = 'inline-flex';
                 const isMapOpen = minimapContainer && minimapContainer.style.display !== 'none';
                 btnToggleMap.classList.toggle('active', Boolean(isMapOpen));
+            }
+            if (btnToggleDpad) {
+                btnToggleDpad.style.display = isDesktop ? 'inline-flex' : 'none';
+                btnToggleDpad.classList.toggle('active', Boolean(showTouch));
             }
 
             input.setTerminalMode(false);
@@ -2100,6 +2128,17 @@ window.addEventListener('DOMContentLoaded', () => {
         btnMinimapClose.addEventListener('click', (e) => {
             e.stopPropagation();
             window.__minimapClosed = true;
+            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+            updateViewMode();
+        });
+    }
+
+    const btnToggleDpad = document.getElementById('btn-toggle-dpad');
+    if (btnToggleDpad) {
+        btnToggleDpad.addEventListener('click', () => {
+            const isDesktop = window.DeviceProfile && window.DeviceProfile.getTier() === 'desktop';
+            const currentlyVisible = window.__dpadVisible !== undefined ? window.__dpadVisible : !isDesktop;
+            window.__dpadVisible = !currentlyVisible;
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
             updateViewMode();
         });
