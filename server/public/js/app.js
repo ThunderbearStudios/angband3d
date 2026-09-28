@@ -64,6 +64,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (terminalTitle) terminalTitle.textContent = '⚔ ANGBAND CLASSIC TERMINAL';
     };
 
+    let wasInStore = false;
+
     function stepQuickBirth(frame) {
         if (!quickBirthActive || !frame) return;
 
@@ -199,6 +201,15 @@ window.addEventListener('DOMContentLoaded', () => {
                                    screenText.includes("reroll") || screenText.includes("'s' to start") ||
                                    screenText.includes("step back") || screenText.includes("any other key to continue"));
 
+            const isTitleScreen = !inPlay && (screenText.includes('when the world is old') ||
+                                              screenText.includes('press any key to continue') ||
+                                              screenText.includes('rephial.org') ||
+                                              screenText.includes('last battle be gathered'));
+            if (isTitleScreen) {
+                returnToMainMenu();
+                return;
+            }
+
             if (!inPlay) {
                 if (isReviewScreen) {
                     network.sendKey('s');
@@ -304,14 +315,15 @@ window.addEventListener('DOMContentLoaded', () => {
         btnStoreExit.addEventListener('click', () => {
             if (audio) audio.unlock();
             if (audio) audio.playMenuNav();
-            network.sendKey('escape');
+            const hasMore = Boolean(lastFrame && lastFrame.ui && lastFrame.ui.more);
+            if (hasMore) {
+                network.sendKey('space');
+                setTimeout(() => network.sendKey('escape'), 50);
+            } else {
+                network.sendKey('escape');
+            }
             forceTerminal = false;
             window.__manualTerminalOpen = false;
-            if (terminalContainer) {
-                terminalContainer.classList.add('hidden');
-                terminalContainer.classList.remove('in-game-modal');
-            }
-            if (input) input.setTerminalMode(false);
         });
     }
 
@@ -534,6 +546,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (loadModal) loadModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
         if (terminalContainer) terminalContainer.classList.add('hidden');
+        const banner = document.getElementById('top-message-banner');
+        if (banner) banner.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuOpen();
         checkSaves();
@@ -549,6 +563,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (guideModal) guideModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
         if (terminalContainer) terminalContainer.classList.add('hidden');
+        const banner = document.getElementById('top-message-banner');
+        if (banner) banner.style.display = 'none';
         if (loadModal) loadModal.classList.remove('hidden');
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuOpen();
@@ -897,6 +913,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (splashOverlay) splashOverlay.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (guideModal) guideModal.classList.add('hidden');
+        const banner = document.getElementById('top-message-banner');
+        if (banner) banner.style.display = 'none';
         if (input) input.setTerminalMode(false);
 
         if (pauseCharDisplay && lastFrame && lastFrame.player) {
@@ -996,6 +1014,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (splashOverlay) splashOverlay.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (terminalContainer) terminalContainer.classList.add('hidden');
+        const banner = document.getElementById('top-message-banner');
+        if (banner) banner.style.display = 'none';
         if (input) input.setTerminalMode(false);
         switchGuideTab(tabIndex);
         if (audio) audio.playMenuOpen();
@@ -1504,25 +1524,37 @@ window.addEventListener('DOMContentLoaded', () => {
             choices.push({ key: 'n', label: 'No (n)' });
         }
 
-        // Check for Reroll / Stat prompt
-        if (lower.includes('r to reroll') || lower.includes("'r' to reroll")) {
-            choices.push({ key: 'r', label: '🎲 Reroll (r)' });
+        // Check for Stat Roller / Reset prompt
+        if (lower.includes("r' to reset") || lower.includes("r to reset")) {
+            choices.push({ key: 'enter', label: '⚔ Accept Stats (Enter)' });
+            choices.push({ key: 'r', label: '🔄 Reset Stats (r)' });
+            choices.push({ key: 'escape', label: '⎋ Step Back (Esc)' });
+        } else if (lower.includes('r to reroll') || lower.includes("'r' to reroll")) {
             choices.push({ key: 'y', label: '⚔ Accept (y)' });
+            choices.push({ key: 'enter', label: '⚔ Accept (Enter)' });
+            choices.push({ key: 'r', label: '🎲 Reroll (r)' });
             choices.push({ key: 's', label: '⎋ Step Back (s)' });
         }
 
+        // Check for Name Prompt
+        if (lower.includes("player's name") || lower.includes("player name") || (lower.includes("name:") && lower.includes("enter to accept"))) {
+            choices.push({ key: 'enter', label: '⏎ Keep Name (Enter)' });
+            choices.push({ key: '*', label: '🎲 Random Name (*)' });
+            choices.push({ key: 'escape', label: '⎋ Back (Esc)' });
+        }
+
         // Check for options pattern e.g. "a) Human", "m) Male", "*) Random", "@) Random"
+        // Collect all interactive options across single and multi-column grid layouts
         for (const line of rows) {
-            // Split on 2 or more consecutive spaces to handle multi-column layouts
             const parts = line.split(/\s{2,}/);
             for (const part of parts) {
-                const m = part.trim().match(/^([a-zA-Z0-9*@?])[\)\.\:]\s*(.+)$/);
+                const m = part.trim().match(/^([a-zA-Z0-9*@?])[\)\.]\s*(.+)$/);
                 if (m) {
                     const key = m[1];
                     let label = m[2].trim();
                     // Clean store prices or pound weights
                     label = label.replace(/\s{2,}\d+.*$/, '').trim();
-                    if (!seenKeys.has(key) && label.length > 0) {
+                    if (label.length > 0 && !seenKeys.has(key)) {
                         seenKeys.add(key);
                         choices.push({ key, label });
                     }
@@ -1541,10 +1573,10 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Sort alphabetical by key, but put special keys (*, @, ?, space, enter) at the end
+        // Sort alphabetical by key, but put special keys (*, @, ?, space, enter, escape) at the end
         choices.sort((a, b) => {
-            const isSpecialA = ['*', '@', '?', 'space', 'enter'].includes(a.key);
-            const isSpecialB = ['*', '@', '?', 'space', 'enter'].includes(b.key);
+            const isSpecialA = ['*', '@', '?', 'space', 'enter', 'escape'].includes(a.key);
+            const isSpecialB = ['*', '@', '?', 'space', 'enter', 'escape'].includes(b.key);
             if (isSpecialA && !isSpecialB) return 1;
             if (!isSpecialA && isSpecialB) return -1;
             return a.key.localeCompare(b.key);
@@ -1554,6 +1586,12 @@ window.addEventListener('DOMContentLoaded', () => {
             if (lower.includes('choose a sex')) choicesPrompt.textContent = 'CHOOSE GENDER / SEX:';
             else if (lower.includes('choose a race')) choicesPrompt.textContent = 'CHOOSE CHARACTER RACE:';
             else if (lower.includes('choose a class')) choicesPrompt.textContent = 'CHOOSE CHARACTER CLASS:';
+            else if (lower.includes('point-based') || lower.includes('intrinsic stats')) choicesPrompt.textContent = 'CHOOSE STAT GENERATION METHOD:';
+            else if (lower.includes("r' to reset") || lower.includes("r to reroll")) choicesPrompt.textContent = 'MODIFY / ACCEPT STATS:';
+            else if (lower.includes("player's name") || lower.includes("player name")) choicesPrompt.textContent = 'CHOOSE CHARACTER NAME:';
+            else if (lower.includes('purchase which item')) choicesPrompt.textContent = 'SELECT ITEM TO PURCHASE:';
+            else if (lower.includes('sell which item')) choicesPrompt.textContent = 'SELECT ITEM TO SELL:';
+            else if (lower.includes('examine which item')) choicesPrompt.textContent = 'SELECT ITEM TO EXAMINE:';
             else if (lower.includes('[y/n]')) choicesPrompt.textContent = 'CONFIRM SELECTION:';
             else choicesPrompt.textContent = 'AVAILABLE CHOICES & OPTIONS:';
         }
@@ -1801,6 +1839,23 @@ window.addEventListener('DOMContentLoaded', () => {
             if (btnStoreAdv) {
                 btnStoreAdv.style.display = isStoreMore ? 'inline-flex' : 'none';
             }
+
+            // Distinguish sub-mode (Buy/Sell/Examine) from main store view
+            const isStoreSubMode = screenText.includes('purchase which item') ||
+                                   screenText.includes('sell which item') ||
+                                   screenText.includes('examine which item') ||
+                                   screenText.includes('which item') ||
+                                   (frame.ui && (frame.ui.overlay || 0) > 2);
+            const btnStoreExit = document.getElementById('btn-store-exit');
+            if (btnStoreExit) {
+                if (isStoreSubMode) {
+                    btnStoreExit.innerHTML = '⎋ Cancel / Back (Esc)';
+                    btnStoreExit.title = 'Cancel sub-mode and return to store inventory [Esc]';
+                } else {
+                    btnStoreExit.innerHTML = '🚪 Exit Store (Esc)';
+                    btnStoreExit.title = 'Exit store and return to town [Esc]';
+                }
+            }
         } else {
             // Normal in-game menu, inventory, equipment, or action screen
             if (screenText.includes('throw which item?')) {
@@ -1983,10 +2038,31 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            const showTouch = window.DeviceProfile 
-                ? (window.DeviceProfile.getTier() !== 'desktop' || window.DeviceProfile.hasTouch())
-                : (window.innerWidth < 1024);
-            if (touchControls) touchControls.style.display = showTouch ? 'block' : 'none';
+            // Check if player was in a store and just exited back into town
+            let playerFeat = 0;
+            if (currentFrame && currentFrame.map && currentFrame.map.rows && currentFrame.player) {
+                const py = currentFrame.player.y;
+                const px = currentFrame.player.x;
+                if (currentFrame.map.rows[py] && currentFrame.map.rows[py].f) {
+                    playerFeat = parseInt(currentFrame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16) || 0;
+                }
+            }
+            const isStoreFeat = playerFeat >= 7 && playerFeat <= 14;
+            const inStore = isStoreFeat && Boolean(currentFrame && currentFrame.ui && currentFrame.ui.overlay > 0);
+            if (wasInStore && !inStore && currentFrame && currentFrame.phase === 'play') {
+                if (dungeon && typeof dungeon.turn === 'function') {
+                    // Turn 180 degrees so player faces out into the street instead of into the shop door
+                    dungeon.turn(2);
+                    if (typeof dungeon.snapCameraToDefault === 'function') {
+                        dungeon.snapCameraToDefault();
+                    }
+                }
+            }
+            wasInStore = inStore;
+
+            // D-Pad: Enabled across mobile and desktop clients for hybrid touch/mouse navigation
+            const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
+            if (touchControls) touchControls.style.display = showTouch ? 'flex' : 'none';
 
             // Update top bar toggle indicators
             if (btnToggleMsg) {
