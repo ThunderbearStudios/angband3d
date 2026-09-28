@@ -74,7 +74,7 @@ html, body {
     border-bottom: 1px solid rgba(212, 175, 55, 0.35);
     display: flex;
     align-items: center;
-    padding: 0 460px 0 16px;
+    padding: 0 calc(min(52vw, 680px) + var(--safe-right)) 0 max(16px, var(--safe-left));
     z-index: 20;
     pointer-events: none;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
@@ -2794,7 +2794,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
    ------------------------------------------------------------------------------ */
 @media (max-width: 1023px) {
     .top-message-banner {
-        padding-right: clamp(16px, 14vw, 220px);
+        padding-right: calc(min(45vw, 420px) + var(--safe-right)) !important;
     }
 
     #hud-overlay {
@@ -2878,7 +2878,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 @media (max-width: 599px), (max-height: 500px) and (orientation: landscape) {
     .top-message-banner {
         height: 32px;
-        padding: 0 12px;
+        padding-left: max(10px, var(--safe-left)) !important;
+        padding-right: calc(180px + var(--safe-right)) !important;
         cursor: pointer;
     }
 
@@ -3254,28 +3255,362 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 /* ------------------------------------------------------------------------------
+   DYNAMIC TERMINAL CHOICES STRIP & CLASSIC TOUCH CONTROLS
+   ------------------------------------------------------------------------------ */
+.terminal-choices-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    max-width: 820px;
+    margin: 4px auto 0;
+    padding: 8px 10px;
+    background: rgba(10, 14, 22, 0.95);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.75);
+    box-sizing: border-box;
+    max-height: 240px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.choices-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+    padding-bottom: 4px;
+}
+
+.choices-prompt-text {
+    font-family: var(--font-fantasy);
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--gold-bright);
+    letter-spacing: 1px;
+}
+
+.terminal-choices-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.term-choice-chip {
+    min-height: 42px;
+    padding: 6px 12px;
+    background: linear-gradient(180deg, rgba(22, 28, 42, 0.95), rgba(12, 16, 26, 0.95));
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    border-radius: 6px;
+    color: #f0f4f8;
+    font-family: var(--font-fantasy);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    transition: all 0.15s ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.term-choice-chip:hover,
+.term-choice-chip:active {
+    background: linear-gradient(180deg, rgba(45, 36, 16, 0.98), rgba(28, 22, 10, 0.98));
+    border-color: #ffd700;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+    transform: translateY(-1px);
+}
+
+.term-choice-chip .chip-key {
+    color: var(--gold-bright);
+    font-family: var(--font-terminal);
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.term-choice-chip .chip-label {
+    letter-spacing: 0.3px;
+}
+
+/* Mobile Classic Touch Controller Dock */
+.terminal-touch-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 680px;
+    margin: 6px auto 0;
+    gap: 12px;
+    padding: 6px 10px;
+    background: rgba(8, 12, 20, 0.92);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    border-radius: 10px;
+    box-sizing: border-box;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.term-touch-dpad-col {
+    flex-shrink: 0;
+}
+
+.term-dpad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 40px);
+    grid-template-rows: repeat(3, 36px);
+    gap: 3px;
+    align-items: center;
+    justify-items: center;
+}
+
+.term-dpad-up { grid-column: 2; grid-row: 1; }
+.term-dpad-left { grid-column: 1; grid-row: 2; }
+.term-dpad-center { grid-column: 2; grid-row: 2; }
+.term-dpad-right { grid-column: 3; grid-row: 2; }
+.term-dpad-down { grid-column: 2; grid-row: 3; }
+
+.term-dpad-btn {
+    width: 100%;
+    height: 100%;
+    background: rgba(18, 24, 36, 0.95);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    border-radius: 6px;
+    color: var(--gold-bright);
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.1s ease;
+}
+
+.term-dpad-btn:active {
+    background: rgba(45, 36, 16, 0.98);
+    border-color: #ffd700;
+    color: #fff;
+    transform: scale(0.95);
+}
+
+.term-touch-actions-col {
+    flex: 1;
+}
+
+.term-action-keys {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+}
+
+.term-action-key {
+    min-height: 38px;
+    padding: 4px 2px;
+    background: rgba(18, 24, 36, 0.92);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-family: var(--font-fantasy);
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    text-align: center;
+}
+
+.term-action-key:active {
+    background: rgba(45, 36, 16, 0.98);
+    border-color: #ffd700;
+    color: #fff;
+    transform: scale(0.95);
+}
+
+.term-key-tab {
+    background: rgba(30, 24, 12, 0.95);
+    border-color: rgba(255, 215, 0, 0.6);
+    color: #ffd700;
+    font-weight: 700;
+}
+
+/* ------------------------------------------------------------------------------
    PHONE LANDSCAPE ORIENTATION REFINEMENTS
    ------------------------------------------------------------------------------ */
 @media (max-height: 500px) and (orientation: landscape) {
-    #hud-overlay {
-        flex-direction: row;
-        align-items: flex-end;
-        gap: 8px;
-        padding: 2px max(8px, var(--safe-left)) max(2px, var(--safe-bottom)) max(8px, var(--safe-right));
+    /* Full-Screen Overlays Safe Top Offsets */
+    #splash-overlay,
+    #main-menu-overlay,
+    #terminal-container,
+    #guide-modal,
+    #load-modal,
+    #pause-modal,
+    #death-modal {
+        padding-top: max(4px, var(--safe-top)) !important;
+        padding-bottom: max(4px, var(--safe-bottom)) !important;
+        padding-left: max(6px, var(--safe-left)) !important;
+        padding-right: max(6px, var(--safe-right)) !important;
     }
 
+    .splash-card,
+    .main-menu-card,
+    .load-card,
+    .guide-card,
+    .death-card {
+        padding: 8px 12px !important;
+        gap: 6px !important;
+        max-height: calc(100vh - 8px) !important;
+    }
+
+    .splash-title {
+        font-size: clamp(20px, 4vw, 26px) !important;
+        margin-bottom: 2px !important;
+    }
+
+    .menu-options {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+    }
+
+    .menu-option-btn {
+        min-height: 40px !important;
+        padding: 4px 8px !important;
+    }
+
+    /* Top Left: Ultra-Slim Horizontal Character Status Capsule */
     #char-panel {
-        min-width: 220px;
-        width: 220px;
+        position: fixed !important;
+        top: max(3px, var(--safe-top)) !important;
+        left: max(6px, var(--safe-left)) !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: 320px !important;
+        height: 28px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 6px !important;
+        padding: 2px 8px !important;
+        z-index: 30 !important;
+        background: rgba(8, 12, 20, 0.92) !important;
+        border: 1px solid rgba(212, 175, 55, 0.45) !important;
+        border-radius: 6px !important;
     }
 
-    #hud-center-column {
-        flex: 1;
+    #char-panel .char-title {
+        display: none !important;
     }
 
+    #char-panel .gauge-container {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 3px !important;
+        min-width: 55px !important;
+    }
+
+    #char-panel .gauge-track {
+        display: none !important;
+    }
+
+    #char-panel .gauge-header {
+        font-size: 10px !important;
+        gap: 2px !important;
+    }
+
+    #char-panel #stats-strip {
+        font-size: 9.5px !important;
+        gap: 3px !important;
+    }
+
+    #char-panel .stat-divider {
+        display: none !important;
+    }
+
+    /* Top Live Banner centered in available space */
+    .top-message-banner {
+        top: max(3px, var(--safe-top)) !important;
+        height: 28px !important;
+        left: 330px !important;
+        right: 175px !important;
+        padding: 0 8px !important;
+        border-radius: 6px !important;
+    }
+
+    /* Compact 70px Circular Minimap Radar docked at top-right */
+    #minimap-container {
+        position: fixed !important;
+        top: calc(34px + var(--safe-top)) !important;
+        right: max(6px, var(--safe-right)) !important;
+        width: 72px !important;
+        height: 72px !important;
+        border-radius: 50% !important;
+    }
+
+    #minimap-header,
+    #minimap-controls-bar,
+    #camera-tilt-bar,
+    #map-resize-handle {
+        display: none !important;
+    }
+
+    #minimap-canvas {
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 50% !important;
+    }
+
+    /* Bottom Left: Scaled Movement D-pad */
     #touch-controls {
-        bottom: calc(52px + var(--safe-bottom)) !important;
-        left: max(8px, var(--safe-left)) !important;
+        position: fixed !important;
+        bottom: calc(2px + var(--safe-bottom)) !important;
+        left: max(4px, var(--safe-left)) !important;
+        transform: scale(0.80) !important;
+        transform-origin: bottom left !important;
+        margin: 0 !important;
+    }
+
+    /* Bottom Right: Scaled Tactical Action Cluster */
+    #action-bar:not(.drawer-open) {
+        position: fixed !important;
+        bottom: calc(2px + var(--safe-bottom)) !important;
+        right: max(4px, var(--safe-right)) !important;
+        transform: scale(0.80) !important;
+        transform-origin: bottom right !important;
+        margin: 0 !important;
+    }
+
+    /* Terminal Card in Landscape fills available height */
+    .terminal-card {
+        padding: 4px 8px !important;
+        max-height: calc(100vh - 8px) !important;
+        gap: 4px !important;
+    }
+
+    .terminal-touch-controls {
+        padding: 2px 6px !important;
+        margin: 2px auto 0 !important;
+    }
+
+    .term-dpad-grid {
+        grid-template-columns: repeat(3, 34px) !important;
+        grid-template-rows: repeat(3, 28px) !important;
+        gap: 2px !important;
+    }
+
+    .term-action-key {
+        min-height: 30px !important;
+        font-size: 10px !important;
     }
 }
 

@@ -203,7 +203,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (isReviewScreen) {
                     network.sendKey('s');
                 } else {
-                    returnToMainMenu();
+                    // Send Escape to step back one question in character birth wizard
+                    network.sendKey('escape');
                 }
                 return;
             }
@@ -213,6 +214,56 @@ window.addEventListener('DOMContentLoaded', () => {
             terminalContainer.classList.add('hidden');
             input.setTerminalMode(false);
         });
+    }
+
+    const termExitMenuBtn = document.getElementById('btn-term-exit-menu');
+    if (termExitMenuBtn) {
+        termExitMenuBtn.addEventListener('click', () => {
+            if (audio) audio.unlock();
+            cancelQuickBirth();
+            if (audio) audio.playMenuNav();
+            returnToMainMenu();
+        });
+    }
+
+    // Mobile Classic Touch Controller Dock (D-pad & Action Keys for Classic Mode)
+    const termTouchControls = document.getElementById('terminal-touch-controls');
+    if (termTouchControls) {
+        const bindTermTouch = (btn) => {
+            const key = btn.dataset.key;
+            if (!key) return;
+            let lastTrigger = 0;
+            const fire = (ev) => {
+                const now = Date.now();
+                if (now - lastTrigger < 100) return;
+                lastTrigger = now;
+                if (ev && ev.preventDefault) ev.preventDefault();
+                if (audio) audio.unlock();
+                if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
+                    window.DeviceProfile.triggerHaptic('light');
+                }
+                if (key === 'tab') {
+                    // Return from Classic Mode to 3D View
+                    forceTerminal = false;
+                    window.__manualTerminalOpen = false;
+                    updateViewMode();
+                } else if (key === 'escape') {
+                    network.sendKey('escape');
+                    const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && lastFrame.map);
+                    if (inPlay && !forceTerminal) {
+                        closeTerminalModal();
+                    }
+                } else {
+                    network.sendKey(key);
+                }
+            };
+            btn.addEventListener('pointerdown', (ev) => {
+                if (ev.pointerType === 'touch') fire(ev);
+            });
+            btn.addEventListener('click', fire);
+        };
+
+        termTouchControls.querySelectorAll('.term-dpad-btn, .term-action-key').forEach(bindTermTouch);
     }
 
     // Interactive Store Actions Bar controls
@@ -1178,7 +1229,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const btnSound = document.getElementById('btn-sound');
         if (btnSound) {
-            btnSound.textContent = isMuted ? '🔇 Muted' : '🔊 Sound';
+            btnSound.innerHTML = `<span class="sound-icon">${isMuted ? '🔇' : '🔊'}</span><span class="sound-label">${isMuted ? 'Muted' : 'Sound'}</span>`;
             btnSound.title = isMuted ? 'Unmute Sound' : 'Mute Sound';
         }
 
@@ -1422,6 +1473,120 @@ window.addEventListener('DOMContentLoaded', () => {
         activateMenuItem
     });
 
+    function updateTerminalChoices(frame) {
+        const choicesContainer = document.getElementById('terminal-choices-container');
+        const choicesGrid = document.getElementById('terminal-choices-grid');
+        const choicesPrompt = document.getElementById('choices-prompt-text');
+        if (!choicesContainer || !choicesGrid) return;
+
+        if (!frame || !frame.term || !frame.term.rows) {
+            choicesContainer.style.display = 'none';
+            return;
+        }
+
+        const rows = frame.term.rows.map(r => r.g || '');
+        const screenText = rows.join('\n');
+        const lower = screenText.toLowerCase();
+
+        // Do not show choices strip if mobile hero review card is active
+        const mobileHeroCard = document.getElementById('mobile-hero-card');
+        if (mobileHeroCard && mobileHeroCard.style.display !== 'none') {
+            choicesContainer.style.display = 'none';
+            return;
+        }
+
+        const choices = [];
+        const seenKeys = new Set();
+
+        // Check for Yes/No prompt
+        if (lower.includes('[y/n]') || lower.includes('are you sure?')) {
+            choices.push({ key: 'y', label: 'Yes (y)' });
+            choices.push({ key: 'n', label: 'No (n)' });
+        }
+
+        // Check for Reroll / Stat prompt
+        if (lower.includes('r to reroll') || lower.includes("'r' to reroll")) {
+            choices.push({ key: 'r', label: '🎲 Reroll (r)' });
+            choices.push({ key: 'y', label: '⚔ Accept (y)' });
+            choices.push({ key: 's', label: '⎋ Step Back (s)' });
+        }
+
+        // Check for options pattern e.g. "a) Human", "m) Male", "*) Random", "@) Random"
+        for (const line of rows) {
+            // Split on 2 or more consecutive spaces to handle multi-column layouts
+            const parts = line.split(/\s{2,}/);
+            for (const part of parts) {
+                const m = part.trim().match(/^([a-zA-Z0-9*@?])[\)\.\:]\s*(.+)$/);
+                if (m) {
+                    const key = m[1];
+                    let label = m[2].trim();
+                    // Clean store prices or pound weights
+                    label = label.replace(/\s{2,}\d+.*$/, '').trim();
+                    if (!seenKeys.has(key) && label.length > 0) {
+                        seenKeys.add(key);
+                        choices.push({ key, label });
+                    }
+                }
+            }
+        }
+
+        // Advance prompt if -more- or press any key
+        if (choices.length === 0 && (lower.includes('-more-') || lower.includes('press any key') || lower.includes('[press'))) {
+            choices.push({ key: 'space', label: '💬 Advance (Space)' });
+            choices.push({ key: 'enter', label: '⏎ Continue (Enter)' });
+        }
+
+        if (choices.length === 0) {
+            choicesContainer.style.display = 'none';
+            return;
+        }
+
+        // Sort alphabetical by key, but put special keys (*, @, ?, space, enter) at the end
+        choices.sort((a, b) => {
+            const isSpecialA = ['*', '@', '?', 'space', 'enter'].includes(a.key);
+            const isSpecialB = ['*', '@', '?', 'space', 'enter'].includes(b.key);
+            if (isSpecialA && !isSpecialB) return 1;
+            if (!isSpecialA && isSpecialB) return -1;
+            return a.key.localeCompare(b.key);
+        });
+
+        if (choicesPrompt) {
+            if (lower.includes('choose a sex')) choicesPrompt.textContent = 'CHOOSE GENDER / SEX:';
+            else if (lower.includes('choose a race')) choicesPrompt.textContent = 'CHOOSE CHARACTER RACE:';
+            else if (lower.includes('choose a class')) choicesPrompt.textContent = 'CHOOSE CHARACTER CLASS:';
+            else if (lower.includes('[y/n]')) choicesPrompt.textContent = 'CONFIRM SELECTION:';
+            else choicesPrompt.textContent = 'AVAILABLE CHOICES & OPTIONS:';
+        }
+
+        // Render choice chips
+        choicesGrid.innerHTML = '';
+        for (const c of choices) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'term-choice-chip';
+            btn.dataset.key = c.key;
+            btn.innerHTML = `<span class="chip-key">[${c.key}]</span> <span class="chip-label">${c.label}</span>`;
+            btn.title = `Select ${c.label} [${c.key}]`;
+
+            const fireChoice = (ev) => {
+                if (ev && ev.preventDefault) ev.preventDefault();
+                if (audio) audio.unlock();
+                if (audio) audio.playMenuNav();
+                if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
+                    window.DeviceProfile.triggerHaptic('light');
+                }
+                network.sendKey(c.key);
+            };
+            btn.addEventListener('pointerdown', (ev) => {
+                if (ev.pointerType === 'touch') fireChoice(ev);
+            });
+            btn.addEventListener('click', fireChoice);
+            choicesGrid.appendChild(btn);
+        }
+
+        choicesContainer.style.display = 'flex';
+    }
+
     function updateTerminalToolbar(frame) {
         const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
         const quickBirthBtn = document.getElementById('btn-quick-birth');
@@ -1429,6 +1594,9 @@ window.addEventListener('DOMContentLoaded', () => {
         const termCustomBtn = document.getElementById('btn-term-custom');
         const termAdvanceBtn = document.getElementById('btn-term-advance');
         const termEscapeBtn = document.getElementById('btn-term-escape');
+        const termExitMenuBtn = document.getElementById('btn-term-exit-menu');
+        const choicesContainer = document.getElementById('terminal-choices-container');
+        const termTouchControls = document.getElementById('terminal-touch-controls');
         const storeActionsBar = document.getElementById('store-actions-bar');
         const itemActionsBar = document.getElementById('item-actions-bar');
         const itemButtonsList = document.getElementById('item-buttons-list');
@@ -1451,6 +1619,7 @@ window.addEventListener('DOMContentLoaded', () => {
             // NEVER show store actions bar during character creation or review
             if (storeActionsBar) storeActionsBar.style.display = 'none';
             if (itemActionsBar) itemActionsBar.style.display = 'none';
+            if (termTouchControls) termTouchControls.style.display = 'none';
 
             const isReviewScreen = screenText.includes("use as is") || screenText.includes("'y': use") ||
                                    screenText.includes("to start over") || screenText.includes("r to reroll") ||
@@ -1458,6 +1627,8 @@ window.addEventListener('DOMContentLoaded', () => {
                                    screenText.includes("step back") || screenText.includes("any other key to continue");
 
             if (isReviewScreen) {
+                if (termExitMenuBtn) termExitMenuBtn.style.display = 'none';
+                if (choicesContainer) choicesContainer.style.display = 'none';
                 terminalTitle.textContent = '⚔ REVIEW YOUR HERO';
                 if (quickBirthBtn) quickBirthBtn.style.display = 'none';
                 if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
@@ -1526,11 +1697,17 @@ window.addEventListener('DOMContentLoaded', () => {
                 termAdvanceBtn.textContent = 'Advance (Enter)';
             }
             termEscapeBtn.textContent = 'Back (Esc)';
+            if (termExitMenuBtn) termExitMenuBtn.style.display = 'inline-flex';
+            updateTerminalChoices(frame);
             return;
         }
 
         // --- ACTIVE PLAY (Town or Dungeon) ---
         // Never show character birth or reroll buttons during active play!
+        if (termExitMenuBtn) termExitMenuBtn.style.display = 'none';
+        const showTermTouch = window.DeviceProfile ? (window.DeviceProfile.getTier() !== 'desktop' || window.DeviceProfile.hasTouch()) : (window.innerWidth < 1024);
+        if (termTouchControls) termTouchControls.style.display = showTermTouch ? 'flex' : 'none';
+        updateTerminalChoices(frame);
         if (mobileHeroCard) mobileHeroCard.style.display = 'none';
         if (terminalCanvas) terminalCanvas.style.display = 'block';
         if (terminalToolbar) terminalToolbar.style.display = 'flex';
@@ -1718,6 +1895,15 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    if (window.__app) {
+        Object.assign(window.__app, {
+            updateTerminalChoices,
+            updateTerminalToolbar,
+            needsTerminal,
+            updateViewMode
+        });
+    }
+
     function needsTerminal(frame) {
         if (!frame) return true;
         // If player does not exist yet, we are in birth / character setup
@@ -1788,7 +1974,14 @@ window.addEventListener('DOMContentLoaded', () => {
                     messageFeedWindow.style.display = showMsg ? 'flex' : 'none';
                 }
             }
-            if (topMessageBanner) topMessageBanner.style.display = 'flex';
+            if (topMessageBanner) {
+                topMessageBanner.style.display = 'flex';
+                const topRightBar = document.getElementById('top-right-bar');
+                if (topRightBar) {
+                    const barWidth = topRightBar.offsetWidth || 165;
+                    topMessageBanner.style.paddingRight = `calc(${barWidth + 14}px + var(--safe-right))`;
+                }
+            }
 
             const showTouch = window.DeviceProfile 
                 ? (window.DeviceProfile.getTier() !== 'desktop' || window.DeviceProfile.hasTouch())

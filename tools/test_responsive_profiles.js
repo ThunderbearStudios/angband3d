@@ -555,10 +555,114 @@ async function run() {
         }
         console.log('✓ Mobile Hero Review Card verified: Name, Race, Class, HP, and 48px tactile buttons rendered cleanly!');
         console.log('✓ Top-right bar collapsed cleanly to compact icon buttons (width: ' + heroCardResult.topBarWidth + 'px)!');
-        console.log('✓ Desktop toolbar quarantined (no duplicate buttons) & single /turn suffix verified!');
+        console.log('\n======================================================');
+        console.log('TEST SUITE 11: Classic Mode Touch Controls & Dynamic Choices Strip');
+        console.log('======================================================');
+        // 1. Verify Dynamic Choices Strip during Character Creation
+        const choicesTest = await evalJs(`(() => {
+            const fakeFrame = {
+                phase: 'setup',
+                term: {
+                    rows: [
+                        { y: 0, g: '  Choose a sex:                                                                 ' },
+                        { y: 1, g: '  m) Male                    f) Female                                          ' },
+                        { y: 2, g: '  *) Random                                                                     ' }
+                    ]
+                }
+            };
+            window.__app.updateTerminalToolbar(fakeFrame);
+            const container = document.getElementById('terminal-choices-container');
+            const chips = container.querySelectorAll('.term-choice-chip');
+            return {
+                containerDisplay: window.getComputedStyle(container).display,
+                chipCount: chips.length,
+                chips: Array.from(chips).map(c => ({ key: c.dataset.key, text: c.textContent.trim() }))
+            };
+        })()`);
+        console.log('Choices Test Result:', choicesTest);
+        if (choicesTest.containerDisplay === 'none') {
+            throw new Error('Terminal choices strip should be visible when menu choices are present!');
+        }
+        if (choicesTest.chipCount < 3) {
+            throw new Error(`Expected at least 3 choice chips (Male, Female, Random), got ${choicesTest.chipCount}`);
+        }
+        console.log('✓ Dynamic Choices Strip verified: rendered interactive touch chips for Male, Female, Random!');
+
+        // 2. Verify Classic Mode Touch Controls Dock in Active Play
+        const classicControlsTest = await evalJs(`(() => {
+            const fakePlayFrame = {
+                phase: 'play',
+                map: { rows: [] },
+                player: { x: 5, y: 5, name: 'Hero' },
+                ui: { awaiting_command: true, more: false, overlay: 0 },
+                term: { rows: [{ y: 0, g: 'Classic Town View' }] }
+            };
+            window.__app.setForceTerminal(true);
+            window.__app.updateTerminalToolbar(fakePlayFrame);
+            const touchDock = document.getElementById('terminal-touch-controls');
+            const dpadButtons = touchDock.querySelectorAll('.term-dpad-btn');
+            const actionKeys = touchDock.querySelectorAll('.term-action-key');
+            return {
+                dockDisplay: window.getComputedStyle(touchDock).display,
+                dpadCount: dpadButtons.length,
+                actionKeyCount: actionKeys.length
+            };
+        })()`);
+        console.log('Classic Mode Touch Controls Result:', classicControlsTest);
+        if (classicControlsTest.dockDisplay === 'none') {
+            throw new Error('Terminal touch controls dock should be visible in classic mode on mobile!');
+        }
+        if (classicControlsTest.dpadCount < 5) {
+            throw new Error(`Expected 5 D-pad buttons in classic dock, got ${classicControlsTest.dpadCount}`);
+        }
+        if (classicControlsTest.actionKeyCount < 6) {
+            throw new Error(`Expected at least 6 action keys in classic dock, got ${classicControlsTest.actionKeyCount}`);
+        }
+        console.log('✓ Classic Mode Touch Controls verified: 5-button D-pad & action keys (Esc, Space, 3D, Pack, Gear, Cast)!');
+
+        console.log('\n======================================================');
+        console.log('TEST SUITE 12: Header Message Banner Zero-Overlap Across Viewports');
+        console.log('======================================================');
+        const viewports = [
+            { name: 'Desktop (1920x1080)', w: 1920, h: 1080, mobile: false },
+            { name: 'Tablet (768x1024)', w: 768, h: 1024, mobile: true },
+            { name: 'Phone Portrait (390x844)', w: 390, h: 844, mobile: true },
+            { name: 'Phone Landscape (844x390)', w: 844, h: 390, mobile: true }
+        ];
+
+        for (const vp of viewports) {
+            await setViewport(vp.w, vp.h, vp.mobile);
+            await sleep(150);
+            const overlapCheck = await evalJs(`(() => {
+                const banner = document.getElementById('top-message-banner');
+                const text = document.getElementById('message-text');
+                const topBar = document.getElementById('top-right-bar');
+                // Set long message text
+                text.textContent = 'Accept character history? [y/n] You see a scroll of identify and two potions of cure light wounds on the stone floor.';
+                window.__app.updateViewMode();
+                const bannerStyle = window.getComputedStyle(banner);
+                const paddingRight = parseFloat(bannerStyle.paddingRight) || 0;
+                const topBarRect = topBar.getBoundingClientRect();
+                const textRect = text.getBoundingClientRect();
+                const clearance = topBarRect.left - textRect.right;
+                return {
+                    paddingRight,
+                    topBarWidth: topBarRect.width,
+                    textRight: textRect.right,
+                    topBarLeft: topBarRect.left,
+                    clearance,
+                    bannerDisplay: bannerStyle.display
+                };
+            })()`);
+            console.log(`[${vp.name}] Header clearance:`, overlapCheck);
+            if (overlapCheck.clearance < 0) {
+                throw new Error(`Header text overlaps top-right buttons on ${vp.name}! Clearance=${overlapCheck.clearance}px`);
+            }
+            console.log(`✓ ${vp.name} header verified: ${Math.round(overlapCheck.clearance)}px safe clearance before buttons!`);
+        }
 
         console.log('\n******************************************************');
-        console.log('ALL 10 RESPONSIVE & MOBILE SCALING SUITES PASSED 100%!');
+        console.log('ALL 12 RESPONSIVE & MOBILE SCALING SUITES PASSED 100%!');
         console.log('******************************************************\n');
 
     } finally {
