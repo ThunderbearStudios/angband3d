@@ -1004,6 +1004,7 @@ class WebHUD {
                 stairsText = depth === 0 ? `[>] Down to Dungeon (50')` : `[>] Down to ${(depth + 1) * 50}ft`;
                 if (btnStair) {
                     btnStair.style.display = 'inline-flex';
+                    btnStair.classList.add('stair-active');
                     btnStair.innerHTML = depth === 0 ? '⬇ Enter Dungeon <kbd>&gt;</kbd>' : '⬇ Descend <kbd>&gt;</kbd>';
                     if (btnStair.dataset) btnStair.dataset.key = '>';
                     btnStair.setAttribute('data-key', '>');
@@ -1012,6 +1013,7 @@ class WebHUD {
                 stairsText = depth === 1 ? `[<] Up to Town` : `[<] Up to ${(depth - 1) * 50}ft`;
                 if (btnStair) {
                     btnStair.style.display = 'inline-flex';
+                    btnStair.classList.add('stair-active');
                     btnStair.innerHTML = depth === 1 ? '⬆ Return to Town <kbd>&lt;</kbd>' : '⬆ Ascend <kbd>&lt;</kbd>';
                     if (btnStair.dataset) btnStair.dataset.key = '<';
                     btnStair.setAttribute('data-key', '<');
@@ -1019,6 +1021,7 @@ class WebHUD {
             } else {
                 if (btnStair) {
                     btnStair.style.display = 'none';
+                    btnStair.classList.remove('stair-active');
                 }
             }
             if (this.footerStairsHint) {

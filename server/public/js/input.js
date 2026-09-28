@@ -553,9 +553,35 @@ class InputController {
             }
             return;
         }
+    }
 
-        // Complete Controls & Commands Guide (?)
-        if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    sendMovementKey(key) {
+        if (this.dungeon && typeof this.dungeon.snapCameraToDefault === 'function') {
+            this.dungeon.snapCameraToDefault();
+        }
+        this.network.sendKey(key);
+    }
+
+    handleKeyDown(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        // Global hotkeys (always active)
+        if (e.key === 'F11') {
+            e.preventDefault();
+            this.toggleFullscreen();
+            return;
+        }
+
+        if (e.ctrlKey && (e.key === 'm' || e.key === 'M')) {
+            e.preventDefault();
+            if (this.audio) this.audio.toggleMute();
+            return;
+        }
+
+        // Context prompt: game guide
+        if (e.key === 'F1' || (e.key === '?' && e.target.tagName !== 'INPUT')) {
             e.preventDefault();
             if (window.__app && window.__app.showGuide) {
                 window.__app.showGuide(1, 'game');
@@ -578,10 +604,10 @@ class InputController {
                 this.dungeon.turn(1);
             } else if (e.key === 'ArrowUp' || e.code === 'Numpad8' || e.code === 'Digit8') {
                 const moveKey = this.getRelativeDirectionKey(8);
-                if (moveKey) setTimeout(() => this.network.sendKey(moveKey), 35);
+                if (moveKey) setTimeout(() => this.sendMovementKey(moveKey), 35);
             } else if (e.key === 'ArrowDown' || e.code === 'Numpad2' || e.code === 'Digit2') {
                 const moveKey = this.getRelativeDirectionKey(2);
-                if (moveKey) setTimeout(() => this.network.sendKey(moveKey), 35);
+                if (moveKey) setTimeout(() => this.sendMovementKey(moveKey), 35);
             }
             return;
         }
@@ -592,7 +618,7 @@ class InputController {
             e.preventDefault();
             if (e.shiftKey) {
                 const moveKey = this.getRelativeDirectionKey(4); // Strafe Left
-                if (moveKey) this.network.sendKey(moveKey);
+                if (moveKey) this.sendMovementKey(moveKey);
             } else {
                 this.dungeon.turn(-1);
             }
@@ -603,7 +629,7 @@ class InputController {
             e.preventDefault();
             if (e.shiftKey) {
                 const moveKey = this.getRelativeDirectionKey(6); // Strafe Right
-                if (moveKey) this.network.sendKey(moveKey);
+                if (moveKey) this.sendMovementKey(moveKey);
             } else {
                 this.dungeon.turn(1);
             }
@@ -614,14 +640,14 @@ class InputController {
         if (e.key === 'ArrowUp') {
             e.preventDefault();
             const moveKey = this.getRelativeDirectionKey(8);
-            if (moveKey) this.network.sendKey(moveKey);
+            if (moveKey) this.sendMovementKey(moveKey);
             return;
         }
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             const moveKey = this.getRelativeDirectionKey(2);
-            if (moveKey) this.network.sendKey(moveKey);
+            if (moveKey) this.sendMovementKey(moveKey);
             return;
         }
 
@@ -644,7 +670,7 @@ class InputController {
             const dir = numpadDirMap[e.code];
             const moveKey = this.getRelativeDirectionKey(dir);
             if (moveKey) {
-                this.network.sendKey(moveKey);
+                this.sendMovementKey(moveKey);
             }
             return;
         }
@@ -986,23 +1012,23 @@ class InputController {
         // Directional cardinal and diagonal movement buttons support hold-to-repeat walking
         bindTouch('dpad-up', () => {
             const key = this.getRelativeDirectionKey(8);
-            if (key) this.network.sendKey(key);
+            if (key) this.sendMovementKey(key);
         }, true);
 
         bindTouch('dpad-down', () => {
             const key = this.getRelativeDirectionKey(2);
-            if (key) this.network.sendKey(key);
+            if (key) this.sendMovementKey(key);
         }, true);
 
         // Strafe Left & Strafe Right on primary D-pad cardinal wings
         bindTouch('dpad-left', () => {
             const key = this.getRelativeDirectionKey(4);
-            if (key) this.network.sendKey(key);
+            if (key) this.sendMovementKey(key);
         }, true);
 
         bindTouch('dpad-right', () => {
             const key = this.getRelativeDirectionKey(6);
-            if (key) this.network.sendKey(key);
+            if (key) this.sendMovementKey(key);
         }, true);
 
         // Smart Multifunction Center D-Pad Action
@@ -1024,22 +1050,22 @@ class InputController {
         // Diagonal Touch D-Pad buttons with hold-to-repeat
         bindTouch('dpad-ul', () => {
             const key = this.getRelativeDirectionKey(7);
-            if (key) this.network.sendKey(key);
+            if (key) this.sendMovementKey(key);
         }, true);
 
         bindTouch('dpad-ur', () => {
             const key = this.getRelativeDirectionKey(9);
-            if (key) this.network.sendKey(key);
+            if (key) this.sendMovementKey(key);
         }, true);
 
         bindTouch('dpad-dl', () => {
             const key = this.getRelativeDirectionKey(1);
-            if (key) this.network.sendKey(key);
+            if (key) this.sendMovementKey(key);
         }, true);
 
         bindTouch('dpad-dr', () => {
             const key = this.getRelativeDirectionKey(3);
-            if (key) this.network.sendKey(key);
+            if (key) this.sendMovementKey(key);
         }, true);
     }
 
@@ -1149,44 +1175,105 @@ class InputController {
         const canvas = document.getElementById('viewport-canvas');
         if (!canvas) return;
 
+        canvas.style.touchAction = 'none';
+
+        let isDragging = false;
         let startX = 0;
         let startY = 0;
         let startTime = 0;
-        let isTouching = false;
+        let lastX = 0;
+        let lastY = 0;
+        let activePointerId = null;
 
+        const onStart = (clientX, clientY, pointerId = null) => {
+            isDragging = true;
+            startX = clientX;
+            startY = clientY;
+            startTime = performance.now();
+            lastX = clientX;
+            lastY = clientY;
+            activePointerId = pointerId;
+        };
+
+        const onMove = (clientX, clientY) => {
+            if (!isDragging) return;
+            const dx = clientX - lastX;
+            const dy = clientY - lastY;
+            lastX = clientX;
+            lastY = clientY;
+
+            if (this.dungeon && typeof this.dungeon.rotateFreelook === 'function') {
+                // Smooth 360-degree rotation horizontally and clamped vertical pitch
+                const deltaYaw = -dx * 0.0055;
+                const deltaPitch = dy * 0.0035;
+                this.dungeon.rotateFreelook(deltaYaw, deltaPitch);
+            }
+        };
+
+        const onEnd = (endX = null, endY = null) => {
+            if (!isDragging) return;
+            isDragging = false;
+            activePointerId = null;
+
+            const finalX = endX !== null ? endX : lastX;
+            const finalY = endY !== null ? endY : lastY;
+            const elapsed = performance.now() - startTime;
+            const totalDx = finalX - startX;
+            const totalDy = finalY - startY;
+
+            // Fast horizontal swipe completed within 450ms
+            if (elapsed < 450 && Math.abs(totalDx) > 40 && Math.abs(totalDx) > Math.abs(totalDy) * 1.5) {
+                if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
+                    window.DeviceProfile.triggerHaptic('light');
+                }
+                if (this.dungeon && typeof this.dungeon.turn === 'function') {
+                    if (totalDx > 0) {
+                        this.dungeon.turn(1); // Swipe Right -> Turn Right (clockwise)
+                    } else {
+                        this.dungeon.turn(-1); // Swipe Left -> Turn Left (counter-clockwise)
+                    }
+                }
+            }
+        };
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if (e.isPrimary === false || (e.pointerType === 'mouse' && e.button !== 0)) return;
+            try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+            onStart(e.clientX, e.clientY, e.pointerId);
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!isDragging || (activePointerId !== null && e.pointerId !== activePointerId)) return;
+            onMove(e.clientX, e.clientY);
+        });
+
+        const finishPointer = (e) => {
+            if (activePointerId !== null && e.pointerId === activePointerId) {
+                try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+                onEnd(e.clientX, e.clientY);
+            }
+        };
+        canvas.addEventListener('pointerup', finishPointer);
+        canvas.addEventListener('pointercancel', finishPointer);
+
+        // Touch event fallback
         canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-                startTime = performance.now();
-                isTouching = true;
+            if (e.touches.length === 1 && !isDragging) {
+                onStart(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length === 1) {
+                onMove(e.touches[0].clientX, e.touches[0].clientY);
             }
         }, { passive: true });
 
         canvas.addEventListener('touchend', (e) => {
-            if (!isTouching) return;
-            isTouching = false;
-            if (!e.changedTouches || e.changedTouches.length === 0) return;
-
-            const endX = e.changedTouches[0].clientX;
-            const endY = e.changedTouches[0].clientY;
-            const elapsed = performance.now() - startTime;
-
-            const dx = endX - startX;
-            const dy = endY - startY;
-
-            // Clear horizontal swipe completed within 450ms
-            if (elapsed < 450 && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                if (window.DeviceProfile) window.DeviceProfile.vibrate(12);
-                if (dx > 0) {
-                    // Swiped Right -> Turn Right (clockwise)
-                    this.dungeon.turn(1);
-                } else {
-                    // Swiped Left -> Turn Left (counter-clockwise)
-                    this.dungeon.turn(-1);
-                }
-            }
+            const finalTouch = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+            onEnd(finalTouch ? finalTouch.clientX : null, finalTouch ? finalTouch.clientY : null);
         }, { passive: true });
+        canvas.addEventListener('touchcancel', () => { onEnd(); }, { passive: true });
     }
 
     toggleFullscreen() {

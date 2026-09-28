@@ -1745,6 +1745,26 @@ class Dungeon3D {
     turn(delta) {
         this.facing = ((this.facing + delta) % 4 + 4) % 4;
         this.targetYaw = -this.facing * (Math.PI / 2);
+        this.userPitchOffset = 0.0;
+    }
+
+    rotateFreelook(deltaYaw, deltaPitch) {
+        // Continuous 360-degree horizontal yaw rotation
+        this.targetYaw = (this.targetYaw || 0) + deltaYaw;
+        // Smooth vertical pitch clamping between looking up and down
+        const currentPitch = this.userPitchOffset || 0.0;
+        this.userPitchOffset = Math.max(-0.55, Math.min(0.55, currentPitch + deltaPitch));
+    }
+
+    snapCameraToDefault() {
+        // Snap camera direction and pitch back to character default upon movement
+        this.userPitchOffset = 0.0;
+        const defaultYaw = -this.facing * (Math.PI / 2);
+        // Find closest equivalent angle to avoid long spin
+        const cur = this.targetYaw || 0;
+        const diff = defaultYaw - cur;
+        const wrapped = Math.atan2(Math.sin(diff), Math.cos(diff));
+        this.targetYaw = cur + wrapped;
     }
 
     get yaw() {

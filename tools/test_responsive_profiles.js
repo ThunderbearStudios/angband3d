@@ -544,8 +544,8 @@ async function run() {
         if (heroCardResult.meleeText.includes('/turn/turn')) {
             throw new Error(`Double suffix bug detected in melee text: ${heroCardResult.meleeText}`);
         }
-        if (heroCardResult.topBarWidth > 100) {
-            throw new Error(`Top-right bar too wide on phone (${heroCardResult.topBarWidth}px, expected <= 100px)`);
+        if (heroCardResult.topBarWidth > 130) {
+            throw new Error(`Top-right bar too wide on phone (${heroCardResult.topBarWidth}px, expected <= 130px with restored fullscreen button)`);
         }
         if (heroCardResult.splashTitleNowrap !== 'nowrap') {
             throw new Error(`Splash title must have white-space: nowrap, got: ${heroCardResult.splashTitleNowrap}`);
