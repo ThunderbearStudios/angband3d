@@ -407,20 +407,31 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
   ```powershell
   $env:MSYSTEM='MINGW64'; $env:CHERE_INVOKING='1'
   & C:\msys64\usr\bin\bash.exe -lc "cd /c/Dev/angband3d/engine && cmake --build build"
-  ```              - **Automated Verification (`tools/test_responsive_profiles.js`)**:
-                 - 12 comprehensive test suites automated via headless Chrome with real CDP across Desktop (1920x1080), Tablet (768x1024 / 1024x768), Phone Portrait (390x844), and Phone Landscape (844x390). All 12 suites passing 100%, verifying zero bounding-rect collisions, correct thumb zones, 48px touch targets, collapsed top-right bar (<= 82px), nowrap splash title, clean single suffix, interactive classic mode touch controls, dynamic choices strip, and universal header clearance.
-              - **Classic Terminal Mode Touch Overhaul & Dynamic Choices Strip (`app.js`, `index.html`, `dungeon.css`)**:
-                 - Solved mobile classic mode unworkability by adding `#terminal-touch-controls` dock with 5-button movement D-pad (`▲ N`, `◄ W`, `● Rest`, `► E`, `▼ S`) and 8 primary action keys (`Esc`, `Space`, `3D View`, `Pack`, `Gear`, `Cast`, `Open`, `Rest`).
-                 - Added `#terminal-choices-container` and `#terminal-choices-grid`: dynamically parses in-game options (`a) ...`, `[y/n]`, `r to reroll`, `-more-`) and renders tactile touch option chips for instant single-tap interaction on touchscreens without an on-screen keyboard.
-              - **Predictable Birth & Start Menu State Corrections (`app.js`, `input.js`, `index.html`)**:
-                 - Fixed character creation abort bug: tapping `Back` or pressing <kbd>Esc</kbd> during birth now sends `network.sendKey('escape')` to step back cleanly through Angband's birth questions rather than dumping the player out to the main menu.
-                 - Added dedicated `#btn-term-exit-menu` in `.terminal-actions` so players can intentionally return to the title screen if desired.
-                 - Fixed `[object Object]` bug in hero attribute cards: implemented `formatStatVal` and `formatStatBest` helpers in `mobile-overlay.js` for clean numerical/string display.
-              - **Universal Header Zero-Overlap Across Viewports (`app.js`, `dungeon.css`)**:
-                 - Resolved overlap between `[📜 Log]` / `[🗺 Map]` selector buttons and header text in `#top-message-banner`.
-                 - Dynamic right clearance calculation in `updateViewMode()`: `topMessageBanner.style.paddingRight = calc(${barWidth + 14}px + var(--safe-right))`, ensuring mathematical zero-overlap on Desktop (1254px safe zone), Tablet (684px safe zone), Phone Portrait (306px safe zone), and Phone Landscape (760px safe zone).
-              - **Phone Landscape Mode Re-Architecture (`dungeon.css`)**:
-                 - Redesigned `@media (max-height: 500px) and (orientation: landscape)` for short, wide phone viewports:
-                 - Replaced tall vertical vitals box with an ultra-slim 28px horizontal capsule at top-left (`width: 320px`), displaying name, class, HP, SP, and AC on a single line.
-                 - Scaled D-pad (`scale(0.80)`) and Action Bar (`scale(0.80)`) into bottom thumb zones, scaled minimap to a 72px radar circle, and set compact top safe padding (`max(4px, var(--safe-top))`) across all modals.
+  ```
+- **Automated Responsive Test Suite**: `node tools/test_responsive_profiles.js` (12/12 suites passing)
 
+---
+
+### Priority 8: PWA Standalone App, PC D-Pad Toggle, Shop Item Parsing & Omni-Platform Polish (COMPLETED)
+- **Scope**: `server/public/manifest.json`, `server/public/sw.js`, `server/public/index.html`, `server/public/js/app.js`, `server/public/css/dungeon.css`
+- **Accomplishments**:
+  - **PWA Web App Manifest & Service Worker (`manifest.json`, `sw.js`, `index.html`, `app.js`)**:
+    - Created `manifest.json` with `display: standalone`, `theme_color: #080b12`, category tags, and responsive app icons (`thunderbear_logo.png`).
+    - Added service worker `sw.js` with static shell caching, automatic skip-waiting/claim lifecycle, and transparent pass-through for WebSockets (`/ws`), save file APIs (`/api/`), and health probes.
+    - Linked manifest and Apple touch icons in `index.html` and wired service worker registration on window load.
+  - **PC Desktop D-Pad Toggle & Default Clean 3D Viewport (`app.js`, `index.html`, `dungeon.css`)**:
+    - Addressed user feedback regarding PC D-pad clutter: on desktop viewports (`DeviceProfile.getTier() === 'desktop'`), the on-screen D-pad defaults to hidden, providing an unobstructed full-screen 3D world for keyboard players (WASD / Arrows / Numpad).
+    - Added dedicated `[🕹 D-Pad]` toggle button in `#top-right-bar` next to `[📜 Log]` and `[🗺 Map]`, allowing PC players to display the complete D-pad (with Turn L/R wings, Strafe, and diagonals) on demand.
+    - Added glowing active indicator state (`btn-toggle-dpad.active`) and quarantined the toggle button from mobile phones where virtual touch controls are permanently required.
+  - **Shop Choices Strip & Exploration Dock Sanitization (`app.js`)**:
+    - Resolved shop item clutter: Angband's terminal command strings (`l) Examine`, `p) Buy`, `s) Sell`, `ESC) Exit`) are now detected and filtered from `choicesGrid` so the on-screen choice chips strictly display purchasable/examinable store inventory items.
+    - Completely hid `#terminal-touch-controls` (dungeon exploration movement dock) while inside stores, preventing buttons like `Cast` or `Open` from obscuring shop terminal rows.
+  - **Staircase Action Button Strict Visibility Invariant (`dungeon.css`)**:
+    - Enforced `#action-bar.drawer-open #btn-stair:not(.stair-active), #action-bar #btn-stair:not(.stair-active) { display: none !important; }`, fixing the bug where opening the mobile action drawer displayed `⬇ Enter Dungeon >` even when the player was not standing on stairs.
+  - **Mobile Portrait Header & Footer Overlap / Truncation Resolution (`dungeon.css`)**:
+    - Increased `.top-message-banner` `padding-right` from 180px to `calc(220px + var(--safe-right)) !important`, ensuring live combat notices never run under or collide with the 5 top-right utility buttons (`[📜] [🗺] [🔊] [⛶] [⚙]`).
+    - Added horizontal scroll without visible scrollbars (`overflow-x: auto; white-space: nowrap; scrollbar-width: none`) to `#hud-footer`, eliminating status pill truncation on narrow phone screens while keeping all telemetry accessible.
+- **Verification**:
+  - Engine smoke tests: **11/11 passed**.
+  - Godot C# client build: **0 warnings, 0 errors**.
+  - Automated responsive test suite (`tools/test_responsive_profiles.js`): **12/12 suites passing 100%** on Chrome CDP across Desktop (1920x1080), Tablet (768x1024 / 1024x768), Phone Portrait (390x844), and Phone Landscape (844x390).

@@ -11,7 +11,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Fira+Code:wght@400;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/dungeon.css?v=5.0">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
+    <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
+    <link rel="stylesheet" href="/css/dungeon.css?v=5.1">
 </head>
 <body>
     <div id="app-container">
@@ -116,6 +119,7 @@
             <div id="ping-badge" class="badge">Cloud [Connecting...]</div>
             <button id="btn-toggle-msg-feed" class="icon-btn in-game-only" title="Toggle Message Log Feed [L]"><span class="msg-icon">📜</span> <span class="msg-label">Log</span></button>
             <button id="btn-toggle-minimap" class="icon-btn in-game-only" title="Toggle Minimap Radar [M]"><span class="map-icon">🗺</span> <span class="map-label">Map</span></button>
+            <button id="btn-toggle-dpad" class="icon-btn in-game-only" title="Toggle On-Screen D-Pad [D]"><span class="dpad-icon">🕹</span> <span class="dpad-label">D-Pad</span></button>
             <button id="btn-controls" class="icon-btn" title="View Complete Controls &amp; Commands Guide [?]"><span class="ctrl-icon">⌨</span> <span class="ctrl-label">Controls (?)</span></button>
             <div id="sound-control-group" class="sound-control-group" title="Global Audio Volume &amp; Mute [Ctrl-M]">
                 <button id="btn-sound" class="icon-btn btn-sound" title="Toggle Sound / Mute [Ctrl-M]"><span class="sound-icon">🔊</span><span class="sound-label">Sound</span></button>
@@ -741,14 +745,14 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=5.0"></script>
-    <script src="/js/mobile-overlay.js?v=5.0"></script>
-    <script src="/js/audio.js?v=5.0"></script>
-    <script src="/js/terminal.js?v=5.0"></script>
-    <script src="/js/dungeon3d.js?v=5.0"></script>
-    <script src="/js/hud.js?v=5.0"></script>
-    <script src="/js/network.js?v=5.0"></script>
-    <script src="/js/input.js?v=5.0"></script>
-    <script src="/js/app.js?v=5.0"></script>
+    <script src="/js/device.js?v=5.1"></script>
+    <script src="/js/mobile-overlay.js?v=5.1"></script>
+    <script src="/js/audio.js?v=5.1"></script>
+    <script src="/js/terminal.js?v=5.1"></script>
+    <script src="/js/dungeon3d.js?v=5.1"></script>
+    <script src="/js/hud.js?v=5.1"></script>
+    <script src="/js/network.js?v=5.1"></script>
+    <script src="/js/input.js?v=5.1"></script>
+    <script src="/js/app.js?v=5.1"></script>
 </body>
 </html>

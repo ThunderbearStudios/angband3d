@@ -2663,10 +2663,14 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     }
     #top-right-bar .msg-label,
     #top-right-bar .map-label,
+    #top-right-bar .dpad-label,
     #top-right-bar .sound-label,
     #top-right-bar .menu-label,
     #top-right-bar .ctrl-label,
     #top-right-bar .fs-label {
+        display: none !important;
+    }
+    #top-right-bar #btn-toggle-dpad {
         display: none !important;
     }
     #top-right-bar #btn-toggle-msg-feed,
@@ -2695,7 +2699,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         display: none !important;
     }
     #top-right-bar #btn-toggle-msg-feed.active,
-    #top-right-bar #btn-toggle-minimap.active {
+    #top-right-bar #btn-toggle-minimap.active,
+    #top-right-bar #btn-toggle-dpad.active {
         border-color: #ffd700 !important;
         background: rgba(45, 36, 16, 0.95) !important;
         box-shadow: 0 0 10px rgba(255, 215, 0, 0.45) !important;
@@ -2886,7 +2891,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     .top-message-banner {
         height: 32px;
         padding-left: max(10px, var(--safe-left)) !important;
-        padding-right: calc(180px + var(--safe-right)) !important;
+        padding-right: calc(220px + var(--safe-right)) !important;
         cursor: pointer;
     }
 
@@ -2894,9 +2899,20 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         font-size: 12px;
     }
 
-    /* Streamlined Footer Pills on Phone */
+    /* Streamlined Non-Truncating Footer on Phone */
     #hud-footer {
         padding: 2px 8px;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        white-space: nowrap !important;
+        scrollbar-width: none !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    #hud-footer::-webkit-scrollbar {
+        display: none !important;
+    }
+    #hud-footer .status-group {
+        flex-shrink: 0 !important;
     }
 
     .status-pill {
@@ -3174,6 +3190,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         display: inline-flex !important;
     }
 
+    #action-bar.drawer-open #btn-stair:not(.stair-active),
+    #action-bar #btn-stair:not(.stair-active),
     #btn-stair:not(.stair-active) {
         display: none !important;
     }
@@ -3222,6 +3240,11 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         right: 0 !important;
         width: 100% !important;
         height: 36px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        white-space: nowrap !important;
+        scrollbar-width: none !important;
+        -webkit-overflow-scrolling: touch !important;
         padding: 2px 8px !important;
         display: flex !important;
         justify-content: space-between !important;
