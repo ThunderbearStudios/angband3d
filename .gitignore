@@ -40,3 +40,4 @@ Thumbs.db
 /screenshot*.png
 /*.png
 tools/temp_chrome_*/
+scratch/

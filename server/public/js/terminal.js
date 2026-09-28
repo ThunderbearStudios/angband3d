@@ -34,9 +34,110 @@ class WebTerminal {
         ];
 
         this.lastRows = [];
+        this.zoomLevel = 1.0;
+        this.minZoom = 0.6;
+        this.maxZoom = 2.5;
+        this.zoomStep = 0.25;
+
         this.resize();
         window.addEventListener('resize', () => this.resize());
         this.setupMouseEvents();
+        this.setupZoomControls();
+    }
+
+    setZoom(level) {
+        const target = Math.max(this.minZoom, Math.min(this.maxZoom, Math.round(level * 100) / 100));
+        if (Math.abs(target - this.zoomLevel) < 0.01) return;
+        this.zoomLevel = target;
+        this.updateZoomUI();
+        this.resize();
+    }
+
+    zoomIn() {
+        this.setZoom(this.zoomLevel + this.zoomStep);
+    }
+
+    zoomOut() {
+        this.setZoom(this.zoomLevel - this.zoomStep);
+    }
+
+    resetZoom() {
+        this.setZoom(1.0);
+    }
+
+    updateZoomUI() {
+        const btnReset = document.getElementById('btn-term-zoom-reset');
+        if (btnReset) {
+            btnReset.textContent = `${Math.round(this.zoomLevel * 100)}%`;
+            btnReset.title = `Current Zoom: ${Math.round(this.zoomLevel * 100)}% (Click to reset to Fit)`;
+        }
+    }
+
+    setupZoomControls() {
+        const btnZoomIn = document.getElementById('btn-term-zoom-in');
+        const btnZoomOut = document.getElementById('btn-term-zoom-out');
+        const btnZoomReset = document.getElementById('btn-term-zoom-reset');
+
+        if (btnZoomIn) {
+            btnZoomIn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.zoomIn();
+            });
+        }
+        if (btnZoomOut) {
+            btnZoomOut.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.zoomOut();
+            });
+        }
+        if (btnZoomReset) {
+            btnZoomReset.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.resetZoom();
+            });
+        }
+
+        // Viewport pinch-to-zoom and wheel zoom
+        const viewport = document.getElementById('terminal-viewport');
+        if (viewport) {
+            viewport.addEventListener('wheel', (e) => {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    const delta = e.deltaY < 0 ? 0.15 : -0.15;
+                    this.setZoom(this.zoomLevel + delta);
+                }
+            }, { passive: false });
+
+            let initialPinchDist = null;
+            let initialZoom = 1.0;
+
+            viewport.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    initialPinchDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    initialZoom = this.zoomLevel;
+                }
+            }, { passive: true });
+
+            viewport.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2 && initialPinchDist) {
+                    const currentDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    const factor = currentDist / initialPinchDist;
+                    this.setZoom(initialZoom * factor);
+                }
+            }, { passive: true });
+
+            const endPinch = () => {
+                initialPinchDist = null;
+            };
+            viewport.addEventListener('touchend', endPinch, { passive: true });
+            viewport.addEventListener('touchcancel', endPinch, { passive: true });
+        }
     }
 
     resize() {
@@ -53,17 +154,23 @@ class WebTerminal {
         this.charHeight = baseCellHeight;
         this.fontSize = Math.floor(this.charHeight * 0.82);
 
-        // Responsive CSS display sizing that fits ANY viewport without horizontal overflow
-        const availW = Math.min(window.innerWidth * 0.96, 1200);
-        const availH = Math.min((window.innerHeight - 80) * 0.90, 750);
-        const scale = Math.min(availW / logicalWidth, availH / logicalHeight, 1.0);
+        // Responsive base scale that fits available viewport without overflow
+        const viewport = document.getElementById('terminal-viewport');
+        const containerW = viewport ? viewport.clientWidth : window.innerWidth;
+        const containerH = viewport ? viewport.clientHeight : (window.innerHeight - 100);
 
-        const cssW = Math.floor(logicalWidth * scale);
-        const cssH = Math.floor(logicalHeight * scale);
+        const availW = Math.max(280, Math.min((containerW || window.innerWidth) * 0.98, 1200));
+        const availH = Math.max(200, Math.min((containerH || (window.innerHeight - 100)) * 0.95, 750));
+        const baseScale = Math.min(availW / logicalWidth, availH / logicalHeight, 1.0);
+
+        const effectiveScale = baseScale * this.zoomLevel;
+        const cssW = Math.floor(logicalWidth * effectiveScale);
+        const cssH = Math.floor(logicalHeight * effectiveScale);
 
         this.canvas.style.width = `${cssW}px`;
         this.canvas.style.height = `${cssH}px`;
-        this.canvas.style.maxWidth = '100%';
+        this.canvas.style.maxWidth = this.zoomLevel > 1.05 ? 'none' : '100%';
+        this.canvas.style.flexShrink = '0';
         this.canvas.style.objectFit = 'contain';
 
         this.ctx.scale(dpr, dpr);

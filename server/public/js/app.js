@@ -1501,147 +1501,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     function updateTerminalChoices(frame) {
-        const choicesContainer = document.getElementById('terminal-choices-container');
-        const choicesGrid = document.getElementById('terminal-choices-grid');
-        const choicesPrompt = document.getElementById('choices-prompt-text');
-        if (!choicesContainer || !choicesGrid) return;
-
-        if (!frame || !frame.term || !frame.term.rows) {
-            choicesContainer.style.display = 'none';
-            return;
-        }
-
-        const rows = frame.term.rows.map(r => r.g || '');
-        const screenText = rows.join('\n');
-        const lower = screenText.toLowerCase();
-
-        // Do not show choices strip if mobile hero review card is active
-        const mobileHeroCard = document.getElementById('mobile-hero-card');
-        if (mobileHeroCard && mobileHeroCard.style.display !== 'none') {
-            choicesContainer.style.display = 'none';
-            return;
-        }
-
-        const choices = [];
-        const seenKeys = new Set();
-
-        // Check for Yes/No prompt
-        if (lower.includes('[y/n]') || lower.includes('are you sure?')) {
-            choices.push({ key: 'y', label: 'Yes (y)' });
-            choices.push({ key: 'n', label: 'No (n)' });
-        }
-
-        // Check for Stat Roller / Reset prompt
-        if (lower.includes("r' to reset") || lower.includes("r to reset")) {
-            choices.push({ key: 'enter', label: '⚔ Accept Stats (Enter)' });
-            choices.push({ key: 'r', label: '🔄 Reset Stats (r)' });
-            choices.push({ key: 'escape', label: '⎋ Step Back (Esc)' });
-        } else if (lower.includes('r to reroll') || lower.includes("'r' to reroll")) {
-            choices.push({ key: 'y', label: '⚔ Accept (y)' });
-            choices.push({ key: 'enter', label: '⚔ Accept (Enter)' });
-            choices.push({ key: 'r', label: '🎲 Reroll (r)' });
-            choices.push({ key: 's', label: '⎋ Step Back (s)' });
-        }
-
-        // Check for Name Prompt
-        if (lower.includes("player's name") || lower.includes("player name") || (lower.includes("name:") && lower.includes("enter to accept"))) {
-            choices.push({ key: 'enter', label: '⏎ Keep Name (Enter)' });
-            choices.push({ key: '*', label: '🎲 Random Name (*)' });
-            choices.push({ key: 'escape', label: '⎋ Back (Esc)' });
-        }
-
-        const isStoreMode = lower.includes('store inventory') ||
-                            lower.includes('home inventory') ||
-                            lower.includes('gold remaining') ||
-                            lower.includes('purchase which item') ||
-                            lower.includes('sell which item') ||
-                            lower.includes('examine which item');
-
-        // Check for options pattern e.g. "a) Human", "m) Male", "*) Random", "@) Random"
-        // Collect all interactive options across single and multi-column grid layouts
-        for (const line of rows) {
-            const parts = line.split(/\s{2,}/);
-            for (const part of parts) {
-                const m = part.trim().match(/^([a-zA-Z0-9*@?])[\)\.]\s*(.+)$/);
-                if (m) {
-                    const key = m[1];
-                    let label = m[2].trim();
-                    // Clean store prices or pound weights
-                    label = label.replace(/\s{2,}\d+.*$/, '').trim();
-                    if (label.length > 0 && !seenKeys.has(key)) {
-                        // In store mode, filter out terminal help/command lines so only actual items appear
-                        if (isStoreMode) {
-                            const isCommandHelp = /^(examine|purchase|buy|sell|exit|command|press|wear|wield|take off|drop|switch|more)/i.test(label);
-                            if (isCommandHelp) continue;
-                        }
-                        seenKeys.add(key);
-                        choices.push({ key, label });
-                    }
-                }
-            }
-        }
-
-        // Advance prompt if -more- or press any key
-        if (choices.length === 0 && (lower.includes('-more-') || lower.includes('press any key') || lower.includes('[press'))) {
-            choices.push({ key: 'space', label: '💬 Advance (Space)' });
-            choices.push({ key: 'enter', label: '⏎ Continue (Enter)' });
-        }
-
-        if (choices.length === 0) {
-            choicesContainer.style.display = 'none';
-            return;
-        }
-
-        // Sort alphabetical by key, but put special keys (*, @, ?, space, enter, escape) at the end
-        choices.sort((a, b) => {
-            const isSpecialA = ['*', '@', '?', 'space', 'enter', 'escape'].includes(a.key);
-            const isSpecialB = ['*', '@', '?', 'space', 'enter', 'escape'].includes(b.key);
-            if (isSpecialA && !isSpecialB) return 1;
-            if (!isSpecialA && isSpecialB) return -1;
-            return a.key.localeCompare(b.key);
-        });
-
-        if (choicesPrompt) {
-            if (lower.includes('choose a sex')) choicesPrompt.textContent = 'CHOOSE GENDER / SEX:';
-            else if (lower.includes('choose a race')) choicesPrompt.textContent = 'CHOOSE CHARACTER RACE:';
-            else if (lower.includes('choose a class')) choicesPrompt.textContent = 'CHOOSE CHARACTER CLASS:';
-            else if (lower.includes('point-based') || lower.includes('intrinsic stats')) choicesPrompt.textContent = 'CHOOSE STAT GENERATION METHOD:';
-            else if (lower.includes("r' to reset") || lower.includes("r to reroll")) choicesPrompt.textContent = 'MODIFY / ACCEPT STATS:';
-            else if (lower.includes("player's name") || lower.includes("player name")) choicesPrompt.textContent = 'CHOOSE CHARACTER NAME:';
-            else if (lower.includes('purchase which item')) choicesPrompt.textContent = 'SELECT ITEM TO PURCHASE:';
-            else if (lower.includes('sell which item')) choicesPrompt.textContent = 'SELECT ITEM TO SELL:';
-            else if (lower.includes('examine which item')) choicesPrompt.textContent = 'SELECT ITEM TO EXAMINE:';
-            else if (lower.includes('[y/n]')) choicesPrompt.textContent = 'CONFIRM SELECTION:';
-            else choicesPrompt.textContent = 'AVAILABLE CHOICES & OPTIONS:';
-        }
-
-        // Render choice chips
-        choicesGrid.innerHTML = '';
-        for (const c of choices) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'term-choice-chip';
-            btn.dataset.key = c.key;
-            btn.innerHTML = `<span class="chip-key">[${c.key}]</span> <span class="chip-label">${c.label}</span>`;
-            btn.title = `Select ${c.label} [${c.key}]`;
-
-            const fireChoice = (ev) => {
-                if (ev && ev.preventDefault) ev.preventDefault();
-                if (audio) audio.unlock();
-                if (audio) audio.playMenuNav();
-                if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
-                    window.DeviceProfile.triggerHaptic('light');
-                }
-                network.sendKey(c.key);
-            };
-            btn.addEventListener('pointerdown', (ev) => {
-                if (ev.pointerType === 'touch') fireChoice(ev);
-            });
-            btn.addEventListener('click', fireChoice);
-            choicesGrid.appendChild(btn);
-        }
-
-        choicesContainer.style.display = 'flex';
+        // Native Angband 80x24 terminal zoom & cursor navigation replaced artificial choice chips
     }
 
     function updateTerminalToolbar(frame) {
@@ -1652,13 +1512,10 @@ window.addEventListener('DOMContentLoaded', () => {
         const termAdvanceBtn = document.getElementById('btn-term-advance');
         const termEscapeBtn = document.getElementById('btn-term-escape');
         const termExitMenuBtn = document.getElementById('btn-term-exit-menu');
-        const choicesContainer = document.getElementById('terminal-choices-container');
         const termTouchControls = document.getElementById('terminal-touch-controls');
         const storeActionsBar = document.getElementById('store-actions-bar');
         const itemActionsBar = document.getElementById('item-actions-bar');
         const itemButtonsList = document.getElementById('item-buttons-list');
-        const btnItemSwitch = document.getElementById('btn-item-switch');
-        const btnItemCancel = document.getElementById('btn-item-cancel');
         const mobileHeroCard = document.getElementById('mobile-hero-card');
         const terminalCanvas = document.getElementById('terminal-canvas');
         const terminalToolbar = document.querySelector('.terminal-toolbar');
@@ -1685,7 +1542,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (isReviewScreen) {
                 if (termExitMenuBtn) termExitMenuBtn.style.display = 'none';
-                if (choicesContainer) choicesContainer.style.display = 'none';
                 terminalTitle.textContent = '⚔ REVIEW YOUR HERO';
                 if (quickBirthBtn) quickBirthBtn.style.display = 'none';
                 if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
@@ -1755,7 +1611,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             termEscapeBtn.textContent = 'Back (Esc)';
             if (termExitMenuBtn) termExitMenuBtn.style.display = 'inline-flex';
-            updateTerminalChoices(frame);
             return;
         }
 
@@ -1764,7 +1619,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (termExitMenuBtn) termExitMenuBtn.style.display = 'none';
         const showTermTouch = window.DeviceProfile ? (window.DeviceProfile.getTier() !== 'desktop' || window.DeviceProfile.hasTouch()) : (window.innerWidth < 1024);
         if (termTouchControls) termTouchControls.style.display = showTermTouch ? 'flex' : 'none';
-        updateTerminalChoices(frame);
         if (mobileHeroCard) mobileHeroCard.style.display = 'none';
         if (terminalCanvas) terminalCanvas.style.display = 'block';
         if (terminalToolbar) terminalToolbar.style.display = 'flex';
@@ -1774,7 +1628,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (termCustomBtn) termCustomBtn.style.display = 'none';
 
         // Check if player is inside a store in town:
-        // A store is active when inOverlay > 0 OR player is on a store feat 7-14 OR terminal contains store text
+        // A store is STRICTLY active ONLY when inOverlay > 0! Never when walking around town (inOverlay === 0).
         let playerFeat = 0;
         if (frame.map && frame.map.rows && frame.player) {
             const py = frame.player.y;
@@ -1785,21 +1639,10 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         const isStoreFeat = playerFeat >= 7 && playerFeat <= 14;
+        const inOverlay = Boolean(frame.ui && (frame.ui.overlay || 0) > 0);
         const hasStoreText = screenText.includes('store inventory') ||
                              screenText.includes('home inventory') ||
                              screenText.includes('gold remaining') ||
-                             screenText.includes('your home') ||
-                             screenText.includes('general store') ||
-                             screenText.includes('armory') ||
-                             screenText.includes('armoury') ||
-                             screenText.includes('weaponsmith') ||
-                             screenText.includes('weapon smith') ||
-                             screenText.includes('temple') ||
-                             screenText.includes('alchemist') ||
-                             screenText.includes('alchemy') ||
-                             screenText.includes('magic shop') ||
-                             screenText.includes('magic user') ||
-                             screenText.includes('black market') ||
                              screenText.includes('purchase which item') ||
                              screenText.includes('sell which item') ||
                              screenText.includes('examine which item');
@@ -1816,8 +1659,7 @@ window.addEventListener('DOMContentLoaded', () => {
                              screenText.includes('take off') ||
                              screenText.includes('destroy which');
 
-        const inOverlay = Boolean(frame.ui && (frame.ui.overlay || 0) > 0);
-        const isStore = !isItemPrompt && (hasStoreText || (isStoreFeat && inOverlay));
+        const isStore = inOverlay && !isItemPrompt && (isStoreFeat || hasStoreText);
 
         if (isStore) {
             // Player is inside a store
@@ -1851,7 +1693,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (itemActionsBar) itemActionsBar.style.display = 'none';
             if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
             if (termEscapeBtn) termEscapeBtn.style.display = 'none'; // btn-store-exit handles exit cleanly
-            if (termTouchControls) termTouchControls.style.display = 'none'; // Hide exploration dock inside shops
+            if (termTouchControls) termTouchControls.style.display = showTermTouch ? 'flex' : 'none'; // D-pad active in stores for scrolling & selection!
 
             // If store prompt has -more- or confirmation (e.g. storekeeper greeting, buy/sell confirm), display Advance button
             const isStoreMore = Boolean(frame.ui && frame.ui.more) ||

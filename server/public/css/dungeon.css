@@ -3292,89 +3292,69 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 /* ------------------------------------------------------------------------------
-   DYNAMIC TERMINAL CHOICES STRIP & CLASSIC TOUCH CONTROLS
+   ZOOMABLE TERMINAL VIEWPORT & CLASSIC TOUCH CONTROLS
    ------------------------------------------------------------------------------ */
-.terminal-choices-container {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+.terminal-viewport {
+    flex: 1 1 auto;
     width: 100%;
-    max-width: 820px;
-    margin: 4px auto 0;
-    padding: 8px 10px;
-    background: rgba(10, 14, 22, 0.95);
-    border: 1px solid rgba(212, 175, 55, 0.45);
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.75);
-    box-sizing: border-box;
-    max-height: 240px;
-    overflow-y: auto;
+    max-height: calc(88vh - 120px);
+    max-height: calc(88dvh - 120px);
+    overflow: auto;
     -webkit-overflow-scrolling: touch;
-}
-
-.choices-header {
+    touch-action: pan-x pan-y;
+    position: relative;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(212, 175, 55, 0.25);
-    padding-bottom: 4px;
-}
-
-.choices-prompt-text {
-    font-family: var(--font-fantasy);
-    font-size: 11.5px;
-    font-weight: 700;
-    color: var(--gold-bright);
-    letter-spacing: 1px;
-}
-
-.terminal-choices-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
     justify-content: center;
-    align-items: center;
-    padding: 4px 0;
+    align-items: flex-start;
+    border-radius: 6px;
+    background: #04060a;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(212, 175, 55, 0.4) transparent;
 }
 
-.term-choice-chip {
-    min-height: 42px;
-    padding: 6px 12px;
-    background: linear-gradient(180deg, rgba(22, 28, 42, 0.95), rgba(12, 16, 26, 0.95));
-    border: 1px solid rgba(212, 175, 55, 0.4);
-    border-radius: 6px;
-    color: #f0f4f8;
-    font-family: var(--font-fantasy);
-    font-size: 12.5px;
-    font-weight: 600;
-    cursor: pointer;
+.terminal-viewport::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.terminal-viewport::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.terminal-viewport::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.4);
+    border-radius: 3px;
+}
+
+.terminal-zoom-controls {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-    transition: all 0.15s ease;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
+    gap: 3px;
+    background: rgba(18, 24, 38, 0.85);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 6px;
+    padding: 2px 4px;
 }
 
-.term-choice-chip:hover,
-.term-choice-chip:active {
-    background: linear-gradient(180deg, rgba(45, 36, 16, 0.98), rgba(28, 22, 10, 0.98));
-    border-color: #ffd700;
-    color: #fff;
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
-    transform: translateY(-1px);
-}
-
-.term-choice-chip .chip-key {
+.term-zoom-btn {
+    background: transparent;
+    border: none;
     color: var(--gold-bright);
     font-family: var(--font-terminal);
+    font-size: 11.5px;
     font-weight: 700;
-    font-size: 13px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    touch-action: manipulation;
 }
 
-.term-choice-chip .chip-label {
-    letter-spacing: 0.3px;
+.term-zoom-btn:hover,
+.term-zoom-btn:active {
+    background: rgba(212, 175, 55, 0.2);
+    color: #fff;
 }
 
 /* Mobile Classic Touch Controller Dock */
@@ -3384,8 +3364,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     align-items: center;
     width: 100%;
     max-width: 680px;
-    margin: 6px auto 0;
-    gap: 12px;
+    margin: 4px auto 0;
+    gap: 10px;
     padding: 6px 10px;
     background: rgba(8, 12, 20, 0.92);
     border: 1px solid rgba(212, 175, 55, 0.4);
@@ -3393,6 +3373,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     box-sizing: border-box;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    flex-shrink: 0;
 }
 
 .term-touch-dpad-col {

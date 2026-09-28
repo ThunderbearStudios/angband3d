@@ -14,7 +14,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=5.2">
+    <link rel="stylesheet" href="/css/dungeon.css?v=5.3">
 </head>
 <body>
     <div id="app-container">
@@ -31,6 +31,11 @@
             <div class="terminal-card">
                 <div class="terminal-toolbar">
                     <div class="terminal-title" id="terminal-title">⚔ ANGBAND CLASSIC TERMINAL</div>
+                    <div class="terminal-zoom-controls">
+                        <button type="button" id="btn-term-zoom-out" class="term-zoom-btn" title="Zoom Out Classic Terminal [ - ]">🔍 -</button>
+                        <button type="button" id="btn-term-zoom-reset" class="term-zoom-btn" title="Reset Zoom to Fit Screen">100%</button>
+                        <button type="button" id="btn-term-zoom-in" class="term-zoom-btn" title="Zoom In Classic Terminal [ + ]">🔍 +</button>
+                    </div>
                     <div id="store-actions-bar" class="store-actions-bar" style="display: none;">
                         <button id="btn-store-advance" class="btn-store-action" style="display: none;" title="Advance prompt [Space]">💬 Advance (Space)</button>
                         <button id="btn-store-buy" class="btn-store-action" title="Purchase item from store inventory [p]">💰 Buy (p)</button>
@@ -54,13 +59,8 @@
                         <button id="btn-term-exit-menu" class="btn-gold-outline" style="display: none;" title="Exit to Main Menu">✕ Main Menu</button>
                     </div>
                 </div>
-                <canvas id="terminal-canvas"></canvas>
-                <!-- Dynamic On-Screen Choice Strip (Touch options for Birth, Prompts & Menus) -->
-                <div id="terminal-choices-container" class="terminal-choices-container" style="display: none;">
-                    <div class="choices-header">
-                        <span id="choices-prompt-text" class="choices-prompt-text">AVAILABLE CHOICES</span>
-                    </div>
-                    <div id="terminal-choices-grid" class="terminal-choices-grid"></div>
+                <div id="terminal-viewport" class="terminal-viewport">
+                    <canvas id="terminal-canvas"></canvas>
                 </div>
                 <!-- Mobile Classic Touch Controller Dock (D-pad + Action keys for playing in Classic Mode) -->
                 <div id="terminal-touch-controls" class="terminal-touch-controls" style="display: none;">
@@ -186,9 +186,9 @@
                 <button type="button" id="dpad-up" class="dpad-btn dpad-cardinal dpad-up" title="Move Forward [8 / Up]">▲</button>
                 <button type="button" id="dpad-ur" class="dpad-btn dpad-diag dpad-ur" title="Step North-East [9]">↗<span class="diag-num">9</span></button>
 
-                <button type="button" id="dpad-left" class="dpad-btn dpad-cardinal dpad-strafe dpad-left" title="Strafe Left [4 / A]">⇦<span class="dpad-sub-lbl">Strafe</span></button>
+                <button type="button" id="dpad-left" class="dpad-btn dpad-cardinal dpad-strafe dpad-left" title="Strafe Left [4]">⇦<span class="dpad-sub-lbl">Strafe</span></button>
                 <button type="button" id="dpad-center" class="dpad-btn dpad-center" title="Attack / Wait [5 / Space]">⚔</button>
-                <button type="button" id="dpad-right" class="dpad-btn dpad-cardinal dpad-strafe dpad-right" title="Strafe Right [6 / D]">⇨<span class="dpad-sub-lbl">Strafe</span></button>
+                <button type="button" id="dpad-right" class="dpad-btn dpad-cardinal dpad-strafe dpad-right" title="Strafe Right [6]">⇨<span class="dpad-sub-lbl">Strafe</span></button>
 
                 <button type="button" id="dpad-dl" class="dpad-btn dpad-diag dpad-dl" title="Step South-West [1]">↙<span class="diag-num">1</span></button>
                 <button type="button" id="dpad-down" class="dpad-btn dpad-cardinal dpad-down" title="Move Backward [2 / Down]">▼</button>
@@ -745,14 +745,14 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=5.2"></script>
-    <script src="/js/mobile-overlay.js?v=5.2"></script>
-    <script src="/js/audio.js?v=5.2"></script>
-    <script src="/js/terminal.js?v=5.2"></script>
-    <script src="/js/dungeon3d.js?v=5.2"></script>
-    <script src="/js/hud.js?v=5.2"></script>
-    <script src="/js/network.js?v=5.2"></script>
-    <script src="/js/input.js?v=5.2"></script>
-    <script src="/js/app.js?v=5.2"></script>
+    <script src="/js/device.js?v=5.3"></script>
+    <script src="/js/mobile-overlay.js?v=5.3"></script>
+    <script src="/js/audio.js?v=5.3"></script>
+    <script src="/js/terminal.js?v=5.3"></script>
+    <script src="/js/dungeon3d.js?v=5.3"></script>
+    <script src="/js/hud.js?v=5.3"></script>
+    <script src="/js/network.js?v=5.3"></script>
+    <script src="/js/input.js?v=5.3"></script>
+    <script src="/js/app.js?v=5.3"></script>
 </body>
 </html>

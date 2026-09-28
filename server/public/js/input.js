@@ -179,12 +179,12 @@ class InputController {
                     if (window.__app) window.__app.showSplash();
                     return;
                 }
-                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                if (e.key === 'ArrowUp' || e.code === 'Numpad8') {
                     e.preventDefault();
                     if (window.__app) window.__app.navigateMenu(-1);
                     return;
                 }
-                if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                if (e.key === 'ArrowDown' || e.code === 'Numpad2') {
                     e.preventDefault();
                     if (window.__app) window.__app.navigateMenu(1);
                     return;
@@ -213,12 +213,12 @@ class InputController {
                     if (window.__app) window.__app.hideLoadMenu();
                     return;
                 }
-                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                if (e.key === 'ArrowUp' || e.code === 'Numpad8') {
                     e.preventDefault();
                     if (window.__app) window.__app.navigateLoadList(-1);
                     return;
                 }
-                if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                if (e.key === 'ArrowDown' || e.code === 'Numpad2') {
                     e.preventDefault();
                     if (window.__app) window.__app.navigateLoadList(1);
                     return;
@@ -253,12 +253,12 @@ class InputController {
                     if (window.__app) window.__app.resumeGame();
                     return;
                 }
-                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                if (e.key === 'ArrowUp' || e.code === 'Numpad8') {
                     e.preventDefault();
                     if (window.__app) window.__app.navigatePauseMenu(-1);
                     return;
                 }
-                if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                if (e.key === 'ArrowDown' || e.code === 'Numpad2') {
                     e.preventDefault();
                     if (window.__app) window.__app.navigatePauseMenu(1);
                     return;
@@ -464,12 +464,36 @@ class InputController {
             return;
         }
 
+        // Terminal Zoom Shortcuts (Ctrl + / - or direct + / - on non-input)
+        if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
+            e.preventDefault();
+            if (window.__app && window.__app.terminal && window.__app.terminal.zoomIn) {
+                window.__app.terminal.zoomIn();
+            }
+            return;
+        }
+        if (e.ctrlKey && (e.key === '-' || e.key === '_')) {
+            e.preventDefault();
+            if (window.__app && window.__app.terminal && window.__app.terminal.zoomOut) {
+                window.__app.terminal.zoomOut();
+            }
+            return;
+        }
+        if (e.ctrlKey && e.key === '0') {
+            e.preventDefault();
+            if (window.__app && window.__app.terminal && window.__app.terminal.resetZoom) {
+                window.__app.terminal.resetZoom();
+            }
+            return;
+        }
+
         let keySpec = null;
 
-        if (e.key === 'ArrowUp') keySpec = 'up';
-        else if (e.key === 'ArrowDown') keySpec = 'down';
-        else if (e.key === 'ArrowLeft') keySpec = 'left';
-        else if (e.key === 'ArrowRight') keySpec = 'right';
+        if (e.key === 'ArrowUp' || e.code === 'Numpad8') keySpec = 'up';
+        else if (e.key === 'ArrowDown' || e.code === 'Numpad2') keySpec = 'down';
+        else if (e.key === 'ArrowLeft' || e.code === 'Numpad4') keySpec = 'left';
+        else if (e.key === 'ArrowRight' || e.code === 'Numpad6') keySpec = 'right';
+        else if (e.code === 'Numpad5') keySpec = 'enter';
         else if (e.key === 'PageUp') keySpec = 'pageup';
         else if (e.key === 'PageDown') keySpec = 'pagedown';
         else if (e.key === 'Home') keySpec = 'home';
@@ -486,7 +510,7 @@ class InputController {
         else if (e.key === 'Backspace') keySpec = 'backspace';
         else if (e.key === 'Tab') keySpec = 'tab';
         else if (e.key === ' ') keySpec = 'space';
-        else if (e.key.length === 1) keySpec = e.key;
+        else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) keySpec = e.key;
 
         if (keySpec) {
             e.preventDefault();
@@ -494,9 +518,15 @@ class InputController {
         }
     }
 
+    sendMovementKey(key) {
+        if (this.dungeon && typeof this.dungeon.snapCameraToDefault === 'function') {
+            this.dungeon.snapCameraToDefault();
+        }
+        this.network.sendKey(key);
+    }
+
     handleWorldKey(e) {
-        // Minimap controls: Screen size ([ / ]) and Grid scale zoom (PgUp / PgDn / + / -)
-        // Checked BEFORE movement keys so PgUp/PgDn are never captured as numpad moves
+        // Minimap controls: Screen size ([ / ]) and Grid scale zoom (+ / -)
         if (e.key === '[') {
             e.preventDefault();
             if (window.__app && window.__app.hud) {
@@ -553,41 +583,6 @@ class InputController {
             }
             return;
         }
-    }
-
-    sendMovementKey(key) {
-        if (this.dungeon && typeof this.dungeon.snapCameraToDefault === 'function') {
-            this.dungeon.snapCameraToDefault();
-        }
-        this.network.sendKey(key);
-    }
-
-    handleKeyDown(e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-            return;
-        }
-
-        // Global hotkeys (always active)
-        if (e.key === 'F11') {
-            e.preventDefault();
-            this.toggleFullscreen();
-            return;
-        }
-
-        if (e.ctrlKey && (e.key === 'm' || e.key === 'M')) {
-            e.preventDefault();
-            if (this.audio) this.audio.toggleMute();
-            return;
-        }
-
-        // Context prompt: game guide
-        if (e.key === 'F1' || (e.key === '?' && e.target.tagName !== 'INPUT')) {
-            e.preventDefault();
-            if (window.__app && window.__app.showGuide) {
-                window.__app.showGuide(1, 'game');
-            }
-            return;
-        }
 
         const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
         const ui = lastFrame ? lastFrame.ui : null;
@@ -602,10 +597,10 @@ class InputController {
                 this.dungeon.turn(-1);
             } else if (e.key === 'ArrowRight') {
                 this.dungeon.turn(1);
-            } else if (e.key === 'ArrowUp' || e.code === 'Numpad8' || e.code === 'Digit8') {
+            } else if (e.key === 'ArrowUp' || e.code === 'Numpad8') {
                 const moveKey = this.getRelativeDirectionKey(8);
                 if (moveKey) setTimeout(() => this.sendMovementKey(moveKey), 35);
-            } else if (e.key === 'ArrowDown' || e.code === 'Numpad2' || e.code === 'Digit2') {
+            } else if (e.key === 'ArrowDown' || e.code === 'Numpad2') {
                 const moveKey = this.getRelativeDirectionKey(2);
                 if (moveKey) setTimeout(() => this.sendMovementKey(moveKey), 35);
             }
@@ -651,18 +646,18 @@ class InputController {
             return;
         }
 
-        // Relative directional movement via number pad (or top-row numbers).
+        // Number Pad directional movement (Strictly Numpad only, NO WSAD, top-row digits remain repeat counts)
         // 8 = forward, 2 = back, 4 = strafe left, 6 = strafe right, diagonals 7,9,1,3, 5 = stay.
         const numpadDirMap = {
-            'Numpad8': 8, 'Digit8': 8,
-            'Numpad2': 2, 'Digit2': 2,
-            'Numpad4': 4, 'Digit4': 4,
-            'Numpad6': 6, 'Digit6': 6,
-            'Numpad7': 7, 'Digit7': 7,
-            'Numpad9': 9, 'Digit9': 9,
-            'Numpad1': 1, 'Digit1': 1,
-            'Numpad3': 3, 'Digit3': 3,
-            'Numpad5': 5, 'Digit5': 5
+            'Numpad8': 8,
+            'Numpad2': 2,
+            'Numpad4': 4,
+            'Numpad6': 6,
+            'Numpad7': 7,
+            'Numpad9': 9,
+            'Numpad1': 1,
+            'Numpad3': 3,
+            'Numpad5': 5
         };
 
         if (numpadDirMap[e.code]) {
@@ -690,14 +685,8 @@ class InputController {
             return;
         }
 
-        // Escape
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            this.network.sendKey('escape');
-            return;
-        }
-
-        // General keys (e.g. 'i' for inventory, 'm' for cast spell, 'd' for drop, 'g' for pickup, 'q' for quaff, 'r' for read)
+        // General keys (e.g. 'i' for inventory, 'm' for cast spell, 'd' for drop, 'g' for pickup, 'q' for quaff, 'r' for read, 'w' for wear, 's' for sell/spike)
+        // ALL single-character keys pass through to the Angband engine without interception!
         if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
             e.preventDefault();
             if (this.audio) {
