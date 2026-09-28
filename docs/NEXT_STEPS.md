@@ -413,19 +413,24 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
 ---
 
 ### Priority 8: PWA Standalone App, PC D-Pad Toggle, Shop Item Parsing & Omni-Platform Polish (COMPLETED)
-- **Scope**: `server/public/manifest.json`, `server/public/sw.js`, `server/public/index.html`, `server/public/js/app.js`, `server/public/css/dungeon.css`
+- **Scope**: `server/public/manifest.json`, `server/public/sw.js`, `server/public/index.html`, `server/public/js/app.js`, `server/public/css/dungeon.css`, `server/public/js/input.js`
 - **Accomplishments**:
   - **PWA Web App Manifest & Service Worker (`manifest.json`, `sw.js`, `index.html`, `app.js`)**:
     - Created `manifest.json` with `display: standalone`, `theme_color: #080b12`, category tags, and responsive app icons (`thunderbear_logo.png`).
-    - Added service worker `sw.js` with static shell caching, automatic skip-waiting/claim lifecycle, and transparent pass-through for WebSockets (`/ws`), save file APIs (`/api/`), and health probes.
+    - Added service worker `sw.js` with static shell caching, automatic skip-waiting/claim lifecycle, and transparent pass-through for WebSockets (`/ws`), save file APIs (`/api/`), and health probes. Bumped cache name to `angband3d-v5.2`.
     - Linked manifest and Apple touch icons in `index.html` and wired service worker registration on window load.
   - **PC Desktop D-Pad Toggle & Default Clean 3D Viewport (`app.js`, `index.html`, `dungeon.css`)**:
     - Addressed user feedback regarding PC D-pad clutter: on desktop viewports (`DeviceProfile.getTier() === 'desktop'`), the on-screen D-pad defaults to hidden, providing an unobstructed full-screen 3D world for keyboard players (WASD / Arrows / Numpad).
     - Added dedicated `[🕹 D-Pad]` toggle button in `#top-right-bar` next to `[📜 Log]` and `[🗺 Map]`, allowing PC players to display the complete D-pad (with Turn L/R wings, Strafe, and diagonals) on demand.
-    - Added glowing active indicator state (`btn-toggle-dpad.active`) and quarantined the toggle button from mobile phones where virtual touch controls are permanently required.
-  - **Shop Choices Strip & Exploration Dock Sanitization (`app.js`)**:
-    - Resolved shop item clutter: Angband's terminal command strings (`l) Examine`, `p) Buy`, `s) Sell`, `ESC) Exit`) are now detected and filtered from `choicesGrid` so the on-screen choice chips strictly display purchasable/examinable store inventory items.
+    - Added glowing active indicator state (`btn-toggle-dpad.active`) and quarantined the toggle button from mobile phones where virtual touch controls are permanently required. Cleaned up hotkey labels.
+  - **Shop Choices Strip, Command Binding & Exploration Dock Sanitization (`app.js`, `index.html`)**:
+    - Fixed store examine key binding: changed `btn-store-examine` from sending `'i'` (which opened the player's inventory pack) to `'l'` (which initiates Angband's native store item inspection prompt `Examine which item?`), updating the button label to `🔍 Examine (l)`.
+    - Enabled `btn-store-advance` during purchase and sell confirmation prompts (`[ESC, any other key to accept]`) by expanding `isStoreMore` matching, allowing mobile and mouse users to confirm store transactions with a single tap.
+    - Resolved shop item clutter: Angband's terminal command strings (`l) Examine`, `p) Buy`, `s) Sell`, `ESC) Exit`) are detected and filtered from `choicesGrid` so the on-screen choice chips strictly display purchasable/examinable store inventory items.
     - Completely hid `#terminal-touch-controls` (dungeon exploration movement dock) while inside stores, preventing buttons like `Cast` or `Open` from obscuring shop terminal rows.
+    - Preserved 180° camera flip on store exit so player never accidentally steps right back into the store.
+  - **Cross-Platform Fullscreen Robustness (`input.js`)**:
+    - Upgraded `toggleFullscreen()` with vendor-prefixed methods (`webkitRequestFullscreen`, `mozRequestFullScreen`, `msRequestFullscreen`) and safe try/catch error handling, ensuring full compatibility across iOS Safari / WebKit and desktop browsers without uncaught runtime exceptions.
   - **Staircase Action Button Strict Visibility Invariant (`dungeon.css`)**:
     - Enforced `#action-bar.drawer-open #btn-stair:not(.stair-active), #action-bar #btn-stair:not(.stair-active) { display: none !important; }`, fixing the bug where opening the mobile action drawer displayed `⬇ Enter Dungeon >` even when the player was not standing on stairs.
   - **Mobile Portrait Header & Footer Overlap / Truncation Resolution (`dungeon.css`)**:
