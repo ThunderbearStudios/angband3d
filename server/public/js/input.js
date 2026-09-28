@@ -381,9 +381,8 @@ class InputController {
                     if (isReviewScreen) {
                         this.network.sendKey('s');
                     } else {
-                        if (window.__app && window.__app.returnToMainMenu) {
-                            window.__app.returnToMainMenu();
-                        }
+                        // Forward Escape to engine to step back one question in character birth
+                        this.network.sendKey('escape');
                     }
                     return;
                 }

@@ -83,6 +83,43 @@ class MobileOverlay {
         const mGold = text.match(/Gold\s+([0-9]+)/);
         if (mGold) data.gold = mGold[1];
 
+        function formatStatVal(raw) {
+            if (raw === undefined || raw === null) return '--';
+            if (typeof raw === 'number') {
+                return raw > 18 ? `18/${raw - 18}` : String(raw);
+            }
+            if (typeof raw === 'string') return raw;
+            if (typeof raw === 'object') {
+                const num = raw.use !== undefined ? raw.use :
+                           (raw.top !== undefined ? raw.top :
+                           (raw.max !== undefined ? raw.max :
+                           (raw.cur !== undefined ? raw.cur :
+                           (raw.val !== undefined ? raw.val : null))));
+                if (num !== null) {
+                    return typeof num === 'number' ? (num > 18 ? `18/${num - 18}` : String(num)) : String(num);
+                }
+            }
+            return '--';
+        }
+
+        function formatStatBest(raw) {
+            if (raw === undefined || raw === null) return '--';
+            if (typeof raw === 'number') {
+                return raw > 18 ? `18/${raw - 18}` : String(raw);
+            }
+            if (typeof raw === 'string') return raw;
+            if (typeof raw === 'object') {
+                const num = raw.top !== undefined ? raw.top :
+                           (raw.max !== undefined ? raw.max :
+                           (raw.use !== undefined ? raw.use :
+                           (raw.best !== undefined ? raw.best : null)));
+                if (num !== null) {
+                    return typeof num === 'number' ? (num > 18 ? `18/${num - 18}` : String(num)) : String(num);
+                }
+            }
+            return '--';
+        }
+
         // 5 Core Stats (STR, INT, WIS, DEX, CON)
         for (const s of ['STR', 'INT', 'WIS', 'DEX', 'CON']) {
             const re = new RegExp(s + '(?:\\s*:\\s*|\\s+)([0-9\\/]+)(?:\\s+([+-]?[0-9]+)\\s+([+-]?[0-9]+)\\s+([+-]?[0-9]+)\\s+([0-9\\/]+))?', 'i');
@@ -98,9 +135,12 @@ class MobileOverlay {
             } else if (frame && frame.player && frame.player.stats && frame.player.stats[s.toLowerCase()]) {
                 const ps = frame.player.stats[s.toLowerCase()];
                 data.stats[s] = {
-                    val: String(ps.cur || ps.max || ps || '--'),
-                    rb: '+0', cb: '+0', eb: '+0', best: String(ps.max || ps || '--')
+                    val: formatStatVal(ps),
+                    rb: '+0', cb: '+0', eb: '+0',
+                    best: formatStatBest(ps)
                 };
+            } else {
+                data.stats[s] = { val: '--', rb: '+0', cb: '+0', eb: '+0', best: '--' };
             }
         }
 

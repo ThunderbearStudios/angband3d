@@ -48,9 +48,41 @@
                         <button id="btn-term-custom" class="btn-gold-outline" style="display: none;" title="Customize your character by choosing race, class, and stats">🛠 Custom Hero (C)</button>
                         <button id="btn-term-advance" class="btn-gold-outline" title="Press Enter to confirm or advance">Advance (Enter)</button>
                         <button id="btn-term-escape" class="btn-gold-outline" title="Press Escape to cancel or go back">Back (Esc)</button>
+                        <button id="btn-term-exit-menu" class="btn-gold-outline" style="display: none;" title="Exit to Main Menu">✕ Main Menu</button>
                     </div>
                 </div>
                 <canvas id="terminal-canvas"></canvas>
+                <!-- Dynamic On-Screen Choice Strip (Touch options for Birth, Prompts & Menus) -->
+                <div id="terminal-choices-container" class="terminal-choices-container" style="display: none;">
+                    <div class="choices-header">
+                        <span id="choices-prompt-text" class="choices-prompt-text">AVAILABLE CHOICES</span>
+                    </div>
+                    <div id="terminal-choices-grid" class="terminal-choices-grid"></div>
+                </div>
+                <!-- Mobile Classic Touch Controller Dock (D-pad + Action keys for playing in Classic Mode) -->
+                <div id="terminal-touch-controls" class="terminal-touch-controls" style="display: none;">
+                    <div class="term-touch-dpad-col">
+                        <div class="term-dpad-grid">
+                            <button type="button" class="term-dpad-btn term-dpad-up" data-key="up" title="Move North [8/Up]">▲</button>
+                            <button type="button" class="term-dpad-btn term-dpad-left" data-key="left" title="Move West [4/Left]">◀</button>
+                            <button type="button" class="term-dpad-btn term-dpad-center" data-key="enter" title="Confirm / Select [Enter]">⏎</button>
+                            <button type="button" class="term-dpad-btn term-dpad-right" data-key="right" title="Move East [6/Right]">▶</button>
+                            <button type="button" class="term-dpad-btn term-dpad-down" data-key="down" title="Move South [2/Down]">▼</button>
+                        </div>
+                    </div>
+                    <div class="term-touch-actions-col">
+                        <div class="term-action-keys">
+                            <button type="button" class="term-action-key term-key-esc" data-key="escape" title="Close / Cancel [Esc]">⎋ Esc</button>
+                            <button type="button" class="term-action-key term-key-space" data-key="space" title="Advance / Wait [Space]">␣ Space</button>
+                            <button type="button" class="term-action-key term-key-tab" data-key="tab" title="Return to 3D View [Tab]">⛶ 3D View</button>
+                            <button type="button" class="term-action-key term-key-pack" data-key="i" title="Backpack Inventory [i]">🎒 Pack</button>
+                            <button type="button" class="term-action-key term-key-gear" data-key="e" title="Equipment [e]">🛡 Gear</button>
+                            <button type="button" class="term-action-key term-key-cast" data-key="m" title="Cast Magic [m]">✨ Cast</button>
+                            <button type="button" class="term-action-key term-key-door" data-key="o" title="Open Door [o]">🚪 Open</button>
+                            <button type="button" class="term-action-key term-key-rest" data-key="R" title="Rest [R]">⏳ Rest</button>
+                        </div>
+                    </div>
+                </div>
                 <!-- Native Mobile Hero Review Card (Touch Legibility on Mobile) -->
                 <div id="mobile-hero-card" class="mobile-hero-card" style="display: none;"></div>
                 <!-- Native Mobile Item / Store Drawer -->
