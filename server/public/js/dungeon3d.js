@@ -592,11 +592,18 @@ class Dungeon3D {
     }
 
     initThree() {
+        const tier = (window.DeviceProfile && typeof window.DeviceProfile.getTier === 'function')
+            ? window.DeviceProfile.getTier()
+            : 'desktop';
+        const dprCap = tier === 'phone' ? 1.25 : (tier === 'tablet' ? 1.5 : 2.0);
+        const farDistance = tier === 'phone' ? 85 : (tier === 'tablet' ? 110 : 140);
+        const initialFogDensity = tier === 'phone' ? 0.015 : 0.008;
+
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x2d3a50); // Initial town sky
-        this.scene.fog = new THREE.FogExp2(0x2d3a50, 0.008);
+        this.scene.fog = new THREE.FogExp2(0x2d3a50, initialFogDensity);
 
-        this.camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 140);
+        this.camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, farDistance);
         this.camera.position.set(0, this.eyeHeight, 0);
         this.camera.rotation.order = 'YXZ'; // Critical: Yaw first, then Pitch, then Roll (eliminates room skew / Dutch tilt)
         this.camera.rotation.y = 0; // Starts looking North (-Z)
@@ -609,7 +616,7 @@ class Dungeon3D {
             powerPreference: 'high-performance'
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.05;
         this.renderer.outputEncoding = THREE.sRGBEncoding;
@@ -642,9 +649,17 @@ class Dungeon3D {
         this.scene.add(this.camera);
 
         window.addEventListener('resize', () => {
+            const currentTier = (window.DeviceProfile && typeof window.DeviceProfile.getTier === 'function')
+                ? window.DeviceProfile.getTier()
+                : 'desktop';
+            const newDprCap = currentTier === 'phone' ? 1.25 : (currentTier === 'tablet' ? 1.5 : 2.0);
+            const newFar = currentTier === 'phone' ? 85 : (currentTier === 'tablet' ? 110 : 140);
+
             this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.far = newFar;
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, newDprCap));
         });
     }
 
@@ -4584,8 +4599,21 @@ class Dungeon3D {
     animate() {
         requestAnimationFrame(this.animate);
 
-        const delta = 0.016; // ~60fps step
         const tNow = performance.now();
+
+        // When terminal or death modal completely covers the screen, throttle 3D rendering to 5 FPS
+        const termContainer = document.getElementById('terminal-container');
+        const deathModal = document.getElementById('death-modal');
+        const isCovered = (termContainer && !termContainer.classList.contains('hidden')) ||
+                          (deathModal && !deathModal.classList.contains('hidden'));
+        if (isCovered) {
+            if (this._lastThrottledRender && (tNow - this._lastThrottledRender < 200)) {
+                return;
+            }
+            this._lastThrottledRender = tNow;
+        }
+
+        const delta = 0.016; // ~60fps step
 
         // Smooth camera position tweening
         if (this.isStepping) {

@@ -450,13 +450,10 @@ const server = http.createServer((req, res) => {
         const contentType = mimeTypes[ext] || 'application/octet-stream';
 
         // HTTP Caching Strategy:
-        // - HTML: must-revalidate to ensure instant delivery of app updates
+        // - HTML, JS, CSS: no-cache, no-store, must-revalidate to ensure instant delivery of app updates
         // - 3D Models, Textures, Audio: 24h caching (immutable static assets)
-        // - JS / CSS: must-revalidate with version query strings for cache-busting
-        let cacheControl = 'public, max-age=3600, must-revalidate';
-        if (ext === '.html') {
-            cacheControl = 'no-cache, no-store, must-revalidate';
-        } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck', '.wav', '.ogg', '.mp3'].includes(ext)) {
+        let cacheControl = 'no-cache, no-store, must-revalidate';
+        if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck', '.wav', '.ogg', '.mp3'].includes(ext)) {
             cacheControl = 'public, max-age=86400, immutable';
         }
 

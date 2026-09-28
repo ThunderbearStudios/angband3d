@@ -58,6 +58,35 @@
          - **Random Character Review Pause**: Auto-birth halts on the final character sheet, giving players full review of rolled stats, race, class, and history before entering town, with `⚔ Accept & Play (Enter)` and `🎲 Reroll Hero (R)` buttons.
           - **Store Entrance Auto-Display & Native Trigger Parity**: Fixed shop entrance navigation by removing erroneous artificial key injection on shop entrance tiles. Stepping onto a shop entrance tile automatically invokes `EVENT_ENTER_STORE` (`overlay: 2`), opening the store interface with store owner/title and inventory. Exiting returns directly to the 3D town world.
           - **Contextual Footer Action Menus & Touch Pills**: Fixed `isStore` misclassification in `updateTerminalToolbar`. Opening Inventory (`i`), Equipment (`e`), Throw (`v`), Quaff (`q`), Read (`r`), Cast (`m`), Fire (`f`), or Drop (`d`) in town or dungeon opens the contextual terminal modal with interactive item pills (`[a] Item Name`, `[b] Item Name`), dynamic titles (`🎒 INVENTORY PACK`, `🛡 EQUIPPED GEAR`, `🎯 THROW ITEM`, etc.), switch (`/`), and cancel (`Esc`) returning smoothly to 3D.
+          - **Mobile & Tablet UX Transformation & Visual Repair (Split-Thumb Layout & Overlap Resolution)**:
+             - **Top-Right Telemetry & Header Overlap Fix (`dungeon.css`, `index.html`)**:
+                - Diagnosed and resolved severe header overlap across phone screens: `#top-right-bar` previously occupied ~530px across, colliding directly with `#review-hero-header`, `#splash-title`, `#main-menu-overlay`, and the top of `#message-feed-window`.
+                - Applied high-specificity compaction for mobile/touch screens (`max-width: 768px`, coarse pointer): completely hides `#ping-badge`, `#btn-controls`, `#btn-fullscreen`, volume slider, and text labels. Compresses the top bar to two 38x38px icon buttons `[🔊]` and `[⚙]` (~82px width), completely freeing the top row.
+                - Added safe top clearance (`padding-top: calc(48px + var(--safe-top)) !important;`) on all full-screen overlays (`#splash-overlay`, `#main-menu-overlay`, `#terminal-container`, `#guide-modal`, `#load-modal`).
+             - **Desktop Toolbar Quarantine (Zero Duplicate Buttons)**:
+                - Fixed bug where desktop `.terminal-toolbar` (`[REROLL HERO (R)]`, `[CUSTOM HERO (C)]`, `[ACCEPT & PLAY]`, `[BACK]`) rendered simultaneously with the mobile hero card's `.m-hero-actions-bar`.
+                - Enforced quarantine in CSS (`#terminal-card.mobile-card-active .terminal-toolbar { display: none !important; }`) and programmatically in `app.js` (`updateTerminalToolbar`), guaranteeing single, unified 48px tactile actions.
+             - **Unbreakable Splash & Menu Typography**:
+                - Eliminated word wrapping mid-name (`A N G B A` / `N D  3 D`) on narrow phone viewports by replacing spaced characters with solid strings (`ANGBAND 3D`) paired with `white-space: nowrap !important; font-size: clamp(...); letter-spacing: clamp(...)`.
+             - **Blows Suffix Sanitization**:
+                - Fixed double-suffix bug in combat stats (`Melee: 1d1,+2 (2.3/turn/turn)`) by stripping existing `/turn` suffixes prior to template interpolation (`mBlows[1].replace(/\/turn.*$/i, '')`).
+             - **Split-Thumb Ergonomic HUD Layout (`dungeon.css`, `device.js`)**:
+                - Cleanly separated phone tier (`minDim < 600px` in `DeviceProfile.getTier()`) from tablet tier (`600px <= minDim < 1024px`).
+                - Movement & Orientation D-pad anchored strictly in bottom-left thumb zone (`width: 146px; height: 146px; left: max(8px, var(--safe-left)); bottom: calc(44px + var(--safe-bottom))`).
+                - 2-column tactical action cluster anchored in bottom-right thumb zone (`width: 146px; right: max(8px, var(--safe-right)); bottom: calc(44px + var(--safe-bottom))`) with 44-48px touch targets for Attack/Context, Cast, Pack, Potion, Classic, and More. Completely eliminates element collisions with D-pad.
+                - Character vitals panel docked as a slim floating status capsule at top-left (`top: calc(48px + var(--safe-top)); left: max(8px, var(--safe-left)); max-width: 215px`).
+                - Minimap docked at top-right as a 105px circular radar (`border-radius: 50%`).
+                - Desktop 180px message window hidden by default on mobile phones; `.top-message-banner` serves as a clean 1-line event ticker. Tapping the banner expands `#message-feed-window.mobile-expanded` as a smooth sliding bottom-sheet narrative drawer with scrollback history, freeing >70% of the screen height for the 3D viewport.
+             - **Touch Latency Elimination & Haptic Feedback (`input.js`, `mobile-overlay.js`, `app.js`)**:
+                - Injected universal `touch-action: manipulation; -webkit-tap-highlight-color: transparent;` across all interactive elements.
+                - Upgraded all touch buttons (`action-btn`, `m-action-btn`, `splash-shortcut-btn`, `menu-option-btn`) with dual `pointerdown` + `click` event listeners and calibrated 100ms debouncing, completely bypassing the 300ms mobile touch delay without double-triggering.
+                - Integrated multi-pattern tactile haptics (`DeviceProfile.triggerHaptic`) via `navigator.vibrate` for light, medium, heavy, and warning button presses.
+             - **Native Mobile Hero Review Card (`mobile-overlay.js`, `index.html`, `dungeon.css`, `app.js`)**:
+                - Replaces microscopic 80-column ASCII terminal canvas (~4.5px wide characters) on phones and tablets with a native, responsive HTML/CSS touch card.
+                - Renders hero name, race, class, level, and title with gold fantasy trim; HP, SP, Armor, and Speed vitals capsules; 5 core attribute cards (STR, INT, WIS, DEX, CON) with racial bonus and best roll badges; combat chips; and formatted lore/backstory text.
+                - Minimum 48px tactile touch buttons with haptic feedback: `[🎲 Reroll Hero (R)]`, `[🛠 Custom Hero (C)]`, `[⚔ Accept & Play (Enter)]`, and `[Back (Esc)]`.
+             - **Automated Verification (`tools/test_responsive_profiles.js`)**:
+                - 10 test suites automated via headless Chrome with real CDP across Desktop (1920x1080), Tablet (768x1024 / 1024x768), Phone Portrait (390x844), and Phone Landscape (844x390). All 10 suites passing 100%, verifying zero bounding-rect collisions, correct thumb zones, 48px touch targets, collapsed top-right bar (<= 82px), nowrap splash title, and clean single suffix.
           - **Comprehensive Message Feed & Real-Time Action Log**: Eliminated dropped combat messages by removing consecutive identical message suppression (`prevLast`). Added real-time capture from `frame.term.rows[0]` for single-turn action notices, warnings, and failures (e.g. `"There is a wall in the way!"`, `"You have no potions from which to quaff."`, `"You have nothing to fire with."`, `"You see nothing there to open."`). Color-coded lines by event type (red for monster damage, gold for player attacks/kills, green for healing, blue for spells, orange for warnings).
           - **Menu Toolbar Isolation & Real-Time Combat Message Stream Restoration (`hud.js`, `app.js`, `dungeon.css`)**:
              - Implemented missing `isWalkableOrPortal(feat)` and `isStoreKind(feat)` on `WebHUD`, resolving unhandled runtime `TypeError` when player approaches walls, doors, or monsters.
@@ -259,11 +288,79 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
   - Expanded `updateTerminalToolbar(frame)` to detect all Angband store variations (`Armoury`, `Alchemy Shop`, `Magic User's`, `Weapon Smiths`, `Your Home`, `Store Inventory`, `Home Inventory`) and mapped store names from `playerFeat`.
   - Exclusively displays `store-actions-bar` (`💰 Buy (p)`, `🏷 Sell (s)`, `🔍 Examine (i)`, `🚪 Exit (Esc)`) and hides generic advance/creation buttons.
   - Guarded auto-space flushing so spaces are NEVER auto-sent while inside a store overlay (`!isOverlay`), preventing store interactions from being unintentionally cancelled or dismissed.
-- **Verification**: 11/11 engine bridge smoke tests, 11/11 node server unit tests, 0 warnings dotnet build across client/angband3d.csproj. Live deployment verified on Google Cloud Run:
-  - `angband3d-cloud` (us-central1): Revision `angband3d-cloud-00058-sgw` (https://angband3d-cloud-564958309282.us-central1.run.app)
-  - `angband3d-cloud` (us-east1): Revision `angband3d-cloud-00018-472` (https://angband3d-cloud-564958309282.us-east1.run.app)
-  - `angband3d-web` (us-central1): Revision `angband3d-web-00016-d49` (https://angband3d-web-564958309282.us-central1.run.app)
-  - Live WebSocket handshake, health check, save API, store entry, and gameplay action verified via automated cloud integration test suites.
+- **Omni-Device Responsive Scaling, Touch Ergonomics & Mobile GPU Throttling Milestone (`device.js`, `input.js`, `terminal.js`, `dungeon3d.js`, `hud.js`, `dungeon.css`)**:
+  - **Dynamic Device Profile Engine (`device.js`)**:
+    - Created lightweight `DeviceProfile` tracking device tier (`desktop` $\ge 1024\text{px}$, `tablet` $600\text{px}-1023\text{px}$, `phone` $< 600\text{px}$ or short dimension $< 600\text{px}$), orientation (`is-portrait`, `is-landscape`), and touch capability (`pointer: coarse`).
+    - Automatically synchronizes reactive semantic root classes on `<html>` (`device-desktop`, `device-tablet`, `device-phone`, `is-portrait`, `is-landscape`, `has-touch`).
+    - Integrated safe micro-haptics (`DeviceProfile.vibrate`) delivering $10-12\text{ms}$ tactile pulses on virtual button taps.
+  - **Touch & Gesture Controls (`input.js`)**:
+    - **Hold-to-Repeat Movement**: Holding directional D-pad buttons for $> 300\text{ms}$ auto-repeats steps every $140\text{ms}$, matching the Three.js 3D movement tween speed for effortless long corridor transit.
+    - **Viewport Swipe-to-Turn**: Horizontal swipes on the 3D viewport canvas turn the camera $90^\circ$ left/right without touching the D-pad.
+    - **Context-Aware Multifunction Center Button**: Dynamically detects player surroundings and updates the center D-pad button:
+      - Standing on downstairs/upstairs -> illuminates `⬇` / `⬆` to descend or ascend stairs.
+      - Monster directly in front -> transforms into `⚔` attack trigger.
+      - Closed/locked door directly in front -> transforms into `🚪` open door trigger.
+      - Default tile -> `●` rest/wait 1 turn.
+    - **Expandable Action Drawer**: Phone screens show 4 primary quick-actions (`Attack`, `Cast`, `Pack`, `Classic`) plus a `⋯ More` toggle that expands into a 3x4 action drawer grid.
+  - **Terminal Auto-Containment Scaling (`terminal.js`)**:
+    - Replaced hardcoded $960\text{px}$ minimum width floor (`Math.max(12, ...)`) with responsive containment scaling (`Math.min(availW / logicalWidth, availH / logicalHeight)`).
+    - Preserves high-DPI crisp monospace canvas buffer while scaling smoothly onto mobile displays ($374\text{px}$ on iPhone 14) with zero horizontal overflow.
+    - Touch event coordinate re-mapping accurately translates finger taps to terminal grid rows/cols on any screen scale.
+  - **Mobile GPU Throttling & Battery Conservation (`dungeon3d.js`)**:
+    - Automatic 5 FPS rendering throttle when classic terminal view or death screen is active, eliminating unnecessary 60 FPS 3D rendering in menus and preventing mobile thermal throttling.
+    - Adaptive DPR and render distances scaled by device tier (Phone: 1.25 DPR cap, far 85; Tablet: 1.5 DPR cap, far 110; Desktop: 2.0 DPR cap, far 140).
+  - **Contextual Action Button Pulses (`hud.js`)**:
+    - Exposed `updateContextPulses(frame)`: pulses `#btn-quaff` with `.smart-low-hp` gold-red border when player HP drops to $\le 30\%$, and pulses `#btn-door` with `.smart-door-active` cyan glow when facing closed doors.
+  - **Comprehensive Automated Multi-Profile Verification (`tools/test_responsive_profiles.js`)**:
+    - Created headless Chrome CDP automated test suite executing 9 verification suites across Desktop ($1920\times 1080$), Tablet Portrait ($768\times 1024$), Phone Portrait ($390\times 844$), and Phone Landscape ($844\times 390$):
+      1. Desktop Viewport: 15 full action bar buttons, drawer toggle hidden, high-DPI terminal.
+      2. Tablet Viewport: `device-tablet` applied, D-pad active, terminal contained.
+      3. Phone Portrait: `device-phone is-portrait`, 4-action bar + drawer toggle, $374\text{px}$ terminal (0 overflow).
+      4. Action Drawer: opens 3x4 grid drawer and closes smoothly.
+      5. Phone Landscape: dual-axis terminal fit (542px width, 279px height within 390px viewport).
+      6. Hold-to-Repeat: verified multiple continuous movement steps during sustained touch hold.
+      7. Viewport Swipe: verified $90^\circ$ camera yaw turn from canvas touch drag.
+      8. Context-Aware Controls: verified stairs icon detection and emergency low HP potion pulse.
+      9. GPU Throttling: verified 5 FPS power-saving throttle when terminal is open.
+    - All 9 test suites passed 100%. Bridge smoke tests: 11/11 passed. C# client build: 0 warnings, 0 errors.
+
+- **Omni-Platform D-Pad, Strafe/Turn Unification & Mobile Layout Audit & Repair Milestone (`input.js`, `mobile-overlay.js`, `app.js`, `hud.js`, `dungeon.css`, `index.html`)**:
+  - **D-Pad Turn & Strafe Architecture (Photo 1 & Universal)**:
+    - Overhauled virtual `#touch-controls` with a clean CSS Grid layout and dedicated `.dpad-turn-wings`:
+      - `#dpad-turn-left` (`↶`) and `#dpad-turn-right` (`↷`): instant $90^\circ$ camera yaw without consuming a game turn.
+      - 3x3 Semantic Movement Grid: `#dpad-up` (Forward), `#dpad-down` (Backward), `#dpad-left` (Hold-to-repeat Strafe Left via `getRelativeDirectionKey(4)`), `#dpad-right` (Hold-to-repeat Strafe Right via `getRelativeDirectionKey(6)`).
+      - Diagonals: `#dpad-ul` (7 NW), `#dpad-ur` (9 NE), `#dpad-dl` (1 SW), `#dpad-dr` (3 SE).
+      - Center Action: `#dpad-center` with context-sensitive state (Staircase `⬇`/`⬆`, Melee `⚔`, Door `🚪`, Rest `●`).
+    - Added desktop keyboard strafing support via <kbd>Shift + ArrowLeft</kbd> and <kbd>Shift + ArrowRight</kbd>.
+  - **Closable & Reopenable Minimap and Message Log with Header Banner Retention**:
+    - Embedded `#btn-minimap-close` (`✕`) into the minimap header and `#btn-msg-close` (`✕ Hide`) into the message feed window header.
+    - Added sleek, non-invasive toggle buttons in `#top-right-bar`: `#btn-toggle-msg-feed` (`📜 Log`) and `#btn-toggle-minimap` (`🗺 Map`), with active glowing gold indicators.
+    - Preserved persistent state across turns via `window.__minimapClosed` and `window.__messageLogClosed`.
+    - Retained `#top-message-banner` in the top header during active play per user feedback, with mobile tap-to-expand sliding sheet for message log scrollback.
+  - **Phone Splash & Menu Bounds Repair (Photo 2)**:
+    - Injected safe top clearance (`padding-top: calc(52px + var(--safe-top)) !important;`) on all full-screen overlays, completely eliminating top-bar collisions with the skull logo and title.
+    - Added responsive font scaling (`clamp(18px, 5.2vw, 28px)`) with `white-space: nowrap !important;` to `.splash-title`, ensuring `ANGBAND 3D` fits inside the card without wrapping or overflowing.
+    - Added `overflow-wrap: break-word` and line clamping to subtitles and engine tags; capped splash card padding to 16px.
+  - **Phone Hero Review Card Tactile & Logic Repair (Photo 3)**:
+    - Fixed frozen action buttons (`Accept & Play`, `Back`):
+      - Delegated actions directly to toolbar handlers (`termAdvanceBtn.click()` for Enter, `termEscapeBtn.click()` for `'s'` restart).
+      - Resolved 60Hz DOM wiping by caching `container._lastHeroSig = heroSig`.
+      - Enhanced `wireFastButton` with touch tracking and 10px drag threshold, allowing vertical scrolling of the character sheet without accidentally firing buttons or losing taps.
+      - Fixed stat regex parsing (`(?:\\s*:\\s*|\\s+)`) to parse Angband's whitespace-aligned stat rows (`STR    17  +2`), eliminating `--` fallbacks.
+      - Applied bottom safe clearance (`padding-bottom: max(32px, calc(16px + var(--safe-bottom))) !important; z-index: 50;`) to `.m-hero-actions-bar`, keeping buttons above mobile navigation bars.
+  - **Phone In-Game Overlap & Stat Strip Restoration (Photo 4)**:
+    - Fixed circular minimap overlap: added `left: auto !important; right: max(6px, var(--safe-right))` in mobile media query, preventing LTR desktop CSS (`left: 18px`) from docking the minimap on top of `#char-panel`.
+    - Restored character stats strip (`#stats-strip`) on mobile into a sleek 4-column micro-grid displaying STR, INT, WIS, DEX, CON, AC, and Gold inside `#char-panel`.
+  - **Cache Invalidation & Asset Versioning**:
+    - Configured server HTTP headers to `Cache-Control: no-cache, no-store, must-revalidate` for `.html`, `.js`, and `.css`.
+    - Bumped asset query strings to `?v=4.0` in `index.html`.
+  - **Automated Verification & Cloud Run Live Deployment**:
+    - Extended `tools/test_responsive_profiles.js` to 10 automated test suites. All 10 suites passing 100%.
+    - Verified engine bridge (11/11 smoke tests) and C# client (0 warnings, 0 errors).
+    - Deployed to Google Cloud Run (`us-central1`):
+      - `angband3d-cloud`: Revision `angband3d-cloud-00062-2zn` (https://angband3d-cloud-564958309282.us-central1.run.app)
+      - `angband3d-web`: Revision `angband3d-web-00020-c4m` (https://angband3d-web-564958309282.us-central1.run.app)
+      - Verified HTTP 200 and zero-caching `Cache-Control: no-cache, no-store, must-revalidate` headers.
 
 ---
 

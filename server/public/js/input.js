@@ -12,9 +12,11 @@ class InputController {
         this.toggleTerminalView = toggleTerminalView;
 
         this.inTerminal = false;
+        this.smartAction = 'wait';
         this.setupKeyboardEvents();
         this.setupActionButtons();
         this.setupTouchEvents();
+        this.setupViewportGestures();
     }
 
     setTerminalMode(active) {
@@ -586,15 +588,26 @@ class InputController {
         }
 
         // Turning is instant camera yaw (0 engine turns)
+        // Holding Shift with ArrowLeft / ArrowRight executes Strafe Left / Strafe Right
         if (e.key === 'ArrowLeft') {
             e.preventDefault();
-            this.dungeon.turn(-1);
+            if (e.shiftKey) {
+                const moveKey = this.getRelativeDirectionKey(4); // Strafe Left
+                if (moveKey) this.network.sendKey(moveKey);
+            } else {
+                this.dungeon.turn(-1);
+            }
             return;
         }
 
         if (e.key === 'ArrowRight') {
             e.preventDefault();
-            this.dungeon.turn(1);
+            if (e.shiftKey) {
+                const moveKey = this.getRelativeDirectionKey(6); // Strafe Right
+                if (moveKey) this.network.sendKey(moveKey);
+            } else {
+                this.dungeon.turn(1);
+            }
             return;
         }
 
@@ -715,9 +728,16 @@ class InputController {
         const bind = (id, key) => {
             const btn = document.getElementById(id);
             if (btn) {
-                btn.addEventListener('click', (ev) => {
+                let lastTriggerTime = 0;
+                const fire = (ev) => {
+                    const now = Date.now();
+                    if (now - lastTriggerTime < 280) return; // Debounce rapid pointerdown + click
+                    lastTriggerTime = now;
+
                     if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
+                    if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
                     if (this.audio) this.audio.unlock();
+
                     if (key === 'attack') {
                         const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
                         if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
@@ -755,7 +775,14 @@ class InputController {
                         }
                         this.network.sendKey(key);
                     }
+                };
+
+                btn.addEventListener('pointerdown', (ev) => {
+                    if (ev.pointerType === 'touch') {
+                        fire(ev);
+                    }
                 });
+                btn.addEventListener('click', fire);
             }
         };
 
@@ -775,11 +802,48 @@ class InputController {
         // Dynamic Staircase Action Button
         const stairBtn = document.getElementById('btn-stair');
         if (stairBtn) {
-            stairBtn.addEventListener('click', (ev) => {
+            let lastStairTime = 0;
+            const fireStair = (ev) => {
+                const now = Date.now();
+                if (now - lastStairTime < 280) return;
+                lastStairTime = now;
                 if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
+                if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('medium');
                 if (this.audio) this.audio.unlock();
                 const key = stairBtn.dataset.key || '>';
                 this.network.sendKey(key);
+            };
+            stairBtn.addEventListener('pointerdown', (ev) => {
+                if (ev.pointerType === 'touch') fireStair(ev);
+            });
+            stairBtn.addEventListener('click', fireStair);
+        }
+
+        // Mobile / Tablet Action Drawer Toggle
+        const actionMoreBtn = document.getElementById('btn-action-more');
+        const actionBar = document.getElementById('action-bar');
+        if (actionMoreBtn && actionBar) {
+            let lastMoreTime = 0;
+            const toggleDrawer = (ev) => {
+                const now = Date.now();
+                if (now - lastMoreTime < 100) return;
+                lastMoreTime = now;
+                if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
+                if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
+                actionBar.classList.toggle('drawer-open');
+                actionMoreBtn.textContent = actionBar.classList.contains('drawer-open') ? '✕ Close' : '⋯ More';
+            };
+            actionMoreBtn.addEventListener('pointerdown', (ev) => {
+                if (ev.pointerType === 'touch') toggleDrawer(ev);
+            });
+            actionMoreBtn.addEventListener('click', toggleDrawer);
+
+            actionBar.addEventListener('click', (ev) => {
+                const target = ev.target ? ev.target.closest('.action-btn') : null;
+                if (target && target.id !== 'btn-action-more') {
+                    actionBar.classList.remove('drawer-open');
+                    actionMoreBtn.textContent = '⋯ More';
+                }
             });
         }
 
@@ -816,12 +880,6 @@ class InputController {
             }
         };
 
-        bindClick('btn-map-size-dec', () => {
-            if (window.__app && window.__app.hud) window.__app.hud.cycleMinimapSize(-1);
-        });
-        bindClick('btn-map-size-inc', () => {
-            if (window.__app && window.__app.hud) window.__app.hud.cycleMinimapSize(1);
-        });
         bindClick('btn-map-zoom-out', () => {
             if (window.__app && window.__app.hud) window.__app.hud.adjustMinimapZoom(-0.25);
         });
@@ -845,15 +903,6 @@ class InputController {
                 this.dungeon.userPitchOffset = Math.max(-0.48, (this.dungeon.userPitchOffset || 0) - 0.08);
             }
         });
-
-        // Dismiss -more- prompt on direct click of the prompt bar
-        const promptBar = document.getElementById('prompt-bar');
-        if (promptBar) {
-            promptBar.style.cursor = 'pointer';
-            promptBar.addEventListener('click', () => {
-                this.network.sendKey('space');
-            });
-        }
 
         // Clicking anywhere in world exploration while -more- prompt is up dismisses prompt
         window.addEventListener('click', (e) => {
@@ -882,67 +931,263 @@ class InputController {
     }
 
     setupTouchEvents() {
-        const bindTouch = (id, action) => {
+        const bindTouch = (id, action, allowRepeat = false) => {
             const btn = document.getElementById(id);
             if (!btn) return;
-            const trigger = (e) => {
-                e.preventDefault();
+
+            let holdTimer = null;
+            let repeatInterval = null;
+
+            const startAction = (e) => {
+                if (e && e.cancelable) e.preventDefault();
                 if (this.audio) this.audio.unlock();
+                if (window.DeviceProfile) window.DeviceProfile.vibrate(12);
                 action();
+
+                if (allowRepeat) {
+                    clearTimeout(holdTimer);
+                    clearInterval(repeatInterval);
+                    holdTimer = setTimeout(() => {
+                        repeatInterval = setInterval(() => {
+                            if (window.DeviceProfile) window.DeviceProfile.vibrate(8);
+                            action();
+                        }, 140);
+                    }, 300);
+                }
             };
-            btn.addEventListener('touchstart', trigger);
-            btn.addEventListener('mousedown', trigger);
+
+            const stopAction = () => {
+                clearTimeout(holdTimer);
+                clearInterval(repeatInterval);
+                holdTimer = null;
+                repeatInterval = null;
+            };
+
+            btn.addEventListener('touchstart', startAction, { passive: false });
+            btn.addEventListener('touchend', stopAction, { passive: true });
+            btn.addEventListener('touchcancel', stopAction, { passive: true });
+
+            btn.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                startAction(e);
+            });
+            btn.addEventListener('mouseup', stopAction);
+            btn.addEventListener('mouseleave', stopAction);
         };
 
+        // Top Turning Shoulder Wings
+        bindTouch('dpad-turn-left', () => {
+            this.dungeon.turn(-1);
+        }, false);
+
+        bindTouch('dpad-turn-right', () => {
+            this.dungeon.turn(1);
+        }, false);
+
+        // Directional cardinal and diagonal movement buttons support hold-to-repeat walking
         bindTouch('dpad-up', () => {
             const key = this.getRelativeDirectionKey(8);
             if (key) this.network.sendKey(key);
-        });
+        }, true);
 
         bindTouch('dpad-down', () => {
             const key = this.getRelativeDirectionKey(2);
             if (key) this.network.sendKey(key);
-        });
+        }, true);
 
+        // Strafe Left & Strafe Right on primary D-pad cardinal wings
         bindTouch('dpad-left', () => {
-            this.dungeon.turn(-1);
-        });
+            const key = this.getRelativeDirectionKey(4);
+            if (key) this.network.sendKey(key);
+        }, true);
 
         bindTouch('dpad-right', () => {
-            this.dungeon.turn(1);
-        });
+            const key = this.getRelativeDirectionKey(6);
+            if (key) this.network.sendKey(key);
+        }, true);
 
+        // Smart Multifunction Center D-Pad Action
         bindTouch('dpad-center', () => {
             const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
             if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
                 this.network.sendKey('space');
                 return;
             }
+            if (this.smartAction) {
+                this.executeSmartAction(this.smartAction);
+                return;
+            }
             this.dungeon.triggerAttackAnimation();
             if (this.audio) this.audio.playWhoosh();
             this.network.sendKey('enter');
-        });
+        }, false);
 
-        // Diagonal Touch D-Pad buttons
+        // Diagonal Touch D-Pad buttons with hold-to-repeat
         bindTouch('dpad-ul', () => {
             const key = this.getRelativeDirectionKey(7);
             if (key) this.network.sendKey(key);
-        });
+        }, true);
 
         bindTouch('dpad-ur', () => {
             const key = this.getRelativeDirectionKey(9);
             if (key) this.network.sendKey(key);
-        });
+        }, true);
 
         bindTouch('dpad-dl', () => {
             const key = this.getRelativeDirectionKey(1);
             if (key) this.network.sendKey(key);
-        });
+        }, true);
 
         bindTouch('dpad-dr', () => {
             const key = this.getRelativeDirectionKey(3);
             if (key) this.network.sendKey(key);
-        });
+        }, true);
+    }
+
+    executeSmartAction(action) {
+        if (action === 'descend') {
+            this.network.sendKey('>');
+        } else if (action === 'ascend') {
+            this.network.sendKey('<');
+        } else if (action === 'door') {
+            if (this.audio) this.audio.playDoor();
+            const fwdKey = this.getRelativeDirectionKey(8) || 'up';
+            this.network.sendKey('o');
+            setTimeout(() => {
+                this.network.sendKey(fwdKey);
+            }, 80);
+        } else if (action === 'attack') {
+            this.dungeon.triggerAttackAnimation();
+            if (this.audio) this.audio.playWhoosh();
+            const fwdKey = this.getRelativeDirectionKey(8) || 'up';
+            this.network.sendKey(fwdKey);
+        } else {
+            // Wait / Rest 1 Turn
+            this.network.sendKey('5');
+        }
+    }
+
+    updateContextualControls(frame) {
+        if (!frame || !frame.player || !frame.map) return;
+        const player = frame.player;
+        const px = player.x;
+        const py = player.y;
+        const dpadCenter = document.getElementById('dpad-center');
+        if (!dpadCenter) return;
+
+        // 1. Check if standing on stairs
+        let currentFeat = 0;
+        if (frame.map.rows && frame.map.rows[py] && frame.map.rows[py].f) {
+            currentFeat = parseInt(frame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16) || 0;
+        }
+
+        if (currentFeat === 6) { // Downstairs
+            this.smartAction = 'descend';
+            dpadCenter.textContent = '⬇';
+            dpadCenter.title = 'Descend Staircase (>)';
+            dpadCenter.classList.add('smart-active', 'smart-stairs');
+            dpadCenter.classList.remove('smart-door', 'smart-attack');
+            return;
+        } else if (currentFeat === 5) { // Upstairs
+            this.smartAction = 'ascend';
+            dpadCenter.textContent = '⬆';
+            dpadCenter.title = 'Ascend Staircase (<)';
+            dpadCenter.classList.add('smart-active', 'smart-stairs');
+            dpadCenter.classList.remove('smart-door', 'smart-attack');
+            return;
+        }
+
+        // 2. Check facing direction
+        const facing = (this.dungeon && typeof this.dungeon.facing === 'number') ? this.dungeon.facing : 0;
+        const forwardOffsets = [
+            { dx: 0, dy: -1 }, // 0: North
+            { dx: 1, dy: 0 },  // 1: East
+            { dx: 0, dy: 1 },  // 2: South
+            { dx: -1, dy: 0 }  // 3: West
+        ];
+        const fwd = forwardOffsets[facing] || { dx: 0, dy: -1 };
+        const frontX = px + fwd.dx;
+        const frontY = py + fwd.dy;
+
+        // Check if monster in front
+        let monsterInFront = false;
+        if (frame.monsters && Array.isArray(frame.monsters)) {
+            monsterInFront = frame.monsters.some(m => m.x === frontX && m.y === frontY);
+        }
+
+        if (monsterInFront) {
+            this.smartAction = 'attack';
+            dpadCenter.textContent = '⚔';
+            dpadCenter.title = 'Attack Monster in Front (Space)';
+            dpadCenter.classList.add('smart-active', 'smart-attack');
+            dpadCenter.classList.remove('smart-stairs', 'smart-door');
+            return;
+        }
+
+        // Check if closed door in front
+        let frontFeat = 0;
+        if (frame.map.rows && frame.map.rows[frontY] && frame.map.rows[frontY].f) {
+            frontFeat = parseInt(frame.map.rows[frontY].f.substring(frontX * 2, frontX * 2 + 2), 16) || 0;
+        }
+
+        if (frontFeat === 3 || frontFeat === 4) { // Closed or locked door
+            this.smartAction = 'door';
+            dpadCenter.textContent = '🚪';
+            dpadCenter.title = 'Open Door in Front (o)';
+            dpadCenter.classList.add('smart-active', 'smart-door');
+            dpadCenter.classList.remove('smart-stairs', 'smart-attack');
+            return;
+        }
+
+        // Default: Wait / Rest 1 turn
+        this.smartAction = 'wait';
+        dpadCenter.textContent = '●';
+        dpadCenter.title = 'Rest / Wait 1 Turn (5)';
+        dpadCenter.classList.remove('smart-active', 'smart-stairs', 'smart-door', 'smart-attack');
+    }
+
+    setupViewportGestures() {
+        const canvas = document.getElementById('viewport-canvas');
+        if (!canvas) return;
+
+        let startX = 0;
+        let startY = 0;
+        let startTime = 0;
+        let isTouching = false;
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                startTime = performance.now();
+                isTouching = true;
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (!isTouching) return;
+            isTouching = false;
+            if (!e.changedTouches || e.changedTouches.length === 0) return;
+
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            const elapsed = performance.now() - startTime;
+
+            const dx = endX - startX;
+            const dy = endY - startY;
+
+            // Clear horizontal swipe completed within 450ms
+            if (elapsed < 450 && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                if (window.DeviceProfile) window.DeviceProfile.vibrate(12);
+                if (dx > 0) {
+                    // Swiped Right -> Turn Right (clockwise)
+                    this.dungeon.turn(1);
+                } else {
+                    // Swiped Left -> Turn Left (counter-clockwise)
+                    this.dungeon.turn(-1);
+                }
+            }
+        }, { passive: true });
     }
 
     toggleFullscreen() {
