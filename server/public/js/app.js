@@ -1133,24 +1133,42 @@ window.addEventListener('DOMContentLoaded', () => {
         showMainMenu();
     }
 
-    // Attach DOM event listeners for buttons
+    // Fast Tactile Tap Helper for Mobile / Touch Devices
+    function bindFastTap(el, fn) {
+        if (!el || !fn) return;
+        let lastTap = 0;
+        const trigger = (e) => {
+            const now = Date.now();
+            if (now - lastTap < 300) return;
+            lastTap = now;
+            if (e && e.cancelable && e.type !== 'click') e.preventDefault();
+            if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
+            fn();
+        };
+        el.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'touch') trigger(e);
+        });
+        el.addEventListener('click', trigger);
+    }
+
+    // Attach DOM event listeners for splash buttons
     const btnSplashStart = document.getElementById('btn-splash-start');
-    if (btnSplashStart) btnSplashStart.addEventListener('click', () => showMainMenu());
+    bindFastTap(btnSplashStart, () => showMainMenu());
 
     const btnSplashMenu = document.getElementById('btn-splash-menu');
-    if (btnSplashMenu) btnSplashMenu.addEventListener('click', () => showMainMenu());
+    bindFastTap(btnSplashMenu, () => showMainMenu());
 
     const btnSplashGuide = document.getElementById('btn-splash-guide');
-    if (btnSplashGuide) btnSplashGuide.addEventListener('click', () => showGuide(0, 'splash'));
+    bindFastTap(btnSplashGuide, () => showGuide(0, 'splash'));
 
     const btnSplashFeatures = document.getElementById('btn-splash-features');
-    if (btnSplashFeatures) btnSplashFeatures.addEventListener('click', () => showGuide(1, 'splash'));
+    bindFastTap(btnSplashFeatures, () => showGuide(1, 'splash'));
 
     const btnSplashProtips = document.getElementById('btn-splash-protips');
-    if (btnSplashProtips) btnSplashProtips.addEventListener('click', () => showGuide(4, 'splash'));
+    bindFastTap(btnSplashProtips, () => showGuide(4, 'splash'));
 
     const btnSplashCredits = document.getElementById('btn-splash-credits');
-    if (btnSplashCredits) btnSplashCredits.addEventListener('click', () => showGuide(6, 'splash'));
+    bindFastTap(btnSplashCredits, () => showGuide(6, 'splash'));
 
     // Audio Volume & Mute Control Synchronization
     function syncAudioUI() {
@@ -1259,11 +1277,21 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     menuOptionBtns.forEach((btn, idx) => {
-        btn.addEventListener('click', () => {
+        let lastTap = 0;
+        const trigger = (e) => {
+            const now = Date.now();
+            if (now - lastTap < 300) return;
+            lastTap = now;
+            if (e && e.cancelable && e.type !== 'click') e.preventDefault();
+            if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
             selectedMenuIndex = idx;
             updateMenuSelectionUI();
             activateMenuItem();
+        };
+        btn.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'touch') trigger(e);
         });
+        btn.addEventListener('click', trigger);
         btn.addEventListener('mouseenter', () => {
             selectedMenuIndex = idx;
             updateMenuSelectionUI();
@@ -1271,11 +1299,21 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     pauseOptionBtns.forEach((btn, idx) => {
-        btn.addEventListener('click', () => {
+        let lastTap = 0;
+        const trigger = (e) => {
+            const now = Date.now();
+            if (now - lastTap < 300) return;
+            lastTap = now;
+            if (e && e.cancelable && e.type !== 'click') e.preventDefault();
+            if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
             selectedPauseIndex = idx;
             updatePauseMenuSelectionUI();
             activatePauseMenuItem();
+        };
+        btn.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'touch') trigger(e);
         });
+        btn.addEventListener('click', trigger);
         btn.addEventListener('mouseenter', () => {
             selectedPauseIndex = idx;
             updatePauseMenuSelectionUI();
@@ -1396,6 +1434,10 @@ window.addEventListener('DOMContentLoaded', () => {
         const itemButtonsList = document.getElementById('item-buttons-list');
         const btnItemSwitch = document.getElementById('btn-item-switch');
         const btnItemCancel = document.getElementById('btn-item-cancel');
+        const mobileHeroCard = document.getElementById('mobile-hero-card');
+        const terminalCanvas = document.getElementById('terminal-canvas');
+        const terminalToolbar = document.querySelector('.terminal-toolbar');
+        const terminalCard = document.getElementById('terminal-card');
         if (!terminalTitle || !termEscapeBtn) return;
 
         const inPlay = Boolean(frame && frame.phase === 'play' && frame.map);
@@ -1425,10 +1467,56 @@ window.addEventListener('DOMContentLoaded', () => {
                     termAdvanceBtn.textContent = '⚔ Accept & Play (Enter)';
                 }
                 termEscapeBtn.textContent = 'Back (Esc)';
+
+                // Mobile & Tablet Legibility: Render Native Hero Review Card
+                const isMobileOrTablet = (typeof DeviceProfile !== 'undefined') && (DeviceProfile.getTier() !== 'desktop');
+                if (mobileHeroCard && isMobileOrTablet && window.MobileOverlay) {
+                    mobileHeroCard.style.display = 'flex';
+                    if (terminalCanvas) terminalCanvas.style.display = 'none';
+                    if (terminalToolbar) terminalToolbar.style.display = 'none';
+                    if (terminalCard) terminalCard.classList.add('mobile-card-active');
+                    window.MobileOverlay.renderHeroReviewCard(frame, mobileHeroCard, {
+                        onReroll: () => {
+                            if (termRerollBtn) termRerollBtn.click();
+                            else rerollHero();
+                        },
+                        onCustom: () => {
+                            if (termCustomBtn) termCustomBtn.click();
+                            else startCustomHeroCreation();
+                        },
+                        onAccept: () => {
+                            if (termAdvanceBtn) {
+                                termAdvanceBtn.click();
+                            } else {
+                                confirmHeroBirth();
+                                if (audio) audio.playWhoosh();
+                                network.sendKey('enter');
+                            }
+                        },
+                        onBack: () => {
+                            if (termEscapeBtn) {
+                                termEscapeBtn.click();
+                            } else {
+                                cancelQuickBirth();
+                                if (audio) audio.playMenuNav();
+                                network.sendKey('s');
+                            }
+                        }
+                    });
+                } else {
+                    if (mobileHeroCard) mobileHeroCard.style.display = 'none';
+                    if (terminalCanvas) terminalCanvas.style.display = 'block';
+                    if (terminalToolbar) terminalToolbar.style.display = 'flex';
+                    if (terminalCard) terminalCard.classList.remove('mobile-card-active');
+                }
                 return;
             }
 
             // Case 2: Early Character Creation (race/class/stat selection)
+            if (mobileHeroCard) mobileHeroCard.style.display = 'none';
+            if (terminalCanvas) terminalCanvas.style.display = 'block';
+            if (terminalToolbar) terminalToolbar.style.display = 'flex';
+            if (terminalCard) terminalCard.classList.remove('mobile-card-active');
             terminalTitle.textContent = '⚔ CHARACTER CREATION';
             if (quickBirthBtn) quickBirthBtn.style.display = 'inline-flex';
             if (termRerollBtn) termRerollBtn.style.display = 'none';
@@ -1443,6 +1531,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // --- ACTIVE PLAY (Town or Dungeon) ---
         // Never show character birth or reroll buttons during active play!
+        if (mobileHeroCard) mobileHeroCard.style.display = 'none';
+        if (terminalCanvas) terminalCanvas.style.display = 'block';
+        if (terminalToolbar) terminalToolbar.style.display = 'flex';
+        if (terminalCard) terminalCard.classList.remove('mobile-card-active');
         if (quickBirthBtn) quickBirthBtn.style.display = 'none';
         if (termRerollBtn) termRerollBtn.style.display = 'none';
         if (termCustomBtn) termCustomBtn.style.display = 'none';
@@ -1657,6 +1749,9 @@ window.addEventListener('DOMContentLoaded', () => {
         const topMessageBanner = document.getElementById('top-message-banner');
         const touchControls = document.getElementById('touch-controls');
 
+        const btnToggleMsg = document.getElementById('btn-toggle-msg-feed');
+        const btnToggleMap = document.getElementById('btn-toggle-minimap');
+
         if (needsTerm) {
             terminalContainer.classList.remove('hidden');
             terminalContainer.classList.remove('in-game-modal');
@@ -1665,6 +1760,8 @@ window.addEventListener('DOMContentLoaded', () => {
             if (messageFeedWindow) messageFeedWindow.style.display = 'none';
             if (topMessageBanner) topMessageBanner.style.display = 'none';
             if (touchControls) touchControls.style.display = 'none';
+            if (btnToggleMsg) btnToggleMsg.style.display = 'none';
+            if (btnToggleMap) btnToggleMap.style.display = 'none';
 
             input.setTerminalMode(true);
             terminal.resize();
@@ -1675,13 +1772,126 @@ window.addEventListener('DOMContentLoaded', () => {
             terminalContainer.classList.add('hidden');
             terminalContainer.classList.remove('in-game-modal');
             if (hudOverlay) hudOverlay.style.display = 'flex';
-            if (minimapContainer) minimapContainer.style.display = 'flex';
-            if (messageFeedWindow) messageFeedWindow.style.display = 'flex';
+
+            // Respect user closed preference for minimap radar
+            const showMinimap = !window.__minimapClosed;
+            if (minimapContainer) minimapContainer.style.display = showMinimap ? 'flex' : 'none';
+
+            // Respect user closed preference for message log
+            const isPhone = window.DeviceProfile && window.DeviceProfile.getTier() === 'phone';
+            if (messageFeedWindow) {
+                if (isPhone) {
+                    const isExpanded = messageFeedWindow.classList.contains('mobile-expanded') && !window.__messageLogClosed;
+                    messageFeedWindow.style.display = isExpanded ? 'flex' : 'none';
+                } else {
+                    const showMsg = !window.__messageLogClosed;
+                    messageFeedWindow.style.display = showMsg ? 'flex' : 'none';
+                }
+            }
             if (topMessageBanner) topMessageBanner.style.display = 'flex';
-            if (touchControls && window.innerWidth <= 960) touchControls.style.display = 'block';
+
+            const showTouch = window.DeviceProfile 
+                ? (window.DeviceProfile.getTier() !== 'desktop' || window.DeviceProfile.hasTouch())
+                : (window.innerWidth < 1024);
+            if (touchControls) touchControls.style.display = showTouch ? 'block' : 'none';
+
+            // Update top bar toggle indicators
+            if (btnToggleMsg) {
+                btnToggleMsg.style.display = 'inline-flex';
+                const isMsgOpen = messageFeedWindow && messageFeedWindow.style.display !== 'none';
+                btnToggleMsg.classList.toggle('active', Boolean(isMsgOpen));
+            }
+            if (btnToggleMap) {
+                btnToggleMap.style.display = 'inline-flex';
+                const isMapOpen = minimapContainer && minimapContainer.style.display !== 'none';
+                btnToggleMap.classList.toggle('active', Boolean(isMapOpen));
+            }
 
             input.setTerminalMode(false);
         }
+    }
+
+    if (window.DeviceProfile) {
+        window.DeviceProfile.addListener(() => {
+            updateViewMode();
+        });
+    }
+
+    // Minimap and Message Log Functional Toggles
+    const btnToggleMap = document.getElementById('btn-toggle-minimap');
+    const btnMinimapClose = document.getElementById('btn-minimap-close');
+    if (btnToggleMap) {
+        btnToggleMap.addEventListener('click', () => {
+            window.__minimapClosed = !window.__minimapClosed;
+            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+            updateViewMode();
+        });
+    }
+    if (btnMinimapClose) {
+        btnMinimapClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.__minimapClosed = true;
+            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+            updateViewMode();
+        });
+    }
+
+    const btnToggleMsg = document.getElementById('btn-toggle-msg-feed');
+    const btnMsgClose = document.getElementById('btn-msg-close');
+    const topMsgBanner = document.getElementById('top-message-banner');
+    const msgFeedWin = document.getElementById('message-feed-window');
+
+    if (btnToggleMsg) {
+        btnToggleMsg.addEventListener('click', () => {
+            const isPhone = window.DeviceProfile && window.DeviceProfile.getTier() === 'phone';
+            if (isPhone) {
+                if (msgFeedWin) {
+                    msgFeedWin.classList.toggle('mobile-expanded');
+                    window.__messageLogClosed = !msgFeedWin.classList.contains('mobile-expanded');
+                }
+            } else {
+                window.__messageLogClosed = !window.__messageLogClosed;
+            }
+            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+            updateViewMode();
+        });
+    }
+
+    if (btnMsgClose) {
+        btnMsgClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.__messageLogClosed = true;
+            if (msgFeedWin) msgFeedWin.classList.remove('mobile-expanded');
+            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+            updateViewMode();
+        });
+    }
+
+    // Top Message Banner Tap-to-Toggle Narrative Feed
+    if (topMsgBanner && msgFeedWin) {
+        topMsgBanner.addEventListener('click', () => {
+            const isPhone = window.DeviceProfile && window.DeviceProfile.getTier() === 'phone';
+            if (isPhone) {
+                msgFeedWin.classList.toggle('mobile-expanded');
+                window.__messageLogClosed = !msgFeedWin.classList.contains('mobile-expanded');
+            } else {
+                window.__messageLogClosed = !window.__messageLogClosed;
+            }
+            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+            updateViewMode();
+        });
+    }
+
+    const btnMsgClear = document.getElementById('btn-msg-clear');
+    if (btnMsgClear && msgFeedWin) {
+        btnMsgClear.addEventListener('click', () => {
+            const isPhone = window.DeviceProfile && window.DeviceProfile.getTier() === 'phone';
+            if (isPhone && msgFeedWin.classList.contains('mobile-expanded')) {
+                msgFeedWin.classList.remove('mobile-expanded');
+                window.__messageLogClosed = true;
+                msgFeedWin.style.display = 'none';
+            }
+        });
     }
 
     // 2. Network Event Handlers
@@ -1757,6 +1967,15 @@ window.addEventListener('DOMContentLoaded', () => {
             hud.update(frame);
         } catch (err) {
             console.error('[HUD Error]', err);
+        }
+
+        // Update Smart Contextual Controls (D-Pad Center Action, Staircase, Doors)
+        if (input && input.updateContextualControls) {
+            try {
+                input.updateContextualControls(frame);
+            } catch (err) {
+                console.error('[InputContext Error]', err);
+            }
         }
 
         // Update Terminal Toolbar & Context

@@ -40,25 +40,31 @@ class WebTerminal {
     }
 
     resize() {
-        // Compute crisp font size based on available viewport width/height
-        const maxW = Math.min(window.innerWidth * 0.95, 1200);
-        const maxH = Math.min(window.innerHeight * 0.88, 750);
-
-        // Optimal cell dimensions maintaining 80x24 aspect ratio
-        const cellW = Math.floor(maxW / this.cols);
-        const cellH = Math.floor(maxH / this.rows);
-        this.cellSize = Math.max(12, Math.min(cellW, Math.floor(cellH * 0.58)));
-
-        this.charWidth = this.cellSize;
-        this.charHeight = Math.floor(this.cellSize * 1.75);
-        this.fontSize = Math.floor(this.charHeight * 0.82);
+        // High-DPI logical font metrics maintaining standard 80x24 aspect ratio
+        const baseCellWidth = 14;
+        const baseCellHeight = Math.floor(baseCellWidth * 1.75); // 24.5px
+        const logicalWidth = this.cols * baseCellWidth; // 1120px
+        const logicalHeight = this.rows * baseCellHeight; // 588px
 
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        this.canvas.width = this.cols * this.charWidth * dpr;
-        this.canvas.height = this.rows * this.charHeight * dpr;
+        this.canvas.width = logicalWidth * dpr;
+        this.canvas.height = logicalHeight * dpr;
+        this.charWidth = baseCellWidth;
+        this.charHeight = baseCellHeight;
+        this.fontSize = Math.floor(this.charHeight * 0.82);
 
-        this.canvas.style.width = `${this.cols * this.charWidth}px`;
-        this.canvas.style.height = `${this.rows * this.charHeight}px`;
+        // Responsive CSS display sizing that fits ANY viewport without horizontal overflow
+        const availW = Math.min(window.innerWidth * 0.96, 1200);
+        const availH = Math.min((window.innerHeight - 80) * 0.90, 750);
+        const scale = Math.min(availW / logicalWidth, availH / logicalHeight, 1.0);
+
+        const cssW = Math.floor(logicalWidth * scale);
+        const cssH = Math.floor(logicalHeight * scale);
+
+        this.canvas.style.width = `${cssW}px`;
+        this.canvas.style.height = `${cssH}px`;
+        this.canvas.style.maxWidth = '100%';
+        this.canvas.style.objectFit = 'contain';
 
         this.ctx.scale(dpr, dpr);
 
@@ -68,16 +74,33 @@ class WebTerminal {
     }
 
     setupMouseEvents() {
-        this.canvas.addEventListener('click', (e) => {
+        const handleInteraction = (clientX, clientY) => {
             const rect = this.canvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
+            if (rect.width <= 0 || rect.height <= 0) return;
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const scaleX = this.canvas.width / (rect.width * dpr);
+            const scaleY = this.canvas.height / (rect.height * dpr);
+
+            const clickX = (clientX - rect.left) * scaleX;
+            const clickY = (clientY - rect.top) * scaleY;
 
             const col = Math.floor(clickX / this.charWidth);
             const row = Math.floor(clickY / this.charHeight);
 
             this.handleRowClick(row, col);
+        };
+
+        this.canvas.addEventListener('click', (e) => {
+            handleInteraction(e.clientX, e.clientY);
         });
+
+        // Touch event mapping for phones and tablets
+        this.canvas.addEventListener('touchend', (e) => {
+            if (e.changedTouches && e.changedTouches.length > 0) {
+                if (e.cancelable) e.preventDefault();
+                handleInteraction(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+            }
+        }, { passive: false });
     }
 
     handleRowClick(row, col) {

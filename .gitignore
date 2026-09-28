@@ -39,3 +39,4 @@ Thumbs.db
 /test*.png
 /screenshot*.png
 /*.png
+tools/temp_chrome_*/

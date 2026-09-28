@@ -59,19 +59,10 @@ class WebHUD {
         this.currentTurn = 0;
         this.isDeadInPlay = false;
 
-        this.promptBar = document.getElementById('prompt-bar');
-        this.promptText = document.getElementById('prompt-text');
-
         // Detailed 3-Row Telemetry Footer (Matches Overlay.cs:1620-1740)
         this.footerDiagonalHint = document.getElementById('footer-diagonal-hint');
         this.footerStairsHint = document.getElementById('footer-stairs-hint');
-        this.footerKeyHints = document.getElementById('footer-key-hints');
-        this.footerCharIdentity = document.getElementById('footer-char-identity');
         this.footerLevel = document.getElementById('footer-level');
-        this.footerHp = document.getElementById('footer-hp');
-        this.footerSp = document.getElementById('footer-sp');
-        this.footerAc = document.getElementById('footer-ac');
-        this.footerGold = document.getElementById('footer-gold');
         this.footerExp = document.getElementById('footer-exp');
         this.footerPlace = document.getElementById('footer-place');
         this.footerSpeed = document.getElementById('footer-speed');
@@ -95,14 +86,6 @@ class WebHUD {
         this.setupMinimapControls();
         this.setupDeathModal();
         this.setupMessageFeed();
-
-        if (this.promptBar) {
-            this.promptBar.addEventListener('click', () => {
-                if (window.__app && window.__app.network) {
-                    window.__app.network.sendKey('space');
-                }
-            });
-        }
 
         // Offscreen canvas cache for static minimap tiles (eliminates hundreds of fillText calls per frame on turn)
         this.minimapTileCanvas = document.createElement('canvas');
@@ -569,22 +552,6 @@ class WebHUD {
             btnRecenter.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.resetMinimapZoom();
-            });
-        }
-
-        const btnSizeDec = document.getElementById('btn-map-size-dec');
-        if (btnSizeDec) {
-            btnSizeDec.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.cycleMinimapSize(-1);
-            });
-        }
-
-        const btnSizeInc = document.getElementById('btn-map-size-inc');
-        if (btnSizeInc) {
-            btnSizeInc.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.cycleMinimapSize(1);
             });
         }
     }
@@ -1060,6 +1027,9 @@ class WebHUD {
             }
         }
 
+        // Contextual Action Button Pulses (Potion on Low HP, Door button on closed door)
+        this.updateContextPulses(frame);
+
         // Detailed 3-Row Telemetry Footer / Streamlined Status Bar
         if (this.footerCharIdentity) {
             this.footerCharIdentity.textContent = `${player.name || 'Hero'} the ${player.race || 'Human'} ${player.class || 'Warrior'}`;
@@ -1186,12 +1156,17 @@ class WebHUD {
 
         const inPlay = Boolean(frame && (frame.phase === 'play' || (frame.player && frame.player.name)));
 
-        // Message Feed Window Visibility: Always visible in town and dungeon when in play
+        // Message Feed Window Visibility: Respect user toggle state, drawer on phone
         if (this.messageFeedWindow) {
-            if (inPlay) {
-                this.messageFeedWindow.style.display = 'flex';
-                this.messageFeedWindow.style.visibility = 'visible';
-                this.messageFeedWindow.style.opacity = '1';
+            const isPhone = window.DeviceProfile && window.DeviceProfile.getTier() === 'phone';
+            if (inPlay && !window.__messageLogClosed) {
+                if (isPhone && !this.messageFeedWindow.classList.contains('mobile-expanded')) {
+                    this.messageFeedWindow.style.display = 'none';
+                } else {
+                    this.messageFeedWindow.style.display = 'flex';
+                    this.messageFeedWindow.style.visibility = 'visible';
+                    this.messageFeedWindow.style.opacity = '1';
+                }
             } else {
                 this.messageFeedWindow.style.display = 'none';
             }
@@ -1372,6 +1347,32 @@ class WebHUD {
 
     isWalkableOrPortal(feat) {
         return feat === 1 || feat === 2 || feat === 3 || feat === 4 || feat === 5 || feat === 6 || feat === 16 || feat === 23 || feat === 24 || this.isStoreKind(feat);
+    }
+
+    updateContextPulses(frame) {
+        if (!frame || !frame.player) return;
+        const player = frame.player;
+        const curHp = player.hp !== undefined ? player.hp : 0;
+        const maxHp = player.hp_max || player.maxHp || 1;
+
+        // Contextual Action Button Pulses (Potion on Low HP, Door button on closed door)
+        const btnQuaff = document.getElementById('btn-quaff');
+        if (btnQuaff) {
+            const isLowHp = maxHp > 0 && (curHp / maxHp) <= 0.30;
+            btnQuaff.classList.toggle('smart-low-hp', isLowHp);
+        }
+
+        const btnDoor = document.getElementById('btn-door');
+        if (btnDoor && frame.map && player.x !== undefined && player.y !== undefined) {
+            const facing = window.__app && window.__app.dungeon ? window.__app.dungeon.facing : 0;
+            const forwardOffsets = [
+                { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
+            ];
+            const fwd = forwardOffsets[facing] || { dx: 0, dy: -1 };
+            const frontFeat = this.getFeatAt(frame.map, player.x + fwd.dx, player.y + fwd.dy);
+            const isDoorInFront = frontFeat === 3 || frontFeat === 4;
+            btnDoor.classList.toggle('smart-door-active', isDoorInFront);
+        }
     }
 
     /* -------------------------------------------------------------

@@ -16,6 +16,11 @@
     --glass-border: rgba(212, 175, 55, 0.25);
     --font-fantasy: 'Cinzel', serif, -apple-system;
     --font-terminal: 'Fira Code', 'Courier New', monospace;
+    --font-ui: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
 }
 
 * {
@@ -33,12 +38,15 @@ html, body {
     background-color: var(--bg-dark);
     font-family: var(--font-fantasy);
     color: var(--text-primary);
+    touch-action: none;
+    -webkit-touch-callout: none;
 }
 
 #app-container {
     position: relative;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
 }
 
@@ -56,9 +64,9 @@ html, body {
 /* Live Action & Combat Message Banner (1:1 with Godot Overlay.cs:1572-1587) */
 .top-message-banner {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: var(--safe-top);
+    left: var(--safe-left);
+    right: var(--safe-right);
     height: 34px;
     background: rgba(6, 8, 14, 0.92);
     backdrop-filter: blur(8px);
@@ -105,10 +113,12 @@ html, body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: rgba(4, 5, 8, 0.97);
+    background: rgba(4, 5, 8, 0.94);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     z-index: 100;
     transition: opacity 0.15s ease;
-    padding: 16px;
+    padding: max(8px, var(--safe-top)) max(8px, var(--safe-right)) max(8px, var(--safe-bottom)) max(8px, var(--safe-left));
 }
 
 #terminal-container.hidden {
@@ -121,13 +131,16 @@ html, body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     background: #090b10;
     border: 1px solid rgba(212, 175, 55, 0.35);
     border-radius: 8px;
-    padding: 14px 18px 18px;
+    padding: 10px 14px 14px;
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.95), 0 0 20px rgba(212, 175, 55, 0.15);
     max-width: 98vw;
+    max-height: 96vh;
+    max-height: 96dvh;
+    overflow: hidden;
 }
 
 .terminal-toolbar {
@@ -135,8 +148,10 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-    padding-bottom: 10px;
+    padding-bottom: 8px;
 }
 
 .terminal-title {
@@ -420,6 +435,43 @@ html, body {
     border-color: var(--gold-primary);
     background: rgba(212, 175, 55, 0.15);
     color: #fff;
+}
+
+.icon-btn.active {
+    border-color: #ffd700;
+    background: rgba(212, 175, 55, 0.28);
+    color: #ffd700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.45);
+}
+
+.map-close-btn {
+    background: transparent;
+    border: none;
+    color: #ff7b72;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 5px;
+    border-radius: 3px;
+    transition: all 0.15s ease;
+    margin-left: 6px;
+    line-height: 1;
+}
+
+.map-close-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fff;
+}
+
+#btn-msg-close {
+    color: #ff7b72;
+    border-color: rgba(255, 123, 114, 0.4);
+}
+
+#btn-msg-close:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fff;
+    border-color: #ff7b72;
 }
 
 /* Sound Control Group & Volume Slider */
@@ -1214,65 +1266,128 @@ html, body {
     font-weight: bold;
 }
 
-/* Virtual D-Pad for Mobile & Touch */
+/* Virtual D-Pad for Mobile & Touch (Console / Roguelike Precision Grid) */
 #touch-controls {
     position: absolute;
-    bottom: 90px;
-    right: 20px;
-    width: 156px;
-    height: 156px;
+    bottom: 84px;
+    right: 18px;
+    width: 172px;
     display: none;
-    z-index: 8;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 15;
     pointer-events: auto;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 @media (max-width: 900px), (pointer: coarse) {
     #touch-controls {
-        display: block;
+        display: flex;
     }
 }
 
-.dpad-btn {
-    position: absolute;
-    width: 44px;
-    height: 44px;
-    background: rgba(20, 24, 34, 0.85);
-    border: 1px solid var(--glass-border);
-    border-radius: 50%;
-    color: var(--gold-bright);
-    font-size: 18px;
+.dpad-turn-wings {
     display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+}
+
+.dpad-turn-btn {
+    flex: 1;
+    height: 34px;
+    background: rgba(14, 20, 32, 0.92);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 8px;
+    color: var(--gold-bright);
+    font-size: 13px;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    transition: all 0.15s ease;
+}
+
+.dpad-turn-btn:active {
+    background: rgba(212, 175, 55, 0.35);
+    border-color: #ffd700;
+    transform: scale(0.96);
+}
+
+.dpad-turn-symbol {
+    font-size: 16px;
+}
+
+.dpad-turn-text {
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.dpad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 5px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+}
+
+.dpad-btn {
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    background: rgba(18, 22, 34, 0.88);
+    color: var(--gold-bright);
+    font-size: 17px;
+    display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     cursor: pointer;
     touch-action: manipulation;
     user-select: none;
+    -webkit-user-select: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    transition: all 0.1s ease;
+    padding: 0;
 }
 
 .dpad-btn:active {
     background: rgba(212, 175, 55, 0.35);
     border-color: var(--gold-bright);
+    transform: scale(0.94);
 }
 
-.dpad-up    { top: 0; left: 56px; }
-.dpad-down  { bottom: 0; left: 56px; }
-.dpad-left  { top: 56px; left: 0; }
-.dpad-right { top: 56px; right: 0; }
-.dpad-center{ top: 56px; left: 56px; border-radius: 8px; font-size: 13px; }
+.dpad-cardinal {
+    background: rgba(22, 28, 44, 0.92);
+    border-color: rgba(212, 175, 55, 0.4);
+    font-size: 18px;
+}
+
+.dpad-strafe {
+    font-size: 15px;
+    gap: 1px;
+}
+
+.dpad-sub-lbl {
+    font-size: 8px;
+    font-family: var(--font-ui);
+    color: var(--gold-dim);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
 
 .dpad-diag {
-    width: 34px;
-    height: 34px;
-    font-size: 12px;
-    border-radius: 6px;
-    background: rgba(16, 20, 30, 0.9);
-    border: 1px dashed rgba(212, 175, 55, 0.45);
+    font-size: 13px;
+    background: rgba(12, 16, 26, 0.85);
+    border-style: dashed;
+    border-color: rgba(212, 175, 55, 0.3);
 }
-
-.dpad-ul { top: 8px; left: 8px; }
-.dpad-ur { top: 8px; right: 8px; }
-.dpad-dl { bottom: 8px; left: 8px; }
-.dpad-dr { bottom: 8px; right: 8px; }
 
 .diag-num {
     font-size: 9px;
@@ -1281,9 +1396,50 @@ html, body {
     font-weight: bold;
 }
 
-/* Prompt Bar (deprecated / removed) */
-#prompt-bar {
-    display: none !important;
+.dpad-center {
+    border-radius: 10px;
+    font-size: 15px;
+    background: rgba(30, 36, 54, 0.95);
+    border-color: rgba(212, 175, 55, 0.55);
+}
+
+.dpad-center.smart-stairs {
+    background: linear-gradient(135deg, rgba(70, 50, 12, 0.95), rgba(24, 28, 40, 0.95));
+    border-color: #ffd700;
+    color: #fff6a8;
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.55);
+    animation: smartPulseGold 1.8s infinite ease-in-out;
+}
+
+.dpad-center.smart-door {
+    background: linear-gradient(135deg, rgba(14, 45, 55, 0.95), rgba(20, 24, 34, 0.95));
+    border-color: #38bdf8;
+    color: #bae6fd;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.55);
+    animation: smartPulseCyan 1.8s infinite ease-in-out;
+}
+
+.dpad-center.smart-attack {
+    background: linear-gradient(135deg, rgba(80, 16, 22, 0.95), rgba(24, 18, 24, 0.95));
+    border-color: #ef4444;
+    color: #fecaca;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.65);
+    animation: smartPulseRed 1.4s infinite ease-in-out;
+}
+
+@keyframes smartPulseGold {
+    0%, 100% { box-shadow: 0 0 8px rgba(255, 215, 0, 0.35); transform: scale(1); }
+    50% { box-shadow: 0 0 18px rgba(255, 215, 0, 0.75); transform: scale(1.06); }
+}
+
+@keyframes smartPulseCyan {
+    0%, 100% { box-shadow: 0 0 8px rgba(56, 189, 248, 0.35); transform: scale(1); }
+    50% { box-shadow: 0 0 18px rgba(56, 189, 248, 0.75); transform: scale(1.06); }
+}
+
+@keyframes smartPulseRed {
+    0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.85); transform: scale(1.08); }
 }
 
 /* Loading Overlay */
@@ -1712,8 +1868,10 @@ html, body {
 }
 
 .splash-title {
-    font-size: 36px;
-    letter-spacing: 6px;
+    font-size: clamp(22px, 6.8vw, 42px);
+    letter-spacing: clamp(3px, 1.8vw, 8px);
+    white-space: nowrap !important;
+    text-align: center;
     color: #fff2a8;
     text-shadow: 0 0 20px rgba(255, 215, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.9);
     margin-bottom: 6px;
@@ -1846,8 +2004,10 @@ html, body {
 }
 
 .main-menu-title {
-    font-size: 26px;
-    letter-spacing: 4px;
+    font-size: clamp(18px, 5.2vw, 28px);
+    letter-spacing: clamp(2px, 1.2vw, 4px);
+    white-space: nowrap !important;
+    text-align: center;
     color: #ffd700;
     font-weight: 700;
     margin-bottom: 4px;
@@ -2432,6 +2592,991 @@ html, body {
     border-left-color: #ffd700;
     padding-left: 8px;
 }
+
+/* ==============================================================================
+   RESPONSIVE DESIGN SYSTEM: Tablet & Phone Adaptive Architecture
+   Preserves 100% pixel-parity on Desktop PC (>=1024px) while transforming
+   fluidly for Tablet (600-1023px) and Phone (<600px).
+   ============================================================================== */
+
+/* Default Desktop: Action drawer toggle button is hidden */
+#btn-action-more {
+    display: none !important;
+}
+
+/* Action button active mechanical micro-scale */
+.action-btn:active, .dpad-btn:active {
+    transform: scale(0.94);
+}
+
+/* Contextual Action Button Pulses */
+.action-btn.stair-btn {
+    border-color: #ffd700 !important;
+    color: #fff6a8 !important;
+    background: linear-gradient(180deg, #44320e, #201503) !important;
+    animation: smartPulseGold 1.8s infinite ease-in-out;
+}
+
+.action-btn.smart-low-hp {
+    border-color: #ef4444 !important;
+    color: #fecaca !important;
+    background: linear-gradient(180deg, #4a1216, #200608) !important;
+    animation: smartPulseRed 1.4s infinite ease-in-out;
+}
+
+.action-btn.smart-door-active {
+    border-color: #38bdf8 !important;
+    color: #bae6fd !important;
+    background: linear-gradient(180deg, #103348, #071926) !important;
+    animation: smartPulseCyan 1.8s infinite ease-in-out;
+}
+
+/* Universal Tactile Button & Touch Optimization */
+button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-btn, .m-action-btn {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ------------------------------------------------------------------------------
+   COMPACT TOP-RIGHT BAR & MODAL TOP OFFSET (< 768px or Touch Screen)
+   ------------------------------------------------------------------------------ */
+@media (max-width: 768px), (max-width: 850px) and (pointer: coarse), (max-height: 500px) and (orientation: landscape) {
+    #top-right-bar {
+        top: max(4px, var(--safe-top)) !important;
+        right: max(6px, var(--safe-right)) !important;
+        gap: 6px !important;
+        z-index: 1000 !important;
+    }
+    #top-right-bar #ping-badge,
+    #top-right-bar #btn-controls,
+    #top-right-bar #btn-fullscreen,
+    #top-right-bar .volume-slider-wrap {
+        display: none !important;
+    }
+    #top-right-bar .msg-label,
+    #top-right-bar .map-label,
+    #top-right-bar .sound-label,
+    #top-right-bar .menu-label,
+    #top-right-bar .ctrl-label,
+    #top-right-bar .fs-label {
+        display: none !important;
+    }
+    #top-right-bar #btn-toggle-msg-feed,
+    #top-right-bar #btn-toggle-minimap,
+    #top-right-bar #btn-sound,
+    #top-right-bar #btn-menu {
+        min-width: 36px !important;
+        min-height: 36px !important;
+        width: 36px !important;
+        height: 36px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 15px !important;
+        border-radius: 8px !important;
+        background: rgba(14, 18, 28, 0.92) !important;
+        border: 1px solid rgba(212, 175, 55, 0.35) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+    }
+    #top-right-bar #btn-toggle-msg-feed[style*="display: none"],
+    #top-right-bar #btn-toggle-minimap[style*="display: none"] {
+        display: none !important;
+    }
+    #top-right-bar #btn-toggle-msg-feed.active,
+    #top-right-bar #btn-toggle-minimap.active {
+        border-color: #ffd700 !important;
+        background: rgba(45, 36, 16, 0.95) !important;
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.45) !important;
+    }
+    .sound-control-group {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+    }
+
+    /* Full-Screen Overlays Safe Top Offsets (prevents modal headers from colliding with top buttons) */
+    #splash-overlay,
+    #main-menu-overlay,
+    #terminal-container,
+    #guide-modal,
+    #load-modal,
+    #pause-modal,
+    #death-modal {
+        padding-top: calc(52px + var(--safe-top)) !important;
+        padding-bottom: max(8px, var(--safe-bottom)) !important;
+        padding-left: max(8px, var(--safe-left)) !important;
+        padding-right: max(8px, var(--safe-right)) !important;
+        box-sizing: border-box !important;
+    }
+    .splash-card,
+    .main-menu-card,
+    .load-card,
+    .guide-card,
+    .death-card {
+        max-height: calc(100dvh - 58px - var(--safe-top) - var(--safe-bottom)) !important;
+        overflow-y: auto !important;
+        touch-action: pan-y !important;
+        -webkit-overflow-scrolling: touch !important;
+        box-sizing: border-box !important;
+    }
+    .splash-card {
+        padding: 16px 14px 18px !important;
+        width: min(94vw, 460px) !important;
+    }
+    .splash-logo {
+        width: clamp(75px, 18vw, 115px) !important;
+        height: auto !important;
+    }
+    .splash-presentation, .splash-presents {
+        font-size: 10px !important;
+        letter-spacing: 2px !important;
+    }
+    .splash-title {
+        font-size: clamp(18px, 5.2vw, 28px) !important;
+        letter-spacing: clamp(1.5px, 1vw, 4px) !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        margin-bottom: 4px !important;
+    }
+    .splash-subtitle {
+        font-size: 11.5px !important;
+        line-height: 1.35 !important;
+        overflow-wrap: break-word !important;
+        word-break: break-word !important;
+        max-width: 92% !important;
+        margin-bottom: 3px !important;
+    }
+    .splash-engine-tag {
+        font-size: 9.5px !important;
+        overflow-wrap: break-word !important;
+        word-break: break-word !important;
+        max-width: 92% !important;
+        margin-bottom: 12px !important;
+    }
+    .btn-splash-start {
+        padding: 10px 12px !important;
+        font-size: 12px !important;
+        letter-spacing: 1px !important;
+        line-height: 1.35 !important;
+        white-space: normal !important;
+        width: 100% !important;
+        min-height: 44px !important;
+    }
+    .splash-shortcuts {
+        margin-top: 14px !important;
+        gap: 6px !important;
+    }
+    .splash-shortcut-btn {
+        min-height: 44px !important;
+        padding: 8px 10px !important;
+        font-size: 12px !important;
+    }
+    .menu-option-btn {
+        min-height: 48px !important;
+        padding: 8px 12px !important;
+    }
+    .menu-label {
+        font-size: 13px !important;
+    }
+    .menu-desc {
+        font-size: 10.5px !important;
+    }
+}
+
+/* ------------------------------------------------------------------------------
+   TABLET RESPONSIVE TIER (600px - 1023px)
+   ------------------------------------------------------------------------------ */
+@media (max-width: 1023px) {
+    .top-message-banner {
+        padding-right: clamp(16px, 14vw, 220px);
+    }
+
+    #hud-overlay {
+        padding-bottom: max(8px, var(--safe-bottom));
+        padding-left: max(10px, var(--safe-left));
+        padding-right: max(10px, var(--safe-right));
+        gap: 8px;
+    }
+
+    #char-panel {
+        min-width: 220px;
+        padding: 8px 12px;
+        gap: 6px;
+    }
+
+    #stats-strip {
+        font-size: 11px;
+        gap: 4px;
+    }
+
+    .stat-label {
+        font-size: 9px;
+    }
+
+    #btn-action-more {
+        display: inline-flex !important;
+        background: rgba(30, 40, 60, 0.9);
+        border-color: #ffd700;
+        color: #ffd700;
+    }
+
+    /* Collapsed Action Bar on Tablet: Display 6 primary actions + More */
+    #action-bar:not(.drawer-open) #btn-throw,
+    #action-bar:not(.drawer-open) #btn-fire,
+    #action-bar:not(.drawer-open) #btn-read,
+    #action-bar:not(.drawer-open) #btn-pickup,
+    #action-bar:not(.drawer-open) #btn-equipment,
+    #action-bar:not(.drawer-open) #btn-guide-hud {
+        display: none;
+    }
+
+    /* Expanded Drawer State (Floating Grid Overlay) */
+    #action-bar.drawer-open {
+        position: fixed;
+        bottom: calc(56px + var(--safe-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(94vw, 560px);
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        z-index: 45;
+        padding: 14px;
+        background: rgba(10, 14, 22, 0.96);
+        border: 2px solid rgba(212, 175, 55, 0.55);
+        border-radius: 12px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.95), 0 0 25px rgba(212, 175, 55, 0.25);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+
+    #action-bar.drawer-open .action-btn {
+        display: inline-flex !important;
+        justify-content: center;
+        text-align: center;
+        padding: 8px 6px;
+        font-size: 12px;
+    }
+
+    #action-bar.drawer-open #btn-action-more {
+        grid-column: span 4;
+        background: rgba(40, 16, 20, 0.9);
+        border-color: #ff6b6b;
+        color: #ff9999;
+    }
+}
+
+/* ------------------------------------------------------------------------------
+   PHONE RESPONSIVE TIER (< 600px or <= 500px landscape height)
+   ------------------------------------------------------------------------------ */
+@media (max-width: 599px), (max-height: 500px) and (orientation: landscape) {
+    .top-message-banner {
+        height: 32px;
+        padding: 0 12px;
+        cursor: pointer;
+    }
+
+    .top-message-text {
+        font-size: 12px;
+    }
+
+    /* Streamlined Footer Pills on Phone */
+    #hud-footer {
+        padding: 2px 8px;
+    }
+
+    .status-pill {
+        font-size: 10px;
+        padding: 2px 6px;
+    }
+
+    .pill-exp, .pill-light {
+        display: none !important;
+    }
+
+    #compass-container {
+        display: none !important;
+    }
+}
+
+/* Tablet Portrait Movement D-Pad Quarantine (Keeps D-pad on bottom-left thumb) */
+@media (min-width: 601px) and (max-width: 1023px) and (orientation: portrait),
+       html.device-tablet.is-portrait {
+    #touch-controls {
+        position: fixed !important;
+        left: max(16px, var(--safe-left)) !important;
+        right: auto !important;
+        bottom: calc(52px + var(--safe-bottom)) !important;
+        display: block !important;
+    }
+}
+
+/* ------------------------------------------------------------------------------
+   PHONE & PORTRAIT SPLIT-THUMB ERGONOMIC HUD
+   Left thumb: Movement & Orientation D-pad
+   Right thumb: Tactical 2-Column Action Cluster
+   Top: Slim HP/Mana Status Capsule + Circular Radar Minimap
+   Zero overlaps, >70% unobstructed 3D viewport!
+   ------------------------------------------------------------------------------ */
+@media (max-width: 600px) and (orientation: portrait), 
+       html.device-phone:not(.is-landscape),
+       html.device-phone.is-portrait {
+    #hud-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        pointer-events: none !important;
+        display: block !important;
+        padding: 0 !important;
+        z-index: 20 !important;
+    }
+
+    /* Top Left: Slim Character Vitals Capsule */
+    #char-panel {
+        position: fixed !important;
+        top: calc(48px + var(--safe-top)) !important;
+        left: max(8px, var(--safe-left)) !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: 215px !important;
+        padding: 5px 8px !important;
+        background: rgba(8, 12, 20, 0.88) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(212, 175, 55, 0.45) !important;
+        border-radius: 8px !important;
+        z-index: 30 !important;
+        pointer-events: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 3px !important;
+    }
+
+    .char-title {
+        font-size: 11px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 195px !important;
+    }
+
+    .gauge-header {
+        font-size: 9.5px !important;
+    }
+
+    .gauge-track {
+        height: 6px !important;
+    }
+
+    #stats-strip {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 2px 4px !important;
+        margin-top: 3px !important;
+        padding-top: 3px !important;
+        border-top: 1px solid rgba(212, 175, 55, 0.25) !important;
+    }
+
+    #stats-strip .stat-item {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 2px !important;
+        white-space: nowrap !important;
+    }
+
+    #stats-strip .stat-label {
+        font-size: 8px !important;
+        color: var(--gold-dim) !important;
+        font-weight: 700 !important;
+    }
+
+    #stats-strip .stat-value {
+        font-size: 9px !important;
+        color: #fff !important;
+        font-weight: 600 !important;
+    }
+
+    #stats-strip .stat-divider {
+        display: none !important;
+    }
+
+    #hud-center-column {
+        position: static !important;
+        width: auto !important;
+        pointer-events: none !important;
+        margin: 0 !important;
+    }
+
+    /* Top Right: Compact Circular Minimap Radar */
+    #minimap-container {
+        position: fixed !important;
+        top: calc(46px + var(--safe-top)) !important;
+        right: max(6px, var(--safe-right)) !important;
+        left: auto !important;
+        width: 102px !important;
+        height: 102px !important;
+        border-radius: 50% !important;
+        overflow: hidden !important;
+        z-index: 30 !important;
+        border: 1.5px solid rgba(212, 175, 55, 0.6) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7) !important;
+        pointer-events: auto !important;
+    }
+
+    #minimap-header,
+    #minimap-controls-bar,
+    #camera-tilt-bar,
+    #map-resize-handle {
+        display: none !important;
+    }
+
+    #minimap-canvas {
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 50% !important;
+    }
+
+    /* Bottom Left Thumb: Movement & Orientation D-Pad */
+    #touch-controls {
+        position: fixed !important;
+        left: max(8px, var(--safe-left)) !important;
+        right: auto !important;
+        bottom: calc(40px + var(--safe-bottom)) !important;
+        top: auto !important;
+        transform: none !important;
+        width: 148px !important;
+        height: auto !important;
+        z-index: 35 !important;
+        pointer-events: auto !important;
+        background: rgba(8, 12, 20, 0.82) !important;
+        border: 1px solid rgba(212, 175, 55, 0.35) !important;
+        border-radius: 10px !important;
+        padding: 4px !important;
+        gap: 3px !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+    }
+
+    .dpad-turn-wings {
+        display: flex !important;
+        gap: 4px !important;
+    }
+
+    .dpad-turn-btn {
+        height: 28px !important;
+        font-size: 11px !important;
+    }
+
+    .dpad-turn-symbol {
+        font-size: 13px !important;
+    }
+
+    .dpad-turn-text {
+        font-size: 9.5px !important;
+    }
+
+    .dpad-grid {
+        gap: 3px !important;
+    }
+
+    .dpad-btn {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 36px !important;
+        font-size: 15px !important;
+        border-radius: 6px !important;
+    }
+
+    .dpad-cardinal {
+        font-size: 16px !important;
+    }
+
+    .dpad-strafe {
+        font-size: 13px !important;
+    }
+
+    .dpad-sub-lbl {
+        font-size: 7px !important;
+    }
+
+    .dpad-diag {
+        font-size: 11px !important;
+    }
+
+    .diag-num {
+        font-size: 7.5px !important;
+    }
+
+    /* Bottom Right Thumb: 2-Column Action Bar Cluster */
+    #action-bar:not(.drawer-open) {
+        position: fixed !important;
+        right: max(8px, var(--safe-right)) !important;
+        left: auto !important;
+        bottom: calc(44px + var(--safe-bottom)) !important;
+        width: 146px !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 5px !important;
+        z-index: 35 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        pointer-events: auto !important;
+    }
+
+    #action-bar:not(.drawer-open) .action-btn {
+        display: none;
+        height: 44px !important;
+        min-height: 44px !important;
+        width: 100% !important;
+        padding: 2px 4px !important;
+        font-size: 11px !important;
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+        border-radius: 8px !important;
+        background: rgba(14, 18, 28, 0.88) !important;
+        border: 1px solid rgba(212, 175, 55, 0.4) !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    #action-bar:not(.drawer-open) .action-btn kbd {
+        display: none !important;
+    }
+
+    /* Primary tactile thumb actions */
+    #action-bar:not(.drawer-open) #btn-attack,
+    #action-bar:not(.drawer-open) #btn-cast,
+    #action-bar:not(.drawer-open) #btn-inventory,
+    #action-bar:not(.drawer-open) #btn-quaff,
+    #action-bar:not(.drawer-open) #btn-terminal,
+    #action-bar:not(.drawer-open) #btn-action-more,
+    #action-bar:not(.drawer-open) #btn-stair {
+        display: inline-flex !important;
+    }
+
+    /* Action Drawer on Phone (Expanded state) */
+    #action-bar.drawer-open {
+        position: fixed !important;
+        bottom: calc(44px + var(--safe-bottom)) !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: calc(100vw - 16px) !important;
+        max-width: 480px !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6px !important;
+        z-index: 60 !important;
+        padding: 10px !important;
+        background: rgba(8, 12, 18, 0.98) !important;
+        border: 2px solid rgba(212, 175, 55, 0.6) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.95) !important;
+        pointer-events: auto !important;
+    }
+
+    #action-bar.drawer-open .action-btn {
+        display: inline-flex !important;
+        justify-content: center !important;
+        padding: 10px 4px !important;
+        font-size: 12px !important;
+        min-height: 48px !important;
+        border-radius: 8px !important;
+    }
+
+    #action-bar.drawer-open #btn-action-more {
+        grid-column: span 3 !important;
+        background: rgba(45, 14, 18, 0.95) !important;
+        border-color: #ff5555 !important;
+        color: #ffaaaa !important;
+    }
+
+    /* Bottom Status Bar */
+    #hud-footer {
+        position: fixed !important;
+        bottom: var(--safe-bottom) !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        height: 36px !important;
+        padding: 2px 8px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        background: rgba(6, 9, 14, 0.96) !important;
+        border-top: 1px solid rgba(212, 175, 55, 0.3) !important;
+        border-radius: 0 !important;
+        z-index: 32 !important;
+        pointer-events: auto !important;
+    }
+
+    /* Hide Desktop Message Feed Window on Phone by default */
+    #message-feed-window:not(.mobile-expanded) {
+        display: none !important;
+    }
+
+    /* Message Feed Drawer on Phone when opened */
+    #message-feed-window.mobile-expanded {
+        display: flex !important;
+        position: fixed !important;
+        inset: auto 0 0 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 60vh !important;
+        max-height: 80vh !important;
+        z-index: 100 !important;
+        border-radius: 16px 16px 0 0 !important;
+        border: 2px solid rgba(212, 175, 55, 0.7) !important;
+        border-bottom: none !important;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.95) !important;
+        background: rgba(10, 14, 22, 0.97) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        animation: slideUpSheet 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+}
+
+@keyframes slideUpSheet {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* ------------------------------------------------------------------------------
+   PHONE LANDSCAPE ORIENTATION REFINEMENTS
+   ------------------------------------------------------------------------------ */
+@media (max-height: 500px) and (orientation: landscape) {
+    #hud-overlay {
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 8px;
+        padding: 2px max(8px, var(--safe-left)) max(2px, var(--safe-bottom)) max(8px, var(--safe-right));
+    }
+
+    #char-panel {
+        min-width: 220px;
+        width: 220px;
+    }
+
+    #hud-center-column {
+        flex: 1;
+    }
+
+    #touch-controls {
+        bottom: calc(52px + var(--safe-bottom)) !important;
+        left: max(8px, var(--safe-left)) !important;
+    }
+}
+
+/* ------------------------------------------------------------------------------
+   NATIVE MOBILE HERO REVIEW CARD & TOUCH OVERLAYS
+   Replaces microscopic 80-column ASCII terminal scaling with tactile touch UI
+   ------------------------------------------------------------------------------ */
+.mobile-hero-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 540px;
+    margin: 0 auto;
+    padding: 12px;
+    background: rgba(12, 16, 26, 0.98);
+    border: 2px solid rgba(212, 175, 55, 0.6);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+    color: #f0f4f8;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    max-height: calc(100dvh - 72px - var(--safe-top) - var(--safe-bottom));
+    box-sizing: border-box;
+}
+
+/* Hide duplicate desktop terminal toolbar buttons when mobile hero card is active */
+#terminal-card.mobile-card-active .terminal-toolbar,
+#terminal-card:has(#mobile-hero-card:not([style*="display: none"])) .terminal-toolbar {
+    display: none !important;
+}
+
+#terminal-card.mobile-card-active,
+#terminal-card:has(#mobile-hero-card:not([style*="display: none"])) {
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    max-width: 540px !important;
+    width: 100% !important;
+}
+
+.m-hero-card-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.m-hero-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.m-hero-avatar-wrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(212, 175, 55, 0.15);
+    border: 2px solid var(--gold-bright);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    flex-shrink: 0;
+}
+
+.m-hero-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.m-hero-name {
+    font-family: var(--font-fantasy);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gold-bright);
+    letter-spacing: 0.5px;
+}
+
+.m-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.m-meta-badge {
+    font-family: var(--font-terminal);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.m-race-badge {
+    background: rgba(58, 134, 255, 0.2);
+    border: 1px solid rgba(58, 134, 255, 0.5);
+    color: #93c5fd;
+}
+
+.m-class-badge {
+    background: rgba(230, 57, 70, 0.2);
+    border: 1px solid rgba(230, 57, 70, 0.5);
+    color: #fca5a5;
+}
+
+.m-title-badge {
+    background: rgba(212, 175, 55, 0.2);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    color: var(--gold-primary);
+}
+
+.m-hero-vitals-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.m-vital-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 6px;
+    border-radius: 6px;
+    background: rgba(18, 24, 36, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.m-vital-lbl {
+    font-size: 9px;
+    font-family: var(--font-terminal);
+    color: #94a3b8;
+    text-transform: uppercase;
+}
+
+.m-vital-val {
+    font-family: var(--font-terminal);
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.m-vital-hp .m-vital-val { color: #ff6b6b; }
+.m-vital-sp .m-vital-val { color: #60a5fa; }
+.m-vital-ac .m-vital-val { color: #ffd700; }
+.m-vital-spd .m-vital-val { color: #4ade80; }
+
+.m-section-label {
+    font-family: var(--font-fantasy);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--gold-bright);
+    margin-top: 4px;
+    text-transform: uppercase;
+}
+
+.m-hero-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+}
+
+.m-hero-stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 3px;
+    border-radius: 6px;
+    background: rgba(20, 26, 40, 0.9);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+}
+
+.m-stat-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.m-stat-key {
+    font-family: var(--font-fantasy);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gold-primary);
+}
+
+.m-stat-val {
+    font-family: var(--font-terminal);
+    font-size: 16px;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.m-stat-bot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 3px;
+    font-family: var(--font-terminal);
+    font-size: 8px;
+    color: #94a3b8;
+}
+
+.m-hero-combat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
+}
+
+.m-combat-chip {
+    padding: 4px 7px;
+    border-radius: 4px;
+    background: rgba(16, 20, 30, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-family: var(--font-terminal);
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.m-chip-lbl { color: #94a3b8; }
+.m-chip-val { color: #e2e8f0; font-weight: 600; }
+
+.m-hero-lore-box {
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(24, 18, 12, 0.7);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    font-style: italic;
+}
+
+.m-lore-scroll {
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: #e5d5be;
+}
+
+.m-hero-actions-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 6px;
+    position: sticky;
+    bottom: 0;
+    background: rgba(12, 16, 26, 0.98);
+    border-top: 1px solid rgba(212, 175, 55, 0.25);
+    padding-top: 8px;
+    padding-bottom: max(32px, calc(16px + var(--safe-bottom)));
+    z-index: 50;
+}
+
+.m-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 48px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: var(--font-fantasy);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.m-action-btn:active {
+    transform: scale(0.96);
+}
+
+.m-btn-accept {
+    background: linear-gradient(135deg, #1b4332, #2d6a4f);
+    border: 1.5px solid #52b788;
+    color: #d8f3dc;
+    grid-column: span 2;
+}
+
+.m-btn-reroll {
+    background: rgba(30, 41, 59, 0.9);
+    border: 1.5px solid rgba(212, 175, 55, 0.5);
+    color: var(--gold-bright);
+}
+
+.m-btn-custom {
+    background: rgba(30, 41, 59, 0.9);
+    border: 1.5px solid rgba(148, 163, 184, 0.4);
+    color: #e2e8f0;
+}
+
+.m-btn-back {
+    background: rgba(20, 24, 34, 0.9);
+    border: 1.5px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+    grid-column: span 2;
+}
+
 
 
 
