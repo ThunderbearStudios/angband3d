@@ -190,6 +190,8 @@ class WebTerminal {
         // 3. Item & Spell Prompts
         if (fullText.includes('inven:') ||
             fullText.includes('equip:') ||
+            fullText.includes('quiver:') ||
+            fullText.includes('quiver') ||
             fullText.includes('select item:') ||
             fullText.includes('which item?') ||
             fullText.includes('which potion?') ||

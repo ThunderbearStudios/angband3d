@@ -1930,6 +1930,8 @@ window.addEventListener('DOMContentLoaded', () => {
         const isItemPrompt = screenText.includes('select item:') ||
                              screenText.includes('inven:') ||
                              screenText.includes('equip:') ||
+                             screenText.includes('quiver:') ||
+                             screenText.includes('quiver') ||
                              screenText.includes('which item?') ||
                              screenText.includes('which potion?') ||
                              screenText.includes('which scroll?') ||
@@ -2020,6 +2022,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 terminalTitle.textContent = '🔄 TAKE OFF GEAR';
             } else if (screenText.includes('drop which')) {
                 terminalTitle.textContent = '📦 DROP ITEM';
+            } else if (screenText.includes('quiver:') || screenText.includes('quiver')) {
+                terminalTitle.textContent = '🏹 QUIVER MISSILES';
             } else if ((screenText.includes('inven:') || screenText.includes('inventory')) && !hasStoreText) {
                 terminalTitle.textContent = '🎒 INVENTORY PACK';
             } else if (screenText.includes('equip:') || screenText.includes('equipment')) {
@@ -2049,13 +2053,15 @@ window.addEventListener('DOMContentLoaded', () => {
                             detectedLetters.add(letter);
                             const rawName = m[2].trim();
                             const cleanName = rawName.replace(/\s{2,}\d+\.\d+\s+lb.*$/, '').trim();
+                            const isQuiverSummary = cleanName.toLowerCase().startsWith('in quiver') || cleanName.toLowerCase().includes('in quiver');
                             const btn = document.createElement('button');
-                            btn.className = 'btn-item-pill';
-                            btn.innerHTML = `<span class="item-key-letter">[${letter}]</span> <span class="item-name-text">${cleanName}</span>`;
-                            btn.title = `Select ${cleanName} [${letter}]`;
+                            btn.className = 'btn-item-pill' + (isQuiverSummary ? ' btn-quiver-summary' : '');
+                            const displayKey = isQuiverSummary ? '|' : letter;
+                            btn.innerHTML = `<span class="item-key-letter">[${displayKey}]</span> <span class="item-name-text">${cleanName}</span>`;
+                            btn.title = isQuiverSummary ? `Open and inspect Quiver missiles [|]` : `Select ${cleanName} [${letter}]`;
                             btn.addEventListener('click', () => {
                                 if (audio) audio.playMenuNav();
-                                network.sendKey(letter);
+                                network.sendKey(isQuiverSummary ? '|' : letter);
                             });
                             itemButtonsList.appendChild(btn);
                         }
@@ -2068,6 +2074,17 @@ window.addEventListener('DOMContentLoaded', () => {
                     btnItemSwitch.onclick = () => {
                         if (audio) audio.playMenuNav();
                         network.sendKey('/');
+                    };
+                }
+
+                const btnItemQuiver = document.getElementById('btn-item-quiver');
+                if (btnItemQuiver) {
+                    const isQuiver = screenText.includes('quiver:') || screenText.includes('quiver');
+                    btnItemQuiver.textContent = isQuiver ? '🎒 View Pack [/]' : '🏹 View Quiver [|]';
+                    btnItemQuiver.title = isQuiver ? 'Switch to Backpack Inventory [/]' : 'View or switch to Quiver missiles [|]';
+                    btnItemQuiver.onclick = () => {
+                        if (audio) audio.playMenuNav();
+                        network.sendKey(isQuiver ? '/' : '|');
                     };
                 }
 
