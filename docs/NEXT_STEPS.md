@@ -533,3 +533,41 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
     - Minimap zoom: zoom in step `1.0 -> 1.25`, zoom out step `1.25 -> 1.0`.
     - Message banner: positioned at `top: 44px` under top toolbar (bottom: 40px), width 374px, zero clipping or collision.
     - Visual inspection of captured screenshots: `mobile_custom_character_creation.png` and `mobile_hud_and_minimap_zoom.png`.
+
+---
+
+### Priority 11: Classic Mobile Character Creation Flow, Y-Axis Only Invert Look, and Main Menu PWA Installation (COMPLETED)
+- **Scope**: `server/public/index.html`, `server/public/css/dungeon.css`, `server/public/js/app.js`, `server/public/js/input.js`, `server/public/js/terminal.js`, `server/public/sw.js`, `scratch/test_mobile_custom_creation_flow.js`
+- **Accomplishments**:
+  1. **Authentic Classic Mobile Character Creation Flow**:
+     - **Mode & State Classification**:
+       - `detectMode(termData)` in `terminal.js`: Recognizes all 7 stages of Angband character generation (`title`, `race`, `class`, `roller`, `name`, `history`, `review`) as `'birth'`, locking in proper scale and focus.
+       - Fixed false-positive regex collision in `updateTerminalToolbar()`: `'ESC' to step back through the birth process` was matching `"step back"` on trait screens, causing Race and Class screens to be misclassified as the Review screen.
+       - Disentangled 7 mutually exclusive birth states in `app.js`: `isTitleScreen`, `isNamePrompt`, `isHistoryPrompt`, `isStatRoller`, `isReviewScreen`, and trait menus (Race / Class).
+     - **Multi-Column Closest Item Hit Detection (`terminal.js`)**:
+       - Re-engineered `handleRowClick(row, col)` with multi-column item boundary scanning. Tapping any item letter or description on the classic terminal canvas computes the closest item in that row, dispatches the item key followed immediately by `Enter`, providing seamless single-tap selection in classic ASCII menus.
+     - **Contextual Option Chips & Action Dock (`#birth-touch-controls`)**:
+       - **Race / Class**: Dynamic option chips extracted from active rightmost menu column via `extractActiveMenuChoices(rows)` that advance to the next screen on tap.
+       - **Stat Allocation Roller**: `⏎ ✓ Accept Stats`, `[r] 🔄 Reset`, `[Esc] ⎋ Step Back`, accompanied by tactile D-pad for adjusting ability scores with left/right keys.
+       - **Name Prompt**: Auto-focused `#birth-name-bar` with `#birth-name-input` (compatible with virtual keyboards), `🎲 Random (*)` shortcut, and `✓ Set Name`.
+       - **Character History**: `✓ Accept History (y)` and `🔄 Reroll History (n)`.
+       - **Final Review**: `⚔ Start Quest (Enter)`, `🎲 Start Over (s)`, `🔄 Reroll (r)`, and `⎋ Step Back (Esc)`.
+  2. **Y-Axis Only Drag Look Invert**:
+     - Updated `input.js` to ensure mouse and touch drag look invert affects **vertical pitch ONLY**, preserving standard horizontal yaw turning.
+     - Horizontal yaw multiplier remains strictly normal (`-1 * dx * 0.0055`), swipe turn is always normal, and `multY = this.invertDragLook ? -1 : 1` strictly applies to `deltaPitch`.
+     - Toggle buttons in header bar (`#btn-top-invert`) and Game Pause Menu (`#btn-pause-invert`) clearly display "🔄 Invert Y: Inverted / Normal".
+  3. **Main Menu PWA Installation Option & Modal**:
+     - Added option 8 (`[8] Install Angband3D App (PWA)`) to `#main-menu-options` in `index.html`.
+     - Created `#pwa-modal` with tailored instructions for Chromium/Android (native install prompt) and iOS Safari ("Add to Home Screen").
+     - Bound `beforeinstallprompt` event interception, `isPWAStandalone()` detection, and keyboard shortcut `8` in `input.js`.
+  4. **PWA & Cache Synchronization**:
+     - Bumped Service Worker cache version in `server/public/sw.js` to `angband3d-v5.6` and script version query parameters in `index.html` to `v=5.6`.
+- **Verification**:
+  - Engine smoke tests: **11/11 passed** (`python tools/smoke_test.py`).
+  - Godot C# client build: **0 warnings, 0 errors** (`dotnet build client/angband3d.csproj`).
+  - Automated responsive test suite: **12/12 suites passed 100%** (`node tools/test_responsive_profiles.js`).
+  - End-to-end mobile custom character creation test: **100% passed** (`node scratch/test_mobile_custom_creation_flow.js`):
+    - Title -> Race (Half-Elf) -> Class (Warrior) -> Stat Allocation (D-Pad) -> Name Input ("Aragorn") -> History (y) -> Review -> Town (`phase: 'play'`, `depth: 0`).
+  - Visual artifacts saved & inspected:
+    - `mobile_classic_character_creation_screen.png`: Classic 80x24 terminal with responsive zoom and birth touch dock.
+    - `mobile_custom_character_creation.png`: Custom hero Aragorn exploring the 3D town world.

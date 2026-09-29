@@ -14,7 +14,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=5.5">
+    <link rel="stylesheet" href="/css/dungeon.css?v=5.6">
 </head>
 <body>
     <div id="app-container">
@@ -89,16 +89,33 @@
                 <!-- Dedicated Touch Controls for Character Creation / Birth Screen -->
                 <div id="birth-touch-controls" class="birth-touch-controls" style="display: none;">
                     <div id="birth-name-bar" class="birth-name-bar" style="display: none;">
-                        <input type="text" id="birth-name-input" class="birth-name-input" placeholder="Enter Character Name" maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
-                        <button id="btn-birth-name-submit" class="btn-birth-action btn-gold">✓ Set Name</button>
+                        <input type="text" id="birth-name-input" class="birth-name-input" placeholder="Enter Character Name..." maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+                        <button type="button" id="btn-birth-name-rand" class="btn-birth-action btn-gold-outline" data-key="*">🎲 Random (*)</button>
+                        <button type="button" id="btn-birth-name-submit" class="btn-birth-action btn-gold">✓ Set Name</button>
                     </div>
                     <div id="birth-options-grid" class="birth-options-grid"></div>
-                    <div class="birth-actions-strip">
-                        <button type="button" class="btn-birth-action btn-birth-rand btn-gold" data-key="@">🎲 Random (@)</button>
-                        <button type="button" class="btn-birth-action btn-birth-enter btn-gold" data-key="enter">⏎ Enter</button>
-                        <button type="button" class="btn-birth-action btn-gold-outline" data-key="escape">⎋ Esc</button>
-                        <button type="button" class="btn-birth-action btn-gold-outline" data-key="r">🎲 Reroll (R)</button>
-                        <button type="button" class="btn-birth-action btn-gold" data-key="y">⚔ Accept (y)</button>
+                    <div class="birth-dock-row">
+                        <div class="term-touch-dpad-col">
+                            <div class="term-dpad-grid">
+                                <button type="button" class="term-dpad-btn term-dpad-up" data-key="up" title="Move Up [Up]">▲</button>
+                                <button type="button" class="term-dpad-btn term-dpad-left" data-key="left" title="Decrease Stat / Left [Left]">◀</button>
+                                <button type="button" class="term-dpad-btn term-dpad-center" data-key="enter" title="Select / Confirm [Enter]">⏎</button>
+                                <button type="button" class="term-dpad-btn term-dpad-right" data-key="right" title="Increase Stat / Right [Right]">▶</button>
+                                <button type="button" class="term-dpad-btn term-dpad-down" data-key="down" title="Move Down [Down]">▼</button>
+                            </div>
+                        </div>
+                        <div class="birth-actions-col">
+                            <div class="birth-action-keys">
+                                <button type="button" class="birth-action-btn btn-birth-enter btn-gold" data-key="enter" title="Confirm / Select [Enter]">⏎ Enter</button>
+                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="escape" title="Step Back [Esc]">⎋ Esc</button>
+                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="*" title="Random Option [*]">🎲 *</button>
+                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="@" title="Auto-Birth [@]: Finish with random choices">⚡ @</button>
+                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="r" title="Reset Stats / Reroll Hero [r]">🎲 r</button>
+                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="y" title="Accept / Yes [y]">⚔ y</button>
+                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="n" title="Reject / No [n]">✕ n</button>
+                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="s" title="Start Over [s]">🔄 s</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <!-- Native Mobile Hero Review Card (Touch Legibility on Mobile) -->
@@ -465,10 +482,18 @@
                             <span class="menu-desc">Official monster, artifact, and spell compendium (external link).</span>
                         </div>
                     </button>
+                    <button class="menu-option-btn" id="btn-menu-pwa" data-index="7">
+                        <span class="menu-bullet">►</span>
+                        <span class="menu-num">[8]</span>
+                        <div class="menu-text-col">
+                            <span class="menu-label" id="menu-pwa-label">Install Angband3D App (PWA)</span>
+                            <span class="menu-desc" id="menu-pwa-desc">Install as a standalone app on your home screen or desktop for full-screen play.</span>
+                        </div>
+                    </button>
                 </div>
 
                 <div class="main-menu-footer">
-                    <span>[↑/↓] Navigate &nbsp;•&nbsp; [1-7] Quick Select &nbsp;•&nbsp; [Enter/Space/Click] Choose &nbsp;•&nbsp; [Esc] Splash Screen</span>
+                    <span>[↑/↓] Navigate &nbsp;•&nbsp; [1-8] Quick Select &nbsp;•&nbsp; [Enter/Space/Click] Choose &nbsp;•&nbsp; [Esc] Splash Screen</span>
                 </div>
             </div>
         </div>
@@ -754,6 +779,41 @@
             </div>
         </div>
 
+        <!-- PWA Installation Modal -->
+        <div id="pwa-modal" class="hidden">
+            <div class="load-card pwa-card" style="max-width: 600px;">
+                <div class="main-menu-ornament-corner top-left"></div>
+                <div class="main-menu-ornament-corner top-right"></div>
+                <div class="main-menu-ornament-corner bottom-left"></div>
+                <div class="main-menu-ornament-corner bottom-right"></div>
+
+                <div class="main-menu-header">
+                    <h2 class="main-menu-title" id="pwa-modal-title">⚔ INSTALL ANGBAND 3D ⚔</h2>
+                    <div class="main-menu-subtitle" id="pwa-modal-subtitle">Progressive Web App (PWA) Standalone Installation</div>
+                </div>
+
+                <div class="pwa-body" id="pwa-modal-body" style="padding: 16px 20px; font-family: var(--font-body); font-size: 14px; line-height: 1.6; color: #cbd5e1;">
+                    <div id="pwa-status-box" style="margin-bottom: 14px; padding: 12px 14px; border-radius: 8px; background: rgba(22, 28, 44, 0.85); border: 1px solid rgba(212, 175, 55, 0.45);">
+                        <strong style="color: #ffd700; font-family: var(--font-title);">App Status:</strong>
+                        <span id="pwa-status-text" style="color: #e2e8f0; margin-left: 6px;">Ready to install as a standalone app.</span>
+                    </div>
+                    <div id="pwa-instructions-text">
+                        <p style="margin-bottom: 10px;">Installing Angband3D gives you a dedicated full-screen desktop or mobile app experience with offline asset caching and zero browser URL bar distraction.</p>
+                        <ul style="padding-left: 20px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+                            <li>• <strong>Chrome / Edge (Desktop)</strong>: Look for the Install icon (⊕ or computer display) on the right side of the address bar, or use the "Install Now" button below.</li>
+                            <li>• <strong>iOS / iPadOS Safari</strong>: Tap the Share button (<span style="font-size: 16px;">⎋</span> with arrow up), scroll down, and select <strong>"Add to Home Screen"</strong> (➕).</li>
+                            <li>• <strong>Android Chrome</strong>: Tap the menu (⋮) and select <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="load-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                    <button id="btn-pwa-install-action" class="btn-gold" style="display: none; padding: 10px 18px; font-weight: 700;">📲 Install Angband3D Now</button>
+                    <button id="btn-pwa-close" class="btn-gold-outline">[Esc] Close</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Initial Connection Spinner -->
         <div id="loading-overlay" class="hidden">
             <div class="spinner"></div>
@@ -768,14 +828,14 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=5.5"></script>
-    <script src="/js/mobile-overlay.js?v=5.5"></script>
-    <script src="/js/audio.js?v=5.5"></script>
-    <script src="/js/terminal.js?v=5.5"></script>
-    <script src="/js/dungeon3d.js?v=5.5"></script>
-    <script src="/js/hud.js?v=5.5"></script>
-    <script src="/js/network.js?v=5.5"></script>
-    <script src="/js/input.js?v=5.5"></script>
-    <script src="/js/app.js?v=5.5"></script>
+    <script src="/js/device.js?v=5.6"></script>
+    <script src="/js/mobile-overlay.js?v=5.6"></script>
+    <script src="/js/audio.js?v=5.6"></script>
+    <script src="/js/terminal.js?v=5.6"></script>
+    <script src="/js/dungeon3d.js?v=5.6"></script>
+    <script src="/js/hud.js?v=5.6"></script>
+    <script src="/js/network.js?v=5.6"></script>
+    <script src="/js/input.js?v=5.6"></script>
+    <script src="/js/app.js?v=5.6"></script>
 </body>
 </html>

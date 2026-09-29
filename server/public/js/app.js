@@ -287,9 +287,14 @@ window.addEventListener('DOMContentLoaded', () => {
     // Dedicated Touch Controls for Character Creation / Birth Screen
     const birthTouchControls = document.getElementById('birth-touch-controls');
     if (birthTouchControls) {
-        birthTouchControls.addEventListener('click', (e) => {
-            const btn = e.target.closest('button');
+        let lastBirthTap = 0;
+        const handleBirthAction = (e) => {
+            const btn = e.target.closest('[data-key]');
             if (!btn || btn.id === 'btn-birth-name-submit') return;
+            const now = Date.now();
+            if (now - lastBirthTap < 100) return;
+            lastBirthTap = now;
+            if (e && e.cancelable && e.type !== 'click') e.preventDefault();
             const key = btn.dataset.key;
             if (!key) return;
             if (audio) audio.unlock();
@@ -299,32 +304,64 @@ window.addEventListener('DOMContentLoaded', () => {
             if (key === 'escape') {
                 cancelQuickBirth();
                 network.sendKey('escape');
-            } else if (key === 'r') {
-                rerollHero();
-            } else if (key === 'y') {
-                confirmHeroBirth();
-                network.sendKey('y');
+            } else if (key === 's') {
+                cancelQuickBirth();
+                network.sendKey('s');
+            } else if (btn.classList.contains('birth-opt-btn')) {
+                // If it's a character creation menu option (race/class/method), send key then enter to select it
+                const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
+                    ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
+                    : '';
+                const isTraitMenu = screenText.includes('race affects stats') ||
+                                    screenText.includes('class affects stats') ||
+                                    screenText.includes('select your character traits') ||
+                                    screenText.includes('choose how to generate');
+                if (isTraitMenu) {
+                    network.sendKey(key);
+                    network.sendKey('enter');
+                } else {
+                    network.sendKey(key);
+                }
             } else {
                 network.sendKey(key);
             }
+        };
+
+        birthTouchControls.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'touch') handleBirthAction(e);
         });
+        birthTouchControls.addEventListener('click', handleBirthAction);
 
         const nameSubmitBtn = document.getElementById('btn-birth-name-submit');
+        const nameRandBtn = document.getElementById('btn-birth-name-rand');
         const nameInput = document.getElementById('birth-name-input');
         const submitName = () => {
             if (!nameInput) return;
             const nameVal = nameInput.value.trim();
+            if (audio) audio.playWhoosh();
             if (nameVal) {
-                if (audio) audio.playWhoosh();
+                // Clear default name in Angband, then type characters
+                network.sendKey('backspace');
                 for (const ch of nameVal) {
                     network.sendKey(ch);
                 }
-                network.sendKey('enter');
-                nameInput.value = '';
             }
+            network.sendKey('enter');
+            nameInput.blur();
         };
+
         if (nameSubmitBtn) {
-            nameSubmitBtn.addEventListener('click', submitName);
+            nameSubmitBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                submitName();
+            });
+        }
+        if (nameRandBtn) {
+            nameRandBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (audio) audio.playMenuNav();
+                network.sendKey('*');
+            });
         }
         if (nameInput) {
             nameInput.addEventListener('keydown', (e) => {
@@ -1198,6 +1235,9 @@ window.addEventListener('DOMContentLoaded', () => {
             case 6: // Angband Online Wiki
                 window.open('https://angband.readthedocs.io/', '_blank');
                 break;
+            case 7: // Install Angband3D App (PWA)
+                installPWA();
+                break;
         }
     }
 
@@ -1517,6 +1557,92 @@ window.addEventListener('DOMContentLoaded', () => {
         tab.addEventListener('click', () => switchGuideTab(idx));
     });
 
+    // PWA Standalone App Installation
+    let deferredInstallPrompt = null;
+    const pwaModal = document.getElementById('pwa-modal');
+    const pwaStatusText = document.getElementById('pwa-status-text');
+    const btnPwaInstallAction = document.getElementById('btn-pwa-install-action');
+    const btnPwaClose = document.getElementById('btn-pwa-close');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        updatePWAInstallUI();
+    });
+
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        updatePWAInstallUI();
+    });
+
+    function isPWAStandalone() {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+               window.navigator.standalone === true ||
+               document.referrer.includes('android-app://');
+    }
+
+    function updatePWAInstallUI() {
+        const isStandalone = isPWAStandalone();
+        if (pwaStatusText) {
+            if (isStandalone) {
+                pwaStatusText.innerHTML = '<span style="color:#4ade80;">✓ Currently running as an installed standalone app.</span>';
+            } else if (deferredInstallPrompt) {
+                pwaStatusText.innerHTML = '<span style="color:#ffd700;">★ Ready to install! Tap below to install directly.</span>';
+            } else {
+                pwaStatusText.textContent = 'Ready to install via your browser menu or Home Screen.';
+            }
+        }
+        if (btnPwaInstallAction) {
+            btnPwaInstallAction.style.display = (!isStandalone && deferredInstallPrompt) ? 'inline-flex' : 'none';
+        }
+    }
+
+    function showPWAModal() {
+        updatePWAInstallUI();
+        if (pwaModal) pwaModal.classList.remove('hidden');
+        appState = 'pwaModal';
+    }
+
+    function hidePWAModal() {
+        if (pwaModal) pwaModal.classList.add('hidden');
+        appState = 'mainMenu';
+    }
+
+    function installPWA() {
+        if (isPWAStandalone()) {
+            showPWAModal();
+            return;
+        }
+        if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    deferredInstallPrompt = null;
+                    updatePWAInstallUI();
+                }
+            });
+        } else {
+            showPWAModal();
+        }
+    }
+
+    if (btnPwaClose) {
+        btnPwaClose.addEventListener('click', () => hidePWAModal());
+    }
+    if (btnPwaInstallAction) {
+        btnPwaInstallAction.addEventListener('click', () => {
+            if (deferredInstallPrompt) {
+                deferredInstallPrompt.prompt();
+                deferredInstallPrompt.userChoice.then((choice) => {
+                    if (choice.outcome === 'accepted') {
+                        deferredInstallPrompt = null;
+                        hidePWAModal();
+                    }
+                });
+            }
+        });
+    }
+
     // Expose full coordinator interface to window.__app for input controller
     Object.assign(window.__app, {
         getAppState: () => appState,
@@ -1524,6 +1650,9 @@ window.addEventListener('DOMContentLoaded', () => {
         showMainMenu,
         showLoadMenu,
         hideLoadMenu,
+        showPWAModal,
+        hidePWAModal,
+        installPWA,
         navigateLoadList,
         loadSelectedSave,
         deleteSelectedSave,
@@ -1554,6 +1683,40 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function updateTerminalChoices(frame) {
         // Native Angband 80x24 terminal zoom & cursor navigation replaced artificial choice chips
+    }
+
+    function extractActiveMenuChoices(rows) {
+        if (!rows || rows.length === 0) return [];
+        const allMatches = [];
+        let maxCol = 0;
+
+        for (const row of rows) {
+            const text = row.g || '';
+            const re = /(?:^|\s{2,})([a-zA-Z0-9@*?])[\)\.\:]\s*([A-Za-z0-9\-\']+(?: [A-Za-z0-9\-\']+)?)/g;
+            let m;
+            while ((m = re.exec(text)) !== null) {
+                const key = m[1];
+                const keyCharIdx = m.index + m[0].indexOf(key);
+                const label = m[2].trim();
+                if (['str', 'int', 'wis', 'dex', 'con', 'hit', 'xp', 'hp', 'sp'].includes(label.toLowerCase())) {
+                    continue;
+                }
+                allMatches.push({ col: keyCharIdx, key, label });
+                if (keyCharIdx > maxCol) {
+                    maxCol = keyCharIdx;
+                }
+            }
+        }
+
+        const activeChoices = [];
+        for (const item of allMatches) {
+            if (Math.abs(item.col - maxCol) <= 4) {
+                if (!activeChoices.some(c => c.key === item.key)) {
+                    activeChoices.push({ key: item.key, label: item.label });
+                }
+            }
+        }
+        return activeChoices;
     }
 
     function updateTerminalToolbar(frame) {
@@ -1597,78 +1760,132 @@ window.addEventListener('DOMContentLoaded', () => {
             if (terminalToolbar) terminalToolbar.style.display = 'flex';
             if (terminalCard) terminalCard.classList.remove('mobile-card-active');
 
-            const isReviewScreen = screenText.includes("use as is") || screenText.includes("'y': use") ||
-                                   screenText.includes("to start over") || screenText.includes("r to reroll") ||
-                                   screenText.includes("reroll") || screenText.includes("'s' to start") ||
-                                   screenText.includes("step back") || screenText.includes("any other key to continue");
+            const isTitleScreen = (screenText.includes('when the world is old') ||
+                                   screenText.includes('press any key to continue') ||
+                                   screenText.includes('rephial.org') ||
+                                   screenText.includes('last battle be gathered')) &&
+                                  !screenText.includes('character traits') &&
+                                  !screenText.includes('affects stats');
+
+            const isNamePrompt = screenText.includes("enter a name for your character") ||
+                                 screenText.includes("enter a name") ||
+                                 screenText.includes("enter character's name") ||
+                                 screenText.includes("choose your name");
+
+            const isHistoryPrompt = screenText.includes("accept character history") ||
+                                    (screenText.includes("[y/n]") && !screenText.includes("use as is") && !screenText.includes("to start over"));
+
+            const isStatRoller = screenText.includes("left/right to modify") ||
+                                 screenText.includes("to modify") ||
+                                 screenText.includes("total cost:") ||
+                                 screenText.includes("point-based") ||
+                                 screenText.includes("standard roller") ||
+                                 screenText.includes("roller");
+
+            const isReviewScreen = !isNamePrompt && !isHistoryPrompt && !isStatRoller &&
+                                   !screenText.includes('character traits') &&
+                                   !screenText.includes('affects stats') &&
+                                   (screenText.includes("to start over") ||
+                                    screenText.includes("any other key to continue") ||
+                                    screenText.includes("use as is") ||
+                                    screenText.includes("r to reroll") ||
+                                    screenText.includes("'s' to start") ||
+                                    (screenText.includes("best") && screenText.includes("cur exp")));
+
+            // Dynamic Contextual Screen Title
+            if (isTitleScreen) {
+                terminalTitle.textContent = '⚔ WELCOME TO ANGBAND';
+            } else if (isNamePrompt) {
+                terminalTitle.textContent = '⚔ NAME YOUR ADVENTURER';
+            } else if (isHistoryPrompt) {
+                terminalTitle.textContent = '⚔ CHARACTER HISTORY';
+            } else if (isStatRoller) {
+                terminalTitle.textContent = '⚔ ATTRIBUTE ALLOCATION';
+            } else if (isReviewScreen) {
+                terminalTitle.textContent = '⚔ REVIEW YOUR HERO';
+            } else if (screenText.includes('race affects stats')) {
+                terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
+            } else if (screenText.includes('class affects stats')) {
+                terminalTitle.textContent = '⚔ CHOOSE CHARACTER CLASS';
+            } else {
+                terminalTitle.textContent = '⚔ CHARACTER CREATION';
+            }
+
+            // Toolbar buttons
+            if (quickBirthBtn) quickBirthBtn.style.display = 'none';
+            if (termExitMenuBtn) termExitMenuBtn.style.display = 'inline-flex';
+            termEscapeBtn.textContent = 'Back (Esc)';
 
             if (isReviewScreen) {
-                if (termExitMenuBtn) termExitMenuBtn.style.display = 'none';
-                terminalTitle.textContent = '⚔ REVIEW YOUR HERO';
-                if (quickBirthBtn) quickBirthBtn.style.display = 'none';
                 if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
                 if (termCustomBtn) termCustomBtn.style.display = 'inline-flex';
                 if (termAdvanceBtn) {
                     termAdvanceBtn.style.display = 'inline-flex';
                     termAdvanceBtn.textContent = '⚔ Accept & Play (Enter)';
                 }
-                termEscapeBtn.textContent = 'Back (Esc)';
-
-                if (birthTouchControls) {
-                    birthTouchControls.style.display = isMobileScreen ? 'flex' : 'none';
-                    if (birthNameBar) birthNameBar.style.display = 'none';
-                    if (birthOptionsGrid) birthOptionsGrid.innerHTML = '';
+            } else {
+                if (termRerollBtn) termRerollBtn.style.display = 'none';
+                if (termCustomBtn) termCustomBtn.style.display = 'none';
+                if (termAdvanceBtn) {
+                    termAdvanceBtn.style.display = 'inline-flex';
+                    termAdvanceBtn.textContent = 'Advance (Enter)';
                 }
-                return;
             }
 
-            // Case 2: Early Character Creation (sex, race, class, stat roll, name prompt)
-            terminalTitle.textContent = '⚔ CHARACTER CREATION';
-            if (quickBirthBtn) quickBirthBtn.style.display = 'inline-flex';
-            if (termRerollBtn) termRerollBtn.style.display = 'none';
-            if (termCustomBtn) termCustomBtn.style.display = 'none';
-            if (termAdvanceBtn) {
-                termAdvanceBtn.style.display = 'inline-flex';
-                termAdvanceBtn.textContent = 'Advance (Enter)';
-            }
-            termEscapeBtn.textContent = 'Back (Esc)';
-            if (termExitMenuBtn) termExitMenuBtn.style.display = 'inline-flex';
-
-            // Show birth touch controls on mobile with dynamically extracted letter options & name input
+            // Mobile Birth Touch Controls Dock & Options
             if (birthTouchControls) {
                 birthTouchControls.style.display = isMobileScreen ? 'flex' : 'none';
-                const isNamePrompt = screenText.includes("enter character's name") ||
-                                     screenText.includes("choose your name") ||
-                                     screenText.includes("name:") ||
-                                     screenText.includes("enter name");
+
+                // 1. Name Prompt Bar
                 if (birthNameBar) {
                     birthNameBar.style.display = isNamePrompt ? 'flex' : 'none';
-                }
-
-                if (birthOptionsGrid) {
-                    const choices = [];
-                    if (frame && frame.term && frame.term.rows) {
-                        for (const row of frame.term.rows) {
-                            const text = row.g || '';
-                            const m = text.match(/^\s*([a-zA-Z0-9@])[\)\.\:]\s+([A-Za-z0-9\-\'\s]{2,24})/);
-                            if (m) {
-                                const key = m[1];
-                                const label = m[2].trim();
-                                if (!choices.some(c => c.key === key)) {
-                                    choices.push({ key, label });
-                                }
-                            }
+                    if (isNamePrompt && birthNameInput && document.activeElement !== birthNameInput && !birthNameInput.value) {
+                        const nameMatch = (frame && frame.term && frame.term.rows && frame.term.rows[0])
+                            ? (frame.term.rows[0].g || '').match(/:\s*([A-Za-z0-9_\-]+)/)
+                            : null;
+                        if (nameMatch) {
+                            birthNameInput.value = nameMatch[1].trim();
                         }
                     }
-                    if (choices.length > 0) {
-                        birthOptionsGrid.innerHTML = choices.map(c =>
-                            `<button type="button" class="birth-opt-btn" data-key="${c.key}"><span style="color:#ffd700;">${c.key})</span> ${c.label}</button>`
-                        ).join('');
+                }
+
+                // 2. Contextual Options in Birth Options Grid
+                if (birthOptionsGrid) {
+                    if (isHistoryPrompt) {
+                        birthOptionsGrid.style.display = 'flex';
+                        birthOptionsGrid.innerHTML = `
+                            <button type="button" class="birth-opt-btn btn-gold" data-key="y" style="background: rgba(27,67,50,0.9); border-color:#52b788; color:#d8f3dc;"><span style="color:#52b788;">[y]</span> ✓ Accept History</button>
+                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="n" style="background: rgba(30,41,59,0.9); border-color:rgba(212,175,55,0.6); color:#ffd700;"><span style="color:#ffd700;">[n]</span> 🔄 Reroll History</button>
+                        `;
+                    } else if (isReviewScreen) {
+                        birthOptionsGrid.style.display = 'flex';
+                        birthOptionsGrid.innerHTML = `
+                            <button type="button" class="birth-opt-btn btn-gold" data-key="enter" style="font-weight:700;"><span style="color:#ffd700;">⏎</span> ⚔ Start Quest</button>
+                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="s"><span>[s]</span> 🎲 Start Over</button>
+                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="r"><span>[r]</span> 🔄 Reroll</button>
+                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                        `;
+                    } else if (isStatRoller) {
+                        birthOptionsGrid.style.display = 'flex';
+                        birthOptionsGrid.innerHTML = `
+                            <button type="button" class="birth-opt-btn btn-gold" data-key="enter" style="font-weight:700;"><span style="color:#ffd700;">⏎</span> ✓ Accept Stats</button>
+                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="r"><span>[r]</span> 🔄 Reset</button>
+                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                        `;
+                    } else if (!isNamePrompt && !isTitleScreen) {
+                        const choices = extractActiveMenuChoices(frame && frame.term ? frame.term.rows : []);
+                        if (choices.length > 0) {
+                            birthOptionsGrid.style.display = 'flex';
+                            birthOptionsGrid.innerHTML = choices.map(c =>
+                                `<button type="button" class="birth-opt-btn" data-key="${c.key}"><span style="color:#ffd700;">${c.key})</span> ${c.label}</button>`
+                            ).join('');
+                        } else {
+                            birthOptionsGrid.style.display = 'none';
+                            birthOptionsGrid.innerHTML = '';
+                        }
                     } else {
-                        const defaultLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'];
-                        birthOptionsGrid.innerHTML = defaultLetters.map(l =>
-                            `<button type="button" class="birth-opt-btn" data-key="${l}">${l}</button>`
-                        ).join('');
+                        birthOptionsGrid.style.display = 'none';
+                        birthOptionsGrid.innerHTML = '';
                     }
                 }
             }
