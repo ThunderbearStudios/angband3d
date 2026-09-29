@@ -3657,24 +3657,34 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 
 .birth-options-grid {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     gap: 6px;
-    justify-content: center;
+    padding: 2px 2px 6px;
     width: 100%;
-    max-height: 110px;
-    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.birth-options-grid::-webkit-scrollbar {
+    height: 4px;
+}
+.birth-options-grid::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.4);
+    border-radius: 2px;
 }
 
 .birth-opt-btn {
+    flex-shrink: 0;
     min-width: 44px;
-    height: 36px;
+    height: 34px;
     padding: 0 10px;
     border-radius: 6px;
     background: rgba(22, 28, 44, 0.95);
     border: 1.5px solid rgba(212, 175, 55, 0.55);
     color: #ffd700;
     font-family: var(--font-terminal);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     display: inline-flex;
     align-items: center;
@@ -3684,6 +3694,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     user-select: none;
     -webkit-user-select: none;
     transition: all 0.15s ease;
+    white-space: nowrap;
 }
 
 .birth-opt-btn:active {
@@ -3691,12 +3702,56 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     transform: scale(0.95);
 }
 
-.birth-actions-strip {
+.birth-dock-row {
     display: flex;
-    gap: 6px;
-    justify-content: center;
-    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
     width: 100%;
+}
+
+.birth-actions-col {
+    flex: 1;
+}
+
+.birth-action-keys {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+}
+
+.birth-action-btn {
+    min-height: 36px;
+    padding: 4px 2px;
+    background: rgba(18, 24, 36, 0.92);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-family: var(--font-fantasy);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    text-align: center;
+    transition: all 0.1s ease;
+}
+
+.birth-action-btn:active {
+    background: rgba(45, 36, 16, 0.98);
+    border-color: #ffd700;
+    color: #fff;
+    transform: scale(0.95);
+}
+
+.btn-birth-enter {
+    background: rgba(45, 36, 16, 0.95);
+    border-color: rgba(255, 215, 0, 0.8);
+    color: #ffd700;
+    font-weight: 800;
 }
 
 .btn-birth-action {

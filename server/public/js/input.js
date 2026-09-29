@@ -67,12 +67,12 @@ class InputController {
         const btnToggleInvert = document.getElementById('btn-toggle-invert');
         if (btnToggleInvert) {
             btnToggleInvert.classList.toggle('active', this.invertDragLook);
-            btnToggleInvert.title = `Toggle Invert Drag Look (Current: ${this.invertDragLook ? 'Inverted' : 'Normal'})`;
+            btnToggleInvert.title = `Toggle Invert Y-Axis Drag Look (Current: ${this.invertDragLook ? 'Inverted Y' : 'Normal'})`;
         }
         const btnPauseInvert = document.getElementById('btn-pause-invert');
         if (btnPauseInvert) {
             btnPauseInvert.classList.toggle('active', this.invertDragLook);
-            btnPauseInvert.textContent = `🔄 Drag: ${this.invertDragLook ? 'Inverted' : 'Normal'}`;
+            btnPauseInvert.textContent = `🔄 Invert Y: ${this.invertDragLook ? 'Inverted' : 'Normal'}`;
         }
     }
 
@@ -84,6 +84,14 @@ class InputController {
         window.addEventListener('keydown', (e) => {
             // Unlock audio on first user key interaction
             if (this.audio) this.audio.unlock();
+
+            // If typing in a text input or textarea (e.g. character name entry), don't intercept typing
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+                if (e.key === 'Escape') {
+                    e.target.blur();
+                }
+                return;
+            }
 
             // Global Sound Mute Toggle (Ctrl+M or Cmd+M) available at any game state or menu
             if ((e.ctrlKey || e.metaKey) && (e.key === 'm' || e.key === 'M')) {
@@ -246,7 +254,7 @@ class InputController {
                     if (window.__app) window.__app.navigateMenu(1);
                     return;
                 }
-                if (['1', '2', '3', '4', '5', '6', '7'].includes(e.key)) {
+                if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(e.key)) {
                     e.preventDefault();
                     const idx = parseInt(e.key, 10) - 1;
                     if (window.__app) {
@@ -261,6 +269,15 @@ class InputController {
                     return;
                 }
                 return;
+            }
+
+            // PWA Modal Escape handling
+            if (appState === 'pwaModal') {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.hidePWAModal) window.__app.hidePWAModal();
+                    return;
+                }
             }
 
             // 3. Load Saved Game Menu Mode
@@ -1249,10 +1266,9 @@ class InputController {
             lastY = clientY;
 
             if (this.dungeon && typeof this.dungeon.rotateFreelook === 'function') {
-                // Smooth 360-degree rotation horizontally and clamped vertical pitch
-                const multX = this.invertDragLook ? 1 : -1;
+                // Smooth 360-degree rotation horizontally (always normal) and clamped vertical pitch (Y-axis invert toggle)
+                const deltaYaw = -1 * dx * 0.0055;
                 const multY = this.invertDragLook ? -1 : 1;
-                const deltaYaw = multX * dx * 0.0055;
                 const deltaPitch = multY * dy * 0.0035;
                 this.dungeon.rotateFreelook(deltaYaw, deltaPitch);
             }
@@ -1269,15 +1285,13 @@ class InputController {
             const totalDx = finalX - startX;
             const totalDy = finalY - startY;
 
-            // Fast horizontal swipe completed within 450ms
+            // Fast horizontal swipe completed within 450ms (always normal turn direction)
             if (elapsed < 450 && Math.abs(totalDx) > 40 && Math.abs(totalDx) > Math.abs(totalDy) * 1.5) {
                 if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
                     window.DeviceProfile.triggerHaptic('light');
                 }
                 if (this.dungeon && typeof this.dungeon.turn === 'function') {
-                    const turnDir = this.invertDragLook
-                        ? (totalDx > 0 ? -1 : 1)
-                        : (totalDx > 0 ? 1 : -1);
+                    const turnDir = (totalDx > 0 ? 1 : -1);
                     this.dungeon.turn(turnDir);
                 }
             }

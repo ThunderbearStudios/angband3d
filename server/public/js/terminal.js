@@ -150,6 +150,14 @@ class WebTerminal {
             fullText.includes('choose a sex') ||
             fullText.includes('choose your') ||
             fullText.includes('character creation') ||
+            fullText.includes('please select your character') ||
+            fullText.includes('select your character traits') ||
+            fullText.includes('step back through the birth process') ||
+            fullText.includes('race affects stats') ||
+            fullText.includes('class affects stats') ||
+            fullText.includes('choose how to generate') ||
+            fullText.includes('when the world is old') ||
+            fullText.includes('press any key to continue') ||
             fullText.includes('use as is') ||
             fullText.includes('to start over') ||
             fullText.includes('r to reroll') ||
@@ -159,7 +167,10 @@ class WebTerminal {
             fullText.includes('point-based') ||
             fullText.includes('roller') ||
             fullText.includes("character's name") ||
+            fullText.includes('enter a name') ||
             fullText.includes('enter name') ||
+            fullText.includes('accept character history') ||
+            fullText.includes('any other key to continue') ||
             fullText.includes('enter character')) {
             return 'birth';
         }
@@ -288,57 +299,94 @@ class WebTerminal {
     }
 
     handleRowClick(row, col) {
+        const fullText = (this.lastRows || []).map(r => r.g || '').join(' ').toLowerCase();
+
+        // 1. Advance prompt screens (splash screen, -more- prompts, final review screen)
+        if (fullText.includes('press any key') || fullText.includes('-more-') || fullText.includes('any other key to continue')) {
+            this.onSelectKey('enter');
+            return;
+        }
+
+        // 2. Confirmation [y/n]
+        if (fullText.includes('[y/n]') || fullText.includes('are you sure')) {
+            if (col > 45) {
+                this.onSelectKey('n');
+            } else {
+                this.onSelectKey('y');
+            }
+            return;
+        }
+
         if (!this.lastRows || !this.lastRows[row]) {
-            // Clicking anywhere advances if on a prompt screen
             this.onSelectKey('enter');
             return;
         }
 
         const line = this.lastRows[row].g || '';
 
-        // If screen says "Press any key to continue" or "-more-", advance
-        if (line.toLowerCase().includes('press any key') || line.toLowerCase().includes('-more-')) {
-            this.onSelectKey('enter');
-            return;
+        // 3. Multi-column menu option detection (Race, Class, Stat Method, Death screen)
+        // Matches all items on this row: e.g. "a) Human", "a) Warrior", "a) Point-based"
+        const itemRegex = /(?:^|\s{2,})([a-zA-Z0-9@*?])[\)\.\:]\s*([A-Za-z0-9\-\']+(?: [A-Za-z0-9\-\']+)?)/g;
+        let bestKey = null;
+        let minDistance = 9999;
+        let m;
+        while ((m = itemRegex.exec(line)) !== null) {
+            const itemKey = m[1];
+            const keyCol = m.index + m[0].indexOf(itemKey);
+            const itemLen = m[0].length;
+            if (col >= keyCol && col <= keyCol + itemLen + 2) {
+                bestKey = itemKey;
+                minDistance = 0;
+                break;
+            }
+            const dist = Math.min(Math.abs(col - keyCol), Math.abs(col - (keyCol + itemLen)));
+            if (dist < minDistance) {
+                minDistance = dist;
+                bestKey = itemKey;
+            }
         }
 
-        // Check if row has a letter or symbol menu item e.g. "a) Human", "@) Random", "*) All"
-        const match = line.match(/^\s*([a-zA-Z0-9@*?])[\)\.\:]/);
-        if (match) {
-            const fullText = (this.lastRows || []).map(r => r.g || '').join(' ').toLowerCase();
+        if (bestKey && minDistance <= 20) {
             const hasStoreText = fullText.includes('store inventory') || fullText.includes('home inventory') || fullText.includes('gold remaining');
             const isItemPrompt = fullText.includes('inven:') || fullText.includes('equip:') || fullText.includes('select item:') || fullText.includes('which item?') || fullText.includes('which potion?') || fullText.includes('which scroll?');
             const inStore = hasStoreText && !isItemPrompt;
             if (inStore) {
-                // If top-level store command prompt, clicking an inventory item initiates purchase ('p' + letter)
                 const alreadyPromptingItem = fullText.includes('which item') || fullText.includes('purchase which') || fullText.includes('sell which') || fullText.includes('examine which');
                 if (alreadyPromptingItem) {
-                    this.onSelectKey(match[1]);
+                    this.onSelectKey(bestKey);
                 } else {
                     this.onSelectKey('p');
-                    setTimeout(() => this.onSelectKey(match[1]), 50);
+                    setTimeout(() => this.onSelectKey(bestKey), 50);
                 }
                 return;
             }
-            this.onSelectKey(match[1]);
+            if (this.currentMode === 'birth') {
+                const isTraitMenu = fullText.includes('race affects stats') || fullText.includes('class affects stats') || fullText.includes('select your character traits');
+                if (isTraitMenu) {
+                    this.onSelectKey(bestKey);
+                    setTimeout(() => this.onSelectKey('enter'), 50);
+                    return;
+                }
+            }
+            this.onSelectKey(bestKey);
             return;
         }
 
-        // Check if row contains an indented or right-column menu item (e.g. Death Screen menu beside Tombstone)
-        const generalMatch = line.match(/([a-zA-Z0-9@*?])[\)\.\:]\s+[A-Za-z]/);
-        if (generalMatch) {
-            this.onSelectKey(generalMatch[1]);
+        // 4. Roller/Prompt action hints
+        if (line.toLowerCase().includes("'r' to reset") || line.toLowerCase().includes("'r' to reroll") || line.toLowerCase().includes("r to reroll")) {
+            this.onSelectKey('r');
             return;
         }
-
-        // Check if row indicates random selection with @
-        if (line.match(/^\s*@\b/) || line.includes('@ to generate') || line.includes('@ for random') || line.includes('@) Random')) {
-            this.onSelectKey('@');
+        if (line.toLowerCase().includes("'s' to start over") || line.toLowerCase().includes("'s' to start")) {
+            this.onSelectKey('s');
             return;
         }
-
-        if (line.includes('[y/n]') || line.toLowerCase().includes('are you sure')) {
-            this.onSelectKey('y');
+        if (line.toLowerCase().includes("'enter' to accept") || line.toLowerCase().includes("enter to select")) {
+            this.onSelectKey('enter');
+            return;
+        }
+        if (line.toLowerCase().includes("'esc' to step back")) {
+            this.onSelectKey('escape');
             return;
         }
 
