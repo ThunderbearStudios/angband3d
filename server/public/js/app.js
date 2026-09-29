@@ -133,6 +133,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const rerollHero = () => {
         cancelQuickBirth();
+        birthReviewActive = false;
         if (audio) audio.playMenuNav();
         network.sendKey('s');
         quickBirthActive = true;
@@ -141,6 +142,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const startCustomHeroCreation = () => {
         cancelQuickBirth();
+        birthReviewActive = false;
         if (audio) audio.playMenuNav();
         network.sendKey('s');
         quickBirthActive = false;
@@ -170,7 +172,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const termRerollBtn = document.getElementById('btn-term-reroll');
     if (termRerollBtn) {
-        termRerollBtn.addEventListener('click', () => {
+        termRerollBtn.addEventListener('click', (e) => {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
             if (audio) audio.unlock();
             rerollHero();
         });
@@ -272,9 +278,17 @@ window.addEventListener('DOMContentLoaded', () => {
             } else if (key === 'escape') {
                 cancelQuickBirth();
                 network.sendKey('escape');
-                const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && lastFrame.map);
-                if (inPlay && !forceTerminal) {
-                    closeTerminalModal();
+            } else if ((key === 'r' || key === 'R') && (!lastFrame || lastFrame.phase !== 'play')) {
+                const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
+                    ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
+                    : '';
+                const isReviewScreen = screenText.includes("to start over") || screenText.includes("any other key to continue") ||
+                                       screenText.includes("use as is") || screenText.includes("r to reroll") ||
+                                       screenText.includes("'s' to start") || birthReviewActive;
+                if (isReviewScreen) {
+                    rerollHero();
+                } else {
+                    network.sendKey(key);
                 }
             } else if (key === 's' && (!lastFrame || lastFrame.phase !== 'play')) {
                 cancelQuickBirth();
@@ -1784,6 +1798,7 @@ window.addEventListener('DOMContentLoaded', () => {
             // --- CHARACTER CREATION / BIRTH SCREENS ---
             if (termExitMenuBtn) termExitMenuBtn.style.display = 'inline-flex';
             if (termAdvanceBtn) termAdvanceBtn.style.display = 'inline-flex';
+            if (termRerollBtn) termRerollBtn.style.display = 'none';
             termEscapeBtn.textContent = 'Back (Esc)';
 
             const isTitleScreen = (screenText.includes('when the world is old') ||
@@ -1874,14 +1889,16 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             } else if (isReviewScreen) {
                 terminalTitle.textContent = '⚔ REVIEW YOUR HERO';
+                if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
+                if (termAdvanceBtn) termAdvanceBtn.textContent = '⚔ Accept & Play (Enter)';
                 if (termDpad) termDpad.style.display = 'none';
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
                     termCtxActions.innerHTML = `
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ⚔ Accept & Play</button>
-                        <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> 🔄 Reroll</button>
-                        <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> 🎲 Start Over</button>
+                        <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> 🎲 Reroll Hero</button>
+                        <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> 🛠 Custom Create</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
                     `;
                 }
@@ -1909,10 +1926,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // --- ACTIVE GAMEPLAY (Town or Dungeon) ---
         if (termExitMenuBtn) termExitMenuBtn.style.display = 'none';
+        if (termRerollBtn) termRerollBtn.style.display = 'none';
         if (birthNameBar) birthNameBar.style.display = 'none';
 
         if (isStore) {
-            // Player is inside a store
+            // Player is inside a classic store
             if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
             let storeName = 'STORE';
             if (frame.term && frame.term.rows) {
@@ -1934,36 +1952,23 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             terminalTitle.textContent = '⚔ ' + storeName.toUpperCase();
 
-            const isStoreSubMode = screenText.includes('purchase which item') ||
-                                   screenText.includes('sell which item') ||
-                                   screenText.includes('examine which item') ||
-                                   screenText.includes('which item') ||
-                                   (frame.ui && (frame.ui.overlay || 0) > 2);
-
             const hasMore = Boolean(frame.ui && frame.ui.more) || screenText.includes('-more-');
 
-            if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling store inventory
+            if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling and navigating store inventory
 
-            if (isStoreSubMode) {
-                if (termCtxActions) {
-                    termCtxActions.innerHTML = `
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel / Back</button>
-                        ${hasMore ? '<button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> More / Space</button>' : ''}
-                    `;
-                }
-                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
-            } else {
-                if (termCtxActions) {
-                    termCtxActions.innerHTML = `
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> 💰 Buy</button>
-                        <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> 🏷 Sell</button>
-                        <button type="button" class="term-ctx-btn" data-key="l"><span>[l]</span> 🔍 Examine</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> 🚪 Exit Store</button>
-                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                    `;
-                }
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+            // Classic Store Action Navigation Dock (Pure classic Angband navigation keys)
+            if (termCtxActions) {
+                termCtxActions.innerHTML = `
+                    ${hasMore ? '<button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ⏩ Continue (-more-)</button>' : ''}
+                    <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> 💰 Buy</button>
+                    <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> 🏷 Sell</button>
+                    <button type="button" class="term-ctx-btn" data-key="l"><span>[l]</span> 🔍 Examine</button>
+                    <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                    <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> 🚪 Exit Store</button>
+                `;
             }
+            // Always provide direct letter selection keys [a]..[l] outside classic view
+            populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
         } else if (isTargeting) {
             // Target / Direction Aiming Mode
             terminalTitle.textContent = '🎯 TARGETING & AIMING';
