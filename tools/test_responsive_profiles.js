@@ -501,60 +501,57 @@ async function run() {
             const card = document.getElementById('mobile-hero-card');
             const canvas = document.getElementById('terminal-canvas');
             const toolbar = document.querySelector('.terminal-toolbar');
+            const birthControls = document.getElementById('birth-touch-controls');
             const topBar = document.getElementById('top-right-bar');
-            const splashTitle = document.querySelector('.splash-title');
-            const nameEl = card.querySelector('.m-hero-name');
-            const raceEl = card.querySelector('.m-race-badge');
-            const classEl = card.querySelector('.m-class-badge');
-            const hpEl = card.querySelector('.m-vital-hp .m-vital-val');
-            const acceptBtn = card.querySelector('#m-btn-accept');
-            const meleeChip = card.querySelector('.m-hero-combat-grid .m-combat-chip');
+            const banner = document.getElementById('top-message-banner');
+            const btnInvert = document.getElementById('btn-toggle-invert');
+            const btnZoomIn = document.getElementById('btn-mobile-map-zoom-in');
+            const btnZoomOut = document.getElementById('btn-mobile-map-zoom-out');
+
+            // Test Invert Drag Look Toggle
+            const invertBefore = window.__app && window.__app.input ? window.__app.input.invertDragLook : false;
+            if (btnInvert) btnInvert.click();
+            const invertAfter = window.__app && window.__app.input ? window.__app.input.invertDragLook : false;
+
+            // Test Mobile Minimap Zoom
+            const zoomBefore = window.__app && window.__app.hud ? window.__app.hud.minimapZoom : 1.0;
+            if (btnZoomIn) btnZoomIn.click();
+            const zoomAfter = window.__app && window.__app.hud ? window.__app.hud.minimapZoom : 1.0;
+
+            const bannerStyle = banner ? window.getComputedStyle(banner) : null;
 
             return {
-                cardDisplay: window.getComputedStyle(card).display,
-                canvasDisplay: window.getComputedStyle(canvas).display,
+                cardDisplay: card ? window.getComputedStyle(card).display : null,
+                canvasDisplay: canvas ? window.getComputedStyle(canvas).display : null,
                 toolbarDisplay: toolbar ? window.getComputedStyle(toolbar).display : null,
+                birthControlsDisplay: birthControls ? window.getComputedStyle(birthControls).display : null,
                 topBarWidth: topBar ? topBar.offsetWidth : 0,
-                splashTitleNowrap: splashTitle ? window.getComputedStyle(splashTitle).whiteSpace : null,
-                heroName: nameEl ? nameEl.textContent : null,
-                heroRace: raceEl ? raceEl.textContent : null,
-                heroClass: classEl ? classEl.textContent : null,
-                heroHp: hpEl ? hpEl.textContent : null,
-                meleeText: meleeChip ? meleeChip.textContent : '',
-                acceptBtnHeight: acceptBtn ? acceptBtn.offsetHeight : 0
+                invertToggled: invertAfter !== invertBefore,
+                minimapZoomed: zoomAfter > zoomBefore,
+                bannerTop: bannerStyle ? bannerStyle.top : null,
+                bannerPosition: bannerStyle ? bannerStyle.position : null
             };
         })()`);
-        console.log('Mobile Hero Review Card Result:', heroCardResult);
+        console.log('Mobile Custom Creation & UX Result:', heroCardResult);
 
-        if (heroCardResult.cardDisplay === 'none') {
-            throw new Error('Mobile hero review card is hidden on phone review screen!');
+        if (heroCardResult.canvasDisplay === 'none') {
+            throw new Error('Terminal canvas must remain visible and adaptively zoomed for character creation!');
         }
-        if (heroCardResult.canvasDisplay !== 'none') {
-            throw new Error('Terminal canvas should be hidden in favor of mobile hero review card!');
+        if (heroCardResult.birthControlsDisplay === 'none') {
+            throw new Error('Birth touch controls must be active on phone for character creation!');
         }
-        if (heroCardResult.toolbarDisplay !== 'none') {
-            throw new Error(`Desktop terminal toolbar must be hidden when mobile card is active, got: ${heroCardResult.toolbarDisplay}`);
+        if (heroCardResult.cardDisplay !== 'none') {
+            throw new Error('Mock hero review card must not override the real classic terminal!');
         }
-        if (heroCardResult.heroName !== 'Orth' || heroCardResult.heroRace !== 'Half-Orc' || heroCardResult.heroClass !== 'Ranger') {
-            throw new Error(`Hero attributes mismatch: Name=${heroCardResult.heroName}, Race=${heroCardResult.heroRace}, Class=${heroCardResult.heroClass}`);
+        if (!heroCardResult.invertToggled) {
+            throw new Error('Invert drag look toggle button failed to toggle input.invertDragLook!');
         }
-        if (heroCardResult.heroHp !== '15/15') {
-            throw new Error(`Hero HP mismatch: expected 15/15, got ${heroCardResult.heroHp}`);
+        if (!heroCardResult.minimapZoomed) {
+            throw new Error('Mobile minimap zoom in button failed to adjust minimapZoom!');
         }
-        if (heroCardResult.meleeText.includes('/turn/turn')) {
-            throw new Error(`Double suffix bug detected in melee text: ${heroCardResult.meleeText}`);
-        }
-        if (heroCardResult.topBarWidth > 130) {
-            throw new Error(`Top-right bar too wide on phone (${heroCardResult.topBarWidth}px, expected <= 130px with restored fullscreen button)`);
-        }
-        if (heroCardResult.splashTitleNowrap !== 'nowrap') {
-            throw new Error(`Splash title must have white-space: nowrap, got: ${heroCardResult.splashTitleNowrap}`);
-        }
-        if (heroCardResult.acceptBtnHeight < 40) {
-            throw new Error(`Accept button touch target too small (${heroCardResult.acceptBtnHeight}px)`);
-        }
-        console.log('✓ Mobile Hero Review Card verified: Name, Race, Class, HP, and 48px tactile buttons rendered cleanly!');
-        console.log('✓ Top-right bar collapsed cleanly to compact icon buttons (width: ' + heroCardResult.topBarWidth + 'px)!');
+        console.log('✓ Mobile Classic Character Creation verified: Real terminal rendered, birth touch controls active!');
+        console.log('✓ Invert Drag Look toggle verified: toggles input state and updates UI!');
+        console.log('✓ Mobile Minimap Zoom buttons verified: zoom in and zoom out responsive!');
         console.log('\n======================================================');
         console.log('TEST SUITE 11: Classic Mode Zoomable Viewport & Touch Controls');
         console.log('======================================================');

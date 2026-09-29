@@ -445,10 +445,32 @@ html, body {
 }
 
 #btn-toggle-msg-feed,
-#btn-toggle-minimap {
+#btn-toggle-minimap,
+#btn-toggle-dpad,
+#btn-toggle-invert {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+}
+
+.btn-pause-invert {
+    font-family: var(--font-terminal);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(20, 26, 40, 0.9);
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    color: #e0e6ed;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-pause-invert.active {
+    background: rgba(212, 175, 55, 0.25);
+    border-color: #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
 }
 
 .map-close-btn {
@@ -1249,6 +1271,11 @@ html, body {
     background: rgba(239, 68, 68, 0.28) !important;
     color: #fff !important;
     border-color: #ff7b72 !important;
+}
+
+/* Mobile Minimap Floating Zoom Buttons (Hidden on desktop) */
+.mobile-map-zoom-group {
+    display: none;
 }
 
 /* Camera Head Tilt Bar */
@@ -2707,14 +2734,15 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #top-right-bar .sound-label,
     #top-right-bar .menu-label,
     #top-right-bar .ctrl-label,
-    #top-right-bar .fs-label {
-        display: none !important;
-    }
-    #top-right-bar #btn-toggle-dpad {
+    #top-right-bar .fs-label,
+    #top-right-bar .dpad-label,
+    #top-right-bar .invert-label {
         display: none !important;
     }
     #top-right-bar #btn-toggle-msg-feed,
     #top-right-bar #btn-toggle-minimap,
+    #top-right-bar #btn-toggle-dpad,
+    #top-right-bar #btn-toggle-invert,
     #top-right-bar #btn-sound,
     #top-right-bar #btn-fullscreen,
     #top-right-bar #btn-menu {
@@ -2735,12 +2763,15 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         -webkit-backdrop-filter: blur(8px) !important;
     }
     #top-right-bar #btn-toggle-msg-feed[style*="display: none"],
-    #top-right-bar #btn-toggle-minimap[style*="display: none"] {
+    #top-right-bar #btn-toggle-minimap[style*="display: none"],
+    #top-right-bar #btn-toggle-dpad[style*="display: none"],
+    #top-right-bar #btn-toggle-invert[style*="display: none"] {
         display: none !important;
     }
     #top-right-bar #btn-toggle-msg-feed.active,
     #top-right-bar #btn-toggle-minimap.active,
-    #top-right-bar #btn-toggle-dpad.active {
+    #top-right-bar #btn-toggle-dpad.active,
+    #top-right-bar #btn-toggle-invert.active {
         border-color: #ffd700 !important;
         background: rgba(45, 36, 16, 0.95) !important;
         box-shadow: 0 0 10px rgba(255, 215, 0, 0.45) !important;
@@ -2848,6 +2879,32 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     .top-message-banner {
         padding-right: calc(min(45vw, 420px) + var(--safe-right)) !important;
     }
+}
+
+@media (max-width: 768px) {
+    .top-message-banner {
+        position: fixed !important;
+        top: calc(44px + var(--safe-top)) !important;
+        left: max(8px, var(--safe-left)) !important;
+        right: max(8px, var(--safe-right)) !important;
+        width: auto !important;
+        height: 32px !important;
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+        border-radius: 6px !important;
+        background: rgba(6, 9, 16, 0.95) !important;
+        border: 1px solid rgba(212, 175, 55, 0.45) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8) !important;
+        z-index: 28 !important;
+    }
+    .top-message-text {
+        font-size: 12px;
+        width: 100% !important;
+        text-align: left !important;
+    }
+}
+
+@media (max-width: 1023px) {
 
     #hud-overlay {
         padding-bottom: max(8px, var(--safe-bottom));
@@ -2929,14 +2986,26 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
    ------------------------------------------------------------------------------ */
 @media (max-width: 599px), (max-height: 500px) and (orientation: landscape) {
     .top-message-banner {
-        height: 32px;
-        padding-left: max(10px, var(--safe-left)) !important;
-        padding-right: calc(220px + var(--safe-right)) !important;
+        position: fixed !important;
+        top: calc(44px + var(--safe-top)) !important;
+        left: max(8px, var(--safe-left)) !important;
+        right: max(8px, var(--safe-right)) !important;
+        width: auto !important;
+        height: 32px !important;
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+        border-radius: 6px !important;
+        background: rgba(6, 9, 16, 0.95) !important;
+        border: 1px solid rgba(212, 175, 55, 0.45) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8) !important;
+        z-index: 28 !important;
         cursor: pointer;
     }
 
     .top-message-text {
         font-size: 12px;
+        width: 100% !important;
+        text-align: left !important;
     }
 
     /* Streamlined Non-Truncating Footer on Phone */
@@ -3003,7 +3072,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     /* Top Left: Slim Character Vitals Capsule */
     #char-panel {
         position: fixed !important;
-        top: calc(48px + var(--safe-top)) !important;
+        top: calc(80px + var(--safe-top)) !important;
         left: max(8px, var(--safe-left)) !important;
         width: auto !important;
         min-width: 0 !important;
@@ -3080,13 +3149,13 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     /* Top Right: Compact Circular Minimap Radar */
     #minimap-container {
         position: fixed !important;
-        top: calc(46px + var(--safe-top)) !important;
+        top: calc(80px + var(--safe-top)) !important;
         right: max(6px, var(--safe-right)) !important;
         left: auto !important;
         width: 102px !important;
         height: 102px !important;
         border-radius: 50% !important;
-        overflow: hidden !important;
+        overflow: visible !important;
         z-index: 30 !important;
         border: 1.5px solid rgba(212, 175, 55, 0.6) !important;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7) !important;
@@ -3104,6 +3173,43 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         width: 100% !important;
         height: 100% !important;
         border-radius: 50% !important;
+    }
+
+    .mobile-map-zoom-group {
+        display: flex !important;
+        flex-direction: column !important;
+        position: absolute !important;
+        left: -38px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        gap: 6px !important;
+        z-index: 35 !important;
+        pointer-events: auto !important;
+    }
+
+    .mobile-map-btn {
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 50% !important;
+        background: rgba(12, 16, 26, 0.94) !important;
+        border: 1.5px solid rgba(212, 175, 55, 0.75) !important;
+        color: #ffd700 !important;
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        line-height: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        touch-action: manipulation !important;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.7) !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
+    }
+
+    .mobile-map-btn:active {
+        background: rgba(212, 175, 55, 0.4) !important;
+        transform: scale(0.92) !important;
     }
 
     /* Bottom Left Thumb: Movement & Orientation D-Pad */
@@ -3505,6 +3611,110 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     font-weight: 700;
 }
 
+/* Character Creation / Birth Screen Touch Controls */
+.birth-touch-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 680px;
+    margin: 4px auto 0;
+    padding: 8px 10px;
+    background: rgba(8, 12, 20, 0.94);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 10px;
+    box-sizing: border-box;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    flex-shrink: 0;
+}
+
+.birth-name-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+}
+
+.birth-name-input {
+    flex: 1;
+    height: 38px;
+    padding: 0 12px;
+    font-family: var(--font-terminal);
+    font-size: 15px;
+    background: rgba(4, 6, 12, 0.95);
+    border: 1.5px solid rgba(212, 175, 55, 0.65);
+    border-radius: 6px;
+    color: #ffd700;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.birth-name-input:focus {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.birth-options-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    width: 100%;
+    max-height: 110px;
+    overflow-y: auto;
+}
+
+.birth-opt-btn {
+    min-width: 44px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 6px;
+    background: rgba(22, 28, 44, 0.95);
+    border: 1.5px solid rgba(212, 175, 55, 0.55);
+    color: #ffd700;
+    font-family: var(--font-terminal);
+    font-size: 14px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: all 0.15s ease;
+}
+
+.birth-opt-btn:active {
+    background: rgba(212, 175, 55, 0.35);
+    transform: scale(0.95);
+}
+
+.birth-actions-strip {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.btn-birth-action {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-family: var(--font-terminal);
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
 /* ------------------------------------------------------------------------------
    PHONE LANDSCAPE ORIENTATION REFINEMENTS
    ------------------------------------------------------------------------------ */
@@ -3598,24 +3808,29 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         display: none !important;
     }
 
-    /* Top Live Banner centered in available space */
+    /* Top Live Banner fills top screen under toolbar options */
     .top-message-banner {
-        top: max(3px, var(--safe-top)) !important;
-        height: 28px !important;
-        left: 330px !important;
-        right: 175px !important;
-        padding: 0 8px !important;
-        border-radius: 6px !important;
-    }
-
-    /* Compact 70px Circular Minimap Radar docked at top-right */
-    #minimap-container {
         position: fixed !important;
         top: calc(34px + var(--safe-top)) !important;
+        height: 26px !important;
+        left: max(6px, var(--safe-left)) !important;
+        right: max(6px, var(--safe-right)) !important;
+        width: auto !important;
+        padding: 0 8px !important;
+        border-radius: 6px !important;
+        z-index: 28 !important;
+    }
+
+    /* Compact 70px Circular Minimap Radar docked below message banner */
+    #minimap-container {
+        position: fixed !important;
+        top: calc(64px + var(--safe-top)) !important;
         right: max(6px, var(--safe-right)) !important;
         width: 72px !important;
         height: 72px !important;
         border-radius: 50% !important;
+        overflow: visible !important;
+        z-index: 30 !important;
     }
 
     #minimap-header,

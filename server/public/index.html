@@ -14,7 +14,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=5.4">
+    <link rel="stylesheet" href="/css/dungeon.css?v=5.5">
 </head>
 <body>
     <div id="app-container">
@@ -86,6 +86,21 @@
                         </div>
                     </div>
                 </div>
+                <!-- Dedicated Touch Controls for Character Creation / Birth Screen -->
+                <div id="birth-touch-controls" class="birth-touch-controls" style="display: none;">
+                    <div id="birth-name-bar" class="birth-name-bar" style="display: none;">
+                        <input type="text" id="birth-name-input" class="birth-name-input" placeholder="Enter Character Name" maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+                        <button id="btn-birth-name-submit" class="btn-birth-action btn-gold">✓ Set Name</button>
+                    </div>
+                    <div id="birth-options-grid" class="birth-options-grid"></div>
+                    <div class="birth-actions-strip">
+                        <button type="button" class="btn-birth-action btn-birth-rand btn-gold" data-key="@">🎲 Random (@)</button>
+                        <button type="button" class="btn-birth-action btn-birth-enter btn-gold" data-key="enter">⏎ Enter</button>
+                        <button type="button" class="btn-birth-action btn-gold-outline" data-key="escape">⎋ Esc</button>
+                        <button type="button" class="btn-birth-action btn-gold-outline" data-key="r">🎲 Reroll (R)</button>
+                        <button type="button" class="btn-birth-action btn-gold" data-key="y">⚔ Accept (y)</button>
+                    </div>
+                </div>
                 <!-- Native Mobile Hero Review Card (Touch Legibility on Mobile) -->
                 <div id="mobile-hero-card" class="mobile-hero-card" style="display: none;"></div>
                 <!-- Native Mobile Item / Store Drawer -->
@@ -120,6 +135,7 @@
             <button id="btn-toggle-msg-feed" class="icon-btn in-game-only" title="Toggle Message Log Feed"><span class="msg-icon">📜</span> <span class="msg-label">Log</span></button>
             <button id="btn-toggle-minimap" class="icon-btn in-game-only" title="Toggle Minimap Radar"><span class="map-icon">🗺</span> <span class="map-label">Map</span></button>
             <button id="btn-toggle-dpad" class="icon-btn in-game-only" title="Toggle On-Screen D-Pad"><span class="dpad-icon">🕹</span> <span class="dpad-label">D-Pad</span></button>
+            <button id="btn-toggle-invert" class="icon-btn in-game-only" title="Toggle Invert Drag Look (Current: Normal)"><span class="invert-icon">🔄</span> <span class="invert-label">Invert</span></button>
             <button id="btn-controls" class="icon-btn" title="View Complete Controls &amp; Commands Guide [?]"><span class="ctrl-icon">⌨</span> <span class="ctrl-label">Controls (?)</span></button>
             <div id="sound-control-group" class="sound-control-group" title="Global Audio Volume &amp; Mute [Ctrl-M]">
                 <button id="btn-sound" class="icon-btn btn-sound" title="Toggle Sound / Mute [Ctrl-M]"><span class="sound-icon">🔊</span><span class="sound-label">Sound</span></button>
@@ -141,6 +157,11 @@
                 <button id="btn-minimap-close" class="map-close-btn" title="Close Minimap">✕</button>
             </div>
             <canvas id="minimap-canvas"></canvas>
+            <!-- Mobile Minimap Floating Quick-Zoom Bar -->
+            <div id="mobile-map-zoom-group" class="mobile-map-zoom-group">
+                <button id="btn-mobile-map-zoom-in" class="mobile-map-btn" title="Zoom In Minimap">+</button>
+                <button id="btn-mobile-map-zoom-out" class="mobile-map-btn" title="Zoom Out Minimap">−</button>
+            </div>
             <!-- Minimap Explicit Size & Zoom Control Bar -->
             <div id="minimap-controls-bar" class="minimap-controls-bar">
                 <div class="map-ctrl-grp">
@@ -503,6 +524,7 @@
 
                 <div class="pause-audio-toolbar">
                     <button id="btn-pause-mute" class="btn-pause-mute" title="Toggle Sound / Mute">🔊 Sound On</button>
+                    <button id="btn-pause-invert" class="btn-pause-invert" title="Toggle Invert Drag Look">🔄 Drag: Normal</button>
                     <div class="pause-volume-wrap">
                         <span class="pause-vol-label">Volume:</span>
                         <input type="range" id="pause-volume-slider" class="volume-range-slider" min="0" max="100" value="75" step="1" title="Adjust Volume">
@@ -746,14 +768,14 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=5.4"></script>
-    <script src="/js/mobile-overlay.js?v=5.4"></script>
-    <script src="/js/audio.js?v=5.4"></script>
-    <script src="/js/terminal.js?v=5.4"></script>
-    <script src="/js/dungeon3d.js?v=5.4"></script>
-    <script src="/js/hud.js?v=5.4"></script>
-    <script src="/js/network.js?v=5.4"></script>
-    <script src="/js/input.js?v=5.4"></script>
-    <script src="/js/app.js?v=5.4"></script>
+    <script src="/js/device.js?v=5.5"></script>
+    <script src="/js/mobile-overlay.js?v=5.5"></script>
+    <script src="/js/audio.js?v=5.5"></script>
+    <script src="/js/terminal.js?v=5.5"></script>
+    <script src="/js/dungeon3d.js?v=5.5"></script>
+    <script src="/js/hud.js?v=5.5"></script>
+    <script src="/js/network.js?v=5.5"></script>
+    <script src="/js/input.js?v=5.5"></script>
+    <script src="/js/app.js?v=5.5"></script>
 </body>
 </html>

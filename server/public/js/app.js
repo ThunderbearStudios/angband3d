@@ -284,6 +284,58 @@ window.addEventListener('DOMContentLoaded', () => {
         termTouchControls.querySelectorAll('.term-dpad-btn, .term-action-key').forEach(bindTermTouch);
     }
 
+    // Dedicated Touch Controls for Character Creation / Birth Screen
+    const birthTouchControls = document.getElementById('birth-touch-controls');
+    if (birthTouchControls) {
+        birthTouchControls.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn || btn.id === 'btn-birth-name-submit') return;
+            const key = btn.dataset.key;
+            if (!key) return;
+            if (audio) audio.unlock();
+            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
+                window.DeviceProfile.triggerHaptic('light');
+            }
+            if (key === 'escape') {
+                cancelQuickBirth();
+                network.sendKey('escape');
+            } else if (key === 'r') {
+                rerollHero();
+            } else if (key === 'y') {
+                confirmHeroBirth();
+                network.sendKey('y');
+            } else {
+                network.sendKey(key);
+            }
+        });
+
+        const nameSubmitBtn = document.getElementById('btn-birth-name-submit');
+        const nameInput = document.getElementById('birth-name-input');
+        const submitName = () => {
+            if (!nameInput) return;
+            const nameVal = nameInput.value.trim();
+            if (nameVal) {
+                if (audio) audio.playWhoosh();
+                for (const ch of nameVal) {
+                    network.sendKey(ch);
+                }
+                network.sendKey('enter');
+                nameInput.value = '';
+            }
+        };
+        if (nameSubmitBtn) {
+            nameSubmitBtn.addEventListener('click', submitName);
+        }
+        if (nameInput) {
+            nameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitName();
+                }
+            });
+        }
+    }
+
     // Interactive Store Actions Bar controls
     const btnStoreAdvance = document.getElementById('btn-store-advance');
     if (btnStoreAdvance) {
@@ -1528,12 +1580,22 @@ window.addEventListener('DOMContentLoaded', () => {
             ? frame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
             : '';
 
+        const birthTouchControls = document.getElementById('birth-touch-controls');
+        const birthNameBar = document.getElementById('birth-name-bar');
+        const birthNameInput = document.getElementById('birth-name-input');
+        const birthOptionsGrid = document.getElementById('birth-options-grid');
+        const isMobileScreen = window.innerWidth <= 768 || (window.DeviceProfile && window.DeviceProfile.getTier() !== 'desktop');
+
         // If NOT in active play: we are in character creation / birth / review screen
         if (!inPlay) {
             // NEVER show store actions bar during character creation or review
             if (storeActionsBar) storeActionsBar.style.display = 'none';
             if (itemActionsBar) itemActionsBar.style.display = 'none';
             if (termTouchControls) termTouchControls.style.display = 'none';
+            if (mobileHeroCard) mobileHeroCard.style.display = 'none';
+            if (terminalCanvas) terminalCanvas.style.display = 'block';
+            if (terminalToolbar) terminalToolbar.style.display = 'flex';
+            if (terminalCard) terminalCard.classList.remove('mobile-card-active');
 
             const isReviewScreen = screenText.includes("use as is") || screenText.includes("'y': use") ||
                                    screenText.includes("to start over") || screenText.includes("r to reroll") ||
@@ -1552,55 +1614,15 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
                 termEscapeBtn.textContent = 'Back (Esc)';
 
-                // Mobile & Tablet Legibility: Render Native Hero Review Card
-                const isMobileOrTablet = (typeof DeviceProfile !== 'undefined') && (DeviceProfile.getTier() !== 'desktop');
-                if (mobileHeroCard && isMobileOrTablet && window.MobileOverlay) {
-                    mobileHeroCard.style.display = 'flex';
-                    if (terminalCanvas) terminalCanvas.style.display = 'none';
-                    if (terminalToolbar) terminalToolbar.style.display = 'none';
-                    if (terminalCard) terminalCard.classList.add('mobile-card-active');
-                    window.MobileOverlay.renderHeroReviewCard(frame, mobileHeroCard, {
-                        onReroll: () => {
-                            if (termRerollBtn) termRerollBtn.click();
-                            else rerollHero();
-                        },
-                        onCustom: () => {
-                            if (termCustomBtn) termCustomBtn.click();
-                            else startCustomHeroCreation();
-                        },
-                        onAccept: () => {
-                            if (termAdvanceBtn) {
-                                termAdvanceBtn.click();
-                            } else {
-                                confirmHeroBirth();
-                                if (audio) audio.playWhoosh();
-                                network.sendKey('enter');
-                            }
-                        },
-                        onBack: () => {
-                            if (termEscapeBtn) {
-                                termEscapeBtn.click();
-                            } else {
-                                cancelQuickBirth();
-                                if (audio) audio.playMenuNav();
-                                network.sendKey('s');
-                            }
-                        }
-                    });
-                } else {
-                    if (mobileHeroCard) mobileHeroCard.style.display = 'none';
-                    if (terminalCanvas) terminalCanvas.style.display = 'block';
-                    if (terminalToolbar) terminalToolbar.style.display = 'flex';
-                    if (terminalCard) terminalCard.classList.remove('mobile-card-active');
+                if (birthTouchControls) {
+                    birthTouchControls.style.display = isMobileScreen ? 'flex' : 'none';
+                    if (birthNameBar) birthNameBar.style.display = 'none';
+                    if (birthOptionsGrid) birthOptionsGrid.innerHTML = '';
                 }
                 return;
             }
 
-            // Case 2: Early Character Creation (race/class/stat selection)
-            if (mobileHeroCard) mobileHeroCard.style.display = 'none';
-            if (terminalCanvas) terminalCanvas.style.display = 'block';
-            if (terminalToolbar) terminalToolbar.style.display = 'flex';
-            if (terminalCard) terminalCard.classList.remove('mobile-card-active');
+            // Case 2: Early Character Creation (sex, race, class, stat roll, name prompt)
             terminalTitle.textContent = '⚔ CHARACTER CREATION';
             if (quickBirthBtn) quickBirthBtn.style.display = 'inline-flex';
             if (termRerollBtn) termRerollBtn.style.display = 'none';
@@ -1611,8 +1633,50 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             termEscapeBtn.textContent = 'Back (Esc)';
             if (termExitMenuBtn) termExitMenuBtn.style.display = 'inline-flex';
+
+            // Show birth touch controls on mobile with dynamically extracted letter options & name input
+            if (birthTouchControls) {
+                birthTouchControls.style.display = isMobileScreen ? 'flex' : 'none';
+                const isNamePrompt = screenText.includes("enter character's name") ||
+                                     screenText.includes("choose your name") ||
+                                     screenText.includes("name:") ||
+                                     screenText.includes("enter name");
+                if (birthNameBar) {
+                    birthNameBar.style.display = isNamePrompt ? 'flex' : 'none';
+                }
+
+                if (birthOptionsGrid) {
+                    const choices = [];
+                    if (frame && frame.term && frame.term.rows) {
+                        for (const row of frame.term.rows) {
+                            const text = row.g || '';
+                            const m = text.match(/^\s*([a-zA-Z0-9@])[\)\.\:]\s+([A-Za-z0-9\-\'\s]{2,24})/);
+                            if (m) {
+                                const key = m[1];
+                                const label = m[2].trim();
+                                if (!choices.some(c => c.key === key)) {
+                                    choices.push({ key, label });
+                                }
+                            }
+                        }
+                    }
+                    if (choices.length > 0) {
+                        birthOptionsGrid.innerHTML = choices.map(c =>
+                            `<button type="button" class="birth-opt-btn" data-key="${c.key}"><span style="color:#ffd700;">${c.key})</span> ${c.label}</button>`
+                        ).join('');
+                    } else {
+                        const defaultLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'];
+                        birthOptionsGrid.innerHTML = defaultLetters.map(l =>
+                            `<button type="button" class="birth-opt-btn" data-key="${l}">${l}</button>`
+                        ).join('');
+                    }
+                }
+            }
             return;
         }
+
+        // Active play: hide birth touch controls
+        if (birthTouchControls) birthTouchControls.style.display = 'none';
 
         // --- ACTIVE PLAY (Town or Dungeon) ---
         // Never show character birth or reroll buttons during active play!
@@ -1898,10 +1962,13 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             if (topMessageBanner) {
                 topMessageBanner.style.display = 'flex';
+                const isMobile = window.innerWidth <= 768 || (window.DeviceProfile && window.DeviceProfile.getTier() !== 'desktop');
                 const topRightBar = document.getElementById('top-right-bar');
-                if (topRightBar) {
+                if (topRightBar && !isMobile) {
                     const barWidth = topRightBar.offsetWidth || 165;
                     topMessageBanner.style.paddingRight = `calc(${barWidth + 14}px + var(--safe-right))`;
+                } else {
+                    topMessageBanner.style.paddingRight = '';
                 }
             }
 

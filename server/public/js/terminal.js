@@ -147,13 +147,20 @@ class WebTerminal {
         // 1. Birth / Character Setup / Death
         if (fullText.includes('choose a race') ||
             fullText.includes('choose a class') ||
+            fullText.includes('choose a sex') ||
+            fullText.includes('choose your') ||
             fullText.includes('character creation') ||
             fullText.includes('use as is') ||
             fullText.includes('to start over') ||
             fullText.includes('r to reroll') ||
             fullText.includes("'s' to start") ||
             fullText.includes('tombstone') ||
-            fullText.includes('stat roll')) {
+            fullText.includes('stat roll') ||
+            fullText.includes('point-based') ||
+            fullText.includes('roller') ||
+            fullText.includes("character's name") ||
+            fullText.includes('enter name') ||
+            fullText.includes('enter character')) {
             return 'birth';
         }
 
@@ -222,12 +229,12 @@ class WebTerminal {
 
         let baseScale;
         if (isMenuMode && isMobileScreen) {
-            // For ASCII menus on phones, scale against active 54-column content width (756px)
-            // so text is large (12-16px+), readable, and column 0 is perfectly aligned!
-            const activeCols = 54;
+            // For ASCII menus on phones, scale against active content width
+            // Birth wizard menus use cols 0-48, stores use cols 0-54
+            const activeCols = mode === 'birth' ? 48 : 54;
             const activeContentWidth = activeCols * baseCellWidth;
             const scaleToFitColumns = availW / activeContentWidth;
-            baseScale = Math.max(0.55, Math.min(scaleToFitColumns, 1.35));
+            baseScale = Math.max(0.60, Math.min(scaleToFitColumns, 1.45));
         } else {
             // Fit full 80x24 terminal screen
             baseScale = Math.min(availW / logicalWidth, availH / logicalHeight, 1.0);
