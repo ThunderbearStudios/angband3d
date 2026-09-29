@@ -140,6 +140,58 @@ class WebTerminal {
         }
     }
 
+    detectMode(termData) {
+        if (!termData || !termData.rows) return 'classic_play';
+        const fullText = termData.rows.map(r => r.g || '').join(' ').toLowerCase();
+
+        // 1. Birth / Character Setup / Death
+        if (fullText.includes('choose a race') ||
+            fullText.includes('choose a class') ||
+            fullText.includes('character creation') ||
+            fullText.includes('use as is') ||
+            fullText.includes('to start over') ||
+            fullText.includes('r to reroll') ||
+            fullText.includes("'s' to start") ||
+            fullText.includes('tombstone') ||
+            fullText.includes('stat roll')) {
+            return 'birth';
+        }
+
+        // 2. Stores & Shops
+        if (fullText.includes('store inventory') ||
+            fullText.includes('home inventory') ||
+            fullText.includes('gold remaining') ||
+            fullText.includes('which store') ||
+            fullText.includes('storekeeper') ||
+            fullText.includes('purchase which item') ||
+            fullText.includes('sell which item') ||
+            fullText.includes('examine which item')) {
+            return 'store';
+        }
+
+        // 3. Item & Spell Prompts
+        if (fullText.includes('inven:') ||
+            fullText.includes('equip:') ||
+            fullText.includes('select item:') ||
+            fullText.includes('which item?') ||
+            fullText.includes('which potion?') ||
+            fullText.includes('which scroll?') ||
+            fullText.includes('which book?') ||
+            fullText.includes('which spell?') ||
+            fullText.includes('cast which') ||
+            fullText.includes('aim which') ||
+            fullText.includes('zap which') ||
+            fullText.includes('browse which') ||
+            fullText.includes('destroy which') ||
+            fullText.includes('take off') ||
+            fullText.includes('wear/wield')) {
+            return 'item_prompt';
+        }
+
+        // 4. Default: Classic Dungeon Exploration
+        return 'classic_play';
+    }
+
     resize() {
         // High-DPI logical font metrics maintaining standard 80x24 aspect ratio
         const baseCellWidth = 14;
@@ -154,14 +206,32 @@ class WebTerminal {
         this.charHeight = baseCellHeight;
         this.fontSize = Math.floor(this.charHeight * 0.82);
 
-        // Responsive base scale that fits available viewport without overflow
+        const mode = this.detectMode(this.lastTermData);
+        this.currentMode = mode;
+
+        const isMobileScreen = window.innerWidth <= 768;
+        const isMenuMode = mode === 'store' || mode === 'item_prompt' || mode === 'birth';
+
+        // Responsive base scale that fits available viewport
         const viewport = document.getElementById('terminal-viewport');
         const containerW = viewport ? viewport.clientWidth : window.innerWidth;
         const containerH = viewport ? viewport.clientHeight : (window.innerHeight - 100);
 
-        const availW = Math.max(280, Math.min((containerW || window.innerWidth) * 0.98, 1200));
-        const availH = Math.max(200, Math.min((containerH || (window.innerHeight - 100)) * 0.95, 750));
-        const baseScale = Math.min(availW / logicalWidth, availH / logicalHeight, 1.0);
+        const availW = Math.max(280, containerW || window.innerWidth);
+        const availH = Math.max(200, containerH || (window.innerHeight - 100));
+
+        let baseScale;
+        if (isMenuMode && isMobileScreen) {
+            // For ASCII menus on phones, scale against active 54-column content width (756px)
+            // so text is large (12-16px+), readable, and column 0 is perfectly aligned!
+            const activeCols = 54;
+            const activeContentWidth = activeCols * baseCellWidth;
+            const scaleToFitColumns = availW / activeContentWidth;
+            baseScale = Math.max(0.55, Math.min(scaleToFitColumns, 1.35));
+        } else {
+            // Fit full 80x24 terminal screen
+            baseScale = Math.min(availW / logicalWidth, availH / logicalHeight, 1.0);
+        }
 
         const effectiveScale = baseScale * this.zoomLevel;
         const cssW = Math.floor(logicalWidth * effectiveScale);
@@ -169,7 +239,7 @@ class WebTerminal {
 
         this.canvas.style.width = `${cssW}px`;
         this.canvas.style.height = `${cssH}px`;
-        this.canvas.style.maxWidth = this.zoomLevel > 1.05 ? 'none' : '100%';
+        this.canvas.style.maxWidth = 'none'; // Allow viewport horizontal scrolling
         this.canvas.style.flexShrink = '0';
         this.canvas.style.objectFit = 'contain';
 
@@ -284,6 +354,13 @@ class WebTerminal {
         this.lastTermData = termData;
         this.lastRows = termData.rows;
 
+        const mode = this.detectMode(termData);
+        if (mode !== this.currentMode) {
+            this.currentMode = mode;
+            this.resize();
+            return; // resize re-invokes render with updated scale metrics
+        }
+
         const w = this.cols * this.charWidth;
         const h = this.rows * this.charHeight;
 
@@ -312,6 +389,41 @@ class WebTerminal {
                 const colorIdx = this.parseAttr(attrs, c);
                 this.ctx.fillStyle = this.palette[colorIdx] || '#ffffff';
                 this.ctx.fillText(ch, c * this.charWidth + 1, y + 2);
+            }
+        }
+
+        // Viewport Scroll Alignment: Menus flush left, Classic Play centers on player
+        const viewport = document.getElementById('terminal-viewport');
+        if (viewport) {
+            const isMenuMode = mode === 'store' || mode === 'item_prompt' || mode === 'birth';
+            if (isMenuMode) {
+                // Ensure column 0 is always flush and fully readable on the left
+                viewport.scrollLeft = 0;
+            } else if (mode === 'classic_play' && this.zoomLevel > 1.05) {
+                // In classic 2D mode, auto-center on player '@'
+                let playerCol = -1;
+                let playerRow = -1;
+                for (let r = 0; r < termData.rows.length; r++) {
+                    const rowObj = termData.rows[r];
+                    const text = rowObj.g || '';
+                    const atIdx = text.indexOf('@');
+                    if (atIdx !== -1) {
+                        playerCol = atIdx;
+                        playerRow = rowObj.y !== undefined ? rowObj.y : r;
+                        break;
+                    }
+                }
+                if (playerCol >= 0 && playerRow >= 0) {
+                    const cssW = parseFloat(this.canvas.style.width) || (this.cols * this.charWidth);
+                    const cssH = parseFloat(this.canvas.style.height) || (this.rows * this.charHeight);
+                    const cellW = cssW / this.cols;
+                    const cellH = cssH / this.rows;
+                    const targetScrollX = Math.round((playerCol + 0.5) * cellW - viewport.clientWidth / 2);
+                    const targetScrollY = Math.round((playerRow + 0.5) * cellH - viewport.clientHeight / 2);
+
+                    viewport.scrollLeft = Math.max(0, targetScrollX);
+                    viewport.scrollTop = Math.max(0, targetScrollY);
+                }
             }
         }
     }

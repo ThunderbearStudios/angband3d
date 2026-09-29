@@ -511,7 +511,8 @@ class WebHUD {
     setupMinimapControls() {
         if (this.minimapHeader) {
             this.minimapHeader.style.cursor = 'pointer';
-            this.minimapHeader.addEventListener('click', () => {
+            this.minimapHeader.addEventListener('click', (e) => {
+                if (e && e.target && e.target.closest('#btn-minimap-close')) return;
                 this.cycleMinimapSize(1);
             });
         }
@@ -1159,10 +1160,12 @@ class WebHUD {
 
         const inPlay = Boolean(frame && (frame.phase === 'play' || (frame.player && frame.player.name)));
 
-        // Message Feed Window Visibility: Respect user toggle state, drawer on phone
+        // Message Feed Window Visibility: Respect user toggle state, drawer on phone, and terminal overlay
+        const inOverlayOrTerminal = Boolean(frame && frame.ui && (frame.ui.overlay || 0) > 0) ||
+                                    Boolean(window.__app && window.__app.needsTerminal && window.__app.needsTerminal(frame));
         if (this.messageFeedWindow) {
             const isPhone = window.DeviceProfile && window.DeviceProfile.getTier() === 'phone';
-            if (inPlay && !window.__messageLogClosed) {
+            if (inPlay && !inOverlayOrTerminal && !window.__messageLogClosed) {
                 if (isPhone && !this.messageFeedWindow.classList.contains('mobile-expanded')) {
                     this.messageFeedWindow.style.display = 'none';
                 } else {
