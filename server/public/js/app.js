@@ -1927,10 +1927,8 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             wasInStore = inStore;
 
-            // D-Pad: On desktop, default to hidden for a clean immersive screen unless toggled by player.
-            // On mobile / tablet touchscreens, default to visible.
-            const isDesktop = window.DeviceProfile && window.DeviceProfile.getTier() === 'desktop';
-            const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : !isDesktop;
+            // D-Pad: Enabled by default across both desktop and mobile/touchscreens, togglable at will
+            const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
             if (touchControls) touchControls.style.display = showTouch ? 'flex' : 'none';
 
             // Update top bar toggle indicators
@@ -1945,7 +1943,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 btnToggleMap.classList.toggle('active', Boolean(isMapOpen));
             }
             if (btnToggleDpad) {
-                btnToggleDpad.style.display = isDesktop ? 'inline-flex' : 'none';
+                btnToggleDpad.style.display = 'inline-flex';
                 btnToggleDpad.classList.toggle('active', Boolean(showTouch));
             }
 
@@ -1962,6 +1960,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Minimap and Message Log Functional Toggles
     const btnToggleMap = document.getElementById('btn-toggle-minimap');
     const btnMinimapClose = document.getElementById('btn-minimap-close');
+    const btnMapCloseBar = document.getElementById('btn-map-close-bar');
     if (btnToggleMap) {
         btnToggleMap.addEventListener('click', () => {
             window.__minimapClosed = !window.__minimapClosed;
@@ -1977,12 +1976,19 @@ window.addEventListener('DOMContentLoaded', () => {
             updateViewMode();
         });
     }
+    if (btnMapCloseBar) {
+        btnMapCloseBar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.__minimapClosed = true;
+            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+            updateViewMode();
+        });
+    }
 
     const btnToggleDpad = document.getElementById('btn-toggle-dpad');
     if (btnToggleDpad) {
         btnToggleDpad.addEventListener('click', () => {
-            const isDesktop = window.DeviceProfile && window.DeviceProfile.getTier() === 'desktop';
-            const currentlyVisible = window.__dpadVisible !== undefined ? window.__dpadVisible : !isDesktop;
+            const currentlyVisible = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
             window.__dpadVisible = !currentlyVisible;
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
             updateViewMode();

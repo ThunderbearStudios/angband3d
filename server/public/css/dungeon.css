@@ -218,7 +218,7 @@ html, body {
     transform: none;
     z-index: 6;
     width: min(580px, calc(100vw - 340px));
-    min-width: 260px;
+    min-width: 360px;
     max-width: 90vw;
     height: 180px;
     min-height: 90px;
@@ -452,31 +452,39 @@ html, body {
 }
 
 .map-close-btn {
-    background: transparent;
-    border: none;
+    background: rgba(239, 68, 68, 0.25);
+    border: 1px solid rgba(255, 123, 114, 0.5);
     color: #ff7b72;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
     cursor: pointer;
-    padding: 0 5px;
-    border-radius: 3px;
+    padding: 1px 7px;
+    border-radius: 4px;
     transition: all 0.15s ease;
     margin-left: 6px;
-    line-height: 1;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .map-close-btn:hover {
-    background: rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.5);
     color: #fff;
+    border-color: #ff7b72;
 }
 
 #btn-msg-close {
+    background: rgba(239, 68, 68, 0.25);
     color: #ff7b72;
-    border-color: rgba(255, 123, 114, 0.4);
+    border-color: rgba(255, 123, 114, 0.5);
+    font-weight: 700;
+    flex-shrink: 0;
 }
 
 #btn-msg-close:hover {
-    background: rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.5);
     color: #fff;
     border-color: #ff7b72;
 }
@@ -1146,6 +1154,11 @@ html, body {
     font-weight: normal;
     color: rgba(220, 220, 220, 0.5);
     margin: 0 4px;
+    max-width: 105px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
 }
 
 /* Minimap Controls Bar */
@@ -1153,25 +1166,25 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 3px 6px;
+    padding: 3px 5px;
     background: rgba(10, 14, 22, 0.92);
     border-top: 1px solid rgba(212, 175, 55, 0.25);
-    gap: 4px;
+    gap: 3px;
 }
 
 .map-ctrl-grp {
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
 }
 
 .map-ctrl-lbl {
     font-family: var(--font-terminal);
-    font-size: 9px;
+    font-size: 8.5px;
     font-weight: bold;
     color: rgba(220, 220, 220, 0.65);
     letter-spacing: 0.5px;
-    margin-right: 2px;
+    margin-right: 1px;
 }
 
 .map-ctrl-btn {
@@ -1180,14 +1193,15 @@ html, body {
     border-radius: 4px;
     color: var(--gold-bright);
     font-family: var(--font-terminal);
-    font-size: 10px;
-    padding: 2px 6px;
+    font-size: 9.5px;
+    padding: 2px 4px;
     cursor: pointer;
     transition: all 0.15s ease;
     display: flex;
     align-items: center;
     gap: 2px;
     user-select: none;
+    flex-shrink: 0;
 }
 
 .map-ctrl-btn:hover {
@@ -1195,6 +1209,19 @@ html, body {
     border-color: var(--gold-bright);
     color: #fff;
     transform: scale(1.05);
+}
+
+.map-btn-hide {
+    background: rgba(239, 68, 68, 0.25) !important;
+    border-color: rgba(255, 123, 114, 0.5) !important;
+    color: #ff7b72 !important;
+    font-weight: bold !important;
+}
+
+.map-btn-hide:hover {
+    background: rgba(239, 68, 68, 0.55) !important;
+    border-color: #ff7b72 !important;
+    color: #fff !important;
 }
 
 .map-ctrl-btn kbd {
@@ -1211,6 +1238,17 @@ html, body {
     width: 1px;
     height: 14px;
     background: rgba(212, 175, 55, 0.2);
+}
+
+.map-btn-hide {
+    color: #ff7b72 !important;
+    border-color: rgba(255, 123, 114, 0.45) !important;
+}
+
+.map-btn-hide:hover {
+    background: rgba(239, 68, 68, 0.28) !important;
+    color: #fff !important;
+    border-color: #ff7b72 !important;
 }
 
 /* Camera Head Tilt Bar */
@@ -1273,31 +1311,33 @@ html, body {
     font-weight: bold;
 }
 
-/* Virtual D-Pad for Mobile & Touch (Console / Roguelike Precision Grid) */
+/* Virtual D-Pad for Mobile & Desktop (Console / Roguelike Precision Grid) */
 #touch-controls {
     position: absolute;
-    bottom: 84px;
-    right: 18px;
-    width: 172px;
+    bottom: 92px;
+    right: 28px;
+    width: 186px;
     display: flex;
     flex-direction: column;
     gap: 6px;
+    padding: 6px;
+    background: rgba(8, 12, 20, 0.85);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 25;
     pointer-events: auto;
     user-select: none;
     -webkit-user-select: none;
-}
-
-@media (max-width: 900px), (pointer: coarse) {
-    #touch-controls {
-        display: flex;
-    }
+    box-sizing: border-box;
 }
 
 .dpad-turn-wings {
     display: flex;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
 }
 
@@ -3303,14 +3343,17 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     -webkit-overflow-scrolling: touch;
     touch-action: pan-x pan-y;
     position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
     border-radius: 6px;
     background: #04060a;
     border: 1px solid rgba(212, 175, 55, 0.2);
     scrollbar-width: thin;
     scrollbar-color: rgba(212, 175, 55, 0.4) transparent;
+}
+
+#terminal-canvas {
+    display: block;
+    margin: 0 auto;
+    touch-action: manipulation;
 }
 
 .terminal-viewport::-webkit-scrollbar {

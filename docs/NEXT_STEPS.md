@@ -462,3 +462,41 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
   - Engine smoke tests: **11/11 passed**.
   - Godot C# client build: **0 warnings, 0 errors**.
   - Automated responsive test suite (`tools/test_responsive_profiles.js`): **12/12 suites passing 100%** on Chrome CDP across Desktop (1920x1080), Tablet (768x1024 / 1024x768), Phone Portrait (390x844), and Phone Landscape (844x390).
+
+---
+
+### Priority 9: PC D-Pad Realignment & Closable Window Restorations + Mobile Classic ASCII Menu Adaptive Scaling Engine (COMPLETED)
+- **Scope**: `server/public/index.html`, `server/public/css/dungeon.css`, `server/public/js/app.js`, `server/public/js/terminal.js`, `server/public/js/hud.js`, `server/public/sw.js`
+- **Accomplishments**:
+  1. **PC Web Client D-Pad Realignment & Default Visibility**:
+     - Corrected desktop D-pad visibility default: `window.__dpadVisible !== undefined ? window.__dpadVisible : true` so on-screen controller is active by default across both PC desktop and mobile.
+     - Kept top-right bar `#btn-toggle-dpad` permanently active and synchronized with active state so players can toggle the on-screen D-pad at will.
+     - Resized `#touch-controls` on desktop: expanded width to `186px`, offset to `bottom: 92px; right: 28px;` with dark glass border and backdrop blur.
+     - Guaranteed zero right-column clipping: turning wings (`↺ Turn L`, `↻ Turn R`), strafe buttons (`⇦ STRAFE`, `⇨ STRAFE`), and diagonals (`↗ 9`, `↘ 3`) all render with ample margin before the viewport edge.
+  2. **Minimap & Message Log Closable Options Restored**:
+     - Identified root cause of unclosable windows: header elements had exceeded container widths, causing `overflow: hidden` on `#message-feed-window` and `#minimap-container` to push close buttons off-screen.
+     - Expanded `#message-feed-window` min-width to `360px` and styled `#btn-msg-close` as a prominent red button (`rgba(239, 68, 68, 0.25)`, border `rgba(255, 123, 114, 0.5)`).
+     - Added prominent red close button `#btn-map-close-bar` (`✕ Hide`) directly to `#minimap-controls-bar` next to `[● Reset]`, and wired it in `app.js`.
+     - In `.minimap-header`, pinned `#btn-minimap-close` to the right with `flex-shrink: 0`, and added event target guard in `hud.js` so clicking close never triggers `cycleMinimapSize(1)`.
+     - Truncated `.minimap-hint` text gracefully with `max-width: 105px; text-overflow: ellipsis; white-space: nowrap;` so it never crowds out the close button.
+     - Synchronized top-bar toggle indicators (`[📜 Log]`, `[🗺 Map]`, `[🕹 D-Pad]`) with active glowing gold borders when windows are open.
+  3. **Mobile Classic Menu & Terminal Adaptive Scaling Engine**:
+     - Added intelligent context detection (`detectMode(termData)` in `terminal.js`) recognizing `store`, `item_prompt`, `birth`, and `classic_play`.
+     - Implemented mode-aware scaling in `resize()`: on mobile portrait viewports (`window.innerWidth <= 768`), stores, birth screens, and inventory/equipment prompts scale against the active 54-column content width (756px) rather than the empty 80-column span, producing crisp 14–19px logical font height (`charWidth >= 10px`).
+     - Automated left column alignment: on menu render, `#terminal-viewport` immediately scrolls to `scrollLeft = 0` so item letters (`a)`, `b)`, `c)`) and descriptions are flush and instantly legible without horizontal scrolling.
+     - Implemented player `@` tracking in `classic_play`: when zoomed in (>1.0x), the viewport automatically centers on the player character as they explore the dungeon.
+     - Viewport touch support: smooth momentum scrolling (`-webkit-overflow-scrolling: touch`), pinch-to-zoom (0.6x to 2.5x), and zoom toolbar buttons (`🔍 -`, `Reset %`, `🔍 +`).
+     - Click coordinate accuracy: touch events compute pixel-accurate character cell hit tests via `getBoundingClientRect()` regardless of zoom or scroll offsets.
+     - Docked on-screen `#terminal-touch-controls` below classic menus for 1-thumb D-pad cursor movement, selection (`Enter`), cancellation (`Esc`), and view switching (`Tab`).
+  4. **PWA & Cache Synchronization**:
+     - Bumped Service Worker cache version in `server/public/sw.js` to `angband3d-v5.4`.
+- **Verification**:
+  - Engine smoke tests: **11/11 passed** (`python tools/smoke_test.py`).
+  - Godot C# client build: **0 warnings, 0 errors** (`dotnet build client/angband3d.csproj`).
+  - Automated responsive test suite: **12/12 suites passed 100%** (`node tools/test_responsive_profiles.js`).
+  - Dedicated CDP inspection (`scratch/test_desktop_and_menu_scale.js`):
+    - Desktop D-Pad: `display: flex`, width: 186px, height: 226px, `clippedRight: false`, `clippedBottom: false`.
+    - Minimap close options: header close `✕` hides minimap, bar close `✕ Hide` hides minimap, top-right `[🗺 Map]` restores and hides.
+    - Message log close options: header close `✕ Hide` hides message log, top-right `[📜 Log]` restores and hides.
+    - Mobile menu adaptive scaling: accurately identifies `storeMode: 'store'`, scales canvas to 616px with large 19px font, and aligns `scrollLeft: 0`.
+    - Visual inspection of captured screenshots: `desktop_dpad_and_close_buttons.png` and `mobile_store_adaptive_scale.png`.
