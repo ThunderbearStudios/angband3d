@@ -5,6 +5,7 @@ engine/
 dist/
 tools/
 resources/
+scratch/
 node_modules/
 server/node_modules/
 *.zip
