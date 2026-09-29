@@ -3878,16 +3878,50 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         z-index: 28 !important;
     }
 
-    /* Compact 70px Circular Minimap Radar docked below message banner */
+    /* Top Right Controls: Ultra-compact single row docked top-right */
+    #top-right-bar {
+        position: fixed !important;
+        top: max(2px, var(--safe-top)) !important;
+        right: max(6px, var(--safe-right)) !important;
+        height: 30px !important;
+        gap: 3px !important;
+        padding: 0 4px !important;
+        z-index: 30 !important;
+    }
+
+    #top-right-bar .badge {
+        height: 24px !important;
+        line-height: 22px !important;
+        font-size: 9px !important;
+        padding: 0 5px !important;
+    }
+
+    #top-right-bar .icon-btn {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        font-size: 13px !important;
+        padding: 0 !important;
+    }
+
+    #top-right-bar .sound-control-group {
+        height: 28px !important;
+    }
+
+    /* Compact 70px Circular Minimap Radar docked below message banner on right */
     #minimap-container {
         position: fixed !important;
         top: calc(64px + var(--safe-top)) !important;
-        right: max(6px, var(--safe-right)) !important;
+        left: auto !important; /* CRITICAL: overrides desktop left: 18px */
+        right: max(8px, var(--safe-right)) !important;
         width: 72px !important;
         height: 72px !important;
         border-radius: 50% !important;
         overflow: visible !important;
         z-index: 30 !important;
+        border: 1.5px solid rgba(212, 175, 55, 0.6) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7) !important;
+        pointer-events: auto !important;
     }
 
     #minimap-header,
@@ -3903,47 +3937,302 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         border-radius: 50% !important;
     }
 
+    .mobile-map-zoom-group {
+        display: flex !important;
+        flex-direction: column !important;
+        position: absolute !important;
+        left: -30px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        gap: 4px !important;
+        z-index: 35 !important;
+        pointer-events: auto !important;
+    }
+
+    .mobile-map-btn {
+        width: 24px !important;
+        height: 24px !important;
+        font-size: 14px !important;
+    }
+
     /* Bottom Left: Scaled Movement D-pad */
     #touch-controls {
         position: fixed !important;
         bottom: calc(2px + var(--safe-bottom)) !important;
         left: max(4px, var(--safe-left)) !important;
-        transform: scale(0.80) !important;
+        right: auto !important;
+        top: auto !important;
+        transform: scale(0.78) !important;
         transform-origin: bottom left !important;
         margin: 0 !important;
+        z-index: 35 !important;
+        display: block !important;
     }
 
-    /* Bottom Right: Scaled Tactical Action Cluster */
+    /* Bottom Right: Tactical 2-Column Action Cluster (Scaled & Thumb-Optimized) */
     #action-bar:not(.drawer-open) {
         position: fixed !important;
-        bottom: calc(2px + var(--safe-bottom)) !important;
         right: max(4px, var(--safe-right)) !important;
+        left: auto !important;
+        bottom: calc(2px + var(--safe-bottom)) !important;
+        top: auto !important;
+        width: 140px !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 3px !important;
         transform: scale(0.80) !important;
         transform-origin: bottom right !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        z-index: 35 !important;
+        pointer-events: auto !important;
+    }
+
+    #action-bar:not(.drawer-open) .action-btn {
+        display: none !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        width: 100% !important;
+        padding: 2px 4px !important;
+        font-size: 11px !important;
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+        border-radius: 8px !important;
+        background: rgba(14, 18, 28, 0.90) !important;
+        border: 1px solid rgba(212, 175, 55, 0.4) !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    #action-bar:not(.drawer-open) .action-btn kbd {
+        display: none !important;
+    }
+
+    #action-bar:not(.drawer-open) #btn-attack,
+    #action-bar:not(.drawer-open) #btn-cast,
+    #action-bar:not(.drawer-open) #btn-inventory,
+    #action-bar:not(.drawer-open) #btn-quaff,
+    #action-bar:not(.drawer-open) #btn-terminal,
+    #action-bar:not(.drawer-open) #btn-action-more {
+        display: inline-flex !important;
+    }
+
+    #action-bar:not(.drawer-open) #btn-stair.stair-active {
+        display: inline-flex !important;
+    }
+
+    #hud-center-column {
+        position: static !important;
+        width: auto !important;
+        pointer-events: none !important;
         margin: 0 !important;
     }
 
-    /* Terminal Card in Landscape fills available height */
-    .terminal-card {
-        padding: 4px 8px !important;
-        max-height: calc(100vh - 8px) !important;
+    /* Bottom Center: Streamlined Status Pill Capsule (Safely quarantined between D-pad & Actions) */
+    #hud-footer {
+        position: fixed !important;
+        bottom: calc(2px + var(--safe-bottom)) !important;
+        left: max(160px, calc(150px + var(--safe-left))) !important;
+        right: max(160px, calc(150px + var(--safe-right))) !important;
+        width: auto !important;
+        height: 28px !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
         gap: 4px !important;
+        padding: 0 6px !important;
+        background: rgba(8, 12, 20, 0.92) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        border: 1px solid rgba(212, 175, 55, 0.4) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7) !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        white-space: nowrap !important;
+        scrollbar-width: none !important;
+        z-index: 30 !important;
+        pointer-events: auto !important;
+    }
+
+    #hud-footer::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    #hud-footer .status-group {
+        display: flex !important;
+        align-items: center !important;
+        gap: 3px !important;
+    }
+
+    #hud-footer .status-pill,
+    #hud-footer .status-alert,
+    #hud-footer .status-hint {
+        height: 20px !important;
+        line-height: 18px !important;
+        font-size: 9.5px !important;
+        padding: 0 5px !important;
+        border-radius: 4px !important;
+    }
+
+    #hud-footer #btn-quick-help {
+        display: none !important;
+    }
+
+    /* Action Drawer on Phone Landscape (Expanded state) */
+    #action-bar.drawer-open {
+        position: fixed !important;
+        bottom: calc(34px + var(--safe-bottom)) !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: min(540px, calc(100vw - 20px)) !important;
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 5px !important;
+        max-height: calc(100vh - 70px) !important;
+        overflow-y: auto !important;
+        z-index: 70 !important;
+        padding: 8px !important;
+        background: rgba(8, 12, 18, 0.98) !important;
+        border: 2px solid rgba(212, 175, 55, 0.6) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.95) !important;
+        pointer-events: auto !important;
+    }
+
+    #action-bar.drawer-open .action-btn {
+        display: inline-flex !important;
+        justify-content: center !important;
+        padding: 6px 4px !important;
+        font-size: 11px !important;
+        min-height: 38px !important;
+        border-radius: 6px !important;
+    }
+
+    #action-bar.drawer-open #btn-action-more {
+        grid-column: span 4 !important;
+        background: rgba(45, 14, 18, 0.95) !important;
+        border-color: #ff5555 !important;
+        color: #ffaaaa !important;
+    }
+
+    /* Terminal Isolation & Sizing in Landscape */
+    #terminal-container:not(.hidden) ~ #top-right-bar,
+    body.terminal-mode-active #top-right-bar {
+        display: none !important;
+    }
+
+    .terminal-card {
+        padding: 3px 6px !important;
+        max-height: calc(100vh - 6px) !important;
+        gap: 3px !important;
+    }
+
+    .terminal-toolbar {
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 6px !important;
+        gap: 6px !important;
+    }
+
+    .terminal-title {
+        font-size: 11px !important;
+    }
+
+    .term-direction-indicator {
+        font-size: 10px !important;
+        padding: 2px 6px !important;
+    }
+
+    .term-zoom-btn {
+        height: 24px !important;
+        min-width: 24px !important;
+        font-size: 12px !important;
+        padding: 0 5px !important;
+    }
+
+    .term-zoom-reset {
+        font-size: 10px !important;
+    }
+
+    #terminal-viewport {
+        height: calc(100vh - 120px) !important;
+        max-height: calc(100vh - 120px) !important;
+        min-height: 200px !important;
+        flex: 1 1 auto !important;
     }
 
     .terminal-touch-controls {
         padding: 2px 6px !important;
         margin: 2px auto 0 !important;
+        gap: 8px !important;
+        max-height: 74px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .term-touch-dpad-col {
+        width: 82px !important;
+        flex-shrink: 0 !important;
     }
 
     .term-dpad-grid {
-        grid-template-columns: repeat(3, 34px) !important;
-        grid-template-rows: repeat(3, 28px) !important;
+        grid-template-columns: repeat(3, 26px) !important;
+        grid-template-rows: repeat(3, 22px) !important;
         gap: 2px !important;
     }
 
-    .term-action-key {
-        min-height: 30px !important;
+    .term-dpad-btn {
+        font-size: 11px !important;
+        border-radius: 4px !important;
+    }
+
+    .term-touch-actions-col {
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+
+    .term-contextual-actions {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 3px !important;
+    }
+
+    .term-ctx-btn {
+        min-height: 28px !important;
+        height: 28px !important;
+        padding: 2px 4px !important;
         font-size: 10px !important;
+        border-radius: 4px !important;
+    }
+
+    .term-letter-ribbon {
+        gap: 3px !important;
+        padding: 2px 4px !important;
+        max-height: 32px !important;
+    }
+
+    .term-letter-btn {
+        min-width: 28px !important;
+        height: 26px !important;
+        font-size: 11px !important;
+    }
+
+    .birth-name-bar {
+        height: 32px !important;
+        gap: 4px !important;
+    }
+
+    .birth-name-input {
+        height: 28px !important;
+        font-size: 12px !important;
+    }
+
+    .btn-birth-action {
+        height: 28px !important;
+        font-size: 10px !important;
+        padding: 0 8px !important;
     }
 }
 
