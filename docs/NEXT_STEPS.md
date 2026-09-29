@@ -593,3 +593,39 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
   - Visual artifacts saved & inspected:
     - `mobile_classic_character_creation_screen.png`: Classic 80x24 terminal with responsive zoom and birth touch dock.
     - `mobile_custom_character_creation.png`: Custom hero Aragorn exploring the 3D town world.
+
+### Priority 12: Classic View Interaction Isolation & Unified Online Production Deployment (COMPLETED)
+- **Scope**: `server/public/js/terminal.js`, `server/public/js/app.js`, `server/public/css/dungeon.css`, `server/public/index.html`, `server/test/server_test.js`, `scratch/test_mobile_classic_ux.js`
+- **Accomplishments**:
+  1. **Strict Classic View Interaction Isolation**:
+     - Removed all menu/command triggering from mouse clicks, taps, or interactions inside the classic terminal view (`#terminal-canvas` / `#terminal-viewport`).
+     - Deprecated and disconnected `handleRowClick` from canvas events. Clicking anywhere on the classic canvas or viewport never dispatches keystrokes or menu selections.
+     - Viewport interactions strictly manage the view:
+       - Single-finger touch pan and mouse left-click drag to pan the viewport smoothly with dynamic `grab` and `grabbing` cursor indicators.
+       - Hardware-accelerated two-finger touch pinch-to-zoom anchored at pinch center.
+       - Ctrl + mouse wheel zoom anchored at cursor.
+       - Dedicated zoom controls `[🔍 -]`, `[100%]`, `[🔍 +]` in header bar.
+  2. **External Navigation Dock for All Devices**:
+     - Ensured `#terminal-touch-controls` is active and displayed (`display: flex`) across desktop and mobile devices.
+     - All classic interactions (option selection, menu navigation, confirming, advancing, inventory usage) are exclusively conducted via navigation keys provided outside of the classic view:
+       - Dynamic letter ribbon (`#term-letter-ribbon`) for direct option selection (`[a]`, `[b]`, `[c]`, ...).
+       - Contextual action buttons (`#term-contextual-actions`) populated dynamically per screen.
+       - 8-way directional D-pad (`#term-dpad-grid`) with 3D camera forward highlight indicator.
+       - Header advance (`btn-term-advance`) and back (`btn-term-escape`) buttons.
+       - Physical keyboard keys.
+  3. **3D Vision Cone & Orientation Sync in Classic View**:
+     - Golden 62° Field of View arc radiating from player `@` on classic canvas.
+     - Red central sightline indicating exact 3D camera facing direction.
+     - 3D facing badge (`#term-facing-badge`) displaying cardinal direction and arrow (`🧭 3D: NORTH (▲)`).
+     - Forward indicator pulse on D-pad.
+  4. **Single Canonical Online Production Service**:
+     - Built and pushed latest container image `gcr.io/resonant-1679933304535/angband3d-cloud:latest` via Google Cloud Build.
+     - Deployed revision `angband3d-cloud-00073-72s` to Cloud Run in `us-central1` serving 100% traffic.
+     - Synchronized duplicate services (`angband3d-web` and `us-east1`) to the latest revision.
+     - Single canonical working link for friends: `https://angband3d-cloud-iuawf47jqa-uc.a.run.app`.
+- **Verification**:
+  - `tools/smoke_test.py`: 11/11 passing.
+  - `dotnet build client/angband3d.csproj`: 0 errors, 0 warnings.
+  - `server/test/server_test.js`: 18/18 server unit tests passing.
+  - `scratch/test_mobile_classic_ux.js`: 6/6 phases passing 100% in headless Chrome.
+  - Live HTTPS & WebSocket telemetry verified with `v=6.0` asset query strings.
