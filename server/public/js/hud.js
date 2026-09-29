@@ -508,6 +508,14 @@ class WebHUD {
         }
     }
 
+    setMinimapZoom(val) {
+        this.minimapZoom = Math.max(0.5, Math.min(3.0, Math.round(val * 100) / 100));
+        this.updateMinimapHeader();
+        if (this.lastFrame && this.lastFrame.map && this.lastFrame.player) {
+            this.renderMinimap(this.lastFrame.map, this.lastFrame.player, this.lastFrame.monsters || [], this.currentCameraYaw);
+        }
+    }
+
     setupMinimapControls() {
         if (this.minimapHeader) {
             this.minimapHeader.style.cursor = 'pointer';
@@ -538,6 +546,57 @@ class WebHUD {
                 e.stopPropagation();
                 this.adjustMinimapZoom(0.2);
             });
+        }
+
+        // Mobile Minimap Floating Zoom Buttons
+        const btnMobZoomIn = document.getElementById('btn-mobile-map-zoom-in');
+        if (btnMobZoomIn) {
+            btnMobZoomIn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
+                    window.DeviceProfile.triggerHaptic('light');
+                }
+                this.adjustMinimapZoom(0.25);
+            });
+        }
+
+        const btnMobZoomOut = document.getElementById('btn-mobile-map-zoom-out');
+        if (btnMobZoomOut) {
+            btnMobZoomOut.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
+                    window.DeviceProfile.triggerHaptic('light');
+                }
+                this.adjustMinimapZoom(-0.25);
+            });
+        }
+
+        // Touch Pinch-to-Zoom on Minimap Canvas
+        if (this.minimapCanvas) {
+            let initialPinch = null;
+            let initialZoom = 1.0;
+            this.minimapCanvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    initialPinch = Math.hypot(dx, dy);
+                    initialZoom = this.minimapZoom;
+                }
+            }, { passive: true });
+
+            this.minimapCanvas.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2 && initialPinch) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const dist = Math.hypot(dx, dy);
+                    const factor = dist / initialPinch;
+                    this.setMinimapZoom(initialZoom * factor);
+                }
+            }, { passive: true });
+
+            const endTouch = () => { initialPinch = null; };
+            this.minimapCanvas.addEventListener('touchend', endTouch, { passive: true });
+            this.minimapCanvas.addEventListener('touchcancel', endTouch, { passive: true });
         }
 
         const btnToggleSize = document.getElementById('btn-map-toggle-size');

@@ -13,10 +13,67 @@ class InputController {
 
         this.inTerminal = false;
         this.smartAction = 'wait';
+        this.invertDragLook = (function() {
+            try { return localStorage.getItem('angband3d_invert_drag') === 'true'; } catch (_) { return false; }
+        })();
         this.setupKeyboardEvents();
         this.setupActionButtons();
         this.setupTouchEvents();
         this.setupViewportGestures();
+        this.setupInvertControls();
+    }
+
+    setupInvertControls() {
+        const btnToggleInvert = document.getElementById('btn-toggle-invert');
+        if (btnToggleInvert) {
+            btnToggleInvert.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleInvertDragLook();
+            });
+        }
+        const btnPauseInvert = document.getElementById('btn-pause-invert');
+        if (btnPauseInvert) {
+            btnPauseInvert.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleInvertDragLook();
+            });
+        }
+        this.updateInvertButtons();
+    }
+
+    toggleInvertDragLook() {
+        this.invertDragLook = !this.invertDragLook;
+        try {
+            localStorage.setItem('angband3d_invert_drag', String(this.invertDragLook));
+        } catch (_) {}
+        this.updateInvertButtons();
+        if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
+            window.DeviceProfile.triggerHaptic('medium');
+        }
+        return this.invertDragLook;
+    }
+
+    setInvertDragLook(invert) {
+        this.invertDragLook = Boolean(invert);
+        try {
+            localStorage.setItem('angband3d_invert_drag', String(this.invertDragLook));
+        } catch (_) {}
+        this.updateInvertButtons();
+    }
+
+    updateInvertButtons() {
+        const btnToggleInvert = document.getElementById('btn-toggle-invert');
+        if (btnToggleInvert) {
+            btnToggleInvert.classList.toggle('active', this.invertDragLook);
+            btnToggleInvert.title = `Toggle Invert Drag Look (Current: ${this.invertDragLook ? 'Inverted' : 'Normal'})`;
+        }
+        const btnPauseInvert = document.getElementById('btn-pause-invert');
+        if (btnPauseInvert) {
+            btnPauseInvert.classList.toggle('active', this.invertDragLook);
+            btnPauseInvert.textContent = `🔄 Drag: ${this.invertDragLook ? 'Inverted' : 'Normal'}`;
+        }
     }
 
     setTerminalMode(active) {
@@ -1193,8 +1250,10 @@ class InputController {
 
             if (this.dungeon && typeof this.dungeon.rotateFreelook === 'function') {
                 // Smooth 360-degree rotation horizontally and clamped vertical pitch
-                const deltaYaw = -dx * 0.0055;
-                const deltaPitch = dy * 0.0035;
+                const multX = this.invertDragLook ? 1 : -1;
+                const multY = this.invertDragLook ? -1 : 1;
+                const deltaYaw = multX * dx * 0.0055;
+                const deltaPitch = multY * dy * 0.0035;
                 this.dungeon.rotateFreelook(deltaYaw, deltaPitch);
             }
         };
@@ -1216,11 +1275,10 @@ class InputController {
                     window.DeviceProfile.triggerHaptic('light');
                 }
                 if (this.dungeon && typeof this.dungeon.turn === 'function') {
-                    if (totalDx > 0) {
-                        this.dungeon.turn(1); // Swipe Right -> Turn Right (clockwise)
-                    } else {
-                        this.dungeon.turn(-1); // Swipe Left -> Turn Left (counter-clockwise)
-                    }
+                    const turnDir = this.invertDragLook
+                        ? (totalDx > 0 ? -1 : 1)
+                        : (totalDx > 0 ? 1 : -1);
+                    this.dungeon.turn(turnDir);
                 }
             }
         };

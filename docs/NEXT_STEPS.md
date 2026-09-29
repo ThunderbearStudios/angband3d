@@ -500,3 +500,36 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
     - Message log close options: header close `✕ Hide` hides message log, top-right `[📜 Log]` restores and hides.
     - Mobile menu adaptive scaling: accurately identifies `storeMode: 'store'`, scales canvas to 616px with large 19px font, and aligns `scrollLeft: 0`.
     - Visual inspection of captured screenshots: `desktop_dpad_and_close_buttons.png` and `mobile_store_adaptive_scale.png`.
+
+---
+
+### Priority 10: Mobile Custom Character Creation, Invert Drag Look Toggle, Full-Width Message Banner, and Mobile Minimap Zoom (COMPLETED)
+- **Scope**: `server/public/index.html`, `server/public/css/dungeon.css`, `server/public/js/app.js`, `server/public/js/input.js`, `server/public/js/terminal.js`, `server/public/js/hud.js`, `server/public/sw.js`, `tools/test_responsive_profiles.js`
+- **Accomplishments**:
+  1. **Mobile Custom Character Creation Restoration & Classic Zoom**:
+     - Permanently retired artificial `mobileHeroCard` takeover that stalled progression on a static "Hero of Angband" placeholder with no controls.
+     - Preserved the authentic classic 80x24 terminal canvas visible across all mobile and tablet viewports during birth and review, dynamically scaling content across 48 columns for large, crisp 16–20px typography.
+     - Implemented `#birth-touch-controls`: dynamically generates touch option buttons `[a]` through `[m]` based on available options (sex, race, class, roller, point-based stats), action shortcuts `[🎲 Random (@)]`, `[⏎ Enter]`, `[⎋ Esc]`, `[🎲 Reroll (R)]`, `[⚔ Accept (y)]`, and an on-screen character name input bar (`#birth-name-input` + `#btn-birth-name-submit`).
+  2. **Invert on Drag View Toggle**:
+     - Added easily accessible `[🔄 Invert]` toggle button directly in `#top-right-bar` and `#btn-pause-invert` in the Pause/Settings menu (`#pause-modal`).
+     - Initialized from and persisted to `localStorage.getItem('angband3d_invert_drag')`.
+     - Inverts mouse and touch drag look yaw/pitch sensitivity multipliers (`input.js`), plus swipe turning.
+  3. **Full-Width Mobile Message Banner Placement**:
+     - Pinned `.top-message-banner` on mobile portrait and landscape directly UNDER the top utility toolbar at `top: calc(44px + var(--safe-top)) !important;` spanning full width `left: max(8px, var(--safe-left))` to `right: max(8px, var(--safe-right))` with dark glass styling and golden border.
+     - Relocated Character Vitals (`#char-panel`) and Minimap Radar (`#minimap-container`) to `top: calc(80px + var(--safe-top))` in portrait and `top: calc(64px + var(--safe-top))` in landscape, completely eliminating overlapping between the top toolbar, live messages, and character/minimap widgets.
+  4. **Mobile Minimap Quick-Zoom Buttons & Pinch-to-Zoom**:
+     - Added floating `.mobile-map-zoom-group` with circular touch buttons `[+]` and `[−]` attached to the minimap radar.
+     - Updated `#minimap-container` on mobile with `overflow: visible !important`, ensuring floating zoom buttons are cleanly rendered without container clipping.
+     - Implemented 2-finger touch pinch-to-zoom on `#minimap-canvas` (`hud.js`) and wired zoom-in/zoom-out step handlers (`setMinimapZoom`).
+  5. **PWA & Cache Synchronization**:
+     - Bumped Service Worker cache version in `server/public/sw.js` to `angband3d-v5.5` and bumped asset version parameters in `index.html`.
+- **Verification**:
+  - Engine smoke tests: **11/11 passed** (`python tools/smoke_test.py`).
+  - Godot C# client build: **0 warnings, 0 errors** (`dotnet build client/angband3d.csproj`).
+  - Automated responsive test suite: **12/12 suites passed 100%** (`node tools/test_responsive_profiles.js`).
+  - Dedicated mobile CDP verification (`scratch/test_mobile_custom_and_ux.js`):
+    - Birth state on mobile: terminal canvas visible (350x180), adaptive 48-col scale, 13 dynamic touch option buttons `[a]`-`[m]`, action keys active.
+    - Invert drag look: toggle cycles `false` -> `true` -> `false` with live UI feedback.
+    - Minimap zoom: zoom in step `1.0 -> 1.25`, zoom out step `1.25 -> 1.0`.
+    - Message banner: positioned at `top: 44px` under top toolbar (bottom: 40px), width 374px, zero clipping or collision.
+    - Visual inspection of captured screenshots: `mobile_custom_character_creation.png` and `mobile_hud_and_minimap_zoom.png`.
