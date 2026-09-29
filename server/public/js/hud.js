@@ -1197,8 +1197,9 @@ class WebHUD {
         // Gear summary on status bar
         if (this.footerGear) {
             const weap = player.weapon_item || 'Bare Hands';
+            const bow = player.bow_item;
             this.footerGear.style.display = 'inline-flex';
-            this.footerGear.textContent = `⚔ ${weap}`;
+            this.footerGear.textContent = bow ? `⚔ ${weap} • 🏹 ${bow}` : `⚔ ${weap}`;
             this.footerGear.title = `Wielding: ${weap} • Shield: ${player.shield_item || 'None'} • Ranged: ${player.bow_item || 'None'}`;
         }
 

@@ -1114,6 +1114,15 @@ html, body {
     box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
 }
 
+.btn-quiver-summary {
+    background: rgba(30, 42, 65, 0.95);
+    border-color: rgba(255, 215, 0, 0.6);
+}
+
+.btn-quiver-summary .item-key-letter {
+    color: #48cae4;
+}
+
 .btn-item-pill .item-key-letter {
     color: var(--gold-bright);
     font-weight: bold;
