@@ -14,7 +14,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=5.7">
+    <link rel="stylesheet" href="/css/dungeon.css?v=6.0">
 </head>
 <body>
     <div id="app-container">
@@ -28,28 +28,16 @@
 
         <!-- 80x24 Terminal View (Birth menus, stores, death disclosure) -->
         <div id="terminal-container" class="hidden">
-            <div class="terminal-card">
+            <div class="terminal-card" id="terminal-card">
                 <div class="terminal-toolbar">
-                    <div class="terminal-title" id="terminal-title">⚔ ANGBAND CLASSIC TERMINAL</div>
+                    <div class="terminal-header-group">
+                        <div class="terminal-title" id="terminal-title">⚔ ANGBAND CLASSIC TERMINAL</div>
+                        <span id="term-facing-badge" class="term-facing-badge" style="display: none;" title="Your 3D Camera Facing Direction">🧭 3D: N (▲)</span>
+                    </div>
                     <div class="terminal-zoom-controls">
                         <button type="button" id="btn-term-zoom-out" class="term-zoom-btn" title="Zoom Out Classic Terminal [ - ]">🔍 -</button>
                         <button type="button" id="btn-term-zoom-reset" class="term-zoom-btn" title="Reset Zoom to Fit Screen">100%</button>
                         <button type="button" id="btn-term-zoom-in" class="term-zoom-btn" title="Zoom In Classic Terminal [ + ]">🔍 +</button>
-                    </div>
-                    <div id="store-actions-bar" class="store-actions-bar" style="display: none;">
-                        <button id="btn-store-advance" class="btn-store-action" style="display: none;" title="Advance prompt [Space]">💬 Advance (Space)</button>
-                        <button id="btn-store-buy" class="btn-store-action" title="Purchase item from store inventory [p]">💰 Buy (p)</button>
-                        <button id="btn-store-sell" class="btn-store-action" title="Sell item from your pack [s]">🏷 Sell (s)</button>
-                        <button id="btn-store-examine" class="btn-store-action" title="Examine item details [l]">🔍 Examine (l)</button>
-                        <button id="btn-store-exit" class="btn-store-action" title="Exit store and return to town [Esc]">🚪 Exit (Esc)</button>
-                    </div>
-                    <div id="item-actions-bar" class="item-actions-bar" style="display: none;">
-                        <div id="item-buttons-list" class="item-buttons-list"></div>
-                        <div class="item-bar-controls">
-                            <button id="btn-item-switch" class="btn-item-action" title="Switch between Inventory and Equipment [/]">🔄 Switch [/]</button>
-                            <button id="btn-item-quiver" class="btn-item-action" title="View or switch to Quiver missiles [|]">🏹 Quiver [|]</button>
-                            <button id="btn-item-cancel" class="btn-item-action" title="Close menu and return to 3D world [Esc]">✕ Close [Esc]</button>
-                        </div>
                     </div>
                     <div class="terminal-actions">
                         <button id="btn-quick-birth" class="btn-gold" style="display: none;" title="Quickly create a random hero and jump straight into the 3D dungeon!">⚔ Quick Start Hero (@)</button>
@@ -63,66 +51,39 @@
                 <div id="terminal-viewport" class="terminal-viewport">
                     <canvas id="terminal-canvas"></canvas>
                 </div>
-                <!-- Mobile Classic Touch Controller Dock (D-pad + Action keys for playing in Classic Mode) -->
+                <!-- Unified Intelligent Contextual Mobile Controls Dock -->
                 <div id="terminal-touch-controls" class="terminal-touch-controls" style="display: none;">
-                    <div class="term-touch-dpad-col">
-                        <div class="term-dpad-grid">
-                            <button type="button" class="term-dpad-btn term-dpad-up" data-key="up" title="Move North [8/Up]">▲</button>
-                            <button type="button" class="term-dpad-btn term-dpad-left" data-key="left" title="Move West [4/Left]">◀</button>
-                            <button type="button" class="term-dpad-btn term-dpad-center" data-key="enter" title="Confirm / Select [Enter]">⏎</button>
-                            <button type="button" class="term-dpad-btn term-dpad-right" data-key="right" title="Move East [6/Right]">▶</button>
-                            <button type="button" class="term-dpad-btn term-dpad-down" data-key="down" title="Move South [2/Down]">▼</button>
+                    <!-- Quick Letter Ribbon for direct 1-tap item / trait selection [a] [b] [c] ... [l] -->
+                    <div id="term-letter-ribbon" class="term-letter-ribbon" style="display: none;"></div>
+
+                    <div class="term-controls-main-row">
+                        <!-- 8-Way Directional D-Pad (with 3D forward highlight indicator) -->
+                        <div class="term-touch-dpad-col">
+                            <div class="term-dpad term-dpad-grid" id="term-dpad-grid">
+                                <button type="button" class="term-dpad-btn term-dpad-ul" data-key="home" title="North-West [7]">↖</button>
+                                <button type="button" class="term-dpad-btn term-dpad-up" data-key="up" title="Move Up / North [8]">▲</button>
+                                <button type="button" class="term-dpad-btn term-dpad-ur" data-key="pageup" title="North-East [9]">↗</button>
+                                <button type="button" class="term-dpad-btn term-dpad-left" data-key="left" title="Move Left / West [4]">◀</button>
+                                <button type="button" class="term-dpad-btn term-dpad-center" data-key="enter" title="Confirm / Select [Enter]">⏎</button>
+                                <button type="button" class="term-dpad-btn term-dpad-right" data-key="right" title="Move Right / East [6]">▶</button>
+                                <button type="button" class="term-dpad-btn term-dpad-dl" data-key="end" title="South-West [1]">↙</button>
+                                <button type="button" class="term-dpad-btn term-dpad-down" data-key="down" title="Move Down / South [2]">▼</button>
+                                <button type="button" class="term-dpad-btn term-dpad-dr" data-key="pagedown" title="South-East [3]">↘</button>
+                            </div>
+                        </div>
+                        <!-- Contextual Action Buttons (Dynamically populated per active menu) -->
+                        <div class="term-touch-actions-col">
+                            <div id="term-contextual-actions" class="term-contextual-actions"></div>
                         </div>
                     </div>
-                    <div class="term-touch-actions-col">
-                        <div class="term-action-keys">
-                            <button type="button" class="term-action-key term-key-esc" data-key="escape" title="Close / Cancel [Esc]">⎋ Esc</button>
-                            <button type="button" class="term-action-key term-key-space" data-key="space" title="Advance / Wait [Space]">␣ Space</button>
-                            <button type="button" class="term-action-key term-key-tab" data-key="tab" title="Return to 3D View [Tab]">⛶ 3D View</button>
-                            <button type="button" class="term-action-key term-key-pack" data-key="i" title="Backpack Inventory [i]">🎒 Pack</button>
-                            <button type="button" class="term-action-key term-key-gear" data-key="e" title="Equipment [e]">🛡 Gear</button>
-                            <button type="button" class="term-action-key term-key-cast" data-key="m" title="Cast Magic [m]">✨ Cast</button>
-                            <button type="button" class="term-action-key term-key-door" data-key="o" title="Open Door [o]">🚪 Open</button>
-                            <button type="button" class="term-action-key term-key-rest" data-key="R" title="Rest [R]">⏳ Rest</button>
-                        </div>
-                    </div>
-                </div>
-                <!-- Dedicated Touch Controls for Character Creation / Birth Screen -->
-                <div id="birth-touch-controls" class="birth-touch-controls" style="display: none;">
+
+                    <!-- Virtual Name Bar (Displayed exclusively during name input) -->
                     <div id="birth-name-bar" class="birth-name-bar" style="display: none;">
-                        <input type="text" id="birth-name-input" class="birth-name-input" placeholder="Enter Character Name..." maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+                        <input type="text" id="birth-name-input" class="birth-name-input" placeholder="Character Name..." maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
                         <button type="button" id="btn-birth-name-rand" class="btn-birth-action btn-gold-outline" data-key="*">🎲 Random (*)</button>
                         <button type="button" id="btn-birth-name-submit" class="btn-birth-action btn-gold">✓ Set Name</button>
                     </div>
-                    <div id="birth-options-grid" class="birth-options-grid"></div>
-                    <div class="birth-dock-row">
-                        <div class="term-touch-dpad-col">
-                            <div class="term-dpad-grid">
-                                <button type="button" class="term-dpad-btn term-dpad-up" data-key="up" title="Move Up [Up]">▲</button>
-                                <button type="button" class="term-dpad-btn term-dpad-left" data-key="left" title="Decrease Stat / Left [Left]">◀</button>
-                                <button type="button" class="term-dpad-btn term-dpad-center" data-key="enter" title="Select / Confirm [Enter]">⏎</button>
-                                <button type="button" class="term-dpad-btn term-dpad-right" data-key="right" title="Increase Stat / Right [Right]">▶</button>
-                                <button type="button" class="term-dpad-btn term-dpad-down" data-key="down" title="Move Down [Down]">▼</button>
-                            </div>
-                        </div>
-                        <div class="birth-actions-col">
-                            <div class="birth-action-keys">
-                                <button type="button" class="birth-action-btn btn-birth-enter btn-gold" data-key="enter" title="Confirm / Select [Enter]">⏎ Enter</button>
-                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="escape" title="Step Back [Esc]">⎋ Esc</button>
-                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="*" title="Random Option [*]">🎲 *</button>
-                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="@" title="Auto-Birth [@]: Finish with random choices">⚡ @</button>
-                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="r" title="Reset Stats / Reroll Hero [r]">🎲 r</button>
-                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="y" title="Accept / Yes [y]">⚔ y</button>
-                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="n" title="Reject / No [n]">✕ n</button>
-                                <button type="button" class="birth-action-btn btn-gold-outline" data-key="s" title="Start Over [s]">🔄 s</button>
-                            </div>
-                        </div>
-                    </div>
                 </div>
-                <!-- Native Mobile Hero Review Card (Touch Legibility on Mobile) -->
-                <div id="mobile-hero-card" class="mobile-hero-card" style="display: none;"></div>
-                <!-- Native Mobile Item / Store Drawer -->
-                <div id="mobile-item-drawer" class="mobile-item-drawer" style="display: none;"></div>
             </div>
         </div>
 
@@ -829,14 +790,14 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=5.7"></script>
-    <script src="/js/mobile-overlay.js?v=5.7"></script>
-    <script src="/js/audio.js?v=5.7"></script>
-    <script src="/js/terminal.js?v=5.7"></script>
-    <script src="/js/dungeon3d.js?v=5.7"></script>
-    <script src="/js/hud.js?v=5.7"></script>
-    <script src="/js/network.js?v=5.7"></script>
-    <script src="/js/input.js?v=5.7"></script>
-    <script src="/js/app.js?v=5.7"></script>
+    <script src="/js/device.js?v=6.0"></script>
+    <script src="/js/mobile-overlay.js?v=6.0"></script>
+    <script src="/js/audio.js?v=6.0"></script>
+    <script src="/js/terminal.js?v=6.0"></script>
+    <script src="/js/dungeon3d.js?v=6.0"></script>
+    <script src="/js/hud.js?v=6.0"></script>
+    <script src="/js/network.js?v=6.0"></script>
+    <script src="/js/input.js?v=6.0"></script>
+    <script src="/js/app.js?v=6.0"></script>
 </body>
 </html>

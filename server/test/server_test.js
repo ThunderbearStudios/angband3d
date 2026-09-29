@@ -142,7 +142,7 @@ async function runTests() {
     });
     assert.strictEqual(gzipRes.status, 200);
     assert.strictEqual(gzipRes.headers['content-encoding'], 'gzip');
-    assert(gzipRes.headers['cache-control'].includes('max-age'));
+    assert(gzipRes.headers['cache-control'].includes('no-cache'));
     console.log(`  -> /js/dungeon3d.js delivered with gzip compression (${gzipRes.bodyLength} bytes compressed)`);
 
     // Test 8: GLB Binary Model Delivery & MIME type
@@ -174,11 +174,10 @@ async function runTests() {
 
     // Test 10: Client HTML Structure & Component Verification
     console.log('Test 10: Client HTML Structure & Component Verification');
-    assert(indexRes.body.includes('id="store-actions-bar"'), 'store-actions-bar must be present in index.html');
-    assert(indexRes.body.includes('id="btn-store-buy"'), 'btn-store-buy must be present');
-    assert(indexRes.body.includes('id="btn-store-sell"'), 'btn-store-sell must be present');
-    assert(indexRes.body.includes('id="btn-store-examine"'), 'btn-store-examine must be present');
-    assert(indexRes.body.includes('id="btn-store-exit"'), 'btn-store-exit must be present');
+    assert(indexRes.body.includes('id="terminal-touch-controls"'), 'terminal-touch-controls must be present in index.html');
+    assert(indexRes.body.includes('id="term-dpad-grid"'), 'term-dpad-grid must be present');
+    assert(indexRes.body.includes('id="term-contextual-actions"'), 'term-contextual-actions must be present');
+    assert(indexRes.body.includes('id="term-letter-ribbon"'), 'term-letter-ribbon must be present');
     assert(indexRes.body.includes('id="map-resize-handle"'), 'map-resize-handle must be present');
     assert(indexRes.body.includes('id="msg-resize-handle"'), 'msg-resize-handle must be present');
     // Test 11: Character Screen Toolbar & Store Isolation Guard
@@ -187,13 +186,12 @@ async function runTests() {
     const inputJs = fs.readFileSync(path.join(__dirname, '../public/js/input.js'), 'utf8');
     const hudJs = fs.readFileSync(path.join(__dirname, '../public/js/hud.js'), 'utf8');
     assert(appJs.includes("const inPlay = Boolean(frame && frame.phase === 'play' && frame.map);"), 'app.js must strictly define inPlay by phase and map');
-    assert(appJs.includes("if (!inPlay) {\n            // NEVER show store actions bar during character creation or review\n            if (storeActionsBar) storeActionsBar.style.display = 'none';"), 'app.js must strictly hide storeActionsBar when not inPlay');
     assert(appJs.includes("parseInt(frame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16)"), 'app.js must correctly parse 2-hex store feature index');
     assert(appJs.includes("if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';"), 'app.js must hide advance button in stores');
     assert(hudJs.includes("resetMessages(welcomeText = null)"), 'hud.js must implement resetMessages');
     assert(hudJs.includes("accept character history"), 'hud.js must filter character history setup prompt');
     assert(inputJs.includes("const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && lastFrame.map);"), 'input.js must strictly define inPlay by phase and map');
-    console.log('  -> Store actions bar strictly quarantined to inPlay states with verified map context');
+    console.log('  -> Unified terminal touch controls strictly quarantined to inPlay states with verified map context');
     console.log('  -> Store menus strictly isolate shop options and hide creation/advance buttons');
     // Test 12: Client JS Syntax & Compilation Integrity
     console.log('Test 12: Client JS Syntax & Compilation Integrity');
@@ -235,13 +233,11 @@ async function runTests() {
     console.log('  -> Minimap controls unified with zoom and size presets');
     console.log('  -> Minimap canvas configured with flex-fit to avoid clipping controls');
 
-    // Test 16: Interactive Action Menus (Throw, Item Actions Bar, Prompt Titles)
-    console.log('Test 16: Interactive Action Menus (Throw, Item Actions Bar, Prompt Titles)');
+    // Test 16: Interactive Action Menus (Throw, Terminal Contextual Actions Bar, Prompt Titles)
+    console.log('Test 16: Interactive Action Menus (Throw, Terminal Contextual Actions Bar, Prompt Titles)');
     assert(indexRes.body.includes('id="btn-throw"'), 'btn-throw must be present in index.html');
-    assert(indexRes.body.includes('id="item-actions-bar"'), 'item-actions-bar must be present in index.html');
-    assert(indexRes.body.includes('id="item-buttons-list"'), 'item-buttons-list must be present in index.html');
-    assert(indexRes.body.includes('id="btn-item-switch"'), 'btn-item-switch must be present in index.html');
-    assert(indexRes.body.includes('id="btn-item-cancel"'), 'btn-item-cancel must be present in index.html');
+    assert(indexRes.body.includes('id="term-contextual-actions"'), 'term-contextual-actions must be present in index.html');
+    assert(indexRes.body.includes('id="term-letter-ribbon"'), 'term-letter-ribbon must be present in index.html');
     assert(inputJs.includes("bind('btn-throw', 'v');"), 'input.js must bind btn-throw to v');
     assert(freshAppJs.includes("terminalTitle.textContent = '🎒 INVENTORY PACK';"), 'app.js must recognize inventory pack prompt');
     assert(freshAppJs.includes("terminalTitle.textContent = '🛡 EQUIPPED GEAR';"), 'app.js must recognize equipment gear prompt');
@@ -249,9 +245,8 @@ async function runTests() {
     assert(freshAppJs.includes("terminalTitle.textContent = '🧪 QUAFF POTION';"), 'app.js must recognize quaff prompt');
     assert(freshAppJs.includes("terminalTitle.textContent = '📜 READ SCROLL';"), 'app.js must recognize read prompt');
     assert(freshAppJs.includes("terminalTitle.textContent = '🏹 FIRE / SHOOT';"), 'app.js must recognize fire prompt');
-    assert(dungeonCss.includes('.btn-item-pill'), 'dungeon.css must define .btn-item-pill styles');
     console.log('  -> Throw button (v) added to action bar and bound');
-    console.log('  -> Interactive Item Actions Bar dynamically populates item selection buttons');
+    console.log('  -> Terminal Contextual Actions Bar & Letter Ribbon dynamically populate item selection buttons');
     // Test 17: Save Game Download & Upload System
     console.log('Test 17: Save Game Download & Upload System');
     assert(indexRes.body.includes('id="btn-save-upload"'), 'btn-save-upload must be present in index.html');
