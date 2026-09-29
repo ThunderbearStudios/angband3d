@@ -4727,6 +4727,9 @@ class Dungeon3D {
                 } else if (typeof window.__app.hud.onCameraTurn === 'function') {
                     window.__app.hud.onCameraTurn(curYaw);
                 }
+                if (window.__app.terminal && typeof window.__app.terminal.setCameraFacing === 'function') {
+                    window.__app.terminal.setCameraFacing(curYaw);
+                }
             }
         }
 

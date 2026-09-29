@@ -35,34 +35,90 @@ class WebTerminal {
 
         this.lastRows = [];
         this.zoomLevel = 1.0;
-        this.minZoom = 0.6;
-        this.maxZoom = 2.5;
+        this.minZoom = 0.45;
+        this.maxZoom = 3.2;
         this.zoomStep = 0.25;
+
+        // 3D Camera Facing & Vision Cone Telemetry
+        this.cameraYaw = 0;
+        this.facingSector = 0; // 0: N, 1: NE, 2: E, 3: SE, 4: S, 5: SW, 6: W, 7: NW
+        this.isTargetingMode = false;
+        this.userHasScrolled = false;
+        this.isTouchDevice = false;
+        this.lastMode = null;
 
         this.resize();
         window.addEventListener('resize', () => this.resize());
         this.setupMouseEvents();
+        this.setupViewportGestures();
         this.setupZoomControls();
     }
 
-    setZoom(level) {
+    setCameraFacing(yaw) {
+        if (typeof yaw !== 'number' || isNaN(yaw)) return;
+        this.cameraYaw = yaw;
+        const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        this.facingSector = Math.round(normYaw / (Math.PI / 4)) % 8;
+        if (this.lastTermData) {
+            this.render(this.lastTermData);
+        }
+    }
+
+    setTargetingMode(active) {
+        this.isTargetingMode = Boolean(active);
+        if (this.lastTermData) {
+            this.render(this.lastTermData);
+        }
+    }
+
+    setZoom(level, anchorViewportX = null, anchorViewportY = null) {
         const target = Math.max(this.minZoom, Math.min(this.maxZoom, Math.round(level * 100) / 100));
         if (Math.abs(target - this.zoomLevel) < 0.01) return;
+
+        const viewport = document.getElementById('terminal-viewport');
+        const oldZoom = this.zoomLevel;
+        const zoomRatio = target / oldZoom;
+
+        // If an anchor point was given (pinch center), adjust scroll so anchor remains stationary
+        let scrollAdjX = 0;
+        let scrollAdjY = 0;
+        if (viewport && anchorViewportX !== null && anchorViewportY !== null) {
+            scrollAdjX = (viewport.scrollLeft + anchorViewportX) * (zoomRatio - 1);
+            scrollAdjY = (viewport.scrollTop + anchorViewportY) * (zoomRatio - 1);
+        }
+
         this.zoomLevel = target;
         this.updateZoomUI();
         this.resize();
+
+        if (viewport && (scrollAdjX !== 0 || scrollAdjY !== 0)) {
+            viewport.scrollLeft += scrollAdjX;
+            viewport.scrollTop += scrollAdjY;
+        }
     }
 
     zoomIn() {
-        this.setZoom(this.zoomLevel + this.zoomStep);
+        const viewport = document.getElementById('terminal-viewport');
+        const cx = viewport ? viewport.clientWidth / 2 : null;
+        const cy = viewport ? viewport.clientHeight / 2 : null;
+        this.setZoom(this.zoomLevel + this.zoomStep, cx, cy);
     }
 
     zoomOut() {
-        this.setZoom(this.zoomLevel - this.zoomStep);
+        const viewport = document.getElementById('terminal-viewport');
+        const cx = viewport ? viewport.clientWidth / 2 : null;
+        const cy = viewport ? viewport.clientHeight / 2 : null;
+        this.setZoom(this.zoomLevel - this.zoomStep, cx, cy);
     }
 
     resetZoom() {
+        this.userHasScrolled = false;
         this.setZoom(1.0);
+        const viewport = document.getElementById('terminal-viewport');
+        if (viewport) {
+            viewport.scrollLeft = 0;
+            viewport.scrollTop = 0;
+        }
     }
 
     updateZoomUI() {
@@ -96,48 +152,132 @@ class WebTerminal {
                 this.resetZoom();
             });
         }
+    }
 
-        // Viewport pinch-to-zoom and wheel zoom
+    setupViewportGestures() {
         const viewport = document.getElementById('terminal-viewport');
-        if (viewport) {
-            viewport.addEventListener('wheel', (e) => {
-                if (e.ctrlKey) {
-                    e.preventDefault();
-                    const delta = e.deltaY < 0 ? 0.15 : -0.15;
-                    this.setZoom(this.zoomLevel + delta);
-                }
-            }, { passive: false });
+        if (!viewport) return;
 
-            let initialPinchDist = null;
-            let initialZoom = 1.0;
-
-            viewport.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 2) {
-                    initialPinchDist = Math.hypot(
-                        e.touches[0].clientX - e.touches[1].clientX,
-                        e.touches[0].clientY - e.touches[1].clientY
-                    );
-                    initialZoom = this.zoomLevel;
-                }
-            }, { passive: true });
-
-            viewport.addEventListener('touchmove', (e) => {
-                if (e.touches.length === 2 && initialPinchDist) {
-                    const currentDist = Math.hypot(
-                        e.touches[0].clientX - e.touches[1].clientX,
-                        e.touches[0].clientY - e.touches[1].clientY
-                    );
-                    const factor = currentDist / initialPinchDist;
-                    this.setZoom(initialZoom * factor);
-                }
-            }, { passive: true });
-
-            const endPinch = () => {
-                initialPinchDist = null;
-            };
-            viewport.addEventListener('touchend', endPinch, { passive: true });
-            viewport.addEventListener('touchcancel', endPinch, { passive: true });
+        // Viewport and canvas cursor indicates view is pan-manageable
+        viewport.style.cursor = 'grab';
+        if (this.canvas) {
+            this.canvas.style.cursor = 'grab';
         }
+
+        let isTouchDragging = false;
+        let isTouchPinching = false;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchStartScrollLeft = 0;
+        let touchStartScrollTop = 0;
+        let initialPinchDist = null;
+        let initialZoom = 1.0;
+        let pinchCenterViewportX = 0;
+        let pinchCenterViewportY = 0;
+
+        let isMouseDragging = false;
+        let mouseStartX = 0;
+        let mouseStartY = 0;
+        let mouseStartScrollLeft = 0;
+        let mouseStartScrollTop = 0;
+
+        // Desktop Wheel Zoom with Ctrl Key or Trackpad Pinch
+        viewport.addEventListener('wheel', (e) => {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.15 : -0.15;
+                const rect = viewport.getBoundingClientRect();
+                const cx = e.clientX - rect.left;
+                const cy = e.clientY - rect.top;
+                this.setZoom(this.zoomLevel + delta, cx, cy);
+            }
+        }, { passive: false });
+
+        // Mouse Drag to Pan (Strictly manages view, NEVER interacts with game/menu)
+        viewport.addEventListener('mousedown', (e) => {
+            if (e.button === 0) { // Primary / Left Click
+                isMouseDragging = true;
+                mouseStartX = e.clientX;
+                mouseStartY = e.clientY;
+                mouseStartScrollLeft = viewport.scrollLeft;
+                mouseStartScrollTop = viewport.scrollTop;
+                viewport.style.cursor = 'grabbing';
+                if (this.canvas) this.canvas.style.cursor = 'grabbing';
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isMouseDragging) return;
+            const dx = e.clientX - mouseStartX;
+            const dy = e.clientY - mouseStartY;
+            viewport.scrollLeft = mouseStartScrollLeft - dx;
+            viewport.scrollTop = mouseStartScrollTop - dy;
+            this.userHasScrolled = true;
+        });
+
+        const stopMouseDrag = () => {
+            if (isMouseDragging) {
+                isMouseDragging = false;
+                viewport.style.cursor = 'grab';
+                if (this.canvas) this.canvas.style.cursor = 'grab';
+            }
+        };
+
+        window.addEventListener('mouseup', stopMouseDrag);
+
+        // Hardware-accelerated Touch Gestures: Pinch-to-Zoom & 1-Finger Pan
+        // CRITICAL INVARIANT: Any touch in the classic viewport ONLY impacts the view (zoom & pan),
+        // and is NEVER interpreted as a game command or row click!
+        viewport.addEventListener('touchstart', (e) => {
+            this.isTouchDevice = true;
+            if (e.touches.length === 2) {
+                isTouchDragging = false;
+                isTouchPinching = true;
+                const t0 = e.touches[0];
+                const t1 = e.touches[1];
+                initialPinchDist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+                initialZoom = this.zoomLevel;
+                const rect = viewport.getBoundingClientRect();
+                pinchCenterViewportX = ((t0.clientX + t1.clientX) / 2) - rect.left;
+                pinchCenterViewportY = ((t0.clientY + t1.clientY) / 2) - rect.top;
+            } else if (e.touches.length === 1) {
+                isTouchDragging = true;
+                isTouchPinching = false;
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                touchStartScrollLeft = viewport.scrollLeft;
+                touchStartScrollTop = viewport.scrollTop;
+                this.userHasScrolled = true;
+            }
+        }, { passive: false });
+
+        viewport.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && isTouchPinching && initialPinchDist > 5) {
+                if (e.cancelable) e.preventDefault();
+                const t0 = e.touches[0];
+                const t1 = e.touches[1];
+                const currentDist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+                const factor = currentDist / initialPinchDist;
+                this.setZoom(initialZoom * factor, pinchCenterViewportX, pinchCenterViewportY);
+            } else if (e.touches.length === 1 && isTouchDragging) {
+                if (e.cancelable) e.preventDefault();
+                const dx = e.touches[0].clientX - touchStartX;
+                const dy = e.touches[0].clientY - touchStartY;
+                viewport.scrollLeft = touchStartScrollLeft - dx;
+                viewport.scrollTop = touchStartScrollTop - dy;
+                this.userHasScrolled = true;
+            }
+        }, { passive: false });
+
+        const endTouch = () => {
+            isTouchDragging = false;
+            isTouchPinching = false;
+            initialPinchDist = null;
+        };
+
+        viewport.addEventListener('touchend', endTouch, { passive: true });
+        viewport.addEventListener('touchcancel', endTouch, { passive: true });
     }
 
     detectMode(termData) {
@@ -187,7 +327,17 @@ class WebTerminal {
             return 'store';
         }
 
-        // 3. Item & Spell Prompts
+        // 3. Targeting & Direction Prompts
+        if (fullText.includes('target [') ||
+            fullText.includes('direction?') ||
+            fullText.includes('target:') ||
+            fullText.includes('select target') ||
+            fullText.includes('target mode') ||
+            fullText.includes('choose target')) {
+            return 'targeting';
+        }
+
+        // 4. Item & Spell Prompts
         if (fullText.includes('inven:') ||
             fullText.includes('equip:') ||
             fullText.includes('quiver:') ||
@@ -208,7 +358,7 @@ class WebTerminal {
             return 'item_prompt';
         }
 
-        // 4. Default: Classic Dungeon Exploration
+        // 5. Default: Classic Dungeon Exploration
         return 'classic_play';
     }
 
@@ -262,6 +412,8 @@ class WebTerminal {
         this.canvas.style.maxWidth = 'none'; // Allow viewport horizontal scrolling
         this.canvas.style.flexShrink = '0';
         this.canvas.style.objectFit = 'contain';
+        // When canvas is wider than viewport, align flush left (0 margin) so user can drag to see all columns
+        this.canvas.style.margin = cssW > availW ? '0' : '0 auto';
 
         this.ctx.scale(dpr, dpr);
 
@@ -271,129 +423,26 @@ class WebTerminal {
     }
 
     setupMouseEvents() {
-        const handleInteraction = (clientX, clientY) => {
-            const rect = this.canvas.getBoundingClientRect();
-            if (rect.width <= 0 || rect.height <= 0) return;
-            const dpr = Math.min(window.devicePixelRatio || 1, 2);
-            const scaleX = this.canvas.width / (rect.width * dpr);
-            const scaleY = this.canvas.height / (rect.height * dpr);
-
-            const clickX = (clientX - rect.left) * scaleX;
-            const clickY = (clientY - rect.top) * scaleY;
-
-            const col = Math.floor(clickX / this.charWidth);
-            const row = Math.floor(clickY / this.charHeight);
-
-            this.handleRowClick(row, col);
-        };
-
-        this.canvas.addEventListener('click', (e) => {
-            handleInteraction(e.clientX, e.clientY);
-        });
-
-        // Touch event mapping for phones and tablets
-        this.canvas.addEventListener('touchend', (e) => {
-            if (e.changedTouches && e.changedTouches.length > 0) {
-                if (e.cancelable) e.preventDefault();
-                handleInteraction(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-            }
-        }, { passive: false });
+        // STRICT ARCHITECTURAL INVARIANT:
+        // Clicks, zooms or interactions of any kind inside a classic view or menu
+        // DO NOT interact with the menu but ONLY manage the view (panning and zooming).
+        // All classic interactions MUST be through the navigation keys provided outside of the classic view.
+        if (this.canvas) {
+            this.canvas.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            this.canvas.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
+        }
     }
 
     handleRowClick(row, col) {
-        const fullText = (this.lastRows || []).map(r => r.g || '').join(' ').toLowerCase();
-
-        // 1. Advance prompt screens (splash screen, -more- prompts, final review screen)
-        if (fullText.includes('press any key') || fullText.includes('-more-') || fullText.includes('any other key to continue')) {
-            this.onSelectKey('enter');
-            return;
-        }
-
-        // 2. Confirmation [y/n]
-        if (fullText.includes('[y/n]') || fullText.includes('are you sure')) {
-            if (col > 45) {
-                this.onSelectKey('n');
-            } else {
-                this.onSelectKey('y');
-            }
-            return;
-        }
-
-        if (!this.lastRows || !this.lastRows[row]) {
-            this.onSelectKey('enter');
-            return;
-        }
-
-        const line = this.lastRows[row].g || '';
-
-        // 3. Multi-column menu option detection (Race, Class, Stat Method, Death screen)
-        // Matches all items on this row: e.g. "a) Human", "a) Warrior", "a) Point-based"
-        const itemRegex = /(?:^|\s{2,})([a-zA-Z0-9@*?])[\)\.\:]\s*([A-Za-z0-9\-\']+(?: [A-Za-z0-9\-\']+)?)/g;
-        let bestKey = null;
-        let minDistance = 9999;
-        let m;
-        while ((m = itemRegex.exec(line)) !== null) {
-            const itemKey = m[1];
-            const keyCol = m.index + m[0].indexOf(itemKey);
-            const itemLen = m[0].length;
-            if (col >= keyCol && col <= keyCol + itemLen + 2) {
-                bestKey = itemKey;
-                minDistance = 0;
-                break;
-            }
-            const dist = Math.min(Math.abs(col - keyCol), Math.abs(col - (keyCol + itemLen)));
-            if (dist < minDistance) {
-                minDistance = dist;
-                bestKey = itemKey;
-            }
-        }
-
-        if (bestKey && minDistance <= 20) {
-            const hasStoreText = fullText.includes('store inventory') || fullText.includes('home inventory') || fullText.includes('gold remaining');
-            const isItemPrompt = fullText.includes('inven:') || fullText.includes('equip:') || fullText.includes('select item:') || fullText.includes('which item?') || fullText.includes('which potion?') || fullText.includes('which scroll?');
-            const inStore = hasStoreText && !isItemPrompt;
-            if (inStore) {
-                const alreadyPromptingItem = fullText.includes('which item') || fullText.includes('purchase which') || fullText.includes('sell which') || fullText.includes('examine which');
-                if (alreadyPromptingItem) {
-                    this.onSelectKey(bestKey);
-                } else {
-                    this.onSelectKey('p');
-                    setTimeout(() => this.onSelectKey(bestKey), 50);
-                }
-                return;
-            }
-            if (this.currentMode === 'birth') {
-                const isTraitMenu = fullText.includes('race affects stats') || fullText.includes('class affects stats') || fullText.includes('select your character traits');
-                if (isTraitMenu) {
-                    this.onSelectKey(bestKey);
-                    setTimeout(() => this.onSelectKey('enter'), 50);
-                    return;
-                }
-            }
-            this.onSelectKey(bestKey);
-            return;
-        }
-
-        // 4. Roller/Prompt action hints
-        if (line.toLowerCase().includes("'r' to reset") || line.toLowerCase().includes("'r' to reroll") || line.toLowerCase().includes("r to reroll")) {
-            this.onSelectKey('r');
-            return;
-        }
-        if (line.toLowerCase().includes("'s' to start over") || line.toLowerCase().includes("'s' to start")) {
-            this.onSelectKey('s');
-            return;
-        }
-        if (line.toLowerCase().includes("'enter' to accept") || line.toLowerCase().includes("enter to select")) {
-            this.onSelectKey('enter');
-            return;
-        }
-        if (line.toLowerCase().includes("'esc' to step back")) {
-            this.onSelectKey('escape');
-            return;
-        }
-
-        // Default click advances
-        this.onSelectKey('enter');
+        // STRICT ARCHITECTURAL INVARIANT:
+        // Clicks, zooms or interactions of any kind inside a classic view or menu
+        // DO NOT interact with the menu but ONLY manage the view (panning and zooming).
+        // All classic interactions MUST be through the navigation keys provided outside of the classic view.
     }
 
     parseAttr(aStr, cellIdx) {
@@ -449,15 +498,25 @@ class WebTerminal {
             }
         }
 
-        // Viewport Scroll Alignment: Menus flush left, Classic Play centers on player
+        // Draw 3D Camera Vision Cone & Direction Indicator when player '@' is present
+        this.drawVisionCone(termData);
+
+        // Viewport Scroll Alignment: Only auto-align when mode changes or on player tracking
+        // (CRITICAL: Never reset scrollLeft while the user is actively dragging or viewing a menu!)
         const viewport = document.getElementById('terminal-viewport');
         if (viewport) {
+            const modeChanged = (this.lastMode !== mode);
+            this.lastMode = mode;
             const isMenuMode = mode === 'store' || mode === 'item_prompt' || mode === 'birth';
-            if (isMenuMode) {
-                // Ensure column 0 is always flush and fully readable on the left
-                viewport.scrollLeft = 0;
-            } else if (mode === 'classic_play' && this.zoomLevel > 1.05) {
-                // In classic 2D mode, auto-center on player '@'
+
+            if (modeChanged) {
+                if (isMenuMode) {
+                    viewport.scrollLeft = 0;
+                    viewport.scrollTop = 0;
+                    this.userHasScrolled = false;
+                }
+            } else if (!isMenuMode && this.zoomLevel > 1.05 && !this.userHasScrolled) {
+                // In classic 2D mode, auto-center on player '@' only if user hasn't manually panned away
                 let playerCol = -1;
                 let playerRow = -1;
                 for (let r = 0; r < termData.rows.length; r++) {
@@ -483,6 +542,119 @@ class WebTerminal {
                 }
             }
         }
+    }
+
+    /**
+     * Draw 3D Camera Vision Cone & Orientation Indicators on the Classic Terminal Canvas.
+     * Overcomes mental orientation confusion by projecting the player's 3D field of view
+     * directly out from the '@' symbol across the 2D dungeon grid.
+     */
+    drawVisionCone(termData) {
+        if (!termData || !termData.rows) return;
+        const mode = this.currentMode || 'classic_play';
+        // Only draw cone in dungeon play or targeting (never in birth setup or store menus)
+        if (mode === 'birth' || mode === 'store') return;
+
+        let playerCol = -1;
+        let playerRow = -1;
+        for (let r = 0; r < termData.rows.length; r++) {
+            const rowObj = termData.rows[r];
+            const text = rowObj.g || '';
+            const atIdx = text.indexOf('@');
+            if (atIdx !== -1) {
+                playerCol = atIdx;
+                playerRow = rowObj.y !== undefined ? rowObj.y : r;
+                break;
+            }
+        }
+        if (playerCol < 0 || playerRow < 0) return;
+
+        const cx = (playerCol + 0.5) * this.charWidth;
+        const cy = (playerRow + 0.5) * this.charHeight;
+
+        // In 2D grid coordinates (X right, Y down):
+        // Camera yaw 0 is North (0, -1), PI/2 is East (1, 0), PI is South (0, 1), 3PI/2 is West (-1, 0)
+        const yaw = this.cameraYaw || 0;
+        const dirX = Math.sin(yaw);
+        const dirY = -Math.cos(yaw);
+        const sideX = -dirY;
+        const sideY = dirX;
+
+        const baseAngle = Math.atan2(dirY, dirX);
+        const fovAngle = 0.54; // ~62 degree FOV cone matching 3D camera
+        const coneDist = Math.max(this.charWidth * 6.2, 85);
+        const coneSpread = coneDist * Math.tan(fovAngle);
+
+        const leftTipX = cx + dirX * coneDist + sideX * coneSpread;
+        const leftTipY = cy + dirY * coneDist + sideY * coneSpread;
+        const rightTipX = cx + dirX * coneDist - sideX * coneSpread;
+        const rightTipY = cy + dirY * coneDist - sideY * coneSpread;
+
+        this.ctx.save();
+
+        // 1. Radiant golden cone gradient fill
+        const grad = this.ctx.createRadialGradient(cx, cy, 2, cx, cy, coneDist);
+        grad.addColorStop(0, 'rgba(255, 215, 0, 0.30)');
+        grad.addColorStop(0.6, 'rgba(255, 215, 0, 0.12)');
+        grad.addColorStop(1, 'rgba(255, 215, 0, 0.0)');
+
+        this.ctx.fillStyle = grad;
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy);
+        this.ctx.lineTo(leftTipX, leftTipY);
+        this.ctx.arc(cx, cy, coneDist, baseAngle - fovAngle, baseAngle + fovAngle);
+        this.ctx.lineTo(cx, cy);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // 2. Crisp boundary lines and arc
+        this.ctx.strokeStyle = 'rgba(255, 225, 110, 0.50)';
+        this.ctx.lineWidth = 1.2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy);
+        this.ctx.lineTo(leftTipX, leftTipY);
+        this.ctx.stroke();
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy);
+        this.ctx.lineTo(rightTipX, rightTipY);
+        this.ctx.stroke();
+
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, coneDist, baseAngle - fovAngle, baseAngle + fovAngle);
+        this.ctx.stroke();
+
+        // 3. Central forward sightline (dashed during targeting mode)
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = this.isTargetingMode ? 'rgba(255, 75, 75, 0.90)' : 'rgba(255, 215, 50, 0.65)';
+        this.ctx.lineWidth = this.isTargetingMode ? 2.0 : 1.2;
+        if (this.isTargetingMode) {
+            this.ctx.setLineDash([5, 4]);
+        }
+        const sightDist = coneDist * (this.isTargetingMode ? 1.75 : 1.0);
+        this.ctx.moveTo(cx, cy);
+        this.ctx.lineTo(cx + dirX * sightDist, cy + dirY * sightDist);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+
+        // 4. Directional pointer triangle at @ center
+        const pointerDist = Math.max(this.charWidth * 0.75, 10);
+        const pTipX = cx + dirX * pointerDist;
+        const pTipY = cy + dirY * pointerDist;
+        const pLeftX = cx - dirX * 3 + sideX * 4.5;
+        const pLeftY = cy - dirY * 3 + sideY * 4.5;
+        const pRightX = cx - dirX * 3 - sideX * 4.5;
+        const pRightY = cy - dirY * 3 - sideY * 4.5;
+
+        this.ctx.fillStyle = '#ffd700';
+        this.ctx.beginPath();
+        this.ctx.moveTo(pTipX, pTipY);
+        this.ctx.lineTo(pLeftX, pLeftY);
+        this.ctx.lineTo(pRightX, pRightY);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        this.ctx.restore();
     }
 }
 

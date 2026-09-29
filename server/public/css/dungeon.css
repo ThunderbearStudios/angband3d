@@ -3449,26 +3449,65 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 /* ------------------------------------------------------------------------------
    ZOOMABLE TERMINAL VIEWPORT & CLASSIC TOUCH CONTROLS
    ------------------------------------------------------------------------------ */
+.terminal-header-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.term-facing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(30, 24, 10, 0.90);
+    border: 1px solid rgba(255, 215, 0, 0.65);
+    color: #ffd700;
+    font-family: var(--font-terminal);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.25);
+    text-shadow: 0 0 4px rgba(255, 215, 0, 0.4);
+}
+
 .terminal-viewport {
     flex: 1 1 auto;
     width: 100%;
-    max-height: calc(88vh - 120px);
-    max-height: calc(88dvh - 120px);
+    min-height: 0;
+    max-height: calc(92vh - 90px);
+    max-height: calc(92dvh - 90px);
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-x pan-y;
     position: relative;
     border-radius: 6px;
     background: #04060a;
-    border: 1px solid rgba(212, 175, 55, 0.2);
+    border: 1px solid rgba(212, 175, 55, 0.25);
     scrollbar-width: thin;
     scrollbar-color: rgba(212, 175, 55, 0.4) transparent;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.terminal-viewport:active,
+.terminal-viewport.is-dragging {
+    cursor: grabbing;
 }
 
 #terminal-canvas {
     display: block;
-    margin: 0 auto;
-    touch-action: manipulation;
+    touch-action: none; /* Native browser gestures disabled so terminal pan & pinch-zoom work cleanly */
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#terminal-canvas:active {
+    cursor: grabbing;
 }
 
 .terminal-viewport::-webkit-scrollbar {
@@ -3515,23 +3554,79 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     color: #fff;
 }
 
-/* Mobile Classic Touch Controller Dock */
+/* Unified Intelligent Contextual Mobile Controls Dock */
 .terminal-touch-controls {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
     width: 100%;
     max-width: 680px;
     margin: 4px auto 0;
-    gap: 10px;
-    padding: 6px 10px;
-    background: rgba(8, 12, 20, 0.92);
-    border: 1px solid rgba(212, 175, 55, 0.4);
+    gap: 6px;
+    padding: 6px 8px;
+    background: rgba(8, 12, 20, 0.95);
+    border: 1px solid rgba(212, 175, 55, 0.45);
     border-radius: 10px;
     box-sizing: border-box;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     flex-shrink: 0;
+}
+
+.term-letter-ribbon {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 2px 2px 4px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+
+.term-letter-ribbon::-webkit-scrollbar {
+    height: 4px;
+}
+
+.term-letter-ribbon::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.4);
+    border-radius: 2px;
+}
+
+.term-letter-btn {
+    min-width: 38px;
+    height: 38px;
+    padding: 0 8px;
+    background: rgba(20, 26, 40, 0.95);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 6px;
+    color: #ffd700;
+    font-family: var(--font-terminal);
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.1s ease;
+    flex-shrink: 0;
+}
+
+.term-letter-btn:active {
+    background: rgba(255, 215, 0, 0.3);
+    border-color: #fff;
+    color: #fff;
+    transform: scale(0.94);
+}
+
+.term-controls-main-row {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
 }
 
 .term-touch-dpad-col {
@@ -3547,11 +3642,15 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     justify-items: center;
 }
 
+.term-dpad-ul { grid-column: 1; grid-row: 1; }
 .term-dpad-up { grid-column: 2; grid-row: 1; }
+.term-dpad-ur { grid-column: 3; grid-row: 1; }
 .term-dpad-left { grid-column: 1; grid-row: 2; }
 .term-dpad-center { grid-column: 2; grid-row: 2; }
 .term-dpad-right { grid-column: 3; grid-row: 2; }
+.term-dpad-dl { grid-column: 1; grid-row: 3; }
 .term-dpad-down { grid-column: 2; grid-row: 3; }
+.term-dpad-dr { grid-column: 3; grid-row: 3; }
 
 .term-dpad-btn {
     width: 100%;
@@ -3560,7 +3659,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     border: 1px solid rgba(212, 175, 55, 0.4);
     border-radius: 6px;
     color: var(--gold-bright);
-    font-size: 15px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3577,25 +3676,43 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     transform: scale(0.95);
 }
 
+/* 3D Forward Direction Highlight on Targeting D-pad */
+.term-dpad-btn.fwd-highlight {
+    background: rgba(90, 60, 15, 0.98) !important;
+    border: 2px solid #ffd700 !important;
+    color: #fff !important;
+    font-weight: 800 !important;
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), inset 0 0 8px rgba(255, 215, 0, 0.45) !important;
+    animation: pulseGoldGlow 1.2s infinite alternate !important;
+}
+
+@keyframes pulseGoldGlow {
+    0% { box-shadow: 0 0 6px rgba(255, 215, 0, 0.4); }
+    100% { box-shadow: 0 0 18px rgba(255, 215, 0, 0.95), inset 0 0 10px rgba(255, 215, 0, 0.6); }
+}
+
 .term-touch-actions-col {
     flex: 1;
+    min-width: 0;
 }
 
-.term-action-keys {
+.term-contextual-actions {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
+    align-content: center;
 }
 
-.term-action-key {
-    min-height: 38px;
-    padding: 4px 2px;
+.term-ctx-btn {
+    min-height: 40px;
+    padding: 5px 6px;
     background: rgba(18, 24, 36, 0.92);
-    border: 1px solid rgba(212, 175, 55, 0.35);
+    border: 1px solid rgba(212, 175, 55, 0.38);
     border-radius: 6px;
-    color: #e2e8f0;
+    color: #f0f4f8;
     font-family: var(--font-fantasy);
     font-size: 11px;
+    line-height: 1.25;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -3604,40 +3721,31 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     text-align: center;
+    transition: all 0.1s ease;
 }
 
-.term-action-key:active {
-    background: rgba(45, 36, 16, 0.98);
+.term-ctx-btn:active {
+    background: rgba(50, 40, 18, 0.98);
     border-color: #ffd700;
     color: #fff;
     transform: scale(0.95);
 }
 
-.term-key-tab {
-    background: rgba(30, 24, 12, 0.95);
-    border-color: rgba(255, 215, 0, 0.6);
-    color: #ffd700;
+.term-ctx-btn.btn-primary-action {
+    background: linear-gradient(180deg, rgba(212, 175, 55, 0.85), rgba(153, 122, 21, 0.95));
+    border-color: #ffe270;
+    color: #0b0c0e;
     font-weight: 700;
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.35);
 }
 
-/* Character Creation / Birth Screen Touch Controls */
-.birth-touch-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-    max-width: 680px;
-    margin: 4px auto 0;
-    padding: 8px 10px;
-    background: rgba(8, 12, 20, 0.94);
-    border: 1px solid rgba(212, 175, 55, 0.45);
-    border-radius: 10px;
-    box-sizing: border-box;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    flex-shrink: 0;
+.term-ctx-btn.btn-cancel-action {
+    background: rgba(35, 18, 22, 0.92);
+    border-color: rgba(230, 60, 60, 0.5);
+    color: #ffaaaa;
 }
 
+/* Character Creation Name Bar */
 .birth-name-bar {
     display: flex;
     gap: 8px;
@@ -3662,121 +3770,6 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 .birth-name-input:focus {
     border-color: #ffd700;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
-}
-
-.birth-options-grid {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 6px;
-    padding: 2px 2px 6px;
-    width: 100%;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-}
-
-.birth-options-grid::-webkit-scrollbar {
-    height: 4px;
-}
-.birth-options-grid::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.4);
-    border-radius: 2px;
-}
-
-.birth-opt-btn {
-    flex-shrink: 0;
-    min-width: 44px;
-    height: 34px;
-    padding: 0 10px;
-    border-radius: 6px;
-    background: rgba(22, 28, 44, 0.95);
-    border: 1.5px solid rgba(212, 175, 55, 0.55);
-    color: #ffd700;
-    font-family: var(--font-terminal);
-    font-size: 13px;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    touch-action: manipulation;
-    user-select: none;
-    -webkit-user-select: none;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-}
-
-.birth-opt-btn:active {
-    background: rgba(212, 175, 55, 0.35);
-    transform: scale(0.95);
-}
-
-.birth-dock-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-}
-
-.birth-actions-col {
-    flex: 1;
-}
-
-.birth-action-keys {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
-}
-
-.birth-action-btn {
-    min-height: 36px;
-    padding: 4px 2px;
-    background: rgba(18, 24, 36, 0.92);
-    border: 1px solid rgba(212, 175, 55, 0.35);
-    border-radius: 6px;
-    color: #e2e8f0;
-    font-family: var(--font-fantasy);
-    font-size: 12px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    text-align: center;
-    transition: all 0.1s ease;
-}
-
-.birth-action-btn:active {
-    background: rgba(45, 36, 16, 0.98);
-    border-color: #ffd700;
-    color: #fff;
-    transform: scale(0.95);
-}
-
-.btn-birth-enter {
-    background: rgba(45, 36, 16, 0.95);
-    border-color: rgba(255, 215, 0, 0.8);
-    color: #ffd700;
-    font-weight: 800;
-}
-
-.btn-birth-action {
-    height: 36px;
-    padding: 0 12px;
-    border-radius: 6px;
-    font-family: var(--font-terminal);
-    font-size: 12px;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    touch-action: manipulation;
-    user-select: none;
-    -webkit-user-select: none;
 }
 
 /* ------------------------------------------------------------------------------

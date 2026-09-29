@@ -103,6 +103,28 @@
                 - Injected universal `touch-action: manipulation; -webkit-tap-highlight-color: transparent;` across all interactive elements.
                 - Upgraded all touch buttons (`action-btn`, `m-action-btn`, `splash-shortcut-btn`, `menu-option-btn`) with dual `pointerdown` + `click` event listeners and calibrated 100ms debouncing, completely bypassing the 300ms mobile touch delay without double-triggering.
                 - Integrated multi-pattern tactile haptics (`DeviceProfile.triggerHaptic`) via `navigator.vibrate` for light, medium, heavy, and warning button presses.
+           - **Mobile Classic View Usability, Zoom Isolation & 3D Cone of Sight Milestone**:
+              - **Isolated Classic Canvas Touch Interaction & Viewport Pan/Zoom**:
+                 - Enforced complete isolation: all touch interactions on `#terminal-canvas` strictly control viewport panning (1-finger drag) and scaling (2-finger pinch), and are *never* dispatched as game commands.
+                 - Removed legacy `canvas.addEventListener('touchend')` command dispatcher; desktop mouse row clicks are strictly guarded to `pointerType === 'mouse'`.
+                 - Fixed scroll snapback bug: `terminal.render()` no longer resets `scrollLeft = 0` during active browsing, preserving user panning position across frame updates.
+                 - Touch zoom scaling operates across `0.45x` to `3.2x` with centroid focal compensation, without affecting outer page zoom or browser viewport.
+              - **Supplemental Menu Elimination & Clean Classic Max-View**:
+                 - Removed unhelpful supplemental HTML scraped menus, duplicate item buttons list (`#item-buttons-list`), store action bars (`#store-actions-bar`, `#item-actions-bar`), mobile hero cards, and item drawers.
+                 - Maximized authentic 80x24 classic terminal viewport visibility and usability on mobile viewports.
+              - **Intelligent Contextual Mobile Controls Dock (`#terminal-touch-controls`)**:
+                 - Sits docked below the terminal viewport with 8-way D-Pad (cardinals + diagonals) and contextual action cluster.
+                 - Displays *only* the specific buttons needed for each active menu or state:
+                   - **Character Birth Menus**: Wizard navigation (`Esc` Back, `Enter` Select, Tolkien name generator, stat roller).
+                   - **Stores**: 8-way D-pad for browsing inventory items, sub-mode switch, quick item letters, `[Esc]` return to 3D town.
+                   - **Item Selection**: Hides D-pad and expands dynamic `#term-letter-ribbon` with direct 1-tap item buttons (`[a]`, `[b]`, `[c]`, ...), gear/pack switch (`[/]`), and quiver (`[|]`).
+                   - **Classic Exploration**: 8-way D-pad, `[Tab]` return to 3D View, `[Esc]` Menu, `[i]` Pack, `[e]` Gear, `[m]` Cast, `[R]` Rest.
+              - **3D-to-2D Orientation & Cone of Sight Assistance**:
+                 - Eliminated mental directional confusion when switching between 3D view and classic aiming/shooting/movement:
+                   - Direct 3D camera facing badge (`#term-facing-badge`) in terminal toolbar (e.g. `🧭 3D: NORTH (▲)`).
+                   - Forward directional highlight: dynamically pulses gold (`.fwd-highlight`) on the specific D-pad button matching current 3D yaw.
+                   - Radiant golden FOV cone (~62° arc) and central red sightline drawn directly onto the classic terminal canvas radiating outward from `@` along current 3D camera yaw.
+                 - Zero changes to engine mechanics, C code, or input protocols. Full verification via headless Chrome test suite (`scratch/test_mobile_classic_ux.js`).
              - **Native Mobile Hero Review Card (`mobile-overlay.js`, `index.html`, `dungeon.css`, `app.js`)**:
                 - Replaces microscopic 80-column ASCII terminal canvas (~4.5px wide characters) on phones and tablets with a native, responsive HTML/CSS touch card.
                 - Renders hero name, race, class, level, and title with gold fantasy trim; HP, SP, Armor, and Speed vitals capsules; 5 core attribute cards (STR, INT, WIS, DEX, CON) with racial bonus and best roll badges; combat chips; and formatted lore/backstory text.

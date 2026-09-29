@@ -28,6 +28,8 @@ window.addEventListener('DOMContentLoaded', () => {
         network.sendKey(key);
     });
 
+    window.__app = { audio, network, dungeon, hud, terminal };
+
     let birthReviewActive = false;
 
     const toggleTerminalView = () => {
@@ -244,94 +246,50 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Mobile Classic Touch Controller Dock (D-pad & Action Keys for Classic Mode)
+    // Unified Mobile Classic Touch Controller Dock (D-pad, Contextual Actions & Letters)
     const termTouchControls = document.getElementById('terminal-touch-controls');
     if (termTouchControls) {
-        const bindTermTouch = (btn) => {
-            const key = btn.dataset.key;
-            if (!key) return;
-            let lastTrigger = 0;
-            const fire = (ev) => {
-                const now = Date.now();
-                if (now - lastTrigger < 100) return;
-                lastTrigger = now;
-                if (ev && ev.preventDefault) ev.preventDefault();
-                if (audio) audio.unlock();
-                if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
-                    window.DeviceProfile.triggerHaptic('light');
-                }
-                if (key === 'tab') {
-                    // Return from Classic Mode to 3D View
-                    forceTerminal = false;
-                    window.__manualTerminalOpen = false;
-                    updateViewMode();
-                } else if (key === 'escape') {
-                    network.sendKey('escape');
-                    const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && lastFrame.map);
-                    if (inPlay && !forceTerminal) {
-                        closeTerminalModal();
-                    }
-                } else {
-                    network.sendKey(key);
-                }
-            };
-            btn.addEventListener('pointerdown', (ev) => {
-                if (ev.pointerType === 'touch') fire(ev);
-            });
-            btn.addEventListener('click', fire);
-        };
-
-        termTouchControls.querySelectorAll('.term-dpad-btn, .term-action-key').forEach(bindTermTouch);
-    }
-
-    // Dedicated Touch Controls for Character Creation / Birth Screen
-    const birthTouchControls = document.getElementById('birth-touch-controls');
-    if (birthTouchControls) {
-        let lastBirthTap = 0;
-        const handleBirthAction = (e) => {
-            const btn = e.target.closest('[data-key]');
-            if (!btn || btn.id === 'btn-birth-name-submit') return;
+        let lastTouchTrigger = 0;
+        const handleTouchAction = (ev) => {
+            const btn = ev.target.closest('[data-key]');
+            if (!btn || btn.id === 'btn-birth-name-submit' || btn.id === 'btn-birth-name-rand') return;
             const now = Date.now();
-            if (now - lastBirthTap < 100) return;
-            lastBirthTap = now;
-            if (e && e.cancelable && e.type !== 'click') e.preventDefault();
-            const key = btn.dataset.key;
-            if (!key) return;
+            if (now - lastTouchTrigger < 80) return;
+            lastTouchTrigger = now;
+            if (ev && ev.cancelable && ev.type !== 'click') ev.preventDefault();
             if (audio) audio.unlock();
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
                 window.DeviceProfile.triggerHaptic('light');
             }
-            if (key === 'escape') {
+            const key = btn.dataset.key;
+            if (!key) return;
+
+            if (key === 'tab') {
+                // Return from Classic Mode to 3D View
+                forceTerminal = false;
+                window.__manualTerminalOpen = false;
+                updateViewMode();
+            } else if (key === 'escape') {
                 cancelQuickBirth();
                 network.sendKey('escape');
-            } else if (key === 's') {
+                const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && lastFrame.map);
+                if (inPlay && !forceTerminal) {
+                    closeTerminalModal();
+                }
+            } else if (key === 's' && (!lastFrame || lastFrame.phase !== 'play')) {
                 cancelQuickBirth();
                 network.sendKey('s');
-            } else if (btn.classList.contains('birth-opt-btn')) {
-                // If it's a character creation menu option (race/class/method), send key then enter to select it
-                const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
-                    ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
-                    : '';
-                const isTraitMenu = screenText.includes('race affects stats') ||
-                                    screenText.includes('class affects stats') ||
-                                    screenText.includes('select your character traits') ||
-                                    screenText.includes('choose how to generate');
-                if (isTraitMenu) {
-                    network.sendKey(key);
-                    network.sendKey('enter');
-                } else {
-                    network.sendKey(key);
-                }
             } else {
                 network.sendKey(key);
             }
         };
 
-        birthTouchControls.addEventListener('pointerdown', (e) => {
-            if (e.pointerType === 'touch') handleBirthAction(e);
+        termTouchControls.addEventListener('pointerdown', (ev) => {
+            if (ev.pointerType === 'touch') handleTouchAction(ev);
         });
-        birthTouchControls.addEventListener('click', handleBirthAction);
+        termTouchControls.addEventListener('click', handleTouchAction);
 
+        // Name submission handling for character creation
         const nameSubmitBtn = document.getElementById('btn-birth-name-submit');
         const nameRandBtn = document.getElementById('btn-birth-name-rand');
         const nameInput = document.getElementById('birth-name-input');
@@ -340,7 +298,6 @@ window.addEventListener('DOMContentLoaded', () => {
             const nameVal = nameInput.value.trim();
             if (audio) audio.playWhoosh();
             if (nameVal) {
-                // Clear default name in Angband, then type characters
                 network.sendKey('backspace');
                 for (const ch of nameVal) {
                     network.sendKey(ch);
@@ -359,8 +316,10 @@ window.addEventListener('DOMContentLoaded', () => {
         if (nameRandBtn) {
             nameRandBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                if (audio) audio.playMenuNav();
-                network.sendKey('*');
+                const fantasyNames = ['Aegnor', 'Beleg', 'Celegorm', 'Daeron', 'Ecthelion', 'Fingolfin', 'Galdor', 'Hador', 'Idril', 'Luthien', 'Mablung', 'Nimrodel', 'Orodreth', 'Turgon', 'Voronwe'];
+                const chosen = fantasyNames[Math.floor(Math.random() * fantasyNames.length)];
+                if (nameInput) nameInput.value = chosen;
+                submitName();
             });
         }
         if (nameInput) {
@@ -371,56 +330,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
-    }
-
-    // Interactive Store Actions Bar controls
-    const btnStoreAdvance = document.getElementById('btn-store-advance');
-    if (btnStoreAdvance) {
-        btnStoreAdvance.addEventListener('click', () => {
-            if (audio) audio.unlock();
-            if (audio) audio.playMenuNav();
-            network.sendKey('space');
-        });
-    }
-    const btnStoreBuy = document.getElementById('btn-store-buy');
-    if (btnStoreBuy) {
-        btnStoreBuy.addEventListener('click', () => {
-            if (audio) audio.unlock();
-            if (audio) audio.playMenuNav();
-            network.sendKey('p');
-        });
-    }
-    const btnStoreSell = document.getElementById('btn-store-sell');
-    if (btnStoreSell) {
-        btnStoreSell.addEventListener('click', () => {
-            if (audio) audio.unlock();
-            if (audio) audio.playMenuNav();
-            network.sendKey('s');
-        });
-    }
-    const btnStoreExamine = document.getElementById('btn-store-examine');
-    if (btnStoreExamine) {
-        btnStoreExamine.addEventListener('click', () => {
-            if (audio) audio.unlock();
-            if (audio) audio.playMenuNav();
-            network.sendKey('l');
-        });
-    }
-    const btnStoreExit = document.getElementById('btn-store-exit');
-    if (btnStoreExit) {
-        btnStoreExit.addEventListener('click', () => {
-            if (audio) audio.unlock();
-            if (audio) audio.playMenuNav();
-            const hasMore = Boolean(lastFrame && lastFrame.ui && lastFrame.ui.more);
-            if (hasMore) {
-                network.sendKey('space');
-                setTimeout(() => network.sendKey('escape'), 50);
-            } else {
-                network.sendKey('escape');
-            }
-            forceTerminal = false;
-            window.__manualTerminalOpen = false;
-        });
     }
 
     // Draggable and Resizable Windows Coordinator (Minimap and Message Log)
@@ -1721,44 +1630,161 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function updateTerminalToolbar(frame) {
         const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
-        const quickBirthBtn = document.getElementById('btn-quick-birth');
-        const termRerollBtn = document.getElementById('btn-term-reroll');
-        const termCustomBtn = document.getElementById('btn-term-custom');
+        const termFacingBadge = document.getElementById('term-facing-badge');
         const termAdvanceBtn = document.getElementById('btn-term-advance');
         const termEscapeBtn = document.getElementById('btn-term-escape');
         const termExitMenuBtn = document.getElementById('btn-term-exit-menu');
         const termTouchControls = document.getElementById('terminal-touch-controls');
-        const storeActionsBar = document.getElementById('store-actions-bar');
-        const itemActionsBar = document.getElementById('item-actions-bar');
-        const itemButtonsList = document.getElementById('item-buttons-list');
-        const mobileHeroCard = document.getElementById('mobile-hero-card');
-        const terminalCanvas = document.getElementById('terminal-canvas');
-        const terminalToolbar = document.querySelector('.terminal-toolbar');
-        const terminalCard = document.getElementById('terminal-card');
+        const termCtxActions = document.getElementById('term-contextual-actions');
+        const termLetterRibbon = document.getElementById('term-letter-ribbon');
+        const birthNameBar = document.getElementById('birth-name-bar');
+        const birthNameInput = document.getElementById('birth-name-input');
+        const termDpad = termTouchControls ? termTouchControls.querySelector('.term-dpad, .term-dpad-grid') : null;
+
         if (!terminalTitle || !termEscapeBtn) return;
 
         const inPlay = Boolean(frame && frame.phase === 'play' && frame.map);
-
         const screenText = (frame && frame.term && frame.term.rows)
             ? frame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
             : '';
 
-        const birthTouchControls = document.getElementById('birth-touch-controls');
-        const birthNameBar = document.getElementById('birth-name-bar');
-        const birthNameInput = document.getElementById('birth-name-input');
-        const birthOptionsGrid = document.getElementById('birth-options-grid');
-        const isMobileScreen = window.innerWidth <= 768 || (window.DeviceProfile && window.DeviceProfile.getTier() !== 'desktop');
+        // Always display external navigation dock so classic interactions can be performed via navigation keys outside the view on all devices
+        if (termTouchControls) {
+            termTouchControls.style.display = 'flex';
+        }
 
-        // If NOT in active play: we are in character creation / birth / review screen
+        // 1. Camera Facing & Direction Highlight Sync
+        const cameraYaw = (dungeon && dungeon.camera)
+            ? -dungeon.camera.rotation.y
+            : (dungeon ? (dungeon.facing * (Math.PI / 2)) : 0);
+
+        let normYaw = (cameraYaw % (Math.PI * 2));
+        if (normYaw < 0) normYaw += Math.PI * 2;
+        let facingName = 'NORTH';
+        let facingArrow = '▲';
+        let fwdKey = 'up';
+        if (normYaw >= Math.PI * 0.25 && normYaw < Math.PI * 0.75) {
+            facingName = 'EAST';
+            facingArrow = '▶';
+            fwdKey = 'right';
+        } else if (normYaw >= Math.PI * 0.75 && normYaw < Math.PI * 1.25) {
+            facingName = 'SOUTH';
+            facingArrow = '▼';
+            fwdKey = 'down';
+        } else if (normYaw >= Math.PI * 1.25 && normYaw < Math.PI * 1.75) {
+            facingName = 'WEST';
+            facingArrow = '◀';
+            fwdKey = 'left';
+        }
+
+        // Inform classic terminal canvas of 3D camera facing
+        terminal.setCameraFacing(cameraYaw);
+
+        // 2. Identify Current Mode & Screen
+        let playerFeat = 0;
+        if (frame && frame.map && frame.map.rows && frame.player) {
+            const py = frame.player.y;
+            const px = frame.player.x;
+            if (frame.map.rows[py] && frame.map.rows[py].f) {
+                playerFeat = parseInt(frame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16) || 0;
+            }
+        }
+        const isStoreFeat = playerFeat >= 7 && playerFeat <= 14;
+        const inOverlay = Boolean(frame && frame.ui && (frame.ui.overlay || 0) > 0);
+        const hasStoreText = screenText.includes('store inventory') ||
+                             screenText.includes('home inventory') ||
+                             screenText.includes('gold remaining') ||
+                             screenText.includes('purchase which item') ||
+                             screenText.includes('sell which item') ||
+                             screenText.includes('examine which item');
+        const isTargeting = inPlay && (
+            screenText.includes('target [') ||
+            screenText.includes('target:') ||
+            screenText.includes('direction?') ||
+            screenText.includes('which direction?') ||
+            screenText.includes('select target') ||
+            screenText.includes('aim which direction?')
+        );
+        terminal.setTargetingMode(isTargeting);
+
+        const isItemPrompt = inPlay && !isTargeting && (
+            screenText.includes('select item:') ||
+            screenText.includes('inven:') ||
+            screenText.includes('equip:') ||
+            screenText.includes('quiver:') ||
+            screenText.includes('quiver') ||
+            screenText.includes('which item?') ||
+            screenText.includes('which potion?') ||
+            screenText.includes('which scroll?') ||
+            screenText.includes('which spell?') ||
+            screenText.includes('which prayer?') ||
+            screenText.includes('which book?') ||
+            screenText.includes('wear/wield') ||
+            screenText.includes('take off') ||
+            screenText.includes('drop which') ||
+            screenText.includes('throw which') ||
+            screenText.includes('fire which') ||
+            screenText.includes('quaff which') ||
+            screenText.includes('read which') ||
+            screenText.includes('destroy which')
+        );
+
+        const isStore = !isItemPrompt && (hasStoreText || (isStoreFeat && inOverlay));
+
+        // Update Facing Badge & D-Pad Highlight
+        if (termFacingBadge) {
+            if (inPlay && !isStore) {
+                termFacingBadge.style.display = 'inline-flex';
+                termFacingBadge.textContent = `🧭 3D: ${facingName} (${facingArrow})`;
+                termFacingBadge.title = `Your 3D camera is facing ${facingName}. In classic view, the golden cone shows this view direction.`;
+            } else {
+                termFacingBadge.style.display = 'none';
+            }
+        }
+
+        if (termDpad) {
+            const allDpad = termDpad.querySelectorAll('.term-dpad-btn');
+            allDpad.forEach(b => b.classList.remove('fwd-highlight'));
+            if (inPlay && !isStore) {
+                const fwdBtn = termDpad.querySelector(`.term-dpad-btn[data-key="${fwdKey}"]`);
+                if (fwdBtn) fwdBtn.classList.add('fwd-highlight');
+            }
+        }
+
+        // Helper to populate letter ribbon (supports single & multi-column menus)
+        const populateLetterRibbon = (rows) => {
+            if (!termLetterRibbon) return;
+            const letters = [];
+            if (rows) {
+                const regex = /(?:^|\s+)(?:\[([a-zA-Z0-9*@?])\]|([a-zA-Z0-9*@?])[\)\.\:\-])\s+/g;
+                for (let r = 0; r < rows.length; r++) {
+                    const line = rows[r].g || '';
+                    let m;
+                    while ((m = regex.exec(line)) !== null) {
+                        const lt = m[1] || m[2];
+                        if (lt && !letters.includes(lt)) {
+                            letters.push(lt);
+                        }
+                    }
+                }
+            }
+            if (letters.length > 0) {
+                termLetterRibbon.style.display = 'flex';
+                termLetterRibbon.innerHTML = letters.map(lt =>
+                    `<button type="button" class="term-letter-btn" data-key="${lt}">[${lt}]</button>`
+                ).join('');
+            } else {
+                termLetterRibbon.style.display = 'none';
+                termLetterRibbon.innerHTML = '';
+            }
+        };
+
+        // 3. Screen-Specific Layout & Controls Configuration
         if (!inPlay) {
-            // NEVER show store actions bar during character creation or review
-            if (storeActionsBar) storeActionsBar.style.display = 'none';
-            if (itemActionsBar) itemActionsBar.style.display = 'none';
-            if (termTouchControls) termTouchControls.style.display = 'none';
-            if (mobileHeroCard) mobileHeroCard.style.display = 'none';
-            if (terminalCanvas) terminalCanvas.style.display = 'block';
-            if (terminalToolbar) terminalToolbar.style.display = 'flex';
-            if (terminalCard) terminalCard.classList.remove('mobile-card-active');
+            // --- CHARACTER CREATION / BIRTH SCREENS ---
+            if (termExitMenuBtn) termExitMenuBtn.style.display = 'inline-flex';
+            if (termAdvanceBtn) termAdvanceBtn.style.display = 'inline-flex';
+            termEscapeBtn.textContent = 'Back (Esc)';
 
             const isTitleScreen = (screenText.includes('when the world is old') ||
                                    screenText.includes('press any key to continue') ||
@@ -1792,54 +1818,23 @@ window.addEventListener('DOMContentLoaded', () => {
                                     screenText.includes("'s' to start") ||
                                     (screenText.includes("best") && screenText.includes("cur exp")));
 
-            // Dynamic Contextual Screen Title
             if (isTitleScreen) {
                 terminalTitle.textContent = '⚔ WELCOME TO ANGBAND';
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> Continue (Enter)</button>
+                    `;
+                }
             } else if (isNamePrompt) {
                 terminalTitle.textContent = '⚔ NAME YOUR ADVENTURER';
-            } else if (isHistoryPrompt) {
-                terminalTitle.textContent = '⚔ CHARACTER HISTORY';
-            } else if (isStatRoller) {
-                terminalTitle.textContent = '⚔ ATTRIBUTE ALLOCATION';
-            } else if (isReviewScreen) {
-                terminalTitle.textContent = '⚔ REVIEW YOUR HERO';
-            } else if (screenText.includes('race affects stats')) {
-                terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
-            } else if (screenText.includes('class affects stats')) {
-                terminalTitle.textContent = '⚔ CHOOSE CHARACTER CLASS';
-            } else {
-                terminalTitle.textContent = '⚔ CHARACTER CREATION';
-            }
-
-            // Toolbar buttons
-            if (quickBirthBtn) quickBirthBtn.style.display = 'none';
-            if (termExitMenuBtn) termExitMenuBtn.style.display = 'inline-flex';
-            termEscapeBtn.textContent = 'Back (Esc)';
-
-            if (isReviewScreen) {
-                if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
-                if (termCustomBtn) termCustomBtn.style.display = 'inline-flex';
-                if (termAdvanceBtn) {
-                    termAdvanceBtn.style.display = 'inline-flex';
-                    termAdvanceBtn.textContent = '⚔ Accept & Play (Enter)';
-                }
-            } else {
-                if (termRerollBtn) termRerollBtn.style.display = 'none';
-                if (termCustomBtn) termCustomBtn.style.display = 'none';
-                if (termAdvanceBtn) {
-                    termAdvanceBtn.style.display = 'inline-flex';
-                    termAdvanceBtn.textContent = 'Advance (Enter)';
-                }
-            }
-
-            // Mobile Birth Touch Controls Dock & Options
-            if (birthTouchControls) {
-                birthTouchControls.style.display = isMobileScreen ? 'flex' : 'none';
-
-                // 1. Name Prompt Bar
+                if (termDpad) termDpad.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (birthNameBar) {
-                    birthNameBar.style.display = isNamePrompt ? 'flex' : 'none';
-                    if (isNamePrompt && birthNameInput && document.activeElement !== birthNameInput && !birthNameInput.value) {
+                    birthNameBar.style.display = 'flex';
+                    if (birthNameInput && document.activeElement !== birthNameInput && !birthNameInput.value) {
                         const nameMatch = (frame && frame.term && frame.term.rows && frame.term.rows[0])
                             ? (frame.term.rows[0].g || '').match(/:\s*([A-Za-z0-9_\-]+)/)
                             : null;
@@ -1848,104 +1843,77 @@ window.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }
-
-                // 2. Contextual Options in Birth Options Grid
-                if (birthOptionsGrid) {
-                    if (isHistoryPrompt) {
-                        birthOptionsGrid.style.display = 'flex';
-                        birthOptionsGrid.innerHTML = `
-                            <button type="button" class="birth-opt-btn btn-gold" data-key="y" style="background: rgba(27,67,50,0.9); border-color:#52b788; color:#d8f3dc;"><span style="color:#52b788;">[y]</span> ✓ Accept History</button>
-                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="n" style="background: rgba(30,41,59,0.9); border-color:rgba(212,175,55,0.6); color:#ffd700;"><span style="color:#ffd700;">[n]</span> 🔄 Reroll History</button>
-                        `;
-                    } else if (isReviewScreen) {
-                        birthOptionsGrid.style.display = 'flex';
-                        birthOptionsGrid.innerHTML = `
-                            <button type="button" class="birth-opt-btn btn-gold" data-key="enter" style="font-weight:700;"><span style="color:#ffd700;">⏎</span> ⚔ Start Quest</button>
-                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="s"><span>[s]</span> 🎲 Start Over</button>
-                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="r"><span>[r]</span> 🔄 Reroll</button>
-                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
-                        `;
-                    } else if (isStatRoller) {
-                        birthOptionsGrid.style.display = 'flex';
-                        birthOptionsGrid.innerHTML = `
-                            <button type="button" class="birth-opt-btn btn-gold" data-key="enter" style="font-weight:700;"><span style="color:#ffd700;">⏎</span> ✓ Accept Stats</button>
-                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="r"><span>[r]</span> 🔄 Reset</button>
-                            <button type="button" class="birth-opt-btn btn-gold-outline" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
-                        `;
-                    } else if (!isNamePrompt && !isTitleScreen) {
-                        const choices = extractActiveMenuChoices(frame && frame.term ? frame.term.rows : []);
-                        if (choices.length > 0) {
-                            birthOptionsGrid.style.display = 'flex';
-                            birthOptionsGrid.innerHTML = choices.map(c =>
-                                `<button type="button" class="birth-opt-btn" data-key="${c.key}"><span style="color:#ffd700;">${c.key})</span> ${c.label}</button>`
-                            ).join('');
-                        } else {
-                            birthOptionsGrid.style.display = 'none';
-                            birthOptionsGrid.innerHTML = '';
-                        }
-                    } else {
-                        birthOptionsGrid.style.display = 'none';
-                        birthOptionsGrid.innerHTML = '';
-                    }
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                    `;
                 }
+            } else if (isHistoryPrompt) {
+                terminalTitle.textContent = '⚔ CHARACTER HISTORY';
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="y"><span>[y]</span> ✓ Accept History</button>
+                        <button type="button" class="term-ctx-btn" data-key="n"><span>[n]</span> 🔄 Reroll History</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                    `;
+                }
+            } else if (isStatRoller) {
+                terminalTitle.textContent = '⚔ ATTRIBUTE ALLOCATION';
+                if (termDpad) termDpad.style.display = 'grid'; // Left/Right modifies stats
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ✓ Accept Stats</button>
+                        <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> 🔄 Reset</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                    `;
+                }
+            } else if (isReviewScreen) {
+                terminalTitle.textContent = '⚔ REVIEW YOUR HERO';
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ⚔ Accept & Play</button>
+                        <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> 🔄 Reroll</button>
+                        <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> 🎲 Start Over</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                    `;
+                }
+            } else {
+                // Choice menu (Race, Class, Traits)
+                if (screenText.includes('race affects stats')) {
+                    terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
+                } else if (screenText.includes('class affects stats')) {
+                    terminalTitle.textContent = '⚔ CHOOSE CHARACTER CLASS';
+                } else {
+                    terminalTitle.textContent = '⚔ CHARACTER CREATION';
+                }
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="*"><span>[*]</span> 🎲 Random</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                    `;
+                }
+                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             }
             return;
         }
 
-        // Active play: hide birth touch controls
-        if (birthTouchControls) birthTouchControls.style.display = 'none';
-
-        // --- ACTIVE PLAY (Town or Dungeon) ---
-        // Never show character birth or reroll buttons during active play!
+        // --- ACTIVE GAMEPLAY (Town or Dungeon) ---
         if (termExitMenuBtn) termExitMenuBtn.style.display = 'none';
-        const showTermTouch = window.DeviceProfile ? (window.DeviceProfile.getTier() !== 'desktop' || window.DeviceProfile.hasTouch()) : (window.innerWidth < 1024);
-        if (termTouchControls) termTouchControls.style.display = showTermTouch ? 'flex' : 'none';
-        if (mobileHeroCard) mobileHeroCard.style.display = 'none';
-        if (terminalCanvas) terminalCanvas.style.display = 'block';
-        if (terminalToolbar) terminalToolbar.style.display = 'flex';
-        if (terminalCard) terminalCard.classList.remove('mobile-card-active');
-        if (quickBirthBtn) quickBirthBtn.style.display = 'none';
-        if (termRerollBtn) termRerollBtn.style.display = 'none';
-        if (termCustomBtn) termCustomBtn.style.display = 'none';
-
-        // Check if player is inside a store in town:
-        // A store is STRICTLY active ONLY when inOverlay > 0! Never when walking around town (inOverlay === 0).
-        let playerFeat = 0;
-        if (frame.map && frame.map.rows && frame.player) {
-            const py = frame.player.y;
-            const px = frame.player.x;
-            if (frame.map.rows[py] && frame.map.rows[py].f) {
-                playerFeat = parseInt(frame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16) || 0;
-            }
-        }
-
-        const isStoreFeat = playerFeat >= 7 && playerFeat <= 14;
-        const inOverlay = Boolean(frame.ui && (frame.ui.overlay || 0) > 0);
-        const hasStoreText = screenText.includes('store inventory') ||
-                             screenText.includes('home inventory') ||
-                             screenText.includes('gold remaining') ||
-                             screenText.includes('purchase which item') ||
-                             screenText.includes('sell which item') ||
-                             screenText.includes('examine which item');
-        const isItemPrompt = screenText.includes('select item:') ||
-                             screenText.includes('inven:') ||
-                             screenText.includes('equip:') ||
-                             screenText.includes('quiver:') ||
-                             screenText.includes('quiver') ||
-                             screenText.includes('which item?') ||
-                             screenText.includes('which potion?') ||
-                             screenText.includes('which scroll?') ||
-                             screenText.includes('which spell?') ||
-                             screenText.includes('which prayer?') ||
-                             screenText.includes('which book?') ||
-                             screenText.includes('wear/wield') ||
-                             screenText.includes('take off') ||
-                             screenText.includes('destroy which');
-
-        const isStore = inOverlay && !isItemPrompt && (isStoreFeat || hasStoreText);
+        if (birthNameBar) birthNameBar.style.display = 'none';
 
         if (isStore) {
             // Player is inside a store
+            if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
             let storeName = 'STORE';
             if (frame.term && frame.term.rows) {
                 for (let r = 0; r < Math.min(4, frame.term.rows.length); r++) {
@@ -1959,53 +1927,59 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             if (storeName === 'STORE' && isStoreFeat) {
                 const storeNames = {
-                    7: 'GENERAL STORE',
-                    8: 'ARMOURY',
-                    9: 'WEAPONSMITH',
-                    10: 'TEMPLE',
-                    11: 'ALCHEMY SHOP',
-                    12: 'MAGIC SHOP',
-                    13: 'BLACK MARKET',
-                    14: 'YOUR HOME'
+                    7: 'GENERAL STORE', 8: 'ARMOURY', 9: 'WEAPONSMITH', 10: 'TEMPLE',
+                    11: 'ALCHEMY SHOP', 12: 'MAGIC SHOP', 13: 'BLACK MARKET', 14: 'YOUR HOME'
                 };
                 if (storeNames[playerFeat]) storeName = storeNames[playerFeat];
             }
             terminalTitle.textContent = '⚔ ' + storeName.toUpperCase();
-            // IN STORE: Show store actions bar
-            if (storeActionsBar) storeActionsBar.style.display = 'flex';
-            if (itemActionsBar) itemActionsBar.style.display = 'none';
-            if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
-            if (termEscapeBtn) termEscapeBtn.style.display = 'none'; // btn-store-exit handles exit cleanly
-            if (termTouchControls) termTouchControls.style.display = showTermTouch ? 'flex' : 'none'; // D-pad active in stores for scrolling & selection!
 
-            // If store prompt has -more- or confirmation (e.g. storekeeper greeting, buy/sell confirm), display Advance button
-            const isStoreMore = Boolean(frame.ui && frame.ui.more) ||
-                                screenText.includes('-more-') ||
-                                screenText.includes('any other key') ||
-                                screenText.includes('esc to cancel');
-            const btnStoreAdv = document.getElementById('btn-store-advance');
-            if (btnStoreAdv) {
-                btnStoreAdv.style.display = isStoreMore ? 'inline-flex' : 'none';
-            }
-
-            // Distinguish sub-mode (Buy/Sell/Examine) from main store view
             const isStoreSubMode = screenText.includes('purchase which item') ||
                                    screenText.includes('sell which item') ||
                                    screenText.includes('examine which item') ||
                                    screenText.includes('which item') ||
                                    (frame.ui && (frame.ui.overlay || 0) > 2);
-            const btnStoreExit = document.getElementById('btn-store-exit');
-            if (btnStoreExit) {
-                if (isStoreSubMode) {
-                    btnStoreExit.innerHTML = '⎋ Cancel / Back (Esc)';
-                    btnStoreExit.title = 'Cancel sub-mode and return to store inventory [Esc]';
-                } else {
-                    btnStoreExit.innerHTML = '🚪 Exit Store (Esc)';
-                    btnStoreExit.title = 'Exit store and return to town [Esc]';
+
+            const hasMore = Boolean(frame.ui && frame.ui.more) || screenText.includes('-more-');
+
+            if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling store inventory
+
+            if (isStoreSubMode) {
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel / Back</button>
+                        ${hasMore ? '<button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> More / Space</button>' : ''}
+                    `;
                 }
+                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
+            } else {
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> 💰 Buy</button>
+                        <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> 🏷 Sell</button>
+                        <button type="button" class="term-ctx-btn" data-key="l"><span>[l]</span> 🔍 Examine</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> 🚪 Exit Store</button>
+                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                    `;
+                }
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
             }
-        } else {
-            // Normal in-game menu, inventory, equipment, or action screen
+        } else if (isTargeting) {
+            // Target / Direction Aiming Mode
+            terminalTitle.textContent = '🎯 TARGETING & AIMING';
+            if (termDpad) termDpad.style.display = 'grid'; // 8-way directional aiming
+            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+
+            if (termCtxActions) {
+                termCtxActions.innerHTML = `
+                    <button type="button" class="term-ctx-btn btn-gold" data-key="5"><span>[5/⏎]</span> 🎯 Fire / Select</button>
+                    <button type="button" class="term-ctx-btn" data-key="*"><span>[*]</span> 🔍 Next Target</button>
+                    <button type="button" class="term-ctx-btn" data-key="t"><span>[t]</span> 📍 Nearest</button>
+                    <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Cancel Aiming</button>
+                `;
+            }
+        } else if (isItemPrompt) {
+            // Item selection / inventory / equipment prompts
             if (screenText.includes('throw which item?')) {
                 terminalTitle.textContent = '🎯 THROW ITEM';
             } else if (screenText.includes('quaff which potion?') || screenText.includes('quaff')) {
@@ -2024,91 +1998,50 @@ window.addEventListener('DOMContentLoaded', () => {
                 terminalTitle.textContent = '📦 DROP ITEM';
             } else if (screenText.includes('quiver:') || screenText.includes('quiver')) {
                 terminalTitle.textContent = '🏹 QUIVER MISSILES';
-            } else if ((screenText.includes('inven:') || screenText.includes('inventory')) && !hasStoreText) {
-                terminalTitle.textContent = '🎒 INVENTORY PACK';
             } else if (screenText.includes('equip:') || screenText.includes('equipment')) {
                 terminalTitle.textContent = '🛡 EQUIPPED GEAR';
-            } else if (screenText.includes('character sheet')) {
-                terminalTitle.textContent = '⚔ CHARACTER SHEET';
             } else {
-                terminalTitle.textContent = '⚔ ANGBAND CLASSIC TERMINAL';
+                terminalTitle.textContent = '🎒 INVENTORY PACK';
             }
 
-            if (storeActionsBar) storeActionsBar.style.display = 'none';
+            const isEquipView = screenText.includes('equip');
+            const isQuiverView = screenText.includes('quiver:') || screenText.includes('quiver');
 
-            if (isItemPrompt && itemActionsBar && itemButtonsList) {
-                itemActionsBar.style.display = 'flex';
-                if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
-                termEscapeBtn.style.display = 'none';
+            if (termDpad) termDpad.style.display = 'none'; // Letter ribbon handles item choices cleanly
 
-                // Render item buttons
-                itemButtonsList.innerHTML = '';
-                const detectedLetters = new Set();
-                if (frame.term && frame.term.rows) {
-                    for (let i = 0; i < frame.term.rows.length; i++) {
-                        const rowStr = frame.term.rows[i].g || '';
-                        const m = rowStr.match(/\b([a-zA-Z0-9])\)\s+([^\n\r]+)/);
-                        if (m && !detectedLetters.has(m[1])) {
-                            const letter = m[1];
-                            detectedLetters.add(letter);
-                            const rawName = m[2].trim();
-                            const cleanName = rawName.replace(/\s{2,}\d+\.\d+\s+lb.*$/, '').trim();
-                            const isQuiverSummary = cleanName.toLowerCase().startsWith('in quiver') || cleanName.toLowerCase().includes('in quiver');
-                            const btn = document.createElement('button');
-                            btn.className = 'btn-item-pill' + (isQuiverSummary ? ' btn-quiver-summary' : '');
-                            const displayKey = isQuiverSummary ? '|' : letter;
-                            btn.innerHTML = `<span class="item-key-letter">[${displayKey}]</span> <span class="item-name-text">${cleanName}</span>`;
-                            btn.title = isQuiverSummary ? `Open and inspect Quiver missiles [|]` : `Select ${cleanName} [${letter}]`;
-                            btn.addEventListener('click', () => {
-                                if (audio) audio.playMenuNav();
-                                network.sendKey(isQuiverSummary ? '|' : letter);
-                            });
-                            itemButtonsList.appendChild(btn);
-                        }
-                    }
-                }
+            if (termCtxActions) {
+                termCtxActions.innerHTML = `
+                    <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
+                    <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> ${isEquipView ? '🎒 View Pack' : '🛡 View Gear'}</button>
+                    <button type="button" class="term-ctx-btn" data-key="|"><span>[|]</span> ${isQuiverView ? '🎒 Pack' : '🏹 Quiver'}</button>
+                    <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                `;
+            }
+            populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
+        } else {
+            // Classic Dungeon View (Walking around in 2D classic grid)
+            terminalTitle.textContent = '⚔ ANGBAND CLASSIC TERMINAL';
+            if (termDpad) termDpad.style.display = 'grid'; // 8-way movement
+            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
 
-                if (btnItemSwitch) {
-                    const hasEquip = screenText.includes('equip');
-                    btnItemSwitch.textContent = hasEquip ? '🔄 View Pack [/]' : '🔄 View Gear [/]';
-                    btnItemSwitch.onclick = () => {
-                        if (audio) audio.playMenuNav();
-                        network.sendKey('/');
-                    };
-                }
+            const hasMore = Boolean(frame && frame.ui && frame.ui.more) || screenText.includes('-more-');
 
-                const btnItemQuiver = document.getElementById('btn-item-quiver');
-                if (btnItemQuiver) {
-                    const isQuiver = screenText.includes('quiver:') || screenText.includes('quiver');
-                    btnItemQuiver.textContent = isQuiver ? '🎒 View Pack [/]' : '🏹 View Quiver [|]';
-                    btnItemQuiver.title = isQuiver ? 'Switch to Backpack Inventory [/]' : 'View or switch to Quiver missiles [|]';
-                    btnItemQuiver.onclick = () => {
-                        if (audio) audio.playMenuNav();
-                        network.sendKey(isQuiver ? '/' : '|');
-                    };
+            if (termCtxActions) {
+                if (hasMore) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ⏩ Continue (-more-)</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Dismiss</button>
+                    `;
+                } else {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
+                        <button type="button" class="term-ctx-btn" data-key="i"><span>[i]</span> 🎒 Pack</button>
+                        <button type="button" class="term-ctx-btn" data-key="e"><span>[e]</span> 🛡 Gear</button>
+                        <button type="button" class="term-ctx-btn" data-key="m"><span>[m]</span> ✨ Cast</button>
+                        <button type="button" class="term-ctx-btn" data-key="R"><span>[R]</span> ⏳ Rest</button>
+                    `;
                 }
-
-                if (btnItemCancel) {
-                    btnItemCancel.onclick = () => {
-                        if (audio) audio.playMenuNav();
-                        network.sendKey('escape');
-                        forceTerminal = false;
-                        window.__manualTerminalOpen = false;
-                        if (terminalContainer) {
-                            terminalContainer.classList.add('hidden');
-                            terminalContainer.classList.remove('in-game-modal');
-                        }
-                        if (input) input.setTerminalMode(false);
-                    };
-                }
-            } else {
-                if (itemActionsBar) itemActionsBar.style.display = 'none';
-                if (termAdvanceBtn) {
-                    termAdvanceBtn.style.display = 'inline-flex';
-                    termAdvanceBtn.textContent = 'Advance (Enter)';
-                }
-                termEscapeBtn.style.display = 'inline-flex';
-                termEscapeBtn.textContent = 'Close (Esc)';
             }
         }
     }
@@ -2118,7 +2051,10 @@ window.addEventListener('DOMContentLoaded', () => {
             updateTerminalChoices,
             updateTerminalToolbar,
             needsTerminal,
-            updateViewMode
+            updateViewMode,
+            confirmHeroBirth,
+            getAppState: () => appState,
+            getLastFrame: () => lastFrame
         });
     }
 
