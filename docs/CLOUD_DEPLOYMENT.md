@@ -1,12 +1,11 @@
-# Angband3D — Cloud Deployment & Container Guide
+## Architecture Overview
 
-## Architecture Overview (Option A)
-
-Angband3D implements a **decoupled client-server architecture**:
+Angband3D implements a **decoupled, cloud-native architecture**:
 - **Authoritative Engine Service (`server/`)**: Runs a headless, single-binary C Angband 4.2.6 engine compiled with the JSON Bridge protocol (`-mbridge`).
-- **WebSocket Gateway (`/ws`)**: A lightweight Node.js daemon manages client connections, spawns isolated child engine processes per session, and pipes stdin/stdout streams to/from WebSocket frames in real-time.
-- **Save Game Storage (`/data/save`)**: Persistent volume or cloud storage mount preserving binary character save files (`SaveVNLA` format).
-- **Static Asset Delivery**: Serves compiled Godot Web client files (`index.html`, `index.wasm`, `index.pck`) as well as the pre-built standalone desktop distribution (`/download/angband3d-standalone.zip`).
+- **WebSocket Gateway (`/ws`)**: A lightweight Node.js daemon manages client sessions, spawns isolated child engine processes per player session, and pipes stdin/stdout streams to/from WebSocket JSON frames in real-time.
+- **Save Game Storage (`/data/save`)**: Persistent volume or cloud storage mount preserving binary character save files (`SaveVNLA` format). Fully cross-compatible between Web and Desktop clients.
+- **Three.js WebGL 3D Client (`server/public/`)**: Delivers an immersive, zero-install 3D dungeon crawler directly in modern desktop, tablet, and mobile browsers (iOS Safari, Android Chrome, Desktop Edge/Chrome/Firefox/Safari). Features PBR materials, dynamic character scaling, procedural 3D creatures, first-person viewmodel, and collision-free mobile touch controls.
+- **Canonical Live Production Deployment**: [https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)
 
 ---
 

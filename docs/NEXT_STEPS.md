@@ -629,3 +629,34 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
   - `server/test/server_test.js`: 18/18 server unit tests passing.
   - `scratch/test_mobile_classic_ux.js`: 6/6 phases passing 100% in headless Chrome.
   - Live HTTPS & WebSocket telemetry verified with `v=6.0` asset query strings.
+
+### Priority 13: Mobile Landscape Layout Overhaul, Zero Overlaps & Replication Documentation (COMPLETED)
+- **Scope**: `server/public/css/dungeon.css`, `server/public/js/app.js`, `server/public/index.html`, `README.md`, `docs/CLOUD_DEPLOYMENT.md`, `docs/LLM_CONTEXT.md`
+- **Accomplishments**:
+  1. **Landscape Mobile Collision Elimination**:
+     - Diagnosed and resolved all collisions occurring under landscape mobile orientations (`max-height: 520px` / `orientation: landscape`, e.g., 844x390, 896x414, 926x428).
+     - Fixed `#minimap-container`: Added `left: auto !important; right: max(8px, var(--safe-right)) !important;` to override desktop `left: 18px` pinning, moving the radar cleanly to the right side below the top message banner.
+     - Separated `#hud-footer` into a quarantined center status capsule between `left: max(160px, calc(150px + var(--safe-left)))` and `right: max(160px, calc(150px + var(--safe-right)))`, with `height: 28px`. It never overlaps `#touch-controls` on the bottom-left or `#action-bar` on the bottom-right.
+     - Explicitly mapped `#action-bar:not(.drawer-open)` into a compact 2-column tactical thumb cluster on bottom-right (scaled 0.80x), hiding redundant buttons and desktop row layouts.
+     - Scaled movement D-pad (`#touch-controls`) at 0.78x docked firmly at bottom-left.
+     - Docked `#top-right-bar` into a single ultra-compact 30px row (`top: 2px`), completely eliminating overlap with `.top-message-banner` (`top: 34px`).
+  2. **Classic Terminal View Landscape Maximization**:
+     - Completely hid `#top-right-bar` whenever the terminal is open (`body.terminal-mode-active #top-right-bar { display: none !important; }`), freeing the top-right toolbar and zoom controls (`[🔍 -]`, `[100%]`, `[🔍 +]`) from visual collision.
+     - Streamlined `.terminal-touch-controls` in landscape to 2 rows of 3 buttons for contextual actions (`height: 28px`), reducing total dock height from 136px to 74px.
+     - Expanded `#terminal-viewport` height from 185px to 260px (+43% increase), rendering crisp, full-screen 80x24 classic ASCII character grids.
+  3. **Authoritative Project Replication Documentation**:
+     - Overhauled `README.md` with complete, step-by-step instructions for anyone to replicate the project:
+       - Running the Web/Three.js client locally via Node.js
+       - Running via Docker and Docker Compose
+       - Deploying to Google Cloud Run
+       - Building and packaging the standalone Godot C# desktop client
+       - Running engine smoke tests and server integration test suites
+     - Updated `docs/CLOUD_DEPLOYMENT.md` with Three.js WebGL architecture, session affinity, and Cloud Run production settings.
+     - Updated `docs/LLM_CONTEXT.md` with Gotchas #12 (Touch Canvas Isolation) and #13 (Landscape Mobile Collision Invariants).
+  4. **Asset Cache Versioning**:
+     - Bumped cache bust version to `v=6.1` in `server/public/index.html`.
+- **Verification**:
+  - `python tools/smoke_test.py`: 11/11 tests passing.
+  - `dotnet build client/angband3d.csproj`: 0 errors, 0 warnings.
+  - `cd server && npm test`: 18/18 test suites passing.
+  - `node scratch/diagnose_landscape.js`: Headless Chrome iPhone Landscape 844x390 captured with 0 overlaps across 3D play, classic terminal, and review screens.

@@ -1,16 +1,26 @@
 # angband3d
 
-A first-person 3D front end for [Angband](https://github.com/angband/angband),
-built as a high-performance fork of the game rather than a reimplementation of it.
+A first-person 3D front end for [Angband](https://github.com/angband/angband), built as a high-performance fork of the game rather than a reimplementation of it.
 
 The goal is *Dungeon Master*-style immersion with Angband's full roguelike depth: every monster, item, artifact, curse, vault, and level generator, completely unchanged.
 
-**Status: Version 1.0.0 — fully playable standalone 3D dungeon crawler with Godot 4 & .NET 8.**
+**Status: Version 1.0.0 — Fully playable standalone 3D dungeon crawler with Godot 4 & .NET 8, and live WebGL Cloud Edition for Desktop, Tablet, and Mobile.**
+
+[![Play Online in Browser](https://img.shields.io/badge/Play_Online-Live_Web_Client-gold?style=for-the-badge&logo=googlechrome)](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
 [![Engine: Angband 4.2.6](https://img.shields.io/badge/Angband-4.2.6-darkgreen.svg)](https://github.com/angband/angband)
-[![Client: Godot 4.3+ .NET](https://img.shields.io/badge/Godot-4.3+_.NET-blueviolet.svg)](https://godotengine.org/)
+[![Web Client: Three.js WebGL](https://img.shields.io/badge/Web_Client-Three.js_WebGL-orange.svg)](server/public)
+[![Desktop Client: Godot 4.3+ .NET](https://img.shields.io/badge/Godot-4.3+_.NET-blueviolet.svg)](https://godotengine.org/)
+[![Cloud Run: Live](https://img.shields.io/badge/Cloud_Run-Online-brightgreen.svg)](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)
 [![Smoke Tests: 11/11 Passing](https://img.shields.io/badge/Smoke_Tests-11%2F11_Passing-success.svg)](tools/smoke_test.py)
+[![Server Tests: 18/18 Passing](https://img.shields.io/badge/Server_Tests-18%2F18_Passing-success.svg)](server/test/server_test.js)
+
+---
+
+### 🎮 Canonical Play Link (Zero Install, Desktop & Mobile)
+👉 **[https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)**  
+Open in Chrome, Safari, Edge, or Firefox on PC, Mac, iPad, iPhone, or Android. Supports mouse/keyboard, gamepad, and touch controls.
 
 ---
 
@@ -84,150 +94,259 @@ See **[CHANGELOG.md](CHANGELOG.md)** for detailed version-by-version release not
 
 ---
 
-## How it works
+## 🏛️ System Architecture
 
-Angband's game logic is well separated from its display layer, and adding a new
-front end is a supported extension point. So instead of rewriting the game we
-add one:
+Angband's game mechanics are decoupled from its presentation layer via the **Angband3D Bridge**:
 
 ```
-  engine/  (forked Angband)            client/  (Godot 4 C#)
-  +-------------------------+          +--------------------+
-  |  Angband, unmodified    |  stdout  |                    |
-  |                         | -------> |  reads JSON frames |
-  |  src/main-bridge.c      |          |  renders 3D world  |
-  |    a Term that emits    | <------- |  sends keypresses  |
-  |    JSON instead of text |  stdin   |                    |
-  +-------------------------+          +--------------------+
+                       +-----------------------------+
+                       |  Upstream Angband 4.2.6 C   |
+                       |  Mechanics, RNG, DGN, Saves |
+                       +-----------------------------+
+                                      |
+                          engine/src/main-bridge.c
+                          JSON Bridge Term (-mbridge)
+                                      |
+                  +-------------------+-------------------+
+                  |                                       |
+            stdio / IPC                             stdio / Child Proc
+                  |                                       |
+        client/ (Godot 4 C#)                 server/src/server.js (Node.js)
+      +-----------------------+              +----------------------------+
+      | Standalone Desktop    |              | Cloud WebSocket Daemon     |
+      | First-person 3D world |              | Session lifecycle, Saves   |
+      | Windows x64 .exe      |              +----------------------------+
+      +-----------------------+                            |
+                                                     WebSocket JSON
+                                                           |
+                                             server/public/ (Three.js WebGL)
+                                             +----------------------------+
+                                             | Web & Mobile 3D Client     |
+                                             | Desktop, Tablet & Phone    |
+                                             | Zero install in browser    |
+                                             +----------------------------+
 ```
 
-The bridge publishes two channels every time the game waits for input:
+The bridge publishes two synchronized channels on every turn or prompt:
+1. **Structured Game State**: Player attributes, vitals, racial height/weight, equipment, local 3D tiles, visible monsters, animated items, light radius, and real-time combat banners.
+2. **Raw Terminal Stream**: 80x24 ASCII character matrix for Angband's character creation, stores, targeting prompts, and wizard menus.
 
-- **Structured** — player state, stats, height/weight, equipment, terrain, visible monsters and objects, messages, light radius. This drives the 3D world.
-- **Raw terminal** — the 80x24 character grid. Angband's prompts, menus, character creation, and stores are entangled with its game logic, so they are shown as a text overlay.
+---
 
-Input is delivered as *keypresses*, not as game commands. That means character creation, inventory, stores, targeting, saving, and wizard mode all work through the bridge with no special casing.
+## 🎮 How to Play
 
-## Design rules
+### Option 1: Live Cloud Web Client (Instant, Zero Install)
+Open **[https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)** on any device:
+- **Desktop (Chrome / Safari / Edge / Firefox)**: Full mouse look (drag or click-drag), keyboard controls, and volume adjustments.
+- **Mobile (iPhone / Android)**:
+  - **Portrait Mode**: Split-thumb layout — left thumb for 8-way movement D-pad, right thumb for tactical action cluster, top status capsule, and circular radar minimap.
+  - **Landscape Mode**: Collision-free widescreen layout — D-pad docked bottom-left, action buttons docked bottom-right, status pill bar centered between them, radar minimap docked top-right, and maximized 3D viewport.
+  - **Touch Gestures**: Single-finger drag on 3D view to look around; single-finger touch pan and two-finger pinch-to-zoom on classic terminal view. Touch interactions inside the terminal canvas never trigger unintended commands.
+  - **Contextual Action Bar**: Dynamic buttons (`Attack`, `Cast`, `Potion`, `Pack`, `Stairs`, `Classic`, `More`) adapt to your active context.
 
-1. **The engine fork stays rebasable.** Bridge code lives in new files. Only four existing files are touched, and only to register the front end. We can pull upstream Angband releases indefinitely.
-2. **The game is never modified.** Saves written through the bridge are ordinary, binary-compatible Angband saves.
-3. **The protocol is versioned** so alternate clients (VR, web, mobile) stay possible.
-
-## Playing
-
-Double-click **`play.cmd`**, or run from PowerShell:
-
+### Option 2: Standalone Desktop Client (Godot 4 .NET)
+Double-click **`play.cmd`** (or run from PowerShell):
 ```powershell
 .\play.cmd
 ```
-
-It launches the engine, rolls a character (or lets you choose via the menu), and drops you into the town.
-
-### Controls
-
-| Key | Action |
-|---|---|
-| **Arrow Left / Right** | Turn camera 90° left / right (instant, costs 0 game turns) |
-| **Arrow Up / Down** | Step forward / backward in current camera facing |
-| **Numpad 8 / 2** | Step forward / backward relative to camera facing |
-| **Numpad 4 / 6** | Strafe left / strafe right relative to camera facing |
-| **Numpad 7 / 9** | Diagonal step forward-left / forward-right |
-| **Numpad 1 / 3** | Diagonal step backward-left / backward-right |
-| **Numpad 5** | Stay in place / rest for 1 turn |
-| **`hjkl` / `yubn`** | Classic roguelike cardinal & diagonal grid moves |
-| **`>` / `<`** | Descend / ascend stairs |
-| **`Shift-M`** | Toggle full-level 2D tactical map overlay |
-| **`[` / `]`** *(or `Ctrl+PgUp/PgDn`)* | Scale physical HUD minimap window size |
-| **`+` / `-`** *(or `PgUp/PgDn`)* | Zoom HUD minimap grid tile radius |
-| **`Tab`** | Toggle raw 80x24 terminal view |
-| **`Escape`** | In-game pause menu (Resume, Quick Save, Load, Save & Quit) |
-| **`i` / `e` / `w`** | Inventory / equipment / wield item |
-| **`d` / `k`** | Drop / destroy item |
-| **`m` / `p`** | Cast spell / pray |
-| **`Ctrl-S`** | Quick save |
-| **`Ctrl-X`** | Save and quit |
-| **`Ctrl-W`** | Toggle Wizard (God) mode |
-| **`Ctrl-A`** | Open Wizard debug command menu |
-| **`?`** | Help |
-
-Prompts, menus, and stores appear in the **terminal view** (`Tab`) — those parts of Angband are tightly entangled with game logic, so they are shown seamlessly as text until native panels replace them.
-
-Squares you can currently see are drawn fully lit; squares you remember but cannot see are dimmed. That distinction comes straight from Angband and drives the fog-of-memory rendering in 3D.
-
-To play plain text Angband instead:
-
+To launch in classic ASCII mode:
 ```powershell
 .\play.cmd -Classic
 ```
 
-The `.cmd` wrappers exist because PowerShell restricts running unsigned scripts by default; they bypass that for the one script rather than changing system-wide policy. If you would rather run the `.ps1` files directly, use `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+---
 
-## Quickstart for Contributors
+## ⌨️ Controls Reference
 
-We welcome contributions of all kinds — from adding new 3D creature models, dungeon materials, and audio effects to refining UI overlays, optimizing mesh pipelines, or writing alternate frontends (VR, web, mobile).
+| Control (Desktop) | Mobile Touch | Action |
+|---|---|---|
+| **Arrow Left / Right** | Turn Left / Right buttons | Turn camera 90° left / right (instant, 0 game turns) |
+| **Arrow Up / Down** | D-Pad ▲ / ▼ | Step forward / backward in camera facing direction |
+| **Numpad 4 / 6** | Strafe ⇦ / ⇨ | Strafe left / right relative to camera facing |
+| **Numpad 7 / 9 / 1 / 3** | Diagonal buttons ↖ ↗ ↙ ↘ | Diagonal step forward-left / right, backward-left / right |
+| **Space** *(or Numpad 5)* | Attack / Wait (⚔) | Attack front monster or wait/rest 1 turn |
+| **`m` / `p`** | Cast (✨) | Cast magical spell or recite holy prayer |
+| **`q`** | Potion (🧪) | Quaff / drink potion from inventory |
+| **`r`** | Scroll (📜) | Read magical scroll from inventory |
+| **`v`** | Throw (🎯) | Throw item at monster target |
+| **`f`** | Shoot (🏹) | Fire ranged weapon from quiver |
+| **`o`** | Door (🚪) | Open closed door or chest |
+| **`g`** | Get (💎) | Pick up item from dungeon floor |
+| **`R`** | Rest (⏳) | Rest until fully healed |
+| **`i` / `e`** | Pack (🎒) / Gear (🛡) | Open inventory backpack or equipped gear |
+| **`>` / `<`** | Descend (⬇) / Ascend (⬆) | Use staircase |
+| **`Tab`** | Classic (📜) | Toggle 80x24 classic terminal view |
+| **Mouse Drag** | Single-finger touch drag | Smooth first-person camera look |
+| **Mouse Wheel** | Pinch-to-zoom | Zoom in/out on classic terminal view |
+| **Drag Terminal** | Touch drag on terminal | Pan around enlarged classic terminal canvas |
+| **`Shift-M`** | Map (🗺) | Toggle full-level 2D tactical map overlay |
+| **`+` / `-`** | Minimap +/- buttons | Zoom minimap radar tile radius |
+| **`[` / `]`** | Minimap Size (⛶) | Toggle minimap radar size preset |
+| **`Escape`** | Menu (⚙) | In-game pause menu (Save, Load, Export, Controls) |
+
+---
+
+## 🛠️ Complete Replication Guide
+
+Anyone can build, test, run, and deploy the entire Angband3D stack from scratch using the steps below.
 
 ### Prerequisites
 
-| Tool | Purpose | Recommended Version |
+| Component | Minimum Version | Used For |
 |---|---|---|
-| **.NET SDK** | Godot C# client compilation | .NET 8.0 or 9.0 |
-| **Godot Engine (.NET version)** | Client editor and runtime | Godot 4.3+ (.NET / Mono) |
-| **Python** | Smoke test runner & bridge scripting | Python 3.8+ |
-| **MSYS2 / MinGW-w64** *(Windows only)* | Building Angband C engine | GCC 13+, CMake 3.20+, Ninja |
-| **GCC / Clang + CMake + Ninja** *(Linux / macOS)* | Building Angband C engine | Standard dev packages |
+| **Node.js** | v18.0+ | Cloud server, WebSocket daemon, Web client delivery |
+| **Python** | 3.8+ | Engine smoke test suite and bridge validation |
+| **Git** | 2.30+ | Source checkout and upstream patch tracking |
+| **GCC / Clang + CMake** | CMake 3.20+, GCC 11+ | Compiling the headless C engine |
+| **Docker** *(Optional)* | 24.0+ | Containerized local and cloud deployment |
+| **.NET SDK** *(Optional)* | 8.0 or 9.0 | Compiling the Godot C# desktop client |
+| **Godot Engine** *(Optional)* | 4.3+ (.NET / Mono) | Running/editing the native desktop client |
 
-### Building
+---
 
-```powershell
-# 1. One-time toolchain setup (Windows MSYS2 + MinGW)
-.\tools\bootstrap.ps1
+### Method 1: Run the Web Edition Locally (Fastest)
 
-# 2. Build the Angband C engine
-.\build.cmd
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/lieb2101/angband3d.git
+   cd angband3d
+   ```
 
-# 3. Build the Godot C# client
-dotnet build client/angband3d.csproj
+2. **Build the C Engine**:
+   - **Windows (PowerShell)**:
+     ```powershell
+     .\build.cmd
+     ```
+   - **Linux / macOS**:
+     ```bash
+     mkdir -p engine/build && cd engine/build
+     cmake .. -DCMAKE_BUILD_TYPE=Release -DSUPPORT_BRIDGE_FRONTEND=ON -DSUPPORT_GCU_FRONTEND=ON
+     make -j$(nproc)
+     cd ../..
+     ```
 
-# 4. Run automated bridge acceptance tests
+3. **Install server dependencies & start**:
+   ```bash
+   cd server
+   npm install
+   npm start
+   ```
+
+4. **Play**: Open **`http://localhost:8080`** in your browser!
+
+---
+
+### Method 2: Run via Docker (Zero Toolchain Required)
+
+Run the fully containerized multi-stage build:
+```bash
+# Build the container image
+docker build -t angband3d-cloud:latest -f server/Dockerfile .
+
+# Run with persistent save volume mounted
+docker run -d -p 8080:8080 -v angband_saves:/data/save --name angband3d angband3d-cloud:latest
+```
+Or with Docker Compose:
+```bash
+cd server
+docker compose up -d
+```
+Visit **`http://localhost:8080`**.
+
+---
+
+### Method 3: Deploy to Google Cloud Run
+
+To replicate the live production deployment on Google Cloud Run:
+
+1. **Install and authenticate Google Cloud SDK**:
+   ```bash
+   gcloud auth login
+   gcloud config set project YOUR_PROJECT_ID
+   ```
+
+2. **Submit container build via Cloud Build**:
+   ```bash
+   gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/angband3d-cloud:latest -f server/Dockerfile .
+   ```
+
+3. **Deploy to Cloud Run with WebSocket & Session Affinity enabled**:
+   ```bash
+   gcloud run deploy angband3d-cloud \
+     --image gcr.io/YOUR_PROJECT_ID/angband3d-cloud:latest \
+     --platform managed \
+     --region us-central1 \
+     --allow-unauthenticated \
+     --port 8080 \
+     --session-affinity \
+     --timeout 3600 \
+     --concurrency 80 \
+     --memory 512Mi \
+     --cpu 1
+   ```
+
+Cloud Run will output your live HTTPS URL.
+
+---
+
+### Method 4: Run the Standalone Desktop Godot Client
+
+1. **One-time Windows MSYS2 toolchain setup**:
+   ```powershell
+   .\tools\bootstrap.ps1
+   ```
+2. **Build C Engine and Godot C# Project**:
+   ```powershell
+   .\build.cmd
+   dotnet build client/angband3d.csproj
+   ```
+3. **Launch Game**:
+   ```powershell
+   .\play.cmd
+   ```
+4. **Package Standalone Windows Distribution**:
+   ```powershell
+   .\package.cmd
+   ```
+   This generates `dist/Angband3D-Windows-x64.zip` containing the standalone `Angband3D.exe` and game assets.
+
+---
+
+### 🧪 Automated Validation & Test Suites
+
+Verify total workspace health at any time:
+
+```bash
+# 1. Engine JSON Bridge Smoke Tests (11/11 tests)
 python tools/smoke_test.py
+
+# 2. Cloud Server & Web Client Integration Tests (18/18 suites)
+cd server && npm test
+
+# 3. Godot C# Client Compilation
+dotnet build client/angband3d.csproj
 ```
 
-### Packaging Standalone Releases
+---
 
-To build a clean, self-contained standalone distribution bundle (`Angband3D-Windows-x64.zip`):
+## 🏛️ Invariants & Design Rules
 
-```powershell
-# Double-click or run from terminal:
-.\package.cmd
-```
+1. **Engine Rebasability**: Upstream Angband 4.2.6 C code in `engine/` is never modified in its game mechanics or RNG. All bridge code is isolated in `engine/src/main-bridge.c`, `bridge-json.c`, and `bridge-json.h`.
+2. **Safe Equipment & Querying**: Equipment slots are queried via `bridge_get_equipped_by_type()` (never `slot_by_name()` on optional slots to prevent engine asserts).
+3. **Touch Isolation Invariant**: Clicks, drags, and pinch gestures inside the classic terminal viewport strictly control view zoom and panning — never dispatching game commands. Game input is strictly routed through the tactical touch controls.
+4. **Zero Landscape Overlap Invariant**: Mobile landscape viewport (`max-height: 520px`) strictly separates the movement D-pad, status pill footer, action cluster, minimap radar, and top message banner into independent bounding zones.
 
-This compiles the engine, exports the standalone release executable (`Angband3D.exe`), packages gamedata and scripts, creates `dist/Angband3D-Windows-x64/`, and compresses it into an optimized `.zip` archive. End-users can extract and double-click `Angband3D.exe` (or `Play-Angband3D.cmd`) to play immediately with zero Godot installation required.
+---
 
-### Extending & Contributing
+## 📖 Further Documentation
 
-- **Adding 3D Monster Models**: Map GLTF/GLB models or procedural tokens declaratively in `client/scripts/MonsterModelResolver.cs`.
-- **Adding 3D Item Pickups**: Register item meshes and scale in `client/scripts/ItemModelResolver.cs`.
-- **First-Person Viewmodel & Rigs**: Customize weapon attachments and hand animations in `client/scripts/ViewModel.cs`.
-- **Procedural Masonry & Textures**: Customize PBR shaders, biomes, and geometry in `client/scripts/DungeonWorld.cs`.
-- **HUD & UI**: Enhance the 2D canvas and terminal overlays in `client/scripts/Overlay.cs`.
-- **Audio & Sound Effects**: Add or tune procedural sound synthesis in `client/scripts/AudioManager.cs`.
-- **Engine Bridge**: Maintain the lightweight C JSON bridge in `engine/src/main-bridge.c`.
-
-For comprehensive developer guides, architecture deep dives, and step-by-step tutorials, see:
-- 📖 [Contributing Guide](docs/CONTRIBUTING.md) — Step-by-step contribution recipes, coding standards, and PR instructions.
-- 🏛️ [Architecture](docs/ARCHITECTURE.md) — Technical rationale, frame synchronization, and rendering pipeline.
-- 📡 [Bridge Protocol v1](docs/PROTOCOL.md) — Wire specification for the JSON IPC protocol.
-- 🎨 [Graphics & Assets Handover](docs/GRAPHICS_HANDOVER.md) — 3D pipeline blueprints, shaders, and lighting design.
-- 🤖 [LLM / Agent Context](docs/LLM_CONTEXT.md) — High-density cheatsheet for AI coding assistants.
-
-## Trying the bridge by hand
-
-```powershell
-python tools/bridge.py enter enter '@' '@' '@' '@'
-```
-
-Rolls a random character and prints the screen after each keypress. For interactive debugging, see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md#debugging-the-bridge-by-hand).
+- 📡 [Bridge Wire Protocol v1](docs/PROTOCOL.md) — Complete JSON IPC format specification.
+- 🏛️ [Client Architecture](docs/ARCHITECTURE.md) — Godot C# and Three.js WebGL coordinate systems and pipelines.
+- ☁️ [Cloud Deployment Guide](docs/CLOUD_DEPLOYMENT.md) — Multi-cloud hosting, GCS mounts, and reverse proxies.
+- 🎨 [Graphics & Shaders Handover](docs/GRAPHICS_HANDOVER.md) — PBR lighting, biomes, and particle VFX blueprints.
+- 💾 [Save System & Cross-Play](docs/SAVE_SYSTEM.md) — Binary `SaveVNLA` format and cloud storage.
+- 📋 [Living Task Roadmap](docs/NEXT_STEPS.md) — Milestone tracker and active task queue.
+- 🤖 [LLM / Agent Guidelines](docs/LLM_CONTEXT.md) — Operating guidelines and key file index.
 
 ## Licence
 

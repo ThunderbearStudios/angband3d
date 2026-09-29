@@ -2078,6 +2078,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (appState !== 'game') {
             terminalContainer.classList.add('hidden');
             terminalContainer.classList.remove('in-game-modal');
+            document.body.classList.remove('terminal-mode-active');
             input.setTerminalMode(false);
             return;
         }
@@ -2096,6 +2097,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (needsTerm) {
             terminalContainer.classList.remove('hidden');
             terminalContainer.classList.remove('in-game-modal');
+            document.body.classList.add('terminal-mode-active');
             if (hudOverlay) hudOverlay.style.display = 'none';
             if (minimapContainer) minimapContainer.style.display = 'none';
             if (messageFeedWindow) messageFeedWindow.style.display = 'none';
@@ -2113,6 +2115,7 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
             terminalContainer.classList.add('hidden');
             terminalContainer.classList.remove('in-game-modal');
+            document.body.classList.remove('terminal-mode-active');
             if (hudOverlay) hudOverlay.style.display = 'flex';
 
             // Respect user closed preference for minimap radar
