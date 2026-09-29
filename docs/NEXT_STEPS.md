@@ -660,3 +660,31 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
   - `dotnet build client/angband3d.csproj`: 0 errors, 0 warnings.
   - `cd server && npm test`: 18/18 test suites passing.
   - `node scratch/diagnose_landscape.js`: Headless Chrome iPhone Landscape 844x390 captured with 0 overlaps across 3D play, classic terminal, and review screens.
+
+### Priority 14: Zero-PII Audit, Random Player Reroll Fix, Classic Store Navigation Maximization & Live Deployment (COMPLETED)
+- **Scope**: `server/public/js/app.js`, `server/public/sw.js`, `server/public/index.html`, `docs/NEXT_STEPS.md`, git history, Cloud Run
+- **Accomplishments**:
+  1. **Strict Zero-PII Certification**:
+     - Audited all tracked files, documentation, markdown files, and git history for personally identifiable information (PII).
+     - Verified zero occurrences of real personal names, private email addresses, or local user paths (`C:\Users\`) in tracked files.
+     - Verified git commit author identity is generic (`angband3d <dev@angband3d.local>`).
+  2. **Random Player Reroll Button Fix**:
+     - Identified root cause in Angband upstream `get_confirm_command()` (`engine/src/ui-birth.c:1567`): any key other than `'S'` or `Escape` (including `'r'`) triggers `cmdq_push(CMD_ACCEPT_CHARACTER)` and enters play. Keyboard `'R'` functioned because client input intercepted it and invoked `rerollHero()` (which dispatches `'s'` and activates quick birth automation), but clicking the reroll button dispatched raw key `'r'`.
+     - Updated `handleTouchAction` in `server/public/js/app.js` to intercept `'r'`/`'R'` on review screens and directly call `rerollHero()`.
+     - Attached `e.preventDefault()` and `e.stopPropagation()` to `btn-term-reroll`.
+  3. **Classic Store Maximization & Augmented Menus Removal**:
+     - Completely eliminated augmented/supplemental store sub-menus (`isStoreSubMode` bar swapping) that interfered with classic terminal store interaction.
+     - Maximized authentic 80x24 classic store view with a permanent, comprehensive external navigation dock:
+       - 8-way directional D-pad + Enter for navigating inventory listings.
+       - Store Action Navigation Keys: `[p] 💰 Buy`, `[s] 🏷 Sell`, `[l] 🔍 Examine`, `[␣] Next Page`, `[Esc] 🚪 Exit Store`.
+       - Direct item selection ribbon `[a]`..`[l]` permanently active outside the classic view so players can tap the letter of any item on screen.
+       - Viewport touch/drag/pinch strictly controls zoom and pan without triggering game commands.
+  4. **PWA & Asset Cache Invalidation**:
+     - Bumped service worker cache name to `angband3d-v6.2` in `server/public/sw.js`.
+     - Updated all CSS and JS asset query strings to `v=6.2` in `server/public/index.html`.
+- **Verification**:
+  - `tools/smoke_test.py`: 11/11 tests passing.
+  - `dotnet build client/angband3d.csproj`: 0 errors, 0 warnings.
+  - `cd server && npm test`: 18/18 test suites passing.
+  - Reroll and store automation tests passing cleanly.
+
