@@ -850,3 +850,15 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
      - `https://angband3d.com/wasm/angband.data` -> 200 OK
      - `https://angband3d.com/download/Angband3D-Android.apk` -> 302 Found (GitHub Releases)
      - `wss://angband3d.com/ws` -> Live WebSocket bridge verified with `hello` handshake.
+
+### Priority 21: Seamless Platform Routing & Standalone Downloads Overhaul (COMPLETED)
+- **User Goals & Direct Feedback**:
+  - Removed confusing and broken manual "Local Engine / Cloud Realm" toggle switch.
+  - Automatically detect client environment:
+    - Web browser accessing `https://angband3d.com` unconditionally defaults 100% to the Cloud Realm (`GameNetwork` via WebSocket) with instant connection and server savefile synchronization.
+    - Purged stale `angband_engine_mode` from browser `localStorage` to prevent blank screen freezes.
+    - Android APK automatically recognized as native standalone offline app (`isAndroidApk()`), running offline with bundled engine and offering an option to visit or play in the web client online.
+  - Revamped Option [8] on Main Menu:
+    - On Web: `[8] Standalone Apps & Downloads (Android / PC)` opening dedicated modal offering direct downloads for Android APK (`/download/Angband3D-Android.apk`) and Windows PC Desktop (`/download/angband3d-standalone.zip`), plus browser PWA installation.
+    - In APK: `[8] Play Online in Web Client (Cloud Realm)` connecting to `https://angband3d.com`.
+  - Rebuilt and deployed Cloud Run container revision `angband3d-cloud-00084-6c8` (v=7.1). Verified clean live web client delivery and interactive WebSocket frames.
