@@ -20,6 +20,8 @@ const activeSessions = new Map();
 // Configuration
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const IS_WIN = process.platform === 'win32';
+const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${20 * 60 * 1000}`, 10); // 20 minutes
+const MAX_CONCURRENT_GAMES = parseInt(process.env.MAX_CONCURRENT_GAMES || '50', 10);
 
 function resolveEngineExe() {
     if (process.env.ENGINE_EXE && fs.existsSync(process.env.ENGINE_EXE)) {
@@ -544,6 +546,16 @@ wss.on('connection', (ws, request) => {
 
     console.log(`[WebSocket] Client connected. User: ${user || 'default'}, Save: ${save || 'none'}`);
 
+    if (activeSessions.size >= MAX_CONCURRENT_GAMES) {
+        console.warn(`[WebSocket] Capacity limit reached (${activeSessions.size}/${MAX_CONCURRENT_GAMES}). Rejecting connection.`);
+        ws.send(JSON.stringify({
+            t: 'bye',
+            detail: 'Server is currently at maximum player capacity. Please try reconnecting in a few minutes.'
+        }));
+        ws.close();
+        return;
+    }
+
     const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
     ws.send(JSON.stringify({ t: 'hello', sessionId, version: '1.0.0' }));
 
@@ -609,8 +621,8 @@ wss.on('connection', (ws, request) => {
         stdio: ['pipe', 'pipe', 'pipe']
     });
 
-    // Register session in active session tracking
-    activeSessions.set(sessionId, { child, ws, startTime: Date.now(), user });
+    // Register session in active session tracking with idle timer
+    activeSessions.set(sessionId, { child, ws, startTime: Date.now(), lastActivityTime: Date.now(), user });
 
     let lineBuffer = '';
 
@@ -649,6 +661,10 @@ wss.on('connection', (ws, request) => {
     });
 
     ws.on('message', message => {
+        const session = activeSessions.get(sessionId);
+        if (session) {
+            session.lastActivityTime = Date.now();
+        }
         const str = message.toString();
         // Respond immediately to latency heartbeat pings
         if (str.startsWith('{')) {
@@ -699,6 +715,41 @@ wss.on('connection', (ws, request) => {
         } catch (_) {}
     });
 });
+
+// Periodic idle session reaper: safely flush saves and release memory for inactive tabs
+setInterval(() => {
+    const now = Date.now();
+    for (const [sessionId, session] of activeSessions.entries()) {
+        if (now - session.lastActivityTime > IDLE_TIMEOUT_MS) {
+            console.log(`[Angband3D Cloud] Reaping idle session ${sessionId} (${Math.round((now - session.lastActivityTime) / 60000)}m inactive). Saving state...`);
+            try {
+                if (session.ws && session.ws.readyState === 1) {
+                    session.ws.send(JSON.stringify({
+                        t: 'bye',
+                        detail: 'Session timed out due to 20 minutes of inactivity. Progress has been safely saved.'
+                    }));
+                    session.ws.close();
+                }
+                if (session.child && !session.child.killed && session.child.stdin && session.child.stdin.writable) {
+                    session.child.stdin.write('save\n');
+                    setTimeout(() => {
+                        try {
+                            if (session.child && !session.child.killed) {
+                                session.child.stdin.end();
+                                session.child.kill();
+                            }
+                        } catch (_) {}
+                    }, 200);
+                } else if (session.child && !session.child.killed) {
+                    session.child.kill();
+                }
+            } catch (err) {
+                console.error(`[Idle Reaper Error] ${err.message}`);
+            }
+            activeSessions.delete(sessionId);
+        }
+    }
+}, 30000).unref();
 
 // Graceful container shutdown: terminate child processes before container exit
 function gracefulShutdown(signal) {

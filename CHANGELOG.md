@@ -4,6 +4,31 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.1] — 2026-09-30
+
+### 🛡️ Legal Protection, Asset Provenance, Server Resource Bounds & Cloud Compute Cap
+The `v1.1.1` release establishes complete legal notices and trademark safe-harbor protections, comprehensive CC0 asset and typography provenance documentation, server-side idle session reaping, and strict Cloud Run compute bounds to guarantee cost containment and server resilience under public release.
+
+### Added
+- **Legal & Trademark Protection (`LEGAL.md`)**:
+  - Formal Middle-earth Enterprises, LLC and The Tolkien Estate trademark disclaimer and non-commercial fan tribute disclosure.
+  - Strict zero-monetization policy: 100% free of charge, zero advertisements, zero microtransactions, no paywalls, and zero donations or commercial monetization.
+  - GNU General Public License v2 (GPL-2.0) terms, upstream maintainer credits (Koeneke, Wilson, Harrison, and the Angband development team), and public source availability.
+  - Dedicated in-game Adventurer's Guide Tab 6 (`7. 📜 Credits & Legal`) in `index.html` displaying legal and trademark notices directly inside the game.
+  - Prominent Legal and Trademarks section added to `README.md`.
+- **Comprehensive Asset Provenance & Attribution (`CREDITS.md`)**:
+  - Detailed catalog of all CC0 3D models and textures (KayKit Dungeon Remastered, Characters, Skeletons, Halloween, and City Builder packs by Kay Lousberg, Quaternius, Kenney).
+  - Open-source typography attribution for Cinzel, Outfit, and Fira Code under SIL Open Font License 1.1.
+  - Full documentation of the 100% procedural mathematical Web Audio API and C# dynamic PCM acoustic synthesis engines.
+- **Server Concurrency Limits & Idle Session Reaper (`server/src/server.js`)**:
+  - 20-minute idle session timeout: automatically commits clean `save\n`, terminates child `angband` engine process, and closes the WebSocket for abandoned browser tabs to release container RAM and CPU.
+  - Reconnection safety: client recognizes idle timeouts, prevents automatic reconnect loops, and provides a 1-click / 1-key banner to instantly reload and resume saved gameplay.
+  - Per-container session cap (`MAX_CONCURRENT_GAMES = 50`) to guarantee memory stability within 512MiB bounds.
+- **Cloud Run Compute & Billing Cap (Risk 1)**:
+  - Capped maximum Cloud Run container instances from 20 down to 2 (`--max-instances 2`), strictly bounding potential monthly compute expenditure.
+  - Scale-to-zero verified: scales down to 0 instances when no active players are connected, costing $0.00.
+  - Bumped Service Worker cache to `angband3d-v6.5` and stylesheet/script queries to `v=6.5`.
+
 ---
 
 ## [v1.1.0] — 2026-09-30

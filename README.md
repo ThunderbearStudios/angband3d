@@ -348,6 +348,8 @@ dotnet build client/angband3d.csproj
 
 ## 📖 Further Documentation
 
+- 📜 [Legal Notices, Trademarks & Non-Commercial Policy](LEGAL.md) — Middle-earth trademark notice, GPL v2 terms, and zero-monetization policy.
+- 🎨 [Asset Credits & Provenance](CREDITS.md) — Comprehensive attribution for CC0 3D models, fonts, and procedural audio.
 - 📡 [Bridge Wire Protocol v1](docs/PROTOCOL.md) — Complete JSON IPC format specification.
 - 🏛️ [Client Architecture](docs/ARCHITECTURE.md) — Godot C# and Three.js WebGL coordinate systems and pipelines.
 - ☁️ [Cloud Deployment Guide](docs/CLOUD_DEPLOYMENT.md) — Multi-cloud hosting, GCS mounts, and reverse proxies.
@@ -356,12 +358,14 @@ dotnet build client/angband3d.csproj
 - 📋 [Living Task Roadmap](docs/NEXT_STEPS.md) — Milestone tracker and active task queue.
 - 🤖 [LLM / Agent Guidelines](docs/LLM_CONTEXT.md) — Operating guidelines and key file index.
 
-## Licence
+---
 
-GPL v2. angband3d is a derivative work of Angband, which is dual licensed under
-the GPL v2 and the traditional Angband licence; this project takes the GPL v2
-option. See [LICENSE](LICENSE) and `engine/docs/copying.rst`.
+## ⚖️ Legal, Trademarks & Non-Commercial Notice
 
-Angband's content draws heavily on Tolkien. That is fine for a free,
-non-commercial project, but see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-before distributing this in any form that accepts money.
+**Angband 3D** is an independent, non-commercial, open-source fan tribute. 
+
+- **Tolkien Legendarium**: Elements of the game's setting, names, and lore draw inspiration from the literary works of J.R.R. Tolkien.
+- **Trademarks**: *The Lord of the Rings*, *The Hobbit*, *Middle-earth*, *Angband*, *Moria*, and associated characters, places, and items are trademarks or registered trademarks of **Middle-earth Enterprises, LLC** (Embracer Group) and/or **The Tolkien Estate**. This project is **not** endorsed by, sponsored by, or affiliated with Middle-earth Enterprises or The Tolkien Estate.
+- **Strictly Non-Commercial**: The game is 100% free. It contains **no ads, no microtransactions, no paywalls, and accepts no donations or commercial monetization**.
+- **Licence**: Distributed under the **GNU General Public License, Version 2** (GPL-2.0). See [`LICENSE`](LICENSE), [`LEGAL.md`](LEGAL.md), and `engine/docs/copying.rst`.
+- **Asset Attribution**: All third-party 3D models and textures are CC0 / Public Domain. See [`CREDITS.md`](CREDITS.md) for full licensing records.
