@@ -4,6 +4,33 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.2] — 2026-09-30
+
+### ⏳ Cloud Realm Traffic Queue System & Minimap Drag vs. Resize Decoupling
+The `v1.1.2` release adds a dedicated player capacity queue system with real-time FIFO position telemetry, keep-alive proxy heartbeats, rotating tactical lore tips, and automated admission into active gameplay, and resolves a window interaction bug where dragging the minimap accidentally resized it.
+
+### Added
+- **Cloud Realm Player Capacity Queue System (`#queue-modal`)**:
+  - Replaced hard capacity disconnects with a real-time FIFO queue (`waitingQueue` in `server/src/server.js`).
+  - Themed glassmorphic modal (`#queue-modal`): *"The Gates of Angband Are Full"* with glowing embers spinner, dynamic position badge (`#1 of 2 waiting`), and active player capacity readout (`50 / 50 Max`).
+  - Real-time server telemetry frames (`{ t: 'queue', status: 'waiting', position, totalInQueue, maxCapacity, activeCount }`) pushed instantly upon enqueue and promoted automatically as active adventurers disconnect or save.
+  - Active keep-alive heartbeat (5-second intervals) preventing Cloudflare proxy or Cloud Run idle connection terminations while waiting in line.
+  - Rotating tactical lore & strategy tips cycling every 7 seconds (Corridor Funneling, Speed Multiplication, Emergency Escapes, Darkness & Torches, Stair Resets, and Zero-Turn Camera Navigation).
+  - Seamless auto-launch transition: automatically closes queue modal, spawns isolated C engine process, and launches the player into the 3D world with sound effect cue upon admission.
+  - 1-click / 1-tap "Leave Queue" button to cleanly cancel waiting and return to the main menu without orphan connections.
+  - Public REST status telemetry endpoint `/api/status` exposing `activeSessions`, `maxCapacity`, `waitingQueue`, and `version`.
+
+### Fixed
+- **Minimap Drag vs. Resize Conflict Resolution**:
+  - Removed accidental `click` event listener on `#minimap-header` in `hud.js` that previously triggered `cycleMinimapSize(1)` whenever the header was clicked or released during drag operations.
+  - Updated window drag controller in `app.js` to strictly freeze window dimensions (`fixedW`, `fixedH`) upon `mousedown`/`touchstart`, guaranteeing dragging only modifies position coordinates (`left`, `top`) and never alters width or height.
+  - Added full mobile touch drag support to window headers.
+  - Corrected cursor states across `dungeon.css`: header uses `cursor: grab` and `:active { cursor: grabbing }`.
+  - Resizing is strictly reserved for `[` / `]` hotkeys, the dedicated `#btn-map-toggle-size` button, or dragging the bottom-right corner grip (`#map-resize-handle`).
+  - Bumped asset cache-busting queries to `v=6.6`.
+
+---
+
 ## [v1.1.1] — 2026-09-30
 
 ### 🛡️ Legal Protection, Asset Provenance, Server Resource Bounds & Cloud Compute Cap

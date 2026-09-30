@@ -741,7 +741,29 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
      - Added IDLE_TIMEOUT_MS = 20 * 60 * 1000 (20 minutes of inactivity) in server/src/server.js.
      - Added background reaper interval every 30s that cleanly notifies client, executes save\n, terminates child ngband engine process, and closes the WebSocket for abandoned browser tabs.
      - Added MAX_CONCURRENT_GAMES = 50 session cap per container instance to guarantee memory consumption stays safely within the 512MiB container limit.
-     - In 
-etwork.js: tagged idle ye disconnects to prevent automatic reconnect loops while inactive.
-     - In pp.js: added idle banner with one-click / one-key session resumption.
-     - Bumped PWA Service Worker cache to ngband3d-v6.5 and CSS/JS asset query strings to =6.5.
+     - In network.js: tagged idle bye disconnects to prevent automatic reconnect loops while inactive.
+     - In app.js: added idle banner with one-click / one-key session resumption.
+     - Bumped PWA Service Worker cache to angband3d-v6.5 and CSS/JS asset query strings to v=6.5.
+
+### Priority 17: Cloud Capacity Traffic Queue System & Minimap Drag vs. Resize Fix (COMPLETED)
+- **Scope**: server/src/server.js, server/public/js/network.js, server/public/js/hud.js, server/public/js/app.js, server/public/index.html, server/public/css/dungeon.css, tools/test_queue_and_minimap.js
+- **Accomplishments**:
+  1. **Player Capacity Queue System (#queue-modal)**:
+     - Converted hard capacity rejection into a graceful FIFO waiting queue (waitingQueue in server/src/server.js).
+     - Added server queue telemetry frames ({ t: 'queue', status: 'waiting', position, totalInQueue, maxCapacity, activeCount }) pushed immediately on connect and broadcasted periodically.
+     - Implemented 5-second server-side queue heartbeats ensuring Cloudflare Edge proxy and Cloud Run WebSocket connections remain indefinitely active while waiting.
+     - Built themed fantasy modal #queue-modal (The Gates of Angband Are Full) with gold glowing spinner, live position counter (#1 of 2 waiting), and active player capacity indicators.
+     - Integrated rotating tactical lore & tips carousel (6 veteran survival tips cycling every 7 seconds).
+     - Automated seamless admission: as soon as an active player departs or saves, the next queued client is automatically admitted, their isolated C engine process is spawned, and they transition directly into the 3D game.
+     - Added cancel/exit button allowing queued players to cleanly return to the title menu.
+     - Added /api/status endpoint exposing real-time session capacity and queue length.
+  2. **Minimap Drag vs. Resize Bug Fix**:
+     - Identified root cause in hud.js: #minimap-header had an attached click event listener cycling minimap size (cycleMinimapSize(1)), which fired whenever mouse dragging finished or was released.
+     - Removed the click listener from #minimap-header. Resizing is strictly reserved for [ / ] hotkeys, the dedicated #btn-map-toggle-size button, and dragging the dedicated bottom-right grip (#map-resize-handle).
+     - Updated makeWindowDraggableAndResizable in app.js to freeze window dimensions (rect.width, rect.height) during drag operations, ensuring dragging strictly updates position (left, top) and never modifies dimensions.
+     - Added full mobile/tablet touch drag support to the minimap header.
+     - Corrected CSS cursors to cursor: grab and :active { cursor: grabbing }.
+  3. **Verification**:
+     - Authored tools/test_queue_and_minimap.js verifying queue FIFO order, ping keep-alives, automatic admission upon slot liberation, position promotion, and minimap drag invariants. All tests passed 100%.
+     - Engine smoke tests 11/11 passing (python tools/smoke_test.py).
+     - Godot C# client compilation 0 errors (dotnet build client/angband3d.csproj).

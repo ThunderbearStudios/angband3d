@@ -434,51 +434,85 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (_) {}
 
-            // Dragging via window header
+            // Dragging via window header (strictly repositions window, never alters dimensions)
             if (headerEl) {
                 let isDragging = false;
                 let startX = 0, startY = 0;
                 let initialLeft = 0, initialTop = 0;
+                let fixedW = 0, fixedH = 0;
 
-                headerEl.addEventListener('mousedown', (e) => {
-                    if (e.target.closest('button, input, select, a, kbd')) return;
-                    e.preventDefault();
+                const startDrag = (clientX, clientY, e) => {
+                    if (e && e.target && e.target.closest('button, input, select, a, kbd')) return;
+                    if (e && e.preventDefault) e.preventDefault();
                     isDragging = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
+                    startX = clientX;
+                    startY = clientY;
                     const rect = winEl.getBoundingClientRect();
                     initialLeft = rect.left;
                     initialTop = rect.top;
+                    fixedW = rect.width;
+                    fixedH = rect.height;
+                    // Freeze dimensions strictly so dragging NEVER changes size
+                    winEl.style.width = `${fixedW}px`;
+                    winEl.style.height = `${fixedH}px`;
                     winEl.style.left = `${initialLeft}px`;
                     winEl.style.top = `${initialTop}px`;
                     winEl.style.right = 'auto';
                     winEl.style.bottom = 'auto';
+                    headerEl.style.cursor = 'grabbing';
+                };
 
-                    const onMouseMove = (ev) => {
-                        if (!isDragging) return;
-                        const dx = ev.clientX - startX;
-                        const dy = ev.clientY - startY;
-                        const newLeft = Math.max(0, Math.min(window.innerWidth - 60, initialLeft + dx));
-                        const newTop = Math.max(0, Math.min(window.innerHeight - 40, initialTop + dy));
-                        winEl.style.left = `${newLeft}px`;
-                        winEl.style.top = `${newTop}px`;
-                    };
+                const moveDrag = (clientX, clientY) => {
+                    if (!isDragging) return;
+                    const dx = clientX - startX;
+                    const dy = clientY - startY;
+                    const newLeft = Math.max(0, Math.min(window.innerWidth - 60, initialLeft + dx));
+                    const newTop = Math.max(0, Math.min(window.innerHeight - 40, initialTop + dy));
+                    winEl.style.left = `${newLeft}px`;
+                    winEl.style.top = `${newTop}px`;
+                    winEl.style.width = `${fixedW}px`;
+                    winEl.style.height = `${fixedH}px`;
+                };
 
+                const endDrag = () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        headerEl.style.cursor = 'grab';
+                        const rect = winEl.getBoundingClientRect();
+                        try {
+                            localStorage.setItem(storageKey + '_pos', JSON.stringify({ left: rect.left, top: rect.top }));
+                        } catch (_) {}
+                    }
+                };
+
+                headerEl.addEventListener('mousedown', (e) => {
+                    startDrag(e.clientX, e.clientY, e);
+                    const onMouseMove = (ev) => moveDrag(ev.clientX, ev.clientY);
                     const onMouseUp = () => {
-                        if (isDragging) {
-                            isDragging = false;
-                            window.removeEventListener('mousemove', onMouseMove);
-                            window.removeEventListener('mouseup', onMouseUp);
-                            const rect = winEl.getBoundingClientRect();
-                            try {
-                                localStorage.setItem(storageKey + '_pos', JSON.stringify({ left: rect.left, top: rect.top }));
-                            } catch (_) {}
-                        }
+                        endDrag();
+                        window.removeEventListener('mousemove', onMouseMove);
+                        window.removeEventListener('mouseup', onMouseUp);
                     };
-
                     window.addEventListener('mousemove', onMouseMove);
                     window.addEventListener('mouseup', onMouseUp);
                 });
+
+                headerEl.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 1) {
+                        startDrag(e.touches[0].clientX, e.touches[0].clientY, e);
+                    }
+                }, { passive: false });
+
+                headerEl.addEventListener('touchmove', (e) => {
+                    if (isDragging && e.touches.length === 1) {
+                        e.preventDefault();
+                        moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+                    }
+                }, { passive: false });
+
+                const onTouchEnd = () => endDrag();
+                headerEl.addEventListener('touchend', onTouchEnd, { passive: true });
+                headerEl.addEventListener('touchcancel', onTouchEnd, { passive: true });
             }
 
             // Resizing via bottom-right handle
@@ -590,6 +624,49 @@ window.addEventListener('DOMContentLoaded', () => {
     const pauseCharDisplay = document.getElementById('pause-char-display');
     const pauseOptionBtns = document.querySelectorAll('#pause-menu-options .menu-option-btn');
 
+    // Queue Modal DOM Elements
+    const queueModal = document.getElementById('queue-modal');
+    const queuePosNum = document.getElementById('queue-pos-num');
+    const queueTotalNum = document.getElementById('queue-total-num');
+    const queueActiveCount = document.getElementById('queue-active-count');
+    const queueLoreText = document.getElementById('queue-lore-text');
+    const btnQueueCancel = document.getElementById('btn-queue-cancel');
+
+    // Rotating Angband Lore & Tactical Tips for Queue Screen
+    const QUEUE_TIPS = [
+        "Corridor Funneling: Never fight multiple monsters in open rooms where they can surround you! Retreat into a 1-tile corridor so foes engage you one by one.",
+        "Speed is King: Speed is multiplicative in Angband. Boots, rings, and potions of speed allow you to take multiple actions for every single monster turn.",
+        "Emergency Escapes: Always keep at least 5 Scrolls of Phase Door and 3 Scrolls of Teleportation in your pack. Fleeing when low on health is essential.",
+        "Light is Life: Subterranean corridors are pitch black. Unlit tiles prevent you from spotting approaching threats. Keep extra torches and oil stocked.",
+        "Stairs & Safe Retreat: If a dungeon floor feels too dangerous, ascend back up the staircase immediately to reset the floor and regroup in Town.",
+        "Instant Camera Turning: In Angband 3D, turning your camera left or right costs 0 game turns, so you can freely scout around corners without danger."
+    ];
+    let queueTipIndex = 0;
+    let queueTipTimer = null;
+
+    function startQueueTipRotation() {
+        if (queueTipTimer) clearInterval(queueTipTimer);
+        queueTipIndex = Math.floor(Math.random() * QUEUE_TIPS.length);
+        if (queueLoreText) queueLoreText.textContent = QUEUE_TIPS[queueTipIndex];
+        queueTipTimer = setInterval(() => {
+            queueTipIndex = (queueTipIndex + 1) % QUEUE_TIPS.length;
+            if (queueLoreText) {
+                queueLoreText.style.opacity = '0';
+                setTimeout(() => {
+                    queueLoreText.textContent = QUEUE_TIPS[queueTipIndex];
+                    queueLoreText.style.opacity = '1';
+                }, 300);
+            }
+        }, 7000);
+    }
+
+    function stopQueueTipRotation() {
+        if (queueTipTimer) {
+            clearInterval(queueTipTimer);
+            queueTipTimer = null;
+        }
+    }
+
     // State Coordinator Methods
     function getAppState() {
         return appState;
@@ -602,6 +679,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (guideModal) guideModal.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
+        if (queueModal) queueModal.classList.add('hidden');
+        stopQueueTipRotation();
         if (terminalContainer) terminalContainer.classList.add('hidden');
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuNav();
@@ -614,6 +693,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (guideModal) guideModal.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
+        if (queueModal) queueModal.classList.add('hidden');
+        stopQueueTipRotation();
         if (terminalContainer) terminalContainer.classList.add('hidden');
         const banner = document.getElementById('top-message-banner');
         if (banner) banner.style.display = 'none';
@@ -1241,6 +1322,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (guideModal) guideModal.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
+        if (queueModal) queueModal.classList.add('hidden');
+        stopQueueTipRotation();
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
 
         quickBirthActive = !!options.autoBirth;
@@ -1268,6 +1351,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (hud && typeof hud.resetMessages === 'function') {
             hud.resetMessages();
         }
+        if (queueModal) queueModal.classList.add('hidden');
+        stopQueueTipRotation();
         if (terminalContainer) terminalContainer.classList.add('hidden');
         if (loadingOverlay) loadingOverlay.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
@@ -2553,10 +2638,47 @@ window.addEventListener('DOMContentLoaded', () => {
     // 2. Network Event Handlers
     network.onHello = (msg) => {
         console.log('[Angband3D] Cloud session established:', msg.sessionId);
+        stopQueueTipRotation();
+        if (queueModal) {
+            queueModal.classList.add('hidden');
+        }
         if (loadingOverlay) {
             loadingOverlay.classList.add('hidden');
         }
     };
+
+    network.onQueue = (queueData) => {
+        if (queueData.status === 'waiting') {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+            if (queueModal) {
+                queueModal.classList.remove('hidden');
+                if (queuePosNum) queuePosNum.textContent = queueData.position;
+                if (queueTotalNum) queueTotalNum.textContent = `${queueData.totalInQueue} waiting`;
+                if (queueActiveCount) queueActiveCount.textContent = `${queueData.activeCount || queueData.maxCapacity || 50}`;
+            }
+            if (hud && typeof hud.setStatus === 'function') {
+                hud.setStatus(`In Queue [#${queueData.position}]`);
+            }
+            startQueueTipRotation();
+        } else if (queueData.status === 'admitted') {
+            stopQueueTipRotation();
+            if (queueModal) queueModal.classList.add('hidden');
+            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+            if (audio) audio.playStairs();
+            if (hud && typeof hud.setStatus === 'function') {
+                hud.setStatus('Admitted • Spawning...');
+            }
+        }
+    };
+
+    if (btnQueueCancel) {
+        bindFastTap(btnQueueCancel, () => {
+            stopQueueTipRotation();
+            if (queueModal) queueModal.classList.add('hidden');
+            network.leaveQueue();
+            returnToMainMenu();
+        });
+    }
 
     network.onPing = (ms) => {
         hud.setPing(ms);

@@ -1171,7 +1171,7 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: pointer;
+    cursor: grab;
     user-select: none;
     transition: background 0.15s ease;
 }
@@ -4537,6 +4537,65 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     grid-column: span 2;
 }
 
+/* Player Capacity Queue Modal */
+#queue-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(6, 8, 14, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9500;
+}
 
+#queue-modal.hidden {
+    display: none !important;
+}
 
+.queue-card {
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(212, 175, 55, 0.2);
+    animation: queue-fade-in 0.3s ease-out;
+}
 
+@keyframes queue-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.queue-spinner-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.queue-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(212, 175, 55, 0.2);
+    border-top-color: var(--gold-bright);
+    border-right-color: #ffd700;
+    border-radius: 50%;
+    animation: queue-spin 1.2s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.35);
+}
+
+@keyframes queue-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.queue-lore-box {
+    transition: opacity 0.3s ease;
+}

@@ -14,7 +14,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=6.5">
+    <link rel="stylesheet" href="/css/dungeon.css?v=6.6">
 </head>
 <body>
     <div id="app-container">
@@ -129,7 +129,7 @@
 
         <!-- 2D Minimap & Camera Tilt Bar -->
         <div id="minimap-container" class="standard">
-            <div class="minimap-header" id="minimap-header" title="Drag header to move • Click or [ ] to resize • Mouse wheel or - / + to zoom">
+            <div class="minimap-header" id="minimap-header" title="Drag header to move • Use [ ] or Size button to resize • Mouse wheel or - / + to zoom">
                 <span id="minimap-title-text">MINIMAP</span>
                 <span id="minimap-hint-text" class="minimap-hint">[ ] Size  +/- Zoom</span>
                 <span id="val-depth" style="color:#ffd700;">Town</span>
@@ -784,6 +784,51 @@
             </div>
         </div>
 
+        <!-- Player Capacity Queue Modal -->
+        <div id="queue-modal" class="hidden">
+            <div class="main-menu-card queue-card" style="max-width: 560px;">
+                <div class="main-menu-ornament-corner top-left"></div>
+                <div class="main-menu-ornament-corner top-right"></div>
+                <div class="main-menu-ornament-corner bottom-left"></div>
+                <div class="main-menu-ornament-corner bottom-right"></div>
+
+                <div class="main-menu-header">
+                    <h2 class="main-menu-title">⏳ GATES OF ANGBAND ⏳</h2>
+                    <div class="main-menu-subtitle">Cloud Realm at Capacity • Waiting in Adventurer Queue</div>
+                </div>
+
+                <div class="queue-body" style="padding: 20px 24px; text-align: center; color: #cbd5e1;">
+                    <div class="queue-spinner-wrap" style="margin: 6px auto 18px;">
+                        <div class="queue-spinner"></div>
+                    </div>
+                    
+                    <div class="queue-position-card" style="margin: 0 auto 16px; padding: 14px 20px; border-radius: 10px; background: rgba(18, 22, 36, 0.9); border: 1px solid rgba(212, 175, 55, 0.45); box-shadow: 0 4px 16px rgba(0,0,0,0.6);">
+                        <div style="font-size: 12px; color: var(--gold-bright); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 4px;">Your Position in Line</div>
+                        <div id="queue-position-display" style="font-size: 34px; font-weight: 800; color: #ffffff; font-family: var(--font-title); text-shadow: 0 0 14px rgba(255, 215, 0, 0.65);">
+                            #<span id="queue-pos-num">1</span> <span style="font-size: 16px; font-weight: normal; color: #94a3b8;">(<span id="queue-total-num">1 waiting</span>)</span>
+                        </div>
+                        <div id="queue-capacity-detail" style="font-size: 12px; color: #8892b0; margin-top: 6px;">
+                            Active Adventurers: <span id="queue-active-count">50</span> / 50 Max
+                        </div>
+                    </div>
+
+                    <p style="font-size: 13px; line-height: 1.6; color: #94a3b8; margin-bottom: 16px;">
+                        To guarantee 60 FPS performance and isolated C engine instances, active player capacity is managed. As soon as an active hero leaves or saves, your session will automatically launch.
+                    </p>
+
+                    <div class="queue-lore-box" style="padding: 12px 16px; border-radius: 6px; background: rgba(212, 175, 55, 0.08); border-left: 3px solid var(--gold-primary); text-align: left; font-size: 12px; line-height: 1.5; color: #e2e8f0;">
+                        <span style="color: var(--gold-bright); font-weight: 700;">💡 ADVENTURER'S TIP:</span>
+                        <span id="queue-lore-text">Corridor Funneling: Never fight multiple monsters in open rooms where they can surround you! Retreat into a 1-tile corridor.</span>
+                    </div>
+                </div>
+
+                <div class="main-menu-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px;">
+                    <span style="font-size: 11px; color: #64748b;">Keep this window open • Auto-entering upon admission</span>
+                    <button id="btn-queue-cancel" class="btn-gold-outline" style="padding: 6px 14px; font-size: 12px;">Leave Queue</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Initial Connection Spinner -->
         <div id="loading-overlay" class="hidden">
             <div class="spinner"></div>
@@ -798,14 +843,14 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=6.4"></script>
-    <script src="/js/mobile-overlay.js?v=6.4"></script>
-    <script src="/js/audio.js?v=6.4"></script>
-    <script src="/js/terminal.js?v=6.4"></script>
-    <script src="/js/dungeon3d.js?v=6.4"></script>
-    <script src="/js/hud.js?v=6.4"></script>
-    <script src="/js/network.js?v=6.4"></script>
-    <script src="/js/input.js?v=6.4"></script>
-    <script src="/js/app.js?v=6.4"></script>
+    <script src="/js/device.js?v=6.6"></script>
+    <script src="/js/mobile-overlay.js?v=6.6"></script>
+    <script src="/js/audio.js?v=6.6"></script>
+    <script src="/js/terminal.js?v=6.6"></script>
+    <script src="/js/dungeon3d.js?v=6.6"></script>
+    <script src="/js/hud.js?v=6.6"></script>
+    <script src="/js/network.js?v=6.6"></script>
+    <script src="/js/input.js?v=6.6"></script>
+    <script src="/js/app.js?v=6.6"></script>
 </body>
 </html>

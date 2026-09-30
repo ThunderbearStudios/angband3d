@@ -517,12 +517,10 @@ class WebHUD {
     }
 
     setupMinimapControls() {
+        // Minimap header is dedicated to window dragging/repositioning.
+        // Resizing is done via [ / ] keys, #btn-map-toggle-size button, or the bottom-right resize grip.
         if (this.minimapHeader) {
-            this.minimapHeader.style.cursor = 'pointer';
-            this.minimapHeader.addEventListener('click', (e) => {
-                if (e && e.target && e.target.closest('#btn-minimap-close')) return;
-                this.cycleMinimapSize(1);
-            });
+            this.minimapHeader.style.cursor = 'grab';
         }
 
         if (this.minimapContainer) {

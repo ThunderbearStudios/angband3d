@@ -4,22 +4,22 @@ A first-person 3D front end for [Angband](https://github.com/angband/angband), b
 
 The goal is *Dungeon Master*-style immersion with Angband's full roguelike depth: every monster, item, artifact, curse, vault, and level generator, completely unchanged.
 
-**Status: Version 1.1.0 — Fully playable standalone 3D dungeon crawler with Godot 4 & .NET 8, and live WebGL Cloud Edition with dedicated mobile touch controls for Desktop, Tablet, and Mobile.**
+**Status: Version 1.1.2 — Fully playable standalone 3D dungeon crawler with Godot 4 & .NET 8, and live WebGL Cloud Edition with dedicated mobile touch controls and automated traffic queue management for Desktop, Tablet, and Mobile.**
 
-[![Play Online in Browser](https://img.shields.io/badge/Play_Online-Live_Web_Client-gold?style=for-the-badge&logo=googlechrome)](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)
+[![Play Online in Browser](https://img.shields.io/badge/Play_Online-angband3d.com-gold?style=for-the-badge&logo=googlechrome)](https://angband3d.com)
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
 [![Engine: Angband 4.2.6](https://img.shields.io/badge/Angband-4.2.6-darkgreen.svg)](https://github.com/angband/angband)
 [![Web Client: Three.js WebGL](https://img.shields.io/badge/Web_Client-Three.js_WebGL-orange.svg)](server/public)
 [![Desktop Client: Godot 4.3+ .NET](https://img.shields.io/badge/Godot-4.3+_.NET-blueviolet.svg)](https://godotengine.org/)
-[![Cloud Run: Live](https://img.shields.io/badge/Cloud_Run-Online-brightgreen.svg)](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)
+[![Production Domain](https://img.shields.io/badge/Domain-angband3d.com-brightgreen.svg)](https://angband3d.com)
 [![Smoke Tests: 11/11 Passing](https://img.shields.io/badge/Smoke_Tests-11%2F11_Passing-success.svg)](tools/smoke_test.py)
-[![Server Tests: 19/19 Passing](https://img.shields.io/badge/Server_Tests-19%2F19_Passing-success.svg)](server/test/server_test.js)
+[![Queue & Minimap Tests: Passing](https://img.shields.io/badge/Queue_Tests-Passing-success.svg)](tools/test_queue_and_minimap.js)
 
 ---
 
 ### 🎮 Canonical Play Link (Zero Install, Desktop & Mobile)
-👉 **[https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)**  
+👉 **[https://angband3d.com](https://angband3d.com)** *(Cloud Run Mirror: [https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app))*  
 Open in Chrome, Safari, Edge, or Firefox on PC, Mac, iPad, iPhone, or Android. Supports mouse/keyboard, gamepad, and touch controls.
 
 ---
