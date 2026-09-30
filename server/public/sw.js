@@ -1,8 +1,15 @@
-// Angband3D Service Worker — v6.8 PWA & Offline Shell
-const CACHE_NAME = 'angband3d-v6.8';
+// Angband3D Service Worker — v7.0 PWA & 100% Offline Engine
+const CACHE_NAME = 'angband3d-v7.0';
 const SHELL_ASSETS = [
   '/',
+  '/index.html',
   '/manifest.json',
+  '/css/dungeon.css',
+  '/js/local_bridge.js',
+  '/js/engine-worker.js',
+  '/wasm/angband.js',
+  '/wasm/angband.wasm',
+  '/wasm/angband.data',
   '/assets/thunderbear_logo.png'
 ];
 

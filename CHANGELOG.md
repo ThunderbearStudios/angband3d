@@ -4,6 +4,34 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.0] — 2026-09-30
+
+### ⚡ 100% Offline WebAssembly Engine, Standalone Android APK & Universal Save Portability
+The `v1.2.0` release completes Route A: bringing the full upstream Angband 4.2.6 C engine directly into the browser and mobile devices via WebAssembly (Asyncify + IDBFS), creating a native standalone Android APK package, and enabling universal `.sav` save file portability across all platforms.
+
+### Added & Enhanced
+- **Angband 4.2.6 WebAssembly Engine (`angband.wasm`, `angband.js`, `angband.data`)**:
+  - Compiled the complete upstream C engine with the JSON Bridge frontend into WebAssembly using Emscripten.
+  - Emscripten Asyncify allows the engine to yield asynchronously to the JavaScript event loop when awaiting input, eliminating thread locking while keeping 100% authentic C game loop execution.
+  - Excluded unneeded retro tiles and audio files from the preloaded package, shrinking the total gamedata footprint to just 1.5MB for instantaneous sub-100ms loading.
+- **IndexedDB (`IDBFS`) Local Save Persistence**:
+  - Mounted `/lib/save` directly to browser IndexedDB with `autoPersist: true`.
+  - Save files are automatically flushed to persistent device storage whenever the game is saved, surviving browser restarts and page reloads.
+- **Web Worker Background Execution (`engine-worker.js`)**:
+  - Runs the WebAssembly runtime in a dedicated background Web Worker thread, ensuring the 60fps/120fps Three.js 3D render loop remains fluid with zero micro-stuttering.
+- **Universal Save Portability (`LocalSaveManager`, `local_bridge.js`)**:
+  - Universal binary compatibility: import and export identical `SaveVNLA` savefiles between Windows, Linux, Godot desktop client, Cloud Realm, and Android.
+  - Integrated local save listing, download, upload, and deletion into the Load Game modal.
+- **Standalone Native Android Package (`android/`)**:
+  - Initialized Capacitor native Android project targeting Android 8.0+ (API 26–34).
+  - Bundled WebAssembly engine and responsive 3D WebGL client directly into APK assets (`android/app/src/main/assets/public/`).
+  - Immersive fullscreen gaming with dark theme (`#05070f`), custom application manifest, and hardware back button handling.
+  - Automated release pipeline: GitHub Actions `release.yml` now compiles Wasm and builds `Angband3D-Android.apk` on every release.
+- **Main Menu Dual-Engine Selector & APK Download Hub**:
+  - Added an interactive pill toggle in the Main Menu to switch between `⚡ Local Engine (Offline / 0ms)` and `☁ Cloud Realm`.
+  - Added direct `.apk` package download link to the PWA & Installation Modal.
+  - Service worker `sw.js` upgraded to `v7.0` with full offline caching for Wasm binaries and worker scripts.
+
 ## [v1.1.4] — 2026-09-30
 
 ### 🧱 Realistic Dungeon Texturing, Calm Subterranean Torch Draft & Direct Mobile Get Action

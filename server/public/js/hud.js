@@ -119,8 +119,13 @@ class WebHUD {
 
     setPing(ms) {
         if (this.pingBadge) {
-            this.pingBadge.textContent = `Cloud [${ms}ms]`;
-            this.pingBadge.style.color = ms < 100 ? '#62e062' : (ms < 250 ? '#ffd700' : '#ff7777');
+            if (ms === 0) {
+                this.pingBadge.textContent = '⚡ Local [0ms]';
+                this.pingBadge.style.color = '#38bdf8';
+            } else {
+                this.pingBadge.textContent = `Cloud [${ms}ms]`;
+                this.pingBadge.style.color = ms < 100 ? '#62e062' : (ms < 250 ? '#ffd700' : '#ff7777');
+            }
         }
     }
 

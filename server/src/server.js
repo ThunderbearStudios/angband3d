@@ -199,6 +199,33 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // Android APK download endpoint
+    if ((pathname === '/download/Angband3D-Android.apk' || pathname === '/download/angband3d-android.apk') && req.method === 'GET') {
+        let apkPath = path.join(DIST_DIR, 'Angband3D-Android.apk');
+        if (!fs.existsSync(apkPath)) {
+            const files = fs.existsSync(DIST_DIR) ? fs.readdirSync(DIST_DIR) : [];
+            const found = files.find(f => f.endsWith('.apk'));
+            if (found) apkPath = path.join(DIST_DIR, found);
+        }
+
+        if (fs.existsSync(apkPath)) {
+            const stat = fs.statSync(apkPath);
+            res.writeHead(200, {
+                'Content-Type': 'application/vnd.android.package-archive',
+                'Content-Length': stat.size,
+                'Content-Disposition': 'attachment; filename="Angband3D-Android.apk"',
+            });
+            fs.createReadStream(apkPath).pipe(res);
+        } else {
+            // Redirect to latest GitHub Release asset
+            res.writeHead(302, {
+                'Location': 'https://github.com/lieb2101/angband3d/releases/latest/download/Angband3D-Android.apk'
+            });
+            res.end();
+        }
+        return;
+    }
+
     // REST: List saves
     if (pathname === '/api/saves' && req.method === 'GET') {
         try {

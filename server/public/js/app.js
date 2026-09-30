@@ -16,7 +16,23 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // 1. Initialize Subsystems
     const audio = new SoundEngine();
-    const network = new GameNetwork();
+
+    // Check device and stored preference for Local Wasm vs Cloud Realm
+    const isStandalonePlatform = () => {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+               window.navigator.standalone === true ||
+               document.referrer.includes('android-app://') ||
+               window.Capacitor !== undefined ||
+               location.protocol === 'capacitor:' ||
+               (location.protocol === 'http:' && location.hostname === 'localhost' && navigator.userAgent.includes('Android'));
+    };
+
+    let engineMode = localStorage.getItem('angband_engine_mode');
+    if (!engineMode) {
+        engineMode = 'local';
+    }
+
+    let network = (engineMode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
     const dungeon = new Dungeon3D('viewport-canvas');
     const hud = new WebHUD('minimap-canvas');
 
@@ -28,7 +44,44 @@ window.addEventListener('DOMContentLoaded', () => {
         network.sendKey(key);
     });
 
-    window.__app = { audio, network, dungeon, hud, terminal };
+    const setEngineMode = (mode) => {
+        if (engineMode === mode && network) return;
+        engineMode = mode;
+        localStorage.setItem('angband_engine_mode', mode);
+        try {
+            if (network) network.disconnect();
+        } catch (_) {}
+        network = (mode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
+        window.__app.network = network;
+        bindNetworkEventHandlers();
+        updateEngineModeUI();
+        checkSaves();
+    };
+
+    const updateEngineModeUI = () => {
+        const btnLocal = document.getElementById('btn-engine-local');
+        const btnCloud = document.getElementById('btn-engine-cloud');
+        if (btnLocal && btnCloud) {
+            if (engineMode === 'local') {
+                btnLocal.classList.add('active');
+                btnCloud.classList.remove('active');
+            } else {
+                btnLocal.classList.remove('active');
+                btnCloud.classList.add('active');
+            }
+        }
+        if (hud && hud.pingBadge) {
+            if (engineMode === 'local') {
+                hud.pingBadge.textContent = '⚡ Local Wasm [0ms]';
+                hud.pingBadge.style.color = '#38bdf8';
+            } else {
+                hud.pingBadge.textContent = 'Cloud [Connecting...]';
+                hud.pingBadge.style.color = '#ffd700';
+            }
+        }
+    };
+
+    window.__app = { audio, network, dungeon, hud, terminal, setEngineMode, getEngineMode: () => engineMode };
 
     let birthReviewActive = false;
 
@@ -700,6 +753,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (banner) banner.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuOpen();
+        updateEngineModeUI();
         checkSaves();
         updateMenuSelectionUI();
     }
@@ -737,16 +791,20 @@ window.addEventListener('DOMContentLoaded', () => {
         loadSaveList.innerHTML = `
             <div class="save-loading-state">
                 <div class="spinner"></div>
-                <span>Scanning realm archives...</span>
+                <span>Scanning ${engineMode === 'local' ? 'device IndexedDB storage' : 'realm archives'}...</span>
             </div>
         `;
         try {
-            const res = await fetch('/api/saves');
-            if (res.ok) {
-                const data = await res.json();
-                loadedSaves = data.saves || [];
+            if (engineMode === 'local' && window.LocalSaveManager) {
+                loadedSaves = await LocalSaveManager.listSaves();
             } else {
-                loadedSaves = [];
+                const res = await fetch('/api/saves');
+                if (res.ok) {
+                    const data = await res.json();
+                    loadedSaves = data.saves || [];
+                } else {
+                    loadedSaves = [];
+                }
             }
         } catch (err) {
             console.warn('[LoadMenu] Error fetching saves:', err);
@@ -910,8 +968,26 @@ window.addEventListener('DOMContentLoaded', () => {
         const target = save || (loadedSaves.length > 0 ? loadedSaves[selectedSaveIndex] : null);
         if (!target || !target.filename) return;
         if (audio) audio.playMenuSelect();
-        const url = `/api/saves/${encodeURIComponent(target.filename)}`;
+
         const outName = (target.characterName || target.filename).replace(/[^a-zA-Z0-9_-]/g, '_') + '.sav';
+
+        if (engineMode === 'local' && window.LocalSaveManager) {
+            const bytes = await LocalSaveManager.getSaveData(target.filename);
+            if (bytes) {
+                const blob = new Blob([bytes], { type: 'application/octet-stream' });
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = outName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+                return;
+            }
+        }
+
+        const url = `/api/saves/${encodeURIComponent(target.filename)}`;
         await triggerFileDownload(url, outName);
     }
 
@@ -938,8 +1014,22 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if (statusEl) statusEl.textContent = 'Uploading to realm...';
             const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+            if (engineMode === 'local' && window.LocalSaveManager) {
+                if (statusEl) statusEl.textContent = 'Saving to device storage...';
+                await LocalSaveManager.putSaveData(cleanName, new Uint8Array(buf));
+                if (statusEl) {
+                    statusEl.textContent = `✓ Saved '${cleanName}' to device!`;
+                    setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
+                }
+                if (audio) audio.playMenuSelect();
+                await fetchAndRenderSaves();
+                checkSaves();
+                return;
+            }
+
+            if (statusEl) statusEl.textContent = 'Uploading to realm...';
             const res = await fetch('/api/saves/upload', {
                 method: 'POST',
                 headers: {
@@ -1038,9 +1128,19 @@ window.addEventListener('DOMContentLoaded', () => {
         const target = save || (loadedSaves.length > 0 ? loadedSaves[selectedSaveIndex] : null);
         if (!target) return;
         const confirmName = target.characterName || target.filename;
-        if (!window.confirm(`Are you sure you want to delete '${confirmName}' permanently from the server?`)) {
+        const locationText = engineMode === 'local' ? 'from device storage' : 'permanently from the server';
+        if (!window.confirm(`Are you sure you want to delete '${confirmName}' ${locationText}?`)) {
             return;
         }
+
+        if (engineMode === 'local' && window.LocalSaveManager) {
+            await LocalSaveManager.deleteSave(target.filename);
+            if (audio) audio.playMenuNav();
+            await fetchAndRenderSaves();
+            checkSaves();
+            return;
+        }
+
         try {
             const res = await fetch(`/api/saves/${encodeURIComponent(target.filename)}`, { method: 'DELETE' });
             if (res.ok) {
@@ -1234,23 +1334,31 @@ window.addEventListener('DOMContentLoaded', () => {
 
     async function checkSaves() {
         try {
-            const res = await fetch('/api/saves');
-            if (res.ok) {
-                const data = await res.json();
-                if (data.saves && data.saves.length > 0) {
-                    latestSave = data.saves[0];
-                    const label = document.getElementById('menu-continue-label');
-                    const desc = document.getElementById('menu-continue-desc');
-                    const btn = document.getElementById('btn-menu-continue');
-                    if (label) label.textContent = `Continue Last Played (${latestSave.characterName || latestSave.filename})`;
-                    if (desc) desc.textContent = `${latestSave.description || 'Saved Adventurer'} • Modified ${new Date(latestSave.lastModified).toLocaleTimeString()}`;
-                    if (btn) btn.style.opacity = '1.0';
-                    return;
+            let saves = [];
+            if (engineMode === 'local' && window.LocalSaveManager) {
+                saves = await LocalSaveManager.listSaves();
+            } else {
+                const res = await fetch('/api/saves');
+                if (res.ok) {
+                    const data = await res.json();
+                    saves = data.saves || [];
                 }
+            }
+            if (saves && saves.length > 0) {
+                latestSave = saves[0];
+                const label = document.getElementById('menu-continue-label');
+                const desc = document.getElementById('menu-continue-desc');
+                const btn = document.getElementById('btn-menu-continue');
+                if (label) label.textContent = `Continue Last Played (${latestSave.characterName || latestSave.filename})`;
+                if (desc) desc.textContent = `${latestSave.description || 'Saved Adventurer'}${latestSave.lastModified ? ' • Modified ' + new Date(latestSave.lastModified).toLocaleTimeString() : ''}`;
+                if (btn) btn.style.opacity = '1.0';
+                return;
             }
         } catch (_) {}
         const desc = document.getElementById('menu-continue-desc');
-        if (desc) desc.textContent = 'No saved game found on server (Choose option 2 or 3 to begin)';
+        if (desc) desc.textContent = engineMode === 'local'
+            ? 'No offline saved game found on device (Choose option 2 or 3 to begin)'
+            : 'No saved game found on server (Choose option 2 or 3 to begin)';
         const btn = document.getElementById('btn-menu-continue');
         if (btn) btn.style.opacity = '0.6';
     }
@@ -2636,166 +2744,192 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // 2. Network Event Handlers
-    network.onHello = (msg) => {
-        console.log('[Angband3D] Cloud session established:', msg.sessionId);
-        stopQueueTipRotation();
-        if (queueModal) {
-            queueModal.classList.add('hidden');
-        }
-        if (loadingOverlay) {
-            loadingOverlay.classList.add('hidden');
-        }
-    };
+    function bindNetworkEventHandlers() {
+        if (!network) return;
 
-    network.onQueue = (queueData) => {
-        if (queueData.status === 'waiting') {
-            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        network.onHello = (msg) => {
+            console.log('[Angband3D] Engine session established:', msg.sessionId || 'local');
+            stopQueueTipRotation();
             if (queueModal) {
-                queueModal.classList.remove('hidden');
-                if (queuePosNum) queuePosNum.textContent = queueData.position;
-                if (queueTotalNum) queueTotalNum.textContent = `${queueData.totalInQueue} waiting`;
-                if (queueActiveCount) queueActiveCount.textContent = `${queueData.activeCount || queueData.maxCapacity || 50}`;
+                queueModal.classList.add('hidden');
             }
-            if (hud && typeof hud.setStatus === 'function') {
-                hud.setStatus(`In Queue [#${queueData.position}]`);
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
             }
-            startQueueTipRotation();
-        } else if (queueData.status === 'admitted') {
-            stopQueueTipRotation();
-            if (queueModal) queueModal.classList.add('hidden');
-            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-            if (audio) audio.playStairs();
-            if (hud && typeof hud.setStatus === 'function') {
-                hud.setStatus('Admitted • Spawning...');
-            }
-        }
-    };
+        };
 
-    if (btnQueueCancel) {
-        bindFastTap(btnQueueCancel, () => {
-            stopQueueTipRotation();
-            if (queueModal) queueModal.classList.add('hidden');
-            network.leaveQueue();
-            returnToMainMenu();
-        });
+        network.onQueue = (queueData) => {
+            if (queueData.status === 'waiting') {
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                if (queueModal) {
+                    queueModal.classList.remove('hidden');
+                    if (queuePosNum) queuePosNum.textContent = queueData.position;
+                    if (queueTotalNum) queueTotalNum.textContent = `${queueData.totalInQueue} waiting`;
+                    if (queueActiveCount) queueActiveCount.textContent = `${queueData.activeCount || queueData.maxCapacity || 50}`;
+                }
+                if (hud && typeof hud.setStatus === 'function') {
+                    hud.setStatus(`In Queue [#${queueData.position}]`);
+                }
+                startQueueTipRotation();
+            } else if (queueData.status === 'admitted') {
+                stopQueueTipRotation();
+                if (queueModal) queueModal.classList.add('hidden');
+                if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+                if (audio) audio.playStairs();
+                if (hud && typeof hud.setStatus === 'function') {
+                    hud.setStatus('Admitted • Spawning...');
+                }
+            }
+        };
+
+        network.onPing = (ms) => {
+            hud.setPing(ms);
+        };
+
+        network.onFrame = (frame) => {
+            lastFrame = frame;
+            if (window.__app) window.__app.lastFrame = frame;
+            currentPhase = frame.phase || 'play';
+
+            // Automated quick-birth advancement
+            if (quickBirthActive) {
+                stepQuickBirth(frame);
+            } else if (frame.phase === 'play' && frame.map && frame.player) {
+                // Once in active play with map, ensure character birth review is exited and 3D world is active
+                if (birthReviewActive) {
+                    confirmHeroBirth();
+                }
+            }
+
+            // Auto-flush -more- prompts seamlessly during play (only in 3D world, NOT inside store/overlay or review screen)
+            const isOverlay = frame.ui && (frame.ui.overlay || 0) > 0;
+            const needsTerm = needsTerminal(frame);
+            if (frame.ui && frame.ui.more && !isOverlay && !needsTerm) {
+                const screenText = (frame.term && frame.term.rows)
+                    ? frame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
+                    : '';
+                const isReviewScreen = screenText.includes("use as is") || screenText.includes("'y': use") ||
+                                       screenText.includes("to start over") || screenText.includes("r to reroll") ||
+                                       screenText.includes("'s' to start");
+                if (!isReviewScreen) {
+                    network.sendKey('space');
+                }
+            }
+
+            // Check if player died
+            if (frame.player && frame.player.dead) {
+                if (audio) audio.playDeathBell();
+            } else if (frame.player && frame.player.hp !== undefined && frame.player.hp_max) {
+                if (frame.player.hp / frame.player.hp_max <= 0.25) {
+                    if (audio) audio.playLowHpWarning();
+                }
+            }
+
+            // Update View Mode Visibility first so layouts and modes are synced
+            updateViewMode(frame);
+
+            // Render Terminal if active or in setup phase
+            if (frame.term && (needsTerm || currentPhase !== 'play')) {
+                terminal.render(frame.term);
+            }
+
+            // Render 3D Dungeon World whenever in play phase with valid map
+            if (currentPhase === 'play' && frame.map && frame.player) {
+                try {
+                    dungeon.updateDungeon(frame);
+                } catch (err) {
+                    console.error('[Dungeon3D Error]', err);
+                }
+            }
+
+            // Update HUD
+            try {
+                hud.update(frame);
+            } catch (err) {
+                console.error('[HUD Error]', err);
+            }
+
+            // Update Smart Contextual Controls (D-Pad Center Action, Staircase, Doors)
+            if (input && input.updateContextualControls) {
+                try {
+                    input.updateContextualControls(frame);
+                } catch (err) {
+                    console.error('[InputContext Error]', err);
+                }
+            }
+
+            // Update Terminal Toolbar & Context
+            try {
+                updateTerminalToolbar(frame);
+            } catch (err) {
+                console.error('[TerminalToolbar Error]', err);
+            }
+        };
+
+        network.onBye = (detail) => {
+            console.warn('[Angband3D] Disconnected:', detail);
+            if (hud.setStatus) {
+                hud.setStatus(engineMode === 'local' ? 'Local [Stopped]' : 'Cloud [Disconnected]');
+            } else if (hud.pingBadge) {
+                hud.pingBadge.textContent = engineMode === 'local' ? 'Local [Stopped]' : 'Cloud [Disconnected]';
+            }
+            if (detail) {
+                const topBanner = document.getElementById('top-message-banner');
+                const topText = document.getElementById('message-text');
+                if (topBanner && topText) {
+                    topText.textContent = `⏳ ${detail} Click or tap anywhere to resume.`;
+                    topBanner.classList.remove('hidden');
+                    topBanner.style.cursor = 'pointer';
+                    const resumeHandler = () => {
+                        topBanner.removeEventListener('click', resumeHandler);
+                        topBanner.style.cursor = 'default';
+                        network.manualDisconnect = false;
+                        network.connect(network.currentChar, false, network.currentSave);
+                    };
+                    topBanner.addEventListener('click', resumeHandler, { once: true });
+                }
+            }
+        };
+
+        network.onStatus = (status) => {
+            if (hud.setStatus) {
+                if (engineMode === 'local') {
+                    hud.setStatus(status.includes('Error') ? status : '⚡ Local [0ms]');
+                } else {
+                    hud.setStatus(status.includes('Connecting') ? 'Cloud [Connecting...]' : (status.includes('Connected') ? 'Cloud [Connected]' : status));
+                }
+            } else if (hud.pingBadge) {
+                hud.pingBadge.textContent = status;
+            }
+        };
+
+        network.onSavePersisted = (charName) => {
+            console.log('[Angband3D] Save persisted to IndexedDB:', charName);
+            if (hud && typeof hud.setStatus === 'function') {
+                hud.setStatus('⚡ Saved to Device');
+                setTimeout(() => hud.setPing(0), 2000);
+            }
+        };
     }
 
-    network.onPing = (ms) => {
-        hud.setPing(ms);
-    };
+    bindNetworkEventHandlers();
 
-    network.onFrame = (frame) => {
-        lastFrame = frame;
-        if (window.__app) window.__app.lastFrame = frame;
-        currentPhase = frame.phase || 'play';
-
-        // Automated quick-birth advancement
-        if (quickBirthActive) {
-            stepQuickBirth(frame);
-        } else if (frame.phase === 'play' && frame.map && frame.player) {
-            // Once in active play with map, ensure character birth review is exited and 3D world is active
-            if (birthReviewActive) {
-                confirmHeroBirth();
-            }
-        }
-
-        // Auto-flush -more- prompts seamlessly during play (only in 3D world, NOT inside store/overlay or review screen)
-        const isOverlay = frame.ui && (frame.ui.overlay || 0) > 0;
-        const needsTerm = needsTerminal(frame);
-        if (frame.ui && frame.ui.more && !isOverlay && !needsTerm) {
-            const screenText = (frame.term && frame.term.rows)
-                ? frame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
-                : '';
-            const isReviewScreen = screenText.includes("use as is") || screenText.includes("'y': use") ||
-                                   screenText.includes("to start over") || screenText.includes("r to reroll") ||
-                                   screenText.includes("'s' to start");
-            if (!isReviewScreen) {
-                network.sendKey('space');
-            }
-        }
-
-        // Check if player died
-        if (frame.player && frame.player.dead) {
-            if (audio) audio.playDeathBell();
-        } else if (frame.player && frame.player.hp !== undefined && frame.player.hp_max) {
-            if (frame.player.hp / frame.player.hp_max <= 0.25) {
-                if (audio) audio.playLowHpWarning();
-            }
-        }
-
-        // Update View Mode Visibility first so layouts and modes are synced
-        updateViewMode(frame);
-
-        // Render Terminal if active or in setup phase
-        if (frame.term && (needsTerm || currentPhase !== 'play')) {
-            terminal.render(frame.term);
-        }
-
-        // Render 3D Dungeon World whenever in play phase with valid map
-        if (currentPhase === 'play' && frame.map && frame.player) {
-            try {
-                dungeon.updateDungeon(frame);
-            } catch (err) {
-                console.error('[Dungeon3D Error]', err);
-            }
-        }
-
-        // Update HUD
-        try {
-            hud.update(frame);
-        } catch (err) {
-            console.error('[HUD Error]', err);
-        }
-
-        // Update Smart Contextual Controls (D-Pad Center Action, Staircase, Doors)
-        if (input && input.updateContextualControls) {
-            try {
-                input.updateContextualControls(frame);
-            } catch (err) {
-                console.error('[InputContext Error]', err);
-            }
-        }
-
-        // Update Terminal Toolbar & Context
-        try {
-            updateTerminalToolbar(frame);
-        } catch (err) {
-            console.error('[TerminalToolbar Error]', err);
-        }
-    };
-
-    network.onBye = (detail) => {
-        console.warn('[Angband3D] Disconnected:', detail);
-        if (hud.setStatus) {
-            hud.setStatus('Cloud [Disconnected]');
-        } else if (hud.pingBadge) {
-            hud.pingBadge.textContent = 'Cloud [Disconnected]';
-        }
-        if (detail) {
-            const topBanner = document.getElementById('top-message-banner');
-            const topText = document.getElementById('message-text');
-            if (topBanner && topText) {
-                topText.textContent = `⏳ ${detail} Click or tap anywhere to resume.`;
-                topBanner.classList.remove('hidden');
-                topBanner.style.cursor = 'pointer';
-                const resumeHandler = () => {
-                    topBanner.removeEventListener('click', resumeHandler);
-                    topBanner.style.cursor = 'default';
-                    network.manualDisconnect = false;
-                    network.connect(network.currentChar, false, network.currentSave);
-                };
-                topBanner.addEventListener('click', resumeHandler, { once: true });
-            }
-        }
-    };
-
-    network.onStatus = (status) => {
-        if (hud.setStatus) {
-            hud.setStatus(status.includes('Connecting') ? 'Cloud [Connecting...]' : (status.includes('Connected') ? 'Cloud [Connected]' : status));
-        } else if (hud.pingBadge) {
-            hud.pingBadge.textContent = status;
-        }
-    };
+    // Bind Engine Mode Toggle buttons in Main Menu
+    const btnEngineLocal = document.getElementById('btn-engine-local');
+    const btnEngineCloud = document.getElementById('btn-engine-cloud');
+    if (btnEngineLocal) {
+        btnEngineLocal.addEventListener('click', () => {
+            if (audio) audio.playMenuNav();
+            setEngineMode('local');
+        });
+    }
+    if (btnEngineCloud) {
+        btnEngineCloud.addEventListener('click', () => {
+            if (audio) audio.playMenuNav();
+            setEngineMode('cloud');
+        });
+    }
+    updateEngineModeUI();
 
     // 3. Initial Boot: Check URL query parameters
     const urlParams = new URLSearchParams(window.location.search);

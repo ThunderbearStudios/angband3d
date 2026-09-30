@@ -1,0 +1,18 @@
+{
+  "name": "angband3d-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "cap": "cap",
+    "android:add": "cap add android",
+    "android:sync": "cap sync android",
+    "android:build": "cd android && .\\gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^5.7.8",
+    "@capacitor/core": "^5.7.8"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^5.7.8"
+  }
+}

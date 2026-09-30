@@ -390,6 +390,16 @@
                     <div class="main-menu-subtitle">Choose your path to begin the descent into the pits of Angband</div>
                 </div>
 
+                <!-- Engine Realm & Offline Mode Selector -->
+                <div class="engine-mode-selector" id="engine-mode-selector">
+                    <button id="btn-engine-local" class="engine-toggle-btn active" title="Local in-browser WebAssembly engine: 0ms ping, 100% offline, IndexedDB storage">
+                        <span style="font-size: 14px;">⚡</span> Local Engine (Offline / 0ms)
+                    </button>
+                    <button id="btn-engine-cloud" class="engine-toggle-btn" title="Cloud Multiplayer Realm daemon: persistent server-backed adventure">
+                        <span style="font-size: 14px;">☁</span> Cloud Realm
+                    </button>
+                </div>
+
                 <div class="main-menu-options" id="main-menu-options">
                     <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0">
                         <span class="menu-bullet">►</span>
@@ -771,7 +781,18 @@
                         <span id="pwa-status-text" style="color: #e2e8f0; margin-left: 6px;">Ready to install as a standalone app.</span>
                     </div>
                     <div id="pwa-instructions-text">
-                        <p style="margin-bottom: 10px;">Installing Angband3D gives you a dedicated full-screen desktop or mobile app experience with offline asset caching and zero browser URL bar distraction.</p>
+                        <p style="margin-bottom: 12px;">Angband 3D supports full standalone play across all devices, with 100% offline functionality and universal <code>.sav</code> save portability.</p>
+
+                        <div style="background: rgba(10, 16, 28, 0.7); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                                <div>
+                                    <strong style="color: #ffd700; font-family: var(--font-title); font-size: 15px;">🤖 Native Android App (.APK)</strong>
+                                    <div style="color: #94a3b8; font-size: 12px;">Standalone offline package for Android 8.0+ phones &amp; tablets</div>
+                                </div>
+                                <a id="btn-pwa-apk-download" href="https://github.com/lieb2101/angband3d/releases/latest/download/Angband3D-Android.apk" class="btn-gold" style="text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">📥 Download APK</a>
+                            </div>
+                        </div>
+
                         <ul style="padding-left: 20px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
                             <li>• <strong>Chrome / Edge (Desktop)</strong>: Look for the Install icon (⊕ or computer display) on the right side of the address bar, or use the "Install Now" button below.</li>
                             <li>• <strong>iOS / iPadOS Safari</strong>: Tap the Share button (<span style="font-size: 16px;">⎋</span> with arrow up), scroll down, and select <strong>"Add to Home Screen"</strong> (➕).</li>
@@ -846,14 +867,15 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=6.8"></script>
-    <script src="/js/mobile-overlay.js?v=6.8"></script>
-    <script src="/js/audio.js?v=6.8"></script>
-    <script src="/js/terminal.js?v=6.8"></script>
-    <script src="/js/dungeon3d.js?v=6.8"></script>
-    <script src="/js/hud.js?v=6.8"></script>
-    <script src="/js/network.js?v=6.8"></script>
-    <script src="/js/input.js?v=6.8"></script>
-    <script src="/js/app.js?v=6.8"></script>
+    <script src="/js/device.js?v=7.0"></script>
+    <script src="/js/mobile-overlay.js?v=7.0"></script>
+    <script src="/js/audio.js?v=7.0"></script>
+    <script src="/js/terminal.js?v=7.0"></script>
+    <script src="/js/dungeon3d.js?v=7.0"></script>
+    <script src="/js/hud.js?v=7.0"></script>
+    <script src="/js/network.js?v=7.0"></script>
+    <script src="/js/local_bridge.js?v=7.0"></script>
+    <script src="/js/input.js?v=7.0"></script>
+    <script src="/js/app.js?v=7.0"></script>
 </body>
 </html>
