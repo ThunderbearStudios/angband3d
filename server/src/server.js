@@ -172,7 +172,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Standalone package ZIP download
-    if (pathname === '/download/angband3d-standalone.zip' && req.method === 'GET') {
+    if (pathname === '/download/angband3d-standalone.zip' && (req.method === 'GET' || req.method === 'HEAD')) {
         // Look for zip in DIST_DIR
         let zipPath = path.join(DIST_DIR, 'angband3d-standalone.zip');
         if (!fs.existsSync(zipPath)) {
@@ -200,7 +200,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Android APK download endpoint
-    if ((pathname === '/download/Angband3D-Android.apk' || pathname === '/download/angband3d-android.apk') && req.method === 'GET') {
+    if ((pathname === '/download/Angband3D-Android.apk' || pathname === '/download/angband3d-android.apk') && (req.method === 'GET' || req.method === 'HEAD')) {
         let apkPath = path.join(DIST_DIR, 'Angband3D-Android.apk');
         if (!fs.existsSync(apkPath)) {
             const files = fs.existsSync(DIST_DIR) ? fs.readdirSync(DIST_DIR) : [];
