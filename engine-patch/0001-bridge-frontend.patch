@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 920c537fd..b463d15e5 100644
+index 920c537fd..fa096b371 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -20,6 +20,7 @@ endif()
@@ -10,6 +10,15 @@ index 920c537fd..b463d15e5 100644
  option(SUPPORT_WINDOWS_FRONTEND "Support for windows front end." OFF)
  option(SUPPORT_BUNDLED_PNG "Use bundled Windows PNG+Zlib (32-bit x86 only)" OFF)
  option(SUPPORT_STATIC_LINKING "Enable static linking where possible" OFF)
+@@ -71,7 +72,7 @@ if((SUPPORT_STATS_FRONTEND) AND (NOT SUPPORT_STATS_BACKEND))
+ endif()
+ # If none of the graphical front ends will be configured, configure the one for
+ # Windows if that's the target plaform or the X11 one for anything else.
+-if((NOT SUPPORT_GCU_FRONTEND) AND (NOT SUPPORT_SDL_FRONTEND) AND (NOT SUPPORT_SDL2_FRONTEND) AND (NOT SUPPORT_WINDOWS_FRONTEND) AND (NOT SUPPORT_X11_FRONTEND))
++if((NOT SUPPORT_GCU_FRONTEND) AND (NOT SUPPORT_SDL_FRONTEND) AND (NOT SUPPORT_SDL2_FRONTEND) AND (NOT SUPPORT_WINDOWS_FRONTEND) AND (NOT SUPPORT_X11_FRONTEND) AND (NOT SUPPORT_BRIDGE_FRONTEND))
+     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+         set(SUPPORT_WINDOWS_FRONTEND ON)
+     else()
 @@ -112,6 +113,10 @@ if(SUPPORT_WINDOWS_FRONTEND)
          message(WARNING "Disabling test front end because Windows front end is enabled")
          set(SUPPORT_TEST_FRONTEND OFF)
@@ -215,22 +224,40 @@ index 000000000..e00b887fd
 +#endif /* INCLUDED_BRIDGE_JSON_H */
 diff --git a/src/cmake/macros/BRIDGE_Frontend.cmake b/src/cmake/macros/BRIDGE_Frontend.cmake
 new file mode 100644
-index 000000000..207cde9e9
+index 000000000..86bc4945d
 --- /dev/null
 +++ b/src/cmake/macros/BRIDGE_Frontend.cmake
-@@ -0,0 +1,6 @@
+@@ -0,0 +1,24 @@
 +macro(configure_bridge_frontend _NAME_TARGET)
 +
 +    target_compile_definitions(${_NAME_TARGET} PRIVATE -D USE_BRIDGE)
++
++    if(EMSCRIPTEN)
++        target_link_options(${_NAME_TARGET} PRIVATE
++            "-sASYNCIFY=1"
++            "-sINITIAL_MEMORY=32MB"
++            "-sMAXIMUM_MEMORY=128MB"
++            "-sALLOW_MEMORY_GROWTH=1"
++            "-sFORCE_FILESYSTEM=1"
++            "-lidbfs.js"
++            "-sEXPORTED_RUNTIME_METHODS=['FS','callMain','stringToUTF8','UTF8ToString','addRunDependency','removeRunDependency','IDBFS']"
++            "-sMODULARIZE=1"
++            "-sEXPORT_NAME=createAngbandModule"
++            "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/lib@/lib"
++            "SHELL:--exclude-file *tiles*"
++            "SHELL:--exclude-file *sounds*"
++        )
++    endif()
++
 +    message(STATUS "Support for bridge front end - Ready")
 +
 +endmacro()
 diff --git a/src/main-bridge.c b/src/main-bridge.c
 new file mode 100644
-index 000000000..03fb256e4
+index 000000000..c9fb0609c
 --- /dev/null
 +++ b/src/main-bridge.c
-@@ -0,0 +1,1223 @@
+@@ -0,0 +1,1251 @@
 +/**
 + * \file main-bridge.c
 + * \brief JSON state bridge front end, for driving Angband from an external client.
@@ -1315,6 +1342,26 @@ index 000000000..03fb256e4
 +}
 +
 +
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++
++EM_ASYNC_JS(int, wasm_bridge_get_command, (char *buf, int maxlen), {
++	return await new Promise((resolve) => {
++		Module.commandResolver = (cmd) => {
++			if (!cmd) {
++				resolve(0);
++				return;
++			}
++			stringToUTF8(cmd, buf, maxlen);
++			resolve(1);
++		};
++		if (Module.onAwaitingInput) {
++			Module.onAwaitingInput();
++		}
++	});
++})
++#endif
++
 +/**
 + * Emit a frame, then block until the client sends something that produces a
 + * keypress. EOF on stdin ends the game cleanly.
@@ -1326,11 +1373,19 @@ index 000000000..03fb256e4
 +	emit_frame();
 +
 +	for (;;) {
++#ifdef __EMSCRIPTEN__
++		if (wasm_bridge_get_command(buf, sizeof(buf)) <= 0) {
++			emit_event("bye", "eof");
++			quit(NULL);
++			return -1;
++		}
++#else
 +		if (!fgets(buf, sizeof(buf), stdin)) {
 +			emit_event("bye", "eof");
 +			quit(NULL);
 +			return -1;
 +		}
++#endif
 +		if (strchr(buf, '\n')) *strchr(buf, '\n') = '\0';
 +		if (strchr(buf, '\r')) *strchr(buf, '\r') = '\0';
 +

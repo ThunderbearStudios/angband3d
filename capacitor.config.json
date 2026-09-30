@@ -1,0 +1,9 @@
+{
+  "appId": "com.angband3d.game",
+  "appName": "Angband 3D",
+  "webDir": "server/public",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

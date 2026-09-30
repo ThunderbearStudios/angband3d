@@ -42,3 +42,4 @@ Thumbs.db
 tools/temp_chrome_*/
 scratch/
 lib/
+node_modules/

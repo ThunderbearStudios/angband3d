@@ -1,6 +1,15 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Post Low-Hanging Fruit & Viewmodel Hand Enhancements)
+## Current System State (Post WebAssembly Engine, Standalone Android APK & Universal Saves)
+
+0. **WebAssembly Engine, Standalone Android APK & Universal Save Portability (Route A Completed)**:
+   - **Compiled WebAssembly Target**: Angband 4.2.6 C engine compiled with Emscripten, Asyncify, and `-lidbfs.js`. Asyncify yields cleanly to the browser event loop during input polling, eliminating UI freezes while retaining full authentic C game logic and formula execution.
+   - **IndexedDB (`IDBFS`) Persistence**: Mounts `/lib/save` with `autoPersist: true` directly to the browser's IndexedDB, enabling 100% offline play that survives page reloads and browser restarts.
+   - **Background Web Worker Execution**: `engine-worker.js` executes the Wasm runtime off the main thread, keeping Three.js rendering and UI interactions at a steady 60fps/120fps.
+   - **Universal Save Portability**: Complete binary parity across all platforms. Export and import authentic `SaveVNLA` savefiles between PC (Windows/Linux), Godot desktop client, Cloud Realm, and Android.
+   - **Native Android APK (`android/`)**: Fully configured Capacitor native Android project bundling the Wasm engine and responsive WebGL client into local APK assets (`android/app/src/main/assets/public/`).
+   - **Release Automation**: GitHub Actions `release.yml` enhanced with `build-android` job to automatically compile Wasm and build `Angband3D-Android.apk` on every release tag.
+   - **Upcoming Phase (Step 3)**: Google Play Developer Console registration and store submission (to be performed later after anonymous Cloudflare email routing setup).
 
 1. **Engine Bridge**:
    - Upstream Angband 4.2.6 fork on branch `bridge` with `main-bridge.c`.
