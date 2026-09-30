@@ -4,6 +4,28 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.4] — 2026-09-30
+
+### 🧱 Realistic Dungeon Texturing, Calm Subterranean Torch Draft & Direct Mobile Get Action
+The `v1.1.4` release addresses visual realism, lighting serenity, and mobile ergonomics: completely eliminating distracting screen dust motes, replacing rapid torch strobing with a gentle, immersive subterranean draft, breaking up repetitive wall and floor brick patterns via multi-aspect UV scaling, deterministic quarter-turn tile rotations, and per-stone mineral variegation, and bringing the `Get [g]` pickup command directly into the primary mobile touch action cluster with smart item detection.
+
+### Fixed & Enhanced
+- **Eliminated Dust Motes & Screen Smudges**:
+  - Completely removed camera-bound dust particles and ember simulations, restoring a crystal-clear, distraction-free view into 3D dungeon depths.
+- **Calm, Immersive Living Torch Draft**:
+  - Replaced rapid, high-frequency torch flickering with a slow, soothing subterranean draft ($0.3\text{Hz}$ ambient breath with a subtle $\pm 2.2\%$ intensity variance).
+  - Preserved a stable, warm lantern gold palette (`#ffd28e`) free of harsh chromatic strobing or distracting flashes.
+- **Realistic Masonry Scaling, Rotation & Variegation**:
+  - **Multi-Aspect Ratio UV Scaling**: Scaled wall textures to `repX=2, repY=3` ($1.4\text{m} \times 2.4\text{m}$ grid), rendering naturally proportioned square masonry blocks instead of stretched giant wallpaper, and floors/ceilings to `repX=2, repY=2` for crisp flagstone pavers.
+  - **Deterministic Quarter-Turn Tile Rotations**: Applied deterministic $0^\circ, 90^\circ, 180^\circ, 270^\circ$ rotation hashes (`(x * 73 + y * 37) % 4`) to walls, floors, and ceilings across instanced geometry, completely breaking up identical mortar seams without altering dungeon collision or LOS bounds.
+  - **Per-Tile Mineral Variegation**: Integrated stone luminance and mineral warmth modulation into `computeTileShade(..., x, y)` for natural instance-to-instance color variation.
+  - **Deepened Grounding & Relief**: Extended Contact Ambient Occlusion gradient (bottom 28% darkens to 0.58) and increased normal map relief (`(1.35, 1.35)` walls, `(1.25, 1.25)` floors).
+- **Direct Mobile & Tablet "Get" Action (`#btn-pickup`)**:
+  - Moved `#btn-pickup` (`💎 Get [g]`) directly into the primary visible tactile thumb action cluster across phone portrait, phone landscape, and tablet viewports, eliminating the need to open the `⋯ More` drawer to collect loot.
+  - Added `.smart-item-active` pulsing emerald highlight (`@keyframes smartPulseEmerald`) that lights up dynamically whenever the hero is standing on a tile containing items.
+- **Cache Invalidation & Versioning**:
+  - Bumped server status version to `1.1.4` and asset cache-busting queries to `v=6.8` across CSS, JavaScript, and Service Worker.
+
 ## [v1.1.3] — 2026-09-30
 
 ### 🎨 High-Impact, Performance-Neutral & Gameplay-Safe Graphics Upgrade
