@@ -3582,6 +3582,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     padding: 2px 2px 4px;
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
 }
 
 .term-letter-ribbon::-webkit-scrollbar {
@@ -3606,6 +3607,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     font-weight: 700;
     cursor: pointer;
     touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
     display: inline-flex;
     align-items: center;

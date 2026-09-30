@@ -813,13 +813,63 @@ class InputController {
     }
 
     setupActionButtons() {
+        // Universal helper for reliable mobile touch + desktop click handling:
+        // - Tracks displacement during touchmove (>10px cancels activation if user was scrolling/swiping)
+        // - Prevents default on touchend to eliminate 300ms tap latency and block emulated clicks
+        // - Enforces a 500ms suppression window on click events to guarantee 1 tap = 1 action
+        const bindReliableAction = (btn, onTrigger) => {
+            let startX = 0;
+            let startY = 0;
+            let moved = false;
+            let lastTouchEndTime = 0;
+
+            btn.addEventListener('touchstart', (e) => {
+                if (e.touches && e.touches.length > 0) {
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                    moved = false;
+                }
+            }, { passive: true });
+
+            btn.addEventListener('touchmove', (e) => {
+                if (e.touches && e.touches.length > 0) {
+                    const dx = Math.abs(e.touches[0].clientX - startX);
+                    const dy = Math.abs(e.touches[0].clientY - startY);
+                    if (dx > 10 || dy > 10) {
+                        moved = true; // Dragging or scrolling
+                    }
+                }
+            }, { passive: true });
+
+            btn.addEventListener('touchend', (e) => {
+                lastTouchEndTime = Date.now();
+                if (!moved) {
+                    if (e.cancelable) e.preventDefault();
+                    onTrigger(e);
+                }
+            }, { passive: false });
+
+            btn.addEventListener('touchcancel', () => {
+                lastTouchEndTime = Date.now();
+            }, { passive: true });
+
+            btn.addEventListener('click', (e) => {
+                // Suppress synthetic clicks emitted by mobile browsers after touch
+                if (Date.now() - lastTouchEndTime < 500) {
+                    if (e.cancelable) e.preventDefault();
+                    return;
+                }
+                onTrigger(e);
+            });
+        };
+
         const bind = (id, key) => {
             const btn = document.getElementById(id);
             if (btn) {
                 let lastTriggerTime = 0;
                 const fire = (ev) => {
                     const now = Date.now();
-                    if (now - lastTriggerTime < 280) return; // Debounce rapid pointerdown + click
+                    if (now - lastTriggerTime < 280) return; // Debounce rapid triggers
                     lastTriggerTime = now;
 
                     if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
@@ -865,12 +915,7 @@ class InputController {
                     }
                 };
 
-                btn.addEventListener('pointerdown', (ev) => {
-                    if (ev.pointerType === 'touch') {
-                        fire(ev);
-                    }
-                });
-                btn.addEventListener('click', fire);
+                bindReliableAction(btn, fire);
             }
         };
 
@@ -901,10 +946,7 @@ class InputController {
                 const key = stairBtn.dataset.key || '>';
                 this.network.sendKey(key);
             };
-            stairBtn.addEventListener('pointerdown', (ev) => {
-                if (ev.pointerType === 'touch') fireStair(ev);
-            });
-            stairBtn.addEventListener('click', fireStair);
+            bindReliableAction(stairBtn, fireStair);
         }
 
         // Mobile / Tablet Action Drawer Toggle
@@ -914,17 +956,14 @@ class InputController {
             let lastMoreTime = 0;
             const toggleDrawer = (ev) => {
                 const now = Date.now();
-                if (now - lastMoreTime < 100) return;
+                if (now - lastMoreTime < 180) return;
                 lastMoreTime = now;
                 if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
                 if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
                 actionBar.classList.toggle('drawer-open');
                 actionMoreBtn.textContent = actionBar.classList.contains('drawer-open') ? '✕ Close' : '⋯ More';
             };
-            actionMoreBtn.addEventListener('pointerdown', (ev) => {
-                if (ev.pointerType === 'touch') toggleDrawer(ev);
-            });
-            actionMoreBtn.addEventListener('click', toggleDrawer);
+            bindReliableAction(actionMoreBtn, toggleDrawer);
 
             actionBar.addEventListener('click', (ev) => {
                 const target = ev.target ? ev.target.closest('.action-btn') : null;

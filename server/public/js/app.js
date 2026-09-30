@@ -255,13 +255,19 @@ window.addEventListener('DOMContentLoaded', () => {
     // Unified Mobile Classic Touch Controller Dock (D-pad, Contextual Actions & Letters)
     const termTouchControls = document.getElementById('terminal-touch-controls');
     if (termTouchControls) {
-        let lastTouchTrigger = 0;
-        const handleTouchAction = (ev) => {
-            const btn = ev.target.closest('[data-key]');
+        let lastActionTime = 0;
+        let lastTouchEndTime = 0;
+        let touchStartBtn = null;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchMoved = false;
+
+        const executeTouchAction = (btn, ev) => {
             if (!btn || btn.id === 'btn-birth-name-submit' || btn.id === 'btn-birth-name-rand') return;
             const now = Date.now();
-            if (now - lastTouchTrigger < 80) return;
-            lastTouchTrigger = now;
+            if (now - lastActionTime < 140) return; // Debounce rapid physical button jitter
+            lastActionTime = now;
+
             if (ev && ev.cancelable && ev.type !== 'click') ev.preventDefault();
             if (audio) audio.unlock();
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
@@ -298,10 +304,54 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        termTouchControls.addEventListener('pointerdown', (ev) => {
-            if (ev.pointerType === 'touch') handleTouchAction(ev);
+        // Touch handling with swipe rejection (allows scrolling ribbons and menus without false triggers)
+        termTouchControls.addEventListener('touchstart', (ev) => {
+            if (ev.touches && ev.touches.length === 1) {
+                const touch = ev.touches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+                touchMoved = false;
+                touchStartBtn = ev.target.closest('[data-key]');
+            }
+        }, { passive: true });
+
+        termTouchControls.addEventListener('touchmove', (ev) => {
+            if (ev.touches && ev.touches.length === 1) {
+                const touch = ev.touches[0];
+                const dx = Math.abs(touch.clientX - touchStartX);
+                const dy = Math.abs(touch.clientY - touchStartY);
+                if (dx > 10 || dy > 10) {
+                    touchMoved = true;
+                }
+            }
+        }, { passive: true });
+
+        termTouchControls.addEventListener('touchend', (ev) => {
+            lastTouchEndTime = Date.now();
+            if (!touchMoved && touchStartBtn) {
+                executeTouchAction(touchStartBtn, ev);
+            }
+            touchStartBtn = null;
+            touchMoved = false;
+        }, { passive: false });
+
+        termTouchControls.addEventListener('touchcancel', () => {
+            lastTouchEndTime = Date.now();
+            touchStartBtn = null;
+            touchMoved = false;
+        }, { passive: true });
+
+        // Click listener for desktop mouse interactions (strictly suppresses emulated touch clicks)
+        termTouchControls.addEventListener('click', (ev) => {
+            if (Date.now() - lastTouchEndTime < 500) {
+                // Ignore synthetic emulated click from mobile touch
+                return;
+            }
+            const btn = ev.target.closest('[data-key]');
+            if (btn) {
+                executeTouchAction(btn, ev);
+            }
         });
-        termTouchControls.addEventListener('click', handleTouchAction);
 
         // Name submission handling for character creation
         const nameSubmitBtn = document.getElementById('btn-birth-name-submit');
@@ -1226,22 +1276,55 @@ window.addEventListener('DOMContentLoaded', () => {
         showMainMenu();
     }
 
-    // Fast Tactile Tap Helper for Mobile / Touch Devices
+    // Fast Tactile Tap Helper for Mobile / Touch Devices with swipe cancellation and click suppression
     function bindFastTap(el, fn) {
         if (!el || !fn) return;
-        let lastTap = 0;
+        let lastActionTime = 0;
+        let lastTouchEndTime = 0;
+        let startX = 0, startY = 0, moved = false;
+
         const trigger = (e) => {
             const now = Date.now();
-            if (now - lastTap < 300) return;
-            lastTap = now;
+            if (now - lastActionTime < 250) return;
+            lastActionTime = now;
             if (e && e.cancelable && e.type !== 'click') e.preventDefault();
             if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
             fn();
         };
-        el.addEventListener('pointerdown', (e) => {
-            if (e.pointerType === 'touch') trigger(e);
+
+        el.addEventListener('touchstart', (e) => {
+            if (e.touches && e.touches.length === 1) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                moved = false;
+            }
+        }, { passive: true });
+
+        el.addEventListener('touchmove', (e) => {
+            if (e.touches && e.touches.length === 1) {
+                const dx = Math.abs(e.touches[0].clientX - startX);
+                const dy = Math.abs(e.touches[0].clientY - startY);
+                if (dx > 10 || dy > 10) moved = true;
+            }
+        }, { passive: true });
+
+        el.addEventListener('touchend', (e) => {
+            lastTouchEndTime = Date.now();
+            if (!moved) {
+                trigger(e);
+            }
+            moved = false;
+        }, { passive: false });
+
+        el.addEventListener('touchcancel', () => {
+            lastTouchEndTime = Date.now();
+            moved = false;
+        }, { passive: true });
+
+        el.addEventListener('click', (e) => {
+            if (Date.now() - lastTouchEndTime < 500) return; // Suppress synthetic click from touch
+            trigger(e);
         });
-        el.addEventListener('click', trigger);
     }
 
     // Attach DOM event listeners for splash buttons
@@ -1370,21 +1453,55 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     menuOptionBtns.forEach((btn, idx) => {
-        let lastTap = 0;
+        let lastActionTime = 0;
+        let lastTouchEndTime = 0;
+        let startX = 0, startY = 0, moved = false;
+
         const trigger = (e) => {
             const now = Date.now();
-            if (now - lastTap < 300) return;
-            lastTap = now;
+            if (now - lastActionTime < 250) return;
+            lastActionTime = now;
             if (e && e.cancelable && e.type !== 'click') e.preventDefault();
             if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
             selectedMenuIndex = idx;
             updateMenuSelectionUI();
             activateMenuItem();
         };
-        btn.addEventListener('pointerdown', (e) => {
-            if (e.pointerType === 'touch') trigger(e);
+
+        btn.addEventListener('touchstart', (e) => {
+            if (e.touches && e.touches.length === 1) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                moved = false;
+            }
+        }, { passive: true });
+
+        btn.addEventListener('touchmove', (e) => {
+            if (e.touches && e.touches.length === 1) {
+                const dx = Math.abs(e.touches[0].clientX - startX);
+                const dy = Math.abs(e.touches[0].clientY - startY);
+                if (dx > 10 || dy > 10) moved = true;
+            }
+        }, { passive: true });
+
+        btn.addEventListener('touchend', (e) => {
+            lastTouchEndTime = Date.now();
+            if (!moved) {
+                trigger(e);
+            }
+            moved = false;
+        }, { passive: false });
+
+        btn.addEventListener('touchcancel', () => {
+            lastTouchEndTime = Date.now();
+            moved = false;
+        }, { passive: true });
+
+        btn.addEventListener('click', (e) => {
+            if (Date.now() - lastTouchEndTime < 500) return; // Suppress synthetic click from touch
+            trigger(e);
         });
-        btn.addEventListener('click', trigger);
+
         btn.addEventListener('mouseenter', () => {
             selectedMenuIndex = idx;
             updateMenuSelectionUI();
@@ -1392,21 +1509,55 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     pauseOptionBtns.forEach((btn, idx) => {
-        let lastTap = 0;
+        let lastActionTime = 0;
+        let lastTouchEndTime = 0;
+        let startX = 0, startY = 0, moved = false;
+
         const trigger = (e) => {
             const now = Date.now();
-            if (now - lastTap < 300) return;
-            lastTap = now;
+            if (now - lastActionTime < 250) return;
+            lastActionTime = now;
             if (e && e.cancelable && e.type !== 'click') e.preventDefault();
             if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
             selectedPauseIndex = idx;
             updatePauseMenuSelectionUI();
             activatePauseMenuItem();
         };
-        btn.addEventListener('pointerdown', (e) => {
-            if (e.pointerType === 'touch') trigger(e);
+
+        btn.addEventListener('touchstart', (e) => {
+            if (e.touches && e.touches.length === 1) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                moved = false;
+            }
+        }, { passive: true });
+
+        btn.addEventListener('touchmove', (e) => {
+            if (e.touches && e.touches.length === 1) {
+                const dx = Math.abs(e.touches[0].clientX - startX);
+                const dy = Math.abs(e.touches[0].clientY - startY);
+                if (dx > 10 || dy > 10) moved = true;
+            }
+        }, { passive: true });
+
+        btn.addEventListener('touchend', (e) => {
+            lastTouchEndTime = Date.now();
+            if (!moved) {
+                trigger(e);
+            }
+            moved = false;
+        }, { passive: false });
+
+        btn.addEventListener('touchcancel', () => {
+            lastTouchEndTime = Date.now();
+            moved = false;
+        }, { passive: true });
+
+        btn.addEventListener('click', (e) => {
+            if (Date.now() - lastTouchEndTime < 500) return; // Suppress synthetic click from touch
+            trigger(e);
         });
-        btn.addEventListener('click', trigger);
+
         btn.addEventListener('mouseenter', () => {
             selectedPauseIndex = idx;
             updatePauseMenuSelectionUI();
@@ -1765,23 +1916,47 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Helper to populate letter ribbon (supports single & multi-column menus)
-        const populateLetterRibbon = (rows) => {
+        // Helper to populate letter ribbon (supports single & multi-column menus, excludes item description stats)
+        let lastPopulatedLetters = '';
+        const populateLetterRibbon = (rows, explicitLetters = null) => {
             if (!termLetterRibbon) return;
-            const letters = [];
-            if (rows) {
-                const regex = /(?:^|\s+)(?:\[([a-zA-Z0-9*@?])\]|([a-zA-Z0-9*@?])[\)\.\:\-])\s+/g;
+            let letters = [];
+            if (explicitLetters && Array.isArray(explicitLetters)) {
+                letters = explicitLetters;
+            } else if (rows) {
+                // Match option tags strictly at line start or multi-column spacing (2+ spaces)
+                // Strictly avoids matching armor values [2], to-hit (+1,+2), etc.
+                const lineRegex = /(?:^|\s{2,})([a-zA-Z0-9])[\)\.\:\-]\s+/g;
+                const bracketTagRegex = /^\s*\[([a-zA-Z0-9*@?])\]\s+/g;
                 for (let r = 0; r < rows.length; r++) {
                     const line = rows[r].g || '';
                     let m;
-                    while ((m = regex.exec(line)) !== null) {
-                        const lt = m[1] || m[2];
+                    while ((m = lineRegex.exec(line)) !== null) {
+                        const lt = m[1];
+                        if (lt && !letters.includes(lt)) {
+                            letters.push(lt);
+                        }
+                    }
+                    while ((m = bracketTagRegex.exec(line)) !== null) {
+                        const lt = m[1];
                         if (lt && !letters.includes(lt)) {
                             letters.push(lt);
                         }
                     }
                 }
+                // If yes/no is present in prompt, ensure y and n are available
+                if (screenText.includes('[y/n]') || screenText.includes('(y/n)')) {
+                    if (!letters.includes('y')) letters.unshift('y');
+                    if (!letters.includes('n')) letters.push('n');
+                }
             }
+
+            const letterKey = letters.join(',');
+            if (letterKey === lastPopulatedLetters) {
+                return; // DOM stability: do not recreate buttons if options are unchanged
+            }
+            lastPopulatedLetters = letterKey;
+
             if (letters.length > 0) {
                 termLetterRibbon.style.display = 'flex';
                 termLetterRibbon.innerHTML = letters.map(lt =>
@@ -1903,7 +2078,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     `;
                 }
             } else {
-                // Choice menu (Race, Class, Traits)
+                // Choice menu (Race, Class, Traits) — D-pad stays active for Up/Down highlight and Enter selection
                 if (screenText.includes('race affects stats')) {
                     terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
                 } else if (screenText.includes('class affects stats')) {
@@ -1911,11 +2086,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 } else {
                     terminalTitle.textContent = '⚔ CHARACTER CREATION';
                 }
-                if (termDpad) termDpad.style.display = 'none';
+                if (termDpad) termDpad.style.display = 'grid'; // D-pad Up/Down navigates highlight, Enter selects
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termCtxActions) {
                     termCtxActions.innerHTML = `
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="*"><span>[*]</span> 🎲 Random</button>
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ✓ Select</button>
+                        <button type="button" class="term-ctx-btn" data-key="*"><span>[*]</span> 🎲 Random</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
                     `;
                 }
@@ -1929,7 +2105,36 @@ window.addEventListener('DOMContentLoaded', () => {
         if (termRerollBtn) termRerollBtn.style.display = 'none';
         if (birthNameBar) birthNameBar.style.display = 'none';
 
-        if (isStore) {
+        // Check for universal Yes/No prompts or Quantity prompts in active play or stores
+        const isYesNoPrompt = screenText.includes('[y/n]') || screenText.includes('(y/n)') ||
+                              screenText.includes('are you sure') || screenText.includes('really drop') ||
+                              screenText.includes('really destroy');
+        const isQuantityPrompt = screenText.includes('how many') || screenText.includes('quantity') || screenText.includes('how much');
+
+        if (isYesNoPrompt) {
+            terminalTitle.textContent = '⚔ CONFIRM ACTION [y/n]';
+            if (termDpad) termDpad.style.display = 'none';
+            if (termCtxActions) {
+                termCtxActions.innerHTML = `
+                    <button type="button" class="term-ctx-btn btn-gold" data-key="y"><span>[y]</span> ✓ Yes</button>
+                    <button type="button" class="term-ctx-btn btn-gold-outline" data-key="n"><span>[n]</span> ✕ No</button>
+                    <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
+                `;
+            }
+            populateLetterRibbon(null, ['y', 'n']);
+        } else if (isQuantityPrompt) {
+            terminalTitle.textContent = '📦 ENTER QUANTITY';
+            if (termDpad) termDpad.style.display = 'grid';
+            if (termCtxActions) {
+                termCtxActions.innerHTML = `
+                    <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> All (Default)</button>
+                    <button type="button" class="term-ctx-btn" data-key="1"><span>[1]</span> Just 1</button>
+                    <button type="button" class="term-ctx-btn" data-key="5"><span>[5]</span> 5</button>
+                    <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
+                `;
+            }
+            populateLetterRibbon(null, ['1', '2', '3', '5', '10', 'enter']);
+        } else if (isStore) {
             // Player is inside a classic store
             if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
             let storeName = 'STORE';
@@ -1950,25 +2155,72 @@ window.addEventListener('DOMContentLoaded', () => {
                 };
                 if (storeNames[playerFeat]) storeName = storeNames[playerFeat];
             }
-            terminalTitle.textContent = '⚔ ' + storeName.toUpperCase();
 
             const hasMore = Boolean(frame.ui && frame.ui.more) || screenText.includes('-more-');
+            const isStoreContextMenu = screenText.includes('command for ') || (screenText.includes('(enter to select') && screenText.includes('examine'));
+            const isStoreBuy = screenText.includes('purchase which item') || screenText.includes('which item to buy');
+            const isStoreSell = screenText.includes('sell which item') || screenText.includes('which item to sell');
+            const isStoreExamine = screenText.includes('examine which item');
 
             if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling and navigating store inventory
 
-            // Classic Store Action Navigation Dock (Pure classic Angband navigation keys)
-            if (termCtxActions) {
-                termCtxActions.innerHTML = `
-                    ${hasMore ? '<button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ⏩ Continue (-more-)</button>' : ''}
-                    <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> 💰 Buy</button>
-                    <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> 🏷 Sell</button>
-                    <button type="button" class="term-ctx-btn" data-key="l"><span>[l]</span> 🔍 Examine</button>
-                    <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                    <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> 🚪 Exit Store</button>
-                `;
+            if (isStoreContextMenu) {
+                terminalTitle.textContent = '⚔ CHOOSE ACTION FOR ITEM';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> Select</button>
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> 💰 Buy All</button>
+                        <button type="button" class="term-ctx-btn" data-key="o"><span>[o]</span> 🛒 Buy One</button>
+                        <button type="button" class="term-ctx-btn" data-key="l"><span>[l]</span> 🔍 Examine</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Back</button>
+                    `;
+                }
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+            } else if (isStoreBuy) {
+                terminalTitle.textContent = '💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> Select</button>
+                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Cancel Buy</button>
+                    `;
+                }
+                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
+            } else if (isStoreSell) {
+                terminalTitle.textContent = '🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> Select</button>
+                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Cancel Sell</button>
+                    `;
+                }
+                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
+            } else if (isStoreExamine) {
+                terminalTitle.textContent = '🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> Select</button>
+                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Cancel Examine</button>
+                    `;
+                }
+                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
+            } else {
+                // Top-Level Store Browsing View
+                terminalTitle.textContent = '⚔ ' + storeName.toUpperCase() + ' — BROWSE INVENTORY';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        ${hasMore ? '<button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ⏩ Continue (-more-)</button>' : ''}
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> 💰 Buy</button>
+                        <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> 🏷 Sell</button>
+                        <button type="button" class="term-ctx-btn" data-key="l"><span>[l]</span> 🔍 Examine</button>
+                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> 🚪 Exit Store</button>
+                    `;
+                }
+                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             }
-            // Always provide direct letter selection keys [a]..[l] outside classic view
-            populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
         } else if (isTargeting) {
             // Target / Direction Aiming Mode
             terminalTitle.textContent = '🎯 TARGETING & AIMING';
@@ -2012,7 +2264,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const isEquipView = screenText.includes('equip');
             const isQuiverView = screenText.includes('quiver:') || screenText.includes('quiver');
 
-            if (termDpad) termDpad.style.display = 'none'; // Letter ribbon handles item choices cleanly
+            if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling and selecting items
 
             if (termCtxActions) {
                 termCtxActions.innerHTML = `

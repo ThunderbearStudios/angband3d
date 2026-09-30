@@ -289,7 +289,20 @@ async function runTests() {
     assert(freshAppJs.includes('syncAudioUI'), 'app.js must implement syncAudioUI');
     console.log('  -> Sensed and invisible creatures rendered in 3D with glowing foggy misty aura and badge');
     console.log('  -> Global volume slider and mute controls active in top bar and pause modal');
-    console.log('  -> Splash screen credits, key implementation features, and tactical pro tips guide verified');
+    // Test 19: Mobile Touch Sensitivity & Menu Interface Integrity
+    console.log('Test 19: Mobile Touch Sensitivity & Menu Interface Integrity');
+    const swJs = fs.readFileSync(path.join(__dirname, '../public/sw.js'), 'utf8');
+    assert(swJs.includes("angband3d-v6.4"), 'sw.js must be bumped to angband3d-v6.4');
+    assert(indexRes.body.includes('/css/dungeon.css?v=6.4'), 'index.html must load dungeon.css?v=6.4');
+    assert(indexRes.body.includes('/js/app.js?v=6.4'), 'index.html must load app.js?v=6.4');
+    assert(dungeonCss.includes('touch-action: pan-x;'), 'dungeon.css .term-letter-ribbon must have touch-action: pan-x');
+    assert(appJs.includes('Date.now() - lastTouchEndTime < 500'), 'app.js must suppress synthetic clicks within 500ms of touch');
+    assert(inputJs.includes('bindReliableAction'), 'input.js must implement bindReliableAction');
+    assert(appJs.includes('data-key="y"><span>[y]</span>') && appJs.includes('Yes</button>'), 'app.js must provide dedicated Yes/No prompt buttons');
+    assert(appJs.includes('termDpad.style.display = \'grid\''), 'app.js must provide D-Pad navigation for birth menus and item prompts');
+    console.log('  -> Synthetic click suppression (< 500ms) active across letter ribbons, menus, and action buttons');
+    console.log('  -> Horizontal pan-x scrolling enabled on term letter ribbon with touch drag cancellation');
+    console.log('  -> Universal Yes/No prompt shortcuts, quantity pickers, and D-Pad accessibility verified');
 
     console.log('\nAll server unit tests passed successfully!');
     process.exit(0);
