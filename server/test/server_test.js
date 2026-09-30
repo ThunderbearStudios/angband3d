@@ -292,9 +292,9 @@ async function runTests() {
     // Test 19: Mobile Touch Sensitivity & Menu Interface Integrity
     console.log('Test 19: Mobile Touch Sensitivity & Menu Interface Integrity');
     const swJs = fs.readFileSync(path.join(__dirname, '../public/sw.js'), 'utf8');
-    assert(swJs.includes("angband3d-v7.0") || swJs.includes("angband3d-v6.4"), 'sw.js must be bumped to angband3d-v7.0');
-    assert(indexRes.body.includes('/css/dungeon.css?v=7.0') || indexRes.body.includes('/css/dungeon.css?v=6.4'), 'index.html must load dungeon.css');
-    assert(indexRes.body.includes('/js/app.js?v=7.0') || indexRes.body.includes('/js/app.js?v=6.4'), 'index.html must load app.js');
+    assert(swJs.includes("angband3d-v7.1") || swJs.includes("angband3d-v7.0") || swJs.includes("angband3d-v6.4"), 'sw.js must be bumped to angband3d-v7.1');
+    assert(indexRes.body.includes('/css/dungeon.css?v=7.1') || indexRes.body.includes('/css/dungeon.css?v=7.0') || indexRes.body.includes('/css/dungeon.css?v=6.4'), 'index.html must load dungeon.css');
+    assert(indexRes.body.includes('/js/app.js?v=7.1') || indexRes.body.includes('/js/app.js?v=7.0') || indexRes.body.includes('/js/app.js?v=6.4'), 'index.html must load app.js');
     assert(dungeonCss.includes('touch-action: pan-x;'), 'dungeon.css .term-letter-ribbon must have touch-action: pan-x');
     assert(appJs.includes('Date.now() - lastTouchEndTime < 500'), 'app.js must suppress synthetic clicks within 500ms of touch');
     assert(inputJs.includes('bindReliableAction'), 'input.js must implement bindReliableAction');

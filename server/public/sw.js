@@ -1,5 +1,5 @@
-// Angband3D Service Worker — v7.0 PWA & 100% Offline Engine
-const CACHE_NAME = 'angband3d-v7.0';
+// Angband3D Service Worker — v7.1 PWA & Standalone Client Caching
+const CACHE_NAME = 'angband3d-v7.1';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
