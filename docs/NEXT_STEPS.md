@@ -14,7 +14,7 @@
      - Added full-screen `#pwa-modal` styling (`position: absolute; width: 100%; height: 100%; z-index: 55; background: rgba(3, 4, 7, 0.88); backdrop-filter: blur(8px);`) with responsive safe top offsets and `.pwa-card` animations.
      - Integrated direct download links for Native Android APK (`/download/Angband3D-Android.apk`) and Windows PC Desktop Edition (`/download/angband3d-standalone.zip`) with automatic fallback redirects to latest GitHub release assets.
      - Bound fast-tap event listeners for touch/mouse, header `✕` close button, footer `[Esc / Enter] Close`, backdrop click dismiss, and keyboard navigation.
-     - Bumped cache bust to `v=7.2` and successfully deployed to Cloud Run (`angband3d-cloud-00085-lsj`).
+     - Bumped cache bust to `v=7.2` and successfully deployed to Cloud Run (`angband3d-cloud-00086-wlc (v7.3 - Mobile Volume Overhaul & Verified Release Assets)`).
    - **Upcoming Phase (Step 3)**: Google Play Developer Console registration and store submission (to be performed later after anonymous Cloudflare email routing setup).
 
 1. **Engine Bridge**:
