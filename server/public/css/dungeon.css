@@ -61,6 +61,30 @@ html, body {
     z-index: 1;
 }
 
+/* Environmental Adaptive Vignette (Zero GPU overhead, sits behind HUD & terminal) */
+.dungeon-vignette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, var(--vignette-strength, 0.32)) 100%);
+    transition: opacity 0.6s ease-out;
+}
+
+.dungeon-vignette.danger-pulse {
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 48%, rgba(180, 20, 20, 0.42) 100%);
+    animation: vignette-danger-pulse 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes vignette-danger-pulse {
+    0% { opacity: 0.25; }
+    100% { opacity: 0.85; }
+}
+
 /* Live Action & Combat Message Banner (1:1 with Godot Overlay.cs:1572-1587) */
 .top-message-banner {
     position: absolute;

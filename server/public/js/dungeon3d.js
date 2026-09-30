@@ -23,6 +23,35 @@
  */
 
 // ==============================================================================
+// 0. Graphics Configuration & Enhancement Profile (Reversible & Platform-Safe)
+// ==============================================================================
+
+window.GRAPHICS_CONFIG = {
+    preset: 'enhanced',         // 'classic' | 'enhanced'
+    vertexAO: true,            // Contact Ambient Occlusion on walls, floors, ceilings
+    torchFlicker: true,        // Organic dual-frequency flame flicker & color oscillation
+    torchInertia: true,        // Subtle hand-held torch movement lag on turn & walk bob
+    adaptiveVignette: true,    // Environmental adaptive perimeter vignette behind HUD
+    dustMotes: true,           // Atmospheric subterranean floating dust & embers
+    surfaceBreathing: true     // Subtle emissive pulse on in-view molten lava (zero light leak)
+};
+
+window.setGraphicsPreset = function(presetName) {
+    const isEnhanced = presetName === 'enhanced';
+    window.GRAPHICS_CONFIG.preset = isEnhanced ? 'enhanced' : 'classic';
+    window.GRAPHICS_CONFIG.vertexAO = isEnhanced;
+    window.GRAPHICS_CONFIG.torchFlicker = isEnhanced;
+    window.GRAPHICS_CONFIG.torchInertia = isEnhanced;
+    window.GRAPHICS_CONFIG.adaptiveVignette = isEnhanced;
+    window.GRAPHICS_CONFIG.dustMotes = isEnhanced;
+    window.GRAPHICS_CONFIG.surfaceBreathing = isEnhanced;
+
+    if (window.__app && window.__app.dungeon) {
+        window.__app.dungeon.applyGraphicsConfig();
+    }
+};
+
+// ==============================================================================
 // 1. Angband 32-Color Palette (1:1 with AngbandColors.cs)
 // ==============================================================================
 
@@ -532,6 +561,74 @@ function createChamferedWallGeometry(cellSize, wallHeight, chamfer = 0.40) {
     return geo;
 }
 
+// ------------------------------------------------------------------------------
+// Vertex Contact Ambient Occlusion (AO) Generators
+// Grounding geometry without runtime GPU shader passes (0 draw calls, 0 frame drop)
+// ------------------------------------------------------------------------------
+
+function applyWallVertexAO(geo, wallHeight) {
+    if (!geo || !geo.attributes || !geo.attributes.position) return;
+    const pos = geo.attributes.position;
+    const count = pos.count;
+    const colors = new Float32Array(count * 3);
+    const halfH = wallHeight / 2;
+    for (let i = 0; i < count; i++) {
+        const y = pos.getY(i);
+        const t = Math.max(0, Math.min(1, (y + halfH) / wallHeight));
+        let factor = 1.0;
+        if (t < 0.22) {
+            // Soft ground contact shadow on the bottom 22% of the wall (darkens down to 0.70)
+            factor = 0.70 + (t / 0.22) * 0.30;
+        } else if (t > 0.82) {
+            // Soft ceiling contact shadow on top 18% of the wall (darkens down to 0.80)
+            factor = 0.80 + ((1.0 - t) / 0.18) * 0.20;
+        }
+        colors[i * 3 + 0] = factor;
+        colors[i * 3 + 1] = factor;
+        colors[i * 3 + 2] = factor;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
+
+function applyFloorVertexAO(geo, cellSize) {
+    if (!geo || !geo.attributes || !geo.attributes.position) return;
+    const pos = geo.attributes.position;
+    const count = pos.count;
+    const colors = new Float32Array(count * 3);
+    const maxDist = Math.hypot(cellSize / 2, cellSize / 2);
+    for (let i = 0; i < count; i++) {
+        const x = pos.getX(i);
+        const z = pos.getZ(i);
+        const dist = Math.hypot(x, z);
+        const d = Math.min(1.0, dist / maxDist);
+        // Perimeter and corners softly darkened by up to 20% to ground wall contact
+        const factor = 1.0 - d * 0.20;
+        colors[i * 3 + 0] = factor;
+        colors[i * 3 + 1] = factor;
+        colors[i * 3 + 2] = factor;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
+
+function applyCeilingVertexAO(geo, cellSize) {
+    if (!geo || !geo.attributes || !geo.attributes.position) return;
+    const pos = geo.attributes.position;
+    const count = pos.count;
+    const colors = new Float32Array(count * 3);
+    const maxDist = Math.hypot(cellSize / 2, cellSize / 2);
+    for (let i = 0; i < count; i++) {
+        const x = pos.getX(i);
+        const z = pos.getZ(i);
+        const dist = Math.hypot(x, z);
+        const d = Math.min(1.0, dist / maxDist);
+        const factor = 1.0 - d * 0.16;
+        colors[i * 3 + 0] = factor;
+        colors[i * 3 + 1] = factor;
+        colors[i * 3 + 2] = factor;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
+
 // ==============================================================================
 // 2. Main 3D Dungeon Crawler Engine
 // ==============================================================================
@@ -635,10 +732,46 @@ class Dungeon3D {
         this.torchLight.position.set(-0.25, -0.05, -0.28);
         this.camera.add(this.torchLight);
 
+        // Living Torch Colors (smooth thermodynamic color shifting between gold and warm ember)
+        this.torchBaseColor = new THREE.Color(0xffdc99);
+        this.torchLowColor = new THREE.Color(0xffaa55);
+
         // Secondary warm bounce fill light near player feet - ATTACHED TO CAMERA
         this.torchFillLight = new THREE.PointLight(0xff7722, 0.35, 8.0, 0.7);
         this.torchFillLight.position.set(0.20, -0.20, -0.20);
         this.camera.add(this.torchFillLight);
+
+        // Atmospheric Subterranean Dust Motes & Embers (Single camera-bound instanced draw call)
+        const dustCount = tier === 'phone' ? 24 : 54;
+        const dustGeo = new THREE.BufferGeometry();
+        const dustPositions = new Float32Array(dustCount * 3);
+        this.dustVelocities = new Float32Array(dustCount * 3);
+
+        for (let i = 0; i < dustCount; i++) {
+            dustPositions[i * 3 + 0] = (Math.random() - 0.5) * 4.5;
+            dustPositions[i * 3 + 1] = (Math.random() - 0.5) * 2.8;
+            dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 4.5;
+
+            this.dustVelocities[i * 3 + 0] = (Math.random() - 0.5) * 0.035;
+            this.dustVelocities[i * 3 + 1] = -0.010 + (Math.random() - 0.5) * 0.02;
+            this.dustVelocities[i * 3 + 2] = (Math.random() - 0.5) * 0.035;
+        }
+
+        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+
+        this.dustMaterial = new THREE.PointsMaterial({
+            color: 0xffd599,
+            size: 0.034,
+            transparent: true,
+            opacity: 0.18,
+            depthWrite: false,
+            depthTest: true,
+            blending: THREE.AdditiveBlending
+        });
+
+        this.dustPoints = new THREE.Points(dustGeo, this.dustMaterial);
+        this.dustPoints.frustumCulled = false;
+        this.camera.add(this.dustPoints);
 
         // Floating 3D Shop and Landmark Labels (Matches Godot _terrainLabels)
         this.terrainLabelsGroup = new THREE.Group();
@@ -805,7 +938,8 @@ class Dungeon3D {
             normalMap: this.wallNormal,
             normalScale: new THREE.Vector2(0.85, 0.85),
             roughness: 0.80,
-            metalness: 0.02
+            metalness: 0.02,
+            vertexColors: true
         });
 
         this.floorMaterial = new THREE.MeshStandardMaterial({
@@ -814,14 +948,16 @@ class Dungeon3D {
             normalScale: new THREE.Vector2(0.80, 0.80),
             roughness: 0.74,
             metalness: 0.04,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            vertexColors: true
         });
 
         this.ceilingMaterial = new THREE.MeshStandardMaterial({
             map: this.ceilingTex,
             roughness: 0.95,
             metalness: 0.0,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            vertexColors: true
         });
 
         this.doorMaterial = new THREE.MeshStandardMaterial({
@@ -856,14 +992,16 @@ class Dungeon3D {
             emissive: new THREE.Color(0xff4400),
             emissiveIntensity: 2.2,
             roughness: 0.70,
-            metalness: 0.04
+            metalness: 0.04,
+            vertexColors: true
         });
 
         // Quartz Veins (Glinting crystal)
         this.quartzMaterial = new THREE.MeshStandardMaterial({
             map: this.quartzTex,
             roughness: 0.50,
-            metalness: 0.10
+            metalness: 0.10,
+            vertexColors: true
         });
 
         // In-View Molten Lava
@@ -888,7 +1026,8 @@ class Dungeon3D {
             map: this.wallTex,
             normalMap: this.wallNormal,
             roughness: 0.82,
-            metalness: 0.04
+            metalness: 0.04,
+            vertexColors: true
         });
 
         // 2. Load Local Texture Assets (1:1 with Godot LoadTextureOrFallback in DungeonWorld.cs:1192-1209)
@@ -941,11 +1080,17 @@ class Dungeon3D {
         this.maxInstances = 8192;
         // 45-degree chamfered geometry creates a visible 0.57m aperture between diagonal blocks
         const wallGeo = createChamferedWallGeometry(this.cellSize, this.wallHeight, 0.40);
-        const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize);
-        floorGeo.rotateX(-Math.PI / 2);
+        applyWallVertexAO(wallGeo, this.wallHeight);
 
-        const ceilingGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize);
+        // Subdivided floor with baked edge contact ambient occlusion
+        const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize, 2, 2);
+        floorGeo.rotateX(-Math.PI / 2);
+        applyFloorVertexAO(floorGeo, this.cellSize);
+
+        // Subdivided ceiling with subtle perimeter shadow
+        const ceilingGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize, 2, 2);
         ceilingGeo.rotateX(Math.PI / 2);
+        applyCeilingVertexAO(ceilingGeo, this.cellSize);
 
         // Helper to construct composite PBR geometries (1:1 with Godot SurfaceTool / BuildDoorMesh)
         const createMergedBoxGeometry = (boxes) => {
@@ -964,6 +1109,8 @@ class Dungeon3D {
             const posArr = new Float32Array(totalVerts * 3);
             const normArr = new Float32Array(totalVerts * 3);
             const uvArr = new Float32Array(totalVerts * 2);
+            const colArr = new Float32Array(totalVerts * 3);
+            colArr.fill(1.0);
 
             let vOffset = 0;
             for (const g of geometries) {
@@ -978,6 +1125,7 @@ class Dungeon3D {
             merged.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
             merged.setAttribute('normal', new THREE.BufferAttribute(normArr, 3));
             merged.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
+            merged.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
             return merged;
         };
 
@@ -1889,6 +2037,68 @@ class Dungeon3D {
         return 0;
     }
 
+    updateAdaptiveVignette(frame) {
+        const vignetteEl = document.getElementById('dungeon-vignette');
+        if (!vignetteEl) return;
+
+        if (!window.GRAPHICS_CONFIG || !window.GRAPHICS_CONFIG.adaptiveVignette) {
+            vignetteEl.style.opacity = '0';
+            vignetteEl.classList.remove('danger-pulse');
+            return;
+        }
+
+        const depth = frame.player && frame.player.depth !== undefined ? frame.player.depth : 0;
+        const outdoors = depth === 0;
+
+        if (outdoors) {
+            // Open daylight town: zero vignette for crystal clear open-air visibility
+            vignetteEl.style.opacity = '0';
+            vignetteEl.classList.remove('danger-pulse');
+            return;
+        }
+
+        // Subterranean dungeon
+        const px = frame.player ? frame.player.x : 0;
+        const py = frame.player ? frame.player.y : 0;
+        let isLitRoom = false;
+        if (this.lastMap) {
+            const flag = this.getFlagAt(this.lastMap, px, py);
+            const lighting = (flag >> 2) & 0x3;
+            if (lighting === 2) isLitRoom = true; // Permalit room
+        }
+
+        const strength = isLitRoom ? '0.18' : '0.34';
+        const opacity = isLitRoom ? '0.65' : '0.85';
+        vignetteEl.style.setProperty('--vignette-strength', strength);
+        vignetteEl.style.opacity = opacity;
+
+        // Mortal peril tactile pulse (< 20% health)
+        if (frame.player && frame.player.mhp > 0 && (frame.player.hp / frame.player.mhp) <= 0.20) {
+            vignetteEl.classList.add('danger-pulse');
+        } else {
+            vignetteEl.classList.remove('danger-pulse');
+        }
+    }
+
+    applyGraphicsConfig() {
+        const cfg = window.GRAPHICS_CONFIG || {};
+        if (this.dustPoints) {
+            this.dustPoints.visible = !!cfg.dustMotes;
+        }
+        if (this.lastFrame) {
+            this.updateAdaptiveVignette(this.lastFrame);
+        } else {
+            const vignetteEl = document.getElementById('dungeon-vignette');
+            if (vignetteEl && !cfg.adaptiveVignette) {
+                vignetteEl.style.opacity = '0';
+                vignetteEl.classList.remove('danger-pulse');
+            }
+        }
+        if (!cfg.torchInertia) {
+            this.torchLight.position.set(-0.25, -0.05, -0.28);
+        }
+    }
+
     update(frame) {
         if (!frame || !frame.map) return;
         this.updateDungeon(frame);
@@ -1900,6 +2110,10 @@ class Dungeon3D {
         const h = map.h || (map.rows ? map.rows.length : 0);
         if (!w || !h) return;
         this.lastMap = map;
+        this.lastFrame = frame;
+
+        // Environmental Adaptive Vignette (updates based on depth, room lighting, and health)
+        this.updateAdaptiveVignette(frame);
 
         const px = frame.player ? frame.player.x : Math.floor(w / 2);
         const py = frame.player ? frame.player.y : Math.floor(h / 2);
@@ -1958,9 +2172,27 @@ class Dungeon3D {
         // Torch distance calculation matching Godot DungeonWorld.cs:3468:
         // _torch.OmniRange = (_torchRadius + 2.5f) * Cell + 2.0f;
         const torchRange = (this.torchRadius + 2.5) * this.cellSize + 2.0;
+        if (this.torchBaseColor) this.torchBaseColor.setHex(biome.torchColor);
         this.torchLight.color.setHex(biome.torchColor);
         this.torchLight.distance = torchRange;
         this.torchLight.decay = 1.0;
+
+        // Update atmospheric dust motes for current depth/biome
+        if (this.dustMaterial) {
+            if (outdoors) {
+                this.dustMaterial.color.setHex(0xcce0ff);
+                this.dustMaterial.opacity = 0.08;
+            } else if (biome && (biome.name === 'Hellish Magma' || depth >= 70)) {
+                this.dustMaterial.color.setHex(0xff5522);
+                this.dustMaterial.opacity = 0.22;
+            } else if (biome && biome.name === 'Overgrown Catacombs') {
+                this.dustMaterial.color.setHex(0x55cc88);
+                this.dustMaterial.opacity = 0.16;
+            } else {
+                this.dustMaterial.color.setHex(0xffd599);
+                this.dustMaterial.opacity = 0.18;
+            }
+        }
 
         // Forward vector for camera-relative VFX placement
         const fwdYaw = this.camera ? this.camera.rotation.y : 0;
@@ -4661,14 +4893,21 @@ class Dungeon3D {
             this.camera.position.y = this.eyeHeight + Math.sin(tNow * 0.002) * 0.012;
         }
 
-        // Multi-frequency organic torchlight flicker (Godot subtleFlicker equation)
-        const subtleFlicker = 1.0 +
-            Math.sin(tNow * 0.011) * 0.05 +
-            Math.cos(tNow * 0.024) * 0.035 +
-            Math.sin(tNow * 0.037) * 0.02;
+        // Multi-frequency organic torchlight flicker & living flame dynamics
+        const isEnhancedTorch = window.GRAPHICS_CONFIG && window.GRAPHICS_CONFIG.torchFlicker;
+        const livingFlicker = isEnhancedTorch
+            ? (1.0 + Math.sin(tNow * 0.0143) * 0.045 + Math.cos(tNow * 0.0271) * 0.030 + Math.sin(tNow * 0.0031) * 0.020 + Math.cos(tNow * 0.0009) * 0.012)
+            : (1.0 + Math.sin(tNow * 0.011) * 0.05 + Math.cos(tNow * 0.024) * 0.035 + Math.sin(tNow * 0.037) * 0.02);
+
         const currentTargetEnergy = this.targetTorchEnergy !== undefined ? this.targetTorchEnergy : 2.8;
-        this.torchLight.intensity = currentTargetEnergy * subtleFlicker;
-        this.torchFillLight.intensity = (currentTargetEnergy * 0.22) * subtleFlicker;
+        this.torchLight.intensity = currentTargetEnergy * livingFlicker;
+        this.torchFillLight.intensity = (currentTargetEnergy * 0.22) * livingFlicker;
+
+        // Subtle color temperature modulation (amber warmth during dips, brighter lantern gold on swell)
+        if (isEnhancedTorch && this.torchBaseColor && this.torchLowColor) {
+            const colorT = Math.max(0, Math.min(1, (livingFlicker - 0.92) / 0.16));
+            this.torchLight.color.lerpColors(this.torchLowColor, this.torchBaseColor, colorT);
+        }
 
         if (this.flameMesh) {
             this.flameMesh.scale.set(
@@ -4691,6 +4930,16 @@ class Dungeon3D {
             this.camera.rotation.y += wrappedDiff * Math.min(1.0, delta * 22);
         } else {
             this.camera.rotation.y = targetYaw;
+        }
+
+        // Natural Hand-Held Torch Inertia (responds to turning yaw and walking step bob)
+        if (window.GRAPHICS_CONFIG && window.GRAPHICS_CONFIG.torchInertia) {
+            const yawInertia = Math.max(-0.14, Math.min(0.14, -wrappedDiff * 0.22));
+            const bobInertia = (this.camera.position.y - this.eyeHeight) * 0.35;
+            this.torchLight.position.x = -0.25 + yawInertia;
+            this.torchLight.position.y = -0.05 - bobInertia;
+        } else {
+            this.torchLight.position.set(-0.25, -0.05, -0.28);
         }
 
         // Smooth camera pitch based on character height & manual head tilt
@@ -4912,6 +5161,40 @@ class Dungeon3D {
                 entity.itemMesh.rotation.y += delta * 1.5;
             }
             entity.position.y = 0.18 + Math.sin(tNow * 0.0035 + entity.position.x) * 0.04;
+        }
+
+        // Atmospheric Dust Motes particle drift update
+        if (this.dustPoints && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.dustMotes)) {
+            this.dustPoints.visible = true;
+            const posAttr = this.dustPoints.geometry.attributes.position;
+            const posArr = posAttr.array;
+            const velArr = this.dustVelocities;
+            const count = posAttr.count;
+
+            for (let i = 0; i < count; i++) {
+                let x = posArr[i * 3 + 0] + velArr[i * 3 + 0] * delta;
+                let y = posArr[i * 3 + 1] + velArr[i * 3 + 1] * delta;
+                let z = posArr[i * 3 + 2] + velArr[i * 3 + 2] * delta;
+
+                if (x > 2.25) x = -2.25;
+                else if (x < -2.25) x = 2.25;
+                if (y > 1.40) y = -1.40;
+                else if (y < -1.40) y = 1.40;
+                if (z > 2.25) z = -2.25;
+                else if (z < -2.25) z = 2.25;
+
+                posArr[i * 3 + 0] = x;
+                posArr[i * 3 + 1] = y;
+                posArr[i * 3 + 2] = z;
+            }
+            posAttr.needsUpdate = true;
+        } else if (this.dustPoints) {
+            this.dustPoints.visible = false;
+        }
+
+        // In-view molten lava surface breathing pulse (zero extra light sources)
+        if (this.lavaMaterial && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.surfaceBreathing)) {
+            this.lavaMaterial.emissiveIntensity = 2.2 + Math.sin(tNow * 0.0028) * 0.28;
         }
 
         this.renderer.render(this.scene, this.camera);
