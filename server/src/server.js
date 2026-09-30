@@ -165,7 +165,7 @@ const server = http.createServer((req, res) => {
             uptime: Math.floor(process.uptime()),
             activeSessions: activeSessions.size,
             engine: fs.existsSync(ENGINE_EXE) ? 'ready' : 'missing',
-            version: '1.0.0',
+            version: '1.2.0',
             timestamp: Date.now()
         }));
         return;
@@ -285,7 +285,7 @@ const server = http.createServer((req, res) => {
             maxCapacity: MAX_CONCURRENT_GAMES,
             waitingQueue: waitingQueue.length,
             maxQueueSize: MAX_QUEUE_SIZE,
-            version: '1.1.4'
+            version: '1.2.0'
         }));
         return;
     }
