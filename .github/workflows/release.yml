@@ -170,16 +170,20 @@ jobs:
           npm install
           npx cap sync android
 
-      - name: Build Android APK
+      - name: Build Android APK (Release)
         run: |
           cd android
           chmod +x ./gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
       - name: Prepare APK Asset
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist/Angband3D-Android.apk
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk dist/Angband3D-Android.apk
+          else
+            cp android/app/build/outputs/apk/debug/app-debug.apk dist/Angband3D-Android.apk
+          fi
 
       - name: Upload Android Package
         uses: actions/upload-artifact@v4
