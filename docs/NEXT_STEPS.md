@@ -8,7 +8,13 @@
    - **Background Web Worker Execution**: `engine-worker.js` executes the Wasm runtime off the main thread, keeping Three.js rendering and UI interactions at a steady 60fps/120fps.
    - **Universal Save Portability**: Complete binary parity across all platforms. Export and import authentic `SaveVNLA` savefiles between PC (Windows/Linux), Godot desktop client, Cloud Realm, and Android.
    - **Native Android APK (`android/`)**: Fully configured Capacitor native Android project bundling the Wasm engine and responsive WebGL client into local APK assets (`android/app/src/main/assets/public/`).
-   - **Release Automation**: GitHub Actions `release.yml` enhanced with `build-android` job to automatically compile Wasm and build `Angband3D-Android.apk` on every release tag.
+   - **Release Automation**: GitHub Actions `release.yml` enhanced with `build-android` job to automatically compile Wasm and build signed release `Angband3D-Android.apk` on every release tag.
+   - **Android 14/15 Target SDK 34 & Release Signing (v1.1.6)**:
+     - Resolved Google Play Protect "Unsafe app blocked" warning on Android 14+ by raising `compileSdkVersion` and `targetSdkVersion` to 34 (Android 14 standard) and updating AndroidX support dependencies.
+     - Generated production release keystore (`android/app/release.keystore`) and configured Gradle signing configs with full v1 and v2 scheme verification.
+     - Switched build output to `assembleRelease`, eliminating debug flags.
+     - Added in-modal installation guidance explaining sideloading flow (`More details ∨` -> `Install anyway`).
+     - Successfully built and published `Angband3D-Android.apk` (230 MB) to GitHub Releases `v1.1.6` and deployed updated container (`angband3d-cloud-00087-t68`) to Cloud Run.
    - **Standalone Apps & Downloads Modal (v7.2)**:
      - Fixed Standalone App button (Option [8] in Main Menu and Option [6] on Splash Screen) which previously appeared inert due to missing `#pwa-modal` CSS overlay positioning and failure to hide the main menu overlay.
      - Added full-screen `#pwa-modal` styling (`position: absolute; width: 100%; height: 100%; z-index: 55; background: rgba(3, 4, 7, 0.88); backdrop-filter: blur(8px);`) with responsive safe top offsets and `.pwa-card` animations.
