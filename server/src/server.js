@@ -258,7 +258,7 @@ const server = http.createServer((req, res) => {
             maxCapacity: MAX_CONCURRENT_GAMES,
             waitingQueue: waitingQueue.length,
             maxQueueSize: MAX_QUEUE_SIZE,
-            version: '1.1.3'
+            version: '1.1.4'
         }));
         return;
     }

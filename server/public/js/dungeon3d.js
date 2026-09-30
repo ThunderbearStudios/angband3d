@@ -29,22 +29,22 @@
 window.GRAPHICS_CONFIG = {
     preset: 'enhanced',         // 'classic' | 'enhanced'
     vertexAO: true,            // Contact Ambient Occlusion on walls, floors, ceilings
-    torchFlicker: true,        // Organic dual-frequency flame flicker & color oscillation
+    torchDraft: true,          // Calm, subtle organic draft breathing & inertia (no fast strobe)
     torchInertia: true,        // Subtle hand-held torch movement lag on turn & walk bob
     adaptiveVignette: true,    // Environmental adaptive perimeter vignette behind HUD
-    dustMotes: true,           // Atmospheric subterranean floating dust & embers
-    surfaceBreathing: true     // Subtle emissive pulse on in-view molten lava (zero light leak)
+    surfaceBreathing: true,    // Subtle emissive pulse on in-view molten lava (zero light leak)
+    tileVariation: true        // Quarter-turn texture rotation and organic stone shading
 };
 
 window.setGraphicsPreset = function(presetName) {
     const isEnhanced = presetName === 'enhanced';
     window.GRAPHICS_CONFIG.preset = isEnhanced ? 'enhanced' : 'classic';
     window.GRAPHICS_CONFIG.vertexAO = isEnhanced;
-    window.GRAPHICS_CONFIG.torchFlicker = isEnhanced;
+    window.GRAPHICS_CONFIG.torchDraft = isEnhanced;
     window.GRAPHICS_CONFIG.torchInertia = isEnhanced;
     window.GRAPHICS_CONFIG.adaptiveVignette = isEnhanced;
-    window.GRAPHICS_CONFIG.dustMotes = isEnhanced;
     window.GRAPHICS_CONFIG.surfaceBreathing = isEnhanced;
+    window.GRAPHICS_CONFIG.tileVariation = isEnhanced;
 
     if (window.__app && window.__app.dungeon) {
         window.__app.dungeon.applyGraphicsConfig();
@@ -576,12 +576,12 @@ function applyWallVertexAO(geo, wallHeight) {
         const y = pos.getY(i);
         const t = Math.max(0, Math.min(1, (y + halfH) / wallHeight));
         let factor = 1.0;
-        if (t < 0.22) {
-            // Soft ground contact shadow on the bottom 22% of the wall (darkens down to 0.70)
-            factor = 0.70 + (t / 0.22) * 0.30;
-        } else if (t > 0.82) {
-            // Soft ceiling contact shadow on top 18% of the wall (darkens down to 0.80)
-            factor = 0.80 + ((1.0 - t) / 0.18) * 0.20;
+        if (t < 0.28) {
+            // Rich ground contact shadow on bottom 28% of wall (darkens down to 0.58)
+            factor = 0.58 + Math.pow(t / 0.28, 0.85) * 0.42;
+        } else if (t > 0.80) {
+            // Soft ceiling contact shadow on top 20% of wall (darkens down to 0.68)
+            factor = 0.68 + Math.pow((1.0 - t) / 0.20, 0.85) * 0.32;
         }
         colors[i * 3 + 0] = factor;
         colors[i * 3 + 1] = factor;
@@ -740,38 +740,6 @@ class Dungeon3D {
         this.torchFillLight = new THREE.PointLight(0xff7722, 0.35, 8.0, 0.7);
         this.torchFillLight.position.set(0.20, -0.20, -0.20);
         this.camera.add(this.torchFillLight);
-
-        // Atmospheric Subterranean Dust Motes & Embers (Single camera-bound instanced draw call)
-        const dustCount = tier === 'phone' ? 24 : 54;
-        const dustGeo = new THREE.BufferGeometry();
-        const dustPositions = new Float32Array(dustCount * 3);
-        this.dustVelocities = new Float32Array(dustCount * 3);
-
-        for (let i = 0; i < dustCount; i++) {
-            dustPositions[i * 3 + 0] = (Math.random() - 0.5) * 4.5;
-            dustPositions[i * 3 + 1] = (Math.random() - 0.5) * 2.8;
-            dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 4.5;
-
-            this.dustVelocities[i * 3 + 0] = (Math.random() - 0.5) * 0.035;
-            this.dustVelocities[i * 3 + 1] = -0.010 + (Math.random() - 0.5) * 0.02;
-            this.dustVelocities[i * 3 + 2] = (Math.random() - 0.5) * 0.035;
-        }
-
-        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
-
-        this.dustMaterial = new THREE.PointsMaterial({
-            color: 0xffd599,
-            size: 0.034,
-            transparent: true,
-            opacity: 0.18,
-            depthWrite: false,
-            depthTest: true,
-            blending: THREE.AdditiveBlending
-        });
-
-        this.dustPoints = new THREE.Points(dustGeo, this.dustMaterial);
-        this.dustPoints.frustumCulled = false;
-        this.camera.add(this.dustPoints);
 
         // Floating 3D Shop and Landmark Labels (Matches Godot _terrainLabels)
         this.terrainLabelsGroup = new THREE.Group();
@@ -936,8 +904,8 @@ class Dungeon3D {
         this.wallMaterial = new THREE.MeshStandardMaterial({
             map: this.wallTex,
             normalMap: this.wallNormal,
-            normalScale: new THREE.Vector2(0.85, 0.85),
-            roughness: 0.80,
+            normalScale: new THREE.Vector2(1.35, 1.35),
+            roughness: 0.82,
             metalness: 0.02,
             vertexColors: true
         });
@@ -945,8 +913,8 @@ class Dungeon3D {
         this.floorMaterial = new THREE.MeshStandardMaterial({
             map: this.floorTex,
             normalMap: this.floorNormal,
-            normalScale: new THREE.Vector2(0.80, 0.80),
-            roughness: 0.74,
+            normalScale: new THREE.Vector2(1.25, 1.25),
+            roughness: 0.72,
             metalness: 0.04,
             side: THREE.DoubleSide,
             vertexColors: true
@@ -1046,19 +1014,19 @@ class Dungeon3D {
             });
         };
 
-        // Wall Textures
-        loadPBR('/assets/textures/T_Brick_BaseColor.png', this.wallMaterial, 'map', true, 1, 1);
-        loadPBR('/assets/textures/T_Brick_Normal.png', this.wallMaterial, 'normalMap', false, 1, 1);
-        loadPBR('/assets/textures/T_Brick_Roughness.png', this.wallMaterial, 'roughnessMap', false, 1, 1);
+        // Wall Textures: cell is 1.4m wide x 2.4m tall -> repX=2, repY=3 gives square, natural-sized masonry blocks
+        loadPBR('/assets/textures/T_Brick_BaseColor.png', this.wallMaterial, 'map', true, 2, 3);
+        loadPBR('/assets/textures/T_Brick_Normal.png', this.wallMaterial, 'normalMap', false, 2, 3);
+        loadPBR('/assets/textures/T_Brick_Roughness.png', this.wallMaterial, 'roughnessMap', false, 2, 3);
 
-        // Floor Textures
-        loadPBR('/assets/textures/T_UnevenBrick_BaseColor.png', this.floorMaterial, 'map', true, 1, 1);
-        loadPBR('/assets/textures/T_UnevenBrick_Normal.png', this.floorMaterial, 'normalMap', false, 1, 1);
-        loadPBR('/assets/textures/T_UnevenBrick_Roughness.png', this.floorMaterial, 'roughnessMap', false, 1, 1);
+        // Floor Textures: cell is 1.4m x 1.4m -> repX=2, repY=2 gives authentic 0.7m flagstone pavers
+        loadPBR('/assets/textures/T_UnevenBrick_BaseColor.png', this.floorMaterial, 'map', true, 2, 2);
+        loadPBR('/assets/textures/T_UnevenBrick_Normal.png', this.floorMaterial, 'normalMap', false, 2, 2);
+        loadPBR('/assets/textures/T_UnevenBrick_Roughness.png', this.floorMaterial, 'roughnessMap', false, 2, 2);
 
-        // Ceiling Textures
-        loadPBR('/assets/textures/T_RockTrim_BaseColor.png', this.ceilingMaterial, 'map', true, 1, 1);
-        loadPBR('/assets/textures/T_RockTrim_Normal.png', this.ceilingMaterial, 'normalMap', false, 1, 1);
+        // Ceiling Textures: 0.7m ceiling rock blocks
+        loadPBR('/assets/textures/T_RockTrim_BaseColor.png', this.ceilingMaterial, 'map', true, 2, 2);
+        loadPBR('/assets/textures/T_RockTrim_Normal.png', this.ceilingMaterial, 'normalMap', false, 2, 2);
 
         // Door Textures
         loadPBR('/assets/textures/T_WoodTrim_BaseColor.png', this.doorMaterial, 'map', true, 1, 1);
@@ -1071,9 +1039,9 @@ class Dungeon3D {
         loadPBR('/assets/textures/T_Plaster_ORM.png', this.storeMaterial, 'roughnessMap', false, 1, 1);
 
         // Stairs Textures
-        loadPBR('/assets/textures/T_Brick_BaseColor.png', this.stairsMaterial, 'map', true, 1, 1);
-        loadPBR('/assets/textures/T_Brick_Normal.png', this.stairsMaterial, 'normalMap', false, 1, 1);
-        loadPBR('/assets/textures/T_Brick_Roughness.png', this.stairsMaterial, 'roughnessMap', false, 1, 1);
+        loadPBR('/assets/textures/T_Brick_BaseColor.png', this.stairsMaterial, 'map', true, 2, 3);
+        loadPBR('/assets/textures/T_Brick_Normal.png', this.stairsMaterial, 'normalMap', false, 2, 3);
+        loadPBR('/assets/textures/T_Brick_Roughness.png', this.stairsMaterial, 'roughnessMap', false, 2, 3);
     }
 
     initMeshes() {
@@ -1965,9 +1933,21 @@ class Dungeon3D {
     /**
      * Computes final tile shade without allocating new Color objects.
      * Reuses targetColor in-place (1:1 with Godot DungeonWorld.cs:2453-2471).
+     * Incorporates deterministic stone luminance & warmth variation to break up repetitive grids.
      */
-    computeTileShade(targetColor, baseColor, inView, outdoors, lighting) {
+    computeTileShade(targetColor, baseColor, inView, outdoors, lighting, x = 0, y = 0) {
         targetColor.copy(baseColor);
+
+        // Organic stone block variation (gated by tileVariation flag, breaks up monochromatic repetition)
+        if ((!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.tileVariation) && (x !== 0 || y !== 0)) {
+            const hash = ((x * 43) ^ (y * 79)) & 0xff;
+            const lum = ((hash % 11) - 5) * 0.012; // -0.06 to +0.06 subtle stone luminance variation
+            const warm = ((hash % 7) - 3) * 0.008; // subtle warm undertone
+            targetColor.r = Math.max(0.05, Math.min(1.0, targetColor.r + lum + warm));
+            targetColor.g = Math.max(0.05, Math.min(1.0, targetColor.g + lum));
+            targetColor.b = Math.max(0.05, Math.min(1.0, targetColor.b + lum - warm * 0.5));
+        }
+
         if (inView && (outdoors || lighting === 2 || lighting === 0 || lighting === 1)) {
             return targetColor;
         } else if (inView && lighting === 3) {
@@ -2082,9 +2062,6 @@ class Dungeon3D {
 
     applyGraphicsConfig() {
         const cfg = window.GRAPHICS_CONFIG || {};
-        if (this.dustPoints) {
-            this.dustPoints.visible = !!cfg.dustMotes;
-        }
         if (this.lastFrame) {
             this.updateAdaptiveVignette(this.lastFrame);
         } else {
@@ -2096,6 +2073,9 @@ class Dungeon3D {
         }
         if (!cfg.torchInertia) {
             this.torchLight.position.set(-0.25, -0.05, -0.28);
+        }
+        if (this.lastMap) {
+            this.updateMap(this.lastMap);
         }
     }
 
@@ -2455,9 +2435,14 @@ class Dungeon3D {
                 }
 
                 // Tile shade computation without heap allocations (1:1 with Godot DungeonWorld.cs:2453-2471)
-                const wallShade = this.computeTileShade(this._scratchWallColor, biome.wallColor, inView, outdoors, lighting);
-                const floorShade = this.computeTileShade(this._scratchFloorColor, biome.floorColor, inView, outdoors, lighting);
-                const ceilingShade = this.computeTileShade(this._scratchCeilingColor, biome.ceilingColor, inView, outdoors, lighting);
+                const wallShade = this.computeTileShade(this._scratchWallColor, biome.wallColor, inView, outdoors, lighting, x, y);
+                const floorShade = this.computeTileShade(this._scratchFloorColor, biome.floorColor, inView, outdoors, lighting, x, y);
+                const ceilingShade = this.computeTileShade(this._scratchCeilingColor, biome.ceilingColor, inView, outdoors, lighting, x, y);
+
+                const useVariation = !window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.tileVariation;
+                const floorRot = useVariation ? (((x * 73 + y * 37) % 4) * (Math.PI / 2)) : 0;
+                const wallRot = useVariation ? (((x * 89 + y * 41) % 4) * (Math.PI / 2)) : 0;
+                const ceilingRot = useVariation ? (((x * 53 + y * 67) % 4) * (Math.PI / 2)) : 0;
 
                 const wx = x * this.cellSize;
                 const wz = y * this.cellSize;
@@ -2467,14 +2452,14 @@ class Dungeon3D {
                 if (feat === 17 || feat === 19) {
                     // Seal chamfered corner base with floor quad
                     this.dummy.position.set(wx, -0.05, wz);
-                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.rotation.set(0, floorRot, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
                     this.floorMesh.setColorAt(floorCount, floorShade);
                     floorCount++;
 
                     this.dummy.position.set(wx, wallYCenter, wz);
-                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.rotation.set(0, wallRot, 0);
                     this.dummy.updateMatrix();
                     this.magmaMesh.setMatrixAt(magmaCount, this.dummy.matrix);
                     this.magmaMesh.setColorAt(magmaCount, wallShade);
@@ -2486,14 +2471,14 @@ class Dungeon3D {
                 if (feat === 18 || feat === 20) {
                     // Seal chamfered corner base with floor quad
                     this.dummy.position.set(wx, -0.05, wz);
-                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.rotation.set(0, floorRot, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
                     this.floorMesh.setColorAt(floorCount, floorShade);
                     floorCount++;
 
                     this.dummy.position.set(wx, wallYCenter, wz);
-                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.rotation.set(0, wallRot, 0);
                     this.dummy.updateMatrix();
                     this.quartzMesh.setMatrixAt(quartzCount, this.dummy.matrix);
                     this.quartzMesh.setColorAt(quartzCount, wallShade);
@@ -2523,14 +2508,14 @@ class Dungeon3D {
 
                     // Seal chamfered corner base with floor quad
                     this.dummy.position.set(wx, -0.05, wz);
-                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.rotation.set(0, floorRot, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
                     this.floorMesh.setColorAt(floorCount, floorShade);
                     floorCount++;
 
                     this.dummy.position.set(wx, wallYCenter, wz);
-                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.rotation.set(0, wallRot, 0);
                     this.dummy.updateMatrix();
                     this.wallMesh.setMatrixAt(wallCount, this.dummy.matrix);
                     this.wallMesh.setColorAt(wallCount, wallShade);
@@ -2676,7 +2661,7 @@ class Dungeon3D {
                 // Floor / Walkable corridor (feat 1, 24)
                 if (feat === 1 || feat === 24) {
                     this.dummy.position.set(wx, -0.05, wz);
-                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.rotation.set(0, floorRot, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
                     this.floorMesh.setColorAt(floorCount, floorShade);
@@ -2684,7 +2669,7 @@ class Dungeon3D {
 
                     if (!outdoors) {
                         this.dummy.position.set(wx, this.wallHeight, wz);
-                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.rotation.set(0, ceilingRot, 0);
                         this.dummy.updateMatrix();
                         this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
                         this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
@@ -4893,28 +4878,24 @@ class Dungeon3D {
             this.camera.position.y = this.eyeHeight + Math.sin(tNow * 0.002) * 0.012;
         }
 
-        // Multi-frequency organic torchlight flicker & living flame dynamics
-        const isEnhancedTorch = window.GRAPHICS_CONFIG && window.GRAPHICS_CONFIG.torchFlicker;
-        const livingFlicker = isEnhancedTorch
-            ? (1.0 + Math.sin(tNow * 0.0143) * 0.045 + Math.cos(tNow * 0.0271) * 0.030 + Math.sin(tNow * 0.0031) * 0.020 + Math.cos(tNow * 0.0009) * 0.012)
-            : (1.0 + Math.sin(tNow * 0.011) * 0.05 + Math.cos(tNow * 0.024) * 0.035 + Math.sin(tNow * 0.037) * 0.02);
+        // Calm, subtle subterranean torch draft (slow 0.3-0.5Hz gentle breath, max ±2.5% variation, NO rapid strobe)
+        const isEnhancedDraft = window.GRAPHICS_CONFIG && window.GRAPHICS_CONFIG.torchDraft;
+        const livingFlicker = isEnhancedDraft
+            ? (1.0 + Math.sin(tNow * 0.0016) * 0.022 + Math.cos(tNow * 0.0008) * 0.014)
+            : 1.0;
 
         const currentTargetEnergy = this.targetTorchEnergy !== undefined ? this.targetTorchEnergy : 2.8;
         this.torchLight.intensity = currentTargetEnergy * livingFlicker;
         this.torchFillLight.intensity = (currentTargetEnergy * 0.22) * livingFlicker;
 
-        // Subtle color temperature modulation (amber warmth during dips, brighter lantern gold on swell)
-        if (isEnhancedTorch && this.torchBaseColor && this.torchLowColor) {
-            const colorT = Math.max(0, Math.min(1, (livingFlicker - 0.92) / 0.16));
-            this.torchLight.color.lerpColors(this.torchLowColor, this.torchBaseColor, colorT);
+        // Stable, warm lantern gold (no distracting color shifts)
+        if (this.torchBaseColor) {
+            this.torchLight.color.copy(this.torchBaseColor);
         }
 
         if (this.flameMesh) {
-            this.flameMesh.scale.set(
-                1.0 + Math.sin(tNow * 0.015) * 0.14,
-                1.0 + Math.cos(tNow * 0.022) * 0.22,
-                1.0 + Math.sin(tNow * 0.015) * 0.14
-            );
+            const flameBreath = 1.0 + Math.sin(tNow * 0.002) * 0.03;
+            this.flameMesh.scale.set(flameBreath, 1.0 + Math.cos(tNow * 0.0015) * 0.04, flameBreath);
         }
 
         // Ensure rotation order is always YXZ (Yaw first, then Pitch, then Roll)
@@ -5161,35 +5142,6 @@ class Dungeon3D {
                 entity.itemMesh.rotation.y += delta * 1.5;
             }
             entity.position.y = 0.18 + Math.sin(tNow * 0.0035 + entity.position.x) * 0.04;
-        }
-
-        // Atmospheric Dust Motes particle drift update
-        if (this.dustPoints && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.dustMotes)) {
-            this.dustPoints.visible = true;
-            const posAttr = this.dustPoints.geometry.attributes.position;
-            const posArr = posAttr.array;
-            const velArr = this.dustVelocities;
-            const count = posAttr.count;
-
-            for (let i = 0; i < count; i++) {
-                let x = posArr[i * 3 + 0] + velArr[i * 3 + 0] * delta;
-                let y = posArr[i * 3 + 1] + velArr[i * 3 + 1] * delta;
-                let z = posArr[i * 3 + 2] + velArr[i * 3 + 2] * delta;
-
-                if (x > 2.25) x = -2.25;
-                else if (x < -2.25) x = 2.25;
-                if (y > 1.40) y = -1.40;
-                else if (y < -1.40) y = 1.40;
-                if (z > 2.25) z = -2.25;
-                else if (z < -2.25) z = 2.25;
-
-                posArr[i * 3 + 0] = x;
-                posArr[i * 3 + 1] = y;
-                posArr[i * 3 + 2] = z;
-            }
-            posAttr.needsUpdate = true;
-        } else if (this.dustPoints) {
-            this.dustPoints.visible = false;
         }
 
         // In-view molten lava surface breathing pulse (zero extra light sources)

@@ -801,3 +801,27 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
      - `python tools/smoke_test.py`: 11/11 passing.
      - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
      - Bumped server status version to `1.1.3` and asset cache-busting to `v=6.7`.
+
+### Priority 19: Realistic Texturing, Calm Torch Draft & Direct Mobile Get Action (COMPLETED)
+- **Scope**: server/public/index.html, server/public/css/dungeon.css, server/public/js/dungeon3d.js, server/public/js/hud.js, server/public/sw.js, server/src/server.js, 	ools/test_graphics_enhancements.js
+- **User Goals & Direct Feedback**:
+  - Eliminated dust motes (no screen smudges or depth confusion).
+  - Toned down rapid torch flickering into a calm, subtle subterranean draft (0.3Hz, +-2.2% intensity variance, warm lantern gold #ffd28e).
+  - Addressed repetitive textures with proportional multi-aspect UV scaling (repX=2, repY=3 for walls, repX=2, repY=2 for floors/ceilings), deterministic quarter-turn tile rotations (0 deg, 90 deg, 180 deg, 270 deg), per-tile mineral variegation in computeTileShade, deeper vertex AO gradient (bottom 28% to 0.58), and enhanced normal scale (1.35 walls, 1.25 floors).
+  - Placed the Get [g] command (#btn-pickup) directly into the primary tactile action cluster on phone portrait, phone landscape, and tablet, with dynamic .smart-item-active pulsing emerald highlight when standing over items.
+- **Accomplishments**:
+  1. **Dust Motes Complete Removal**: Completely removed dustPoints, dustVelocities, and camera particle loops. Restored a crystal-clear, distraction-free view.
+  2. **Calm Subterranean Living Torch Draft**: Replaced multi-frequency strobe with smooth, low-amplitude ambient breathing (0.3Hz) and stable gold illumination (0xffd28e).
+  3. **Realistic Masonry Tiling & Rotation Breakup**:
+     - Applied proportional UV repeating: repX=2, repY=3 on walls and repX=2, repY=2 on floors and ceilings.
+     - Deterministic quarter-turn instance rotations floorRot, wallRot, ceilingRot via spatial hashing (x * 73 + y * 37) % 4.
+     - Deterministic stone luminance & warmth variegation in computeTileShade(..., x, y).
+     - Deepened wall vertex Contact Ambient Occlusion gradient (bottom 28% down to 0.58).
+     - Enhanced normal map scale ((1.35, 1.35) walls, (1.25, 1.25) floors).
+  4. **Direct Mobile & Tablet Get Command (#btn-pickup)**:
+     - Moved #btn-pickup (Get [g]) directly into primary thumb action cluster across phone portrait, phone landscape, and tablet layouts without requiring the More drawer.
+     - Dynamic .smart-item-active emerald pulse in hud.js when player stands over an item.
+  5. **Verification & Asset Bumping**:
+     - Updated tools/test_graphics_enhancements.js: 6/6 invariant tests passing 100%.
+     - python tools/smoke_test.py: 11/11 passing.
+     - Bumped server status version to 1.1.4, client assets to v=6.8, and Service Worker cache to angband3d-v6.8.

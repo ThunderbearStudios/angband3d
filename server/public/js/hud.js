@@ -1437,6 +1437,15 @@ class WebHUD {
             const isDoorInFront = frontFeat === 3 || frontFeat === 4;
             btnDoor.classList.toggle('smart-door-active', isDoorInFront);
         }
+
+        const btnPickup = document.getElementById('btn-pickup');
+        if (btnPickup && player.x !== undefined && player.y !== undefined) {
+            let itemOnTile = false;
+            if (Array.isArray(frame.items)) {
+                itemOnTile = frame.items.some(it => it.x === player.x && it.y === player.y);
+            }
+            btnPickup.classList.toggle('smart-item-active', itemOnTile);
+        }
     }
 
     /* -------------------------------------------------------------
