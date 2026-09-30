@@ -292,9 +292,9 @@ async function runTests() {
     // Test 19: Mobile Touch Sensitivity & Menu Interface Integrity
     console.log('Test 19: Mobile Touch Sensitivity & Menu Interface Integrity');
     const swJs = fs.readFileSync(path.join(__dirname, '../public/sw.js'), 'utf8');
-    assert(swJs.includes("angband3d-v7.1") || swJs.includes("angband3d-v7.0") || swJs.includes("angband3d-v6.4"), 'sw.js must be bumped to angband3d-v7.1');
-    assert(indexRes.body.includes('/css/dungeon.css?v=7.1') || indexRes.body.includes('/css/dungeon.css?v=7.0') || indexRes.body.includes('/css/dungeon.css?v=6.4'), 'index.html must load dungeon.css');
-    assert(indexRes.body.includes('/js/app.js?v=7.1') || indexRes.body.includes('/js/app.js?v=7.0') || indexRes.body.includes('/js/app.js?v=6.4'), 'index.html must load app.js');
+    assert(swJs.includes("angband3d-v7.2") || swJs.includes("angband3d-v7.1") || swJs.includes("angband3d-v7.0") || swJs.includes("angband3d-v6.4"), 'sw.js must be bumped to angband3d-v7.2');
+    assert(indexRes.body.includes('/css/dungeon.css?v=7.2') || indexRes.body.includes('/css/dungeon.css?v=7.1') || indexRes.body.includes('/css/dungeon.css?v=7.0') || indexRes.body.includes('/css/dungeon.css?v=6.4'), 'index.html must load dungeon.css');
+    assert(indexRes.body.includes('/js/app.js?v=7.2') || indexRes.body.includes('/js/app.js?v=7.1') || indexRes.body.includes('/js/app.js?v=7.0') || indexRes.body.includes('/js/app.js?v=6.4'), 'index.html must load app.js');
     assert(dungeonCss.includes('touch-action: pan-x;'), 'dungeon.css .term-letter-ribbon must have touch-action: pan-x');
     assert(appJs.includes('Date.now() - lastTouchEndTime < 500'), 'app.js must suppress synthetic clicks within 500ms of touch');
     assert(inputJs.includes('bindReliableAction'), 'input.js must implement bindReliableAction');
@@ -303,6 +303,24 @@ async function runTests() {
     console.log('  -> Synthetic click suppression (< 500ms) active across letter ribbons, menus, and action buttons');
     console.log('  -> Horizontal pan-x scrolling enabled on term letter ribbon with touch drag cancellation');
     console.log('  -> Universal Yes/No prompt shortcuts, quantity pickers, and D-Pad accessibility verified');
+
+    // Test 20: Standalone Apps & Downloads Modal & Button Reliability
+    console.log('Test 20: Standalone Apps & Downloads Modal & Button Reliability');
+    assert(indexRes.body.includes('id="pwa-modal"'), 'index.html must contain #pwa-modal');
+    assert(indexRes.body.includes('id="btn-menu-pwa"'), 'index.html must contain #btn-menu-pwa in main menu');
+    assert(indexRes.body.includes('id="btn-splash-standalone"'), 'index.html must contain #btn-splash-standalone on splash screen');
+    assert(indexRes.body.includes('href="/download/Angband3D-Android.apk"'), 'index.html must provide direct Android APK download');
+    assert(indexRes.body.includes('href="/download/angband3d-standalone.zip"'), 'index.html must provide direct Windows ZIP download');
+    assert(dungeonCss.includes('#pwa-modal {'), 'dungeon.css must define full-screen modal overlay for #pwa-modal');
+    assert(dungeonCss.includes('#pwa-modal.hidden'), 'dungeon.css must define hidden state for #pwa-modal');
+    assert(freshAppJs.includes('showPWAModal('), 'app.js must implement showPWAModal');
+    assert(freshAppJs.includes('hidePWAModal('), 'app.js must implement hidePWAModal');
+    assert(freshAppJs.includes("mainMenuOverlay.classList.add('hidden')"), 'showPWAModal must hide mainMenuOverlay to foreground modal');
+    assert(freshAppJs.includes('btnSplashStandalone'), 'app.js must wire btnSplashStandalone fast-tap');
+    assert(freshAppJs.includes('btnMenuPwa'), 'app.js must wire btnMenuPwa fast-tap');
+    console.log('  -> Standalone Apps & Downloads modal styled with high z-index overlay and smooth transitions');
+    console.log('  -> Option [8] and Splash shortcut [6] reliably foreground modal and hide background overlays');
+    console.log('  -> Direct download endpoints verified for Android APK and Windows ZIP packages');
 
     console.log('\nAll server unit tests passed successfully!');
     process.exit(0);

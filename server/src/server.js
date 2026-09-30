@@ -193,8 +193,11 @@ const server = http.createServer((req, res) => {
             });
             fs.createReadStream(zipPath).pipe(res);
         } else {
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Standalone package not yet generated on server' }));
+            // Redirect to latest GitHub Release asset as fallback
+            res.writeHead(302, {
+                'Location': 'https://github.com/lieb2101/angband3d/releases/latest/download/angband3d-standalone.zip'
+            });
+            res.end();
         }
         return;
     }

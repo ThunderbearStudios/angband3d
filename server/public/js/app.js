@@ -1408,12 +1408,8 @@ window.addEventListener('DOMContentLoaded', () => {
             case 6: // Angband Online Wiki
                 window.open('https://angband.readthedocs.io/', '_blank');
                 break;
-            case 7: // Option [8]: Standalone Downloads or Web Client
-                if (isApk) {
-                    window.open('https://angband3d.com', '_blank');
-                } else {
-                    installPWA();
-                }
+            case 7: // Option [8]: Standalone Apps & Downloads (Android / PC)
+                showPWAModal('mainMenu');
                 break;
         }
     }
@@ -1553,6 +1549,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const btnSplashCredits = document.getElementById('btn-splash-credits');
     bindFastTap(btnSplashCredits, () => showGuide(6, 'splash'));
+
+    const btnSplashStandalone = document.getElementById('btn-splash-standalone');
+    if (btnSplashStandalone) bindFastTap(btnSplashStandalone, () => showPWAModal('splash'));
+
+    const btnMenuPwa = document.getElementById('btn-menu-pwa');
+    if (btnMenuPwa) bindFastTap(btnMenuPwa, () => showPWAModal('mainMenu'));
 
     // Audio Volume & Mute Control Synchronization
     function syncAudioUI() {
@@ -1879,15 +1881,35 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function showPWAModal() {
+    let pwaPreviousState = 'mainMenu';
+
+    function showPWAModal(fromState = null) {
+        pwaPreviousState = fromState || appState || 'mainMenu';
+        appState = 'pwaModal';
         updatePWAInstallUI();
         if (pwaModal) pwaModal.classList.remove('hidden');
-        appState = 'pwaModal';
+        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
+        if (splashOverlay) splashOverlay.classList.add('hidden');
+        if (guideModal) guideModal.classList.add('hidden');
+        if (loadModal) loadModal.classList.add('hidden');
+        if (pauseModal) pauseModal.classList.add('hidden');
+        if (terminalContainer) terminalContainer.classList.add('hidden');
+        const banner = document.getElementById('top-message-banner');
+        if (banner) banner.style.display = 'none';
+        if (input) input.setTerminalMode(false);
+        if (audio) audio.playMenuOpen();
     }
 
     function hidePWAModal() {
         if (pwaModal) pwaModal.classList.add('hidden');
-        appState = 'mainMenu';
+        if (audio) audio.playMenuNav();
+        if (pwaPreviousState === 'splash') {
+            showSplash();
+        } else if (pwaPreviousState === 'pauseMenu') {
+            showPauseMenu();
+        } else {
+            showMainMenu();
+        }
     }
 
     function installPWA() {
@@ -1908,11 +1930,18 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    if (btnPwaClose) {
-        btnPwaClose.addEventListener('click', () => hidePWAModal());
+    const btnPwaHeaderClose = document.getElementById('btn-pwa-header-close');
+    if (btnPwaClose) bindFastTap(btnPwaClose, () => hidePWAModal());
+    if (btnPwaHeaderClose) bindFastTap(btnPwaHeaderClose, () => hidePWAModal());
+    if (pwaModal) {
+        pwaModal.addEventListener('click', (e) => {
+            if (e.target === pwaModal) {
+                hidePWAModal();
+            }
+        });
     }
     if (btnPwaInstallAction) {
-        btnPwaInstallAction.addEventListener('click', () => {
+        bindFastTap(btnPwaInstallAction, () => {
             if (deferredInstallPrompt) {
                 deferredInstallPrompt.prompt();
                 deferredInstallPrompt.userChoice.then((choice) => {

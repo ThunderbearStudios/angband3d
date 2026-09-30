@@ -226,6 +226,11 @@ class InputController {
                     if (window.__app) window.__app.showGuide(5, 'splash');
                     return;
                 }
+                if (e.key === '6') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.showPWAModal) window.__app.showPWAModal('splash');
+                    return;
+                }
                 if (e.key === 'w' || e.key === 'W') {
                     e.preventDefault();
                     window.open('https://angband.readthedocs.io/', '_blank');
@@ -271,13 +276,14 @@ class InputController {
                 return;
             }
 
-            // PWA Modal Escape handling
+            // PWA Modal Escape & Return handling
             if (appState === 'pwaModal') {
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' || e.key === 'Enter') {
                     e.preventDefault();
                     if (window.__app && window.__app.hidePWAModal) window.__app.hidePWAModal();
                     return;
                 }
+                return;
             }
 
             // 3. Load Saved Game Menu Mode

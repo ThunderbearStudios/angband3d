@@ -2425,6 +2425,56 @@ html, body {
 }
 
 /* ==============================================================================
+   Standalone Editions & PWA Installation Modal
+   ============================================================================== */
+#pwa-modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(3, 4, 7, 0.88);
+    backdrop-filter: blur(8px);
+    z-index: 55;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    padding: 20px;
+}
+
+#pwa-modal.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.pwa-card {
+    position: relative;
+    max-width: 640px;
+    width: 100%;
+    max-height: 90vh;
+    background: rgba(8, 11, 18, 0.98);
+    border: 2px solid rgba(212, 175, 55, 0.5);
+    border-radius: 12px;
+    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.95);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pwa-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+    color: #cbd5e1;
+}
+
+/* ==============================================================================
    Load Saved Game Modal & Save Manager
    ============================================================================== */
 #load-modal {
@@ -2883,6 +2933,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #terminal-container,
     #guide-modal,
     #load-modal,
+    #pwa-modal,
     #pause-modal,
     #death-modal {
         padding-top: calc(52px + var(--safe-top)) !important;
@@ -2895,6 +2946,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     .main-menu-card,
     .load-card,
     .guide-card,
+    .pwa-card,
     .death-card {
         max-height: calc(100dvh - 58px - var(--safe-top) - var(--safe-bottom)) !important;
         overflow-y: auto !important;
@@ -3871,6 +3923,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #terminal-container,
     #guide-modal,
     #load-modal,
+    #pwa-modal,
     #pause-modal,
     #death-modal {
         padding-top: max(4px, var(--safe-top)) !important;
@@ -3883,6 +3936,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     .main-menu-card,
     .load-card,
     .guide-card,
+    .pwa-card,
     .death-card {
         padding: 8px 12px !important;
         gap: 6px !important;
