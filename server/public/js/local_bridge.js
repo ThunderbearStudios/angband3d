@@ -156,11 +156,19 @@ class LocalGameBridge {
 
         if (this.onStatus) this.onStatus('Initializing Local WebAssembly Engine...');
 
+        const workerUrl = (typeof window !== 'undefined' && window.location && window.location.origin)
+            ? window.location.origin + '/js/engine-worker.js'
+            : '/js/engine-worker.js';
+
         try {
-            this.worker = new Worker('/js/engine-worker.js');
+            this.worker = new Worker(workerUrl);
         } catch (err) {
-            console.warn('[LocalBridge] Absolute worker path failed, falling back to relative:', err);
-            this.worker = new Worker('js/engine-worker.js');
+            try {
+                this.worker = new Worker('/js/engine-worker.js');
+            } catch (err2) {
+                console.warn('[LocalBridge] Absolute worker path failed, falling back to relative:', err2);
+                this.worker = new Worker('js/engine-worker.js');
+            }
         }
 
         this.worker.onmessage = (e) => {

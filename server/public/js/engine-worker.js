@@ -90,10 +90,10 @@ self.onmessage = async (e) => {
 };
 
 function pushCommand(cmd) {
-    if (isAwaitingInput && angbandModule && angbandModule.commandResolver) {
-        isAwaitingInput = false;
+    if (angbandModule && angbandModule.commandResolver) {
         const resolver = angbandModule.commandResolver;
         angbandModule.commandResolver = null;
+        isAwaitingInput = false;
         resolver(cmd);
     } else {
         commandQueue.push(cmd);
@@ -103,14 +103,22 @@ function pushCommand(cmd) {
 async function startEngine(charName, isNew, saveFile) {
     self.postMessage({ type: 'status', message: 'Loading Angband WebAssembly runtime...' });
 
+    const baseWasm = (typeof self !== 'undefined' && self.location && self.location.origin)
+        ? self.location.origin + '/wasm/'
+        : '/wasm/';
+
     try {
-        importScripts('../wasm/angband.js');
+        importScripts(baseWasm + 'angband.js');
     } catch (e) {
         try {
             importScripts('/wasm/angband.js');
         } catch (e2) {
-            self.postMessage({ type: 'error', message: 'Could not load wasm/angband.js: ' + e2.message });
-            return;
+            try {
+                importScripts('../wasm/angband.js');
+            } catch (e3) {
+                self.postMessage({ type: 'error', message: 'Could not load wasm/angband.js: ' + e3.message });
+                return;
+            }
         }
     }
 
@@ -119,7 +127,20 @@ async function startEngine(charName, isNew, saveFile) {
 
     const config = {
         locateFile: (path) => {
-            return '../wasm/' + path;
+            if (typeof self !== 'undefined' && self.location && self.location.origin) {
+                return self.location.origin + '/wasm/' + path;
+            }
+            return '/wasm/' + path;
+        },
+        onAwaitingInput: function () {
+            isAwaitingInput = true;
+            if (commandQueue.length > 0 && this.commandResolver) {
+                const nextCmd = commandQueue.shift();
+                const resolver = this.commandResolver;
+                this.commandResolver = null;
+                isAwaitingInput = false;
+                resolver(nextCmd);
+            }
         },
         print: (text) => {
             const str = (text || '').trim();
@@ -155,6 +176,9 @@ async function startEngine(charName, isNew, saveFile) {
         preRun: [
             function (mod) {
                 try {
+                    mod.FS.mkdir('/lib');
+                } catch (e) {}
+                try {
                     mod.FS.mkdir('/lib/save');
                 } catch (e) {}
 
@@ -179,17 +203,12 @@ async function startEngine(charName, isNew, saveFile) {
     };
 
     try {
-        angbandModule = await createAngbandModule(config);
-        angbandModule.onAwaitingInput = () => {
-            isAwaitingInput = true;
-            if (commandQueue.length > 0) {
-                const nextCmd = commandQueue.shift();
-                isAwaitingInput = false;
-                const resolver = angbandModule.commandResolver;
-                angbandModule.commandResolver = null;
-                if (resolver) resolver(nextCmd);
-            }
-        };
+        angbandModule = config;
+        const mod = await createAngbandModule(config);
+        angbandModule = mod;
+        if (!angbandModule.onAwaitingInput) {
+            angbandModule.onAwaitingInput = config.onAwaitingInput;
+        }
 
         self.postMessage({ type: 'ready', saves: getSaveList() });
     } catch (err) {
