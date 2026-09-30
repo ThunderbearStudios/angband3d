@@ -1566,6 +1566,11 @@ window.addEventListener('DOMContentLoaded', () => {
         if (btnSound) {
             btnSound.innerHTML = `<span class="sound-icon">${isMuted ? '🔇' : '🔊'}</span><span class="sound-label">${isMuted ? 'Muted' : 'Sound'}</span>`;
             btnSound.title = isMuted ? 'Unmute Sound' : 'Mute Sound';
+            if (isMuted) {
+                btnSound.classList.add('muted');
+            } else {
+                btnSound.classList.remove('muted');
+            }
         }
 
         const volSlider = document.getElementById('volume-slider');
@@ -1574,9 +1579,46 @@ window.addEventListener('DOMContentLoaded', () => {
         const volLabel = document.getElementById('volume-label');
         if (volLabel) volLabel.textContent = isMuted ? '0%' : `${volPct}%`;
 
+        // Mobile Quick-Volume Popover Synchronization
+        const popoverBadge = document.getElementById('popover-vol-badge');
+        if (popoverBadge) {
+            popoverBadge.textContent = isMuted ? '🔇 Muted' : `${volPct}%`;
+        }
+
+        const popoverSlider = document.getElementById('popover-volume-slider');
+        if (popoverSlider) {
+            popoverSlider.value = volPct;
+        }
+
+        const btnPopoverMute = document.getElementById('btn-popover-mute');
+        if (btnPopoverMute) {
+            btnPopoverMute.textContent = isMuted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
+            if (isMuted) {
+                btnPopoverMute.classList.add('muted');
+            } else {
+                btnPopoverMute.classList.remove('muted');
+            }
+        }
+
+        // Highlight matching preset button
+        const presetBtns = document.querySelectorAll('.vol-preset-btn');
+        presetBtns.forEach(btn => {
+            const bVol = parseInt(btn.dataset.vol, 10);
+            if ((isMuted && bVol === 0) || (!isMuted && bVol === volPct)) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
         const btnPauseMute = document.getElementById('btn-pause-mute');
         if (btnPauseMute) {
             btnPauseMute.textContent = isMuted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
+            if (isMuted) {
+                btnPauseMute.classList.add('muted');
+            } else {
+                btnPauseMute.classList.remove('muted');
+            }
         }
 
         const pauseVolSlider = document.getElementById('pause-volume-slider');
@@ -1587,18 +1629,45 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     window.__syncAudioUI = syncAudioUI;
 
+    // Mobile Quick-Volume Popover Drawer Lifecycle
+    let popoverDismissTimer = null;
+    function showQuickVolumePopover() {
+        const pop = document.getElementById('quick-volume-popover');
+        if (!pop) return;
+        pop.classList.remove('hidden');
+        clearTimeout(popoverDismissTimer);
+        popoverDismissTimer = setTimeout(() => {
+            pop.classList.add('hidden');
+        }, 5000);
+    }
+
+    function hideQuickVolumePopover() {
+        const pop = document.getElementById('quick-volume-popover');
+        if (pop) pop.classList.add('hidden');
+        clearTimeout(popoverDismissTimer);
+    }
+
+    // Attach Fast-Tap to #btn-sound (Top Right Bar)
     const btnSound = document.getElementById('btn-sound');
     if (btnSound) {
-        btnSound.addEventListener('click', (e) => {
-            e.stopPropagation();
+        bindFastTap(btnSound, () => {
             if (audio) {
                 audio.unlock();
-                audio.toggleMute();
+                const isMuted = audio.toggleMute();
+                if (!isMuted && typeof audio.playMenuSelect === 'function') {
+                    audio.playMenuSelect();
+                }
                 syncAudioUI();
+            }
+            // Always show the quick volume popover on mobile/touch so user can adjust slider or presets
+            const isTouchOrNarrow = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 768);
+            if (isTouchOrNarrow) {
+                showQuickVolumePopover();
             }
         });
     }
 
+    // Desktop volume slider input listener
     const volSlider = document.getElementById('volume-slider');
     if (volSlider) {
         volSlider.addEventListener('input', (e) => {
@@ -1611,16 +1680,110 @@ window.addEventListener('DOMContentLoaded', () => {
                 syncAudioUI();
             }
         });
+        volSlider.addEventListener('change', (e) => {
+            e.stopPropagation();
+            if (audio && !audio.isMuted() && typeof audio.playMenuNav === 'function') {
+                audio.playMenuNav();
+            }
+        });
         volSlider.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    const btnPauseMute = document.getElementById('btn-pause-mute');
-    if (btnPauseMute) {
-        btnPauseMute.addEventListener('click', (e) => {
-            e.stopPropagation();
+    // Quick Volume Popover Controls Wiring
+    const btnPopoverClose = document.getElementById('btn-popover-close');
+    if (btnPopoverClose) {
+        bindFastTap(btnPopoverClose, () => hideQuickVolumePopover());
+    }
+
+    const btnPopoverMute = document.getElementById('btn-popover-mute');
+    if (btnPopoverMute) {
+        bindFastTap(btnPopoverMute, () => {
             if (audio) {
                 audio.unlock();
-                audio.toggleMute();
+                const isMuted = audio.toggleMute();
+                if (!isMuted && typeof audio.playMenuSelect === 'function') {
+                    audio.playMenuSelect();
+                }
+                syncAudioUI();
+                showQuickVolumePopover(); // reset 5s timer
+            }
+        });
+    }
+
+    const popoverVolSlider = document.getElementById('popover-volume-slider');
+    if (popoverVolSlider) {
+        const handleSliderChange = (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (audio) {
+                audio.unlock();
+                const val = parseInt(popoverVolSlider.value, 10) / 100;
+                audio.setMasterVolume(val);
+                if (audio.isMuted() && val > 0) audio.setMute(false);
+                syncAudioUI();
+                showQuickVolumePopover(); // reset 5s dismiss timer
+            }
+        };
+        popoverVolSlider.addEventListener('input', handleSliderChange);
+        popoverVolSlider.addEventListener('change', (e) => {
+            handleSliderChange(e);
+            if (audio && !audio.isMuted() && typeof audio.playMenuNav === 'function') {
+                audio.playMenuNav();
+            }
+        });
+        popoverVolSlider.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            clearTimeout(popoverDismissTimer);
+        }, { passive: true });
+        popoverVolSlider.addEventListener('touchend', () => {
+            showQuickVolumePopover();
+        }, { passive: true });
+        popoverVolSlider.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // Preset volume buttons ([Mute], [25%], [50%], [75%], [100%])
+    const presetBtns = document.querySelectorAll('.vol-preset-btn');
+    presetBtns.forEach(btn => {
+        bindFastTap(btn, () => {
+            const volPct = parseInt(btn.dataset.vol, 10);
+            if (audio) {
+                audio.unlock();
+                if (volPct === 0) {
+                    audio.setMute(true);
+                } else {
+                    audio.setMasterVolume(volPct / 100);
+                    audio.setMute(false);
+                    if (typeof audio.playMenuSelect === 'function') {
+                        audio.playMenuSelect();
+                    }
+                }
+                syncAudioUI();
+                showQuickVolumePopover(); // reset timer
+            }
+        });
+    });
+
+    // Dismiss popover on touch outside
+    window.addEventListener('click', (e) => {
+        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound')) {
+            hideQuickVolumePopover();
+        }
+    });
+    window.addEventListener('touchstart', (e) => {
+        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound')) {
+            hideQuickVolumePopover();
+        }
+    }, { passive: true });
+
+    // Pause Menu Mute Button & Volume Slider
+    const btnPauseMute = document.getElementById('btn-pause-mute');
+    if (btnPauseMute) {
+        bindFastTap(btnPauseMute, () => {
+            if (audio) {
+                audio.unlock();
+                const isMuted = audio.toggleMute();
+                if (!isMuted && typeof audio.playMenuSelect === 'function') {
+                    audio.playMenuSelect();
+                }
                 syncAudioUI();
             }
         });
@@ -1636,6 +1799,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 audio.setMasterVolume(val);
                 if (audio.isMuted() && val > 0) audio.setMute(false);
                 syncAudioUI();
+            }
+        });
+        pauseVolSlider.addEventListener('change', (e) => {
+            e.stopPropagation();
+            if (audio && !audio.isMuted() && typeof audio.playMenuNav === 'function') {
+                audio.playMenuNav();
             }
         });
         pauseVolSlider.addEventListener('click', (e) => e.stopPropagation());

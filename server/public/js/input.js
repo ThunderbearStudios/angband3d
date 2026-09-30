@@ -100,7 +100,8 @@ class InputController {
                 if (soundBtn) {
                     soundBtn.click();
                 } else if (this.audio) {
-                    this.audio.enabled = !this.audio.enabled;
+                    this.audio.toggleMute();
+                    if (window.__syncAudioUI) window.__syncAudioUI();
                 }
                 return;
             }
@@ -1050,17 +1051,6 @@ class InputController {
 
         const fsBtn = document.getElementById('btn-fullscreen');
         if (fsBtn) fsBtn.addEventListener('click', () => this.toggleFullscreen());
-
-        const soundBtn = document.getElementById('btn-sound');
-        if (soundBtn && !soundBtn._bound) {
-            soundBtn._bound = true;
-            soundBtn.addEventListener('click', () => {
-                if (this.audio) {
-                    this.audio.toggleMute();
-                    if (window.__syncAudioUI) window.__syncAudioUI();
-                }
-            });
-        }
     }
 
     setupTouchEvents() {
