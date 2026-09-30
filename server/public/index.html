@@ -14,7 +14,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=7.1">
+    <link rel="stylesheet" href="/css/dungeon.css?v=7.2">
 </head>
 <body>
     <div id="app-container">
@@ -368,6 +368,7 @@
                     <button class="splash-shortcut-btn" id="btn-splash-protips"><kbd>[3]</kbd> 💡 Pro Tips</button>
                     <button class="splash-shortcut-btn" id="btn-splash-guide"><kbd>[4]</kbd> 📖 Survival Guide</button>
                     <button class="splash-shortcut-btn" id="btn-splash-credits"><kbd>[5]</kbd> 📜 Full Credits</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-standalone"><kbd>[6]</kbd> 📱 Standalone Apps</button>
                     <a href="https://angband.readthedocs.io/" target="_blank" rel="noopener noreferrer" class="splash-shortcut-btn"><kbd>[W]</kbd> Angband Wiki</a>
                 </div>
 
@@ -757,6 +758,7 @@
         <!-- Standalone Editions & PWA Installation Modal -->
         <div id="pwa-modal" class="hidden">
             <div class="load-card pwa-card" style="max-width: 620px;">
+                <button id="btn-pwa-header-close" class="btn-guide-close" title="Close [Esc]" style="position: absolute; top: 14px; right: 16px; font-size: 18px; color: #ffd700; background: none; border: none; cursor: pointer; z-index: 5;">✕</button>
                 <div class="main-menu-ornament-corner top-left"></div>
                 <div class="main-menu-ornament-corner top-right"></div>
                 <div class="main-menu-ornament-corner bottom-left"></div>
@@ -782,7 +784,7 @@
                                     <strong style="color: #ffd700; font-family: var(--font-title); font-size: 15px;">📱 Native Android Standalone App (.APK)</strong>
                                     <div style="color: #94a3b8; font-size: 12px;">100% offline standalone Android package for phones &amp; tablets. Zero cloud dependency.</div>
                                 </div>
-                                <a id="btn-pwa-apk-download" href="/download/Angband3D-Android.apk" class="btn-gold" style="text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">📥 Download APK</a>
+                                <a id="btn-pwa-apk-download" href="/download/Angband3D-Android.apk" download="Angband3D-Android.apk" class="btn-gold" style="text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">📥 Download APK</a>
                             </div>
                         </div>
 
@@ -793,7 +795,7 @@
                                     <strong style="color: #ffd700; font-family: var(--font-title); font-size: 15px;">💻 Windows PC Desktop Edition (.ZIP)</strong>
                                     <div style="color: #94a3b8; font-size: 12px;">Official 60 FPS Godot 4 3D client for Windows PC with authentic C engine stdio.</div>
                                 </div>
-                                <a id="btn-windows-download" href="/download/angband3d-standalone.zip" class="btn-gold" style="text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">📥 Download (.zip)</a>
+                                <a id="btn-windows-download" href="/download/angband3d-standalone.zip" download="angband3d-standalone.zip" class="btn-gold" style="text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">📥 Download (.zip)</a>
                             </div>
                         </div>
 
@@ -812,7 +814,7 @@
 
                 <div class="load-footer" style="display: flex; justify-content: space-between; align-items: center;">
                     <button id="btn-pwa-install-action" class="btn-gold" style="display: none; padding: 10px 18px; font-weight: 700;">📲 Install Angband3D Now</button>
-                    <button id="btn-pwa-close" class="btn-gold-outline">[Esc] Close</button>
+                    <button id="btn-pwa-close" class="btn-gold-outline">[Esc / Enter] Close</button>
                 </div>
             </div>
         </div>
@@ -876,15 +878,15 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=7.1"></script>
-    <script src="/js/mobile-overlay.js?v=7.1"></script>
-    <script src="/js/audio.js?v=7.1"></script>
-    <script src="/js/terminal.js?v=7.1"></script>
-    <script src="/js/dungeon3d.js?v=7.1"></script>
-    <script src="/js/hud.js?v=7.1"></script>
-    <script src="/js/network.js?v=7.1"></script>
-    <script src="/js/local_bridge.js?v=7.1"></script>
-    <script src="/js/input.js?v=7.1"></script>
-    <script src="/js/app.js?v=7.1"></script>
+    <script src="/js/device.js?v=7.2"></script>
+    <script src="/js/mobile-overlay.js?v=7.2"></script>
+    <script src="/js/audio.js?v=7.2"></script>
+    <script src="/js/terminal.js?v=7.2"></script>
+    <script src="/js/dungeon3d.js?v=7.2"></script>
+    <script src="/js/hud.js?v=7.2"></script>
+    <script src="/js/network.js?v=7.2"></script>
+    <script src="/js/local_bridge.js?v=7.2"></script>
+    <script src="/js/input.js?v=7.2"></script>
+    <script src="/js/app.js?v=7.2"></script>
 </body>
 </html>
