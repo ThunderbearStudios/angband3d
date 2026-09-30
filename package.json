@@ -6,7 +6,7 @@
     "cap": "cap",
     "android:add": "cap add android",
     "android:sync": "cap sync android",
-    "android:build": "cd android && .\\gradlew.bat assembleDebug"
+    "android:build": "cd android && .\\gradlew.bat assembleRelease"
   },
   "dependencies": {
     "@capacitor/android": "^5.7.8",
