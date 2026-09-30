@@ -834,3 +834,19 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
      - Updated tools/test_graphics_enhancements.js: 6/6 invariant tests passing 100%.
      - python tools/smoke_test.py: 11/11 passing.
      - Bumped server status version to 1.1.4, client assets to v=6.8, and Service Worker cache to angband3d-v6.8.
+
+### Priority 20: WebAssembly Engine, Standalone Android APK & Cloud Deployment v1.2.0 (COMPLETED)
+- **Scope**: engine/src/main-bridge.c, server/public/wasm/, server/public/js/local_bridge.js, server/public/js/engine-worker.js, server/public/js/app.js, server/public/sw.js, server/src/server.js, android/, cloudbuild.yaml, .github/workflows/release.yml
+- **Accomplishments**:
+  1. **Full WebAssembly C Engine**: Compiled Angband 4.2.6 C engine with Emscripten, Asyncify, and `-lidbfs.js`. Web Worker offloads execution while Asyncify yields to input cleanly.
+  2. **IndexedDB Local Savefile Persistence**: Mounted `/lib/save` with `autoPersist: true` directly in IndexedDB for 100% offline gameplay in the browser.
+  3. **Universal Save Portability**: Full cross-platform `.sav` compatibility across browser Local Wasm, Cloud Realm, Windows Godot, and Android APK.
+  4. **Standalone Android APK**: Bundled Capacitor project in `android/` with local assets for 100% offline mobile play.
+  5. **Live Cloud Run Deployment**: Built container `gcr.io/resonant-1679933304535/angband3d-cloud:latest` and deployed revision `angband3d-cloud-00083-pfg` to Cloud Run.
+  6. **Live Online Verification**:
+     - `https://angband3d.com/api/status` -> 200 OK (`version: "1.2.0"`)
+     - `https://angband3d.com/wasm/angband.js` -> 200 OK
+     - `https://angband3d.com/wasm/angband.wasm` -> 200 OK
+     - `https://angband3d.com/wasm/angband.data` -> 200 OK
+     - `https://angband3d.com/download/Angband3D-Android.apk` -> 302 Found (GitHub Releases)
+     - `wss://angband3d.com/ws` -> Live WebSocket bridge verified with `hello` handshake.
