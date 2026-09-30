@@ -165,28 +165,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Setup Emscripten
-        uses: mymindstorm/setup-emsdk@v14
-        with:
-          version: '3.1.56'
-
-      - name: Install Ninja & CMake
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
-
-      - name: Reconstruct engine fork & Build WebAssembly
-        run: |
-          git clone --origin upstream --branch "${{ env.ANGBAND_TAG }}" --depth 1 \
-            https://github.com/angband/angband.git engine
-          cd engine
-          git apply --verbose ../engine-patch/0001-bridge-frontend.patch
-          cd ..
-          emcmake cmake -G Ninja \
-            -DSUPPORT_BRIDGE_FRONTEND=ON \
-            -B build-wasm engine
-          cmake --build build-wasm
-          mkdir -p server/public/wasm
-          cp build-wasm/game/angband.* server/public/wasm/
-
       - name: Install Dependencies & Sync Capacitor
         run: |
           npm install
