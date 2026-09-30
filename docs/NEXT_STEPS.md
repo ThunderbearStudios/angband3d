@@ -9,6 +9,12 @@
    - **Universal Save Portability**: Complete binary parity across all platforms. Export and import authentic `SaveVNLA` savefiles between PC (Windows/Linux), Godot desktop client, Cloud Realm, and Android.
    - **Native Android APK (`android/`)**: Fully configured Capacitor native Android project bundling the Wasm engine and responsive WebGL client into local APK assets (`android/app/src/main/assets/public/`).
    - **Release Automation**: GitHub Actions `release.yml` enhanced with `build-android` job to automatically compile Wasm and build `Angband3D-Android.apk` on every release tag.
+   - **Standalone Apps & Downloads Modal (v7.2)**:
+     - Fixed Standalone App button (Option [8] in Main Menu and Option [6] on Splash Screen) which previously appeared inert due to missing `#pwa-modal` CSS overlay positioning and failure to hide the main menu overlay.
+     - Added full-screen `#pwa-modal` styling (`position: absolute; width: 100%; height: 100%; z-index: 55; background: rgba(3, 4, 7, 0.88); backdrop-filter: blur(8px);`) with responsive safe top offsets and `.pwa-card` animations.
+     - Integrated direct download links for Native Android APK (`/download/Angband3D-Android.apk`) and Windows PC Desktop Edition (`/download/angband3d-standalone.zip`) with automatic fallback redirects to latest GitHub release assets.
+     - Bound fast-tap event listeners for touch/mouse, header `✕` close button, footer `[Esc / Enter] Close`, backdrop click dismiss, and keyboard navigation.
+     - Bumped cache bust to `v=7.2` and successfully deployed to Cloud Run (`angband3d-cloud-00085-lsj`).
    - **Upcoming Phase (Step 3)**: Google Play Developer Console registration and store submission (to be performed later after anonymous Cloudflare email routing setup).
 
 1. **Engine Bridge**:
