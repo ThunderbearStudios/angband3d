@@ -4,6 +4,36 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.3] — 2026-09-30
+
+### 🎨 High-Impact, Performance-Neutral & Gameplay-Safe Graphics Upgrade
+The `v1.1.3` release elevates the visual atmosphere and depth perception of Angband3D through baked Contact Ambient Occlusion (AO), living multi-frequency torchlight dynamics with thermodynamic temperature shifts and hand-held inertial sway, environmental adaptive perimeter vignetting, camera-bound subterranean atmospheric dust motes & volcanic embers, and organic surface breathing on in-view molten lava—while preserving 100% of upstream Angband 4.2.6 rules, zero light bleed across fog-of-war, and zero decorative noise.
+
+### Added
+- **Contact Ambient Occlusion (AO) Grounding**:
+  - Implemented `applyWallVertexAO`, `applyFloorVertexAO`, and `applyCeilingVertexAO` in `dungeon3d.js`.
+  - Darkens the bottom 22% and top 18% of walls where geometry meets floors and ceilings, and adds subtle edge contact shadows to floors.
+  - Enabled `vertexColors: true` on dungeon materials, multiplying contact shadows directly into existing PBR textures with **0 additional draw calls**.
+  - Merged geometries (`doorFrameGeo`, `shopFrameGeo`, `rubbleGeo`, `stairsGeo`) supply neutral `color` attributes, ensuring full shader safety.
+- **Living Torch Dynamics & Inertial Hand-Held Sway**:
+  - Upgraded torchlight from static illumination to an organic multi-frequency flame equation (12-15Hz micro-jitter + 0.5-1Hz draft breathing).
+  - Smooth thermodynamic color temperature modulation between ember amber (`#ffaa55`) during dips and bright lantern gold (`#ffdc99`) during swells.
+  - Inertial sway: torch position lags behind camera turns and walking step bob, simulating a hand-held torch rather than a static headlamp.
+  - Light reach is strictly bounded by the Angband engine's `torchRadius`.
+- **Atmospheric Subterranean Dust Motes & Embers**:
+  - Camera-bound particle volume (`THREE.Points`) containing 54 particles on desktop and 24 particles on mobile phones.
+  - Gentle Brownian drift in camera local space, wrapping smoothly within a 4.5m x 2.8m x 4.5m view volume.
+  - Contextual color and density: warm candlelit dust in dungeons, volcanic crimson embers in Hellish Magma depths, bioluminescent spores in Overgrown Catacombs, and faint air motes in Town.
+  - Fully depth-tested with additive blending, non-clickable, and visually distinct from ground item pickups.
+- **Environmental Adaptive Vignette (`#dungeon-vignette`)**:
+  - Zero-cost CSS vignette placed on a separate layer (`z-index: 2`) behind all HUD and terminal overlays.
+  - Automatically adapts: 0% in daylight Town, 18% in lit rooms, 34% in dark corridors, and triggers `@keyframes vignette-danger-pulse` when player HP drops below 20%.
+- **Breathing In-View Molten Lava**:
+  - Applied smooth 0.5Hz emissive intensity breath (1.9 to 2.5) strictly to in-view molten lava tiles, while unrevealed or memorized fog-of-war lava remains pitch-black cooled basalt (`lavaCooledMaterial`).
+- **Centralized Configuration & Instant Reversibility**:
+  - All visual enhancements are gated under `window.GRAPHICS_CONFIG` with hot-toggle helper `window.setGraphicsPreset('classic' | 'enhanced')`.
+  - Bumped server status version to `1.1.3` and asset cache-busting queries to `v=6.7`.
+
 ## [v1.1.2] — 2026-09-30
 
 ### ⏳ Cloud Realm Traffic Queue System & Minimap Drag vs. Resize Decoupling

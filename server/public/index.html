@@ -14,12 +14,15 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=6.6">
+    <link rel="stylesheet" href="/css/dungeon.css?v=6.7">
 </head>
 <body>
     <div id="app-container">
         <!-- 3D Dungeon WebGL Viewport -->
         <canvas id="viewport-canvas"></canvas>
+
+        <!-- Environmental Adaptive Vignette (Zero GPU overhead, sits behind HUD & terminal) -->
+        <div id="dungeon-vignette" class="dungeon-vignette"></div>
 
         <!-- Top Live Message & Combat Banner (1:1 with Godot Overlay.cs:1572-1587) -->
         <div id="top-message-banner" class="top-message-banner">
@@ -843,14 +846,14 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=6.6"></script>
-    <script src="/js/mobile-overlay.js?v=6.6"></script>
-    <script src="/js/audio.js?v=6.6"></script>
-    <script src="/js/terminal.js?v=6.6"></script>
-    <script src="/js/dungeon3d.js?v=6.6"></script>
-    <script src="/js/hud.js?v=6.6"></script>
-    <script src="/js/network.js?v=6.6"></script>
-    <script src="/js/input.js?v=6.6"></script>
-    <script src="/js/app.js?v=6.6"></script>
+    <script src="/js/device.js?v=6.7"></script>
+    <script src="/js/mobile-overlay.js?v=6.7"></script>
+    <script src="/js/audio.js?v=6.7"></script>
+    <script src="/js/terminal.js?v=6.7"></script>
+    <script src="/js/dungeon3d.js?v=6.7"></script>
+    <script src="/js/hud.js?v=6.7"></script>
+    <script src="/js/network.js?v=6.7"></script>
+    <script src="/js/input.js?v=6.7"></script>
+    <script src="/js/app.js?v=6.7"></script>
 </body>
 </html>

@@ -767,3 +767,37 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
      - Authored tools/test_queue_and_minimap.js verifying queue FIFO order, ping keep-alives, automatic admission upon slot liberation, position promotion, and minimap drag invariants. All tests passed 100%.
      - Engine smoke tests 11/11 passing (python tools/smoke_test.py).
      - Godot C# client compilation 0 errors (dotnet build client/angband3d.csproj).
+
+### Priority 18: High-Impact, Performance-Neutral & Gameplay-Safe Graphics Upgrade (COMPLETED)
+- **Scope**: `server/public/index.html`, `server/public/css/dungeon.css`, `server/public/js/dungeon3d.js`, `server/src/server.js`, `tools/test_graphics_enhancements.js`, `docs/graphics_enhancement_plan.md`
+- **User Invariants & Safeguards**:
+  - **Zero Gameplay / Visibility Leaks**: Strictly NO light bleed across walls or fog-of-war. Sensed/invisible creatures and unlit tiles (`lighting === 3`) remain 100% dormant and dark. In-view molten lava has surface breathing with zero dynamic point lights.
+  - **Zero Item / Interaction Confusion**: Strictly NO decorative noise (no fake wall sconces, random floor rubble, or standalone clutter). Every 3D mesh represents an authentic Angband engine `feat` or `entity`.
+  - **Subtle Environmental Adaptation**: Adaptive vignette is 0% in daytime Town, 15% in lit dungeon rooms, 32% in dark corridors, and pulses crimson only during critical health (< 20% HP). Placed on a CSS layer behind the HUD and terminal with 0.00ms WebGL cost.
+  - **100% Reversibility & Configuration**: Centrally gated under `window.GRAPHICS_CONFIG` with hot-toggle helper `window.setGraphicsPreset('classic' | 'enhanced')`.
+- **Accomplishments**:
+  1. **Contact Ambient Occlusion (AO)**:
+     - Implemented `applyWallVertexAO`, `applyFloorVertexAO`, and `applyCeilingVertexAO` in `dungeon3d.js`.
+     - Softly darkens wall geometry vertices where they meet floors (bottom 22% down to 0.70) and ceilings (top 18% down to 0.80), and grounds floor geometry edges.
+     - Enabled `vertexColors: true` on `wallMaterial`, `floorMaterial`, `ceilingMaterial`, `magmaMaterial`, `quartzMaterial`, and `stairsMaterial`, multiplying vertex AO into existing PBR textures and instance shades with **0 additional draw calls**.
+     - Ensured all composite merged geometries (`doorFrameGeo`, `shopFrameGeo`, `rubbleGeo`, `stairsGeo`) supply neutral `color` buffer attributes, preventing shader warnings.
+  2. **Living Torch Dynamics & Natural Inertial Sway**:
+     - Upgraded torchlight from static energy to a multi-frequency organic flame equation (fast 12-15Hz micro-flicker + slow 0.5-1Hz draft breathing).
+     - Added smooth thermodynamic color temperature modulation between ember amber (`#ffaa55`) during flame dips and bright lantern gold (`#ffdc99`) during flame swells.
+     - Added subtle hand-held torch movement lag (`torchInertia`) that responds to character turning yaw and walking step bob, eliminating the rigid 'headlamp' feel. Clamped strictly to Angband engine torch radius.
+  3. **Atmospheric Subterranean Dust Motes & Embers**:
+     - Implemented camera-bound instanced particulate volume (`THREE.Points`) containing 54 particles on desktop and 24 particles on mobile phones.
+     - Soft organic Brownian drift in camera local space, wrapping smoothly within a 4.5m x 2.8m x 4.5m view volume.
+     - Dynamically shifts particle color and density per biome: warm amber candlelit dust in dungeons, volcanic crimson embers in Hellish Magma depths, bioluminescent emerald spores in Overgrown Catacombs, and faint air motes in Town.
+     - Non-colliding, non-clickable, depth-tested with additive blending, completely distinct from ground item pickups.
+  4. **Environmental Adaptive Vignette**:
+     - Injected `#dungeon-vignette` in `index.html` and `.dungeon-vignette` in `dungeon.css` sitting at `z-index: 2` (behind all HUD, terminal, message banner, and minimap elements).
+     - Dynamically updates `--vignette-strength` in `updateAdaptiveVignette(frame)`: 0% in daylight Town, 18% in lit rooms, 34% in dark corridors, and activates `@keyframes vignette-danger-pulse` when player HP drops below 20%.
+  5. **Breathing Molten Lava**:
+     - Applied smooth 0.5Hz emissive intensity breath (1.9 to 2.5) strictly to in-view molten lava tiles, while unrevealed or memorized fog-of-war lava remains pitch-black cooled basalt (`lavaCooledMaterial`).
+  6. **Verification & Asset Bumps**:
+     - Authored `tools/test_graphics_enhancements.js`: 5/5 invariant tests passing 100%.
+     - `tools/test_queue_and_minimap.js`: 100% passing.
+     - `python tools/smoke_test.py`: 11/11 passing.
+     - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
+     - Bumped server status version to `1.1.3` and asset cache-busting to `v=6.7`.
