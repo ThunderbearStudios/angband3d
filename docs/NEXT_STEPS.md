@@ -15,6 +15,13 @@
      - Switched build output to `assembleRelease`, eliminating debug flags.
      - Added in-modal installation guidance explaining sideloading flow (`More details ∨` -> `Install anyway`).
      - Successfully built and published `Angband3D-Android.apk` (230 MB) to GitHub Releases `v1.1.6` and deployed updated container (`angband3d-cloud-00087-t68`) to Cloud Run.
+   - **Offline WebAssembly Engine Hero Creation & Input Deadlock Fix (v1.1.7)**:
+     - Identified root cause in `engine-worker.js`: `pushCommand()` checked `isAwaitingInput` which was `false` because `onAwaitingInput` was assigned after `createAngbandModule()` rather than in `config`, causing initial frame commands to be queued permanently without resolving `commandResolver`.
+     - Configured `onAwaitingInput` directly in module config and ensured `pushCommand()` resolves immediately whenever `commandResolver` is present.
+     - Normalized `locateFile` and `importScripts` paths to use canonical `location.origin` absolute URLs across Webview/Capacitor contexts.
+     - Ensured `/lib` directory is created prior to `/lib/save` in `preRun` for `IDBFS` mount.
+     - Verified both Random Hero Creation and Custom Hero Creation with 100% automated test harness passing.
+     - Bumped Android APK `versionCode 3`, `versionName 1.1.7`.
    - **Standalone Apps & Downloads Modal (v7.2)**:
      - Fixed Standalone App button (Option [8] in Main Menu and Option [6] on Splash Screen) which previously appeared inert due to missing `#pwa-modal` CSS overlay positioning and failure to hide the main menu overlay.
      - Added full-screen `#pwa-modal` styling (`position: absolute; width: 100%; height: 100%; z-index: 55; background: rgba(3, 4, 7, 0.88); backdrop-filter: blur(8px);`) with responsive safe top offsets and `.pwa-card` animations.

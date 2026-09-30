@@ -258,7 +258,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (termAdvanceBtn) {
         termAdvanceBtn.addEventListener('click', () => {
             if (audio) audio.unlock();
-            confirmHeroBirth();
+            if (birthReviewActive) {
+                confirmHeroBirth();
+            }
             if (audio) audio.playWhoosh();
             network.sendKey('enter');
         });
