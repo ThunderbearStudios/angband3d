@@ -4,7 +4,7 @@ A first-person 3D front end for [Angband](https://github.com/angband/angband), b
 
 The goal is *Dungeon Master*-style immersion with Angband's full roguelike depth: every monster, item, artifact, curse, vault, and level generator, completely unchanged.
 
-**Status: Version 1.0.0 — Fully playable standalone 3D dungeon crawler with Godot 4 & .NET 8, and live WebGL Cloud Edition for Desktop, Tablet, and Mobile.**
+**Status: Version 1.1.0 — Fully playable standalone 3D dungeon crawler with Godot 4 & .NET 8, and live WebGL Cloud Edition with dedicated mobile touch controls for Desktop, Tablet, and Mobile.**
 
 [![Play Online in Browser](https://img.shields.io/badge/Play_Online-Live_Web_Client-gold?style=for-the-badge&logo=googlechrome)](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)
 
@@ -14,7 +14,7 @@ The goal is *Dungeon Master*-style immersion with Angband's full roguelike depth
 [![Desktop Client: Godot 4.3+ .NET](https://img.shields.io/badge/Godot-4.3+_.NET-blueviolet.svg)](https://godotengine.org/)
 [![Cloud Run: Live](https://img.shields.io/badge/Cloud_Run-Online-brightgreen.svg)](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)
 [![Smoke Tests: 11/11 Passing](https://img.shields.io/badge/Smoke_Tests-11%2F11_Passing-success.svg)](tools/smoke_test.py)
-[![Server Tests: 18/18 Passing](https://img.shields.io/badge/Server_Tests-18%2F18_Passing-success.svg)](server/test/server_test.js)
+[![Server Tests: 19/19 Passing](https://img.shields.io/badge/Server_Tests-19%2F19_Passing-success.svg)](server/test/server_test.js)
 
 ---
 
@@ -81,13 +81,21 @@ Your character's rolled race and physical height stat directly scale the entire 
 ### 📦 10. Standalone Zero-Install Packaging
 - **One-Click Distribution**: Easily packaged via `package.cmd` into `Angband3D-Windows-x64.zip` containing the standalone `Angband3D.exe`, `.pck` assets, and native C binaries. End-users require zero prerequisites.
 
+### 📱 11. Mobile & Tablet Touch Experience (PWA Cloud Edition)
+- **Fluid Touch Controls**: Tactile 8-way directional D-pad, expandable action drawer, and dynamic Contextual Letter Ribbon for 1-tap item/spell selection.
+- **Gesture-Safe Touch Tracking**: Displacement-based swipe rejection (>10px) cancels activation during list and ribbon scrolling.
+- **Double-Click Elimination**: Strict synthetic click suppression (<500ms post-touch) prevents duplicate keypresses across iOS Safari and Android Chrome.
+- **Accessible Classic Menus**: Seamless D-Pad navigation for character birth (Race, Class) and item prompts, with tactile Yes/No prompt buttons (`[y] ✓ Yes`, `[n] ✕ No`) and quantity pickers (`[⏎] All`, `[1] Just 1`).
+- **Progressive Web App (PWA)**: Standalone full-screen installation with offline shell caching (`Service Worker`).
+
 ---
 
 ## 📋 Release Notes & Changelog
 
 See **[CHANGELOG.md](CHANGELOG.md)** for detailed version-by-version release notes.
 
-- **v1.0.0 (Latest)**: Comprehensive Release — Standalone distribution packaging, full visual overhaul with PBR parallax materials, procedural 3D creature tokens and fallback rigs, dynamic racial scaling and viewmodel kinematics, depth biomes with volumetric fog, atmospheric death experience with runes disclosure, procedural 3D audio, and decoupled minimap controls.
+- **v1.1.0 (Latest)**: Mobile Touch Overhaul & Cloud Edition — Decoupled touch gesture tracking, swipe drag cancellation, post-touch synthetic click suppression, classic menu D-Pad & tactile Yes/No/quantity prompt overhaul, PWA v6.4 offline shell, and live Cloud Run deployment.
+- **v1.0.0**: Comprehensive Release — Standalone distribution packaging, full visual overhaul with PBR parallax materials, procedural 3D creature tokens and fallback rigs, dynamic racial scaling and viewmodel kinematics, depth biomes with volumetric fog, atmospheric death experience with runes disclosure, procedural 3D audio, and decoupled minimap controls.
 - **v0.3.0**: Standalone release bundle, packaging pipeline & executable export.
 - **v0.2.0**: GitHub Actions release automation, 3D pickup models, combat feedback juice, and expanded smoke tests.
 - **v0.1.0**: Initial working prototype of the C JSON bridge and Godot 4 3D client.
