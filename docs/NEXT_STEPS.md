@@ -688,3 +688,28 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
   - `cd server && npm test`: 18/18 test suites passing.
   - Reroll and store automation tests passing cleanly.
 
+### Priority 15: Mobile Menu Touch Sensitivity Elimination, Classic Menu Overhaul & Zero-Disruption Cloud Deployment (COMPLETED)
+- **Scope**: `server/public/js/app.js`, `server/public/js/input.js`, `server/public/css/dungeon.css`, `server/public/sw.js`, `server/public/index.html`, `server/test/server_test.js`, `scratch/test_mobile_menu_touch.js`, `scratch/verify_live_touch.js`, Cloud Run
+- **Root Cause & Technical Remediation**:
+  1. **Dual-Triggering & Self-Debouncing Elimination**:
+     - *Root Cause 1*: Dual `pointerdown` + `click` listeners fired immediately on touch contact and then again when the browser synthesized a `click` event 150-300ms later, bypassing the short 80-100ms debounce thresholds.
+     - *Root Cause 2*: Reusing the synthetic click suppression timestamp (`lastTap`) inside the action debounce check caused touchend to set `lastTap = Date.now()` immediately before calling `trigger()`, which debounced against itself (`now - lastTap < 350` -> 0ms) and blocked all button taps.
+     - *Fix*: Completely decoupled user-action debouncing (`lastActionTime`) from synthetic touch-click suppression (`lastTouchEndTime`).
+  2. **Safe Touch Movement & Swipe Cancellation**:
+     - Track displacement during `touchmove` across all buttons (`termTouchControls`, `menuOptionBtns`, `pauseOptionBtns`, `bindFastTap`, action buttons).
+     - Any displacement > 10px flags `moved = true`, completely canceling button activation so swiping the letter ribbon or scrolling the menus never accidentally selects an item.
+     - Synthetic `click` events occurring within 500ms of any touch release (`Date.now() - lastTouchEndTime < 500`) are suppressed unconditionally.
+  3. **Classic Menu & Terminal Interface Overhaul**:
+     - **D-Pad Preservation**: Restored permanent 8-way D-Pad access (`termDpad.style.display = 'grid'`) across birth choice screens (Race, Class) and item prompts (Inventory, Equipment, Quiver, Spells) for reliable highlight navigation and Enter selection.
+     - **Universal Yes/No Prompts**: Added prompt detection for `[y/n]` queries across active play, stores, and item drop/destruction with large, dedicated tactile buttons `[y] ✓ Yes`, `[n] ✕ No`, `[Esc] ⎋ Cancel`.
+     - **Quantity Prompts**: Added detection for `how many` / `quantity` with fast touch shortcuts `[⏎] All (Default)`, `[1] Just 1`, `[5] 5`, `[Esc] ⎋ Cancel` and number buttons in the ribbon.
+     - **Store Sub-State Isolation**: Dedicated action titles and cancellation buttons for `Purchase which item?`, `Sell which item?`, and item context action menus (`Buy All`, `Buy One`, `Examine`).
+     - **Letter Ribbon Regex & Panning**: Strictly matches line-initial `^\s*([a-zA-Z0-9])[\)\.\:\-]` and multi-column option tags, excluding item stat brackets like `[2]` or `[+4]`. Added `touch-action: pan-x` in CSS for fluid, native horizontal ribbon scrolling.
+  4. **Zero-Disruption Live Deployment**:
+     - Upgraded PWA and asset cache buster to `v=6.4` (`CACHE_NAME = 'angband3d-v6.4'`, `/css/dungeon.css?v=6.4`, `/js/*.js?v=6.4`).
+     - Container built with `cloudbuild.yaml` on 8-vCPU worker (`gcr.io/resonant-1679933304535/angband3d-cloud:latest`).
+     - In-place deployment to canonical Cloud Run service `angband3d-cloud` in `us-central1` (`revision 00077-rxf`).
+     - **Public URL Preserved**: Permanent canonical URL remains strictly [https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app).
+     - Verified end-to-end via headless Chrome touch emulation on production (`scratch/verify_live_touch.js`), confirming 100% responsive touch taps from splash into main menu and 3D gameplay.
+
+
