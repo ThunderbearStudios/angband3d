@@ -6,6 +6,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v1.1.0] — 2026-09-30
+
+### 📱 Mobile Touch Architecture Overhaul, Classic Menus & Cloud WebGL Edition
+The `v1.1.0` release introduces a first-class mobile and tablet web experience, complete gesture-safe touch controls, interactive classic menu navigation, PWA offline asset caching, and zero-disruption Google Cloud Run deployment.
+
+### Added
+- **Mobile & Tablet Touch Controls**:
+  - Full tactile 8-way directional D-pad with 3D camera forward indicators.
+  - Contextual Letter Ribbon for direct 1-tap item, spell, and choice selection.
+  - Touch-action bar drawer with quick buttons for Attack, Cast, Throw, Fire, Quaff, Read, Rest, Doors, Inventory, and Equipment.
+  - Integrated PWA support with standalone full-screen home screen installation and Service Worker asset caching (`angband3d-v6.4`).
+- **Decoupled Touch & Click Suppression Architecture**:
+  - Displacement tracking across `touchstart` and `touchmove`: dragging $>10\text{px}$ cancels activation, enabling silky smooth ribbon and menu scrolling without accidental triggers.
+  - Strict synthetic click suppression window ($<500\text{ms}$ after `touchend`) to permanently eliminate double-actions and duplicate keystrokes across iOS Safari and Android Chrome.
+  - Independent action debounce timers (`lastActionTime`) decoupled from click suppression timestamps (`lastTouchEndTime`).
+- **Classic Menu & Prompt Overhaul**:
+  - Permanent 8-way D-Pad retention in character creation birth wizard (Race, Class) and item prompts (Inventory, Equipment, Quiver, Spells) for highlight navigation and Enter confirmation.
+  - Universal tactile `[y/n]` prompt shortcuts (`[y] ✓ Yes`, `[n] ✕ No`, `[Esc] ⎋ Cancel`).
+  - Tactile Quantity prompt pickers (`[⏎] All (Default)`, `[1] Just 1`, `[5] 5`, `[Esc] ⎋ Cancel`).
+  - Store sub-state isolation and item context action menus (`Buy All`, `Buy One`, `Examine`, `Cancel`).
+  - CSS `touch-action: pan-x` on letter ribbons for native horizontal touch scrolling.
+- **Sensed & Invisible 3D Creature Visualization**:
+  - Sensed and invisible monsters in dark or out-of-LOS areas rendered as ethereal, foggy glowing volumetric auras with `👁 SENSED` billboard badges.
+- **Save Management & Audio Controls**:
+  - In-browser save download and drag-and-drop save upload compatible with native desktop `SaveVNLA` binary format.
+  - Master volume slider and instant mute toggle in HUD header and pause modal.
+
+---
+
 ## [v1.0.0] — 2026-09-14
 
 ### 🌟 Comprehensive Release & Dark Fantasy Visual Overhaul
