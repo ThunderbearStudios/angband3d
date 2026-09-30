@@ -14,7 +14,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=7.0">
+    <link rel="stylesheet" href="/css/dungeon.css?v=7.1">
 </head>
 <body>
     <div id="app-container">
@@ -390,15 +390,7 @@
                     <div class="main-menu-subtitle">Choose your path to begin the descent into the pits of Angband</div>
                 </div>
 
-                <!-- Engine Realm & Offline Mode Selector -->
-                <div class="engine-mode-selector" id="engine-mode-selector">
-                    <button id="btn-engine-local" class="engine-toggle-btn active" title="Local in-browser WebAssembly engine: 0ms ping, 100% offline, IndexedDB storage">
-                        <span style="font-size: 14px;">⚡</span> Local Engine (Offline / 0ms)
-                    </button>
-                    <button id="btn-engine-cloud" class="engine-toggle-btn" title="Cloud Multiplayer Realm daemon: persistent server-backed adventure">
-                        <span style="font-size: 14px;">☁</span> Cloud Realm
-                    </button>
-                </div>
+
 
                 <div class="main-menu-options" id="main-menu-options">
                     <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0">
@@ -461,8 +453,8 @@
                         <span class="menu-bullet">►</span>
                         <span class="menu-num">[8]</span>
                         <div class="menu-text-col">
-                            <span class="menu-label" id="menu-pwa-label">Install Angband3D App (PWA)</span>
-                            <span class="menu-desc" id="menu-pwa-desc">Install as a standalone app on your home screen or desktop for full-screen play.</span>
+                            <span class="menu-label" id="menu-pwa-label">Standalone Apps &amp; Downloads (Android / PC)</span>
+                            <span class="menu-desc" id="menu-pwa-desc">Download standalone offline Android APK or Windows PC client, or install as an app.</span>
                         </div>
                     </button>
                 </div>
@@ -762,42 +754,59 @@
             </div>
         </div>
 
-        <!-- PWA Installation Modal -->
+        <!-- Standalone Editions & PWA Installation Modal -->
         <div id="pwa-modal" class="hidden">
-            <div class="load-card pwa-card" style="max-width: 600px;">
+            <div class="load-card pwa-card" style="max-width: 620px;">
                 <div class="main-menu-ornament-corner top-left"></div>
                 <div class="main-menu-ornament-corner top-right"></div>
                 <div class="main-menu-ornament-corner bottom-left"></div>
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title" id="pwa-modal-title">⚔ INSTALL ANGBAND 3D ⚔</h2>
-                    <div class="main-menu-subtitle" id="pwa-modal-subtitle">Progressive Web App (PWA) Standalone Installation</div>
+                    <h2 class="main-menu-title" id="pwa-modal-title">⚔ STANDALONE CLIENTS &amp; DOWNLOADS ⚔</h2>
+                    <div class="main-menu-subtitle" id="pwa-modal-subtitle">Play offline on any device with universal .sav save portability</div>
                 </div>
 
                 <div class="pwa-body" id="pwa-modal-body" style="padding: 16px 20px; font-family: var(--font-body); font-size: 14px; line-height: 1.6; color: #cbd5e1;">
                     <div id="pwa-status-box" style="margin-bottom: 14px; padding: 12px 14px; border-radius: 8px; background: rgba(22, 28, 44, 0.85); border: 1px solid rgba(212, 175, 55, 0.45);">
-                        <strong style="color: #ffd700; font-family: var(--font-title);">App Status:</strong>
-                        <span id="pwa-status-text" style="color: #e2e8f0; margin-left: 6px;">Ready to install as a standalone app.</span>
+                        <strong style="color: #ffd700; font-family: var(--font-title);">Current Platform:</strong>
+                        <span id="pwa-status-text" style="color: #e2e8f0; margin-left: 6px;">Web Client (Connected to Cloud Realm)</span>
                     </div>
                     <div id="pwa-instructions-text">
                         <p style="margin-bottom: 12px;">Angband 3D supports full standalone play across all devices, with 100% offline functionality and universal <code>.sav</code> save portability.</p>
 
-                        <div style="background: rgba(10, 16, 28, 0.7); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                        <!-- Android APK Option -->
+                        <div style="background: rgba(10, 16, 28, 0.7); border: 1px solid rgba(212, 175, 55, 0.35); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                                 <div>
-                                    <strong style="color: #ffd700; font-family: var(--font-title); font-size: 15px;">🤖 Native Android App (.APK)</strong>
-                                    <div style="color: #94a3b8; font-size: 12px;">Standalone offline package for Android 8.0+ phones &amp; tablets</div>
+                                    <strong style="color: #ffd700; font-family: var(--font-title); font-size: 15px;">📱 Native Android Standalone App (.APK)</strong>
+                                    <div style="color: #94a3b8; font-size: 12px;">100% offline standalone Android package for phones &amp; tablets. Zero cloud dependency.</div>
                                 </div>
-                                <a id="btn-pwa-apk-download" href="https://github.com/lieb2101/angband3d/releases/latest/download/Angband3D-Android.apk" class="btn-gold" style="text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">📥 Download APK</a>
+                                <a id="btn-pwa-apk-download" href="/download/Angband3D-Android.apk" class="btn-gold" style="text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">📥 Download APK</a>
                             </div>
                         </div>
 
-                        <ul style="padding-left: 20px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
-                            <li>• <strong>Chrome / Edge (Desktop)</strong>: Look for the Install icon (⊕ or computer display) on the right side of the address bar, or use the "Install Now" button below.</li>
-                            <li>• <strong>iOS / iPadOS Safari</strong>: Tap the Share button (<span style="font-size: 16px;">⎋</span> with arrow up), scroll down, and select <strong>"Add to Home Screen"</strong> (➕).</li>
-                            <li>• <strong>Android Chrome</strong>: Tap the menu (⋮) and select <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.</li>
-                        </ul>
+                        <!-- Windows PC Desktop Option -->
+                        <div style="background: rgba(10, 16, 28, 0.7); border: 1px solid rgba(212, 175, 55, 0.35); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                <div>
+                                    <strong style="color: #ffd700; font-family: var(--font-title); font-size: 15px;">💻 Windows PC Desktop Edition (.ZIP)</strong>
+                                    <div style="color: #94a3b8; font-size: 12px;">Official 60 FPS Godot 4 3D client for Windows PC with authentic C engine stdio.</div>
+                                </div>
+                                <a id="btn-windows-download" href="/download/angband3d-standalone.zip" class="btn-gold" style="text-decoration: none; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">📥 Download (.zip)</a>
+                            </div>
+                        </div>
+
+                        <!-- Browser PWA Option -->
+                        <div style="background: rgba(10, 16, 28, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
+                            <strong style="color: #e2e8f0; font-family: var(--font-title); font-size: 14px;">📲 Install Web App (PWA)</strong>
+                            <div style="color: #94a3b8; font-size: 12px; margin-top: 4px; margin-bottom: 6px;">Run full-screen directly from your browser home screen or desktop:</div>
+                            <ul style="padding-left: 18px; margin: 0; font-size: 12px; color: #94a3b8; display: flex; flex-direction: column; gap: 4px;">
+                                <li>• <strong>Desktop Chrome / Edge</strong>: Click the install icon (⊕) in the browser address bar.</li>
+                                <li>• <strong>iOS / iPadOS Safari</strong>: Tap Share (<span style="font-size: 14px;">⎋</span>) → <strong>Add to Home Screen</strong> (➕).</li>
+                                <li>• <strong>Android Chrome</strong>: Tap menu (⋮) → <strong>Install app</strong>.</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
 
@@ -867,15 +876,15 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=7.0"></script>
-    <script src="/js/mobile-overlay.js?v=7.0"></script>
-    <script src="/js/audio.js?v=7.0"></script>
-    <script src="/js/terminal.js?v=7.0"></script>
-    <script src="/js/dungeon3d.js?v=7.0"></script>
-    <script src="/js/hud.js?v=7.0"></script>
-    <script src="/js/network.js?v=7.0"></script>
-    <script src="/js/local_bridge.js?v=7.0"></script>
-    <script src="/js/input.js?v=7.0"></script>
-    <script src="/js/app.js?v=7.0"></script>
+    <script src="/js/device.js?v=7.1"></script>
+    <script src="/js/mobile-overlay.js?v=7.1"></script>
+    <script src="/js/audio.js?v=7.1"></script>
+    <script src="/js/terminal.js?v=7.1"></script>
+    <script src="/js/dungeon3d.js?v=7.1"></script>
+    <script src="/js/hud.js?v=7.1"></script>
+    <script src="/js/network.js?v=7.1"></script>
+    <script src="/js/local_bridge.js?v=7.1"></script>
+    <script src="/js/input.js?v=7.1"></script>
+    <script src="/js/app.js?v=7.1"></script>
 </body>
 </html>

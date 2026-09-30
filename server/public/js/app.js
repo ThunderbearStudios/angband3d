@@ -17,19 +17,27 @@ window.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize Subsystems
     const audio = new SoundEngine();
 
-    // Check device and stored preference for Local Wasm vs Cloud Realm
-    const isStandalonePlatform = () => {
-        return window.matchMedia('(display-mode: standalone)').matches ||
-               window.navigator.standalone === true ||
-               document.referrer.includes('android-app://') ||
-               window.Capacitor !== undefined ||
+    // Platform Auto-Detection:
+    // - Standalone Native Android APK: runs offline with bundled engine (or connects to cloud on request).
+    // - Web Browser (angband3d.com): ALWAYS connects directly to the Cloud Realm WebSocket daemon!
+    const isAndroidApk = () => {
+        return window.Capacitor !== undefined ||
                location.protocol === 'capacitor:' ||
-               (location.protocol === 'http:' && location.hostname === 'localhost' && navigator.userAgent.includes('Android'));
+               window.isNativeAndroidApp === true ||
+               (window.location.href.startsWith('http://localhost') && navigator.userAgent.includes('Android') && !window.location.port);
     };
 
-    let engineMode = localStorage.getItem('angband_engine_mode');
-    if (!engineMode) {
-        engineMode = 'local';
+    const isApk = isAndroidApk();
+    // Web browser users MUST ALWAYS default to Cloud Realm.
+    // Native Android APK users default to local offline engine.
+    let engineMode = isApk ? 'local' : 'cloud';
+
+    // Strictly purge any legacy 'angband_engine_mode' from browser localStorage
+    // to guarantee web users never get stuck on a broken local mode.
+    if (!isApk) {
+        try {
+            localStorage.removeItem('angband_engine_mode');
+        } catch (_) {}
     }
 
     let network = (engineMode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
@@ -47,7 +55,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const setEngineMode = (mode) => {
         if (engineMode === mode && network) return;
         engineMode = mode;
-        localStorage.setItem('angband_engine_mode', mode);
+        if (isApk) {
+            try {
+                localStorage.setItem('angband_engine_mode', mode);
+            } catch (_) {}
+        }
         try {
             if (network) network.disconnect();
         } catch (_) {}
@@ -59,20 +71,19 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     const updateEngineModeUI = () => {
-        const btnLocal = document.getElementById('btn-engine-local');
-        const btnCloud = document.getElementById('btn-engine-cloud');
-        if (btnLocal && btnCloud) {
-            if (engineMode === 'local') {
-                btnLocal.classList.add('active');
-                btnCloud.classList.remove('active');
-            } else {
-                btnLocal.classList.remove('active');
-                btnCloud.classList.add('active');
-            }
+        const menuPwaLabel = document.getElementById('menu-pwa-label');
+        const menuPwaDesc = document.getElementById('menu-pwa-desc');
+        if (isApk) {
+            if (menuPwaLabel) menuPwaLabel.textContent = 'Play in Web Client Online (Cloud Realm)';
+            if (menuPwaDesc) menuPwaDesc.textContent = 'Connect to the live multiplayer Cloud Realm or visit angband3d.com online.';
+        } else {
+            if (menuPwaLabel) menuPwaLabel.textContent = 'Standalone Apps & Downloads (Android / PC)';
+            if (menuPwaDesc) menuPwaDesc.textContent = 'Download standalone offline Android APK or Windows PC client, or install as an app.';
         }
+
         if (hud && hud.pingBadge) {
             if (engineMode === 'local') {
-                hud.pingBadge.textContent = '⚡ Local Wasm [0ms]';
+                hud.pingBadge.textContent = '⚡ Android Standalone [Offline]';
                 hud.pingBadge.style.color = '#38bdf8';
             } else {
                 hud.pingBadge.textContent = 'Cloud [Connecting...]';
@@ -81,7 +92,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.__app = { audio, network, dungeon, hud, terminal, setEngineMode, getEngineMode: () => engineMode };
+    window.__app = { audio, network, dungeon, hud, terminal, setEngineMode, getEngineMode: () => engineMode, isApk };
 
     let birthReviewActive = false;
 
@@ -1397,8 +1408,12 @@ window.addEventListener('DOMContentLoaded', () => {
             case 6: // Angband Online Wiki
                 window.open('https://angband.readthedocs.io/', '_blank');
                 break;
-            case 7: // Install Angband3D App (PWA)
-                installPWA();
+            case 7: // Option [8]: Standalone Downloads or Web Client
+                if (isApk) {
+                    window.open('https://angband3d.com', '_blank');
+                } else {
+                    installPWA();
+                }
                 break;
         }
     }
@@ -2913,22 +2928,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     bindNetworkEventHandlers();
-
-    // Bind Engine Mode Toggle buttons in Main Menu
-    const btnEngineLocal = document.getElementById('btn-engine-local');
-    const btnEngineCloud = document.getElementById('btn-engine-cloud');
-    if (btnEngineLocal) {
-        btnEngineLocal.addEventListener('click', () => {
-            if (audio) audio.playMenuNav();
-            setEngineMode('local');
-        });
-    }
-    if (btnEngineCloud) {
-        btnEngineCloud.addEventListener('click', () => {
-            if (audio) audio.playMenuNav();
-            setEngineMode('cloud');
-        });
-    }
     updateEngineModeUI();
 
     // 3. Initial Boot: Check URL query parameters
