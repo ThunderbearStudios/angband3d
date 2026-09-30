@@ -16,10 +16,13 @@ class GameNetwork {
         this.onBye = null;
         this.onPing = null;
         this.onStatus = null;
+        this.onQueue = null;
+        this.isInQueue = false;
     }
 
     connect(charName = 'Adventurer', isNew = false, saveFile = null) {
         this.manualDisconnect = false;
+        this.isInQueue = false;
         this.currentChar = charName;
         this.currentIsNew = isNew;
         this.currentSave = saveFile;
@@ -52,7 +55,11 @@ class GameNetwork {
                 const msg = JSON.parse(str);
 
                 if (msg.t === 'hello') {
+                    this.isInQueue = false;
                     if (this.onHello) this.onHello(msg);
+                } else if (msg.t === 'queue') {
+                    this.isInQueue = (msg.status === 'waiting');
+                    if (this.onQueue) this.onQueue(msg);
                 } else if (msg.t === 'pong') {
                     if (this.lastPingSent > 0) {
                         this.pingMs = Math.round(performance.now() - this.lastPingSent);
@@ -93,7 +100,17 @@ class GameNetwork {
 
     disconnect() {
         this.manualDisconnect = true;
+        this.isInQueue = false;
         if (this.ws) {
+            try { this.ws.close(); } catch (_) {}
+        }
+    }
+
+    leaveQueue() {
+        this.manualDisconnect = true;
+        this.isInQueue = false;
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            try { this.ws.send(JSON.stringify({ t: 'cancel' })); } catch (_) {}
             try { this.ws.close(); } catch (_) {}
         }
     }

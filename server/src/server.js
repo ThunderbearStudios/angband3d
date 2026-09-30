@@ -22,6 +22,11 @@ const PORT = parseInt(process.env.PORT || '8080', 10);
 const IS_WIN = process.platform === 'win32';
 const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${20 * 60 * 1000}`, 10); // 20 minutes
 const MAX_CONCURRENT_GAMES = parseInt(process.env.MAX_CONCURRENT_GAMES || '50', 10);
+const MAX_QUEUE_SIZE = parseInt(process.env.MAX_QUEUE_SIZE || '100', 10);
+
+// Waiting queue for connections when activeSessions.size >= MAX_CONCURRENT_GAMES
+// Each item: { id, ws, request, enqueueTime, user, save }
+const waitingQueue = [];
 
 function resolveEngineExe() {
     if (process.env.ENGINE_EXE && fs.existsSync(process.env.ENGINE_EXE)) {
@@ -241,6 +246,20 @@ const server = http.createServer((req, res) => {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));
         }
+        return;
+    }
+
+    // REST: Server Capacity & Telemetry Status
+    if (pathname === '/api/status' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: 'online',
+            activeSessions: activeSessions.size,
+            maxCapacity: MAX_CONCURRENT_GAMES,
+            waitingQueue: waitingQueue.length,
+            maxQueueSize: MAX_QUEUE_SIZE,
+            version: '1.1.2'
+        }));
         return;
     }
 
@@ -539,22 +558,70 @@ server.on('upgrade', (request, socket, head) => {
     }
 });
 
-wss.on('connection', (ws, request) => {
+function broadcastQueueStatus() {
+    // Purge any closed sockets
+    for (let i = waitingQueue.length - 1; i >= 0; i--) {
+        if (waitingQueue[i].ws.readyState !== 1 /* WebSocket.OPEN */) {
+            waitingQueue.splice(i, 1);
+        }
+    }
+
+    for (let i = 0; i < waitingQueue.length; i++) {
+        const item = waitingQueue[i];
+        try {
+            if (item.ws.readyState === 1) {
+                item.ws.send(JSON.stringify({
+                    t: 'queue',
+                    status: 'waiting',
+                    position: i + 1,
+                    totalInQueue: waitingQueue.length,
+                    maxCapacity: MAX_CONCURRENT_GAMES,
+                    activeCount: activeSessions.size
+                }));
+            }
+        } catch (_) {}
+    }
+}
+
+function processWaitingQueue() {
+    while (waitingQueue.length > 0 && activeSessions.size < MAX_CONCURRENT_GAMES) {
+        const nextClient = waitingQueue.shift();
+        if (!nextClient) break;
+        if (nextClient.ws.readyState === 1 /* WebSocket.OPEN */) {
+            const waitSeconds = Math.round((Date.now() - nextClient.enqueueTime) / 1000);
+            console.log(`[Queue] Admitting queued client ${nextClient.id} after ${waitSeconds}s wait. Active games: ${activeSessions.size + 1}/${MAX_CONCURRENT_GAMES}`);
+
+            // Remove temporary queue listeners
+            nextClient.ws.removeAllListeners('message');
+            nextClient.ws.removeAllListeners('close');
+            nextClient.ws.removeAllListeners('error');
+
+            try {
+                nextClient.ws.send(JSON.stringify({
+                    t: 'queue',
+                    status: 'admitted',
+                    position: 0,
+                    totalInQueue: waitingQueue.length
+                }));
+            } catch (_) {}
+
+            spawnGameSession(nextClient.ws, nextClient.request);
+        }
+    }
+    broadcastQueueStatus();
+}
+
+// Periodic queue status broadcast (every 5 seconds) to refresh position and keep connection alive
+setInterval(() => {
+    if (waitingQueue.length > 0) {
+        broadcastQueueStatus();
+    }
+}, 5000).unref();
+
+function spawnGameSession(ws, request) {
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
     const user = urlObj.searchParams.get('user') || null;
     const save = urlObj.searchParams.get('save') || null;
-
-    console.log(`[WebSocket] Client connected. User: ${user || 'default'}, Save: ${save || 'none'}`);
-
-    if (activeSessions.size >= MAX_CONCURRENT_GAMES) {
-        console.warn(`[WebSocket] Capacity limit reached (${activeSessions.size}/${MAX_CONCURRENT_GAMES}). Rejecting connection.`);
-        ws.send(JSON.stringify({
-            t: 'bye',
-            detail: 'Server is currently at maximum player capacity. Please try reconnecting in a few minutes.'
-        }));
-        ws.close();
-        return;
-    }
 
     const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
     ws.send(JSON.stringify({ t: 'hello', sessionId, version: '1.0.0' }));
@@ -649,6 +716,7 @@ wss.on('connection', (ws, request) => {
             ws.send(JSON.stringify({ t: 'bye', detail: err.message }));
             ws.close();
         }
+        setTimeout(processWaitingQueue, 50);
     });
 
     child.on('close', (code, signal) => {
@@ -658,6 +726,7 @@ wss.on('connection', (ws, request) => {
             ws.send(JSON.stringify({ t: 'bye', detail: `process exited with code ${code}` }));
             ws.close();
         }
+        setTimeout(processWaitingQueue, 50);
     });
 
     ws.on('message', message => {
@@ -703,6 +772,7 @@ wss.on('connection', (ws, request) => {
                 child.kill();
             }
         } catch (_) {}
+        setTimeout(processWaitingQueue, 50);
     });
 
     ws.on('error', err => {
@@ -713,7 +783,97 @@ wss.on('connection', (ws, request) => {
                 child.kill('SIGKILL');
             }
         } catch (_) {}
+        setTimeout(processWaitingQueue, 50);
     });
+}
+
+wss.on('connection', (ws, request) => {
+    const urlObj = new URL(request.url, `http://${request.headers.host}`);
+    const user = urlObj.searchParams.get('user') || null;
+    const save = urlObj.searchParams.get('save') || null;
+
+    console.log(`[WebSocket] Client connection attempt. User: ${user || 'default'}, Save: ${save || 'none'}. (Active: ${activeSessions.size}/${MAX_CONCURRENT_GAMES}, Queue: ${waitingQueue.length})`);
+
+    // If active games are at capacity or a queue already exists, enqueue!
+    if (activeSessions.size >= MAX_CONCURRENT_GAMES || waitingQueue.length > 0) {
+        if (waitingQueue.length >= MAX_QUEUE_SIZE) {
+            console.warn(`[Queue] Realm and queue at capacity (${activeSessions.size}/${MAX_CONCURRENT_GAMES}, Queue: ${waitingQueue.length}/${MAX_QUEUE_SIZE}). Rejecting.`);
+            ws.send(JSON.stringify({
+                t: 'bye',
+                detail: 'The realm is currently at maximum player and queue capacity. Please try reconnecting shortly.'
+            }));
+            ws.close();
+            return;
+        }
+
+        const queueId = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+        const queueItem = {
+            id: queueId,
+            ws,
+            request,
+            enqueueTime: Date.now(),
+            user,
+            save
+        };
+        waitingQueue.push(queueItem);
+        const position = waitingQueue.length;
+
+        console.log(`[Queue] Enqueued client ${queueId} (Position: #${position}/${waitingQueue.length}, Active games: ${activeSessions.size}/${MAX_CONCURRENT_GAMES})`);
+
+        if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({
+                t: 'queue',
+                status: 'waiting',
+                position: position,
+                totalInQueue: waitingQueue.length,
+                maxCapacity: MAX_CONCURRENT_GAMES,
+                activeCount: activeSessions.size
+            }));
+        }
+
+        ws.on('message', message => {
+            const str = message.toString();
+            if (str.startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(str);
+                    if (parsed.t === 'ping') {
+                        if (ws.readyState === ws.OPEN) {
+                            ws.send(JSON.stringify({ t: 'pong', time: parsed.time }));
+                        }
+                        return;
+                    }
+                    if (parsed.t === 'cancel') {
+                        console.log(`[Queue] Client canceled queue wait: ${queueId}`);
+                        ws.close();
+                        return;
+                    }
+                } catch (_) {}
+            }
+        });
+
+        ws.on('close', () => {
+            const idx = waitingQueue.findIndex(item => item.id === queueId);
+            if (idx !== -1) {
+                waitingQueue.splice(idx, 1);
+                console.log(`[Queue] Client left queue: ${queueId}. Remaining in queue: ${waitingQueue.length}`);
+                broadcastQueueStatus();
+            }
+        });
+
+        ws.on('error', err => {
+            console.error(`[Queue Error] ${err.message}`);
+            const idx = waitingQueue.findIndex(item => item.id === queueId);
+            if (idx !== -1) {
+                waitingQueue.splice(idx, 1);
+                broadcastQueueStatus();
+            }
+        });
+
+        broadcastQueueStatus();
+        return;
+    }
+
+    spawnGameSession(ws, request);
 });
 
 // Periodic idle session reaper: safely flush saves and release memory for inactive tabs
@@ -747,6 +907,7 @@ setInterval(() => {
                 console.error(`[Idle Reaper Error] ${err.message}`);
             }
             activeSessions.delete(sessionId);
+            setTimeout(processWaitingQueue, 50);
         }
     }
 }, 30000).unref();
@@ -766,6 +927,15 @@ function gracefulShutdown(signal) {
         } catch (_) {}
     }
     activeSessions.clear();
+    for (const item of waitingQueue) {
+        try {
+            if (item.ws && item.ws.readyState === 1) {
+                item.ws.send(JSON.stringify({ t: 'bye', detail: 'Server shutting down' }));
+                item.ws.close();
+            }
+        } catch (_) {}
+    }
+    waitingQueue.length = 0;
     server.close(() => {
         console.log('[Angband3D Cloud] HTTP server closed cleanly. Exiting.');
         process.exit(0);
