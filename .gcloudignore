@@ -1,14 +1,25 @@
-.git/
-.gitignore
-client/
-engine/
-dist/
-tools/
-resources/
-scratch/
-node_modules/
-server/node_modules/
-*.zip
-*.exe
-*.log
+# Ignore everything by default
+*
+
+# Allow cloudbuild and engine patch
+!cloudbuild.yaml
+!engine-patch
+!engine-patch/**
+
+# Allow server files needed by Dockerfile
+!server
+!server/package.json
+!server/package-lock.json
+!server/Dockerfile
+!server/docker-compose.yml
+!server/src
+!server/src/**
+!server/public
 !server/public/**
+!server/test
+!server/test/**
+
+# Strictly ignore node_modules
+server/node_modules/
+server/node_modules/**
+**/node_modules/**
