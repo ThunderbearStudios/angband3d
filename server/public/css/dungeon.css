@@ -672,6 +672,192 @@ html, body {
     user-select: none;
 }
 
+/* Quick-Volume Popover Drawer for Mobile, Tablet, and Desktop */
+.quick-volume-popover {
+    position: fixed;
+    top: calc(max(44px, var(--safe-top) + 38px));
+    right: max(8px, var(--safe-right));
+    width: min(310px, calc(100vw - 20px));
+    background: rgba(14, 18, 28, 0.96);
+    border: 1px solid rgba(212, 175, 55, 0.6);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), 0 0 16px rgba(212, 175, 55, 0.35);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 12px 14px;
+    z-index: 1005;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: auto;
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+    transform-origin: top right;
+    touch-action: manipulation;
+}
+
+.quick-volume-popover.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-8px) scale(0.95);
+}
+
+.quick-volume-popover .popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+    padding-bottom: 8px;
+}
+
+.quick-volume-popover .popover-title {
+    font-family: var(--font-fantasy);
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffd700;
+    letter-spacing: 0.5px;
+}
+
+.quick-volume-popover .popover-badge {
+    font-family: var(--font-terminal);
+    font-size: 12px;
+    font-weight: 600;
+    color: #ffffff;
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    padding: 2px 7px;
+    border-radius: 4px;
+    min-width: 44px;
+    text-align: center;
+}
+
+.quick-volume-popover .popover-close-btn {
+    background: transparent;
+    border: none;
+    color: #a0aec0;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color 0.15s ease;
+}
+
+.quick-volume-popover .popover-close-btn:hover {
+    color: #ff7b72;
+}
+
+.quick-volume-popover .popover-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+}
+
+.quick-volume-popover .popover-mute-toggle {
+    font-family: var(--font-terminal);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(20, 26, 40, 0.95);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    color: #ffd700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    touch-action: manipulation;
+}
+
+.quick-volume-popover .popover-mute-toggle.muted {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.6);
+    color: #ff7b72;
+}
+
+.quick-volume-popover .popover-mute-toggle:hover {
+    border-color: #ffd700;
+    background: rgba(45, 36, 16, 0.95);
+}
+
+.quick-volume-popover .touch-slider {
+    flex: 1;
+    height: 10px;
+    touch-action: pan-x;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 5px;
+    outline: none;
+    cursor: pointer;
+}
+
+.quick-volume-popover .touch-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffd700;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.9);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.quick-volume-popover .touch-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffd700;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.9);
+    cursor: pointer;
+}
+
+.quick-volume-popover .popover-presets {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding-top: 2px;
+}
+
+.quick-volume-popover .vol-preset-btn {
+    flex: 1;
+    font-family: var(--font-terminal);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 2px;
+    border-radius: 6px;
+    background: rgba(22, 28, 42, 0.9);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: #e0e6ed;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    touch-action: manipulation;
+}
+
+.quick-volume-popover .vol-preset-btn:hover {
+    border-color: #ffd700;
+    background: rgba(45, 36, 16, 0.95);
+    color: #ffd700;
+}
+
+.quick-volume-popover .vol-preset-btn.active {
+    background: rgba(212, 175, 55, 0.28);
+    border-color: #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+#btn-sound.muted {
+    border-color: rgba(239, 68, 68, 0.6) !important;
+    color: #ff7b72 !important;
+}
+
 /* Bottom HUD (Health, Mana, Depth, Gold, Quick stats) */
 #hud-overlay {
     position: absolute;
@@ -2716,36 +2902,52 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
     padding: 10px 16px;
-    background: rgba(18, 24, 36, 0.75);
+    background: rgba(18, 24, 36, 0.85);
     border: 1px solid rgba(212, 175, 55, 0.35);
     border-radius: 6px;
     margin-bottom: 14px;
 }
 
-.pause-mute-btn {
+.pause-mute-btn,
+.btn-pause-mute {
     background: rgba(14, 18, 28, 0.9);
     border: 1px solid rgba(212, 175, 55, 0.4);
-    border-radius: 4px;
+    border-radius: 6px;
     color: #ffd700;
     font-family: var(--font-fantasy);
     font-size: 13px;
-    padding: 6px 14px;
+    padding: 8px 14px;
     cursor: pointer;
     transition: all 0.2s ease;
+    touch-action: manipulation;
 }
 
-.pause-mute-btn:hover {
+.pause-mute-btn:hover,
+.btn-pause-mute:hover {
     background: rgba(30, 40, 60, 0.9);
     border-color: #ffd700;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
 }
 
+.pause-mute-btn.muted,
+.btn-pause-mute.muted {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #ff7b72;
+}
+
+.pause-volume-wrap,
 .pause-audio-toolbar .volume-slider-wrap {
+    display: flex;
+    align-items: center;
     gap: 10px;
 }
 
+.pause-volume-wrap .pause-vol-label,
+.pause-volume-wrap label,
 .pause-audio-toolbar .volume-slider-wrap label {
     font-family: var(--font-fantasy);
     font-size: 13px;
@@ -2753,11 +2955,14 @@ html, body {
     letter-spacing: 0.5px;
 }
 
+.pause-volume-wrap .volume-range-slider,
 .pause-audio-toolbar .volume-range-slider {
     width: 140px;
-    height: 6px;
+    height: 8px;
+    touch-action: pan-x;
 }
 
+.pause-volume-wrap .volume-label,
 .pause-audio-toolbar .volume-label {
     font-size: 12px;
     color: #ffffff;
@@ -2925,6 +3130,17 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         background: transparent !important;
         border: none !important;
         padding: 0 !important;
+        touch-action: manipulation !important;
+        pointer-events: auto !important;
+    }
+    #top-right-bar #btn-sound {
+        touch-action: manipulation !important;
+        pointer-events: auto !important;
+    }
+    #top-right-bar #btn-sound.muted {
+        border-color: rgba(239, 68, 68, 0.7) !important;
+        background: rgba(36, 16, 20, 0.95) !important;
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.4) !important;
     }
 
     /* Full-Screen Overlays Safe Top Offsets (prevents modal headers from colliding with top buttons) */

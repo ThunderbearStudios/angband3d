@@ -165,7 +165,7 @@ const server = http.createServer((req, res) => {
             uptime: Math.floor(process.uptime()),
             activeSessions: activeSessions.size,
             engine: fs.existsSync(ENGINE_EXE) ? 'ready' : 'missing',
-            version: '1.2.0',
+            version: '1.2.1',
             timestamp: Date.now()
         }));
         return;

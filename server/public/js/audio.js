@@ -1447,6 +1447,17 @@ class SoundEngine {
         this.unlock();
         this.playBuffer(this.buffers['menuOpen'], 1.0, 0.75);
     }
+
+    play(soundName) {
+        if (!soundName) return;
+        if (soundName === 'menuSelect') return this.playMenuSelect();
+        if (soundName === 'menuNav') return this.playMenuNav();
+        if (soundName === 'menuOpen') return this.playMenuOpen();
+        if (this.buffers && this.buffers[soundName]) {
+            this.unlock();
+            this.playBuffer(this.buffers[soundName], 1.0, 0.85);
+        }
+    }
 }
 
 if (typeof window !== 'undefined') {

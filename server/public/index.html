@@ -14,7 +14,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=7.2">
+    <link rel="stylesheet" href="/css/dungeon.css?v=7.3">
 </head>
 <body>
     <div id="app-container">
@@ -124,6 +124,25 @@
                 <div class="volume-slider-wrap">
                     <input type="range" id="volume-slider" class="volume-range-slider" min="0" max="100" value="75" step="1" title="Adjust Master Volume">
                     <span id="volume-label" class="volume-label">75%</span>
+                </div>
+            </div>
+            <!-- Mobile / Quick Volume Floating Popover -->
+            <div id="quick-volume-popover" class="quick-volume-popover hidden" role="dialog" aria-label="Audio and Volume Controls">
+                <div class="popover-header">
+                    <span class="popover-title">🔊 Master Volume</span>
+                    <span id="popover-vol-badge" class="popover-badge">75%</span>
+                    <button type="button" id="btn-popover-close" class="popover-close-btn" title="Close Volume Controls">✕</button>
+                </div>
+                <div class="popover-slider-row">
+                    <button type="button" id="btn-popover-mute" class="popover-mute-toggle" title="Toggle Mute">🔊 Sound On</button>
+                    <input type="range" id="popover-volume-slider" class="volume-range-slider touch-slider" min="0" max="100" value="75" step="1" title="Adjust Master Volume">
+                </div>
+                <div class="popover-presets">
+                    <button type="button" class="vol-preset-btn" data-vol="0">🔇 Mute</button>
+                    <button type="button" class="vol-preset-btn" data-vol="25">25%</button>
+                    <button type="button" class="vol-preset-btn" data-vol="50">50%</button>
+                    <button type="button" class="vol-preset-btn" data-vol="75">75%</button>
+                    <button type="button" class="vol-preset-btn" data-vol="100">100%</button>
                 </div>
             </div>
             <button id="btn-fullscreen" class="icon-btn" title="Toggle Fullscreen [F11]"><span class="fs-icon">⛶</span> <span class="fs-label">Fullscreen</span></button>
@@ -882,15 +901,15 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=7.2"></script>
-    <script src="/js/mobile-overlay.js?v=7.2"></script>
-    <script src="/js/audio.js?v=7.2"></script>
-    <script src="/js/terminal.js?v=7.2"></script>
-    <script src="/js/dungeon3d.js?v=7.2"></script>
-    <script src="/js/hud.js?v=7.2"></script>
-    <script src="/js/network.js?v=7.2"></script>
-    <script src="/js/local_bridge.js?v=7.2"></script>
-    <script src="/js/input.js?v=7.2"></script>
-    <script src="/js/app.js?v=7.2"></script>
+    <script src="/js/device.js?v=7.3"></script>
+    <script src="/js/mobile-overlay.js?v=7.3"></script>
+    <script src="/js/audio.js?v=7.3"></script>
+    <script src="/js/terminal.js?v=7.3"></script>
+    <script src="/js/dungeon3d.js?v=7.3"></script>
+    <script src="/js/hud.js?v=7.3"></script>
+    <script src="/js/network.js?v=7.3"></script>
+    <script src="/js/local_bridge.js?v=7.3"></script>
+    <script src="/js/input.js?v=7.3"></script>
+    <script src="/js/app.js?v=7.3"></script>
 </body>
 </html>
