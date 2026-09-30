@@ -172,9 +172,10 @@ const server = http.createServer((req, res) => {
     }
 
     // Standalone package ZIP download
-    if (pathname === '/download/angband3d-standalone.zip' && (req.method === 'GET' || req.method === 'HEAD')) {
+    if ((pathname === '/download/angband3d-standalone.zip' || pathname === '/download/Angband3D-Windows-x64.zip' || pathname === '/download/angband3d-windows.zip') && (req.method === 'GET' || req.method === 'HEAD')) {
         // Look for zip in DIST_DIR
-        let zipPath = path.join(DIST_DIR, 'angband3d-standalone.zip');
+        let zipPath = path.join(DIST_DIR, 'Angband3D-Windows-x64.zip');
+        if (!fs.existsSync(zipPath)) zipPath = path.join(DIST_DIR, 'angband3d-standalone.zip');
         if (!fs.existsSync(zipPath)) {
             // Check for any zip file in dist directory
             const files = fs.existsSync(DIST_DIR) ? fs.readdirSync(DIST_DIR) : [];
@@ -195,7 +196,7 @@ const server = http.createServer((req, res) => {
         } else {
             // Redirect to latest GitHub Release asset as fallback
             res.writeHead(302, {
-                'Location': 'https://github.com/lieb2101/angband3d/releases/latest/download/angband3d-standalone.zip'
+                'Location': 'https://github.com/lieb2101/angbang3d/releases/latest/download/Angband3D-Windows-x64.zip'
             });
             res.end();
         }
@@ -222,7 +223,7 @@ const server = http.createServer((req, res) => {
         } else {
             // Redirect to latest GitHub Release asset
             res.writeHead(302, {
-                'Location': 'https://github.com/lieb2101/angband3d/releases/latest/download/Angband3D-Android.apk'
+                'Location': 'https://github.com/lieb2101/angbang3d/releases/latest/download/Angband3D-Android.apk'
             });
             res.end();
         }

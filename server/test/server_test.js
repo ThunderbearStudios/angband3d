@@ -310,7 +310,7 @@ async function runTests() {
     assert(indexRes.body.includes('id="btn-menu-pwa"'), 'index.html must contain #btn-menu-pwa in main menu');
     assert(indexRes.body.includes('id="btn-splash-standalone"'), 'index.html must contain #btn-splash-standalone on splash screen');
     assert(indexRes.body.includes('href="/download/Angband3D-Android.apk"'), 'index.html must provide direct Android APK download');
-    assert(indexRes.body.includes('href="/download/angband3d-standalone.zip"'), 'index.html must provide direct Windows ZIP download');
+    assert(indexRes.body.includes('href="/download/Angband3D-Windows-x64.zip"') || indexRes.body.includes('href="/download/angband3d-standalone.zip"'), 'index.html must provide direct Windows ZIP download');
     assert(dungeonCss.includes('#pwa-modal {'), 'dungeon.css must define full-screen modal overlay for #pwa-modal');
     assert(dungeonCss.includes('#pwa-modal.hidden'), 'dungeon.css must define hidden state for #pwa-modal');
     assert(freshAppJs.includes('showPWAModal('), 'app.js must implement showPWAModal');
