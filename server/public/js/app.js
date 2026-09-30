@@ -2649,6 +2649,22 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if (hud.pingBadge) {
             hud.pingBadge.textContent = 'Cloud [Disconnected]';
         }
+        if (detail) {
+            const topBanner = document.getElementById('top-message-banner');
+            const topText = document.getElementById('message-text');
+            if (topBanner && topText) {
+                topText.textContent = `⏳ ${detail} Click or tap anywhere to resume.`;
+                topBanner.classList.remove('hidden');
+                topBanner.style.cursor = 'pointer';
+                const resumeHandler = () => {
+                    topBanner.removeEventListener('click', resumeHandler);
+                    topBanner.style.cursor = 'default';
+                    network.manualDisconnect = false;
+                    network.connect(network.currentChar, false, network.currentSave);
+                };
+                topBanner.addEventListener('click', resumeHandler, { once: true });
+            }
+        }
     };
 
     network.onStatus = (status) => {

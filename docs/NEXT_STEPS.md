@@ -713,3 +713,35 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
      - Verified end-to-end via headless Chrome touch emulation on production (`scratch/verify_live_touch.js`), confirming 100% responsive touch taps from splash into main menu and 3D gameplay.
 
 
+
+### Priority 16: Legal Documentation, Asset Attribution, Server Concurrency Guards & Cloud Run Compute Cap (COMPLETED)
+- **Scope**: LEGAL.md, CREDITS.md, README.md, server/src/server.js, server/public/js/network.js, server/public/js/app.js, server/public/index.html, server/public/sw.js, Cloud Run
+- **Accomplishments**:
+  1. **Risk 1 — Cloud Run Compute & Billing Cap**:
+     - Capped Cloud Run ngband3d-cloud to --max-instances 2 (was 20).
+     - Verified cpu-allocation remains request-based with scale-to-zero when idle ( when no players online).
+     - At --max-instances 2, compute is strictly bounded to prevent unexpected bill spikes under traffic surges.
+     - Documented Google Cloud Console Budget & Alert configuration ( budget with 50%, 90%, 100% email threshold alerts).
+     - Evaluated Cloudflare integration: Cloudflare requires a custom domain to proxy traffic (cannot proxy raw Google-owned *.a.run.app apex domains directly). Documented setup steps for future custom domain proxying with free DDoS and edge caching.
+  2. **Risk 2 — Middle-earth Trademarks & Legal Protection**:
+     - Authored root LEGAL.md containing formal Tolkien Estate & Middle-earth Enterprises trademark disclaimer, non-affiliation notice, and historical safe-harbor precedents of the 35+ year Moria/Angband roguelike lineage.
+     - Codified strict zero-monetization policy: 100% free of charge, zero ads, zero microtransactions, no paywalls, and zero donations or commercial monetization accepted.
+     - Documented Angband 4.2.6 GNU General Public License v2 (GPL-2.0) terms, upstream maintainer credits, and repository links.
+     - Updated in-game Adventurer's Guide modal Tab 6 (7. 📜 Credits & Legal) in server/public/index.html so legal disclaimers and non-commercial fan notices are directly viewable in-game.
+     - Updated README.md with dedicated ⚖️ Legal, Trademarks & Non-Commercial Notice section linking to LEGAL.md.
+  3. **Risk 3 — 3D Asset & Audio Attribution Coverage**:
+     - Authored root CREDITS.md with complete provenance and licensing inventory:
+       - 3D models and textures: KayKit Dungeon Remastered, Characters, Skeletons, Halloween, and City Builder packs by Kay Lousberg (CC0 Public Domain), and Quaternius (CC0).
+       - Custom procedural 3D models: braided leather bullwhip, boots/sandals, rings, gem amulets, and potion flasks.
+       - Audio: 100% client-side procedural mathematical Web Audio API and C# dynamic PCM synthesis (zero third-party or copyrighted audio files).
+       - Typography: Cinzel, Outfit, and Fira Code under SIL Open Font License 1.1.
+       - Frameworks: Three.js, Godot Engine, Node.js, and ws under MIT License.
+     - Linked CREDITS.md in README.md and in-game Guide Tab 6.
+  4. **Risk 4 — Server Resource Bounds & Idle Session Reaper**:
+     - Added IDLE_TIMEOUT_MS = 20 * 60 * 1000 (20 minutes of inactivity) in server/src/server.js.
+     - Added background reaper interval every 30s that cleanly notifies client, executes save\n, terminates child ngband engine process, and closes the WebSocket for abandoned browser tabs.
+     - Added MAX_CONCURRENT_GAMES = 50 session cap per container instance to guarantee memory consumption stays safely within the 512MiB container limit.
+     - In 
+etwork.js: tagged idle ye disconnects to prevent automatic reconnect loops while inactive.
+     - In pp.js: added idle banner with one-click / one-key session resumption.
+     - Bumped PWA Service Worker cache to ngband3d-v6.5 and CSS/JS asset query strings to =6.5.

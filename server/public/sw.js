@@ -1,5 +1,5 @@
-// Angband3D Service Worker — v6.4 PWA & Offline Shell
-const CACHE_NAME = 'angband3d-v6.4';
+// Angband3D Service Worker — v6.5 PWA & Offline Shell
+const CACHE_NAME = 'angband3d-v6.5';
 const SHELL_ASSETS = [
   '/',
   '/manifest.json',

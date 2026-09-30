@@ -61,6 +61,9 @@ class GameNetwork {
                 } else if (msg.t === 'frame') {
                     if (this.onFrame) this.onFrame(msg);
                 } else if (msg.t === 'bye') {
+                    if (msg.detail && msg.detail.toLowerCase().includes('idle')) {
+                        this.manualDisconnect = true;
+                    }
                     if (this.onBye) this.onBye(msg.detail || 'Game session terminated');
                 }
             } catch (err) {
