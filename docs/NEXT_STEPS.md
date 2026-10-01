@@ -3,12 +3,13 @@
 ## Current System State (Post Modern Windows Standalone Host, WebAssembly Engine & Full Platform Parity)
 
 0. **Modern Windows Standalone Host & Full Platform Parity (v1.2.1 Completed)**:
-   - **Production Release Ready & Community Standalone Infrastructure (v1.2.2)**:
+   - **Production Release Ready & Community Standalone Infrastructure (v1.2.2 Deployed)**:
      - Fully migrated all references, documentation, package scripts, and download redirects to official organization home `https://github.com/ThunderbearStudios/angband3d`.
      - Integrated humble server traffic advisory banners in web splash screen, main menu header, and download dialog, transparently communicating cloud capacity limits and encouraging players to download standalone desktop/Android offline builds for 60+ FPS performance.
      - Documented and emphasized **100% Universal Save Portability**: authentic `SaveVNLA` binary saves seamlessly transfer between browser sessions, desktop machines, and mobile devices without loss of game history or inventory attributes.
      - Added Section 14 to `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md` covering universal save interoperability, cloud capacity invariants, and zero-turn contributor onboarding checklists.
      - Fully verified all automated test suites: 11/11 engine bridge smoke tests, 0 warnings/errors on Godot C# client and desktop host compilation, 20/20 server unit tests, queue and minimap invariants, and graphics tests.
+     - Successfully built and deployed container to Google Cloud Run (`angband3d-cloud-00089-psf`) serving 100% live production traffic on `https://angband3d.com` and `https://angband3d-cloud-564958309282.us-central1.run.app`. Verified live health endpoints, download redirects (`/download/Angband3D-Windows-x64.zip` and `/download/Angband3D-Android.apk`), and splash notice banners.
    - **Pre-Release Privacy Sanitization & Compelling Technical README Manifesto**:
      - Sanitized local compiler comments in `server/public/wasm/angband.js`, eliminating local user paths (`C:\Users\brian\...`).
      - Rewrote `README.md` into an inspiring, technically authoritative manifesto highlighting the core architectural breakthrough: preserving 35 years of upstream Angband 4.2.6 C engine depth through zero-allocation decoupling rather than shallow reimplementation.
