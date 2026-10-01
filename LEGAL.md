@@ -41,7 +41,7 @@ Angband 3D is a derivative work based upon the authoritative **Angband 4.2.6** r
 - **License Terms**:
   - This program is free software; you can redistribute it and/or modify it under the terms of the **GNU General Public License, Version 2** (GPL-2.0) as published by the Free Software Foundation.
   - The complete license text is available in [`LICENSE`](LICENSE) and upstream in `engine/docs/copying.rst`.
-  - Complete source code is publicly accessible at [https://github.com/lieb2101/angbang3d](https://github.com/lieb2101/angbang3d) and upstream at [https://angband.github.io/](https://angband.github.io/).
+  - Complete source code is publicly accessible at [https://github.com/ThunderbearStudios/angband3d](https://github.com/ThunderbearStudios/angband3d) and upstream at [https://angband.github.io/](https://angband.github.io/).
 
 ---
 

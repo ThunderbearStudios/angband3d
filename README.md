@@ -17,7 +17,7 @@
 * **Web Edition (Desktop & Mobile)**: 👉 **[https://angband3d.com](https://angband3d.com)**  
   *(Cloud Run Mirror: [https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app))*  
   Runs directly in Chrome, Safari, Edge, or Firefox across PC, Mac, iPad, iPhone, and Android. Supports mouse/keyboard, touch D-pad, and gamepads.
-* **Standalone Windows Desktop**: Download the pre-packaged **[Angband3D-Windows-x64.zip](https://github.com/lieb2101/angbang3d/releases/latest)** from GitHub Releases for offline, high-framerate native play.
+* **Standalone Windows Desktop**: Download the pre-packaged **[Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest)** from GitHub Releases for offline, high-framerate native play.
 
 ---
 
@@ -158,7 +158,7 @@ You can build, test, and run the entire Angband3D stack locally with minimal eff
 ### 1. Run the Web Edition Locally (30 Seconds)
 ```bash
 # Clone the repository
-git clone https://github.com/lieb2101/angband3d.git
+git clone https://github.com/ThunderbearStudios/angband3d.git
 cd angband3d
 
 # Build the headless C engine (Windows PowerShell)

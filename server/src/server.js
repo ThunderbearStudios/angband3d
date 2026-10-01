@@ -207,7 +207,7 @@ const server = http.createServer((req, res) => {
         } else {
             // Redirect to latest GitHub Release asset as fallback
             res.writeHead(302, {
-                'Location': 'https://github.com/lieb2101/angbang3d/releases/latest/download/Angband3D-Windows-x64.zip'
+                'Location': 'https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip'
             });
             res.end();
         }
@@ -234,7 +234,7 @@ const server = http.createServer((req, res) => {
         } else {
             // Redirect to latest GitHub Release asset
             res.writeHead(302, {
-                'Location': 'https://github.com/lieb2101/angbang3d/releases/latest/download/Angband3D-Android.apk'
+                'Location': 'https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk'
             });
             res.end();
         }

@@ -7,7 +7,7 @@ This document provides complete attribution, provenance, and licensing details f
 ## 1. Project Creation & Engineering
 
 - **Design, 3D Architecture & Engineering**: Developed and presented by **Thunderbear Studios** and the Angband 3D open-source contributors.
-- **Project Repository**: [https://github.com/lieb2101/angbang3d](https://github.com/lieb2101/angbang3d)
+- **Project Repository**: [https://github.com/ThunderbearStudios/angband3d](https://github.com/ThunderbearStudios/angband3d)
 
 ---
 
