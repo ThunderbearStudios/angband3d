@@ -55,23 +55,34 @@ if ($LASTEXITCODE -ne 0) {
 
 # Find Godot executable for export (prefer console binary to ensure synchronous completion)
 function Find-GodotExe {
-    $cmd = Get-Command godot -ErrorAction SilentlyContinue
+    if ($env:GODOT -and (Test-Path $env:GODOT)) {
+        return (Resolve-Path $env:GODOT).Path
+    }
+
+    $cmd = Get-Command godot, godot4, Godot* -ErrorAction SilentlyContinue |
+        Where-Object { $_.Extension -eq '.exe' } |
+        Sort-Object { $_.Name -like '*console*' } -Descending |
+        Select-Object -First 1
     if ($cmd) { return $cmd.Source }
 
     $roots = @(
         "C:\Godot",
-        "$env:SystemDrive\Godot",
+        "C:\Godot*",
+        "$env:SystemDrive\Godot*",
         "$env:LOCALAPPDATA\Microsoft\WinGet\Packages",
-        "$env:ProgramFiles\Godot",
-        "$env:LOCALAPPDATA\Programs\Godot"
+        "$env:ProgramFiles\Godot*",
+        "$env:LOCALAPPDATA\Programs\Godot*"
     )
-    foreach ($root in $roots) {
-        if (-not (Test-Path $root)) { continue }
-        $hit = Get-ChildItem $root -Recurse -Filter 'Godot*.exe' -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -like '*console*' } |
-            Sort-Object { $_.Name -like '*mono*' } -Descending |
-            Select-Object -First 1
-        if ($hit) { return $hit.FullName }
+    foreach ($pattern in $roots) {
+        $dirs = Get-Item $pattern -ErrorAction SilentlyContinue
+        foreach ($root in $dirs) {
+            if (-not (Test-Path $root.FullName)) { continue }
+            $hit = Get-ChildItem $root.FullName -Recurse -Filter 'Godot*.exe' -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -like '*console*' } |
+                Sort-Object { $_.Name -like '*mono*' } -Descending |
+                Select-Object -First 1
+            if ($hit) { return $hit.FullName }
+        }
     }
     return $null
 }
@@ -99,10 +110,18 @@ Write-Host "[3/5] Staging distribution into: $stageDir" -ForegroundColor Yellow
 
 # Export Standalone Executable if Godot is available
 if ($godotExe) {
+    Write-Host "Found Godot executable: $godotExe" -ForegroundColor Green
+    $clientPath = Join-Path $repo 'client'
+
+    # Pre-import resources in editor mode to populate asset caches
+    Write-Host "Importing project assets with Godot..." -ForegroundColor Yellow
+    & $godotExe --headless --path $clientPath --editor --quit
+
     Write-Host "Exporting standalone Angband3D.exe using Godot ($godotExe)..." -ForegroundColor Yellow
     $exportTarget = Join-Path $stageDir 'Angband3D.exe'
-    & $godotExe --headless --path (Join-Path $repo 'client') --export-release "Windows Desktop" $exportTarget
-    if ($LASTEXITCODE -eq 0 -and (Test-Path $exportTarget)) {
+    & $godotExe --headless --path $clientPath --export-release "Windows Desktop" $exportTarget
+    $exportCode = $LASTEXITCODE
+    if ($exportCode -eq 0 -and (Test-Path $exportTarget)) {
         Write-Host "Standalone executable exported successfully: $exportTarget" -ForegroundColor Green
 
         # Verify .NET assemblies directory (Godot 4 C# builds create data_<name>_<platform>)
@@ -120,9 +139,9 @@ if ($godotExe) {
         }
     } else {
         if (-not $AllowSourceFallback) {
-            throw "Godot export failed with exit code $LASTEXITCODE. Standalone Windows executable ($exportTarget) could not be produced."
+            throw "Godot export failed with exit code $exportCode. Standalone Windows executable ($exportTarget) could not be produced."
         }
-        Write-Host "Warning: Standalone export exited with code $LASTEXITCODE; falling back to source distribution staging." -ForegroundColor Yellow
+        Write-Host "Warning: Standalone export exited with code $exportCode; falling back to source distribution staging." -ForegroundColor Yellow
         # Fallback: stage client source folder (excluding temporary build caches)
         $destClient = Join-Path $stageDir 'client'
         New-Item -ItemType Directory -Path $destClient -Force | Out-Null

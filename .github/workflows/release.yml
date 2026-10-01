@@ -73,10 +73,12 @@ jobs:
           $godotZip = "Godot_v${godotVersion}_mono_win64.zip"
           $godotUrl = "https://github.com/godotengine/godot/releases/download/${godotVersion}/${godotZip}"
           Invoke-WebRequest -Uri $godotUrl -OutFile $godotZip
-          tar.exe -xf $godotZip -C "C:\"
-          $godotBin = Get-ChildItem "C:\Godot*" -Recurse -Filter "Godot*console.exe" | Select-Object -First 1 -ExpandProperty FullName
-          $godotDir = Split-Path $godotBin
-          Add-Content $env:GITHUB_PATH $godotDir
+          New-Item -ItemType Directory -Path "C:\Godot" -Force | Out-Null
+          tar.exe -xf $godotZip -C "C:\Godot" --strip-components=1
+          $godotBin = Get-ChildItem "C:\Godot" -Recurse -Filter "Godot*console.exe" | Select-Object -First 1 -ExpandProperty FullName
+          Copy-Item $godotBin "C:\Godot\godot.exe" -Force
+          Add-Content $env:GITHUB_PATH "C:\Godot"
+          Add-Content $env:GITHUB_ENV "GODOT=C:\Godot\godot.exe"
 
           Write-Host "Downloading Godot $godotVersion Mono Export Templates..."
           $tpz = "Godot_v${godotVersion}_mono_export_templates.tpz"
