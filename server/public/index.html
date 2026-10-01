@@ -377,6 +377,18 @@
                 <div class="splash-subtitle">The Classic Roguelike Dungeon Crawler • Reborn in First-Person 3D</div>
                 <div class="splash-engine-tag">Angband 4.2.6 C Engine • Three.js WebGL Architecture • Procedural Dungeon Depths</div>
 
+                <!-- Humble Community Notice & Standalone Recommendation -->
+                <div class="splash-notice-banner">
+                    <div class="splash-notice-badge">⚡ SERVER NOTICE &amp; STANDALONE RECOMMENDATION</div>
+                    <p class="splash-notice-text">
+                        This web edition runs on a modest, community-hosted cloud server with limited concurrent capacity. If you experience wait times or network lag, we warmly encourage downloading the 
+                        <a href="javascript:void(0)" id="splash-notice-download" class="splash-notice-link">Standalone Windows PC (.zip) or Android APK</a>!
+                    </p>
+                    <p class="splash-notice-subtext">
+                        💾 <strong>Universal Save Game Portability:</strong> Save files are 100% interoperable between Web, PC, and Mobile. Export, import, or back up your <code>.sav</code> hero anytime via the pause menu!
+                    </p>
+                </div>
+
                 <button id="btn-splash-start" class="btn-splash-start">
                     [ PRESS SPACE / ENTER / CLICK TO ENTER MAIN MENU ]
                 </button>
@@ -408,6 +420,9 @@
                 <div class="main-menu-header">
                     <h2 class="main-menu-title">⚔ ANGBAND 3D ⚔</h2>
                     <div class="main-menu-subtitle">Choose your path to begin the descent into the pits of Angband</div>
+                    <div class="main-menu-notice-banner">
+                        <span>⚡ <strong>Tip:</strong> For buttery 60+ FPS and zero server latency, play the <strong>Standalone Desktop (.zip)</strong> or <strong>Android APK</strong> in <em>[8] Standalone Apps</em>! Save files are 100% universal across all platforms.</span>
+                    </div>
                 </div>
 
 
@@ -794,6 +809,16 @@
                         <span id="pwa-status-text" style="color: #e2e8f0; margin-left: 6px;">Web Client (Connected to Cloud Realm)</span>
                     </div>
                     <div id="pwa-instructions-text">
+                        <!-- Universal Save Portability Banner -->
+                        <div class="pwa-universal-save-banner" style="background: rgba(20, 28, 48, 0.75); border: 1px solid rgba(255, 215, 0, 0.45); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.5);">
+                            <div style="color: #ffd700; font-weight: 700; font-size: 13.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                                <span>💾</span> Universal Save Game Portability
+                            </div>
+                            <div style="color: #cbd5e1; font-size: 12px; line-height: 1.45;">
+                                Your character save files (<code>.sav</code>) use authentic binary <code>SaveVNLA</code> formatting and are <strong>100% universal across Web, Desktop PC, and Android</strong>! Export your hero from the web pause menu (<kbd>Esc</kbd>), dive on your phone during your commute, or back up your saves anytime.
+                            </div>
+                        </div>
+
                         <p style="margin-bottom: 12px;">Angband 3D supports full standalone play across all devices, with 100% offline functionality and universal <code>.sav</code> save portability.</p>
 
                         <!-- Android APK Option -->

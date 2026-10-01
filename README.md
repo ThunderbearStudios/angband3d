@@ -12,12 +12,23 @@
 
 ---
 
-## 🎮 Play Instantly (Zero Install)
+## 🎮 Play Instantly (Zero Install & Downloads)
 
 * **Web Edition (Desktop & Mobile)**: 👉 **[https://angband3d.com](https://angband3d.com)**  
   *(Cloud Run Mirror: [https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app))*  
-  Runs directly in Chrome, Safari, Edge, or Firefox across PC, Mac, iPad, iPhone, and Android. Supports mouse/keyboard, touch D-pad, and gamepads.
-* **Standalone Windows Desktop**: Download the pre-packaged **[Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest)** from GitHub Releases for offline, high-framerate native play.
+  Runs directly in Chrome, Safari, Edge, or Firefox across PC, Mac, iPad, iPhone, and Android with zero installation. Supports mouse/keyboard, touch D-pad, and gamepads.
+* **Standalone Windows PC Desktop**: Download the pre-packaged **[Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** for 60+ FPS, zero-latency offline native play.
+* **Standalone Android App (.APK)**: Download the offline **[Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** for phones and tablets (Target SDK 34, Android 14+).
+
+> ⚠️ **A Humble Note on Server Traffic & Community Play**:  
+> The live web client at `angband3d.com` is hosted on a modest, self-funded Google Cloud Run instance with an automated 50-player concurrency cap. If a traffic wave hits and you experience a queue or connection wait time, **we warmly encourage downloading the Standalone Windows PC or Android APK releases**! Standalone packages offload 100% of compute to your local device, run completely offline, and require zero cloud connectivity.
+
+> 💾 **100% Universal Save Game Portability (Play Your Way)**:  
+> Angband 3D preserves authentic binary `SaveVNLA` file structure. Your character savefiles (`.sav`) are completely interoperable across all platforms:
+> - Dive during lunch in your desktop web browser.
+> - Export your savefile with 1 click from the pause menu (`Esc`).
+> - Drop it directly into your offline Windows Desktop client or continue your dungeon crawl on Android during your commute!
+> - *(And yes—whether you embrace unforgiving ironman permadeath or choose to back up your save files to survive Morgoth's deepest vaults—you have full freedom to play the game your way.)*
 
 ---
 
@@ -117,6 +128,11 @@ Whenever complex interaction is needed (rolling stats at birth, browsing invento
 * **Split-Thumb Layout**: Left thumb controls an 8-way directional D-pad; right thumb controls an adaptive action cluster (`Attack`, `Cast`, `Potion`, `Pack`, `Stairs`, `More`).
 * **Synthetic Click Suppression**: Strict timing suppression (<500ms post-touch) prevents duplicate input dispatches across mobile Safari and Chrome.
 * **Contextual Prompt Ribbon**: Character birth menus, store transactions, and Yes/No/Quantity prompts automatically map to tactile one-tap buttons.
+
+### 7. Universal Binary Save Portability (`SaveVNLA` Everywhere)
+* **Zero Format Fragmentation**: Every platform (WebAssembly IDBFS, native Windows Godot desktop, Capacitor Android APK, and upstream Unix terminal Angband) produces and consumes identical byte-for-byte `SaveVNLA` binary savefiles.
+* **Frictionless Portability**: Export your hero with a single click from the web pause menu (`Esc` -> `Export Save`), load it into your native desktop client for 120 FPS boss fights, or import it to Android for travel.
+* **Play Your Way**: Permadeath purists can play with strict ironman finality, while explorers learning Angband's punishing 5000ft dungeon mechanics can back up and duplicate character files freely.
 
 ---
 

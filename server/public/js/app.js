@@ -1569,6 +1569,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnSplashStandalone = document.getElementById('btn-splash-standalone');
     if (btnSplashStandalone) bindFastTap(btnSplashStandalone, () => showPWAModal('splash'));
 
+    const splashNoticeDownload = document.getElementById('splash-notice-download');
+    if (splashNoticeDownload) bindFastTap(splashNoticeDownload, () => showPWAModal('splash'));
+
     const btnMenuPwa = document.getElementById('btn-menu-pwa');
     if (btnMenuPwa) bindFastTap(btnMenuPwa, () => showPWAModal('mainMenu'));
 

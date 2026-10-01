@@ -19,6 +19,7 @@
 11. [Cloud Architecture, Container Isolation & Process Lifecycles](#11-cloud-architecture-container-isolation--process-lifecycles)
 12. [Autonomous AI Agent & Developer Operating Protocols](#12-autonomous-ai-agent--developer-operating-protocols)
 13. [Standalone Packaging, CI/CD & Security Invariants](#13-standalone-packaging-cicd--security-invariants)
+14. [Universal Save Interoperability & Community Infrastructure](#14-universal-save-interoperability--community-infrastructure)
 
 ---
 
@@ -478,5 +479,36 @@ An end-user downloading a game distribution expects a standalone executable that
   ```
   will trigger an irreversible pipe buffer deadlock if the child process (such as Godot compressing 1 GB of VRAM textures) outputs more than 4 KB to STDERR before closing STDOUT.
 - **The Solution**: Use PowerShell native streaming (`*>&1 | Tee-Object -FilePath $logPath`) or asynchronous event handlers (`OutputDataReceived` / `ErrorDataReceived`) to continuously drain OS pipe buffers without blocking.
+
+---
+
+## 14. Universal Save Interoperability & Community Infrastructure
+
+### 14.1 Binary `SaveVNLA` Universal Compatibility Contract
+- **Byte-for-Byte Interoperability**: Every client and platform target—WebAssembly MEMFS/IDBFS, native Windows Godot (.NET), Capacitor Android APK, and upstream Unix terminal Angband 4.2.6—reads and writes identical `SaveVNLA` binary format savefiles.
+- **Zero Format Fragmentation**: Never alter savefile serialization headers or structure in `engine/src/savefile.c` or `main-bridge.c`.
+- **Frictionless Export & Backup**:
+  - The client provides 1-click binary save downloads via the in-game menu (`Esc -> Export Save`).
+  - Players are free to back up, archive, and transfer characters between browser sessions, desktop machines, and mobile devices without loss of game history or inventory attributes.
+  - While permadeath remains the traditional roguelike ethos, providing universal save access empowers players to learn Angband's immense 5000ft dungeon depth on their own terms.
+
+### 14.2 Cloud Session Capacity, Idle Reaping & Traffic Safeguards
+- **Isolated Process Sandboxing**: The cloud daemon (`server/src/server.js`) spawns isolated headless C engine instances for each active WebSocket player session.
+- **Capacity Queuing**:
+  - `MAX_CONCURRENT_GAMES = 50`: Prevents container resource starvation and runaway Cloud Run compute scaling.
+  - `MAX_QUEUE_SIZE = 100`: Gracefully queues incoming connections with real-time position notifications (`"You are #X in line"`).
+- **Proactive Idle Reaping**:
+  - `IDLE_TIMEOUT_MS = 20 * 60 * 1000` (20 minutes): Automatically saves and terminates inactive processes to reclaim OS memory and free concurrency slots for active players.
+- **Community Transparency**:
+  - The web splash screen and main menu explicitly inform players of cloud capacity constraints and encourage downloading standalone desktop or Android offline builds for optimal 60+ FPS performance.
+
+### 14.3 Contributor Onboarding & Zero-Turn Bootstrapping Checklist
+Any developer or autonomous agent bootstrapping in this repository can verify and build the entire stack in under 60 seconds:
+1. **Engine Smoke Test**: `python tools/smoke_test.py` (Asserts 11/11 tests pass: handshake, frame loop, birth, map, wizard mode, and binary save/load).
+2. **C# Client Build**: `dotnet build client/angband3d.csproj` (Ensures Godot C# compilation succeeds with 0 errors).
+3. **Desktop Host Build**: `dotnet build desktop/Angband3D.csproj` (Ensures Windows standalone host compiles cleanly).
+4. **Cloud Server Tests**: `node server/test/server_test.js` (Verifies WebSocket relay, process spawning, REST saves, and path traversal guards).
+5. **No Speculative Discovery**: Consult `docs/LLM_CONTEXT.md` for architectural invariants and file paths before making changes.
+
 
 
