@@ -84,13 +84,24 @@ jobs:
           $tpz = "Godot_v${godotVersion}_mono_export_templates.tpz"
           $tpzUrl = "https://github.com/godotengine/godot/releases/download/${godotVersion}/${tpz}"
           Invoke-WebRequest -Uri $tpzUrl -OutFile $tpz
-          tar.exe -xf $tpz -C $templateDir --strip-components=1 templates/windows_* templates/version.txt
 
-          $winTemplate = Join-Path $templateDir "windows_release_x86_64.exe"
+          $templateDirs = @(
+              "C:\GodotTemplates",
+              "$env:APPDATA\Godot\export_templates\4.7.2.stable",
+              "$env:APPDATA\Godot\export_templates\4.7.2.stable.mono",
+              "$env:LOCALAPPDATA\Godot\export_templates\4.7.2.stable",
+              "$env:LOCALAPPDATA\Godot\export_templates\4.7.2.stable.mono"
+          )
+          foreach ($td in $templateDirs) {
+              New-Item -ItemType Directory -Path $td -Force | Out-Null
+              tar.exe -xf $tpz -C $td --strip-components=1 templates/windows_* templates/version.txt
+          }
+
+          $winTemplate = Join-Path "C:\GodotTemplates" "windows_release_x86_64.exe"
           if (-not (Test-Path $winTemplate)) {
               throw "Verification failed: $winTemplate was not extracted properly!"
           }
-          Write-Host "Godot & Export Templates configured successfully: $winTemplate"
+          Write-Host "Godot & Export Templates configured successfully across all lookup paths: $winTemplate"
 
       - name: Package Windows ZIP
         shell: pwsh

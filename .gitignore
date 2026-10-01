@@ -9,7 +9,6 @@ __pycache__/
 # Godot
 /client/.godot/
 /client/.import/
-/client/export_presets.cfg
 *.translation
 
 # Build output

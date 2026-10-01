@@ -112,15 +112,29 @@ Write-Host "[3/5] Staging distribution into: $stageDir" -ForegroundColor Yellow
 if ($godotExe) {
     Write-Host "Found Godot executable: $godotExe" -ForegroundColor Green
     $clientPath = Join-Path $repo 'client'
-
-    # Pre-import resources in editor mode to populate asset caches
-    Write-Host "Importing project assets with Godot..." -ForegroundColor Yellow
-    & $godotExe --headless --path $clientPath --editor --quit
+    $exportTarget = Join-Path $stageDir 'Angband3D.exe'
 
     Write-Host "Exporting standalone Angband3D.exe using Godot ($godotExe)..." -ForegroundColor Yellow
-    $exportTarget = Join-Path $stageDir 'Angband3D.exe'
-    & $godotExe --headless --path $clientPath --export-release "Windows Desktop" $exportTarget
-    $exportCode = $LASTEXITCODE
+    $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+    $pinfo.FileName = $godotExe
+    $pinfo.Arguments = "--headless --path `"$clientPath`" --export-release `"Windows Desktop`" `"$exportTarget`""
+    $pinfo.RedirectStandardOutput = $true
+    $pinfo.RedirectStandardError = $true
+    $pinfo.UseShellExecute = $false
+    $pinfo.CreateNoWindow = $true
+
+    $p = New-Object System.Diagnostics.Process
+    $p.StartInfo = $pinfo
+    $p.Start() | Out-Null
+    $stdout = $p.StandardOutput.ReadToEnd()
+    $stderr = $p.StandardError.ReadToEnd()
+    $p.WaitForExit()
+    $exportCode = $p.ExitCode
+
+    Write-Host "Godot Export Exit Code: $exportCode"
+    if ($stdout) { Write-Host "Godot Output:`n$stdout" }
+    if ($stderr) { Write-Host "Godot Warnings/Errors:`n$stderr" -ForegroundColor Yellow }
+
     if ($exportCode -eq 0 -and (Test-Path $exportTarget)) {
         Write-Host "Standalone executable exported successfully: $exportTarget" -ForegroundColor Green
 
