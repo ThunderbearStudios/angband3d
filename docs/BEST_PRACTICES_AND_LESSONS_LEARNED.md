@@ -450,4 +450,33 @@ An end-user downloading a game distribution expects a standalone executable that
 - **Headless Viewport Safety**:
   - When running Godot under `--headless`, `GetViewport().GetTexture()?.GetImage()` returns null because the rendering server disables viewport framebuffers. All screenshot/capture utilities must perform null-safety checks to prevent uncaught `NullReferenceException`.
 
+### 13.3 The Godot Windows Mono Wrapper Invariant
+- In Godot Mono (C#) releases on Windows, `Godot_*_mono_win64_console.exe` is a launcher wrapper that inspects its own filename to locate its companion GUI executable (`Godot_*_mono_win64.exe`) by stripping `_console` from its name.
+- **The Wrapper Renaming Hazard**: Renaming or copying `Godot_*_console.exe` to `godot.exe` breaks this internal validation, causing Godot to immediately abort with:
+  ```
+  Invalid wrapper executable name.
+  Exit Code: -1
+  ```
+- **The Correct Pattern**: Keep the original executable filename untouched. Point `$env:GODOT` directly to the authentic `Godot_*_console.exe`, and create a forwarder script (`godot.cmd`) in the Godot directory:
+  ```cmd
+  @echo off
+  "%~dp0Godot_v4.7.2-stable_mono_win64_console.exe" %*
+  ```
+
+### 13.4 Export Presets Must Be Tracked in Git
+- In Godot 4, headless CI export (`godot --headless --path client --export-release "Windows Desktop" ...`) requires `client/export_presets.cfg` to define the target presets and platform options.
+- **The Gitignore Trap**: Placing `export_presets.cfg` in `.gitignore` causes clean CI runners to lack export presets entirely, resulting in immediate export failure (exit code 1) with no presets found.
+- As long as private keystores and codesigning passwords are kept out of `export_presets.cfg` (or injected via environment variables), `client/export_presets.cfg` must be committed and tracked in version control.
+
+### 13.5 Process Stdio Pipe Deadlocks During Heavy Asset Compression
+- In .NET/PowerShell automation, executing child processes with both `RedirectStandardOutput = true` and `RedirectStandardError = true` while synchronously reading sequentially:
+  ```csharp
+  // HAZARD: DEADLOCK TRAP
+  stdout = process.StandardOutput.ReadToEnd();
+  stderr = process.StandardError.ReadToEnd();
+  process.WaitForExit();
+  ```
+  will trigger an irreversible pipe buffer deadlock if the child process (such as Godot compressing 1 GB of VRAM textures) outputs more than 4 KB to STDERR before closing STDOUT.
+- **The Solution**: Use PowerShell native streaming (`*>&1 | Tee-Object -FilePath $logPath`) or asynchronous event handlers (`OutputDataReceived` / `ErrorDataReceived`) to continuously drain OS pipe buffers without blocking.
+
 
