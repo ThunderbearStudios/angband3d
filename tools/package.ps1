@@ -115,51 +115,22 @@ if ($godotExe) {
     $exportTarget = Join-Path $stageDir 'Angband3D.exe'
 
     Write-Host "Exporting standalone Angband3D.exe using Godot ($godotExe)..." -ForegroundColor Yellow
-    $pinfo = New-Object System.Diagnostics.ProcessStartInfo
-    $pinfo.FileName = $godotExe
-    $pinfo.Arguments = "--headless --path `"$clientPath`" --export-release `"Windows Desktop`" `"$exportTarget`""
-    $pinfo.RedirectStandardOutput = $true
-    $pinfo.RedirectStandardError = $true
-    $pinfo.UseShellExecute = $false
-    $pinfo.CreateNoWindow = $true
-
-    $p = New-Object System.Diagnostics.Process
-    $p.StartInfo = $pinfo
-    $p.Start() | Out-Null
-    $stdout = $p.StandardOutput.ReadToEnd()
-    $stderr = $p.StandardError.ReadToEnd()
-    $p.WaitForExit()
-    $exportCode = $p.ExitCode
+    $logPath = Join-Path $repo "godot-export.log"
+    & $godotExe --headless --path $clientPath --export-release "Windows Desktop" $exportTarget *>&1 | Tee-Object -FilePath $logPath
+    $exportCode = $LASTEXITCODE
 
     Write-Host "Godot Export Exit Code: $exportCode"
-    if ($stdout) { Write-Host "Godot Output:`n$stdout" }
-    if ($stderr) { Write-Host "Godot Warnings/Errors:`n$stderr" -ForegroundColor Yellow }
-
-    $logContent = @"
-Exit Code: $exportCode
-Godot Exe: $godotExe
-Client Path: $clientPath
-Export Target: $exportTarget
---- STDOUT ---
-$stdout
---- STDERR ---
-$stderr
-"@
-    Set-Content -Path (Join-Path $repo "godot-export.log") -Value $logContent -Encoding utf8
 
     if ($env:GITHUB_STEP_SUMMARY) {
+        $logSnippet = if (Test-Path $logPath) { Get-Content $logPath -Tail 100 | Out-String } else { "No log generated" }
         @"
 ### Godot Export Diagnostics
 - **Exit Code**: $exportCode
 - **Godot Binary**: $godotExe
 - **Target**: $exportTarget
-#### STDOUT
+#### Console Output
 ````
-$stdout
-````
-#### STDERR
-````
-$stderr
+$logSnippet
 ````
 "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
     }
