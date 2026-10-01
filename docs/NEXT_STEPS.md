@@ -44,6 +44,25 @@
      - Integrated direct download links for Native Android APK (`/download/Angband3D-Android.apk`) and Windows PC Desktop Edition (`/download/angband3d-standalone.zip`) with automatic fallback redirects to latest GitHub release assets.
      - Bound fast-tap event listeners for touch/mouse, header `✕` close button, footer `[Esc / Enter] Close`, backdrop click dismiss, and keyboard navigation.
      - Bumped cache bust to `v=7.2` and successfully deployed to Cloud Run (`angband3d-cloud-00086-wlc (v7.3 - Mobile Volume Overhaul & Verified Release Assets)`).
+   - **Windows Standalone Release Packaging & Executable Export Fix (v1.2.0)**:
+     - **Root Cause Identified**:
+       1. In GitHub Actions `release.yml` (`build-windows`), the `windows-latest` runner only set up .NET 8 and MSYS2/MinGW64, but never installed Godot Engine or Godot export templates.
+       2. In `tools/package.ps1`, `Find-GodotExe` returned `$null` in CI. Instead of failing the build, the script silently fell back to copying raw client source code without building an executable, exiting with code 0.
+       3. Consequently, the release ZIP on GitHub (`Angband3D-Windows-x64.zip`) contained only `engine/build/game/angband.exe` and `Play-Angband3D.cmd`. Double-clicking `Play-Angband3D.cmd` ran `play.ps1`, which immediately failed because Godot was not installed on the player's computer (`Godot 4 (.NET build) was not found. Install it with: winget install...`).
+     - **Fix Implemented**:
+       - Updated `.github/workflows/release.yml` with a dedicated `Setup Godot & Export Templates` step for Godot 4.7.2 Mono and export templates.
+       - Hardened `tools/package.ps1`:
+         - Added `[switch]$AllowSourceFallback`.
+         - Missing Godot or export failures now throw a terminating error rather than silently degrading into a broken package.
+         - Added strict post-staging verification asserting existence of `Angband3D.exe`, `Angband3D.pck`, and `data_angband3d_windows_x86_64/` before compressing the archive.
+       - Successfully verified local standalone packaging: `Angband3D.exe` (109 MB), `Angband3D.pck` (306 MB), and `data_angband3d_windows_x86_64/` (40 MB assemblies) packaged into `dist/Angband3D-Windows-x64.zip` (379 MB) and `dist/angband3d-standalone.zip`.
+   - **Comprehensive Security, Stability & Optimization Audit**:
+     - **Vulnerability 1 (Path Traversal in Static Delivery)**: Hardened `server/src/server.js` static file handler to use `path.resolve(WEB_DIR, '.' + path.sep + safePath)` with strict root prefix verification (`if (!filePath.startsWith(path.resolve(WEB_DIR))) return 403`), eliminating path traversal risks.
+     - **Vulnerability 2 (Filename & Reserved Device Name Sanitization)**: User-provided character names in REST save uploads and downloads are now strictly sanitized (`replace(/[^a-zA-Z0-9_.-]/g, '_')`) and verified against Windows reserved DOS device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`).
+     - **Vulnerability 3 (Process Argument Flag Injection)**: Query parameters `user` and `save` passed to `spawn(ENGINE_EXE)` are sanitized against `[^a-zA-Z0-9_-]` to prevent command-line option injection into Angband.
+     - **Stability 1 (Headless Viewport Null Guard)**: In `client/scripts/Main.cs`, guarded `Capture()` against `NullReferenceException` when running with `--headless` where `GetViewport().GetTexture()?.GetImage()` returns null.
+     - **Optimization 1 (Garbage Collection Allocation Churn)**: Reusable static scratch objects (`_scratchVec`, `_scratchColor`, `_scratchMatrix`) eliminate ~15,000 allocations per map update in WebGL rendering (`dungeon3d.js`).
+     - **Optimization 2 (Audio Dynamics Limiting)**: Master `DynamicsCompressorNode` in `audio.js` prevents digital audio clipping when multiple strikes/spells trigger simultaneously.
    - **Upcoming Phase (Step 3)**: Google Play Developer Console registration and store submission (to be performed later after anonymous Cloudflare email routing setup).
 
 1. **Engine Bridge**:

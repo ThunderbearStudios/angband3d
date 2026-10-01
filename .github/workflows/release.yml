@@ -61,6 +61,30 @@ jobs:
             -B build .
           cmake --build build
 
+      - name: Setup Godot & Export Templates
+        shell: pwsh
+        run: |
+          $godotVersion = "4.7.2-stable"
+          $templateDir = "$env:APPDATA\Godot\export_templates\4.7.2.stable.mono"
+          New-Item -ItemType Directory -Path $templateDir -Force | Out-Null
+
+          Write-Host "Downloading Godot $godotVersion Mono..."
+          $godotZip = "Godot_v${godotVersion}_mono_win64.zip"
+          $godotUrl = "https://github.com/godotengine/godot/releases/download/${godotVersion}/${godotZip}"
+          Invoke-WebRequest -Uri $godotUrl -OutFile $godotZip
+          Expand-Archive -Path $godotZip -DestinationPath "C:\Godot" -Force
+          $godotBin = Get-ChildItem "C:\Godot" -Recurse -Filter "Godot*console.exe" | Select-Object -First 1 -ExpandProperty FullName
+          $godotDir = Split-Path $godotBin
+          Add-Content $env:GITHUB_PATH $godotDir
+
+          Write-Host "Downloading Godot $godotVersion Mono Export Templates..."
+          $tpz = "Godot_v${godotVersion}_mono_export_templates.tpz"
+          $tpzUrl = "https://github.com/godotengine/godot/releases/download/${godotVersion}/${tpz}"
+          Invoke-WebRequest -Uri $tpzUrl -OutFile $tpz
+          Expand-Archive -Path $tpz -DestinationPath "C:\GodotTemplates" -Force
+          Copy-Item -Path "C:\GodotTemplates\templates\*" -Destination $templateDir -Recurse -Force
+          Write-Host "Godot & Export Templates configured successfully."
+
       - name: Package Windows ZIP
         shell: pwsh
         run: |

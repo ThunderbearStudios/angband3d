@@ -81,6 +81,17 @@ console.log(`[Angband3D Cloud] Save directory:    ${SAVE_DIR}`);
 console.log(`[Angband3D Cloud] Standalone dist:   ${DIST_DIR}`);
 console.log(`[Angband3D Cloud] Web root:          ${WEB_DIR}`);
 
+function isReservedFilename(name) {
+    if (!name) return true;
+    const base = name.split('.')[0].trim();
+    return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(base);
+}
+
+function sanitizeFilename(name) {
+    if (!name) return '';
+    return path.basename(name).replace(/[^a-zA-Z0-9_.-]/g, '_');
+}
+
 /**
  * Parses Angband 4.2.6 SaveVNLA header from binary save file.
  * Structure:
@@ -376,7 +387,13 @@ const server = http.createServer((req, res) => {
 
     // REST: Download single save
     if (pathname.startsWith('/api/saves/') && req.method === 'GET') {
-        const saveName = path.basename(pathname.substring('/api/saves/'.length));
+        const rawSaveName = pathname.substring('/api/saves/'.length);
+        const saveName = sanitizeFilename(rawSaveName);
+        if (!saveName || isReservedFilename(saveName)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid save file name' }));
+            return;
+        }
         const saveDirs = getSaveDirs();
         let targetPath = null;
 
@@ -428,14 +445,21 @@ const server = http.createServer((req, res) => {
             }
 
             const headerName = req.headers['x-character-name'];
-            let targetName = headerName ? path.basename(headerName) : 'upload_' + Date.now();
+            let cleanHeaderName = headerName ? sanitizeFilename(headerName) : null;
+            if (cleanHeaderName && isReservedFilename(cleanHeaderName)) {
+                cleanHeaderName = null;
+            }
+            let targetName = cleanHeaderName || ('upload_' + Date.now());
 
             // Extract character name from description if available
             const tempFile = path.join(SAVE_DIR, '.tmp_' + Date.now());
             fs.writeFileSync(tempFile, buf);
             const meta = readSaveMetadata(tempFile);
-            if (meta && meta.characterName && !headerName) {
-                targetName = meta.characterName.replace(/[^a-zA-Z0-9_-]/g, '_');
+            if (meta && meta.characterName && !cleanHeaderName) {
+                const cleanMetaName = sanitizeFilename(meta.characterName);
+                if (cleanMetaName && !isReservedFilename(cleanMetaName)) {
+                    targetName = cleanMetaName;
+                }
             }
 
             const destPath = path.join(SAVE_DIR, targetName);
@@ -453,7 +477,13 @@ const server = http.createServer((req, res) => {
 
     // REST: Delete save
     if (pathname.startsWith('/api/saves/') && req.method === 'DELETE') {
-        const saveName = path.basename(pathname.substring('/api/saves/'.length));
+        const rawSaveName = pathname.substring('/api/saves/'.length);
+        const saveName = sanitizeFilename(rawSaveName);
+        if (!saveName || isReservedFilename(saveName)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid save file name' }));
+            return;
+        }
         const savePath = path.join(SAVE_DIR, saveName);
         if (fs.existsSync(savePath) && fs.statSync(savePath).isFile()) {
             try {
@@ -474,7 +504,14 @@ const server = http.createServer((req, res) => {
     // Static Web Client Files
     let safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     if (safePath === '/' || safePath === '\\') safePath = '/index.html';
-    const filePath = path.join(WEB_DIR, safePath);
+    const filePath = path.resolve(WEB_DIR, '.' + path.sep + safePath);
+
+    // Guard against directory traversal attacks
+    if (!filePath.startsWith(path.resolve(WEB_DIR))) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Access denied' }));
+        return;
+    }
 
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
         const ext = path.extname(filePath).toLowerCase();
@@ -651,8 +688,10 @@ setInterval(() => {
 
 function spawnGameSession(ws, request) {
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
-    const user = urlObj.searchParams.get('user') || null;
-    const save = urlObj.searchParams.get('save') || null;
+    const rawUser = urlObj.searchParams.get('user') || null;
+    const rawSave = urlObj.searchParams.get('save') || null;
+    const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+    const save = rawSave ? rawSave.replace(/[^a-zA-Z0-9_-]/g, '') : null;
 
     const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
     ws.send(JSON.stringify({ t: 'hello', sessionId, version: '1.0.0' }));
@@ -820,8 +859,10 @@ function spawnGameSession(ws, request) {
 
 wss.on('connection', (ws, request) => {
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
-    const user = urlObj.searchParams.get('user') || null;
-    const save = urlObj.searchParams.get('save') || null;
+    const rawUser = urlObj.searchParams.get('user') || null;
+    const rawSave = urlObj.searchParams.get('save') || null;
+    const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+    const save = rawSave ? rawSave.replace(/[^a-zA-Z0-9_-]/g, '') : null;
 
     console.log(`[WebSocket] Client connection attempt. User: ${user || 'default'}, Save: ${save || 'none'}. (Active: ${activeSessions.size}/${MAX_CONCURRENT_GAMES}, Queue: ${waitingQueue.length})`);
 
