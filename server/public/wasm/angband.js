@@ -1796,7 +1796,7 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
         assert(typeof indexedDB != 'undefined', 'IDBFS used, but indexedDB not supported');
         return indexedDB;
       },
-  DB_VERSION:21,
+  DB_VERSION:22,
   DB_STORE_NAME:"FILE_DATA",
   queuePersist:(mount) => {
         function onPersistComplete() {

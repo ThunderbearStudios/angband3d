@@ -655,6 +655,9 @@ window.addEventListener('DOMContentLoaded', () => {
         terminal,
         input,
         audio,
+        setEngineMode,
+        getEngineMode: () => engineMode,
+        isApk,
         isForceTerminal: () => forceTerminal,
         setForceTerminal: (val) => { forceTerminal = val; updateViewMode(); },
         toggleTerminalView,
@@ -1201,12 +1204,17 @@ window.addEventListener('DOMContentLoaded', () => {
         updateViewMode();
     }
 
-    function saveGameNow() {
-        network.sendKey('C-s');
+    async function saveGameNow() {
+        if (network && typeof network.saveGame === 'function') {
+            await network.saveGame();
+        } else if (network) {
+            network.sendCommand('save');
+            network.sendKey('C-s');
+        }
         if (audio) audio.playMenuSelect();
         const banner = document.getElementById('message-text');
         if (banner) {
-            banner.textContent = 'Game Saved Successfully (Ctrl-S).';
+            banner.textContent = 'Game Saved Successfully.';
         }
         resumeGame();
     }
@@ -1458,12 +1466,16 @@ window.addEventListener('DOMContentLoaded', () => {
         network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null);
     }
 
-    function returnToMainMenu() {
+    async function returnToMainMenu() {
         if (audio) audio.playMenuOpen();
         cancelQuickBirth();
         try {
-            network.sendCommand('save');
-            network.disconnect();
+            if (network && typeof network.saveAndDisconnect === 'function') {
+                await network.saveAndDisconnect();
+            } else if (network) {
+                network.sendCommand('save');
+                network.disconnect();
+            }
         } catch (_) {}
 
         if (hud && typeof hud.hideDeathModal === 'function') {
@@ -2156,6 +2168,7 @@ window.addEventListener('DOMContentLoaded', () => {
         startNewRandomHero,
         startNewCustomHero,
         startCustomHeroCreation,
+        startGame,
         rerollHero,
         returnToMainMenu,
         navigateMenu,
@@ -3013,6 +3026,20 @@ window.addEventListener('DOMContentLoaded', () => {
                 // Once in active play with map, ensure character birth review is exited and 3D world is active
                 if (birthReviewActive) {
                     confirmHeroBirth();
+                }
+            } else if (frame.phase === 'setup' && !quickBirthActive) {
+                // When loading an existing saved character or starting fresh without autoBirth,
+                // Angband pauses at startup on the title screen with "[Press any key to continue]".
+                // Auto-advance it into the loaded game!
+                const screenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '').toLowerCase();
+                const hasMore = screenText.includes('-more-') || (frame.ui && frame.ui.more);
+                const isReviewScreen = screenText.includes("use as is") || screenText.includes("'y': use") ||
+                                       screenText.includes("to start over") || screenText.includes("r to reroll") ||
+                                       screenText.includes("reroll") || screenText.includes("'s' to start");
+                if (!isReviewScreen) {
+                    if (screenText.includes('press any key') || screenText.includes('[press') || screenText.includes('press space') || hasMore) {
+                        network.sendKey('enter');
+                    }
                 }
             }
 

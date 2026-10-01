@@ -22,6 +22,22 @@
      - Ensured `/lib` directory is created prior to `/lib/save` in `preRun` for `IDBFS` mount.
      - Verified both Random Hero Creation and Custom Hero Creation with 100% automated test harness passing.
      - Bumped Android APK `versionCode 3`, `versionName 1.1.7`.
+   - **Android APK Save Loading & Character Creation Stuck Fix (v1.1.8)**:
+     - **Root Cause Identified**:
+       1. Emscripten IDBFS `getRemoteSet` calls `store.index('timestamp')`. `LocalSaveManager.openDB()` previously opened `/lib/save` (v21) on startup before Wasm booted and created `FILE_DATA` without the `'timestamp'` index. When `engine-worker.js` mounted IDBFS and executed `mod.FS.syncfs(true)` to populate saves from IndexedDB into Wasm MEMFS, IndexedDB threw `NotFoundError: The specified index was not found`, leaving `/lib/save` empty.
+       2. Angband's `start_game()` checked `file_exists(loadpath)`. Because MEMFS `/lib/save` was empty, `file_exists` returned false, and Angband fell back to calling `textui_do_birth()` (Character Creation).
+       3. `engine-worker.js` previously ignored `saveFile` when spawning the Wasm CLI, passing only `-u` + `charName`.
+       4. Returning to the main menu called `network.sendCommand('save')` immediately followed by `network.disconnect()`, which terminated the worker before IDBFS could flush to IndexedDB.
+       5. The initial title screen banner `[Press any key to continue]` was not auto-dismissed when loading an existing save.
+     - **Fix Implemented**:
+       - Bumped IndexedDB version to `22` in both `angband.js` and `local_bridge.js`, adding the missing `timestamp` index during `onupgradeneeded` without modifying existing save files or bytes.
+       - Implemented savefile alias reconciliation in `engine-worker.js` `preRun` callback so that both `<name>` and `<name>.sav` exist in MEMFS if either exists in IndexedDB.
+       - Added `saveGame()` and `saveAndDisconnect()` to `LocalGameBridge` and `GameNetwork`, gracefully awaiting `saved_persisted` before worker termination.
+       - Updated `onFrame` to auto-advance past the initial title screen banner `[Press any key to continue]` when loading existing saved characters (`!quickBirthActive`).
+       - Deduplicated base filenames in `LocalSaveManager.listSaves()`.
+       - Verified 100% with automated headless Chrome CDP end-to-end test suite (`scratch/test_apk_save_resume.js`) confirming save creation, IndexedDB flush, save load, and immediate dungeon entry into `phase: "play"`.
+       - Synchronized all assets to Android APK assets via `npm run android:sync`.
+       - Bumped Android APK `versionCode 4`, `versionName "1.1.8"`.
    - **Standalone Apps & Downloads Modal (v7.2)**:
      - Fixed Standalone App button (Option [8] in Main Menu and Option [6] on Splash Screen) which previously appeared inert due to missing `#pwa-modal` CSS overlay positioning and failure to hide the main menu overlay.
      - Added full-screen `#pwa-modal` styling (`position: absolute; width: 100%; height: 100%; z-index: 55; background: rgba(3, 4, 7, 0.88); backdrop-filter: blur(8px);`) with responsive safe top offsets and `.pwa-card` animations.
