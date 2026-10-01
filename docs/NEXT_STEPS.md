@@ -1,9 +1,9 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Post Modern Windows Standalone Host, WebAssembly Engine & Full Platform Parity)
+## Current System State (Angband3D v2.0.0 Production Major Release)
 
-0. **Modern Windows Standalone Host & Full Platform Parity (v1.2.1 Completed)**:
-   - **Production Release Ready & Community Standalone Infrastructure (v1.2.2 Deployed)**:
+0. **Production Major Release (v2.0.0 Completed & Deployed)**:
+   - **ThunderbearStudios Organization & Multi-Platform Parity (v2.0.0)**:
      - Fully migrated all references, documentation, package scripts, and download redirects to official organization home `https://github.com/ThunderbearStudios/angband3d`.
      - Integrated humble server traffic advisory banners in web splash screen, main menu header, and download dialog, transparently communicating cloud capacity limits and encouraging players to download standalone desktop/Android offline builds for 60+ FPS performance.
      - Documented and emphasized **100% Universal Save Portability**: authentic `SaveVNLA` binary saves seamlessly transfer between browser sessions, desktop machines, and mobile devices without loss of game history or inventory attributes.

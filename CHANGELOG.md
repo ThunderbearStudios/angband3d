@@ -4,6 +4,36 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.0] — 2026-10-01
+
+### 👑 Production Major Release: Modern Windows Desktop Standalone, Multi-Platform Parity & ThunderbearStudios Organization Home
+The landmark `v2.0.0` major release delivers full multi-platform parity across Windows, Android, Web, and Godot, completes the official migration to the **ThunderbearStudios** organization, introduces the high-performance native Windows Standalone Desktop application, and establishes 100% universal save game portability across all supported environments.
+
+### Added & Enhanced
+- **Official Organization Home (`ThunderbearStudios`)**:
+  - Migrated the primary project repository, documentation, download endpoints, and issue tracker to [https://github.com/ThunderbearStudios/angband3d](https://github.com/ThunderbearStudios/angband3d).
+  - Fully scrubbed all legacy personal handles, broken URLs, and local compiler paths across all client, engine, and server assets.
+- **Modern Windows Standalone Desktop Host (`desktop/Angband3D.csproj`)**:
+  - Engineered a native Windows executable (`Angband3D.exe`, ~154MB self-contained) powered by .NET 8 WinForms and Microsoft Edge WebView2.
+  - Zero installation requirements or dependencies: embeds the complete WebGL 2.0 3D renderer and runs the Angband 4.2.6 C WebAssembly engine 100% offline with 0ms input latency.
+  - Seamless borderless fullscreen toggle via `F11` / `Alt+Enter`, native window icon, dark fantasy window framing (`#030407`), and DevTools diagnostics (`F12`).
+  - Secure virtual scheme mapping `https://angband3d.local` with isolated, persistent IndexedDB player saves stored in `%LOCALAPPDATA%\Angband3D\UserData`.
+- **Full Platform Parity & Dual-Engine Architecture**:
+  - Complete parity across Windows Desktop, Android APK, Web Browser, and Godot C# client.
+  - Includes baked Contact Ambient Occlusion (AO), calm subterranean living torchlight (no dust motes or distracting strobing), dynamic procedural viewmodel weapon rigs (swords, whips, maces, staves), responsive glassmorphic HUD, real-time combat message window (`#message-feed-window`), Tolkien hero review cards, and five-tab legacy death screen.
+- **100% Universal Save Game Portability (`SaveVNLA`)**:
+  - Standardized authentic Angband binary save format across all engines and platforms.
+  - Players can export their `.sav` binary from the web browser at any time and immediately resume play on the Windows standalone desktop application, Godot client, or Android APK with zero data loss or translation artifacts.
+- **Community Server Capacity Advisory & Standalone Recommendation**:
+  - Integrated humble server capacity notices on the web splash screen, main menu header, and download dialogs.
+  - Transparently explains community server limits and provides immediate, one-click access to download standalone desktop and mobile apps for the optimal latency-free experience.
+- **Technical Manifesto & Contributor Blueprint**:
+  - Elevated `README.md` into an inspiring architectural manifesto detailing "Preservation Over Reimplementation"—how 35 years of authentic C game mechanics are preserved through zero-allocation decoupling rather than shallow rewrites.
+  - Documented Section 14 in `BEST_PRACTICES_AND_LESSONS_LEARNED.md` with complete zero-turn contributor checklists and architectural invariants.
+- **Live Cloud Production Deployment**:
+  - Containerized headless C bridge engine and WebSocket relay deployed to Google Cloud Run (`angband3d-cloud-00089-psf`), serving 100% live traffic at `https://angband3d.com`.
+  - Built-in automatic fallback redirects for `/download/Angband3D-Windows-x64.zip` and `/download/Angband3D-Android.apk` directly to GitHub Releases.
+
 ## [v1.2.0] — 2026-09-30
 
 ### ⚡ 100% Offline WebAssembly Engine, Standalone Android APK & Universal Save Portability
