@@ -135,6 +135,18 @@ if ($godotExe) {
     if ($stdout) { Write-Host "Godot Output:`n$stdout" }
     if ($stderr) { Write-Host "Godot Warnings/Errors:`n$stderr" -ForegroundColor Yellow }
 
+    $logContent = @"
+Exit Code: $exportCode
+Godot Exe: $godotExe
+Client Path: $clientPath
+Export Target: $exportTarget
+--- STDOUT ---
+$stdout
+--- STDERR ---
+$stderr
+"@
+    Set-Content -Path (Join-Path $repo "godot-export.log") -Value $logContent -Encoding utf8
+
     if ($env:GITHUB_STEP_SUMMARY) {
         @"
 ### Godot Export Diagnostics
