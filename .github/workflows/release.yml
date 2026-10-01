@@ -109,11 +109,22 @@ jobs:
           try {
             .\tools\package.ps1
           } catch {
+            $_ | Out-String | Out-File -FilePath "package-error.log" -Encoding utf8
             if ($env:GITHUB_STEP_SUMMARY) {
               "### Package Windows ZIP Step Failed`n`n``````n$($_ | Out-String)`n``````n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
             }
             throw
           }
+
+      - name: Upload Packaging Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-windows-logs
+          path: |
+            godot-export.log
+            package-error.log
+          if-no-files-found: ignore
 
       - name: Upload Windows Package
         uses: actions/upload-artifact@v4
