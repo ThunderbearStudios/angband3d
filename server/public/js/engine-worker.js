@@ -122,7 +122,11 @@ async function startEngine(charName, isNew, saveFile) {
         }
     }
 
-    const args = ['-mbridge', '-u' + charName];
+    const targetSlot = (saveFile || charName || 'Adventurer').trim().replace(/^\/lib\/save\//, '');
+    const baseSlot = targetSlot.replace(/\.sav$/i, '');
+    currentChar = baseSlot;
+
+    const args = ['-mbridge', '-u' + targetSlot];
     if (isNew) args.push('-n');
 
     const config = {
@@ -156,9 +160,30 @@ async function startEngine(charName, isNew, saveFile) {
                     self.postMessage({ type: 'bye', detail: msg.detail });
                 } else if (msg.t === 'ok' && msg.detail === 'saved') {
                     if (angbandModule && angbandModule.FS) {
+                        try {
+                            const dotSavSlot = baseSlot + '.sav';
+                            if (angbandModule.FS.analyzePath('/lib/save/' + targetSlot).exists) {
+                                const data = angbandModule.FS.readFile('/lib/save/' + targetSlot);
+                                if (!angbandModule.FS.analyzePath('/lib/save/' + baseSlot).exists) {
+                                    angbandModule.FS.writeFile('/lib/save/' + baseSlot, data);
+                                }
+                                if (!angbandModule.FS.analyzePath('/lib/save/' + dotSavSlot).exists) {
+                                    angbandModule.FS.writeFile('/lib/save/' + dotSavSlot, data);
+                                }
+                            } else if (angbandModule.FS.analyzePath('/lib/save/' + baseSlot).exists) {
+                                const data = angbandModule.FS.readFile('/lib/save/' + baseSlot);
+                                if (!angbandModule.FS.analyzePath('/lib/save/' + targetSlot).exists) {
+                                    angbandModule.FS.writeFile('/lib/save/' + targetSlot, data);
+                                }
+                                if (!angbandModule.FS.analyzePath('/lib/save/' + dotSavSlot).exists) {
+                                    angbandModule.FS.writeFile('/lib/save/' + dotSavSlot, data);
+                                }
+                            }
+                        } catch (_) {}
+
                         angbandModule.FS.syncfs(false, (err) => {
                             if (err) console.error('[IDBFS Sync Error]', err);
-                            self.postMessage({ type: 'saved_persisted', filename: charName });
+                            self.postMessage({ type: 'saved_persisted', filename: baseSlot });
                         });
                     }
                     self.postMessage({ type: 'event', event: msg });
@@ -184,6 +209,7 @@ async function startEngine(charName, isNew, saveFile) {
 
                 if (mod.IDBFS) {
                     try {
+                        mod.IDBFS.DB_VERSION = 22;
                         mod.FS.mount(mod.IDBFS, { autoPersist: true }, '/lib/save');
                         mod.addRunDependency('idbfs_sync_init');
                         mod.FS.syncfs(true, function (err) {
@@ -191,6 +217,30 @@ async function startEngine(charName, isNew, saveFile) {
                                 console.warn('[IDBFS] Initial sync warning:', err);
                             } else {
                                 console.log('[IDBFS] Mounted and loaded /lib/save from IndexedDB');
+                                try {
+                                    const dotSavSlot = baseSlot + '.sav';
+                                    const hasTarget = mod.FS.analyzePath('/lib/save/' + targetSlot).exists;
+                                    const hasBase = mod.FS.analyzePath('/lib/save/' + baseSlot).exists;
+                                    const hasDotSav = mod.FS.analyzePath('/lib/save/' + dotSavSlot).exists;
+
+                                    let existingBytes = null;
+                                    if (hasTarget) {
+                                        existingBytes = mod.FS.readFile('/lib/save/' + targetSlot);
+                                    } else if (hasBase) {
+                                        existingBytes = mod.FS.readFile('/lib/save/' + baseSlot);
+                                    } else if (hasDotSav) {
+                                        existingBytes = mod.FS.readFile('/lib/save/' + dotSavSlot);
+                                    }
+
+                                    if (existingBytes && existingBytes.length > 0) {
+                                        if (!hasTarget) mod.FS.writeFile('/lib/save/' + targetSlot, existingBytes);
+                                        if (!hasBase) mod.FS.writeFile('/lib/save/' + baseSlot, existingBytes);
+                                        if (!hasDotSav) mod.FS.writeFile('/lib/save/' + dotSavSlot, existingBytes);
+                                        console.log('[IDBFS] Reconciled savefile slots for:', targetSlot, baseSlot);
+                                    }
+                                } catch (aliasErr) {
+                                    console.warn('[IDBFS] Savefile alias reconciliation note:', aliasErr);
+                                }
                             }
                             mod.removeRunDependency('idbfs_sync_init');
                         });

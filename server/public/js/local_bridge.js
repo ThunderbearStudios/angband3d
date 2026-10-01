@@ -8,7 +8,7 @@
 class LocalSaveManager {
     static DB_NAME = '/lib/save';
     static STORE_NAME = 'FILE_DATA';
-    static DB_VERSION = 21;
+    static DB_VERSION = 22;
 
     static openDB() {
         return new Promise((resolve, reject) => {
@@ -16,8 +16,14 @@ class LocalSaveManager {
             const req = indexedDB.open(this.DB_NAME, this.DB_VERSION);
             req.onupgradeneeded = (e) => {
                 const db = e.target.result;
+                let store;
                 if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-                    db.createObjectStore(this.STORE_NAME);
+                    store = db.createObjectStore(this.STORE_NAME);
+                } else {
+                    store = e.target.transaction.objectStore(this.STORE_NAME);
+                }
+                if (store && !store.indexNames.contains('timestamp')) {
+                    store.createIndex('timestamp', 'timestamp', { unique: false });
                 }
             };
             req.onsuccess = () => resolve(req.result);
@@ -36,17 +42,22 @@ class LocalSaveManager {
                 req.onsuccess = async () => {
                     const keys = req.result || [];
                     const saves = [];
+                    const seenBases = new Set();
                     for (const k of keys) {
                         if (typeof k === 'string' && k.startsWith('/lib/save/')) {
                             const filename = k.replace('/lib/save/', '');
-                            if (filename && filename !== '.' && filename !== '..') {
-                                saves.push({
-                                    characterName: filename,
-                                    filename: filename,
-                                    description: 'Local Device Save (Offline)',
-                                    isLocal: true,
-                                    lastModified: Date.now()
-                                });
+                            if (filename && filename !== '.' && filename !== '..' && !filename.includes('/')) {
+                                const base = filename.replace(/\.sav$/i, '');
+                                if (!seenBases.has(base.toLowerCase())) {
+                                    seenBases.add(base.toLowerCase());
+                                    saves.push({
+                                        characterName: base,
+                                        filename: filename,
+                                        description: 'Local Device Save (Offline)',
+                                        isLocal: true,
+                                        lastModified: Date.now()
+                                    });
+                                }
                             }
                         }
                     }
@@ -245,6 +256,35 @@ class LocalGameBridge {
             isNew: isNew,
             saveFile: saveFile
         });
+    }
+
+    async saveGame() {
+        if (!this.connected || !this.worker) return false;
+        return new Promise((resolve) => {
+            let resolved = false;
+            const onPersist = () => {
+                if (!resolved) {
+                    resolved = true;
+                    this.onSavePersisted = null;
+                    resolve(true);
+                }
+            };
+            this.onSavePersisted = onPersist;
+            this.sendCommand('save');
+            setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    resolve(false);
+                }
+            }, 2000);
+        });
+    }
+
+    async saveAndDisconnect() {
+        try {
+            await this.saveGame();
+        } catch (_) {}
+        this.disconnect();
     }
 
     disconnect() {

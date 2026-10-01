@@ -98,6 +98,19 @@ class GameNetwork {
         };
     }
 
+    async saveGame() {
+        if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        this.sendCommand('save');
+        await new Promise(r => setTimeout(r, 300));
+    }
+
+    async saveAndDisconnect() {
+        try {
+            await this.saveGame();
+        } catch (_) {}
+        this.disconnect();
+    }
+
     disconnect() {
         this.manualDisconnect = true;
         this.isInQueue = false;
