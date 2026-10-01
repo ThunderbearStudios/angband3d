@@ -76,9 +76,9 @@ jobs:
           New-Item -ItemType Directory -Path "C:\Godot" -Force | Out-Null
           tar.exe -xf $godotZip -C "C:\Godot" --strip-components=1
           $godotBin = Get-ChildItem "C:\Godot" -Recurse -Filter "Godot*console.exe" | Select-Object -First 1 -ExpandProperty FullName
-          Copy-Item $godotBin "C:\Godot\godot.exe" -Force
+          Set-Content -Path "C:\Godot\godot.cmd" -Value "@echo off`r`n`"$godotBin`" %*"
           Add-Content $env:GITHUB_PATH "C:\Godot"
-          Add-Content $env:GITHUB_ENV "GODOT=C:\Godot\godot.exe"
+          Add-Content $env:GITHUB_ENV "GODOT=$godotBin"
 
           Write-Host "Downloading Godot $godotVersion Mono Export Templates..."
           $tpz = "Godot_v${godotVersion}_mono_export_templates.tpz"
