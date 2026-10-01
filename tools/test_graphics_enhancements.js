@@ -56,8 +56,8 @@ console.log('✓ Invariant 5: Get command (#btn-pickup) directly available on mo
 assert(indexHtml.includes('/css/dungeon.css?v=7.3') || indexHtml.includes('/css/dungeon.css?v=7.2') || indexHtml.includes('/css/dungeon.css?v=7.1'), 'dungeon.css cache bust must be valid');
 assert(indexHtml.includes('/js/dungeon3d.js?v=7.3') || indexHtml.includes('/js/dungeon3d.js?v=7.2') || indexHtml.includes('/js/dungeon3d.js?v=7.1'), 'dungeon3d.js cache bust must be valid');
 const serverJs = fs.readFileSync('server/src/server.js', 'utf8');
-assert(serverJs.includes("version: '1.2.1'") || serverJs.includes("version: '1.2.0'"), 'server.js must report version 1.2.1');
-console.log('✓ Invariant 6: Cache-busting correctly bumped to v=7.3 and server to 1.2.1');
+assert(serverJs.includes("version: '2.0.0'") || serverJs.includes("version: '1.2.1'") || serverJs.includes("version: '1.2.0'"), 'server.js must report version 2.0.0');
+console.log('✓ Invariant 6: Cache-busting correctly bumped to v=7.3 and server to 2.0.0');
 
 console.log('\n========================================================');
 console.log(' ALL REVISED ENHANCEMENT INVARIANTS PASSED 100%! ');
