@@ -3,6 +3,10 @@
 ## Current System State (Post Modern Windows Standalone Host, WebAssembly Engine & Full Platform Parity)
 
 0. **Modern Windows Standalone Host & Full Platform Parity (v1.2.1 Completed)**:
+   - **Pre-Release Privacy Sanitization & Compelling Technical README Manifesto**:
+     - Sanitized local compiler comments in `server/public/wasm/angband.js`, eliminating local user paths (`C:\Users\brian\...`).
+     - Rewrote `README.md` into an inspiring, technically authoritative manifesto highlighting the core architectural breakthrough: preserving 35 years of upstream Angband 4.2.6 C engine depth through zero-allocation decoupling rather than shallow reimplementation.
+     - Highlighted key patterns for the broader developer community: zero-turn freelook, perspective-correct physical height scaling, procedural anatomical creature rigs, and mathematical foley audio synthesis.
    - **Modern Windows Standalone Host (`desktop/`)**: Built a high-performance native Windows desktop application powered by .NET 8 WinForms and Microsoft Edge WebView2 (`desktop/Angband3D.csproj`, `desktop/MainForm.cs`, `desktop/Program.cs`, `desktop/icon.ico`).
      - Directly embeds the full enhanced WebGL 2.0 / Three.js 3D client (`www/`) with 0ms latency offline WebAssembly engine (`engine-worker.js` + `angband.wasm`).
      - Features hardware-accelerated borderless/fullscreen toggle (F11 / Alt+Enter), custom dark theme background (`#030407`), DevTools (F12), and secure virtual host mapping `https://angband3d.local` mapped to `%~dp0www` with persistent IndexedDB user data in `%LOCALAPPDATA%\Angband3D\UserData`.
