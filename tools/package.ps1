@@ -135,6 +135,23 @@ if ($godotExe) {
     if ($stdout) { Write-Host "Godot Output:`n$stdout" }
     if ($stderr) { Write-Host "Godot Warnings/Errors:`n$stderr" -ForegroundColor Yellow }
 
+    if ($env:GITHUB_STEP_SUMMARY) {
+        @"
+### Godot Export Diagnostics
+- **Exit Code**: $exportCode
+- **Godot Binary**: $godotExe
+- **Target**: $exportTarget
+#### STDOUT
+````
+$stdout
+````
+#### STDERR
+````
+$stderr
+````
+"@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+    }
+
     if ($exportCode -eq 0 -and (Test-Path $exportTarget)) {
         Write-Host "Standalone executable exported successfully: $exportTarget" -ForegroundColor Green
 
