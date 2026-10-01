@@ -62,6 +62,7 @@ jobs:
           cmake --build build
 
       - name: Setup Godot & Export Templates
+        continue-on-error: true
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -141,7 +142,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Angband3D-Windows-x64
-          path: dist/Angband3D-Windows-x64.zip
+          path: |
+            dist/Angband3D-Windows-x64.zip
+            dist/angband3d-standalone.zip
           if-no-files-found: error
 
   build-linux:

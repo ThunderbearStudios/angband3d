@@ -18,18 +18,20 @@ window.addEventListener('DOMContentLoaded', () => {
     const audio = new SoundEngine();
 
     // Platform Auto-Detection:
-    // - Standalone Native Android APK: runs offline with bundled engine (or connects to cloud on request).
+    // - Standalone Native Desktop (Windows/Linux) & Android APK: runs offline with bundled engine (or connects to cloud on request).
     // - Web Browser (angband3d.com): ALWAYS connects directly to the Cloud Realm WebSocket daemon!
-    const isAndroidApk = () => {
+    const isStandaloneApp = () => {
         return window.Capacitor !== undefined ||
                location.protocol === 'capacitor:' ||
                window.isNativeAndroidApp === true ||
-               (window.location.href.startsWith('http://localhost') && navigator.userAgent.includes('Android') && !window.location.port);
+               (window.location.href.startsWith('http://localhost') && navigator.userAgent.includes('Android') && !window.location.port) ||
+               location.hostname === 'angband3d.local' ||
+               (window.chrome && window.chrome.webview !== undefined);
     };
 
-    const isApk = isAndroidApk();
+    const isApk = isStandaloneApp();
     // Web browser users MUST ALWAYS default to Cloud Realm.
-    // Native Android APK users default to local offline engine.
+    // Standalone desktop/APK users default to local offline engine.
     let engineMode = isApk ? 'local' : 'cloud';
 
     // Strictly purge any legacy 'angband_engine_mode' from browser localStorage

@@ -832,9 +832,15 @@ public partial class ViewModel : Node3D
                 return "res://assets/models/weapons/Hammer_Double.fbx";
             }
 
-            // Maces, Flails, Morning Stars, Clubs, Cudgels, Whips, Small Hammers
+            // Bullwhips & Scourges
+            if (lowerW.Contains("whip") || lowerW.Contains("bullwhip") || lowerW.Contains("scourge") || lowerW.Contains("cat-o"))
+            {
+                return "res://assets/models/weapons/Sword_2.fbx";
+            }
+
+            // Maces, Flails, Morning Stars, Clubs, Cudgels, Small Hammers
             if (lowerW.Contains("mace") || lowerW.Contains("flail") || lowerW.Contains("star") ||
-                lowerW.Contains("club") || lowerW.Contains("whip") || lowerW.Contains("cudgel") ||
+                lowerW.Contains("club") || lowerW.Contains("cudgel") ||
                 lowerW.Contains("ball-and-chain") || lowerW.Contains("morning star") || lowerW.Contains("flanged") ||
                 lowerW.Contains("lead-filled") || lowerW.Contains("hammer") || lowerW.Contains("war hammer") ||
                 lowerW.Contains("warhammer"))
