@@ -15,7 +15,8 @@
 [CmdletBinding()]
 param(
     [string]$OutputDir = 'dist',
-    [switch]$SkipZip
+    [switch]$SkipZip,
+    [switch]$AllowSourceFallback
 )
 
 $ErrorActionPreference = 'Stop'
@@ -58,6 +59,8 @@ function Find-GodotExe {
     if ($cmd) { return $cmd.Source }
 
     $roots = @(
+        "C:\Godot",
+        "$env:SystemDrive\Godot",
         "$env:LOCALAPPDATA\Microsoft\WinGet\Packages",
         "$env:ProgramFiles\Godot",
         "$env:LOCALAPPDATA\Programs\Godot"
@@ -116,6 +119,9 @@ if ($godotExe) {
             }
         }
     } else {
+        if (-not $AllowSourceFallback) {
+            throw "Godot export failed with exit code $LASTEXITCODE. Standalone Windows executable ($exportTarget) could not be produced."
+        }
         Write-Host "Warning: Standalone export exited with code $LASTEXITCODE; falling back to source distribution staging." -ForegroundColor Yellow
         # Fallback: stage client source folder (excluding temporary build caches)
         $destClient = Join-Path $stageDir 'client'
@@ -125,6 +131,9 @@ if ($godotExe) {
         }
     }
 } else {
+    if (-not $AllowSourceFallback) {
+        throw "Godot executable was not found. Cannot build standalone package without Godot Engine. Install Godot Mono or run with -AllowSourceFallback if building a source-only bundle."
+    }
     Write-Host "Godot executable not found; staging client source for launcher execution." -ForegroundColor Yellow
     $destClient = Join-Path $stageDir 'client'
     New-Item -ItemType Directory -Path $destClient -Force | Out-Null
@@ -170,6 +179,24 @@ if exist "%~dp0Angband3D.exe" (
 )
 "@
 Set-Content -Path (Join-Path $stageDir 'Play-Angband3D.cmd') -Value $quickLauncherContent
+
+# Verify standalone binaries
+if (-not $AllowSourceFallback) {
+    $exeCheck = Join-Path $stageDir 'Angband3D.exe'
+    $pckCheck = Join-Path $stageDir 'Angband3D.pck'
+    $dataCheck = Get-ChildItem $stageDir -Directory | Where-Object { $_.Name -like 'data_*' }
+
+    if (-not (Test-Path $exeCheck)) {
+        throw "Packaging verification failed: $exeCheck does not exist!"
+    }
+    if (-not (Test-Path $pckCheck)) {
+        throw "Packaging verification failed: $pckCheck does not exist!"
+    }
+    if (-not $dataCheck) {
+        throw "Packaging verification failed: C# runtime assembly directory (data_*) is missing from $stageDir!"
+    }
+    Write-Host "Package verification PASSED: Standalone binary, pack, and C# runtime present." -ForegroundColor Green
+}
 
 Write-Host "[4/5] Staged distribution files successfully." -ForegroundColor Green
 

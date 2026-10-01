@@ -18,6 +18,7 @@
 10. [Android APK Packaging & Modern Play Store Compliance](#10-android-apk-packaging--modern-play-store-compliance)
 11. [Cloud Architecture, Container Isolation & Process Lifecycles](#11-cloud-architecture-container-isolation--process-lifecycles)
 12. [Autonomous AI Agent & Developer Operating Protocols](#12-autonomous-ai-agent--developer-operating-protocols)
+13. [Standalone Packaging, CI/CD & Security Invariants](#13-standalone-packaging-cicd--security-invariants)
 
 ---
 
@@ -420,4 +421,33 @@ For every architectural change or bug fix:
 - Update `docs/NEXT_STEPS.md` upon completing any milestone.
 - Update `docs/LLM_CONTEXT.md` whenever an architectural invariant or gotcha is discovered.
 - Keep `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md` authoritative and synchronized.
+
+---
+
+## 13. Standalone Packaging, CI/CD & Security Invariants
+
+### 13.1 The Godot Standalone Release Packaging Contract
+An end-user downloading a game distribution expects a standalone executable that runs immediately without requiring external SDKs, winget, or developer toolchains.
+- **Mandatory Standalone Artifacts**: The packaged `Angband3D-Windows-x64.zip` (and canonical `angband3d-standalone.zip`) must contain:
+  1. `Angband3D.exe`: The standalone Godot 4 binary (compiled from export templates).
+  2. `Angband3D.pck`: Packed virtual filesystem containing scene trees, materials, models, and scripts.
+  3. `data_angband3d_windows_x86_64/`: The .NET / Mono runtime assemblies (`GodotSharp.dll`, `System.Private.CoreLib.dll`, `angband3d.dll`, etc.).
+  4. `engine/build/game/angband.exe` + `engine/build/game/lib/`: The native C engine binary and standard gamedata libraries.
+  5. `Play-Angband3D.cmd`: Quick launcher that invokes `Angband3D.exe` directly while forwarding arguments.
+- **Silent Fallback Prohibition**: `tools/package.ps1` must never silently swallow export failures. If Godot or export templates are missing, packaging must fail immediately with exit code 1 unless an explicit `-AllowSourceFallback` switch is passed.
+- **Post-Staging Binary Verification**: The packaging tool must explicitly assert `Test-Path` on `Angband3D.exe`, `Angband3D.pck`, and the `data_*` directory before generating the ZIP archive.
+- **CI Toolchain Parity**: In `.github/workflows/release.yml`, the `windows-latest` runner must explicitly download Godot Mono and export templates. A build runner that lacks Godot cannot produce a standalone binary.
+
+### 13.2 Security Audit & Hardening Invariants
+- **Path Traversal Prevention in Static Delivery**:
+  - Never rely on naive string replacement like `.replace(/^(\.\.[\/\\])+/, '')`, which only strips leading dot-dots.
+  - Always use `path.resolve(WEB_DIR, '.' + path.sep + safePath)` followed by strict prefix validation: `if (!filePath.startsWith(path.resolve(WEB_DIR))) return res.writeHead(403)`.
+- **Filename Sanitization & Reserved Windows Device Names**:
+  - User-submitted filenames (e.g. `x-character-name` in savefile upload, or URL params in `GET /api/saves/:name`) must be sanitized using `path.basename(name).replace(/[^a-zA-Z0-9_.-]/g, '_')`.
+  - Windows reserved DOS device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`) must be explicitly matched and rejected. Attempting to write or open a file named `CON` or `NUL` on Windows causes process deadlocks or system errors.
+- **Process Parameter Injection Guards**:
+  - In server child process spawning (`spawn(ENGINE_EXE, args)`), query parameters passed as command line flags (e.g. `-u${user}`, `-u${save}`) must be strictly sanitized (`replace(/[^a-zA-Z0-9_-]/g, '')`) to prevent arbitrary flag or option injection into the C engine.
+- **Headless Viewport Safety**:
+  - When running Godot under `--headless`, `GetViewport().GetTexture()?.GetImage()` returns null because the rendering server disables viewport framebuffers. All screenshot/capture utilities must perform null-safety checks to prevent uncaught `NullReferenceException`.
+
 

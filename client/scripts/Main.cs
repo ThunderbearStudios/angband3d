@@ -1451,9 +1451,16 @@ public partial class Main : Node
             GD.Print("around: " + _world.DescribeAround(f.GetProperty("map"),
                 pl.GetProperty("x").GetInt32(), pl.GetProperty("y").GetInt32()));
         }
-        var img = GetViewport().GetTexture().GetImage();
-        var err = img.SavePng(_shotPath);
-        GD.Print($"screenshot: {_shotPath} ({img.GetWidth()}x{img.GetHeight()}) err={err}");
+        var texture = GetViewport().GetTexture();
+        if (texture != null)
+        {
+            var img = texture.GetImage();
+            if (img != null)
+            {
+                var err = img.SavePng(_shotPath);
+                GD.Print($"screenshot: {_shotPath} ({img.GetWidth()}x{img.GetHeight()}) err={err}");
+            }
+        }
         GetTree().Quit();
     }
 
