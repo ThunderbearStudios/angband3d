@@ -5,10 +5,11 @@ If starting a new session or recovering from a crash/disconnect:
 1. Run `git status` to see unstaged work and active branch.
 2. Check `docs/NEXT_STEPS.md` for the current priority queue and in-flight tasks.
 3. Check `docs/LLM_CONTEXT.md` for architectural invariants and file paths.
-4. Verify workspace health:
+4. Consult `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md` for deep historical lessons, edge cases, and design rationale.
+5. Verify workspace health:
    - `python tools/smoke_test.py` (11/11 tests, checks engine JSON bridge)
    - `dotnet build client/angband3d.csproj` (Godot C# compilation)
-5. **DO NOT** execute exploratory recursive file searches (`**/*`) or dump entire files into context. All key file paths and data structures are indexed in `docs/LLM_CONTEXT.md`.
+6. **DO NOT** execute exploratory recursive file searches (`**/*`) or dump entire files into context. All key file paths and data structures are indexed in `docs/LLM_CONTEXT.md`.
 
 ## 2. Token, Efficiency & Workflow Rules
 - **Targeted Reads**: Read only the relevant line ranges (20-100 lines) around target symbols.
@@ -52,6 +53,7 @@ If starting a new session or recovering from a crash/disconnect:
 | 2D Overlays | `client/scripts/Overlay.cs` | HUD, 2D Minimap, 80x24 Terminal, Menus |
 | Wire Spec | `docs/PROTOCOL.md` | Complete JSON protocol documentation |
 | Task Roadmap | `docs/NEXT_STEPS.md` | Living task queue and session notes |
+| Best Practices | `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md` | Master architecture, lessons learned & failure modes |
 
 ## 5. Build & Verification Commands
 - **Engine Build**:
