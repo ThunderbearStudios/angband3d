@@ -1,8 +1,24 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Post WebAssembly Engine, Standalone Android APK & Universal Saves)
+## Current System State (Post Modern Windows Standalone Host, WebAssembly Engine & Full Platform Parity)
 
-0. **WebAssembly Engine, Standalone Android APK & Universal Save Portability (Route A Completed)**:
+0. **Modern Windows Standalone Host & Full Platform Parity (v1.2.1 Completed)**:
+   - **Modern Windows Standalone Host (`desktop/`)**: Built a high-performance native Windows desktop application powered by .NET 8 WinForms and Microsoft Edge WebView2 (`desktop/Angband3D.csproj`, `desktop/MainForm.cs`, `desktop/Program.cs`, `desktop/icon.ico`).
+     - Directly embeds the full enhanced WebGL 2.0 / Three.js 3D client (`www/`) with 0ms latency offline WebAssembly engine (`engine-worker.js` + `angband.wasm`).
+     - Features hardware-accelerated borderless/fullscreen toggle (F11 / Alt+Enter), custom dark theme background (`#030407`), DevTools (F12), and secure virtual host mapping `https://angband3d.local` mapped to `%~dp0www` with persistent IndexedDB user data in `%LOCALAPPDATA%\Angband3D\UserData`.
+     - Delivers 100% feature parity with the web and Android releases: modern dark-fantasy 3D visuals, vertex ambient occlusion, adaptive vignette, calm living torch (no dust motes), PBR textures, procedural whip viewmodel, sensed creature aura, modern glassmorphic HUD, real-time combat message window (`#message-feed-window`), Tolkien hero review cards, and 5-tab death screen.
+     - Single-file self-contained publish (`Angband3D.exe`, ~154 MB) requiring zero external runtime or Godot installation on players' machines.
+   - **Unified Platform Auto-Detection (`server/public/js/app.js`)**:
+     - Introduced `isStandaloneApp()` detecting Capacitor Android, native Android wrappers, `angband3d.local`, and `window.chrome.webview`.
+     - Automatically routes to `local` (offline Wasm engine) for Desktop and Android APK, while defaulting to `cloud` WebSocket server in standard browsers on `angband3d.com`.
+   - **Capacitor Android Synchronization**: Synced web assets into native Android project (`npm run android:sync`).
+   - **Godot Client Enhancements (`client/scripts/`)**:
+     - `DungeonWorld.cs`: Set `ParticleAmount = 0` for Town and Upper Crypts biomes to permanently eliminate dust motes.
+     - `ItemModelResolver.cs` & `ViewModel.cs`: Added distinct weapon model resolution for whips/bullwhips (`Sword_2.fbx` agile curve).
+   - **Modern Packaging & Release Pipeline (`tools/package.ps1` & `.github/workflows/release.yml`)**:
+     - Modernized `tools/package.ps1` to publish `Angband3D.exe`, stage complete `www/` assets and offline wasm engine, gamedata, C engine, and optional Godot client into `dist/Angband3D-Windows-x64.zip` and `dist/angband3d-standalone.zip`.
+     - Hardened CI release workflow (`.github/workflows/release.yml`) with resilient non-fatal Godot setup and automatic publishing of both zip filenames.
+   - **Verification**: Verified 100% passing across `tools/smoke_test.py` (11/11), `dotnet build client/angband3d.csproj` (0 errors), `dotnet build desktop/Angband3D.csproj` (0 errors), `node server/test/server_test.js` (20/20), and `node tools/test_graphics_enhancements.js` (6/6).
    - **Compiled WebAssembly Target**: Angband 4.2.6 C engine compiled with Emscripten, Asyncify, and `-lidbfs.js`. Asyncify yields cleanly to the browser event loop during input polling, eliminating UI freezes while retaining full authentic C game logic and formula execution.
    - **IndexedDB (`IDBFS`) Persistence**: Mounts `/lib/save` with `autoPersist: true` directly to the browser's IndexedDB, enabling 100% offline play that survives page reloads and browser restarts.
    - **Background Web Worker Execution**: `engine-worker.js` executes the Wasm runtime off the main thread, keeping Three.js rendering and UI interactions at a steady 60fps/120fps.

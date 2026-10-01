@@ -15,9 +15,12 @@ __pycache__/
 build/
 build-*/
 dist/
+[Bb]in/
+[Oo]bj/
 *.obj
 *.exe
 *.zip
+*.log
 
 # Local asset packages & raw resources
 /resources/

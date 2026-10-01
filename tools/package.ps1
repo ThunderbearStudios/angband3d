@@ -26,6 +26,17 @@ Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "  Angband3D Standalone Packaging Tool   " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 
+# Setup staging directories
+$distRoot = Join-Path $repo $OutputDir
+$pkgName = "Angband3D-Windows-x64"
+$stageDir = Join-Path $distRoot $pkgName
+
+if (Test-Path $stageDir) {
+    Write-Host "Cleaning existing staging directory $stageDir..." -ForegroundColor Gray
+    Remove-Item $stageDir -Recurse -Force
+}
+New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
+
 # 1. Check/Build Angband C Engine
 $engineExe = Join-Path $repo 'engine\build\game\angband.exe'
 if (-not (Test-Path $engineExe)) {
@@ -35,22 +46,33 @@ if (-not (Test-Path $engineExe)) {
     Write-Host "[1/5] Angband C engine already built: $engineExe" -ForegroundColor Green
 }
 
-# 2. Build Godot C# Client in Release mode & Export Standalone Executable
-Write-Host "[2/5] Compiling Godot C# client (Release)..." -ForegroundColor Yellow
-$clientProj = Join-Path $repo 'client\angband3d.csproj'
-$clientSln = Join-Path $repo 'client\angband3d.sln'
-if (-not (Test-Path $clientSln)) {
-    Push-Location (Join-Path $repo 'client')
-    try {
-        & dotnet new sln -n angband3d
-        & dotnet sln angband3d.sln add angband3d.csproj
-    } finally {
-        Pop-Location
+# 2. Build Desktop Standalone Executable (Full Enhanced WebGL/Wasm Client)
+Write-Host "[2/5] Building modern standalone desktop executable..." -ForegroundColor Yellow
+$desktopProj = Join-Path $repo 'desktop\Angband3D.csproj'
+if (Test-Path $desktopProj) {
+    Write-Host "Publishing self-contained Angband3D.exe from $desktopProj..." -ForegroundColor Cyan
+    & dotnet publish $desktopProj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o $stageDir
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to publish desktop project."
     }
+} else {
+    Write-Warning "desktop/Angband3D.csproj not found; skipping modern desktop build."
 }
-& dotnet build $clientProj -c Release
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to build client project."
+
+# Stage full web assets (shaders, PBR textures, 3D models, audio, wasm engine, UI)
+$webSource = Join-Path $repo 'server\public'
+$webDest = Join-Path $stageDir 'www'
+if (Test-Path $webSource) {
+    Write-Host "Staging full enhanced game assets into $webDest..." -ForegroundColor Cyan
+    New-Item -ItemType Directory -Path $webDest -Force | Out-Null
+    Copy-Item "$webSource\*" $webDest -Recurse -Force
+}
+
+# Optional: Build Godot C# Client in Release mode & Export Godot Executable if available
+$clientProj = Join-Path $repo 'client\angband3d.csproj'
+if (Test-Path $clientProj) {
+    Write-Host "Compiling Godot C# client (Release)..." -ForegroundColor Yellow
+    & dotnet build $clientProj -c Release
 }
 
 # Find Godot executable for export (prefer console binary to ensure synchronous completion)
@@ -88,90 +110,18 @@ function Find-GodotExe {
 }
 
 $godotExe = Find-GodotExe
-
-# 3. Prepare Staging Directory
-$distRoot = Join-Path $repo $OutputDir
-$pkgName = "Angband3D-Windows-x64"
-$stageDir = Join-Path $distRoot $pkgName
-
-# Clean dist directory of any temporary or obsolete artifacts
-if (Test-Path $distRoot) {
-    Get-ChildItem $distRoot | ForEach-Object {
-        if ($_.Name -ne $pkgName -and $_.Name -ne "$pkgName.zip") {
-            Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
-        }
-    }
-}
-if (Test-Path $stageDir) {
-    Remove-Item $stageDir -Recurse -Force
-}
-New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
-Write-Host "[3/5] Staging distribution into: $stageDir" -ForegroundColor Yellow
-
-# Export Standalone Executable if Godot is available
 if ($godotExe) {
     Write-Host "Found Godot executable: $godotExe" -ForegroundColor Green
     $clientPath = Join-Path $repo 'client'
-    $exportTarget = Join-Path $stageDir 'Angband3D.exe'
+    $exportTarget = Join-Path $stageDir 'Angband3D-Godot.exe'
 
-    Write-Host "Exporting standalone Angband3D.exe using Godot ($godotExe)..." -ForegroundColor Yellow
+    Write-Host "Exporting optional Angband3D-Godot.exe using Godot ($godotExe)..." -ForegroundColor Yellow
     $logPath = Join-Path $repo "godot-export.log"
     & $godotExe --headless --path $clientPath --export-release "Windows Desktop" $exportTarget *>&1 | Tee-Object -FilePath $logPath
     $exportCode = $LASTEXITCODE
 
-    Write-Host "Godot Export Exit Code: $exportCode"
-
-    if ($env:GITHUB_STEP_SUMMARY) {
-        $logSnippet = if (Test-Path $logPath) { Get-Content $logPath -Tail 100 | Out-String } else { "No log generated" }
-        @"
-### Godot Export Diagnostics
-- **Exit Code**: $exportCode
-- **Godot Binary**: $godotExe
-- **Target**: $exportTarget
-#### Console Output
-````
-$logSnippet
-````
-"@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-    }
-
     if ($exportCode -eq 0 -and (Test-Path $exportTarget)) {
-        Write-Host "Standalone executable exported successfully: $exportTarget" -ForegroundColor Green
-
-        # Verify .NET assemblies directory (Godot 4 C# builds create data_<name>_<platform>)
-        $dataDirs = Get-ChildItem $stageDir -Directory | Where-Object { $_.Name -like 'data_*' }
-        if ($dataDirs) {
-            Write-Host "Discovered C# runtime assembly directory: $($dataDirs[0].Name)" -ForegroundColor Green
-        } else {
-            # Check if Godot placed data directory inside client/dist or client folder
-            $altData = Get-ChildItem (Join-Path $repo 'client') -Directory -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -like 'data_*' } | Select-Object -First 1
-            if ($altData) {
-                Write-Host "Staging C# runtime assembly directory from client: $($altData.Name)" -ForegroundColor Yellow
-                Copy-Item $altData.FullName $stageDir -Recurse
-            }
-        }
-    } else {
-        if (-not $AllowSourceFallback) {
-            throw "Godot export failed with exit code $exportCode. Standalone Windows executable ($exportTarget) could not be produced."
-        }
-        Write-Host "Warning: Standalone export exited with code $exportCode; falling back to source distribution staging." -ForegroundColor Yellow
-        # Fallback: stage client source folder (excluding temporary build caches)
-        $destClient = Join-Path $stageDir 'client'
-        New-Item -ItemType Directory -Path $destClient -Force | Out-Null
-        Get-ChildItem (Join-Path $repo 'client') -Exclude '.godot', 'bin', 'obj', '.vs' | ForEach-Object {
-            Copy-Item $_.FullName $destClient -Recurse -Force
-        }
-    }
-} else {
-    if (-not $AllowSourceFallback) {
-        throw "Godot executable was not found. Cannot build standalone package without Godot Engine. Install Godot Mono or run with -AllowSourceFallback if building a source-only bundle."
-    }
-    Write-Host "Godot executable not found; staging client source for launcher execution." -ForegroundColor Yellow
-    $destClient = Join-Path $stageDir 'client'
-    New-Item -ItemType Directory -Path $destClient -Force | Out-Null
-    Get-ChildItem (Join-Path $repo 'client') -Exclude '.godot', 'bin', 'obj', '.vs' | ForEach-Object {
-        Copy-Item $_.FullName $destClient -Recurse -Force
+        Write-Host "Godot client exported successfully: $exportTarget" -ForegroundColor Green
     }
 }
 
@@ -216,19 +166,23 @@ Set-Content -Path (Join-Path $stageDir 'Play-Angband3D.cmd') -Value $quickLaunch
 # Verify standalone binaries
 if (-not $AllowSourceFallback) {
     $exeCheck = Join-Path $stageDir 'Angband3D.exe'
-    $pckCheck = Join-Path $stageDir 'Angband3D.pck'
-    $dataCheck = Get-ChildItem $stageDir -Directory | Where-Object { $_.Name -like 'data_*' }
+    $htmlCheck = Join-Path $stageDir 'www\index.html'
+    $wasmCheck = Join-Path $stageDir 'www\wasm\angband.wasm'
+    $engineCheck = Join-Path $stageDir 'engine\build\game\angband.exe'
 
     if (-not (Test-Path $exeCheck)) {
         throw "Packaging verification failed: $exeCheck does not exist!"
     }
-    if (-not (Test-Path $pckCheck)) {
-        throw "Packaging verification failed: $pckCheck does not exist!"
+    if (-not (Test-Path $htmlCheck)) {
+        throw "Packaging verification failed: $htmlCheck does not exist!"
     }
-    if (-not $dataCheck) {
-        throw "Packaging verification failed: C# runtime assembly directory (data_*) is missing from $stageDir!"
+    if (-not (Test-Path $wasmCheck)) {
+        throw "Packaging verification failed: $wasmCheck does not exist!"
     }
-    Write-Host "Package verification PASSED: Standalone binary, pack, and C# runtime present." -ForegroundColor Green
+    if (-not (Test-Path $engineCheck)) {
+        throw "Packaging verification failed: $engineCheck does not exist!"
+    }
+    Write-Host "Package verification PASSED: Standalone binary, full enhanced assets, and offline engine present." -ForegroundColor Green
 }
 
 Write-Host "[4/5] Staged distribution files successfully." -ForegroundColor Green

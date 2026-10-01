@@ -205,9 +205,14 @@ public static class ItemModelResolver
             {
                 return ("res://assets/models/weapons/Hammer_Double.fbx", 0.20f);
             }
-            // Maces, Flails, Morning Stars, Clubs, Cudgels, Whips
+            // Whips, Bullwhips, Scourges
+            if (lower.Contains("whip") || lower.Contains("bullwhip") || lower.Contains("scourge") || lower.Contains("cat-o"))
+            {
+                return ("res://assets/models/weapons/Sword_2.fbx", 0.18f);
+            }
+            // Maces, Flails, Morning Stars, Clubs, Cudgels
             if (lower.Contains("hammer") || lower.Contains("mace") || lower.Contains("flail") || lower.Contains("star") ||
-                lower.Contains("club") || lower.Contains("cudgel") || lower.Contains("whip") ||
+                lower.Contains("club") || lower.Contains("cudgel") ||
                 lower.Contains("ball-and-chain"))
             {
                 return ("res://assets/models/weapons/Hammer_Small.fbx", 0.20f);
