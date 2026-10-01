@@ -207,7 +207,16 @@ if (-not $SkipZip) {
         Remove-Item $zipPath -Force
     }
     Write-Host "[5/5] Compressing to $zipPath..." -ForegroundColor Yellow
-    Compress-Archive -Path "$stageDir\*" -DestinationPath $zipPath -CompressionLevel Optimal
+    if (Get-Command tar.exe -ErrorAction SilentlyContinue) {
+        Push-Location $stageDir
+        try {
+            & tar.exe -a -cf $zipPath *
+        } finally {
+            Pop-Location
+        }
+    } else {
+        Compress-Archive -Path "$stageDir\*" -DestinationPath $zipPath -CompressionLevel Optimal
+    }
     $canonicalZip = Join-Path $distRoot "angband3d-standalone.zip"
     Copy-Item $zipPath $canonicalZip -Force
     Write-Host "Package created: $zipPath" -ForegroundColor Green
