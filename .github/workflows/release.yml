@@ -106,7 +106,14 @@ jobs:
       - name: Package Windows ZIP
         shell: pwsh
         run: |
-          .\tools\package.ps1
+          try {
+            .\tools\package.ps1
+          } catch {
+            if ($env:GITHUB_STEP_SUMMARY) {
+              "### Package Windows ZIP Step Failed`n`n``````n$($_ | Out-String)`n``````n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            }
+            throw
+          }
 
       - name: Upload Windows Package
         uses: actions/upload-artifact@v4
