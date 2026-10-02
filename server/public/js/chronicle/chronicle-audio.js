@@ -431,18 +431,34 @@ class ChronicleAudioRouter {
                     gender,
                     _t: Date.now().toString()
                 });
-                const url = `/api/tts?${q.toString()}`;
-
-                // Extract client-side API key if stored in browser
+                // Extract client-side API key if stored in browser or memory
                 let apiKey = '';
-                if (typeof window !== 'undefined' && window.localStorage) {
-                    try {
-                        apiKey = localStorage.getItem('angband_chronicle_apikey') || '';
-                    } catch (_) {}
+                if (typeof window !== 'undefined') {
+                    if (window.chronicleManager?.inputApiKey?.value) {
+                        apiKey = window.chronicleManager.inputApiKey.value.trim();
+                    }
+                    if (!apiKey && window.chronicleManager?.llm?.apiKey) {
+                        apiKey = window.chronicleManager.llm.apiKey;
+                    }
+                    if (!apiKey && window.localStorage) {
+                        try {
+                            apiKey = localStorage.getItem('angband_llm_api_key') ||
+                                     localStorage.getItem('angband_chronicle_apikey') ||
+                                     '';
+                        } catch (_) {}
+                    }
                 }
                 const fetchHeaders = {};
                 if (apiKey) {
                     fetchHeaders['x-goog-api-key'] = apiKey;
+                    q.append('key', apiKey);
+                }
+
+                const url = `/api/tts?${q.toString()}`;
+
+                // Resume suspended AudioContext if browser blocked autoplay before interaction
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    try { await this.ctx.resume(); } catch (_) {}
                 }
 
                 // Stop prior audio cleanly
@@ -465,6 +481,12 @@ class ChronicleAudioRouter {
                     try {
                         const res = await fetch(url, { headers: fetchHeaders });
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        const usedEngine = res.headers.get('x-tts-engine');
+                        const fallbackReason = res.headers.get('x-tts-fallback-reason');
+                        if (engine === 'gemini' && usedEngine === 'edge') {
+                            console.warn('[ChronicleAudio] Gemini Native Audio fell back to Edge Neural:', fallbackReason || 'unknown reason');
+                        }
+
                         const arrayBuffer = await res.arrayBuffer();
                         const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
 
@@ -479,7 +501,7 @@ class ChronicleAudioRouter {
                         source.onended = () => {
                             this.currentSource = null;
                             this.activePlaybackResolve = null;
-                            resolve({ finished: true });
+                            resolve({ finished: true, engine: usedEngine || engine, fallbackReason });
                         };
                         source.start(0);
                         return;

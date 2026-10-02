@@ -126,6 +126,11 @@ function createWavHeader(pcmLength, sampleRate = 24000, numChannels = 1, bitsPer
     return header;
 }
 
+function sanitizeHeader(val) {
+    if (!val) return '';
+    return String(val).replace(/[\r\n\t]+/g, ' ').replace(/[^\x20-\x7E]/g, '').substring(0, 120);
+}
+
 // Proxies text-to-speech to Gemini Native Audio (gemini-3.1-flash-tts-preview) with directorial prompting
 function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, apiKey }) {
     return new Promise((resolve, reject) => {
@@ -163,22 +168,48 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ap
                 'Content-Type': 'application/json',
                 'x-goog-api-key': apiKey
             },
-            timeout: 12000
+            timeout: 15000
         }, res => {
             let body = '';
             res.on('data', chunk => body += chunk);
             res.on('end', () => {
                 if (res.statusCode !== 200) {
-                    return reject(new Error(`Gemini TTS HTTP ${res.statusCode}: ${body.substring(0, 150)}`));
+                    let errMsg = `HTTP ${res.statusCode}`;
+                    try {
+                        const parsed = JSON.parse(body);
+                        if (parsed.error && parsed.error.message) {
+                            errMsg = `HTTP ${res.statusCode}: ${parsed.error.message}`;
+                        }
+                    } catch (_) {
+                        errMsg = `HTTP ${res.statusCode}: ${body.substring(0, 100)}`;
+                    }
+                    return reject(new Error(errMsg.replace(/[\r\n\t]+/g, ' ').substring(0, 120)));
                 }
                 try {
                     const data = JSON.parse(body);
-                    const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-                    if (!inlineData || !inlineData.data) {
-                        return reject(new Error('Gemini TTS returned no audio data in payload'));
+                    let inlineData = null;
+                    const parts = data.candidates?.[0]?.content?.parts;
+                    if (Array.isArray(parts)) {
+                        for (const part of parts) {
+                            if (part.inlineData && part.inlineData.data) {
+                                inlineData = part.inlineData;
+                                break;
+                            }
+                        }
                     }
+                    if (!inlineData || !inlineData.data) {
+                        const candidateErr = data.candidates?.[0]?.finishReason || data.error?.message || 'Gemini TTS returned no audio data in payload';
+                        return reject(new Error(candidateErr));
+                    }
+
+                    let sampleRate = 24000;
+                    if (inlineData.mimeType && inlineData.mimeType.includes('rate=')) {
+                        const rateMatch = inlineData.mimeType.match(/rate=(\d+)/);
+                        if (rateMatch) sampleRate = parseInt(rateMatch[1], 10);
+                    }
+
                     const pcmBuffer = Buffer.from(inlineData.data, 'base64');
-                    const wavHeader = createWavHeader(pcmBuffer.length, 24000, 1, 16);
+                    const wavHeader = createWavHeader(pcmBuffer.length, sampleRate, 1, 16);
                     const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
                     resolve(wavBuffer);
                 } catch (err) {
@@ -366,7 +397,8 @@ const server = http.createServer((req, res) => {
     // CORS headers for web client interop
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, x-goog-api-key, X-Goog-Api-Key, x-api-key, Authorization');
+    res.setHeader('Access-Control-Expose-Headers', 'X-TTS-Engine, X-TTS-Cache, X-TTS-Fallback-Reason, Content-Type, Content-Length');
 
     if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -568,14 +600,25 @@ const server = http.createServer((req, res) => {
         const reqPitch = urlObj.searchParams.get('pitch');
         const reqRate = urlObj.searchParams.get('rate');
 
-        // Extract Gemini API key (client header takes priority, fallback to server environment)
-        const geminiApiKey = req.headers['x-goog-api-key'] || process.env.GEMINI_API_KEY || '';
+        // Extract Gemini API key (client header takes priority, then query param, then server environment)
+        const geminiApiKey = req.headers['x-goog-api-key'] ||
+                             req.headers['x-api-key'] ||
+                             urlObj.searchParams.get('key') ||
+                             urlObj.searchParams.get('apiKey') ||
+                             process.env.GEMINI_API_KEY ||
+                             '';
 
         // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO ---
         if (requestedEngine === 'gemini' && geminiApiKey) {
-            // Resolve Gemini voice
+            // Resolve Gemini voice from official 30-voice matrix
             let geminiVoice = GEMINI_VOICE_MAP.default;
-            const validGeminiVoices = ['Sulafat', 'Aoede', 'Algenib', 'Kore', 'Orus', 'Despina', 'Fenrir', 'Puck', 'Gacrux', 'Sadaltager', 'Achernar', 'Zephyrus', 'Chort', 'Leda', 'Izar', 'Enif', 'Vindemiatrix', 'Vega'];
+            const validGeminiVoices = [
+                'Sulafat', 'Aoede', 'Algenib', 'Kore', 'Orus', 'Despina', 'Fenrir', 'Puck',
+                'Gacrux', 'Sadaltager', 'Achernar', 'Zephyrus', 'Zephyr', 'Chort', 'Leda',
+                'Izar', 'Enif', 'Vindemiatrix', 'Vega', 'Charon', 'Callirrhoe', 'Autonoe',
+                'Enceladus', 'Iapetus', 'Umbriel', 'Algieba', 'Erinome', 'Rasalgethi',
+                'Laomedeia', 'Alnilam', 'Schedar', 'Pulcherrima', 'Achird', 'Zubenelgenubi', 'Sadachbia'
+            ];
             if (reqVoice && validGeminiVoices.map(v => v.toLowerCase()).includes(reqVoice.toLowerCase())) {
                 geminiVoice = validGeminiVoices.find(v => v.toLowerCase() === reqVoice.toLowerCase());
             } else if (reqGender === 'female' && GEMINI_VOICE_MAP[`female_${role}`]) {
@@ -627,10 +670,16 @@ const server = http.createServer((req, res) => {
                 }
             }).catch(geminiErr => {
                 console.warn(`[TTS] Gemini Native Audio unavailable (${geminiErr.message}). Seamlessly auto-falling back to Expressive Edge Neural.`);
+                res.setHeader('X-TTS-Fallback-Reason', sanitizeHeader(geminiErr.message));
                 // Fall through to Engine A (Edge Neural)
                 handleEdgeTTS();
             });
             return;
+        }
+
+        if (requestedEngine === 'gemini' && !geminiApiKey) {
+            console.warn('[TTS] Gemini Native Audio requested, but no Gemini API key found (headers, query, or env). Falling back to Edge Neural.');
+            res.setHeader('X-TTS-Fallback-Reason', sanitizeHeader('No Gemini API key provided'));
         }
 
         // --- ENGINE A: EXPRESSIVE EDGE NEURAL (DEFAULT & FALLBACK) ---
