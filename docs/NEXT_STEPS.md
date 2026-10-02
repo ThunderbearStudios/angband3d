@@ -1,8 +1,151 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.0.0 Production Major Release)
+## Current System State (Angband3D v2.2.0 — The Living Chronicle & Voiced Lorekeeper: Narrative Depth & Story Audio)
 
-0. **Production Major Release (v2.0.0 Completed & Deployed)**:
+0. **The Living Chronicle & Voiced Lorekeeper (Version 2.9.0 — Security & Efficiency Audit, Header Auth, Confirmed Working Model Cascade & Production Deployment)**:
+   - **Zero API Key Exposure & HTTP Header Authentication (`chronicle-llm.js`, `chronicle-manager.js`, `index.html`)**:
+     - Upgraded Gemini API transport to pass keys strictly via the `x-goog-api-key` HTTP request header, completely eliminating sensitive keys from URL query strings (`?key=...`).
+     - Key inputs are permanently masked as `type="password"` with the eye toggle eliminated and quick `🗑️ Clear` button provided.
+     - Keys are preserved strictly in browser client `localStorage` (`angband_llm_api_key`) and never sent over the wire except directly to the provider endpoints.
+   - **Confirmed Working Model Cascade Hierarchy (`chronicle-llm.js`, `index.html`, `test_chronicle.js`)**:
+     - Synchronized failover with upstream Google AI Studio stable models hierarchy in descending capability order:
+       `FREE_TIER_CHAIN = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-flash-lite']`.
+     - `findAvailableFreeModel(currentModel)` traverses downward through the hierarchy to guarantee that fallback always selects the next best confirmed working stable model available.
+     - Preserved confirmed stable `gemini-2.5-flash` while cleanly auto-upgrading deprecated models (`gemini-1.5-flash`, `gemini-2.0-flash`) to `gemini-3.8-flash`.
+   - **Error Discrimination & Memory Efficiency (`chronicle-llm.js`)**:
+     - Fast-fail on authentication/authorization errors (HTTP 400, 401, 403) to immediately notify the player without making wasteful cascading calls across all 8 models.
+     - Automatic failover strictly triggered on HTTP 429 (Quota Exceeded) or transient 503/404 server unavailability.
+     - Implemented `pruneOldTimestamps()` to prune timestamps older than 60 seconds and clean up inactive model keys from `modelTimestamps`, keeping memory footprint O(active_models_in_last_minute).
+   - **Strict 3D Model Visual Gender Alignment (`app.js`, `dungeon3d.js`, `chronicle-grounder.js`, `chronicle-llm.js`)**:
+     - Exported `window.dungeon = dungeon;` globally and stamped 3D entity metadata (`monsterData`, `modelGender`, `modelKey`, `isFemale`) on scene nodes.
+     - Grounder inspects live 3D models to ensure 100% deterministic visual gender alignment for pronouns (`she/her/herself`) and voice timbre.
+     - Injected `CRITICAL VISUAL GENDER & 3D MODEL MANDATE` into all LLM prompts.
+   - **Verification & Production Health**:
+     - 100% verified passing across all 22 automated test phases in `tools/test_chronicle.js` (including header auth, zero query string leakage, 401 fast-fail, and cascade stepping).
+     - Upstream engine bridge verified: `python tools/smoke_test.py` (11/11 tests passing).
+     - Native client verified: `dotnet build client/angband3d.csproj` (0 warnings, 0 errors).
+
+1. **The Living Chronicle & Voiced Lorekeeper (Version 2.7.0 — 3D Model-to-Sex Determination, Continuous Narration on Sleeping Entities, Free Tier Safeguards & Tabbed Settings Overhaul)**:
+   - **3D Model-to-Sex Determination & Pronoun Alignment (`dungeon3d.js`, `chronicle-grounder.js`, `chronicle-llm.js`)**:
+     - `server/public/js/dungeon3d.js` stamps `modelGender`, `modelKey`, and `isFemale` onto monster data and 3D scene entities in `createMonster3DEntity` and `updateMonsters`.
+     - `server/public/js/chronicle/chronicle-grounder.js`: `detectCreatureGender` prioritizes 3D model template keys (`casual`/`witch` = female; `farmer`/`adventurer`/`medieval`/`punk`/`soldier`/`king` = male) and active scene entities; `resolveCreatureEncounter` returns `{ isFemale, gender, modelGender }` and injects matching pronouns (`she/her`, `he/him`, `battle-scarred swordswoman/swordsman`) into all narrative prose and dialogue.
+   - **Continuous Voice Narration on Silent / Sleeping Entities (`chronicle-manager.js`, `chronicle-llm.js`)**:
+     - In `server/public/js/chronicle/chronicle-manager.js`: clicking silent or sleeping creatures (e.g. sleeping veterans, merchants, vagrants) triggers spoken narration from the Chronicler narrator via `this.audio.speakUtterance(res.prose, 'narrator')`.
+     - In `chronicle-llm.js`: when LLM is active, sleeping entities prompt the model for 1-2 atmospheric sentences describing slumber/posture matching the 3D model gender/pronouns, while keeping `dialogue: null`.
+     - Every creature encounter card renders a functional `▶ Play` button for on-demand replay.
+   - **Free Tier Models & Cost Protection Safeguards (`server.js`, `chronicle-llm.js`, `index.html`)**:
+     - Secure localhost API key loading: `.env` stores `GEMINI_API_KEY` untracked, served via `GET /api/config/llm` strictly on local loopback.
+     - Sliding-window rate limiter in `chronicle-llm.js` enforcing `MAX_RPM = 10` ceiling when `enforceFreeTier` is enabled.
+     - Model chips supporting all functional Free Tier models: `gemini-3.8-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, `gemini-3-flash-preview`, `gemini-3.7-flash`, plus budget models `gpt-4o-mini`, `claude-3-5-haiku-20241022`.
+     - Anti-repetition rolling buffer (30 utterances) injected into LLM prompts.
+   - **Tome Header & Tabbed Settings Modal UX Redesign (`index.html`, `chronicle.css`)**:
+     - Redesigned `#chronicle-header` into a 2-tier layout: Top Row (Title + Tradition badge + Window actions) and Bottom Row (Audiobook Transport Deck: Rewind, Play/Pause, Stop, Forward, Quick Voice dropdown, Mute toggle, Speed toggle).
+     - Redesigned `#chronicle-settings-modal` into a 3-tab layout (`🎙️ Voice Studio`, `🧠 AI Storyteller & Free Tier`, `📜 Literary Traditions`).
+   - **Verification**: 100% verified passing across all 21 automated test phases in `tools/test_chronicle.js`, `python tools/smoke_test.py` (11/11 tests), and `dotnet build client/angband3d.csproj` (0 warnings, 0 errors). Live server daemon running on `http://localhost:8080`.
+
+1. **The Living Chronicle & Voiced Lorekeeper (Version 2.6.0 — BYOK API Key UX, Aged & Venerable Voices Suite, Toolbar Quick Selector, and Resilient Audio Playback Engine)**:
+   - **BYOK Clipboard Paste, Visibility Toggle & Instant Auto-Save UX (`index.html`, `chronicle-manager.js`, `chronicle.css`)**:
+     - Added one-click `📋 Paste` button (`#btn-paste-apikey`) utilizing `navigator.clipboard.readText()` with seamless fallback for instant key insertion.
+     - Added `👁 Show/Hide` password visibility toggle (`#btn-toggle-apikey-vis`) to inspect or conceal private keys securely.
+     - Instant reactive auto-saving on `input`, `change`, and `paste` events directly to browser `localStorage` (`angband3d_llm_key`), with instant visual confirmation badge (`#chronicle-apikey-status`: `"✓ Saved (Browser LocalStorage)"`). Keys never touch third-party servers.
+     - Dedicated "Done & Save" button (`#btn-chronicle-settings-save`) properly persisting configuration, updating UI state, and closing the modal.
+     - Wired "Test Connection" button (`#btn-chronicle-test-llm`) to `this.llm.testConnection()`, testing LLM connectivity live with feedback.
+   - **Prominent Aged & Venerable Voice Suite & Quick Selector (`server.js`, `index.html`, `chronicle-audio.js`, `chronicle-manager.js`)**:
+     - Added quick voice selector directly in the Chronicle header controls (`#chronicle-quick-voice`) for immediate 1-click voice changes during play or reading.
+     - Curated and integrated **👴 Venerable & Aged Chroniclers** suite:
+       - **Roger** (`en-US-RogerNeural` — Aged, grizzled archivist with a raspy elder timbre)
+       - **Brian** (`en-US-BrianNeural` — Venerable, gravelly scholar steeped in ancient annals)
+       - **William** (`en-AU-WilliamMultilingualNeural` — Deep, resonant antiquarian narrator)
+       - **Clara** (`en-CA-ClaraNeural` — Elderly, wise matriarch of lost lore)
+       - **Steffan** (`en-US-SteffanNeural` — Weathered, raspy veteran chronicler)
+     - Added working "Audition Voice" button (`#btn-chronicle-test-voice`) playing sample high-fantasy prose in the selected voice with visual status feedback.
+     - Real-time bi-directional synchronization between the Tome toolbar quick selector and the settings modal selector.
+   - **Resilient Audio Playback State Machine & Click-to-Seek Precision (`chronicle-manager.js`)**:
+     - Solved the pause/resume loop death spiral via active `this.isSpeakingBeat` tracking: resuming playback immediately launches `_playNextBeat(sessionId)` if an utterance finished while paused, ensuring uninterrupted story playback.
+     - Solved "Play From Here" seeking offsets by calculating `pIdx` based on actual paragraph indices (`currentChapter.paragraphs.length - 1`) and adding regex parsing `chronicle-beat-(\d+)-(\d+)` to resolve exact beats.
+     - Unified Play, Pause, Resume, Stop (`⏹`), Rewind (`⏮`), and Forward (`⏭`) controls with visual active narration (`.narrating-active`) and paused cursor selection (`.narrating-selected`).
+   - **Gemini 3.8 Flash GA & Free Tier Integration (`chronicle-llm.js`, `index.html`, `chronicle.css`)**:
+     - Upgraded default Google Gemini model from deprecated `gemini-2.5-flash` (which Google shut down with 404) to **`gemini-3.8-flash`** (GA, free of charge on Google AI Studio Free Tier).
+     - Implemented automatic migration: any client `localStorage` containing legacy `gemini-2.5-flash` or `1.5-flash` auto-upgrades to `gemini-3.8-flash` on launch or settings open.
+     - Stripped deprecated `temperature` sampling parameter on Gemini 3+ models and introduced `thinkingConfig: { thinkingLevel: 'LOW' }` for lightning-fast latency, high reasoning quality, and minimal token cost.
+     - Added thought token filtering (`!part.thought`) ensuring candidate extraction cleanly targets final narrative text.
+     - Added quick one-click Model Preset chips (`✨ Gemini 3.8 Flash (Free Tier)`, `⚡ Gemini 3.5 Flash-Lite (Fast Free)`, `🪙 GPT-4o-mini`, `🦅 Claude 3.5 Haiku`) with direct Google AI Studio free key documentation link.
+   - **Verification**: 100% verified passing across all 20 automated test phases in `tools/test_chronicle.js`, `python tools/smoke_test.py` (11/11 tests), and `dotnet build client/angband3d.csproj` (0 warnings, 0 errors). Live server daemon running on `http://localhost:8080`.
+
+1. **The Living Chronicle & Voiced Lorekeeper (Version 2.5.0 — Seamless Audio Playback State Machine, Immediate Stop, Rewind, and Click-to-Seek)**:
+   - **Play from Current Location ("Where We Are")**:
+     - `playStoryFrom()` defaults to `this.currentBeatIndex` rather than restarting from 0, preserving the player's listening cursor across sessions, stops, and interactions.
+     - Paused state seamlessly resumes in-place without restarting the current sentence.
+   - **Immediate Stop & Session Invalidation (`chronicle-manager.js`, `chronicle-audio.js`)**:
+     - Dedicated Stop button (`#btn-chronicle-stop` / `⏹`) halts audio instantly, cancels active speech synthesis, resets audio elements, and clears visual `.narrating-active` highlights while preserving the playback cursor.
+     - Introduced monotonic `playbackSessionId` token check in `_playNextBeat(sessionId)` ensuring cancelled, stopped, or rewound loops immediately bail out with zero double-speech or async race conditions.
+     - `stopSpeaking()` unblocks pending audio promises cleanly with `{ aborted: true }` and cancels scheduled cadence timers (`_pauseTimeout`), eliminating lingering vocal overlay.
+   - **Smart Rewind & Forward Controls (`chronicle-manager.js`, `index.html`)**:
+     - Added Rewind (`#btn-chronicle-rewind` / `⏮`) and Forward (`#btn-chronicle-forward` / `⏭`) buttons to the toolbar with keyboard shortcuts (`Shift+Left`, `Shift+Right`, `Space` for Play/Pause).
+     - Context-aware rewind logic: if audio has played >2.0s into the current beat, it restarts the current paragraph from the beginning; if <=2.0s elapsed (or clicked repeatedly), it rewinds to the previous beat (`currentBeatIndex - 1`) and begins playback immediately.
+   - **Click-to-Seek Paragraph Navigation (`chronicle-manager.js`, `chronicle.css`)**:
+     - Clicking on any paragraph block (`.chapter-lead-block`, `.flowing-paragraph-block`) or chapter header instantly seeks playback to that point, updating the cursor and active highlight.
+     - Added `.narrating-selected` dashed gold styling to clearly display the active playback cursor when paused or stopped.
+   - **Verification**: 100% verified passing across all 17 automated test phases in `tools/test_chronicle.js` and `python tools/smoke_test.py` (11/11 tests). Live server daemon running on `http://localhost:8080`.
+
+1. **The Living Chronicle & Voiced Lorekeeper (Version 2.4.0 — 3D Model Sex Matching, Zero Vocal Overlay, Divine/Arcane Mastery & Progressive Dialogue)**:
+   - **3D Model Sex & Gender Synchronization (`dungeon3d.js`, `chronicle-grounder.js`)**:
+     - Synchronized 3D character rigs, neural speech voices, and narrative prose. `resolveMonsterModelConfig` in `dungeon3d.js` determines gender deterministically and attaches appropriate 3D models (e.g. `Casual.gltf` with warrior sword & shield for female veterans/mercenaries, `Witch.gltf` for female casters) and tags monster instances with `m.modelGender` and `m.modelKey`.
+     - `detectCreatureGender` prioritizes authoritative 3D model metadata (`m.modelGender`, `m.modelKey`) and explicit female qualifiers (`female veteran`, `woman warrior`) before generic titles.
+     - Added comprehensive female voice pools for all archetypes (female veterans receive seasoned, weathered military voices: `en-AU-NatashaNeural`, `en-US-AriaNeural`, `en-GB-SoniaNeural`).
+     - Added `getPronouns(gender)` helper so story prose and dialogue seamlessly adopt gendered pronouns (`she/he`, `her/him`, `battle-scarred swordswoman/battle-scarred veteran`).
+   - **Zero Vocal Overlay Architecture (`chronicle-audio.js`, `chronicle-manager.js`)**:
+     - Completely eliminated overlapping voices during live gameplay and audiobook playback.
+     - `speak(text, dialogue)` returns a `Promise` that strictly resolves ONLY when both narrator prose and creature dialogue finish playing.
+     - `_playNextBeat()` awaits this Promise sequentially, guaranteeing beat 1 completes before beat 2 begins.
+     - In live gameplay, multi-event frames drain all story chapters/paragraphs into the chronicle text, but gate audio speech to the single most significant event of the turn, cleanly stopping prior speech without overlap. Added a 220ms cadence pause between narration and creature barks.
+   - **Spells, Prayers, Runes & Level Up Lockstep (`chronicle-filter.js`, `chronicle-grounder.js`)**:
+     - Added regexes and event handling for canonical Angband study messages: `"You have learned the (prayer|spell|ritual|rune) of <Name>."` emitting `SPELL_LEARNED`, and `"Welcome to level N."` emitting `LEVEL_UP`.
+     - Procedural chapters generate rich, tradition-aware lore: divine communion with the Valar for prayers, arcane illuminations for spells, ancient Khuzdul forge secrets for runes, and triumphant level-up milestones.
+   - **Non-Repeating Progressive Dialogue Aligned with Alignment (`chronicle-grounder.js`)**:
+     - Replaced static, duplicate strings in `CREATURE_INSULT`, `CREATURE_BEG`, `CREATURE_THEFT`, and barks with dynamic 6-tier progressive dialogue pools indexed by encounter counters (`_encounterCounters`).
+     - Aligned dialogues to creature dispositions: friendly townspeople offer warm advice and blessings; aggressive veterans sneer, size up armor, and warn of deep horrors; desperate beggars plead and whisper dungeon rumors.
+   - **Verification**: 100% verified passing across all 16 automated test phases in `tools/test_chronicle.js`, `python tools/smoke_test.py` (11/11 tests), and `dotnet build client/angband3d.csproj` (0 warnings, 0 errors). Live server daemon running on `http://localhost:8080`.
+   - **Universal Contextual Creature Taxonomy & Non-Vocal Onomatopoeia (`chronicle-grounder.js` & `chronicle-manager.js`)**:
+     - Built exhaustive canonical Angband archetype classification spanning 19 creature families:
+       - **Sentient Vocal Humanoids**: Rogues/Thieves/Cutpurses, Townsfolk/Merchants, Orcs/Goblins/Uruks, Kobolds/Troglodytes, Evil Spellcasters (cultists, necromancers, mages), High Sentient Undead (wights, wraiths, vampires, liches, nazgul), Dragons/Drakes/Wyrms, and Trolls/Ogres/Giants.
+       - **Non-Vocal Beasts & Monsters**: Canines (wolves, hounds, jackals, wargs, foxes), Felines (cats, panthers, tigers), Rodents (rats, mice), Arachnids & Insects (spiders, scorpions, centipedes, ticks, ants, beetles, fleas), Serpents/Reptiles/Worms (snakes, hydras, lizards, toads, frogs, worms), Avians & Bats, Mindless Slimes/Oozes/Molds/Vortices, Mindless Undead (skeletons, zombies, mummies, bone golems), Constructs/Golems, and Elementals/Sparks.
+     - **Vocal vs Non-Vocal Separation**: Sentient creatures speak diegetic English dialogue, battle barks, and pleas. Non-vocal beasts emit contextual sound descriptions and onomatopoeia in the chronicle log (e.g. `*Snarls: Grrrrr-bark!*`, `*Clicks pedipalps: tsk-tsk-click...*`, `*Clatters dry bones: Clack-clack-clatter!*`, `*Squelches wetly: glub-blub!*`).
+     - **TTS Audio Guarding (`chronicle-audio.js`)**: Guarded speech synthesis with `!dialogue.isNoise` so animal onomatopoeia and sound descriptions are displayed atmospherically in the text without jarring, robotic spoken English synthesis.
+     - **Sleeping State Observational Block**: When any creature (including merchants, rogues, orcs, or beasts) is asleep, waking conversation is strictly blocked with contextual snoring/sleeping observations (`"The Aimless-looking merchant slumps against a stack of crates, sound asleep... It cannot converse while asleep."`).
+     - **Real-Time Combat & Assault Awareness**: Interaction dialogue dynamically adapts based on damage deltas, player attack messages (`frame.messages`), and assailant actions (`steals`, `bites`, `claws`, `crushes`, `casts`, `breathes`), replacing peaceful greetings with desperate pleas, panicked town alarms (`"Madman! Town guards, murder in the streets!"`), or vicious counter-threats.
+   - **Flowing Narrative Paragraphs & Kill Deduplication (`chronicle-filter.js`, `chronicle-store.js`, `chronicle-manager.js`)**:
+     - Minor combat exchanges and routine kills (e.g. Novice idiot, cave spider) no longer spawn disruptive new chapter headers. Instead, they seamlessly append as flowing narrative paragraphs (`.flowing-paragraph-block`) within the active chapter card.
+     - Eliminated historical log replay bug via suffix-overlap matching against running engine message buffers and one-time consumed kill event dequeueing (`pendingKills.shift()`).
+   - **Multi-LLM BYOK Engine (`chronicle-llm.js` & `index.html`)**:
+     - In-browser Bring-Your-Own-Key provider adapter supporting Google Gemini (2.5 Flash, 1.5 Flash), OpenAI (GPT-4o, GPT-4o-mini), Anthropic Claude (3.5 Haiku, 3.5 Sonnet), and Local/OpenRouter (Ollama, LM Studio).
+     - Provider-aware prompt engineering, timeout abort controllers (10s), live connection test button in Tome Settings modal (`⚙`), and 100% offline procedural fallback if no key is entered.
+   - **3D Click-to-Talk Creature Interaction (`dungeon3d.js`, `input.js`, `chronicle-manager.js`)**:
+     - Three.js screen coordinate raycasting (`getMonsterAtScreenCoords`) detects creature mesh/proximity clicks.
+     - Clicking any creature plays its voiced bark or noise, grounds its emotional/physical state (sleeping beasts snore, fleeing orcs plead, panicked merchants scream for guards, wounded wolves yelp, spiders click pedipalps), targets the creature in `#chronicle-interactive-bar` with a target pill (`[@ Creature ✕]`), and routes typed or voiced (`[🎙]`) queries directly to it.
+   - **Master Audiobook Voice Suite, 96kbps Studio Fidelity & Curated Regional Mix (`server.js` & `chronicle-audio.js`)**:
+     - Dedicated `/api/tts` endpoint powered by Microsoft Edge Neural Speech (`msedge-tts`) with LRU audio caching (`X-TTS-Cache: HIT/MISS`) streaming pristine 96kbps mono MP3 audio (`AUDIO_24KHZ_96KBITRATE_MONO_MP3`).
+     - Purged artificial pitch shifting (`pitch: "+0Hz"`, `rate: "+0%"`) to eliminate vocal fry and metallic artifacts, allowing Microsoft Edge's neural vocoder to use natural actor formants, human micro-inflections, and crystal-clear diction.
+     - Curated master vocal mix spanning British, Celtic, and American master storytellers:
+       - **British Masters**: **Ryan** (`en-GB-RyanNeural`, default — theatrical, dramatic Tolkien narrator), **Sonia** (`en-GB-SoniaNeural` — lyrical, majestic, high-fantasy lorekeeper), **Thomas** (`en-GB-ThomasNeural` — warm, fireside chronicler), **Libby** (`en-GB-LibbyNeural` — gentle, contemplative storyteller).
+       - **Celtic & Bardic**: **Connor** (`en-IE-ConnorNeural` — bardic, mythological fireside timbre), **Emily** (`en-IE-EmilyNeural` — poetic, lilting folklore cadence).
+       - **American Masters**: **Christopher** (`en-US-ChristopherNeural` — deep, resonant classic fantasy baritone), **Guy** (`en-US-GuyNeural` — warm, captivating, highly expressive), **Jenny** (`en-US-JennyNeural` — crystalline, evocative female narrator), **Aria** (`en-US-AriaNeural` — dynamic emotional range and clarity), **Roger** (`en-US-RogerNeural` — weathered veteran scholar and battle-hardened warrior).
+     - **In-Game Voice Selector & "▶ Audition Voice" Button**: Configured in Tome Settings modal (`⚙`), organized into `<optgroup>` categories (British, Celtic, American) allowing instant sample auditioning.
+     - Web Audio resampler locked to `playbackRate = 1.0` at 1x speed to eliminate browser pitch warping.
+   - **Character Instance Isolation & Manual Import Resume (`chronicle-manager.js` & `chronicle-store.js`)**:
+     - Chronicle text and chapters start completely fresh for every new character run or upon hero death (`phase === 'death'`).
+     - Engine hero signature comparison (`name:race:class:sex`) detects character creation, re-rolls, or deaths: clears UI DOM list and instantiates a pristine chronicle attuned to the new hero's lineage.
+     - In-flight playthroughs seamlessly pick up where the player left off across frames and page refreshes.
+     - Previous characters' chronicles are only resumed if explicitly loaded in by the player via the Tome's `[📂 Import]` button (`isManuallyImported: true`).
+   - **Single Floating Draggable/Resizable Tome Window (`#chronicle-window`)**:
+     - Built using `makeWindowDraggableAndResizable()`, featuring drag header, resize handle, persistent coordinates in `localStorage`, minimize toggle, and navbar `[📖 Tome]` button / `Alt+C` hotkey.
+   - **Strict Grounding & 4th-Wall Aware Diegetic Guide (`chronicle-grounder.js`)**:
+     - Zero AI hallucination: constructs fact-sheets directly from `frame.player`, `frame.monsters`, and `frame.map`.
+     - Three Canon Literary Traditions of Arda: The Annals of the Noldor, The Red Book of Westmarch, and The Record of Khazad-Dûm.
+     - Full 7-chapter Angband3D survival guide corpus for game mechanics, commands (`q`, `R`, `m`, `w`), menus, touch controls, and CRT terminal (`Tab`).
+   - **Verification**: Verified 100% passing across `tools/test_chronicle.js` (10/10 phases), `python tools/smoke_test.py` (11/11 tests), and `dotnet build client/angband3d.csproj` (0 warnings, 0 errors). Live `/api/tts` endpoint verified with cache HIT/MISS.
+
+1. **Production Major Release (v2.0.0 Completed & Deployed)**:
    - **ThunderbearStudios Organization & Multi-Platform Parity (v2.0.0)**:
      - Fully migrated all references, documentation, package scripts, and download redirects to official organization home `https://github.com/ThunderbearStudios/angband3d`.
      - Integrated humble server traffic advisory banners in web splash screen, main menu header, and download dialog, transparently communicating cloud capacity limits and encouraging players to download standalone desktop/Android offline builds for 60+ FPS performance.

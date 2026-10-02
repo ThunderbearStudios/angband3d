@@ -134,6 +134,27 @@ Whenever complex interaction is needed (rolling stats at birth, browsing invento
 * **Frictionless Portability**: Export your hero with a single click from the web pause menu (`Esc` -> `Export Save`), load it into your native desktop client for 120 FPS boss fights, or import it to Android for travel.
 * **Play Your Way**: Permadeath purists can play with strict ironman finality, while explorers learning Angband's punishing 5000ft dungeon mechanics can back up and duplicate character files freely.
 
+### 8. The Living Chronicle & Voiced Lorekeeper (BYOK Multi-LLM Saga Engine)
+Angband 3D transforms raw ASCII combat telemetry into a living, spoken Tolkien chronicle that records your saga in real time:
+* **Three Literary Traditions of Arda**:
+  * *The Red Book of Westmarch*: Grounded mortal courage, humble hearths, and the lingering shadow of Mordor (Heroic Men & Hobbits).
+  * *The Annals of the Noldor*: High elven nobility, sorrow of the Silmarils, and ancient starlight (Poetic & Elegiac).
+  * *The Record of Khazad-Dûm*: Unyielding dwarven stonecraft, deep vaults, and ancient blood-feuds (Dwarven Stone-Annals).
+* **Deterministic 3D Visual Gender Synchronization**:
+  * 3D scene entity inspection dynamically inspects rendered meshes (e.g. `Casual.gltf`) and strictly dictates narrative pronouns (`she/her/herself`), character descriptions, and vocal profiles with zero gender hallucinations.
+* **Zero API Key Exposure Security Model**:
+  * **Masked Password Field**: API keys are permanently shielded in masked password inputs (`type="password"`) with zero plain-text DOM exposure.
+  * **Header-Based Authentication**: Google Gemini requests transmit credentials strictly via the `x-goog-api-key` HTTP header, eliminating sensitive keys from URL query strings, browser history, server logs, or referrer headers.
+  * **Client-Only Persistence**: Keys are stored strictly in client browser `localStorage` and never transmitted to third parties or logged on disk.
+* **Strict Free-Tier Limiter & Automatic Model Failover**:
+  * **Permanent Rate-Limit Protection**: A non-bypassable sliding-window rate limiter enforces a strict 10 requests/minute ceiling to protect players against unexpected costs.
+  * **Confirmed Working Model Cascade**: Upon encountering rate limits (10 RPM) or HTTP 429 quota exhaustion, the engine automatically and transparently steps down through confirmed working stable Gemini models in descending capability order:
+    `gemini-3.8-flash` &rarr; `gemini-3.7-flash` &rarr; `gemini-3.6-flash` &rarr; `gemini-3.5-flash` &rarr; `gemini-3.5-flash-lite` &rarr; `gemini-3.1-flash-lite` &rarr; `gemini-2.5-flash` &rarr; `gemini-2.5-flash-lite`.
+  * **Zero-Downtime Offline Fallback**: If all external models are exhausted, the engine falls back to built-in offline procedural lore with 0ms latency and zero gameplay disruption.
+* **Voiced Lorekeeper & 4th-Wall Survival Guide**:
+  * Multi-voice speech narration with playback timeline controls, speed multipliers (1.0x, 1.25x, 1.5x), and click-to-seek beat navigation.
+  * Diegetic survival guide Q&A answering 16 core gameplay topics (resting, potions, spells, shops, hunger, classic terminal keys) directly in character.
+
 ---
 
 ## ⌨️ Controls Reference

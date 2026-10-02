@@ -3902,58 +3902,81 @@ class Dungeon3D {
         }
     }
 
-    resolveMonsterModelConfig(glyph, rawName) {
+    resolveMonsterModelConfig(glyph, rawName, monsterInstance = null) {
         const name = (rawName || '').toLowerCase();
+
+        // 1. Determine Model & Biological Sex for Humanoid / Townsfolk Entities
+        const isExplicitFemale = /\b(female|woman|lady|maiden|crone|hag|witch|priestess|sorceress|enchantress|temptress|mistress|matron|siren|harpy|nymph|dryad|medusa|gorgon|banshee|shelob|thuringwethil|ungoliant|lobelia|maid|girl|princess|duchess|daughter|mother|sister|wife|vixen)\b/i.test(name);
+        const isExplicitMale = /\b(king|prince|lord|patriarch|emperor|baron|warlock|father|brother|boy|son|husband)\b/i.test(name);
+        
+        let gender = 'male';
+        if (monsterInstance && (monsterInstance.modelGender || monsterInstance.gender || monsterInstance.sex)) {
+            const rawG = String(monsterInstance.modelGender || monsterInstance.gender || monsterInstance.sex).toLowerCase();
+            gender = rawG.startsWith('f') ? 'female' : 'male';
+        } else if (isExplicitFemale) {
+            gender = 'female';
+        } else if (isExplicitMale) {
+            gender = 'male';
+        } else if (glyph === 't' || glyph === 'h' || glyph === 'p') {
+            // Balanced, deterministic 50/50 gender distribution for townsfolk and humanoids
+            const mId = monsterInstance && monsterInstance.id ? monsterInstance.id : 0;
+            const mX = monsterInstance && monsterInstance.x ? monsterInstance.x : 0;
+            const mY = monsterInstance && monsterInstance.y ? monsterInstance.y : 0;
+            const seed = Math.abs(name.length * 31 + mId * 17 + mX * 23 + mY * 19);
+            gender = (seed % 2 === 0) ? 'female' : 'male';
+        }
 
         // 1. Townsfolk (t)
         if (glyph === 't') {
-            let modelKey = 'farmer';
-            if (name.includes('female') || name.includes('woman') || name.includes('lady') || name.includes('maiden') || name.includes('wench') || name.includes('maid') || name.includes('damsel')) {
-                modelKey = 'casual';
-            } else if (name.includes('merchant') || name.includes('shopkeeper') || name.includes('innkeeper') || name.includes('clerk') || name.includes('crier') || name.includes('scribe')) {
-                modelKey = 'formal';
+            let modelKey = (gender === 'female') ? 'casual' : 'farmer';
+            let role = 'unarmed';
+
+            if (name.includes('merchant') || name.includes('shopkeeper') || name.includes('innkeeper') || name.includes('clerk') || name.includes('crier') || name.includes('scribe')) {
+                modelKey = (gender === 'female') ? 'casual' : 'formal';
             } else if (name.includes('worker') || name.includes('smith') || name.includes('miner') || name.includes('artisan') || name.includes('craftsman') || name.includes('butcher') || name.includes('baker') || name.includes('cook')) {
-                modelKey = 'worker';
+                modelKey = (gender === 'female') ? 'casual' : 'worker';
             } else if (name.includes('mercenary') || name.includes('veteran') || name.includes('rogue') || name.includes('scoundrel') || name.includes('brawler')) {
-                modelKey = 'adventurer';
+                modelKey = (gender === 'female') ? 'casual' : 'adventurer';
+                role = (name.includes('veteran') || name.includes('mercenary')) ? 'warrior' : 'rogue';
             } else if (name.includes('beggar') || name.includes('leper') || name.includes('urchin') || name.includes('idiot') || name.includes('hermit') || name.includes('drunk') || name.includes('peasant') || name.includes('wretch') || name.includes('farmer')) {
-                modelKey = 'farmer';
+                modelKey = (gender === 'female') ? 'casual' : 'farmer';
             }
-            let scale = 0.88;
+
+            let scale = (gender === 'female') ? 0.88 : 0.90;
             if (name.includes('dwarf') || name.includes('hobbit') || name.includes('gnome') || name.includes('halfling')) {
                 scale = 0.65;
             }
-            return { templateKey: modelKey, scale, role: 'unarmed', isFloating: false, isEthereal: false };
+            return { templateKey: modelKey, scale, role: role, gender: gender, isFloating: false, isEthereal: false };
         }
 
         // 2. Humanoids (h) and People / Adventurers (p)
         if (glyph === 'h' || glyph === 'p') {
-            let scale = 0.95;
+            let scale = (gender === 'female') ? 0.90 : 0.95;
             if (name.includes('dwarf') || name.includes('hobbit') || name.includes('gnome') || name.includes('halfling') || name.includes('leprechaun')) {
                 scale = 0.65;
             } else if (name.includes('elf') || name.includes('ranger') || name.includes('dunedain')) {
-                scale = 0.98;
+                scale = (gender === 'female') ? 0.92 : 0.98;
             }
 
             if (name.includes('knight') || name.includes('paladin') || name.includes('veteran') || name.includes('warrior') || name.includes('soldier') || name.includes('guard') || name.includes('captain') || name.includes('fighter') || name.includes('champion') || name.includes('swordsman') || name.includes('centurion') || name.includes('lord') || name.includes('templar')) {
-                return { templateKey: 'medieval', scale, role: 'warrior', isFloating: false, isEthereal: false };
+                return { templateKey: (gender === 'female') ? 'casual' : 'medieval', scale, role: 'warrior', gender, isFloating: false, isEthereal: false };
             }
             if (name.includes('archer') || name.includes('scout') || name.includes('sniper') || name.includes('tracker') || name.includes('marksman') || name.includes('bowman') || name.includes('hunter') || name.includes('ranger')) {
-                return { templateKey: 'adventurer', scale, role: 'archer', isFloating: false, isEthereal: false };
+                return { templateKey: (gender === 'female') ? 'casual' : 'adventurer', scale, role: 'archer', gender, isFloating: false, isEthereal: false };
             }
             if (name.includes('thief') || name.includes('rogue') || name.includes('burglar') || name.includes('assassin') || name.includes('cutpurse') || name.includes('bandit') || name.includes('brigand') || name.includes('ninja') || name.includes('scoundrel')) {
-                return { templateKey: 'adventurer', scale, role: 'rogue', isFloating: false, isEthereal: false };
+                return { templateKey: (gender === 'female') ? 'casual' : 'adventurer', scale, role: 'rogue', gender, isFloating: false, isEthereal: false };
             }
             if (name.includes('peasant') || name.includes('drunkard') || name.includes('drunk') || name.includes('beggar') || name.includes('idiot') || name.includes('commoner') || name.includes('villager') || name.includes('leper') || name.includes('urchin') || name.includes('hermit') || name.includes('slave')) {
-                return { templateKey: 'farmer', scale: 0.90, role: 'unarmed', isFloating: false, isEthereal: false };
+                return { templateKey: (gender === 'female') ? 'casual' : 'farmer', scale: 0.90, role: 'unarmed', gender, isFloating: false, isEthereal: false };
             }
             if (name.includes('barbarian') || name.includes('mercenary') || name.includes('gladiator') || name.includes('berserker') || name.includes('bouncer') || name.includes('ruffian') || name.includes('brute')) {
-                return { templateKey: 'punk', scale: 1.0, role: 'barbarian', isFloating: false, isEthereal: false };
+                return { templateKey: (gender === 'female') ? 'casual' : 'punk', scale: 1.0, role: 'barbarian', gender, isFloating: false, isEthereal: false };
             }
             if (name.includes('mage') || name.includes('wizard') || name.includes('warlock') || name.includes('sorcerer') || name.includes('alchemist') || name.includes('scholar') || name.includes('priest') || name.includes('cleric') || name.includes('sage') || name.includes('cultist') || name.includes('druid') || name.includes('seer') || name.includes('shaman') || name.includes('necromancer')) {
-                return { templateKey: 'witch', scale: 0.92, role: 'mage', isFloating: false, isEthereal: false };
+                return { templateKey: 'witch', scale: 0.92, role: 'mage', gender, isFloating: false, isEthereal: false };
             }
-            return { templateKey: 'adventurer', scale, role: 'warrior', isFloating: false, isEthereal: false };
+            return { templateKey: (gender === 'female') ? 'casual' : 'adventurer', scale, role: 'warrior', gender, isFloating: false, isEthereal: false };
         }
 
         // 3. Orcs, Goblins, Snagas, Uruks (o)
@@ -4270,10 +4293,17 @@ class Dungeon3D {
         const race = (m.race || m.name || '').toLowerCase();
         const colorHex = getAngbandColorString(m.attr);
 
-        const config = this.resolveMonsterModelConfig(glyph, m.race || m.name);
+        const config = this.resolveMonsterModelConfig(glyph, m.race || m.name, m);
         let mesh = null;
         let modelHeight = 1.25;
         let isFloating = false;
+
+        if (config) {
+            m.modelGender = config.gender || 'male';
+            m.gender = config.gender || 'male';
+            m.modelKey = config.templateKey;
+            m.isFemale = (config.gender === 'female' || config.templateKey === 'casual' || config.templateKey === 'witch');
+        }
 
         if (config && this.monsterTemplates && this.monsterTemplates.has(config.templateKey)) {
             const tmplData = this.monsterTemplates.get(config.templateKey);
@@ -4327,10 +4357,34 @@ class Dungeon3D {
         root.modelHeight = modelHeight;
         root.isFloating = isFloating;
         root.config = config;
+        root.modelGender = (config && config.gender) ? config.gender : 'male';
+        root.modelKey = (config && config.templateKey) ? config.templateKey : null;
+        root.isFemale = (root.modelGender === 'female' || root.modelKey === 'casual' || root.modelKey === 'witch');
         root.isFallback = !config || !this.monsterTemplates || !this.monsterTemplates.has(config.templateKey);
         root.colorHex = colorHex;
         root.glyph = glyph;
         root.race = m.race || m.name || '';
+        root.monsterData = m;
+
+        // Propagate model metadata to m instance
+        m.modelGender = root.modelGender;
+        m.gender = root.modelGender;
+        m.modelKey = root.modelKey;
+        m.isFemale = root.isFemale;
+
+        // Traverse mesh hierarchy to tag every sub-mesh for raycasting
+        if (mesh) {
+            mesh.monsterData = m;
+            mesh.modelGender = root.modelGender;
+            mesh.modelKey = root.modelKey;
+            mesh.isFemale = root.isFemale;
+            mesh.traverse(child => {
+                child.monsterData = m;
+                child.modelGender = root.modelGender;
+                child.modelKey = root.modelKey;
+                child.isFemale = root.isFemale;
+            });
+        }
 
         // Sensed / Invisible Foggy Misty Aura (depicts invisible or dark unlit sensed creatures)
         const foggyAura = this.createFoggyMonsterAura(glyph, m.race || m.name, colorHex, modelHeight, isFloating);
@@ -4342,6 +4396,7 @@ class Dungeon3D {
         // Overhead Billboarding Nameplate & Health Bar (always clear of creature model with generous margin)
         const nameplate = this.createNameplateSprite(m, isTargeted);
         nameplate.position.set(0, modelHeight + 0.42, 0);
+        nameplate.monsterData = m;
         root.add(nameplate);
         root.nameplate = nameplate;
 
@@ -4358,6 +4413,12 @@ class Dungeon3D {
         const outdoors = depth === 0;
 
         monsters.forEach(m => {
+            m.name = m.name || m.race || 'creature';
+            m.asleep = !!(m.asleep || m.is_asleep || m.sleeping || (m.csleep > 0));
+            m.afraid = !!(m.afraid || m.is_fleeing);
+            m.confused = !!(m.confused || m.is_confused);
+            m.stunned = !!(m.stunned || m.is_stunned);
+
             const id = m.id !== undefined ? m.id.toString() : `${m.x}_${m.y}_${m.glyph}`;
             activeIds.add(id);
             const isTargeted = (targetId && targetId === id);
@@ -4383,11 +4444,20 @@ class Dungeon3D {
                 entity.position.set(wx, baseY, wz);
                 entity.targetPos = new THREE.Vector3(wx, baseY, wz);
                 entity.lastHp = m.hp;
+                entity.initialHp = m.hp_max || m.hp;
                 entity.lastSensed = isSensed;
+                entity.monsterData = m;
                 this.scene.add(entity);
                 this.monsters.set(id, entity);
             } else {
                 entity.targetPos.set(wx, baseY, wz);
+                if (entity.config) {
+                    m.modelGender = entity.config.gender || 'male';
+                    m.gender = entity.config.gender || 'male';
+                    m.modelKey = entity.config.templateKey;
+                    m.isFemale = (m.modelGender === 'female' || m.modelKey === 'casual' || m.modelKey === 'witch');
+                }
+                entity.monsterData = m;
 
                 // Auto-upgrade fallback mannequin entity to authentic GLTF/OBJ model once template has loaded!
                 if (entity.isFallback && entity.config && this.monsterTemplates && this.monsterTemplates.has(entity.config.templateKey)) {
@@ -4422,9 +4492,12 @@ class Dungeon3D {
                     }
                 }
 
-                // Monster HP delta tracking: Spawn floating damage numbers above entity head
+                // Monster HP delta tracking: Spawn floating damage numbers above entity head & flag attack state
                 if (entity.lastHp !== undefined && m.hp !== undefined && m.hp < entity.lastHp) {
                     const dmg = entity.lastHp - m.hp;
+                    entity.wasAttacked = true;
+                    entity.lastDamageTaken = dmg;
+                    entity.lastAttackedTime = Date.now();
                     const textPos = new THREE.Vector3(wx, entity.modelHeight + 0.55, wz);
                     this.spawnFloatingText(`-${dmg}`, textPos, '#ff9900', 1.20);
                     this.spawnHitSparks(new THREE.Vector3(wx, entity.modelHeight * 0.5, wz), getAngbandColorString(m.attr), 14);
@@ -4445,6 +4518,32 @@ class Dungeon3D {
                     entity.lastAsleep = m.asleep;
                     entity.lastAfraid = m.afraid;
                     entity.lastSensed = isSensed;
+                }
+            }
+
+            if (entity.wasAttacked) {
+                m.wasAttacked = true;
+                m.lastAttackedTime = entity.lastAttackedTime;
+                m.lastDamageTaken = entity.lastDamageTaken;
+            }
+            if (entity.initialHp && !m.hp_max) {
+                m.hp_max = entity.initialHp;
+            }
+            if (entity._interactTurn) {
+                m._interactTurn = entity._interactTurn;
+            }
+
+            entity.monsterData = m;
+
+            // Synchronize with active Chronicle dialogue target in real-time
+            if (window.chronicleManager && window.chronicleManager.targetedCreature) {
+                const cur = window.chronicleManager.targetedCreature;
+                if ((cur.id !== undefined && cur.id === m.id) || (cur.x === m.x && cur.y === m.y && cur.glyph === m.glyph)) {
+                    if (cur._interactTurn && (!m._interactTurn || cur._interactTurn > m._interactTurn)) {
+                        m._interactTurn = cur._interactTurn;
+                        entity._interactTurn = cur._interactTurn;
+                    }
+                    window.chronicleManager.targetedCreature = m;
                 }
             }
 
@@ -5150,6 +5249,71 @@ class Dungeon3D {
         }
 
         this.renderer.render(this.scene, this.camera);
+    }
+
+    /**
+     * Raycasts mouse/touch screen coordinates against active 3D monsters.
+     * Used for click-to-talk interactive creature dialogue in Living Chronicle.
+     */
+    getMonsterAtScreenCoords(clientX, clientY) {
+        if (!this.camera || !this.renderer || !this.monsters || this.monsters.size === 0) return null;
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+
+        const mouse = new THREE.Vector2(
+            ((clientX - rect.left) / rect.width) * 2 - 1,
+            -((clientY - rect.top) / rect.height) * 2 + 1
+        );
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, this.camera);
+
+        // 1. Direct mesh intersection
+        const candidates = [];
+        for (const entity of this.monsters.values()) {
+            if (entity.visible) candidates.push(entity);
+        }
+
+        if (candidates.length > 0) {
+            const intersects = raycaster.intersectObjects(candidates, true);
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj && !obj.monsterData && obj.parent) {
+                    obj = obj.parent;
+                }
+                if (obj && obj.monsterData) {
+                    const mData = obj.monsterData;
+                    if (obj.modelGender) mData.modelGender = obj.modelGender;
+                    if (obj.modelKey) mData.modelKey = obj.modelKey;
+                    if (obj.isFemale !== undefined) mData.isFemale = obj.isFemale;
+                    return mData;
+                }
+            }
+        }
+
+        // 2. Proximity check along ray (ensures responsive clicking even on slender models/nameplates)
+        let closestMonster = null;
+        let minRayDist = Infinity;
+        const ray = raycaster.ray;
+
+        for (const entity of this.monsters.values()) {
+            if (!entity.visible || !entity.monsterData) continue;
+            const center = entity.position.clone().add(new THREE.Vector3(0, (entity.modelHeight || 1.6) * 0.5, 0));
+            const distToRay = ray.distanceToPoint(center);
+            if (distToRay < 0.95) { // Within creature interaction sphere
+                const distAlongRay = ray.origin.distanceTo(center);
+                if (distAlongRay < minRayDist) {
+                    minRayDist = distAlongRay;
+                    const mData = entity.monsterData;
+                    if (entity.modelGender) mData.modelGender = entity.modelGender;
+                    if (entity.modelKey) mData.modelKey = entity.modelKey;
+                    if (entity.isFemale !== undefined) mData.isFemale = entity.isFemale;
+                    closestMonster = mData;
+                }
+            }
+        }
+
+        return closestMonster;
     }
 }
 

@@ -1329,6 +1329,14 @@ class InputController {
                     const turnDir = (totalDx > 0 ? 1 : -1);
                     this.dungeon.turn(turnDir);
                 }
+            } else if (elapsed < 380 && Math.abs(totalDx) < 18 && Math.abs(totalDy) < 18) {
+                // Single Click / Tap in 3D: Raycast against creatures for voice interaction
+                if (this.dungeon && typeof this.dungeon.getMonsterAtScreenCoords === 'function') {
+                    const monster = this.dungeon.getMonsterAtScreenCoords(finalX, finalY);
+                    if (monster && window.chronicleManager) {
+                        window.chronicleManager.interactWithCreature(monster);
+                    }
+                }
             }
         };
 
