@@ -8,6 +8,7 @@
     "test": "node test/server_test.js"
   },
   "dependencies": {
+    "msedge-tts": "^2.0.8",
     "ws": "^8.16.0"
   }
 }

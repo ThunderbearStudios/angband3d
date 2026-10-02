@@ -44,6 +44,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let network = (engineMode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
     const dungeon = new Dungeon3D('viewport-canvas');
+    window.dungeon = dungeon;
     const hud = new WebHUD('minimap-canvas');
 
     let forceTerminal = false;
@@ -643,11 +644,26 @@ window.addEventListener('DOMContentLoaded', () => {
         const msgHeader = document.getElementById('message-feed-header');
         const msgResize = document.getElementById('msg-resize-handle');
         makeWindowDraggableAndResizable(msgWin, msgHeader, msgResize, 'angband_msg', null);
+
+        // Initialize Living Chronicle Window Drag & Resize
+        const chronicleWin = document.getElementById('chronicle-window');
+        const chronicleHeader = document.getElementById('chronicle-header');
+        const chronicleResize = document.getElementById('chronicle-resize-handle');
+        makeWindowDraggableAndResizable(chronicleWin, chronicleHeader, chronicleResize, 'angband_chronicle', null);
     }
     setupDraggableAndResizableWindows();
 
     dungeon.audio = audio;
     hud.audio = audio;
+
+    // Initialize The Living Chronicle & Voiced Lorekeeper Coordinator
+    let chronicleManager = null;
+    if (typeof ChronicleManager !== 'undefined') {
+        chronicleManager = new ChronicleManager();
+        chronicleManager.init(dungeon, audio);
+        window.chronicleManager = chronicleManager;
+        window.dungeon = dungeon;
+    }
 
     const input = new InputController(network, dungeon, terminal, audio, toggleTerminalView);
     window.__app = {
@@ -3023,6 +3039,11 @@ window.addEventListener('DOMContentLoaded', () => {
             lastFrame = frame;
             if (window.__app) window.__app.lastFrame = frame;
             currentPhase = frame.phase || 'play';
+
+            // Dispatch to The Living Chronicle & Voiced Lorekeeper
+            if (window.chronicleManager) {
+                window.chronicleManager.onFrame(frame);
+            }
 
             // Automated quick-birth advancement
             if (quickBirthActive) {

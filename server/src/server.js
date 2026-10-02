@@ -13,9 +13,102 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 const zlib = require('zlib');
+const crypto = require('crypto');
+if (!globalThis.crypto) globalThis.crypto = crypto;
+
+let MsEdgeTTS, OUTPUT_FORMAT;
+try {
+    const ttsModule = require('msedge-tts');
+    MsEdgeTTS = ttsModule.MsEdgeTTS;
+    OUTPUT_FORMAT = ttsModule.OUTPUT_FORMAT;
+} catch (e) {
+    console.warn('[TTS] msedge-tts module not found, server-side neural TTS disabled:', e.message);
+}
 
 // Active session registry for telemetry, leak prevention, and graceful shutdown
 const activeSessions = new Map();
+
+// In-Memory Neural TTS Audio Cache (LRU up to 250 items to keep RAM tiny ~5MB)
+const ttsAudioCache = new Map();
+const MAX_TTS_CACHE_ITEMS = 250;
+
+const TTS_VOICE_MAP = {
+    // Curated British Masters & Bards
+    ryan: 'en-GB-RyanNeural',             // Theatrical, dramatic Tolkien narrator (NEW DEFAULT)
+    sonia: 'en-GB-SoniaNeural',           // Majestic, regal High-Elven queen / sorceress (Female)
+    libby: 'en-GB-LibbyNeural',           // Gentle, warm British folklore herbalist / townsfolk (Female)
+    maisie: 'en-GB-MaisieNeural',         // Young, high-spirited urchin / maid / eccentric babbler (Female)
+    thomas: 'en-GB-ThomasNeural',         // Vintage British fireside scholar / chronicler (Male)
+
+    // Celtic & Regional Bards
+    connor: 'en-IE-ConnorNeural',         // Vintage Celtic bard / tavern keeper (Male)
+    emily: 'en-IE-EmilyNeural',           // Lyrical, poetic Irish folklore female (Female)
+    natasha: 'en-AU-NatashaNeural',       // Bold, spirited adventurer / female rogue (Female)
+    clara: 'en-CA-ClaraNeural',           // Noble, serene priestess / maiden (Female)
+    liam: 'en-CA-LiamNeural',             // Bold, hearty frontier traveler (Male)
+    william: 'en-AU-WilliamMultilingualNeural', // Ancient lore-master & scholar (Male)
+
+    // American Characters & Powerhouse Vocals
+    christopher: 'en-US-ChristopherNeural', // Deep, resonant fantasy baritone / ancient wyrms / liches / mentors (Male)
+    roger: 'en-US-RogerNeural',           // Grizzled, weathered veteran / orc / mercenary (Male)
+    guy: 'en-US-GuyNeural',               // Warm, expressive, natural male adventurer (Male)
+    jenny: 'en-US-JennyNeural',           // Clear, melodic, evocative female adventurer (Female)
+    aria: 'en-US-AriaNeural',             // Intense, dramatic witch / dark cultist / harpy (Female)
+    steffan: 'en-US-SteffanNeural',       // Cunning, raspy alley cutthroat (Male)
+    brian: 'en-US-BrianNeural',           // Stalwart town guard / watchman (Male)
+    eric: 'en-US-EricNeural',             // Crisp, authoritative battlefield commander (Male)
+
+    // Contextual Role Mappings with Gender Awareness
+    narrator: 'en-GB-RyanNeural',         // Default: dramatic, theatrical Tolkien narrator
+    mentor: 'en-US-ChristopherNeural',    // Deep, ancient fantasy baritone sage & guide
+    idiot: 'en-GB-MaisieNeural',          // High-spirited, eccentric babbler & drooling vagrant
+    babbler: 'en-GB-MaisieNeural',
+    female_townsperson: 'en-GB-LibbyNeural',
+    male_townsperson: 'en-US-GuyNeural',
+    female_rogue: 'en-AU-NatashaNeural',
+    male_rogue: 'en-US-SteffanNeural',
+    female_spellcaster: 'en-US-AriaNeural',
+    male_spellcaster: 'en-US-ChristopherNeural',
+    rogue: 'en-US-SteffanNeural',         // Cunning, raspy cutthroat
+    merchant: 'en-US-GuyNeural',          // Warm, lively town merchant
+    townsperson: 'en-US-GuyNeural',       // Warm, natural townsman
+    veteran: 'en-US-RogerNeural',         // Weathered warrior
+    beggar: 'en-IE-ConnorNeural',         // Plaintive, raspy wanderer
+    orc: 'en-US-RogerNeural',             // Harsh, menacing combatant
+    dragon: 'en-US-ChristopherNeural',    // Deep, ancient draconic baritone
+    high_undead: 'en-US-ChristopherNeural', // Cold sepulchral resonance
+    creature: 'en-US-RogerNeural',        // Default dramatic creature voice
+    default: 'en-GB-RyanNeural'
+};
+
+// Safe Zero-Dependency .env Loader (Root and Server dirs)
+function loadEnv() {
+    const envPaths = [
+        path.resolve(__dirname, '../../.env'),
+        path.resolve(__dirname, '../.env'),
+        path.resolve(process.cwd(), '.env')
+    ];
+    for (const p of envPaths) {
+        if (fs.existsSync(p)) {
+            try {
+                const lines = fs.readFileSync(p, 'utf8').split('\n');
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed || trimmed.startsWith('#')) continue;
+                    const eqIdx = trimmed.indexOf('=');
+                    if (eqIdx !== -1) {
+                        const key = trimmed.substring(0, eqIdx).trim();
+                        const val = trimmed.substring(eqIdx + 1).trim().replace(/^['"]|['"]$/g, '');
+                        if (!process.env[key]) {
+                            process.env[key] = val;
+                        }
+                    }
+                }
+            } catch (_) {}
+        }
+    }
+}
+loadEnv();
 
 // Configuration
 const PORT = parseInt(process.env.PORT || '8080', 10);
@@ -302,6 +395,174 @@ const server = http.createServer((req, res) => {
             maxQueueSize: MAX_QUEUE_SIZE,
             version: '2.0.0'
         }));
+        return;
+    }
+
+    // REST: Safe LLM Configuration Provider (Exposes local key strictly to local browser sessions)
+    if (pathname === '/api/config/llm' && req.method === 'GET') {
+        const clientIp = req.socket.remoteAddress || '';
+        const host = req.headers.host || '';
+        const isLocal = clientIp === '127.0.0.1' || 
+                        clientIp === '::1' || 
+                        clientIp === '::ffff:127.0.0.1' ||
+                        host.includes('localhost') ||
+                        host.includes('127.0.0.1');
+        const apiKey = process.env.GEMINI_API_KEY || '';
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+        });
+        res.end(JSON.stringify({
+            hasKey: !!apiKey,
+            apiKey: isLocal ? apiKey : '',
+            defaultModel: 'gemini-3.8-flash',
+            provider: apiKey ? 'gemini' : 'offline'
+        }));
+        return;
+    }
+
+    // REST: Neural Text-To-Speech Narration & Barks (/api/tts?text=...&role=narrator|mentor|creature)
+    if (pathname === '/api/tts' && (req.method === 'GET' || req.method === 'HEAD')) {
+        if (req.method === 'HEAD') {
+            res.writeHead(200, { 'Content-Type': 'audio/mpeg' });
+            res.end();
+            return;
+        }
+        const text = (urlObj.searchParams.get('text') || '').trim();
+        const role = (urlObj.searchParams.get('role') || 'narrator').toLowerCase();
+
+        if (!text) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Missing text parameter' }));
+            return;
+        }
+
+        if (text.length > 800) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Text too long (max 800 characters)' }));
+            return;
+        }
+
+        // Resolve voice selection (supports alias, explicit neural voice, and gender modifier)
+        const reqVoice = (urlObj.searchParams.get('voice') || '').trim();
+        const reqGender = (urlObj.searchParams.get('gender') || '').toLowerCase().trim();
+        let voice = TTS_VOICE_MAP.default;
+        if (reqGender === 'female' && TTS_VOICE_MAP[`female_${role}`]) {
+            voice = TTS_VOICE_MAP[`female_${role}`];
+        } else if (reqGender === 'male' && TTS_VOICE_MAP[`male_${role}`]) {
+            voice = TTS_VOICE_MAP[`male_${role}`];
+        } else if (TTS_VOICE_MAP[role]) {
+            voice = TTS_VOICE_MAP[role];
+        }
+
+        if (reqVoice) {
+            const alias = reqVoice.toLowerCase();
+            if (TTS_VOICE_MAP[alias]) {
+                voice = TTS_VOICE_MAP[alias];
+            } else if ((reqVoice.startsWith('en-') || reqVoice.startsWith('ga-')) && reqVoice.endsWith('Neural')) {
+                voice = reqVoice;
+            }
+        }
+
+        console.log(`[TTS] Request: voice=${voice}, role=${role}, text="${text.substring(0, 60)}..."`);
+
+        // Calibrated Audiobook Prosody: Natural human timbre with subtle dramatic warmth
+        const reqPitch = urlObj.searchParams.get('pitch');
+        const reqRate = urlObj.searchParams.get('rate');
+
+        // Pure natural human prosody — eliminate artificial pitch shifting to prevent robotic vocoder artifacts
+        const defaultPitch = '+0Hz';
+        const defaultRate = '+0%';
+
+        const prosodyOptions = {
+            pitch: reqPitch || defaultPitch,
+            rate: reqRate || defaultRate,
+            volume: '100'
+        };
+
+        const cacheKey = `${voice}:${prosodyOptions.pitch}:${prosodyOptions.rate}:${text}`;
+
+        if (ttsAudioCache.has(cacheKey)) {
+            const cached = ttsAudioCache.get(cacheKey);
+            res.writeHead(200, {
+                'Content-Type': 'audio/mpeg',
+                'Content-Length': cached.length,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'X-TTS-Cache': 'HIT'
+            });
+            res.end(cached);
+            return;
+        }
+
+        if (!MsEdgeTTS) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Neural TTS engine unavailable' }));
+            return;
+        }
+
+        try {
+            const tts = new MsEdgeTTS();
+            let isClosed = false;
+            const closeTTS = () => {
+                if (!isClosed) {
+                    isClosed = true;
+                    try { tts.close(); } catch (_) {}
+                }
+            };
+
+            req.on('close', closeTTS);
+
+            tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3)
+                .then(() => {
+                    if (isClosed) return;
+                    const { audioStream } = tts.toStream(text, prosodyOptions);
+                    const chunks = [];
+
+                    audioStream.on('data', chunk => chunks.push(chunk));
+                    audioStream.on('end', () => {
+                        closeTTS();
+                        const buffer = Buffer.concat(chunks);
+                        if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {
+                            const oldestKey = ttsAudioCache.keys().next().value;
+                            ttsAudioCache.delete(oldestKey);
+                        }
+                        ttsAudioCache.set(cacheKey, buffer);
+
+                        if (!res.headersSent) {
+                            res.writeHead(200, {
+                                'Content-Type': 'audio/mpeg',
+                                'Content-Length': buffer.length,
+                                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                'X-TTS-Cache': 'MISS'
+                            });
+                            res.end(buffer);
+                        }
+                    });
+
+                    audioStream.on('error', err => {
+                        closeTTS();
+                        console.warn('[TTS] audioStream error:', err.message);
+                        if (!res.headersSent) {
+                            res.writeHead(500, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: err.message }));
+                        }
+                    });
+                })
+                .catch(err => {
+                    closeTTS();
+                    console.warn('[TTS] setMetadata failed:', err.message);
+                    if (!res.headersSent) {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: err.message }));
+                    }
+                });
+        } catch (err) {
+            console.warn('[TTS] TTS initialization failed:', err.message);
+            if (!res.headersSent) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        }
         return;
     }
 

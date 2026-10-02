@@ -15,6 +15,7 @@
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
     <link rel="stylesheet" href="/css/dungeon.css?v=7.3">
+    <link rel="stylesheet" href="/css/chronicle.css?v=7.3">
 </head>
 <body>
     <div id="app-container">
@@ -111,9 +112,101 @@
             <div id="msg-resize-handle" class="window-resize-handle" title="Drag to resize message log"></div>
         </div>
 
+        <!-- The Living Chronicle & Voiced Lorekeeper Window -->
+        <div id="chronicle-window" class="chronicle-window">
+            <div class="chronicle-header" id="chronicle-header" title="Drag header to move Living Chronicle">
+                <!-- Row 1: Title and Window Actions -->
+                <div class="chronicle-header-top">
+                    <div class="chronicle-title-wrap">
+                        <span class="chronicle-title">📖 LIVING CHRONICLE</span>
+                        <span id="chronicle-tradition-badge" class="chronicle-tradition-badge">Westmarch</span>
+                    </div>
+                    <div class="chronicle-window-actions">
+                        <button id="btn-chronicle-settings" class="chronicle-ctrl-btn" title="Chronicle Voices &amp; AI Settings [⚙]">⚙ Settings</button>
+                        <button id="btn-chronicle-expand" class="chronicle-ctrl-btn" title="Toggle Window Size">▲ Min</button>
+                        <button id="btn-chronicle-close" class="chronicle-ctrl-btn" title="Close Window [Alt+C]">✕ Hide</button>
+                    </div>
+                </div>
+                <!-- Row 2: Audiobook Transport Deck -->
+                <div class="chronicle-transport-deck">
+                    <div class="chronicle-transport-group">
+                        <button id="btn-chronicle-rewind" class="chronicle-ctrl-btn" title="Rewind to previous paragraph [Shift+Left]">⏮</button>
+                        <button id="btn-chronicle-play" class="chronicle-ctrl-btn chronicle-play-main-btn" title="Play / Pause Story from Current Beat [Space]">▶ Play</button>
+                        <button id="btn-chronicle-stop" class="chronicle-ctrl-btn" title="Stop Audio Playback">⏹</button>
+                        <button id="btn-chronicle-forward" class="chronicle-ctrl-btn" title="Skip to next paragraph [Shift+Right]">⏭</button>
+                    </div>
+                    <select id="chronicle-quick-voice" class="chronicle-voice-quick-select" title="Narrator Voice (Quick Switch)">
+                        <optgroup label="👴 Venerable &amp; Aged Chroniclers">
+                            <option value="en-US-RogerNeural">👴 Roger — Aged Archivist</option>
+                            <option value="en-US-BrianNeural">⚔️ Brian — Grizzled Veteran</option>
+                            <option value="en-AU-WilliamMultilingualNeural">📜 William — Ancient Lore-Master</option>
+                            <option value="en-CA-ClaraNeural">🧙 Clara — Ancient Seer</option>
+                            <option value="en-US-SteffanNeural">🕯️ Steffan — Dark Elder</option>
+                        </optgroup>
+                        <optgroup label="🎭 British Stage &amp; High Fantasy">
+                            <option value="en-GB-RyanNeural" selected>Ryan — Stage Narrator</option>
+                            <option value="en-GB-SoniaNeural">Sonia — High Fantasy Queen</option>
+                            <option value="en-GB-ThomasNeural">Thomas — Fireside Chronicler</option>
+                            <option value="en-GB-LibbyNeural">Libby — Gentle Lorekeeper</option>
+                            <option value="en-GB-MaisieNeural">Maisie — High-Spirited</option>
+                        </optgroup>
+                        <optgroup label="📜 Celtic &amp; Regional Bards">
+                            <option value="en-IE-ConnorNeural">Connor — Celtic Bard</option>
+                            <option value="en-IE-EmilyNeural">Emily — Irish Balladeer</option>
+                            <option value="en-CA-LiamNeural">Liam — Northern Scald</option>
+                            <option value="en-AU-NatashaNeural">Natasha — Heroic Reciter</option>
+                        </optgroup>
+                        <optgroup label="🇺🇸 Master American Storytellers">
+                            <option value="en-US-ChristopherNeural">Christopher — Deep Baritone</option>
+                            <option value="en-US-GuyNeural">Guy — Expressive Adventurer</option>
+                            <option value="en-US-EricNeural">Eric — Battlefield Commander</option>
+                            <option value="en-US-JennyNeural">Jenny — Crystal-Clear</option>
+                            <option value="en-US-AriaNeural">Aria — High Drama</option>
+                        </optgroup>
+                    </select>
+                    <div class="chronicle-audio-toggles">
+                        <button id="btn-chronicle-mute" class="chronicle-ctrl-btn" title="Toggle Voice Narration">🔇 Muted</button>
+                        <button id="btn-chronicle-speed" class="chronicle-ctrl-btn" title="Audiobook Speed (1.0x, 1.25x, 1.5x)">⚡ 1.0x</button>
+                    </div>
+                </div>
+            </div>
+            <div id="chronicle-scroll" class="chronicle-scroll">
+                <div id="chronicle-list" class="chronicle-list"></div>
+            </div>
+            <div class="chronicle-interactive-bar" id="chronicle-interactive-bar">
+                <div id="chronicle-target-pill" class="chronicle-target-pill hidden">
+                    <span id="chronicle-target-label">🗣️ Talking to: <b>Creature</b></span>
+                    <button id="btn-chronicle-clear-target" class="btn-clear-target" title="Clear Target">✕ Exit Chat</button>
+                </div>
+                <div class="chronicle-input-row">
+                    <input id="chronicle-query-input" class="chronicle-query-input" type="text" placeholder="Ask the Lorekeeper about keys, items, or tactics..." aria-label="Ask the Lorekeeper">
+                    <button id="btn-chronicle-mic" class="chronicle-mic-btn" title="Speech-to-Text Voice Input">🎙</button>
+                    <button id="btn-chronicle-send" class="chronicle-send-btn" title="Consult Lorekeeper">Consult ⏎</button>
+                </div>
+                <div class="chronicle-quick-topics">
+                    <span class="quick-topic-chip" data-query="How do I quaff potions?">🧪 Quaff</span>
+                    <span class="quick-topic-chip" data-query="How do I rest to heal?">💤 Rest</span>
+                    <span class="quick-topic-chip" data-query="How do shops work in town?">🏪 Shops</span>
+                    <span class="quick-topic-chip" data-query="Why is speed so important?">⚡ Speed</span>
+                    <span class="quick-topic-chip" data-query="How does the classic terminal view work?">💻 Terminal</span>
+                </div>
+            </div>
+            <div class="chronicle-footer" id="chronicle-footer">
+                <span id="chronicle-status-text">Chronicle Active</span>
+                <div class="chronicle-footer-actions">
+                    <button id="btn-chronicle-export-json" class="chronicle-footer-btn" title="Export raw .chronicle.json">💾 JSON</button>
+                    <button id="btn-chronicle-export-html" class="chronicle-footer-btn" title="Export illustrated standalone HTML book">📄 HTML Book</button>
+                    <button id="btn-chronicle-import" class="chronicle-footer-btn" title="Import chronicle file">📂 Import</button>
+                    <input type="file" id="chronicle-file-input" accept=".json" style="display: none;">
+                </div>
+            </div>
+            <div id="chronicle-resize-handle" class="window-resize-handle" title="Drag to resize chronicle window"></div>
+        </div>
+
         <!-- Top Right Telemetry & Controls -->
         <div id="top-right-bar">
             <div id="ping-badge" class="badge">Cloud [Connecting...]</div>
+            <button id="btn-toggle-chronicle" class="icon-btn in-game-only" title="Toggle The Living Chronicle Window [Alt+C]"><span class="chronicle-icon">📖</span> <span class="chronicle-label">Tome</span></button>
             <button id="btn-toggle-msg-feed" class="icon-btn in-game-only" title="Toggle Message Log Feed"><span class="msg-icon">📜</span> <span class="msg-label">Log</span></button>
             <button id="btn-toggle-minimap" class="icon-btn in-game-only" title="Toggle Minimap Radar"><span class="map-icon">🗺</span> <span class="map-label">Map</span></button>
             <button id="btn-toggle-dpad" class="icon-btn in-game-only" title="Toggle On-Screen D-Pad"><span class="dpad-icon">🕹</span> <span class="dpad-label">D-Pad</span></button>
@@ -915,6 +1008,171 @@
             </div>
         </div>
 
+        <!-- Chronicle Settings Modal -->
+        <div id="chronicle-settings-modal" class="hidden">
+            <div class="chronicle-settings-card">
+                <div class="chronicle-settings-header">
+                    <span class="chronicle-settings-title">⚙ TOME &amp; LOREKEEPER SETTINGS</span>
+                    <button id="btn-chronicle-settings-close" class="btn-guide-close" title="Close Settings">✕</button>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <div class="chronicle-settings-tabs">
+                    <button type="button" class="settings-tab-btn active" data-tab="voice">🎙️ Voice Studio</button>
+                    <button type="button" class="settings-tab-btn" data-tab="ai">🧠 AI Storyteller &amp; Free Tier</button>
+                    <button type="button" class="settings-tab-btn" data-tab="tradition">📜 Literary Traditions</button>
+                </div>
+
+                <div class="chronicle-settings-body">
+                    <!-- TAB 1: CHRONICLER VOICE STUDIO -->
+                    <div class="settings-tab-pane active" id="pane-setting-voice">
+                        <div class="settings-group">
+                            <label class="settings-label" for="chronicle-setting-voice">Audiobook Narrator Voice:</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <select id="chronicle-setting-voice" class="settings-select" style="flex: 1;">
+                                    <optgroup label="👴 Venerable &amp; Aged Chroniclers">
+                                        <option value="en-US-RogerNeural">Roger — Raspy Elder Archivist &amp; Scholar</option>
+                                        <option value="en-US-BrianNeural">Brian — Grizzled Veteran Baritone (War-torn Commander)</option>
+                                        <option value="en-AU-WilliamMultilingualNeural">William — Ancient Lore-Master &amp; Deep Philosopher</option>
+                                        <option value="en-CA-ClaraNeural">Clara — Ancient Crone, Seer &amp; Mystic Matriarch</option>
+                                        <option value="en-US-SteffanNeural">Steffan — Dark Fantasy Noble &amp; Brooding Elder</option>
+                                    </optgroup>
+                                    <optgroup label="🎭 Classic Stage &amp; High Fantasy Drama">
+                                        <option value="en-GB-RyanNeural" selected>Ryan — Dramatic British Stage Narrator &amp; Tolkien Storyteller</option>
+                                        <option value="en-GB-SoniaNeural">Sonia — Majestic &amp; Lyrical High Fantasy Narrator</option>
+                                        <option value="en-GB-ThomasNeural">Thomas — Vintage BBC Fireside Narrator</option>
+                                        <option value="en-GB-LibbyNeural">Libby — Gentle &amp; Evocative British Lorekeeper</option>
+                                        <option value="en-GB-MaisieNeural">Maisie — Lively, High-Spirited British Storyteller</option>
+                                    </optgroup>
+                                    <optgroup label="📜 Celtic &amp; Regional Bards">
+                                        <option value="en-IE-ConnorNeural">Connor — Vintage Celtic Bard (Warm Fireside Cadence)</option>
+                                        <option value="en-IE-EmilyNeural">Emily — Poetic &amp; Musical Irish Chronicler</option>
+                                        <option value="en-CA-LiamNeural">Liam — Resonant Northern Scald</option>
+                                        <option value="en-AU-NatashaNeural">Natasha — Bold &amp; Dynamic Ballad Reciter</option>
+                                    </optgroup>
+                                    <optgroup label="🇺🇸 Master American Storytellers">
+                                        <option value="en-US-ChristopherNeural">Christopher — Deep &amp; Resonant Baritone (Epic Fantasy)</option>
+                                        <option value="en-US-GuyNeural">Guy — Warm &amp; Expressive Storyteller (Engaging Adventure)</option>
+                                        <option value="en-US-EricNeural">Eric — Battlefield Veteran &amp; Crisp Commander</option>
+                                        <option value="en-US-JennyNeural">Jenny — Expressive, Crystal-Clear Female Chronicler</option>
+                                        <option value="en-US-AriaNeural">Aria — Dynamic Emotional Range &amp; High Drama</option>
+                                    </optgroup>
+                                </select>
+                                <button id="btn-chronicle-test-voice" type="button" class="btn-silver-solid" style="padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;" title="Play voice audition sample">▶ Audition</button>
+                            </div>
+                            <span class="settings-desc">Studio-grade 96kbps neural voices tuned with natural human timbre and expressive cadence.</span>
+                        </div>
+
+                        <div class="settings-group">
+                            <label class="settings-label" for="chronicle-setting-flow">Narration Flow Mode:</label>
+                            <select id="chronicle-setting-flow" class="settings-select">
+                                <option value="continuous">Continuous Ballad (Uninterrupted storytelling over action)</option>
+                                <option value="interrupt">Tactical Interrupt (Cuts speech immediately upon mortal peril)</option>
+                            </select>
+                            <span class="settings-desc">Determines how voice narration integrates with fast turn-based movement.</span>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: AI STORYTELLER & FREE TIER -->
+                    <div class="settings-tab-pane" id="pane-setting-ai">
+                        <!-- Free Tier Protection Banner -->
+                        <div class="free-tier-banner">
+                            <div class="free-tier-badge">🛡️ Free Tier Guard Active</div>
+                            <div class="free-tier-desc">100% cost-protected. Sliding rate-limit ceiling (10 req/min) prevents unplanned charges.</div>
+                        </div>
+
+                        <div class="settings-group">
+                            <label class="settings-label" for="chronicle-setting-provider">AI Storyteller Provider:</label>
+                            <select id="chronicle-setting-provider" class="settings-select">
+                                <option value="gemini" selected>Google Gemini (Free Tier Supported — Recommended)</option>
+                                <option value="offline">Built-in Procedural Lore (Free, 0ms, Offline)</option>
+                                <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
+                                <option value="anthropic">Anthropic Claude (3.5 Haiku / Sonnet)</option>
+                                <option value="custom">Custom / Local LLM (Ollama / OpenRouter / LM Studio)</option>
+                            </select>
+                            <span class="settings-desc">Choose which LLM powers dynamic story chapters and creature conversations.</span>
+                        </div>
+
+                        <!-- Permanent Free Tier Guard & Automatic Failover -->
+                        <div class="settings-group">
+                            <div class="free-tier-enforce-card" style="display: flex; align-items: center; gap: 10px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 6px; padding: 10px 12px;">
+                                <span style="font-size: 1.25rem;">🛡️</span>
+                                <div>
+                                    <div style="font-size: 0.88rem; font-weight: 600; color: #4ade80;">Strict Free Tier Limiter &amp; Automatic Model Failover (Always Active)</div>
+                                    <div style="font-size: 0.78rem; color: #a1a1aa; margin-top: 2px;">Permanently enforced (10 req/min). If a free model limit or 429 quota is reached, the story engine automatically and seamlessly cascades to the next best confirmed working model (Gemini 3.8 Flash &rarr; 3.7 Flash &rarr; 3.6 Flash &rarr; 3.5 Flash &rarr; 3.5 Flash-Lite &rarr; 3.1 Flash-Lite &rarr; 2.5 Flash) with transparent status notifications.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Selectable Models / Free Tier Presets -->
+                        <div class="settings-group" id="group-setting-model">
+                            <label class="settings-label" for="chronicle-setting-model">Selectable Model (Free Tiers &amp; Budget):</label>
+                            <input type="text" id="chronicle-setting-model" class="settings-input" placeholder="Default: gemini-3.8-flash (Free Tier)">
+                            <div class="model-preset-chips">
+                                <button type="button" class="btn-model-chip active" data-model="gemini-3.8-flash" title="Flagship Flash (Highest intelligence, New Stable)">✨ Gemini 3.8 Flash (Free)</button>
+                                <button type="button" class="btn-model-chip" data-model="gemini-3.7-flash" title="Agentic Flash (Stable workhorse)">🌟 Gemini 3.7 Flash (Free)</button>
+                                <button type="button" class="btn-model-chip" data-model="gemini-3.6-flash" title="Balanced Flash (Stable)">⚡ Gemini 3.6 Flash (Free)</button>
+                                <button type="button" class="btn-model-chip" data-model="gemini-3.5-flash" title="Foundational Flash (Stable baseline)">🏛️ Gemini 3.5 Flash (Free)</button>
+                                <button type="button" class="btn-model-chip" data-model="gemini-3.5-flash-lite" title="High-throughput Flash-Lite (Stable)">🚀 Gemini 3.5 Flash-Lite (Free)</button>
+                                <button type="button" class="btn-model-chip" data-model="gemini-3.1-flash-lite" title="Frontier-class lightweight (Stable)">🍃 Gemini 3.1 Flash-Lite (Free)</button>
+                                <button type="button" class="btn-model-chip" data-model="gemini-2.5-flash" title="Proven low-latency reasoning hybrid (Stable)">🛡️ Gemini 2.5 Flash (Free)</button>
+                                <button type="button" class="btn-model-chip" data-model="gpt-4o-mini" title="OpenAI ultra-budget model">🪙 GPT-4o-mini</button>
+                                <button type="button" class="btn-model-chip" data-model="claude-3-5-haiku-20241022" title="Anthropic fast model">🦅 Claude 3.5 Haiku</button>
+                            </div>
+                            <span class="settings-desc">Click any chip to select a confirmed working free-tier or budget model.</span>
+                        </div>
+
+                        <div class="settings-group" id="group-setting-apikey">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label class="settings-label" for="chronicle-setting-apikey">API Key:</label>
+                                <span id="chronicle-apikey-status" class="settings-autosave-badge"></span>
+                            </div>
+                            <div class="apikey-input-wrap" style="display: flex; gap: 6px; align-items: center;">
+                                <input type="password" id="chronicle-setting-apikey" class="settings-input" style="flex: 1;" placeholder="Paste your API key here..." autocomplete="off" spellcheck="false">
+                                <button id="btn-paste-apikey" type="button" class="btn-silver-solid" style="padding: 6px 10px; font-size: 0.82rem; cursor: pointer; white-space: nowrap;" title="Paste API Key from Clipboard">📋 Paste</button>
+                                <button id="btn-clear-apikey" type="button" class="btn-silver-solid" style="padding: 6px 10px; font-size: 0.82rem; cursor: pointer; white-space: nowrap;" title="Clear API key">🗑️ Clear</button>
+                            </div>
+                            <span class="settings-desc">Permanently masked password field. Stored safely in browser localStorage only. Free tier keys have zero recurring charges. Get one at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color: #60a5fa; text-decoration: underline;">Google AI Studio ↗</a>.</span>
+                        </div>
+
+                        <div class="settings-group" id="group-setting-endpoint" style="display: none;">
+                            <label class="settings-label" for="chronicle-setting-endpoint">Custom Base URL / Endpoint:</label>
+                            <input type="text" id="chronicle-setting-endpoint" class="settings-input" placeholder="http://localhost:11434/v1/chat/completions">
+                            <span class="settings-desc">For local Ollama, LM Studio, or OpenRouter proxy.</span>
+                        </div>
+
+                        <div class="settings-test-row" style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+                            <button id="btn-chronicle-test-llm" type="button" class="btn-silver-solid" style="padding: 6px 12px; font-size: 0.85rem; cursor: pointer;">⚡ Test Connection</button>
+                            <span id="chronicle-test-status" style="font-size: 0.85rem; color: #a1a1aa;"></span>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: LITERARY TRADITIONS -->
+                    <div class="settings-tab-pane" id="pane-setting-tradition">
+                        <div class="settings-group">
+                            <label class="settings-label" for="chronicle-setting-tradition">Literary Tradition (Narrative Style):</label>
+                            <select id="chronicle-setting-tradition" class="settings-select">
+                                <option value="westmarch">The Red Book of Westmarch (Heroic Men &amp; Hobbits)</option>
+                                <option value="noldor">The Annals of the Noldor (Elven Elegiac &amp; Poetic)</option>
+                                <option value="khazad">The Record of Khazad-Dûm (Dwarven Stone-Annals)</option>
+                            </select>
+                            <span class="settings-desc">Attunes the prose style, cultural lens, and moral weight of the chronicle.</span>
+                        </div>
+
+                        <div class="tradition-preview-box">
+                            <div class="tradition-preview-title" id="tradition-preview-name">The Red Book of Westmarch</div>
+                            <div class="tradition-preview-style" id="tradition-preview-style">Perspective: Mortal courage, humble hearths, and the lingering shadow of Mordor.</div>
+                            <div class="tradition-preview-quote" id="tradition-preview-quote">"Still round the corner there may wait a new road or a secret gate; and though we pass them by today, tomorrow we may come this way..."</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chronicle-settings-footer">
+                    <button id="btn-chronicle-settings-save" class="btn-gold-solid">Done &amp; Save</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Initial Connection Spinner -->
         <div id="loading-overlay" class="hidden">
             <div class="spinner"></div>
@@ -938,6 +1196,13 @@
     <script src="/js/network.js?v=7.3"></script>
     <script src="/js/local_bridge.js?v=7.3"></script>
     <script src="/js/input.js?v=7.3"></script>
+    <!-- Living Chronicle & Voiced Lorekeeper Modules -->
+    <script src="/js/chronicle/chronicle-store.js?v=7.3"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=7.3"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=7.3"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=7.3"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=7.3"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=7.3"></script>
     <script src="/js/app.js?v=7.3"></script>
 </body>
 </html>
