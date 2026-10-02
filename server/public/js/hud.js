@@ -1497,6 +1497,9 @@ class WebHUD {
         if (btnReroll) {
             btnReroll.addEventListener('click', () => {
                 this.hideDeathModal();
+                if (window.chronicleManager && typeof window.chronicleManager.resetForNewCharacter === 'function') {
+                    window.chronicleManager.resetForNewCharacter();
+                }
                 if (window.__app && window.__app.startNewRandomHero) {
                     window.__app.startNewRandomHero();
                 } else {

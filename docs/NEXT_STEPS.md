@@ -2,28 +2,26 @@
 
 ## Current System State (Angband3D v2.2.0 — The Living Chronicle & Voiced Lorekeeper: Narrative Depth & Story Audio)
 
-0. **The Living Chronicle & Voiced Lorekeeper (Version 2.9.0 — Security & Efficiency Audit, Header Auth, Confirmed Working Model Cascade & Production Deployment)**:
-   - **Zero API Key Exposure & HTTP Header Authentication (`chronicle-llm.js`, `chronicle-manager.js`, `index.html`)**:
-     - Upgraded Gemini API transport to pass keys strictly via the `x-goog-api-key` HTTP request header, completely eliminating sensitive keys from URL query strings (`?key=...`).
-     - Key inputs are permanently masked as `type="password"` with the eye toggle eliminated and quick `🗑️ Clear` button provided.
-     - Keys are preserved strictly in browser client `localStorage` (`angband_llm_api_key`) and never sent over the wire except directly to the provider endpoints.
-   - **Confirmed Working Model Cascade Hierarchy (`chronicle-llm.js`, `index.html`, `test_chronicle.js`)**:
-     - Synchronized failover with upstream Google AI Studio stable models hierarchy in descending capability order:
-       `FREE_TIER_CHAIN = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-flash-lite']`.
-     - `findAvailableFreeModel(currentModel)` traverses downward through the hierarchy to guarantee that fallback always selects the next best confirmed working stable model available.
-     - Preserved confirmed stable `gemini-2.5-flash` while cleanly auto-upgrading deprecated models (`gemini-1.5-flash`, `gemini-2.0-flash`) to `gemini-3.8-flash`.
-   - **Error Discrimination & Memory Efficiency (`chronicle-llm.js`)**:
-     - Fast-fail on authentication/authorization errors (HTTP 400, 401, 403) to immediately notify the player without making wasteful cascading calls across all 8 models.
-     - Automatic failover strictly triggered on HTTP 429 (Quota Exceeded) or transient 503/404 server unavailability.
-     - Implemented `pruneOldTimestamps()` to prune timestamps older than 60 seconds and clean up inactive model keys from `modelTimestamps`, keeping memory footprint O(active_models_in_last_minute).
-   - **Strict 3D Model Visual Gender Alignment (`app.js`, `dungeon3d.js`, `chronicle-grounder.js`, `chronicle-llm.js`)**:
-     - Exported `window.dungeon = dungeon;` globally and stamped 3D entity metadata (`monsterData`, `modelGender`, `modelKey`, `isFemale`) on scene nodes.
-     - Grounder inspects live 3D models to ensure 100% deterministic visual gender alignment for pronouns (`she/her/herself`) and voice timbre.
-     - Injected `CRITICAL VISUAL GENDER & 3D MODEL MANDATE` into all LLM prompts.
-   - **Verification & Production Health**:
-     - 100% verified passing across all 22 automated test phases in `tools/test_chronicle.js` (including header auth, zero query string leakage, 401 fast-fail, and cascade stepping).
+0. **The Living Chronicle & Voiced Lorekeeper (Version 3.0.0 — Zero Drone DSP, Streamlined Zero-Configuration Casting, Instance Continuity Registry & Bulletproof Character Reset)**:
+   - **Zero Ambient Drones (`chronicle-audio.js`, `chronicle-manager.js`, `index.html`)**:
+     - Stripped out all ambient drone oscillators, sub-buses, volume controls, and UI sliders from Web Audio and index.html, strictly honoring invariant #19 forbidding ambient hums/drones.
+   - **Streamlined Zero-Configuration Casting (`index.html`, `chronicle-manager.js`)**:
+     - Removed the manual 30-voice dropdown and quick-voice transport header dropdown. Replaced with an **Intelligent Voice Casting & Instance Continuity** card and a 1-click **▶ Audition Narrator** button.
+     - The player no longer needs to configure dozens of voice dropdowns; the system automatically and contextually casts the optimal voice based on literary tradition, race, age, and 3D visual gender.
+   - **Instance Voice Continuity Registry & Master Voice Pools (`chronicle-grounder.js`)**:
+     - Added `instanceVoiceRegistry` caching assigned voices by deterministic instance key (`id_${id}`, `unique_${name}`, `coord_${x}_${y}_${name}_d${depth}`) so individual creatures and the narrator maintain an unbroken voice identity across all turns and conversations.
+     - Curated high-fidelity `BEST_VOICE_POOLS` across Edge Neural and Gemini Native Audio for Orcs, Dwarves, Elves, Hobbits, Mortals (Elder, Veteran, Youth, Adult), and Dragons/Undead.
+     - Unique instance-to-instance variation: distinct creatures of the same race/archetype hash deterministically across the pool to ensure each enemy has an individual voice.
+     - Live emotional telemetry (panicked under mortal peril <35% HP, grave dread against Morgoth/Balrog, whispering during stealth, cheerful in town) dynamically layers emotion and prosody over the cached voice.
+   - **Bulletproof Character Instance Reinitialization (`chronicle-manager.js`, `app.js`, `hud.js`)**:
+     - Fully isolated each character instance: starting a new game, re-rolling, or loading a fresh hero immediately halts all in-flight speech and audiobook playlists, wipes story cards, flushes the instance voice registry, resets filter state, and clears LLM utterance buffers.
+     - Heuristic turn-rewind detection (`player.turn < lastSeenTurn && player.turn <= 15`) and lifecycle phase transitions (`death`, `birth`, `setup`) prevent previous stories or dialogue from leaking across runs even if the hero has the same name.
+     - Explicit reset hooks integrated into `startGame({ isNew: true })`, `returnToMainMenu()`, and death modal re-roll.
+   - **Verification & Health**:
+     - 100% verified passing across all 23 automated test phases in `tools/test_chronicle.js`.
+     - 100% server unit tests passing (`npm test`: 20/20).
      - Upstream engine bridge verified: `python tools/smoke_test.py` (11/11 tests passing).
-     - Native client verified: `dotnet build client/angband3d.csproj` (0 warnings, 0 errors).
+     - Native client build clean: `dotnet build client/angband3d.csproj` (0 warnings, 0 errors).
 
 1. **The Living Chronicle & Voiced Lorekeeper (Version 2.7.0 — 3D Model-to-Sex Determination, Continuous Narration on Sleeping Entities, Free Tier Safeguards & Tabbed Settings Overhaul)**:
    - **3D Model-to-Sex Determination & Pronoun Alignment (`dungeon3d.js`, `chronicle-grounder.js`, `chronicle-llm.js`)**:

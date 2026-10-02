@@ -88,11 +88,11 @@ class ChronicleManager {
         this.fileInput = null;
 
         // Settings Modal & Extra Controls
-        this.selectQuickVoice = null;
         this.settingsModal = null;
+        this.selectEngine = null;
+        this.sliderReverb = null;
+        this.valReverb = null;
         this.selectTradition = null;
-        this.selectFlow = null;
-        this.selectVoice = null;
         this.btnTestVoice = null;
         this.selectProvider = null;
         this.inputApiKey = null;
@@ -106,6 +106,11 @@ class ChronicleManager {
         this.btnSettingsClose = null;
         this.btnSettingsSave = null;
         this.isSpeakingBeat = false;
+
+        // Telemetry tracking for bulletproof character instance transitions
+        this.lastSeenTurn = null;
+        this.lastEngineTurn = null;
+        this.lastSeenDepth = null;
 
         this.initialized = false;
     }
@@ -137,7 +142,6 @@ class ChronicleManager {
         this.btnStopStory = document.getElementById('btn-chronicle-stop');
         this.btnRewindStory = document.getElementById('btn-chronicle-rewind');
         this.btnForwardStory = document.getElementById('btn-chronicle-forward');
-        this.selectQuickVoice = document.getElementById('chronicle-quick-voice');
         this.btnMute = document.getElementById('btn-chronicle-mute');
         this.btnSpeed = document.getElementById('btn-chronicle-speed');
         this.btnExpand = document.getElementById('btn-chronicle-expand');
@@ -162,9 +166,10 @@ class ChronicleManager {
 
         // Cache Settings Modal
         this.settingsModal = document.getElementById('chronicle-settings-modal');
+        this.selectEngine = document.getElementById('chronicle-setting-engine');
+        this.sliderReverb = document.getElementById('chronicle-setting-reverb');
+        this.valReverb = document.getElementById('chronicle-reverb-value');
         this.selectTradition = document.getElementById('chronicle-setting-tradition');
-        this.selectFlow = document.getElementById('chronicle-setting-flow');
-        this.selectVoice = document.getElementById('chronicle-setting-voice');
         this.btnTestVoice = document.getElementById('btn-chronicle-test-voice');
         this.selectProvider = document.getElementById('chronicle-setting-provider');
         this.inputApiKey = document.getElementById('chronicle-setting-apikey');
@@ -183,20 +188,24 @@ class ChronicleManager {
         this.bindEvents();
 
         // Restore active story from localStorage only if explicitly imported
-        this.activeChronicle = this.store.loadActive();
+        this.activeChronicle = this.store ? this.store.loadActive() : null;
         if (this.activeChronicle && this.activeChronicle.isManuallyImported) {
             this.renderAllChapters();
+        } else {
+            if (this.listEl) this.listEl.innerHTML = '';
         }
 
         // Update UI Button states
         this.updateAudioControlsUI();
 
         // Tab Visibility Safety: Pause speech on hidden, restore on return
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden && this.audio) {
-                this.audio.stopSpeaking();
-            }
-        });
+        if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && this.audio) {
+                    this.audio.stopSpeaking();
+                }
+            });
+        }
 
         this.initialized = true;
     }
@@ -211,12 +220,14 @@ class ChronicleManager {
         }
 
         // Safe Hotkey: Alt + C to toggle window
-        window.addEventListener('keydown', (e) => {
-            if (e.altKey && (e.key === 'c' || e.key === 'C')) {
-                e.preventDefault();
-                this.toggleWindow();
-            }
-        });
+        if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+            window.addEventListener('keydown', (e) => {
+                if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+                    e.preventDefault();
+                    this.toggleWindow();
+                }
+            });
+        }
 
         // Window & Audio Playback Controls
         if (this.btnPlayStory) {
@@ -233,21 +244,23 @@ class ChronicleManager {
         }
 
         // Global hotkeys for chronicle audio playback when chronicle is visible
-        window.addEventListener('keydown', (e) => {
-            if (!this.windowEl || !this.windowEl.classList.contains('active')) return;
-            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+        if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+            window.addEventListener('keydown', (e) => {
+                if (!this.windowEl || !this.windowEl.classList.contains('active')) return;
+                if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
 
-            if (e.code === 'Space') {
-                e.preventDefault();
-                this.toggleStoryPlayback();
-            } else if (e.shiftKey && (e.key === 'ArrowLeft' || e.code === 'ArrowLeft')) {
-                e.preventDefault();
-                this.rewindStoryPlayback();
-            } else if (e.shiftKey && (e.key === 'ArrowRight' || e.code === 'ArrowRight')) {
-                e.preventDefault();
-                this.forwardStoryPlayback();
-            }
-        });
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    this.toggleStoryPlayback();
+                } else if (e.shiftKey && (e.key === 'ArrowLeft' || e.code === 'ArrowLeft')) {
+                    e.preventDefault();
+                    this.rewindStoryPlayback();
+                } else if (e.shiftKey && (e.key === 'ArrowRight' || e.code === 'ArrowRight')) {
+                    e.preventDefault();
+                    this.forwardStoryPlayback();
+                }
+            });
+        }
 
         if (this.btnClose) {
             this.btnClose.addEventListener('click', () => this.hideWindow());
@@ -281,37 +294,31 @@ class ChronicleManager {
             });
         }
 
-        // Quick Voice Selector in Chronicle Header
-        if (this.selectQuickVoice) {
-            if (this.audio && this.audio.narratorVoice) {
-                this.selectQuickVoice.value = this.audio.narratorVoice;
-            }
-            this.selectQuickVoice.addEventListener('change', () => {
-                const val = this.selectQuickVoice.value;
-                if (this.audio) this.audio.setVoice(val);
-                if (this.selectVoice) this.selectVoice.value = val;
+        // Voice Engine Selection
+        if (this.selectEngine) {
+            this.selectEngine.addEventListener('change', () => {
+                const eng = this.selectEngine.value;
+                if (this.audio) this.audio.setEngine(eng);
                 if (this.statusTextEl) {
-                    const selText = (this.selectQuickVoice.options && this.selectQuickVoice.selectedIndex >= 0)
-                        ? this.selectQuickVoice.options[this.selectQuickVoice.selectedIndex].text
-                        : val;
-                    this.statusTextEl.textContent = `🎙️ Narrator: ${selText.split('—')[0].trim()}`;
+                    this.statusTextEl.textContent = eng === 'gemini' ? '✨ Engine: Gemini Native Audio' : '🎙️ Engine: Edge Neural';
                 }
             });
         }
 
-        // Modal Voice Selector Synchronization
-        if (this.selectVoice) {
-            this.selectVoice.addEventListener('change', () => {
-                const val = this.selectVoice.value;
-                if (this.audio) this.audio.setVoice(val);
-                if (this.selectQuickVoice) this.selectQuickVoice.value = val;
-            });
+        // Subterranean Reverb Slider
+        if (this.sliderReverb) {
+            const updateReverb = () => {
+                const val = parseInt(this.sliderReverb.value, 10);
+                if (this.valReverb) this.valReverb.textContent = `${val}%`;
+                if (this.audio) this.audio.setReverbVolume(val / 100);
+            };
+            this.sliderReverb.addEventListener('input', updateReverb);
+            this.sliderReverb.addEventListener('change', updateReverb);
         }
 
-        // Audition Voice Button in Settings Modal
+        // Audition Voice Button in Settings Modal: Auditions the active literary tradition narrator
         if (this.btnTestVoice) {
             this.btnTestVoice.addEventListener('click', async () => {
-                const voice = this.selectVoice ? this.selectVoice.value : (this.audio ? this.audio.narratorVoice : '');
                 const sampleText = "Deep in the subterranean vaults of Angband, iron doors groan upon rusted hinges. Steel your courage, mortal, for the shadows stir.";
                 if (this.audio) {
                     const wasMuted = !this.audio.enabled;
@@ -321,10 +328,19 @@ class ChronicleManager {
                     }
                     if (this.testStatus) {
                         this.testStatus.style.color = '#ffd700';
-                        this.testStatus.textContent = '🔊 Auditioning voice...';
+                        this.testStatus.textContent = '🔊 Auditioning narrator...';
                     }
                     try {
-                        await this.audio.speakUtterance(sampleText, 'narrator', '', voice);
+                        const activeEngine = this.selectEngine ? this.selectEngine.value : (this.audio.ttsEngine || 'edge');
+                        const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'exploration', this.tradition) : null;
+                        const voiceToUse = (narrProfile && activeEngine === 'gemini') ? narrProfile.geminiVoice : ((narrProfile && narrProfile.edgeVoice) ? narrProfile.edgeVoice : this.audio.narratorVoice);
+                        await this.audio.speakUtterance(sampleText, 'narrator', '', voiceToUse, {
+                            engine: activeEngine,
+                            geminiVoice: (narrProfile && narrProfile.geminiVoice) || 'Sulafat',
+                            geminiTag: (narrProfile && narrProfile.geminiTag) || '[atmospheric, solemn]',
+                            directorNote: (narrProfile && narrProfile.directorNote) || 'A deep atmospheric chronicle of ancient subterranean stone vaults',
+                            emotion: (narrProfile && narrProfile.emotion) || 'calm'
+                        });
                         if (this.testStatus) {
                             this.testStatus.style.color = '#4ade80';
                             this.testStatus.textContent = '✓ Audition complete.';
@@ -469,6 +485,7 @@ class ChronicleManager {
         if (this.selectTradition) {
             const updateTraditionPreview = () => {
                 const val = this.selectTradition.value;
+                if (this.audio) this.audio.setTradition(val);
                 const nameEl = document.getElementById('tradition-preview-name');
                 const styleEl = document.getElementById('tradition-preview-style');
                 const quoteEl = document.getElementById('tradition-preview-quote');
@@ -635,21 +652,76 @@ class ChronicleManager {
         else this.showWindow();
     }
 
+    /**
+     * Bulletproof reset and re-initialization of dialogue, story, and audio state
+     * for a brand new character instance or newly loaded adventurer.
+     */
+    resetForNewCharacter(hero = null) {
+        return this.startFreshChronicle(hero);
+    }
+
     startFreshChronicle(hero) {
         const name = (hero && hero.name) ? hero.name : 'Adventurer';
-        console.log(`[ChronicleManager] Starting fresh chronicle for character instance: ${name}`);
-        this.currentHero = hero;
-        this.activeChronicle = this.store.createNewChronicle(hero);
-        this.activeChronicle.isManuallyImported = false;
-        this.store.saveActive(this.activeChronicle);
+        console.log(`[ChronicleManager] Bulletproof reset & starting fresh chronicle for character instance: ${name}`);
 
+        // 1. Immediately halt all speech and audiobook playback
+        this.stopStoryPlayback();
+        if (this.audio) {
+            this.audio.stopSpeaking();
+            if (this.audio.playlist) this.audio.playlist = [];
+            this.audio.isSpeaking = false;
+            this.audio.isPaused = false;
+        }
+        this.playbackSessionId++;
+        this.storyPlaylist = [];
+        this.currentBeatIndex = 0;
+        this.isStoryPlaying = false;
+        this.lorekeeperQueryCount = 0;
+
+        // 2. Wipe filter telemetry, combat trackers & action accumulators
         if (this.filter) this.filter.reset();
+        this.lastSeenTurn = null;
+        this.lastEngineTurn = null;
+        this.lastSeenDepth = null;
+        this.lastSeenMessages = [];
 
-        if (hero && hero.race) {
+        // 3. Clear instance voice cache so new dungeon monsters don't inherit old mappings
+        if (this.grounder && typeof this.grounder.clearInstanceVoiceRegistry === 'function') {
+            this.grounder.clearInstanceVoiceRegistry();
+        }
+
+        // 4. Reset LLM utterance anti-repetition buffer for new character
+        if (this.llm) {
+            this.llm.recentUtterances = [];
+        }
+
+        // 5. Completely purge UI list, target pills, input queries and status badges
+        if (this.listEl) this.listEl.innerHTML = '';
+        this.clearTargetCreature();
+        if (this.inputQuery) this.inputQuery.value = '';
+        if (this.statusTextEl) this.statusTextEl.textContent = 'Chronicle Active';
+
+        // 6. Initialize pristine chronicle for this character instance
+        this.currentHero = hero;
+        this.activeChronicle = this.store ? this.store.createNewChronicle(hero) : null;
+        if (this.activeChronicle) {
+            this.activeChronicle.isManuallyImported = false;
+            if (this.store) this.store.saveActive(this.activeChronicle);
+        }
+
+        if (hero) {
+            this.currentCharacterSignature = `${hero.name || 'Hero'}_${hero.race || ''}_${hero.class || ''}`;
+        } else {
+            this.currentCharacterSignature = null;
+        }
+        this.characterDied = false;
+
+        // 7. Attune tradition to hero race if available
+        if (hero && hero.race && this.grounder) {
             this.tradition = this.grounder.getTraditionForRace(hero.race);
             if (typeof document !== 'undefined') {
                 const tradBadge = document.getElementById('chronicle-tradition-badge');
-                if (tradBadge && this.grounder && this.grounder.TRADITIONS[this.tradition]) {
+                if (tradBadge && this.grounder.TRADITIONS && this.grounder.TRADITIONS[this.tradition]) {
                     tradBadge.textContent = this.grounder.TRADITIONS[this.tradition].name
                         .replace('The Annals of the ', '')
                         .replace('The Record of ', '')
@@ -657,16 +729,19 @@ class ChronicleManager {
                 }
             }
         }
-
-        if (this.listEl) this.listEl.innerHTML = '';
-        this.clearTargetCreature();
     }
 
     async onFrame(frame) {
         if (!frame) return;
 
-        // Track death to force a fresh chronicle on the next character instance
+        // Track death or birth/setup phase transitions to force a fresh chronicle on next character
         if (frame.phase === 'death') {
+            this.characterDied = true;
+            if (this.audio) this.audio.stopSpeaking();
+            this.stopStoryPlayback();
+            return;
+        }
+        if (frame.phase === 'birth' || frame.phase === 'setup') {
             this.characterDied = true;
             return;
         }
@@ -675,14 +750,16 @@ class ChronicleManager {
         if (frame.phase !== 'play' || !frame.player) return;
 
         const player = frame.player;
-        this.currentHero = player;
         const heroSig = `${player.name || 'Hero'}_${player.race || ''}_${player.class || ''}`;
+        const playerTurn = (typeof player.turn === 'number') ? player.turn : null;
+        const engineTurn = (typeof frame.turn === 'number') ? frame.turn : null;
 
-        // Fresh Start Check:
-        // 1. Character died in previous life
+        // Bulletproof Fresh Start Heuristics:
+        // 1. Character died in previous life or passed through birth/setup
         // 2. Character identity (name/race/class) changed
         // 3. No active chronicle exists
         // 4. Stored chronicle does NOT match current character AND was NOT manually imported
+        // 5. Turn count rewound (e.g. player restarted game with exact same character name/race/class!)
         let needsFreshStart = false;
 
         if (this.characterDied) {
@@ -691,27 +768,34 @@ class ChronicleManager {
             needsFreshStart = true;
         } else if (!this.activeChronicle) {
             needsFreshStart = true;
-        } else if (!this.activeChronicle.isManuallyImported && !this.store.isMatchingHero(this.activeChronicle, player)) {
+        } else if (!this.activeChronicle.isManuallyImported && this.store && !this.store.isMatchingHero(this.activeChronicle, player)) {
+            needsFreshStart = true;
+        } else if (playerTurn !== null && this.lastSeenTurn !== null && playerTurn < this.lastSeenTurn && playerTurn <= 15) {
+            // Turn counter rewound to early game: undeniably a new character run
+            needsFreshStart = true;
+        } else if (engineTurn !== null && this.lastEngineTurn !== null && engineTurn < this.lastEngineTurn && engineTurn <= 15) {
             needsFreshStart = true;
         }
 
         if (needsFreshStart) {
             this.startFreshChronicle(player);
-            this.characterDied = false;
-            this.currentCharacterSignature = heroSig;
         } else {
             // Picking up where we are at for this active character instance
             if (!this.currentCharacterSignature) {
                 this.currentCharacterSignature = heroSig;
             }
+            this.currentHero = player;
             // Populate UI if currently blank but chapters exist in active chronicle
-            if (this.listEl && this.listEl.children.length === 0 && this.activeChronicle.chapters && this.activeChronicle.chapters.length > 0) {
+            if (this.listEl && this.listEl.children.length === 0 && this.activeChronicle && this.activeChronicle.chapters && this.activeChronicle.chapters.length > 0) {
                 this.renderAllChapters();
             }
         }
 
+        if (playerTurn !== null) this.lastSeenTurn = playerTurn;
+        if (engineTurn !== null) this.lastEngineTurn = engineTurn;
+
         // Auto-attune literary tradition if not set
-        if (!this.tradition && frame.player.race) {
+        if (!this.tradition && frame.player.race && this.grounder) {
             this.tradition = this.grounder.getTraditionForRace(frame.player.race);
         }
 
@@ -730,13 +814,25 @@ class ChronicleManager {
         }
 
         // Live Narration Priority Gate: To guarantee ZERO vocal overlay and no lagged queues,
-        // speak the single most significant event of this turn.
+        // speak the single most significant event of this turn with context-resolved voices.
         if (this.audio && this.audio.enabled && frameEntries.length > 0) {
             const bestToSpeak = frameEntries.find(fe => fe.event.isChapter !== false) ||
                                 frameEntries.find(fe => fe.entry.dialogue && !fe.entry.dialogue.isNoise) ||
                                 frameEntries[frameEntries.length - 1];
             if (bestToSpeak && bestToSpeak.entry) {
-                this.audio.speak(bestToSpeak.entry.prose, bestToSpeak.entry.dialogue);
+                const eventType = bestToSpeak.event ? bestToSpeak.event.type : '';
+                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, eventType, this.tradition) : null;
+                let dVoiceProfile = null;
+                if (bestToSpeak.entry.dialogue && this.grounder) {
+                    const speakerEntity = (bestToSpeak.event && bestToSpeak.event.monster) ? bestToSpeak.event.monster : { name: bestToSpeak.entry.dialogue.speaker };
+                    dVoiceProfile = this.grounder.resolveVoiceProfile(speakerEntity, frame.player, eventType, this.tradition);
+                    bestToSpeak.entry.dialogue.voiceProfile = dVoiceProfile;
+                }
+                const speakOpts = {
+                    narrator: narrProfile,
+                    engine: this.audio.ttsEngine
+                };
+                this.audio.speak(bestToSpeak.entry.prose, bestToSpeak.entry.dialogue, null, null, 0, speakOpts);
             }
         }
     }
@@ -773,7 +869,18 @@ class ChronicleManager {
 
         // Speak aloud if audio is unmuted (respects isNoise for non-vocal creatures)
         if (shouldSpeak && this.audio && this.audio.enabled) {
-            this.audio.speak(entry.prose, entry.dialogue);
+            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, event.type, this.tradition) : null;
+            let dVoiceProfile = null;
+            if (entry.dialogue && this.grounder) {
+                const speakerEntity = event.monster || { name: entry.dialogue.speaker };
+                dVoiceProfile = this.grounder.resolveVoiceProfile(speakerEntity, frame.player, event.type, this.tradition);
+                entry.dialogue.voiceProfile = dVoiceProfile;
+            }
+            const speakOpts = {
+                narrator: narrProfile,
+                engine: this.audio.ttsEngine
+            };
+            this.audio.speak(entry.prose, entry.dialogue, null, null, 0, speakOpts);
         }
 
         return entry;
@@ -1161,9 +1268,23 @@ class ChronicleManager {
         this.isSpeakingBeat = true;
         try {
             if (beat.role === 'mentor') {
-                await this.audio.speakUtterance(beat.text, 'mentor');
+                const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: 'Elder Lorekeeper', race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+                if (mentorProfile) {
+                    mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
+                    mentorProfile.directorNote = 'An ancient scholar and lorekeeper reciting the living chronicle';
+                }
+                await this.audio.speakUtterance(beat.text, 'mentor', 'Elder Lorekeeper', null, mentorProfile || { engine: this.audio.ttsEngine });
             } else {
-                await this.audio.speak(beat.text, beat.dialogue);
+                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition) : null;
+                if (beat.dialogue && this.grounder) {
+                    const speakerEntity = beat.dialogue.creature || { name: beat.dialogue.speaker };
+                    beat.dialogue.voiceProfile = this.grounder.resolveVoiceProfile(speakerEntity, this.currentHero, '', this.tradition);
+                }
+                const speakOpts = {
+                    narrator: narrProfile,
+                    engine: this.audio.ttsEngine
+                };
+                await this.audio.speak(beat.text, beat.dialogue, null, null, 0, speakOpts);
             }
         } catch (err) {
             console.warn('[ChronicleManager] Playback error at beat', this.currentBeatIndex, err);
@@ -1384,10 +1505,13 @@ class ChronicleManager {
             if (replayBtn) {
                 replayBtn.addEventListener('click', () => {
                     if (this.audio) {
+                        const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(monster, this.currentHero, stateObj.state, this.tradition) : null;
+                        const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, stateObj.state, this.tradition) : null;
+                        const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
                         if (res.isDialogue && res.text) {
-                            this.audio.speak(res.prose, { text: res.text, speaker: monster.name, recommendedVoice: res.recommendedVoice });
+                            this.audio.speak(res.prose, { text: res.text, speaker: monster.name, recommendedVoice: res.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
                         } else if (res.prose) {
-                            this.audio.speakUtterance(res.prose, 'narrator');
+                            this.audio.speakUtterance(res.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
                         }
                     }
                 });
@@ -1396,14 +1520,17 @@ class ChronicleManager {
             if (this.scrollEl) this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
         }
 
-        // Voice playback upon encounter: speak aloud for ALL entities
+        // Voice playback upon encounter: speak aloud for ALL entities with contextual casting
         if (this.audio && this.audio.enabled && res) {
+            const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(monster, this.currentHero, stateObj.state, this.tradition) : null;
+            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, stateObj.state, this.tradition) : null;
+            const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
             if (res.isDialogue && res.text) {
                 // Awake vocal creature: speak atmospheric scene prose then creature line in character
-                this.audio.speak(res.prose, { text: res.text, speaker: monster.name, recommendedVoice: res.recommendedVoice });
+                this.audio.speak(res.prose, { text: res.text, speaker: monster.name, recommendedVoice: res.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
             } else if (res.prose) {
                 // Sleeping or non-vocal creature: Master Chronicler speaks the scene aloud
-                this.audio.speakUtterance(res.prose, 'narrator');
+                this.audio.speakUtterance(res.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
             }
         }
     }
@@ -1491,10 +1618,13 @@ class ChronicleManager {
                 if (replayBtn) {
                     replayBtn.addEventListener('click', () => {
                         if (this.audio) {
+                            const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(creature, this.currentHero, 'dialogue', this.tradition) : null;
+                            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'dialogue', this.tradition) : null;
+                            const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
                             if (reply.isDialogue && reply.text) {
-                                this.audio.speak(reply.prose, { text: reply.text, speaker: creature.name, recommendedVoice: reply.recommendedVoice });
+                                this.audio.speak(reply.prose, { text: reply.text, speaker: creature.name, recommendedVoice: reply.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
                             } else if (reply.prose) {
-                                this.audio.speakUtterance(reply.prose, 'narrator');
+                                this.audio.speakUtterance(reply.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
                             }
                         }
                     });
@@ -1504,10 +1634,13 @@ class ChronicleManager {
             }
 
             if (this.audio && this.audio.enabled && reply) {
+                const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(creature, this.currentHero, 'dialogue', this.tradition) : null;
+                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'dialogue', this.tradition) : null;
+                const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
                 if (reply.isDialogue && reply.text) {
-                    this.audio.speak(reply.prose, { text: reply.text, speaker: creature.name, recommendedVoice: reply.recommendedVoice });
+                    this.audio.speak(reply.prose, { text: reply.text, speaker: creature.name, recommendedVoice: reply.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
                 } else if (reply.prose) {
-                    this.audio.speakUtterance(reply.prose, 'narrator');
+                    this.audio.speakUtterance(reply.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
                 }
             }
         } else {
@@ -1620,7 +1753,12 @@ class ChronicleManager {
 
         // Voice immediately in the deep, warm Mentor voice
         if (this.audio && this.audio.enabled) {
-            this.audio.speakUtterance(answer, 'mentor');
+            const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: 'Elder Lorekeeper', race: 'Human' }, player, 'counsel', this.tradition) : null;
+            if (mentorProfile) {
+                mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
+                mentorProfile.directorNote = 'An ancient scholar and lorekeeper offering survival counsel';
+            }
+            this.audio.speakUtterance(answer, 'mentor', 'Elder Lorekeeper', null, mentorProfile || { engine: this.audio.ttsEngine });
         }
     }
 
@@ -1728,10 +1866,14 @@ class ChronicleManager {
 
     openSettings() {
         if (!this.settingsModal) return;
+        if (this.selectEngine && this.audio) this.selectEngine.value = this.audio.ttsEngine || 'edge';
         if (this.selectTradition) this.selectTradition.value = this.tradition;
-        if (this.selectFlow) this.selectFlow.value = this.audio.flowMode;
-        if (this.selectVoice && this.audio) this.selectVoice.value = this.audio.narratorVoice;
-        if (this.selectQuickVoice && this.audio) this.selectQuickVoice.value = this.audio.narratorVoice;
+
+        if (this.sliderReverb && this.audio) {
+            const revPct = Math.round((this.audio.reverbWet !== undefined ? this.audio.reverbWet : 0.18) * 100);
+            this.sliderReverb.value = revPct;
+            if (this.valReverb) this.valReverb.textContent = `${revPct}%`;
+        }
 
         if (this.llm) {
             if (this.selectProvider) this.selectProvider.value = this.llm.provider;
@@ -1768,11 +1910,13 @@ class ChronicleManager {
 
     closeSettings() {
         if (!this.settingsModal) return;
-        if (this.selectTradition) this.tradition = this.selectTradition.value;
-        if (this.selectFlow) this.audio.setFlowMode(this.selectFlow.value);
-        if (this.selectVoice && this.audio) {
-            this.audio.setVoice(this.selectVoice.value);
-            if (this.selectQuickVoice) this.selectQuickVoice.value = this.selectVoice.value;
+        if (this.selectEngine && this.audio) this.audio.setEngine(this.selectEngine.value);
+        if (this.selectTradition) {
+            this.tradition = this.selectTradition.value;
+            if (this.audio) this.audio.setTradition(this.tradition);
+        }
+        if (this.sliderReverb && this.audio) {
+            this.audio.setReverbVolume(parseInt(this.sliderReverb.value, 10) / 100);
         }
 
         if (this.llm) {
