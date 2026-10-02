@@ -153,66 +153,315 @@ class ChronicleGrounder {
         return 'male';
     }
 
+    static instanceVoiceRegistry = new Map();
+
+    static clearInstanceVoiceRegistry() {
+        this.instanceVoiceRegistry.clear();
+    }
+
+    static hashString(str = '') {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            hash |= 0;
+        }
+        return Math.abs(hash);
+    }
+
+    static getInstanceKey(entityOrMonster = null, player = null, traditionKey = 'westmarch') {
+        if (!entityOrMonster) {
+            return `narrator_${traditionKey || 'westmarch'}`;
+        }
+        if (entityOrMonster.isLorekeeper || (entityOrMonster.name && entityOrMonster.name.toLowerCase().includes('lorekeeper'))) {
+            return 'mentor_lorekeeper';
+        }
+        if (entityOrMonster.id !== undefined && entityOrMonster.id !== null) {
+            return `id_${entityOrMonster.id}`;
+        }
+        if (entityOrMonster.uniqueKey) {
+            return `unique_${entityOrMonster.uniqueKey}`;
+        }
+        if (entityOrMonster.isUnique && entityOrMonster.name) {
+            return `unique_${entityOrMonster.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        }
+        const name = (entityOrMonster.name || entityOrMonster.race || 'creature').toLowerCase().replace(/[^a-z0-9]/g, '_');
+        if (entityOrMonster.x !== undefined && entityOrMonster.y !== undefined) {
+            const depth = (player && player.depth !== undefined) ? player.depth : 0;
+            return `coord_${entityOrMonster.x}_${entityOrMonster.y}_${name}_d${depth}`;
+        }
+        return `named_${name}`;
+    }
+
+    static BEST_VOICE_POOLS = {
+        orc: {
+            male: {
+                edge: ['en-US-RogerNeural', 'en-US-ChristopherNeural', 'en-US-EricNeural'],
+                gemini: ['Fenrir', 'Algenib']
+            },
+            female: {
+                edge: ['en-US-AriaNeural', 'en-AU-NatashaNeural'],
+                gemini: ['Fenrir', 'Kore']
+            }
+        },
+        dwarf: {
+            male: {
+                edge: ['en-US-RogerNeural', 'en-US-BrianNeural', 'en-IE-ConnorNeural'],
+                gemini: ['Algenib', 'Gacrux']
+            },
+            female: {
+                edge: ['en-CA-ClaraNeural', 'en-US-JennyNeural'],
+                gemini: ['Kore', 'Sadaltager']
+            }
+        },
+        elf: {
+            male: {
+                edge: ['en-GB-ThomasNeural', 'en-GB-RyanNeural'],
+                gemini: ['Zephyrus', 'Orus']
+            },
+            female: {
+                edge: ['en-GB-LibbyNeural', 'en-IE-EmilyNeural'],
+                gemini: ['Aoede', 'Despina']
+            }
+        },
+        hobbit: {
+            male: {
+                edge: ['en-IE-ConnorNeural', 'en-US-GuyNeural'],
+                gemini: ['Puck', 'Sulafat']
+            },
+            female: {
+                edge: ['en-IE-EmilyNeural', 'en-GB-MaisieNeural'],
+                gemini: ['Leda', 'Aoede']
+            }
+        },
+        dragon: {
+            male: {
+                edge: ['en-US-ChristopherNeural', 'en-US-RogerNeural'],
+                gemini: ['Algenib', 'Fenrir']
+            },
+            female: {
+                edge: ['en-GB-SoniaNeural', 'en-US-AriaNeural'],
+                gemini: ['Despina', 'Sadaltager']
+            }
+        },
+        undead: {
+            male: {
+                edge: ['en-US-ChristopherNeural', 'en-US-RogerNeural'],
+                gemini: ['Algenib', 'Fenrir']
+            },
+            female: {
+                edge: ['en-GB-SoniaNeural', 'en-US-AriaNeural'],
+                gemini: ['Despina', 'Sadaltager']
+            }
+        },
+        mortal: {
+            elder: {
+                male: {
+                    edge: ['en-US-BrianNeural', 'en-US-RogerNeural', 'en-AU-WilliamMultilingualNeural'],
+                    gemini: ['Gacrux', 'Sulafat']
+                },
+                female: {
+                    edge: ['en-CA-ClaraNeural', 'en-GB-LibbyNeural'],
+                    gemini: ['Sadaltager', 'Despina']
+                }
+            },
+            veteran: {
+                male: {
+                    edge: ['en-US-EricNeural', 'en-US-SteffanNeural', 'en-US-BrianNeural'],
+                    gemini: ['Orus', 'Algenib']
+                },
+                female: {
+                    edge: ['en-AU-NatashaNeural', 'en-US-AriaNeural', 'en-GB-SoniaNeural'],
+                    gemini: ['Kore', 'Sadaltager']
+                }
+            },
+            youth: {
+                male: {
+                    edge: ['en-US-GuyNeural', 'en-CA-LiamNeural'],
+                    gemini: ['Puck', 'Zephyrus']
+                },
+                female: {
+                    edge: ['en-GB-MaisieNeural', 'en-IE-EmilyNeural'],
+                    gemini: ['Aoede', 'Leda']
+                }
+            },
+            adult: {
+                male: {
+                    edge: ['en-US-GuyNeural', 'en-IE-ConnorNeural', 'en-CA-LiamNeural', 'en-GB-RyanNeural'],
+                    gemini: ['Sulafat', 'Puck', 'Orus']
+                },
+                female: {
+                    edge: ['en-GB-LibbyNeural', 'en-US-JennyNeural', 'en-IE-EmilyNeural', 'en-CA-ClaraNeural'],
+                    gemini: ['Aoede', 'Leda', 'Kore']
+                }
+            }
+        }
+    };
+
     /**
-     * Resolves rich, diverse neural voices attuned to creature category, gender, and individual instance seed.
+     * Resolves rich neural voices attuned to creature instance seed,
+     * maintaining strict continuity across encounters.
      */
     static pickCreatureVoice(monster, category) {
-        const name = (monster && (monster.name || monster.race)) ? (monster.name || monster.race) : '';
-        const gender = this.detectCreatureGender(name, monster);
-        const seed = Math.abs((monster && monster.id ? monster.id : 0) * 17 + (monster && monster.x ? monster.x * 19 : 0) + (monster && monster.y ? monster.y * 23 : 0) + name.length);
+        const profile = this.resolveVoiceProfile(monster);
+        return profile ? profile.edgeVoice : 'en-US-GuyNeural';
+    }
 
-        if (category === 'idiot' || name.toLowerCase().includes('idiot')) {
-            const idiotPool = (gender === 'female')
-                ? ['en-GB-MaisieNeural', 'en-IE-EmilyNeural']
-                : ['en-US-GuyNeural'];
-            return idiotPool[seed % idiotPool.length];
-        }
+    /**
+     * Contextual Voice & Emotion Resolver
+     * Selects optimal voices with persistent continuity per instance while ensuring
+     * unique variation instance-to-instance, strictly honoring character race, age, and 3D visual sex.
+     */
+    static resolveVoiceProfile(entityOrMonster = null, player = null, eventType = '', traditionKey = 'westmarch') {
+        const instanceKey = this.getInstanceKey(entityOrMonster, player, traditionKey);
+        let cached = this.instanceVoiceRegistry.get(instanceKey);
 
-        if (gender === 'female') {
-            if (category === 'veteran') {
-                // Battle-hardened female soldiers, mercenaries, knights
-                const pool = ['en-AU-NatashaNeural', 'en-US-AriaNeural', 'en-GB-SoniaNeural'];
-                return pool[seed % pool.length];
-            }
-            if (category === 'spellcaster' || category === 'high_undead') {
-                const pool = ['en-US-AriaNeural', 'en-GB-SoniaNeural'];
-                return pool[seed % pool.length];
-            }
-            if (category === 'rogue') {
-                const pool = ['en-AU-NatashaNeural', 'en-US-AriaNeural', 'en-IE-EmilyNeural'];
-                return pool[seed % pool.length];
-            }
-            if (category === 'beggar') {
-                const pool = ['en-GB-LibbyNeural', 'en-IE-EmilyNeural', 'en-US-JennyNeural'];
-                return pool[seed % pool.length];
-            }
-            // Female townsperson / merchant / peasant
-            const pool = ['en-GB-LibbyNeural', 'en-US-JennyNeural', 'en-IE-EmilyNeural', 'en-CA-ClaraNeural'];
-            return pool[seed % pool.length];
+        let gender, isF, raceArchetype, ageArchetype, edgeVoice, geminiVoice;
+
+        if (cached) {
+            // Continuity: retain exact identity (voice, gender, race, age)
+            gender = cached.gender;
+            isF = cached.isFemale;
+            raceArchetype = cached.race;
+            ageArchetype = cached.ageArchetype;
+            edgeVoice = cached.edgeVoice;
+            geminiVoice = cached.geminiVoice;
         } else {
-            if (category === 'dragon' || category === 'high_undead') {
-                return 'en-US-ChristopherNeural';
+            // 1. GENDER / SEX: 100% deterministic alignment from 3D model and creature detection
+            const name = (entityOrMonster && (entityOrMonster.name || entityOrMonster.race)) ? (entityOrMonster.name || entityOrMonster.race) : '';
+            gender = entityOrMonster ? this.detectCreatureGender(name, entityOrMonster) : 'male';
+            isF = (gender === 'female');
+
+            // 2. RACE DETECTION
+            const rawRace = (entityOrMonster && (entityOrMonster.race || entityOrMonster.name)) 
+                ? (entityOrMonster.race || entityOrMonster.name) 
+                : (player ? player.race : '');
+            const rLower = (rawRace || '').toLowerCase();
+            raceArchetype = 'mortal';
+            if (rLower.includes('elf') || rLower.includes('eldar')) raceArchetype = 'elf';
+            else if (rLower.includes('dwarf')) raceArchetype = 'dwarf';
+            else if (rLower.includes('hobbit') || rLower.includes('halfling')) raceArchetype = 'hobbit';
+            else if (rLower.includes('orc') || rLower.includes('goblin') || rLower.includes('troll') || rLower.includes('kobold')) raceArchetype = 'orc';
+            else if (rLower.includes('dragon') || rLower.includes('drake') || rLower.includes('wyrm')) raceArchetype = 'dragon';
+            else if (rLower.includes('undead') || rLower.includes('lich') || rLower.includes('ghost') || rLower.includes('spectre') || rLower.includes('wraith')) raceArchetype = 'undead';
+
+            // 3. AGE & MARTIAL ARCHETYPE DETECTION
+            const nLower = name.toLowerCase();
+            ageArchetype = 'adult';
+            if (/\b(ancient|elder|venerable|sage|archivist|scholar|old|crone|patriarch|matriarch|hermit|grey|white)\b/i.test(nLower) || (player && player.lev >= 35)) {
+                ageArchetype = 'elder';
+            } else if (/\b(veteran|soldier|commander|knight|captain|guard|warrior|mercenary|scarred)\b/i.test(nLower)) {
+                ageArchetype = 'veteran';
+            } else if (/\b(apprentice|youth|young|child|urchin|boy|girl|novice|thief|rogue|idiot|beggar)\b/i.test(nLower)) {
+                ageArchetype = 'youth';
             }
-            if (category === 'orc' || category === 'kobold') {
-                const pool = ['en-US-RogerNeural', 'en-US-ChristopherNeural'];
-                return pool[seed % pool.length];
+
+            // 4. INSTANCE-TO-INSTANCE UNIQUE CASTING
+            if (entityOrMonster) {
+                const hash = this.hashString(instanceKey);
+                const pools = this.BEST_VOICE_POOLS;
+                let pool = null;
+
+                if (raceArchetype === 'mortal') {
+                    const ageCat = pools.mortal[ageArchetype] || pools.mortal.adult;
+                    pool = isF ? ageCat.female : ageCat.male;
+                } else if (pools[raceArchetype]) {
+                    pool = isF ? pools[raceArchetype].female : pools[raceArchetype].male;
+                } else {
+                    pool = isF ? pools.mortal.adult.female : pools.mortal.adult.male;
+                }
+
+                edgeVoice = pool.edge[hash % pool.edge.length];
+                geminiVoice = pool.gemini[hash % pool.gemini.length];
+            } else {
+                // Master Chronicler / Narrator attunement based on literary tradition
+                if (traditionKey === 'noldor') {
+                    edgeVoice = 'en-GB-LibbyNeural';
+                    geminiVoice = 'Aoede';
+                } else if (traditionKey === 'khazad') {
+                    edgeVoice = 'en-US-RogerNeural';
+                    geminiVoice = 'Algenib';
+                } else {
+                    edgeVoice = 'en-GB-RyanNeural';
+                    geminiVoice = 'Sulafat';
+                }
             }
-            if (category === 'veteran') {
-                const pool = ['en-US-RogerNeural', 'en-US-EricNeural'];
-                return pool[seed % pool.length];
-            }
-            if (category === 'rogue') {
-                const pool = ['en-US-SteffanNeural', 'en-US-RogerNeural'];
-                return pool[seed % pool.length];
-            }
-            if (category === 'beggar') {
-                const pool = ['en-IE-ConnorNeural', 'en-US-RogerNeural', 'en-US-GuyNeural'];
-                return pool[seed % pool.length];
-            }
-            // Male townsperson / merchant
-            const pool = ['en-US-GuyNeural', 'en-IE-ConnorNeural', 'en-US-BrianNeural', 'en-CA-LiamNeural'];
-            return pool[seed % pool.length];
+
+            this.instanceVoiceRegistry.set(instanceKey, {
+                edgeVoice,
+                geminiVoice,
+                gender,
+                isFemale: isF,
+                race: raceArchetype,
+                ageArchetype
+            });
         }
+
+        // 5. EMOTIONAL CONTEXT FROM LIVE GAME TELEMETRY (DYNAMIC PER UTTERANCE)
+        const hpRatio = (player && player.hp_max > 0) ? (player.hp / player.hp_max) : 1.0;
+        const isPeril = hpRatio < 0.35;
+        const isBleedingOrStun = player && (player.cut > 0 || player.stun > 0 || player.poisoned > 0 || player.confused > 0);
+        const isBoss = entityOrMonster && (entityOrMonster.isUnique || entityOrMonster.glyph === 'P' || entityOrMonster.glyph === 'B' || entityOrMonster.glyph === 'U' || (entityOrMonster.name && /\b(morgoth|sauron|glaurung|balrog)\b/i.test(entityOrMonster.name)));
+        const isStealth = player && (player.isSneaking || player.stealth > 5);
+        const isTown = (player && player.depth === 0) || eventType === 'town' || eventType === 'shop';
+
+        let emotion = 'calm';
+        let geminiTag = '';
+        let directorNote = '';
+        let pitch = '+0Hz';
+        let rate = '+0%';
+
+        if (isPeril) {
+            emotion = 'panicked';
+            geminiTag = '[panicked, trembling]';
+            directorNote = 'Desperate mortal panic, breathless and fighting for survival';
+            pitch = '+3Hz';
+            rate = '+8%';
+        } else if (isBoss) {
+            emotion = 'serious';
+            geminiTag = '[grimly, with grave dread]';
+            directorNote = 'An epic confrontation with an ancient terror of the First Age';
+            pitch = '-2Hz';
+            rate = '-4%';
+        } else if (isBleedingOrStun) {
+            emotion = 'strained';
+            geminiTag = '[groaning in pain]';
+            directorNote = 'Grievously wounded, voice trembling with pain';
+            pitch = '+2Hz';
+            rate = '+4%';
+        } else if (isStealth) {
+            emotion = 'whispering';
+            geminiTag = '[whispers]';
+            directorNote = 'Hushed stealth in complete darkness, avoiding waking patrolling monsters';
+            pitch = '-1Hz';
+            rate = '-7%';
+        } else if (isTown) {
+            emotion = 'cheerful';
+            geminiTag = '[warmly, with hearty camaraderie]';
+            directorNote = 'A warm fireside tavern keeper or friendly townsman';
+            pitch = '+1Hz';
+            rate = '+3%';
+        } else {
+            emotion = 'calm';
+            geminiTag = '[atmospheric]';
+            directorNote = 'A seasoned Tolkien chronicler narrating the journey with gravitas';
+            pitch = '+0Hz';
+            rate = '+0%';
+        }
+
+        return {
+            instanceKey,
+            gender,
+            isFemale: isF,
+            race: raceArchetype,
+            ageArchetype,
+            emotion,
+            geminiTag,
+            directorNote,
+            pitch,
+            rate,
+            edgeVoice,
+            geminiVoice
+        };
     }
 
     /**

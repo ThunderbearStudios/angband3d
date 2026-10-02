@@ -1481,6 +1481,10 @@ window.addEventListener('DOMContentLoaded', () => {
             hud.resetMessages();
         }
 
+        if (options.isNew && window.chronicleManager && typeof window.chronicleManager.resetForNewCharacter === 'function') {
+            window.chronicleManager.resetForNewCharacter({ name: options.charName });
+        }
+
         network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null);
     }
 
@@ -1501,6 +1505,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         if (hud && typeof hud.resetMessages === 'function') {
             hud.resetMessages();
+        }
+        if (window.chronicleManager && typeof window.chronicleManager.stopStoryPlayback === 'function') {
+            window.chronicleManager.stopStoryPlayback();
         }
         if (queueModal) queueModal.classList.add('hidden');
         stopQueueTipRotation();

@@ -35,12 +35,28 @@ class ChronicleAudioRouter {
                 } else {
                     this.narratorVoice = 'en-GB-RyanNeural';
                 }
+
+                const savedEngine = localStorage.getItem('angband_chronicle_engine');
+                if (savedEngine === 'gemini' || savedEngine === 'edge') this.ttsEngine = savedEngine;
+                else this.ttsEngine = 'edge';
+
+                const savedReverb = parseFloat(localStorage.getItem('angband_chronicle_reverb'));
+                if (!isNaN(savedReverb) && savedReverb >= 0.0 && savedReverb <= 1.0) this.reverbWet = savedReverb;
+                else this.reverbWet = 0.18;
             } catch (_) {}
+        } else {
+            this.ttsEngine = 'edge';
+            this.reverbWet = 0.18;
         }
 
         // Web Audio Sub-Graph
         this.ctx = null;
         this.voiceMasterGain = null;
+        this.voiceLowShelf = null;
+        this.voiceHighShelf = null;
+        this.reverbNode = null;
+        this.reverbGain = null;
+        this.activeTradition = 'westmarch';
         this.duckingActive = false;
         this.currentUtterance = null;
         this.speechRecognition = null;
@@ -73,7 +89,6 @@ class ChronicleAudioRouter {
             this.voiceMasterGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
             // Vintage Analogue Ribbon Mic Warmer: Gentle low-shelf warmth (+1.2dB at 180Hz) and high-shelf smoothing (-1.8dB at 7200Hz)
-            // Removes modern sterile digital sizzle, providing authentic vintage BBC radio & vinyl audiobook acoustics
             this.voiceLowShelf = this.ctx.createBiquadFilter();
             this.voiceLowShelf.type = 'lowshelf';
             this.voiceLowShelf.frequency.setValueAtTime(180, this.ctx.currentTime);
@@ -84,11 +99,76 @@ class ChronicleAudioRouter {
             this.voiceHighShelf.frequency.setValueAtTime(7200, this.ctx.currentTime);
             this.voiceHighShelf.gain.setValueAtTime(-1.8, this.ctx.currentTime);
 
+            // Subterranean Vault Convolution Reverb Node
+            this.reverbNode = this.ctx.createConvolver();
+            const impulse = this._buildVaultImpulseResponse(1.6, 3.5);
+            if (impulse) this.reverbNode.buffer = impulse;
+
+            this.reverbGain = this.ctx.createGain();
+            this.reverbGain.gain.setValueAtTime(this.reverbWet, this.ctx.currentTime);
+
+            // Direct voice path + wet reverb path feeding into Analog Ribbon filter
             this.voiceMasterGain.connect(this.voiceLowShelf);
+            if (this.reverbNode) {
+                this.voiceMasterGain.connect(this.reverbNode);
+                this.reverbNode.connect(this.reverbGain);
+                this.reverbGain.connect(this.voiceLowShelf);
+            }
+
             this.voiceLowShelf.connect(this.voiceHighShelf);
             this.voiceHighShelf.connect(this.ctx.destination);
         } catch (e) {
             console.warn('[ChronicleAudio] Failed to bind Web Audio sub-graph:', e);
+        }
+    }
+
+    _buildVaultImpulseResponse(duration = 1.6, decay = 3.5) {
+        if (!this.ctx) return null;
+        try {
+            const rate = this.ctx.sampleRate;
+            const length = Math.floor(rate * duration);
+            const impulse = this.ctx.createBuffer(2, length, rate);
+            const left = impulse.getChannelData(0);
+            const right = impulse.getChannelData(1);
+
+            // Pre-delay of ~22ms (stone corridor reflection delay)
+            const preDelaySamples = Math.floor(rate * 0.022);
+
+            for (let i = 0; i < length; i++) {
+                if (i < preDelaySamples) {
+                    left[i] = 0;
+                    right[i] = 0;
+                } else {
+                    const t = (i - preDelaySamples) / (length - preDelaySamples);
+                    const env = Math.exp(-decay * t);
+                    // Dense stereo diffuse reflections
+                    left[i] = (Math.random() * 2 - 1) * env;
+                    right[i] = (Math.random() * 2 - 1) * env;
+                }
+            }
+            return impulse;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    setTradition(traditionKey) {
+        if (!traditionKey) return;
+        this.activeTradition = traditionKey;
+    }
+
+    setReverbVolume(wetLevel) {
+        this.reverbWet = Math.max(0, Math.min(1.0, wetLevel));
+        try { localStorage.setItem('angband_chronicle_reverb', this.reverbWet.toString()); } catch (_) {}
+        if (this.reverbGain && this.ctx) {
+            this.reverbGain.gain.setTargetAtTime(this.reverbWet, this.ctx.currentTime, 0.05);
+        }
+    }
+
+    setEngine(engine) {
+        if (engine === 'gemini' || engine === 'edge') {
+            this.ttsEngine = engine;
+            try { localStorage.setItem('angband_chronicle_engine', engine); } catch (_) {}
         }
     }
 
@@ -217,7 +297,13 @@ class ChronicleAudioRouter {
      * Tier 1: Studio-quality Neural TTS via server /api/tts.
      * Tier 2: In-browser Web Speech API with clean formant preservation.
      */
-    speak(text, dialogue = null, monsterCoords = null, playerCoords = null, cameraYaw = 0) {
+    /**
+     * Speaks narrative prose and creature dialogue with seamless queueing.
+     * Returns a Promise that resolves when the prose and optional creature bark finish speaking.
+     * Tier 1: Studio-quality Neural TTS via server /api/tts (Edge Neural SSML or Gemini Native Audio).
+     * Tier 2: In-browser Web Speech API with clean formant preservation.
+     */
+    speak(text, dialogue = null, monsterCoords = null, playerCoords = null, cameraYaw = 0, options = {}) {
         if (!this.enabled || !text) return Promise.resolve({ skipped: true });
 
         // If in interrupt mode and new urgent speech arrives, stop prior
@@ -226,7 +312,7 @@ class ChronicleAudioRouter {
         }
 
         return new Promise((resolve) => {
-            this.speechQueue.push({ text, dialogue, monsterCoords, playerCoords, cameraYaw, resolve });
+            this.speechQueue.push({ text, dialogue, monsterCoords, playerCoords, cameraYaw, options, resolve });
             if (!this.isProcessingSpeechQueue) {
                 this.processSpeechQueue();
             }
@@ -242,7 +328,7 @@ class ChronicleAudioRouter {
                 const item = this.speechQueue.shift();
                 let result = null;
                 try {
-                    result = await this._executeSpeak(item.text, item.dialogue);
+                    result = await this._executeSpeak(item.text, item.dialogue, item.options || {});
                 } catch (err) {
                     console.warn('[ChronicleAudio] Error speaking queued utterance:', err);
                 } finally {
@@ -256,13 +342,14 @@ class ChronicleAudioRouter {
         }
     }
 
-    async _executeSpeak(text, dialogue = null) {
+    async _executeSpeak(text, dialogue = null, options = {}) {
         this.duckGameAudio(true);
         this.isSpeaking = true;
 
         try {
-            // 1. Speak main narrative prose (Narrator voice)
-            const r1 = await this.speakUtterance(text, 'narrator');
+            // 1. Speak main narrative prose (Narrator voice) with emotion & tradition context
+            const narrOptions = options.narrator || options || {};
+            const r1 = await this.speakUtterance(text, 'narrator', '', null, narrOptions);
             if (r1 && r1.aborted) return { aborted: true };
             if (!this.enabled || !this.isSpeaking || this.isPaused) return { stopped: true };
 
@@ -275,8 +362,15 @@ class ChronicleAudioRouter {
                 this._pauseTimeout = null;
                 if (!this.enabled || !this.isSpeaking || this.isPaused) return { stopped: true };
 
-                const voice = dialogue.recommendedVoice || null;
-                const r2 = await this.speakUtterance(dialogue.text, 'creature', dialogue.speaker, voice);
+                const voice = dialogue.recommendedVoice || dialogue.edgeVoice || null;
+                const dOptions = dialogue.voiceProfile ? { ...dialogue.voiceProfile, engine: this.ttsEngine } : {
+                    emotion: dialogue.emotion || options.emotion || '',
+                    geminiTag: dialogue.geminiTag || '',
+                    directorNote: dialogue.directorNote || '',
+                    gender: dialogue.gender || '',
+                    engine: this.ttsEngine
+                };
+                const r2 = await this.speakUtterance(dialogue.text, 'creature', dialogue.speaker, voice, dOptions);
                 if (r2 && r2.aborted) return { aborted: true };
             }
             return { finished: true };
@@ -290,14 +384,14 @@ class ChronicleAudioRouter {
      * Speaks an individual prose or dialogue utterance.
      * Attempts server-side neural streaming first; falls back cleanly to local browser synthesis.
      */
-    async speakUtterance(text, role = 'narrator', speakerName = '', customVoice = null) {
+    async speakUtterance(text, role = 'narrator', speakerName = '', customVoice = null, options = {}) {
         if (!this.enabled) return { aborted: true };
         const cleanText = text.replace(/<[^>]*>/g, '').trim();
         if (!cleanText) return { finished: true };
 
         // Try high-fidelity server neural TTS first
         try {
-            const res = await this.playNeuralAudio(cleanText, role, customVoice);
+            const res = await this.playNeuralAudio(cleanText, role, customVoice, options);
             return res || { finished: true };
         } catch (err) {
             // Server neural TTS offline or failed; smoothly fall back to browser Web Speech API
@@ -308,13 +402,48 @@ class ChronicleAudioRouter {
         return res || { finished: true };
     }
 
-    playNeuralAudio(text, role, customVoice = null) {
+    playNeuralAudio(text, role, customVoice = null, options = {}) {
         return new Promise(async (resolve, reject) => {
             try {
-                const voice = customVoice || (role === 'narrator' ? this.narratorVoice : '');
-                const voiceParam = voice ? `&voice=${encodeURIComponent(voice)}` : '';
-                // Add timestamp query param to guarantee no stale browser disk cache
-                const url = `/api/tts?text=${encodeURIComponent(text)}&role=${encodeURIComponent(role)}${voiceParam}&_t=${Date.now()}`;
+                const engine = options.engine || this.ttsEngine || 'edge';
+                let voice = customVoice || (role === 'narrator' ? this.narratorVoice : '');
+                if (engine === 'gemini' && options.geminiVoice) {
+                    voice = options.geminiVoice;
+                }
+
+                const emotion = options.emotion || '';
+                const geminiTag = options.geminiTag || '';
+                const directorNote = options.directorNote || '';
+                const pitch = options.pitch || '';
+                const rate = options.rate || '';
+                const gender = options.gender || '';
+
+                const q = new URLSearchParams({
+                    text,
+                    role,
+                    engine,
+                    voice: voice || '',
+                    emotion,
+                    gemini_tag: geminiTag,
+                    director_note: directorNote,
+                    pitch,
+                    rate,
+                    gender,
+                    _t: Date.now().toString()
+                });
+                const url = `/api/tts?${q.toString()}`;
+
+                // Extract client-side API key if stored in browser
+                let apiKey = '';
+                if (typeof window !== 'undefined' && window.localStorage) {
+                    try {
+                        apiKey = localStorage.getItem('angband_chronicle_apikey') || '';
+                    } catch (_) {}
+                }
+                const fetchHeaders = {};
+                if (apiKey) {
+                    fetchHeaders['x-goog-api-key'] = apiKey;
+                }
 
                 // Stop prior audio cleanly
                 if (this.currentAudio) {
@@ -331,6 +460,35 @@ class ChronicleAudioRouter {
                     this.currentSource = null;
                 }
 
+                // --- TIER 1: WEB AUDIO DECODING WITH SUBTERRANEAN REVERB & RIBBON FILTER ---
+                if (this.ctx && this.voiceMasterGain) {
+                    try {
+                        const res = await fetch(url, { headers: fetchHeaders });
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        const arrayBuffer = await res.arrayBuffer();
+                        const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+
+                        const source = this.ctx.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.playbackRate.value = Math.max(0.75, Math.min(2.0, this.speed));
+                        source.connect(this.voiceMasterGain);
+
+                        this.currentSource = source;
+                        this.activePlaybackResolve = resolve;
+
+                        source.onended = () => {
+                            this.currentSource = null;
+                            this.activePlaybackResolve = null;
+                            resolve({ finished: true });
+                        };
+                        source.start(0);
+                        return;
+                    } catch (decodeErr) {
+                        console.info('[ChronicleAudio] Web Audio decode bypassed, falling back to HTML5 audio element:', decodeErr.message);
+                    }
+                }
+
+                // --- TIER 2: HTML5 AUDIO ELEMENT FALLBACK ---
                 const audio = new Audio();
                 audio.src = url;
                 audio.playbackRate = Math.max(0.75, Math.min(2.0, this.speed));
