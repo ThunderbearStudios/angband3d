@@ -326,15 +326,15 @@ class ChronicleManager {
                         this.audio.setMuted(false);
                         this.updateAudioControlsUI();
                     }
+                    const activeEngine = this.selectEngine ? this.selectEngine.value : (this.audio.ttsEngine || 'edge');
                     if (this.testStatus) {
                         this.testStatus.style.color = '#ffd700';
-                        this.testStatus.textContent = '🔊 Auditioning narrator...';
+                        this.testStatus.textContent = activeEngine === 'gemini' ? '✨ Auditioning Gemini Native Audio...' : '🔊 Auditioning narrator...';
                     }
                     try {
-                        const activeEngine = this.selectEngine ? this.selectEngine.value : (this.audio.ttsEngine || 'edge');
                         const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'exploration', this.tradition) : null;
                         const voiceToUse = (narrProfile && activeEngine === 'gemini') ? narrProfile.geminiVoice : ((narrProfile && narrProfile.edgeVoice) ? narrProfile.edgeVoice : this.audio.narratorVoice);
-                        await this.audio.speakUtterance(sampleText, 'narrator', '', voiceToUse, {
+                        const speakResult = await this.audio.speakUtterance(sampleText, 'narrator', '', voiceToUse, {
                             engine: activeEngine,
                             geminiVoice: (narrProfile && narrProfile.geminiVoice) || 'Sulafat',
                             geminiTag: (narrProfile && narrProfile.geminiTag) || '[atmospheric, solemn]',
@@ -342,9 +342,15 @@ class ChronicleManager {
                             emotion: (narrProfile && narrProfile.emotion) || 'calm'
                         });
                         if (this.testStatus) {
-                            this.testStatus.style.color = '#4ade80';
-                            this.testStatus.textContent = '✓ Audition complete.';
-                            setTimeout(() => { if (this.testStatus) this.testStatus.textContent = ''; }, 3000);
+                            if (activeEngine === 'gemini' && speakResult && speakResult.engine === 'edge') {
+                                this.testStatus.style.color = '#f59e0b';
+                                const reason = speakResult.fallbackReason || 'Check Gemini API Key in Settings';
+                                this.testStatus.textContent = `⚠️ Gemini fell back to Edge Neural (${reason}).`;
+                            } else {
+                                this.testStatus.style.color = '#4ade80';
+                                this.testStatus.textContent = activeEngine === 'gemini' ? '✓ Gemini Native Audio audition complete.' : '✓ Audition complete.';
+                            }
+                            setTimeout(() => { if (this.testStatus) this.testStatus.textContent = ''; }, 4000);
                         }
                     } catch (e) {
                         if (this.testStatus) {
