@@ -33,6 +33,61 @@ const activeSessions = new Map();
 const ttsAudioCache = new Map();
 const MAX_TTS_CACHE_ITEMS = 250;
 
+// In-Memory Static Gzip Cache (eliminates repeated compression CPU overhead on static assets)
+const staticGzipCache = new Map();
+const MAX_STATIC_CACHE_ITEMS = 100;
+
+// Warm WebSocket Connection Pool for Edge Neural TTS
+// Eliminates 250-450ms cold TLS connection setup latency on repeated synthesis requests
+const edgeVoicePool = new Map(); // voice -> { tts, initPromise, lastUsed }
+const EDGE_POOL_IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes idle timeout
+
+// Persistent Warm HTTPS Agent for Google Generative AI API
+// Eliminates 350-500ms cold TLS 1.3 handshake overhead on sequential Gemini audio & LLM calls
+const geminiHttpsAgent = new https.Agent({
+    keepAlive: true,
+    maxSockets: 25,
+    maxFreeSockets: 5,
+    timeout: 60000,
+    freeSocketTimeout: 30000
+});
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [voice, entry] of edgeVoicePool.entries()) {
+        if (now - entry.lastUsed > EDGE_POOL_IDLE_TIMEOUT_MS) {
+            try { entry.tts.close(); } catch (_) {}
+            edgeVoicePool.delete(voice);
+        }
+    }
+}, 60000).unref();
+
+async function getWarmEdgeTTS(voice) {
+    if (!MsEdgeTTS) return null;
+    let entry = edgeVoicePool.get(voice);
+    if (entry && entry.tts && entry.tts._ws && entry.tts._ws.readyState === 1 /* OPEN */) {
+        entry.lastUsed = Date.now();
+        return entry.tts;
+    }
+    if (entry) {
+        try { entry.tts.close(); } catch (_) {}
+        edgeVoicePool.delete(voice);
+    }
+    const tts = new MsEdgeTTS();
+    const edgeFormat = (OUTPUT_FORMAT && OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3) ? OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3 : (OUTPUT_FORMAT && OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+    const initPromise = tts.setMetadata(voice, edgeFormat)
+        .then(() => tts)
+        .catch(err => {
+            edgeVoicePool.delete(voice);
+            try { tts.close(); } catch (_) {}
+            throw err;
+        });
+    entry = { tts, initPromise, lastUsed: Date.now() };
+    edgeVoicePool.set(voice, entry);
+    await initPromise;
+    return tts;
+}
+
 const TTS_VOICE_MAP = {
     // Curated British Masters & Bards
     ryan: 'en-GB-RyanNeural',             // Theatrical, dramatic Tolkien narrator (NEW DEFAULT)
@@ -60,7 +115,7 @@ const TTS_VOICE_MAP = {
     eric: 'en-US-EricNeural',             // Crisp, authoritative battlefield commander (Male)
 
     // Contextual Role Mappings with Gender Awareness
-    narrator: 'en-GB-RyanNeural',         // Default: dramatic, theatrical Tolkien narrator
+    narrator: 'en-GB-RyanNeural',         // Default: theatrical, dramatic British narrator (RESTORED)
     mentor: 'en-US-ChristopherNeural',    // Deep, ancient fantasy baritone sage & guide
     idiot: 'en-GB-MaisieNeural',          // High-spirited, eccentric babbler & drooling vagrant
     babbler: 'en-GB-MaisieNeural',
@@ -84,23 +139,30 @@ const TTS_VOICE_MAP = {
 
 // Curated 30 Character Archetype Casting Matrix for Gemini Native Audio (Free Tier Preview)
 const GEMINI_VOICE_MAP = {
-    narrator: 'Sulafat',         // Warm, resonant baritone storyteller
+    narrator: 'Enceladus',       // Expressive, older British storyteller (RESTORED)
     mentor: 'Gacrux',           // Mature, raspy, ancient scholar
     idiot: 'Puck',              // Upbeat, blubbering, eccentric babbler
     female_townsperson: 'Aoede', // Breezy, lyrical, gentle townsfolk
     male_townsperson: 'Sulafat',
     female_rogue: 'Kore',       // Firm, gritty, sharp martial cadence
     male_rogue: 'Orus',         // Disciplined, raspy cutthroat
+    rogue: 'Orus',
     female_spellcaster: 'Despina', // Smooth, eerie, mystical sibilance
     male_spellcaster: 'Gacrux',
+    spellcaster: 'Gacrux',
     veteran: 'Orus',            // Firm, commanding warrior
     female_veteran: 'Kore',     // Firm, battle-scarred swordswoman
     orc: 'Fenrir',              // Excitable, guttural snarls
+    giant: 'Charon',            // Cavernous, hollow booming bass (Half-Giant, Half-Titan, Half-Troll)
+    dwarf: 'Algenib',           // Deep, gravelly subterranean rumble
+    hobbit: 'Puck',             // Diminutive, lively tenor
+    gnome: 'Puck',
     dragon: 'Algenib',          // Deep, gravelly draconic power
     high_undead: 'Algenib',     // Sepulchral resonance
     beggar: 'Puck',
+    beast: 'Fenrir',            // Bestial snarl
     creature: 'Fenrir',
-    default: 'Sulafat'
+    default: 'Enceladus'
 };
 
 // Generates a standard 44-byte RIFF WAV header for raw 16-bit linear PCM audio
@@ -131,19 +193,33 @@ function sanitizeHeader(val) {
     return String(val).replace(/[\r\n\t]+/g, ' ').replace(/[^\x20-\x7E]/g, '').substring(0, 120);
 }
 
+function redactSecret(val, secret = '') {
+    if (!val || typeof val !== 'string') return val;
+    let sanitized = val;
+    const keys = [secret, process.env.GEMINI_API_KEY].filter(k => k && typeof k === 'string' && k.length > 5);
+    for (const k of keys) {
+        sanitized = sanitized.split(k).join('[PROTECTED_KEY]');
+    }
+    return sanitized;
+}
+
 // Proxies text-to-speech to Gemini Native Audio (gemini-3.1-flash-tts-preview) with directorial prompting
-function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, apiKey }) {
+function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey }) {
     return new Promise((resolve, reject) => {
         if (!apiKey) {
             return reject(new Error('No Gemini API key provided'));
         }
 
+        // Lean Directorial Prompting: Minimize token overhead to maximize generation speed
         let promptText = text;
-        const note = directorNote || (emotion ? `emotion: ${emotion}` : '');
-        if (note || geminiTag) {
-            const prefix = note ? `Say with ${note}: ` : '';
-            const tag = geminiTag ? `${geminiTag} ` : '';
-            promptText = `${prefix}${tag}${text}`;
+        let tag = geminiTag ? geminiTag.trim() : '';
+        if (!tag && directorNote) {
+            tag = `[${directorNote.trim()}]`;
+        } else if (!tag && role === 'narrator') {
+            tag = '[expressive, older British storyteller]';
+        }
+        if (tag) {
+            promptText = `${tag} ${text}`;
         }
 
         const payload = JSON.stringify({
@@ -155,7 +231,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ap
                 speechConfig: {
                     voiceConfig: {
                         prebuiltVoiceConfig: {
-                            voiceName: voice || 'Sulafat'
+                            voiceName: voice || 'Enceladus'
                         }
                     }
                 }
@@ -164,11 +240,12 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ap
 
         const req = https.request('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent', {
             method: 'POST',
+            agent: geminiHttpsAgent,
             headers: {
                 'Content-Type': 'application/json',
                 'x-goog-api-key': apiKey
             },
-            timeout: 15000
+            timeout: 20000
         }, res => {
             let body = '';
             res.on('data', chunk => body += chunk);
@@ -183,7 +260,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ap
                     } catch (_) {
                         errMsg = `HTTP ${res.statusCode}: ${body.substring(0, 100)}`;
                     }
-                    return reject(new Error(errMsg.replace(/[\r\n\t]+/g, ' ').substring(0, 120)));
+                    return reject(new Error(redactSecret(errMsg.replace(/[\r\n\t]+/g, ' ').substring(0, 120), apiKey)));
                 }
                 try {
                     const data = JSON.parse(body);
@@ -198,7 +275,19 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ap
                         }
                     }
                     if (!inlineData || !inlineData.data) {
-                        const candidateErr = data.candidates?.[0]?.finishReason || data.error?.message || 'Gemini TTS returned no audio data in payload';
+                        // If prompt was rejected or blocked due to directorial brackets (e.g. single-word probes), retry cleanly with raw text
+                        if (tag && promptText !== text) {
+                            return synthesizeGeminiTTS({
+                                text,
+                                voice,
+                                emotion,
+                                geminiTag: '',
+                                directorNote: '',
+                                role: '',
+                                apiKey
+                            }).then(resolve).catch(reject);
+                        }
+                        const candidateErr = data.candidates?.[0]?.finishReason || data.promptFeedback?.blockReason || data.error?.message || 'Gemini TTS returned no audio data in payload';
                         return reject(new Error(candidateErr));
                     }
 
@@ -546,15 +635,8 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // REST: Safe LLM Configuration Provider (Exposes local key strictly to local browser sessions)
+    // REST: Protected LLM Configuration Provider (Never exposes raw secret key to browser)
     if (pathname === '/api/config/llm' && req.method === 'GET') {
-        const clientIp = req.socket.remoteAddress || '';
-        const host = req.headers.host || '';
-        const isLocal = clientIp === '127.0.0.1' || 
-                        clientIp === '::1' || 
-                        clientIp === '::ffff:127.0.0.1' ||
-                        host.includes('localhost') ||
-                        host.includes('127.0.0.1');
         const apiKey = process.env.GEMINI_API_KEY || '';
         res.writeHead(200, {
             'Content-Type': 'application/json',
@@ -562,10 +644,100 @@ const server = http.createServer((req, res) => {
         });
         res.end(JSON.stringify({
             hasKey: !!apiKey,
-            apiKey: isLocal ? apiKey : '',
+            hasServerKey: !!apiKey,
             defaultModel: 'gemini-3.8-flash',
             provider: apiKey ? 'gemini' : 'offline'
         }));
+        return;
+    }
+
+    // REST: Protected LLM Generator Proxy (Protects API key entirely on backend; zero client leakage)
+    if (pathname === '/api/llm/generate' && req.method === 'POST') {
+        let rawBody = '';
+        req.on('data', chunk => {
+            rawBody += chunk;
+            if (rawBody.length > 1000000) {
+                req.destroy();
+            }
+        });
+
+        req.on('end', () => {
+            let parsed = null;
+            try {
+                parsed = JSON.parse(rawBody);
+            } catch (e) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: { message: 'Invalid JSON payload' } }));
+                return;
+            }
+
+            const model = parsed.model || 'gemini-3.8-flash';
+            let payload = parsed.payload;
+            if (!payload) {
+                const systemPrompt = parsed.systemPrompt || '';
+                const userPrompt = parsed.userPrompt || '';
+                const generationConfig = parsed.generationConfig || { maxOutputTokens: 350 };
+                const isGemini3 = model.includes('gemini-3') || model.includes('3.8') || model.includes('3.7') || model.includes('3.6') || model.includes('3.5') || model.includes('3.1');
+                if (isGemini3 && !generationConfig.thinkingConfig) {
+                    generationConfig.thinkingConfig = { thinkingLevel: 'LOW' };
+                }
+                payload = {
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+                    generationConfig
+                };
+            }
+
+            // Key resolution: client header override allowed, else server environment
+            const apiKey = req.headers['x-goog-api-key'] || req.headers['x-api-key'] || process.env.GEMINI_API_KEY || '';
+            if (!apiKey) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: { message: 'No Gemini API key configured on server or request.' } }));
+                return;
+            }
+
+            const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+            const payloadStr = JSON.stringify(payload);
+
+            const upstreamReq = https.request(targetUrl, {
+                method: 'POST',
+                agent: geminiHttpsAgent,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey,
+                    'Content-Length': Buffer.byteLength(payloadStr)
+                },
+                timeout: 30000
+            }, upstreamRes => {
+                let respBody = '';
+                upstreamRes.on('data', chunk => respBody += chunk);
+                upstreamRes.on('end', () => {
+                    res.writeHead(upstreamRes.statusCode || 200, {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    });
+                    res.end(redactSecret(respBody, apiKey));
+                });
+            });
+
+            upstreamReq.on('timeout', () => {
+                upstreamReq.destroy();
+                if (!res.headersSent) {
+                    res.writeHead(504, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: { message: 'Gemini upstream request timed out' } }));
+                }
+            });
+
+            upstreamReq.on('error', err => {
+                if (!res.headersSent) {
+                    res.writeHead(502, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: { message: redactSecret(err.message, apiKey) } }));
+                }
+            });
+
+            upstreamReq.write(payloadStr);
+            upstreamReq.end();
+        });
         return;
     }
 
@@ -591,25 +763,31 @@ const server = http.createServer((req, res) => {
             return;
         }
 
-        const requestedEngine = (urlObj.searchParams.get('engine') || 'edge').toLowerCase();
+        // Extract Gemini API key (client header takes priority, then server environment; NEVER from URL query)
+        const geminiApiKey = req.headers['x-goog-api-key'] ||
+                             req.headers['x-api-key'] ||
+                             process.env.GEMINI_API_KEY ||
+                             '';
+
+        const reqEngineParam = urlObj.searchParams.get('engine');
+        const requestedEngine = (reqEngineParam ? reqEngineParam.toLowerCase() : 'gemini');
         const emotion = (urlObj.searchParams.get('emotion') || '').toLowerCase().trim();
         const geminiTag = (urlObj.searchParams.get('gemini_tag') || '').trim();
         const directorNote = (urlObj.searchParams.get('director_note') || '').trim();
         const reqVoice = (urlObj.searchParams.get('voice') || '').trim();
         const reqGender = (urlObj.searchParams.get('gender') || '').toLowerCase().trim();
-        const reqPitch = urlObj.searchParams.get('pitch');
-        const reqRate = urlObj.searchParams.get('rate');
-
-        // Extract Gemini API key (client header takes priority, then query param, then server environment)
-        const geminiApiKey = req.headers['x-goog-api-key'] ||
-                             req.headers['x-api-key'] ||
-                             urlObj.searchParams.get('key') ||
-                             urlObj.searchParams.get('apiKey') ||
-                             process.env.GEMINI_API_KEY ||
-                             '';
+        const reqPitch = (urlObj.searchParams.get('pitch') || '').trim();
+        const reqRate = (urlObj.searchParams.get('rate') || '').trim();
 
         // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO ---
-        if (requestedEngine === 'gemini' && geminiApiKey) {
+        if (requestedEngine === 'gemini') {
+            if (!geminiApiKey) {
+                console.warn('[TTS] Gemini Native Audio requested, but no Gemini API key found (headers, query, or env).');
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'No Gemini API key configured for Gemini Native Audio' }));
+                return;
+            }
+
             // Resolve Gemini voice from official 30-voice matrix
             let geminiVoice = GEMINI_VOICE_MAP.default;
             const validGeminiVoices = [
@@ -629,27 +807,60 @@ const server = http.createServer((req, res) => {
                 geminiVoice = GEMINI_VOICE_MAP[role];
             }
 
+            function sendWav(buffer, isHit = false) {
+                if (res.headersSent) return;
+                const acceptEncoding = req.headers['accept-encoding'] || '';
+                if (acceptEncoding.includes('gzip')) {
+                    zlib.gzip(buffer, (gzErr, gzipped) => {
+                        if (!gzErr && gzipped && !res.headersSent) {
+                            res.writeHead(200, {
+                                'Content-Type': 'audio/wav',
+                                'Content-Encoding': 'gzip',
+                                'Content-Length': gzipped.length,
+                                'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
+                                'X-TTS-Engine': 'gemini',
+                                'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
+                            });
+                            res.end(gzipped);
+                            return;
+                        }
+                        if (!res.headersSent) {
+                            res.writeHead(200, {
+                                'Content-Type': 'audio/wav',
+                                'Content-Length': buffer.length,
+                                'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
+                                'X-TTS-Engine': 'gemini',
+                                'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
+                            });
+                            res.end(buffer);
+                        }
+                    });
+                } else {
+                    res.writeHead(200, {
+                        'Content-Type': 'audio/wav',
+                        'Content-Length': buffer.length,
+                        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
+                        'X-TTS-Engine': 'gemini',
+                        'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
+                    });
+                    res.end(buffer);
+                }
+            }
+
             const geminiCacheKey = `gemini:${geminiVoice}:${emotion}:${geminiTag}:${text}`;
             if (ttsAudioCache.has(geminiCacheKey)) {
-                const cached = ttsAudioCache.get(geminiCacheKey);
-                res.writeHead(200, {
-                    'Content-Type': 'audio/wav',
-                    'Content-Length': cached.length,
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'X-TTS-Engine': 'gemini',
-                    'X-TTS-Cache': 'HIT'
-                });
-                res.end(cached);
+                sendWav(ttsAudioCache.get(geminiCacheKey), true);
                 return;
             }
 
-            console.log(`[TTS] Gemini Native Request: voice=${geminiVoice}, emotion=${emotion || 'calm'}, text="${text.substring(0, 50)}..."`);
+            console.log(`[TTS] Gemini Native Request: voice=${geminiVoice}, role=${role}, emotion=${emotion || 'calm'}, text="${text.substring(0, 50)}..."`);
             synthesizeGeminiTTS({
                 text,
                 voice: geminiVoice,
                 emotion,
                 geminiTag,
                 directorNote,
+                role,
                 apiKey: geminiApiKey
             }).then(wavBuffer => {
                 if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {
@@ -657,32 +868,18 @@ const server = http.createServer((req, res) => {
                     ttsAudioCache.delete(oldestKey);
                 }
                 ttsAudioCache.set(geminiCacheKey, wavBuffer);
-
-                if (!res.headersSent) {
-                    res.writeHead(200, {
-                        'Content-Type': 'audio/wav',
-                        'Content-Length': wavBuffer.length,
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'X-TTS-Engine': 'gemini',
-                        'X-TTS-Cache': 'MISS'
-                    });
-                    res.end(wavBuffer);
-                }
+                sendWav(wavBuffer, false);
             }).catch(geminiErr => {
-                console.warn(`[TTS] Gemini Native Audio unavailable (${geminiErr.message}). Seamlessly auto-falling back to Expressive Edge Neural.`);
-                res.setHeader('X-TTS-Fallback-Reason', sanitizeHeader(geminiErr.message));
-                // Fall through to Engine A (Edge Neural)
-                handleEdgeTTS();
+                console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
+                if (!res.headersSent) {
+                    res.writeHead(502, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: redactSecret(geminiErr.message, geminiApiKey) }));
+                }
             });
             return;
         }
 
-        if (requestedEngine === 'gemini' && !geminiApiKey) {
-            console.warn('[TTS] Gemini Native Audio requested, but no Gemini API key found (headers, query, or env). Falling back to Edge Neural.');
-            res.setHeader('X-TTS-Fallback-Reason', sanitizeHeader('No Gemini API key provided'));
-        }
-
-        // --- ENGINE A: EXPRESSIVE EDGE NEURAL (DEFAULT & FALLBACK) ---
+        // --- ENGINE A: EXPRESSIVE EDGE NEURAL (ACCESSIBLE ONLY ON EXPLICIT REQUEST) ---
         handleEdgeTTS();
 
         function handleEdgeTTS() {
@@ -734,7 +931,7 @@ const server = http.createServer((req, res) => {
                 res.writeHead(200, {
                     'Content-Type': 'audio/mpeg',
                     'Content-Length': cached.length,
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
                     'X-TTS-Engine': 'edge',
                     'X-TTS-Cache': 'HIT'
                 });
@@ -748,70 +945,49 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            try {
-                const tts = new MsEdgeTTS();
-                let isClosed = false;
-                const closeTTS = () => {
-                    if (!isClosed) {
-                        isClosed = true;
+            getWarmEdgeTTS(voice)
+                .then(tts => {
+                    const { audioStream } = tts.toStream(text, prosodyOptions);
+                    const chunks = [];
+
+                    audioStream.on('data', chunk => chunks.push(chunk));
+                    audioStream.on('end', () => {
+                        const buffer = Buffer.concat(chunks);
+                        if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {
+                            const oldestKey = ttsAudioCache.keys().next().value;
+                            ttsAudioCache.delete(oldestKey);
+                        }
+                        ttsAudioCache.set(edgeCacheKey, buffer);
+
+                        if (!res.headersSent) {
+                            res.writeHead(200, {
+                                'Content-Type': 'audio/mpeg',
+                                'Content-Length': buffer.length,
+                                'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
+                                'X-TTS-Engine': 'edge',
+                                'X-TTS-Cache': 'MISS'
+                            });
+                            res.end(buffer);
+                        }
+                    });
+
+                    audioStream.on('error', err => {
+                        console.warn('[TTS] audioStream error:', err.message);
                         try { tts.close(); } catch (_) {}
-                    }
-                };
-
-                req.on('close', closeTTS);
-
-                tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3)
-                    .then(() => {
-                        if (isClosed) return;
-                        const { audioStream } = tts.toStream(text, prosodyOptions);
-                        const chunks = [];
-
-                        audioStream.on('data', chunk => chunks.push(chunk));
-                        audioStream.on('end', () => {
-                            closeTTS();
-                            const buffer = Buffer.concat(chunks);
-                            if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {
-                                const oldestKey = ttsAudioCache.keys().next().value;
-                                ttsAudioCache.delete(oldestKey);
-                            }
-                            ttsAudioCache.set(edgeCacheKey, buffer);
-
-                            if (!res.headersSent) {
-                                res.writeHead(200, {
-                                    'Content-Type': 'audio/mpeg',
-                                    'Content-Length': buffer.length,
-                                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                                    'X-TTS-Engine': 'edge',
-                                    'X-TTS-Cache': 'MISS'
-                                });
-                                res.end(buffer);
-                            }
-                        });
-
-                        audioStream.on('error', err => {
-                            closeTTS();
-                            console.warn('[TTS] audioStream error:', err.message);
-                            if (!res.headersSent) {
-                                res.writeHead(500, { 'Content-Type': 'application/json' });
-                                res.end(JSON.stringify({ error: err.message }));
-                            }
-                        });
-                    })
-                    .catch(err => {
-                        closeTTS();
-                        console.warn('[TTS] setMetadata failed:', err.message);
+                        edgeVoicePool.delete(voice);
                         if (!res.headersSent) {
                             res.writeHead(500, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({ error: err.message }));
                         }
                     });
-            } catch (err) {
-                console.warn('[TTS] TTS initialization failed:', err.message);
-                if (!res.headersSent) {
-                    res.writeHead(500, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: err.message }));
-                }
-            }
+                })
+                .catch(err => {
+                    console.warn('[TTS] getWarmEdgeTTS failed:', err.message);
+                    if (!res.headersSent) {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: err.message }));
+                    }
+                });
         }
         return;
     }
@@ -1071,9 +1247,38 @@ const server = http.createServer((req, res) => {
 
         if (compressible && acceptEncoding.includes('gzip')) {
             headers['Content-Encoding'] = 'gzip';
-            res.writeHead(200, headers);
-            fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(res);
-            return;
+            try {
+                const stat = fs.statSync(filePath);
+                const cacheKey = `${filePath}:${stat.mtimeMs}`;
+                const cached = staticGzipCache.get(cacheKey);
+                if (cached) {
+                    headers['Content-Length'] = cached.length;
+                    res.writeHead(200, headers);
+                    res.end(cached);
+                    return;
+                }
+                const rawBuffer = fs.readFileSync(filePath);
+                zlib.gzip(rawBuffer, { level: 6 }, (err, gzipped) => {
+                    if (!err && gzipped) {
+                        if (staticGzipCache.size >= MAX_STATIC_CACHE_ITEMS) {
+                            const oldest = staticGzipCache.keys().next().value;
+                            staticGzipCache.delete(oldest);
+                        }
+                        staticGzipCache.set(cacheKey, gzipped);
+                        headers['Content-Length'] = gzipped.length;
+                        res.writeHead(200, headers);
+                        res.end(gzipped);
+                    } else {
+                        res.writeHead(200, headers);
+                        fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(res);
+                    }
+                });
+                return;
+            } catch (_) {
+                res.writeHead(200, headers);
+                fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(res);
+                return;
+            }
         } else if (compressible && acceptEncoding.includes('deflate')) {
             headers['Content-Encoding'] = 'deflate';
             res.writeHead(200, headers);

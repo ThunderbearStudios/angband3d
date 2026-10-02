@@ -122,7 +122,6 @@
                         <span id="chronicle-tradition-badge" class="chronicle-tradition-badge">Westmarch</span>
                     </div>
                     <div class="chronicle-window-actions">
-                        <button id="btn-chronicle-settings" class="chronicle-ctrl-btn" title="Chronicle Voices &amp; AI Settings [⚙]">⚙ Settings</button>
                         <button id="btn-chronicle-expand" class="chronicle-ctrl-btn" title="Toggle Window Size">▲ Min</button>
                         <button id="btn-chronicle-close" class="chronicle-ctrl-btn" title="Close Window [Alt+C]">✕ Hide</button>
                     </div>
@@ -137,7 +136,7 @@
                     </div>
                     <div class="chronicle-audio-toggles">
                         <button id="btn-chronicle-mute" class="chronicle-ctrl-btn" title="Toggle Voice Narration">🔇 Muted</button>
-                        <button id="btn-chronicle-speed" class="chronicle-ctrl-btn" title="Audiobook Speed (1.0x, 1.25x, 1.5x)">⚡ 1.0x</button>
+                        <button id="btn-chronicle-speed" class="chronicle-ctrl-btn" title="Audiobook Speed (0.75x, 0.85x, 1.0x, 1.25x, 1.5x)">⚡ 1.0x</button>
                     </div>
                 </div>
             </div>
@@ -166,7 +165,7 @@
                 <span id="chronicle-status-text">Chronicle Active</span>
                 <div class="chronicle-footer-actions">
                     <button id="btn-chronicle-export-json" class="chronicle-footer-btn" title="Export raw .chronicle.json">💾 JSON</button>
-                    <button id="btn-chronicle-export-html" class="chronicle-footer-btn" title="Export illustrated standalone HTML book">📄 HTML Book</button>
+                    <button id="btn-chronicle-export-html" class="chronicle-footer-btn" title="Export standalone HTML chronicle">📄 HTML Story</button>
                     <button id="btn-chronicle-import" class="chronicle-footer-btn" title="Import chronicle file">📂 Import</button>
                     <input type="file" id="chronicle-file-input" accept=".json" style="display: none;">
                 </div>
@@ -979,163 +978,6 @@
             </div>
         </div>
 
-        <!-- Chronicle Settings Modal -->
-        <div id="chronicle-settings-modal" class="hidden">
-            <div class="chronicle-settings-card">
-                <div class="chronicle-settings-header">
-                    <span class="chronicle-settings-title">⚙ TOME &amp; LOREKEEPER SETTINGS</span>
-                    <button id="btn-chronicle-settings-close" class="btn-guide-close" title="Close Settings">✕</button>
-                </div>
-
-                <!-- Navigation Tabs -->
-                <div class="chronicle-settings-tabs">
-                    <button type="button" class="settings-tab-btn active" data-tab="voice">🎙️ Voice Studio</button>
-                    <button type="button" class="settings-tab-btn" data-tab="ai">🧠 AI Storyteller &amp; Free Tier</button>
-                    <button type="button" class="settings-tab-btn" data-tab="tradition">📜 Literary Traditions</button>
-                </div>
-
-                <div class="chronicle-settings-body">
-                    <!-- TAB 1: CHRONICLER VOICE STUDIO -->
-                    <div class="settings-tab-pane active" id="pane-setting-voice">
-                        <div class="settings-group">
-                            <label class="settings-label" for="chronicle-setting-engine">Audiobook Voice Engine:</label>
-                            <select id="chronicle-setting-engine" class="settings-select">
-                                <option value="edge" selected>🎙️ Edge Neural (100% Free, Unlimited, Sub-200ms Latency)</option>
-                                <option value="gemini">✨ Gemini Native Audio (AI Directed Emotional Audio — Free via AI Studio)</option>
-                            </select>
-                            <span class="settings-desc">Choose between ultra-fast Edge Neural voices or ultra-expressive Gemini Native Audio archetypes.</span>
-                        </div>
-
-                        <div class="settings-group">
-                            <div style="background: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: 12px 14px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                    <div style="font-weight: 700; color: #ffd700; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
-                                        <span>🎭</span>
-                                        <span>Intelligent Voice Casting &amp; Instance Continuity</span>
-                                    </div>
-                                    <button id="btn-chronicle-test-voice" type="button" class="btn-silver-solid" style="padding: 5px 12px; font-size: 0.82rem; cursor: pointer; white-space: nowrap;" title="Audition current narrator voice">▶ Audition Narrator</button>
-                                </div>
-                                <div style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.45;">
-                                    Voices are cast automatically per situation with zero manual configuration required:
-                                    <ul style="margin: 6px 0 0 16px; padding: 0; color: #94a3b8; font-size: 0.78rem;">
-                                        <li><strong>Instance Continuity:</strong> Discovered creatures retain their unique voice identity across all turns and conversations.</li>
-                                        <li><strong>Instance-to-Instance Uniqueness:</strong> Multiple creatures of the same breed receive distinct voices deterministically mapped across master pools.</li>
-                                        <li><strong>Deterministic 3D Casting:</strong> Rigorous alignment with 3D model gender, Tolkien race, age, and live emotional state (panic, dread, calm, agony).</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="settings-group">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <label class="settings-label" for="chronicle-setting-reverb">Subterranean Vault Reverb:</label>
-                                <span id="chronicle-reverb-value" style="font-size: 0.82rem; color: #f59e0b;">18%</span>
-                            </div>
-                            <input type="range" id="chronicle-setting-reverb" class="settings-range" min="0" max="100" value="18" style="width: 100%;">
-                            <span class="settings-desc">Simulates the acoustic reflection of deep stone halls and vaults using Web Audio convolution.</span>
-                        </div>
-                    </div>
-
-                    <!-- TAB 2: AI STORYTELLER & FREE TIER -->
-                    <div class="settings-tab-pane" id="pane-setting-ai">
-                        <!-- Free Tier Protection Banner -->
-                        <div class="free-tier-banner">
-                            <div class="free-tier-badge">🛡️ Free Tier Guard Active</div>
-                            <div class="free-tier-desc">100% cost-protected. Sliding rate-limit ceiling (10 req/min) prevents unplanned charges.</div>
-                        </div>
-
-                        <div class="settings-group">
-                            <label class="settings-label" for="chronicle-setting-provider">AI Storyteller Provider:</label>
-                            <select id="chronicle-setting-provider" class="settings-select">
-                                <option value="gemini" selected>Google Gemini (Free Tier Supported — Recommended)</option>
-                                <option value="offline">Built-in Procedural Lore (Free, 0ms, Offline)</option>
-                                <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
-                                <option value="anthropic">Anthropic Claude (3.5 Haiku / Sonnet)</option>
-                                <option value="custom">Custom / Local LLM (Ollama / OpenRouter / LM Studio)</option>
-                            </select>
-                            <span class="settings-desc">Choose which LLM powers dynamic story chapters and creature conversations.</span>
-                        </div>
-
-                        <!-- Permanent Free Tier Guard & Automatic Failover -->
-                        <div class="settings-group">
-                            <div class="free-tier-enforce-card" style="display: flex; align-items: center; gap: 10px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 6px; padding: 10px 12px;">
-                                <span style="font-size: 1.25rem;">🛡️</span>
-                                <div>
-                                    <div style="font-size: 0.88rem; font-weight: 600; color: #4ade80;">Strict Free Tier Limiter &amp; Automatic Model Failover (Always Active)</div>
-                                    <div style="font-size: 0.78rem; color: #a1a1aa; margin-top: 2px;">Permanently enforced (10 req/min). If a free model limit or 429 quota is reached, the story engine automatically and seamlessly cascades to the next best confirmed working model (Gemini 3.8 Flash &rarr; 3.7 Flash &rarr; 3.6 Flash &rarr; 3.5 Flash &rarr; 3.5 Flash-Lite &rarr; 3.1 Flash-Lite &rarr; 2.5 Flash) with transparent status notifications.</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Selectable Models / Free Tier Presets -->
-                        <div class="settings-group" id="group-setting-model">
-                            <label class="settings-label" for="chronicle-setting-model">Selectable Model (Free Tiers &amp; Budget):</label>
-                            <input type="text" id="chronicle-setting-model" class="settings-input" placeholder="Default: gemini-3.8-flash (Free Tier)">
-                            <div class="model-preset-chips">
-                                <button type="button" class="btn-model-chip active" data-model="gemini-3.8-flash" title="Flagship Flash (Highest intelligence, New Stable)">✨ Gemini 3.8 Flash (Free)</button>
-                                <button type="button" class="btn-model-chip" data-model="gemini-3.7-flash" title="Agentic Flash (Stable workhorse)">🌟 Gemini 3.7 Flash (Free)</button>
-                                <button type="button" class="btn-model-chip" data-model="gemini-3.6-flash" title="Balanced Flash (Stable)">⚡ Gemini 3.6 Flash (Free)</button>
-                                <button type="button" class="btn-model-chip" data-model="gemini-3.5-flash" title="Foundational Flash (Stable baseline)">🏛️ Gemini 3.5 Flash (Free)</button>
-                                <button type="button" class="btn-model-chip" data-model="gemini-3.5-flash-lite" title="High-throughput Flash-Lite (Stable)">🚀 Gemini 3.5 Flash-Lite (Free)</button>
-                                <button type="button" class="btn-model-chip" data-model="gemini-3.1-flash-lite" title="Frontier-class lightweight (Stable)">🍃 Gemini 3.1 Flash-Lite (Free)</button>
-                                <button type="button" class="btn-model-chip" data-model="gemini-2.5-flash" title="Proven low-latency reasoning hybrid (Stable)">🛡️ Gemini 2.5 Flash (Free)</button>
-                                <button type="button" class="btn-model-chip" data-model="gpt-4o-mini" title="OpenAI ultra-budget model">🪙 GPT-4o-mini</button>
-                                <button type="button" class="btn-model-chip" data-model="claude-3-5-haiku-20241022" title="Anthropic fast model">🦅 Claude 3.5 Haiku</button>
-                            </div>
-                            <span class="settings-desc">Click any chip to select a confirmed working free-tier or budget model.</span>
-                        </div>
-
-                        <div class="settings-group" id="group-setting-apikey">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <label class="settings-label" for="chronicle-setting-apikey">API Key:</label>
-                                <span id="chronicle-apikey-status" class="settings-autosave-badge"></span>
-                            </div>
-                            <div class="apikey-input-wrap" style="display: flex; gap: 6px; align-items: center;">
-                                <input type="password" id="chronicle-setting-apikey" class="settings-input" style="flex: 1;" placeholder="Paste your API key here..." autocomplete="off" spellcheck="false">
-                                <button id="btn-paste-apikey" type="button" class="btn-silver-solid" style="padding: 6px 10px; font-size: 0.82rem; cursor: pointer; white-space: nowrap;" title="Paste API Key from Clipboard">📋 Paste</button>
-                                <button id="btn-clear-apikey" type="button" class="btn-silver-solid" style="padding: 6px 10px; font-size: 0.82rem; cursor: pointer; white-space: nowrap;" title="Clear API key">🗑️ Clear</button>
-                            </div>
-                            <span class="settings-desc">Permanently masked password field. Stored safely in browser localStorage only. Free tier keys have zero recurring charges. Get one at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color: #60a5fa; text-decoration: underline;">Google AI Studio ↗</a>.</span>
-                        </div>
-
-                        <div class="settings-group" id="group-setting-endpoint" style="display: none;">
-                            <label class="settings-label" for="chronicle-setting-endpoint">Custom Base URL / Endpoint:</label>
-                            <input type="text" id="chronicle-setting-endpoint" class="settings-input" placeholder="http://localhost:11434/v1/chat/completions">
-                            <span class="settings-desc">For local Ollama, LM Studio, or OpenRouter proxy.</span>
-                        </div>
-
-                        <div class="settings-test-row" style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
-                            <button id="btn-chronicle-test-llm" type="button" class="btn-silver-solid" style="padding: 6px 12px; font-size: 0.85rem; cursor: pointer;">⚡ Test Connection</button>
-                            <span id="chronicle-test-status" style="font-size: 0.85rem; color: #a1a1aa;"></span>
-                        </div>
-                    </div>
-
-                    <!-- TAB 3: LITERARY TRADITIONS -->
-                    <div class="settings-tab-pane" id="pane-setting-tradition">
-                        <div class="settings-group">
-                            <label class="settings-label" for="chronicle-setting-tradition">Literary Tradition (Narrative Style):</label>
-                            <select id="chronicle-setting-tradition" class="settings-select">
-                                <option value="westmarch">The Red Book of Westmarch (Heroic Men &amp; Hobbits)</option>
-                                <option value="noldor">The Annals of the Noldor (Elven Elegiac &amp; Poetic)</option>
-                                <option value="khazad">The Record of Khazad-Dûm (Dwarven Stone-Annals)</option>
-                            </select>
-                            <span class="settings-desc">Attunes the prose style, cultural lens, and moral weight of the chronicle.</span>
-                        </div>
-
-                        <div class="tradition-preview-box">
-                            <div class="tradition-preview-title" id="tradition-preview-name">The Red Book of Westmarch</div>
-                            <div class="tradition-preview-style" id="tradition-preview-style">Perspective: Mortal courage, humble hearths, and the lingering shadow of Mordor.</div>
-                            <div class="tradition-preview-quote" id="tradition-preview-quote">"Still round the corner there may wait a new road or a secret gate; and though we pass them by today, tomorrow we may come this way..."</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="chronicle-settings-footer">
-                    <button id="btn-chronicle-settings-save" class="btn-gold-solid">Done &amp; Save</button>
-                </div>
-            </div>
-        </div>
-
         <!-- Initial Connection Spinner -->
         <div id="loading-overlay" class="hidden">
             <div class="spinner"></div>
@@ -1150,22 +992,22 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=7.3"></script>
-    <script src="/js/mobile-overlay.js?v=7.3"></script>
-    <script src="/js/audio.js?v=7.3"></script>
-    <script src="/js/terminal.js?v=7.3"></script>
-    <script src="/js/dungeon3d.js?v=7.3"></script>
-    <script src="/js/hud.js?v=7.3"></script>
-    <script src="/js/network.js?v=7.3"></script>
-    <script src="/js/local_bridge.js?v=7.3"></script>
-    <script src="/js/input.js?v=7.3"></script>
+    <script src="/js/device.js?v=7.4.4"></script>
+    <script src="/js/mobile-overlay.js?v=7.4.4"></script>
+    <script src="/js/audio.js?v=7.4.4"></script>
+    <script src="/js/terminal.js?v=7.4.4"></script>
+    <script src="/js/dungeon3d.js?v=7.4.4"></script>
+    <script src="/js/hud.js?v=7.4.4"></script>
+    <script src="/js/network.js?v=7.4.4"></script>
+    <script src="/js/local_bridge.js?v=7.4.4"></script>
+    <script src="/js/input.js?v=7.4.4"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=7.3"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=7.3"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=7.3"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=7.3"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=7.3"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=7.3"></script>
-    <script src="/js/app.js?v=7.3"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=7.4.6"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=7.4.6"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=7.4.6"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=7.4.6"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=7.4.6"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=7.4.6"></script>
+    <script src="/js/app.js?v=7.4.6"></script>
 </body>
 </html>

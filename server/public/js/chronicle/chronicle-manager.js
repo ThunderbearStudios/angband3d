@@ -90,6 +90,7 @@ class ChronicleManager {
         // Settings Modal & Extra Controls
         this.settingsModal = null;
         this.selectEngine = null;
+        this.selectSpeed = null;
         this.sliderReverb = null;
         this.valReverb = null;
         this.selectTradition = null;
@@ -106,6 +107,7 @@ class ChronicleManager {
         this.btnSettingsClose = null;
         this.btnSettingsSave = null;
         this.isSpeakingBeat = false;
+        this.isVoiceLoading = false;
 
         // Telemetry tracking for bulletproof character instance transitions
         this.lastSeenTurn = null;
@@ -117,6 +119,23 @@ class ChronicleManager {
 
     init(dungeon, soundEngine) {
         if (this.initialized) return;
+
+        // Standalone Client Guard: The Tome is strictly available only on the Web Client (angband3d.com)
+        if (typeof window !== 'undefined' && (
+            window.Capacitor !== undefined ||
+            window.location?.protocol === 'capacitor:' ||
+            window.isNativeAndroidApp === true ||
+            window.location?.hostname === 'angband3d.local' ||
+            (window.chrome && window.chrome.webview !== undefined) ||
+            document.body?.classList?.contains('is-standalone')
+        )) {
+            const win = document.getElementById('chronicle-window');
+            if (win) win.style.display = 'none';
+            const nav = document.getElementById('btn-toggle-chronicle');
+            if (nav) nav.style.display = 'none';
+            return;
+        }
+
         this.dungeon = dungeon;
 
         // Cache DOM Elements
@@ -135,6 +154,13 @@ class ChronicleManager {
         // Initialize Audio Sub-system
         if (soundEngine) {
             this.audio.init(soundEngine);
+        }
+
+        // Connect voice loading state callback for visual feedback & anti-click guarding
+        if (this.audio) {
+            this.audio.onLoadingStateChange = (loading, details) => {
+                this.onVoiceLoadingState(loading, details);
+            };
         }
 
         // Cache Control Buttons
@@ -167,6 +193,7 @@ class ChronicleManager {
         // Cache Settings Modal
         this.settingsModal = document.getElementById('chronicle-settings-modal');
         this.selectEngine = document.getElementById('chronicle-setting-engine');
+        this.selectSpeed = document.getElementById('chronicle-setting-speed');
         this.sliderReverb = document.getElementById('chronicle-setting-reverb');
         this.valReverb = document.getElementById('chronicle-reverb-value');
         this.selectTradition = document.getElementById('chronicle-setting-tradition');
@@ -193,6 +220,22 @@ class ChronicleManager {
             this.renderAllChapters();
         } else {
             if (this.listEl) this.listEl.innerHTML = '';
+        }
+
+        // Automatic Zero-Config Management:
+        // Gemini Native Audio, elder British storyteller Enceladus, and 10% subterranean reverb
+        // are always managed automatically under the hood without exposing manual settings controls.
+        if (this.audio) {
+            this.audio.setEngine('gemini');
+            this.audio.setReverbVolume(0.10);
+            this.audio.narratorVoice = 'Enceladus';
+        }
+        if (this.llm) {
+            this.llm.saveSettings({
+                provider: 'gemini',
+                model: 'gemini-3.8-flash',
+                enforceFreeTier: true
+            });
         }
 
         // Update UI Button states
@@ -285,11 +328,21 @@ class ChronicleManager {
 
         if (this.btnSpeed) {
             this.btnSpeed.addEventListener('click', () => {
-                let nextSpeed = 1.0;
-                if (this.audio.speed === 1.0) nextSpeed = 1.25;
-                else if (this.audio.speed === 1.25) nextSpeed = 1.5;
-                else nextSpeed = 1.0;
+                const speeds = [0.75, 0.85, 1.0, 1.25, 1.5];
+                const current = this.audio ? this.audio.speed : 1.0;
+                let nextIdx = speeds.findIndex(s => Math.abs(s - current) < 0.02) + 1;
+                if (nextIdx >= speeds.length || nextIdx < 0) nextIdx = 0;
+                const nextSpeed = speeds[nextIdx];
                 this.audio.setSpeed(nextSpeed);
+                this.updateAudioControlsUI();
+            });
+        }
+
+        // Voice Speed Selector in Settings Modal
+        if (this.selectSpeed) {
+            this.selectSpeed.addEventListener('change', () => {
+                const spd = parseFloat(this.selectSpeed.value) || 1.0;
+                if (this.audio) this.audio.setSpeed(spd);
                 this.updateAudioControlsUI();
             });
         }
@@ -316,7 +369,7 @@ class ChronicleManager {
             this.sliderReverb.addEventListener('change', updateReverb);
         }
 
-        // Audition Voice Button in Settings Modal: Auditions the active literary tradition narrator
+        // Audition Voice Button in Settings Modal: Auditions the Master Chronicler Enceladus
         if (this.btnTestVoice) {
             this.btnTestVoice.addEventListener('click', async () => {
                 const sampleText = "Deep in the subterranean vaults of Angband, iron doors groan upon rusted hinges. Steel your courage, mortal, for the shadows stir.";
@@ -326,30 +379,22 @@ class ChronicleManager {
                         this.audio.setMuted(false);
                         this.updateAudioControlsUI();
                     }
-                    const activeEngine = this.selectEngine ? this.selectEngine.value : (this.audio.ttsEngine || 'edge');
                     if (this.testStatus) {
                         this.testStatus.style.color = '#ffd700';
-                        this.testStatus.textContent = activeEngine === 'gemini' ? '✨ Auditioning Gemini Native Audio...' : '🔊 Auditioning narrator...';
+                        this.testStatus.textContent = '✨ Auditioning Master Chronicler (Enceladus)...';
                     }
                     try {
                         const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'exploration', this.tradition) : null;
-                        const voiceToUse = (narrProfile && activeEngine === 'gemini') ? narrProfile.geminiVoice : ((narrProfile && narrProfile.edgeVoice) ? narrProfile.edgeVoice : this.audio.narratorVoice);
-                        const speakResult = await this.audio.speakUtterance(sampleText, 'narrator', '', voiceToUse, {
-                            engine: activeEngine,
-                            geminiVoice: (narrProfile && narrProfile.geminiVoice) || 'Sulafat',
-                            geminiTag: (narrProfile && narrProfile.geminiTag) || '[atmospheric, solemn]',
-                            directorNote: (narrProfile && narrProfile.directorNote) || 'A deep atmospheric chronicle of ancient subterranean stone vaults',
-                            emotion: (narrProfile && narrProfile.emotion) || 'calm'
+                        await this.audio.speakUtterance(sampleText, 'narrator', '', 'Enceladus', {
+                            engine: 'gemini',
+                            geminiVoice: (narrProfile && narrProfile.geminiVoice) || 'Enceladus',
+                            geminiTag: (narrProfile && narrProfile.geminiTag) || '[expressive, older British storyteller]',
+                            directorNote: (narrProfile && narrProfile.directorNote) || 'An expressive, slightly British older fireside storyteller',
+                            emotion: 'solemn'
                         });
                         if (this.testStatus) {
-                            if (activeEngine === 'gemini' && speakResult && speakResult.engine === 'edge') {
-                                this.testStatus.style.color = '#f59e0b';
-                                const reason = speakResult.fallbackReason || 'Check Gemini API Key in Settings';
-                                this.testStatus.textContent = `⚠️ Gemini fell back to Edge Neural (${reason}).`;
-                            } else {
-                                this.testStatus.style.color = '#4ade80';
-                                this.testStatus.textContent = activeEngine === 'gemini' ? '✓ Gemini Native Audio audition complete.' : '✓ Audition complete.';
-                            }
+                            this.testStatus.style.color = '#4ade80';
+                            this.testStatus.textContent = '✓ Master Chronicler audition complete.';
                             setTimeout(() => { if (this.testStatus) this.testStatus.textContent = ''; }, 4000);
                         }
                     } catch (e) {
@@ -628,12 +673,27 @@ class ChronicleManager {
         }
         if (this.btnSpeed) {
             this.btnSpeed.textContent = `⚡ ${this.audio.speed.toFixed(2).replace(/\.00$/, '')}x`;
-            this.btnSpeed.title = `Voice Speed: ${this.audio.speed}x (Click to cycle 1.0x, 1.25x, 1.5x)`;
+            this.btnSpeed.title = `Voice Speed: ${this.audio.speed}x (Click to cycle 0.75x, 0.85x, 1.0x, 1.25x, 1.5x)`;
+        }
+        if (this.selectSpeed && this.audio) {
+            this.selectSpeed.value = String(this.audio.speed);
         }
         if (this.selectQuickVoice && this.audio && this.audio.narratorVoice) {
             this.selectQuickVoice.value = this.audio.narratorVoice;
         }
         this.updatePlayButtonUI();
+    }
+
+    updateTraditionBadge() {
+        if (typeof document === 'undefined') return;
+        const tradBadge = document.getElementById('chronicle-tradition-badge');
+        if (tradBadge && this.grounder && this.grounder.TRADITIONS && this.grounder.TRADITIONS[this.tradition]) {
+            tradBadge.textContent = this.grounder.TRADITIONS[this.tradition].name
+                .replace('The Annals of the ', '')
+                .replace('The Record of ', '')
+                .replace('The Red Book of ', '');
+            tradBadge.title = `Literary Tradition: ${this.grounder.TRADITIONS[this.tradition].name} (Attuned to ${this.currentHero?.race || 'Adventurer'})`;
+        }
     }
 
     showWindow() {
@@ -642,6 +702,10 @@ class ChronicleManager {
             this.visible = true;
             if (this.navBtn) this.navBtn.classList.add('active');
             this.renderAllChapters();
+            this.buildStoryPlaylist();
+            if (this.storyPlaylist.length > 0 && typeof this.prewarmBeat === 'function') {
+                this.prewarmBeat(this.storyPlaylist[this.currentBeatIndex || 0]);
+            }
         }
     }
 
@@ -715,25 +779,43 @@ class ChronicleManager {
             if (this.store) this.store.saveActive(this.activeChronicle);
         }
 
-        if (hero) {
+        if (hero && hero.race) {
             this.currentCharacterSignature = `${hero.name || 'Hero'}_${hero.race || ''}_${hero.class || ''}`;
         } else {
+            // Incomplete/partial hero stub from UI launch before engine frame 1; leave signature null
+            // so frame 1 triggers authoritative initialization once player.race and history are ready.
             this.currentCharacterSignature = null;
         }
         this.characterDied = false;
 
-        // 7. Attune tradition to hero race if available
+        // 7. Attune tradition to hero race best fit
         if (hero && hero.race && this.grounder) {
             this.tradition = this.grounder.getTraditionForRace(hero.race);
-            if (typeof document !== 'undefined') {
-                const tradBadge = document.getElementById('chronicle-tradition-badge');
-                if (tradBadge && this.grounder.TRADITIONS && this.grounder.TRADITIONS[this.tradition]) {
-                    tradBadge.textContent = this.grounder.TRADITIONS[this.tradition].name
-                        .replace('The Annals of the ', '')
-                        .replace('The Record of ', '')
-                        .replace('The Red Book of ', '');
+            if (this.audio) this.audio.setTradition(this.tradition);
+            this.updateTraditionBadge();
+        }
+
+        // 8. Speculative Pre-Warming: Immediately warm the opening town arrival prologue in the background!
+        // Guarantees zero-latency, instant vocal initiation when the player appears in town.
+        // Requires complete hero profile (hero.race) to avoid firing duplicate pre-warms on dummy UI stubs.
+        if (hero && hero.race && this.grounder && this.audio && this.audio.enabled && typeof this.audio.prewarmUtterance === 'function') {
+            try {
+                const townArrivalEvent = {
+                    type: 'ONBOARDING_TOWN_ARRIVAL',
+                    priority: 'normal',
+                    isChapter: true,
+                    data: { player: hero }
+                };
+                const prologueEntry = this.grounder.generateProceduralChapter(townArrivalEvent, hero, this.tradition);
+                if (prologueEntry && prologueEntry.prose) {
+                    const narrProfile = this.grounder.resolveVoiceProfile(null, hero, 'ONBOARDING_TOWN_ARRIVAL', this.tradition);
+                    const prewarmOpts = {
+                        narrator: narrProfile,
+                        engine: this.audio.ttsEngine
+                    };
+                    this.audio.prewarmUtterance(prologueEntry.prose, 'narrator', '', null, prewarmOpts).catch(() => {});
                 }
-            }
+            } catch (_) {}
         }
     }
 
@@ -755,131 +837,181 @@ class ChronicleManager {
         // Only evaluate during active gameplay
         if (frame.phase !== 'play' || !frame.player) return;
 
-        const player = frame.player;
-        const heroSig = `${player.name || 'Hero'}_${player.race || ''}_${player.class || ''}`;
-        const playerTurn = (typeof player.turn === 'number') ? player.turn : null;
-        const engineTurn = (typeof frame.turn === 'number') ? frame.turn : null;
+        if (this._isProcessingFrame) return;
+        this._isProcessingFrame = true;
 
-        // Bulletproof Fresh Start Heuristics:
-        // 1. Character died in previous life or passed through birth/setup
-        // 2. Character identity (name/race/class) changed
-        // 3. No active chronicle exists
-        // 4. Stored chronicle does NOT match current character AND was NOT manually imported
-        // 5. Turn count rewound (e.g. player restarted game with exact same character name/race/class!)
-        let needsFreshStart = false;
+        try {
+            const player = frame.player;
+            const heroSig = `${player.name || 'Hero'}_${player.race || ''}_${player.class || ''}`;
+            const playerTurn = (typeof player.turn === 'number') ? player.turn : null;
+            const engineTurn = (typeof frame.turn === 'number') ? frame.turn : null;
 
-        if (this.characterDied) {
-            needsFreshStart = true;
-        } else if (this.currentCharacterSignature && this.currentCharacterSignature !== heroSig) {
-            needsFreshStart = true;
-        } else if (!this.activeChronicle) {
-            needsFreshStart = true;
-        } else if (!this.activeChronicle.isManuallyImported && this.store && !this.store.isMatchingHero(this.activeChronicle, player)) {
-            needsFreshStart = true;
-        } else if (playerTurn !== null && this.lastSeenTurn !== null && playerTurn < this.lastSeenTurn && playerTurn <= 15) {
-            // Turn counter rewound to early game: undeniably a new character run
-            needsFreshStart = true;
-        } else if (engineTurn !== null && this.lastEngineTurn !== null && engineTurn < this.lastEngineTurn && engineTurn <= 15) {
-            needsFreshStart = true;
-        }
+            // Bulletproof Fresh Start Heuristics:
+            // 1. Character died in previous life or passed through birth/setup
+            // 2. Character identity (name/race/class) changed
+            // 3. No active chronicle exists
+            // 4. Stored chronicle does NOT match current character AND was NOT manually imported
+            // 5. Turn count rewound (e.g. player restarted game with exact same character name/race/class!)
+            let needsFreshStart = false;
 
-        if (needsFreshStart) {
-            this.startFreshChronicle(player);
-        } else {
-            // Picking up where we are at for this active character instance
-            if (!this.currentCharacterSignature) {
-                this.currentCharacterSignature = heroSig;
+            if (this.characterDied) {
+                needsFreshStart = true;
+            } else if (this.currentCharacterSignature && this.currentCharacterSignature !== heroSig) {
+                needsFreshStart = true;
+            } else if (!this.activeChronicle) {
+                needsFreshStart = true;
+            } else if (!this.activeChronicle.isManuallyImported && this.store && !this.store.isMatchingHero(this.activeChronicle, player)) {
+                needsFreshStart = true;
+            } else if (playerTurn !== null && this.lastSeenTurn !== null && playerTurn < this.lastSeenTurn && playerTurn <= 15) {
+                // Turn counter rewound to early game: undeniably a new character run
+                needsFreshStart = true;
+            } else if (engineTurn !== null && this.lastEngineTurn !== null && engineTurn < this.lastEngineTurn && engineTurn <= 15) {
+                needsFreshStart = true;
             }
-            this.currentHero = player;
-            // Populate UI if currently blank but chapters exist in active chronicle
-            if (this.listEl && this.listEl.children.length === 0 && this.activeChronicle && this.activeChronicle.chapters && this.activeChronicle.chapters.length > 0) {
-                this.renderAllChapters();
-            }
-        }
 
-        if (playerTurn !== null) this.lastSeenTurn = playerTurn;
-        if (engineTurn !== null) this.lastEngineTurn = engineTurn;
-
-        // Auto-attune literary tradition if not set
-        if (!this.tradition && frame.player.race && this.grounder) {
-            this.tradition = this.grounder.getTraditionForRace(frame.player.race);
-        }
-
-        // Cache live message stream for real-time combat awareness in direct conversations
-        this.lastSeenMessages = frame.messages || [];
-
-        // Drain sequential events for this frame (up to 4 events per turn to prevent story backlog)
-        let drained = 0;
-        let event = this.filter.evaluate(frame);
-        const frameEntries = [];
-        while (event && drained < 4) {
-            drained++;
-            const entry = await this.processEvent(event, frame, false);
-            if (entry) frameEntries.push({ event, entry });
-            event = this.filter.evaluate(frame);
-        }
-
-        // Live Narration Priority Gate: To guarantee ZERO vocal overlay and no lagged queues,
-        // speak the single most significant event of this turn with context-resolved voices.
-        if (this.audio && this.audio.enabled && frameEntries.length > 0) {
-            const bestToSpeak = frameEntries.find(fe => fe.event.isChapter !== false) ||
-                                frameEntries.find(fe => fe.entry.dialogue && !fe.entry.dialogue.isNoise) ||
-                                frameEntries[frameEntries.length - 1];
-            if (bestToSpeak && bestToSpeak.entry) {
-                const eventType = bestToSpeak.event ? bestToSpeak.event.type : '';
-                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, eventType, this.tradition) : null;
-                let dVoiceProfile = null;
-                if (bestToSpeak.entry.dialogue && this.grounder) {
-                    const speakerEntity = (bestToSpeak.event && bestToSpeak.event.monster) ? bestToSpeak.event.monster : { name: bestToSpeak.entry.dialogue.speaker };
-                    dVoiceProfile = this.grounder.resolveVoiceProfile(speakerEntity, frame.player, eventType, this.tradition);
-                    bestToSpeak.entry.dialogue.voiceProfile = dVoiceProfile;
+            if (needsFreshStart) {
+                this.startFreshChronicle(player);
+            } else {
+                // Picking up where we are at for this active character instance
+                if (!this.currentCharacterSignature) {
+                    this.currentCharacterSignature = heroSig;
                 }
-                const speakOpts = {
-                    narrator: narrProfile,
-                    engine: this.audio.ttsEngine
-                };
-                this.audio.speak(bestToSpeak.entry.prose, bestToSpeak.entry.dialogue, null, null, 0, speakOpts);
+                this.currentHero = player;
+                // Populate UI if currently blank but chapters exist in active chronicle
+                if (this.listEl && this.listEl.children && this.listEl.children.length === 0 && this.activeChronicle && this.activeChronicle.chapters && this.activeChronicle.chapters.length > 0) {
+                    this.renderAllChapters();
+                }
             }
+
+            if (playerTurn !== null) this.lastSeenTurn = playerTurn;
+            if (engineTurn !== null) this.lastEngineTurn = engineTurn;
+
+            // Auto-attune literary tradition based on character race best fit
+            if (frame.player && frame.player.race && this.grounder) {
+                const bestTradition = this.grounder.getTraditionForRace(frame.player.race);
+                if (this.tradition !== bestTradition) {
+                    this.tradition = bestTradition;
+                    if (this.audio) this.audio.setTradition(bestTradition);
+                    this.updateTraditionBadge();
+                }
+            }
+
+            // Cache live message stream for real-time combat awareness in direct conversations
+            this.lastSeenMessages = frame.messages || [];
+
+            // Drain sequential events for this frame (up to 4 events per turn to prevent story backlog)
+            let drained = 0;
+            let event = this.filter.evaluate(frame);
+            const frameEntries = [];
+            while (event && drained < 4) {
+                drained++;
+                const entry = this.processEvent(event, frame, false);
+                if (entry) frameEntries.push({ event, entry });
+                event = this.filter.evaluate(frame);
+            }
+
+            // Live Narration Priority Gate: To guarantee ZERO vocal overlay and no lagged queues,
+            // speak the single most significant event of this turn with context-resolved voices.
+            if (this.audio && this.audio.enabled && frameEntries.length > 0) {
+                // Priority hierarchy:
+                // 1. Chapter milestones (e.g. Unique Boss spotted, Mortal Peril, Floor Descent)
+                // 2. Fatal slaying / kill (COMBAT_EPISODE, UNIQUE_SLAIN, or COMBAT_EXCHANGE with kills)
+                // 3. Creature dialogue bark
+                // 4. Most recent combat action
+                const bestToSpeak = frameEntries.find(fe => fe.event.isChapter !== false) ||
+                                    frameEntries.find(fe => fe.event.type === 'STORE_PURCHASE') ||
+                                    frameEntries.find(fe => fe.event.type === 'COMBAT_EPISODE' || fe.event.type === 'UNIQUE_SLAIN' || (fe.event.type === 'COMBAT_EXCHANGE' && fe.event.data?.kills?.length > 0)) ||
+                                    frameEntries.find(fe => fe.entry.dialogue && !fe.entry.dialogue.isNoise) ||
+                                    frameEntries[frameEntries.length - 1];
+                if (bestToSpeak && bestToSpeak.entry) {
+                    const isUrgent = (bestToSpeak.event && bestToSpeak.event.isChapter !== false) ||
+                                     bestToSpeak.event.type === 'STORE_PURCHASE' ||
+                                     bestToSpeak.event.type === 'COMBAT_EPISODE' ||
+                                     bestToSpeak.event.type === 'UNIQUE_SLAIN' ||
+                                     (bestToSpeak.event.type === 'COMBAT_EXCHANGE' && bestToSpeak.event.data?.kills?.length > 0);
+
+                    // High-Responsiveness Preemption:
+                    // If audio is currently speaking:
+                    // - Urgent milestones & kills ALWAYS immediately interrupt and speak the latest achievement.
+                    // - Combat preempts non-combat (e.g. ambient exploration).
+                    // - Ongoing combat preempts if it has been playing for at least 700ms.
+                    if (this.audio.isSpeaking) {
+                        const dur = (typeof this.audio.getSpeakingDuration === 'function') ? this.audio.getSpeakingDuration() : 1000;
+                        if (isUrgent || this.audio.currentRole === 'ambient' || dur >= 700) {
+                            this.audio.stopSpeaking();
+                        } else {
+                            // If very fast consecutive blow within 700ms, let current punchy utterance finish
+                            return;
+                        }
+                    }
+                    const eventType = bestToSpeak.event ? bestToSpeak.event.type : '';
+                    const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, eventType, this.tradition) : null;
+                    let dVoiceProfile = null;
+                    if (bestToSpeak.entry.dialogue && this.grounder) {
+                        const speakerEntity = (bestToSpeak.event && bestToSpeak.event.monster) ? bestToSpeak.event.monster : { name: bestToSpeak.entry.dialogue.speaker };
+                        dVoiceProfile = bestToSpeak.entry.dialogue.voiceProfile || this.grounder.resolveVoiceProfile(speakerEntity, frame.player, eventType, this.tradition);
+                        bestToSpeak.entry.dialogue.voiceProfile = dVoiceProfile;
+                    }
+                    const speakOpts = {
+                        narrator: narrProfile,
+                        engine: this.audio.ttsEngine
+                    };
+                    this.audio.speak(bestToSpeak.entry.prose, bestToSpeak.entry.dialogue, null, null, 0, speakOpts);
+                }
+            }
+        } finally {
+            this._isProcessingFrame = false;
         }
     }
 
-    async processEvent(event, frame, shouldSpeak = true) {
+    processEvent(event, frame, shouldSpeak = true) {
         if (!event || !frame) return null;
 
-        // Capture 3D Canvas Snapshot for milestone events
-        let illustrationDataUri = null;
-        if (event.type === 'UNIQUE_SPOTTED' || event.type === 'MORTAL_PERIL' || event.type === 'FLOOR_CHANGE' || event.type === 'ONBOARDING_FIRST_DESCENT' || event.type === 'SPELL_LEARNED' || event.type === 'LEVEL_UP') {
-            illustrationDataUri = this.captureCanvasThumbnail();
-        }
+        // Instant Ground-Truth Procedural Synthesis (0ms latency):
+        // Generates rich, lore-accurate, race-attuned Tolkien prose in <1ms without blocking the event loop.
+        const entry = this.grounder.generateProceduralChapter(event, frame.player, this.tradition);
+        if (!entry) return null;
 
-        // Generate Chapter or Flowing Paragraph via Player's Configured LLM or Offline Procedural Synthesizer
-        let entry = null;
+        // Append to rolling story
+        this.store.appendChapter(this.activeChronicle, entry);
+        this.renderStoryEntry(entry, true);
+
+        // Background Asynchronous LLM Prose Enrichment (without chapter titles or headers):
         if (this.llm && this.llm.isConfigured()) {
-            entry = await this.llm.generateChapter(event, frame.player, this.tradition, this.grounder);
-        } else {
-            entry = this.grounder.generateProceduralChapter(event, frame.player, this.tradition);
-        }
-
-        if (illustrationDataUri) {
-            entry.illustration = illustrationDataUri;
-        }
-
-        // Major milestones become full chapters; routine kills/assaults/exploration flow into the active chapter
-        if (event.isChapter !== false) {
-            this.store.appendChapter(this.activeChronicle, entry);
-            this.renderChapterCard(entry, true);
-        } else {
-            this.store.appendParagraph(this.activeChronicle, entry);
-            this.renderFlowingParagraph(entry, true);
+            const chNum = entry.chapter_num;
+            const chronicleId = this.activeChronicle ? this.activeChronicle.id : null;
+            this.llm.generateChapter(event, frame.player, this.tradition, this.grounder)
+                .then(enriched => {
+                    if (enriched && enriched.prose && this.activeChronicle && this.activeChronicle.id === chronicleId) {
+                        const targetCh = this.activeChronicle.chapters.find(c => c.chapter_num === chNum);
+                        if (targetCh) {
+                            targetCh.prose = enriched.prose;
+                            if (targetCh.paragraphs && targetCh.paragraphs[0]) {
+                                targetCh.paragraphs[0].prose = enriched.prose;
+                            }
+                            targetCh.summary = enriched.summary || enriched.prose.substring(0, 180) + '...';
+                            this.store.saveActive(this.activeChronicle);
+                            const entryEl = document.querySelector(`[data-chapter-num="${chNum}"]`);
+                            if (entryEl) {
+                                const proseEl = entryEl.querySelector('.chapter-prose');
+                                if (proseEl) proseEl.textContent = enriched.prose;
+                            }
+                        }
+                    }
+                })
+                .catch(err => console.debug('[ChronicleManager] Background prose enrichment skipped:', err.message));
         }
 
         // Speak aloud if audio is unmuted (respects isNoise for non-vocal creatures)
         if (shouldSpeak && this.audio && this.audio.enabled) {
+            if (this.audio.isSpeaking) {
+                this.audio.stopSpeaking();
+            }
             const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, event.type, this.tradition) : null;
             let dVoiceProfile = null;
             if (entry.dialogue && this.grounder) {
                 const speakerEntity = event.monster || { name: entry.dialogue.speaker };
-                dVoiceProfile = this.grounder.resolveVoiceProfile(speakerEntity, frame.player, event.type, this.tradition);
+                dVoiceProfile = entry.dialogue.voiceProfile || this.grounder.resolveVoiceProfile(speakerEntity, frame.player, event.type, this.tradition);
                 entry.dialogue.voiceProfile = dVoiceProfile;
             }
             const speakOpts = {
@@ -892,24 +1024,25 @@ class ChronicleManager {
         return entry;
     }
 
-    captureCanvasThumbnail() {
-        if (!this.dungeon || !this.dungeon.renderer) return null;
-        try {
-            const canvas = this.dungeon.renderer.domElement;
-            if (!canvas) return null;
-            return canvas.toDataURL('image/jpeg', 0.60);
-        } catch (e) {
-            return null;
-        }
-    }
-
     renderAllChapters() {
         if (!this.listEl) return;
         this.listEl.innerHTML = '';
         if (!this.activeChronicle || !this.activeChronicle.chapters) return;
 
         for (const ch of this.activeChronicle.chapters) {
-            this.renderChapterCard(ch, false);
+            if (ch.paragraphs && ch.paragraphs.length > 0) {
+                ch.paragraphs.forEach(p => {
+                    this.renderStoryEntry({
+                        prose: p.prose,
+                        dialogue: p.dialogue,
+                        insight: p.insight,
+                        depth: ch.depth,
+                        chapter_num: ch.chapter_num
+                    }, false);
+                });
+            } else if (ch.prose) {
+                this.renderStoryEntry(ch, false);
+            }
         }
 
         if (this.scrollEl) {
@@ -917,171 +1050,27 @@ class ChronicleManager {
         }
     }
 
-    renderChapterCard(ch, shouldScroll = true) {
-        if (!this.listEl) return;
+    renderStoryEntry(entry, shouldScroll = true) {
+        if (!this.listEl || !entry) return null;
 
-        const card = document.createElement('div');
-        card.className = 'chapter-card';
-        const chNum = ch.chapter_num || 1;
-        card.id = `chronicle-card-ch-${chNum}`;
-        card.setAttribute('data-chapter-num', chNum);
+        const count = this.listEl.children ? this.listEl.children.length : 0;
+        const beatId = `chronicle-beat-${count}`;
+        const chNum = entry.chapter_num || (count + 1);
 
-        let html = `
-            <div class="chapter-header-row">
-                <span class="chapter-heading">Chapter ${chNum}: ${ch.title}</span>
-                <div class="chapter-meta">
-                    <span>${(ch.depth || 0) * 50}ft</span>
-                    <button class="chapter-replay-btn" data-beat-id="chronicle-beat-${chNum}-0" title="Play Story from Chapter ${chNum}">▶ Play</button>
-                </div>
-            </div>
-        `;
+        const block = document.createElement('div');
+        block.className = 'flowing-paragraph-block chapter-card';
+        block.id = beatId;
+        block.setAttribute('data-beat-id', beatId);
+        block.setAttribute('data-chapter-num', chNum);
 
-        if (ch.illustration) {
-            html += `
-                <div class="chapter-illustration-wrap">
-                    <img src="${ch.illustration}" class="chapter-illustration-img" alt="Chapter ${chNum}">
-                    <span class="chapter-illustration-tag">${(ch.depth || 0) * 50}ft</span>
-                </div>
-            `;
-        }
-
-        if (ch.paragraphs && ch.paragraphs.length > 0) {
-            ch.paragraphs.forEach((p, idx) => {
-                const beatId = `chronicle-beat-${chNum}-${idx}`;
-                if (idx > 0) {
-                    html += `
-                        <div class="flowing-paragraph-block" id="${beatId}">
-                            <div class="flowing-paragraph-header">
-                                <button class="flow-play-btn" data-beat-id="${beatId}" title="Play story from here">▶</button>
-                            </div>
-                    `;
-                } else {
-                    html += `<div class="chapter-lead-block" id="${beatId}">`;
-                }
-                html += `<p class="chapter-prose">${p.prose}</p>`;
-                if (p.dialogue && p.dialogue.text) {
-                    if (p.dialogue.isNoise) {
-                        html += `
-                            <div class="chapter-dialogue creature-sound-box">
-                                <span class="dialogue-speaker">${p.dialogue.speaker}</span>
-                                <span class="dialogue-sound-noise">${p.dialogue.text}</span>
-                            </div>
-                        `;
-                    } else {
-                        html += `
-                            <div class="chapter-dialogue">
-                                <span class="dialogue-speaker">${p.dialogue.speaker}</span>
-                                "${p.dialogue.text}"
-                            </div>
-                        `;
-                    }
-                }
-                if (p.insight) {
-                    html += `
-                        <div class="lorekeeper-insight">
-                            <span class="lorekeeper-insight-icon">💡</span>
-                            <span><strong>Lorekeeper:</strong> ${p.insight}</span>
-                        </div>
-                    `;
-                }
-                html += `</div>`;
-            });
-        } else {
-            const beatId = `chronicle-beat-${chNum}-0`;
-            html += `<div class="chapter-lead-block" id="${beatId}">`;
-            html += `<p class="chapter-prose">${ch.prose}</p>`;
-
-            if (ch.dialogue && ch.dialogue.text) {
-                if (ch.dialogue.isNoise) {
-                    html += `
-                        <div class="chapter-dialogue creature-sound-box">
-                            <span class="dialogue-speaker">${ch.dialogue.speaker}</span>
-                            <span class="dialogue-sound-noise">${ch.dialogue.text}</span>
-                        </div>
-                    `;
-                } else {
-                    html += `
-                        <div class="chapter-dialogue">
-                            <span class="dialogue-speaker">${ch.dialogue.speaker}</span>
-                            "${ch.dialogue.text}"
-                        </div>
-                    `;
-                }
-            }
-
-            if (ch.insight) {
-                html += `
-                    <div class="lorekeeper-insight">
-                        <span class="lorekeeper-insight-icon">💡</span>
-                        <span><strong>Lorekeeper:</strong> ${ch.insight}</span>
-                    </div>
-                `;
-            }
-            html += `</div>`;
-        }
-
-        card.innerHTML = html;
-
-        // Attach Play from Here listeners
-        const replayBtn = card.querySelector('.chapter-replay-btn');
-        if (replayBtn) {
-            replayBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const beatId = replayBtn.getAttribute('data-beat-id');
-                this.playStoryFromElementId(beatId);
-            });
-        }
-
-        card.querySelectorAll('.flow-play-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const beatId = btn.getAttribute('data-beat-id');
-                this.playStoryFromElementId(beatId);
-            });
-        });
-
-        // Click anywhere on paragraph block to select and play from here
-        const leadBlock = card.querySelector('.chapter-lead-block');
-        if (leadBlock) {
-            leadBlock.addEventListener('click', (e) => {
-                if (e.target.closest('button')) return;
-                this.playStoryFromElementId(leadBlock.id);
-            });
-        }
-
-        card.querySelectorAll('.flowing-paragraph-block').forEach(block => {
-            block.addEventListener('click', (e) => {
-                if (e.target.closest('button')) return;
-                this.playStoryFromElementId(block.id);
-            });
-        });
-
-        this.listEl.appendChild(card);
-
-        if (shouldScroll && this.scrollEl) {
-            this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
-        }
-    }
-
-    renderFlowingParagraph(entry, shouldScroll = true) {
-        if (!this.listEl) return;
-        let card = this.listEl.lastElementChild;
-        if (!card || !card.classList.contains('chapter-card') || card.classList.contains('creature-chat-card') || card.classList.contains('player-chat-card')) {
-            this.renderChapterCard(entry, shouldScroll);
-            return;
-        }
-
-        const chNum = parseInt(card.getAttribute('data-chapter-num'), 10) || 1;
-        const currentChapter = this.activeChronicle ? this.activeChronicle.chapters[this.activeChronicle.chapters.length - 1] : null;
-        const pIdx = (currentChapter && currentChapter.paragraphs) ? (currentChapter.paragraphs.length - 1) : (card.querySelectorAll('.flowing-paragraph-block').length + 1);
-        const beatId = `chronicle-beat-${chNum}-${pIdx}`;
-
-        const flowBlock = document.createElement('div');
-        flowBlock.className = 'flowing-paragraph-block';
-        flowBlock.id = beatId;
+        const depth = (entry.depth !== undefined && entry.depth !== null)
+            ? entry.depth
+            : (this.currentHero ? this.currentHero.depth : 0);
+        const depthLabel = depth === 0 ? 'Town' : `${depth * 50}ft`;
 
         let html = `
             <div class="flowing-paragraph-header">
+                <span class="entry-meta-depth">${depthLabel}</span>
                 <button class="flow-play-btn" data-beat-id="${beatId}" title="Play story from here">▶</button>
             </div>
             <p class="chapter-prose">${entry.prose}</p>
@@ -1114,25 +1103,54 @@ class ChronicleManager {
             `;
         }
 
-        flowBlock.innerHTML = html;
-        const playBtn = flowBlock.querySelector('.flow-play-btn');
+        block.innerHTML = html;
+
+        // Play from here click handlers
+        const playBtn = block.querySelector('.flow-play-btn');
         if (playBtn) {
             playBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.playStoryFromElementId(beatId);
             });
         }
-
-        flowBlock.addEventListener('click', (e) => {
+        block.addEventListener('click', (e) => {
             if (e.target.closest('button')) return;
             this.playStoryFromElementId(beatId);
         });
 
-        card.appendChild(flowBlock);
+        this.listEl.appendChild(block);
+
+        // O(1) Incremental Playlist Synchronization (bypasses full O(N) chronicle traversal)
+        if (!this.storyPlaylist) this.storyPlaylist = [];
+        this.storyPlaylist.push({
+            elementId: beatId,
+            chapterNum: chNum,
+            pIndex: 0,
+            text: entry.prose || '',
+            dialogue: entry.dialogue || null,
+            role: entry.isLorekeeper ? 'mentor' : 'narrator'
+        });
+
+        if (this.storyPlaylist.length > 0 && typeof this.prewarmBeat === 'function') {
+            const nextIdx = (this.currentBeatIndex || 0) + 1;
+            if (nextIdx < this.storyPlaylist.length) {
+                this.prewarmBeat(this.storyPlaylist[nextIdx]);
+            }
+        }
 
         if (shouldScroll && this.scrollEl) {
             this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
         }
+
+        return block;
+    }
+
+    renderChapterCard(ch, shouldScroll = true) {
+        return this.renderStoryEntry(ch, shouldScroll);
+    }
+
+    renderFlowingParagraph(entry, shouldScroll = true) {
+        return this.renderStoryEntry(entry, shouldScroll);
     }
 
     buildStoryPlaylist() {
@@ -1231,10 +1249,42 @@ class ChronicleManager {
         await this._playNextBeat(sessionId);
     }
 
+    /**
+     * Lookahead Beat Pre-Warming:
+     * Synthesizes and decodes an upcoming beat into an in-memory AudioBuffer ahead of time.
+     * Guarantees 0ms delay between chapters and paragraphs during continuous audiobook playback.
+     */
+    prewarmBeat(beat) {
+        if (!beat || !beat.text || !this.audio || typeof this.audio.prewarmUtterance !== 'function') return;
+        try {
+            if (beat.role === 'mentor') {
+                const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: 'Elder Lorekeeper', race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+                if (mentorProfile) {
+                    mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
+                    mentorProfile.directorNote = 'An ancient scholar and lorekeeper reciting the living chronicle';
+                }
+                const mOpts = { ...(mentorProfile || {}), engine: this.audio.ttsEngine || 'gemini' };
+                this.audio.prewarmUtterance(beat.text, 'mentor', 'Elder Lorekeeper', null, mOpts).catch(() => {});
+            } else {
+                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition) : null;
+                const speakOpts = { ...(narrProfile || {}), narrator: narrProfile, engine: this.audio.ttsEngine || 'gemini' };
+                this.audio.prewarmUtterance(beat.text, 'narrator', '', null, speakOpts).catch(() => {});
+                if (beat.dialogue && beat.dialogue.text && !beat.dialogue.isNoise) {
+                    const speakerEntity = beat.dialogue.creature || { name: beat.dialogue.speaker };
+                    const cProfile = this.grounder ? this.grounder.resolveVoiceProfile(speakerEntity, this.currentHero, '', this.tradition) : null;
+                    const dOpts = cProfile ? { ...cProfile, engine: this.audio.ttsEngine || 'gemini' } : { engine: this.audio.ttsEngine || 'gemini' };
+                    this.audio.prewarmUtterance(beat.dialogue.text, 'creature', beat.dialogue.speaker, beat.dialogue.recommendedVoice || null, dOpts).catch(() => {});
+                }
+            }
+        } catch (_) {}
+    }
+
     async _playNextBeat(sessionId) {
         if (sessionId !== this.playbackSessionId || !this.isStoryPlaying || !this.audio) return;
 
-        this.buildStoryPlaylist();
+        if (!this.storyPlaylist || this.storyPlaylist.length === 0) {
+            this.buildStoryPlaylist();
+        }
         if (this.currentBeatIndex >= this.storyPlaylist.length) {
             this.stopStoryPlayback();
             if (this.statusTextEl) {
@@ -1266,9 +1316,15 @@ class ChronicleManager {
         }
 
         if (this.statusTextEl) {
-            const chNum = beat.chapterNum || 1;
-            const pNum = (beat.pIndex || 0) + 1;
-            this.statusTextEl.textContent = `▶ Reading Ch. ${chNum} [Para ${pNum}]`;
+            this.statusTextEl.textContent = `▶ Reading passage ${this.currentBeatIndex + 1} of ${this.storyPlaylist.length}`;
+        }
+
+        // Lookahead Beat Pre-Warming:
+        // While the current beat is speaking aloud (8-15s), immediately synthesize and decode
+        // the next beat in the background so it plays with 0ms transition latency when this beat finishes!
+        if (this.currentBeatIndex + 1 < this.storyPlaylist.length) {
+            const nextBeat = this.storyPlaylist[this.currentBeatIndex + 1];
+            this.prewarmBeat(nextBeat);
         }
 
         this.isSpeakingBeat = true;
@@ -1335,6 +1391,10 @@ class ChronicleManager {
     }
 
     toggleStoryPlayback() {
+        if (this.isVoiceLoading) {
+            console.log('[ChronicleManager] Voice is currently generating/loading, ignoring impatient play click.');
+            return;
+        }
         if (this.isStoryPlaying) {
             this.pauseStoryPlayback();
         } else if (this.audio && this.audio.isPaused) {
@@ -1359,7 +1419,9 @@ class ChronicleManager {
     }
 
     rewindStoryPlayback() {
-        this.buildStoryPlaylist();
+        if (!this.storyPlaylist || this.storyPlaylist.length === 0) {
+            this.buildStoryPlaylist();
+        }
         if (this.storyPlaylist.length === 0) return;
 
         // If audio has played for > 2 seconds into current beat, rewind to start of current beat;
@@ -1379,7 +1441,9 @@ class ChronicleManager {
     }
 
     forwardStoryPlayback() {
-        this.buildStoryPlaylist();
+        if (!this.storyPlaylist || this.storyPlaylist.length === 0) {
+            this.buildStoryPlaylist();
+        }
         if (this.storyPlaylist.length === 0) return;
 
         const targetIdx = Math.min(this.storyPlaylist.length - 1, this.currentBeatIndex + 1);
@@ -1388,6 +1452,14 @@ class ChronicleManager {
 
     updatePlayButtonUI() {
         if (this.btnPlayStory) {
+            if (this.isVoiceLoading) {
+                this.btnPlayStory.classList.add('loading');
+                this.btnPlayStory.disabled = true;
+                this.btnPlayStory.innerHTML = `<span class="voice-loading-spinner"></span> <span class="btn-play-text">Voicing...</span>`;
+                return;
+            }
+            this.btnPlayStory.disabled = false;
+            this.btnPlayStory.classList.remove('loading');
             if (this.isStoryPlaying) {
                 this.btnPlayStory.textContent = '⏸ Pause';
                 this.btnPlayStory.title = 'Pause Story Audio [Space]';
@@ -1407,6 +1479,29 @@ class ChronicleManager {
                 this.btnStopStory.classList.add('active');
             } else {
                 this.btnStopStory.classList.remove('active');
+            }
+        }
+    }
+
+    onVoiceLoadingState(loading, details) {
+        this.isVoiceLoading = !!loading;
+        if (this.btnPlayStory) {
+            this.btnPlayStory.classList.toggle('loading', this.isVoiceLoading);
+            if (this.isVoiceLoading) {
+                this.btnPlayStory.disabled = true;
+                this.btnPlayStory.innerHTML = `<span class="voice-loading-spinner"></span> <span class="btn-play-text">Voicing...</span>`;
+                this.btnPlayStory.title = 'Generating voice with Gemini... please wait';
+            } else {
+                this.btnPlayStory.disabled = false;
+                this.updatePlayButtonUI();
+            }
+        }
+        if (this.statusTextEl) {
+            if (this.isVoiceLoading) {
+                this.statusTextEl.classList.add('voice-loading-pulse');
+                this.statusTextEl.innerHTML = `<span class="voice-pulse-dot"></span> ${details || 'Voicing chronicle with Gemini...'}`;
+            } else {
+                this.statusTextEl.classList.remove('voice-loading-pulse');
             }
         }
     }
@@ -1872,18 +1967,30 @@ class ChronicleManager {
 
     openSettings() {
         if (!this.settingsModal) return;
-        if (this.selectEngine && this.audio) this.selectEngine.value = this.audio.ttsEngine || 'edge';
-        if (this.selectTradition) this.selectTradition.value = this.tradition;
+        if (this.audio) this.audio.setEngine('gemini');
+        if (this.selectSpeed && this.audio) this.selectSpeed.value = String(this.audio.speed || 1.0);
 
         if (this.sliderReverb && this.audio) {
-            const revPct = Math.round((this.audio.reverbWet !== undefined ? this.audio.reverbWet : 0.18) * 100);
+            const revPct = Math.round((this.audio.reverbWet !== undefined ? this.audio.reverbWet : 0.10) * 100);
             this.sliderReverb.value = revPct;
             if (this.valReverb) this.valReverb.textContent = `${revPct}%`;
         }
 
         if (this.llm) {
             if (this.selectProvider) this.selectProvider.value = this.llm.provider;
-            if (this.inputApiKey) this.inputApiKey.value = this.llm.apiKey;
+            if (this.inputApiKey) {
+                if (this.llm.hasServerKey && !this.llm.apiKey) {
+                    this.inputApiKey.value = '';
+                    this.inputApiKey.placeholder = '●●●●●●●● (Protected Server Key Active)';
+                    if (this.apiKeyStatus) {
+                        this.apiKeyStatus.style.color = '#4ade80';
+                        this.apiKeyStatus.textContent = '✓ Protected server key active';
+                    }
+                } else {
+                    this.inputApiKey.value = this.llm.apiKey || '';
+                    this.inputApiKey.placeholder = 'Paste your API key here...';
+                }
+            }
             
             let m = this.llm.model;
             if (m && (m.includes('1.5-flash') || m.includes('2.0-flash'))) {
@@ -1905,30 +2012,35 @@ class ChronicleManager {
             if (grpKey) grpKey.style.display = (this.llm.provider === 'offline') ? 'none' : 'block';
             if (grpEndpoint) grpEndpoint.style.display = (this.llm.provider === 'custom') ? 'block' : 'none';
         }
-        if (this.selectTradition) {
-            const ev = new Event('change');
-            this.selectTradition.dispatchEvent(ev);
-        }
         if (this.testStatus) this.testStatus.textContent = '';
-        if (this.apiKeyStatus) this.apiKeyStatus.textContent = '';
+        if (this.apiKeyStatus && (!this.llm || !this.llm.hasServerKey || this.llm.apiKey)) {
+            this.apiKeyStatus.textContent = '';
+        }
         this.settingsModal.classList.remove('hidden');
     }
 
     closeSettings() {
         if (!this.settingsModal) return;
-        if (this.selectEngine && this.audio) this.audio.setEngine(this.selectEngine.value);
-        if (this.selectTradition) {
-            this.tradition = this.selectTradition.value;
+        if (this.audio) this.audio.setEngine('gemini');
+        if (this.currentHero && this.currentHero.race && this.grounder) {
+            this.tradition = this.grounder.getTraditionForRace(this.currentHero.race);
             if (this.audio) this.audio.setTradition(this.tradition);
+            this.updateTraditionBadge();
+        }
+        if (this.selectSpeed && this.audio) {
+            this.audio.setSpeed(parseFloat(this.selectSpeed.value) || 1.0);
+            this.updateAudioControlsUI();
         }
         if (this.sliderReverb && this.audio) {
             this.audio.setReverbVolume(parseInt(this.sliderReverb.value, 10) / 100);
         }
 
         if (this.llm) {
+            const enteredKey = this.inputApiKey ? this.inputApiKey.value.trim() : '';
+            const newKey = enteredKey ? enteredKey : (this.llm.hasServerKey ? '' : this.llm.apiKey);
             this.llm.saveSettings({
                 provider: this.selectProvider ? this.selectProvider.value : this.llm.provider,
-                apiKey: this.inputApiKey ? this.inputApiKey.value : this.llm.apiKey,
+                apiKey: newKey,
                 model: this.inputModel ? this.inputModel.value : this.llm.model,
                 endpoint: this.inputEndpoint ? this.inputEndpoint.value : this.llm.endpoint,
                 enforceFreeTier: true

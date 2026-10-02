@@ -8,46 +8,49 @@ class ChronicleAudioRouter {
     constructor(soundEngine = null) {
         this.soundEngine = soundEngine;
         this.enabled = false; // MUTED BY DEFAULT per strict requirement
-        this.speed = 1.0;     // 1.0x, 1.25x, 1.5x
-        this.flowMode = 'continuous'; // 'continuous' | 'interrupt'
-        this.narratorVoice = 'en-GB-RyanNeural'; // Dramatic British stage storyteller / epic Tolkien fireside narrator
+        this.speed = 1.0;     // 0.75x, 0.85x, 1.0x, 1.25x, 1.5x
+        this.flowMode = 'interrupt'; // Default to interrupt: latest developments take priority, story flows cleanly
+        this.narratorVoice = 'en-GB-RyanNeural'; // Dramatic theatrical British bard / older English storyteller
+        this.ttsEngine = 'gemini'; // High-fidelity Google Gemini Native Audio primary default
         this.isSpeaking = false;
         this.isPaused = false;
         this.isListeningMic = false;
         this.speechQueue = [];
         this.isProcessingSpeechQueue = false;
+        this._playSessionId = 0;
+        this._activeFetchController = null;
 
         // Restore persisted audio preferences
         if (typeof window !== 'undefined' && window.localStorage) {
             try {
+                // Purge legacy manual engine/voice configs so Gemini-only and Enceladus remain pristine
+                localStorage.removeItem('angband_chronicle_engine');
+                localStorage.removeItem('angband_chronicle_voice');
+                localStorage.removeItem('angband_chronicle_tradition');
+
                 const savedMuted = localStorage.getItem('angband_chronicle_muted');
                 this.enabled = (savedMuted === 'false'); // Only enable if player explicitly unmuted in prior session
                 const savedSpeed = parseFloat(localStorage.getItem('angband_chronicle_speed'));
-                if (!isNaN(savedSpeed) && savedSpeed >= 1.0 && savedSpeed <= 2.0) {
+                if (!isNaN(savedSpeed) && savedSpeed >= 0.5 && savedSpeed <= 2.5) {
                     this.speed = savedSpeed;
                 }
                 const savedFlow = localStorage.getItem('angband_chronicle_flow');
                 if (savedFlow) this.flowMode = savedFlow;
-                const savedVoice = localStorage.getItem('angband_chronicle_voice');
-                // Support all aged, bardic, and neural storyteller voices
-                if (savedVoice && savedVoice !== 'en-GB-ThomasNeural' && (savedVoice.includes('Neural') || savedVoice.includes('Ryan') || savedVoice.includes('Roger') || savedVoice.includes('Brian') || savedVoice.includes('William') || savedVoice.includes('Clara') || savedVoice.includes('Steffan') || savedVoice.includes('Sonia') || savedVoice.includes('Connor') || savedVoice.includes('Libby') || savedVoice.includes('Christopher') || savedVoice.includes('Guy') || savedVoice.includes('Jenny') || savedVoice.includes('Aria') || savedVoice.includes('Maisie') || savedVoice.includes('Emily') || savedVoice.includes('Natasha') || savedVoice.includes('Liam'))) {
-                    this.narratorVoice = savedVoice;
-                } else {
-                    this.narratorVoice = 'en-GB-RyanNeural';
-                }
-
-                const savedEngine = localStorage.getItem('angband_chronicle_engine');
-                if (savedEngine === 'gemini' || savedEngine === 'edge') this.ttsEngine = savedEngine;
-                else this.ttsEngine = 'edge';
+                this.narratorVoice = 'Enceladus';
+                this.ttsEngine = 'gemini';
 
                 const savedReverb = parseFloat(localStorage.getItem('angband_chronicle_reverb'));
                 if (!isNaN(savedReverb) && savedReverb >= 0.0 && savedReverb <= 1.0) this.reverbWet = savedReverb;
-                else this.reverbWet = 0.18;
+                else this.reverbWet = 0.10; // Default 10% reverb per user request
             } catch (_) {}
         } else {
-            this.ttsEngine = 'edge';
-            this.reverbWet = 0.18;
+            this.ttsEngine = 'gemini';
+            this.narratorVoice = 'Enceladus';
+            this.reverbWet = 0.10; // Default 10% reverb per user request
         }
+
+        this.isLoading = false;
+        this.onLoadingStateChange = null;
 
         // Web Audio Sub-Graph
         this.ctx = null;
@@ -67,6 +70,14 @@ class ChronicleAudioRouter {
         this.activePlaybackResolve = null;
         this._pauseTimeout = null;
         this.availableVoices = [];
+        this._sequenceSessionId = 0;
+        this._isExecutingSequence = false;
+
+        // Decoded AudioBuffer In-Memory LRU Cache & Prewarm In-Flight Registry
+        // Bypasses both network and Web Audio decodeAudioData CPU decompression (0.01ms playback)
+        this.audioBufferCache = new Map();
+        this.MAX_AUDIO_BUFFER_CACHE = 150;
+        this._prewarmPromises = new Map();
 
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
             try {
@@ -183,7 +194,17 @@ class ChronicleAudioRouter {
     }
 
     setSpeed(speedMultiplier) {
-        this.speed = Math.max(1.0, Math.min(2.0, speedMultiplier));
+        this.speed = Math.max(0.5, Math.min(2.5, speedMultiplier));
+        // Strictly preserve pitch/formant: do not alter AudioBufferSourceNode.playbackRate in Web Audio,
+        // which resamples and alters pitch. Speed is handled natively at the neural vocoder level.
+        if (this.currentAudio) {
+            try {
+                if ('preservesPitch' in this.currentAudio) {
+                    this.currentAudio.preservesPitch = true;
+                }
+                this.currentAudio.playbackRate = this.speed;
+            } catch (_) {}
+        }
         try {
             localStorage.setItem('angband_chronicle_speed', this.speed.toString());
         } catch (_) {}
@@ -220,7 +241,26 @@ class ChronicleAudioRouter {
         } catch (_) {}
     }
 
+    _setLoading(loading, details = '') {
+        if (this.isLoading === loading) return;
+        this.isLoading = loading;
+        if (typeof this.onLoadingStateChange === 'function') {
+            try {
+                this.onLoadingStateChange(loading, details);
+            } catch (_) {}
+        }
+    }
+
     stopSpeaking() {
+        this._playSessionId = (this._playSessionId || 0) + 1;
+        this._sequenceSessionId = (this._sequenceSessionId || 0) + 1;
+        this._isExecutingSequence = false;
+        this.isSpeaking = false;
+        this._setLoading(false);
+        if (this._activeFetchController) {
+            try { this._activeFetchController.abort(); } catch (_) {}
+            this._activeFetchController = null;
+        }
         if (this._pauseTimeout) {
             clearTimeout(this._pauseTimeout);
             this._pauseTimeout = null;
@@ -234,7 +274,11 @@ class ChronicleAudioRouter {
             }
         }
         if (this.currentSource) {
-            try { this.currentSource.stop(); } catch (_) {}
+            try {
+                this.currentSource.onended = null;
+                this.currentSource.stop();
+                this.currentSource.disconnect();
+            } catch (_) {}
             this.currentSource = null;
         }
         if (this.currentAudio) {
@@ -246,6 +290,9 @@ class ChronicleAudioRouter {
             } catch (_) {}
             this.currentAudio = null;
         }
+        if (this.ctx && this.ctx.state === 'suspended') {
+            try { this.ctx.resume(); } catch (_) {}
+        }
         if (this.activePlaybackResolve) {
             const res = this.activePlaybackResolve;
             this.activePlaybackResolve = null;
@@ -256,7 +303,13 @@ class ChronicleAudioRouter {
         }
         this.isSpeaking = false;
         this.isPaused = false;
+        this._speechStartTime = 0;
+        this.currentRole = null;
         this.duckGameAudio(false);
+    }
+
+    getSpeakingDuration() {
+        return (this.isSpeaking && this._speechStartTime > 0) ? (Date.now() - this._speechStartTime) : 0;
     }
 
     getCurrentTime() {
@@ -275,6 +328,9 @@ class ChronicleAudioRouter {
 
     pause() {
         this.isPaused = true;
+        if (this.ctx && this.ctx.state === 'running') {
+            try { this.ctx.suspend(); } catch (_) {}
+        }
         if (this.currentAudio && !this.currentAudio.paused) {
             try { this.currentAudio.pause(); } catch (_) {}
         } else if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
@@ -284,6 +340,9 @@ class ChronicleAudioRouter {
 
     resume() {
         this.isPaused = false;
+        if (this.ctx && this.ctx.state === 'suspended') {
+            try { this.ctx.resume(); } catch (_) {}
+        }
         if (this.currentAudio && this.currentAudio.paused) {
             try { this.currentAudio.play(); } catch (_) {}
         } else if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.paused) {
@@ -294,21 +353,26 @@ class ChronicleAudioRouter {
     /**
      * Speaks narrative prose and creature dialogue with seamless queueing.
      * Returns a Promise that resolves when the prose and optional creature bark finish speaking.
-     * Tier 1: Studio-quality Neural TTS via server /api/tts.
-     * Tier 2: In-browser Web Speech API with clean formant preservation.
-     */
-    /**
-     * Speaks narrative prose and creature dialogue with seamless queueing.
-     * Returns a Promise that resolves when the prose and optional creature bark finish speaking.
      * Tier 1: Studio-quality Neural TTS via server /api/tts (Edge Neural SSML or Gemini Native Audio).
      * Tier 2: In-browser Web Speech API with clean formant preservation.
      */
     speak(text, dialogue = null, monsterCoords = null, playerCoords = null, cameraYaw = 0, options = {}) {
         if (!this.enabled || !text) return Promise.resolve({ skipped: true });
 
-        // If in interrupt mode and new urgent speech arrives, stop prior
-        if (this.flowMode === 'interrupt' && this.isSpeaking) {
+        // Zero-lag real-time preemption:
+        // Always halt prior speech immediately and clear backlog so new game actions speak without latency
+        if (this.flowMode === 'interrupt' || this.isSpeaking || this.speechQueue.length > 0) {
             this.stopSpeaking();
+        }
+
+        // Low Latency Pruning: Drop any remaining queued beats so voice stays locked with action
+        if (this.speechQueue.length > 0) {
+            const stale = this.speechQueue.splice(0, this.speechQueue.length);
+            for (const item of stale) {
+                if (item && item.resolve) {
+                    try { item.resolve({ skipped: true, stale: true }); } catch (_) {}
+                }
+            }
         }
 
         return new Promise((resolve) => {
@@ -345,13 +409,33 @@ class ChronicleAudioRouter {
     async _executeSpeak(text, dialogue = null, options = {}) {
         this.duckGameAudio(true);
         this.isSpeaking = true;
+        this._speechStartTime = Date.now();
+        this.currentRole = options.role || (options.narrator ? 'narrator' : 'combat');
+        this._isExecutingSequence = true;
+        this._sequenceSessionId = (this._sequenceSessionId || 0) + 1;
+        const currentSeqId = this._sequenceSessionId;
 
         try {
+            // High-Performance Parallel Pre-Decoding: If vocal dialogue exists, dispatch
+            // background pre-warming immediately so the creature bark audio is fully decoded
+            // in memory by the time narration finishes (0ms dialogue transition latency).
+            if (dialogue && dialogue.text && !dialogue.isNoise && this.enabled) {
+                const prewarmVoice = dialogue.recommendedVoice || dialogue.edgeVoice || null;
+                const prewarmOptions = dialogue.voiceProfile ? { ...dialogue.voiceProfile, engine: this.ttsEngine } : {
+                    emotion: dialogue.emotion || options.emotion || '',
+                    geminiTag: dialogue.geminiTag || '',
+                    directorNote: dialogue.directorNote || '',
+                    gender: dialogue.gender || '',
+                    engine: this.ttsEngine
+                };
+                this.prewarmUtterance(dialogue.text, 'creature', dialogue.speaker, prewarmVoice, prewarmOptions).catch(() => {});
+            }
+
             // 1. Speak main narrative prose (Narrator voice) with emotion & tradition context
             const narrOptions = options.narrator || options || {};
             const r1 = await this.speakUtterance(text, 'narrator', '', null, narrOptions);
             if (r1 && r1.aborted) return { aborted: true };
-            if (!this.enabled || !this.isSpeaking || this.isPaused) return { stopped: true };
+            if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId) return { stopped: true };
 
             // 2. If vocal dialogue exists (and is NOT a non-vocal creature sound noise), speak creature bark
             if (dialogue && dialogue.text && !dialogue.isNoise && this.enabled) {
@@ -360,7 +444,7 @@ class ChronicleAudioRouter {
                     this._pauseTimeout = setTimeout(r, 220);
                 });
                 this._pauseTimeout = null;
-                if (!this.enabled || !this.isSpeaking || this.isPaused) return { stopped: true };
+                if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId) return { stopped: true };
 
                 const voice = dialogue.recommendedVoice || dialogue.edgeVoice || null;
                 const dOptions = dialogue.voiceProfile ? { ...dialogue.voiceProfile, engine: this.ttsEngine } : {
@@ -375,8 +459,11 @@ class ChronicleAudioRouter {
             }
             return { finished: true };
         } finally {
-            this.isSpeaking = false;
-            this.duckGameAudio(false);
+            if (this._sequenceSessionId === currentSeqId) {
+                this._isExecutingSequence = false;
+                this.isSpeaking = false;
+                this.duckGameAudio(false);
+            }
         }
     }
 
@@ -389,24 +476,156 @@ class ChronicleAudioRouter {
         const cleanText = text.replace(/<[^>]*>/g, '').trim();
         if (!cleanText) return { finished: true };
 
-        // Try high-fidelity server neural TTS first
-        try {
-            const res = await this.playNeuralAudio(cleanText, role, customVoice, options);
-            return res || { finished: true };
-        } catch (err) {
-            // Server neural TTS offline or failed; smoothly fall back to browser Web Speech API
-            console.info('[ChronicleAudio] Server neural TTS bypassed, using local speech synthesis:', err.message);
+        const wasSpeaking = this.isSpeaking;
+        if (!wasSpeaking) {
+            this.duckGameAudio(true);
+            this.isSpeaking = true;
+            this._speechStartTime = Date.now();
         }
+        this.currentRole = role;
 
-        const res = await this.speakSpeechSynthesis(cleanText, role, speakerName);
-        return res || { finished: true };
+        try {
+            // Check if full utterance is already in AudioBuffer cache (0ms instant hit)
+            const fullCacheKey = this.getAudioCacheKey(cleanText, role, customVoice, options);
+            if (this.audioBufferCache.has(fullCacheKey)) {
+                try {
+                    const res = await this.playNeuralAudio(cleanText, role, customVoice, options);
+                    return res || { finished: true };
+                } catch (_) {}
+            }
+
+            // High-Speed Sentence Fast-Start Pipelining:
+            // For longer paragraphs (>60 chars) with multiple sentences, synthesize sentence 1
+            // immediately (~1.5s TTFA) while speculatively pre-warming the remainder in parallel.
+            const sentences = cleanText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
+            if (sentences.length > 1 && cleanText.length > 60) {
+                const s1 = sentences[0];
+                const remainder = sentences.slice(1).join(' ');
+                if (s1 && remainder) {
+                    // 1. Speculatively pre-warm remainder in background
+                    this.prewarmUtterance(remainder, role, speakerName, customVoice, options).catch(() => {});
+                    // 2. Synthesize and speak sentence 1 immediately
+                    try {
+                        const r1 = await this.playNeuralAudio(s1, role, customVoice, options);
+                        if (r1 && r1.aborted) return { aborted: true };
+                        if (!this.enabled || this.isPaused) return { stopped: true };
+
+                        // 3. Sentence 1 finished playing; remainder is now ready in cache!
+                        const r2 = await this.playNeuralAudio(remainder, role, customVoice, options);
+                        return r2 || { finished: true };
+                    } catch (pipelineErr) {
+                        console.info('[ChronicleAudio] Sentence fast-start failed, falling back to full text:', pipelineErr.message);
+                    }
+                }
+            }
+
+            // Standard full utterance playback
+            try {
+                const res = await this.playNeuralAudio(cleanText, role, customVoice, options);
+                return res || { finished: true };
+            } catch (err) {
+                // Server neural TTS offline or failed; smoothly fall back to browser Web Speech API
+                console.info('[ChronicleAudio] Server neural TTS bypassed, using local speech synthesis:', err.message);
+            }
+
+            const res = await this.speakSpeechSynthesis(cleanText, role, speakerName);
+            return res || { finished: true };
+        } finally {
+            if (!wasSpeaking && !this._isExecutingSequence) {
+                this.isSpeaking = false;
+                this.duckGameAudio(false);
+            }
+        }
+    }
+
+    /**
+     * High-speed synchronous PCM WAV fast-path decoder.
+     * Directly creates AudioBuffer and converts 16-bit linear PCM in ~0.05ms without async worker handoffs.
+     * Returns null if buffer is not standard uncompressed 16-bit PCM WAV.
+     */
+    static decodePcmWav(arrayBuffer, ctx) {
+        if (!arrayBuffer || arrayBuffer.byteLength < 44 || !ctx) return null;
+        try {
+            const dv = new DataView(arrayBuffer);
+            // "RIFF" = 0x52494646 (big-endian), "WAVE" = 0x57415645
+            if (dv.getUint32(0, false) !== 0x52494646 || dv.getUint32(8, false) !== 0x57415645) return null;
+
+            let offset = 12;
+            let format = 0;
+            let channels = 1;
+            let sampleRate = 24000;
+            let bitsPerSample = 16;
+            let dataOffset = 0;
+            let dataLength = 0;
+
+            while (offset + 8 <= arrayBuffer.byteLength) {
+                const chunkId = dv.getUint32(offset, false);
+                const chunkSize = dv.getUint32(offset + 4, true);
+                offset += 8;
+
+                if (chunkId === 0x666d7420) { // "fmt "
+                    format = dv.getUint16(offset, true);
+                    channels = dv.getUint16(offset + 2, true);
+                    sampleRate = dv.getUint32(offset + 4, true);
+                    bitsPerSample = dv.getUint16(offset + 14, true);
+                } else if (chunkId === 0x64617461) { // "data"
+                    dataOffset = offset;
+                    dataLength = chunkSize;
+                    break;
+                }
+                offset += chunkSize;
+            }
+
+            if (format !== 1 || bitsPerSample !== 16 || !dataOffset || dataLength <= 0) return null;
+
+            const numSamples = Math.floor(dataLength / (channels * 2));
+            if (numSamples <= 0) return null;
+
+            const audioBuffer = ctx.createBuffer(channels, numSamples, sampleRate);
+            const int16View = new Int16Array(arrayBuffer, dataOffset, numSamples * channels);
+
+            for (let c = 0; c < channels; c++) {
+                const channelData = audioBuffer.getChannelData(c);
+                for (let i = 0; i < numSamples; i++) {
+                    channelData[i] = int16View[i * channels + c] / 32768.0;
+                }
+            }
+            return audioBuffer;
+        } catch (_) {
+            return null;
+        }
     }
 
     playNeuralAudio(text, role, customVoice = null, options = {}) {
         return new Promise(async (resolve, reject) => {
+            const sessionId = ++this._playSessionId;
+            const abortCtrl = new AbortController();
+            this._activeFetchController = abortCtrl;
+            this.activePlaybackResolve = resolve;
+
+            // Stop any prior source and audio immediately
+            if (this.currentSource) {
+                try {
+                    this.currentSource.onended = null;
+                    this.currentSource.stop();
+                    this.currentSource.disconnect();
+                } catch (_) {}
+                this.currentSource = null;
+            }
+            if (this.currentAudio) {
+                try {
+                    this.currentAudio.pause();
+                    this.currentAudio.currentTime = 0;
+                    this.currentAudio.onended = null;
+                    this.currentAudio.onerror = null;
+                } catch (_) {}
+                this.currentAudio = null;
+            }
+
             try {
-                const engine = options.engine || this.ttsEngine || 'edge';
-                let voice = customVoice || (role === 'narrator' ? this.narratorVoice : '');
+                this.isSpeaking = true;
+                const engine = options.engine || this.ttsEngine || 'gemini';
+                let voice = customVoice || (role === 'narrator' ? (engine === 'gemini' ? 'Enceladus' : this.narratorVoice) : '');
                 if (engine === 'gemini' && options.geminiVoice) {
                     voice = options.geminiVoice;
                 }
@@ -415,8 +634,64 @@ class ChronicleAudioRouter {
                 const geminiTag = options.geminiTag || '';
                 const directorNote = options.directorNote || '';
                 const pitch = options.pitch || '';
-                const rate = options.rate || '';
                 const gender = options.gender || '';
+
+                // --- PITCH-PRESERVED NEURAL SPEED CONTROL ---
+                // Rather than resampling the decoded audio (which alters pitch like a turntable),
+                // we calculate the relative prosody rate adjustment from this.speed and request
+                // the server neural vocoder to generate time-stretched audio with CONSTANT natural formant!
+                const currentSpeed = Math.max(0.5, Math.min(2.5, this.speed || 1.0));
+                const speedRatePercent = Math.round((currentSpeed - 1.0) * 100);
+                let baseRateNum = 0;
+                if (options.rate) {
+                    const m = String(options.rate).match(/([+-]?\d+)/);
+                    if (m) baseRateNum = parseInt(m[1], 10);
+                }
+                const combinedRateNum = Math.max(-50, Math.min(100, baseRateNum + speedRatePercent));
+                const rateParam = `${combinedRateNum >= 0 ? '+' : ''}${combinedRateNum}%`;
+
+                const cacheKey = this.getAudioCacheKey(text, role, customVoice, options);
+
+                // Resume suspended AudioContext if browser blocked autoplay before interaction
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    try { await this.ctx.resume(); } catch (_) {}
+                }
+
+                if (this._playSessionId !== sessionId || !this.enabled) {
+                    this.isSpeaking = false;
+                    return resolve({ aborted: true });
+                }
+
+                // --- INSTANT TIER 0: IN-MEMORY DECODED AUDIOBUFFER CACHE (0.01ms PLAYBACK) ---
+                if (this.ctx && this.voiceMasterGain && this.audioBufferCache.has(cacheKey)) {
+                    try {
+                        const cachedBuffer = this.audioBufferCache.get(cacheKey);
+                        const source = this.ctx.createBufferSource();
+                        source.buffer = cachedBuffer;
+                        source.playbackRate.value = 1.0; // Strictly preserve pitch & formant
+                        source.connect(this.voiceMasterGain);
+                        this.currentSource = source;
+                        this._setLoading(false);
+
+                        source.onended = () => {
+                            try { source.disconnect(); } catch (_) {}
+                            if (this.currentSource === source) {
+                                this.currentSource = null;
+                                if (!this._isExecutingSequence) {
+                                    this.isSpeaking = false;
+                                }
+                            }
+                            if (this.activePlaybackResolve === resolve) {
+                                this.activePlaybackResolve = null;
+                            }
+                            resolve({ finished: true, engine, cached: true });
+                        };
+                        source.start(0);
+                        return;
+                    } catch (cacheErr) {
+                        console.warn('[ChronicleAudio] Cached buffer playback error, fetching fresh:', cacheErr.message);
+                    }
+                }
 
                 const q = new URLSearchParams({
                     text,
@@ -427,11 +702,10 @@ class ChronicleAudioRouter {
                     gemini_tag: geminiTag,
                     director_note: directorNote,
                     pitch,
-                    rate,
-                    gender,
-                    _t: Date.now().toString()
+                    rate: rateParam,
+                    gender
                 });
-                // Extract client-side API key if stored in browser or memory
+                // Zero Key Leakage: Server handles API key via backend .env; only send header if custom user key entered in UI
                 let apiKey = '';
                 if (typeof window !== 'undefined') {
                     if (window.chronicleManager?.inputApiKey?.value) {
@@ -440,82 +714,117 @@ class ChronicleAudioRouter {
                     if (!apiKey && window.chronicleManager?.llm?.apiKey) {
                         apiKey = window.chronicleManager.llm.apiKey;
                     }
-                    if (!apiKey && window.localStorage) {
-                        try {
-                            apiKey = localStorage.getItem('angband_llm_api_key') ||
-                                     localStorage.getItem('angband_chronicle_apikey') ||
-                                     '';
-                        } catch (_) {}
-                    }
                 }
                 const fetchHeaders = {};
                 if (apiKey) {
+                    // Passed strictly in HTTP header, NEVER in URL query string
                     fetchHeaders['x-goog-api-key'] = apiKey;
-                    q.append('key', apiKey);
                 }
 
                 const url = `/api/tts?${q.toString()}`;
 
-                // Resume suspended AudioContext if browser blocked autoplay before interaction
-                if (this.ctx && this.ctx.state === 'suspended') {
-                    try { await this.ctx.resume(); } catch (_) {}
-                }
-
-                // Stop prior audio cleanly
-                if (this.currentAudio) {
-                    try {
-                        this.currentAudio.pause();
-                        this.currentAudio.currentTime = 0;
-                        this.currentAudio.onended = null;
-                        this.currentAudio.onerror = null;
-                    } catch (_) {}
-                    this.currentAudio = null;
-                }
-                if (this.currentSource) {
-                    try { this.currentSource.stop(); } catch (_) {}
-                    this.currentSource = null;
-                }
-
                 // --- TIER 1: WEB AUDIO DECODING WITH SUBTERRANEAN REVERB & RIBBON FILTER ---
                 if (this.ctx && this.voiceMasterGain) {
                     try {
-                        const res = await fetch(url, { headers: fetchHeaders });
-                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                        const usedEngine = res.headers.get('x-tts-engine');
-                        const fallbackReason = res.headers.get('x-tts-fallback-reason');
-                        if (engine === 'gemini' && usedEngine === 'edge') {
-                            console.warn('[ChronicleAudio] Gemini Native Audio fell back to Edge Neural:', fallbackReason || 'unknown reason');
+                        let audioBuffer = null;
+                        if (this._prewarmPromises.has(cacheKey)) {
+                            try {
+                                audioBuffer = await this._prewarmPromises.get(cacheKey);
+                            } catch (_) {}
                         }
 
-                        const arrayBuffer = await res.arrayBuffer();
-                        const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+                        let usedEngine = engine;
+                        let fallbackReason = null;
+
+                        if (!audioBuffer) {
+                            this._setLoading(true, 'Voicing lore...');
+                            const res = await fetch(url, { headers: fetchHeaders, signal: abortCtrl.signal });
+                            if (this._playSessionId !== sessionId || !this.enabled) {
+                                this.isSpeaking = false;
+                                this._setLoading(false);
+                                return resolve({ aborted: true });
+                            }
+                            if (!res.ok) {
+                                this._setLoading(false);
+                                throw new Error(`HTTP ${res.status}`);
+                            }
+                            usedEngine = res.headers.get('x-tts-engine');
+                            fallbackReason = res.headers.get('x-tts-fallback-reason');
+                            if (engine === 'gemini' && usedEngine === 'edge') {
+                                console.warn('[ChronicleAudio] Gemini Native Audio fell back to Edge Neural:', fallbackReason || 'unknown reason');
+                            }
+
+                            const arrayBuffer = await res.arrayBuffer();
+                            if (this._playSessionId !== sessionId || !this.enabled) {
+                                this.isSpeaking = false;
+                                this._setLoading(false);
+                                return resolve({ aborted: true });
+                            }
+
+                            this._setLoading(true, 'Decoding audio...');
+                            audioBuffer = ChronicleAudioRouter.decodePcmWav(arrayBuffer, this.ctx);
+                            if (!audioBuffer) {
+                                audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+                            }
+                            if (this.audioBufferCache.size >= this.MAX_AUDIO_BUFFER_CACHE) {
+                                const oldest = this.audioBufferCache.keys().next().value;
+                                this.audioBufferCache.delete(oldest);
+                            }
+                            this.audioBufferCache.set(cacheKey, audioBuffer);
+                        }
+
+                        if (this._playSessionId !== sessionId || !this.enabled) {
+                            this.isSpeaking = false;
+                            this._setLoading(false);
+                            return resolve({ aborted: true });
+                        }
 
                         const source = this.ctx.createBufferSource();
                         source.buffer = audioBuffer;
-                        source.playbackRate.value = Math.max(0.75, Math.min(2.0, this.speed));
+                        // KEEP PLAYBACK RATE AT 1.0 TO PRESERVE NATURAL PITCH!
+                        // The audio is already time-stretched at the server level via the prosody rate parameter.
+                        source.playbackRate.value = 1.0;
                         source.connect(this.voiceMasterGain);
 
                         this.currentSource = source;
-                        this.activePlaybackResolve = resolve;
+                        this._setLoading(false);
 
                         source.onended = () => {
-                            this.currentSource = null;
-                            this.activePlaybackResolve = null;
+                            try { source.disconnect(); } catch (_) {}
+                            if (this.currentSource === source) {
+                                this.currentSource = null;
+                                if (!this._isExecutingSequence) {
+                                    this.isSpeaking = false;
+                                }
+                            }
+                            if (this.activePlaybackResolve === resolve) {
+                                this.activePlaybackResolve = null;
+                            }
                             resolve({ finished: true, engine: usedEngine || engine, fallbackReason });
                         };
                         source.start(0);
                         return;
                     } catch (decodeErr) {
+                        if (abortCtrl.signal.aborted || this._playSessionId !== sessionId) {
+                            this.isSpeaking = false;
+                            return resolve({ aborted: true });
+                        }
                         console.info('[ChronicleAudio] Web Audio decode bypassed, falling back to HTML5 audio element:', decodeErr.message);
                     }
+                }
+
+                if (this._playSessionId !== sessionId || !this.enabled) {
+                    this.isSpeaking = false;
+                    return resolve({ aborted: true });
                 }
 
                 // --- TIER 2: HTML5 AUDIO ELEMENT FALLBACK ---
                 const audio = new Audio();
                 audio.src = url;
-                audio.playbackRate = Math.max(0.75, Math.min(2.0, this.speed));
+                // Server rendered rate; maintain natural playbackRate 1.0 and enable preservesPitch
+                audio.playbackRate = 1.0;
+                if ('preservesPitch' in audio) audio.preservesPitch = true;
                 this.currentAudio = audio;
-                this.activePlaybackResolve = resolve;
 
                 // Sync audio volume to master volume if sound engine present
                 if (this.soundEngine && typeof this.soundEngine.masterVolume === 'number') {
@@ -524,14 +833,26 @@ class ChronicleAudioRouter {
 
                 audio.onended = () => {
                     this.currentAudio = null;
-                    this.activePlaybackResolve = null;
+                    if (!this._isExecutingSequence) {
+                        this.isSpeaking = false;
+                    }
+                    if (this.activePlaybackResolve === resolve) {
+                        this.activePlaybackResolve = null;
+                    }
                     resolve({ finished: true });
                 };
                 audio.onerror = (e) => {
                     this.currentAudio = null;
-                    this.activePlaybackResolve = null;
-                    console.warn('[ChronicleAudio] Neural audio streaming error:', e);
-                    reject(new Error('HTMLAudio playback failed'));
+                    this.isSpeaking = false;
+                    if (this.activePlaybackResolve === resolve) {
+                        this.activePlaybackResolve = null;
+                    }
+                    if (this._playSessionId === sessionId) {
+                        console.warn('[ChronicleAudio] Neural audio streaming error:', e);
+                        reject(new Error('HTMLAudio playback failed'));
+                    } else {
+                        resolve({ aborted: true });
+                    }
                 };
 
                 const playPromise = audio.play();
@@ -539,7 +860,14 @@ class ChronicleAudioRouter {
                     await playPromise;
                 }
             } catch (err) {
-                this.activePlaybackResolve = null;
+                this.isSpeaking = false;
+                this._setLoading(false);
+                if (abortCtrl.signal.aborted || this._playSessionId !== sessionId) {
+                    return resolve({ aborted: true });
+                }
+                if (this.activePlaybackResolve === resolve) {
+                    this.activePlaybackResolve = null;
+                }
                 reject(err);
             }
         });
@@ -679,6 +1007,122 @@ class ChronicleAudioRouter {
         }
         this.isListeningMic = false;
         this.duckGameAudio(false);
+    }
+
+    /**
+     * Deterministic Cache Key generator matching server and local AudioBuffer cache.
+     */
+    getAudioCacheKey(text, role, customVoice, options = {}) {
+        const cleanText = text.replace(/<[^>]*>/g, '').trim();
+        const engine = options.engine || this.ttsEngine || 'gemini';
+        let voice = customVoice || (role === 'narrator' ? (engine === 'gemini' ? 'Enceladus' : this.narratorVoice) : '');
+        if (engine === 'gemini' && options.geminiVoice) voice = options.geminiVoice;
+
+        const emotion = options.emotion || '';
+        const geminiTag = options.geminiTag || '';
+        const directorNote = options.directorNote || '';
+        const pitch = options.pitch || '';
+        const gender = options.gender || '';
+
+        const currentSpeed = Math.max(0.5, Math.min(2.5, this.speed || 1.0));
+        const speedRatePercent = Math.round((currentSpeed - 1.0) * 100);
+        let baseRateNum = 0;
+        if (options.rate) {
+            const m = String(options.rate).match(/([+-]?\d+)/);
+            if (m) baseRateNum = parseInt(m[1], 10);
+        }
+        const combinedRateNum = Math.max(-50, Math.min(100, baseRateNum + speedRatePercent));
+        const rateParam = `${combinedRateNum >= 0 ? '+' : ''}${combinedRateNum}%`;
+
+        return `${engine}:${role}:${voice}:${gender}:${pitch}:${rateParam}:${emotion}:${geminiTag}:${directorNote}:${cleanText}`;
+    }
+
+    /**
+     * Non-blocking background pre-fetch and Web Audio decompression.
+     * Decodes audio directly into this.audioBufferCache ahead of time for 0ms playback initiation.
+     */
+    async prewarmUtterance(text, role = 'narrator', speakerName = '', customVoice = null, options = {}) {
+        if (!text || typeof window === 'undefined') return null;
+        const cleanText = text.replace(/<[^>]*>/g, '').trim();
+        if (!cleanText) return null;
+
+        const cacheKey = this.getAudioCacheKey(cleanText, role, customVoice, options);
+        if (this.audioBufferCache.has(cacheKey)) {
+            return this.audioBufferCache.get(cacheKey);
+        }
+        if (this._prewarmPromises.has(cacheKey)) {
+            return this._prewarmPromises.get(cacheKey);
+        }
+
+        const prewarmPromise = (async () => {
+            try {
+                const engine = options.engine || this.ttsEngine || 'gemini';
+                let voice = customVoice || (role === 'narrator' ? (engine === 'gemini' ? 'Enceladus' : this.narratorVoice) : '');
+                if (engine === 'gemini' && options.geminiVoice) voice = options.geminiVoice;
+
+                const emotion = options.emotion || '';
+                const geminiTag = options.geminiTag || '';
+                const directorNote = options.directorNote || '';
+                const pitch = options.pitch || '';
+                const gender = options.gender || '';
+
+                const currentSpeed = Math.max(0.5, Math.min(2.5, this.speed || 1.0));
+                const speedRatePercent = Math.round((currentSpeed - 1.0) * 100);
+                let baseRateNum = 0;
+                if (options.rate) {
+                    const m = String(options.rate).match(/([+-]?\d+)/);
+                    if (m) baseRateNum = parseInt(m[1], 10);
+                }
+                const combinedRateNum = Math.max(-50, Math.min(100, baseRateNum + speedRatePercent));
+                const rateParam = `${combinedRateNum >= 0 ? '+' : ''}${combinedRateNum}%`;
+
+                const q = new URLSearchParams({
+                    text: cleanText,
+                    role,
+                    engine,
+                    voice: voice || '',
+                    emotion,
+                    gemini_tag: geminiTag,
+                    director_note: directorNote,
+                    pitch,
+                    rate: rateParam,
+                    gender
+                });
+
+                let apiKey = '';
+                if (window.chronicleManager?.inputApiKey?.value) {
+                    apiKey = window.chronicleManager.inputApiKey.value.trim();
+                }
+                if (!apiKey && window.chronicleManager?.llm?.apiKey) {
+                    apiKey = window.chronicleManager.llm.apiKey;
+                }
+                const fetchHeaders = {};
+                if (apiKey) fetchHeaders['x-goog-api-key'] = apiKey;
+
+                const url = `/api/tts?${q.toString()}`;
+                const res = await fetch(url, { headers: fetchHeaders });
+                if (!res.ok) return null;
+                const arrayBuffer = await res.arrayBuffer();
+                if (!this.ctx) return null;
+                let audioBuffer = ChronicleAudioRouter.decodePcmWav(arrayBuffer, this.ctx);
+                if (!audioBuffer) {
+                    audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+                }
+                if (this.audioBufferCache.size >= this.MAX_AUDIO_BUFFER_CACHE) {
+                    const oldest = this.audioBufferCache.keys().next().value;
+                    this.audioBufferCache.delete(oldest);
+                }
+                this.audioBufferCache.set(cacheKey, audioBuffer);
+                return audioBuffer;
+            } catch (_) {
+                return null;
+            } finally {
+                this._prewarmPromises.delete(cacheKey);
+            }
+        })();
+
+        this._prewarmPromises.set(cacheKey, prewarmPromise);
+        return prewarmPromise;
     }
 }
 

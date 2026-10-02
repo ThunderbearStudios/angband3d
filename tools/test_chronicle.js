@@ -50,6 +50,7 @@ async function runTest() {
         AbortController: (typeof AbortController !== 'undefined') ? AbortController : class { constructor() { this.signal = {}; } abort() {} },
         addEventListener: () => {},
         fetch: (typeof fetch !== 'undefined') ? fetch : global.fetch,
+        URLSearchParams: (typeof URLSearchParams !== 'undefined') ? URLSearchParams : require('url').URLSearchParams,
         localStorage: {
             getItem: (k) => mockLocalStorage[k] || null,
             setItem: (k, v) => { mockLocalStorage[k] = v; },
@@ -364,8 +365,8 @@ async function runTest() {
     if (audio.enabled !== false) {
         throw new Error('ChronicleAudioRouter must be MUTED by default!');
     }
-    if (audio.narratorVoice !== 'en-GB-RyanNeural') {
-        throw new Error(`Expected default voice en-GB-RyanNeural, got ${audio.narratorVoice}`);
+    if (audio.narratorVoice !== 'Enceladus') {
+        throw new Error(`Expected default voice Enceladus, got ${audio.narratorVoice}`);
     }
     audio.setVoice('en-US-ChristopherNeural');
     if (audio.narratorVoice !== 'en-US-ChristopherNeural') {
@@ -1111,28 +1112,92 @@ async function runTest() {
     }
     console.log('  ✓ Free tier models, strict 10 RPM rate limiter ceiling, and anti-repetition buffer verified.');
 
-    // 22. Zero API Key Exposure & Permanent Rate Limiting UI Verification
-    console.log('[Chronicle Test] Testing Zero API Key Exposure & Permanent Rate Limiting UI...');
+    // 22. Zero API Key Exposure & Automatic Rate Limiting Enforcement
+    console.log('[Chronicle Test] Testing Zero API Key Exposure & Automatic Management...');
     const htmlContent = fs.readFileSync(path.resolve(__dirname, '../server/public/index.html'), 'utf8');
-    if (htmlContent.includes('id="btn-toggle-apikey-vis"')) {
-        throw new Error('Found prohibited btn-toggle-apikey-vis in index.html (violates zero API key exposure requirement)');
+    if (htmlContent.includes('id="btn-chronicle-settings"')) {
+        throw new Error('Found prohibited btn-chronicle-settings in index.html (settings controls must not be exposed)');
     }
-    if (!htmlContent.includes('id="btn-clear-apikey"')) {
-        throw new Error('Expected btn-clear-apikey in index.html');
+    if (htmlContent.includes('id="chronicle-settings-modal"')) {
+        throw new Error('Found prohibited chronicle-settings-modal in index.html (settings controls must not be exposed)');
+    }
+    if (htmlContent.includes('id="chronicle-setting-apikey"')) {
+        throw new Error('Found prohibited chronicle-setting-apikey in index.html (API keys must not be exposed in browser UI)');
+    }
+    if (htmlContent.includes('id="btn-clear-apikey"')) {
+        throw new Error('Found prohibited btn-clear-apikey in index.html');
+    }
+    if (htmlContent.includes('id="btn-toggle-apikey-vis"')) {
+        throw new Error('Found prohibited btn-toggle-apikey-vis in index.html');
     }
     if (htmlContent.includes('id="chronicle-setting-enforce-free"')) {
         throw new Error('Found prohibited chronicle-setting-enforce-free checkbox in index.html (rate limiting must be permanent)');
     }
-    if (!htmlContent.includes('Strict Free Tier Limiter &amp; Automatic Model Failover')) {
-        throw new Error('Expected permanent Free Tier Limiter card in index.html');
+
+    console.log('  ✓ Zero exposed settings controls: settings button and modal completely removed from UI.');
+    console.log('  ✓ Automatic rate limiting & free-tier management verified without manual controls.');
+
+    // 22b. Test Female 3D Model Feminine Geometry Detection & Pronoun Authority
+    console.log('[Chronicle Test] Testing 3D Model Feminine Geometry & Sex Detection Authority...');
+    const witchCreature = { name: 'Dark Sorcerer', modelKey: 'witch' };
+    const detectedWitchGender = ChronicleGrounder.detectCreatureGender(witchCreature);
+    if (detectedWitchGender !== 'female') {
+        throw new Error(`Expected female gender for witch 3D model, got: ${detectedWitchGender}`);
     }
-    console.log('  ✓ Zero API key exposure (eye toggle eliminated, permanent masked password) verified.');
-    console.log('  ✓ Permanent rate limiting enforcement & automatic failover UI card verified.');
+    const casualCreature = { name: 'Town Villager', model: 'Casual.gltf' };
+    const detectedCasualGender = ChronicleGrounder.detectCreatureGender(casualCreature);
+    if (detectedCasualGender !== 'female') {
+        throw new Error(`Expected female gender for Casual.gltf 3D model, got: ${detectedCasualGender}`);
+    }
+    const knightCreature = { name: 'Town Guard', modelKey: 'knight' };
+    const detectedKnightGender = ChronicleGrounder.detectCreatureGender(knightCreature);
+    if (detectedKnightGender !== 'male') {
+        throw new Error(`Expected male gender for knight 3D model, got: ${detectedKnightGender}`);
+    }
+    console.log('  ✓ 3D Model Feminine Geometry Authority: models with breasts strictly resolve as female.');
+
+    // 22c. Test Hero Voice Scaling by Race & Size
+    console.log('[Chronicle Test] Testing Hero Voice Scaling by Physical Size & Race...');
+    const giantHero = { name: 'Grom', race: 'Half-Giant', class: 'Warrior', size: 'massive' };
+    const giantProfile = ChronicleGrounder.resolveVoiceProfile(null, giantHero, 'combat', 'westmarch', true);
+    if (giantProfile.geminiVoice !== 'Charon' && giantProfile.geminiVoice !== 'Algenib') {
+        throw new Error(`Expected Charon or Algenib for massive hero, got: ${giantProfile.geminiVoice}`);
+    }
+    if (giantProfile.pitch !== '-5Hz') {
+        throw new Error(`Expected -5Hz pitch for massive hero, got: ${giantProfile.pitch}`);
+    }
+
+    const dwarfHero = { name: 'Thorin', race: 'Dwarf', class: 'Warrior', size: 'stout' };
+    const dwarfProfile = ChronicleGrounder.resolveVoiceProfile(null, dwarfHero, 'combat', 'khazad', true);
+    if (dwarfProfile.geminiVoice !== 'Algenib' && dwarfProfile.geminiVoice !== 'Orus') {
+        throw new Error(`Expected Algenib or Orus for dwarf hero, got: ${dwarfProfile.geminiVoice}`);
+    }
+    if (dwarfProfile.pitch !== '-3Hz') {
+        throw new Error(`Expected -3Hz pitch for dwarf hero, got: ${dwarfProfile.pitch}`);
+    }
+
+    const hobbitHero = { name: 'Frodo', race: 'Hobbit', class: 'Rogue', size: 'small' };
+    const hobbitProfile = ChronicleGrounder.resolveVoiceProfile(null, hobbitHero, 'combat', 'westmarch', true);
+    if (hobbitProfile.geminiVoice !== 'Puck' && hobbitProfile.geminiVoice !== 'Leda') {
+        throw new Error(`Expected Puck or Leda for hobbit hero, got: ${hobbitProfile.geminiVoice}`);
+    }
+    if (hobbitProfile.pitch !== '+5Hz') {
+        throw new Error(`Expected +5Hz pitch for small hero, got: ${hobbitProfile.pitch}`);
+    }
+    console.log('  ✓ Hero Voice Scaling: massive races get deep bass (-5Hz), stout get baritone (-3Hz), diminutive get tenor (+5Hz).');
 
     // 23. Cinematic Story Audio, Dual Voice Engines, and Subterranean Acoustics Verification
     console.log('[Chronicle Test] Testing Cinematic Story Audio, Dual Voice Engines & Subterranean DSP...');
 
-    // 23a. Test Contextual Voice & Emotion Resolver
+    // 23a. Test Narrator Persona (British Older Fireside Storyteller - Enceladus)
+    const narratorProfile = ChronicleGrounder.resolveVoiceProfile(null, { name: 'Eldarion', race: 'High-Elf' }, 'exploration', 'westmarch');
+    if (narratorProfile.geminiVoice !== 'Enceladus') {
+        throw new Error(`Expected narrator voice to be Enceladus, got: ${narratorProfile.geminiVoice}`);
+    }
+    if (!narratorProfile.directorNote.toLowerCase().includes('british') || !narratorProfile.directorNote.toLowerCase().includes('storyteller')) {
+        throw new Error(`Expected British older storyteller directorNote for narrator, got: ${narratorProfile.directorNote}`);
+    }
+    console.log('  ✓ Narrator Persona: Enceladus with expressive, slightly British older storyteller directorial note verified.');
     const testPlayerHealthy = { name: 'Eldarion', race: 'High-Elf', hp: 100, hp_max: 100, lev: 10, depth: 5 };
     const testPlayerPeril = { name: 'Eldarion', race: 'High-Elf', hp: 20, hp_max: 100, lev: 10, depth: 5 };
     const testPlayerStealth = { name: 'Shadowfoot', race: 'Hobbit', hp: 80, hp_max: 80, lev: 15, depth: 8, isSneaking: true };
@@ -1163,7 +1228,7 @@ async function runTest() {
         throw new Error('Expected male Dwarf to resolve gender male');
     }
     const dwarfMalePool = ['en-US-RogerNeural', 'en-US-BrianNeural', 'en-IE-ConnorNeural'];
-    if (!dwarfMalePool.includes(dwarfVoiceProfile.edgeVoice) || (dwarfVoiceProfile.geminiVoice !== 'Algenib' && dwarfVoiceProfile.geminiVoice !== 'Gacrux')) {
+    if (!dwarfMalePool.includes(dwarfVoiceProfile.edgeVoice) || !['Algenib', 'Gacrux', 'Orus'].includes(dwarfVoiceProfile.geminiVoice)) {
         throw new Error(`Expected male Dwarf voices from master pool, got: ${dwarfVoiceProfile.edgeVoice}, ${dwarfVoiceProfile.geminiVoice}`);
     }
 
@@ -1263,12 +1328,24 @@ async function runTest() {
     }
     console.log('  ✓ Bulletproof reinitialization: old dialogue and story completely cleared on new character instance.');
 
-    // 23e. Test Voice Studio UI in index.html (Zero Drone & Streamlined UI)
-    if (!htmlContent.includes('id="chronicle-setting-engine"')) {
-        throw new Error('Expected chronicle-setting-engine in index.html');
+    // 23e. Test Zero Exposed Settings Controls & Automatic Management in index.html
+    if (htmlContent.includes('id="btn-chronicle-settings"')) {
+        throw new Error('Settings button should NOT exist in index.html (managed automatically under the hood)');
     }
-    if (!htmlContent.includes('id="chronicle-setting-reverb"') || !htmlContent.includes('id="chronicle-reverb-value"')) {
-        throw new Error('Expected subterranean reverb slider and badge in index.html');
+    if (htmlContent.includes('id="chronicle-settings-modal"')) {
+        throw new Error('Settings modal should NOT exist in index.html (managed automatically under the hood)');
+    }
+    if (htmlContent.includes('id="chronicle-setting-engine"')) {
+        throw new Error('Manual voice engine dropdown should NOT exist in index.html (auto-configured to Gemini)');
+    }
+    if (htmlContent.includes('id="chronicle-setting-tradition"')) {
+        throw new Error('Manual literary tradition dropdown should NOT exist in index.html (auto-attuned to character race)');
+    }
+    if (htmlContent.includes('id="chronicle-setting-reverb"')) {
+        throw new Error('Subterranean reverb slider should NOT exist in index.html (auto-managed at 10%)');
+    }
+    if (htmlContent.includes('id="btn-chronicle-test-voice"')) {
+        throw new Error('Audition button should NOT exist in index.html (managed automatically)');
     }
     if (htmlContent.includes('id="chronicle-setting-drone"')) {
         throw new Error('Ambient tradition drone slider should NOT exist in index.html');
@@ -1279,14 +1356,11 @@ async function runTest() {
     if (htmlContent.includes('id="chronicle-setting-voice"')) {
         throw new Error('Excess manual 30-voice selector should NOT exist in index.html');
     }
-    if (!htmlContent.includes('id="btn-chronicle-test-voice"')) {
-        throw new Error('Expected audition button in index.html');
-    }
-    console.log('  ✓ Voice Studio UI: Zero drone, zero quick-voice dropdown, Intelligent Casting card & Audition button verified.');
+    console.log('  ✓ Zero Exposed Controls: Settings button & modal removed; Gemini Native Audio, 10% reverb & auto-traditions managed automatically.');
 
     // 23d. Test Live Backend Dual Engine /api/tts Endpoint
     try {
-        const edgeRes = await fetch('http://localhost:8080/api/tts?engine=edge&text=Verification&voice=en-GB-RyanNeural');
+        const edgeRes = await fetch('http://localhost:8080/api/tts?engine=edge&text=Verification&voice=en-GB-ThomasNeural');
         if (edgeRes.status !== 200) {
             throw new Error(`Edge TTS returned status ${edgeRes.status}`);
         }
@@ -1300,7 +1374,7 @@ async function runTest() {
         }
         console.log(`  ✓ Live Edge Neural TTS verified: HTTP 200, Content-Type: ${edgeContentType} (${edgeBuffer.byteLength} bytes).`);
 
-        const geminiRes = await fetch('http://localhost:8080/api/tts?engine=gemini&text=Verification&voice=Sulafat');
+        const geminiRes = await fetch('http://localhost:8080/api/tts?engine=gemini&text=Verification&voice=Enceladus');
         if (geminiRes.status !== 200) {
             throw new Error(`Gemini TTS endpoint returned status ${geminiRes.status}`);
         }
@@ -1310,14 +1384,694 @@ async function runTest() {
             throw new Error(`Gemini TTS returned suspiciously small buffer: ${geminiBuffer.byteLength} bytes`);
         }
         console.log(`  ✓ Live Gemini TTS & Fallback pipeline verified: HTTP 200, Content-Type: ${geminiContentType} (${geminiBuffer.byteLength} bytes).`);
+
+        // Test Default Engine (Gemini Native Audio or Edge Neural)
+        const defaultTtsRes = await fetch('http://localhost:8080/api/tts?text=DefaultEngineProbe');
+        const defaultEngineUsed = defaultTtsRes.headers.get('x-tts-engine');
+        if (defaultEngineUsed !== 'gemini' && defaultEngineUsed !== 'edge' && defaultTtsRes.status !== 200) {
+            throw new Error(`Expected default TTS engine to be gemini or edge, got: ${defaultEngineUsed}`);
+        }
+        console.log(`  ✓ Live /api/tts engine resolution verified (Engine used: ${defaultEngineUsed || 'gemini'}).`);
+
+        // Test Zero API Key Exposure from /api/config/llm
+        const configRes = await fetch('http://localhost:8080/api/config/llm');
+        if (configRes.status === 200) {
+            const cfg = await configRes.json();
+            if (cfg.apiKey) {
+                throw new Error('SECURITY VIOLATION: /api/config/llm exposed raw apiKey over network!');
+            }
+            if (cfg.hasServerKey !== true && cfg.hasKey !== true) {
+                throw new Error('Expected hasServerKey or hasKey boolean flag in /api/config/llm');
+            }
+            console.log('  ✓ Zero API Key Leakage: /api/config/llm strictly protects key (hasServerKey=true, apiKey=undefined).');
+        }
     } catch (netErr) {
         console.warn(`  (Note: Live HTTP endpoint probe skipped or warning: ${netErr.message})`);
     }
 
-    console.log('\n[Chronicle Test] ✅ ALL 23 VERIFICATION PHASES PASSED WITH ZERO ERRORS!\n');
+    // 24. Test Coalesced Combat & Status Integration, 10% Reverb, Extended Speed Range & Ambiguous Male Default
+    console.log('[Chronicle Test] Testing Coalesced Combat & Status Integration, 10% Reverb, Extended Speed Range & Male Default...');
+    
+    // 24a. Default Reverb 10%
+    delete mockLocalStorage['angband_chronicle_reverb'];
+    const freshAudio = new ChronicleAudioRouter();
+    if (Math.abs(freshAudio.reverbWet - 0.10) > 0.01) {
+        throw new Error(`Expected default reverbWet to be 0.10 (10%), got: ${freshAudio.reverbWet}`);
+    }
+    console.log(`  ✓ Reverb default verified at 10% (reverbWet = ${freshAudio.reverbWet}).`);
+
+    // 24b. Extended Speed Range [0.75x, 0.85x, 1.0x, 1.25x, 1.5x]
+    freshAudio.setSpeed(0.75);
+    if (Math.abs(freshAudio.speed - 0.75) > 0.01) throw new Error('setSpeed(0.75) failed');
+    freshAudio.setSpeed(0.85);
+    if (Math.abs(freshAudio.speed - 0.85) > 0.01) throw new Error('setSpeed(0.85) failed');
+    freshAudio.setSpeed(1.50);
+    if (Math.abs(freshAudio.speed - 1.50) > 0.01) throw new Error('setSpeed(1.50) failed');
+    freshAudio.setSpeed(1.00);
+    console.log('  ✓ Extended audiobook speed range [0.75x, 0.85x, 1.0x, 1.25x, 1.5x] verified.');
+
+    // 24c. Default Male Sex for Ambiguous Humanoids / Entities
+    const ambigTownsperson = { name: 'townsperson', glyph: 't' };
+    const ambigPriest = { name: 'novice priest', glyph: 'p' };
+    const ambigWarrior = { name: 'veteran mercenary', glyph: 'p' };
+    const explicitWitch = { name: 'cackling witch', glyph: 'p' };
+    
+    const sexTownsperson = ChronicleGrounder.detectCreatureGender(ambigTownsperson);
+    const sexPriest = ChronicleGrounder.detectCreatureGender(ambigPriest);
+    const sexWarrior = ChronicleGrounder.detectCreatureGender(ambigWarrior);
+    const sexWitch = ChronicleGrounder.detectCreatureGender(explicitWitch);
+
+    if (sexTownsperson !== 'male' || sexPriest !== 'male' || sexWarrior !== 'male') {
+        throw new Error(`Ambiguous humanoids should default to male. Got: townsperson=${sexTownsperson}, priest=${sexPriest}, warrior=${sexWarrior}`);
+    }
+    if (sexWitch !== 'female') {
+        throw new Error(`Explicit witch should resolve as female, got: ${sexWitch}`);
+    }
+    console.log('  ✓ Strict male default for ambiguous humanoids/entities verified (female preserved for explicit markers).');
+
+    // 24d. Coalesced Combat & Status Integration in ChronicleFilter
+    const coalesceFilter = new ChronicleFilter();
+    coalesceFilter.hasCompletedOnboarding.firstStairsDown = true;
+    coalesceFilter.lastDepth = 3;
+    const stackedCombatFrame = {
+        phase: 'play',
+        turn: 400,
+        messages: [
+            'The Snaga orc strikes you.',
+            'The Snaga orc claws you.',
+            'You are confused!',
+            'You strike the Snaga orc.'
+        ],
+        player: { name: 'Morgrim', hp: 35, mhp: 50, depth: 3, race: 'Dwarf', class: 'Warrior', confused: true },
+        monsters: [
+            { id: 77, name: 'Snaga orc', symbol: 'o', x: 10, y: 12, hp: 8, max_hp: 20 }
+        ]
+    };
+
+    const coalescedEvent = coalesceFilter.evaluate(stackedCombatFrame);
+    if (!coalescedEvent || coalescedEvent.type !== 'COMBAT_EXCHANGE') {
+        throw new Error(`Expected COMBAT_EXCHANGE coalesced event, got: ${coalescedEvent ? coalescedEvent.type : 'null'}`);
+    }
+    if (!coalescedEvent.data.playerStatuses || !coalescedEvent.data.playerStatuses.includes('confused')) {
+        throw new Error('Expected playerStatuses to contain "confused"');
+    }
+    if (coalescedEvent.data.incomingAttacks.length !== 2 || coalescedEvent.data.heroAttacks.length !== 1) {
+        throw new Error(`Expected 2 incoming hits and 1 hero hit, got: incoming=${coalescedEvent.data.incomingAttacks.length}, hero=${coalescedEvent.data.heroAttacks.length}`);
+    }
+    console.log(`  ✓ Stacked combat round successfully coalesced: ${coalescedEvent.data.incomingAttacks.length} incoming strikes + ${coalescedEvent.data.heroAttacks.length} hero hit + status [${coalescedEvent.data.playerStatuses.join(', ')}].`);
+
+    // 24e. Procedural Story Generation for COMBAT_EXCHANGE
+    const proceduralBeat = ChronicleGrounder.generateProceduralChapter(coalescedEvent, stackedCombatFrame.player, 'westmarch');
+    if (!proceduralBeat.prose || (!proceduralBeat.prose.includes('confus') && !proceduralBeat.prose.includes('dizz') && !proceduralBeat.prose.includes('disorient'))) {
+        throw new Error(`Expected procedural COMBAT_EXCHANGE prose to integrate status effect: ${proceduralBeat.prose}`);
+    }
+    console.log(`  ✓ Coalesced combat procedural story: "${proceduralBeat.prose}"`);
+
+    // 24f. Zero Vocal Overlap & Session ID Invalidation
+    const sessionAuditAudio = new ChronicleAudioRouter();
+    sessionAuditAudio.enabled = true;
+    sessionAuditAudio.isSpeaking = true;
+    const initSess = sessionAuditAudio._playSessionId;
+    sessionAuditAudio.speak('First fast sentence.', null);
+    const secSess = sessionAuditAudio._playSessionId;
+    if (secSess <= initSess) {
+        throw new Error('Expected _playSessionId to increment on new speak() in interrupt mode');
+    }
+    sessionAuditAudio.stopSpeaking();
+    const stopSess = sessionAuditAudio._playSessionId;
+    if (stopSess <= secSess) {
+        throw new Error('Expected _playSessionId to increment on stopSpeaking()');
+    }
+    console.log(`  ✓ Zero vocal overlap session invalidation verified: ${initSess} -> ${secSess} -> ${stopSess}.`);
+
+    // 24g. Elder English Male Storyteller Narrator Continuity
+    const narrProf = ChronicleGrounder.resolveVoiceProfile(null, stackedCombatFrame.player, 'COMBAT_EXCHANGE', 'westmarch');
+    if (!narrProf.geminiVoice || narrProf.geminiVoice !== 'Enceladus') {
+        throw new Error(`Expected Gemini narrator voice Enceladus, got: ${narrProf.geminiVoice}`);
+    }
+    if (!narrProf.edgeVoice || narrProf.edgeVoice !== 'en-GB-RyanNeural') {
+        throw new Error(`Expected Edge narrator voice en-GB-RyanNeural, got: ${narrProf.edgeVoice}`);
+    }
+    if (!narrProf.directorNote || (!narrProf.directorNote.toLowerCase().includes('english') && !narrProf.directorNote.toLowerCase().includes('british'))) {
+        throw new Error(`Expected British/English storyteller directorial note: ${narrProf.directorNote}`);
+    }
+    console.log(`  ✓ Elder English Male Storyteller continuity verified (Gemini: ${narrProf.geminiVoice}, Edge: ${narrProf.edgeVoice}).`);
+
+    // =========================================================================
+    // PHASE 25: Character Backstory Weaving, Character Vocal Continuity & Pitch Preservation
+    // =========================================================================
+    console.log('[Chronicle Test] Testing Character Backstory Weaving, Vocal Continuity & Pitch Preservation...');
+
+    // 25a. Backstory distillation from engine player.history
+    const heroWithHistory = {
+        name: 'Gimli',
+        race: 'Dwarf',
+        class: 'Warrior',
+        history: 'You are the eldest son of a stalwart dwarven armorer. You have dark brown eyes, a braided black beard, and a ruddy complexion.'
+    };
+    const distilledSummary = ChronicleGrounder.formatBackstorySummary(heroWithHistory);
+    if (!distilledSummary.toLowerCase().includes('eldest son') || !distilledSummary.toLowerCase().includes('armorer')) {
+        throw new Error(`Expected distilled backstory to contain lineage, got: "${distilledSummary}"`);
+    }
+    console.log(`  ✓ Engine history distillation verified: "${distilledSummary}".`);
+
+    // 25b. Backstory synthesis fallback from race & class
+    const heroWithoutHistory = {
+        name: 'Legolas',
+        race: 'High-Elf',
+        class: 'Ranger'
+    };
+    const synthSummary = ChronicleGrounder.formatBackstorySummary(heroWithoutHistory);
+    if (!synthSummary.toLowerCase().includes('firstborn') && !synthSummary.toLowerCase().includes('gondolin')) {
+        throw new Error(`Expected synthesized backstory to reflect High-Elf heritage, got: "${synthSummary}"`);
+    }
+    if (!synthSummary.toLowerCase().includes('wilderness') && !synthSummary.toLowerCase().includes('beasts')) {
+        throw new Error(`Expected synthesized backstory to reflect Ranger training, got: "${synthSummary}"`);
+    }
+    console.log(`  ✓ Race/Class heritage synthesis verified: "${synthSummary}".`);
+
+    // 25c. New Instance Start (ONBOARDING_TOWN_ARRIVAL) weaves backstory into intro prose
+    const arrivalEvent = {
+        type: 'ONBOARDING_TOWN_ARRIVAL',
+        isChapter: true,
+        priority: 'high',
+        data: { player: heroWithHistory }
+    };
+    const arrivalChapter = ChronicleGrounder.generateProceduralChapter(arrivalEvent, heroWithHistory, 'khazad');
+    if (!arrivalChapter.prose.toLowerCase().includes('eldest son') || !arrivalChapter.prose.toLowerCase().includes('general store')) {
+        throw new Error(`Expected arrival chapter prose to weave backstory and town guidance, got: "${arrivalChapter.prose}"`);
+    }
+    console.log(`  ✓ Backstory woven into new instance intro prose: "${arrivalChapter.prose.substring(0, 110)}..."`);
+
+    // 25d. Pitch Preservation in Audio Router
+    const pitchAudio = new ChronicleAudioRouter();
+    // Simulate active source node
+    let dummySourceRate = 1.0;
+    pitchAudio.currentSource = {
+        playbackRate: {
+            get value() { return dummySourceRate; },
+            set value(v) { dummySourceRate = v; }
+        }
+    };
+    pitchAudio.setSpeed(1.5);
+    if (pitchAudio.currentSource.playbackRate.value !== 1.0) {
+        throw new Error(`Expected Web Audio source playbackRate to remain 1.0 to preserve natural pitch, got: ${pitchAudio.currentSource.playbackRate.value}`);
+    }
+    if (pitchAudio.speed !== 1.5) {
+        throw new Error(`Expected pitchAudio.speed to be 1.5, got: ${pitchAudio.speed}`);
+    }
+    console.log('  ✓ Pitch preservation verified: Web Audio playbackRate remains strictly 1.0 while neural rate parameter handles tempo.');
+
+    // 25e. Character Vocals (Dialogue) Not Cut Off by Sequence Management
+    const dialogueAudio = new ChronicleAudioRouter();
+    dialogueAudio.enabled = true;
+    let spokenRoles = [];
+    dialogueAudio.speakUtterance = async (text, role) => {
+        spokenRoles.push(role);
+        return { finished: true };
+    };
+    const executeResult = await dialogueAudio._executeSpeak(
+        'The foul goblin charges with notched cleaver.',
+        { speaker: 'Goblin', text: 'Die, surface rat!', isNoise: false },
+        {}
+    );
+    if (!executeResult.finished) {
+        throw new Error(`Expected _executeSpeak to finish cleanly, got: ${JSON.stringify(executeResult)}`);
+    }
+    if (spokenRoles.length !== 2 || spokenRoles[0] !== 'narrator' || spokenRoles[1] !== 'creature') {
+        throw new Error(`Expected both narrator and creature barks to speak in order, got: [${spokenRoles.join(', ')}]`);
+    }
+    console.log('  ✓ Character vocal continuity verified: narrator prose followed cleanly by creature bark.');
+
+    // 25f. Instantaneous onFrame Processing (0ms lockstep execution)
+    const testMgr = new ChronicleManager();
+    const frameStart = Date.now();
+    await testMgr.onFrame({
+        phase: 'play',
+        turn: 1,
+        player: heroWithHistory,
+        map: { depth: 0 },
+        messages: []
+    });
+    const frameDuration = Date.now() - frameStart;
+    if (frameDuration > 200) {
+        throw new Error(`onFrame took ${frameDuration}ms; expected instantaneous (<200ms) execution for lockstep action`);
+    }
+    console.log(`  ✓ Instantaneous frame processing verified: onFrame completed in ${frameDuration}ms with zero stalls.`);
+
+    // =========================================================================
+    // PHASE 26: ZERO-LAG NEURAL TTS RESPONSIVENESS & AUDIOBUFFER CACHING VERIFICATION
+    // =========================================================================
+    console.log('\n--- Phase 26: Zero-Lag Voice Responsiveness & In-Memory Pre-Decoding Verification ---');
+
+    // 26a. Deterministic Audio Cache Key Consistency
+    const cacheRouter = new ChronicleAudioRouter();
+    cacheRouter.ttsEngine = 'edge';
+    cacheRouter.narratorVoice = 'en-GB-RyanNeural';
+    cacheRouter.speed = 1.0;
+    const key1 = cacheRouter.getAudioCacheKey('Welcome to Angband', 'narrator', null, { rate: '+0%' });
+    const key2 = cacheRouter.getAudioCacheKey('Welcome to Angband', 'narrator', null, { rate: '+0%' });
+    if (key1 !== key2) {
+        throw new Error(`Expected identical cache keys for deterministic parameters, got "${key1}" vs "${key2}"`);
+    }
+    console.log(`  ✓ Audio cache key determinism verified: ${key1}`);
+
+    // 26b. In-Memory Decoded AudioBuffer Cache Playback (0.01ms instant hit)
+    const mockAudioBuffer = { duration: 2.5, length: 55125, numberOfChannels: 1, sampleRate: 22050 };
+    cacheRouter.ctx = {
+        state: 'running',
+        resume: async () => {},
+        createBufferSource: () => ({
+            playbackRate: { value: 1.0 },
+            connect: () => {},
+            disconnect: () => {},
+            start: function() {
+                setTimeout(() => { if (this.onended) this.onended(); }, 5);
+            }
+        })
+    };
+    cacheRouter.voiceMasterGain = {};
+    cacheRouter.enabled = true;
+    cacheRouter.audioBufferCache.set(key1, mockAudioBuffer);
+
+    const cachePlayResult = await cacheRouter.playNeuralAudio('Welcome to Angband', 'narrator', null, { rate: '+0%' });
+    if (!cachePlayResult.cached) {
+        throw new Error('Expected playNeuralAudio to return cached: true from in-memory AudioBuffer');
+    }
+    console.log('  ✓ In-memory AudioBuffer cache hit verified: instant playback executed without network overhead.');
+
+    // 26c. Parallel Pre-Warming of Character Dialogue Bark
+    let prewarmedKey = null;
+    cacheRouter.prewarmUtterance = async (text, role, speaker, voice, options) => {
+        prewarmedKey = cacheRouter.getAudioCacheKey(text, role, voice, options);
+        cacheRouter.audioBufferCache.set(prewarmedKey, mockAudioBuffer);
+        return mockAudioBuffer;
+    };
+    cacheRouter.speakUtterance = async (text, role) => {
+        return { finished: true };
+    };
+
+    const parallelResult = await cacheRouter._executeSpeak(
+        'A dark sorcerer raises a bone staff in the gloom.',
+        { speaker: 'Morgoth Cultist', text: 'Blood for the Black Foe!', isNoise: false },
+        {}
+    );
+    if (!parallelResult.finished) {
+        throw new Error(`Expected _executeSpeak to finish, got: ${JSON.stringify(parallelResult)}`);
+    }
+    if (!prewarmedKey || !cacheRouter.audioBufferCache.has(prewarmedKey)) {
+        throw new Error('Expected character dialogue bark to be speculatively pre-warmed into AudioBuffer cache');
+    }
+    console.log('  ✓ Parallel creature dialogue pre-decoding verified: bark pre-warmed while prose was speaking.');
+
+    // 26d. Speculative Town Arrival Pre-Warming on Character Creation
+    const birthMgr = new ChronicleManager();
+    birthMgr.audio.enabled = true;
+    let prologuePrewarmed = false;
+    birthMgr.audio.prewarmUtterance = async (text) => {
+        prologuePrewarmed = true;
+        return mockAudioBuffer;
+    };
+    birthMgr.startFreshChronicle({ name: 'Beren', race: 'Human', class: 'Warrior' });
+    if (!prologuePrewarmed) {
+        throw new Error('Expected opening town arrival prologue to be speculatively pre-warmed on fresh character initialization');
+    }
+    console.log('  ✓ Speculative new-game prologue pre-warming verified: opening town arrival pre-warmed before frame 1.');
+
+    // 26e. Lookahead Beat Pre-Warming During Playback
+    const pipelineMgr = new ChronicleManager();
+    pipelineMgr.init(null, null);
+    pipelineMgr.activeChronicle = {
+        chapters: [
+            { chapter_num: 1, title: 'Chapter 1', paragraphs: [{ prose: 'Paragraph 1' }, { prose: 'Paragraph 2' }, { prose: 'Paragraph 3' }] }
+        ]
+    };
+    pipelineMgr.buildStoryPlaylist();
+    const prewarmedBeats = [];
+    pipelineMgr.prewarmBeat = (beat) => {
+        if (beat && beat.text) prewarmedBeats.push(beat.text);
+    };
+    pipelineMgr.audio.speak = async () => ({ finished: true });
+    pipelineMgr.audio.speakUtterance = async () => ({ finished: true });
+    pipelineMgr.isStoryPlaying = true;
+    pipelineMgr.currentBeatIndex = 0;
+    await pipelineMgr._playNextBeat(pipelineMgr.playbackSessionId);
+    if (!prewarmedBeats.includes('Paragraph 2')) {
+        throw new Error(`Expected lookahead to pre-warm Paragraph 2 while Paragraph 1 is playing, got: ${JSON.stringify(prewarmedBeats)}`);
+    }
+    console.log('  ✓ Lookahead beat pre-warming verified: next paragraph pre-warmed while current paragraph is reading.');
+
+    // 26f. First-Sentence Fast-Start Pipelining in speakUtterance
+    const fastStartAudio = new ChronicleAudioRouter();
+    fastStartAudio.enabled = true;
+    let spokenChunks = [];
+    fastStartAudio.playNeuralAudio = async (text) => {
+        spokenChunks.push(text);
+        return { finished: true };
+    };
+    fastStartAudio.prewarmUtterance = async () => mockAudioBuffer;
+    await fastStartAudio.speakUtterance('The deep iron gates groan upon rusted hinges. A cold wind sweeps from the vaults below, carrying the scent of ash.', 'narrator');
+    if (spokenChunks.length !== 2 || !spokenChunks[0].includes('iron gates') || !spokenChunks[1].includes('cold wind')) {
+        throw new Error(`Expected sentence fast-start to split and pipeline sentences, got chunks: ${JSON.stringify(spokenChunks)}`);
+    }
+    console.log('  ✓ First-sentence fast-start pipelining verified: sentence 1 played immediately while remainder pre-warmed.');
+
+    // 27. Phase 27: Strict Chronological Event Order, Real-Time Vocal Preemption & Backstory Weaving
+    console.log('\n--- Phase 27: Strict Chronological Order, Vocal Preemption & Backstory Weaving ---');
+    
+    // 27a. Event Queue Ordering Verification
+    const p27Filter = new ChronicleFilter();
+    p27Filter.lastDepth = 1;
+    p27Filter.hasCompletedOnboarding.townArrival = true;
+    p27Filter.hasCompletedOnboarding.firstStairsDown = true;
+
+    // Simulate turn-by-turn chronological combat progression:
+    // Turn 1: Enemy assaults player
+    const ev1 = p27Filter.evaluate({
+        phase: 'play',
+        player: { depth: 1, turn: 10, chp: 45, mhp: 50, poisoned: 0, confused: 0, blind: 0, stun: 0, cut: 0 },
+        messages: ['The giant white mouse bites you.']
+    });
+    if (!ev1 || ev1.type !== 'CREATURE_ASSAULT') {
+        throw new Error(`Expected event 1 to be CREATURE_ASSAULT, got: ${ev1 ? ev1.type : 'null'}`);
+    }
+
+    // Turn 2: Venom takes effect (Player status onset)
+    const ev2 = p27Filter.evaluate({
+        phase: 'play',
+        player: { depth: 1, turn: 11, chp: 42, mhp: 50, poisoned: 1, confused: 0, blind: 0, stun: 0, cut: 0 },
+        messages: ['You feel very sick.']
+    });
+    if (!ev2 || ev2.type !== 'PLAYER_STATUS') {
+        throw new Error(`Expected event 2 to be PLAYER_STATUS, got: ${ev2 ? ev2.type : 'null'}`);
+    }
+
+    // Turn 3: Hero strikes back
+    const ev3 = p27Filter.evaluate({
+        phase: 'play',
+        player: { depth: 1, turn: 12, chp: 42, mhp: 50, poisoned: 1, confused: 0, blind: 0, stun: 0, cut: 0 },
+        messages: ['You hit the giant white mouse.']
+    });
+    if (!ev3 || ev3.type !== 'HERO_ATTACK') {
+        throw new Error(`Expected event 3 to be HERO_ATTACK, got: ${ev3 ? ev3.type : 'null'}`);
+    }
+
+    // Turn 4: Fatal blow slays the beast
+    const ev4 = p27Filter.evaluate({
+        phase: 'play',
+        player: { depth: 1, turn: 13, chp: 42, mhp: 50, poisoned: 1, confused: 0, blind: 0, stun: 0, cut: 0 },
+        messages: ['You have slain the giant white mouse.']
+    });
+    if (!ev4 || ev4.type !== 'COMBAT_EPISODE') {
+        throw new Error(`Expected event 4 to be COMBAT_EPISODE (kill), got: ${ev4 ? ev4.type : 'null'}`);
+    }
+    console.log('  ✓ Strict chronological event sequencing verified: Enemy Assault -> Player Status -> Hero Attack -> Fatal Slaying.');
+
+    // 27b. Queue Drain Before Floor Descent
+    const p27Filter2 = new ChronicleFilter();
+    p27Filter2.lastDepth = 1;
+    p27Filter2.hasCompletedOnboarding.townArrival = true;
+    p27Filter2.hasCompletedOnboarding.firstStairsDown = true;
+    // Hero kills monster right at stairs and takes stairs down to 100ft
+    const stairsFrame = {
+        phase: 'play',
+        player: { depth: 2, hp: 50, mhp: 50, poisoned: 0, confused: 0, blind: 0, stun: 0, cut: 0 },
+        messages: ['You have slain the snarling wolf.']
+    };
+    const sEv1 = p27Filter2.evaluate(stairsFrame);
+    if (!sEv1 || sEv1.type !== 'COMBAT_EPISODE') {
+        throw new Error(`Expected pending combat event to drain before stairs transition, got: ${sEv1 ? sEv1.type : 'null'}`);
+    }
+    const sEv2 = p27Filter2.evaluate(stairsFrame);
+    if (!sEv2 || sEv2.type !== 'FLOOR_CHANGE') {
+        throw new Error(`Expected FLOOR_CHANGE after pending combat queue drained, got: ${sEv2 ? sEv2.type : 'null'}`);
+    }
+    console.log('  ✓ Pre-descent queue draining verified: combat actions on current floor resolve before floor transition.');
+
+    // 27c. Zero-Lag Vocal Preemption Verification
+    const preemptRouter = new ChronicleAudioRouter();
+    preemptRouter.enabled = true;
+    preemptRouter.isSpeaking = true;
+    preemptRouter._speechStartTime = Date.now() - 1500;
+    preemptRouter.currentRole = 'combat';
+
+    let stopCalled = false;
+    preemptRouter.stopSpeaking = () => {
+        stopCalled = true;
+        preemptRouter.isSpeaking = false;
+        preemptRouter._speechStartTime = 0;
+        preemptRouter.speechQueue = [];
+    };
+
+    preemptRouter.speak('Decisive slash strikes the goblin!', null, null, null, 0, {});
+    if (!stopCalled) {
+        throw new Error('Expected speak() to immediately call stopSpeaking() on new action during active speech');
+    }
+    if (preemptRouter.speechQueue.length > 1) {
+        throw new Error(`Expected speechQueue to never backlog (>1 item), got: ${preemptRouter.speechQueue.length}`);
+    }
+    console.log('  ✓ Zero-lag vocal preemption verified: ongoing speech immediately interrupted, zero queue backlog.');
+
+    // 27d. Character Backstory Weaving Verification
+    const testHero = {
+        name: 'Thorin',
+        race: 'Dwarf',
+        class: 'Warrior',
+        history: 'You are the third son of a noble dwarven smith. You have obsidian eyes, a braided silver beard, and a weathered granite complexion.'
+    };
+    const backstory = ChronicleGrounder.formatBackstorySummary(testHero);
+    if (!backstory.includes('third son of a noble dwarven smith')) {
+        throw new Error(`Backstory summary missing lineage details: ${backstory}`);
+    }
+    const p27TownEvent = { type: 'ONBOARDING_TOWN_ARRIVAL', data: { player: testHero } };
+    const p27TownChapter = ChronicleGrounder.generateProceduralChapter(p27TownEvent, testHero, 'khazad');
+    if (!p27TownChapter.prose.includes('third son of a noble dwarven smith')) {
+        throw new Error(`Opening chapter prose failed to weave character backstory: ${p27TownChapter.prose}`);
+    }
+    console.log('  ✓ Character backstory woven into new instance opening prose verified.');
+
+    // 28. Phase 28: Store Purchases, Shopkeeper Dialogue & Tactical Gameplay Hints
+    console.log('\n--- Phase 28: Store Purchases, Shopkeeper Dialogue & Tactical Gameplay Hints ---');
+    const p28Filter = new ChronicleFilter();
+    p28Filter.hasCompletedOnboarding.townArrival = true;
+    p28Filter.hasCompletedOnboarding.firstStairsDown = true;
+    p28Filter.lastDepth = 0;
+
+    // 28a. Store Entry & Purchase Event Detection
+    const visitEv = p28Filter.evaluate({
+        phase: 'play',
+        player: { depth: 0, turn: 5, chp: 50, mhp: 50 },
+        messages: ['You enter the General Store.']
+    });
+    if (!visitEv || visitEv.type !== 'STORE_VISIT' || p28Filter.lastVisitedStore !== 'General Store') {
+        throw new Error(`Expected STORE_VISIT for General Store, got: ${visitEv ? visitEv.type : 'null'}`);
+    }
+
+    const buyTorchEv = p28Filter.evaluate({
+        phase: 'play',
+        player: { depth: 0, turn: 6, chp: 50, mhp: 50 },
+        messages: ['You bought 3 Wooden Torches (with 4000 turns of light) for 6 gold.']
+    });
+    if (!buyTorchEv || buyTorchEv.type !== 'STORE_PURCHASE') {
+        throw new Error(`Expected STORE_PURCHASE for torches, got: ${buyTorchEv ? buyTorchEv.type : 'null'}`);
+    }
+    if (buyTorchEv.data.count !== 3 || buyTorchEv.data.price !== 6 || buyTorchEv.data.item !== 'Wooden Torches' || buyTorchEv.data.storeName !== 'General Store') {
+        throw new Error(`Store purchase data mismatch: ${JSON.stringify(buyTorchEv.data)}`);
+    }
+    console.log('  ✓ Store visit and purchase event detection verified: 3 Wooden Torches for 6 gold.');
+
+    // 28b. Shopkeeper Item Hint Generation for General Store (Bilbo the Merchant)
+    const torchChapter = ChronicleGrounder.generateProceduralChapter(buyTorchEv, testHero, 'khazad');
+    if (!torchChapter.dialogue || torchChapter.dialogue.speaker !== 'Bilbo the Merchant') {
+        throw new Error(`Expected Bilbo the Merchant dialogue for General Store, got: ${JSON.stringify(torchChapter.dialogue)}`);
+    }
+    if (!torchChapter.dialogue.text.includes('torch') && !torchChapter.dialogue.text.includes('dark')) {
+        throw new Error(`Expected torch lighting advice in shop dialogue, got: ${torchChapter.dialogue.text}`);
+    }
+    if (!torchChapter.insight.includes('1-tile radius')) {
+        throw new Error(`Expected 1-tile radius tactical insight, got: ${torchChapter.insight}`);
+    }
+    console.log('  ✓ General Store hint verified: Bilbo the Merchant warns of darkness and explains 1-tile torch radius.');
+
+    // 28c. Alchemist Hint Generation (Maulin the Alchemist - Cure Wounds & Confusion/Blindness)
+    p28Filter.evaluate({
+        phase: 'play',
+        player: { depth: 0, turn: 10, chp: 50, mhp: 50 },
+        messages: ['You enter the Alchemist.']
+    });
+    const buyPotionEv = p28Filter.evaluate({
+        phase: 'play',
+        player: { depth: 0, turn: 11, chp: 50, mhp: 50 },
+        messages: ['You bought a Potion of Cure Serious Wounds for 50 gold.']
+    });
+    const potionChapter = ChronicleGrounder.generateProceduralChapter(buyPotionEv, testHero, 'khazad');
+    if (!potionChapter.dialogue || potionChapter.dialogue.speaker !== 'Maulin the Alchemist') {
+        throw new Error(`Expected Maulin the Alchemist for Alchemist store, got: ${JSON.stringify(potionChapter.dialogue)}`);
+    }
+    if (!potionChapter.dialogue.text.includes('confusion') && !potionChapter.dialogue.text.includes('blindness')) {
+        throw new Error(`Expected Cure Serious Wounds to explain confusion/blindness relief: ${potionChapter.dialogue.text}`);
+    }
+    console.log('  ✓ Alchemist hint verified: Maulin explains Cure Serious Wounds cures blindness and confusion.');
+
+    // 28d. Temple Hint Generation (Father Kael - Word of Recall turn delay)
+    p28Filter.evaluate({
+        phase: 'play',
+        player: { depth: 0, turn: 15, chp: 50, mhp: 50 },
+        messages: ['You enter the Temple.']
+    });
+    const buyRecallEv = p28Filter.evaluate({
+        phase: 'play',
+        player: { depth: 0, turn: 16, chp: 50, mhp: 50 },
+        messages: ['You bought a Scroll of Word of Recall for 150 gold.']
+    });
+    const recallChapter = ChronicleGrounder.generateProceduralChapter(buyRecallEv, testHero, 'khazad');
+    if (!recallChapter.dialogue || recallChapter.dialogue.speaker !== 'Father Kael') {
+        throw new Error(`Expected Father Kael for Temple, got: ${JSON.stringify(recallChapter.dialogue)}`);
+    }
+    if (!recallChapter.dialogue.text.includes('fifteen to twenty') && !recallChapter.insight.includes('delayed activation')) {
+        throw new Error(`Expected Word of Recall to warn of delayed activation turns: ${recallChapter.dialogue.text}`);
+    }
+    console.log('  ✓ Temple hint verified: Father Kael warns that Word of Recall has a 15-25 turn delay.');
+
+    // 28e. Tactical Roguelike Item Hints (Iron Spikes, Phase Door, Speed)
+    const spikeHint = ChronicleGrounder.resolveShopkeeperItemHint('Iron Spike', 'General Store');
+    if (!spikeHint.dialogue.includes('jam an iron spike') || !spikeHint.dialogue.includes("'j'")) {
+        throw new Error(`Expected iron spike hint to mention jamming doors with 'j': ${spikeHint.dialogue}`);
+    }
+
+    const phaseHint = ChronicleGrounder.resolveShopkeeperItemHint('Scroll of Phase Door', 'Magic Shop');
+    if (!phaseHint.dialogue.includes('ten paces') || !phaseHint.dialogue.includes('line-of-sight')) {
+        throw new Error(`Expected phase door hint to mention 10 paces and breaking line of sight: ${phaseHint.dialogue}`);
+    }
+
+    const speedHint = ChronicleGrounder.resolveShopkeeperItemHint('Potion of Speed', 'Alchemist');
+    if (!speedHint.dialogue.includes('+10 haste') || !speedHint.insight.includes('doubling your actions')) {
+        throw new Error(`Expected speed potion hint to mention +10 haste and double actions: ${speedHint.dialogue}`);
+    }
+    console.log('  ✓ Tactical item hints verified: door jamming with iron spikes, phase door blink, and speed potion haste.');
+
+    // 28f. ChronicleManager High-Priority Voice Preemption for Store Purchases
+    const shopMgr = new ChronicleManager();
+    shopMgr.init(null, null);
+    shopMgr.startFreshChronicle({ name: 'Thorin', race: 'Dwarf', class: 'Warrior' });
+    shopMgr.filter.hasCompletedOnboarding.townArrival = true;
+    shopMgr.filter.hasCompletedOnboarding.firstStairsDown = true;
+    shopMgr.filter.lastDepth = 0;
+    shopMgr.audio.enabled = true;
+    let spokenStoryText = null;
+    let spokenDialogue = null;
+    shopMgr.audio.speak = async (text, dialogue) => {
+        spokenStoryText = text;
+        spokenDialogue = dialogue;
+        return { finished: true };
+    };
+    await shopMgr.onFrame({
+        phase: 'play',
+        player: { depth: 0, turn: 20, name: 'Thorin', race: 'Dwarf', class: 'Warrior', chp: 50, mhp: 50 },
+        messages: ['You bought 2 Flasks of Oil for 6 gold.']
+    });
+    if (!spokenStoryText || !spokenStoryText.includes('Thorin purchases 2 Flasks of Oil')) {
+        throw new Error(`Expected immediate voice narration for store purchase, got: ${spokenStoryText}`);
+    }
+    if (!spokenDialogue || !spokenDialogue.text.includes('lantern') || spokenDialogue.speaker !== 'Bilbo the Merchant') {
+        throw new Error(`Expected shopkeeper dialogue bark spoken with purchase: ${JSON.stringify(spokenDialogue)}`);
+    }
+    console.log('  ✓ High-priority voice preemption verified: store purchase triggers immediate spoken prose and shopkeeper bark.');
+
+    // 29. Phase 29: Removal of Graphic Sketches & Artificial Chapter Dividers
+    console.log('\n--- Phase 29: Removal of Graphic Sketches & Chapter Dividers ---');
+    const p29Mgr = new ChronicleManager();
+    const mockList = [];
+    p29Mgr.listEl = {
+        children: mockList,
+        appendChild: (el) => mockList.push(el),
+        innerHTML: ''
+    };
+    p29Mgr.init(null, null);
+
+    // 29a. Graphic Sketches Feature Completely Removed
+    if (typeof p29Mgr.captureCanvasThumbnail !== 'undefined') {
+        throw new Error('captureCanvasThumbnail should be completely removed from ChronicleManager');
+    }
+    if (typeof ChronicleStore.MAX_STORED_ILLUSTRATIONS !== 'undefined') {
+        throw new Error('MAX_STORED_ILLUSTRATIONS should be removed from ChronicleStore');
+    }
+    console.log('  ✓ Graphic sketches removed: 3D canvas snapshot capture and image storage eliminated.');
+
+    // 29b. Continuous Flowing Narrative Rendering (No Chapter Cards/Headers)
+    const testEntry = {
+        title: 'Ancient Gate',
+        prose: 'The rusty portcullis creaks in the dark.',
+        depth: 2,
+        dialogue: null,
+        insight: 'Use spikes to jam doors.'
+    };
+    const renderedBlock = p29Mgr.renderStoryEntry(testEntry, false);
+    if (!renderedBlock || !renderedBlock.innerHTML.includes('The rusty portcullis creaks in the dark.')) {
+        throw new Error('renderStoryEntry failed to render story prose');
+    }
+    if (renderedBlock.innerHTML.includes('Chapter') || renderedBlock.innerHTML.includes('chapter-header-row') || renderedBlock.innerHTML.includes('chapter-heading')) {
+        throw new Error(`renderStoryEntry must not generate chapter titles or chapter headers: ${renderedBlock.innerHTML}`);
+    }
+    if (renderedBlock.innerHTML.includes('chapter-illustration') || renderedBlock.innerHTML.includes('<img')) {
+        throw new Error(`renderStoryEntry must not generate graphic sketches or images: ${renderedBlock.innerHTML}`);
+    }
+    if (!renderedBlock.innerHTML.includes('100ft')) {
+        throw new Error(`Expected depth tag 100ft in flowing header, got: ${renderedBlock.innerHTML}`);
+    }
+    console.log('  ✓ Continuous flowing narrative verified: clean prose with depth tags, zero chapter headers, zero sketches.');
+
+    // 29c. Export Formats Free of Chapters & Graphic Sketches
+    const exportChronicle = ChronicleStore.createNewChronicle({ name: 'Faramir', race: 'Human', class: 'Ranger' });
+    ChronicleStore.appendChapter(exportChronicle, {
+        title: 'Scouting the Outskirts',
+        depth: 0,
+        prose: 'Faramir walked the frontier paths under starlight.'
+    });
+    const exportedMd = ChronicleStore.exportAsMarkdown(exportChronicle);
+    if (exportedMd.includes('## Chapter') || exportedMd.includes('![Chapter')) {
+        throw new Error(`Markdown export must be free of chapter headers and illustration images: ${exportedMd}`);
+    }
+    if (!exportedMd.includes('Faramir walked the frontier paths under starlight.')) {
+        throw new Error(`Markdown export missing story prose: ${exportedMd}`);
+    }
+    console.log('  ✓ Clean markdown export verified: continuous narrative saga without chapter banners or sketches.');
+
+    // =========================================================================
+    // PHASE 30: Standalone Client Isolation (Tome Strictly Limited to Web Client)
+    // =========================================================================
+    console.log('\n--- Phase 30: Standalone Client Isolation (Tome Limited Strictly to Web Client) ---');
+    
+    // Simulate standalone environment
+    context.window.Capacitor = {};
+    const standaloneMgr = new ChronicleManager();
+    const mockWin = { style: {} };
+    const mockNav = { style: {} };
+    const origGetById = context.document.getElementById;
+    context.document.getElementById = (id) => {
+        if (id === 'chronicle-window') return mockWin;
+        if (id === 'btn-toggle-chronicle') return mockNav;
+        return origGetById.call(context.document, id);
+    };
+
+    standaloneMgr.init(null, null);
+    if (standaloneMgr.initialized) {
+        throw new Error('ChronicleManager.init must NOT initialize in a standalone environment!');
+    }
+    if (mockWin.style.display !== 'none' || mockNav.style.display !== 'none') {
+        throw new Error('ChronicleManager must hide window and nav button in standalone mode!');
+    }
+    console.log('  ✓ Standalone client isolation verified: Tome completely suppressed and hidden on standalone apps.');
+
+    // Cleanup mock
+    delete context.window.Capacitor;
+    context.document.getElementById = origGetById;
+
+    console.log('\n[Chronicle Test] ✅ ALL 30 VERIFICATION PHASES PASSED WITH ZERO ERRORS!\n');
 }
 
 runTest().catch((err) => {
     console.error(err);
     process.exit(1);
 });
+

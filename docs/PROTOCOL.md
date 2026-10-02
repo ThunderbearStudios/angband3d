@@ -80,6 +80,7 @@ freeze.
 | field | meaning |
 |---|---|
 | `name`, `race`, `class` | Character identity. |
+| `history` | Character backstory string generated at birth. |
 | `y`, `x` | Position on the level. |
 | `depth`, `max_depth` | Current and deepest level reached. `0` is town. |
 | `level`, `max_lev` | Character level and maximum level reached. |
@@ -220,7 +221,9 @@ The cloud daemon also exposes REST endpoints alongside the WebSocket gateway:
 - `GET /api/saves` — List saved characters with metadata (`name`, `file`, `size`, `mtime`).
 - `GET /api/saves/:filename` — Download a binary `.sav` file (`application/octet-stream`, `Content-Disposition: attachment`).
 - `POST /api/saves/upload` — Upload a validated binary save file (supports raw binary body with `?name=<slot>` query param or `multipart/form-data`). Must begin with the 8-byte magic header `SaveVNLA` (ASCII `0x53 0x61 0x76 0x65 0x56 0x4E 0x4C 0x41`).
-- `DELETE /api/saves/:filename` — Delete a save slot.
+- `GET /api/config/llm` — Protected LLM configuration provider. Strictly returns `{ hasKey: bool, hasServerKey: bool, defaultModel: string, provider: string }` without ever exposing secret tokens.
+- `POST /api/llm/generate` — Protected server-side proxy for Gemini Generative AI text and chronicle generation. Shields backend API keys completely from the client browser.
+- `GET /api/tts` (or `POST /api/tts`) — Dual-engine audio synthesis relay. Generates streaming audio via Gemini Native Audio or Edge Neural TTS, with warm connection pooling, subterranean Web Audio DSP, and in-memory audio caching.
 
 ## Compatibility
 

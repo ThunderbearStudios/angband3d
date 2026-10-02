@@ -3,6 +3,12 @@
  * Seamless integration with Angband3D dark fantasy theme and draggable window system.
  */
 
+/* Standalone Client Guard: Strictly hide The Living Chronicle & Tome on Desktop/Android standalones */
+body.is-standalone #btn-toggle-chronicle,
+body.is-standalone #chronicle-window {
+    display: none !important;
+}
+
 #chronicle-window {
     position: absolute;
     top: 50px;
@@ -114,6 +120,59 @@
     font-weight: 700;
     min-width: 58px;
     border-color: rgba(212, 175, 55, 0.45);
+}
+
+.chronicle-play-main-btn.loading {
+    border-color: rgba(255, 215, 0, 0.8) !important;
+    background: rgba(255, 215, 0, 0.15) !important;
+    color: #ffd700 !important;
+    cursor: wait !important;
+    pointer-events: none;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
+}
+
+.voice-loading-spinner {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border: 2px solid rgba(255, 215, 0, 0.25);
+    border-top-color: #ffd700;
+    border-radius: 50%;
+    animation: voiceSpin 0.75s linear infinite;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+@keyframes voiceSpin {
+    to { transform: rotate(360deg); }
+}
+
+.voice-loading-pulse {
+    color: #ffd700 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    animation: statusGlow 1.2s ease-in-out infinite alternate;
+}
+
+.voice-pulse-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffd700;
+    box-shadow: 0 0 6px #ffd700;
+    animation: dotPulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes statusGlow {
+    from { opacity: 0.8; }
+    to { opacity: 1; text-shadow: 0 0 8px rgba(255, 215, 0, 0.7); }
+}
+
+@keyframes dotPulse {
+    from { transform: scale(0.8); opacity: 0.6; }
+    to { transform: scale(1.35); opacity: 1; }
 }
 
 .chronicle-audio-toggles {
@@ -232,84 +291,13 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-.chapter-header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(212, 175, 55, 0.15);
-    padding-bottom: 6px;
-    margin-bottom: 8px;
-}
-
-.chapter-heading {
-    font-size: 12px;
-    font-weight: 700;
-    color: #ffd700;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-}
-
-.chapter-meta {
+/* Story Entry Meta & Depth Tag */
+.entry-meta-depth {
     font-size: 10px;
     font-family: var(--font-terminal, monospace);
-    color: #94a3b8;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.chapter-replay-btn {
-    background: transparent;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    border-radius: 3px;
-    color: #cbd5e1;
-    font-size: 10px;
-    cursor: pointer;
-    padding: 1px 5px;
-    transition: all 0.15s ease;
-}
-
-.chapter-replay-btn:hover {
-    background: rgba(212, 175, 55, 0.25);
     color: #ffd700;
-}
-
-/* Chapter 3D Illustration */
-.chapter-illustration-wrap {
-    width: 100%;
-    margin-bottom: 8px;
-    border-radius: 4px;
-    overflow: hidden;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    position: relative;
-    max-height: 160px;
-    background: #000;
-}
-
-.chapter-illustration-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    filter: sepia(0.2) contrast(1.05);
-    transition: filter 0.3s ease;
-}
-
-.chapter-illustration-img:hover {
-    filter: sepia(0) contrast(1.1);
-}
-
-.chapter-illustration-tag {
-    position: absolute;
-    bottom: 4px;
-    right: 6px;
-    background: rgba(0, 0, 0, 0.75);
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    color: #ffd700;
-    font-size: 9px;
-    font-family: var(--font-terminal, monospace);
-    padding: 1px 4px;
-    border-radius: 2px;
+    opacity: 0.75;
+    letter-spacing: 0.5px;
 }
 
 /* Prose & Quotes */
@@ -380,8 +368,9 @@
 
 .flowing-paragraph-header {
     display: flex;
-    justify-content: flex-end;
-    margin-bottom: 2px;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
 }
 
 .flow-play-btn {
@@ -967,5 +956,13 @@
     border-color: #ffd700;
     color: #ffd700;
     font-weight: 600;
+}
+
+/* Security & Protection: Masked API Key Input (Blocks browser password manager popups) */
+.masked-key-input {
+    -webkit-text-security: disc !important;
+    text-security: disc !important;
+    font-family: monospace !important;
+    letter-spacing: 2px;
 }
 

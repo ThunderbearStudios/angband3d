@@ -17,6 +17,15 @@ const FREE_TIER_CHAIN = [
     'gemini-2.5-flash-lite'  // Ultra-fast budget multimodal (Stable)
 ];
 
+function redactSecret(val, secret = '') {
+    if (!val || typeof val !== 'string') return val;
+    let sanitized = val;
+    if (secret && secret.length > 5) {
+        sanitized = sanitized.split(secret).join('[PROTECTED_KEY]');
+    }
+    return sanitized;
+}
+
 class ChronicleLLMBridge {
     constructor() {
         this.provider = 'offline'; // 'offline' | 'gemini' | 'openai' | 'anthropic' | 'custom'
@@ -35,23 +44,28 @@ class ChronicleLLMBridge {
         // Anti-Repetition Rolling Utterance Buffer
         this.recentUtterances = [];
 
+        this.hasServerKey = false;
         this.loadSettings();
         this.fetchServerKeyIfEmpty();
     }
 
     async fetchServerKeyIfEmpty() {
-        if (this.apiKey) return;
         if (typeof window === 'undefined') return;
         try {
             const r = await fetch('/api/config/llm');
             if (r.ok) {
                 const d = await r.json();
-                if (d && d.apiKey) {
-                    this.apiKey = d.apiKey;
+                if (d && (d.hasKey || d.hasServerKey)) {
+                    this.hasServerKey = true;
                     this.provider = 'gemini';
                     this.model = d.defaultModel || 'gemini-3.8-flash';
-                    this.saveSettings({ provider: this.provider, apiKey: this.apiKey, model: this.model });
-                    console.log('[ChronicleLLM] Safely loaded local Gemini API key from server environment.');
+                    // Clean up any stale client-side key from localStorage since server key is active
+                    if (window.localStorage && !this.apiKey) {
+                        try {
+                            localStorage.removeItem('angband_llm_api_key');
+                        } catch (_) {}
+                    }
+                    console.log('[ChronicleLLM] Server has protected Gemini API key configured in backend environment.');
                 }
             }
         } catch (_) {}
@@ -107,7 +121,11 @@ class ChronicleLLMBridge {
         if (typeof window !== 'undefined' && window.localStorage) {
             try {
                 localStorage.setItem('angband_llm_provider', this.provider);
-                localStorage.setItem('angband_llm_api_key', this.apiKey);
+                if (this.apiKey) {
+                    localStorage.setItem('angband_llm_api_key', this.apiKey);
+                } else {
+                    localStorage.removeItem('angband_llm_api_key');
+                }
                 localStorage.setItem('angband_llm_model', this.model);
                 localStorage.setItem('angband_llm_endpoint', this.endpoint);
                 localStorage.setItem('angband_llm_enforce_free', 'true');
@@ -191,6 +209,7 @@ class ChronicleLLMBridge {
     isConfigured() {
         if (this.provider === 'offline') return false;
         if (this.provider === 'custom') return !!this.endpoint;
+        if (this.provider === 'gemini' && this.hasServerKey) return true;
         return !!this.apiKey;
     }
 
@@ -209,34 +228,36 @@ class ChronicleLLMBridge {
 
         const isFlowing = (event.isChapter === false);
         const depth = (player && typeof player.depth === 'number') ? player.depth : 0;
-        const isTown = (depth === 0);
-
-        const systemPrompt = isFlowing
-            ? `You are the Master Chronicler of Angband, continuing the active chapter of ${player ? player.name : 'the hero'} in the literary tradition: "${tradition.name}".
+        const isTown = (depth === 0);        const systemPrompt = isFlowing
+            ? `You are the Master Chronicler of Angband, continuing the active saga of ${player ? player.name : 'the hero'} in the literary tradition: "${tradition.name}".
 Perspective: ${tradition.style}.
-Tolkien tone: Serious, atmospheric, legendary, descriptive of dungeon skirmishes and perilous exploration.
+Tolkien tone: Serious, atmospheric, legendary, direct, descriptive of dungeon skirmishes and perilous exploration.
 Critical Story Guidelines:
-- Slaying/Combat: NEVER use repetitive generic cliches. Describe the blow with vivid sensory color (smell of sulfur or rain, iron clash, torchlight).
-- Character Psychology & Justification: Reveal the hero's internal thoughts, racial heritage (${player ? player.race : 'Mortal'}), and tactical justification (why they struck: fear, ruthless cutthroat survival, orcish blood stirring, or duty).
-- Moral & Lore Judgment: Frame the deed in accordance with the tradition (${tradition.name}). Slaying innocents or beggars in town is a dark, tragic, or paranoid deed, not heroic glory!
-Length: Exactly 2 to 3 sentences of high-impact flowing prose. Do NOT write a chapter title or header.
+- Direct Brevity: Exactly 1 to 2 concise, punchy sentences. Cut excessive purple prose; keep the pacing swift and engaging.
+- Coalesced Combat & Blow-by-Blow: When multiple strikes or combat messages occur concurrently, weave them into one unified, cohesive exchange (e.g., "twin strikes in rapid succession", "parrying one blow only to catch a blade to the shoulder").
+- Integrated Status Ailments: If player status effects (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) are present, integrate them directly into the hero's physical struggle.
+- Character Psychology: Reveal the hero's internal thoughts, racial heritage (${player ? player.race : 'Mortal'}), and tactical justification (fear, ruthless survival, or duty).
+- Moral & Lore Judgment: Frame the deed in accordance with ${tradition.name}. Slaying innocents or beggars in town is a dark, tragic deed.
+Length: Exactly 1 to 2 sentences of high-impact flowing prose. Do NOT write a chapter title or header.
 Output: Respond with ONLY a raw JSON object (no markdown, no code blocks):
 {
-  "prose": "2-3 sentences of flowing narrative continuing the active scene.",
+  "prose": "1-2 sentences of direct, punchy flowing narrative continuing the active scene.",
   "dialogue": { "speaker": "Name or null", "text": "Short spoken line or null" }
 }`
             : `You are the Master Chronicler of Angband, recording the saga of ${player ? player.name : 'the hero'} in strict accordance with the literary tradition: "${tradition.name}".
 Perspective: ${tradition.style}.
 Tolkien tone: Serious, atmospheric, legendary, never modern slang, never fourth-wall breaking in chapter prose.
 Critical Story Guidelines:
-- Slaying/Combat: Avoid canned cliches. Weave rich sensory color (weather, cobblestones vs cold dungeon shale, shadows).
+- Direct Brevity: Exactly 1 to 2 concise, punchy sentences. Cut rambling prose; make every word count while retaining Tolkien gravitas.
+- Coalesced Combat & Blow-by-Blow: Synthesize concurrent strikes, counter-attacks, and lethal blows into one unified tactical exchange.
+- Integrated Status Ailments: Weave status conditions (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) directly into the sensory peril of the scene.
 - Justification & Internal Narrative: Contextualize why the hero acted according to their race (${player ? player.race : 'Mortal'}) and class (${player ? player.class : 'Warrior'}).
-- Moral Weight: Reflect the reality of the situation. Slaying helpless beggars or town animals evokes paranoia of the Town Watch and moral stain; slaying Orcs evokes ancient First Age vengeance.
-Length: Concise! Exactly 2 to 3 sentences of high-impact narrative prose.
+- Moral Weight: Reflect the reality of the situation (e.g. street violence vs dungeon orc slaying).
+Length: Exactly 1 to 2 sentences of high-impact narrative prose.
 Output: Respond with ONLY a raw JSON object (no markdown code blocks, no backticks, no preamble) with these keys:
 {
   "title": "Short poetic title (3-5 words)",
-  "prose": "2-3 sentences of atmospheric prose describing the event.",
+  "prose": "1-2 sentences of atmospheric, direct prose describing the event.",
   "summary": "One short sentence summary.",
   "dialogue": { "speaker": "Name or null", "text": "Short spoken line or null" }
 }`;
@@ -249,9 +270,12 @@ Output: Respond with ONLY a raw JSON object (no markdown code blocks, no backtic
             antiRepetition = `\nCRITICAL ANTI-REPETITION MANDATE:\nDo NOT repeat or closely mirror recently recorded phrases:\n${sample}\nEvery sentence must be completely fresh, unique, and attuned to this exact moment.`;
         }
 
-        const userPrompt = `Hero: ${player ? player.name : 'Hero'}, ${player ? player.race : 'Mortal'} ${player ? player.class : 'Warrior'}. Location: ${locationText}.
+        const backstory = (grounder || ChronicleGrounder).formatBackstorySummary ? (grounder || ChronicleGrounder).formatBackstorySummary(player) : '';
+        const backstoryContext = backstory ? ` Backstory: ${backstory}.` : '';
+
+        const userPrompt = `Hero: ${player ? player.name : 'Hero'}, ${player ? player.race : 'Mortal'} ${player ? player.class : 'Warrior'}.${backstoryContext} Location: ${locationText}.
 Event: ${event.type}. Details: ${JSON.stringify(event.data || {})}.${antiRepetition}
-Compose ${isFlowing ? 'flowing passage' : 'Chapter'}.`;
+Compose ${isFlowing ? 'flowing passage' : 'Chapter'}. (For new instance starts and intros, weave the character's backstory and heritage into the scene).`;
 
         try {
             const rawText = await this.callLLM(systemPrompt, userPrompt);
@@ -511,9 +535,6 @@ Rules:
 
     async callGemini(systemPrompt, userPrompt, signal, retryCount = 0) {
         const model = this.getActiveModel();
-        // Zero API key leakage: API key is passed strictly in x-goog-api-key HTTP header, never in URL query string
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
         const isGemini3 = model.includes('gemini-3') || model.includes('3.8') || model.includes('3.7') || model.includes('3.6') || model.includes('3.5') || model.includes('3.1');
 
         const generationConfig = {
@@ -539,15 +560,33 @@ Rules:
             generationConfig
         };
 
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': this.apiKey
-            },
-            body: JSON.stringify(payload),
-            signal
-        });
+        let res;
+        // Zero API Key Exposure: If server has key configured in .env or client has no direct key,
+        // route request securely through local server backend proxy.
+        if (this.hasServerKey || !this.apiKey) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (this.apiKey) {
+                headers['x-goog-api-key'] = this.apiKey;
+            }
+            res = await fetch('/api/llm/generate', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ model, payload }),
+                signal
+            });
+        } else {
+            // Standalone client with explicit client-side key
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+            res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': this.apiKey
+                },
+                body: JSON.stringify(payload),
+                signal
+            });
+        }
 
         if (!res.ok) {
             const errJson = await res.json().catch(() => ({}));
@@ -574,11 +613,12 @@ Rules:
 
             // Authentication / Authorization / Bad Request errors (400, 401, 403) must NOT cascade across models
             if (res.status === 400 || res.status === 401 || res.status === 403) {
-                this.notifyStatus(`⚠️ Gemini Authentication/Request error (${res.status}): ${errMsg}`, true);
-                throw new Error(`Gemini Authentication/Request error (${res.status}): ${errMsg}`);
+                const safeMsg = redactSecret(errMsg, this.apiKey);
+                this.notifyStatus(`⚠️ Gemini Authentication/Request error (${res.status}): ${safeMsg}`, true);
+                throw new Error(`Gemini Authentication/Request error (${res.status}): ${safeMsg}`);
             }
 
-            throw new Error(`Gemini API error ${res.status}: ${errMsg}`);
+            throw new Error(`Gemini API error ${res.status}: ${redactSecret(errMsg, this.apiKey)}`);
         }
 
         const data = await res.json();
@@ -730,7 +770,8 @@ Rules:
 
             const reply = await this.callLLM('You are a test probe.', 'Respond with the single word: READY');
             if (reply && reply.toLowerCase().includes('ready')) {
-                return { ok: true, message: `Connected to ${this.getActiveModel()} successfully!` };
+                const note = (provider === 'gemini' && !apiKey && this.hasServerKey) ? ' (Protected Server Key)' : '';
+                return { ok: true, message: `Connected to ${this.getActiveModel()} successfully!${note}` };
             }
             return { ok: true, message: `Connected! Response: "${reply.slice(0, 30)}..."` };
         } catch (err) {

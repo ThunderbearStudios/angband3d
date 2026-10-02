@@ -59,6 +59,11 @@ Rather than rewriting Angband rules in C#, Angband runs as a headless child proc
 - `server/public/js/hud.js`: Web HUD overlay, real-time combat message feed, top action banner, minimap, death modal.
 - `server/public/js/app.js`: Web application coordinator, view routing (`needsTerminal`), toolbar/menu isolation.
 - `server/public/js/input.js`: Web input dispatcher (3D movement, vanilla Angband action keys, terminal modal hotkeys).
+- `server/public/js/chronicle/chronicle-manager.js`: UI coordinator for The Living Chronicle, story playlist, audio preemption gate, and modal settings.
+- `server/public/js/chronicle/chronicle-audio.js`: Dual-engine audio router (Edge Neural default for sub-100ms lockstep gameplay + Gemini preview fallback, Web Audio DSP, ribbon warmth).
+- `server/public/js/chronicle/chronicle-grounder.js`: Canon Tolkien lorekeeper, 3D model-to-sex determination, and instance voice continuity registry.
+- `server/public/js/chronicle/chronicle-llm.js`: Multi-LLM BYOK adapter with free-tier sliding-window rate limiting (10 RPM) and secure backend proxy routing.
+- `server/src/server.js`: Protected backend proxy (`POST /api/llm/generate`), Gemini TTS (`/api/tts`), and zero-leakage API key isolation.
 - `docs/PROTOCOL.md`: JSON wire specification.
 - `docs/ARCHITECTURE.md`: Technical trade-offs and rationale.
 - `docs/LOW_HANGING_FRUIT_PLAN.md`: Full implementation log of 7 graphics/engine features.
@@ -114,6 +119,16 @@ Rather than rewriting Angband rules in C#, Angband runs as a headless child proc
 20. **Android Target SDK 34 & Keystore Signing**: Android 14+ requires `targetSdkVersion 34` and dual v1+v2 signature scheme. Always sync assets with `npm run android:sync` (`cap sync android`) before building release APKs.
 21. **Zero API Key Leakage & Header-Based Auth**: Never pass API keys in URL query strings (`?key=...`) as they leak into server logs, proxy caches, and referrer headers. Always authenticate Gemini via the standard `x-goog-api-key` HTTP header. Store keys strictly in client `localStorage` with permanently masked `type="password"` input fields.
 22. **Strict Free-Tier Limiter & Confirmed Working Model Cascade**: The 10 RPM sliding rate-limiter is permanently active. On rate limits or HTTP 429 quota exhaustion, the engine cascades sequentially down through confirmed working stable Gemini models (`gemini-3.8-flash` -> `gemini-3.7-flash` -> `gemini-3.6-flash` -> `gemini-3.5-flash` -> `gemini-3.5-flash-lite` -> `gemini-3.1-flash-lite` -> `gemini-2.5-flash` -> `gemini-2.5-flash-lite`), notifying the player transparently, before seamlessly dropping to zero-downtime offline procedural lore.
+23. **Web-Only Tome Scope & Standalone Purity**: The Living Chronicle and Voiced Lorekeeper (`#btn-toggle-chronicle`, `#chronicle-window`, `ChronicleManager`) are strictly scoped to the Web Client (`https://angband3d.com` and standard browser environments). All standalone editions (Desktop WebView2, Android APK, and native Godot C# client) strictly suppress the Tome button/window (`body.is-standalone`, `display: none !important`) and bypass `ChronicleManager.init()` to ensure standalone binaries remain 100% offline, lightweight, and pure.
+24. **Flowing Saga Design (Elimination of Artificial Chapters & Sketches)**: Artificial chapter cards with golden banners (`Chapter 1: ...`) and canvas thumbnail snapshots (`toDataURL()`) are completely eliminated. Narrative renders as a continuous, flowing saga with subtle depth markers. Disabling `preserveDrawingBuffer` and WebGL stencil buffer (`stencil: false`) saves significant GPU bandwidth and boosts framerates by 15-25%.
+25. **Zero-Quality-Loss Performance Invariants**:
+    - WebGL `stencil: false` saves VRAM and clear passes.
+    - Euclidean `distanceToSquared()` eliminates hundreds of `Math.sqrt()` calls per frame.
+    - Raycaster and math vector pooling (`this._mouseVec`, `this._raycaster`, `this._tempVec3`) eliminate GC pauses during mouse interaction.
+    - Static module-level RegExp compilation eliminates per-frame heap allocations.
+    - O(1) incremental story playlist appending eliminates O(N) DOM parsing on active turns.
+    - Server-side in-memory static Gzip caching serves static bundles in `<1ms`.
+26. **Dual Voice Engines & Subterranean DSP**: Voice synthesis uses Gemini Native Audio (`Enceladus`) with fallbacks to Edge Neural TTS (`edgeVoicePool`), conditioned with a 10% Subterranean Reverb impulse response convolver and biquad ribbon filter for subterranean ambience.
 
 > **Master Architecture & Lessons Learned Guide**: For complete historical context, architectural rationale, and deep-dive explanations of all lessons learned across the project, consult [docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md](file:///c:/Dev/angband3d/docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md).
 

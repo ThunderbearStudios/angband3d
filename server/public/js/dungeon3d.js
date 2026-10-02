@@ -710,7 +710,9 @@ class Dungeon3D {
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
             antialias: true,
-            powerPreference: 'high-performance'
+            powerPreference: 'high-performance',
+            stencil: false,
+            depth: true
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
@@ -3906,24 +3908,22 @@ class Dungeon3D {
         const name = (rawName || '').toLowerCase();
 
         // 1. Determine Model & Biological Sex for Humanoid / Townsfolk Entities
-        const isExplicitFemale = /\b(female|woman|lady|maiden|crone|hag|witch|priestess|sorceress|enchantress|temptress|mistress|matron|siren|harpy|nymph|dryad|medusa|gorgon|banshee|shelob|thuringwethil|ungoliant|lobelia|maid|girl|princess|duchess|daughter|mother|sister|wife|vixen)\b/i.test(name);
-        const isExplicitMale = /\b(king|prince|lord|patriarch|emperor|baron|warlock|father|brother|boy|son|husband)\b/i.test(name);
+        const isExplicitFemale = /\b(female|woman|lady|maiden|crone|hag|witch|priestess|sorceress|enchantress|temptress|mistress|matron|siren|harpy|nymph|dryad|medusa|gorgon|banshee|shelob|thuringwethil|ungoliant|lobelia|maid|girl|princess|duchess|daughter|mother|sister|wife|vixen|queen)\b/i.test(name);
+        const isExplicitMale = /\b(king|prince|lord|patriarch|emperor|baron|warlock|father|brother|boy|son|husband|male)\b/i.test(name);
         
         let gender = 'male';
-        if (monsterInstance && (monsterInstance.modelGender || monsterInstance.gender || monsterInstance.sex)) {
-            const rawG = String(monsterInstance.modelGender || monsterInstance.gender || monsterInstance.sex).toLowerCase();
-            gender = rawG.startsWith('f') ? 'female' : 'male';
-        } else if (isExplicitFemale) {
+        if (isExplicitFemale) {
             gender = 'female';
         } else if (isExplicitMale) {
             gender = 'male';
+        } else if (monsterInstance && (monsterInstance.isFemale === true || monsterInstance.modelKey === 'casual' || monsterInstance.modelKey === 'witch')) {
+            gender = 'female';
+        } else if (monsterInstance && (monsterInstance.modelGender || monsterInstance.gender || monsterInstance.sex)) {
+            const rawG = String(monsterInstance.modelGender || monsterInstance.gender || monsterInstance.sex).toLowerCase();
+            gender = rawG.startsWith('f') ? 'female' : 'male';
         } else if (glyph === 't' || glyph === 'h' || glyph === 'p') {
-            // Balanced, deterministic 50/50 gender distribution for townsfolk and humanoids
-            const mId = monsterInstance && monsterInstance.id ? monsterInstance.id : 0;
-            const mX = monsterInstance && monsterInstance.x ? monsterInstance.x : 0;
-            const mY = monsterInstance && monsterInstance.y ? monsterInstance.y : 0;
-            const seed = Math.abs(name.length * 31 + mId * 17 + mX * 23 + mY * 19);
-            gender = (seed % 2 === 0) ? 'female' : 'male';
+            // Default to male for ambiguous townsfolk and humanoids unless explicitly female
+            gender = 'male';
         }
 
         // 1. Townsfolk (t)
@@ -3974,7 +3974,7 @@ class Dungeon3D {
                 return { templateKey: (gender === 'female') ? 'casual' : 'punk', scale: 1.0, role: 'barbarian', gender, isFloating: false, isEthereal: false };
             }
             if (name.includes('mage') || name.includes('wizard') || name.includes('warlock') || name.includes('sorcerer') || name.includes('alchemist') || name.includes('scholar') || name.includes('priest') || name.includes('cleric') || name.includes('sage') || name.includes('cultist') || name.includes('druid') || name.includes('seer') || name.includes('shaman') || name.includes('necromancer')) {
-                return { templateKey: 'witch', scale: 0.92, role: 'mage', gender, isFloating: false, isEthereal: false };
+                return { templateKey: (gender === 'female') ? 'witch' : 'formal', scale: 0.92, role: 'mage', gender, isFloating: false, isEthereal: false };
             }
             return { templateKey: (gender === 'female') ? 'casual' : 'adventurer', scale, role: 'warrior', gender, isFloating: false, isEthereal: false };
         }
@@ -3988,7 +3988,7 @@ class Dungeon3D {
                 return { templateKey: 'adventurer', scale: 0.85, role: 'archer', isFloating: false, isEthereal: false };
             }
             if (name.includes('shaman') || name.includes('mage') || name.includes('curse')) {
-                return { templateKey: 'witch', scale: 0.85, role: 'mage', isFloating: false, isEthereal: false };
+                return { templateKey: 'punk', scale: 0.85, role: 'mage', isFloating: false, isEthereal: false };
             }
             if (name.includes('uruk') || name.includes('captain') || name.includes('chieftain') || name.includes('leader') || name.includes('black orc')) {
                 return { templateKey: 'punk', scale: 0.98, role: 'barbarian', isFloating: false, isEthereal: false };
@@ -4002,7 +4002,7 @@ class Dungeon3D {
                 return { templateKey: 'soldier', scale: 0.88, role: 'archer', isFloating: false, isEthereal: false };
             }
             if (name.includes('mage') || name.includes('sorcerer') || name.includes('druj') || name.includes('necromancer')) {
-                return { templateKey: 'witch', scale: 0.88, role: 'mage', isFloating: false, isEthereal: false };
+                return { templateKey: 'soldier', scale: 0.88, role: 'mage', isFloating: false, isEthereal: false };
             }
             return { templateKey: 'medieval', scale: 0.92, role: 'warrior', isFloating: false, isEthereal: false };
         }
@@ -4299,10 +4299,11 @@ class Dungeon3D {
         let isFloating = false;
 
         if (config) {
-            m.modelGender = config.gender || 'male';
-            m.gender = config.gender || 'male';
+            const isFeminine = (config.templateKey === 'casual' || config.templateKey === 'witch' || config.templateKey === 'beach' || config.templateKey === 'female_peasant' || config.templateKey === 'female_ranger' || config.templateKey === 'superhero_female');
+            m.isFemale = isFeminine || (config.gender === 'female');
+            m.modelGender = m.isFemale ? 'female' : (config.gender || 'male');
+            m.gender = m.modelGender;
             m.modelKey = config.templateKey;
-            m.isFemale = (config.gender === 'female' || config.templateKey === 'casual' || config.templateKey === 'witch');
         }
 
         if (config && this.monsterTemplates && this.monsterTemplates.has(config.templateKey)) {
@@ -4357,9 +4358,11 @@ class Dungeon3D {
         root.modelHeight = modelHeight;
         root.isFloating = isFloating;
         root.config = config;
-        root.modelGender = (config && config.gender) ? config.gender : 'male';
+        const femaleTemplates = new Set(['casual', 'witch', 'beach', 'female_peasant', 'female_ranger', 'superhero_female']);
+        const isFeminineModel = config && femaleTemplates.has(config.templateKey);
         root.modelKey = (config && config.templateKey) ? config.templateKey : null;
-        root.isFemale = (root.modelGender === 'female' || root.modelKey === 'casual' || root.modelKey === 'witch');
+        root.isFemale = isFeminineModel || ((config && config.gender === 'female') || (m && (m.isFemale || m.gender === 'female' || m.modelGender === 'female')));
+        root.modelGender = root.isFemale ? 'female' : ((config && config.gender) ? config.gender : 'male');
         root.isFallback = !config || !this.monsterTemplates || !this.monsterTemplates.has(config.templateKey);
         root.colorHex = colorHex;
         root.glyph = glyph;
@@ -4367,10 +4370,10 @@ class Dungeon3D {
         root.monsterData = m;
 
         // Propagate model metadata to m instance
+        m.isFemale = root.isFemale;
         m.modelGender = root.modelGender;
         m.gender = root.modelGender;
         m.modelKey = root.modelKey;
-        m.isFemale = root.isFemale;
 
         // Traverse mesh hierarchy to tag every sub-mesh for raycasting
         if (mesh) {
@@ -5177,8 +5180,8 @@ class Dungeon3D {
         if (this.terrainLabelsGroup && this.terrainLabelsGroup.children) {
             for (let i = 0; i < this.terrainLabelsGroup.children.length; i++) {
                 const sprite = this.terrainLabelsGroup.children[i];
-                const d = this.camera.position.distanceTo(sprite.position);
-                sprite.visible = (d <= (sprite.maxDist || 45.0));
+                const maxDist = sprite.maxDist || 45.0;
+                sprite.visible = (this.camera.position.distanceToSquared(sprite.position) <= maxDist * maxDist);
             }
         }
 
@@ -5186,8 +5189,7 @@ class Dungeon3D {
         const monTime = tNow * 0.003;
         for (const entity of this.monsters.values()) {
             if (entity.nameplate) {
-                const d = this.camera.position.distanceTo(entity.position);
-                entity.nameplate.visible = (d <= 24.0); // Godot VisibilityRangeEnd = 24.0f
+                entity.nameplate.visible = (this.camera.position.distanceToSquared(entity.position) <= 576.0); // Godot VisibilityRangeEnd = 24.0f (24^2 = 576)
             }
             if (entity.targetPos) {
                 const dist = entity.position.distanceTo(entity.targetPos);
@@ -5260,13 +5262,16 @@ class Dungeon3D {
         const rect = this.renderer.domElement.getBoundingClientRect();
         if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
 
-        const mouse = new THREE.Vector2(
+        if (!this._mouseVec) this._mouseVec = new THREE.Vector2();
+        if (!this._raycaster) this._raycaster = new THREE.Raycaster();
+        if (!this._tempVec3) this._tempVec3 = new THREE.Vector3();
+
+        this._mouseVec.set(
             ((clientX - rect.left) / rect.width) * 2 - 1,
             -((clientY - rect.top) / rect.height) * 2 + 1
         );
 
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, this.camera);
+        this._raycaster.setFromCamera(this._mouseVec, this.camera);
 
         // 1. Direct mesh intersection
         const candidates = [];
@@ -5275,7 +5280,7 @@ class Dungeon3D {
         }
 
         if (candidates.length > 0) {
-            const intersects = raycaster.intersectObjects(candidates, true);
+            const intersects = this._raycaster.intersectObjects(candidates, true);
             if (intersects.length > 0) {
                 let obj = intersects[0].object;
                 while (obj && !obj.monsterData && obj.parent) {
@@ -5294,14 +5299,15 @@ class Dungeon3D {
         // 2. Proximity check along ray (ensures responsive clicking even on slender models/nameplates)
         let closestMonster = null;
         let minRayDist = Infinity;
-        const ray = raycaster.ray;
+        const ray = this._raycaster.ray;
 
         for (const entity of this.monsters.values()) {
             if (!entity.visible || !entity.monsterData) continue;
-            const center = entity.position.clone().add(new THREE.Vector3(0, (entity.modelHeight || 1.6) * 0.5, 0));
-            const distToRay = ray.distanceToPoint(center);
+            this._tempVec3.copy(entity.position);
+            this._tempVec3.y += (entity.modelHeight || 1.6) * 0.5;
+            const distToRay = ray.distanceToPoint(this._tempVec3);
             if (distToRay < 0.95) { // Within creature interaction sphere
-                const distAlongRay = ray.origin.distanceTo(center);
+                const distAlongRay = ray.origin.distanceTo(this._tempVec3);
                 if (distAlongRay < minRayDist) {
                     minRayDist = distAlongRay;
                     const mData = entity.monsterData;
