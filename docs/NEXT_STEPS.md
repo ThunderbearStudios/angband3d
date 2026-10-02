@@ -2,7 +2,23 @@
 
 ## Current System State (Angband3D v2.2.0 — The Living Chronicle & Voiced Lorekeeper: Narrative Depth & Story Audio)
 
-0. **The Living Chronicle & Voiced Lorekeeper (Version 3.0.0 — Zero Drone DSP, Streamlined Zero-Configuration Casting, Instance Continuity Registry & Bulletproof Character Reset)**:
+0. **The Living Chronicle & Voiced Lorekeeper (Version 3.1.0 — Gemini Native Audio Pipeline Restoration & Robust Header/Key Propagation)**:
+   - **Gemini Native Audio Pipeline Fixed (`server.js`, `chronicle-audio.js`, `chronicle-manager.js`)**:
+     - **Active AI Studio Endpoint**: Switched and verified `gemini-3.1-flash-tts-preview:generateContent` with `responseModalities: ["AUDIO"]` and `prebuiltVoiceConfig`.
+     - **Robust Part & Mime Parsing**: Resolved inline audio across all candidate parts (`parts.find(p => p.inlineData)`) and dynamically parsed sample rate (`rate=24000` / `rate=16000`) for the 44-byte RIFF WAV header.
+     - **Multi-Source Key Propagation**: Client sends user-configured BYOK Gemini keys (`angband_llm_api_key`, `inputApiKey.value`, or `window.chronicleManager.llm.apiKey`) via `x-goog-api-key` header and query parameters.
+     - **Header Sanitization & Node Crash Prevention**: Single-line sanitization (`sanitizeHeader`) prevents Node.js HTTP `ERR_INVALID_CHAR` crashes on error messages containing newlines.
+     - **Full 30-Voice Matrix**: `validGeminiVoices` expanded to all 30 official Google AI Studio Gemini TTS voices.
+     - **AudioContext Autoplay Resilience**: Added `ctx.resume()` guard for suspended browser audio contexts.
+     - **Audition Feedback**: Real-time status in Settings modal indicates Gemini synthesis (`✨ Auditioning Gemini Native Audio...`), successful playback, or explicit fallback reasons.
+   - **Verification & Health**:
+     - Live Gemini TTS verified: HTTP 200, Content-Type: `audio/wav` (180,524 bytes at 24000Hz PCM).
+     - 100% verified passing across all 23 automated test phases in `tools/test_chronicle.js`.
+     - 100% server unit tests passing (`npm test`: 20/20).
+     - Upstream engine bridge verified: `python tools/smoke_test.py` (11/11 tests passing).
+     - Native client build clean: `dotnet build client/angband3d.csproj` (0 warnings, 0 errors).
+
+1. **The Living Chronicle & Voiced Lorekeeper (Version 3.0.0 — Zero Drone DSP, Streamlined Zero-Configuration Casting, Instance Continuity Registry & Bulletproof Character Reset)**:
    - **Zero Ambient Drones (`chronicle-audio.js`, `chronicle-manager.js`, `index.html`)**:
      - Stripped out all ambient drone oscillators, sub-buses, volume controls, and UI sliders from Web Audio and index.html, strictly honoring invariant #19 forbidding ambient hums/drones.
    - **Streamlined Zero-Configuration Casting (`index.html`, `chronicle-manager.js`)**:
