@@ -4,6 +4,26 @@
  * Handles re-roll dormant guard, Tavern Respite, and Continuous Ballad episode batching.
  */
 
+// Static compiled RegExp constants (hoisted to module scope to eliminate thousands of per-frame heap allocations)
+const RE_ATTACK = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(hits|bites|claws|crushes|touches|shoots|breathes|casts|stings|spits|engulfs|charges|gazes|wails|slashes|bashes|gores|strikes)\b/i;
+const RE_THEFT = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(steals|tries to steal)\b/i;
+const RE_BEG = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:begs you for money|asks you for money|begs for money)\b/i;
+const RE_INSULT = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:insults you|mocks you|jeers at you)\b/i;
+const RE_HERO_ATTACK = /^(?:You\s+)(hit|slash|crush|smite|strike|pierce|shoot|bash|missed|miss)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
+const RE_FLEE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(flees in terror|runs away in panic|turns and runs|flees|panics)(?:\.|\!|$)/i;
+const RE_BIZARRE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(drools on you|vomits on your boots|vomits|giggles|babbles incoherently|babbles|cries out in despair|weeps|snarls|hisses|moans|howls)(?:\.|\!|$)/i;
+const RE_STATE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(wakes up|falls asleep|is confused|recovers|blinks|appears unaffected)(?:\.|\!|$)/i;
+const RE_RITUAL = /(?:You can learn (\d+) more (?:ritual|spell|prayer)s?|You feel your knowledge of (?:the arcane|rituals|prayers) expand)/i;
+const RE_SPELL_LEARNED = /(?:You have learned the|You master the|You study the)\s+(prayer|spell|ritual|rune|incantation|hymn)\s+of\s+([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
+const RE_LEVEL_UP = /(?:Welcome to level\s+(\d+)|You are now level\s+(\d+))/i;
+const RE_LEVEL_FEELING = /(?:You feel|There is|This seems)\s+(a sinister presence|like you are being watched|quiet and peaceful|a chill run down your spine|a sense of dread)/i;
+const RE_STORE = /(?:Welcome to|You enter)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?(?:Store|Armoury|Armory|Weaponsmith|Weapon Smith|Magic Shop|Alchemist|Temple|Black Market|Guild))(?:\.|\!|$)/i;
+const RE_STORE_BUY = /^You bought\s+(?:(\d+)\s+)?(?:a\s+|an\s+|the\s+)?(.+?)\s+for\s+(\d+)\s+gold(?:\.|\!|$)/i;
+const RE_STATUS = /^(?:You\s+)(are\s+(?:confused|poisoned|blind|blinded|stunned|heavily stunned|knocked out|paralyzed|terrified|bleeding|mortally wounded)|feel\s+(?:confused|very sick|unreal|strange|sluggish|fast|your life draining away|very weak|clumsy)|cannot\s+(?:see|move)|panic)\b/i;
+const RE_SLAIN = /You have slain (?:the )?([A-Za-z0-9\-',\s]+?)(?:\s*\([x0-9]+\))?\./i;
+const RE_CLEAN_PARENS = /\s*\([^)]*\)/g;
+const RE_CLEAN_BRACKETS = /\s*\[[^\]]*\]/g;
+
 class ChronicleFilter {
     constructor() {
         this.lastDepth = null;
@@ -29,6 +49,8 @@ class ChronicleFilter {
             firstStairsDown: false
         };
 
+        this.lastVisitedStore = null;
+
         // Continuous Ballad Episode Accumulator
         this.episodeAccumulator = {
             turnCount: 0,
@@ -43,6 +65,7 @@ class ChronicleFilter {
         this.lastHpPercent = 1.0;
         this.lastTurn = null;
         this.lastSeenMessages = [];
+        this.lastVisitedStore = null;
         this.pendingKills = [];
         this.eventQueue = [];
         this.seenMonsterTypes.clear();
@@ -57,6 +80,11 @@ class ChronicleFilter {
         this.lastCombatActionTime = 0;
         this.hasCompletedOnboarding.townArrival = false;
         this.hasCompletedOnboarding.firstStairsDown = false;
+        this._lastConfused = false;
+        this._lastPoisoned = false;
+        this._lastBlind = false;
+        this._lastStun = false;
+        this._lastCut = false;
         this.resetEpisodeAccumulator();
     }
 
@@ -132,21 +160,27 @@ class ChronicleFilter {
         }
 
         // Process ONLY NEW messages for events to prevent phantom re-triggers
-        const attackRe = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(hits|bites|claws|crushes|touches|shoots|breathes|casts|stings|spits|engulfs|charges|gazes|wails|slashes|bashes|gores|strikes)\b/i;
-        const theftRe = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(steals|tries to steal)\b/i;
-        const begRe = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:begs you for money|asks you for money|begs for money)\b/i;
-        const insultRe = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:insults you|mocks you|jeers at you)\b/i;
-        const heroAttackRe = /^(?:You\s+)(hit|slash|crush|smite|strike|pierce|shoot|bash|missed|miss)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
-        const fleeRe = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(flees in terror|runs away in panic|turns and runs|flees|panics)(?:\.|\!|$)/i;
-        const bizarreRe = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(drools on you|vomits on your boots|vomits|giggles|babbles incoherently|babbles|cries out in despair|weeps|snarls|hisses|moans|howls)(?:\.|\!|$)/i;
-        const stateRe = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(wakes up|falls asleep|is confused|recovers|blinks|appears unaffected)(?:\.|\!|$)/i;
-        const ritualRe = /(?:You can learn (\d+) more (?:ritual|spell|prayer)s?|You feel your knowledge of (?:the arcane|rituals|prayers) expand)/i;
-        const spellLearnedRe = /(?:You have learned the|You master the|You study the)\s+(prayer|spell|ritual|rune|incantation|hymn)\s+of\s+([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
-        const levelUpRe = /(?:Welcome to level\s+(\d+)|You are now level\s+(\d+))/i;
-        const levelFeelingRe = /(?:You feel|There is|This seems)\s+(a sinister presence|like you are being watched|quiet and peaceful|a chill run down your spine|a sense of dread)/i;
-        const storeRe = /(?:Welcome to|You enter)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?(?:Store|Armoury|Armory|Weaponsmith|Magic Shop|Alchemist|Temple|Black Market|Guild))(?:\.|\!|$)/i;
+        // (Using module-scoped static regexes for zero-allocation performance)
+        const attackRe = RE_ATTACK;
+        const theftRe = RE_THEFT;
+        const begRe = RE_BEG;
+        const insultRe = RE_INSULT;
+        const heroAttackRe = RE_HERO_ATTACK;
+        const fleeRe = RE_FLEE;
+        const bizarreRe = RE_BIZARRE;
+        const stateRe = RE_STATE;
+        const ritualRe = RE_RITUAL;
+        const spellLearnedRe = RE_SPELL_LEARNED;
+        const levelUpRe = RE_LEVEL_UP;
+        const levelFeelingRe = RE_LEVEL_FEELING;
+        const storeRe = RE_STORE;
+        const storeBuyRe = RE_STORE_BUY;
+        const statusRe = RE_STATUS;
 
         const frameKills = [];
+        const frameHeroAttacks = [];
+        const frameIncomingAttacks = [];
+        const framePlayerStatuses = [];
         const slainMonsterNames = new Set();
 
         for (const msg of newMsgs) {
@@ -157,10 +191,23 @@ class ChronicleFilter {
                 this.lastCombatActionTime = now;
 
                 // Extract monster name to prevent slain creatures from talking/attacking post-mortem
-                const slainMatch = msg.match(/You have slain (?:the )?([A-Za-z0-9\-',\s]+?)(?:\s*\([x0-9]+\))?\./i);
+                const slainMatch = msg.match(RE_SLAIN);
                 if (slainMatch && slainMatch[1]) {
                     slainMonsterNames.add(slainMatch[1].trim().toLowerCase());
                 }
+            }
+
+            // Status messages (confused, poisoned, blind, stunned, etc.)
+            const sMatch = msg.match(statusRe);
+            if (sMatch) {
+                const lowerMsg = msg.toLowerCase();
+                if (lowerMsg.includes('confus')) framePlayerStatuses.push('confused');
+                else if (lowerMsg.includes('poison') || lowerMsg.includes('very sick')) framePlayerStatuses.push('poisoned');
+                else if (lowerMsg.includes('blind') || lowerMsg.includes('cannot see')) framePlayerStatuses.push('blind');
+                else if (lowerMsg.includes('stun') || lowerMsg.includes('knocked out')) framePlayerStatuses.push('stunned');
+                else if (lowerMsg.includes('paralyz') || lowerMsg.includes('cannot move')) framePlayerStatuses.push('paralyzed');
+                else if (lowerMsg.includes('terrifi') || lowerMsg.includes('panic')) framePlayerStatuses.push('terrified');
+                else if (lowerMsg.includes('bleed') || lowerMsg.includes('mortally wounded')) framePlayerStatuses.push('bleeding');
             }
 
             // 2. Hero Attacks (Swords, spells, bows, fists)
@@ -175,18 +222,14 @@ class ChronicleFilter {
                     if (now - lastAtk >= 2000) {
                         this.recentHeroAttacks.set(monLower, now);
                         const monObj = (frame.monsters || []).find(m => (m.name || '').toLowerCase().includes(monLower));
-                        this.eventQueue.push({
-                            type: 'HERO_ATTACK',
-                            priority: 'normal',
-                            isChapter: false,
-                            data: {
-                                monsterName: monName,
-                                action: act,
-                                message: msg,
-                                glyph: monObj ? monObj.glyph : '',
-                                depth: depth,
-                                inTown: depth === 0
-                            }
+                        frameHeroAttacks.push({
+                            monsterName: monName,
+                            action: act,
+                            message: msg,
+                            glyph: monObj ? monObj.glyph : '',
+                            depth: depth,
+                            inTown: depth === 0,
+                            missed: act.includes('miss')
                         });
                     }
                 }
@@ -325,12 +368,37 @@ class ChronicleFilter {
             const storeMatch = msg.match(storeRe);
             if (storeMatch) {
                 const storeName = storeMatch[1].trim();
+                this.lastVisitedStore = storeName;
                 this.eventQueue.push({
                     type: 'STORE_VISIT',
                     priority: 'normal',
                     isChapter: false,
                     data: {
                         storeName: storeName,
+                        message: msg,
+                        depth: depth
+                    }
+                });
+            }
+
+            // 7b. Store Purchases
+            const buyMatch = msg.match(storeBuyRe);
+            if (buyMatch) {
+                const count = buyMatch[1] ? parseInt(buyMatch[1], 10) : 1;
+                const rawItem = buyMatch[2].trim();
+                const cleanItem = rawItem.replace(RE_CLEAN_PARENS, '').replace(RE_CLEAN_BRACKETS, '').trim();
+                const price = parseInt(buyMatch[3], 10);
+                const storeName = this.lastVisitedStore || 'General Store';
+                this.eventQueue.push({
+                    type: 'STORE_PURCHASE',
+                    priority: 'high',
+                    isChapter: false,
+                    data: {
+                        rawItem,
+                        item: cleanItem,
+                        count,
+                        price,
+                        storeName,
                         message: msg,
                         depth: depth
                     }
@@ -452,41 +520,103 @@ class ChronicleFilter {
                     const monName = aMatch[1].trim();
                     const action = aMatch[2].toLowerCase();
                     const monLower = monName.toLowerCase();
-                    if (!slainMonsterNames.has(monLower) && (!this.recentAssailants.has(monName) || (now - this.recentAssailants.get(monName) > 8000))) {
+                    const lastHit = this.recentAssailants.get(monName);
+                    if (!slainMonsterNames.has(monLower) && (lastHit === undefined || lastHit === now || (now - lastHit > 8000))) {
                         this.recentAssailants.set(monName, now);
                         const monObj = (frame.monsters || []).find(m => (m.name || '').toLowerCase().includes(monLower));
-                        this.eventQueue.push({
-                            type: 'CREATURE_ASSAULT',
-                            priority: 'high',
-                            isChapter: false,
-                            data: {
-                                monsterName: monName,
-                                action: action,
-                                message: msg,
-                                glyph: monObj ? monObj.glyph : '',
-                                depth: depth
-                            }
+                        frameIncomingAttacks.push({
+                            monsterName: monName,
+                            action: action,
+                            message: msg,
+                            glyph: monObj ? monObj.glyph : '',
+                            depth: depth
                         });
                     }
                 }
             }
         }
 
-        // IMMEDIATE LOCKSTEP COMBAT EPISODES (Immediate kill narrative, zero delayed wait)
-        if (frameKills.length > 0) {
-            this.eventQueue.unshift({
-                type: 'COMBAT_EPISODE',
-                priority: 'normal',
+        // Live Telemetry status onset detection
+        if (player.confused > 0 && !this._lastConfused) framePlayerStatuses.push('confused');
+        if (player.poisoned > 0 && !this._lastPoisoned) framePlayerStatuses.push('poisoned');
+        if (player.blind > 0 && !this._lastBlind) framePlayerStatuses.push('blind');
+        if (player.stun > 0 && !this._lastStun) framePlayerStatuses.push('stunned');
+        if (player.cut > 0 && !this._lastCut) framePlayerStatuses.push('bleeding');
+        this._lastConfused = (player.confused > 0);
+        this._lastPoisoned = (player.poisoned > 0);
+        this._lastBlind = (player.blind > 0);
+        this._lastStun = (player.stun > 0);
+        this._lastCut = (player.cut > 0);
+
+        // Coalesce concurrent/stacked combat messages into a single COMBAT_EXCHANGE beat
+        const isStackedCombat = (frameIncomingAttacks.length > 1) ||
+            (frameIncomingAttacks.length > 0 && (frameHeroAttacks.length > 0 || frameKills.length > 0 || framePlayerStatuses.length > 0)) ||
+            (framePlayerStatuses.length > 0 && (frameHeroAttacks.length > 0 || frameKills.length > 0));
+
+        if (isStackedCombat) {
+            this.eventQueue.push({
+                type: 'COMBAT_EXCHANGE',
+                priority: frameKills.length > 0 ? 'high' : 'normal',
                 isChapter: false,
                 data: {
+                    incomingAttacks: frameIncomingAttacks,
+                    heroAttacks: frameHeroAttacks,
                     kills: frameKills,
-                    message: frameKills[0],
-                    monstersSlain: frameKills.length,
-                    depth,
+                    playerStatuses: [...new Set(framePlayerStatuses)],
+                    depth: depth,
+                    inTown: depth === 0,
                     accumulated: { ...this.episodeAccumulator }
                 }
             });
-            this.resetEpisodeAccumulator();
+            if (frameKills.length > 0) {
+                this.resetEpisodeAccumulator();
+            }
+        } else {
+            // Dispatch isolated events independently in strict chronological causal order:
+            // 1. Enemy assaults (enemy attacks or initiates)
+            for (const inc of frameIncomingAttacks) {
+                this.eventQueue.push({
+                    type: 'CREATURE_ASSAULT',
+                    priority: 'high',
+                    isChapter: false,
+                    data: inc
+                });
+            }
+            // 2. Player statuses suffered from assaults (confusion, poison, stun, etc.)
+            const uniqueStatuses = [...new Set(framePlayerStatuses)];
+            for (const st of uniqueStatuses) {
+                this.eventQueue.push({
+                    type: 'PLAYER_STATUS',
+                    priority: 'normal',
+                    isChapter: false,
+                    data: { status: st, depth: depth }
+                });
+            }
+            // 3. Hero attacks (player strikes back)
+            for (const atk of frameHeroAttacks) {
+                this.eventQueue.push({
+                    type: 'HERO_ATTACK',
+                    priority: 'normal',
+                    isChapter: false,
+                    data: atk
+                });
+            }
+            // 4. Fatal slayings (enemy dies from hero's blow)
+            if (frameKills.length > 0) {
+                this.eventQueue.push({
+                    type: 'COMBAT_EPISODE',
+                    priority: 'normal',
+                    isChapter: false,
+                    data: {
+                        kills: frameKills,
+                        message: frameKills[0],
+                        monstersSlain: frameKills.length,
+                        depth,
+                        accumulated: { ...this.episodeAccumulator }
+                    }
+                });
+                this.resetEpisodeAccumulator();
+            }
         }
 
         // Initialize lastDepth on first frame
@@ -592,12 +722,19 @@ class ChronicleFilter {
             };
         }
 
-        // --- 5. FLOOR CHANGES & TAVERN RESPITE (MAJOR CHAPTER MILESTONES) ---
+        // --- 5. DRAIN PENDING SEQUENTIAL EVENTS IN QUEUE FIRST ---
+        // Ensure all combat and events on current floor are chronicled before stairs transitions
+        if (this.eventQueue && this.eventQueue.length > 0) {
+            this.lastBeatTime = now;
+            return this.eventQueue.shift();
+        }
 
+        // --- 6. FLOOR CHANGES & TAVERN RESPITE (MAJOR CHAPTER MILESTONES) ---
         if (depth !== this.lastDepth) {
             const oldDepth = this.lastDepth;
             this.lastDepth = depth;
             this.lastBeatTime = now;
+            if (depth > 0) this.lastVisitedStore = null;
 
             // Tavern Respite: Returned from deep to Town (Depth 0)
             if (oldDepth > 0 && depth === 0) {
@@ -616,12 +753,6 @@ class ChronicleFilter {
                 isChapter: true,
                 data: { oldDepth, newDepth: depth, feeling: frame.map ? frame.map.feeling : 0 }
             };
-        }
-
-        // --- 6. DRAIN PENDING SEQUENTIAL EVENTS IN QUEUE ---
-        if (this.eventQueue && this.eventQueue.length > 0) {
-            this.lastBeatTime = now;
-            return this.eventQueue.shift();
         }
 
         // --- 7. FLOWING EXPLORATION PASSAGES (CONTINUOUS AMBIENT CHRONICLE) ---

@@ -30,6 +30,13 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     const isApk = isStandaloneApp();
+    if (isApk && typeof document !== 'undefined') {
+        if (document.body) {
+            document.body.classList.add('is-standalone');
+        } else {
+            document.addEventListener('DOMContentLoaded', () => document.body?.classList.add('is-standalone'));
+        }
+    }
     // Web browser users MUST ALWAYS default to Cloud Realm.
     // Standalone desktop/APK users default to local offline engine.
     let engineMode = isApk ? 'local' : 'cloud';
@@ -656,13 +663,19 @@ window.addEventListener('DOMContentLoaded', () => {
     dungeon.audio = audio;
     hud.audio = audio;
 
-    // Initialize The Living Chronicle & Voiced Lorekeeper Coordinator
+    // Initialize The Living Chronicle & Voiced Lorekeeper Coordinator (Web Client Only)
     let chronicleManager = null;
-    if (typeof ChronicleManager !== 'undefined') {
+    if (!isApk && typeof ChronicleManager !== 'undefined') {
         chronicleManager = new ChronicleManager();
         chronicleManager.init(dungeon, audio);
         window.chronicleManager = chronicleManager;
         window.dungeon = dungeon;
+    } else {
+        // Standalone clients: Tome is strictly disabled
+        const tomeBtn = document.getElementById('btn-toggle-chronicle');
+        if (tomeBtn) tomeBtn.style.display = 'none';
+        const tomeWin = document.getElementById('chronicle-window');
+        if (tomeWin) tomeWin.style.display = 'none';
     }
 
     const input = new InputController(network, dungeon, terminal, audio, toggleTerminalView);

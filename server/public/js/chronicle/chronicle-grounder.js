@@ -4,6 +4,14 @@
  * and the three literary traditions of Arda.
  */
 
+// Absolute 3D Visual Geometry Ground Truth Sets
+const FEMALE_3D_MODEL_KEYS = new Set(['casual', 'witch', 'beach', 'female_peasant', 'female_ranger', 'superhero_female']);
+const MALE_3D_MODEL_KEYS = new Set(['farmer', 'worker', 'adventurer', 'medieval', 'punk', 'soldier', 'king', 'formal', 'knight', 'barbarian', 'wizard']);
+
+// Static compiled RegExp constants for creature gender detection
+const RE_GENDER_FEMALE = /\b(female|woman|lady|maiden|crone|hag|witch|priestess|sorceress|enchantress|temptress|mistress|matron|siren|harpy|nymph|dryad|medusa|gorgon|banshee|shelob|thuringwethil|ungoliant|lobelia|maid|girl|princess|duchess|daughter|mother|sister|wife|vixen|queen)\b/i;
+const RE_GENDER_MALE = /\b(king|prince|lord|patriarch|emperor|baron|warlock|father|brother|man|boy|son|husband|male)\b/i;
+
 class ChronicleGrounder {
     static TRADITIONS = {
         noldor: {
@@ -79,23 +87,25 @@ class ChronicleGrounder {
     /**
      * Detects biological/lore gender of creatures for appropriate voice selection.
      * Synchronizes 100% with 3D character models and narrative prose.
+     * Visual 3D geometry with breasts/feminine anatomy serves as absolute authoritative ground truth.
      */
-    static detectCreatureGender(name = '', monster = null) {
-        // 1. Authoritative 3D Model & Entity Gender Tag
+    static detectCreatureGender(nameOrEntity = '', monster = null) {
+        let name = '';
+        if (typeof nameOrEntity === 'string') {
+            name = nameOrEntity;
+        } else if (nameOrEntity && typeof nameOrEntity === 'object') {
+            monster = monster || nameOrEntity;
+            name = nameOrEntity.name || '';
+        }
+
+        // 1. Authoritative 3D Model Visual Geometry takes absolute ground truth
         if (monster) {
             if (monster.isFemale === true) return 'female';
-            if (monster.modelGender || monster.gender || monster.sex) {
-                const rawG = String(monster.modelGender || monster.gender || monster.sex).toLowerCase();
-                if (rawG.startsWith('f')) return 'female';
-                if (rawG.startsWith('m')) return 'male';
-            }
-            if (monster.modelKey === 'casual' || monster.modelKey === 'witch') {
-                return 'female';
-            }
-            if (monster.modelKey && ['farmer', 'worker', 'adventurer', 'medieval', 'punk', 'soldier', 'king'].includes(monster.modelKey)) {
-                return 'male';
-            }
-            // Check active 3D world scene entity if present (try all known globals)
+            const mKey = (monster.modelKey || (monster.config && monster.config.templateKey) || (monster.model ? monster.model.replace(/\.gltf$/i, '') : '') || '').toLowerCase();
+            if (mKey && FEMALE_3D_MODEL_KEYS.has(mKey)) return 'female';
+            if (mKey && MALE_3D_MODEL_KEYS.has(mKey)) return 'male';
+
+            // Check active 3D world scene entity if present
             const dungeon = (typeof window !== 'undefined')
                 ? (window.dungeon || (window.__app && window.__app.dungeon) || (window.chronicleManager && window.chronicleManager.dungeon))
                 : null;
@@ -104,52 +114,41 @@ class ChronicleGrounder {
                 if (id && dungeon.monsters.has(id)) {
                     const ent = dungeon.monsters.get(id);
                     if (ent) {
-                        if (ent.isFemale === true || ent.modelGender === 'female' || ent.modelKey === 'casual' || ent.modelKey === 'witch') {
-                            return 'female';
-                        }
-                        if (ent.config && (ent.config.gender === 'female' || ent.config.templateKey === 'casual' || ent.config.templateKey === 'witch')) {
-                            return 'female';
-                        }
-                        if (ent.monsterData && (ent.monsterData.isFemale === true || ent.monsterData.modelGender === 'female')) {
-                            return 'female';
-                        }
-                        if (ent.modelGender) {
-                            const raw = String(ent.modelGender).toLowerCase();
-                            if (raw.startsWith('f')) return 'female';
-                            if (raw.startsWith('m')) return 'male';
-                        }
-                        if (ent.config && ent.config.gender) {
-                            const raw = String(ent.config.gender).toLowerCase();
-                            if (raw.startsWith('f')) return 'female';
-                            if (raw.startsWith('m')) return 'male';
-                        }
+                        if (ent.isFemale === true || ent.modelGender === 'female') return 'female';
+                        const entKey = (ent.modelKey || (ent.config && ent.config.templateKey) || (ent.model ? ent.model.replace(/\.gltf$/i, '') : '') || '').toLowerCase();
+                        if (entKey && FEMALE_3D_MODEL_KEYS.has(entKey)) return 'female';
+                        if (entKey && MALE_3D_MODEL_KEYS.has(entKey)) return 'male';
                     }
                 }
             }
         }
 
-        const lower = name.toLowerCase();
+        const lower = (name || '').toLowerCase();
 
         // 2. Explicit Female Keywords (Takes absolute precedence over generic role words)
-        if (/\b(queen|maiden|crone|hag|witch|priestess|sorceress|enchantress|temptress|mistress|matron|siren|harpy|nymph|dryad|medusa|gorgon|banshee|shelob|thuringwethil|ungoliant|lobelia|maid|woman|lady|princess|duchess|daughter|mother|sister|wife|vixen|female|girl)\b/i.test(lower)) {
+        if (RE_GENDER_FEMALE.test(lower)) {
             return 'female';
         }
 
-        // 3. Explicit Male Biological/Title Roles Only (Excludes generic professions like veteran/beggar/rogue)
-        if (/\b(king|prince|lord|patriarch|emperor|baron|warlock|father|brother|man|boy|son|husband|male)\b/i.test(lower)) {
+        // 3. Explicit Male Biological/Title Roles Only
+        if (RE_GENDER_MALE.test(lower)) {
             return 'male';
         }
 
-        // 4. Balanced 50/50 Deterministic distribution matching dungeon3d.js when monster entity is present
+        // 4. Stored / Model Gender Tags
         if (monster) {
-            const mId = monster.id ? monster.id : 0;
-            const mX = monster.x ? monster.x : 0;
-            const mY = monster.y ? monster.y : 0;
-            const seed = Math.abs(lower.length * 31 + mId * 17 + mX * 23 + mY * 19);
-            return (seed % 2 === 0) ? 'female' : 'male';
+            if (monster.modelGender || monster.gender || monster.sex) {
+                const rawG = String(monster.modelGender || monster.gender || monster.sex).toLowerCase();
+                if (rawG.startsWith('f')) return 'female';
+                if (rawG.startsWith('m')) return 'male';
+            }
+            const mKey = (monster.modelKey || (monster.config && monster.config.templateKey) || '').toLowerCase();
+            if (mKey && this.MALE_3D_MODEL_KEYS.has(mKey)) {
+                return 'male';
+            }
         }
 
-        // 5. Default fallback for bare strings with no monster instance or gender markers
+        // 5. Default fallback to male when gender is unspecified or ambiguous per user preference
         return 'male';
     }
 
@@ -168,12 +167,19 @@ class ChronicleGrounder {
         return Math.abs(hash);
     }
 
-    static getInstanceKey(entityOrMonster = null, player = null, traditionKey = 'westmarch') {
-        if (!entityOrMonster) {
+    static getInstanceKey(entityOrMonster = null, player = null, traditionKey = 'westmarch', isHeroExplicit = false) {
+        if (!entityOrMonster && !isHeroExplicit) {
             return `narrator_${traditionKey || 'westmarch'}`;
         }
-        if (entityOrMonster.isLorekeeper || (entityOrMonster.name && entityOrMonster.name.toLowerCase().includes('lorekeeper'))) {
+        if (entityOrMonster && (entityOrMonster.isLorekeeper || (entityOrMonster.name && entityOrMonster.name.toLowerCase().includes('lorekeeper')))) {
             return 'mentor_lorekeeper';
+        }
+        const isHero = isHeroExplicit || (entityOrMonster && (entityOrMonster.isHero || entityOrMonster.isPlayer || (player && entityOrMonster.name && player.name && entityOrMonster.name.toLowerCase() === player.name.toLowerCase())));
+        if (isHero) {
+            const pName = (entityOrMonster && entityOrMonster.name) ? entityOrMonster.name : ((player && player.name) ? player.name : 'Hero');
+            const pRace = (entityOrMonster && entityOrMonster.race) ? entityOrMonster.race : ((player && player.race) ? player.race : 'Mortal');
+            const pSex = (entityOrMonster && (entityOrMonster.sex || entityOrMonster.gender)) ? (entityOrMonster.sex || entityOrMonster.gender) : ((player && (player.sex || player.gender)) ? (player.sex || player.gender) : 'male');
+            return `hero_${pName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${pRace.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${pSex.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
         }
         if (entityOrMonster.id !== undefined && entityOrMonster.id !== null) {
             return `id_${entityOrMonster.id}`;
@@ -203,10 +209,50 @@ class ChronicleGrounder {
                 gemini: ['Fenrir', 'Kore']
             }
         },
+        giant: {
+            male: {
+                edge: ['en-US-RogerNeural', 'en-US-ChristopherNeural'],
+                gemini: ['Charon', 'Algenib']
+            },
+            female: {
+                edge: ['en-AU-NatashaNeural', 'en-CA-ClaraNeural'],
+                gemini: ['Kore', 'Sadaltager']
+            }
+        },
+        spellcaster: {
+            male: {
+                edge: ['en-US-ChristopherNeural', 'en-GB-RyanNeural', 'en-US-BrianNeural'],
+                gemini: ['Gacrux', 'Sulafat']
+            },
+            female: {
+                edge: ['en-US-AriaNeural', 'en-GB-LibbyNeural'],
+                gemini: ['Despina', 'Aoede']
+            }
+        },
+        rogue: {
+            male: {
+                edge: ['en-US-SteffanNeural', 'en-IE-ConnorNeural'],
+                gemini: ['Orus', 'Puck']
+            },
+            female: {
+                edge: ['en-AU-NatashaNeural', 'en-GB-SoniaNeural'],
+                gemini: ['Kore', 'Despina']
+            }
+        },
+        beast: {
+            male: {
+                edge: ['en-US-RogerNeural'],
+                gemini: ['Fenrir']
+            },
+            female: {
+                edge: ['en-US-RogerNeural'],
+                gemini: ['Fenrir']
+            }
+        },
         dwarf: {
             male: {
                 edge: ['en-US-RogerNeural', 'en-US-BrianNeural', 'en-IE-ConnorNeural'],
-                gemini: ['Algenib', 'Gacrux']
+                gemini: ['Algenib', 'Gacrux', 'Orus']
             },
             female: {
                 edge: ['en-CA-ClaraNeural', 'en-US-JennyNeural'],
@@ -216,7 +262,7 @@ class ChronicleGrounder {
         elf: {
             male: {
                 edge: ['en-GB-ThomasNeural', 'en-GB-RyanNeural'],
-                gemini: ['Zephyrus', 'Orus']
+                gemini: ['Zephyr', 'Sulafat', 'Orus']
             },
             female: {
                 edge: ['en-GB-LibbyNeural', 'en-IE-EmilyNeural'],
@@ -226,7 +272,7 @@ class ChronicleGrounder {
         hobbit: {
             male: {
                 edge: ['en-IE-ConnorNeural', 'en-US-GuyNeural'],
-                gemini: ['Puck', 'Sulafat']
+                gemini: ['Puck', 'Zephyr']
             },
             female: {
                 edge: ['en-IE-EmilyNeural', 'en-GB-MaisieNeural'],
@@ -236,7 +282,7 @@ class ChronicleGrounder {
         dragon: {
             male: {
                 edge: ['en-US-ChristopherNeural', 'en-US-RogerNeural'],
-                gemini: ['Algenib', 'Fenrir']
+                gemini: ['Charon', 'Algenib']
             },
             female: {
                 edge: ['en-GB-SoniaNeural', 'en-US-AriaNeural'],
@@ -246,7 +292,7 @@ class ChronicleGrounder {
         undead: {
             male: {
                 edge: ['en-US-ChristopherNeural', 'en-US-RogerNeural'],
-                gemini: ['Algenib', 'Fenrir']
+                gemini: ['Algenib', 'Charon']
             },
             female: {
                 edge: ['en-GB-SoniaNeural', 'en-US-AriaNeural'],
@@ -277,7 +323,7 @@ class ChronicleGrounder {
             youth: {
                 male: {
                     edge: ['en-US-GuyNeural', 'en-CA-LiamNeural'],
-                    gemini: ['Puck', 'Zephyrus']
+                    gemini: ['Puck', 'Zephyr']
                 },
                 female: {
                     edge: ['en-GB-MaisieNeural', 'en-IE-EmilyNeural'],
@@ -287,7 +333,7 @@ class ChronicleGrounder {
             adult: {
                 male: {
                     edge: ['en-US-GuyNeural', 'en-IE-ConnorNeural', 'en-CA-LiamNeural', 'en-GB-RyanNeural'],
-                    gemini: ['Sulafat', 'Puck', 'Orus']
+                    gemini: ['Sulafat', 'Orus', 'Puck']
                 },
                 female: {
                     edge: ['en-GB-LibbyNeural', 'en-US-JennyNeural', 'en-IE-EmilyNeural', 'en-CA-ClaraNeural'],
@@ -311,52 +357,130 @@ class ChronicleGrounder {
      * Selects optimal voices with persistent continuity per instance while ensuring
      * unique variation instance-to-instance, strictly honoring character race, age, and 3D visual sex.
      */
-    static resolveVoiceProfile(entityOrMonster = null, player = null, eventType = '', traditionKey = 'westmarch') {
-        const instanceKey = this.getInstanceKey(entityOrMonster, player, traditionKey);
+    static resolveVoiceProfile(entityOrMonster = null, player = null, eventType = '', traditionKey = 'westmarch', isHeroExplicit = false) {
+        const isHero = isHeroExplicit || (entityOrMonster && (entityOrMonster.isHero || entityOrMonster.isPlayer || (player && entityOrMonster.name && player.name && entityOrMonster.name.toLowerCase() === player.name.toLowerCase())));
+        const instanceKey = this.getInstanceKey(entityOrMonster, player, traditionKey, isHero);
         let cached = this.instanceVoiceRegistry.get(instanceKey);
 
         let gender, isF, raceArchetype, ageArchetype, edgeVoice, geminiVoice;
+        let heroPitch = '+0Hz';
+        let heroRate = '+0%';
+        let heroDirectorNote = '';
 
         if (cached) {
-            // Continuity: retain exact identity (voice, gender, race, age)
+            // Continuity: retain exact identity (voice, gender, race, age, pitch, rate)
             gender = cached.gender;
             isF = cached.isFemale;
             raceArchetype = cached.race;
             ageArchetype = cached.ageArchetype;
             edgeVoice = cached.edgeVoice;
             geminiVoice = cached.geminiVoice;
+            heroPitch = cached.heroPitch || '+0Hz';
+            heroRate = cached.heroRate || '+0%';
+            heroDirectorNote = cached.heroDirectorNote || '';
         } else {
-            // 1. GENDER / SEX: 100% deterministic alignment from 3D model and creature detection
-            const name = (entityOrMonster && (entityOrMonster.name || entityOrMonster.race)) ? (entityOrMonster.name || entityOrMonster.race) : '';
-            gender = entityOrMonster ? this.detectCreatureGender(name, entityOrMonster) : 'male';
-            isF = (gender === 'female');
+            if (isHero) {
+                // Determine Hero Gender & Pronouns
+                const pSex = (entityOrMonster && (entityOrMonster.sex || entityOrMonster.gender)) ? String(entityOrMonster.sex || entityOrMonster.gender).toLowerCase() : ((player && (player.sex || player.gender)) ? String(player.sex || player.gender).toLowerCase() : 'male');
+                gender = pSex.startsWith('f') ? 'female' : 'male';
+                isF = (gender === 'female');
 
-            // 2. RACE DETECTION
-            const rawRace = (entityOrMonster && (entityOrMonster.race || entityOrMonster.name)) 
-                ? (entityOrMonster.race || entityOrMonster.name) 
-                : (player ? player.race : '');
-            const rLower = (rawRace || '').toLowerCase();
-            raceArchetype = 'mortal';
-            if (rLower.includes('elf') || rLower.includes('eldar')) raceArchetype = 'elf';
-            else if (rLower.includes('dwarf')) raceArchetype = 'dwarf';
-            else if (rLower.includes('hobbit') || rLower.includes('halfling')) raceArchetype = 'hobbit';
-            else if (rLower.includes('orc') || rLower.includes('goblin') || rLower.includes('troll') || rLower.includes('kobold')) raceArchetype = 'orc';
-            else if (rLower.includes('dragon') || rLower.includes('drake') || rLower.includes('wyrm')) raceArchetype = 'dragon';
-            else if (rLower.includes('undead') || rLower.includes('lich') || rLower.includes('ghost') || rLower.includes('spectre') || rLower.includes('wraith')) raceArchetype = 'undead';
+                // Determine Hero Race & Physical Size Bracket
+                const pRace = (entityOrMonster && entityOrMonster.race) ? entityOrMonster.race.toLowerCase() : ((player && player.race) ? player.race.toLowerCase() : '');
+                let sizeBracket = (entityOrMonster && entityOrMonster.size) ? entityOrMonster.size.toLowerCase() : ((player && player.size) ? player.size.toLowerCase() : 'medium');
+                if (sizeBracket !== 'massive' && sizeBracket !== 'stout' && sizeBracket !== 'small' && sizeBracket !== 'tall') {
+                    if (pRace.includes('giant') || pRace.includes('titan') || pRace.includes('troll') || pRace.includes('ogre') || pRace.includes('golem')) {
+                        sizeBracket = 'massive';
+                    } else if (pRace.includes('dwarf')) {
+                        sizeBracket = 'stout';
+                    } else if (pRace.includes('hobbit') || pRace.includes('halfling') || pRace.includes('gnome') || pRace.includes('kobold') || pRace.includes('yeek')) {
+                        sizeBracket = 'small';
+                    } else if (pRace.includes('high-elf') || pRace.includes('elf') || pRace.includes('dunadan') || pRace.includes('dunedain')) {
+                        sizeBracket = 'tall';
+                    }
+                }
 
-            // 3. AGE & MARTIAL ARCHETYPE DETECTION
-            const nLower = name.toLowerCase();
-            ageArchetype = 'adult';
-            if (/\b(ancient|elder|venerable|sage|archivist|scholar|old|crone|patriarch|matriarch|hermit|grey|white)\b/i.test(nLower) || (player && player.lev >= 35)) {
-                ageArchetype = 'elder';
-            } else if (/\b(veteran|soldier|commander|knight|captain|guard|warrior|mercenary|scarred)\b/i.test(nLower)) {
-                ageArchetype = 'veteran';
-            } else if (/\b(apprentice|youth|young|child|urchin|boy|girl|novice|thief|rogue|idiot|beggar)\b/i.test(nLower)) {
-                ageArchetype = 'youth';
-            }
+                // Deterministic hero casting bound to hero signature
+                const heroHash = this.hashString(instanceKey);
+                if (sizeBracket === 'massive') {
+                    geminiVoice = isF ? 'Kore' : (heroHash % 2 === 0 ? 'Charon' : 'Algenib');
+                    edgeVoice = isF ? 'en-AU-NatashaNeural' : 'en-US-RogerNeural';
+                    heroPitch = isF ? '-3Hz' : '-5Hz';
+                    heroRate = isF ? '-3%' : '-5%';
+                    heroDirectorNote = 'A towering, massive warrior with deep booming resonant bass and heavy powerful stride';
+                } else if (sizeBracket === 'stout') {
+                    geminiVoice = isF ? 'Sadaltager' : (heroHash % 2 === 0 ? 'Algenib' : 'Orus');
+                    edgeVoice = isF ? 'en-CA-ClaraNeural' : 'en-US-RogerNeural';
+                    heroPitch = isF ? '-1Hz' : '-3Hz';
+                    heroRate = '+0%';
+                    heroDirectorNote = 'A stout, broad dwarven warrior speaking with an earthy, gruff, resonant baritone';
+                } else if (sizeBracket === 'small') {
+                    geminiVoice = isF ? (heroHash % 2 === 0 ? 'Leda' : 'Aoede') : (heroHash % 2 === 0 ? 'Puck' : 'Zephyr');
+                    edgeVoice = isF ? 'en-GB-MaisieNeural' : 'en-IE-ConnorNeural';
+                    heroPitch = '+5Hz';
+                    heroRate = '+6%';
+                    heroDirectorNote = 'A diminutive, nimble adventurer speaking with a light, spirited, higher-pitched agile voice';
+                } else if (sizeBracket === 'tall') {
+                    geminiVoice = isF ? (heroHash % 2 === 0 ? 'Aoede' : 'Despina') : (heroHash % 2 === 0 ? 'Sulafat' : 'Zephyr');
+                    edgeVoice = isF ? 'en-GB-LibbyNeural' : 'en-GB-ThomasNeural';
+                    heroPitch = '+0Hz';
+                    heroRate = '+0%';
+                    heroDirectorNote = 'A tall, noble adventurer speaking with clear, melodious cadence and calm grace';
+                } else {
+                    geminiVoice = isF ? (heroHash % 2 === 0 ? 'Aoede' : 'Kore') : (pRace.includes('orc') ? 'Fenrir' : (heroHash % 2 === 0 ? 'Sulafat' : 'Orus'));
+                    edgeVoice = isF ? 'en-US-JennyNeural' : 'en-US-GuyNeural';
+                    heroPitch = '+0Hz';
+                    heroRate = '+0%';
+                    heroDirectorNote = 'A brave adventurer speaking with courage and steadfast resolve';
+                }
+                raceArchetype = sizeBracket;
+                ageArchetype = 'adult';
+            } else if (entityOrMonster) {
+                // 1. GENDER / SEX: 100% deterministic alignment from 3D model and creature detection
+                const name = (entityOrMonster.name || entityOrMonster.race || '');
+                gender = this.detectCreatureGender(name, entityOrMonster);
+                isF = (gender === 'female');
 
-            // 4. INSTANCE-TO-INSTANCE UNIQUE CASTING
-            if (entityOrMonster) {
+                // 2. RACE & CREATURE ARCHETYPE DETECTION
+                const rawRace = (entityOrMonster.race || entityOrMonster.name || (player ? player.race : ''));
+                const rLower = (rawRace || '').toLowerCase();
+                const nLower = (name || '').toLowerCase();
+
+                if (rLower.includes('giant') || rLower.includes('titan') || rLower.includes('ogre') || rLower.includes('troll')) {
+                    raceArchetype = 'giant';
+                } else if (rLower.includes('dragon') || rLower.includes('drake') || rLower.includes('wyrm')) {
+                    raceArchetype = 'dragon';
+                } else if (rLower.includes('undead') || rLower.includes('lich') || rLower.includes('ghost') || rLower.includes('spectre') || rLower.includes('wraith') || rLower.includes('vampire')) {
+                    raceArchetype = 'undead';
+                } else if (rLower.includes('orc') || rLower.includes('goblin') || rLower.includes('snaga') || rLower.includes('uruk')) {
+                    raceArchetype = 'orc';
+                } else if (rLower.includes('hound') || rLower.includes('wolf') || rLower.includes('dog') || rLower.includes('beast') || rLower.includes('rat')) {
+                    raceArchetype = 'beast';
+                } else if (rLower.includes('elf') || rLower.includes('eldar')) {
+                    raceArchetype = 'elf';
+                } else if (rLower.includes('dwarf')) {
+                    raceArchetype = 'dwarf';
+                } else if (rLower.includes('hobbit') || rLower.includes('halfling') || rLower.includes('gnome') || rLower.includes('kobold')) {
+                    raceArchetype = 'hobbit';
+                } else if (nLower.includes('mage') || nLower.includes('wizard') || nLower.includes('sorcerer') || nLower.includes('priest') || nLower.includes('cleric') || nLower.includes('cultist') || nLower.includes('witch') || nLower.includes('warlock') || nLower.includes('druid') || nLower.includes('shaman') || nLower.includes('seer')) {
+                    raceArchetype = 'spellcaster';
+                } else if (nLower.includes('thief') || nLower.includes('rogue') || nLower.includes('assassin') || nLower.includes('bandit') || nLower.includes('brigand') || nLower.includes('cutpurse')) {
+                    raceArchetype = 'rogue';
+                } else {
+                    raceArchetype = 'mortal';
+                }
+
+                // 3. AGE & MARTIAL ARCHETYPE DETECTION
+                ageArchetype = 'adult';
+                if (/\b(ancient|elder|venerable|sage|archivist|scholar|old|crone|patriarch|matriarch|hermit|grey|white)\b/i.test(nLower) || (player && player.lev >= 35)) {
+                    ageArchetype = 'elder';
+                } else if (/\b(veteran|soldier|commander|knight|captain|guard|warrior|mercenary|scarred)\b/i.test(nLower)) {
+                    ageArchetype = 'veteran';
+                } else if (/\b(apprentice|youth|young|child|urchin|boy|girl|novice|thief|rogue|idiot|beggar)\b/i.test(nLower)) {
+                    ageArchetype = 'youth';
+                }
+
+                // 4. INSTANCE-TO-INSTANCE UNIQUE CASTING
                 const hash = this.hashString(instanceKey);
                 const pools = this.BEST_VOICE_POOLS;
                 let pool = null;
@@ -373,17 +497,13 @@ class ChronicleGrounder {
                 edgeVoice = pool.edge[hash % pool.edge.length];
                 geminiVoice = pool.gemini[hash % pool.gemini.length];
             } else {
-                // Master Chronicler / Narrator attunement based on literary tradition
-                if (traditionKey === 'noldor') {
-                    edgeVoice = 'en-GB-LibbyNeural';
-                    geminiVoice = 'Aoede';
-                } else if (traditionKey === 'khazad') {
-                    edgeVoice = 'en-US-RogerNeural';
-                    geminiVoice = 'Algenib';
-                } else {
-                    edgeVoice = 'en-GB-RyanNeural';
-                    geminiVoice = 'Sulafat';
-                }
+                // Master Chronicler / Narrator attunement: Expressive slightly British older storyteller
+                edgeVoice = 'en-GB-RyanNeural';   // Dramatic theatrical British bard / older English storyteller
+                geminiVoice = 'Enceladus';        // Expressive, breathy older British storyteller (RESTORED)
+                gender = 'male';
+                isF = false;
+                raceArchetype = 'chronicler';
+                ageArchetype = 'elder';
             }
 
             this.instanceVoiceRegistry.set(instanceKey, {
@@ -392,7 +512,10 @@ class ChronicleGrounder {
                 gender,
                 isFemale: isF,
                 race: raceArchetype,
-                ageArchetype
+                ageArchetype,
+                heroPitch,
+                heroRate,
+                heroDirectorNote
             });
         }
 
@@ -407,45 +530,126 @@ class ChronicleGrounder {
         let emotion = 'calm';
         let geminiTag = '';
         let directorNote = '';
-        let pitch = '+0Hz';
-        let rate = '+0%';
+        let pitch = heroPitch || '+0Hz';
+        let rate = heroRate || '+0%';
 
-        if (isPeril) {
-            emotion = 'panicked';
-            geminiTag = '[panicked, trembling]';
-            directorNote = 'Desperate mortal panic, breathless and fighting for survival';
-            pitch = '+3Hz';
-            rate = '+8%';
-        } else if (isBoss) {
-            emotion = 'serious';
-            geminiTag = '[grimly, with grave dread]';
-            directorNote = 'An epic confrontation with an ancient terror of the First Age';
-            pitch = '-2Hz';
-            rate = '-4%';
-        } else if (isBleedingOrStun) {
-            emotion = 'strained';
-            geminiTag = '[groaning in pain]';
-            directorNote = 'Grievously wounded, voice trembling with pain';
-            pitch = '+2Hz';
-            rate = '+4%';
-        } else if (isStealth) {
-            emotion = 'whispering';
-            geminiTag = '[whispers]';
-            directorNote = 'Hushed stealth in complete darkness, avoiding waking patrolling monsters';
-            pitch = '-1Hz';
-            rate = '-7%';
-        } else if (isTown) {
-            emotion = 'cheerful';
-            geminiTag = '[warmly, with hearty camaraderie]';
-            directorNote = 'A warm fireside tavern keeper or friendly townsman';
-            pitch = '+1Hz';
-            rate = '+3%';
+        if (!entityOrMonster && !isHero) {
+            // Master Narrator is ALWAYS an expressive, slightly British older fireside storyteller,
+            // dynamically responding to situational context (peril, stealth, town, boss)
+            geminiVoice = 'Enceladus';
+            edgeVoice = 'en-GB-RyanNeural';
+
+            if (isPeril) {
+                emotion = 'panicked';
+                geminiTag = '[panicked, expressive slightly British older storyteller]';
+                directorNote = 'An expressive, slightly British older fireside storyteller, voice tense and breathless as mortal peril tightens in the dark';
+                pitch = '+3Hz';
+                rate = '+8%';
+            } else if (isBoss) {
+                emotion = 'serious';
+                geminiTag = '[grimly, with grave dread, expressive slightly British older storyteller]';
+                directorNote = 'An expressive, slightly British older fireside storyteller recounting with solemn dread an ancient terror of the First Age';
+                pitch = '-2Hz';
+                rate = '-4%';
+            } else if (isBleedingOrStun) {
+                emotion = 'strained';
+                geminiTag = '[strained with sorrow, expressive slightly British older storyteller]';
+                directorNote = 'An expressive, slightly British older fireside storyteller recounting grievous wounds with elder sympathy and somber weight';
+                pitch = '+2Hz';
+                rate = '+4%';
+            } else if (isStealth) {
+                emotion = 'whispering';
+                geminiTag = '[whispers, expressive slightly British older storyteller]';
+                directorNote = 'An expressive, slightly British older fireside storyteller whispering softly in the dark shadows of the vaults';
+                pitch = '-1Hz';
+                rate = '-7%';
+            } else if (isTown) {
+                emotion = 'cheerful';
+                geminiTag = '[warmly, with hearty camaraderie, expressive slightly British older storyteller]';
+                directorNote = 'An expressive, slightly British older fireside storyteller with warmth and subtle dry wit recounting the bustling settlement';
+                pitch = '+1Hz';
+                rate = '+3%';
+            } else {
+                emotion = 'calm';
+                pitch = '+0Hz';
+                rate = '+0%';
+                if (traditionKey === 'noldor') {
+                    geminiTag = '[expressive, slightly British older storyteller, poetic and noble]';
+                    directorNote = 'An expressive, slightly British older fireside storyteller reciting ancient high Elven verse with sorrowful elder gravitas';
+                } else if (traditionKey === 'khazad') {
+                    geminiTag = '[expressive, slightly British older storyteller, stern stonecraft gravitas]';
+                    directorNote = 'An expressive, slightly British older fireside storyteller chronicling deep Dwarven stone-annals with stern gravitas and subtle dry wit';
+                } else {
+                    geminiTag = '[expressive, slightly British older storyteller, warm fireside cadence]';
+                    directorNote = 'An expressive, slightly British older fireside storyteller with warmth, subtle dry wit, and deep elder gravitas recounting an ancient epic legend';
+                }
+            }
+        } else if (isHero) {
+            // Hero Voice Dynamic Situation Modifiers
+            directorNote = heroDirectorNote || 'A brave adventurer speaking with courage and steadfast resolve';
+            if (isPeril) {
+                emotion = 'panicked';
+                geminiTag = '[panicked, gasping for breath]';
+                directorNote = `${directorNote}, desperately fighting for survival`;
+                const baseP = parseInt(heroPitch, 10) || 0;
+                pitch = (baseP >= 0 ? `+${baseP + 3}` : `${baseP + 3}`) + 'Hz';
+                rate = '+8%';
+            } else if (isBleedingOrStun) {
+                emotion = 'strained';
+                geminiTag = '[groaning in pain]';
+                directorNote = `${directorNote}, heavily wounded and straining against injury`;
+                const baseP = parseInt(heroPitch, 10) || 0;
+                pitch = (baseP >= 0 ? `+${baseP + 2}` : `${baseP + 2}`) + 'Hz';
+                rate = '+4%';
+            } else if (isStealth) {
+                emotion = 'whispering';
+                geminiTag = '[whispers]';
+                directorNote = `${directorNote}, whispering softly in the dark shadows`;
+                const baseP = parseInt(heroPitch, 10) || 0;
+                pitch = (baseP >= 0 ? `+${baseP - 1}` : `${baseP - 1}`) + 'Hz';
+                rate = '-6%';
+            } else {
+                geminiTag = '[resolute, heroic]';
+            }
         } else {
-            emotion = 'calm';
-            geminiTag = '[atmospheric]';
-            directorNote = 'A seasoned Tolkien chronicler narrating the journey with gravitas';
-            pitch = '+0Hz';
-            rate = '+0%';
+            // Creature & NPC Dynamic Emotion
+            if (isPeril) {
+                emotion = 'panicked';
+                geminiTag = '[panicked, trembling]';
+                directorNote = 'Desperate mortal panic, breathless and fighting for survival';
+                pitch = '+3Hz';
+                rate = '+8%';
+            } else if (isBoss) {
+                emotion = 'serious';
+                geminiTag = '[grimly, with grave dread]';
+                directorNote = 'An epic confrontation with an ancient terror of the First Age';
+                pitch = '-3Hz';
+                rate = '-4%';
+            } else if (isBleedingOrStun) {
+                emotion = 'strained';
+                geminiTag = '[groaning in pain]';
+                directorNote = 'Grievously wounded, voice trembling with pain';
+                pitch = '+2Hz';
+                rate = '+4%';
+            } else if (isStealth) {
+                emotion = 'whispering';
+                geminiTag = '[whispers]';
+                directorNote = 'Hushed stealth in complete darkness, avoiding waking patrolling monsters';
+                pitch = '-1Hz';
+                rate = '-7%';
+            } else if (isTown) {
+                emotion = 'cheerful';
+                geminiTag = '[warmly, with hearty camaraderie]';
+                directorNote = 'A warm fireside tavern keeper or friendly townsman';
+                pitch = '+1Hz';
+                rate = '+3%';
+            } else {
+                emotion = 'calm';
+                geminiTag = '[in character]';
+                directorNote = 'Speaking in character with authentic creature presence';
+                pitch = '+0Hz';
+                rate = '+0%';
+            }
         }
 
         return {
@@ -1894,6 +2098,214 @@ class ChronicleGrounder {
     }
 
     /**
+     * Extracts and summarizes the character's backstory for new instance intros.
+     * Weaves Angband's generated player.history or synthesizes rich race/class heritage.
+     */
+    static formatBackstorySummary(player) {
+        if (!player) return 'a wanderer seeking fortune in the iron shadows';
+
+        // 1. If engine provided real player.history string (from birth), distill it cleanly
+        if (player.history && typeof player.history === 'string' && player.history.trim().length > 0) {
+            let hist = player.history.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+            // In Angband, history typically reads: "You are the eldest son of a small land owner. You have blue eyes, straight dark brown hair, and an average complexion."
+            const match = hist.match(/You are (?:the )?([^.]+?)(?:\.|$)/i);
+            if (match && match[1]) {
+                const lineage = match[1].trim();
+                const physMatch = hist.match(/You have ([^.]+?)(?:\.|$)/i);
+                if (physMatch && physMatch[1]) {
+                    return `born ${lineage}, marked by ${physMatch[1].trim()}`;
+                }
+                return `born ${lineage}`;
+            }
+            if (hist.length > 120) {
+                hist = hist.substring(0, 117) + '...';
+            }
+            return hist;
+        }
+
+        // 2. Synthesize race and class heritage lore
+        const race = (player.race || 'Human').toLowerCase();
+        const pClass = (player.class || 'Warrior').toLowerCase();
+
+        let raceHeritage = 'bearing the enduring blood of mortals';
+        if (race.includes('dwarf')) {
+            raceHeritage = 'born to the stone-hewn halls of the mountain delvers, sworn to the ancient oaths of Durin';
+        } else if (race.includes('high-elf') || race.includes('high elf')) {
+            raceHeritage = 'scion of the Firstborn, carrying the starlit sorrow of Gondolin into this mortal age';
+        } else if (race.includes('elf')) {
+            raceHeritage = 'child of the ancient woodland eaves, attuned to the whisper of rustling leaves and keen starlight';
+        } else if (race.includes('hobbit')) {
+            raceHeritage = 'hailing from the quiet, bountiful burrows of the Shire, leaving cozy hearth and tea behind for high peril';
+        } else if (race.includes('gnome')) {
+            raceHeritage = 'born of the secret earthen burrows and ingenious craft-smiths, gifted with clever eyes and swift wit';
+        } else if (race.includes('dunadan') || race.includes('dúnadan')) {
+            raceHeritage = 'scion of the ancient kings of Westernesse, bearing the noble blood and long shadow of the sea-kings';
+        } else if (race.includes('half-orc') || race.includes('half orc')) {
+            raceHeritage = 'cast out from the blood-stained mountain tribes, determined to carve out honor and destiny through cold iron';
+        } else if (race.includes('half-troll') || race.includes('half troll')) {
+            raceHeritage = 'endowed with the massive sinew and fearsome endurance of stone-carved stock, unyielding under pain';
+        } else if (race.includes('kobold')) {
+            raceHeritage = 'nurtured in the suffocating damp of dark caverns, sharp-eyed and venom-wary';
+        }
+
+        let classTraining = 'disciplined in the art of the blade';
+        if (pClass.includes('mage')) {
+            classTraining = 'steeped in ancient cantrips and the lost lore of the unseen';
+        } else if (pClass.includes('priest')) {
+            classTraining = 'anointed with holy prayers and prayers of steadfast light';
+        } else if (pClass.includes('rogue')) {
+            classTraining = 'blessed with silent tread, deft fingers, and a ruthless eye for unseen shadows';
+        } else if (pClass.includes('ranger')) {
+            classTraining = 'hardened by bitter nights on the track of fell beasts across the untamed wilderness';
+        } else if (pClass.includes('paladin')) {
+            classTraining = 'bound by solemn oath to smite the shadow and shield the innocent';
+        } else if (pClass.includes('warrior')) {
+            classTraining = 'hardened through grueling drill in sword-work, heavy armor, and shield defence';
+        }
+
+        return `${raceHeritage}, ${classTraining}`;
+    }
+
+    /**
+     * Resolves diegetic shopkeeper personality, voice, and tactical gameplay advice for items.
+     * Keeps spoken dialogue barks punchy (<25 words) for minimal neural TTS latency.
+     */
+    static resolveShopkeeperItemHint(rawItem, storeName = 'General Store') {
+        const item = (rawItem || '').toLowerCase();
+        const store = (storeName || '').toLowerCase();
+
+        // 1. Resolve Shopkeeper Identity & Voice Profile
+        let keeper = {
+            name: 'Bilbo the Merchant',
+            race: 'hobbit',
+            class: 'merchant',
+            voice: 'en-US-RogerNeural',
+            geminiVoice: 'Enceladus',
+            directorNote: 'A warm, grandfatherly shopkeeper sharing seasoned adventuring wisdom'
+        };
+
+        if (store.includes('alchem')) {
+            keeper = {
+                name: 'Maulin the Alchemist',
+                race: 'gnome',
+                class: 'alchemist',
+                voice: 'en-US-GuyNeural',
+                geminiVoice: 'Puck',
+                directorNote: 'An eccentric, precise gnome herbalist explaining medicinal concoctions'
+            };
+        } else if (store.includes('temple')) {
+            keeper = {
+                name: 'Father Kael',
+                race: 'human',
+                class: 'priest',
+                voice: 'en-GB-RyanNeural',
+                geminiVoice: 'Charon',
+                directorNote: 'A solemn, devout priest giving sacred counsel'
+            };
+        } else if (store.includes('armour') || store.includes('armory')) {
+            keeper = {
+                name: 'Elephar the Armorer',
+                race: 'dwarf',
+                class: 'armorer',
+                voice: 'en-US-RogerNeural',
+                geminiVoice: 'Algenib',
+                directorNote: 'A burly dwarven armorer appraising protective gear'
+            };
+        } else if (store.includes('weapon')) {
+            keeper = {
+                name: 'Thurg the Bladesmith',
+                race: 'dwarf',
+                class: 'weaponsmith',
+                voice: 'en-US-RogerNeural',
+                geminiVoice: 'Algenib',
+                directorNote: 'A gruff weapon-master giving practical martial advice'
+            };
+        } else if (store.includes('magic')) {
+            keeper = {
+                name: 'Eldred the Wizard',
+                race: 'human',
+                class: 'wizard',
+                voice: 'en-GB-ThomasNeural',
+                geminiVoice: 'Orus',
+                directorNote: 'An austere, scholarly wizard advising on arcane scrolls and rods'
+            };
+        } else if (store.includes('black market')) {
+            keeper = {
+                name: 'Lotho the Shady Fence',
+                race: 'hobbit',
+                class: 'rogue',
+                voice: 'en-US-EricNeural',
+                geminiVoice: 'Zephyr',
+                directorNote: 'A whispering, opportunistic street fence giving clandestine advice'
+            };
+        }
+
+        let dialogue = `"May that purchase serve you well beneath the earth. Keep your wits sharp and your back to the wall, adventurer."`;
+        let insight = `Carefully inspect newly acquired equipment. Gold spent in town prepares you for the depths.`;
+
+        if (item.includes('torch')) {
+            dialogue = `"Mind the dark, traveller! A torch illuminates one pace around you for four thousand turns. Never let it gutter out when orcs prowl near!"`;
+            insight = `Wooden Torches cast light in a 1-tile radius. Carry 2–3 spares so you are never left in magical darkness.`;
+        } else if (item.includes('lantern')) {
+            dialogue = `"A fine brass lantern! It casts light two paces out—double the reach of torches. Remember to refill it with oil flasks using 'F'!"`;
+            insight = `Brass Lanterns illuminate a 2-tile radius. Refill using 'F' with flasks of oil before the light expires.`;
+        } else if (item.includes('oil') || item.includes('flask')) {
+            dialogue = `"Good fuel for your lantern! In desperate straits, you can also fling an open flask across the hallway to scorch pursuing vermin!"`;
+            insight = `Flasks of oil refill lanterns ('F') or can be thrown at enemies as improvised incendiaries.`;
+        } else if (item.includes('food') || item.includes('ration') || item.includes('bread') || item.includes('meat')) {
+            dialogue = `"Never venture below hungry! Starvation halts natural healing and slows your limbs. Eat with 'E' the moment hunger gnaws at your belly."`;
+            insight = `Food rations maintain your nourishment. Starvation severely impairs health regeneration and movement speed.`;
+        } else if (item.includes('spike')) {
+            dialogue = `"A rogue's secret: strike 'j' to jam an iron spike beneath a closed door. It locks pursuing trolls out while you rest to recover mana!"`;
+            insight = `Press 'j' to jam closed doors with iron spikes, creating secured resting rooms to heal safely.`;
+        } else if (item.includes('shovel') || item.includes('pick') || item.includes('mattock') || item.includes('digger')) {
+            dialogue = `"Veins of quartz and magma glitter with gold! Dig into walls to extract treasures, or carve a narrow one-tile bottleneck against hordes!"`;
+            insight = `Picks and shovels excavate mineral veins for gold and carve 1-tile choke points in dungeon corridors.`;
+        } else if (item.includes('cure serious') || item.includes('cure critical') || item.includes('cure mortal')) {
+            dialogue = `"Drink with 'q' when iron bites deep! Serious and Critical draughts heal wounds, and immediately cure blindness and confusion!"`;
+            insight = `Potions of Cure Serious/Critical Wounds restore HP and instantly cure blindness and confusion.`;
+        } else if (item.includes('cure light')) {
+            dialogue = `"A modest tonic for cuts and scrapes. Quaff with 'q' to patch minor wounds, though stronger draughts are needed for deep trauma."`;
+            insight = `Cure Light Wounds patches minor cuts and bleeding. Upgrade to Serious or Critical draughts for status healing.`;
+        } else if (item.includes('restore') || item.includes('restoration') || item.includes('life')) {
+            dialogue = `"Wights and wraiths will drain your vital experience and wither your attributes. Keep a restoration flask ready so you fight with full strength!"`;
+            insight = `Potions of Restoration restore drained statistics (STR/INT/WIS/DEX/CON/CHR) and life levels drained by undead.`;
+        } else if (item.includes('speed')) {
+            dialogue = `"Liquid lightning! Gulping this grants +10 haste—you move twice for every breath your foes take. Save it for Unique horrors!"`;
+            insight = `Potions of Speed grant +10 temporary speed, doubling your actions per enemy turn. Crucial for boss encounters.`;
+        } else if (item.includes('heroism') || item.includes('berserk')) {
+            dialogue = `"A true warrior's draught! It steels your mind against terror, grants bonus lifeblood, and sharpens your weapon accuracy!"`;
+            insight = `Heroism and Berserk potions grant fear immunity, bonus temporary HP, and boost melee hit chance.`;
+        } else if (item.includes('phase door')) {
+            dialogue = `"A true lifesaver! Reading this with 'r' blinks you ten paces away. Read it when cornered to break line-of-sight and heal behind pillars!"`;
+            insight = `Scrolls of Phase Door teleport you 10 tiles away instantly, breaking enemy melee surround and breath trajectories.`;
+        } else if (item.includes('teleport')) {
+            dialogue = `"Flings you across the entire dungeon floor! When ancient dragons or demon pits surround you, don't gamble—read it and vanish!"`;
+            insight = `Scrolls of Teleportation jump you across the dungeon level, escaping otherwise fatal ambushes.`;
+        } else if (item.includes('recall')) {
+            dialogue = `"Mind an elder's warning: Word of Recall takes fifteen to twenty turns to activate! Do not wait until you are near death—read it early!"`;
+            insight = `Scroll of Word of Recall has a delayed activation (15–25 turns). Read it early when facing perilous vaults!`;
+        } else if (item.includes('identify')) {
+            dialogue = `"Never wield an unknown relic in the dark—some harbor foul curses! Read runes of identify with 'r' to reveal hidden slays and enchants."`;
+            insight = `Scrolls of Identify reveal ego slays, stat bonuses, and curses on unidentified equipment.`;
+        } else if (item.includes('dagger') || item.includes('sword') || item.includes('blade') || item.includes('rapier') || item.includes('scimitar')) {
+            dialogue = `"A sharp blade! Keep it dry and clean. High dexterity lets you strike multiple blows per turn with agile weapons."`;
+            insight = `High dexterity and strength increase the number of blows struck per turn with melee weapons.`;
+        } else if (item.includes('bow') || item.includes('arrow') || item.includes('sling') || item.includes('crossbow') || item.includes('bolt')) {
+            dialogue = `"Strike from a distance! Fire with 'f' to fell charging trolls and sleeping orcs before they ever close to melee range."`;
+            insight = `Press 'f' to fire missiles. Ranged combat eliminates dangerous enemies before they reach striking distance.`;
+        } else if (item.includes('boot') || item.includes('cloak') || item.includes('shield') || item.includes('helm') || item.includes('armor') || item.includes('armour') || item.includes('mail')) {
+            dialogue = `"Sturdy protection! Every point of armor class turns aside blades and claws. Just mind your pack weight to maintain full agility."`;
+            insight = `Armor Class reduces enemy hit chances. Watch your total inventory weight to avoid speed penalties.`;
+        } else if (item.includes('book') || item.includes('prayer') || item.includes('tome') || item.includes('grimoire')) {
+            dialogue = `"Study sacred incantations with care using 'm' or 'p'. Guard your mana pool—exhausting your spirit leaves you helpless in the dark."`;
+            insight = `Study spells ('m') and prayers ('p') from spellbooks in your pack. Rest ('R') to restore depleted mana.`;
+        }
+
+        return { keeper, dialogue, insight };
+    }
+
+    /**
      * Offline Procedural Lore Synthesizer:
      * Generates atmospheric, race-attuned, rule-based Tolkien prose without needing any cloud API or AI model.
      * Guarantees 0ms latency and 100% reliability everywhere.
@@ -1912,23 +2324,27 @@ class ChronicleGrounder {
         let insight = null;
 
         switch (event.type) {
-            case 'ONBOARDING_TOWN_ARRIVAL':
+            case 'ONBOARDING_TOWN_ARRIVAL': {
                 title = 'Arrival at the Frontier';
+                const backstory = ChronicleGrounder.formatBackstorySummary(player);
                 if (traditionKey === 'khazad') {
-                    prose = `Plant your boots firmly in the town mud, ${name}. Before you delve into the black roots of the mountain, visit the General Store (Building '1') to lay in lanterns and rations. A dwarf who forgets his provisions is an insult to the Seven Houses.`;
+                    prose = `${name} of the Seven Houses—${backstory}—stands upon the frontier above the Iron Hell. Before delving into the mountain roots, visit the General Store ('1') for torches and oil; an unprepared dwarf shames his ancestors.`;
                 } else if (traditionKey === 'noldor') {
-                    prose = `The frontier wind sighs over the ruined stones as ${name} stands upon the edge of the pit. Stock well your pack at the town stores with light and draughts before descending into the sorrowful shadows of Morgoth's realm.`;
+                    prose = `The bitter frontier wind sighs as ${name}—${backstory}—pauses upon the precipice of Angband. Before descending into the Enemy's shadows, hasten to the town stores ('1') to stock light and sustaining draughts.`;
                 } else {
-                    prose = `Welcome to the frontier, ${name}. The iron gates of Angband yawn below. Before taking the stairs down ('>'), step into the General Store ('1') and gather torches and food. Survival in the deep begins with preparation.`;
+                    prose = `Welcome to the frontier of Angband, ${name}. ${backstory}, you stand at the threshold of the abyss. Before taking the iron stairs down ('>'), visit the General Store ('1') for torches and oil; in the dark below, forethought is your truest shield.`;
                 }
                 insight = "Press '1' to enter the General Store. Purchase torches ('p') and rations before descending.";
                 break;
+            }
 
-            case 'ONBOARDING_FIRST_DESCENT':
+            case 'ONBOARDING_FIRST_DESCENT': {
                 title = 'Crossing the Threshold';
-                prose = `The iron stairs groaning behind, ${name} descends to fifty feet. The darkness presses close against the flickering torchlight, smelling of damp dust and ancient malice.`;
+                const backstory = ChronicleGrounder.formatBackstorySummary(player);
+                prose = `The iron stairs groan behind as ${name}—${backstory}—crosses the threshold into fifty feet. Ancient subterranean shadows press close against the flickering torchlight, reeking of damp stone, sulfur, and watchful eyes.`;
                 insight = "The Golden Rule: Never fight in the center of rooms. Step back into narrow 1-tile doorways!";
                 break;
+            }
 
             case 'TAVERN_RESPITE':
                 title = 'The Tavern Hearth';
@@ -2113,6 +2529,121 @@ class ChronicleGrounder {
                 break;
             }
 
+            case 'COMBAT_EXCHANGE': {
+                const exData = event.data || {};
+                const inAttacks = exData.incomingAttacks || [];
+                const hAttacks = exData.heroAttacks || [];
+                const kills = exData.kills || [];
+                const statuses = exData.playerStatuses || [];
+                const inTown = exData.inTown || (depth === 0);
+
+                title = kills.length > 0 ? (kills.length > 1 ? 'Flurry of Steel' : 'Decisive Strike') : (inTown ? 'Street Skirmish' : 'Clash in the Deep');
+
+                // 1. Status Clause (e.g. confused, poisoned, blind, stunned, terrified, bleeding)
+                let statusPrefix = '';
+                if (statuses.length > 0) {
+                    const st = statuses[0].toLowerCase();
+                    if (st.includes('confus')) statusPrefix = 'Reeling from dizzy confusion, ';
+                    else if (st.includes('poison') || st.includes('sick')) statusPrefix = 'With burning venom seeping into your veins, ';
+                    else if (st.includes('blind')) statusPrefix = 'Striking blind into the darkness, ';
+                    else if (st.includes('stun')) statusPrefix = 'Rattled by a staggering blow, ';
+                    else if (st.includes('paralyz')) statusPrefix = 'Straining against stiffening limbs, ';
+                    else if (st.includes('terrifi') || st.includes('panic')) statusPrefix = 'Fighting down cold panic, ';
+                    else if (st.includes('bleed')) statusPrefix = 'Bleeding from torn armor, ';
+                }
+
+                // 2. Incoming Attack Summary
+                let incomingText = '';
+                if (inAttacks.length === 1) {
+                    incomingText = `the ${inAttacks[0].monsterName} ${inAttacks[0].action} you`;
+                } else if (inAttacks.length > 1) {
+                    const sameMon = inAttacks.every(a => a.monsterName === inAttacks[0].monsterName);
+                    if (sameMon) {
+                        incomingText = `the ${inAttacks[0].monsterName} strikes with rapid twin blows`;
+                    } else {
+                        const mNames = [...new Set(inAttacks.map(a => a.monsterName))];
+                        incomingText = `${mNames.slice(0, 2).join(' and the ')} strike you in a coordinated rush`;
+                    }
+                }
+
+                // 3. Hero Attack & Kill Summary
+                let heroText = '';
+                if (kills.length > 0) {
+                    const killNames = kills.map(k => {
+                        const m = (typeof k === 'string' ? k : (k.monsterName || k.message || '')).match(/slain (?:the )?([A-Za-z0-9\-',\s]+?)(?:\.|$)/i);
+                        return m ? m[1].trim() : (typeof k === 'string' ? k : 'foe');
+                    });
+                    if (kills.length === 1) {
+                        heroText = `your ${weapon} cuts down the ${killNames[0]}`;
+                    } else {
+                        heroText = `your ${weapon} fells ${kills.length} assailants`;
+                    }
+                } else if (hAttacks.length > 0) {
+                    const ha = hAttacks[0];
+                    if (ha.missed) {
+                        heroText = `your counter-stroke with ${weapon} whistles wide`;
+                    } else {
+                        heroText = `you counter with ${weapon}, striking the ${ha.monsterName}`;
+                    }
+                }
+
+                // Assemble direct, brief 1-2 sentence narrative
+                if (incomingText && heroText) {
+                    if (statusPrefix) {
+                        prose = `${incomingText}. ${statusPrefix}${heroText}.`;
+                    } else {
+                        prose = `${incomingText.charAt(0).toUpperCase() + incomingText.slice(1)}, but ${heroText}.`;
+                    }
+                } else if (heroText) {
+                    prose = statusPrefix ? `${statusPrefix}${heroText}.` : `${heroText.charAt(0).toUpperCase() + heroText.slice(1)}.`;
+                } else if (incomingText) {
+                    prose = statusPrefix ? `${statusPrefix}${incomingText}.` : `${incomingText.charAt(0).toUpperCase() + incomingText.slice(1)}.`;
+                } else if (statusPrefix) {
+                    prose = `${statusPrefix}you fight to maintain your footing in the dark.`;
+                } else {
+                    prose = `Steel clashes and echoes through the corridors as battle is joined.`;
+                }
+
+                // Check for creature dialogue bark if sentient enemy involved
+                const vocalAttacker = inAttacks.find(a => {
+                    const profile = this.classifyCreature({ name: a.monsterName, glyph: a.glyph });
+                    return profile && profile.isVocal;
+                });
+                if (vocalAttacker) {
+                    const vProfile = this.classifyCreature({ name: vocalAttacker.monsterName, glyph: vocalAttacker.glyph });
+                    dialogue = {
+                        speaker: vocalAttacker.monsterName,
+                        text: (vProfile.assaultBark ? vProfile.assaultBark(vocalAttacker.action) : 'Die!').replace(/"/g, ''),
+                        isNoise: false,
+                        recommendedVoice: vProfile.recommendedVoice
+                    };
+                }
+                break;
+            }
+
+            case 'PLAYER_STATUS': {
+                const sType = (event.data && event.data.status) ? event.data.status.toLowerCase() : 'confused';
+                title = 'Sudden Affliction';
+                if (sType.includes('confus')) {
+                    prose = `Your vision twists and the dungeon walls spin wildly—you are confused!`;
+                } else if (sType.includes('poison') || sType.includes('sick')) {
+                    prose = `Foul burning venom surges through your veins—you are poisoned!`;
+                } else if (sType.includes('blind')) {
+                    prose = `Darkness crashes down upon your eyes—you are blinded!`;
+                } else if (sType.includes('stun')) {
+                    prose = `A jarring impact rings through your skull—you are heavily stunned!`;
+                } else if (sType.includes('paralyz')) {
+                    prose = `Your muscles seize like cold iron—you are paralyzed and cannot move!`;
+                } else if (sType.includes('terrifi') || sType.includes('panic')) {
+                    prose = `Cold mortal dread grips your heart—you are terrified!`;
+                } else if (sType.includes('bleed')) {
+                    prose = `Blood seeps through your armor—you are bleeding profusely!`;
+                } else {
+                    prose = `A sudden affliction chills your blood, testing your resolve in the dark.`;
+                }
+                break;
+            }
+
             case 'HERO_ATTACK': {
                 const targetMon = (event.data && event.data.monsterName) ? event.data.monsterName : 'foe';
                 const act = (event.data && event.data.action) ? event.data.action : 'hits';
@@ -2125,29 +2656,26 @@ class ChronicleGrounder {
                     const isBeggar = targetMon.toLowerCase().includes('beggar');
                     if (isIdiot || isBeggar) {
                         const idiotHits = [
-                            `A sudden commotion shatters the quiet of the frontier street as ${name}'s ${weapon} strikes the hapless ${targetMon}! The wretch shrieks in bewilderment, clutching bruised limbs as onlookers stare in grim disbelief.`,
-                            `${name} lashes out, striking the defenseless ${targetMon} with ${weapon}! Dust billows from the ragged clothes as the pitiful creature stumbles backward into the mud with a pained whine.`,
-                            `Violence erupts without warning in the town square: ${name}'s blow catches the ${targetMon} squarely, sending the gibbering soul sprawling across the cobblestones!`,
-                            `With unsparing force, ${name} strikes the cowering ${targetMon}. Shouts of alarm echo from nearby shop doorways at the unprovoked assault.`
+                            `${name} strikes the hapless ${targetMon} with ${weapon}! The wretch shrieks in bewilderment, stumbling into the mud.`,
+                            `${name}'s blow catches the ${targetMon} squarely, sending the gibbering soul sprawling across the cobblestones!`,
+                            `With unsparing force, ${name} strikes the cowering ${targetMon}, raising cries of alarm in the street.`
                         ];
                         prose = idiotHits[turnSeed % idiotHits.length];
                     } else {
                         const townBrawls = [
-                            `Steel clangs against armor in the narrow frontier alley! ${name} strikes out with ${weapon}, driving the ${targetMon} back against the timber storefronts!`,
-                            `${name} engages the ${targetMon} in swift, close-quarters combat, landing a ringing blow upon the insolent ruffian!`,
-                            `A vicious skirmish breaks out in the town streets! ${name} swings ${weapon} with practiced precision, staggering the ${targetMon} upon the muddy cobbles.`,
-                            `Ducking beneath a clumsy riposte, ${name} lands a solid blow upon the ${targetMon}, making the town street feel as dangerous as any dungeon pit.`
+                            `Steel clangs in the alley! ${name} strikes out with ${weapon}, driving the ${targetMon} back against the timber storefronts.`,
+                            `${name} engages the ${targetMon} in swift combat, landing a ringing blow upon the ruffian!`,
+                            `Ducking beneath a clumsy riposte, ${name} lands a solid blow upon the ${targetMon} with ${weapon}.`
                         ];
                         prose = townBrawls[turnSeed % townBrawls.length];
                     }
                 } else {
                     const dungeonHits = [
-                        `With swift resolve at ${depthFt}, ${name} brings ${weapon} crashing into the ${targetMon}! Bone and sinew shudder beneath the impact as battle is joined in the subterranean gloom.`,
-                        `Ducking beneath a foul counter-strike, ${name} drives forward with ${weapon}, striking the ${targetMon} squarely! Dark ichor splatters across the ancient flagstones.`,
-                        `A decisive, punishing strike! ${name} lands a heavy blow upon the ${targetMon}, testing the monster's grim resolve in the vault's dim torchlight.`,
-                        `The ringing clash of ${weapon} reverberates through damp dungeon corridors as ${name} hammers into the ${targetMon} with deadly precision!`,
-                        `Pressing the offensive, ${name} cleaves through the creature's defenses, landing a searing wound that sends the ${targetMon} reeling backward into the shadows!`,
-                        `Quick as a striking viper, ${name} maneuvers past the ${targetMon}'s guard, driving ${weapon} deep with heroic fury!`
+                        `With swift resolve at ${depthFt}, ${name} drives ${weapon} into the ${targetMon}!`,
+                        `Ducking beneath a counter-strike, ${name} strikes the ${targetMon} squarely with ${weapon}.`,
+                        `A decisive, punishing blow! ${name} lands ${weapon} upon the ${targetMon} in the dim torchlight.`,
+                        `The ringing clash of ${weapon} echoes out as ${name} strikes into the ${targetMon} with deadly precision.`,
+                        `Pressing forward, ${name} cleaves through the creature's guard, landing a searing wound upon the ${targetMon}!`
                     ];
                     prose = dungeonHits[turnSeed % dungeonHits.length];
                 }
@@ -2283,6 +2811,31 @@ class ChronicleGrounder {
                 break;
             }
 
+            case 'STORE_PURCHASE': {
+                const item = (event.data && event.data.item) ? event.data.item : 'provisions';
+                const count = (event.data && event.data.count) ? event.data.count : 1;
+                const price = (event.data && event.data.price) ? event.data.price : 0;
+                const storeName = (event.data && event.data.storeName) ? event.data.storeName : 'Town Merchant';
+
+                const hintInfo = ChronicleGrounder.resolveShopkeeperItemHint(item, storeName);
+                title = `Acquisition: ${item}`;
+                const itemDisplay = count > 1 ? `${count} ${item}` : item;
+                prose = `Counting out ${price} gold upon the counter, ${name} purchases ${itemDisplay} at the ${storeName}. ${hintInfo.keeper.name} slides the goods forward with a knowing nod.`;
+                dialogue = {
+                    speaker: hintInfo.keeper.name,
+                    text: hintInfo.dialogue.replace(/"/g, ''),
+                    isNoise: false,
+                    recommendedVoice: hintInfo.keeper.voice,
+                    voiceProfile: {
+                        geminiVoice: hintInfo.keeper.geminiVoice,
+                        edgeVoice: hintInfo.keeper.voice,
+                        directorNote: hintInfo.keeper.directorNote
+                    }
+                };
+                insight = hintInfo.insight;
+                break;
+            }
+
             case 'LEVEL_FEELING': {
                 const fText = (event.data && event.data.feelingText) ? event.data.feelingText : 'a strange aura';
                 title = `Intuition in the Deep`;
@@ -2353,6 +2906,9 @@ class ChronicleGrounder {
         };
     }
 }
+
+ChronicleGrounder.FEMALE_3D_MODEL_KEYS = FEMALE_3D_MODEL_KEYS;
+ChronicleGrounder.MALE_3D_MODEL_KEYS = MALE_3D_MODEL_KEYS;
 
 if (typeof window !== 'undefined') {
     window.ChronicleGrounder = ChronicleGrounder;

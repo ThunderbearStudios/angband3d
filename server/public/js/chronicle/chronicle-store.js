@@ -6,8 +6,7 @@
 
 class ChronicleStore {
     static STORAGE_KEY = 'angband3d_active_chronicle';
-    static MAX_EXPANDED_CHAPTERS = 25; // Keep 25 recent chapters expanded, compress older into epochs
-    static MAX_STORED_ILLUSTRATIONS = 10; // Keep last 10 base64 thumbnails in localStorage
+    static MAX_EXPANDED_CHAPTERS = 25; // Keep 25 recent passages expanded, compress older into epochs
 
     static createNewChronicle(hero) {
         const name = (hero && hero.name) ? hero.name : 'Adventurer';
@@ -29,7 +28,10 @@ class ChronicleStore {
                 start_time: Date.now()
             }],
             current_protagonist_idx: 0,
-            rolling_summary: `${name}, a ${race} ${heroClass}, arrived in the frontier town above Angband to begin their descent.`,
+            rolling_summary: (() => {
+                const backstory = (typeof ChronicleGrounder !== 'undefined' && ChronicleGrounder.formatBackstorySummary) ? ChronicleGrounder.formatBackstorySummary(hero) : '';
+                return backstory ? `${name}, a ${race} ${heroClass} (${backstory}), arrived at the frontier town above Angband to begin their descent.` : `${name}, a ${race} ${heroClass}, arrived in the frontier town above Angband to begin their descent.`;
+            })(),
             isManuallyImported: false,
             chapters: [],
             epochs: [] // Compressed summaries of ancient chapters
@@ -59,15 +61,8 @@ class ChronicleStore {
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(chronicle));
             return true;
         } catch (err) {
-            console.warn('[ChronicleStore] Storage quota hit, pruning images:', err);
-            this.pruneIllustrations(chronicle, true);
-            try {
-                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(chronicle));
-                return true;
-            } catch (err2) {
-                console.error('[ChronicleStore] Persistent write failure:', err2);
-                return false;
-            }
+            console.error('[ChronicleStore] Storage quota hit / write failure:', err);
+            return false;
         }
     }
 
@@ -143,38 +138,21 @@ class ChronicleStore {
     static enforceStorageLimits(chronicle) {
         if (!chronicle || !chronicle.chapters) return;
 
-        // Prune older illustrations
-        this.pruneIllustrations(chronicle, false);
-
-        // Epoch Compression: If chapter count exceeds threshold, compress the oldest 15
+        // Epoch Compression: If passage count exceeds threshold, compress the oldest 15
         if (chronicle.chapters.length > this.MAX_EXPANDED_CHAPTERS) {
             const numToCompress = chronicle.chapters.length - 15;
             const oldestSlice = chronicle.chapters.splice(0, numToCompress);
             
-            const epochStart = oldestSlice[0].chapter_num;
-            const epochEnd = oldestSlice[oldestSlice.length - 1].chapter_num;
-            const combinedSummary = oldestSlice.map(c => `[Ch ${c.chapter_num}: ${c.title}] ${c.prose}`).join(' ');
+            const epochStart = oldestSlice[0].chapter_num || 1;
+            const epochEnd = oldestSlice[oldestSlice.length - 1].chapter_num || oldestSlice.length;
+            const combinedSummary = oldestSlice.map(c => c.prose).join(' ');
 
             chronicle.epochs = chronicle.epochs || [];
             chronicle.epochs.push({
-                chapters_range: `Chapters ${epochStart}–${epochEnd}`,
+                chapters_range: `Passages ${epochStart}–${epochEnd}`,
                 summary: combinedSummary.substring(0, 500) + '...',
                 timestamp: Date.now()
             });
-        }
-    }
-
-    static pruneIllustrations(chronicle, aggressive = false) {
-        if (!chronicle || !chronicle.chapters) return;
-        const maxKeep = aggressive ? 3 : this.MAX_STORED_ILLUSTRATIONS;
-        let kept = 0;
-        for (let i = chronicle.chapters.length - 1; i >= 0; i--) {
-            if (chronicle.chapters[i].illustration) {
-                kept++;
-                if (kept > maxKeep) {
-                    delete chronicle.chapters[i].illustration; // Remove base64 data
-                }
-            }
         }
     }
 
@@ -266,17 +244,19 @@ class ChronicleStore {
             md += `---\n\n`;
         }
 
-        for (const ch of chronicle.chapters) {
-            md += `## Chapter ${ch.chapter_num}: ${ch.title} (${ch.depth * 50}ft)\n\n`;
-            if (ch.illustration) {
-                md += `![Chapter ${ch.chapter_num} Illustration](${ch.illustration})\n\n`;
+        for (const entry of chronicle.chapters) {
+            const depthText = (entry.depth !== undefined && entry.depth !== null)
+                ? (entry.depth === 0 ? 'Town' : `${entry.depth * 50}ft`)
+                : null;
+            if (depthText) {
+                md += `*${depthText}*\n\n`;
             }
-            md += `${ch.prose}\n\n`;
-            if (ch.dialogue) {
-                md += `> **${ch.dialogue.speaker}**: *"${ch.dialogue.text}"*\n\n`;
+            md += `${entry.prose}\n\n`;
+            if (entry.dialogue) {
+                md += `> **${entry.dialogue.speaker}**: *"${entry.dialogue.text}"*\n\n`;
             }
-            if (ch.insight) {
-                md += `💡 *Lorekeeper's Insight*: ${ch.insight}\n\n`;
+            if (entry.insight) {
+                md += `💡 *Lorekeeper's Insight*: ${entry.insight}\n\n`;
             }
             md += `---\n\n`;
         }
