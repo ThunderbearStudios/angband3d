@@ -15,10 +15,19 @@
      - Clicking "▶" on any card or pressing transport controls highlights the exact card with `.narrating-active` and smoothly scrolls it into view.
      - Live gameplay speech automatically tracks and highlights the active card in real time.
      - Creature conversations in `submitUserQuery` now append as permanent, beautifully formatted story cards in `activeChronicle`.
-   - **Verification & Health**:
+   - **Verification, Cloud Run Deployment & Live Production Validation**:
      - 100% verified passing across all 30 automated test phases in `tools/test_chronicle.js`.
      - Engine smoke tests clean: `python tools/smoke_test.py` (11/11 tests passing).
      - Native client build clean: `dotnet build client/angband3d.csproj` (0 warnings, 0 errors).
+     - Re-exported upstream engine patch per rule 1: `engine-patch/0001-bridge-frontend.patch`.
+     - Built & containerized via Cloud Build (`d8726474-c1d6-437f-8aac-b737039c8b69`), pushing image `gcr.io/resonant-1679933304535/angband3d-cloud:latest`.
+     - Deployed live revision `angband3d-cloud-00092-gx4` (serving 100% traffic on `https://angband3d.com`).
+     - End-to-end verified online at `https://angband3d.com`:
+       - Root web application (HTTP 200, 80KB payload delivered).
+       - Cloud Run API Gateway (`/api/status`: status `online`, version `2.0.0`).
+       - Live Tome sync & audio highlighting (`chronicle-manager.js`: `data-p-index`, `chronicle-beat-`, `narrating-active`, `weaveLorekeeperCounsel`).
+       - Elevated Tolkien prose grounder (`chronicle-grounder.js`: `tavernOptions`, `iron cellar-doors`, `chill frontier wind`, `Ancient dwarven masonry`, `massive colonnades of dark basalt`, `COMBAT_EXCHANGE`, `HERO_ATTACK`).
+       - WebSocket bridge (`wss://angband3d.com/ws`: protocol handshake validated, active session created, Angband 4.2.6 engine bridge operational).
 
 1. **The Living Chronicle & Voiced Lorekeeper (Version 3.12.0 — Zero-Quality-Loss Performance Optimizations Across WebGL, Audio, Game Loop & Server Delivery)**:
    - **Static RegExp Compilation (`chronicle-filter.js`, `chronicle-grounder.js`)**:
