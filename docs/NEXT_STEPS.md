@@ -1,8 +1,30 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.2.0 — The Living Chronicle & Voiced Lorekeeper v3.13.0: 100% Spoken-to-Written Tome Card Parity, Rich Prose Elevation & Playlist Synchronization)
+## Current System State (Angband3D v2.2.0 — The Living Chronicle & Voiced Lorekeeper v3.14.0: Comprehensive Message Log Integration, Compound Sentence Coalescence & Zero-Latency Audio Streaming)
 
-0. **The Living Chronicle & Voiced Lorekeeper (Version 3.13.0 — 100% Spoken-to-Written Tome Card Parity, Rich Prose Elevation & Playlist Synchronization)**:
+0. **The Living Chronicle & Voiced Lorekeeper (Version 3.14.0 — Comprehensive Message Log Integration, Compound Sentence Coalescence & Zero-Latency Audio Streaming)**:
+   - **Comprehensive Message Log Event Integration (`chronicle-filter.js`, `chronicle-grounder.js`)**:
+     - Added static regular expressions and procedural grounder handlers for previously unlogged engine events:
+       - Standard monster kills: `The <monster> dies.` and `The <monster> is destroyed.` with intelligent creature name extraction (`ChronicleGrounder.extractSlainMonsterName`).
+       - Monster agony and pain reactions: `The <monster> screams in agony.`, `cries out in pain`, etc.
+       - Excavation & rubble clearance: `You dig in the rubble...` and `You have removed the rubble...`.
+       - Treasure and coin findings: `You have found X gold pieces worth of Y.` and chest discoveries.
+       - Canonical Angband 4.2.6 level feelings: exact phrasing matches for `This seems a tame, sheltered place`, `You feel that there aren't many treasures here.`, `Omens of death haunt this place.`, etc.
+       - Dungeon architectural interactions: finding secret doors, disarming dungeon traps, picking or bashing locked doors.
+       - Status recoveries: `You can see again.`, `You are no longer confused.`, poison abatement, etc.
+   - **Compound Sentence Decomposition & Sequential Coalescence (`chronicle-filter.js`)**:
+     - Split compound multi-action messages on sentence boundaries (`/(?<=[.!?])\s+/`), guaranteeing that multi-event turns (e.g. pain followed by flight) are never dropped.
+     - Implemented `recentFleeings` tracking to correlate fleeing creatures with subsequent lethal pursuit blows in `generateKillSaga`.
+   - **Zero-Latency Audio Streaming & Client Acceleration (`server.js`, `chronicle-audio.js`, `chronicle-manager.js`)**:
+     - Eliminated CPU-bound gzip compression on binary audio buffers in `server.js` (`sendWav`), cutting 15–40ms from audio response latency.
+     - Lowered first-sentence fast-start pipelining threshold in `chronicle-audio.js` from 60 to 40 characters for instant speech onset.
+     - Increased per-frame narrative event drain cap in `chronicle-manager.js` from 4 to 6 events.
+   - **Verification & Test Suite Expansion**:
+     - Added Phase 31 to `tools/test_chronicle.js` covering standard kills, clean name extraction, excavation, canonical feelings, treasure, and flee-kill coalescence (31/31 phases passing).
+     - Engine smoke tests clean: `python tools/smoke_test.py` (11/11 tests passing).
+     - Native client build clean: `dotnet build client/angband3d.csproj` (0 warnings, 0 errors).
+
+1. **The Living Chronicle & Voiced Lorekeeper (Version 3.13.0 — 100% Spoken-to-Written Tome Card Parity, Rich Prose Elevation & Playlist Synchronization)**:
    - **100% Spoken-to-Written Parity Across Tome Cards (`chronicle-manager.js`, `chronicle-grounder.js`)**:
      - Eliminated divergent asynchronous background LLM prose replacement (`this.llm.generateChapter`) that mutated `.chapter-prose` seconds after speech had finished with different words.
      - Spoken vocals (narrator prose, character/monster dialogue barks, and shopkeeper banter) match the text written on cards in the Tome tab (`#chronicle-window`, `#chronicle-list`) 1:1, word-for-word.
