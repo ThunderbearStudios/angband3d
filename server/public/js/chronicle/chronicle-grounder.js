@@ -2346,11 +2346,18 @@ class ChronicleGrounder {
                 break;
             }
 
-            case 'TAVERN_RESPITE':
+            case 'TAVERN_RESPITE': {
                 title = 'The Tavern Hearth';
-                prose = `The iron cellar-doors of the deep slam shut, and the biting mountain air fills ${name}'s lungs. Stumbling into the warmth of the town tavern with boots caked in deep-dust and a pack heavy with spoils, the murmur of the patrons falls into hushed reverence.`;
+                const turnSeed = Math.abs((player ? player.turn || 0 : 0) + (name ? name.length * 19 : 0));
+                const tavernOptions = [
+                    `The iron cellar-doors of the deep slam shut, and the biting mountain air fills ${name}'s lungs. Stumbling into the warmth of the town tavern with boots caked in deep-dust and a pack heavy with spoils, the murmur of the patrons falls into hushed reverence.`,
+                    `Ascending from the dark abyss into the bitter frontier breeze, ${name} pushes open the oak timber doors of the tavern. Battered armor and notched steel bear witness to the trials below, drawing respectful nods from seasoned mercenaries as peat smoke and golden firelight banish the subterranean cold.`,
+                    `Leaving the harrowing terrors of the deep pit behind, ${name} steps across the threshold of the frontier inn. Shaking the subterranean grime from cloak and gear, the warmth of the hearth and the aroma of roasted boar offer hard-earned solace to a weary soul.`
+                ];
+                prose = tavernOptions[turnSeed % tavernOptions.length];
                 insight = "Visit Alchemy Shop '5' to replenish Potions of Cure Critical Wounds and Restore Life Levels.";
                 break;
+            }
 
             case 'UNIQUE_SPOTTED':
                 const m = event.data ? event.data.monster : null;
@@ -2552,14 +2559,39 @@ class ChronicleGrounder {
                     else if (st.includes('bleed')) statusPrefix = 'Bleeding from torn armor, ';
                 }
 
+                const turnSeed = Math.abs((player ? player.turn || 0 : 0) + (depth * 31) + (kills.length * 7));
+
                 // 2. Incoming Attack Summary
                 let incomingText = '';
                 if (inAttacks.length === 1) {
-                    incomingText = `the ${inAttacks[0].monsterName} ${inAttacks[0].action} you`;
+                    const ia = inAttacks[0];
+                    const act = (ia.action || 'hits').toLowerCase();
+                    if (act.includes('bite')) {
+                        incomingText = `the ${ia.monsterName} lunges with bared fangs`;
+                    } else if (act.includes('claw')) {
+                        incomingText = `the ${ia.monsterName} rakes downward with savage claws`;
+                    } else if (act.includes('crush') || act.includes('bash')) {
+                        incomingText = `the ${ia.monsterName} brings down a crushing blow against your guard`;
+                    } else if (act.includes('slash')) {
+                        incomingText = `the ${ia.monsterName} slashes viciously at your flank`;
+                    } else if (act.includes('shoot')) {
+                        incomingText = `the ${ia.monsterName} looses a deadly projectile from the shadows`;
+                    } else if (act.includes('breath')) {
+                        incomingText = `the ${ia.monsterName} exhales a searing blast of ruin`;
+                    } else if (act.includes('cast')) {
+                        incomingText = `the ${ia.monsterName} lashes out with a crackling incantation`;
+                    } else {
+                        incomingText = `the ${ia.monsterName} ${ia.action} you`;
+                    }
                 } else if (inAttacks.length > 1) {
                     const sameMon = inAttacks.every(a => a.monsterName === inAttacks[0].monsterName);
                     if (sameMon) {
-                        incomingText = `the ${inAttacks[0].monsterName} strikes with rapid twin blows`;
+                        const twinPhrases = [
+                            `the ${inAttacks[0].monsterName} strikes with rapid twin blows`,
+                            `the ${inAttacks[0].monsterName} presses the assault with a relentless flurry of strikes`,
+                            `the ${inAttacks[0].monsterName} bears down with fierce consecutive blows`
+                        ];
+                        incomingText = (statuses.length > 0) ? twinPhrases[0] : twinPhrases[turnSeed % twinPhrases.length];
                     } else {
                         const mNames = [...new Set(inAttacks.map(a => a.monsterName))];
                         incomingText = `${mNames.slice(0, 2).join(' and the ')} strike you in a coordinated rush`;
@@ -2574,16 +2606,32 @@ class ChronicleGrounder {
                         return m ? m[1].trim() : (typeof k === 'string' ? k : 'foe');
                     });
                     if (kills.length === 1) {
-                        heroText = `your ${weapon} cuts down the ${killNames[0]}`;
+                        const singleKillPhrases = [
+                            `your ${weapon} cuts down the ${killNames[0]}`,
+                            `with grim resolve your ${weapon} fells the ${killNames[0]} upon the flagstones`,
+                            `your ${weapon} flashes in the torchlight, cleaving down the ${killNames[0]} in a decisive stroke`,
+                            `stepping inside its guard, your ${weapon} cuts down the ${killNames[0]}`
+                        ];
+                        heroText = singleKillPhrases[turnSeed % singleKillPhrases.length];
                     } else {
-                        heroText = `your ${weapon} fells ${kills.length} assailants`;
+                        const multiKillPhrases = [
+                            `your ${weapon} fells ${kills.length} assailants`,
+                            `whirling your ${weapon} in a deadly arc, you cut down ${kills.length} foes upon the bloody stones`,
+                            `your ${weapon} reaps a grim harvest, slaying ${kills.length} enemies in swift succession`
+                        ];
+                        heroText = multiKillPhrases[turnSeed % multiKillPhrases.length];
                     }
                 } else if (hAttacks.length > 0) {
                     const ha = hAttacks[0];
                     if (ha.missed) {
                         heroText = `your counter-stroke with ${weapon} whistles wide`;
                     } else {
-                        heroText = `you counter with ${weapon}, striking the ${ha.monsterName}`;
+                        const hitPhrases = [
+                            `you counter with ${weapon}, striking the ${ha.monsterName}`,
+                            `ducking low, you drive ${weapon} hard into the ${ha.monsterName}`,
+                            `your ${weapon} flashes in counter-attack, striking true against the ${ha.monsterName}`
+                        ];
+                        heroText = (statuses.length > 0) ? hitPhrases[0] : hitPhrases[turnSeed % hitPhrases.length];
                     }
                 }
 
@@ -2875,10 +2923,43 @@ class ChronicleGrounder {
                 break;
 
             case 'EXPLORATION_FLOW':
-            case 'EPISODE_SUMMARY':
+            case 'EPISODE_SUMMARY': {
                 title = 'Echoes in the Deep';
-                prose = `Treading cautiously past cracked pillars at ${depthFt}, ${name} scouts the perimeter of the damp vault, eyes searching the shadows for lurking ambushes and hidden treasures.`;
+                const turnSeed = Math.abs((player ? player.turn || 0 : 0) + (depth * 23) + (name ? name.length * 11 : 0));
+                if (depth === 0) {
+                    const townPassages = [
+                        `The chill frontier wind sweeps down from the mountains, whistling past weather-beaten timber storefronts as ${name} walks with a hand resting upon ${weapon}.`,
+                        `Peat smoke and the rich scent of roasting meats drift from tavern eaves into the cobblestone square, offering brief warmth before the looming abyss.`,
+                        `The rhythmic clanging of the armorer's anvil rings out across the town as ${name} patrols the settlement under a gray, watchful sky.`,
+                        `Passing through the quiet town lanes, ${name} gathers wits and readies supplies, casting a wary glance toward the dark cellar-grates leading into the pit.`
+                    ];
+                    prose = townPassages[turnSeed % townPassages.length];
+                } else if (depth <= 5) {
+                    const upperPassages = [
+                        `Treading cautiously past cracked pillars at ${depthFt}, ${name} scouts the perimeter of the damp vault, eyes searching the shadows for lurking ambushes and hidden treasures.`,
+                        `Torchlight flickers against rough-hewn granite walls at ${depthFt}, throwing long, dancing shadows across cracked flagstones and ancient goblin graffiti.`,
+                        `Water drips with hollow, echoing rhythm from unseen ceiling fissures at ${depthFt} as ${name} advances, testing every stone for treacherous pit-traps.`,
+                        `A chill subterranean draft carries the dry smell of dust and the faint musk of lurking beasts through the corridors at ${depthFt}.`
+                    ];
+                    prose = upperPassages[turnSeed % upperPassages.length];
+                } else if (depth <= 15) {
+                    const midPassages = [
+                        `Ancient dwarven masonry lines the subterranean corridors at ${depthFt}, its proud geometric runes long blackened by soot and chipped by crude orc-picks.`,
+                        `At ${depthFt}, massive colonnades of dark basalt rise into gloom, their vaulted arches swallowed by an oppressive darkness that torchlight barely pierces.`,
+                        `The air at ${depthFt} grows heavy with the metallic tang of subterranean iron; far in the distance, faint vibrations hum through the bedrock like restless machinery.`,
+                        `Navigating the labyrinthine stone vaults at ${depthFt}, ${name} keeps close to the wall, listening intently for the hiss of serpents or the scrape of steel.`
+                    ];
+                    prose = midPassages[turnSeed % midPassages.length];
+                } else {
+                    const deepPassages = [
+                        `The immense weight of the earth presses down at ${depthFt}; subterranean heat radiates from cracks in the basalt, smelling of brimstone and primeval malice.`,
+                        `In the suffocating gloom of ${depthFt}, every nerve screams vigilance—the deep pits of Angband breathe with ancient evil that chills the stoutest heart.`,
+                        `At ${depthFt}, shadows seem alive and predatory, coiling just beyond the flickering ring of light as ${name} treads deeper into the Enemy's dark domain.`
+                    ];
+                    prose = deepPassages[turnSeed % deepPassages.length];
+                }
                 break;
+            }
 
             case 'ARTIFACT_AWAKENING':
                 const artName = event.data ? event.data.artifactName : 'Ancient Relic';
@@ -2889,11 +2970,41 @@ class ChronicleGrounder {
                 break;
 
             case 'FLOOR_CHANGE':
-            default:
+            default: {
                 const d = event.data ? event.data.newDepth : 1;
-                title = `Descent to ${d * 50} Feet`;
-                prose = `Down the damp stone stairwell ${name} treads deeper into the black earth. The masonry grows older here, hewn by crude goblin picks and ancient slave-gangs of the Iron Hell.`;
+                const oldD = event.data && event.data.oldDepth !== undefined ? event.data.oldDepth : (depth || 0);
+                const isDescent = d > oldD;
+                title = isDescent ? `Descent to ${d * 50} Feet` : `Ascent to ${d === 0 ? 'the Surface' : `${d * 50} Feet`}`;
+                const turnSeed = Math.abs((player ? player.turn || 0 : 0) + (d * 19));
+
+                if (isDescent) {
+                    if (traditionKey === 'khazad') {
+                        const khazadDescent = [
+                            `Down the stone stairwell ${name} treads into ${d * 50} feet. The bedrock rings beneath stout boots—ancient granite hewn by crude goblin picks and ancient slave-gangs of the Iron Hell.`,
+                            `Descending into ${d * 50} feet of rock, ${name} appraises the ancient stone-strata; the mountain roots run deep here, bearing scars of primeval fires.`,
+                            `The iron-bound steps lead down into the deep halls of ${d * 50} feet. ${name} adjusts weapon and shield, ready to claim vengeance for fallen ancestors.`
+                        ];
+                        prose = khazadDescent[turnSeed % khazadDescent.length];
+                    } else if (traditionKey === 'noldor') {
+                        const noldorDescent = [
+                            `Down the damp stone stairwell ${name} treads deeper into the black earth at ${d * 50} feet. The masonry grows older here, hewn by crude goblin picks and ancient slave-gangs of the Iron Hell.`,
+                            `Stepping past the threshold onto the stair at ${d * 50} feet, the darkness thickens like black velvet as ${name} descends deeper into the Enemy's subterranean kingdom.`,
+                            `The memory of starlight fades behind as ${name} descends into ${d * 50} feet, hand firm upon the hilt of ${weapon} amidst the creeping gloom.`
+                        ];
+                        prose = noldorDescent[turnSeed % noldorDescent.length];
+                    } else {
+                        const westmarchDescent = [
+                            `Down the damp stone stairwell ${name} treads deeper into the black earth. The masonry grows older here at ${d * 50} feet, hewn by crude goblin picks and ancient slave-gangs of the Iron Hell.`,
+                            `The iron stairs groan behind as ${name} descends to ${d * 50} feet. The air chills noticeably, carrying the dry rattle of old bones and the metallic tang of subterranean iron.`,
+                            `Descending through broken vaults to ${d * 50} feet, the ancient stone gives way to primeval basalt, the immense weight of the earth humming in the silence.`
+                        ];
+                        prose = westmarchDescent[turnSeed % westmarchDescent.length];
+                    }
+                } else {
+                    prose = `Climbing the worn stone stairs toward ${d === 0 ? 'the surface' : `${d * 50} feet`}, ${name} feels the oppressive subterranean pressure ease, ascending toward lighter air.`;
+                }
                 break;
+            }
         }
 
         return {
