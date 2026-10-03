@@ -10,17 +10,24 @@ const RE_THEFT = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(steals|tries to steal)\b/
 const RE_BEG = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:begs you for money|asks you for money|begs for money)\b/i;
 const RE_INSULT = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:insults you|mocks you|jeers at you)\b/i;
 const RE_HERO_ATTACK = /^(?:You\s+)(hit|slash|crush|smite|strike|pierce|shoot|bash|missed|miss)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
+const RE_MON_PAIN = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:screams? in (?:agony|pain)|shrieks? in (?:agony|pain)|cr(?:ies|y) out in pain|howls? in (?:agony|pain)|writhes? in agony|grunts? with pain|flinches?|quivers? in pain|squelches?|hisses? in (?:pain|agony)|jerks? in (?:agony|pain)|twitches? in pain|yelps? in pain|squeals? in pain)(?:\.|\!|$)/i;
 const RE_FLEE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(flees in terror|runs away in panic|turns and runs|flees|panics)(?:\.|\!|$)/i;
 const RE_BIZARRE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(drools on you|vomits on your boots|vomits|giggles|babbles incoherently|babbles|cries out in despair|weeps|snarls|hisses|moans|howls)(?:\.|\!|$)/i;
 const RE_STATE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(wakes up|falls asleep|is confused|recovers|blinks|appears unaffected)(?:\.|\!|$)/i;
 const RE_RITUAL = /(?:You can learn (\d+) more (?:ritual|spell|prayer)s?|You feel your knowledge of (?:the arcane|rituals|prayers) expand)/i;
 const RE_SPELL_LEARNED = /(?:You have learned the|You master the|You study the)\s+(prayer|spell|ritual|rune|incantation|hymn)\s+of\s+([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
 const RE_LEVEL_UP = /(?:Welcome to level\s+(\d+)|You are now level\s+(\d+))/i;
-const RE_LEVEL_FEELING = /(?:You feel|There is|This seems)\s+(a sinister presence|like you are being watched|quiet and peaceful|a chill run down your spine|a sense of dread)/i;
+const RE_LEVEL_FEELING = /(?:Omens of death haunt this place|This place seems (?:murderous|terribly dangerous|reasonably safe)|This place does not seem too risky|This seems a (?:tame,?\s*sheltered place|quiet,?\s*peaceful place)|You are still uncertain about this place|You feel (?:anxious|nervous) about this place|Looks like any other level|You feel that (?:you sense|there are|there may|there is naught)|a sinister presence|like you are being watched|a chill run down your spine|a sense of dread)/i;
 const RE_STORE = /(?:Welcome to|You enter)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?(?:Store|Armoury|Armory|Weaponsmith|Weapon Smith|Magic Shop|Alchemist|Temple|Black Market|Guild))(?:\.|\!|$)/i;
 const RE_STORE_BUY = /^You bought\s+(?:(\d+)\s+)?(?:a\s+|an\s+|the\s+)?(.+?)\s+for\s+(\d+)\s+gold(?:\.|\!|$)/i;
 const RE_STATUS = /^(?:You\s+)(are\s+(?:confused|poisoned|blind|blinded|stunned|heavily stunned|knocked out|paralyzed|terrified|bleeding|mortally wounded)|feel\s+(?:confused|very sick|unreal|strange|sluggish|fast|your life draining away|very weak|clumsy)|cannot\s+(?:see|move)|panic)\b/i;
+const RE_STATUS_RECOVERY = /(?:You are no longer (?:confused|poisoned|blind|stunned|terrified)|You can see again|You feel your strength returning)/i;
 const RE_SLAIN = /You have slain (?:the )?([A-Za-z0-9\-',\s]+?)(?:\s*\([x0-9]+\))?\./i;
+const RE_MON_DIES = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:dies|is destroyed|crumbles into dust|dissolves|perishes)(?:\.|\!|$)/i;
+const RE_EXCAVATE = /(?:You have removed the rubble|You have cleared a path through the rubble|You have finished digging a tunnel|You tunnel into the (?:granite wall|magma vein|quartz vein)|You dig in the (?:rubble|granite wall|magma vein|quartz vein))/i;
+const RE_TREASURE = /(?:You have found|You find|You pick up)\s+(\d+)\s+gold pieces worth of\s+([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
+const RE_CHEST = /(?:You have found|You see)\s+(?:a\s+|an\s+)?([A-Za-z0-9\-',\s]+?chest)(?:\.|\!|$)/i;
+const RE_DUNGEON_FEATURE = /(?:You have found a (?:trap|secret door)|You have disarmed the trap|You pick the lock|The door is locked|You bash open the door|You kick open the door|You bash the door open|You kick the door open)/i;
 const RE_CLEAN_PARENS = /\s*\([^)]*\)/g;
 const RE_CLEAN_BRACKETS = /\s*\[[^\]]*\]/g;
 
@@ -85,6 +92,10 @@ class ChronicleFilter {
         this._lastBlind = false;
         this._lastStun = false;
         this._lastCut = false;
+        this._lastExcavationTime = 0;
+        this._lastTreasureTime = 0;
+        this._lastLevelFeelingTime = 0;
+        this._lastFeatureTime = 0;
         this.resetEpisodeAccumulator();
     }
 
@@ -183,17 +194,37 @@ class ChronicleFilter {
         const framePlayerStatuses = [];
         const slainMonsterNames = new Set();
 
-        for (const msg of newMsgs) {
-            // 1. Kills
-            if (msg.includes('You have slain') || msg.includes('destroyed')) {
+        // Expand compound Angband messages (e.g. "The small kobold screams in agony. The small kobold flees in terror!")
+        const expandedMsgs = [];
+        for (const rawMsg of newMsgs) {
+            if (rawMsg.includes('. ') || rawMsg.includes('! ')) {
+                const parts = rawMsg.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+                expandedMsgs.push(...parts);
+            } else {
+                expandedMsgs.push(rawMsg);
+            }
+        }
+
+        for (const msg of expandedMsgs) {
+            // 1. Kills & Slayings (Dies, destroyed, dissolved, crumbled, slain)
+            const diesMatch = msg.match(RE_MON_DIES);
+            const slainMatch = msg.match(RE_SLAIN);
+            const isKill = diesMatch || slainMatch || msg.includes('You have slain') || msg.includes('destroyed') || /\bdies(?:\.|\!|$)/i.test(msg);
+            if (isKill) {
                 this.episodeAccumulator.monstersSlain++;
                 frameKills.push(msg);
                 this.lastCombatActionTime = now;
 
-                // Extract monster name to prevent slain creatures from talking/attacking post-mortem
-                const slainMatch = msg.match(RE_SLAIN);
-                if (slainMatch && slainMatch[1]) {
-                    slainMonsterNames.add(slainMatch[1].trim().toLowerCase());
+                let mName = null;
+                if (diesMatch && diesMatch[1]) mName = diesMatch[1].trim();
+                else if (slainMatch && slainMatch[1]) mName = slainMatch[1].trim();
+                else {
+                    const fallback = msg.match(/(?:slain|destroyed|dies)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?)(?:\.|$)/i) ||
+                                     msg.match(/^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:dies|is destroyed)/i);
+                    if (fallback && fallback[1]) mName = fallback[1].trim();
+                }
+                if (mName) {
+                    slainMonsterNames.add(mName.toLowerCase());
                 }
             }
 
@@ -210,16 +241,17 @@ class ChronicleFilter {
                 else if (lowerMsg.includes('bleed') || lowerMsg.includes('mortally wounded')) framePlayerStatuses.push('bleeding');
             }
 
-            // 2. Hero Attacks (Swords, spells, bows, fists)
+            // 2. Hero Attacks & Monster Pain Reactions
             const hMatch = msg.match(heroAttackRe);
-            if (hMatch) {
+            const pMatch = !hMatch ? msg.match(RE_MON_PAIN) : null;
+            if (hMatch || pMatch) {
                 this.lastCombatActionTime = now;
-                const act = hMatch[1].toLowerCase();
-                const monName = hMatch[2].trim();
+                const act = hMatch ? hMatch[1].toLowerCase() : 'strikes';
+                const monName = hMatch ? hMatch[2].trim() : pMatch[1].trim();
                 const monLower = monName.toLowerCase();
                 if (!slainMonsterNames.has(monLower)) {
                     const lastAtk = this.recentHeroAttacks.get(monLower) || 0;
-                    if (now - lastAtk >= 2000) {
+                    if (now - lastAtk >= 1500) {
                         this.recentHeroAttacks.set(monLower, now);
                         const monObj = (frame.monsters || []).find(m => (m.name || '').toLowerCase().includes(monLower));
                         frameHeroAttacks.push({
@@ -405,15 +437,93 @@ class ChronicleFilter {
                 });
             }
 
-            // 8. Level Feelings
-            const lfMatch = msg.match(levelFeelingRe);
+            // 8. Level Feelings (Canonical Angband Monster & Object Feelings)
+            const lfMatch = msg.match(RE_LEVEL_FEELING);
             if (lfMatch) {
+                const feelText = msg.trim();
+                const lastLf = this._lastLevelFeelingTime || 0;
+                if (now - lastLf >= 6000) {
+                    this._lastLevelFeelingTime = now;
+                    this.eventQueue.push({
+                        type: 'LEVEL_FEELING',
+                        priority: 'high',
+                        isChapter: false,
+                        data: {
+                            feelingText: feelText,
+                            message: msg,
+                            depth: depth
+                        }
+                    });
+                }
+            }
+
+            // 8b. Excavation / Rubble Clearing / Tunneling
+            const excMatch = msg.match(RE_EXCAVATE);
+            if (excMatch) {
+                const isCleared = msg.includes('removed') || msg.includes('cleared a path') || msg.includes('finished digging');
+                const lastExc = this._lastExcavationTime || 0;
+                if (isCleared || (now - lastExc >= 4000)) {
+                    this._lastExcavationTime = now;
+                    this.eventQueue.push({
+                        type: 'EXCAVATION',
+                        priority: isCleared ? 'high' : 'normal',
+                        isChapter: false,
+                        data: {
+                            message: msg,
+                            cleared: isCleared,
+                            depth: depth
+                        }
+                    });
+                }
+            }
+
+            // 8c. Treasure & Valuable Discoveries
+            const trMatch = msg.match(RE_TREASURE);
+            const chMatch = !trMatch ? msg.match(RE_CHEST) : null;
+            if (trMatch || chMatch) {
+                const lastTr = this._lastTreasureTime || 0;
+                if (now - lastTr >= 3000) {
+                    this._lastTreasureTime = now;
+                    this.eventQueue.push({
+                        type: 'TREASURE_DISCOVERY',
+                        priority: 'normal',
+                        isChapter: false,
+                        data: {
+                            amount: trMatch ? parseInt(trMatch[1], 10) : 0,
+                            metal: trMatch ? trMatch[2].trim() : (chMatch ? chMatch[1].trim() : 'gold'),
+                            message: msg,
+                            depth: depth
+                        }
+                    });
+                }
+            }
+
+            // 8d. Dungeon Features (Secret Doors, Traps, Locks, Bashes)
+            const featMatch = msg.match(RE_DUNGEON_FEATURE);
+            if (featMatch) {
+                const lastFeat = this._lastFeatureTime || 0;
+                if (now - lastFeat >= 4000) {
+                    this._lastFeatureTime = now;
+                    this.eventQueue.push({
+                        type: 'DUNGEON_FEATURE',
+                        priority: 'normal',
+                        isChapter: false,
+                        data: {
+                            message: msg,
+                            depth: depth
+                        }
+                    });
+                }
+            }
+
+            // 8e. Status Recovery
+            const recMatch = msg.match(RE_STATUS_RECOVERY);
+            if (recMatch) {
                 this.eventQueue.push({
-                    type: 'LEVEL_FEELING',
+                    type: 'STATUS_RECOVERY',
                     priority: 'normal',
                     isChapter: false,
                     data: {
-                        feelingText: lfMatch[1],
                         message: msg,
                         depth: depth
                     }
@@ -551,9 +661,21 @@ class ChronicleFilter {
         // Coalesce concurrent/stacked combat messages into a single COMBAT_EXCHANGE beat
         const isStackedCombat = (frameIncomingAttacks.length > 1) ||
             (frameIncomingAttacks.length > 0 && (frameHeroAttacks.length > 0 || frameKills.length > 0 || framePlayerStatuses.length > 0)) ||
-            (framePlayerStatuses.length > 0 && (frameHeroAttacks.length > 0 || frameKills.length > 0));
+            (framePlayerStatuses.length > 0 && (frameHeroAttacks.length > 0 || frameKills.length > 0)) ||
+            (frameHeroAttacks.length > 0 && frameKills.length > 0);
 
         if (isStackedCombat) {
+            let fleeingMon = null;
+            for (const k of frameKills) {
+                const kLower = (typeof k === 'string' ? k : '').toLowerCase();
+                for (const [fName, fTime] of this.recentFleeings.entries()) {
+                    if (now - fTime <= 10000 && kLower.includes(fName)) {
+                        fleeingMon = fName;
+                        break;
+                    }
+                }
+            }
+
             this.eventQueue.push({
                 type: 'COMBAT_EXCHANGE',
                 priority: frameKills.length > 0 ? 'high' : 'normal',
@@ -562,6 +684,7 @@ class ChronicleFilter {
                     incomingAttacks: frameIncomingAttacks,
                     heroAttacks: frameHeroAttacks,
                     kills: frameKills,
+                    fleeingMonster: fleeingMon,
                     playerStatuses: [...new Set(framePlayerStatuses)],
                     depth: depth,
                     inTown: depth === 0,
@@ -603,12 +726,23 @@ class ChronicleFilter {
             }
             // 4. Fatal slayings (enemy dies from hero's blow)
             if (frameKills.length > 0) {
+                let fleeingMon = null;
+                for (const k of frameKills) {
+                    const kLower = (typeof k === 'string' ? k : '').toLowerCase();
+                    for (const [fName, fTime] of this.recentFleeings.entries()) {
+                        if (now - fTime <= 10000 && kLower.includes(fName)) {
+                            fleeingMon = fName;
+                            break;
+                        }
+                    }
+                }
                 this.eventQueue.push({
                     type: 'COMBAT_EPISODE',
                     priority: 'normal',
                     isChapter: false,
                     data: {
                         kills: frameKills,
+                        fleeingMonster: fleeingMon,
                         message: frameKills[0],
                         monstersSlain: frameKills.length,
                         depth,
@@ -640,7 +774,7 @@ class ChronicleFilter {
         this.lastHpPercent = hpPercent;
 
         // Artifact Awakening Detection (Only on newly printed messages)
-        for (const msg of newMsgs) {
+        for (const msg of expandedMsgs) {
             for (const artName of Object.keys(ChronicleGrounder.CANON_ARTIFACT_LORE)) {
                 if (msg.includes(artName) && !this.identifiedArtifacts.has(artName)) {
                     this.identifiedArtifacts.add(artName);

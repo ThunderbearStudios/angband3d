@@ -809,42 +809,14 @@ const server = http.createServer((req, res) => {
 
             function sendWav(buffer, isHit = false) {
                 if (res.headersSent) return;
-                const acceptEncoding = req.headers['accept-encoding'] || '';
-                if (acceptEncoding.includes('gzip')) {
-                    zlib.gzip(buffer, (gzErr, gzipped) => {
-                        if (!gzErr && gzipped && !res.headersSent) {
-                            res.writeHead(200, {
-                                'Content-Type': 'audio/wav',
-                                'Content-Encoding': 'gzip',
-                                'Content-Length': gzipped.length,
-                                'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
-                                'X-TTS-Engine': 'gemini',
-                                'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
-                            });
-                            res.end(gzipped);
-                            return;
-                        }
-                        if (!res.headersSent) {
-                            res.writeHead(200, {
-                                'Content-Type': 'audio/wav',
-                                'Content-Length': buffer.length,
-                                'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
-                                'X-TTS-Engine': 'gemini',
-                                'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
-                            });
-                            res.end(buffer);
-                        }
-                    });
-                } else {
-                    res.writeHead(200, {
-                        'Content-Type': 'audio/wav',
-                        'Content-Length': buffer.length,
-                        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
-                        'X-TTS-Engine': 'gemini',
-                        'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
-                    });
-                    res.end(buffer);
-                }
+                res.writeHead(200, {
+                    'Content-Type': 'audio/wav',
+                    'Content-Length': buffer.length,
+                    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
+                    'X-TTS-Engine': 'gemini',
+                    'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
+                });
+                res.end(buffer);
             }
 
             const geminiCacheKey = `gemini:${geminiVoice}:${emotion}:${geminiTag}:${text}`;

@@ -2067,11 +2067,189 @@ async function runTest() {
     delete context.window.Capacitor;
     context.document.getElementById = origGetById;
 
-    console.log('\n[Chronicle Test] ✅ ALL 30 VERIFICATION PHASES PASSED WITH ZERO ERRORS!\n');
+    // =========================================================================
+    // PHASE 31: Contextual Narrative Integration (Kills, Excavation, Treasures, Feelings)
+    // =========================================================================
+    console.log('\n--- Phase 31: Contextual Narrative Integration & Message Log Completeness ---');
+
+    const p31Filter = new ChronicleFilter();
+    p31Filter.hasCompletedOnboarding.townArrival = true;
+    p31Filter.hasCompletedOnboarding.firstStairsDown = true;
+    p31Filter.lastDepth = 1;
+
+    const vinie = {
+        name: 'Vinie',
+        race: 'Human',
+        class: 'Mage',
+        depth: 1,
+        turn: 42,
+        equipped: { weapon: 'Rapier (1d6) (+0,+0)' }
+    };
+
+    // 31a. Standard Angband Monster Kills ("The small kobold dies.", "The yellow jelly is destroyed.")
+    const koboldClean = ChronicleGrounder.extractSlainMonsterName('The small kobold dies.');
+    if (koboldClean !== 'small kobold') {
+        throw new Error(`Expected 'small kobold', got '${koboldClean}'`);
+    }
+    const jellyClean = ChronicleGrounder.extractSlainMonsterName('The yellow jelly is destroyed.');
+    if (jellyClean !== 'yellow jelly') {
+        throw new Error(`Expected 'yellow jelly', got '${jellyClean}'`);
+    }
+    console.log('  ✓ Clean monster name extraction verified for standard Angband kill messages.');
+
+    // 31b. Rubble Excavation & Clearing
+    const digFrame = {
+        phase: 'play',
+        player: { ...vinie },
+        messages: [
+            'You dig in the rubble with your weapon.',
+            'You have removed the rubble with your weapon.'
+        ],
+        monsters: []
+    };
+    const digEv1 = p31Filter.evaluate(digFrame);
+    if (!digEv1 || digEv1.type !== 'EXCAVATION') {
+        throw new Error(`Expected EXCAVATION event, got ${JSON.stringify(digEv1)}`);
+    }
+    const digChapter1 = ChronicleGrounder.generateProceduralChapter(digEv1, vinie);
+    if (!digChapter1.title.includes('Excavation')) {
+        throw new Error(`Expected Excavation title, got: ${digChapter1.title}`);
+    }
+    const digEv2 = p31Filter.evaluate(digFrame);
+    if (!digEv2 || digEv2.type !== 'EXCAVATION') {
+        throw new Error(`Expected second EXCAVATION event for cleared rubble, got ${JSON.stringify(digEv2)}`);
+    }
+    const digChapter2 = ChronicleGrounder.generateProceduralChapter(digEv2, vinie);
+    if (!digChapter2.title.includes('Cleared') && !digChapter2.title.includes('Corridor')) {
+        throw new Error(`Expected corridor cleared title, got: ${digChapter2.title}`);
+    }
+    console.log(`  ✓ Sequential excavation & corridor clearing verified: "${digChapter1.title}" -> "${digChapter2.title}"`);
+
+    // 31c. Treasure & Coin Findings
+    const treasureFrame = {
+        phase: 'play',
+        player: { ...vinie },
+        messages: ['You have found 100 gold pieces worth of copper.'],
+        monsters: []
+    };
+    const trEv = p31Filter.evaluate(treasureFrame);
+    if (!trEv || trEv.type !== 'TREASURE_DISCOVERY') {
+        throw new Error(`Expected TREASURE_DISCOVERY event, got ${JSON.stringify(trEv)}`);
+    }
+    const trChapter = ChronicleGrounder.generateProceduralChapter(trEv, vinie);
+    if (!trChapter.prose.includes('100 gold pieces worth of copper')) {
+        throw new Error(`Expected treasure prose to include amount and metal, got: ${trChapter.prose}`);
+    }
+    console.log(`  ✓ Treasure discovery integration verified: "${trChapter.prose}"`);
+
+    // 31d. Canonical Angband 4.2.6 Level Feelings
+    const feelings = [
+        { msg: 'This seems a tame, sheltered place.', expectedTitle: 'Sheltered' },
+        { msg: "You feel that there aren't many treasures here.", expectedTitle: 'Barren' },
+        { msg: 'Omens of death haunt this place.', expectedTitle: 'Dread' }
+    ];
+    for (const f of feelings) {
+        const lfFrame = {
+            phase: 'play',
+            player: { ...vinie },
+            messages: [f.msg],
+            monsters: []
+        };
+        const lfFilter = new ChronicleFilter();
+        lfFilter.hasCompletedOnboarding.townArrival = true;
+        lfFilter.hasCompletedOnboarding.firstStairsDown = true;
+        lfFilter.lastDepth = 1;
+        const lfEv = lfFilter.evaluate(lfFrame);
+        if (!lfEv || lfEv.type !== 'LEVEL_FEELING') {
+            throw new Error(`Expected LEVEL_FEELING for "${f.msg}", got ${JSON.stringify(lfEv)}`);
+        }
+        const lfChapter = ChronicleGrounder.generateProceduralChapter(lfEv, vinie);
+        if (!lfChapter.title.includes(f.expectedTitle)) {
+            throw new Error(`Expected feeling title containing '${f.expectedTitle}', got: ${lfChapter.title}`);
+        }
+    }
+    console.log('  ✓ Canonical Angband level feelings (sheltered, barren, omens of death) verified.');
+
+    // 31e. Fleeing Monster + Fatal Strike Coalescence
+    const combatSagaFilter = new ChronicleFilter();
+    combatSagaFilter.hasCompletedOnboarding.townArrival = true;
+    combatSagaFilter.hasCompletedOnboarding.firstStairsDown = true;
+    combatSagaFilter.lastDepth = 1;
+    // Turn 1: Small kobold flees in terror (drain all events for turn 1)
+    let t1Ev = combatSagaFilter.evaluate({
+        phase: 'play',
+        player: { ...vinie, turn: 50 },
+        messages: ['The small kobold screams in agony. The small kobold flees in terror!'],
+        monsters: [{ name: 'Small kobold', glyph: 'k' }]
+    });
+    while (t1Ev) {
+        t1Ev = combatSagaFilter.evaluate({ phase: 'play', player: { ...vinie, turn: 50 } });
+    }
+
+    // Turn 2: Small kobold dies on next turn
+    const killEv = combatSagaFilter.evaluate({
+        phase: 'play',
+        player: { ...vinie, turn: 51 },
+        messages: ['The small kobold dies.'],
+        monsters: []
+    });
+    if (!killEv || (killEv.type !== 'COMBAT_EPISODE' && killEv.type !== 'COMBAT_EXCHANGE')) {
+        throw new Error(`Expected COMBAT_EPISODE/COMBAT_EXCHANGE for fatal kill, got ${JSON.stringify(killEv)}`);
+    }
+    const killChapter = ChronicleGrounder.generateProceduralChapter(killEv, vinie);
+    if (!killChapter.prose.toLowerCase().includes('kobold') || (!killChapter.prose.toLowerCase().includes('flight') && !killChapter.prose.toLowerCase().includes('craven') && !killChapter.prose.toLowerCase().includes('fleeing'))) {
+        throw new Error(`Expected kill saga to contextualize fleeing kobold kill, got: ${killChapter.prose}`);
+    }
+    console.log(`  ✓ Fleeing creature fatal strike coalescence verified: "${killChapter.prose}"`);
+
+    // 31f. Yellow Jelly Destruction Saga
+    const jellySaga = ChronicleGrounder.generateKillSaga(['The yellow jelly is destroyed.'], vinie, 1, 'westmarch', 'Rapier');
+    if (!jellySaga.prose.includes('yellow jelly') || (!jellySaga.prose.includes('protoplasm') && !jellySaga.prose.includes('slime') && !jellySaga.prose.includes('gelatinous'))) {
+        throw new Error(`Expected jelly-specific destruction saga, got: ${jellySaga.prose}`);
+    }
+    console.log(`  ✓ Yellow jelly slime destruction saga verified: "${jellySaga.prose}"`);
+
+    // 31g. Dungeon Features & Status Recovery
+    const featFilter = new ChronicleFilter();
+    featFilter.hasCompletedOnboarding.townArrival = true;
+    featFilter.hasCompletedOnboarding.firstStairsDown = true;
+    featFilter.lastDepth = 1;
+    const featEv = featFilter.evaluate({
+        phase: 'play',
+        player: { ...vinie },
+        messages: ['You have found a secret door!'],
+        monsters: []
+    });
+    if (!featEv || featEv.type !== 'DUNGEON_FEATURE') {
+        throw new Error(`Expected DUNGEON_FEATURE event, got ${JSON.stringify(featEv)}`);
+    }
+    const featChapter = ChronicleGrounder.generateProceduralChapter(featEv, vinie);
+    if (!featChapter.title.includes('Secret Passage')) {
+        throw new Error(`Expected Secret Passage title, got: ${featChapter.title}`);
+    }
+    console.log(`  ✓ Dungeon feature secret passage verified: "${featChapter.prose}"`);
+
+    const recEv = featFilter.evaluate({
+        phase: 'play',
+        player: { ...vinie },
+        messages: ['You can see again.'],
+        monsters: []
+    });
+    if (!recEv || recEv.type !== 'STATUS_RECOVERY') {
+        throw new Error(`Expected STATUS_RECOVERY event, got ${JSON.stringify(recEv)}`);
+    }
+    const recChapter = ChronicleGrounder.generateProceduralChapter(recEv, vinie);
+    if (!recChapter.title.includes('Vision Restored')) {
+        throw new Error(`Expected Vision Restored title, got: ${recChapter.title}`);
+    }
+    console.log(`  ✓ Status recovery vision restored verified: "${recChapter.prose}"`);
+
+    console.log('\n[Chronicle Test] ✅ ALL 31 VERIFICATION PHASES PASSED WITH ZERO ERRORS!\n');
 }
 
 runTest().catch((err) => {
     console.error(err);
     process.exit(1);
 });
+
 
