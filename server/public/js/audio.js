@@ -20,9 +20,11 @@ class SoundEngine {
         this.stoneStepIdx = 0;
         this.outdoorStepIdx = 0;
 
-        // Master Limiter / Compressor Stage
+        // Master Limiter / Compressor Stage & SFX Bus
         this.masterCompressor = null;
         this.masterGain = null;
+        this.sfxGain = null;
+        this.sfxVolume = 1.0;
 
         // Throttles for status warnings and repetitive cues
         this.lastLowHpTime = 0;
@@ -36,6 +38,13 @@ class SoundEngine {
                     const parsed = parseFloat(savedVol);
                     if (!isNaN(parsed) && parsed >= 0 && parsed <= 1.0) {
                         this.masterVolume = parsed;
+                    }
+                }
+                const savedSfxVol = localStorage.getItem('angband3d_sfx_volume');
+                if (savedSfxVol !== null) {
+                    const parsedSfx = parseFloat(savedSfxVol);
+                    if (!isNaN(parsedSfx) && parsedSfx >= 0 && parsedSfx <= 1.0) {
+                        this.sfxVolume = parsedSfx;
                     }
                 }
                 const savedMuted = localStorage.getItem('angband3d_muted');
@@ -70,7 +79,28 @@ class SoundEngine {
             const effectiveVol = this.enabled ? this.masterVolume : 0.0;
             this.masterGain.gain.setValueAtTime(effectiveVol, this.ctx.currentTime);
         }
+        // Universal scale: synchronize speech synthesis volume if fallback is active
+        if (typeof window !== 'undefined' && window.chronicleManager && window.chronicleManager.audio) {
+            if (this.masterVolume > 0 && !this.enabled) {
+                this.setMute(false);
+            }
+        }
         return this.masterVolume;
+    }
+
+    setSfxVolume(volume) {
+        this.sfxVolume = Math.max(0.0, Math.min(1.0, parseFloat(volume) || 0.0));
+        if (typeof window !== 'undefined' && window.localStorage) {
+            try { localStorage.setItem('angband3d_sfx_volume', this.sfxVolume.toString()); } catch (_) {}
+        }
+        if (this.ctx && this.sfxGain) {
+            this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
+        }
+        return this.sfxVolume;
+    }
+
+    getSfxVolume() {
+        return this.sfxVolume;
     }
 
     setMute(isMuted) {
@@ -81,6 +111,12 @@ class SoundEngine {
         if (this.ctx && this.masterGain) {
             const effectiveVol = this.enabled ? this.masterVolume : 0.0;
             this.masterGain.gain.setValueAtTime(effectiveVol, this.ctx.currentTime);
+        }
+        // Universal mute: if muting, immediately hush any speaking voice narration
+        if (isMuted && typeof window !== 'undefined' && window.chronicleManager && window.chronicleManager.audio) {
+            if (typeof window.chronicleManager.audio.stopSpeaking === 'function') {
+                window.chronicleManager.audio.stopSpeaking();
+            }
         }
         return !this.enabled;
     }
@@ -118,10 +154,16 @@ class SoundEngine {
 
             this.masterCompressor.connect(this.masterGain);
             this.masterGain.connect(this.ctx.destination);
+
+            // Independent SFX Sub-Bus feeding into Master Compressor
+            this.sfxGain = this.ctx.createGain();
+            this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
+            this.sfxGain.connect(this.masterCompressor);
         } catch (e) {
-            console.warn('[SoundEngine] Could not initialize master compressor:', e);
+            console.warn('[SoundEngine] Could not initialize master audio nodes:', e);
             this.masterCompressor = null;
             this.masterGain = null;
+            this.sfxGain = null;
         }
 
         this.generateSfxLibrary();
@@ -171,7 +213,7 @@ class SoundEngine {
         // Master gain controls master volume; per-source gain scales individual sound volume
         gain.gain.setValueAtTime(volumeScale, now);
 
-        const dest = this.masterCompressor || this.masterGain || this.ctx.destination;
+        const dest = this.sfxGain || this.masterCompressor || this.masterGain || this.ctx.destination;
 
         if (this.ctx.createStereoPanner && pan !== 0.0) {
             const panner = this.ctx.createStereoPanner();

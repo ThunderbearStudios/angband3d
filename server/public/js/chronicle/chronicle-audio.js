@@ -8,6 +8,7 @@ class ChronicleAudioRouter {
     constructor(soundEngine = null) {
         this.soundEngine = soundEngine;
         this.enabled = false; // MUTED BY DEFAULT per strict requirement
+        this.voiceVolume = 1.0; // Dedicated Tome / Lore voice volume (0.0 to 1.0)
         this.speed = 1.0;     // 0.75x, 0.85x, 1.0x, 1.25x, 1.5x
         this.flowMode = 'interrupt'; // Default to interrupt: latest developments take priority, story flows cleanly
         this.narratorVoice = 'en-GB-RyanNeural'; // Dramatic theatrical British bard / older English storyteller
@@ -30,6 +31,10 @@ class ChronicleAudioRouter {
 
                 const savedMuted = localStorage.getItem('angband_chronicle_muted');
                 this.enabled = (savedMuted === 'false'); // Only enable if player explicitly unmuted in prior session
+                const savedVoiceVol = parseFloat(localStorage.getItem('angband3d_tome_voice_volume'));
+                if (!isNaN(savedVoiceVol) && savedVoiceVol >= 0.0 && savedVoiceVol <= 1.0) {
+                    this.voiceVolume = savedVoiceVol;
+                }
                 const savedSpeed = parseFloat(localStorage.getItem('angband_chronicle_speed'));
                 if (!isNaN(savedSpeed) && savedSpeed >= 0.5 && savedSpeed <= 2.5) {
                     this.speed = savedSpeed;
@@ -97,7 +102,7 @@ class ChronicleAudioRouter {
         try {
             // Master Voice Sub-Bus
             this.voiceMasterGain = this.ctx.createGain();
-            this.voiceMasterGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+            this.voiceMasterGain.gain.setValueAtTime(this.voiceVolume, this.ctx.currentTime);
 
             // Vintage Analogue Ribbon Mic Warmer: Gentle low-shelf warmth (+1.2dB at 180Hz) and high-shelf smoothing (-1.8dB at 7200Hz)
             this.voiceLowShelf = this.ctx.createBiquadFilter();
@@ -127,7 +132,10 @@ class ChronicleAudioRouter {
             }
 
             this.voiceLowShelf.connect(this.voiceHighShelf);
-            this.voiceHighShelf.connect(this.ctx.destination);
+            // Universal Signal Flow: Route Tome Voice sub-bus directly through SoundEngine.masterGain
+            // so master volume and universal mute govern both SFX and voice simultaneously.
+            const masterDest = (this.soundEngine && this.soundEngine.masterGain) ? this.soundEngine.masterGain : this.ctx.destination;
+            this.voiceHighShelf.connect(masterDest);
         } catch (e) {
             console.warn('[ChronicleAudio] Failed to bind Web Audio sub-graph:', e);
         }
@@ -183,6 +191,22 @@ class ChronicleAudioRouter {
         }
     }
 
+    setVoiceVolume(volume) {
+        this.voiceVolume = Math.max(0.0, Math.min(1.0, parseFloat(volume) || 0.0));
+        try { localStorage.setItem('angband3d_tome_voice_volume', this.voiceVolume.toString()); } catch (_) {}
+        if (this.voiceMasterGain && this.ctx) {
+            this.voiceMasterGain.gain.setValueAtTime(this.voiceVolume, this.ctx.currentTime);
+        }
+        if (this.voiceVolume > 0 && !this.enabled) {
+            this.setMuted(false);
+        }
+        return this.voiceVolume;
+    }
+
+    getVoiceVolume() {
+        return this.voiceVolume;
+    }
+
     setMuted(muted) {
         this.enabled = !muted;
         try {
@@ -226,15 +250,17 @@ class ChronicleAudioRouter {
     }
 
     /**
-     * Dips game sound effects (footsteps, swords, spells) by -7dB (gain 0.45)
-     * during active voice narration.
+     * Dips game sound effects (footsteps, swords, spells) by -7dB (gain 0.42)
+     * on the independent SFX sub-bus during active voice narration.
      */
     duckGameAudio(duck = true) {
-        if (!this.soundEngine || !this.soundEngine.ctx || !this.soundEngine.masterGain) return;
+        if (!this.soundEngine || !this.soundEngine.ctx) return;
         const ctx = this.soundEngine.ctx;
-        const sfxBus = this.soundEngine.masterGain;
+        const sfxBus = this.soundEngine.sfxGain || this.soundEngine.masterCompressor;
+        if (!sfxBus) return;
 
-        const target = duck ? 0.42 : (this.soundEngine.masterVolume || 0.75);
+        const baseVol = (typeof this.soundEngine.getSfxVolume === 'function') ? this.soundEngine.getSfxVolume() : 1.0;
+        const target = duck ? (baseVol * 0.42) : baseVol;
         this.duckingActive = duck;
         try {
             sfxBus.gain.setTargetAtTime(target, ctx.currentTime, 0.15); // Smooth 150ms ramp
@@ -885,6 +911,9 @@ class ChronicleAudioRouter {
 
             // Apply Audiobook Speed Multiplier (0.92 gives deliberate, clear audiobook pacing)
             utterance.rate = Math.max(0.75, Math.min(1.8, (0.92 * this.speed)));
+            const masterVol = (this.soundEngine && typeof this.soundEngine.getMasterVolume === 'function') ? this.soundEngine.getMasterVolume() : 1.0;
+            const isSoundMuted = (this.soundEngine && typeof this.soundEngine.isMuted === 'function') ? this.soundEngine.isMuted() : false;
+            utterance.volume = (!this.enabled || isSoundMuted) ? 0.0 : Math.max(0.0, Math.min(1.0, this.voiceVolume * masterVol));
 
             // Select Best Available American / Universal English Voice
             const voices = (this.availableVoices && this.availableVoices.length > 0)

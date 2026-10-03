@@ -65,9 +65,11 @@ class ChronicleFilter {
             damageTaken: 0,
             potionsQuaffed: 0
         };
+        this.hasRecordedDeath = false;
     }
 
     reset() {
+        this.hasRecordedDeath = false;
         this.lastDepth = null;
         this.lastHpPercent = 1.0;
         this.lastTurn = null;
@@ -107,8 +109,8 @@ class ChronicleFilter {
     }
 
     evaluate(frame) {
-        // Dormant guard: Never trigger during character creation or setup
-        if (!frame || !frame.player || frame.phase !== 'play') {
+        // Dormant guard: Never trigger during birth or initial setup
+        if (!frame || !frame.player || (frame.phase !== 'play' && frame.phase !== 'death')) {
             return null;
         }
 
@@ -168,6 +170,50 @@ class ChronicleFilter {
             this.lastTurn = currentTurn;
         } else if (this.lastTurn === null && currentTurn !== null) {
             this.lastTurn = currentTurn;
+        }
+
+        // --- 0. HERO DEATH & DEMISE (Highest Priority Terminal Event) ---
+        const isDead = Boolean(
+            (player && player.dead) ||
+            frame.phase === 'death' ||
+            (player && typeof player.chp === 'number' && player.chp <= 0 && player.mhp > 0) ||
+            newMsgs.some(m => /\byou die\b|\byou have died\b|\bkilled by\b|\bslain by\b/i.test(m))
+        );
+
+        if (isDead) {
+            if (!this.hasRecordedDeath) {
+                this.hasRecordedDeath = true;
+                this.lastBeatTime = now;
+                let diedFrom = (player && player.died_from) ? String(player.died_from).trim() : '';
+                if (!diedFrom) {
+                    const deathMsg = newMsgs.find(m => /\b(killed by|slain by|died of|destroyed by)\b/i.test(m));
+                    if (deathMsg) {
+                        const match = deathMsg.match(/\b(?:killed by|slain by|died of|destroyed by)\s+(.+?)(?:\.|$)/i);
+                        if (match && match[1]) diedFrom = match[1].trim();
+                    }
+                }
+                if (!diedFrom) diedFrom = 'succumbing to mortal wounds';
+
+                return {
+                    type: 'HERO_DEATH',
+                    isChapter: true,
+                    importance: 100,
+                    priority: 1000,
+                    turn: currentTurn || 0,
+                    data: {
+                        hero: player.name || 'The Hero',
+                        race: player.race || 'Hero',
+                        class: player.class || 'Adventurer',
+                        level: player.clev || 1,
+                        depth: depth,
+                        diedFrom: diedFrom,
+                        turn: currentTurn || 0,
+                        messages: newMsgs
+                    }
+                };
+            }
+            // Once death is captured, suppress any subsequent action events for this life
+            return null;
         }
 
         // Process ONLY NEW messages for events to prevent phantom re-triggers

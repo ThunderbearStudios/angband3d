@@ -188,16 +188,17 @@
                     <input type="range" id="volume-slider" class="volume-range-slider" min="0" max="100" value="75" step="1" title="Adjust Master Volume">
                     <span id="volume-label" class="volume-label">75%</span>
                 </div>
+                <button id="btn-sound-config" class="icon-btn-subtle" title="Audio Configuration (Tome Voice, Effects &amp; Reverb)">⚙</button>
             </div>
-            <!-- Mobile / Quick Volume Floating Popover -->
+            <!-- Audio & Volume Configuration Floating Popover -->
             <div id="quick-volume-popover" class="quick-volume-popover hidden" role="dialog" aria-label="Audio and Volume Controls">
                 <div class="popover-header">
-                    <span class="popover-title">🔊 Master Volume</span>
+                    <span class="popover-title">🔊 Audio Configuration</span>
                     <span id="popover-vol-badge" class="popover-badge">75%</span>
                     <button type="button" id="btn-popover-close" class="popover-close-btn" title="Close Volume Controls">✕</button>
                 </div>
                 <div class="popover-slider-row">
-                    <button type="button" id="btn-popover-mute" class="popover-mute-toggle" title="Toggle Mute">🔊 Sound On</button>
+                    <button type="button" id="btn-popover-mute" class="popover-mute-toggle" title="Universal Audio Mute">🔊 Sound On</button>
                     <input type="range" id="popover-volume-slider" class="volume-range-slider touch-slider" min="0" max="100" value="75" step="1" title="Adjust Master Volume">
                 </div>
                 <div class="popover-presets">
@@ -206,6 +207,29 @@
                     <button type="button" class="vol-preset-btn" data-vol="50">50%</button>
                     <button type="button" class="vol-preset-btn" data-vol="75">75%</button>
                     <button type="button" class="vol-preset-btn" data-vol="100">100%</button>
+                </div>
+                <div class="popover-channels">
+                    <div class="popover-channel-row">
+                        <div class="popover-channel-header">
+                            <span class="popover-channel-label">📖 Tome Narration Voice</span>
+                            <span id="popover-voice-badge" class="popover-sub-badge">100%</span>
+                        </div>
+                        <input type="range" id="popover-voice-slider" class="volume-range-slider touch-slider" min="0" max="100" value="100" step="1" title="Adjust Tome / Lorekeeper Voice Volume">
+                    </div>
+                    <div class="popover-channel-row">
+                        <div class="popover-channel-header">
+                            <span class="popover-channel-label">⚔️ Sound Effects (SFX)</span>
+                            <span id="popover-sfx-badge" class="popover-sub-badge">100%</span>
+                        </div>
+                        <input type="range" id="popover-sfx-slider" class="volume-range-slider touch-slider" min="0" max="100" value="100" step="1" title="Adjust Sound Effects Volume">
+                    </div>
+                    <div class="popover-channel-row">
+                        <div class="popover-channel-header">
+                            <span class="popover-channel-label">🏰 Subterranean Reverb</span>
+                            <span id="popover-reverb-badge" class="popover-sub-badge">10%</span>
+                        </div>
+                        <input type="range" id="popover-reverb-slider" class="volume-range-slider touch-slider" min="0" max="100" value="10" step="1" title="Adjust Vault Convolution Reverb Wet Level">
+                    </div>
                 </div>
             </div>
             <button id="btn-fullscreen" class="icon-btn" title="Toggle Fullscreen [F11]"><span class="fs-icon">⛶</span> <span class="fs-label">Fullscreen</span></button>

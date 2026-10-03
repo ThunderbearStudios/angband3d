@@ -539,7 +539,13 @@ class ChronicleGrounder {
             geminiVoice = 'Enceladus';
             edgeVoice = 'en-GB-RyanNeural';
 
-            if (isPeril) {
+            if (eventType === 'HERO_DEATH') {
+                emotion = 'mournful';
+                geminiTag = '[mournfully, with profound solemnity and sorrow, expressive slightly British older storyteller]';
+                directorNote = 'An expressive, slightly British older fireside storyteller reciting a solemn funeral epitaph with deep elder grief, gravitas, and reverence for a fallen hero';
+                pitch = '-2Hz';
+                rate = '-8%';
+            } else if (isPeril) {
                 emotion = 'panicked';
                 geminiTag = '[panicked, expressive slightly British older storyteller]';
                 directorNote = 'An expressive, slightly British older fireside storyteller, voice tense and breathless as mortal peril tightens in the dark';
@@ -2382,6 +2388,26 @@ class ChronicleGrounder {
         let insight = null;
 
         switch (event.type) {
+            case 'HERO_DEATH': {
+                const heroName = (event.data && event.data.hero) ? event.data.hero : name;
+                const diedFrom = (event.data && event.data.diedFrom) ? event.data.diedFrom : (player && player.died_from) ? String(player.died_from).trim() : 'mortal wounds';
+                const pRace = (event.data && event.data.race) ? event.data.race : (player ? player.race || '' : '');
+                const pClass = (event.data && event.data.class) ? event.data.class : (player ? player.class || '' : '');
+                const raceClass = `${pRace} ${pClass}`.trim() || 'Hero';
+                const locDesc = (depth === 0) ? 'upon the surface frontier' : `deep at ${depthFt}`;
+                title = `Epitaph: Fall of ${heroName}`;
+
+                if (traditionKey === 'khazad') {
+                    prose = `The great hammer shatters, and the dark mountain roots claim another child of Durin. Here falls ${heroName}, valiant ${raceClass}, brought low ${locDesc} by ${diedFrom}. May the ancestors carve their honor into the enduring granite, and grant solemn rest beneath the roots of the world.`;
+                } else if (traditionKey === 'noldor') {
+                    prose = `A song of deep sorrow rises toward the starry vault of heaven. ${heroName}, noble ${raceClass}, has perished ${locDesc}, vanquished by ${diedFrom}. The shadow of Morgoth lengthens across the deep, but the memory of their courage shall never fade from the Living Chronicle.`;
+                } else {
+                    prose = `Here falls ${heroName}, brave ${raceClass}, slain ${locDesc} by ${diedFrom}. The torch flickers and dies upon the damp subterranean stone, yet their deeds and valor are sealed into the annals of the Living Chronicle for all ages.`;
+                }
+                insight = "Death is not the end in Angband—every fall sharpens the wisdom of the next adventurer. Rest thy weary blade, mortal.";
+                break;
+            }
+
             case 'ONBOARDING_TOWN_ARRIVAL': {
                 title = 'Arrival at the Frontier';
                 const backstory = ChronicleGrounder.formatBackstorySummary(player);
@@ -3180,7 +3206,8 @@ class ChronicleGrounder {
             dialogue: dialogue,
             insight: insight,
             depth: player ? (player.depth || 0) : 0,
-            summary: prose.substring(0, 160) + '...'
+            summary: prose.substring(0, 160) + '...',
+            isDeath: (event.type === 'HERO_DEATH')
         };
     }
 }

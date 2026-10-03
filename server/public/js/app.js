@@ -1634,7 +1634,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const volLabel = document.getElementById('volume-label');
         if (volLabel) volLabel.textContent = isMuted ? '0%' : `${volPct}%`;
 
-        // Mobile Quick-Volume Popover Synchronization
+        // Mobile / Desktop Audio Configuration Popover Synchronization
         const popoverBadge = document.getElementById('popover-vol-badge');
         if (popoverBadge) {
             popoverBadge.textContent = isMuted ? '🔇 Muted' : `${volPct}%`;
@@ -1653,6 +1653,51 @@ window.addEventListener('DOMContentLoaded', () => {
             } else {
                 btnPopoverMute.classList.remove('muted');
             }
+        }
+
+        // Tome / Lorekeeper Voice Volume Synchronization
+        const voiceVol = (window.chronicleManager && window.chronicleManager.audio && typeof window.chronicleManager.audio.getVoiceVolume === 'function')
+            ? window.chronicleManager.audio.getVoiceVolume()
+            : (parseFloat(localStorage.getItem('angband3d_tome_voice_volume')) || 1.0);
+        const voicePct = Math.round(voiceVol * 100);
+
+        const popoverVoiceBadge = document.getElementById('popover-voice-badge');
+        if (popoverVoiceBadge) {
+            popoverVoiceBadge.textContent = isMuted ? '0%' : `${voicePct}%`;
+        }
+        const popoverVoiceSlider = document.getElementById('popover-voice-slider');
+        if (popoverVoiceSlider) {
+            popoverVoiceSlider.value = voicePct;
+        }
+
+        // Sound Effects (SFX) Sub-Bus Volume Synchronization
+        const sfxVol = (audio && typeof audio.getSfxVolume === 'function')
+            ? audio.getSfxVolume()
+            : 1.0;
+        const sfxPct = Math.round(sfxVol * 100);
+
+        const popoverSfxBadge = document.getElementById('popover-sfx-badge');
+        if (popoverSfxBadge) {
+            popoverSfxBadge.textContent = isMuted ? '0%' : `${sfxPct}%`;
+        }
+        const popoverSfxSlider = document.getElementById('popover-sfx-slider');
+        if (popoverSfxSlider) {
+            popoverSfxSlider.value = sfxPct;
+        }
+
+        // Subterranean Reverb Synchronization
+        const revVol = (window.chronicleManager && window.chronicleManager.audio && typeof window.chronicleManager.audio.reverbWet === 'number')
+            ? window.chronicleManager.audio.reverbWet
+            : (parseFloat(localStorage.getItem('angband_chronicle_reverb')) || 0.10);
+        const revPct = Math.round(revVol * 100);
+
+        const popoverRevBadge = document.getElementById('popover-reverb-badge');
+        if (popoverRevBadge) {
+            popoverRevBadge.textContent = `${revPct}%`;
+        }
+        const popoverRevSlider = document.getElementById('popover-reverb-slider');
+        if (popoverRevSlider) {
+            popoverRevSlider.value = revPct;
         }
 
         // Highlight matching preset button
@@ -1684,7 +1729,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     window.__syncAudioUI = syncAudioUI;
 
-    // Mobile Quick-Volume Popover Drawer Lifecycle
+    // Audio Configuration Popover Drawer Lifecycle
     let popoverDismissTimer = null;
     function showQuickVolumePopover() {
         const pop = document.getElementById('quick-volume-popover');
@@ -1693,7 +1738,7 @@ window.addEventListener('DOMContentLoaded', () => {
         clearTimeout(popoverDismissTimer);
         popoverDismissTimer = setTimeout(() => {
             pop.classList.add('hidden');
-        }, 5000);
+        }, 7500);
     }
 
     function hideQuickVolumePopover() {
@@ -1714,9 +1759,20 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
                 syncAudioUI();
             }
-            // Always show the quick volume popover on mobile/touch so user can adjust slider or presets
-            const isTouchOrNarrow = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 768);
-            if (isTouchOrNarrow) {
+            showQuickVolumePopover();
+        });
+    }
+
+    // Attach Fast-Tap to #btn-sound-config (Gear Icon Button)
+    const btnSoundConfig = document.getElementById('btn-sound-config');
+    if (btnSoundConfig) {
+        bindFastTap(btnSoundConfig, () => {
+            const pop = document.getElementById('quick-volume-popover');
+            if (pop && !pop.classList.contains('hidden')) {
+                hideQuickVolumePopover();
+            } else {
+                if (audio) audio.unlock();
+                syncAudioUI();
                 showQuickVolumePopover();
             }
         });
@@ -1745,6 +1801,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Quick Volume Popover Controls Wiring
+    const quickVolPop = document.getElementById('quick-volume-popover');
+    if (quickVolPop) {
+        quickVolPop.addEventListener('mouseenter', () => clearTimeout(popoverDismissTimer));
+        quickVolPop.addEventListener('mouseleave', () => showQuickVolumePopover());
+    }
+
     const btnPopoverClose = document.getElementById('btn-popover-close');
     if (btnPopoverClose) {
         bindFastTap(btnPopoverClose, () => hideQuickVolumePopover());
@@ -1760,7 +1822,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     audio.playMenuSelect();
                 }
                 syncAudioUI();
-                showQuickVolumePopover(); // reset 5s timer
+                showQuickVolumePopover();
             }
         });
     }
@@ -1775,7 +1837,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 audio.setMasterVolume(val);
                 if (audio.isMuted() && val > 0) audio.setMute(false);
                 syncAudioUI();
-                showQuickVolumePopover(); // reset 5s dismiss timer
+                showQuickVolumePopover();
             }
         };
         popoverVolSlider.addEventListener('input', handleSliderChange);
@@ -1793,6 +1855,82 @@ window.addEventListener('DOMContentLoaded', () => {
             showQuickVolumePopover();
         }, { passive: true });
         popoverVolSlider.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // Tome Narration Voice Slider
+    const popoverVoiceSlider = document.getElementById('popover-voice-slider');
+    if (popoverVoiceSlider) {
+        const handleVoiceChange = (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            const val = parseInt(popoverVoiceSlider.value, 10) / 100;
+            if (window.chronicleManager && window.chronicleManager.audio) {
+                window.chronicleManager.audio.setVoiceVolume(val);
+            } else {
+                try { localStorage.setItem('angband3d_tome_voice_volume', val.toString()); } catch (_) {}
+            }
+            syncAudioUI();
+            showQuickVolumePopover();
+        };
+        popoverVoiceSlider.addEventListener('input', handleVoiceChange);
+        popoverVoiceSlider.addEventListener('change', handleVoiceChange);
+        popoverVoiceSlider.addEventListener('click', (e) => e.stopPropagation());
+        popoverVoiceSlider.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            clearTimeout(popoverDismissTimer);
+        }, { passive: true });
+        popoverVoiceSlider.addEventListener('touchend', () => showQuickVolumePopover(), { passive: true });
+    }
+
+    // Sound Effects (SFX) Slider
+    const popoverSfxSlider = document.getElementById('popover-sfx-slider');
+    if (popoverSfxSlider) {
+        const handleSfxChange = (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (audio) {
+                audio.unlock();
+                const val = parseInt(popoverSfxSlider.value, 10) / 100;
+                audio.setSfxVolume(val);
+                syncAudioUI();
+                showQuickVolumePopover();
+            }
+        };
+        popoverSfxSlider.addEventListener('input', handleSfxChange);
+        popoverSfxSlider.addEventListener('change', (e) => {
+            handleSfxChange(e);
+            if (audio && !audio.isMuted() && typeof audio.playMenuNav === 'function') {
+                audio.playMenuNav();
+            }
+        });
+        popoverSfxSlider.addEventListener('click', (e) => e.stopPropagation());
+        popoverSfxSlider.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            clearTimeout(popoverDismissTimer);
+        }, { passive: true });
+        popoverSfxSlider.addEventListener('touchend', () => showQuickVolumePopover(), { passive: true });
+    }
+
+    // Subterranean Reverb Slider
+    const popoverReverbSlider = document.getElementById('popover-reverb-slider');
+    if (popoverReverbSlider) {
+        const handleReverbChange = (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            const val = parseInt(popoverReverbSlider.value, 10) / 100;
+            if (window.chronicleManager && window.chronicleManager.audio) {
+                window.chronicleManager.audio.setReverbVolume(val);
+            } else {
+                try { localStorage.setItem('angband_chronicle_reverb', val.toString()); } catch (_) {}
+            }
+            syncAudioUI();
+            showQuickVolumePopover();
+        };
+        popoverReverbSlider.addEventListener('input', handleReverbChange);
+        popoverReverbSlider.addEventListener('change', handleReverbChange);
+        popoverReverbSlider.addEventListener('click', (e) => e.stopPropagation());
+        popoverReverbSlider.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            clearTimeout(popoverDismissTimer);
+        }, { passive: true });
+        popoverReverbSlider.addEventListener('touchend', () => showQuickVolumePopover(), { passive: true });
     }
 
     // Preset volume buttons ([Mute], [25%], [50%], [75%], [100%])
@@ -1819,12 +1957,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Dismiss popover on touch outside
     window.addEventListener('click', (e) => {
-        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound')) {
+        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-sound-config')) {
             hideQuickVolumePopover();
         }
     });
     window.addEventListener('touchstart', (e) => {
-        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound')) {
+        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-sound-config')) {
             hideQuickVolumePopover();
         }
     }, { passive: true });

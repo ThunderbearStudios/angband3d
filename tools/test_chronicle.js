@@ -2244,7 +2244,109 @@ async function runTest() {
     }
     console.log(`  ✓ Status recovery vision restored verified: "${recChapter.prose}"`);
 
-    console.log('\n[Chronicle Test] ✅ ALL 31 VERIFICATION PHASES PASSED WITH ZERO ERRORS!\n');
+    // -------------------------------------------------------------
+    // Phase 32: Universal Volume Control, Channel Sub-Buses & Hero Death Requiem
+    // -------------------------------------------------------------
+    console.log('\n[Phase 32] Universal Audio Control, Multi-Bus Mixing & Hero Death Requiem Verification...');
+
+    // 32a. UI Audio Configuration Popover Elements in index.html
+    if (!htmlContent.includes('id="popover-voice-slider"')) {
+        throw new Error('Expected #popover-voice-slider in index.html');
+    }
+    if (!htmlContent.includes('id="popover-sfx-slider"')) {
+        throw new Error('Expected #popover-sfx-slider in index.html');
+    }
+    if (!htmlContent.includes('id="popover-reverb-slider"')) {
+        throw new Error('Expected #popover-reverb-slider in index.html');
+    }
+    if (!htmlContent.includes('id="btn-sound-config"')) {
+        throw new Error('Expected #btn-sound-config gear icon button in index.html');
+    }
+    console.log('  ✓ UI Audio Configuration popover elements present in index.html: Tome voice, SFX, Reverb sliders & Config button.');
+
+    // 32b. Hero Death Detection in ChronicleFilter
+    const deathFilter = new ChronicleFilter();
+    deathFilter.hasCompletedOnboarding.townArrival = true;
+    deathFilter.hasCompletedOnboarding.firstStairsDown = true;
+    deathFilter.lastDepth = 2;
+    deathFilter.lastTurn = 50;
+
+    const deadHero = {
+        name: 'Barliman',
+        race: 'Human',
+        class: 'Warrior',
+        clev: 3,
+        chp: 0,
+        mhp: 45,
+        dead: true,
+        died_from: 'a novice mage',
+        depth: 2,
+        turn: 55
+    };
+
+    const deathEv = deathFilter.evaluate({
+        phase: 'death',
+        player: deadHero,
+        messages: ['The novice mage casts a magic missile.', 'You die.', 'Killed by a novice mage.'],
+        monsters: []
+    });
+
+    if (!deathEv || deathEv.type !== 'HERO_DEATH') {
+        throw new Error(`Expected HERO_DEATH event on player death, got: ${JSON.stringify(deathEv)}`);
+    }
+    if (deathEv.data.diedFrom !== 'a novice mage') {
+        throw new Error(`Expected diedFrom to be 'a novice mage', got: ${deathEv.data.diedFrom}`);
+    }
+    if (deathEv.importance !== 100 || deathEv.priority !== 1000) {
+        throw new Error(`Expected supreme importance (100) and priority (1000) for death event`);
+    }
+
+    // Guard against phantom multi-triggers during death sequence
+    const secondDeathEv = deathFilter.evaluate({
+        phase: 'death',
+        player: deadHero,
+        messages: ['You die.'],
+        monsters: []
+    });
+    if (secondDeathEv !== null) {
+        throw new Error(`Expected evaluate to return null after death already captured, got: ${JSON.stringify(secondDeathEv)}`);
+    }
+    console.log('  ✓ Hero death capture & single-trigger guard verified in ChronicleFilter.');
+
+    // 32c. Epitaph Procedural Chapter Generation in ChronicleGrounder
+    const westmarchEpitaph = ChronicleGrounder.generateProceduralChapter(deathEv, deadHero, 'westmarch');
+    if (!westmarchEpitaph.title.includes('Epitaph') || !westmarchEpitaph.prose.includes('Barliman') || !westmarchEpitaph.prose.includes('a novice mage') || !westmarchEpitaph.isDeath) {
+        throw new Error(`Invalid Westmarch epitaph: ${JSON.stringify(westmarchEpitaph)}`);
+    }
+    console.log(`  ✓ Westmarch Death Epitaph verified: "${westmarchEpitaph.prose}"`);
+
+    const dwarfDeadHero = { ...deadHero, name: 'Thorin', race: 'Dwarf', class: 'Warrior' };
+    const dwarfDeathEv = { ...deathEv, data: { ...deathEv.data, hero: 'Thorin', race: 'Dwarf', class: 'Warrior' } };
+    const khazadEpitaph = ChronicleGrounder.generateProceduralChapter(dwarfDeathEv, dwarfDeadHero, 'khazad');
+    if (!khazadEpitaph.prose.includes('Durin') && !khazadEpitaph.prose.includes('hammer')) {
+        throw new Error(`Expected Khazad-attuned dwarven funeral prose, got: ${khazadEpitaph.prose}`);
+    }
+    console.log(`  ✓ Khazad Dwarven Requiem verified: "${khazadEpitaph.prose}"`);
+
+    const elfDeadHero = { ...deadHero, name: 'Glorfindel', race: 'High-Elf', class: 'Mage' };
+    const elfDeathEv = { ...deathEv, data: { ...deathEv.data, hero: 'Glorfindel', race: 'High-Elf', class: 'Mage' } };
+    const noldorEpitaph = ChronicleGrounder.generateProceduralChapter(elfDeathEv, elfDeadHero, 'noldor');
+    if (!noldorEpitaph.prose.includes('sorrow') || !noldorEpitaph.prose.includes('Glorfindel')) {
+        throw new Error(`Expected Noldor elven requiem, got: ${noldorEpitaph.prose}`);
+    }
+    console.log(`  ✓ Noldor Elven Requiem verified: "${noldorEpitaph.prose}"`);
+
+    // 32d. Master Narrator Funeral Voice Profile (Enceladus Mournful Requiem)
+    const deathVoiceProfile = ChronicleGrounder.resolveVoiceProfile(null, deadHero, 'HERO_DEATH', 'westmarch');
+    if (deathVoiceProfile.geminiVoice !== 'Enceladus' || deathVoiceProfile.emotion !== 'mournful') {
+        throw new Error(`Expected Enceladus mournful voice profile for HERO_DEATH, got: ${JSON.stringify(deathVoiceProfile)}`);
+    }
+    if (!deathVoiceProfile.geminiTag.includes('mournfully')) {
+        throw new Error(`Expected mournful geminiTag, got: ${deathVoiceProfile.geminiTag}`);
+    }
+    console.log(`  ✓ Master Narrator funeral voice profile verified: ${deathVoiceProfile.geminiVoice} (${deathVoiceProfile.emotion}) "${deathVoiceProfile.geminiTag}".`);
+
+    console.log('\n[Chronicle Test] ✅ ALL 32 VERIFICATION PHASES PASSED WITH ZERO ERRORS!\n');
 }
 
 runTest().catch((err) => {
