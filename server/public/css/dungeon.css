@@ -677,7 +677,7 @@ html, body {
     position: fixed;
     top: calc(max(44px, var(--safe-top) + 38px));
     right: max(8px, var(--safe-right));
-    width: min(310px, calc(100vw - 20px));
+    width: min(340px, calc(100vw - 20px));
     background: rgba(14, 18, 28, 0.96);
     border: 1px solid rgba(212, 175, 55, 0.6);
     border-radius: 12px;
@@ -851,6 +851,69 @@ html, body {
     border-color: #ffd700;
     color: #ffd700;
     box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+/* Popover Channel Sliders (Tome Voice, SFX & Reverb) */
+.quick-volume-popover .popover-channels {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(212, 175, 55, 0.25);
+}
+
+.quick-volume-popover .popover-channel-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.quick-volume-popover .popover-channel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.quick-volume-popover .popover-channel-label {
+    font-family: var(--font-fantasy, Georgia, serif);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #e2e8f0;
+    letter-spacing: 0.3px;
+}
+
+.quick-volume-popover .popover-sub-badge {
+    font-family: var(--font-terminal, monospace);
+    font-size: 11px;
+    font-weight: 600;
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.12);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    padding: 1px 6px;
+    border-radius: 4px;
+    min-width: 38px;
+    text-align: right;
+}
+
+/* Subtle Config Gear Button in Top Right Sound Group */
+#btn-sound-config {
+    background: rgba(22, 28, 42, 0.7);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: #ffd700;
+    font-size: 13px;
+    padding: 4px 7px;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.15s ease;
+    touch-action: manipulation;
+}
+
+#btn-sound-config:hover {
+    background: rgba(45, 36, 16, 0.95);
+    border-color: #ffd700;
+    transform: rotate(30deg);
 }
 
 #btn-sound.muted {

@@ -1,8 +1,31 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.2.0 — The Living Chronicle & Voiced Lorekeeper v3.14.0: Comprehensive Message Log Integration, Compound Sentence Coalescence & Zero-Latency Audio Streaming)
+## Current System State (Angband3D v2.2.0 — The Living Chronicle & Voiced Lorekeeper v3.15.0: Universal Audio Control, Multi-Bus Mixing & Solemn Hero Death Epitaphs)
 
-0. **The Living Chronicle & Voiced Lorekeeper (Version 3.14.0 — Comprehensive Message Log Integration, Compound Sentence Coalescence & Zero-Latency Audio Streaming)**:
+0. **The Living Chronicle & Voiced Lorekeeper (Version 3.15.0 — Universal Audio Control, Multi-Bus Mixing & Solemn Hero Death Epitaphs)**:
+   - **Universal Master Volume & Mute Control (`audio.js`, `chronicle-audio.js`, `app.js`)**:
+     - Master volume slider and overall mute toggle now universally scale and silence both procedural SFX and the Living Chronicle / Tome voice narration in lockstep.
+     - Connected `ChronicleAudioRouter` voice output through `SoundEngine.masterGain`, guaranteeing that hardware or top-bar mute immediately silences all audio.
+     - Separated SFX routing into a dedicated `sfxGain` sub-bus, allowing ducking and effects scaling without mutating master volume.
+   - **Audio Configuration Popover (`index.html`, `dungeon.css`, `app.js`)**:
+     - Upgraded the quick volume popover (`#quick-volume-popover`) and gear button (`#btn-sound-config`) to a full Audio Configuration panel.
+     - Integrated independent volume controls for:
+       - **Master Volume**: 0–100% slider with quick-preset buttons (Mute, 25%, 50%, 75%, 100%).
+       - **Tome / Voice Volume**: 0–100% slider (`#popover-voice-slider`) persisted to `angband3d_tome_voice_volume`.
+       - **Effects (SFX) Volume**: 0–100% slider (`#popover-sfx-slider`) persisted to `angband3d_sfx_volume`.
+       - **Subterranean Reverb**: 0–100% slider (`#popover-reverb-slider`) adjusting the wet mix in `audio.js` and `chronicle-audio.js`.
+   - **Hero Death Capture, Requiem Card & Solemn Funeral Narration (`chronicle-filter.js`, `chronicle-grounder.js`, `chronicle-manager.js`, `chronicle.css`)**:
+     - Detected player death states across `frame.phase === 'death'`, `player.dead === true`, `player.chp <= 0`, or fatal engine messages.
+     - Emitted high-priority `HERO_DEATH` chapter event (importance 100, priority 1000) with killer attribution from `player.died_from`.
+     - Added race- and heritage-attuned funeral epitaphs in `ChronicleGrounder` (Westmarch, Khazad dwarven requiem, Noldor elven lament).
+     - Styled memorial cards with `.chapter-death` (crimson/obsidian glow, solemn typography, ⚰️ badge).
+     - Assigned Enceladus a solemn, mournful delivery profile (`emotion: 'mournful'`, rate `-8%`, pitch `-2Hz`, funeral prosody).
+     - Prioritized death narration at supreme priority #0 in `ChronicleManager`, immediately preempting ongoing combat audio to recite the hero's epitaph.
+   - **Verification & Health**:
+     - 100% passing across all 32 automated test phases in `tools/test_chronicle.js`.
+     - Smoke test clean: `python tools/smoke_test.py` (11/11 tests passing).
+     - Godot C# client build clean: `dotnet build client/angband3d.csproj` (0 warnings, 0 errors).
+
    - **Comprehensive Message Log Event Integration (`chronicle-filter.js`, `chronicle-grounder.js`)**:
      - Added static regular expressions and procedural grounder handlers for previously unlogged engine events:
        - Standard monster kills: `The <monster> dies.` and `The <monster> is destroyed.` with intelligent creature name extraction (`ChronicleGrounder.extractSlainMonsterName`).

@@ -822,20 +822,14 @@ class ChronicleManager {
     async onFrame(frame) {
         if (!frame) return;
 
-        // Track death or birth/setup phase transitions to force a fresh chronicle on next character
-        if (frame.phase === 'death') {
-            this.characterDied = true;
-            if (this.audio) this.audio.stopSpeaking();
-            this.stopStoryPlayback();
-            return;
-        }
+        // Track birth/setup phase transitions to force a fresh chronicle on next character
         if (frame.phase === 'birth' || frame.phase === 'setup') {
             this.characterDied = true;
             return;
         }
 
-        // Only evaluate during active gameplay
-        if (frame.phase !== 'play' || !frame.player) return;
+        // Only evaluate during active gameplay or death sequence
+        if ((frame.phase !== 'play' && frame.phase !== 'death') || !frame.player) return;
 
         if (this._isProcessingFrame) return;
         this._isProcessingFrame = true;
@@ -910,21 +904,30 @@ class ChronicleManager {
                 event = this.filter.evaluate(frame);
             }
 
+            // If death occurred in this frame, mark characterDied so next life gets a fresh start
+            if (frameEntries.some(fe => fe.event.type === 'HERO_DEATH')) {
+                this.characterDied = true;
+            }
+
             // Live Narration Priority Gate: To guarantee ZERO vocal overlay and no lagged queues,
             // speak the single most significant event of this turn with context-resolved voices.
             if (this.audio && this.audio.enabled && frameEntries.length > 0) {
                 // Priority hierarchy:
+                // 0. Hero Death / Requiem (Ultimate terminal priority)
                 // 1. Chapter milestones (e.g. Unique Boss spotted, Mortal Peril, Floor Descent)
                 // 2. Fatal slaying / kill (COMBAT_EPISODE, UNIQUE_SLAIN, or COMBAT_EXCHANGE with kills)
                 // 3. Creature dialogue bark
                 // 4. Most recent combat action
-                const bestToSpeak = frameEntries.find(fe => fe.event.isChapter !== false) ||
+                const bestToSpeak = frameEntries.find(fe => fe.event.type === 'HERO_DEATH') ||
+                                    frameEntries.find(fe => fe.event.isChapter !== false) ||
                                     frameEntries.find(fe => fe.event.type === 'STORE_PURCHASE') ||
                                     frameEntries.find(fe => fe.event.type === 'COMBAT_EPISODE' || fe.event.type === 'UNIQUE_SLAIN' || (fe.event.type === 'COMBAT_EXCHANGE' && fe.event.data?.kills?.length > 0)) ||
                                     frameEntries.find(fe => fe.entry.dialogue && !fe.entry.dialogue.isNoise) ||
                                     frameEntries[frameEntries.length - 1];
                 if (bestToSpeak && bestToSpeak.entry) {
-                    const isUrgent = (bestToSpeak.event && bestToSpeak.event.isChapter !== false) ||
+                    const isDeathEvent = (bestToSpeak.event && bestToSpeak.event.type === 'HERO_DEATH');
+                    const isUrgent = isDeathEvent ||
+                                     (bestToSpeak.event && bestToSpeak.event.isChapter !== false) ||
                                      bestToSpeak.event.type === 'STORE_PURCHASE' ||
                                      bestToSpeak.event.type === 'COMBAT_EPISODE' ||
                                      bestToSpeak.event.type === 'UNIQUE_SLAIN' ||
@@ -932,12 +935,12 @@ class ChronicleManager {
 
                     // High-Responsiveness Preemption:
                     // If audio is currently speaking:
-                    // - Urgent milestones & kills ALWAYS immediately interrupt and speak the latest achievement.
+                    // - Death and urgent milestones ALWAYS immediately interrupt and speak the latest achievement.
                     // - Combat preempts non-combat (e.g. ambient exploration).
                     // - Ongoing combat preempts if it has been playing for at least 700ms.
                     if (this.audio.isSpeaking) {
                         const dur = (typeof this.audio.getSpeakingDuration === 'function') ? this.audio.getSpeakingDuration() : 1000;
-                        if (isUrgent || this.audio.currentRole === 'ambient' || dur >= 700) {
+                        if (isDeathEvent || isUrgent || this.audio.currentRole === 'ambient' || dur >= 700) {
                             this.audio.stopSpeaking();
                         } else {
                             // If very fast consecutive blow within 700ms, let current punchy utterance finish
@@ -1064,8 +1067,9 @@ class ChronicleManager {
         const pIdx = (entry.pIndex !== undefined && entry.pIndex !== null) ? entry.pIndex : 0;
         const beatId = entry.beatId || `chronicle-beat-${chNum}-${pIdx}`;
 
+        const isDeath = Boolean(entry.isDeath || entry.type === 'HERO_DEATH' || (entry.title && entry.title.includes('Epitaph')));
         const block = document.createElement('div');
-        block.className = 'flowing-paragraph-block chapter-card';
+        block.className = isDeath ? 'flowing-paragraph-block chapter-card chapter-death' : 'flowing-paragraph-block chapter-card';
         block.id = beatId;
         block.setAttribute('data-beat-id', beatId);
         block.setAttribute('data-chapter-num', chNum);
@@ -1075,13 +1079,14 @@ class ChronicleManager {
             ? entry.depth
             : (this.currentHero ? this.currentHero.depth : 0);
         const depthLabel = depth === 0 ? 'Town' : `${depth * 50}ft`;
+        const headerBadge = isDeath ? `⚰️ ${depthLabel} • Requiem` : depthLabel;
 
         let html = `
-            <div class="flowing-paragraph-header">
-                <span class="entry-meta-depth">${depthLabel}</span>
-                <button class="flow-play-btn" data-beat-id="${beatId}" title="Play story from here">▶</button>
+            <div class="flowing-paragraph-header ${isDeath ? 'death-header' : ''}">
+                <span class="entry-meta-depth ${isDeath ? 'death-badge' : ''}">${headerBadge}</span>
+                <button class="flow-play-btn" data-beat-id="${beatId}" title="${isDeath ? 'Hear the Requiem' : 'Play story from here'}">▶</button>
             </div>
-            <p class="chapter-prose">${entry.prose}</p>
+            <p class="chapter-prose ${isDeath ? 'death-prose' : ''}">${entry.prose}</p>
         `;
 
         if (entry.dialogue && entry.dialogue.text) {
@@ -1104,9 +1109,9 @@ class ChronicleManager {
 
         if (entry.insight) {
             html += `
-                <div class="lorekeeper-insight">
-                    <span class="lorekeeper-insight-icon">💡</span>
-                    <span><strong>Lorekeeper:</strong> ${entry.insight}</span>
+                <div class="lorekeeper-insight ${isDeath ? 'death-insight' : ''}">
+                    <span class="lorekeeper-insight-icon">${isDeath ? '🕯️' : '💡'}</span>
+                    <span><strong>${isDeath ? 'Epitaph:' : 'Lorekeeper:'}</strong> ${entry.insight}</span>
                 </div>
             `;
         }

@@ -286,6 +286,51 @@ body.is-standalone #chronicle-window {
     animation: fadeInChapter 0.3s ease-out;
 }
 
+/* Chapter Card: Solemn Hero Death Requiem & Epitaph */
+.chapter-card.chapter-death {
+    background: linear-gradient(135deg, rgba(68, 14, 18, 0.85) 0%, rgba(24, 7, 10, 0.95) 100%);
+    border: 1.5px solid rgba(239, 68, 68, 0.65);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 14px rgba(220, 38, 38, 0.35), inset 0 0 12px rgba(185, 28, 28, 0.2);
+    animation: fadeInDeathChapter 0.6s ease-out;
+}
+
+@keyframes fadeInDeathChapter {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.chapter-card.chapter-death .death-header {
+    border-bottom: 1px solid rgba(239, 68, 68, 0.25);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+}
+
+.chapter-card.chapter-death .death-badge {
+    color: #fca5a5;
+    background: rgba(220, 38, 38, 0.2);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+
+.chapter-card.chapter-death .death-prose {
+    color: #fecaca;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.6;
+    letter-spacing: 0.2px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.chapter-card.chapter-death .death-insight {
+    background: rgba(45, 10, 15, 0.55);
+    border-left: 3px solid #ef4444;
+    color: #fca5a5;
+}
+
 @keyframes fadeInChapter {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
