@@ -1957,10 +1957,36 @@ class ChronicleGrounder {
     }
 
     /**
+     * Extracts a clean, normalized creature name from varied Angband kill strings.
+     * Handles upstream Angband formats:
+     * - "The small kobold dies." -> "small kobold"
+     * - "The yellow jelly is destroyed." -> "yellow jelly"
+     * - "The ghost perishes." -> "ghost"
+     * - "You have slain the Cave orc." -> "Cave orc"
+     * - "The mummy crumbles into dust." -> "mummy"
+     */
+    static extractSlainMonsterName(kill) {
+        if (!kill) return 'foe';
+        const text = typeof kill === 'string' ? kill : (kill.monsterName || kill.message || '');
+        if (!text) return 'foe';
+        let m = text.match(/slain (?:the |a |an )?([A-Za-z0-9\-',\s]+?)(?:\.|$)/i);
+        if (m && m[1]) return m[1].trim();
+        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+dies(?:\.|$)/i);
+        if (m && m[1]) return m[1].trim();
+        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+is destroyed(?:\.|$)/i);
+        if (m && m[1]) return m[1].trim();
+        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+perishes(?:\.|$)/i);
+        if (m && m[1]) return m[1].trim();
+        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+crumbles into dust(?:\.|$)/i);
+        if (m && m[1]) return m[1].trim();
+        return text.replace(/^(?:The |A |An )/i, '').replace(/[.!]+$/, '').trim() || 'foe';
+    }
+
+    /**
      * Generates deep, contextual combat saga narratives with genuine Middle-earth color,
      * racial/class internal justification, moral judgment, and rotational anti-repetition.
      */
-    static generateKillSaga(kills = [], player = null, depth = 0, traditionKey = 'westmarch', weapon = 'drawn steel') {
+    static generateKillSaga(kills = [], player = null, depth = 0, traditionKey = 'westmarch', weapon = 'drawn steel', fleeingMonster = null) {
         const pName = (player && player.name) ? player.name : 'The Wanderer';
         const pRace = (player && player.race) ? player.race.toLowerCase() : 'mortal';
         const pClass = (player && player.class) ? player.class.toLowerCase() : 'warrior';
@@ -1970,16 +1996,18 @@ class ChronicleGrounder {
         const turnSeed = Math.abs(((player && player.turn ? player.turn : 0) + (kills.length || 1) * 7)) % 12;
 
         // Monster Family Detection
-        const isBeggar = kills.some(k => /beggar|urchin|leper/i.test(k));
-        const isCatOrDog = kills.some(k => /cat|dog|hound|jackal/i.test(k));
-        const isIdiot = kills.some(k => /idiot/i.test(k));
-        const isTownsperson = kills.some(k => /merchant|peasant|townsfolk|drunk|sot/i.test(k));
-        const isRogue = kills.some(k => /rogue|thief|cutpurse|bandit|mugger|brigand/i.test(k));
-        const isOrc = kills.some(k => /orc|goblin|snaga|uruk/i.test(k));
-        const isVermin = kills.some(k => /spider|centipede|snake|worm|rat|tick|beetle/i.test(k));
-        const isUndead = kills.some(k => /skeleton|zombie|wight|wraith|vampire|spectre|ghost/i.test(k));
-        const isTroll = kills.some(k => /troll|ogre|giant|ettin/i.test(k));
-        const isDragon = kills.some(k => /dragon|drake|wyrm/i.test(k));
+        const isBeggar = kills.some(k => /beggar|urchin|leper/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isCatOrDog = kills.some(k => /cat|dog|hound|jackal/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isIdiot = kills.some(k => /idiot/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isTownsperson = kills.some(k => /merchant|peasant|townsfolk|drunk|sot/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isRogue = kills.some(k => /rogue|thief|cutpurse|bandit|mugger|brigand/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isOrc = kills.some(k => /orc|goblin|snaga|uruk/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isKobold = kills.some(k => /kobold/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isJelly = kills.some(k => /jelly|mold|ooze|slime|cube/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isVermin = kills.some(k => /spider|centipede|snake|worm|rat|tick|beetle/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isUndead = kills.some(k => /skeleton|zombie|wight|wraith|vampire|spectre|ghost/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isTroll = kills.some(k => /troll|ogre|giant|ettin/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
+        const isDragon = kills.some(k => /dragon|drake|wyrm/i.test(typeof k === 'string' ? k : (k.monsterName || k.message || '')));
 
         let title = 'Blood on the Stone';
         let prose = '';
@@ -2028,7 +2056,36 @@ class ChronicleGrounder {
             prose = `The conflict turns bloody in the open street as ${pName}'s ${weapon} finds its mark. The victim crumples against a stack of crates, and the murmur of the town market dies into terrified whispers. Striking down the frontier folk invites doom; ${pName} glances toward the shadowy arches, knowing the town watch will not easily forget this day.`;
         }
         // --- 2. SUBTERRANEAN DUNGEON COMBAT (DEPTH > 0) ---
-        else if (isOrc) {
+        else if (fleeingMonster && kills.length === 1) {
+            title = ['Flight Cut Short', 'No Escape in the Dark', 'The Craven Felled', 'Pursuit in the Deep'][turnSeed % 4];
+            const cleanFlee = ChronicleGrounder.extractSlainMonsterName(fleeingMonster);
+            const fleeKillVariants = [
+                `Pursuing the panicked ${cleanFlee}, ${pName}'s ${weapon} strikes true from behind! The craven creature crumples in mid-stride, its desperate flight cut short upon the dark stones.`,
+                `Closing the distance before the ${cleanFlee} could slip down the dark corridor, ${pName} delivers a decisive finishing stroke, felling the fleeing foe upon the flagstones!`,
+                `Blind terror offered the ${cleanFlee} no sanctuary: ${pName} overtakes the retreating assailant, cutting it down with a swift strike of ${weapon}.`,
+                `The corridor falls into silence as ${pName}'s ${weapon} ends the flight of the ${cleanFlee}. The subterranean passages echo no further cries.`
+            ];
+            prose = fleeKillVariants[turnSeed % fleeKillVariants.length];
+        } else if (isKobold) {
+            title = ['Bane of the Warrens', 'The Scavenger Silenced', 'The Small Knife Broken', 'Cleansing the Burrows'][turnSeed % 4];
+            const koboldVariants = [
+                `A swift, punishing strike of ${weapon} cuts down the screeching small kobold! The wretched creature topples across its crude notch-bladed knife, silencing its snarls upon the stone.`,
+                `Catching the small kobold as it recoils, ${pName}'s ${weapon} pierces cleanly through. The subterranean scavenger collapses lifeless into the dust, leaving the dark passage clear.`,
+                `With decisive speed, ${pName} hews down the small kobold before it can loose another crude dart or scamper into the alcoves. The immediate threat is neutralized.`,
+                `The small kobold's wild jab glances harmlessly off guard; ${pName} counters with lethal finality, felling the subterranean craven upon the cold rock.`
+            ];
+            prose = koboldVariants[turnSeed % koboldVariants.length];
+        } else if (isJelly) {
+            title = ['Quivering Protoplasm Pierced', 'The Ooze Dissolved', 'Acidic Remnants', 'Clean Cut Through Slime'][turnSeed % 4];
+            const cleanJelly = ChronicleGrounder.extractSlainMonsterName(kills[0]);
+            const jellyVariants = [
+                `A shearing stroke of ${weapon} cleaves through the quivering protoplasm of the ${cleanJelly}! The acidic mass dissolves with a violent hiss, spattering inert slime across the dungeon floor.`,
+                `Ducking back from the corrosive stench, ${pName} brings ${weapon} down with slicing force. The gelatinous ${cleanJelly} bursts apart, liquefying harmlessly into the cracks of the stone.`,
+                `With measured strikes, ${pName} destroys the ${cleanJelly} before its stinging touch can corrode armor or burn flesh. The noxious organism is reduced to smoking residue.`,
+                `The pulsating ${cleanJelly} quivers under the onslaught of ${weapon}, rupturing and collapsing into a lifeless puddle of steaming subterranean goo.`
+            ];
+            prose = jellyVariants[turnSeed % jellyVariants.length];
+        } else if (isOrc) {
             title = ['Bane of the Orc-Kin', 'Black Blood on Cold Stone', 'The Ancient Feud', 'Heir of the First Age', 'Cleansing the Defilers', 'Iron Against Scimitar'][turnSeed % 6];
             const orcVariants = [
                 `Ancestral wrath guides the strike! ${pName}'s ${weapon} cleaves through crude boiled leather and gnawed bone, hewing down the foul orc in a spray of thick, hissing black blood. The ancient feud of the Elder Days burns hot in this corridor; Morgoth's defilers will find no quarter in these halls.`,
@@ -2084,11 +2141,12 @@ class ChronicleGrounder {
                 prose = multiVariants[turnSeed % multiVariants.length];
             } else {
                 const killText = kills[0] || 'A foe fell.';
+                const cleanKill = ChronicleGrounder.extractSlainMonsterName(killText);
                 const singleVariants = [
-                    `${pName}'s ${weapon} strikes true with decisive, bone-jarring momentum. ${killText} The immediate threat neutralized, ${pName} pauses to catch breath, eyes sweeping the surrounding gloom for flanking ambushes.`,
-                    `A swift, deadly counter-stroke ends the skirmish! ${killText} ${pName} steps over the fallen body, listening intently to the distant echoes of the corridors ahead.`,
-                    `Reading the foe's approach in the flickering torchlight, ${pName} sidesteps and delivers a single, fatal blow. ${killText} The dark passage falls silent once more.`,
-                    `With calm, surgical lethality, ${pName} drives ${weapon} through the opponent's guard. ${killText} Wiping the blade clean, the adventurer resumes the perilous descent.`
+                    `${pName}'s ${weapon} strikes true with decisive, bone-jarring momentum, felling the ${cleanKill}! The immediate threat neutralized, ${pName} pauses to catch breath, eyes sweeping the surrounding gloom for flanking ambushes.`,
+                    `A swift, deadly counter-stroke ends the skirmish! Slashing through the guard of the ${cleanKill}, ${pName} steps over the fallen body, listening intently to the distant echoes of the corridors ahead.`,
+                    `Reading the approach of the ${cleanKill} in the flickering torchlight, ${pName} sidesteps and delivers a single, fatal blow. The dark passage falls silent once more.`,
+                    `With calm, surgical lethality, ${pName} drives ${weapon} through the ${cleanKill}'s guard. Wiping the blade clean, the adventurer resumes the perilous descent.`
                 ];
                 prose = singleVariants[turnSeed % singleVariants.length];
             }
@@ -2601,11 +2659,12 @@ class ChronicleGrounder {
                 // 3. Hero Attack & Kill Summary
                 let heroText = '';
                 if (kills.length > 0) {
-                    const killNames = kills.map(k => {
-                        const m = (typeof k === 'string' ? k : (k.monsterName || k.message || '')).match(/slain (?:the )?([A-Za-z0-9\-',\s]+?)(?:\.|$)/i);
-                        return m ? m[1].trim() : (typeof k === 'string' ? k : 'foe');
-                    });
-                    if (kills.length === 1) {
+                    const killNames = kills.map(k => ChronicleGrounder.extractSlainMonsterName(k));
+                    const fleeMon = exData.fleeingMonster;
+                    if (fleeMon && kills.length === 1) {
+                        const cleanFlee = ChronicleGrounder.extractSlainMonsterName(fleeMon);
+                        heroText = `pursuing the fleeing ${cleanFlee}, your ${weapon} cuts the craven creature down before it can escape`;
+                    } else if (kills.length === 1) {
                         const singleKillPhrases = [
                             `your ${weapon} cuts down the ${killNames[0]}`,
                             `with grim resolve your ${weapon} fells the ${killNames[0]} upon the flagstones`,
@@ -2886,8 +2945,115 @@ class ChronicleGrounder {
 
             case 'LEVEL_FEELING': {
                 const fText = (event.data && event.data.feelingText) ? event.data.feelingText : 'a strange aura';
-                title = `Intuition in the Deep`;
-                prose = `An ancient premonition crawls along ${name}'s spine like winter frost at ${depthFt}: ${fText}. Every nerve tightens as the dungeon breathes its silent warning.`;
+                const fLower = fText.toLowerCase();
+                if (fLower.includes('tame') || fLower.includes('sheltered') || fLower.includes('quiet') || fLower.includes('peaceful') || fLower.includes('reasonably safe')) {
+                    title = 'Sheltered Vaults';
+                    prose = `A rare, deceptive stillness hangs over the halls at ${depthFt}: ${fText}. Yet seasoned adventurers know that the deep pits of Angband never remain tranquil for long.`;
+                } else if (fLower.includes('omens of death') || fLower.includes('murderous') || fLower.includes('terribly dangerous') || fLower.includes('sinister')) {
+                    title = 'Dread Premonition';
+                    prose = `A suffocating chill grips ${name}'s heart at ${depthFt}: ${fText}! The very stones seem steeped in ancient malice, warning that lethal horrors stalk this tier.`;
+                } else if (fLower.includes("aren't many treasures") || fLower.includes('scant') || fLower.includes('poor')) {
+                    title = 'Barren Caverns';
+                    prose = `Testing the subterranean drafts at ${depthFt}, ${name} senses only cold dust and hollow cobwebs: ${fText}. Survival, rather than rich plunder, must be the goal of this delve.`;
+                } else if (fLower.includes('superb treasures') || fLower.includes('rich') || fLower.includes('great treasures')) {
+                    title = 'Glint of Ancient Wealth';
+                    prose = `A tingling instinct stirs ${name}'s blood at ${depthFt}: ${fText}! Relics of elder kings and vaults of lost craft await discovery in the gloom.`;
+                } else {
+                    title = `Intuition in the Deep`;
+                    prose = `An ancient premonition crawls along ${name}'s spine like winter frost at ${depthFt}: ${fText}. Every nerve tightens as the dungeon breathes its silent warning.`;
+                }
+                break;
+            }
+
+            case 'EXCAVATION': {
+                const isCleared = event.data && event.data.cleared;
+                const turnSeed = Math.abs((player ? player.turn || 0 : 0) + (depth * 17));
+                if (isCleared) {
+                    title = 'Corridor Cleared';
+                    const clearVariants = [
+                        `With steady, rhythmic blows of pick and shovel, ${name} clears away the collapsed cavern rubble at ${depthFt}, reopening a traversable corridor through the dark!`,
+                        `The final stubborn boulders give way under ${name}'s determined digging at ${depthFt}, opening the blocked passage into the vaults beyond.`,
+                        `Sweeping aside shattered rock and crushed debris, ${name} unblocks the corridor at ${depthFt}, restoring a vital avenue of movement.`
+                    ];
+                    prose = clearVariants[turnSeed % clearVariants.length];
+                    insight = "Clearing rubble unblocks tactical escape routes and can reveal hidden mineral veins.";
+                } else {
+                    title = 'Excavation in the Deep';
+                    const digVariants = [
+                        `Striking iron against stubborn stone, ${name} chips steadily away at the pile of collapsed rubble at ${depthFt}, rock dust rising in the flickering torchlight.`,
+                        `With seasoned labor at ${depthFt}, ${name} digs into the obstruction, testing the density of the collapsed ceiling fall.`,
+                        `Pebbles and grit scatter across the flagstones as ${name} works to carve a path through the debris-choked hallway.`
+                    ];
+                    prose = digVariants[turnSeed % digVariants.length];
+                    insight = "Picks and shovels carve through collapsed rubble. Digging takes multiple turns; watch for roaming monsters.";
+                }
+                break;
+            }
+
+            case 'TREASURE_DISCOVERY': {
+                const amt = (event.data && event.data.amount) ? event.data.amount : 0;
+                const metal = (event.data && event.data.metal) ? event.data.metal : 'gold';
+                const turnSeed = Math.abs((player ? player.turn || 0 : 0) + (amt * 7) + (depth * 29));
+                title = amt > 200 ? 'Rich Plunder' : 'Glint in the Dust';
+                if (amt > 0) {
+                    const treasureVariants = [
+                        `Sweeping aside ancient subterranean dust at ${depthFt}, ${name} uncovers a cache of ${amt} gold pieces worth of ${metal}! The coins clink reassuringly into the adventurer's pouch.`,
+                        `A glint of metallic brilliance catches the torchlight at ${depthFt}! ${name} retrieves ${amt} gold pieces worth of ${metal} scattered amongst the flagstones.`,
+                        `Fortune smiles in the deep: ${name} gathers ${amt} gold pieces worth of ${metal} from the cold stone floor, adding precious wealth to the coffer.`
+                    ];
+                    prose = treasureVariants[turnSeed % treasureVariants.length];
+                } else {
+                    prose = `Amongst the dark rubble at ${depthFt}, ${name} discovers a glint of ancient treasure, securing the prize before resuming the descent.`;
+                }
+                insight = "Gold is essential for purchasing potions, food rations, spellbooks, and enchantments in the town shops.";
+                break;
+            }
+
+            case 'DUNGEON_FEATURE': {
+                const featMsg = (event.data && event.data.message) ? event.data.message : '';
+                const featLower = featMsg.toLowerCase();
+                if (featLower.includes('secret door') || featLower.includes('found a secret')) {
+                    title = 'Secret Passage Unveiled';
+                    prose = `Examining the seemingly solid masonry at ${depthFt}, ${name}'s keen fingers detect a hidden seam—a secret door pivots silently outward on ancient hinges!`;
+                    insight = "Secret doors often lead to undisturbed treasure vaults and alternate stairways.";
+                } else if (featLower.includes('disarm') || featLower.includes('trap')) {
+                    title = 'Trap Disarmed';
+                    prose = `With steady hands and bated breath at ${depthFt}, ${name} wedges a pin into the concealed mechanism, neutralizing the deadly trap before it can trigger.`;
+                    insight = "Disarming traps yields experience points and clears safe retreat paths.";
+                } else if (featLower.includes('bash') || featLower.includes('bursts open') || featLower.includes('smashes open')) {
+                    title = 'Portal Breached';
+                    prose = `Throwing full shoulder weight against the stubborn timbers at ${depthFt}, ${name} shatters the rusted lock, kicking the door wide open into the chamber beyond!`;
+                    insight = "Bashing locked doors creates noise that can alert sleeping monsters in nearby rooms.";
+                } else if (featLower.includes('lock') || featLower.includes('picked')) {
+                    title = 'Lock Picked';
+                    prose = `Working a slender iron pick into the archaic tumblers at ${depthFt}, ${name} turns the cylinder with a satisfying click, easing the door open without a sound.`;
+                    insight = "Picking locks avoids noise, keeping slumbering guardians oblivious to your presence.";
+                } else {
+                    title = 'Dungeon Mystery';
+                    prose = `Interacting with the ancient architecture at ${depthFt}, ${name} manipulates the stonework, adapting to the hazards of the labyrinth.`;
+                }
+                break;
+            }
+
+            case 'STATUS_RECOVERY': {
+                const recMsg = (event.data && event.data.message) ? event.data.message : '';
+                const recLower = recMsg.toLowerCase();
+                if (recLower.includes('see again')) {
+                    title = 'Vision Restored';
+                    prose = `The suffocating blackness recedes from ${name}'s vision! Torchlight and stone resolve into sharp clarity once more.`;
+                } else if (recLower.includes('confus')) {
+                    title = 'Clarity Returns';
+                    prose = `The dizzying fog lifts from ${name}'s mind—equilibrium and razor focus return in full measure.`;
+                } else if (recLower.includes('poison') || recLower.includes('feel very good')) {
+                    title = 'Purged of Venom';
+                    prose = `The burning fire in ${name}'s veins subsides as the body purges the lingering poison, restoring natural vigor.`;
+                } else if (recLower.includes('afraid')) {
+                    title = 'Courage Restored';
+                    prose = `Cold dread yields to steady resolve; ${name}'s heart beats calm and steadfast once more.`;
+                } else {
+                    title = 'Vitality Restored';
+                    prose = `Shaking off lingering afflictions, ${name} stands firm, ready to face the perils ahead.`;
+                }
                 break;
             }
 
@@ -2917,7 +3083,8 @@ class ChronicleGrounder {
             case 'COMBAT_EPISODE':
             case 'SIGNIFICANT_KILL':
                 const kills = event.data ? (event.data.kills || (event.data.message ? [event.data.message] : [])) : [];
-                const killSaga = this.generateKillSaga(kills, player, depth, traditionKey, weapon);
+                const fleeMon = event.data ? event.data.fleeingMonster : null;
+                const killSaga = this.generateKillSaga(kills, player, depth, traditionKey, weapon, fleeMon);
                 title = killSaga.title;
                 prose = killSaga.prose;
                 break;

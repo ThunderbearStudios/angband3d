@@ -498,7 +498,7 @@ class ChronicleAudioRouter {
             // For longer paragraphs (>60 chars) with multiple sentences, synthesize sentence 1
             // immediately (~1.5s TTFA) while speculatively pre-warming the remainder in parallel.
             const sentences = cleanText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
-            if (sentences.length > 1 && cleanText.length > 60) {
+            if (sentences.length > 1 && cleanText.length > 40 && sentences[0].length >= 10) {
                 const s1 = sentences[0];
                 const remainder = sentences.slice(1).join(' ');
                 if (s1 && remainder) {

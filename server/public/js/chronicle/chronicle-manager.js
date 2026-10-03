@@ -899,11 +899,11 @@ class ChronicleManager {
             // Cache live message stream for real-time combat awareness in direct conversations
             this.lastSeenMessages = frame.messages || [];
 
-            // Drain sequential events for this frame (up to 4 events per turn to prevent story backlog)
+            // Drain sequential events for this frame (up to 6 events per turn to prevent story backlog)
             let drained = 0;
             let event = this.filter.evaluate(frame);
             const frameEntries = [];
-            while (event && drained < 4) {
+            while (event && drained < 6) {
                 drained++;
                 const entry = this.processEvent(event, frame, false);
                 if (entry) frameEntries.push({ event, entry });
