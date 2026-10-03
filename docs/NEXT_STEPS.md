@@ -21,10 +21,19 @@
      - Styled memorial cards with `.chapter-death` (crimson/obsidian glow, solemn typography, ⚰️ badge).
      - Assigned Enceladus a solemn, mournful delivery profile (`emotion: 'mournful'`, rate `-8%`, pitch `-2Hz`, funeral prosody).
      - Prioritized death narration at supreme priority #0 in `ChronicleManager`, immediately preempting ongoing combat audio to recite the hero's epitaph.
-   - **Verification & Health**:
+   - **Verification, Cloud Run Deployment & Live Production Validation**:
      - 100% passing across all 32 automated test phases in `tools/test_chronicle.js`.
      - Smoke test clean: `python tools/smoke_test.py` (11/11 tests passing).
      - Godot C# client build clean: `dotnet build client/angband3d.csproj` (0 warnings, 0 errors).
+     - Built & pushed container image `gcr.io/resonant-1679933304535/angband3d-cloud:latest` via Google Cloud Build (`1dfee514-9ae7-40f6-a128-ff4c4d3552ab`).
+     - Deployed live Cloud Run revision `angband3d-cloud-00094-gc6` serving 100% traffic on `https://angband3d.com`.
+     - End-to-end verified online at `https://angband3d.com` with automated validation suite:
+       - Root web application (HTTP 200, 82KB payload delivered).
+       - Cloud Run API Gateway (`/api/status`: status `online`, version `2.0.0`).
+       - Audio Configuration popover with independent Tome voice, SFX, and Reverb controls.
+       - Universal master gain & mute scaling both SFX and voice together.
+       - Hero death state detection, epitaph generator, solemn funeral delivery, and `.chapter-death` styling.
+       - WebSocket live bridge (`wss://angband3d.com/ws`: protocol handshake validated, active session created, Angband 4.2.6 engine bridge operational).
 
    - **Comprehensive Message Log Event Integration (`chronicle-filter.js`, `chronicle-grounder.js`)**:
      - Added static regular expressions and procedural grounder handlers for previously unlogged engine events:
