@@ -957,6 +957,19 @@ class ChronicleManager {
                         engine: this.audio.ttsEngine
                     };
                     this.audio.speak(bestToSpeak.entry.prose, bestToSpeak.entry.dialogue, null, null, 0, speakOpts);
+
+                    if (this.listEl) {
+                        document.querySelectorAll('.narrating-active').forEach(el => el.classList.remove('narrating-active'));
+                        const chNum = bestToSpeak.entry.chapter_num;
+                        const pIdx = (bestToSpeak.entry.pIndex !== undefined) ? bestToSpeak.entry.pIndex : 0;
+                        const activeEl = document.getElementById(`chronicle-beat-${chNum}-${pIdx}`) || document.querySelector(`[data-chapter-num="${chNum}"]`);
+                        if (activeEl) {
+                            activeEl.classList.add('narrating-active');
+                            if (this.scrollEl) {
+                                activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }
+                        }
+                    }
                 }
             }
         } finally {
@@ -968,39 +981,13 @@ class ChronicleManager {
         if (!event || !frame) return null;
 
         // Instant Ground-Truth Procedural Synthesis (0ms latency):
-        // Generates rich, lore-accurate, race-attuned Tolkien prose in <1ms without blocking the event loop.
+        // Generates rich, lore-accurate, race-attuned Tolkien prose matching vocals 1:1.
         const entry = this.grounder.generateProceduralChapter(event, frame.player, this.tradition);
         if (!entry) return null;
 
-        // Append to rolling story
+        // Append to rolling story & render
         this.store.appendChapter(this.activeChronicle, entry);
         this.renderStoryEntry(entry, true);
-
-        // Background Asynchronous LLM Prose Enrichment (without chapter titles or headers):
-        if (this.llm && this.llm.isConfigured()) {
-            const chNum = entry.chapter_num;
-            const chronicleId = this.activeChronicle ? this.activeChronicle.id : null;
-            this.llm.generateChapter(event, frame.player, this.tradition, this.grounder)
-                .then(enriched => {
-                    if (enriched && enriched.prose && this.activeChronicle && this.activeChronicle.id === chronicleId) {
-                        const targetCh = this.activeChronicle.chapters.find(c => c.chapter_num === chNum);
-                        if (targetCh) {
-                            targetCh.prose = enriched.prose;
-                            if (targetCh.paragraphs && targetCh.paragraphs[0]) {
-                                targetCh.paragraphs[0].prose = enriched.prose;
-                            }
-                            targetCh.summary = enriched.summary || enriched.prose.substring(0, 180) + '...';
-                            this.store.saveActive(this.activeChronicle);
-                            const entryEl = document.querySelector(`[data-chapter-num="${chNum}"]`);
-                            if (entryEl) {
-                                const proseEl = entryEl.querySelector('.chapter-prose');
-                                if (proseEl) proseEl.textContent = enriched.prose;
-                            }
-                        }
-                    }
-                })
-                .catch(err => console.debug('[ChronicleManager] Background prose enrichment skipped:', err.message));
-        }
 
         // Speak aloud if audio is unmuted (respects isNoise for non-vocal creatures)
         if (shouldSpeak && this.audio && this.audio.enabled) {
@@ -1019,6 +1006,19 @@ class ChronicleManager {
                 engine: this.audio.ttsEngine
             };
             this.audio.speak(entry.prose, entry.dialogue, null, null, 0, speakOpts);
+
+            if (this.listEl) {
+                document.querySelectorAll('.narrating-active').forEach(el => el.classList.remove('narrating-active'));
+                const chNum = entry.chapter_num;
+                const pIdx = (entry.pIndex !== undefined) ? entry.pIndex : 0;
+                const activeEl = document.getElementById(`chronicle-beat-${chNum}-${pIdx}`) || document.querySelector(`[data-chapter-num="${chNum}"]`);
+                if (activeEl) {
+                    activeEl.classList.add('narrating-active');
+                    if (this.scrollEl) {
+                        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+            }
         }
 
         return entry;
@@ -1027,21 +1027,27 @@ class ChronicleManager {
     renderAllChapters() {
         if (!this.listEl) return;
         this.listEl.innerHTML = '';
+        this.storyPlaylist = [];
         if (!this.activeChronicle || !this.activeChronicle.chapters) return;
 
         for (const ch of this.activeChronicle.chapters) {
             if (ch.paragraphs && ch.paragraphs.length > 0) {
-                ch.paragraphs.forEach(p => {
+                ch.paragraphs.forEach((p, pIdx) => {
                     this.renderStoryEntry({
                         prose: p.prose,
                         dialogue: p.dialogue,
                         insight: p.insight,
                         depth: ch.depth,
-                        chapter_num: ch.chapter_num
+                        chapter_num: ch.chapter_num,
+                        pIndex: pIdx,
+                        isLorekeeper: p.isLorekeeper
                     }, false);
                 });
             } else if (ch.prose) {
-                this.renderStoryEntry(ch, false);
+                this.renderStoryEntry({
+                    ...ch,
+                    pIndex: 0
+                }, false);
             }
         }
 
@@ -1054,14 +1060,16 @@ class ChronicleManager {
         if (!this.listEl || !entry) return null;
 
         const count = this.listEl.children ? this.listEl.children.length : 0;
-        const beatId = `chronicle-beat-${count}`;
         const chNum = entry.chapter_num || (count + 1);
+        const pIdx = (entry.pIndex !== undefined && entry.pIndex !== null) ? entry.pIndex : 0;
+        const beatId = entry.beatId || `chronicle-beat-${chNum}-${pIdx}`;
 
         const block = document.createElement('div');
         block.className = 'flowing-paragraph-block chapter-card';
         block.id = beatId;
         block.setAttribute('data-beat-id', beatId);
         block.setAttribute('data-chapter-num', chNum);
+        block.setAttribute('data-p-index', pIdx);
 
         const depth = (entry.depth !== undefined && entry.depth !== null)
             ? entry.depth
@@ -1125,7 +1133,7 @@ class ChronicleManager {
         this.storyPlaylist.push({
             elementId: beatId,
             chapterNum: chNum,
-            pIndex: 0,
+            pIndex: pIdx,
             text: entry.prose || '',
             dialogue: entry.dialogue || null,
             role: entry.isLorekeeper ? 'mentor' : 'narrator'
@@ -1193,10 +1201,10 @@ class ChronicleManager {
         if (elementId) {
             foundIdx = this.storyPlaylist.findIndex(b => b.elementId === elementId);
             if (foundIdx === -1 && typeof elementId === 'string') {
-                const match = elementId.match(/chronicle-beat-(\d+)-(\d+)/);
+                const match = elementId.match(/chronicle-beat-(\d+)(?:-(\d+))?/);
                 if (match) {
                     const targetCh = parseInt(match[1], 10);
-                    const targetP = parseInt(match[2], 10);
+                    const targetP = match[2] !== undefined ? parseInt(match[2], 10) : 0;
                     foundIdx = this.storyPlaylist.findIndex(b => b.chapterNum === targetCh && b.pIndex === targetP);
                     if (foundIdx === -1) {
                         foundIdx = this.storyPlaylist.findIndex(b => b.chapterNum === targetCh);
@@ -1303,16 +1311,13 @@ class ChronicleManager {
         document.querySelectorAll('.narrating-active').forEach(el => el.classList.remove('narrating-active'));
         document.querySelectorAll('.narrating-selected').forEach(el => el.classList.remove('narrating-selected'));
 
-        const el = document.getElementById(beat.elementId);
+        const el = document.getElementById(beat.elementId) ||
+                   document.querySelector(`[data-beat-id="${beat.elementId}"]`) ||
+                   document.querySelector(`[data-chapter-num="${beat.chapterNum}"][data-p-index="${beat.pIndex}"]`) ||
+                   document.querySelector(`[data-chapter-num="${beat.chapterNum}"]`);
         if (el) {
             el.classList.add('narrating-active');
             el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } else {
-            const cardEl = document.getElementById(`chronicle-card-ch-${beat.chapterNum}`);
-            if (cardEl) {
-                cardEl.classList.add('narrating-active');
-                cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
         }
 
         if (this.statusTextEl) {
@@ -1663,20 +1668,6 @@ class ChronicleManager {
                 }
             }
 
-            if (this.listEl) {
-                const pCard = document.createElement('div');
-                pCard.className = 'chapter-card player-chat-card';
-                pCard.innerHTML = `
-                    <div class="chapter-header-row">
-                        <span class="chapter-heading" style="color: #38bdf8;">You to ${creature.name}:</span>
-                    </div>
-                    <div class="chapter-prose" style="font-style: italic; color: #bae6fd; margin-top: 4px;">
-                        "${text}"
-                    </div>
-                `;
-                this.listEl.appendChild(pCard);
-            }
-
             let reply = null;
             if (this.llm && this.llm.isConfigured()) {
                 reply = await this.llm.chatWithCreature(creature, text, this.currentHero, this.lastSeenMessages);
@@ -1684,64 +1675,51 @@ class ChronicleManager {
                 reply = this.grounder.resolveCreatureEncounter(creature, this.currentHero, this.lastSeenMessages, creature._interactTurn, text);
             }
 
-            if (this.listEl && reply && (reply.prose || reply.text)) {
-                const rCard = document.createElement('div');
-                rCard.className = 'chapter-card creature-chat-card';
+            const userHeroName = (this.currentHero && this.currentHero.name) ? this.currentHero.name : 'The hero';
+            const combinedProse = reply && reply.prose
+                ? `Addressing ${creature.name}, ${userHeroName} speaks: "${text}". ${reply.prose}`
+                : `Addressing ${creature.name}, ${userHeroName} speaks: "${text}".`;
 
-                let replyHtml = '';
-                if (reply.prose) {
-                    replyHtml += `<p class="chapter-prose" style="margin-bottom: 6px;">${reply.prose}</p>`;
-                }
-                if (reply.isDialogue && reply.text) {
-                    replyHtml += `
-                        <div class="chapter-dialogue" style="margin-top: 4px;">
-                            <span class="dialogue-speaker">${creature.name}</span>
-                            <span>"${reply.text}"</span>
-                        </div>
-                    `;
-                } else if (!reply.isDialogue && reply.text) {
-                    replyHtml += `
-                        <div class="chapter-dialogue creature-sound-box" style="margin-top: 4px;">
-                            <span class="dialogue-speaker">${creature.name}</span>
-                            <span class="dialogue-sound-noise">${reply.text}</span>
-                        </div>
-                    `;
-                }
+            const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(creature, this.currentHero, 'dialogue', this.tradition) : null;
+            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'dialogue', this.tradition) : null;
 
-                rCard.innerHTML = `
-                    <div class="chapter-header-row">
-                        <span class="chapter-heading creature-chat-speaker">${creature.name}</span>
-                        <button class="chapter-replay-btn" title="Listen to narration">▶ Play</button>
-                    </div>
-                    ${replyHtml}
-                `;
-                const replayBtn = rCard.querySelector('.chapter-replay-btn');
-                if (replayBtn) {
-                    replayBtn.addEventListener('click', () => {
-                        if (this.audio) {
-                            const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(creature, this.currentHero, 'dialogue', this.tradition) : null;
-                            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'dialogue', this.tradition) : null;
-                            const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
-                            if (reply.isDialogue && reply.text) {
-                                this.audio.speak(reply.prose, { text: reply.text, speaker: creature.name, recommendedVoice: reply.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
-                            } else if (reply.prose) {
-                                this.audio.speakUtterance(reply.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
-                            }
-                        }
-                    });
-                }
-                this.listEl.appendChild(rCard);
-                if (this.scrollEl) this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
-            }
+            const entry = {
+                title: `Encounter: ${creature.name}`,
+                depth: (this.currentHero && typeof this.currentHero.depth === 'number') ? this.currentHero.depth : 0,
+                prose: combinedProse,
+                dialogue: (reply && reply.text) ? {
+                    speaker: creature.name,
+                    text: reply.text,
+                    isNoise: !reply.isDialogue,
+                    creature: creature,
+                    recommendedVoice: reply.recommendedVoice,
+                    voiceProfile: cVoiceProfile
+                } : null,
+                timestamp: Date.now()
+            };
 
-            if (this.audio && this.audio.enabled && reply) {
-                const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(creature, this.currentHero, 'dialogue', this.tradition) : null;
-                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'dialogue', this.tradition) : null;
+            this.store.appendChapter(this.activeChronicle, entry);
+            this.renderStoryEntry(entry, true);
+
+            if (this.audio && this.audio.enabled) {
                 const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
-                if (reply.isDialogue && reply.text) {
-                    this.audio.speak(reply.prose, { text: reply.text, speaker: creature.name, recommendedVoice: reply.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
-                } else if (reply.prose) {
-                    this.audio.speakUtterance(reply.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
+                if (entry.dialogue) {
+                    this.audio.speak(entry.prose, entry.dialogue, null, null, 0, speakOpts);
+                } else {
+                    this.audio.speakUtterance(entry.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
+                }
+
+                if (this.listEl) {
+                    document.querySelectorAll('.narrating-active').forEach(el => el.classList.remove('narrating-active'));
+                    const chNum = entry.chapter_num;
+                    const pIdx = (entry.pIndex !== undefined) ? entry.pIndex : 0;
+                    const activeEl = document.getElementById(`chronicle-beat-${chNum}-${pIdx}`) || document.querySelector(`[data-chapter-num="${chNum}"]`);
+                    if (activeEl) {
+                        activeEl.classList.add('narrating-active');
+                        if (this.scrollEl) {
+                            activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }
                 }
             }
         } else {
@@ -1833,6 +1811,12 @@ class ChronicleManager {
             intro = generalIntros[turnSeed % generalIntros.length];
         }
 
+        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: 'Elder Lorekeeper', race: 'Human' }, player, 'counsel', this.tradition) : null;
+        if (mentorProfile) {
+            mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
+            mentorProfile.directorNote = 'An ancient scholar and lorekeeper offering survival counsel';
+        }
+
         const entry = {
             title: `Counsel of the Wise: ${topic}`,
             depth: (player && typeof player.depth === 'number') ? player.depth : 0,
@@ -1846,20 +1830,32 @@ class ChronicleManager {
         // Append to active chronicle so it becomes part of the permanent saga
         if (!this.activeChronicle || !this.activeChronicle.chapters || this.activeChronicle.chapters.length === 0) {
             this.store.appendChapter(this.activeChronicle, entry);
+            entry.pIndex = 0;
             this.renderChapterCard(entry, true);
         } else {
             this.store.appendParagraph(this.activeChronicle, entry);
+            const currentChapter = this.activeChronicle.chapters[this.activeChronicle.chapters.length - 1];
+            entry.chapter_num = currentChapter.chapter_num;
+            entry.pIndex = currentChapter.paragraphs ? currentChapter.paragraphs.length - 1 : 0;
             this.renderFlowingParagraph(entry, true);
         }
 
-        // Voice immediately in the deep, warm Mentor voice
+        // Voice immediately in the deep, warm Mentor voice speaking the full prose (matching card 100%)
         if (this.audio && this.audio.enabled) {
-            const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: 'Elder Lorekeeper', race: 'Human' }, player, 'counsel', this.tradition) : null;
-            if (mentorProfile) {
-                mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
-                mentorProfile.directorNote = 'An ancient scholar and lorekeeper offering survival counsel';
+            this.audio.speakUtterance(entry.prose, 'mentor', 'Elder Lorekeeper', null, mentorProfile || { engine: this.audio.ttsEngine });
+
+            if (this.listEl) {
+                document.querySelectorAll('.narrating-active').forEach(el => el.classList.remove('narrating-active'));
+                const chNum = entry.chapter_num;
+                const pIdx = (entry.pIndex !== undefined) ? entry.pIndex : 0;
+                const activeEl = document.getElementById(`chronicle-beat-${chNum}-${pIdx}`) || document.querySelector(`[data-chapter-num="${chNum}"]`);
+                if (activeEl) {
+                    activeEl.classList.add('narrating-active');
+                    if (this.scrollEl) {
+                        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
             }
-            this.audio.speakUtterance(answer, 'mentor', 'Elder Lorekeeper', null, mentorProfile || { engine: this.audio.ttsEngine });
         }
     }
 

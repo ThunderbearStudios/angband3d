@@ -1,8 +1,26 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.2.0 — The Living Chronicle & Voiced Lorekeeper v3.12.0: Zero-Quality-Loss Performance Optimizations)
+## Current System State (Angband3D v2.2.0 — The Living Chronicle & Voiced Lorekeeper v3.13.0: 100% Spoken-to-Written Tome Card Parity, Rich Prose Elevation & Playlist Synchronization)
 
-0. **The Living Chronicle & Voiced Lorekeeper (Version 3.12.0 — Zero-Quality-Loss Performance Optimizations Across WebGL, Audio, Game Loop & Server Delivery)**:
+0. **The Living Chronicle & Voiced Lorekeeper (Version 3.13.0 — 100% Spoken-to-Written Tome Card Parity, Rich Prose Elevation & Playlist Synchronization)**:
+   - **100% Spoken-to-Written Parity Across Tome Cards (`chronicle-manager.js`, `chronicle-grounder.js`)**:
+     - Eliminated divergent asynchronous background LLM prose replacement (`this.llm.generateChapter`) that mutated `.chapter-prose` seconds after speech had finished with different words.
+     - Spoken vocals (narrator prose, character/monster dialogue barks, and shopkeeper banter) match the text written on cards in the Tome tab (`#chronicle-window`, `#chronicle-list`) 1:1, word-for-word.
+   - **Elevated Literary Prose Depth & Flow**:
+     - Replaced flat, repetitive sentences across `COMBAT_EXCHANGE`, `HERO_ATTACK`, `EXPLORATION_FLOW`, `FLOOR_CHANGE`, and `TAVERN_RESPITE` with rich, race-attuned Tolkien prose matching the evocative depth of character vocals.
+     - Coalesced combat cleanly distinguishes bites, claws, slashes, crushing blows, projectile shots, breath attacks, and spells while honoring Phase 24 status prefix invariants.
+     - Floor descent/ascent passages scale with depth and tradition (`khazad`, `noldor`, `westmarch`).
+   - **Unified Beat Indexing & Active Reading Guide Highlighting (`chronicle-manager.js`)**:
+     - Unified card DOM IDs and story playlist IDs on `chronicle-beat-${chNum}-${pIdx}`.
+     - Clicking "▶" on any card or pressing transport controls highlights the exact card with `.narrating-active` and smoothly scrolls it into view.
+     - Live gameplay speech automatically tracks and highlights the active card in real time.
+     - Creature conversations in `submitUserQuery` now append as permanent, beautifully formatted story cards in `activeChronicle`.
+   - **Verification & Health**:
+     - 100% verified passing across all 30 automated test phases in `tools/test_chronicle.js`.
+     - Engine smoke tests clean: `python tools/smoke_test.py` (11/11 tests passing).
+     - Native client build clean: `dotnet build client/angband3d.csproj` (0 warnings, 0 errors).
+
+1. **The Living Chronicle & Voiced Lorekeeper (Version 3.12.0 — Zero-Quality-Loss Performance Optimizations Across WebGL, Audio, Game Loop & Server Delivery)**:
    - **Static RegExp Compilation (`chronicle-filter.js`, `chronicle-grounder.js`)**:
      - Hoisted 18 regex patterns (`RE_ATTACK`, `RE_THEFT`, `RE_BEG`, `RE_INSULT`, `RE_HERO_ATTACK`, `RE_FLEE`, `RE_BIZARRE`, `RE_STATE`, `RE_RITUAL`, `RE_SPELL_LEARNED`, `RE_LEVEL_UP`, `RE_LEVEL_FEELING`, `RE_STORE`, `RE_STORE_BUY`, `RE_STATUS`, `RE_SLAIN`, `RE_GENDER_FEMALE`, `RE_GENDER_MALE`) to module-level constants.
      - Eliminates hundreds of thousands of heap allocations and GC pressure spikes during rapid combat/turn message bursts.
