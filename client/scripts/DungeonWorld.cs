@@ -206,7 +206,7 @@ public partial class DungeonWorld : Node3D
         public float ParticleSpeedMax { get; set; } = 0.25f;
         public Vector3 ParticleGravity { get; set; } = new Vector3(0, -0.04f, 0);
 
-        public static BiomeProfile GetForDepth(int depth)
+        public static BiomeProfile GetForDepth(int depth, uint levelSeed = 0)
         {
             if (depth <= 0)
             {
@@ -238,27 +238,39 @@ public partial class DungeonWorld : Node3D
                     ParticleGravity = new Vector3(0, -0.05f, 0),
                 };
             }
+
+            int sub = (int)((levelSeed ^ (uint)(depth * 2654435761u)) % 4);
+
             if (depth <= 15)
             {
-                // Zone 1: Upper Crypts (Levels 1–15)
+                // Zone 1: Upper Crypts (Levels 1–15) - 4 Sub-themes
+                var names = new[] { "Upper Crypts (Granite Tomb)", "Upper Crypts (Sandstone Vaults)", "Upper Crypts (Slate Barrow)", "Upper Crypts (Damp Sepulchre)" };
+                var wcs = new[] { new Color(0.82f, 0.82f, 0.84f), new Color(0.86f, 0.80f, 0.72f), new Color(0.75f, 0.78f, 0.86f), new Color(0.76f, 0.82f, 0.78f) };
+                var fcs = new[] { new Color(0.74f, 0.74f, 0.76f), new Color(0.78f, 0.72f, 0.64f), new Color(0.66f, 0.70f, 0.78f), new Color(0.68f, 0.74f, 0.70f) };
+                var ccs = new[] { new Color(0.60f, 0.60f, 0.64f), new Color(0.62f, 0.58f, 0.52f), new Color(0.54f, 0.58f, 0.66f), new Color(0.55f, 0.60f, 0.56f) };
+                var frs = new[] { 0.82f, 0.88f, 0.78f, 0.70f };
+                var tcs = new[] { new Color(1.0f, 0.86f, 0.65f), new Color(1.0f, 0.88f, 0.70f), new Color(0.93f, 0.85f, 0.77f), new Color(0.98f, 0.88f, 0.72f) };
+                var fogs = new[] { new Color(0.015f, 0.016f, 0.022f), new Color(0.020f, 0.016f, 0.012f), new Color(0.010f, 0.014f, 0.020f), new Color(0.010f, 0.018f, 0.012f) };
+                var ambs = new[] { new Color(0.32f, 0.34f, 0.42f), new Color(0.38f, 0.32f, 0.26f), new Color(0.28f, 0.32f, 0.42f), new Color(0.28f, 0.36f, 0.30f) };
+
                 return new BiomeProfile
                 {
-                    Name = "Upper Crypts",
-                    BackgroundColor = new Color(0.015f, 0.016f, 0.022f),
-                    AmbientLightColor = new Color(0.32f, 0.34f, 0.42f),
+                    Name = names[sub],
+                    BackgroundColor = fogs[sub],
+                    AmbientLightColor = ambs[sub],
                     AmbientLightEnergy = 0.28f,
-                    FogLightColor = new Color(0.015f, 0.016f, 0.022f),
+                    FogLightColor = fogs[sub],
                     FogDensity = 0.012f,
                     VolumetricFogDensity = 0.008f,
                     VolumetricFogAlbedo = new Color(0.18f, 0.20f, 0.28f),
                     VolumetricFogEmission = Colors.Black,
                     TonemapExposure = 1.15f,
-                    TorchLightColor = new Color(1.0f, 0.86f, 0.65f),
+                    TorchLightColor = tcs[sub],
                     TorchLightEnergy = 2.8f,
-                    WallColor = new Color(0.82f, 0.82f, 0.84f),
-                    FloorColor = new Color(0.74f, 0.74f, 0.76f),
-                    CeilingColor = new Color(0.60f, 0.60f, 0.64f),
-                    FloorRoughness = 0.82f,
+                    WallColor = wcs[sub],
+                    FloorColor = fcs[sub],
+                    CeilingColor = ccs[sub],
+                    FloorRoughness = frs[sub],
                     ParticleColor = new Color(0.85f, 0.82f, 0.75f, 0.0f),
                     ParticleAmount = 0,
                     ParticleScaleMin = 0.015f,
@@ -270,114 +282,150 @@ public partial class DungeonWorld : Node3D
             }
             if (depth <= 35)
             {
-                // Zone 2: Overgrown Catacombs (Levels 16–35)
+                // Zone 2: Overgrown Catacombs (Levels 16–35) - 4 Sub-themes
+                var names = new[] { "Overgrown Catacombs (Verdant Crypt)", "Overgrown Catacombs (Fungal Hollows)", "Overgrown Catacombs (Ancient Brambles)", "Overgrown Catacombs (Spore Marsh)" };
+                var wcs = new[] { new Color(0.72f, 0.86f, 0.70f), new Color(0.68f, 0.84f, 0.78f), new Color(0.78f, 0.82f, 0.66f), new Color(0.70f, 0.88f, 0.64f) };
+                var fcs = new[] { new Color(0.65f, 0.78f, 0.64f), new Color(0.60f, 0.76f, 0.70f), new Color(0.70f, 0.74f, 0.58f), new Color(0.62f, 0.80f, 0.56f) };
+                var ccs = new[] { new Color(0.52f, 0.65f, 0.50f), new Color(0.48f, 0.62f, 0.56f), new Color(0.56f, 0.60f, 0.46f), new Color(0.50f, 0.66f, 0.44f) };
+                var frs = new[] { 0.65f, 0.58f, 0.72f, 0.52f };
+                var tcs = new[] { new Color(1.0f, 0.88f, 0.60f), new Color(0.94f, 0.90f, 0.78f), new Color(1.0f, 0.89f, 0.71f), new Color(0.91f, 0.94f, 0.69f) };
+                var fogs = new[] { new Color(0.012f, 0.022f, 0.015f), new Color(0.008f, 0.022f, 0.020f), new Color(0.020f, 0.024f, 0.010f), new Color(0.012f, 0.028f, 0.008f) };
+                var ambs = new[] { new Color(0.26f, 0.38f, 0.28f), new Color(0.22f, 0.36f, 0.34f), new Color(0.35f, 0.37f, 0.21f), new Color(0.28f, 0.41f, 0.19f) };
+
                 return new BiomeProfile
                 {
-                    Name = "Overgrown Catacombs",
-                    BackgroundColor = new Color(0.012f, 0.020f, 0.014f),
-                    AmbientLightColor = new Color(0.26f, 0.38f, 0.28f),
+                    Name = names[sub],
+                    BackgroundColor = fogs[sub],
+                    AmbientLightColor = ambs[sub],
                     AmbientLightEnergy = 0.30f,
-                    FogLightColor = new Color(0.012f, 0.022f, 0.015f),
+                    FogLightColor = fogs[sub],
                     FogDensity = 0.014f,
                     VolumetricFogDensity = 0.010f,
                     VolumetricFogAlbedo = new Color(0.16f, 0.32f, 0.20f),
                     VolumetricFogEmission = new Color(0.015f, 0.04f, 0.02f),
                     TonemapExposure = 1.18f,
-                    TorchLightColor = new Color(1.0f, 0.88f, 0.60f),
+                    TorchLightColor = tcs[sub],
                     TorchLightEnergy = 2.8f,
-                    WallColor = new Color(0.72f, 0.86f, 0.70f),
-                    FloorColor = new Color(0.65f, 0.78f, 0.64f),
-                    CeilingColor = new Color(0.52f, 0.65f, 0.50f),
-                    FloorRoughness = 0.65f, // damp mossy floor
+                    WallColor = wcs[sub],
+                    FloorColor = fcs[sub],
+                    CeilingColor = ccs[sub],
+                    FloorRoughness = frs[sub],
                     ParticleColor = new Color(0.45f, 0.95f, 0.45f, 0.70f),
                     ParticleAmount = 32,
                     ParticleScaleMin = 0.02f,
                     ParticleScaleMax = 0.045f,
                     ParticleSpeedMin = 0.1f,
                     ParticleSpeedMax = 0.35f,
-                    ParticleGravity = new Vector3(0, 0.08f, 0), // rising luminous spores
+                    ParticleGravity = new Vector3(0, 0.08f, 0),
                 };
             }
             if (depth <= 60)
             {
-                // Zone 3: Crystal Caverns (Levels 36–60)
+                // Zone 3: Crystal Caverns (Levels 36–60) - 4 Sub-themes
+                var names = new[] { "Crystal Caverns (Azure Grotto)", "Crystal Caverns (Amethyst Depths)", "Crystal Caverns (Prismatic Seam)", "Crystal Caverns (Emerald Geode)" };
+                var wcs = new[] { new Color(0.68f, 0.78f, 0.96f), new Color(0.80f, 0.70f, 0.96f), new Color(0.72f, 0.88f, 0.92f), new Color(0.68f, 0.92f, 0.80f) };
+                var fcs = new[] { new Color(0.60f, 0.70f, 0.90f), new Color(0.72f, 0.62f, 0.88f), new Color(0.64f, 0.80f, 0.84f), new Color(0.60f, 0.84f, 0.72f) };
+                var ccs = new[] { new Color(0.48f, 0.56f, 0.76f), new Color(0.58f, 0.50f, 0.74f), new Color(0.50f, 0.65f, 0.70f), new Color(0.48f, 0.68f, 0.58f) };
+                var frs = new[] { 0.55f, 0.52f, 0.48f, 0.50f };
+                var tcs = new[] { new Color(0.98f, 0.86f, 0.70f), new Color(0.97f, 0.85f, 0.97f), new Color(0.88f, 0.96f, 1.0f), new Color(0.91f, 1.0f, 0.85f) };
+                var fogs = new[] { new Color(0.010f, 0.018f, 0.030f), new Color(0.018f, 0.008f, 0.028f), new Color(0.006f, 0.020f, 0.024f), new Color(0.006f, 0.024f, 0.014f) };
+                var ambs = new[] { new Color(0.26f, 0.36f, 0.52f), new Color(0.38f, 0.21f, 0.48f), new Color(0.20f, 0.40f, 0.45f), new Color(0.19f, 0.44f, 0.30f) };
+
                 return new BiomeProfile
                 {
-                    Name = "Crystal Caverns",
-                    BackgroundColor = new Color(0.010f, 0.016f, 0.028f),
-                    AmbientLightColor = new Color(0.26f, 0.36f, 0.52f),
+                    Name = names[sub],
+                    BackgroundColor = fogs[sub],
+                    AmbientLightColor = ambs[sub],
                     AmbientLightEnergy = 0.32f,
-                    FogLightColor = new Color(0.010f, 0.018f, 0.030f),
+                    FogLightColor = fogs[sub],
                     FogDensity = 0.014f,
                     VolumetricFogDensity = 0.010f,
                     VolumetricFogAlbedo = new Color(0.18f, 0.30f, 0.48f),
                     VolumetricFogEmission = new Color(0.015f, 0.035f, 0.06f),
                     TonemapExposure = 1.20f,
-                    TorchLightColor = new Color(0.98f, 0.86f, 0.70f),
+                    TorchLightColor = tcs[sub],
                     TorchLightEnergy = 2.8f,
-                    WallColor = new Color(0.68f, 0.78f, 0.96f),
-                    FloorColor = new Color(0.60f, 0.70f, 0.90f),
-                    CeilingColor = new Color(0.48f, 0.56f, 0.76f),
-                    FloorRoughness = 0.55f, // damp reflective flagstones
+                    WallColor = wcs[sub],
+                    FloorColor = fcs[sub],
+                    CeilingColor = ccs[sub],
+                    FloorRoughness = frs[sub],
                     ParticleColor = new Color(0.45f, 0.85f, 1.0f, 0.75f),
                     ParticleAmount = 28,
                     ParticleScaleMin = 0.02f,
                     ParticleScaleMax = 0.04f,
                     ParticleSpeedMin = 0.15f,
                     ParticleSpeedMax = 0.45f,
-                    ParticleGravity = new Vector3(0, 0.02f, 0), // floating crystal shimmer
+                    ParticleGravity = new Vector3(0, 0.02f, 0),
                 };
             }
             if (depth <= 85)
             {
-                // Zone 4: Magma Underworld (Levels 61–85)
+                // Zone 4: Magma Underworld (Levels 61–85) - 4 Sub-themes
+                var names = new[] { "Magma Underworld (Basalt Crucible)", "Magma Underworld (Cinder Caldera)", "Magma Underworld (Brimstone Chasm)", "Magma Underworld (Obsidian Core)" };
+                var wcs = new[] { new Color(0.90f, 0.72f, 0.65f), new Color(0.92f, 0.65f, 0.58f), new Color(0.88f, 0.80f, 0.55f), new Color(0.75f, 0.60f, 0.68f) };
+                var fcs = new[] { new Color(0.78f, 0.62f, 0.55f), new Color(0.82f, 0.55f, 0.48f), new Color(0.78f, 0.70f, 0.46f), new Color(0.65f, 0.50f, 0.58f) };
+                var ccs = new[] { new Color(0.62f, 0.48f, 0.40f), new Color(0.65f, 0.42f, 0.35f), new Color(0.62f, 0.55f, 0.35f), new Color(0.50f, 0.38f, 0.45f) };
+                var frs = new[] { 0.70f, 0.76f, 0.65f, 0.45f };
+                var tcs = new[] { new Color(1.0f, 0.82f, 0.55f), new Color(1.0f, 0.80f, 0.60f), new Color(1.0f, 0.91f, 0.63f), new Color(1.0f, 0.82f, 0.75f) };
+                var fogs = new[] { new Color(0.025f, 0.010f, 0.006f), new Color(0.032f, 0.008f, 0.004f), new Color(0.026f, 0.020f, 0.004f), new Color(0.020f, 0.006f, 0.012f) };
+                var ambs = new[] { new Color(0.48f, 0.25f, 0.14f), new Color(0.53f, 0.18f, 0.10f), new Color(0.45f, 0.36f, 0.08f), new Color(0.36f, 0.15f, 0.25f) };
+
                 return new BiomeProfile
                 {
-                    Name = "Magma Underworld",
-                    BackgroundColor = new Color(0.025f, 0.010f, 0.006f),
-                    AmbientLightColor = new Color(0.48f, 0.25f, 0.14f),
+                    Name = names[sub],
+                    BackgroundColor = fogs[sub],
+                    AmbientLightColor = ambs[sub],
                     AmbientLightEnergy = 0.36f,
-                    FogLightColor = new Color(0.025f, 0.010f, 0.006f),
+                    FogLightColor = fogs[sub],
                     FogDensity = 0.016f,
                     VolumetricFogDensity = 0.012f,
                     VolumetricFogAlbedo = new Color(0.45f, 0.22f, 0.12f),
                     VolumetricFogEmission = new Color(0.06f, 0.025f, 0.010f),
                     TonemapExposure = 1.22f,
-                    TorchLightColor = new Color(1.0f, 0.82f, 0.55f),
+                    TorchLightColor = tcs[sub],
                     TorchLightEnergy = 3.0f,
-                    WallColor = new Color(0.90f, 0.72f, 0.65f),
-                    FloorColor = new Color(0.78f, 0.62f, 0.55f),
-                    CeilingColor = new Color(0.62f, 0.48f, 0.40f),
-                    FloorRoughness = 0.70f,
+                    WallColor = wcs[sub],
+                    FloorColor = fcs[sub],
+                    CeilingColor = ccs[sub],
+                    FloorRoughness = frs[sub],
                     ParticleColor = new Color(1.0f, 0.55f, 0.12f, 0.90f),
                     ParticleAmount = 36,
                     ParticleScaleMin = 0.025f,
                     ParticleScaleMax = 0.055f,
                     ParticleSpeedMin = 0.5f,
                     ParticleSpeedMax = 1.4f,
-                    ParticleGravity = new Vector3(0, 0.4f, 0), // rising hot embers
+                    ParticleGravity = new Vector3(0, 0.4f, 0),
                 };
             }
 
-            // Zone 5: Permarock / Abyssal Throne (Levels 86–100+)
+            // Zone 5: Permarock / Abyssal Throne (Levels 86–100+) - 4 Sub-themes
+            var aNames = new[] { "Abyssal Throne (Void Citadel)", "Abyssal Throne (Necrotic Pit)", "Abyssal Throne (Blood-Iron Vaults)", "Abyssal Throne (Nether Core)" };
+            var aWcs = new[] { new Color(0.75f, 0.65f, 0.85f), new Color(0.68f, 0.68f, 0.72f), new Color(0.85f, 0.58f, 0.68f), new Color(0.60f, 0.65f, 0.88f) };
+            var aFcs = new[] { new Color(0.68f, 0.58f, 0.78f), new Color(0.60f, 0.60f, 0.64f), new Color(0.75f, 0.50f, 0.60f), new Color(0.52f, 0.56f, 0.78f) };
+            var aCcs = new[] { new Color(0.50f, 0.40f, 0.60f), new Color(0.45f, 0.45f, 0.50f), new Color(0.55f, 0.36f, 0.46f), new Color(0.40f, 0.44f, 0.62f) };
+            var aFrs = new[] { 0.60f, 0.75f, 0.55f, 0.38f };
+            var aTcs = new[] { new Color(0.95f, 0.85f, 0.75f), new Color(0.91f, 0.82f, 0.71f), new Color(0.96f, 0.80f, 0.69f), new Color(0.88f, 0.83f, 0.96f) };
+            var aFogs = new[] { new Color(0.016f, 0.006f, 0.022f), new Color(0.010f, 0.010f, 0.012f), new Color(0.028f, 0.004f, 0.010f), new Color(0.008f, 0.006f, 0.016f) };
+            var aAmbs = new[] { new Color(0.38f, 0.20f, 0.44f), new Color(0.28f, 0.26f, 0.32f), new Color(0.54f, 0.22f, 0.33f), new Color(0.25f, 0.21f, 0.40f) };
+
             return new BiomeProfile
             {
-                Name = "Abyssal Throne",
-                BackgroundColor = new Color(0.016f, 0.006f, 0.022f),
-                AmbientLightColor = new Color(0.38f, 0.20f, 0.44f),
+                Name = aNames[sub],
+                BackgroundColor = aFogs[sub],
+                AmbientLightColor = aAmbs[sub],
                 AmbientLightEnergy = 0.30f,
-                FogLightColor = new Color(0.016f, 0.006f, 0.022f),
+                FogLightColor = aFogs[sub],
                 FogDensity = 0.016f,
                 VolumetricFogDensity = 0.012f,
                 VolumetricFogAlbedo = new Color(0.26f, 0.10f, 0.32f),
                 VolumetricFogEmission = new Color(0.03f, 0.008f, 0.035f),
                 TonemapExposure = 1.22f,
-                TorchLightColor = new Color(0.95f, 0.85f, 0.75f),
+                TorchLightColor = aTcs[sub],
                 TorchLightEnergy = 2.4f,
-                WallColor = new Color(0.75f, 0.65f, 0.85f),
-                FloorColor = new Color(0.68f, 0.58f, 0.78f),
-                CeilingColor = new Color(0.50f, 0.40f, 0.60f),
-                FloorRoughness = 0.60f,
+                WallColor = aWcs[sub],
+                FloorColor = aFcs[sub],
+                CeilingColor = aCcs[sub],
+                FloorRoughness = aFrs[sub],
                 ParticleColor = new Color(0.85f, 0.30f, 0.95f, 0.80f),
                 ParticleAmount = 32,
                 ParticleScaleMin = 0.025f,
@@ -1880,8 +1928,11 @@ void fragment() {
                 _sunLight.LightEnergy = _outdoors ? 1.35f : 0.0f;
             }
 
-            // Transition to new depth biome profile
-            _targetBiome = BiomeProfile.GetForDepth(depth);
+            // Transition to new depth biome profile with deterministic level sub-theme
+            var mapW = map.GetProperty("w").GetInt32();
+            var mapH = map.GetProperty("h").GetInt32();
+            uint levelSeed = (uint)((depth * 73856093) ^ (mapW * 19349663) ^ (mapH * 83492791));
+            _targetBiome = BiomeProfile.GetForDepth(depth, levelSeed);
             _currentBiome = _targetBiome;
             _env.BackgroundColor = _targetBiome.BackgroundColor;
             _env.AmbientLightColor = _targetBiome.AmbientLightColor;

@@ -10,6 +10,12 @@ const RE_THEFT = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(steals|tries to steal)\b/
 const RE_BEG = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:begs you for money|asks you for money|begs for money)\b/i;
 const RE_INSULT = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:insults you|mocks you|jeers at you)\b/i;
 const RE_HERO_ATTACK = /^(?:You\s+)(hit|slash|crush|smite|strike|pierce|shoot|bash|missed|miss)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
+const RE_SPELL_CAST = /^(?:You\s+)(?:cast|pray|chant|recite|channel|invoke|weave|conjure)\b/i;
+const RE_SPELL_PROJECTION = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:catches fire|is badly frozen|dissolves|cringes from the light|shrivels away in the light|disintegrates|freezes and shatters|is electrocuted|is blasted|is enveloped in flames?|burns in|crumbles into ash|turns into mud)/i;
+const RE_SPELL_EFFECT = /\b(?:magic missile|fire ball|frost ball|lightning bolt|acid bolt|ice storm|flame strike|mana storm|orb of draining|holy word|sunlight|starlight|fire bolt|frost bolt|acid ball|lightning ball)\b/i;
+const RE_DEVICE_USE = /^(?:You\s+)(?:aim|zap|use|read)\s+(?:a\s+|an\s+|the\s+)?(wand|rod|staff|scroll)\b/i;
+const RE_MISSILE_HIT = /^Your\s+([A-Za-z0-9\-',\s]+?)\s+(?:hits|strikes|pierces|fails to harm)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
+const RE_MISSILE_FIRE = /^(?:You\s+)(?:shoot|fire|loose|throw|hurl)\b/i;
 const RE_MON_PAIN = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:screams? in (?:agony|pain)|shrieks? in (?:agony|pain)|cr(?:ies|y) out in pain|howls? in (?:agony|pain)|writhes? in agony|grunts? with pain|flinches?|quivers? in pain|squelches?|hisses? in (?:pain|agony)|jerks? in (?:agony|pain)|twitches? in pain|yelps? in pain|squeals? in pain)(?:\.|\!|$)/i;
 const RE_FLEE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(flees in terror|runs away in panic|turns and runs|flees|panics)(?:\.|\!|$)/i;
 const RE_BIZARRE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(drools on you|vomits on your boots|vomits|giggles|babbles incoherently|babbles|cries out in despair|weeps|snarls|hisses|moans|howls)(?:\.|\!|$)/i;
@@ -57,6 +63,8 @@ class ChronicleFilter {
         };
 
         this.lastVisitedStore = null;
+        this.lastAttackMedium = { type: 'melee', detail: 'weapon', name: 'drawn steel' };
+        this.lastSp = null;
 
         // Continuous Ballad Episode Accumulator
         this.episodeAccumulator = {
@@ -75,6 +83,8 @@ class ChronicleFilter {
         this.lastTurn = null;
         this.lastSeenMessages = [];
         this.lastVisitedStore = null;
+        this.lastAttackMedium = { type: 'melee', detail: 'weapon', name: 'drawn steel' };
+        this.lastSp = null;
         this.pendingKills = [];
         this.eventQueue = [];
         this.seenMonsterTypes.clear();
@@ -122,6 +132,11 @@ class ChronicleFilter {
 
         const player = frame.player;
         const now = Date.now();
+        if (this.lastSp !== null && typeof player.sp === 'number' && player.sp < this.lastSp) {
+            this.lastAttackMedium = { type: 'spell', name: 'incantation', detail: 'mana expenditure' };
+        }
+        this.lastSp = (typeof player.sp === 'number') ? player.sp : null;
+
         const hpPercent = (typeof player.chp === 'number' && typeof player.mhp === 'number' && player.mhp > 0)
             ? (player.chp / player.mhp)
             : 1.0;
@@ -287,6 +302,53 @@ class ChronicleFilter {
                 else if (lowerMsg.includes('bleed') || lowerMsg.includes('mortally wounded')) framePlayerStatuses.push('bleeding');
             }
 
+            // Spell cast, spell projection & magic item detection
+            const spCastMatch = msg.match(RE_SPELL_CAST);
+            const spProjMatch = msg.match(RE_SPELL_PROJECTION);
+            const spEffMatch = msg.match(RE_SPELL_EFFECT);
+            if (spCastMatch || spProjMatch || spEffMatch) {
+                this.lastCombatActionTime = now;
+                let spellName = 'arcane spell';
+                if (spEffMatch) spellName = spEffMatch[0].toLowerCase();
+                else if (spProjMatch) spellName = 'elemental magic';
+                this.lastAttackMedium = { type: 'spell', name: spellName, detail: msg };
+            }
+
+            const devMatch = msg.match(RE_DEVICE_USE);
+            if (devMatch) {
+                this.lastCombatActionTime = now;
+                this.lastAttackMedium = { type: 'device', name: devMatch[1].toLowerCase(), detail: msg };
+            }
+
+            const mHitMatch = msg.match(RE_MISSILE_HIT);
+            const mFireMatch = msg.match(RE_MISSILE_FIRE);
+            if (mHitMatch || mFireMatch) {
+                this.lastCombatActionTime = now;
+                const missileName = mHitMatch ? mHitMatch[1].trim() : 'arrow';
+                this.lastAttackMedium = { type: 'ranged', name: missileName, detail: msg };
+                if (mHitMatch && mHitMatch[2]) {
+                    const monName = mHitMatch[2].trim();
+                    const monLower = monName.toLowerCase();
+                    if (!slainMonsterNames.has(monLower)) {
+                        const lastAtk = this.recentHeroAttacks.get(monLower) || 0;
+                        if (now - lastAtk >= 1500) {
+                            this.recentHeroAttacks.set(monLower, now);
+                            const monObj = (frame.monsters || []).find(m => (m.name || '').toLowerCase().includes(monLower));
+                            frameHeroAttacks.push({
+                                monsterName: monName,
+                                action: 'shoots',
+                                message: msg,
+                                glyph: monObj ? monObj.glyph : '',
+                                depth: depth,
+                                inTown: depth === 0,
+                                missed: msg.includes('fails to harm'),
+                                attackMedium: { type: 'ranged', name: missileName, detail: msg }
+                            });
+                        }
+                    }
+                }
+            }
+
             // 2. Hero Attacks & Monster Pain Reactions
             const hMatch = msg.match(heroAttackRe);
             const pMatch = !hMatch ? msg.match(RE_MON_PAIN) : null;
@@ -295,6 +357,13 @@ class ChronicleFilter {
                 const act = hMatch ? hMatch[1].toLowerCase() : 'strikes';
                 const monName = hMatch ? hMatch[2].trim() : pMatch[1].trim();
                 const monLower = monName.toLowerCase();
+                if (hMatch) {
+                    if (act === 'shoot') {
+                        this.lastAttackMedium = { type: 'ranged', name: 'arrow', detail: 'shoot' };
+                    } else {
+                        this.lastAttackMedium = { type: 'melee', name: 'drawn steel', detail: act };
+                    }
+                }
                 if (!slainMonsterNames.has(monLower)) {
                     const lastAtk = this.recentHeroAttacks.get(monLower) || 0;
                     if (now - lastAtk >= 1500) {
@@ -307,7 +376,8 @@ class ChronicleFilter {
                             glyph: monObj ? monObj.glyph : '',
                             depth: depth,
                             inTown: depth === 0,
-                            missed: act.includes('miss')
+                            missed: act.includes('miss'),
+                            attackMedium: { ...this.lastAttackMedium }
                         });
                     }
                 }
@@ -734,7 +804,8 @@ class ChronicleFilter {
                     playerStatuses: [...new Set(framePlayerStatuses)],
                     depth: depth,
                     inTown: depth === 0,
-                    accumulated: { ...this.episodeAccumulator }
+                    accumulated: { ...this.episodeAccumulator },
+                    attackMedium: { ...this.lastAttackMedium }
                 }
             });
             if (frameKills.length > 0) {
@@ -792,7 +863,8 @@ class ChronicleFilter {
                         message: frameKills[0],
                         monstersSlain: frameKills.length,
                         depth,
-                        accumulated: { ...this.episodeAccumulator }
+                        accumulated: { ...this.episodeAccumulator },
+                        attackMedium: { ...this.lastAttackMedium }
                     }
                 });
                 this.resetEpisodeAccumulator();

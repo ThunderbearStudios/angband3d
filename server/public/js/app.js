@@ -1596,6 +1596,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnSplashFeatures = document.getElementById('btn-splash-features');
     bindFastTap(btnSplashFeatures, () => showGuide(1, 'splash'));
 
+    const btnSplashChronicle = document.getElementById('btn-splash-chronicle');
+    if (btnSplashChronicle) bindFastTap(btnSplashChronicle, () => showGuide(1, 'splash'));
+
     const btnSplashProtips = document.getElementById('btn-splash-protips');
     bindFastTap(btnSplashProtips, () => showGuide(4, 'splash'));
 

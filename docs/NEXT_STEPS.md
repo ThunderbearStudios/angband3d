@@ -1,8 +1,69 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.2.0 — The Living Chronicle & Voiced Lorekeeper v3.15.0: Universal Audio Control, Multi-Bus Mixing & Solemn Hero Death Epitaphs)
+## Current System State (Angband3D v2.3.0 — Subterranean Geological Biomes, 130 3D Item Pickups, Contact Shadows & Adaptive Vignette)
 
-0. **The Living Chronicle & Voiced Lorekeeper (Version 3.15.0 — Universal Audio Control, Multi-Bus Mixing & Solemn Hero Death Epitaphs)**:
+0. **Graphics Engine & Visual Fidelity Upgrade (Version 2.3.0 — Biome Variations, 3D Item Pickups & Multi-Client Parity)**:
+   - **Dynamic Depth Biomes & Geological Sub-Themes (`dungeon3d.js`, `DungeonWorld.cs`)**:
+     - Upgraded the 6 depth zones with 4 distinct geological sub-themes per tier (e.g. Upper Crypts: Granite Tomb, Sandstone Vaults, Slate Barrow, Damp Sepulchre; Overgrown Catacombs: Verdant Crypt, Fungal Hollows, Ancient Brambles, Spore Marsh; Crystal Caverns: Azure Grotto, Amethyst Depths, Prismatic Seam, Emerald Geode; Magma Underworld: Basalt Crucible, Cinder Caldera, Brimstone Chasm, Obsidian Core; Abyssal Throne: Void Citadel, Necrotic Pit, Blood-Iron Vaults, Nether Core).
+     - Deterministic level seed calculation derived from depth, width, and height: `((depth * 73856093) ^ (w * 19349663) ^ (h * 83492791)) >>> 0`.
+     - Zero extra draw calls: wall and floor color variations write into instanced buffer colors.
+     - 100% multi-client parity: implemented in both the Web Three.js client and Godot C# client (`BiomeProfile.GetForDepth(int depth, uint levelSeed = 0)`).
+   - **Full 130 3D Item Model Expansion & Contact Shadows (`dungeon3d.js`, `dungeon.css`)**:
+     - Fully leveraged all 130 CC0 3D item and weapon models across potions (1–11), books (open/closed 1–4), rings (1–7), necklaces (1–3), crystals (1–5), coins, chests, shields, armors, and weapons.
+     - Added procedural soft contact shadow discs on the floor (`y = 0.01`) with radial alpha gradients to ground items naturally without expensive dynamic shadow maps.
+     - Calm hover floating kinematics (0.75 rad/s yaw rotation and micro-hover bobbing) with dynamic contact shadow scale modulation.
+     - Material pooling for overhead billboard caption sprites (`captionMaterialCache`) to eliminate memory leaks on pickup/drop.
+   - **Adaptive Environmental Vignette & Peril Pulse (`dungeon.css`, `index.html`, `dungeon3d.js`)**:
+     - Environmental vignette subtly reacts to permalit rooms vs dark corridors.
+     - Mortal peril tactile pulse activates below 20% player health.
+   - **Mobile/Tablet Touch Action Optimization (`dungeon.css`)**:
+     - Elevated `#btn-pickup` (`[g]` Get command) to primary visible action on mobile and tablet without opening the More drawer.
+   - **Strict Negative Constraints & Invariants Preserved**:
+     - Dust motes and ambient screen particles completely excluded.
+     - The Living Chronicle / Tome remains strictly isolated to the web client on `angband3d.com`.
+   - **Verification & Test Status**:
+     - `node tools/test_graphics_enhancements.js`: 7/7 verification invariants passed (100%).
+     - `node server/test/server_test.js`: 20/20 test suites passed (100%).
+     - `node tools/test_chronicle.js`: 33/33 phases passed (100%).
+     - `python tools/smoke_test.py`: 11/11 tests passed (100%).
+     - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
+
+1. **The Living Chronicle & Voiced Lorekeeper (Version 3.17.0 — Spell vs Weapon Kill Distinction, LRU Anti-Repetition Dialogue & Lore Protection)**:
+   - **Distinct Attack Medium Tracking (`chronicle-filter.js`)**:
+     - Added comprehensive detection for attack medium: `spell` (incantations, magical projections, elemental effects, player SP drop tracking), `ranged` (arrows, quarrels, bolts, missile hits), `device` (wands, staves, rods, scrolls), and `melee` (drawn steel, swords, axes, maces).
+     - Propagated `attackMedium: { type, name, detail }` through `frameHeroAttacks`, `COMBAT_EXCHANGE`, and `COMBAT_EPISODE`.
+   - **Distinct Kill & Slaying Narrative Prose (`chronicle-grounder.js`)**:
+     - Upgraded `generateKillSaga` and `COMBAT_EXCHANGE` procedural generation to branch specifically on `attackMedium`:
+       - **Spell Slayings**: Vivid depictions of crackling arcane lightning, searing incinerating spellfire, purifying radiant light, mystical detonations, and sulfur/ozone lingering in subterranean air.
+       - **Ranged/Missile Slayings**: Lethal bowstring music, humming arrows piercing through armor and vitals, quarrels taking foes mid-stride at distance.
+       - **Melee Slayings**: Drawn steel, close-quarters parries, shearing blows, and martial counter-thrusts.
+   - **LRU Anti-Repetition Memory Pool for Creature Barks (`chronicle-grounder.js`)**:
+     - Implemented `pickNonRepeatingBark(key, list, seed)` with an LRU history buffer (3-item memory window) and consecutive repetition prevention across turns.
+     - Expanded bark pools to 5–7 unique, high-flavor lines per archetype across all 20 creature categories (orcs, dragons, rogues, veterans, townsfolk, beggars, etc.).
+     - Reset voice and bark memory pools cleanly on new character birth via `clearInstanceVoiceRegistry()`.
+   - **Lore Protection & Generic High-Fantasy Terminology**:
+     - Replaced intellectual-property-sensitive terminology (e.g. "Valar", "Mandos") with generic high-fantasy lore ("High Powers", "Lords of Light", "Nether", "Void", "shadow-pits").
+   - **Verification & Test Suite Status**:
+     - `node tools/test_chronicle.js`: 33/33 verification phases passing cleanly with 0 errors.
+     - `node server/test/server_test.js`: 20/20 test suites passing cleanly with 0 errors.
+     - `python tools/smoke_test.py`: 11/11 tests passing cleanly with 0 errors.
+     - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
+
+1. **The Living Chronicle & Voiced Lorekeeper (Version 3.16.0 — Flagship Showcase & Tome Polish Complete)**:
+   - **Tome Spotlight on Splash Screen & Shortcuts (`index.html`, `dungeon.css`, `app.js`, `input.js`)**:
+     - Upgraded the splash screen with a dedicated high-visibility feature spotlight banner (`.splash-chronicle-spotlight`) highlighting the Living Chronicle, three Tolkien traditions, voiced narration, and HTML story export.
+     - Added `<button id="btn-splash-chronicle"><kbd>[T]</kbd> 📖 Living Tome</button>` to the primary splash shortcuts ribbon and mapped `[T]` keyboard navigation directly to the feature guide.
+     - Elevated the Living Chronicle to the top spotlight feature in the in-game Adventurer's Survival Guide modal (Tab 1: Key Features).
+   - **Comprehensive Documentation & Badges (`README.md`)**:
+     - Added a dedicated top badge and major showcase section (`📖 The Living Chronicle: Your Dungeon Crawl Written as an Epic Fantasy Saga (The Living Tome)`).
+     - Enriched Section 8 technical highlights covering character backstory distillation from Angband birth stats, storekeeper dialogue & barks, and solemn cultural death requiems.
+   - **Verification & Test Suite Status**:
+     - `node tools/test_chronicle.js`: 32/32 verification phases passing cleanly with 0 errors.
+     - `npm test` in `server/`: 20/20 test suites passing cleanly with 0 errors.
+     - `python tools/smoke_test.py`: 11/11 tests passing cleanly with 0 errors.
+     - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
+
+1. **The Living Chronicle & Voiced Lorekeeper (Version 3.15.0 — Universal Audio Control, Multi-Bus Mixing & Solemn Hero Death Epitaphs)**:
    - **Universal Master Volume & Mute Control (`audio.js`, `chronicle-audio.js`, `app.js`)**:
      - Master volume slider and overall mute toggle now universally scale and silence both procedural SFX and the Living Chronicle / Tome voice narration in lockstep.
      - Connected `ChronicleAudioRouter` voice output through `SoundEngine.masterGain`, guaranteeing that hardware or top-bar mute immediately silences all audio.

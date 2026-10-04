@@ -7,8 +7,9 @@
 [![Engine: Angband 4.2.6](https://img.shields.io/badge/Engine-Angband_4.2.6-darkgreen.svg)](https://github.com/angband/angband)
 [![Web Client: Three.js WebGL](https://img.shields.io/badge/Web_Client-Three.js_WebGL-orange.svg)](server/public)
 [![Desktop Client: Godot 4.3+ .NET](https://img.shields.io/badge/Desktop_Client-Godot_4.3+_.NET_8-blueviolet.svg)](https://godotengine.org/)
+[![Living Chronicle: Voiced Adventure Tome](https://img.shields.io/badge/Narrative-Voiced_Adventure_Tome-gold.svg)](#-the-living-chronicle-your-dungeon-crawl-written-as-an-epic-fantasy-saga-the-living-tome)
 [![Smoke Tests: 11/11 Passing](https://img.shields.io/badge/Smoke_Tests-11%2F11_Passing-success.svg)](tools/smoke_test.py)
-[![Queue & Minimap Tests: Passing](https://img.shields.io/badge/Integration_Tests-Passing-success.svg)](tools/test_queue_and_minimap.js)
+[![Integration Tests: Passing](https://img.shields.io/badge/Integration_Tests-Passing-success.svg)](tools/test_queue_and_minimap.js)
 
 ---
 
@@ -29,6 +30,24 @@
 > - Export your savefile with 1 click from the pause menu (`Esc`).
 > - Drop it directly into your offline Windows Desktop client or continue your dungeon crawl on Android during your commute!
 > - *(And yes—whether you embrace unforgiving ironman permadeath or choose to back up your save files to survive Morgoth's deepest vaults—you have full freedom to play the game your way.)*
+
+---
+
+## 📖 The Living Chronicle: Your Dungeon Crawl Written as an Epic Fantasy Saga (The Living Tome)
+
+> *"In the deep vaults beneath the earth, steel clashes against stone, and every deed of the adventurer is inscribed into the living record of the realm."*
+
+One of the most unique and celebrated innovations of Angband 3D is **The Living Chronicle (The Adventure Tome)**. Instead of raw ASCII combat logs that vanish into scrollback, every step, combat blow, potion quaff, level feeling, store purchase, and fatal strike is transformed in real time into an epic, high-fantasy literary saga:
+
+* **Three High-Fantasy Narrative Traditions**: Narrative prose automatically adapts its voice to your hero's heritage:
+  * 📜 **Frontier Chronicles**: Grounded, humble courage, hearth tales, and mortal grit (Heroic Men & Hobbits).
+  * 🌟 **High Court Annals**: Ancient nobility, poetic sorrow, and starlit grace (Poetic & Elegiac Elves).
+  * ⚒️ **Mountain Stone-Records**: Unyielding stonecraft, deep subterranean vaults, and ancestral honor (Dwarven Stone-Annals).
+* **Voiced Audiobook Narration & Transport Deck**: An integrated speech synthesis deck reads your story aloud as you play. Featuring full playback controls (`Play`, `Pause`, `Rewind`, `Forward`, `0.75x–1.5x Speed`, and independent Tome narration volume mixing with subterranean vault reverb).
+* **Diegetic Lorekeeper & 4th-Wall Survival Guide**: Consult the ancient chronicler at any time via text or speech-to-text voice input (`🎙`) to ask questions about Angband mechanics, potion identification, stair tactics, and monster lore without breaking character immersion.
+* **Interactive Creature Conversations**: Target adjacent or visible creatures in the 3D viewport to parley, intimidate, or taunt in real time.
+* **Solemn Memorial Requiems**: When your adventurer inevitably falls in combat, the Tome records a solemn, heritage-attuned Epitaph immortalizing their deeds in the annals of the realm.
+* **Standalone Illustrated HTML & Markdown Exports**: Export your run's full illustrated chronicle with 1 click to preserve, read offline, or share your heroic victories and tragic ends.
 
 ---
 
@@ -134,12 +153,18 @@ Whenever complex interaction is needed (rolling stats at birth, browsing invento
 * **Frictionless Portability**: Export your hero with a single click from the web pause menu (`Esc` -> `Export Save`), load it into your native desktop client for 120 FPS boss fights, or import it to Android for travel.
 * **Play Your Way**: Permadeath purists can play with strict ironman finality, while explorers learning Angband's punishing 5000ft dungeon mechanics can back up and duplicate character files freely.
 
-### 8. The Living Chronicle & Voiced Lorekeeper (BYOK Multi-LLM Saga Engine)
-Angband 3D transforms raw ASCII combat telemetry into a living, spoken Tolkien chronicle that records your saga in real time:
-* **Three Literary Traditions of Arda**:
-  * *The Red Book of Westmarch*: Grounded mortal courage, humble hearths, and the lingering shadow of Mordor (Heroic Men & Hobbits).
-  * *The Annals of the Noldor*: High elven nobility, sorrow of the Silmarils, and ancient starlight (Poetic & Elegiac).
-  * *The Record of Khazad-Dûm*: Unyielding dwarven stonecraft, deep vaults, and ancient blood-feuds (Dwarven Stone-Annals).
+### 8. The Living Chronicle & Voiced Adventure Tome (Multi-LLM Saga Engine & Audiobook Narrator)
+Angband 3D transforms raw ASCII combat telemetry into a living, spoken high-fantasy chronicle that records your adventure in real time:
+* **Three Mythic Narrative Traditions**:
+  * *Frontier Chronicles*: Grounded mortal courage, humble hearths, and wilderness survival (Heroic Men & Hobbits).
+  * *High Court Annals*: Ancient nobility, poetic sorrow, and starlight (Poetic & Elegiac).
+  * *Mountain Stone-Records*: Unyielding dwarven stonecraft, deep vaults, and ancestral honor (Dwarven Stone-Annals).
+* **Deep Hero Backstory Distillation**:
+  * Automatically synthesizes character origin, lineage, and physical appearance rolled at birth into the opening chapter prologue.
+* **Storekeeper Tactical Hints & Barks**:
+  * Visiting the Alchemy Shop, Weaponsmith, or Temple triggers in-character dialogue from shopkeepers explaining potion remedies, Word of Recall delays, and door spiking tactics.
+* **Solemn Cultural Death Requiems**:
+  * When a character falls in battle, the chronicler recites a solemn tradition-specific Epitaph into the Tome to immortalize their memory.
 * **Deterministic 3D Visual Gender Synchronization**:
   * 3D scene entity inspection dynamically inspects rendered meshes (e.g. `Casual.gltf`) and strictly dictates narrative pronouns (`she/her/herself`), character descriptions, and vocal profiles with zero gender hallucinations.
 * **Zero API Key Exposure Security Model**:
@@ -152,7 +177,7 @@ Angband 3D transforms raw ASCII combat telemetry into a living, spoken Tolkien c
     `gemini-3.8-flash` &rarr; `gemini-3.7-flash` &rarr; `gemini-3.6-flash` &rarr; `gemini-3.5-flash` &rarr; `gemini-3.5-flash-lite` &rarr; `gemini-3.1-flash-lite` &rarr; `gemini-2.5-flash` &rarr; `gemini-2.5-flash-lite`.
   * **Zero-Downtime Offline Fallback**: If all external models are exhausted, the engine falls back to built-in offline procedural lore with 0ms latency and zero gameplay disruption.
 * **Voiced Lorekeeper & 4th-Wall Survival Guide**:
-  * Multi-voice speech narration with playback timeline controls, speed multipliers (1.0x, 1.25x, 1.5x), and click-to-seek beat navigation.
+  * Multi-voice speech narration with playback timeline controls, speed multipliers (0.75x, 0.85x, 1.0x, 1.25x, 1.5x), and click-to-seek beat navigation.
   * Diegetic survival guide Q&A answering 16 core gameplay topics (resting, potions, spells, shops, hunger, classic terminal keys) directly in character.
 
 ---

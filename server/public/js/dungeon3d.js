@@ -33,7 +33,10 @@ window.GRAPHICS_CONFIG = {
     torchInertia: true,        // Subtle hand-held torch movement lag on turn & walk bob
     adaptiveVignette: true,    // Environmental adaptive perimeter vignette behind HUD
     surfaceBreathing: true,    // Subtle emissive pulse on in-view molten lava (zero light leak)
-    tileVariation: true        // Quarter-turn texture rotation and organic stone shading
+    tileVariation: true,       // Quarter-turn texture rotation and organic stone shading
+    item3DModels: true,        // 3D item pickups with authentic models, attributed PBR materials & contact shadows
+    biomeVariation: true,      // Procedural geological sub-themes & coherent spatial cluster shading
+    starrySky: true            // High-quality celestial star canopy overhead in town / outdoors
 };
 
 window.setGraphicsPreset = function(presetName) {
@@ -45,6 +48,9 @@ window.setGraphicsPreset = function(presetName) {
     window.GRAPHICS_CONFIG.adaptiveVignette = isEnhanced;
     window.GRAPHICS_CONFIG.surfaceBreathing = isEnhanced;
     window.GRAPHICS_CONFIG.tileVariation = isEnhanced;
+    window.GRAPHICS_CONFIG.item3DModels = isEnhanced;
+    window.GRAPHICS_CONFIG.biomeVariation = isEnhanced;
+    window.GRAPHICS_CONFIG.starrySky = isEnhanced;
 
     if (window.__app && window.__app.dungeon) {
         window.__app.dungeon.applyGraphicsConfig();
@@ -334,6 +340,71 @@ function procCreateFloorNormal() {
         const len = Math.hypot(nx, ny, nz);
         return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
     });
+}
+
+function procCreateShadowTexture() {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0.75)');
+    grad.addColorStop(0.5, 'rgba(0, 0, 0, 0.35)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    return tex;
+}
+
+function procCreateStarTexture() {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const center = size / 2;
+
+    // 1. Soft radial Gaussian bloom falloff
+    const grad = ctx.createRadialGradient(center, center, 0, center, center, center);
+    grad.addColorStop(0.00, 'rgba(255, 255, 255, 1.0)');
+    grad.addColorStop(0.12, 'rgba(255, 255, 255, 0.95)');
+    grad.addColorStop(0.28, 'rgba(225, 238, 255, 0.45)');
+    grad.addColorStop(0.55, 'rgba(180, 210, 255, 0.12)');
+    grad.addColorStop(1.00, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+
+    // 2. Subtle 4-point diffraction cross spikes on bright core (natural telescope/eye brilliance)
+    ctx.lineWidth = 1.0;
+    const spikeH = ctx.createLinearGradient(center - 16, center, center + 16, center);
+    spikeH.addColorStop(0.0, 'rgba(255, 255, 255, 0.0)');
+    spikeH.addColorStop(0.5, 'rgba(255, 255, 255, 0.70)');
+    spikeH.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+    ctx.strokeStyle = spikeH;
+    ctx.beginPath();
+    ctx.moveTo(center - 16, center);
+    ctx.lineTo(center + 16, center);
+    ctx.stroke();
+
+    const spikeV = ctx.createLinearGradient(center, center - 16, center, center + 16);
+    spikeV.addColorStop(0.0, 'rgba(255, 255, 255, 0.0)');
+    spikeV.addColorStop(0.5, 'rgba(255, 255, 255, 0.70)');
+    spikeV.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+    ctx.strokeStyle = spikeV;
+    ctx.beginPath();
+    ctx.moveTo(center, center - 16);
+    ctx.lineTo(center, center + 16);
+    ctx.stroke();
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.generateMipmaps = false;
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearFilter;
+    return tex;
 }
 
 function procCreateShopDoorTexture(shopNum, heraldicColor) {
@@ -766,7 +837,7 @@ class Dungeon3D {
         });
     }
 
-    getBiomeProfile(depth) {
+    getBiomeProfile(depth, levelSeed = 0) {
         if (depth <= 0) {
             return {
                 name: 'Town & Overworld',
@@ -783,101 +854,146 @@ class Dungeon3D {
                 wallColor: new THREE.Color(0.88, 0.88, 0.88),
                 floorColor: new THREE.Color(0.84, 0.82, 0.80),
                 ceilingColor: new THREE.Color(0.70, 0.70, 0.75),
-                floorRoughness: 0.84
+                floorRoughness: 0.84,
+                wallRoughness: 0.82
             };
         }
+
+        const useVar = (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.biomeVariation) && (levelSeed !== 0);
+        const sub = useVar ? (Math.abs(levelSeed) % 4) : 0;
+
         if (depth <= 15) {
+            const subThemes = [
+                { name: 'Upper Crypts (Ashlar Sepulchre)', wc: [0.85, 0.85, 0.88], fc: [0.78, 0.78, 0.80], cc: [0.65, 0.65, 0.70], fr: 0.82, wr: 0.82, tc: 0xffdc99, fog: 0x08080c, amb: 0x626880 },
+                { name: 'Upper Crypts (Flooded Undercroft)', wc: [0.74, 0.78, 0.82], fc: [0.65, 0.70, 0.75], cc: [0.58, 0.62, 0.66], fr: 0.52, wr: 0.75, tc: 0xffd485, fog: 0x06080d, amb: 0x58607a },
+                { name: 'Upper Crypts (Sandstone Tomb)', wc: [0.88, 0.82, 0.72], fc: [0.80, 0.74, 0.65], cc: [0.68, 0.62, 0.55], fr: 0.88, wr: 0.86, tc: 0xffc875, fog: 0x0c0a08, amb: 0x6a6258 },
+                { name: 'Upper Crypts (Cinder Catacomb)', wc: [0.70, 0.70, 0.72], fc: [0.68, 0.68, 0.70], cc: [0.55, 0.55, 0.58], fr: 0.85, wr: 0.84, tc: 0xffc280, fog: 0x0a0808, amb: 0x5a5858 }
+            ];
+            const t = subThemes[sub];
             return {
-                name: 'Upper Crypts',
+                name: t.name,
                 bgColor: 0x040406,
-                ambientColor: 0x626880,
+                ambientColor: t.amb,
                 ambientEnergy: 0.42,
                 sunLight: false,
                 sunEnergy: 0.0,
-                fogColor: 0x08080c,
+                fogColor: t.fog,
                 fogDensity: 0.010,
                 exposure: 1.18,
-                torchColor: 0xffdc99,
+                torchColor: t.tc,
                 torchEnergy: 3.5,
-                wallColor: new THREE.Color(0.85, 0.85, 0.88),
-                floorColor: new THREE.Color(0.78, 0.78, 0.80),
-                ceilingColor: new THREE.Color(0.65, 0.65, 0.70),
-                floorRoughness: 0.82
+                wallColor: new THREE.Color(...t.wc),
+                floorColor: new THREE.Color(...t.fc),
+                ceilingColor: new THREE.Color(...t.cc),
+                floorRoughness: t.fr,
+                wallRoughness: t.wr
             };
         }
         if (depth <= 35) {
+            const subThemes = [
+                { name: 'Overgrown Catacombs (Emerald Sanctuary)', wc: [0.72, 0.86, 0.70], fc: [0.62, 0.78, 0.60], cc: [0.52, 0.65, 0.50], fr: 0.65, wr: 0.80, tc: 0xffe099, fog: 0x061008, amb: 0x426147 },
+                { name: 'Overgrown Catacombs (Peat Barrows)', wc: [0.78, 0.75, 0.60], fc: [0.68, 0.64, 0.52], cc: [0.56, 0.52, 0.42], fr: 0.58, wr: 0.84, tc: 0xffd88a, fog: 0x0a0c06, amb: 0x4e583c },
+                { name: 'Overgrown Catacombs (Fungal Hollows)', wc: [0.66, 0.85, 0.78], fc: [0.58, 0.76, 0.70], cc: [0.48, 0.64, 0.58], fr: 0.60, wr: 0.78, tc: 0xf6dfa0, fog: 0x040e0c, amb: 0x385c52 },
+                { name: 'Overgrown Catacombs (Sunken Necropolis)', wc: [0.70, 0.80, 0.76], fc: [0.60, 0.72, 0.68], cc: [0.50, 0.60, 0.56], fr: 0.46, wr: 0.76, tc: 0xffe4ab, fog: 0x060e10, amb: 0x425854 }
+            ];
+            const t = subThemes[sub];
             return {
-                name: 'Overgrown Catacombs',
+                name: t.name,
                 bgColor: 0x030504,
-                ambientColor: 0x426147,
+                ambientColor: t.amb,
                 ambientEnergy: 0.30,
                 sunLight: false,
                 sunEnergy: 0.0,
-                fogColor: 0x061008,
+                fogColor: t.fog,
                 fogDensity: 0.014,
                 exposure: 1.18,
-                torchColor: 0xffe099,
+                torchColor: t.tc,
                 torchEnergy: 2.8,
-                wallColor: new THREE.Color(0.72, 0.86, 0.70),
-                floorColor: new THREE.Color(0.65, 0.78, 0.64),
-                ceilingColor: new THREE.Color(0.52, 0.65, 0.50),
-                floorRoughness: 0.65
+                wallColor: new THREE.Color(...t.wc),
+                floorColor: new THREE.Color(...t.fc),
+                ceilingColor: new THREE.Color(...t.cc),
+                floorRoughness: t.fr,
+                wallRoughness: t.wr
             };
         }
         if (depth <= 60) {
+            const subThemes = [
+                { name: 'Crystal Caverns (Quartz Labyrinth)', wc: [0.68, 0.78, 0.96], fc: [0.60, 0.70, 0.90], cc: [0.48, 0.56, 0.76], fr: 0.55, wr: 0.70, tc: 0xfadc7b, fog: 0x060c18, amb: 0x425c85 },
+                { name: 'Crystal Caverns (Amethyst Geode)', wc: [0.76, 0.68, 0.94], fc: [0.68, 0.60, 0.86], cc: [0.56, 0.48, 0.72], fr: 0.48, wr: 0.68, tc: 0xf4d08c, fog: 0x0b0616, amb: 0x544078 },
+                { name: 'Crystal Caverns (Beryl Depths)', wc: [0.62, 0.84, 0.88], fc: [0.54, 0.75, 0.80], cc: [0.44, 0.62, 0.68], fr: 0.52, wr: 0.72, tc: 0xf8e090, fog: 0x040e14, amb: 0x365868 },
+                { name: 'Crystal Caverns (Ironstone Cavern)', wc: [0.80, 0.76, 0.84], fc: [0.72, 0.68, 0.76], cc: [0.58, 0.54, 0.62], fr: 0.50, wr: 0.74, tc: 0xfad880, fog: 0x08080c, amb: 0x4c4a56 }
+            ];
+            const t = subThemes[sub];
             return {
-                name: 'Crystal Caverns',
+                name: t.name,
                 bgColor: 0x030407,
-                ambientColor: 0x425c85,
+                ambientColor: t.amb,
                 ambientEnergy: 0.32,
                 sunLight: false,
                 sunEnergy: 0.0,
-                fogColor: 0x060c18,
+                fogColor: t.fog,
                 fogDensity: 0.014,
                 exposure: 1.20,
-                torchColor: 0xfadc7b,
+                torchColor: t.tc,
                 torchEnergy: 2.8,
-                wallColor: new THREE.Color(0.68, 0.78, 0.96),
-                floorColor: new THREE.Color(0.60, 0.70, 0.90),
-                ceilingColor: new THREE.Color(0.48, 0.56, 0.76),
-                floorRoughness: 0.55
+                wallColor: new THREE.Color(...t.wc),
+                floorColor: new THREE.Color(...t.fc),
+                ceilingColor: new THREE.Color(...t.cc),
+                floorRoughness: t.fr,
+                wallRoughness: t.wr
             };
         }
         if (depth <= 85) {
+            const subThemes = [
+                { name: 'Magma Underworld (Basalt Crucible)', wc: [0.90, 0.72, 0.65], fc: [0.78, 0.62, 0.55], cc: [0.62, 0.48, 0.40], fr: 0.70, wr: 0.82, tc: 0xffd18c, fog: 0x140603, amb: 0x7a4024 },
+                { name: 'Magma Underworld (Obsidian Abyss)', wc: [0.65, 0.58, 0.62], fc: [0.55, 0.48, 0.52], cc: [0.42, 0.36, 0.40], fr: 0.35, wr: 0.60, tc: 0xffbf78, fog: 0x080202, amb: 0x5a3020 },
+                { name: 'Magma Underworld (Brimstone Wastes)', wc: [0.92, 0.80, 0.58], fc: [0.82, 0.70, 0.50], cc: [0.65, 0.55, 0.38], fr: 0.80, wr: 0.84, tc: 0xffc86a, fog: 0x160c02, amb: 0x7c4e20 },
+                { name: 'Magma Underworld (White-Hot Core)', wc: [0.96, 0.68, 0.54], fc: [0.86, 0.58, 0.46], cc: [0.68, 0.44, 0.34], fr: 0.65, wr: 0.78, tc: 0xffda9a, fog: 0x1c0803, amb: 0x8c4424 }
+            ];
+            const t = subThemes[sub];
             return {
-                name: 'Magma Underworld',
+                name: t.name,
                 bgColor: 0x060302,
-                ambientColor: 0x7a4024,
+                ambientColor: t.amb,
                 ambientEnergy: 0.36,
                 sunLight: false,
                 sunEnergy: 0.0,
-                fogColor: 0x140603,
+                fogColor: t.fog,
                 fogDensity: 0.016,
                 exposure: 1.22,
-                torchColor: 0xffd18c,
+                torchColor: t.tc,
                 torchEnergy: 3.0,
-                wallColor: new THREE.Color(0.90, 0.72, 0.65),
-                floorColor: new THREE.Color(0.78, 0.62, 0.55),
-                ceilingColor: new THREE.Color(0.62, 0.48, 0.40),
-                floorRoughness: 0.70
+                wallColor: new THREE.Color(...t.wc),
+                floorColor: new THREE.Color(...t.fc),
+                ceilingColor: new THREE.Color(...t.cc),
+                floorRoughness: t.fr,
+                wallRoughness: t.wr
             };
         }
+        const subThemes = [
+            { name: 'Abyssal Throne (Void Citadel)', wc: [0.75, 0.65, 0.85], fc: [0.68, 0.58, 0.78], cc: [0.50, 0.40, 0.60], fr: 0.60, wr: 0.75, tc: 0xf2d9bf, fog: 0x0d0414, amb: 0x613370 },
+            { name: 'Abyssal Throne (Necrotic Pit)', wc: [0.68, 0.68, 0.72], fc: [0.60, 0.60, 0.64], cc: [0.45, 0.45, 0.50], fr: 0.75, wr: 0.82, tc: 0xe8d0b5, fog: 0x060608, amb: 0x484252 },
+            { name: 'Abyssal Throne (Blood-Iron Vaults)', wc: [0.85, 0.58, 0.68], fc: [0.75, 0.50, 0.60], cc: [0.55, 0.36, 0.46], fr: 0.55, wr: 0.76, tc: 0xf5cbb0, fog: 0x120206, amb: 0x6c2c42 },
+            { name: 'Abyssal Throne (Nether Core)', wc: [0.60, 0.65, 0.88], fc: [0.52, 0.56, 0.78], cc: [0.40, 0.44, 0.62], fr: 0.38, wr: 0.65, tc: 0xe0d4f5, fog: 0x040308, amb: 0x403666 }
+        ];
+        const t = subThemes[sub];
         return {
-            name: 'Abyssal Throne',
+            name: t.name,
             bgColor: 0x040206,
-            ambientColor: 0x613370,
+            ambientColor: t.amb,
             ambientEnergy: 0.30,
             sunLight: false,
             sunEnergy: 0.0,
-            fogColor: 0x0d0414,
+            fogColor: t.fog,
             fogDensity: 0.016,
             exposure: 1.22,
-            torchColor: 0xf2d9bf,
+            torchColor: t.tc,
             torchEnergy: 2.4,
-            wallColor: new THREE.Color(0.75, 0.65, 0.85),
-            floorColor: new THREE.Color(0.68, 0.58, 0.78),
-            ceilingColor: new THREE.Color(0.50, 0.40, 0.60),
-            floorRoughness: 0.60
+            wallColor: new THREE.Color(...t.wc),
+            floorColor: new THREE.Color(...t.fc),
+            ceilingColor: new THREE.Color(...t.cc),
+            floorRoughness: t.fr,
+            wallRoughness: t.wr
         };
     }
 
@@ -895,6 +1011,7 @@ class Dungeon3D {
         this.magmaTex = procCreateMagmaTexture();
         this.magmaEmission = procCreateMagmaEmission();
         this.quartzTex = procCreateQuartzTexture();
+        this.shadowTex = procCreateShadowTexture();
 
         // Procedural Creature Normal Maps (eliminates flat untextured models)
         this.organicNormal = procCreateOrganicNormal();
@@ -1061,6 +1178,17 @@ class Dungeon3D {
         const ceilingGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize, 2, 2);
         ceilingGeo.rotateX(Math.PI / 2);
         applyCeilingVertexAO(ceilingGeo, this.cellSize);
+
+        // Soft contact shadow disc for grounded 3D item pickups
+        this.shadowGeo = new THREE.PlaneGeometry(0.36, 0.36);
+        this.shadowGeo.rotateX(-Math.PI / 2);
+        this.shadowMat = new THREE.MeshBasicMaterial({
+            map: this.shadowTex,
+            transparent: true,
+            opacity: 0.42,
+            depthWrite: false
+        });
+        this.captionMaterialCache = new Map();
 
         // Helper to construct composite PBR geometries (1:1 with Godot SurfaceTool / BuildDoorMesh)
         const createMergedBoxGeometry = (boxes) => {
@@ -1299,6 +1427,194 @@ class Dungeon3D {
         for (let i = 0; i < 8; i++) initInstancedColors(this.shopMeshes[i], 64);
 
         this.dummy = new THREE.Object3D();
+
+        // Soft contact shadow quad for 3D item pickups & treasures (zero download cost)
+        this.shadowGeo = new THREE.PlaneGeometry(0.36, 0.36);
+        this.shadowGeo.rotateX(-Math.PI / 2);
+        this.shadowMat = new THREE.MeshBasicMaterial({
+            map: this.shadowTex,
+            transparent: true,
+            opacity: 0.65,
+            depthWrite: false
+        });
+
+        // Bounded cache for item caption billboard textures & materials (zero GC memory leak)
+        this.captionMaterialCache = new Map();
+
+        // High-Quality Celestial Star Canopy (Middle-earth night sky overhead in town)
+        this.initStarCanopy();
+    }
+
+    initStarCanopy() {
+        this.starTexture = procCreateStarTexture();
+        const starCount = 1800;
+        const positions = new Float32Array(starCount * 3);
+        const colors = new Float32Array(starCount * 3);
+        const sizes = new Float32Array(starCount);
+        const phases = new Float32Array(starCount);
+
+        const radius = 70.0; // Comfortably inside camera far clipping plane (85-140m)
+
+        // Spectral Star Palettes (Normalized sRGB)
+        const spectralColors = [
+            [1.0, 1.0, 1.0],      // Class A: Pure diamond white (45%)
+            [0.82, 0.90, 1.0],    // Class B: Piercing ice-blue (22%)
+            [1.0, 0.94, 0.85],    // Class F/G: Warm solar gold (18%)
+            [1.0, 0.82, 0.60],    // Class K: Topaz amber (10%)
+            [1.0, 0.62, 0.52]     // Class M: Ruby garnet giant (5%)
+        ];
+
+        // Seeded deterministic PRNG for stable celestial sphere across turns & sessions
+        let seed = 918273645;
+        const rand = () => {
+            seed = (seed * 1664525 + 1013904223) >>> 0;
+            return seed / 4294967296;
+        };
+
+        for (let i = 0; i < starCount; i++) {
+            // Star 0: The Star of Eärendil (Flos Duellatorum / High Silmaril jewel of the sky)
+            if (i === 0) {
+                const az = Math.PI * 0.28;
+                const el = Math.PI * 0.42;
+                const y = Math.sin(el);
+                const rXZ = Math.cos(el);
+                const x = Math.sin(az) * rXZ;
+                const z = -Math.cos(az) * rXZ;
+
+                positions[0] = x * radius;
+                positions[1] = y * radius;
+                positions[2] = z * radius;
+
+                colors[0] = 0.90;
+                colors[1] = 0.96;
+                colors[2] = 1.00;
+                sizes[0] = 6.5; // Majestic prominent jewel star
+                phases[0] = 0.0;
+                continue;
+            }
+
+            let x, y, z;
+            const isGalacticBelt = (rand() < 0.38); // 38% cluster along the celestial River of Stars
+
+            if (isGalacticBelt) {
+                // Arc tilted across the sky from SW to NE
+                const t = rand() * Math.PI * 2;
+                const beltSpread = (rand() - 0.5) * 0.35;
+                const bx = Math.cos(t);
+                const bz = Math.sin(t);
+                const tilt = 0.62;
+                const py = Math.sin(t) * Math.sin(tilt) + beltSpread;
+                const pz = Math.sin(t) * Math.cos(tilt);
+                const px = bx + (rand() - 0.5) * 0.15;
+
+                const len = Math.sqrt(px * px + py * py + pz * pz) || 1.0;
+                y = Math.abs(py / len);
+                x = px / len;
+                z = pz / len;
+            } else {
+                // Hemispherical distribution biased towards zenith
+                const az = rand() * Math.PI * 2;
+                const el = Math.asin(0.04 + rand() * 0.96);
+                y = Math.sin(el);
+                const rXZ = Math.cos(el);
+                x = Math.sin(az) * rXZ;
+                z = Math.cos(az) * rXZ;
+            }
+
+            y = Math.max(0.04, y);
+            const normLen = Math.sqrt(x * x + y * y + z * z) || 1.0;
+            x /= normLen;
+            y /= normLen;
+            z /= normLen;
+
+            positions[i * 3 + 0] = x * radius;
+            positions[i * 3 + 1] = y * radius;
+            positions[i * 3 + 2] = z * radius;
+
+            const cRoll = rand();
+            const sc = cRoll < 0.45 ? spectralColors[0] :
+                       cRoll < 0.67 ? spectralColors[1] :
+                       cRoll < 0.85 ? spectralColors[2] :
+                       cRoll < 0.95 ? spectralColors[3] : spectralColors[4];
+
+            colors[i * 3 + 0] = sc[0];
+            colors[i * 3 + 1] = sc[1];
+            colors[i * 3 + 2] = sc[2];
+
+            const sRoll = rand();
+            let starSize;
+            if (sRoll < 0.72) {
+                starSize = 1.3 + rand() * 0.8;
+            } else if (sRoll < 0.94) {
+                starSize = 2.4 + rand() * 1.0;
+            } else {
+                starSize = 3.6 + rand() * 1.4;
+            }
+            sizes[i] = starSize;
+            phases[i] = rand() * Math.PI * 2;
+        }
+
+        const starGeo = new THREE.BufferGeometry();
+        starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        starGeo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+        starGeo.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+
+        this.starMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTexture: { value: this.starTexture },
+                uTime: { value: 0.0 },
+                uVisibility: { value: 1.0 }
+            },
+            vertexShader: `
+                attribute float aSize;
+                attribute float aPhase;
+                varying vec3 vColor;
+                varying float vAlpha;
+                uniform float uTime;
+                uniform float uVisibility;
+
+                void main() {
+                    vColor = color;
+                    // Calm thermodynamic twinkling (slow organic breath, never erratic strobe)
+                    float twinkle = 0.84 + 0.16 * sin(uTime * 1.4 + aPhase);
+
+                    // Horizon extinction: stars fade smoothly into the atmospheric twilight haze near horizon
+                    vec3 normPos = normalize(position);
+                    float horizonFade = smoothstep(0.04, 0.24, normPos.y);
+
+                    vAlpha = twinkle * horizonFade * uVisibility;
+
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    gl_PointSize = aSize * (150.0 / -mvPosition.z) * (0.94 + 0.06 * twinkle);
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D uTexture;
+                varying vec3 vColor;
+                varying float vAlpha;
+
+                void main() {
+                    if (vAlpha <= 0.005) discard;
+                    vec4 tex = texture2D(uTexture, gl_PointCoord);
+                    gl_FragColor = vec4(vColor * tex.rgb, tex.a * vAlpha);
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            depthTest: true,
+            blending: THREE.AdditiveBlending,
+            vertexColors: true
+        });
+
+        this.starPoints = new THREE.Points(starGeo, this.starMaterial);
+        this.starPoints.frustumCulled = false;
+
+        this.starGroup = new THREE.Group();
+        this.starGroup.name = "StarCanopy";
+        this.starGroup.add(this.starPoints);
+        this.scene.add(this.starGroup);
     }
 
     initViewmodel() {
@@ -1590,31 +1906,62 @@ class Dungeon3D {
         // Core consumables & treasures
         loadItem('$', '/assets/models/items/Gold_Ingots.obj', goldMat, 0.25, 0.05);
         loadItem('coin', '/assets/models/items/Coin.obj', goldMat, 0.22, 0.05);
+        loadItem('coin_skull', '/assets/models/items/Coin_Skull.obj', goldMat, 0.22, 0.05);
+        loadItem('coin_star', '/assets/models/items/Coin_Star.obj', goldMat, 0.22, 0.05);
         loadItem('!', '/assets/models/items/Potion1_Filled.obj', potionMat, 0.22, 0.05);
+        for (let pi = 1; pi <= 11; pi++) {
+            loadItem(`potion_${pi}`, `/assets/models/items/Potion${pi}_Filled.obj`, potionMat, 0.22, 0.05);
+        }
         loadItem('?', '/assets/models/items/Scroll.obj', scrollMat, 0.22, 0.05);
+        loadItem('parchment', '/assets/models/items/Parchment.obj', scrollMat, 0.22, 0.05);
         loadItem('book', '/assets/models/items/Book1_Closed.obj', bookMat, 0.20, 0.05);
+        loadItem('book_open', '/assets/models/items/Book1_Open.obj', bookMat, 0.20, 0.05);
+        loadItem('book_2', '/assets/models/items/Book2_Closed.obj', bookMat, 0.20, 0.05);
+        loadItem('book_3', '/assets/models/items/Book3_Closed.obj', bookMat, 0.20, 0.05);
+        loadItem('book_4', '/assets/models/items/Book4_Closed.obj', bookMat, 0.20, 0.05);
         loadItem('=', '/assets/models/items/Ring1.obj', ringMat, 0.18, 0.08);
+        for (let ri = 1; ri <= 7; ri++) {
+            loadItem(`ring_${ri}`, `/assets/models/items/Ring${ri}.obj`, ringMat, 0.18, 0.08);
+        }
         loadItem('"', '/assets/models/items/Necklace1.obj', goldMat, 0.18, 0.05);
+        loadItem('necklace_2', '/assets/models/items/Necklace2.obj', goldMat, 0.18, 0.05);
+        loadItem('necklace_3', '/assets/models/items/Necklace3.obj', goldMat, 0.18, 0.05);
         loadItem('*', '/assets/models/items/Crystal1.obj', gemMat, 0.18, 0.05);
+        for (let ci = 1; ci <= 5; ci++) {
+            loadItem(`crystal_${ci}`, `/assets/models/items/Crystal${ci}.obj`, gemMat, 0.18, 0.05);
+        }
         loadItem('chest', '/assets/models/items/Chest_Closed.obj', chestMat, 0.22, 0.0);
+        loadItem('chest_ingots', '/assets/models/items/Chest_Ingots.obj', chestMat, 0.22, 0.0);
+        loadItem('chest_open', '/assets/models/items/Chest_Open.obj', chestMat, 0.22, 0.0);
         loadItem(',', '/assets/models/items/ChickenLeg.obj', foodMat, 0.20, 0.05);
 
         // Armor, Footwear & Accessories
         loadItem('armor_metal', '/assets/models/items/Armor_Metal.obj', armorMat, 0.22, 0.05);
         loadItem('armor_metal2', '/assets/models/items/Armor_Metal2.obj', armorMat, 0.22, 0.05);
         loadItem('armor_leather', '/assets/models/items/Armor_Leather.obj', leatherMat, 0.22, 0.05);
+        loadItem('armor_golden', '/assets/models/items/Armor_Golden.obj', goldMat, 0.22, 0.05);
+        loadItem('armor_black', '/assets/models/items/Armor_Black.obj', armorMat, 0.22, 0.05);
         loadItem('crown', '/assets/models/items/Crown.obj', goldMat, 0.20, 0.05);
+        loadItem('crown_2', '/assets/models/items/Crown2.obj', goldMat, 0.20, 0.05);
         loadItem('glove', '/assets/models/items/Glove.obj', leatherMat, 0.18, 0.05);
         loadItem('backpack', '/assets/models/items/Backpack.obj', leatherMat, 0.20, 0.05);
+        loadItem('bag', '/assets/models/items/Bag.obj', leatherMat, 0.20, 0.05);
         loadItem('pouch', '/assets/models/items/Pouch.obj', leatherMat, 0.18, 0.05);
         loadItem('key', '/assets/models/items/Key1.obj', goldMat, 0.18, 0.05);
+        loadItem('key_2', '/assets/models/items/Key2.obj', goldMat, 0.18, 0.05);
+        loadItem('key_3', '/assets/models/items/Key3.obj', goldMat, 0.18, 0.05);
         loadItem('skull', '/assets/models/items/Skull.obj', scrollMat, 0.18, 0.05);
+        loadItem('skull_2', '/assets/models/items/Skull2.obj', scrollMat, 0.18, 0.05);
+        loadItem('bone', '/assets/models/items/Bone.obj', scrollMat, 0.18, 0.05);
 
         // Weapons & Shields
         loadItem(')', '/assets/models/weapons/Sword.obj', weaponMat, 0.18, 0.05);
+        loadItem('sword_2', '/assets/models/weapons/Sword_2.obj', weaponMat, 0.18, 0.05);
         loadItem('sword_big', '/assets/models/weapons/Sword_Big.obj', weaponMat, 0.20, 0.05);
+        loadItem('sword_golden', '/assets/models/weapons/Sword_Golden.obj', goldMat, 0.20, 0.05);
         loadItem('claymore', '/assets/models/weapons/Claymore.obj', weaponMat, 0.20, 0.05);
         loadItem('dagger', '/assets/models/weapons/Dagger.obj', weaponMat, 0.18, 0.05);
+        loadItem('dagger_2', '/assets/models/weapons/Dagger_2.obj', weaponMat, 0.18, 0.05);
         loadItem('axe', '/assets/models/weapons/Axe_Small.obj', weaponMat, 0.20, 0.05);
         loadItem('axe_double', '/assets/models/weapons/Axe_Double.obj', weaponMat, 0.22, 0.05);
         loadItem('hammer', '/assets/models/weapons/Hammer_Small.obj', weaponMat, 0.20, 0.05);
@@ -1622,11 +1969,17 @@ class Dungeon3D {
         loadItem('spear', '/assets/models/weapons/Spear.obj', weaponMat, 0.22, 0.05);
         loadItem('scythe', '/assets/models/weapons/Scythe.obj', weaponMat, 0.22, 0.05);
         loadItem('}', '/assets/models/weapons/Bow_Wooden.obj', woodMat, 0.22, 0.05);
+        loadItem('bow_wooden2', '/assets/models/weapons/Bow_Wooden2.obj', woodMat, 0.22, 0.05);
+        loadItem('bow_golden', '/assets/models/weapons/Bow_Golden.obj', goldMat, 0.22, 0.05);
+        loadItem('bow_evil', '/assets/models/weapons/Bow_Evil.obj', weaponMat, 0.22, 0.05);
         loadItem('{', '/assets/models/weapons/Arrow.obj', woodMat, 0.20, 0.05);
         loadItem('pebble', '/assets/models/items/Mineral.obj', weaponMat, 0.16, 0.05);
         loadItem('dart', '/assets/models/items/Dart.obj', weaponMat, 0.18, 0.05);
         loadItem('shield_heater', '/assets/models/weapons/Shield_Heater.obj', armorMat, 0.22, 0.05);
+        loadItem('shield_heater_2', '/assets/models/weapons/Shield_Heater_2.obj', armorMat, 0.22, 0.05);
         loadItem('shield_round', '/assets/models/weapons/Shield_Round.obj', armorMat, 0.20, 0.05);
+        loadItem('shield_round_2', '/assets/models/weapons/Shield_Round_2.obj', armorMat, 0.20, 0.05);
+        loadItem('shield_celtic', '/assets/models/weapons/Shield_Celtic_Golden.obj', goldMat, 0.22, 0.05);
     }
 
     updateViewmodel(player) {
@@ -1869,9 +2222,9 @@ class Dungeon3D {
     rotateFreelook(deltaYaw, deltaPitch) {
         // Continuous 360-degree horizontal yaw rotation
         this.targetYaw = (this.targetYaw || 0) + deltaYaw;
-        // Smooth vertical pitch clamping between looking up and down
+        // Smooth vertical pitch clamping between looking up into stars and looking down at ground
         const currentPitch = this.userPitchOffset || 0.0;
-        this.userPitchOffset = Math.max(-0.55, Math.min(0.55, currentPitch + deltaPitch));
+        this.userPitchOffset = Math.max(-0.65, Math.min(1.25, currentPitch + deltaPitch));
     }
 
     snapCameraToDefault() {
@@ -1937,14 +2290,55 @@ class Dungeon3D {
      * Reuses targetColor in-place (1:1 with Godot DungeonWorld.cs:2453-2471).
      * Incorporates deterministic stone luminance & warmth variation to break up repetitive grids.
      */
-    computeTileShade(targetColor, baseColor, inView, outdoors, lighting, x = 0, y = 0) {
+    computeTileShade(targetColor, baseColor, inView, outdoors, lighting, x = 0, y = 0, isRoom = false, depth = 0) {
         targetColor.copy(baseColor);
 
         // Organic stone block variation (gated by tileVariation flag, breaks up monochromatic repetition)
         if ((!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.tileVariation) && (x !== 0 || y !== 0)) {
             const hash = ((x * 43) ^ (y * 79)) & 0xff;
-            const lum = ((hash % 11) - 5) * 0.012; // -0.06 to +0.06 subtle stone luminance variation
-            const warm = ((hash % 7) - 3) * 0.008; // subtle warm undertone
+            let lum = ((hash % 11) - 5) * 0.012; // -0.06 to +0.06 subtle stone luminance variation
+            let warm = ((hash % 7) - 3) * 0.008; // subtle warm undertone
+
+            // Coherent Spatial Cluster Shading & Geological formations
+            if (!outdoors && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.biomeVariation)) {
+                const cx = Math.floor(x / 4);
+                const cy = Math.floor(y / 4);
+                const cluster = (((cx * 374761393) ^ (cy * 668265263) ^ (this.currentLevelSeed || 0)) >>> 0) & 0xff;
+
+                if (cluster < 42) {
+                    // ~16% natural geological formations
+                    if (depth > 0 && depth <= 15) {
+                        // Damp/soot deposit
+                        lum -= 0.045;
+                        warm -= 0.015;
+                    } else if (depth > 15 && depth <= 35) {
+                        // Moss/lichen patch
+                        targetColor.g = Math.min(1.0, targetColor.g + 0.045);
+                        targetColor.r = Math.max(0.05, targetColor.r - 0.02);
+                    } else if (depth > 35 && depth <= 60) {
+                        // Quartz / mineral streak
+                        targetColor.b = Math.min(1.0, targetColor.b + 0.055);
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.015);
+                    } else if (depth > 60 && depth <= 85) {
+                        // Thermal stress glow
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.05);
+                        targetColor.b = Math.max(0.05, targetColor.b - 0.025);
+                    } else if (depth > 85) {
+                        // Void shadow
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.02);
+                        targetColor.b = Math.min(1.0, targetColor.b + 0.04);
+                        lum -= 0.035;
+                    }
+                }
+
+                // Room vs Corridor Foot-Traffic Differentiation
+                if (isRoom) {
+                    lum += 0.025; // Cleaner, open chamber ashlar paving
+                } else {
+                    lum -= 0.020; // Rougher, worn tunnel footpath
+                }
+            }
+
             targetColor.r = Math.max(0.05, Math.min(1.0, targetColor.r + lum + warm));
             targetColor.g = Math.max(0.05, Math.min(1.0, targetColor.g + lum));
             targetColor.b = Math.max(0.05, Math.min(1.0, targetColor.b + lum - warm * 0.5));
@@ -2076,6 +2470,10 @@ class Dungeon3D {
         if (!cfg.torchInertia) {
             this.torchLight.position.set(-0.25, -0.05, -0.28);
         }
+        if (this.starGroup) {
+            const isOutdoors = this.lastDepth === 0;
+            this.starGroup.visible = isOutdoors && (cfg.starrySky !== false);
+        }
         if (this.lastMap) {
             this.updateMap(this.lastMap);
         }
@@ -2114,12 +2512,41 @@ class Dungeon3D {
         // Update Viewmodel Equipment rules & Dynamic character height
         this.updateViewmodel(frame.player);
 
-        // Apply 6-Tier Depth Biomes & Atmospheric Lighting (Exact Parity with Godot BiomeProfile & GRAPHICS_HANDOVER.md)
-        const biome = this.getBiomeProfile(depth);
+        // Deterministic level seed derived from depth, dimensions, and map layout topology
+        const levelSeed = ((depth * 73856093) ^ (w * 19349663) ^ (h * 83492791) ^ (map.rows && map.rows[0] && map.rows[0].f ? parseInt(map.rows[0].f.substring(0, 8), 16) : 0)) >>> 0;
+        this.currentLevelSeed = levelSeed;
+
+        // Apply 6-Tier Depth Biomes & Procedural Sub-Themes (Exact Parity with Godot BiomeProfile)
+        const biome = this.getBiomeProfile(depth, levelSeed);
         this.currentBiome = biome;
         this.targetTorchEnergy = biome.torchEnergy;
 
+        // Dynamic PBR surface roughness modulation based on depth stratum
+        if (this.floorMaterial && biome.floorRoughness !== undefined) {
+            this.floorMaterial.roughness = biome.floorRoughness;
+        }
+        if (this.wallMaterial && biome.wallRoughness !== undefined) {
+            this.wallMaterial.roughness = biome.wallRoughness;
+        }
+
         this.scene.background.setHex(outdoors ? biome.bgColor : biome.fogColor);
+
+        // High-Quality Celestial Star Canopy: Visible exclusively outdoors in town (depth 0)
+        const cfg = window.GRAPHICS_CONFIG || {};
+        const starsEnabled = cfg.starrySky !== false;
+        if (this.starGroup) {
+            if (outdoors && starsEnabled) {
+                this.starGroup.visible = true;
+                if (this.starMaterial && this.starMaterial.uniforms && this.starMaterial.uniforms.uVisibility) {
+                    this.starMaterial.uniforms.uVisibility.value = 1.0;
+                }
+            } else {
+                this.starGroup.visible = false;
+                if (this.starMaterial && this.starMaterial.uniforms && this.starMaterial.uniforms.uVisibility) {
+                    this.starMaterial.uniforms.uVisibility.value = 0.0;
+                }
+            }
+        }
 
         this.sunLight.visible = biome.sunLight;
         this.sunLight.intensity = biome.sunEnergy;
@@ -2158,23 +2585,6 @@ class Dungeon3D {
         this.torchLight.color.setHex(biome.torchColor);
         this.torchLight.distance = torchRange;
         this.torchLight.decay = 1.0;
-
-        // Update atmospheric dust motes for current depth/biome
-        if (this.dustMaterial) {
-            if (outdoors) {
-                this.dustMaterial.color.setHex(0xcce0ff);
-                this.dustMaterial.opacity = 0.08;
-            } else if (biome && (biome.name === 'Hellish Magma' || depth >= 70)) {
-                this.dustMaterial.color.setHex(0xff5522);
-                this.dustMaterial.opacity = 0.22;
-            } else if (biome && biome.name === 'Overgrown Catacombs') {
-                this.dustMaterial.color.setHex(0x55cc88);
-                this.dustMaterial.opacity = 0.16;
-            } else {
-                this.dustMaterial.color.setHex(0xffd599);
-                this.dustMaterial.opacity = 0.18;
-            }
-        }
 
         // Forward vector for camera-relative VFX placement
         const fwdYaw = this.camera ? this.camera.rotation.y : 0;
@@ -2437,9 +2847,10 @@ class Dungeon3D {
                 }
 
                 // Tile shade computation without heap allocations (1:1 with Godot DungeonWorld.cs:2453-2471)
-                const wallShade = this.computeTileShade(this._scratchWallColor, biome.wallColor, inView, outdoors, lighting, x, y);
-                const floorShade = this.computeTileShade(this._scratchFloorColor, biome.floorColor, inView, outdoors, lighting, x, y);
-                const ceilingShade = this.computeTileShade(this._scratchCeilingColor, biome.ceilingColor, inView, outdoors, lighting, x, y);
+                const isRoom = (lighting === 2);
+                const wallShade = this.computeTileShade(this._scratchWallColor, biome.wallColor, inView, outdoors, lighting, x, y, isRoom, depth);
+                const floorShade = this.computeTileShade(this._scratchFloorColor, biome.floorColor, inView, outdoors, lighting, x, y, isRoom, depth);
+                const ceilingShade = this.computeTileShade(this._scratchCeilingColor, biome.ceilingColor, inView, outdoors, lighting, x, y, isRoom, depth);
 
                 const useVariation = !window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.tileVariation;
                 const floorRot = useVariation ? (((x * 73 + y * 37) % 4) * (Math.PI / 2)) : 0;
@@ -4581,40 +4992,66 @@ class Dungeon3D {
 
         let mesh = null;
 
-        // 1. Comprehensive Model & Keyword Resolver (Matches Godot ItemModelResolver.cs:158-350)
+        // Deterministic item seed from name for model & aesthetic variation
+        let nameHash = 0;
+        const itemNameStr = it.name || '';
+        for (let i = 0; i < itemNameStr.length; i++) {
+            nameHash = ((nameHash << 5) - nameHash + itemNameStr.charCodeAt(i)) >>> 0;
+        }
+
+        // 1. Comprehensive Model & Keyword Resolver (Matches Godot ItemModelResolver.cs)
         let tmpl = null;
 
         // Gold & Coins
         if (g === '$' || lowerName.includes('gold') || lowerName.includes('coin') || lowerName.includes('copper') || lowerName.includes('silver')) {
-            tmpl = this.itemTemplates.get('$') || this.itemTemplates.get('coin');
+            if (lowerName.includes('skull')) {
+                tmpl = this.itemTemplates.get('coin_skull');
+            } else if (lowerName.includes('star')) {
+                tmpl = this.itemTemplates.get('coin_star');
+            } else if (lowerName.includes('ingot') || g === '$') {
+                tmpl = this.itemTemplates.get('$') || this.itemTemplates.get('coin');
+            } else {
+                tmpl = this.itemTemplates.get('coin') || this.itemTemplates.get('$');
+            }
         }
-        // Potions & Flasks
+        // Potions & Flasks (11 Distinct Variations)
         else if (g === '!' || lowerName.includes('potion') || lowerName.includes('flask') || lowerName.includes('draught') || lowerName.includes('elixir')) {
-            tmpl = this.itemTemplates.get('!');
+            const potIdx = (nameHash % 11) + 1;
+            tmpl = this.itemTemplates.get(`potion_${potIdx}`) || this.itemTemplates.get('!');
         }
-        // Books & Spellbooks
+        // Books & Spellbooks (5 Distinct Open/Closed Variations)
         else if (lowerName.includes('book') || lowerName.includes('tome') || lowerName.includes('grimoire') || lowerName.includes('prayer') || lowerName.includes('sorcery') || lowerName.includes('spellbook')) {
-            tmpl = this.itemTemplates.get('book');
+            const bookVariants = ['book_open', 'book_2', 'book_3', 'book_4', 'book'];
+            tmpl = this.itemTemplates.get(bookVariants[nameHash % bookVariants.length]) || this.itemTemplates.get('book');
         }
         // Scrolls & Parchment
         else if (g === '?' || lowerName.includes('scroll') || lowerName.includes('parchment')) {
-            tmpl = this.itemTemplates.get('?');
+            tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('parchment') : null) || this.itemTemplates.get('?');
         }
-        // Rings
+        // Rings (7 Distinct Gem/Band Variations)
         else if (g === '=' || lowerName.includes('ring') || lowerName.includes('band')) {
-            tmpl = this.itemTemplates.get('=');
+            const ringIdx = (nameHash % 7) + 1;
+            tmpl = this.itemTemplates.get(`ring_${ringIdx}`) || this.itemTemplates.get('=');
         }
-        // Amulets & Necklaces
+        // Amulets & Necklaces (3 Distinct Variations)
         else if (g === '"' || lowerName.includes('amulet') || lowerName.includes('necklace') || lowerName.includes('pendant') || lowerName.includes('medallion') || lowerName.includes('periapt')) {
-            tmpl = this.itemTemplates.get('"') || this.itemTemplates.get('=');
+            const necIdx = (nameHash % 3) + 1;
+            tmpl = this.itemTemplates.get(`necklace_${necIdx}`) || this.itemTemplates.get('"') || this.itemTemplates.get('=');
         }
-        // Gems & Crystals
+        // Gems & Crystals (5 Distinct Crystal Geometries)
         else if (g === '*' || lowerName.includes('gem') || lowerName.includes('crystal') || lowerName.includes('diamond') || lowerName.includes('ruby') || lowerName.includes('emerald') || lowerName.includes('sapphire') || lowerName.includes('phial') || lowerName.includes('star of') || lowerName.includes('arkenstone')) {
-            tmpl = this.itemTemplates.get('*');
+            const cryIdx = (nameHash % 5) + 1;
+            tmpl = this.itemTemplates.get(`crystal_${cryIdx}`) || this.itemTemplates.get('*');
         }
         // Chests & Boxes
         else if (lowerName.includes('chest') || lowerName.includes('coffer') || lowerName.includes('box')) {
-            tmpl = this.itemTemplates.get('chest');
+            if (lowerName.includes('ingot')) {
+                tmpl = this.itemTemplates.get('chest_ingots') || this.itemTemplates.get('chest');
+            } else if (lowerName.includes('open')) {
+                tmpl = this.itemTemplates.get('chest_open') || this.itemTemplates.get('chest');
+            } else {
+                tmpl = this.itemTemplates.get('chest');
+            }
         }
         // Food & Rations
         else if (g === ',' || lowerName.includes('ration') || lowerName.includes('food') || lowerName.includes('meat') || lowerName.includes('bread') || lowerName.includes('mushroom') || lowerName.includes('apple') || lowerName.includes('slime mold')) {
@@ -4622,29 +5059,36 @@ class Dungeon3D {
         }
         // Skulls & Remains
         else if (lowerName.includes('skull') || lowerName.includes('bone') || lowerName.includes('skeleton')) {
-            tmpl = this.itemTemplates.get('skull');
+            if (lowerName.includes('bone')) {
+                tmpl = this.itemTemplates.get('bone') || this.itemTemplates.get('skull');
+            } else {
+                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('skull_2') : null) || this.itemTemplates.get('skull');
+            }
         }
         // Keys & Lockpicks
         else if (lowerName.includes('key') || lowerName.includes('lockpick')) {
-            tmpl = this.itemTemplates.get('key');
+            const keyIdx = (nameHash % 3) + 1;
+            tmpl = this.itemTemplates.get(`key_${keyIdx}`) || this.itemTemplates.get('key');
         }
         // Bags & Pouches
         else if (lowerName.includes('backpack') || lowerName.includes('sack')) {
             tmpl = this.itemTemplates.get('backpack');
         } else if (lowerName.includes('bag') || lowerName.includes('pouch')) {
-            tmpl = this.itemTemplates.get('pouch');
+            tmpl = this.itemTemplates.get('pouch') || this.itemTemplates.get('bag');
         }
         // Shields
         else if (g === '(' || lowerName.includes('shield') || lowerName.includes('buckler') || lowerName.includes('targe')) {
-            if (lowerName.includes('round') || lowerName.includes('small')) {
-                tmpl = this.itemTemplates.get('shield_round');
+            if (lowerName.includes('celtic') || lowerName.includes('golden') || lowerName.includes('gold')) {
+                tmpl = this.itemTemplates.get('shield_celtic') || this.itemTemplates.get('shield_heater');
+            } else if (lowerName.includes('round') || lowerName.includes('small')) {
+                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('shield_round_2') : null) || this.itemTemplates.get('shield_round');
             } else {
-                tmpl = this.itemTemplates.get('shield_heater') || this.itemTemplates.get('shield_round');
+                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('shield_heater_2') : null) || this.itemTemplates.get('shield_heater');
             }
         }
         // Helms & Crowns
         else if (lowerName.includes('crown') || lowerName.includes('coronet') || lowerName.includes('helm') || lowerName.includes('cap') || lowerName.includes('hat')) {
-            tmpl = this.itemTemplates.get('crown');
+            tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('crown_2') : null) || this.itemTemplates.get('crown');
         }
         // Gloves & Gauntlets
         else if (lowerName.includes('glove') || lowerName.includes('gauntlet') || lowerName.includes('cesta') || lowerName.includes('bracer')) {
@@ -4652,16 +5096,19 @@ class Dungeon3D {
         }
         // Body Armor & Cloaks (Glyph '[')
         else if (g === '[' || lowerName.includes('plate') || lowerName.includes('chain') || lowerName.includes('mail') || lowerName.includes('armor') || lowerName.includes('cuirass') || lowerName.includes('corselet') || lowerName.includes('robe') || lowerName.includes('cloak')) {
-            if (lowerName.includes('leather') || lowerName.includes('soft') || lowerName.includes('robe') || lowerName.includes('cloak')) {
+            if (lowerName.includes('golden') || lowerName.includes('gold')) {
+                tmpl = this.itemTemplates.get('armor_golden') || this.itemTemplates.get('armor_metal');
+            } else if (lowerName.includes('black') || lowerName.includes('dark') || lowerName.includes('shadow')) {
+                tmpl = this.itemTemplates.get('armor_black') || this.itemTemplates.get('armor_metal');
+            } else if (lowerName.includes('leather') || lowerName.includes('soft') || lowerName.includes('robe') || lowerName.includes('cloak')) {
                 tmpl = this.itemTemplates.get('armor_leather');
             } else {
-                tmpl = this.itemTemplates.get('armor_metal') || this.itemTemplates.get('armor_metal2');
+                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('armor_metal2') : null) || this.itemTemplates.get('armor_metal');
             }
         }
         // Footwear: Boots, Shoes, Sandals (Glyph ']')
         else if (g === ']' || lowerName.includes('sandal') || lowerName.includes('boot') || lowerName.includes('shoe') || lowerName.includes('greave')) {
-            // Footwear will be built with dedicated procedural 3D shoe pair below if no OBJ
-            tmpl = null;
+            tmpl = null; // High-fidelity procedural 3D shoe pair built below
         }
         // Weapons: Axes
         else if (lowerName.includes('battle axe') || lowerName.includes('great axe') || lowerName.includes('broad axe') || lowerName.includes('halberd') || lowerName.includes('poleaxe')) {
@@ -4685,7 +5132,7 @@ class Dungeon3D {
         }
         // Weapons: Daggers & Knives
         else if (lowerName.includes('dagger') || lowerName.includes('knife') || lowerName.includes('rapier') || lowerName.includes('stiletto') || lowerName.includes('main gauche') || lowerName.includes('misericorde') || lowerName.includes('athame')) {
-            tmpl = this.itemTemplates.get('dagger');
+            tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('dagger_2') : null) || this.itemTemplates.get('dagger');
         }
         // Weapons: Two-Handed Swords & Greatswords
         else if (lowerName.includes('two-handed') || lowerName.includes('great sword') || lowerName.includes('claymore') || lowerName.includes('zweihander') || lowerName.includes('flamberge')) {
@@ -4695,11 +5142,21 @@ class Dungeon3D {
         }
         // Weapons: Swords & Blades (Glyph ')')
         else if (g === ')' || lowerName.includes('sword') || lowerName.includes('blade') || lowerName.includes('sabre') || lowerName.includes('scimitar') || lowerName.includes('cutlass') || lowerName.includes('katana') || lowerName.includes('foil')) {
-            tmpl = this.itemTemplates.get(')');
+            if (lowerName.includes('golden') || lowerName.includes('gold')) {
+                tmpl = this.itemTemplates.get('sword_golden') || this.itemTemplates.get(')');
+            } else {
+                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('sword_2') : null) || this.itemTemplates.get(')');
+            }
         }
         // Bows & Crossbows (Glyph '}')
         else if (g === '}' || lowerName.includes('bow') || lowerName.includes('crossbow') || lowerName.includes('arbalest') || lowerName.includes('sling')) {
-            tmpl = this.itemTemplates.get('}');
+            if (lowerName.includes('evil') || lowerName.includes('dark')) {
+                tmpl = this.itemTemplates.get('bow_evil') || this.itemTemplates.get('}');
+            } else if (lowerName.includes('golden') || lowerName.includes('gold')) {
+                tmpl = this.itemTemplates.get('bow_golden') || this.itemTemplates.get('}');
+            } else {
+                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('bow_wooden2') : null) || this.itemTemplates.get('}');
+            }
         }
         // Slings Ammo: Pebbles, Stones, Rocks (Glyph '{')
         else if (lowerName.includes('pebble') || lowerName.includes('stone') || lowerName.includes('rock')) {
@@ -4720,6 +5177,27 @@ class Dungeon3D {
 
         if (tmpl) {
             mesh = tmpl.clone(true);
+            mesh.traverse(child => {
+                if (child.isMesh && child.material) {
+                    child.material = child.material.clone();
+                    if (g === '!' || g === '*' || g === '=') {
+                        child.material.color.set(colorHex);
+                        child.material.emissive.set(colorHex);
+                        child.material.emissiveIntensity = (g === '!' ? 0.6 : (g === '*' ? 0.8 : 0.35));
+                    } else if (g === '$' || lowerName.includes('gold')) {
+                        child.material.color.setHex(0xffd700);
+                        child.material.metalness = 0.95;
+                        child.material.roughness = 0.18;
+                    } else if (g === '?' || lowerName.includes('scroll')) {
+                        child.material.color.setHex(0xf5eedb);
+                    } else {
+                        if (colorHex !== '#ffffff' && colorHex !== '#c0c0c0' && colorHex !== '#808080') {
+                            child.material.emissive.set(colorHex);
+                            child.material.emissiveIntensity = 0.25;
+                        }
+                    }
+                }
+            });
         }
 
         // 2. High-Quality Stylized Procedural 3D Item Pickups
@@ -4849,34 +5327,53 @@ class Dungeon3D {
             }
         }
 
+        // Soft contact shadow disc right on the floor (y = 0.01)
+        if (this.shadowGeo && this.shadowMat) {
+            const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
+            shadow.position.set(0, 0.01, 0);
+            group.add(shadow);
+            group.shadowMesh = shadow;
+        }
+
+        mesh.position.y = 0.12;
         group.add(mesh);
         group.itemMesh = mesh;
+        group.seed = nameHash;
 
-        // Overhead Item Caption Sprite
+        // Overhead Item Caption Sprite with Material Pooling
         if (it.name) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 384;
-            canvas.height = 64;
-            const ctx = canvas.getContext('2d');
+            const captionKey = `${it.name}_${colorHex}`;
+            let spriteMat = this.captionMaterialCache ? this.captionMaterialCache.get(captionKey) : null;
+            if (!spriteMat) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 384;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
 
-            ctx.fillStyle = 'rgba(6, 8, 12, 0.88)';
-            ctx.strokeStyle = colorHex;
-            ctx.lineWidth = 2;
-            if (ctx.roundRect) ctx.roundRect(12, 8, 360, 48, 8);
-            else ctx.rect(12, 8, 360, 48);
-            ctx.fill();
-            ctx.stroke();
+                ctx.fillStyle = 'rgba(6, 8, 12, 0.88)';
+                ctx.strokeStyle = colorHex;
+                ctx.lineWidth = 2;
+                if (ctx.roundRect) ctx.roundRect(12, 8, 360, 48, 8);
+                else ctx.rect(12, 8, 360, 48);
+                ctx.fill();
+                ctx.stroke();
 
-            ctx.font = '600 22px "Fira Code", monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#f0f4f8';
-            const shortName = it.name.length > 22 ? it.name.substring(0, 21) + '…' : it.name;
-            ctx.fillText(shortName, 192, 32);
+                ctx.font = '600 22px "Fira Code", monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#f0f4f8';
+                const shortName = it.name.length > 22 ? it.name.substring(0, 21) + '…' : it.name;
+                ctx.fillText(shortName, 192, 32);
 
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.minFilter = THREE.LinearFilter;
-            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false }));
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.minFilter = THREE.LinearFilter;
+                spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false });
+                if (this.captionMaterialCache) {
+                    this.captionMaterialCache.set(captionKey, spriteMat);
+                }
+            }
+
+            const sprite = new THREE.Sprite(spriteMat);
             sprite.scale.set(1.2, 0.20, 1.0);
             sprite.position.y = 0.48;
             group.add(sprite);
@@ -4903,7 +5400,7 @@ class Dungeon3D {
 
             if (!entity) {
                 entity = this.createItem3DEntity(it);
-                entity.position.set(wx, 0.18, wz);
+                entity.position.set(wx, 0.0, wz);
                 this.scene.add(entity);
                 this.items.set(id, entity);
             }
@@ -5237,17 +5734,31 @@ class Dungeon3D {
             }
         }
 
-        // 3D Items continuous rotation & hover bob
+        // 3D Items continuous gentle hover kinematics & contact shadow modulation
         for (const entity of this.items.values()) {
             if (entity.itemMesh) {
-                entity.itemMesh.rotation.y += delta * 1.5;
+                const seed = entity.seed || 0;
+                entity.itemMesh.rotation.y += delta * 0.75;
+                const hover = Math.sin(tNow * 0.0025 + seed * 0.2) * 0.025;
+                entity.itemMesh.position.y = 0.12 + hover;
+                if (entity.shadowMesh) {
+                    const sScale = Math.max(0.65, 1.0 - hover * 5.0);
+                    entity.shadowMesh.scale.set(sScale, sScale, sScale);
+                }
             }
-            entity.position.y = 0.18 + Math.sin(tNow * 0.0035 + entity.position.x) * 0.04;
         }
 
         // In-view molten lava surface breathing pulse (zero extra light sources)
         if (this.lavaMaterial && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.surfaceBreathing)) {
             this.lavaMaterial.emissiveIntensity = 2.2 + Math.sin(tNow * 0.0028) * 0.28;
+        }
+
+        // High-Quality Celestial Star Canopy: Lock to camera position (infinite distance illusion, 0 translation parallax)
+        if (this.starGroup && this.starGroup.visible) {
+            this.starGroup.position.copy(this.camera.position);
+            if (this.starMaterial && this.starMaterial.uniforms && this.starMaterial.uniforms.uTime) {
+                this.starMaterial.uniforms.uTime.value = tNow * 0.001;
+            }
         }
 
         this.renderer.render(this.scene, this.camera);

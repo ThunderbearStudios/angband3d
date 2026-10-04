@@ -222,6 +222,11 @@ class InputController {
                     if (window.__app) window.__app.showGuide(0, 'splash');
                     return;
                 }
+                if (e.key === 't' || e.key === 'T') {
+                    e.preventDefault();
+                    if (window.__app) window.__app.showGuide(1, 'splash');
+                    return;
+                }
                 if (e.key === '3' || e.key === 'c' || e.key === 'C') {
                     e.preventDefault();
                     if (window.__app) window.__app.showGuide(5, 'splash');
@@ -628,7 +633,7 @@ class InputController {
         if (e.key === 'PageUp') {
             e.preventDefault();
             if (this.dungeon) {
-                this.dungeon.userPitchOffset = Math.min(0.48, (this.dungeon.userPitchOffset || 0) + 0.08);
+                this.dungeon.userPitchOffset = Math.min(1.25, (this.dungeon.userPitchOffset || 0) + 0.12);
             }
             return;
         }
@@ -636,7 +641,7 @@ class InputController {
         if (e.key === 'PageDown') {
             e.preventDefault();
             if (this.dungeon) {
-                this.dungeon.userPitchOffset = Math.max(-0.48, (this.dungeon.userPitchOffset || 0) - 0.08);
+                this.dungeon.userPitchOffset = Math.max(-0.65, (this.dungeon.userPitchOffset || 0) - 0.12);
             }
             return;
         }
@@ -1024,7 +1029,7 @@ class InputController {
         // Camera Head Tilt Buttons
         bindClick('btn-tilt-up', () => {
             if (this.dungeon) {
-                this.dungeon.userPitchOffset = Math.min(0.48, (this.dungeon.userPitchOffset || 0) + 0.08);
+                this.dungeon.userPitchOffset = Math.min(1.25, (this.dungeon.userPitchOffset || 0) + 0.12);
             }
         });
         bindClick('btn-tilt-reset', () => {
@@ -1034,7 +1039,7 @@ class InputController {
         });
         bindClick('btn-tilt-down', () => {
             if (this.dungeon) {
-                this.dungeon.userPitchOffset = Math.max(-0.48, (this.dungeon.userPitchOffset || 0) - 0.08);
+                this.dungeon.userPitchOffset = Math.max(-0.65, (this.dungeon.userPitchOffset || 0) - 0.12);
             }
         });
 
