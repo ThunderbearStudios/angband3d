@@ -10,6 +10,11 @@
    - **4096×4096 HD Atlas Upgrade (4× Pixel Density)**:
      - Upgraded both `monster_atlas.png` (19.72 MB) and `item_atlas.png` (7.21 MB) to 4096×4096 resolution with 128×128 tiles.
      - Upscaled using `InterpolationMode.HighQualityBicubic` + `PixelOffsetMode.HighQuality`.
+   - **High-Fidelity Silhouette De-Fringing & Contrast-Adaptive Sharpening**:
+     - Automated stripping of legacy 2D baked drop shadows ($A < 140$, neutral dark grey) from all 624 monsters and 498 items, eliminating smudgy halos in 3D.
+     - Un-premultiplied RGB along boundaries, eliminating black edge bleeding.
+     - Cross-Laplacian detail sharpening recovered razor-sharp eyes, claws, weapon blade glints, and feather barbs.
+     - Raised Three.js `alphaTest` from 0.25 to 0.35, resulting in knife-sharp silhouette cutouts with zero translucent fuzz.
    - **5×5 Bilateral Normal Map Denoising (Eradicating Specular Sand)**:
      - Implemented 2-pass separable 5-tap Gaussian/bilateral filter (`1-4-6-4-1 / 16`) on luminance before Sobel gradient calculation.
      - Eradicated 1-pixel high-frequency pixel-art dither spikes that caused harsh specular grain under moving torchlight.

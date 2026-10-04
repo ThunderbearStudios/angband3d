@@ -99,10 +99,10 @@ public class AtlasProcessor {
                 }
             }
 
-            // Generate bilateral denoised volumetric normal map
+            // Lock atlas bits as ReadWrite to perform de-fringing, shadow stripping, and contrast-adaptive detail sharpening
             BitmapData atlasData = atlasBmp.LockBits(
                 new Rectangle(0, 0, atlasSize, atlasSize),
-                ImageLockMode.ReadOnly,
+                ImageLockMode.ReadWrite,
                 PixelFormat.Format32bppArgb
             );
             BitmapData normalData = normalBmp.LockBits(
@@ -120,7 +120,85 @@ public class AtlasProcessor {
 
             Marshal.Copy(atlasScan, atlasBytes, 0, atlasBytes.Length);
 
-            // Step 1: Pre-calculate raw luminance
+            // Step 1: Silhouette De-Fringing & 2D Baked Drop-Shadow Stripping
+            // Eliminates murky 2D drop-shadow smudges so 3D dynamic lighting & contact shadows ground the model cleanly.
+            // Also un-premultiplies edge pixels to eradicate dirty dark borders.
+            for (int y = 0; y < atlasSize; y++) {
+                int row = y * stride;
+                for (int x = 0; x < atlasSize; x++) {
+                    int idx = row + x * 4;
+                    byte a = atlasBytes[idx + 3];
+
+                    if (a < 40) {
+                        atlasBytes[idx + 0] = 0;
+                        atlasBytes[idx + 1] = 0;
+                        atlasBytes[idx + 2] = 0;
+                        atlasBytes[idx + 3] = 0;
+                        continue;
+                    }
+
+                    // Detect baked 2D drop shadow (semi-transparent neutral dark grey artifact)
+                    byte b = atlasBytes[idx + 0];
+                    byte g = atlasBytes[idx + 1];
+                    byte r = atlasBytes[idx + 2];
+                    bool isDropShadow = (a < 140) && (Math.Abs(b - g) < 18) && (Math.Abs(g - r) < 18) && (r < 135);
+
+                    if (isDropShadow) {
+                        atlasBytes[idx + 0] = 0;
+                        atlasBytes[idx + 1] = 0;
+                        atlasBytes[idx + 2] = 0;
+                        atlasBytes[idx + 3] = 0;
+                        continue;
+                    }
+
+                    // Boost alpha curve for crisp, solid silhouette without blurry translucent transitions
+                    float normA = (a - 40) / 215.0f;
+                    byte crispA = (byte)Math.Min(255, (int)(Math.Pow(normA, 0.5) * 255.0f));
+
+                    // Un-premultiply RGB: restores full vibrancy to edge pixels darkened by transparent convolution
+                    float alphaFactor = Math.Max(0.25f, a / 255.0f);
+                    atlasBytes[idx + 0] = (byte)Math.Min(255, (int)(b / alphaFactor));
+                    atlasBytes[idx + 1] = (byte)Math.Min(255, (int)(g / alphaFactor));
+                    atlasBytes[idx + 2] = (byte)Math.Min(255, (int)(r / alphaFactor));
+                    atlasBytes[idx + 3] = Math.Max((byte)180, crispA);
+                }
+            }
+
+            // Step 2: Contrast-Adaptive High-Frequency Detail Sharpening (Laplacian edge enhancement)
+            // Recovers razor-sharp eyes, claws, scales, feather barbs, and muscle contours.
+            byte[] sharpBytes = new byte[stride * atlasSize];
+            Array.Copy(atlasBytes, sharpBytes, sharpBytes.Length);
+
+            float sharpenAmount = 0.90f; // High-fidelity detail recovery
+            for (int y = 1; y < atlasSize - 1; y++) {
+                int row = y * stride;
+                int rowU = (y - 1) * stride;
+                int rowD = (y + 1) * stride;
+
+                for (int x = 1; x < atlasSize - 1; x++) {
+                    int idx = row + x * 4;
+                    byte a = atlasBytes[idx + 3];
+                    if (a < 50) continue;
+
+                    for (int c = 0; c < 3; c++) {
+                        int center = atlasBytes[idx + c];
+                        int left   = atlasBytes[row + (x - 1) * 4 + c];
+                        int right  = atlasBytes[row + (x + 1) * 4 + c];
+                        int up     = atlasBytes[rowU + x * 4 + c];
+                        int down   = atlasBytes[rowD + x * 4 + c];
+
+                        float laplacian = (center * 4) - (left + right + up + down);
+                        float delta = Math.Max(-35.0f, Math.Min(35.0f, laplacian * sharpenAmount * 0.40f));
+                        sharpBytes[idx + c] = (byte)Math.Max(0, Math.Min(255, (int)(center + delta + 0.5f)));
+                    }
+                }
+            }
+            Array.Copy(sharpBytes, atlasBytes, sharpBytes.Length);
+
+            // Copy sharpened, de-fringed pixels back to atlasScan so atlasBmp saves the enhanced image!
+            Marshal.Copy(atlasBytes, 0, atlasScan, atlasBytes.Length);
+
+            // Step 3: Pre-calculate raw luminance for normal map
             float[] rawLum = new float[atlasSize * atlasSize];
             for (int y = 0; y < atlasSize; y++) {
                 int rowOffset = y * stride;
