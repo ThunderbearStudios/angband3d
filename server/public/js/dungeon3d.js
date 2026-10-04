@@ -3640,7 +3640,7 @@ class Dungeon3D {
         this.monsterBillboardMat = new THREE.MeshStandardMaterial({
             roughness: 0.82,
             metalness: 0.10,
-            alphaTest: 0.25,
+            alphaTest: 0.35,
             depthWrite: true,
             transparent: false,
             side: THREE.DoubleSide
@@ -3776,7 +3776,7 @@ class Dungeon3D {
         this.itemBillboardMat = new THREE.MeshStandardMaterial({
             roughness: 0.65,
             metalness: 0.15,
-            alphaTest: 0.25,
+            alphaTest: 0.35,
             depthWrite: true,
             transparent: false,
             side: THREE.DoubleSide

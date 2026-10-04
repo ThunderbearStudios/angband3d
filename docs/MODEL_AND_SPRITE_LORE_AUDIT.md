@@ -19,15 +19,20 @@ Key achievements:
 2. **Upgraded Sprite Atlases to 4096×4096 HD with 4× Pixel Density**:
    - Both `monster_atlas.png` and `item_atlas.png` upgraded from 2048×2048 (64×64 tiles) to **4096×4096 (128×128 tiles)**.
    - Shockbolt master artwork upscaled via `InterpolationMode.HighQualityBicubic` + `PixelOffsetMode.HighQuality` + `SmoothingMode.HighQuality`.
-3. **Eradicated Specular Sand/Grain via 5×5 Bilateral Normal Map Denoising**:
+3. **Eradicated "Blurry & Smudgy" Appearance via High-Fidelity Silhouette De-Fringing & CAS Sharpening**:
+   - **Baked 2D Drop-Shadow Stripping**: The 1990s 2D tile suite contained hardcoded semi-transparent grey drop shadows behind creatures and items, which bicubic scaling turned into fuzzy, smudged halos in 3D. An automated shadow detector ($A < 140$, $|R-G| < 18$, $|G-B| < 18$, $R < 135$) cleanly removes these baked smudges, allowing 3D dynamic lighting and ground contact shadows (`root.contactShadow`) to anchor models cleanly.
+   - **RGB De-Fringing & Un-Premultiplying**: Convoluting transparent black ($0,0,0,0$) during bicubic scaling darkened edge pixels. Un-premultiplying boundary pixels ($C_{\text{true}} = C / (A/255)$) eliminates dark, dirty silhouette outlines.
+   - **Contrast-Adaptive Cross-Laplacian Sharpening**: Applied a bounded 3×3 high-frequency detail restoration kernel ($\Delta C \in [-35, +35]$) across all 624 creatures and 498 items. Restores razor-sharp eyes, claws, weapon blade bevels, feather barbs, and rune inlays.
+   - **Alpha Cutout Tuning**: Raised `alphaTest` from `0.25` to `0.35` in Three.js, producing knife-sharp, solid silhouette cutouts with zero translucent fuzz.
+4. **Eradicated Specular Sand/Grain via 5×5 Bilateral Normal Map Denoising**:
    - Replaced raw 3×3 Sobel filters with a 2-pass separable 5-tap Gaussian/bilateral filter (`1-4-6-4-1 / 16`) on luminance before gradient calculation, followed by volumetric convex contouring (`tileRelX`, `tileRelY`).
    - Normal scale reduced from harsh 1.2 to balanced 0.45; material roughness adjusted to 0.82 for organic creatures and 0.65 for item pickups.
-4. **Three.js Texture Filtering & Mipmapping Upgrades**:
+5. **Three.js Texture Filtering & Mipmapping Upgrades**:
    - Magnification filter upgraded from `THREE.NearestFilter` to `THREE.LinearFilter`.
    - Enabled 16× anisotropic filtering (`tex.anisotropy = Math.min(16, capabilities.getMaxAnisotropy())`) on all diffuse and normal textures.
-5. **3D Mesh Vertex Normal Smoothing**:
+6. **3D Mesh Vertex Normal Smoothing**:
    - Added automatic `computeVertexNormals()` across all GLTF, GLB, and OBJ loaders and clone hierarchies, eliminating faceted polygons and harsh specular breaks.
-6. **UTF-8 Character Encoding & Unaccented Aliases**:
+7. **UTF-8 Character Encoding & Unaccented Aliases**:
    - Fixed ANSI decoding issue with accented characters (e.g. "Sméagol" was read as "SmAcagol").
    - Added automatic dual-indexing in JSON for both accented names (`Sméagol`) and unaccented ASCII equivalents (`Smeagol`).
 
