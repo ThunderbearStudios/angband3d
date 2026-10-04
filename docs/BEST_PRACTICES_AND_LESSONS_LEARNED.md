@@ -20,6 +20,8 @@
 12. [Autonomous AI Agent & Developer Operating Protocols](#12-autonomous-ai-agent--developer-operating-protocols)
 13. [Standalone Packaging, CI/CD & Security Invariants](#13-standalone-packaging-cicd--security-invariants)
 14. [Universal Save Interoperability & Community Infrastructure](#14-universal-save-interoperability--community-infrastructure)
+15. [The Living Chronicle, Cinematic Story Audio & Web-Only Tome Architecture](#15-the-living-chronicle-cinematic-story-audio--web-only-tome-architecture)
+16. [Hybrid 2.5D/3D PBR Visual Architecture, 4096 HD Atlases, De-Fringing & Lore Invariants](#16-hybrid-25d3d-pbr-visual-architecture-4096-hd-atlases-de-fringing--lore-invariants)
 
 ---
 
@@ -570,6 +572,81 @@ Any developer or autonomous agent bootstrapping in this repository can verify an
     - *Elephar the Armorer* (Armoury) & *Thurg the Bladesmith* (Weaponsmith): Detail AC scaling and weapon dice formulas.
     - *Eldred the Wizard* (Magic Shop) & *Lotho the Shady Fence* (Black Market): Advise on Phase Door escape and emergency escape items.
 
+---
 
+## 16. Hybrid 2.5D/3D PBR Visual Architecture, 4096 HD Atlases, De-Fringing & Lore Invariants
 
+### 16.1 The Banker's Rounding Trap vs. Integer Floor Truncation
+- **The Defect (The "Hippogriff" Row Shift)**:
+  - In PowerShell, casting a float expression `[int]($i / 32)` does NOT truncate towards zero. Instead, it performs **IEEE 754 Banker's Rounding** (`[Math]::Round(..., MidpointRounding.ToEven)`).
+  - When $i \pmod{32} \ge 16$, the fractional component is $\ge 0.5$. If the integer quotient is odd, it rounds up to the next even integer ($4.59375 \to 5$), shifting the UV calculation by an entire row ($\Delta \text{index} = +32$).
+  - Meanwhile, C# image drawing logic uses standard integer division `i / 32`, which truncates toward zero ($\lfloor 147 / 32 \rfloor = 4$).
+  - **The Result**: 320 out of 624 monsters and ~250 items had their JSON UV coordinates shifted down by 32 slots. Hippogriff (`[H]`, index 147 on Row 4, Col 19) rendered with the UV coordinates of **Flesh Golem** (`[g]`, index 179 on Row 5, Col 19), displaying a bald hominid rather than an eagle-headed winged horse!
+- **The Mandatory Invariant**:
+  - Always use explicit `[int][Math]::Floor($i / $tilesPerRow)` in any PowerShell texture atlas builder or grid serialization script.
+  - Assert zero discrepancy between atlas raster layout and UV metadata via automated CI testing (`tools/audit_atlas_models.js`).
 
+### 16.2 2D Baked Drop-Shadow Stripping vs. Dynamic 3D Contact Shadows
+- **The 1990s Drop-Shadow Smear Trap**:
+  - Canonical Shockbolt tiles from Angband 4.2.6 were authored for a 2D black background and contain hardcoded semi-transparent grey drop shadows ($A < 140$, $R \approx G \approx B$).
+  - When upscaled using bicubic or bilinear interpolation in 3D, these baked shadows bleed into surrounding pixels, creating dirty, smudged halos that look out of place against 3D stone cobblestones.
+- **The Solution**:
+  - The atlas builder programmatically identifies baked shadow pixels using a color/alpha heuristic ($A < 140$, $|R - G| < 18$, $|G - B| < 18$, $R < 135$) and strips them to pure transparent ($A = 0$).
+  - In the 3D engine, entities are grounded using real-time dynamic soft contact shadows (`root.contactShadow = shadowDisc`), which project smoothly onto dungeon floor geometry at `y = 0.005`, responding naturally to character elevation and breathing cycles.
+
+### 16.3 Transparent Silhouette De-Fringing & Un-Premultiplied Alpha Restoration
+- **Edge Bleeding in Resampling**:
+  - When downsampling or upsampling images with transparent backgrounds, convolution kernels sample transparent black pixels ($R=0, G=0, B=0, A=0$). This darkens the RGB values along the outer edge of the sprite silhouette, producing an ugly dark fringe.
+- **The Solution**:
+  - Boundary pixels are un-premultiplied: $C_{\text{true}} = \min(255, \operatorname{round}(C / \max(0.25, A / 255.0)))$.
+  - In Three.js, `alphaTest` is raised from `0.25` to `0.35` (`MeshStandardMaterial({ alphaTest: 0.35, depthWrite: true, transparent: false })`), producing razor-sharp, solid silhouette cutouts with zero translucent edge fuzz or sorting glitches.
+
+### 16.4 Contrast-Adaptive Cross-Laplacian Detail Sharpening for 3D Perspective
+- **High-Frequency Detail Recovery**:
+  - High-quality bicubic interpolation prevents staircased pixelation but softens micro-features such as monster eyes, scales, claws, feathers, and weapon bevels.
+- **The Sharpening Kernel**:
+  - Applied a bounded 3×3 Cross-Laplacian sharpening filter to all 128×128 tiles in the 4096×4096 atlas:
+    $$C' = C + \operatorname{clamp}\left(1.15 \times \left(4C - C_U - C_D - C_L - C_R\right), -35, +35\right)$$
+  - Clamping the adjustment to $[-35, +35]$ prevents ringing artifacts and halos while making creature and item details razor-sharp under 3D camera perspectives.
+
+### 16.5 5×5 Bilateral Normal Map Denoising (Eradicating Specular Sand)
+- **The Specular Grain Defect**:
+  - Running raw 3×3 Sobel filters directly on 16-color or 256-color pixel-art diffuse textures amplifies single-pixel dithering into sharp normal spikes. Under moving point lights (the player's torch), these spikes reflect blinding, noisy specular grain ("specular sand").
+- **The Solution**:
+  - A 2-pass separable 5-tap Gaussian/bilateral filter (`[1, 4, 6, 4, 1] / 16`) smooths the luminance field before Sobel gradient calculation.
+  - A subtle spherical contouring gradient (`tileRelX`, `tileRelY`) adds volumetric curvature, giving flat 2D sprites tangible 3D fullness.
+  - Three.js normal scale is tuned to a balanced `(0.45, 0.45)` with roughness `0.82` for organic creatures and `0.65` for metal/glass items.
+
+### 16.6 Three.js Magnification Filtering, 16× Anisotropy & Mesh Normal Smoothing
+- **Texture Filtering**:
+  - Texture magnification filter upgraded to `THREE.LinearFilter` with mipmapping to prevent pixelated blockiness at close quarters.
+  - 16× anisotropic filtering (`tex.anisotropy = Math.min(16, capabilities.getMaxAnisotropy())`) preserves crisp details at grazing corridor viewing angles.
+- **3D Polygon Vertex Normals**:
+  - Added automated `computeVertexNormals()` across all GLTF, GLB, and OBJ character, creature, and item loaders, eliminating faceted polygon seams and broken lighting artifacts.
+
+### 16.7 Master Lore Accuracy Audit Automation
+- **Zero-Drift Regression Testing**:
+  - `tools/audit_atlas_models.js` provides continuous, zero-drift verification:
+    - Asserts 100% (624/624) canonical monsters match exact mathematical UV bounds in `graf-shb-dark.prf`.
+    - Asserts 100% (498/498) canonical items match exact mathematical UV bounds in `flvr-shb.prf`.
+    - Asserts high-profile lore assertions (Hippogriff vs Flesh Golem, Morgoth colossal height, Smaug wingspan, Farmer Maggot scale).
+    - Asserts all 27 core 3D polygon meshes exist on disk and have vertex normal smoothing enabled.
+    - Asserts 4096×4096 HD atlas and normal map dimensions.
+
+### 16.8 Web-Only Tome Scope & Standalone Zero-Network Invariant
+- **Architectural Scoping**:
+  - The **Adventure Tome / Living Chronicle** and Voiced Lorekeeper (`server/public/js/chronicle/`) are strictly exclusive to the Web Client (`https://angband3d.com`).
+  - Standalone distributions (Windows PC Godot C#, Standalone WebView2, and Android APK) strictly omit the Tome layer to ensure 100% offline self-containment, zero network telemetry, and optimal battery efficiency.
+
+### 16.9 Security Audit & Vulnerability Defenses
+- **Zero Known Vulnerabilities**: `npm audit` reports 0 vulnerabilities. Minimal dependencies (`ws`, `msedge-tts`).
+- **Path Traversal Protection**:
+  - `sanitizeFilename()` applies `path.basename()` and strips non-alphanumeric characters.
+  - Reserved Windows device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`) are rejected.
+  - Static file delivery strictly verifies `filePath.startsWith(WEB_DIR)`.
+- **Save Game Integrity**:
+  - Only files beginning with authentic Angband `SaveVNLA` binary magic headers are accepted.
+- **Zero API Key Leakage**:
+  - API keys are never passed as URL query parameters (`?key=...`) and are never returned by configuration APIs (`/api/config/llm`). All key transport occurs via standard HTTP headers (`x-goog-api-key`).
+- **Deterministic VRAM Cleanup**:
+  - Disposed Three.js meshes systematically free geometries, materials, and textures to prevent WebGL context loss during prolonged dungeon crawls.

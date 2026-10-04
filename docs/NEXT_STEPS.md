@@ -1542,3 +1542,41 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
     - On Web: `[8] Standalone Apps & Downloads (Android / PC)` opening dedicated modal offering direct downloads for Android APK (`/download/Angband3D-Android.apk`) and Windows PC Desktop (`/download/angband3d-standalone.zip`), plus browser PWA installation.
     - In APK: `[8] Play Online in Web Client (Cloud Realm)` connecting to `https://angband3d.com`.
   - Rebuilt and deployed Cloud Run container revision `angband3d-cloud-00084-6c8` (v=7.1). Verified clean live web client delivery and interactive WebSocket frames.
+
+### Priority 22: Definitive Master Release v2.6.0 / Web v7.8.0 — Full Documentation, Lore Accuracy, 4096 HD Atlases & Cross-Platform Polish (COMPLETED & RELEASED)
+- **Scope**: Repository-wide documentation, `README.md`, `BEST_PRACTICES_AND_LESSONS_LEARNED.md`, `LLM_CONTEXT.md`, `HYBRID_GRAPHICS_MASTER_PLAN.md`, `tools/audit_atlas_models.ps1`, `tools/build_monster_atlas.ps1`, `tools/build_item_atlas.ps1`, `server/public/js/dungeon3d.js`
+- **Accomplishments**:
+  1. **Canonical Lore Accuracy & Math Floor Resolution**:
+     - Diagnosed and permanently resolved the IEEE 754 banker's rounding bug in PowerShell atlas builders (`[int]($i / 32)`).
+     - Standardized on strict `[int][Math]::Floor($i / $tilesPerRow)`. Verified that Hippogriff (`[H]`, index 147) is mapped to Row 4, SlotCol 19 (eagle-headed winged horse), completely segregated from Flesh Golem (`[g]`, index 179 on Row 5, SlotCol 19).
+  2. **4096×4096 HD Texture Atlases (4× Pixel Density)**:
+     - Upgraded both `monster_atlas.png` and `item_atlas.png` to 4096×4096 resolution with 128×128 tiles.
+     - Upscaled using `InterpolationMode.HighQualityBicubic` + `PixelOffsetMode.HighQuality` + `SmoothingMode.HighQuality`.
+  3. **High-Fidelity Silhouette De-Fringing & Detail Sharpening**:
+     - Automated stripping of legacy 2D baked drop shadows ($A < 140$, neutral grey) from all 624 monsters and 498 items.
+     - Un-premultiplied boundary alpha ($C' = C / \max(0.25, A/255)$), eliminating dirty black edge bleeding.
+     - Contrast-Adaptive Cross-Laplacian sharpening kernel restored razor-sharp eyes, claws, weapon blade bevels, and feathers.
+     - Raised Three.js `alphaTest` to 0.35 for knife-sharp silhouette cutouts with zero translucent fuzz.
+  4. **Bilateral Normal Denoising & Three.js Filtering**:
+     - 5×5 bilateral filter on luminance eliminated specular grain under moving torchlight.
+     - Balanced normal scale to 0.45; enabled `THREE.LinearFilter` and 16× anisotropic filtering.
+     - Automated `computeVertexNormals()` across all 3D polygon meshes.
+  5. **Automated Master Lore Audit Suite (`tools/audit_atlas_models.js`)**:
+     - Validated 100% (624/624) canonical monsters and 498/498 items against upstream PRF definitions.
+     - 6/6 audit suites passed with 0 errors and 0 defects.
+  6. **Web-Only Tome Scope Invariant**:
+     - Clearly documented that the Adventure Tome / Living Chronicle is strictly exclusive to the Web Client (`https://angband3d.com`).
+     - Standalone Windows PC (Godot C#) and Android APK clients remain 100% offline, lightweight, and focused purely on core dungeon crawling.
+  7. **Comprehensive Documentation & Open Source Invitation**:
+     - Updated `README.md`, `BEST_PRACTICES_AND_LESSONS_LEARNED.md`, `LLM_CONTEXT.md`, and `HYBRID_GRAPHICS_MASTER_PLAN.md` with complete architectural blueprints, modding guides, forking instructions, and security invariants.
+     - Celebrated the open-source philosophy, inviting community developers to fork or adapt this engine bridge for other classic roguelikes.
+  8. **Security Audit**:
+     - Confirmed `npm audit` reports 0 vulnerabilities. Verified path traversal protections and binary `SaveVNLA` validation.
+  9. **Verification Across All Suites**:
+     - `node tools/audit_atlas_models.js`: 6/6 passed (100%).
+     - `node tools/test_hybrid_graphics.js`: 9/9 passed (100%).
+     - `node tools/test_graphics_enhancements.js`: 8/8 passed (100%).
+     - `npm test --prefix server`: 20/20 passed (100%).
+     - `python tools/smoke_test.py`: 11/11 passed (100%).
+     - `dotnet build client/angband3d.csproj`: 0 errors, 0 warnings.
+
