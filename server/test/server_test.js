@@ -292,9 +292,9 @@ async function runTests() {
     // Test 19: Mobile Touch Sensitivity & Menu Interface Integrity
     console.log('Test 19: Mobile Touch Sensitivity & Menu Interface Integrity');
     const swJs = fs.readFileSync(path.join(__dirname, '../public/sw.js'), 'utf8');
-    assert(swJs.includes("angband3d-v7.5") || swJs.includes("angband3d-v7.4") || swJs.includes("angband3d-v7.3") || swJs.includes("angband3d-v7.2"), 'sw.js must be bumped to angband3d-v7.5');
-    assert(indexRes.body.includes('/css/dungeon.css?v=7.5') || indexRes.body.includes('/css/dungeon.css?v=7.4') || indexRes.body.includes('/css/dungeon.css?v=7.3') || indexRes.body.includes('/css/dungeon.css?v=7.2'), 'index.html must load dungeon.css');
-    assert(indexRes.body.includes('/js/app.js?v=7.5') || indexRes.body.includes('/js/app.js?v=7.4') || indexRes.body.includes('/js/app.js?v=7.3') || indexRes.body.includes('/js/app.js?v=7.2'), 'index.html must load app.js');
+    assert(swJs.includes("angband3d-v7.6") || swJs.includes("angband3d-v7.5") || swJs.includes("angband3d-v7.4") || swJs.includes("angband3d-v7.3") || swJs.includes("angband3d-v7.2"), 'sw.js must be bumped to angband3d-v7.6');
+    assert(indexRes.body.includes('/css/dungeon.css?v=7.6') || indexRes.body.includes('/css/dungeon.css?v=7.5') || indexRes.body.includes('/css/dungeon.css?v=7.4') || indexRes.body.includes('/css/dungeon.css?v=7.3') || indexRes.body.includes('/css/dungeon.css?v=7.2'), 'index.html must load dungeon.css');
+    assert(indexRes.body.includes('/js/app.js?v=7.6') || indexRes.body.includes('/js/app.js?v=7.5') || indexRes.body.includes('/js/app.js?v=7.4') || indexRes.body.includes('/js/app.js?v=7.3') || indexRes.body.includes('/js/app.js?v=7.2'), 'index.html must load app.js');
     assert(indexRes.body.includes('id="quick-volume-popover"'), 'index.html must contain #quick-volume-popover');
     assert(dungeonCss.includes('.quick-volume-popover'), 'dungeon.css must style .quick-volume-popover');
     assert(dungeonCss.includes('touch-action: pan-x;'), 'dungeon.css .term-letter-ribbon must have touch-action: pan-x');

@@ -1,8 +1,32 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.3.1 — Celestial Star Canopy Overhead, Extended Sky Freelook, Subterranean Biomes & 130 3D Item Pickups)
+## Current System State (Angband3D v2.4.0 — High-Fidelity Progressive Biome Chapters, Shockbolt PBR Creature Billboards, Normal Mapping & Internal Maximum Fidelity)
 
-0. **Overhead Celestial Star Canopy & Sky Freelook (Version 2.3.1 — High-Fidelity Town Sky & Astronomical Precision)**:
+0. **Progressive Depth Biome Chapters & Shockbolt PBR Creature Overhaul (Version 2.4.0 — Rich Immersion & Flawless Stability)**:
+   - **Progressive 4-Level Depth Chapters (`dungeon3d.js`)**:
+     - Eliminated the 15-level megazones where levels 1–15 looked identical; divided descent into 4-level progressive chapters (~200 ft per chapter).
+     - Chapter 1 (50–200 ft / Lvl 1–4): Upper Crypts (Granite Ashlar, Cold Slate, Dim Dust, Cool Slate Fog `0x10141a`).
+     - Chapter 2 (250–400 ft / Lvl 5–8): Flooded Undercrofts (Wet Slate Blue-Grey, Reflective Water Floor `roughness: 0.44`, Damp Aquamarine Fog `0x0c1622`).
+     - Chapter 3 (450–600 ft / Lvl 9–12): Deep Sepulchre & Ancient Tombs (Ancient Earthen Sandstone `[0.90, 0.78, 0.60]`, Deep Amber Flame `0xffc060`, Violet Shadow Fog `0x180e1e`, Crumbly Stone `roughness: 0.88`).
+     - Chapter 4 (650–800 ft / Lvl 13–16): Overgrown Catacombs (Verdant Lichen, Fungal Spores, Emerald Mist `0x0c1e10`).
+     - Chapters 5–9 (850–5000 ft / Lvl 17–100): Chasm Threshold, Crystal Caverns, Magma Underworld, Abyssal Nether Vaults, and Morgoth's Iron Citadel.
+     - Synchronized `computeTileShade` geological cluster micro-formations (lichen, mineral streaks, sandstone salt deposits, water slicks) with each 4-level chapter.
+   - **PBR Normal-Mapped Monster Billboards (100% Creature Coverage)**:
+     - Built mobile-safe 2048x2048 atlas (`monster_atlas.png`) and tangent-space normal map (`monster_normal.png`) from Shockbolt's canonical tile suite.
+     - Single 4-vertex quad geometry with pivot at feet and atlas UV mapping.
+     - Real-time `MeshStandardMaterial` normal mapping with `normalScale: (1.2, 1.2)`, catching specular highlights from moving torchlight.
+     - Hardware Z-buffer depth testing (`alphaTest: 0.25`, `depthWrite: true`, `transparent: false`) eliminating all sorting popping/flicker.
+     - Cylindrical Y-axis billboarding (`atan2(dx, dz)`) locking creature feet flat to cobblestones.
+     - Soft ground contact shadow discs (`y = 0.005`) scaled to footprint.
+     - Organic volume-conserving breathing ($t \times 1.8$, $\pm 1.8\%$) and floating sinusoids for flying/ethereal apparitions.
+     - Live auto-upgrade of procedural fallbacks when `monster_atlas.json` finishes loading.
+   - **Strict UI Cleanliness Invariant**:
+     - Zero user-facing graphics selection dropdowns or toggles in `index.html` or HUD; all configuration remains internal (`window.GRAPHICS_CONFIG`) running at maximum fidelity.
+   - **Verification & Test Status**:
+     - `node tools/test_hybrid_graphics.js`: 7/7 verification invariants passed (100%).
+     - `node tools/test_graphics_enhancements.js`: 8/8 verification invariants passed (100%).
+     - `npm test` in `server/`: 20/20 test suites passed (100%).
+     - `python tools/smoke_test.py`: 11/11 tests passed (100%).
    - **Procedural Canvas Star Texture & Diffraction Bloom (`dungeon3d.js`)**:
      - Custom 64x64 canvas texture with quadratic Gaussian core, antialiased alpha falloff, and subtle 4-point cross-diffraction spikes simulating true astronomical optics.
    - **Upper Celestial Dome Distribution & Galactic River (`dungeon3d.js`)**:
