@@ -14,8 +14,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=7.3">
-    <link rel="stylesheet" href="/css/chronicle.css?v=7.3">
+    <link rel="stylesheet" href="/css/dungeon.css?v=7.5.0">
+    <link rel="stylesheet" href="/css/chronicle.css?v=7.5.0">
 </head>
 <body>
     <div id="app-container">
@@ -462,7 +462,15 @@
 
                 <h1 class="splash-title">ANGBAND 3D</h1>
                 <div class="splash-subtitle">The Classic Roguelike Dungeon Crawler • Reborn in First-Person 3D</div>
-                <div class="splash-engine-tag">Angband 4.2.6 C Engine • Three.js WebGL Architecture • Procedural Dungeon Depths</div>
+                <div class="splash-engine-tag">Angband 4.2.6 C Engine • Three.js WebGL Architecture • The Living Chronicle &amp; Voiced Adventure Tome</div>
+
+                <!-- Flagship Feature Spotlight: The Living Chronicle & Adventure Tome -->
+                <div class="splash-chronicle-spotlight">
+                    <div class="splash-chronicle-badge">📖 FLAGSHIP FEATURE: THE LIVING CHRONICLE &amp; VOICED TOME</div>
+                    <p class="splash-chronicle-text">
+                        Every strike, deep descent, and vault discovery is written in real time as an epic high-fantasy saga across three classic narrative traditions (<em>Frontier Tales</em>, <em>High Court Annals</em>, <em>Mountain Stone-Records</em>) with voiced audiobook narration, interactive creature dialogue, and downloadable HTML chronicles.
+                    </p>
+                </div>
 
                 <!-- Humble Community Notice & Standalone Recommendation -->
                 <div class="splash-notice-banner">
@@ -483,6 +491,7 @@
                 <div class="splash-shortcuts">
                     <button class="splash-shortcut-btn" id="btn-splash-menu"><kbd>[1]</kbd> Main Menu</button>
                     <button class="splash-shortcut-btn" id="btn-splash-features"><kbd>[2]</kbd> ✨ Key Features</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-chronicle"><kbd>[T]</kbd> 📖 Living Tome</button>
                     <button class="splash-shortcut-btn" id="btn-splash-protips"><kbd>[3]</kbd> 💡 Pro Tips</button>
                     <button class="splash-shortcut-btn" id="btn-splash-guide"><kbd>[4]</kbd> 📖 Survival Guide</button>
                     <button class="splash-shortcut-btn" id="btn-splash-credits"><kbd>[5]</kbd> 📜 Full Credits</button>
@@ -761,6 +770,7 @@
                         <div class="guide-section-header">[ ✨ KEY FEATURES OF ANGBAND 3D ]</div>
                         <p class="guide-p">Angband 3D represents a groundbreaking synthesis of traditional roguelike depth and modern 3D dungeon crawling:</p>
                         <ul class="guide-list">
+                            <li>• <strong>The Living Chronicle &amp; Voiced Adventure Tome</strong>: Transforms every step, combat blow, and vault discovery into a real-time literary saga across three distinct narrative traditions with synthesized voice narration, audiobook transport deck, interactive creature dialogue, and downloadable standalone HTML storybooks.</li>
                             <li>• <strong>Authoritative Headless C Engine</strong>: Game logic, monster AI, RNG, and world generation run strictly on upstream Angband 4.2.6 C code with zero gameplay divergence.</li>
                             <li>• <strong>First-Person Viewmodel Hands &amp; Weapon Rigs</strong>: Dynamic articulated hands, weapons, shields, books, and torches that naturally adapt to your character's race and physical height.</li>
                             <li>• <strong>Zero-Turn Camera Yaw Navigation</strong>: Looking around corners or rotating 360° is client-side and consumes 0 game turns, preserving pure tactical turn-based decisions.</li>
@@ -1016,22 +1026,22 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=7.4.4"></script>
-    <script src="/js/mobile-overlay.js?v=7.4.4"></script>
-    <script src="/js/audio.js?v=7.4.4"></script>
-    <script src="/js/terminal.js?v=7.4.4"></script>
-    <script src="/js/dungeon3d.js?v=7.4.4"></script>
-    <script src="/js/hud.js?v=7.4.4"></script>
-    <script src="/js/network.js?v=7.4.4"></script>
-    <script src="/js/local_bridge.js?v=7.4.4"></script>
-    <script src="/js/input.js?v=7.4.4"></script>
+    <script src="/js/device.js?v=7.5.0"></script>
+    <script src="/js/mobile-overlay.js?v=7.5.0"></script>
+    <script src="/js/audio.js?v=7.5.0"></script>
+    <script src="/js/terminal.js?v=7.5.0"></script>
+    <script src="/js/dungeon3d.js?v=7.5.0"></script>
+    <script src="/js/hud.js?v=7.5.0"></script>
+    <script src="/js/network.js?v=7.5.0"></script>
+    <script src="/js/local_bridge.js?v=7.5.0"></script>
+    <script src="/js/input.js?v=7.5.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=7.4.6"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=7.4.6"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=7.4.6"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=7.4.6"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=7.4.6"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=7.4.6"></script>
-    <script src="/js/app.js?v=7.4.6"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=7.5.0"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=7.5.0"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=7.5.0"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=7.5.0"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=7.5.0"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=7.5.0"></script>
+    <script src="/js/app.js?v=7.5.0"></script>
 </body>
 </html>

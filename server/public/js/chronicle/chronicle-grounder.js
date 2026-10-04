@@ -153,9 +153,40 @@ class ChronicleGrounder {
     }
 
     static instanceVoiceRegistry = new Map();
+    static recentDialogueBarks = new Map();
 
     static clearInstanceVoiceRegistry() {
         this.instanceVoiceRegistry.clear();
+        this.recentDialogueBarks.clear();
+    }
+
+    /**
+     * Non-repeating bark selector with LRU memory buffer per category/speaker.
+     * Prevents consecutive identical barks and guarantees variety across turns.
+     */
+    static pickNonRepeatingBark(key, barkList, seed = 0) {
+        if (!barkList || barkList.length === 0) return '';
+        if (barkList.length === 1) return barkList[0];
+
+        let history = this.recentDialogueBarks.get(key);
+        if (!history) {
+            history = [];
+            this.recentDialogueBarks.set(key, history);
+        }
+
+        let available = barkList.filter(b => !history.includes(b));
+        if (available.length === 0) {
+            const last = history[history.length - 1];
+            history.length = 0;
+            if (last) history.push(last);
+            available = barkList.filter(b => b !== last);
+            if (available.length === 0) available = barkList;
+        }
+
+        const chosen = available[Math.abs(seed) % available.length];
+        history.push(chosen);
+        if (history.length > 8) history.shift();
+        return chosen;
     }
 
     static hashString(str = '') {
@@ -707,10 +738,26 @@ class ChronicleGrounder {
                 sleepNoise: 'lies sprawled in the street dirt, fast asleep and drooling softly onto a grimy sleeve.',
                 ambientBark: '"Hee-hee! Shiny stone in the dark! Don\'t hurt poor me, kind traveler!"',
                 combatBark: (hp) => hp <= 0.35
-                    ? '"Waaaah! Hurts, hurts! Mommy, why you hit?! Don\'t hit poor me!"'
-                    : '"Screams and slobbers: No hit! Poor Gaffer got no coins! Waaah!"',
+                    ? ChronicleGrounder.pickNonRepeatingBark('idiot_low_combat', [
+                        '"Waaaah! Hurts, hurts! Mommy, why you hit?! Don\'t hit poor me!"',
+                        '"Mommy! Mercy! Hurts so bad! Leave poor Gaffer alone!"',
+                        '"Waaah! Why you hit poor me?! Bad man! Don\'t hit!"',
+                        '"Mercy, noble one! I give you pretty snail, just stop hitting poor me!"'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('idiot_high_combat', [
+                        '"Screams and slobbers: No hit! Poor Gaffer got no coins! Waaah!"',
+                        '"Why you mean to poor me?! Go away, mean traveler!"',
+                        '"Don\'t touch! Bad stranger swinging sticks at poor me!"',
+                        '"Hehe-waaah! Stop it, stop it! Leave me be!"'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName) => `Weeping and slobbering in panic, the blubbering idiot flails ${pr.his} arms wildly before ${pName}!`,
-                assaultBark: () => 'Get back! Leave poor me alone!'
+                assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('idiot_assault', [
+                    'Get back! Leave poor me alone!',
+                    'Waaah! Don\'t hit poor me! Bad traveler!',
+                    'Screams and slobbers: No hurt, no hurt!',
+                    'Mommy! The stranger is swinging steel at poor Gaffer!',
+                    'Hands off! Go away, mean one!'
+                ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -729,14 +776,39 @@ class ChronicleGrounder {
                     ? '"Heh... looking for trouble in the alleys, stranger? Your purse, now."'
                     : '"Got any gold on you, traveler? Hand it over before things turn bloody."',
                 combatBark: (hp) => hp <= 0.35
-                    ? '"Curse your steel! Back off or I will drag you down with me!"'
-                    : (lower.includes('squint') ? '"Heh... your purse or your life, traveler! Hand over the silver!"' : '"Drop your coin and you might just leave this alley alive!"'),
+                    ? ChronicleGrounder.pickNonRepeatingBark('rogue_low_combat', [
+                        '"Curse your steel! Back off or I will drag you down with me!"',
+                        '"Bleeding... but I will still slip a blade between your ribs!"',
+                        '"Curse this town... you won\'t take my boots while I draw breath!"',
+                        '"A pox on your sword! The shadows will swallow you whole!"',
+                        '"Curse your blade! I will see you in the barrows before I die alone!"'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('rogue_high_combat', [
+                        lower.includes('squint') ? '"Heh... your purse or your life, traveler! Hand over the silver!"' : '"Drop your coin and you might just leave this alley alive!"',
+                        '"You think your steel frightens me, fool? I will carve the liver out of you!"',
+                        '"Die, surface scum! I will pick your bones clean before the watch arrives!"',
+                        '"Quick hands, cold steel! Let us see what spills from your purse!"',
+                        '"You should have handed over the silver when you had the chance!"',
+                        '"One slip in the cobblestone dark, and you are meat for the alley crows!"'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName, act) => act === 'steals'
                     ? `With practiced cunning, the ${name} slices through the purse-strings at ${pName}'s hip, darting backward with clinking stolen coin!`
                     : `From the damp shadows of the alley, a ${name} springs forward with bared steel, striking at ${pName} in a sudden, vicious ambush!`,
                 assaultBark: (act) => act === 'steals'
-                    ? 'A fair toll for walking through my streets, fool! Ha-ha!'
-                    : 'Hand over your purse, stranger, or I will paint these stones with your blood!'
+                    ? ChronicleGrounder.pickNonRepeatingBark('rogue_steals', [
+                        'A fair toll for walking through my streets, fool! Ha-ha!',
+                        'Light fingers, heavy purse! The shadow toll is paid, stranger!',
+                        'Your silver pays the alley toll! Heh!',
+                        'Alley toll collected! Don\'t bother looking for it!'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('rogue_assault', [
+                        'Hand over your purse, stranger, or I will paint these stones with your blood!',
+                        'Your gold or your life, traveler—choose quickly!',
+                        'A dagger in the dark ends all arguments!',
+                        'Quiet now, soft-skin... make this easy and you might live!',
+                        'One clean thrust between the ribs, and your silver is mine!',
+                        'Nothing personal, stranger—just business in the shadows!'
+                    ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -752,10 +824,26 @@ class ChronicleGrounder {
                 ambientBark: '"Alms, noble traveler... a copper bit for a wretch cursed to walk these cold stones..."',
                 beggingBark: '"Alms, kind traveler! Spare a copper coin for bread, I beg of you! May the stars guide your blade!"',
                 combatBark: (hp) => hp <= 0.35
-                    ? '"Mercy! I yield! I have no silver, only rags! Spare a poor soul!"'
-                    : '"Why do you strike an unarmed beggar?! Guards, murder! Have mercy!"',
+                    ? ChronicleGrounder.pickNonRepeatingBark('beggar_low_combat', [
+                        '"Mercy! I yield! I have no silver, only rags! Spare a poor soul!"',
+                        '"Please! I am bleeding! Have mercy on a dying beggar!"',
+                        '"I yield, I yield! Spare an unarmed wretch!"',
+                        '"By the stars, cease! I have done you no harm!"'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('beggar_high_combat', [
+                        '"Why do you strike an unarmed beggar?! Guards, murder! Have mercy!"',
+                        '"Help! Guards! A butcher attacks the destitute in the streets!"',
+                        '"Spare me, noble sir! Take my wooden bowl, only don\'t kill!"',
+                        '"Why spill beggar blood?! Have pity on the hungry!"'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName) => `A ${name} extends a trembling, grime-caked hand toward ${pName}, pleading for bread.`,
-                assaultBark: () => 'Alms, kind traveler! Spare a copper bit for bread!'
+                assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('beggar_assault', [
+                    'Alms, kind traveler! Spare a copper bit for bread!',
+                    'Have pity on a starving soul! Mercy, noble one!',
+                    'A crust of bread, I beg of you! The cold bites so deep!',
+                    'Do not strike an unarmed wretch! Mercy!',
+                    'Spare a copper coin! May the stars preserve you!'
+                ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -771,10 +859,30 @@ class ChronicleGrounder {
                 ambientBark: '"Keep your steel oiled and your wits sharp. The deeper levels do not forgive hesitation."',
                 insultBark: '"Think that shiny armor makes you a hero, runt? The orcs will use your ribs for firewood!"',
                 combatBark: (hp) => hp <= 0.35
-                    ? `"Curse your blade! A soldier dies on ${pr.his} feet!"`
-                    : '"You want a taste of seasoned steel, fool?! Come on!"',
+                    ? ChronicleGrounder.pickNonRepeatingBark('veteran_low_combat', [
+                        `"Curse your blade! A soldier dies on ${pr.his} feet!"`,
+                        '"You have drawn blood, but my blade still thirsts! Stand and die!"',
+                        '"The frontier has tested me harder than you! To me, then!"',
+                        '"Steel breaks, but a veteran never yields! Face me!"',
+                        '"A soldier does not beg! Let us finish this!"'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('veteran_high_combat', [
+                        '"You want a taste of seasoned steel, fool?! Come on!"',
+                        '"I have broken fiercer warriors than you in the deep trenches!"',
+                        '"Your guard is open and your footwork sloppy! Yield or fall!"',
+                        '"Iron and blood! You picked the wrong soldier to cross!"',
+                        '"Let us see if your armor is as stout as your temper!"',
+                        '"A soldier does not flinch before raw steel! Back to the dirt with you!"'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName) => `The ${name} draws a scarred blade, stepping into a ready stance before ${pName}!`,
-                assaultBark: () => 'Taste of veteran steel, runt!'
+                assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('veteran_assault', [
+                    'Taste of veteran steel, runt!',
+                    'Keep your guard up, or this will be quick!',
+                    'You crossed the wrong soldier tonight, fool!',
+                    'Steel meets steel! Let us see what you are made of!',
+                    'I have cleaved fiercer warriors than you on the border!',
+                    'Stand and fight, if you have the stomach for it!'
+                ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -796,10 +904,26 @@ class ChronicleGrounder {
                         ? '"*Hic*... another flagon for the road! To the King under the Mountain!"'
                         : '"Greetings, traveler. Watch your footing near the dungeon stairs."'),
                 combatBark: (hp) => hp <= 0.35
-                    ? '"Guards! Murder! I am dying! Why do you attack me?!"'
-                    : '"Madman! Put down your steel! Help! Town guards, murder in the streets!"',
+                    ? ChronicleGrounder.pickNonRepeatingBark('town_low_combat', [
+                        '"Guards! Murder! I am dying! Why do you attack me?!"',
+                        '"Mercy! Murder in the streets! Take my purse, take my boots, only spare my life!"',
+                        '"Help! Town watch, murder! Someone stop this bloodthirsty butcher!"',
+                        '"I have a family! Murder! Have mercy, madman!"'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('town_high_combat', [
+                        '"Madman! Put down your steel! Help! Town guards, murder in the streets!"',
+                        '"Help! Murder in the square! Town guards, to me!"',
+                        '"Why do you attack an unarmed citizen?! Murder! Guards!"',
+                        '"Keep away from me, butcher! Murder! Guards! Someone stop this maniac!"'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName) => `In sudden confusion and panic, the ${name} lashes out defensively against ${pName}!`,
-                assaultBark: () => 'Get back! Leave me be, madman!'
+                assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('town_assault', [
+                    'Get back! Leave me be, madman!',
+                    'Guards! Town Watch! Violence in the street!',
+                    'Put down your weapon! Are you insane?!',
+                    'Help! Murder! Someone stop this madman!',
+                    'Stay back! I am an honest citizen!'
+                ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -814,10 +938,31 @@ class ChronicleGrounder {
                 sleepNoise: 'slumps against the rocky wall in foul, guttural slumber, wheezing heavily.',
                 ambientBark: '"Fresh meat for the pits! Slay the surface scum!"',
                 combatBark: (hp) => hp <= 0.35
-                    ? '"Curse your steel! I yield... mercy..."'
-                    : '"You bleed just like the rest, dog! Tear them to pieces!"',
+                    ? ChronicleGrounder.pickNonRepeatingBark('orc_low_combat', [
+                        '"Curse your steel! I yield... mercy..."',
+                        '"Curse your blade! The Eye will tear your soul to shreds!"',
+                        '"Black blood spills... but my kin will feast on your marrow!"',
+                        '"Curse the surface scum... I die on Morgoth\'s stone..."',
+                        '"A thousand orcs will hunt you down for this... gah!"'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('orc_high_combat', [
+                        '"You bleed just like the rest, dog! Tear them to pieces!"',
+                        '"Fresh meat bleeds! Hack the surface scum to ribbons!"',
+                        '"I will gnaw the marrow from your bones, worm!"',
+                        '"Your skull will make a fine cup for our brew!"',
+                        '"Heh-heh! Slice the throat and loot the boots!"',
+                        '"Die on our scimitars, daylight scum!"'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName) => `With a guttural screech, a ${name} leaps from the gloom, its jagged scimitar hacking furiously against ${pName}'s guard!`,
-                assaultBark: () => 'Die, surface scum! Fresh meat for the pits!'
+                assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('orc_assault', [
+                    'Die, surface scum! Fresh meat for the pits!',
+                    'Hack them to pieces! Black blood and iron!',
+                    'Tear the flesh from their bones! No mercy!',
+                    'Slay the intruder! The Master\'s eye sees all!',
+                    'Skewer the weakling! Your skull is mine!',
+                    'Gnaw their marrow! Drive them into the dirt!',
+                    'Gut the surface rat! Feed them to the wolves!'
+                ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -832,10 +977,26 @@ class ChronicleGrounder {
                 sleepNoise: 'lies curled in a dark fissure, wheezing softly through needle-sharp teeth.',
                 ambientBark: '"Yapp! Stick the big one! Skitter and kill!"',
                 combatBark: (hp) => hp <= 0.35
-                    ? '"No hit! Mercy! Squeeeee!"'
-                    : '"Die in the dark, intruder! Poison bites deep!"',
+                    ? ChronicleGrounder.pickNonRepeatingBark('kobold_low_combat', [
+                        '"No hit! Mercy! Squeeeee!"',
+                        '"Hurts! Big one too strong! Mercy!"',
+                        '"Screee! Don\'t kill, take the pretty rocks!"',
+                        '"Yapp-yelp! Run for the cracks!"'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('kobold_high_combat', [
+                        '"Die in the dark, intruder! Poison bites deep!"',
+                        '"Yapp! Stick the big one! Skitter and kill!"',
+                        '"Stab, stab, stab! Darkness take you!"',
+                        '"Screee! Bleed on our stones, big one!"'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName) => `Darting between shadows, a ${name} thrusts a venom-tipped dart straight toward ${pName}!`,
-                assaultBark: () => 'Stick with poison! Skitter and die!'
+                assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('kobold_assault', [
+                    'Stick with poison! Skitter and die!',
+                    'Yapp! Bite the heels! Take the shiny things!',
+                    'Stab, stab, stab! Darkness take you!',
+                    'Screee! Bleed on our stones, big one!',
+                    'Snicker and slice! The dark warren feeds!'
+                ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -851,10 +1012,28 @@ class ChronicleGrounder {
                 sleepNoise: 'hovers in an unnatural, meditative trance, murmuring dark incantations in slumber.',
                 ambientBark: '"You dare step into the sanctum of the Black Enemy? Your soul belongs to Morgoth!"',
                 combatBark: (hp) => hp <= 0.35
-                    ? '"The Dark Lord... will avenge my blood... curse you..."'
-                    : '"Feel the icy hand of the Nether realms! Burn in dark fire!"',
+                    ? ChronicleGrounder.pickNonRepeatingBark('caster_low_combat', [
+                        '"The Dark Lord... will avenge my blood... curse you..."',
+                        '"My flesh fails, but my curse is sealed in the Nether!"',
+                        '"The dark rites cannot be broken by mortal steel... curse you!"',
+                        '"The abyss... reclaims me... but your soul is forfeit..."'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('caster_high_combat', [
+                        '"Feel the icy hand of the Nether realms! Burn in dark fire!"',
+                        '"Morgoth\'s shadow stretches over all—perish in agony!"',
+                        '"Your weak prayers will not save you from the Nether!"',
+                        '"Behold the dark power of the deeps! Weave your shroud!"',
+                        '"Your life essence shall feed my ancient rituals!"'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName) => `Dark syllables hiss through the air as the ${name} unleashes a crackling bolt of sorcery at ${pName}!`,
-                assaultBark: () => 'Burn in dark flames, mortal!'
+                assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('caster_assault', [
+                    'Burn in dark flames, mortal!',
+                    'The Void hungers for your soul!',
+                    'Perish in the cold shadow of the Nether!',
+                    'Morgoth\'s darkness shall consume your light!',
+                    'Your blood shall fuel the ancient rite!',
+                    'Kneel before the Black Arts, fool!'
+                ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -871,10 +1050,26 @@ class ChronicleGrounder {
                 sleepNoise: 'rests in deathly sepulchral stillness within its cold stone sarcophagus.',
                 ambientBark: '"...join us in the cold... surrender your warmth to the grave..."',
                 combatBark: (hp) => hp <= 0.35
-                    ? '"...the dust reclaims all... but shadow never dies..."'
-                    : '"...the Barrow calls to you... your breath is ours..."',
+                    ? ChronicleGrounder.pickNonRepeatingBark('undead_low_combat', [
+                        '"...the dust reclaims all... but shadow never dies..."',
+                        '"...shattered bones... yet darkness is eternal..."',
+                        '"...our curse lingers in the stone forever..."'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('undead_high_combat', [
+                        '"...the Barrow calls to you... your breath is ours..."',
+                        '"...join us in the cold... surrender your warmth to the grave..."',
+                        '"...flesh withers, steel rusts... only the tomb endures..."',
+                        '"...feel the mortal heat drain from your veins..."'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName) => `A freezing chill strikes through ${pName}'s mail as the ${name} glides in, trailing the dead numbness of the barrow!`,
-                assaultBark: () => 'Join us in the cold dark... yield your breath...'
+                assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('undead_assault', [
+                    'Join us in the cold dark... yield your breath...',
+                    'Mortality is a flicker... the grave is eternal...',
+                    'Feel the chill of the barrows seep into your marrow...',
+                    'Your soul shall wander the endless shadows...',
+                    'The living have no dominion here... surrender to the dark...',
+                    'Cold stone, cold dust... join the fallen...'
+                ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -889,10 +1084,25 @@ class ChronicleGrounder {
                 sleepNoise: 'slumbers heavily atop a mound of stolen gold, smoke coiling gently from nostril slits.',
                 ambientBark: '"Who dares disturb the ancient slumber of the Fire-Drake? Crawl before me, worm of clay!"',
                 combatBark: (hp) => hp <= 0.35
-                    ? '"The mountains shall crumble... before my line is extinguished!"'
-                    : '"Mortal ash before my ancient flame! Burn, insect!"',
+                    ? ChronicleGrounder.pickNonRepeatingBark('dragon_low_combat', [
+                        '"The mountains shall crumble... before my line is extinguished!"',
+                        '"My dying wrath... shall incinerate the very bedrock!"',
+                        '"Mortal cur... my kin will burn your cities to ash!"'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('dragon_high_combat', [
+                        '"Mortal ash before my ancient flame! Burn, insect!"',
+                        '"You dare match your fleeting spark against the dragon\'s breath?!"',
+                        '"Your bones will melt into the gold beneath my talons!"',
+                        '"Crawl before the lords of fire, wretched creature of clay!"'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName) => `The subterranean air superheats as the ${name} lunges with ancient draconic fury, striking with terrifying force!`,
-                assaultBark: () => 'Mortal ash before my wrath!'
+                assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('dragon_assault', [
+                    'Mortal ash before my wrath!',
+                    'Burn, insect, in the ancient fire of the deeps!',
+                    'You dare challenge the terror of the drakes?!',
+                    'The mountains tremble at my roar—perish in flame!',
+                    'Crawl into the embers, worm of clay!'
+                ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -1069,10 +1279,27 @@ class ChronicleGrounder {
                 sleepNoise: 'shakes the cavern floor with booming, earth-shuddering snores.',
                 ambientBark: '"Troll smell flesh! Smash little bones to powder!"',
                 combatBark: (hp) => hp <= 0.35
-                    ? '"Gaaah! Stone flesh bleed! Die, little bug!"'
-                    : '"Crush you flat! Troll break your head!"',
+                    ? ChronicleGrounder.pickNonRepeatingBark('giant_low_combat', [
+                        '"Gaaah! Stone flesh bleed! Die, little bug!"',
+                        '"Hurts! Big hurts! Smash you into grease!"',
+                        '"Troll not die! Troll rip off your arms!"',
+                        '"Guhhh... hard skull crack! But me still crush you!"'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('giant_high_combat', [
+                        '"Crush you flat! Troll break your head!"',
+                        '"Troll smell flesh! Smash little bones to powder!"',
+                        '"Puny thing! Club go smash on your helmet!"',
+                        '"Me turn you into paste! Big club hungry!"',
+                        '"Stomp little legs! Break little ribs!"'
+                    ], Math.floor(Math.random() * 1000)),
                 assaultProse: (pName) => `With a deafening bellow, the massive ${name} brings down a tree-trunk club to shatter ${pName}'s footing!`,
-                assaultBark: () => 'Smash bones to powder! Troll crush you!'
+                assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('giant_assault', [
+                    'Smash bones to powder! Troll crush you!',
+                    'Puny bug! Me make smear out of you!',
+                    'Big club swing! Break your spine!',
+                    'Troll eat your meat raw! Fresh marrow!',
+                    'Crush, smash, stomp! Down you go!'
+                ], Math.floor(Math.random() * 1000))
             };
         }
 
@@ -1084,10 +1311,27 @@ class ChronicleGrounder {
             sleepNoise: 'is slumped in deep slumber, wheezing in a heavy, exhausted sleep.',
             ambientBark: '"You dare challenge the shadow? Your bones shall pave these halls!"',
             combatBark: (hp) => hp <= 0.35
-                ? '"Curse your blade! I will drag you down with me!"'
-                : '"Die, wretch!"',
+                ? ChronicleGrounder.pickNonRepeatingBark('humanoid_low_combat', [
+                    '"Curse your blade! I will drag you down with me!"',
+                    '"Blood in my eyes... but I\'ll still slit your throat!"',
+                    '"Mercy? There is no mercy in these deeps!"',
+                    '"Fall with me into the dark, scum!"'
+                ], Math.floor(Math.random() * 1000))
+                : ChronicleGrounder.pickNonRepeatingBark('humanoid_high_combat', [
+                    '"Die, wretch! Your journey ends on cold flagstones!"',
+                    '"You dare challenge the shadow? Your bones shall pave these halls!"',
+                    '"Steel answers steel! Let us see what you are made of!"',
+                    '"No light penetrates these deeps—only our blades!"',
+                    '"Stand and fight, dog! Give me your blood!"'
+                ], Math.floor(Math.random() * 1000)),
             assaultProse: (pName) => `Steel clatters in the gloom as the ${name} strikes without warning, engaging ${pName} in sudden combat!`,
-            assaultBark: () => 'You will not leave these deeps alive!'
+            assaultBark: () => ChronicleGrounder.pickNonRepeatingBark('humanoid_assault', [
+                'You will not leave these deeps alive!',
+                'Draw steel, interloper! Your grave is ready!',
+                'The darkness claims all who wander here!',
+                'Bleed upon the stones, fool!',
+                'Cold iron for warm flesh!'
+            ], Math.floor(Math.random() * 1000))
         };
     }
 
@@ -1508,15 +1752,28 @@ class ChronicleGrounder {
                 text = townFleeBarks[vSeed % townFleeBarks.length];
             } else if (profile.category === 'beggar') {
                 prose = `Dropping ${prPoss} grimy begging bowl with a tin rattle, the ${name} cowers against the wall, weeping for mercy!`;
-                text = (vSeed % 2 === 0)
-                    ? 'Mercy! I yield! I have no silver, only rags! Spare an unarmed beggar!'
-                    : 'Why do you strike an unarmed wretch?! Have pity! I have done you no harm!';
+                text = ChronicleGrounder.pickNonRepeatingBark('beggar_flee', [
+                    'Mercy! I yield! I have no silver, only rags! Spare an unarmed beggar!',
+                    'Why do you strike an unarmed wretch?! Have pity! I have done you no harm!',
+                    'Guards! Mercy! I am but a poor beggar! Do not slay me!',
+                    'Take my crust! Take my bowl! Only spare my miserable life!'
+                ], vSeed);
             } else if (profile.category === 'orc') {
                 prose = `Spitting black blood, the terrified ${name} breaks away and scrambles toward the dark tunnels, shrieking in fear!`;
-                text = 'Mercy! The iron devil! Run for the pits, the surface scum is mad!';
+                text = ChronicleGrounder.pickNonRepeatingBark('orc_flee', [
+                    'Mercy! The iron devil! Run for the pits, the surface scum is mad!',
+                    'The blade burns! Run, whelps! Back into the darkness!',
+                    'Gaaah! Don\'t skin me alive! Back to the warrens!',
+                    'Too strong! The intruder has iron magic! Scatter into the tunnels!'
+                ], vSeed);
             } else {
                 prose = `Reeling in terror from ${pName}'s relentless assault, the ${name} scrambles backward into the gloom, seeking flight!`;
-                text = 'Curse your steel! Stay back, stay away!';
+                text = ChronicleGrounder.pickNonRepeatingBark('general_flee', [
+                    'Curse your steel! Stay back, stay away!',
+                    'Back, monster! The dark will swallow you yet!',
+                    'I yield the corridor! Let me pass into the shadows!',
+                    'No more! The wounds run too deep!'
+                ], vSeed);
             }
 
             return {
@@ -1542,88 +1799,121 @@ class ChronicleGrounder {
             if (profile.category === 'idiot' || name.toLowerCase().includes('idiot')) {
                 prose = `Slobbering in sheer panic, the blubbering idiot weeps and cowers in the dirt, frantically waving hands to ward off ${pName}'s blows!`;
                 text = (hpPercent <= 0.35)
-                    ? 'Mommy! Mercy! Hurts so bad! Leave poor Gaffer alone!'
-                    : 'Waaaah! Why you hit poor me?! Bad man! Don\'t hit!';
+                    ? ChronicleGrounder.pickNonRepeatingBark('idiot_combat_low', [
+                        'Mommy! Mercy! Hurts so bad! Leave poor Gaffer alone!',
+                        'Hurts! Red juice coming out! Don\'t hit poor me no more!',
+                        'Waaah! Why you so mean?! Gaffer just wants to go home!'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('idiot_combat_high', [
+                        'Waaaah! Why you hit poor me?! Bad man! Don\'t hit!',
+                        'Ow, ow, ow! Mean traveler with the sharp stick! Stop it!',
+                        'No hit! Look, I got no pennies! Go hit the rocks!'
+                    ], Math.floor(Math.random() * 1000));
             } else if (profile.category === 'beggar' || stateObj.state === 'cowering_beggar') {
                 prose = `Cowering in terror, the ${name} clutches threadbare rags and cowers against the damp stones, weeping for mercy!`;
-                if (hpPercent <= 0.35) {
-                    text = 'Mercy! I yield! I have no silver, only rags! Spare an unarmed beggar!';
-                } else {
-                    text = (interactionTurn <= 1)
-                        ? 'Why do you strike an unarmed wretch?! Guards, murder! Have mercy!'
-                        : 'Please! I have nothing! Take my bowl, take my rags, only spare my life!';
-                }
+                text = (hpPercent <= 0.35)
+                    ? ChronicleGrounder.pickNonRepeatingBark('beggar_combat_low', [
+                        'Mercy! I yield! I have no silver, only rags! Spare an unarmed beggar!',
+                        'I am bleeding out on the cold stone... have you no pity on a beggar?',
+                        'Spare me, noble traveler! I will leave town forever, only spare my life!'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('beggar_combat_high', [
+                        'Why do you strike an unarmed wretch?! Guards, murder! Have mercy!',
+                        'Please! I have nothing! Take my bowl, take my rags, only spare my life!',
+                        'I only asked for a copper bit! Why draw cold steel on a starving soul?!'
+                    ], Math.floor(Math.random() * 1000));
             } else if (profile.category === 'veteran' || stateObj.state === 'veteran_in_combat') {
                 prose = `The scarred ${name} parries your steel with a sharp clang of metal, ${prPoss} face hardening as ${prSub} steps into a fighting crouch!`;
-                const cSeed = Math.abs(interactionTurn + (monster.id || 0) * 17);
-                if (hpPercent <= 0.35) {
-                    const lowHpBarks = [
+                text = (hpPercent <= 0.35)
+                    ? ChronicleGrounder.pickNonRepeatingBark('veteran_combat_low', [
                         `Curse your blade! A soldier dies with ${prPoss} boots on!`,
                         `You have drawn blood, but my blade still thirsts! Stand and die!`,
                         `The frontier has tested me harder than you! To me, then!`,
-                        `Steel breaks, but a veteran never yields! Face me!`
-                    ];
-                    text = lowHpBarks[cSeed % lowHpBarks.length];
-                } else {
-                    const highHpBarks = [
+                        `Steel breaks, but a veteran never yields! Face me!`,
+                        `Grave wounds won't stop a seasoned blade! Draw your last breath!`
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('veteran_combat_high', [
                         'You want a taste of veteran steel, fool?! Stand and fight!',
                         'I have broken fiercer warriors than you in the deep trenches!',
                         'Your guard is open and your footwork sloppy! Yield or fall!',
                         'Iron and blood! You picked the wrong soldier to cross!',
                         'Let us see if your armor is as stout as your temper!',
                         'A soldier does not flinch before raw steel! Back to the dirt with you!'
-                    ];
-                    text = highHpBarks[cSeed % highHpBarks.length];
-                }
+                    ], Math.floor(Math.random() * 1000));
             } else if (profile.category === 'townsperson') {
                 prose = `Bleeding and reeling from the assault, the ${name} clutches a painful wound and shrieks in panic, frantic eyes darting for the town watch!`;
-                if (hpPercent <= 0.35) {
-                    text = 'Mercy! I yield! Take my purse, take my boots, only spare my life!';
-                } else {
-                    text = (interactionTurn <= 1)
-                        ? 'Madman! Murder in the streets! Help, town guards, murder! Why do you attack me?!'
-                        : 'Keep away from me, butcher! Guards! Someone stop this madman!';
-                }
+                text = (hpPercent <= 0.35)
+                    ? ChronicleGrounder.pickNonRepeatingBark('town_combat_low', [
+                        'Mercy! I yield! Take my purse, take my boots, only spare my life!',
+                        'Town Watch! Murder! Someone stop this mad butcher before I bleed dry!',
+                        'Mercy! I have a family! Take everything, only put away the steel!'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('town_combat_high', [
+                        'Madman! Murder in the streets! Help, town guards, murder! Why do you attack me?!',
+                        'Madman! Keep away from me, butcher! Guards! Someone stop this maniac!',
+                        'Murder! Assault! The town watch will have your head on a pike for this!'
+                    ], Math.floor(Math.random() * 1000));
             } else if (profile.category === 'rogue') {
                 prose = `${prPoss.charAt(0).toUpperCase() + prPoss.slice(1)} blade parries yours with a harsh shriek of metal! The ${name} sneers through gritted teeth, blood dripping from ${prPoss} knuckles as ${prSub} circles you in the alley gloom.`;
-                const rSeed = Math.abs(interactionTurn + (monster.id || 0) * 23);
-                if (hpPercent <= 0.35) {
-                    const lowRogueBarks = [
+                text = (hpPercent <= 0.35)
+                    ? ChronicleGrounder.pickNonRepeatingBark('rogue_combat_low', [
                         'Curse your steel! I will see you in the barrows before I die alone!',
                         'Bleeding... but I will still slip a blade between your ribs!',
                         'Curse this town... you won\'t take my boots while I draw breath!',
-                        'A pox on your sword! The shadows will swallow you whole!'
-                    ];
-                    text = lowRogueBarks[rSeed % lowRogueBarks.length];
-                } else {
-                    const highRogueBarks = [
+                        'A pox on your sword! The shadows will swallow you whole!',
+                        'You haven\'t won yet, dog! Cold steel bites both ways!'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('rogue_combat_high', [
                         'You think your steel frightens me, fool? I will carve the liver out of you!',
                         'Die, surface scum! I will pick your bones clean before the watch arrives!',
                         'Quick hands, cold steel! Let us see what spills from your purse!',
                         'You should have handed over the silver when you had the chance!',
                         'One slip in the cobblestone dark, and you are meat for the alley crows!'
-                    ];
-                    text = highRogueBarks[rSeed % highRogueBarks.length];
-                }
+                    ], Math.floor(Math.random() * 1000));
             } else if (profile.category === 'orc') {
                 prose = `Dark black blood spatters the stones as the ${name} snarls in bloodthirsty fury, hacking violently at your guard!`;
-                if (hpPercent <= 0.35) {
-                    text = 'Curse your blade! The Eye will tear your soul to shreds!';
-                } else {
-                    text = (interactionTurn <= 1)
-                        ? 'Fresh meat bleeds! Hack the surface scum to ribbons!'
-                        : 'I will gnaw the marrow from your bones, worm!';
-                }
+                text = (hpPercent <= 0.35)
+                    ? ChronicleGrounder.pickNonRepeatingBark('orc_combat_low', [
+                        'Curse your blade! The Eye of the Deeps will tear your soul to shreds!',
+                        'Black blood in my eyes... but my scimitar will taste your throat!',
+                        'The master\'s lash was worse than your steel! Die, surface scum!',
+                        'You bleed too, dog! We die together on the cold rock!'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('orc_combat_high', [
+                        'Fresh meat bleeds! Hack the surface scum to ribbons!',
+                        'I will gnaw the marrow from your bones, worm!',
+                        'What is this? A soft-skinned intruder to feed to the drakes! Slay!',
+                        'Chop the legs off! Make the pink-skin crawl in the dirt!',
+                        'Iron and ash! Your skull will hang from the warren gate!'
+                    ], Math.floor(Math.random() * 1000));
             } else if (profile.category === 'spellcaster') {
                 prose = `Dark sorcerous fire crackles across the robes of the ${name} as he recoils from your steel, hissing ancient incantations in fury!`;
                 text = (hpPercent <= 0.35)
-                    ? 'The Black Enemy will avenge my blood! The Shadow never ends!'
-                    : 'Feel the freezing hand of Mandos! Burn in dark fire!';
+                    ? ChronicleGrounder.pickNonRepeatingBark('caster_combat_low', [
+                        'The Dark Masters will avenge my blood! The Shadow never ends!',
+                        'My flesh perishes... but the Nether will consume your soul!',
+                        'Curse your iron! Even in death, the dark runes shall wither you!'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('caster_combat_high', [
+                        'Feel the freezing hand of the Void! Burn in dark fire!',
+                        'Mortal clay, dissolve before the black flame!',
+                        'Your feeble armor cannot turn the wrath of the ancient arts!',
+                        'The deeps hunger for your soul—wither into ashes!'
+                    ], Math.floor(Math.random() * 1000));
             } else {
                 prose = `Gravely engaged in combat, the ${name} trades savage blows with ${pName}, blades clashing in the dark!`;
                 text = (hpPercent <= 0.35)
-                    ? 'Curse your steel! You will not leave these deeps alive!'
-                    : 'Die on the cold stone, mortal!';
+                    ? ChronicleGrounder.pickNonRepeatingBark('general_combat_low', [
+                        'Curse your steel! You will not leave these deeps alive!',
+                        'Bleeding upon the rock... but I will drag you down with me!',
+                        'No mercy in the dark! Fall with me!'
+                    ], Math.floor(Math.random() * 1000))
+                    : ChronicleGrounder.pickNonRepeatingBark('general_combat_high', [
+                        'Die on the cold stone, mortal!',
+                        'You dare step into the deeps? Pave these stones with your bones!',
+                        'Steel answers steel! Let us see what you are made of!',
+                        'No light reaches these depths—only our blades!'
+                    ], Math.floor(Math.random() * 1000));
             }
 
             return {
@@ -1670,7 +1960,7 @@ class ChronicleGrounder {
                 text = 'The General Store sells rations and warm oil, kind sir. A copper bit from a generous hand is all I need for a stale crust from the bakery...';
             } else if (query.includes('gold') || query.includes('coin') || query.includes('silver') || query.includes('money')) {
                 prose = `${prCap}'s eyes widen with desperate hope as ${prSub} clutches ${prPoss} grimy begging bowl with both hands.`;
-                text = 'Bless your generous heart, traveler! Just a few copper coins to keep the frost away... may the Valar preserve your life in the deep places!';
+                text = 'Bless your generous heart, traveler! Just a few copper coins to keep the frost away... may the High Powers preserve your life in the deep places!';
             } else if (query.includes('who') || query.includes('help') || query.includes('key')) {
                 prose = `${prCap} leans in close, whispering with a conspiratorial rasp.`;
                 text = 'To open doors, bump right against them. To drink healing draughts, press "q". And watch your back in the dark alleys—the cutpurses take what little copper we have.';
@@ -1686,7 +1976,7 @@ class ChronicleGrounder {
                     'Alms, noble traveler! Just one copper bit to buy a stale crust from the baker... the nights here are cold and cruel to the destitute.',
                     'Bless you, traveler! If you delve into the deep cellar stairs, beware the dark alleys near the tavern—the cutpurses lurk where the town watch cannot see.',
                     'They say the old armorer keeps a cache of iron rations behind the forge, but the deep tunnels below are full of things that hunger for more than bread.',
-                    'May the Valar guide your footsteps in the dark below. Few in this border town have mercy for the fallen.'
+                    'May the Lords of Light guide your footsteps in the dark below. Few in this border town have mercy for the fallen.'
                 ];
                 prose = beggarProseList[bSeed % beggarProseList.length];
                 text = beggarBarkList[bSeed % beggarBarkList.length];
@@ -1788,20 +2078,36 @@ class ChronicleGrounder {
             }
         } else if (profile.category === 'orc') {
             prose = `The ${name} hefts a notched scimitar, yellow fangs bared in a wicked sneer as he stomps against the flagstones.`;
-            text = (interactionTurn <= 1)
-                ? 'What is this? A tender morsel walking straight into the jaws! Slay the surface scum!'
-                : 'Your skull will make a fine cup for the captain\'s ale! Stand still and die!';
+            text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient', [
+                'What is this? A tender morsel walking straight into the jaws! Slay the surface scum!',
+                'Your skull will make a fine cup for the captain\'s ale! Stand still and die!',
+                'Sniff the air... soft-skin smells of fear and town bread! Get him!',
+                'No one leaves the warrens alive! Hack the stranger down!'
+            ], Math.floor(Math.random() * 1000));
         } else if (profile.category === 'dragon') {
             prose = `The ancient wyrm regards ${pName} with smoldering golden eyes, sulfurous smoke drifting lazily from slit nostrils.`;
-            text = 'Who dares disturb the ancient slumber of the Fire-Drake? Crawl before me, worm of clay, before I turn your bones to ash!';
+            text = ChronicleGrounder.pickNonRepeatingBark('dragon_ambient', [
+                'Who dares disturb the ancient slumber of the Fire-Drake? Crawl before me, worm of clay, before I turn your bones to ash!',
+                'You bring your frail spark of life before the mountain fire? Kneel and burn, mortal!',
+                'Generations of heroes have melted beneath my breath. You will be no different.',
+                'The hoard beneath my talons was bought in blood. You shall add yours to the gold.'
+            ], Math.floor(Math.random() * 1000));
         } else if (profile.category === 'high_undead') {
             prose = `A sepulchral chill sweeps the chamber as the ${name} hovers in the gloom, ethereal robes fluttering without wind.`;
-            text = '...join us in the cold... surrender your warmth to the grave...';
+            text = ChronicleGrounder.pickNonRepeatingBark('undead_ambient', [
+                '...join us in the cold... surrender your warmth to the grave...',
+                '...the living have no dominion in these silent halls... sleep eternal...',
+                '...flesh withers, steel rusts... only the crypt endures...',
+                '...give your breath to the dust... surrender your light...'
+            ], Math.floor(Math.random() * 1000));
         } else {
             prose = `The ${name} stands poised in the gloom, watching your movements with wary calculation.`;
-            text = (interactionTurn <= 1)
-                ? 'You dare step into the deeps? Turn back, or pave these stones with your bones.'
-                : 'Steel will decide our fate if you take one step closer.';
+            text = ChronicleGrounder.pickNonRepeatingBark('general_ambient', [
+                'You dare step into the deeps? Turn back, or pave these stones with your bones.',
+                'Steel will decide our fate if you take one step closer.',
+                'The shadows watch you, stranger. Watch your back.',
+                'Draw no blade here unless you intend to use it.'
+            ], Math.floor(Math.random() * 1000));
         }
 
         return {
@@ -1992,11 +2298,16 @@ class ChronicleGrounder {
      * Generates deep, contextual combat saga narratives with genuine Middle-earth color,
      * racial/class internal justification, moral judgment, and rotational anti-repetition.
      */
-    static generateKillSaga(kills = [], player = null, depth = 0, traditionKey = 'westmarch', weapon = 'drawn steel', fleeingMonster = null) {
+    static generateKillSaga(kills = [], player = null, depth = 0, traditionKey = 'westmarch', weapon = 'drawn steel', fleeingMonster = null, attackMedium = null) {
         const pName = (player && player.name) ? player.name : 'The Wanderer';
         const pRace = (player && player.race) ? player.race.toLowerCase() : 'mortal';
         const pClass = (player && player.class) ? player.class.toLowerCase() : 'warrior';
         const isTown = (depth === 0);
+
+        const isSpell = (attackMedium && attackMedium.type === 'spell') || (weapon && weapon.toLowerCase().includes('spell'));
+        const isRanged = (attackMedium && attackMedium.type === 'ranged') || (weapon && (weapon.toLowerCase().includes('bow') || weapon.toLowerCase().includes('arrow') || weapon.toLowerCase().includes('bolt') || weapon.toLowerCase().includes('sling') || weapon.toLowerCase().includes('crossbow')));
+        const isDevice = (attackMedium && attackMedium.type === 'device') || (weapon && (weapon.toLowerCase().includes('wand') || weapon.toLowerCase().includes('staff') || weapon.toLowerCase().includes('rod')));
+        const isSpellOrDevice = isSpell || isDevice;
 
         // Turn-based pseudo-random seed to guarantee rotational variety
         const turnSeed = Math.abs(((player && player.turn ? player.turn : 0) + (kills.length || 1) * 7)) % 12;
@@ -2021,140 +2332,303 @@ class ChronicleGrounder {
         // --- 1. TOWN CRIMES & INNOCENT CASUALTIES (DEPTH 0) ---
         if (isTown && isBeggar) {
             title = ['Grim Deed in the Gutter', 'Blood on the Cobblestones', 'The Beggar\'s Fall', 'Shadow Over the Alleys'][turnSeed % 4];
-            if (pRace.includes('half-orc')) {
+            if (isSpellOrDevice) {
+                prose = `A sudden flare of wild magic erupts from ${pName}'s fingers, searing into the tattered rags of the pleading beggar. The helpless wretch collapses into the muddy gutter as sparks hiss against damp cobblestones, leaving the alley thick with the stench of scorched cloth and a horrified, accusing silence.`;
+            } else if (pRace.includes('half-orc')) {
                 const halfOrcBeggarVariants = [
-                    `${pName}'s ${weapon} flashes without hesitation, slicing into the tattered rags. The dark, brutal strain of Morgoth-blood surges in ${pName}'s veins—a ruthless instinct honed in the slave-pits, where weakness is despised and every reaching hand is suspected of concealing a shiv. Yet as the wretch collapses lifeless into the muddy gutter, a cold prickle of paranoia settles upon the rogue: the Town Watch patrols these lanes with heavy arbalests, and a senseless slaughter leaves a trail that even alley hounds can follow.`,
+                    `${pName}'s ${weapon} flashes without hesitation, slicing into the tattered rags. The dark, brutal blood of the shadow-pits surges in ${pName}'s veins—a ruthless instinct honed in the slave-pits, where weakness is despised and every reaching hand is suspected of concealing a shiv. Yet as the wretch collapses lifeless into the muddy gutter, a cold prickle of paranoia settles upon the rogue: the Town Watch patrols these lanes with heavy arbalests, and a senseless slaughter leaves a trail that even alley hounds can follow.`,
                     `With feral, reflexive swiftness, ${pName}'s ${weapon} cuts down the pleading beggar upon the damp paving stones. Born of two worlds that both offer nothing but scorn, ${pName} struck from raw cutthroat calculus, permanently silencing the wretch's cries for coin. The frontier wind whips dust across the fresh crimson pool, leaving an ominous quiet where desperate pleas once hung.`,
                     `A single vicious thrust silences the beggar's whining pleas. ${pName} looks down at the crumpled heap with cold, narrow eyes: on the harsh streets, survival permits no softness, and beggars often double as eyes for the cutpurse guilds. Wiping ${weapon} on the victim's coat, ${pName} slips into the alley shadows.`,
-                    `The blade bites deep, and the beggar topples backward into a stack of empty crates with a wet gasp. ${pName}'s orcish blood relishes the cruel demonstration of force, yet mortal cunning whispers caution: corpses in town draw questions that gold cannot always answer.`
+                    `The blade bites deep, and the beggar topples backward into a stack of empty crates with a wet gasp. ${pName}'s pit-born blood relishes the cruel demonstration of force, yet mortal cunning whispers caution: corpses in town draw questions that gold cannot always answer.`
                 ];
                 prose = halfOrcBeggarVariants[turnSeed % halfOrcBeggarVariants.length];
             } else if (pRace.includes('elf')) {
-                prose = `A sickening sorrow clenches ${pName}'s chest as the ${weapon} strikes home. What darkness has overtaken an Eldar, to hew down a starving wretch whose only crime was hunger? The blood pools between the ancient flagstones, and the distant light of the stars seems veiled in mournful grief at so senseless and tragic a deed.`;
+                prose = `A sickening sorrow clenches ${pName}'s chest as the blow strikes home. What darkness has overtaken an Eldar, to hew down a starving wretch whose only crime was hunger? The blood pools between the ancient flagstones, and the distant light of the stars seems veiled in mournful grief at so senseless and tragic a deed.`;
             } else if (pRace.includes('dwarf')) {
-                prose = `The heavy iron strike ends the beggar's cries with a dull, hollow thud upon the stones. Dwarven steel was forged to shatter troll-bone and carve gold from the deep roots of the mountain, not to waste its honed edge on alley wretches. ${pName} cleans the blade in silence, weighed down by the grim dishonor brought upon clan and ancestors.`;
+                prose = `The heavy strike ends the beggar's cries with a dull, hollow thud upon the stones. Dwarven iron was forged to shatter troll-bone and carve gold from the deep roots of the mountain, not to waste its edge on alley wretches. ${pName} turns aside in silence, weighed down by the grim dishonor brought upon clan and ancestors.`;
             } else {
-                prose = `The ${weapon} strikes home in sudden, tragic haste, felling the pitiful beggar against the timber wall. In this lawless frontier borderland, where the shadow of Angband looms like a black cloud, mortal hearts grow cold all too easily. As the figure crumples motionless, a heavy remorse settles over ${pName}, realizing how swiftly fear and desperation can erode the soul.`;
+                prose = `The ${weapon} strikes home in sudden, tragic haste, felling the pitiful beggar against the timber wall. In this lawless frontier borderland, where the shadow of the deeps looms like a black cloud, mortal hearts grow cold all too easily. As the figure crumples motionless, a heavy remorse settles over ${pName}, realizing how swiftly fear and desperation can erode the soul.`;
             }
         } else if (isTown && isCatOrDog) {
             title = ['A Startled Strike in the Alley', 'Shadows of the Backstreets', 'Frayed Nerves in Town'][turnSeed % 3];
-            prose = `${pName}'s ${weapon} lashes out in a reflexive sweep, catching the alley beast as it darts from the garbage. With nerves stretched thin by the looming dread of the descent, every sudden scuttle in the gutter feels like an assassin's dagger. The creature crumples into the dust; ${pName} lowers the steel, breathing heavily amidst the tense silence of the backstreets.`;
+            prose = isSpellOrDevice
+                ? `A startled crackle of sorcery lashes out from ${pName}'s hand, catching the alley beast as it darts from the garbage. The stray crumples motionless; ${pName} lowers trembling hands amidst the tense silence of the backstreets.`
+                : `${pName}'s ${weapon} lashes out in a reflexive sweep, catching the alley beast as it darts from the garbage. With nerves stretched thin by the looming dread of the descent, every sudden scuttle in the gutter feels like an assassin's dagger. The creature crumples into the dust; ${pName} lowers the steel, breathing heavily amidst the tense silence of the backstreets.`;
         } else if (isTown && isIdiot) {
             title = ['Silence in the Street', 'An Ill Deed on the Stones', 'The Witless Slain', 'Tragedy in the Market'][turnSeed % 4];
             const idiotVariants = [
-                `The steel strikes home with decisive force, cutting short the foolish laughter upon the cobblestones. The town street falls into an uneasy, accusing silence. Even on the ragged edge of civilization, striking down the witless brings no honor—only the nervous twitching of window shutters and the creeping suspicion of the frontier folk.`,
-                `A sudden, brutal thrust ends the idiot's babbling in an instant. The body folds onto the wet cobblestones, and the surrounding townsfolk scatter in horrified silence. In the shadows of Angband, murder is common, but cold slaughter of the harmless marks the killer with an indelible taint.`,
-                `With swift, impatient cruelty, ${pName}'s ${weapon} cuts the fool down mid-caper. The silence that follows is thick and hostile. The tavern lights across the street seem suddenly dimmer, as if judging the unnecessary bloodshed.`,
-                `The witless victim collapses without understanding the blow that felled him. ${pName} sheathes ${weapon} with a grim grimace, acutely aware that such deeds do not go unnoticed by the unseen powers of the West.`
+                `The blow strikes home with decisive force, cutting short the foolish laughter upon the cobblestones. The town street falls into an uneasy, accusing silence. Even on the ragged edge of civilization, striking down the witless brings no honor—only the nervous twitching of window shutters and the creeping suspicion of the frontier folk.`,
+                `A sudden, brutal assault ends the idiot's babbling in an instant. The body folds onto the wet cobblestones, and the surrounding townsfolk scatter in horrified silence. In the shadows of the frontier, murder is common, but cold slaughter of the harmless marks the killer with an indelible taint.`,
+                `With swift, impatient cruelty, ${pName}'s strike cuts the fool down mid-caper. The silence that follows is thick and hostile. The tavern lights across the street seem suddenly dimmer, as if judging the unnecessary bloodshed.`,
+                `The witless victim collapses without understanding the blow that felled him. ${pName} looks down with a grim grimace, acutely aware that such deeds do not go unnoticed by the unseen powers of the world.`
             ];
             prose = idiotVariants[turnSeed % idiotVariants.length];
         } else if (isTown && isRogue) {
             title = ['Alley Justice', 'Steel in the Mist', 'The Cutpurse\'s Reckoning', 'Street Skirmish'][turnSeed % 4];
-            const rogueVariants = [
-                `Steel clangs sharply between the timber eaves! Reading the cutpurse's lunging feint, ${pName} pivots on the damp cobblestones and drives ${weapon} through the brigand's guard. The rogue collapses with a final curse, stolen coins spilling from his loosened grip into the mud. In the lawless frontier of Angband, street justice is swift: one less throat-slitter stalks the town alleys tonight.`,
-                `A desperate grapple in the alley shadows ends with a decisive counter-thrust. ${pName}'s ${weapon} finds its mark, ending the thief's ambush before poison could coat the blade. The frontier fog rolls over the fallen outlaw, restoring uneasy peace to the market approach.`,
-                `The thief's hidden dagger flashes in the lantern light, but ${pName} is quicker. A brutal sidestep and a sweeping stroke of ${weapon} drops the highwayman cold onto the paving stones. The alleys of the border town have claimed another predator.`,
-                `Catching the cutpurse's wrist in a vise-like grip, ${pName} runs him through before his accomplices can intervene. The rogue slumps against the wooden rain-barrel, his career of alley extortion brought to an abrupt and bloody close.`
-            ];
-            prose = rogueVariants[turnSeed % rogueVariants.length];
+            if (isSpellOrDevice) {
+                prose = `A blinding flash of sorcery illuminates the dark alley as ${pName} unleashes crackling energy straight into the lunging thief! The rogue is hurled backward against the timber wall, stolen copper coins spilling from charred fingers into the mud. Street justice is swift in the frontier: one less cutpurse stalks the town lanes.`;
+            } else if (isRanged) {
+                prose = `Drawing with blinding speed, ${pName} plants an arrow squarely through the highwayman's guard before the dagger could strike! The cutpurse collapses upon the wet paving stones, his ambush brought to an abrupt and fatal close.`;
+            } else {
+                const rogueVariants = [
+                    `Steel clangs sharply between the timber eaves! Reading the cutpurse's lunging feint, ${pName} pivots on the damp cobblestones and drives ${weapon} through the brigand's guard. The rogue collapses with a final curse, stolen coins spilling from his loosened grip into the mud. In the lawless frontier, street justice is swift: one less throat-slitter stalks the town alleys tonight.`,
+                    `A desperate grapple in the alley shadows ends with a decisive counter-thrust. ${pName}'s ${weapon} finds its mark, ending the thief's ambush before poison could coat the blade. The frontier fog rolls over the fallen outlaw, restoring uneasy peace to the market approach.`,
+                    `The thief's hidden dagger flashes in the lantern light, but ${pName} is quicker. A brutal sidestep and a sweeping stroke of ${weapon} drops the highwayman cold onto the paving stones. The alleys of the border town have claimed another predator.`,
+                    `Catching the cutpurse's wrist in a vise-like grip, ${pName} runs him through before his accomplices can intervene. The rogue slumps against the wooden rain-barrel, his career of alley extortion brought to an abrupt and bloody close.`
+                ];
+                prose = rogueVariants[turnSeed % rogueVariants.length];
+            }
         } else if (isTown && isTownsperson) {
             title = ['Brawl in the Marketplace', 'Blood on Frontier Timber', 'Violence in the Streets'][turnSeed % 3];
-            prose = `The conflict turns bloody in the open street as ${pName}'s ${weapon} finds its mark. The victim crumples against a stack of crates, and the murmur of the town market dies into terrified whispers. Striking down the frontier folk invites doom; ${pName} glances toward the shadowy arches, knowing the town watch will not easily forget this day.`;
+            prose = `The conflict turns bloody in the open street as ${pName}'s assault finds its mark. The victim crumples against a stack of crates, and the murmur of the town market dies into terrified whispers. Striking down the frontier folk invites doom; ${pName} glances toward the shadowy arches, knowing the town watch will not easily forget this day.`;
         }
         // --- 2. SUBTERRANEAN DUNGEON COMBAT (DEPTH > 0) ---
         else if (fleeingMonster && kills.length === 1) {
-            title = ['Flight Cut Short', 'No Escape in the Dark', 'The Craven Felled', 'Pursuit in the Deep'][turnSeed % 4];
             const cleanFlee = ChronicleGrounder.extractSlainMonsterName(fleeingMonster);
-            const fleeKillVariants = [
-                `Pursuing the panicked ${cleanFlee}, ${pName}'s ${weapon} strikes true from behind! The craven creature crumples in mid-stride, its desperate flight cut short upon the dark stones.`,
-                `Closing the distance before the ${cleanFlee} could slip down the dark corridor, ${pName} delivers a decisive finishing stroke, felling the fleeing foe upon the flagstones!`,
-                `Blind terror offered the ${cleanFlee} no sanctuary: ${pName} overtakes the retreating assailant, cutting it down with a swift strike of ${weapon}.`,
-                `The corridor falls into silence as ${pName}'s ${weapon} ends the flight of the ${cleanFlee}. The subterranean passages echo no further cries.`
-            ];
-            prose = fleeKillVariants[turnSeed % fleeKillVariants.length];
+            if (isSpellOrDevice) {
+                title = ['Spellflight Cut Short', 'Arcane Ruin', 'The Searing Word', 'No Sanctuary in Magic'][turnSeed % 4];
+                const fleeSpellVariants = [
+                    `Pursuing the panicked ${cleanFlee}, ${pName} releases a searing lance of magic! The blast overtakes the craven creature in mid-stride, engulfing it in crackling sparks upon the dark stone.`,
+                    `Closing distance before the ${cleanFlee} could round the corridor, ${pName} speaks a syllable of power—a dazzling burst of spellfire blasts the fleeing foe into ash upon the flagstones!`,
+                    `Blind panic offered the ${cleanFlee} no sanctuary: ${pName}'s arc of sorcery strikes true from behind, dropping the coward motionless onto the dungeon floor.`,
+                    `The corridor flares with azure flame as ${pName}'s spell ends the flight of the ${cleanFlee}. The subterranean vault falls into smoking silence.`
+                ];
+                prose = fleeSpellVariants[turnSeed % fleeSpellVariants.length];
+            } else if (isRanged) {
+                title = ['Arrow from the Gloom', 'Flight Cut Short', 'The Silent Shaft', 'Pursuit with Bow'][turnSeed % 4];
+                const fleeRangedVariants = [
+                    `Pursuing the panicked ${cleanFlee}, ${pName} looses a silent shaft from the shadows! The missile strikes true between the shoulder blades, cutting its flight short upon the dark stones.`,
+                    `Drawing the bowstring with practiced ease, ${pName} pins the fleeing ${cleanFlee} to the corridor floor before it can reach the dark alcoves!`,
+                    `A single, lethal shot whistles through the gloom: the fleeing ${cleanFlee} topples forward, felled in mid-stride upon the flagstones.`
+                ];
+                prose = fleeRangedVariants[turnSeed % fleeRangedVariants.length];
+            } else {
+                title = ['Flight Cut Short', 'No Escape in the Dark', 'The Craven Felled', 'Pursuit in the Deep'][turnSeed % 4];
+                const fleeKillVariants = [
+                    `Pursuing the panicked ${cleanFlee}, ${pName}'s ${weapon} strikes true from behind! The craven creature crumples in mid-stride, its desperate flight cut short upon the dark stones.`,
+                    `Closing the distance before the ${cleanFlee} could slip down the dark corridor, ${pName} delivers a decisive finishing stroke, felling the fleeing foe upon the flagstones!`,
+                    `Blind terror offered the ${cleanFlee} no sanctuary: ${pName} overtakes the retreating assailant, cutting it down with a swift strike of ${weapon}.`,
+                    `The corridor falls into silence as ${pName}'s ${weapon} ends the flight of the ${cleanFlee}. The subterranean passages echo no further cries.`
+                ];
+                prose = fleeKillVariants[turnSeed % fleeKillVariants.length];
+            }
         } else if (isKobold) {
-            title = ['Bane of the Warrens', 'The Scavenger Silenced', 'The Small Knife Broken', 'Cleansing the Burrows'][turnSeed % 4];
-            const koboldVariants = [
-                `A swift, punishing strike of ${weapon} cuts down the screeching small kobold! The wretched creature topples across its crude notch-bladed knife, silencing its snarls upon the stone.`,
-                `Catching the small kobold as it recoils, ${pName}'s ${weapon} pierces cleanly through. The subterranean scavenger collapses lifeless into the dust, leaving the dark passage clear.`,
-                `With decisive speed, ${pName} hews down the small kobold before it can loose another crude dart or scamper into the alcoves. The immediate threat is neutralized.`,
-                `The small kobold's wild jab glances harmlessly off guard; ${pName} counters with lethal finality, felling the subterranean craven upon the cold rock.`
-            ];
-            prose = koboldVariants[turnSeed % koboldVariants.length];
+            if (isSpellOrDevice) {
+                title = ['Eldritch Purge', 'The Burrow Scoured', 'Spellfire in the Warrens', 'Ashes of the Craven'][turnSeed % 4];
+                const koboldSpellVariants = [
+                    `A crackling burst of spellfire incinerates the screeching small kobold! The searing energy blasts its crude knife to molten scrap, silencing its snarls upon the stone.`,
+                    `Summoning a spark of elemental fire, ${pName} engulfs the darting kobold. The wretched scavenger crumples into a smoking cinder on the dungeon floor.`,
+                    `A blinding shockwave of mystical force blasts the small kobold backward against the stone wall, extinguishing its malice in an instant.`,
+                    `Whispering a swift cantrip, ${pName} strikes the subterranean scavenger down with a bolt of crackling energy before it can loose another crude dart.`
+                ];
+                prose = koboldSpellVariants[turnSeed % koboldSpellVariants.length];
+            } else if (isRanged) {
+                title = ['The Pierced Scavenger', 'Silent Arrow in the Dark', 'Warren Sniper Felled', 'Shaft Through the Gloom'][turnSeed % 4];
+                const koboldRangedVariants = [
+                    `A swift, whistling arrow pierces the small kobold through before it can retreat into its burrow! The creature falls limp across its crude dagger.`,
+                    `Loosing a missile with pinpoint accuracy, ${pName} drops the screeching small kobold in mid-step upon the dark rock.`,
+                    `A single well-aimed shot cuts through the torchlit mist, pinning the small kobold cold against the cavern wall.`
+                ];
+                prose = koboldRangedVariants[turnSeed % koboldRangedVariants.length];
+            } else {
+                title = ['Bane of the Warrens', 'The Scavenger Silenced', 'The Small Knife Broken', 'Cleansing the Burrows'][turnSeed % 4];
+                const koboldVariants = [
+                    `A swift, punishing strike of ${weapon} cuts down the screeching small kobold! The wretched creature topples across its crude notch-bladed knife, silencing its snarls upon the stone.`,
+                    `Catching the small kobold as it recoils, ${pName}'s ${weapon} pierces cleanly through. The subterranean scavenger collapses lifeless into the dust, leaving the dark passage clear.`,
+                    `With decisive speed, ${pName} hews down the small kobold before it can loose another crude dart or scamper into the alcoves. The immediate threat is neutralized.`,
+                    `The small kobold's wild jab glances harmlessly off guard; ${pName} counters with lethal finality, felling the subterranean craven upon the cold rock.`
+                ];
+                prose = koboldVariants[turnSeed % koboldVariants.length];
+            }
         } else if (isJelly) {
-            title = ['Quivering Protoplasm Pierced', 'The Ooze Dissolved', 'Acidic Remnants', 'Clean Cut Through Slime'][turnSeed % 4];
             const cleanJelly = ChronicleGrounder.extractSlainMonsterName(kills[0]);
-            const jellyVariants = [
-                `A shearing stroke of ${weapon} cleaves through the quivering protoplasm of the ${cleanJelly}! The acidic mass dissolves with a violent hiss, spattering inert slime across the dungeon floor.`,
-                `Ducking back from the corrosive stench, ${pName} brings ${weapon} down with slicing force. The gelatinous ${cleanJelly} bursts apart, liquefying harmlessly into the cracks of the stone.`,
-                `With measured strikes, ${pName} destroys the ${cleanJelly} before its stinging touch can corrode armor or burn flesh. The noxious organism is reduced to smoking residue.`,
-                `The pulsating ${cleanJelly} quivers under the onslaught of ${weapon}, rupturing and collapsing into a lifeless puddle of steaming subterranean goo.`
-            ];
-            prose = jellyVariants[turnSeed % jellyVariants.length];
+            if (isSpellOrDevice) {
+                title = ['Elemental Dissolution', 'Protoplasm Boiled', 'Arcane Evaporation', 'The Slime Purged'][turnSeed % 4];
+                const jellySpellVariants = [
+                    `A scorching wave of spellfire strikes the quivering protoplasm of the ${cleanJelly}! The acidic mass boils furiously, evaporating into harmless vapor and leaving only charred moisture on the stone.`,
+                    `Focusing elemental heat, ${pName} incinerates the gelatinous ${cleanJelly} before its acidic slime can touch boots or mail. The creature is reduced to smoking residue.`,
+                    `A brilliant lance of mystical light pierces the ${cleanJelly}, rupturing its acidic core and dissolving the organism into steaming puddles.`,
+                    `Arcane energy crackles through the pulsating ${cleanJelly}, boiling its noxious tissue until nothing remains but scorched bedrock.`
+                ];
+                prose = jellySpellVariants[turnSeed % jellySpellVariants.length];
+            } else {
+                title = ['Quivering Protoplasm Pierced', 'The Ooze Dissolved', 'Acidic Remnants', 'Clean Cut Through Slime'][turnSeed % 4];
+                const jellyVariants = [
+                    `A shearing stroke of ${weapon} cleaves through the quivering protoplasm of the ${cleanJelly}! The acidic mass dissolves with a violent hiss, spattering inert slime across the dungeon floor.`,
+                    `Ducking back from the corrosive stench, ${pName} brings ${weapon} down with slicing force. The gelatinous ${cleanJelly} bursts apart, liquefying harmlessly into the cracks of the stone.`,
+                    `With measured strikes, ${pName} destroys the ${cleanJelly} before its stinging touch can corrode armor or burn flesh. The noxious organism is reduced to smoking residue.`,
+                    `The pulsating ${cleanJelly} quivers under the onslaught of ${weapon}, rupturing and collapsing into a lifeless puddle of steaming subterranean goo.`
+                ];
+                prose = jellyVariants[turnSeed % jellyVariants.length];
+            }
         } else if (isOrc) {
-            title = ['Bane of the Orc-Kin', 'Black Blood on Cold Stone', 'The Ancient Feud', 'Heir of the First Age', 'Cleansing the Defilers', 'Iron Against Scimitar'][turnSeed % 6];
-            const orcVariants = [
-                `Ancestral wrath guides the strike! ${pName}'s ${weapon} cleaves through crude boiled leather and gnawed bone, hewing down the foul orc in a spray of thick, hissing black blood. The ancient feud of the Elder Days burns hot in this corridor; Morgoth's defilers will find no quarter in these halls.`,
-                `With seasoned combat instinct, ${pName} parries the notched scimitar and drives ${weapon} straight into the orc's throat. The creature collapses against the damp shale with a choking rattle, leaving the dark passage reeking of sulfur and dead malice.`,
-                `Slipping beneath a clumsy overhand chop, ${pName} steps inside the orc's guard. The ${weapon} sinks deep beneath the crude breastplate with brutal efficiency. As the brute thuds heavily onto the flagstones, ${pName} wrenches the blade free, scanning the corridor for more of the pack.`,
-                `Funneling the screeching orc into the narrow archway, ${pName} denies the beast room to swing its rusted cleaver. A disciplined, bone-shattering thrust punches through mail and sinew, dropping the defiler cold into the dust before its guttural war-cry could echo.`,
-                `The clash of steel rings harsh against the ancient masonry! Sidestepping the orc's vicious lunge, ${pName} delivers a crushing counter-blow that snaps the creature's guard and sends it sprawling lifeless across the blood-slicked stones.`,
-                `With cold, merciless focus, ${pName}'s ${weapon} flashes through the torchlit gloom, severing the orc's advance in mid-stride. Black ichor spatters the wall as the foul minion of the Iron Hell crumples into an unmoving heap.`
-            ];
-            prose = orcVariants[turnSeed % orcVariants.length];
+            if (isSpellOrDevice) {
+                title = ['Arcane Conflagration', 'Sorcery in the Gloom', 'The Cleansing Flame', 'Bane of the Defilers', 'Wrath of the Unseen', 'Ash and Brimstone'][turnSeed % 6];
+                const orcSpellVariants = [
+                    `Ancestral magic surges through ${pName}'s fingertips! A searing bolt of arcane fire strikes the foul orc square in the breastplate, blasting through crude iron and flesh in a violent shower of sparks. The defiler collapses into a smoking heap of ash upon the flagstones.`,
+                    `Whispering words of ancient power, ${pName} unleashes a crackling lance of lightning. The bolt sears through the orc's guard, shattering its notched scimitar and tumbling the creature lifeless across the stone.`,
+                    `A blinding flash of mystical force erupts in the narrow corridor! The orc screeches as the radiant shockwave lifts it off its feet and dashes it against the ancient granite, extinguishing its malice forever.`,
+                    `Summoning raw elemental force, ${pName} incinerates the charging orc before its rusted cleaver can fall. The stench of burnt brimstone lingers in the damp air as the brute crumbles to cinder.`,
+                    `A radiant lance of pure light pierces the gloom! The dark minion howls in agony as the brilliance sears through its black heart, felling the defiler instantly upon the shale.`,
+                    `Channeling the deep secrets of the unseen, ${pName} blasts the advancing orc into oblivion with a thunderous detonation of spellfire that rattles dust from the vaulted roof.`
+                ];
+                prose = orcSpellVariants[turnSeed % orcSpellVariants.length];
+            } else if (isRanged) {
+                title = ['The Deadly Shaft', 'Marksmanship in the Dark', 'Iron Arrow Through Mail', 'The Pierced Foe', 'Bowstring in the Deep', 'Sniper of the Abyss'][turnSeed % 6];
+                const orcRangedVariants = [
+                    `The bowstring hums with fatal music! Pierced cleanly through the neck by ${pName}'s missile, the foul orc topples forward with a wet choke, its crude blade clattering harmlessly to the ground.`,
+                    `Drawing the shaft to full tension, ${pName} releases into the torchlit mist. The arrow punches through crude boiled leather, dropping the snarling defiler in its tracks.`,
+                    `A masterclass of ranged precision: ${pName} catches the charging orc mid-stride, planting a heavy iron quarrel straight through its helmet visor.`,
+                    `From the shadowy corridor, ${pName} looses a silent arrow that takes the orc between the ribs, sending it sprawling cold across the blood-slicked stones.`,
+                    `The orc's war-cry is cut short as a whistling missile strikes true, pinning its arm to its side and driving into its vitals. The brute crashes lifeless into the dust.`,
+                    `With lethal marksmanship, ${pName} neutralizes the advancing orc at distance, leaving its crude scimitar to clatter uselessly on the dark floor.`
+                ];
+                prose = orcRangedVariants[turnSeed % orcRangedVariants.length];
+            } else {
+                title = ['Bane of the Orc-Kin', 'Black Blood on Cold Stone', 'The Ancient Feud', 'Heir of the First Age', 'Cleansing the Defilers', 'Iron Against Scimitar'][turnSeed % 6];
+                const orcVariants = [
+                    `Ancestral wrath guides the strike! ${pName}'s ${weapon} cleaves through crude boiled leather and gnawed bone, hewing down the foul orc in a spray of thick, hissing black blood. The ancient feud burns hot in this corridor; the Shadow's defilers will find no quarter in these halls.`,
+                    `With seasoned combat instinct, ${pName} parries the notched scimitar and drives ${weapon} straight into the orc's throat. The creature collapses against the damp shale with a choking rattle, leaving the dark passage reeking of sulfur and dead malice.`,
+                    `Slipping beneath a clumsy overhand chop, ${pName} steps inside the orc's guard. The ${weapon} sinks deep beneath the crude breastplate with brutal efficiency. As the brute thuds heavily onto the flagstones, ${pName} wrenches the blade free, scanning the corridor for more of the pack.`,
+                    `Funneling the screeching orc into the narrow archway, ${pName} denies the beast room to swing its rusted cleaver. A disciplined, bone-shattering thrust punches through mail and sinew, dropping the defiler cold into the dust before its guttural war-cry could echo.`,
+                    `The clash of steel rings harsh against the ancient masonry! Sidestepping the orc's vicious lunge, ${pName} delivers a crushing counter-blow that snaps the creature's guard and sends it sprawling lifeless across the blood-slicked stones.`,
+                    `With cold, merciless focus, ${pName}'s ${weapon} flashes through the torchlit gloom, severing the orc's advance in mid-stride. Black ichor spatters the wall as the foul minion of the ancient deeps crumples into an unmoving heap.`
+                ];
+                prose = orcVariants[turnSeed % orcVariants.length];
+            }
         } else if (isVermin) {
-            title = ['Chitin on the Shale', 'The Crawlers Cleansed', 'Venom Averted', 'Shadows of the Web'][turnSeed % 4];
-            const verminVariants = [
-                `With cold revulsion, ${pName} crushes the venomous creeper beneath a vicious strike of ${weapon}. Chitin shatters against the subterranean floor, spattering foul ichor across the cracked flags. Kicking the twitching carcass into the gloom, ${pName} checks boots and greaves, ensuring no lingering venom breached the armor.`,
-                `A sickening crunch echoes through the passage as ${pName}'s ${weapon} smashes into the skittering horror. The creature's jagged mandibles snap convulsively in empty air before curling motionless upon the damp rock.`,
-                `Anticipating the sudden venomous lunge, ${pName} sidesteps and brings ${weapon} down with shearing force. The skittering monstrosity is split from carapace to stinger, neutralizing the venomous threat in an instant.`,
-                `Darting fangs scrape harmlessly against greaves as ${pName} steps forward with grim finality, grinding the subterranean creeper into the dust with a decisive, heavy blow.`
-            ];
-            prose = verminVariants[turnSeed % verminVariants.length];
+            if (isSpellOrDevice) {
+                title = ['Incinerated Chitin', 'The Skitterers Purged', 'Arcane Cleansing', 'Scoured by Flame'][turnSeed % 4];
+                const verminSpellVariants = [
+                    `A blazing bolt of mystic force strikes the venomous creeper square on its carapace! Chitin shatters into smoking embers as arcane fire incinerates fangs and venom sacs in a flash of bright light.`,
+                    `With a crack of elemental power, ${pName} blasts the skittering monstrosity into scorched fragments, leaving the dungeon passage smelling of burnt sulfur.`,
+                    `A burst of searing energy sweeps the floor, cooking the venomous creeper in its shell before it can lunge at greave or boot.`,
+                    `Mystic energy courses through the creature's dark limbs, paralyzing and disintegrating the skittering horror upon the cold shale.`
+                ];
+                prose = verminSpellVariants[turnSeed % verminSpellVariants.length];
+            } else {
+                title = ['Chitin on the Shale', 'The Crawlers Cleansed', 'Venom Averted', 'Shadows of the Web'][turnSeed % 4];
+                const verminVariants = [
+                    `With cold revulsion, ${pName} crushes the venomous creeper beneath a vicious strike of ${weapon}. Chitin shatters against the subterranean floor, spattering foul ichor across the cracked flags. Kicking the twitching carcass into the gloom, ${pName} checks boots and greaves, ensuring no lingering venom breached the armor.`,
+                    `A sickening crunch echoes through the passage as ${pName}'s ${weapon} smashes into the skittering horror. The creature's jagged mandibles snap convulsively in empty air before curling motionless upon the damp rock.`,
+                    `Anticipating the sudden venomous lunge, ${pName} sidesteps and brings ${weapon} down with shearing force. The skittering monstrosity is split from carapace to stinger, neutralizing the venomous threat in an instant.`,
+                    `Darting fangs scrape harmlessly against greaves as ${pName} steps forward with grim finality, grinding the subterranean creeper into the dust with a decisive, heavy blow.`
+                ];
+                prose = verminVariants[turnSeed % verminVariants.length];
+            }
         } else if (isUndead) {
-            title = ['Banishment of the Grave-Chill', 'Peace to the Desecrated', 'Rest for the Fallen', 'Light in the Crypt'][turnSeed % 4];
-            const undeadVariants = [
-                `The sepulchral chill recedes as ${pName}'s blow shatters the dark necromancy binding the restless remains. Bone and brittle armor collapse into harmless dust upon the stones. Whispering an ancient ward of peace, ${pName} turns aside from the scattered fragments, hoping the tortured spirit finally passes beyond the shadows of the Iron Hell.`,
-                `With righteous fervor, ${pName}'s ${weapon} strikes straight through the hollow ribcage of the abomination. The malignant blue fire flickering in its sunken eye-sockets dies with an eerie wail, leaving only ancient, brittle dust upon the cold flagstones.`,
-                `As the desiccated claws reach out to drain mortal warmth, ${pName} cleaves through the withered sinew. The unholy ward collapses in an instant, liberating the long-imprisoned spirit from Morgoth's cruel thralldom.`,
-                `A burst of shattered bone and rusted mail rings out against the chamber walls! The walking curse is laid low at last, and the freezing grave-chill that hung in the corridor begins slowly to thaw.`
-            ];
-            prose = undeadVariants[turnSeed % undeadVariants.length];
+            if (isSpellOrDevice) {
+                title = ['Radiant Banishment', 'The Holy Flare', 'Purified in Light', 'Dissolution of the Grave-Chill'][turnSeed % 4];
+                const undeadSpellVariants = [
+                    `A brilliant sphere of sacred light detonates against the restless remains! The dark necromancy binding the desiccated frame shatters instantly; holy fire consumes the unholy abomination, leaving only blessed stillness and purified dust upon the flagstones.`,
+                    `Channeling the radiance of the celestial heights, ${pName} bathes the crypt in incandescent glow. The walking curse dissolves with an ethereal shriek, liberated at last from the eternal shadow.`,
+                    `A searing beam of holy energy pierces the freezing gloom! The blue corpse-fire in its hollow eye-sockets is snuffed out by pure luminescence, turning dry bones into harmless ash.`,
+                    `Speaking words of ancient benediction, ${pName} unleashes a wave of purifying warmth that thaws the grave-chill and banishes the restless shade forever.`
+                ];
+                prose = undeadSpellVariants[turnSeed % undeadSpellVariants.length];
+            } else {
+                title = ['Banishment of the Grave-Chill', 'Peace to the Desecrated', 'Rest for the Fallen', 'Light in the Crypt'][turnSeed % 4];
+                const undeadVariants = [
+                    `The sepulchral chill recedes as ${pName}'s blow shatters the dark necromancy binding the restless remains. Bone and brittle armor collapse into harmless dust upon the stones. Whispering an ancient ward of peace, ${pName} turns aside from the scattered fragments, hoping the tortured spirit finally passes beyond the eternal shadows.`,
+                    `With righteous fervor, ${pName}'s ${weapon} strikes straight through the hollow ribcage of the abomination. The malignant blue fire flickering in its sunken eye-sockets dies with an eerie wail, leaving only ancient, brittle dust upon the cold flagstones.`,
+                    `As the desiccated claws reach out to drain mortal warmth, ${pName} cleaves through the withered sinew. The unholy ward collapses in an instant, liberating the long-imprisoned spirit from the Enemy's cruel thralldom.`,
+                    `A burst of shattered bone and rusted mail rings out against the chamber walls! The walking curse is laid low at last, and the freezing grave-chill that hung in the corridor begins slowly to thaw.`
+                ];
+                prose = undeadVariants[turnSeed % undeadVariants.length];
+            }
         } else if (isTroll) {
-            title = ['The Colossus Falls', 'Shattered Stone-Hide', 'Triumph Over the Brute', 'The Mountain Cleansed'][turnSeed % 4];
-            const trollVariants = [
-                `A titanic clash resounds through the vault as ${pName}'s decisive blow penetrates the troll's petrified flesh! The hulking brute crashes to earth with a thud that rattles dust from the ancient ceiling, its massive stone club rolling harmlessly into the dark.`,
-                `Dancing outside the reach of the monster's lumbering fists, ${pName} drives ${weapon} deep behind the creature's thick knee-joint. As the giant stumbles with a roaring curse, a follow-through strike severs the thick neck, felling the subterranean terror once and for all.`,
-                `The stone-tough hide shudders under ${pName}'s punishing assault. With an earsplitting roar that shakes the subterranean foundations, the beast topples like an ancient monument felled by lightning, cracking the flagstones beneath its immense bulk.`,
-                `Patience and steel outmatch brute savagery: ducking beneath a tree-trunk club swing that shatters a stone pillar, ${pName} counters with lethal precision, burying the blade to the hilt in the brute's chest.`
-            ];
-            prose = trollVariants[turnSeed % trollVariants.length];
+            if (isSpellOrDevice) {
+                title = ['The Colossus Dissolved', 'Thunderous Spellstrike', 'Stone-Hide Shattered', 'Raw Arcane Might'][turnSeed % 4];
+                const trollSpellVariants = [
+                    `Channeling a concentrated torrent of mystical energy, ${pName} unleashes a devastating beam that pierces through the troll's petrified flesh! The towering brute roars in agony as magical resonance shatters its stone-like hide, tumbling the immense beast lifeless to the earth.`,
+                    `Superheated arcane fire engulfs the massive colossus! The creature's regenerative flesh blazes out of control; with an earth-shaking bellow that shakes dust from the ceiling arches, the brute crashes into the stone.`,
+                    `A thunderous detonation of sorcery blasts through the giant's club and chest alike! The monster stumbles backward on shattered legs, crashing down like a felled oak upon the dungeon floor.`,
+                    `Weaving an intricate spell of destruction, ${pName} directs a lance of crackling force straight through the brute's armored skull, felling the subterranean terror once and for all.`
+                ];
+                prose = trollSpellVariants[turnSeed % trollSpellVariants.length];
+            } else {
+                title = ['The Colossus Falls', 'Shattered Stone-Hide', 'Triumph Over the Brute', 'The Mountain Cleansed'][turnSeed % 4];
+                const trollVariants = [
+                    `A titanic clash resounds through the vault as ${pName}'s decisive blow penetrates the troll's petrified flesh! The hulking brute crashes to earth with a thud that rattles dust from the ancient ceiling, its massive stone club rolling harmlessly into the dark.`,
+                    `Dancing outside the reach of the monster's lumbering fists, ${pName} drives ${weapon} deep behind the creature's thick knee-joint. As the giant stumbles with a roaring curse, a follow-through strike severs the thick neck, felling the subterranean terror once and for all.`,
+                    `The stone-tough hide shudders under ${pName}'s punishing assault. With an earsplitting roar that shakes the subterranean foundations, the beast topples like an ancient monument felled by lightning, cracking the flagstones beneath its immense bulk.`,
+                    `Patience and steel outmatch brute savagery: ducking beneath a tree-trunk club swing that shatters a stone pillar, ${pName} counters with lethal precision, burying the blade to the hilt in the brute's chest.`
+                ];
+                prose = trollVariants[turnSeed % trollVariants.length];
+            }
         } else if (isDragon) {
-            title = ['The Smoldering Wyrm', 'Scale and Fire', 'Echo of the Dragon-Slayers'][turnSeed % 3];
-            prose = `Through searing heat and blinding sulfur smoke, ${pName} drives ${weapon} into the soft underbelly between the wyrm's gleaming scales. A shriek of draconic agony echoes down the deeps as the beast thrashes in death-spasms, its dying flames casting long, trembling shadows across the vault.`;
+            if (isSpellOrDevice) {
+                title = ['Wrath Against the Wyrm', 'Draconic Ruin', 'The Master\'s Spell'][turnSeed % 3];
+                prose = `Through searing heat and blinding sulfur smoke, ${pName} channels an overpowering spear of pure sorcery straight through the wyrm's defenses! The blast detonates against the beast's armored heart, bringing the ancient terror crashing down in a cloud of glowing embers and dying flame.`;
+            } else {
+                title = ['The Smoldering Wyrm', 'Scale and Fire', 'Echo of the Dragon-Slayers'][turnSeed % 3];
+                prose = `Through searing heat and blinding sulfur smoke, ${pName} drives ${weapon} into the soft underbelly between the wyrm's gleaming scales. A shriek of draconic agony echoes down the deeps as the beast thrashes in death-spasms, its dying flames casting long, trembling shadows across the vault.`;
+            }
         }
         // --- 3. GENERAL COMBAT & ROUTINE FLURRIES ---
         else {
             const numSlain = kills.length || 1;
-            title = (numSlain > 1) ? ['Flurry of Decisive Steel', 'The Red Toll', 'Carving a Path', 'The Hall of the Fallen'][turnSeed % 4] : ['Clash in the Shadows', 'Steel and Resolve', 'A Peril Neutralized', 'The Silent Corridor'][turnSeed % 4];
-            if (numSlain > 1) {
-                const multiVariants = [
-                    `Steel flashes in the shadows as ${pName} fells multiple foes in a desperate, fluid flurry of blows. The corridor falls quiet once more, save for the heavy rhythm of breathing and the drip of black blood from drawn steel.`,
-                    `Surrounded by snapping teeth and notched blades, ${pName} turns in a ferocious circle of flashing steel. In three rapid, breathtaking strokes, the assailants are laid low, leaving the vault floor strewn with the fallen.`,
-                    `A masterclass of dungeon survival: utilizing the doorway to face the onslaught one at a time, ${pName} methodically dismantles the attacking pack, cutting them down until silence returns to the masonry.`,
-                    `The skirmish is swift and bloody. Before the enemy could close their perimeter, ${pName}'s ${weapon} reaps through the front rank, scattering the rest into panicked retreat and unmoving corpses.`
-                ];
-                prose = multiVariants[turnSeed % multiVariants.length];
+            if (isSpellOrDevice) {
+                title = (numSlain > 1) ? ['Arcane Conflagration', 'Storm of Spellfire', 'The Weave Unleashed', 'Ashes in the Corridor'][turnSeed % 4] : ['Arcane Mastery', 'The Mystic Toll', 'Sorcerous Strike', 'Power of the Unseen'][turnSeed % 4];
+                if (numSlain > 1) {
+                    const multiSpellVariants = [
+                        `A devastating detonation of spellfire illuminates the subterranean vault! The cascading shockwave rips through the enemy ranks, blasting ${kills.length} foes off their feet and leaving only smoking ruins upon the flagstones.`,
+                        `Summoning a tempest of arcane power, ${pName} sweeps the corridor with blazing elemental energy. In three dazzling bursts of light, ${kills.length} assailants are incinerated upon the stone.`,
+                        `Cascading sheets of magical force scour the doorway! The advancing pack is obliterated before they can cross the threshold, their ashes scattering in the subterranean draft.`,
+                        `Raw sorcerous might detonates among the enemy! The blast tears through the front ranks, destroying ${kills.length} foes and restoring silence to the masonry.`
+                    ];
+                    prose = multiSpellVariants[turnSeed % multiSpellVariants.length];
+                } else {
+                    const killText = kills[0] || 'A foe fell.';
+                    const cleanKill = ChronicleGrounder.extractSlainMonsterName(killText);
+                    const singleSpellVariants = [
+                        `A precision bolt of arcane power strikes the ${cleanKill} dead in its tracks! The mystical detonation echoes down the corridors as the foe collapses into a smoking heap upon the stones.`,
+                        `With an authoritative word of power, ${pName} unleashes a searing lance of magic that pierces straight through the ${cleanKill}'s guard, felling the threat in a brilliant flare of light.`,
+                        `Arcane fire engulfs the ${cleanKill} as ${pName}'s incantation strikes home. The creature crumbles lifeless to the floor, leaving the air rich with the scent of ozone.`,
+                        `Summoning the hidden energies of the deep, ${pName} blasts the ${cleanKill} into stillness with a devastating release of sorcerous force.`
+                    ];
+                    prose = singleSpellVariants[turnSeed % singleSpellVariants.length];
+                }
+            } else if (isRanged) {
+                title = (numSlain > 1) ? ['Flurry of Deadly Arrows', 'Hail of Shafts', 'The Quiver\'s Toll', 'Archery in the Vault'][turnSeed % 4] : ['The Deadly Shaft', 'Silent Arrow in the Dark', 'Marksmanship in the Deep', 'A Shot True'][turnSeed % 4];
+                if (numSlain > 1) {
+                    const multiRangedVariants = [
+                        `With rapid, breathless archery, ${pName} looses a flurry of deadly arrows into the oncoming rush. Shafts strike home with uncanny accuracy, felling ${kills.length} foes before they can close the distance.`,
+                        `Bowstring singing in rapid succession, ${pName} picks off ${kills.length} assailants from the dark. Each shot drops a foe cold upon the flagstones, breaking the enemy advance.`,
+                        `A hail of iron-tipped missiles reaps through the attacking pack. Caught in the open corridor, ${kills.length} foes collapse pierced upon the floor.`
+                    ];
+                    prose = multiRangedVariants[turnSeed % multiRangedVariants.length];
+                } else {
+                    const killText = kills[0] || 'A foe fell.';
+                    const cleanKill = ChronicleGrounder.extractSlainMonsterName(killText);
+                    const singleRangedVariants = [
+                        `A well-aimed missile whistles from the gloom, striking the ${cleanKill} dead in its tracks! The creature crashes to the flagstones with the shaft buried deep.`,
+                        `With steady hands, ${pName} looses a silent arrow that pierces the ${cleanKill}'s vitals. The foe folds lifeless to the ground before it can take another step.`,
+                        `The bowstring hums softly in the shadows: the ${cleanKill} drops motionless onto the damp rock, neutralized by lethal marksmanship from afar.`
+                    ];
+                    prose = singleRangedVariants[turnSeed % singleRangedVariants.length];
+                }
             } else {
-                const killText = kills[0] || 'A foe fell.';
-                const cleanKill = ChronicleGrounder.extractSlainMonsterName(killText);
-                const singleVariants = [
-                    `${pName}'s ${weapon} strikes true with decisive, bone-jarring momentum, felling the ${cleanKill}! The immediate threat neutralized, ${pName} pauses to catch breath, eyes sweeping the surrounding gloom for flanking ambushes.`,
-                    `A swift, deadly counter-stroke ends the skirmish! Slashing through the guard of the ${cleanKill}, ${pName} steps over the fallen body, listening intently to the distant echoes of the corridors ahead.`,
-                    `Reading the approach of the ${cleanKill} in the flickering torchlight, ${pName} sidesteps and delivers a single, fatal blow. The dark passage falls silent once more.`,
-                    `With calm, surgical lethality, ${pName} drives ${weapon} through the ${cleanKill}'s guard. Wiping the blade clean, the adventurer resumes the perilous descent.`
-                ];
-                prose = singleVariants[turnSeed % singleVariants.length];
+                title = (numSlain > 1) ? ['Flurry of Decisive Steel', 'The Red Toll', 'Carving a Path', 'The Hall of the Fallen'][turnSeed % 4] : ['Clash in the Shadows', 'Steel and Resolve', 'A Peril Neutralized', 'The Silent Corridor'][turnSeed % 4];
+                if (numSlain > 1) {
+                    const multiVariants = [
+                        `Steel flashes in the shadows as ${pName} fells multiple foes in a desperate, fluid flurry of blows. The corridor falls quiet once more, save for the heavy rhythm of breathing and the drip of black blood from drawn steel.`,
+                        `Surrounded by snapping teeth and notched blades, ${pName} turns in a ferocious circle of flashing steel. In three rapid, breathtaking strokes, the assailants are laid low, leaving the vault floor strewn with the fallen.`,
+                        `A masterclass of dungeon survival: utilizing the doorway to face the onslaught one at a time, ${pName} methodically dismantles the attacking pack, cutting them down until silence returns to the masonry.`,
+                        `The skirmish is swift and bloody. Before the enemy could close their perimeter, ${pName}'s ${weapon} reaps through the front rank, scattering the rest into panicked retreat and unmoving corpses.`
+                    ];
+                    prose = multiVariants[turnSeed % multiVariants.length];
+                } else {
+                    const killText = kills[0] || 'A foe fell.';
+                    const cleanKill = ChronicleGrounder.extractSlainMonsterName(killText);
+                    const singleVariants = [
+                        `${pName}'s ${weapon} strikes true with decisive, bone-jarring momentum, felling the ${cleanKill}! The immediate threat neutralized, ${pName} pauses to catch breath, eyes sweeping the surrounding gloom for flanking ambushes.`,
+                        `A swift, deadly counter-stroke ends the skirmish! Slashing through the guard of the ${cleanKill}, ${pName} steps over the fallen body, listening intently to the distant echoes of the corridors ahead.`,
+                        `Reading the approach of the ${cleanKill} in the flickering torchlight, ${pName} sidesteps and delivers a single, fatal blow. The dark passage falls silent once more.`,
+                        `With calm, surgical lethality, ${pName} drives ${weapon} through the ${cleanKill}'s guard. Wiping the blade clean, the adventurer resumes the perilous descent.`
+                    ];
+                    prose = singleVariants[turnSeed % singleVariants.length];
+                }
             }
         }
 
@@ -2628,7 +3102,19 @@ class ChronicleGrounder {
                 const statuses = exData.playerStatuses || [];
                 const inTown = exData.inTown || (depth === 0);
 
-                title = kills.length > 0 ? (kills.length > 1 ? 'Flurry of Steel' : 'Decisive Strike') : (inTown ? 'Street Skirmish' : 'Clash in the Deep');
+                const atkMed = exData.attackMedium || (hAttacks[0] && hAttacks[0].attackMedium) || null;
+                const isSpell = (atkMed && atkMed.type === 'spell') || (weapon && weapon.toLowerCase().includes('spell'));
+                const isRanged = (atkMed && atkMed.type === 'ranged') || (weapon && (weapon.toLowerCase().includes('bow') || weapon.toLowerCase().includes('arrow') || weapon.toLowerCase().includes('bolt') || weapon.toLowerCase().includes('sling') || weapon.toLowerCase().includes('crossbow')));
+                const isDevice = (atkMed && atkMed.type === 'device') || (weapon && (weapon.toLowerCase().includes('wand') || weapon.toLowerCase().includes('staff') || weapon.toLowerCase().includes('rod')));
+                const isSpellOrDevice = isSpell || isDevice;
+
+                if (isSpellOrDevice) {
+                    title = kills.length > 0 ? (kills.length > 1 ? 'Arcane Conflagration' : 'Searing Spellfire') : (inTown ? 'Mystic Flare in the Street' : 'Eldritch Clash');
+                } else if (isRanged) {
+                    title = kills.length > 0 ? (kills.length > 1 ? 'Flurry of Arrows' : 'Deadly Marksmanship') : (inTown ? 'Shaft from the Alley' : 'Shot in the Dark');
+                } else {
+                    title = kills.length > 0 ? (kills.length > 1 ? 'Flurry of Steel' : 'Decisive Strike') : (inTown ? 'Street Skirmish' : 'Clash in the Deep');
+                }
 
                 // 1. Status Clause (e.g. confused, poisoned, blind, stunned, terrified, bleeding)
                 let statusPrefix = '';
@@ -2689,34 +3175,92 @@ class ChronicleGrounder {
                     const fleeMon = exData.fleeingMonster;
                     if (fleeMon && kills.length === 1) {
                         const cleanFlee = ChronicleGrounder.extractSlainMonsterName(fleeMon);
-                        heroText = `pursuing the fleeing ${cleanFlee}, your ${weapon} cuts the craven creature down before it can escape`;
+                        if (isSpellOrDevice) {
+                            heroText = `pursuing the fleeing ${cleanFlee}, a lance of crackling spellfire blasts the craven creature down before it can escape`;
+                        } else if (isRanged) {
+                            heroText = `pursuing the fleeing ${cleanFlee}, a well-aimed missile pins the craven creature down before it can escape`;
+                        } else {
+                            heroText = `pursuing the fleeing ${cleanFlee}, your ${weapon} cuts the craven creature down before it can escape`;
+                        }
                     } else if (kills.length === 1) {
-                        const singleKillPhrases = [
-                            `your ${weapon} cuts down the ${killNames[0]}`,
-                            `with grim resolve your ${weapon} fells the ${killNames[0]} upon the flagstones`,
-                            `your ${weapon} flashes in the torchlight, cleaving down the ${killNames[0]} in a decisive stroke`,
-                            `stepping inside its guard, your ${weapon} cuts down the ${killNames[0]}`
-                        ];
-                        heroText = singleKillPhrases[turnSeed % singleKillPhrases.length];
+                        if (isSpellOrDevice) {
+                            const singleSpellPhrases = [
+                                `a blazing blast of magic incinerates the ${killNames[0]}`,
+                                `your incantation erupts in crackling flame, striking down the ${killNames[0]} upon the flagstones`,
+                                `unleashing arcane power, you blast the ${killNames[0]} into dust upon the stones`,
+                                `a brilliant flare of spellfire consumes the ${killNames[0]} in a decisive blast`
+                            ];
+                            heroText = singleSpellPhrases[turnSeed % singleSpellPhrases.length];
+                        } else if (isRanged) {
+                            const singleRangedPhrases = [
+                                `your missile strikes true from the gloom, piercing the ${killNames[0]} with lethal precision`,
+                                `loosing a swift projectile, you bring down the ${killNames[0]} before it can close the distance`,
+                                `with deadly marksmanship, your shot pins the ${killNames[0]} lifeless upon the flagstones`,
+                                `a silent shaft pierces the ${killNames[0]}, felling the foe in mid-stride`
+                            ];
+                            heroText = singleRangedPhrases[turnSeed % singleRangedPhrases.length];
+                        } else {
+                            const singleKillPhrases = [
+                                `your ${weapon} cuts down the ${killNames[0]}`,
+                                `with grim resolve your ${weapon} fells the ${killNames[0]} upon the flagstones`,
+                                `your ${weapon} flashes in the torchlight, cleaving down the ${killNames[0]} in a decisive stroke`,
+                                `stepping inside its guard, your ${weapon} cuts down the ${killNames[0]}`
+                            ];
+                            heroText = singleKillPhrases[turnSeed % singleKillPhrases.length];
+                        }
                     } else {
-                        const multiKillPhrases = [
-                            `your ${weapon} fells ${kills.length} assailants`,
-                            `whirling your ${weapon} in a deadly arc, you cut down ${kills.length} foes upon the bloody stones`,
-                            `your ${weapon} reaps a grim harvest, slaying ${kills.length} enemies in swift succession`
-                        ];
-                        heroText = multiKillPhrases[turnSeed % multiKillPhrases.length];
+                        if (isSpellOrDevice) {
+                            const multiSpellPhrases = [
+                                `your sweeping spellfire engulfs and destroys ${kills.length} foes`,
+                                `a devastating burst of sorcery obliterates ${kills.length} assailants in a storm of light`,
+                                `your magical barrage tears through the ranks, slaying ${kills.length} enemies in swift succession`
+                            ];
+                            heroText = multiSpellPhrases[turnSeed % multiSpellPhrases.length];
+                        } else if (isRanged) {
+                            const multiRangedPhrases = [
+                                `rapid marksmanship fells ${kills.length} foes before they reach your guard`,
+                                `a deadly volley of missiles cuts down ${kills.length} enemies from the dark`,
+                                `loosing arrow after arrow, you drop ${kills.length} assailants in swift succession`
+                            ];
+                            heroText = multiRangedPhrases[turnSeed % multiRangedPhrases.length];
+                        } else {
+                            const multiKillPhrases = [
+                                `your ${weapon} fells ${kills.length} assailants`,
+                                `whirling your ${weapon} in a deadly arc, you cut down ${kills.length} foes upon the bloody stones`,
+                                `your ${weapon} reaps a grim harvest, slaying ${kills.length} enemies in swift succession`
+                            ];
+                            heroText = multiKillPhrases[turnSeed % multiKillPhrases.length];
+                        }
                     }
                 } else if (hAttacks.length > 0) {
                     const ha = hAttacks[0];
                     if (ha.missed) {
-                        heroText = `your counter-stroke with ${weapon} whistles wide`;
+                        heroText = isSpellOrDevice
+                            ? `your incantation fizzles harmlessly in the gloom`
+                            : (isRanged ? `your missile whistles wide into the dark` : `your counter-stroke with ${weapon} whistles wide`);
                     } else {
-                        const hitPhrases = [
-                            `you counter with ${weapon}, striking the ${ha.monsterName}`,
-                            `ducking low, you drive ${weapon} hard into the ${ha.monsterName}`,
-                            `your ${weapon} flashes in counter-attack, striking true against the ${ha.monsterName}`
-                        ];
-                        heroText = (statuses.length > 0) ? hitPhrases[0] : hitPhrases[turnSeed % hitPhrases.length];
+                        if (isSpellOrDevice) {
+                            const spellHitPhrases = [
+                                `you unleash spellfire, blasting the ${ha.monsterName}`,
+                                `a crackling arcane bolt strikes the ${ha.monsterName}`,
+                                `your magic flares in counter-attack, scorching the ${ha.monsterName}`
+                            ];
+                            heroText = (statuses.length > 0) ? spellHitPhrases[0] : spellHitPhrases[turnSeed % spellHitPhrases.length];
+                        } else if (isRanged) {
+                            const rangedHitPhrases = [
+                                `your missile strikes true, piercing the ${ha.monsterName}`,
+                                `you loose a projectile that strikes the ${ha.monsterName}`,
+                                `a swift shot bites deep into the ${ha.monsterName}`
+                            ];
+                            heroText = (statuses.length > 0) ? rangedHitPhrases[0] : rangedHitPhrases[turnSeed % rangedHitPhrases.length];
+                        } else {
+                            const hitPhrases = [
+                                `you counter with ${weapon}, striking the ${ha.monsterName}`,
+                                `ducking low, you drive ${weapon} hard into the ${ha.monsterName}`,
+                                `your ${weapon} flashes in counter-attack, striking true against the ${ha.monsterName}`
+                            ];
+                            heroText = (statuses.length > 0) ? hitPhrases[0] : hitPhrases[turnSeed % hitPhrases.length];
+                        }
                     }
                 }
 
@@ -3110,7 +3654,8 @@ class ChronicleGrounder {
             case 'SIGNIFICANT_KILL':
                 const kills = event.data ? (event.data.kills || (event.data.message ? [event.data.message] : [])) : [];
                 const fleeMon = event.data ? event.data.fleeingMonster : null;
-                const killSaga = this.generateKillSaga(kills, player, depth, traditionKey, weapon, fleeMon);
+                const atkMed = event.data ? event.data.attackMedium : null;
+                const killSaga = this.generateKillSaga(kills, player, depth, traditionKey, weapon, fleeMon, atkMed);
                 title = killSaga.title;
                 prose = killSaga.prose;
                 break;

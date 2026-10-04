@@ -2287,8 +2287,43 @@ html, body {
 .splash-engine-tag {
     font-size: 12px;
     color: #7b889b;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
     font-family: var(--font-terminal);
+}
+
+.splash-chronicle-spotlight {
+    max-width: 660px;
+    width: 100%;
+    margin-bottom: 14px;
+    background: linear-gradient(135deg, rgba(20, 26, 42, 0.94) 0%, rgba(12, 16, 26, 0.98) 100%);
+    border: 1px solid rgba(255, 215, 0, 0.55);
+    border-radius: 8px;
+    padding: 12px 18px;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.75), inset 0 0 16px rgba(255, 215, 0, 0.08);
+    backdrop-filter: blur(6px);
+}
+
+.splash-chronicle-badge {
+    display: inline-block;
+    background: rgba(255, 215, 0, 0.16);
+    border: 1px solid rgba(255, 215, 0, 0.5);
+    color: #ffd700;
+    font-size: 11.5px;
+    font-family: var(--font-fantasy);
+    letter-spacing: 1.5px;
+    padding: 3px 12px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.splash-chronicle-text {
+    font-size: 12.5px;
+    color: #e2e8f0;
+    line-height: 1.5;
+    margin: 0;
 }
 
 .splash-notice-banner {

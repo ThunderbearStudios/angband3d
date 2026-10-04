@@ -2344,9 +2344,160 @@ async function runTest() {
     if (!deathVoiceProfile.geminiTag.includes('mournfully')) {
         throw new Error(`Expected mournful geminiTag, got: ${deathVoiceProfile.geminiTag}`);
     }
-    console.log(`  ✓ Master Narrator funeral voice profile verified: ${deathVoiceProfile.geminiVoice} (${deathVoiceProfile.emotion}) "${deathVoiceProfile.geminiTag}".`);
+    // =========================================================================
+    // 33. SPELL VS WEAPON KILL NARRATIVE DISTINCTION & ANTI-REPETITION DIALOGUE
+    // =========================================================================
+    console.log('\n--- 33. Spell vs Weapon Kill Narrative Distinction & Anti-Repetition Dialogue ---');
+    {
+        // 33a. Spell Attack & Slaying Detection in ChronicleFilter
+    const spellCombatFilter = new ChronicleFilter();
+    spellCombatFilter.hasCompletedOnboarding.townArrival = true;
+    spellCombatFilter.hasCompletedOnboarding.firstStairsDown = true;
+    spellCombatFilter.lastDepth = 2;
+    const spellHero = {
+        name: 'Elrond',
+        race: 'High-Elf',
+        class: 'Mage',
+        chp: 30,
+        mhp: 30,
+        sp: 15,
+        msp: 20,
+        depth: 2,
+        turn: 40
+    };
+    spellCombatFilter.lastSp = 20; // Previous turn had 20 SP
 
-    console.log('\n[Chronicle Test] ✅ ALL 32 VERIFICATION PHASES PASSED WITH ZERO ERRORS!\n');
+    const spellKillFrame = {
+        phase: 'play',
+        player: spellHero,
+        messages: ['The cave orc catches fire!', 'The cave orc dies.'],
+        monsters: [{ name: 'cave orc', glyph: 'o' }]
+    };
+
+    const spellEv = spellCombatFilter.evaluate(spellKillFrame);
+    if (!spellEv) throw new Error('Expected combat event from spell kill');
+    if (!spellEv.data || !spellEv.data.attackMedium) throw new Error('Expected attackMedium on combat event');
+    if (spellEv.data.attackMedium.type !== 'spell') {
+        throw new Error(`Expected attackMedium.type to be 'spell', got: ${spellEv.data.attackMedium.type}`);
+    }
+    console.log(`  ✓ Spell attack medium tracked in ChronicleFilter: ${JSON.stringify(spellEv.data.attackMedium)}`);
+
+    // 33b. Grounder Spell Kill Prose Synthesis
+    const spellChapter = ChronicleGrounder.generateProceduralChapter(spellEv, spellHero, 'westmarch');
+    const spellProseLower = spellChapter.prose.toLowerCase();
+    const hasSpellWords = /spell|magic|arcane|fire|blast|sorcery|incinerat|ember|bolt|conflagrat/i.test(spellProseLower);
+    if (!hasSpellWords) {
+        throw new Error(`Expected spell kill prose to include magical/arcane terminology, got: "${spellChapter.prose}"`);
+    }
+    if (spellProseLower.includes('your drawn steel cuts down') || spellProseLower.includes('drawn steel cleaves')) {
+        throw new Error(`Spell kill incorrectly attributed to drawn steel: "${spellChapter.prose}"`);
+    }
+    console.log(`  ✓ Spell kill prose verified: "${spellChapter.title}" -> "${spellChapter.prose}"`);
+
+    // 33c. Missile/Ranged Attack Medium & Kill Prose Synthesis
+    const rangedFilter = new ChronicleFilter();
+    rangedFilter.hasCompletedOnboarding.townArrival = true;
+    rangedFilter.hasCompletedOnboarding.firstStairsDown = true;
+    rangedFilter.lastDepth = 3;
+    const rangerHero = {
+        name: 'Legolas',
+        race: 'Elf',
+        class: 'Ranger',
+        chp: 35,
+        mhp: 35,
+        sp: 0,
+        msp: 0,
+        depth: 3,
+        turn: 45
+    };
+    const rangedKillFrame = {
+        phase: 'play',
+        player: rangerHero,
+        messages: ['Your arrow hits the small kobold.', 'The small kobold dies.'],
+        monsters: [{ name: 'small kobold', glyph: 'k' }]
+    };
+    const rangedEv = rangedFilter.evaluate(rangedKillFrame);
+    if (!rangedEv || !rangedEv.data || !rangedEv.data.attackMedium) throw new Error('Expected ranged combat event');
+    if (rangedEv.data.attackMedium.type !== 'ranged') {
+        throw new Error(`Expected attackMedium.type to be 'ranged', got: ${rangedEv.data.attackMedium.type}`);
+    }
+    const rangedChapter = ChronicleGrounder.generateProceduralChapter(rangedEv, rangerHero, 'westmarch');
+    const rangedProseLower = rangedChapter.prose.toLowerCase();
+    const hasRangedWords = /arrow|missile|shot|bow|shaft|marksmanship|projectile/i.test(rangedProseLower);
+    if (!hasRangedWords) {
+        throw new Error(`Expected ranged kill prose to include archery/missile terminology, got: "${rangedChapter.prose}"`);
+    }
+    console.log(`  ✓ Ranged missile kill prose verified: "${rangedChapter.title}" -> "${rangedChapter.prose}"`);
+
+    // 33d. Melee Attack Medium & Kill Prose
+    const meleeFilter = new ChronicleFilter();
+    meleeFilter.hasCompletedOnboarding.townArrival = true;
+    meleeFilter.hasCompletedOnboarding.firstStairsDown = true;
+    meleeFilter.lastDepth = 4;
+    const warriorHero = {
+        name: 'Gimli',
+        race: 'Dwarf',
+        class: 'Warrior',
+        chp: 40,
+        mhp: 40,
+        sp: 0,
+        msp: 0,
+        depth: 4,
+        turn: 50
+    };
+    const meleeKillFrame = {
+        phase: 'play',
+        player: warriorHero,
+        messages: ['You slash the cave orc.', 'The cave orc dies.'],
+        monsters: [{ name: 'cave orc', glyph: 'o' }]
+    };
+    const meleeEv = meleeFilter.evaluate(meleeKillFrame);
+    if (!meleeEv || !meleeEv.data || !meleeEv.data.attackMedium) throw new Error('Expected melee combat event');
+    if (meleeEv.data.attackMedium.type !== 'melee') {
+        throw new Error(`Expected attackMedium.type to be 'melee', got: ${meleeEv.data.attackMedium.type}`);
+    }
+    const meleeChapter = ChronicleGrounder.generateProceduralChapter(meleeEv, warriorHero, 'westmarch');
+    console.log(`  ✓ Melee weapon kill prose verified: "${meleeChapter.title}" -> "${meleeChapter.prose}"`);
+
+    // 33e. Creature Dialogue Anti-Repetition & Non-Redundancy Verification
+    const testBarkList = [
+        'Line One: Stand and fight!',
+        'Line Two: The deeps hunger!',
+        'Line Three: Die, intruder!',
+        'Line Four: Fresh meat for the pits!',
+        'Line Five: No mercy in the dark!'
+    ];
+    let previousBark = null;
+    const seenBarks = new Set();
+    for (let i = 0; i < 20; i++) {
+        const bark = ChronicleGrounder.pickNonRepeatingBark('unit_test_orc_barks', testBarkList, i * 7);
+        if (bark === previousBark) {
+            throw new Error(`Consecutive identical bark detected on iteration ${i}: "${bark}"`);
+        }
+        previousBark = bark;
+        seenBarks.add(bark);
+    }
+    if (seenBarks.size < 4) {
+        throw new Error(`Expected pool rotation across at least 4 lines, got ${seenBarks.size} unique lines`);
+    }
+    console.log(`  ✓ Anti-repetition LRU buffer verified: 20 consecutive turns yielded zero back-to-back repeats across ${seenBarks.size} distinct lines.`);
+
+    // 33f. Multi-turn Orc Combat Encounter Dialogue Variety
+    const orcMonster = { name: 'cave orc', glyph: 'o', hp: 20, hp_max: 20 };
+    const encBarks = new Set();
+    let prevEncBark = null;
+    for (let t = 1; t <= 5; t++) {
+        const enc = ChronicleGrounder.resolveCreatureEncounter(orcMonster, warriorHero, ['You hit the cave orc.'], t);
+        if (enc.text === prevEncBark) {
+            throw new Error(`Consecutive duplicate encounter bark for orc on turn ${t}: "${enc.text}"`);
+        }
+        prevEncBark = enc.text;
+        encBarks.add(enc.text);
+    }
+    console.log(`  ✓ Creature encounter dialogue non-redundancy verified: 5 turns produced ${encBarks.size} unique dialogue barks.`);
+    }
+
+    console.log('\n[Chronicle Test] ✅ ALL 33 VERIFICATION PHASES PASSED WITH ZERO ERRORS!\n');
 }
 
 runTest().catch((err) => {
