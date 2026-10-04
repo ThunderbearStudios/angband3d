@@ -1580,3 +1580,9 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
      - `python tools/smoke_test.py`: 11/11 passed (100%).
      - `dotnet build client/angband3d.csproj`: 0 errors, 0 warnings.
 
+
+  10. **Live Multi-Region Cloud Run Deployment**:
+      - `angband3d-cloud` (us-central1): Revision `angband3d-cloud-00096-qzr` serving 100% of traffic.
+      - `angband3d-cloud` (us-east1): Revision `angband3d-cloud-00023-rvt` serving 100% of traffic.
+      - `angband3d-web` (us-central1): Revision `angband3d-web-00028-gpv` serving 100% of traffic.
+      - Live verified on `https://angband3d.com/` with cache token `v=7.8.0`, service worker `angband3d-v7.8`, 4096x4096 HD `monster_atlas.png`, `item_atlas.png`, bilateral normal maps, and verified Hippogriff UV slot.
