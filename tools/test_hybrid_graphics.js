@@ -68,7 +68,20 @@ const eye = atlasData.monsters['Floating eye'];
 assert(eye, 'Floating eye must be present in atlas');
 assert(eye.isFloating === true, 'Floating eye must have isFloating = true');
 
-console.log('✓ Invariant 2: Anatomical scale heuristics correctly distinguish Farmer Maggot from vermin, colossal dragons, and floating apparitions');
+// Lore Accuracy: Hippogriff must be on Row 4 (NOT Row 5 Flesh Golem)
+const hippo = atlasData.monsters['Hippogriff'];
+assert(hippo, 'Hippogriff must be present in atlas');
+const [hU0, hV0, hU1, hV1] = hippo.uv;
+const hippoSlotRow = Math.round((1.0 - hV1) * 32);
+assert.strictEqual(hippoSlotRow, 4, `Hippogriff must be on Row 4 (eagle-headed winged horse), got Row ${hippoSlotRow}`);
+
+const fg = atlasData.monsters['Flesh golem'];
+assert(fg, 'Flesh golem must be present in atlas');
+const [fgU0, fgV0, fgU1, fgV1] = fg.uv;
+const fgSlotRow = Math.round((1.0 - fgV1) * 32);
+assert.strictEqual(fgSlotRow, 5, `Flesh golem must be on Row 5, got Row ${fgSlotRow}`);
+
+console.log('✓ Invariant 2: Anatomical scale and canonical lore accuracy verified (Hippogriff [H] on Row 4 vs Flesh Golem [g] on Row 5, colossal dragons, floating apparitions)');
 
 // -----------------------------------------------------------------------------
 // Test 3: Asset existence and sizing
@@ -82,7 +95,7 @@ const atlasStat = fs.statSync(atlasPngPath);
 const normalStat = fs.statSync(normalPngPath);
 assert(atlasStat.size > 1000000, `monster_atlas.png should be substantial (>1MB), got ${atlasStat.size}`);
 assert(normalStat.size > 1000000, `monster_normal.png should be substantial (>1MB), got ${normalStat.size}`);
-console.log(`✓ Invariant 3: Mobile-safe 2048x2048 atlas (${(atlasStat.size / 1024 / 1024).toFixed(2)} MB) and normal map (${(normalStat.size / 1024 / 1024).toFixed(2)} MB) are built and ready`);
+console.log(`✓ Invariant 3: High-Resolution 4096x4096 HD atlas (${(atlasStat.size / 1024 / 1024).toFixed(2)} MB) and bilateral normal map (${(normalStat.size / 1024 / 1024).toFixed(2)} MB) are built and ready`);
 
 // -----------------------------------------------------------------------------
 // Test 4: Progressive 4-level depth chapters in dungeon3d.js

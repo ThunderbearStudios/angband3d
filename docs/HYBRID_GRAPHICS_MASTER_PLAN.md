@@ -262,7 +262,7 @@ graph TD
    - Monster atlas valid UVs across all 624 species and 49 glyphs.
    - Item atlas valid UVs across 498 items and 20 glyph fallbacks.
    - Scale heuristics verified (rings 0.28m, weapons 0.65m, Farmer Maggot 1.2m, Morgoth 3.4m).
-   - Mobile-safe 2048x2048 atlases and normal maps confirmed.
+   - High-Resolution 4096x4096 HD atlases and normal maps confirmed.
    - 4-level progressive depth chapters verified across Levels 1–20 and beyond.
    - Synchronized `computeTileShade` geological cluster formations verified.
    - Primary billboard dispatch for both creatures and items verified with live auto-upgrade.
@@ -271,6 +271,25 @@ graph TD
 3. `npm test` in `server/`: **20/20 test suites passed (100%)**.
 4. `python tools/smoke_test.py`: **11/11 tests passed (100%)**.
 5. `dotnet build client/angband3d.csproj`: **0 warnings, 0 errors**.
+
+### Phase 6: Lore Accuracy Audit & 4096 HD Upgrade (Completed — 100% Passing)
+1. **Mathematical Floor Row Division Fix**:
+   - Eliminated IEEE 754 banker's rounding bug in PowerShell `[int]($i / 32)` that shifted UV rows for any entry where `$i % 32 >= 16`.
+   - Applied `[int][Math]::Floor($i / $tilesPerRow)` across both atlas builders.
+   - Restored Hippogriff (`[H]`, index 147) to Row 4, SlotCol 19 (eagle-headed winged horse), separating it from Flesh Golem (Row 5, SlotCol 19).
+2. **4096×4096 HD Atlas & Bilateral Normal Maps**:
+   - Both `monster_atlas.png` and `item_atlas.png` upgraded to 4096×4096 HD with 128×128 tiles (4× pixel density).
+   - Upscaled using `HighQualityBicubic` + `PixelOffsetMode.HighQuality`.
+   - 5×5 separable Gaussian/bilateral filter (`1-4-6-4-1 / 16`) eliminates specular sand/grain under moving torchlight.
+3. **Three.js Filtering & 3D Smoothing**:
+   - `LinearFilter` on magnification prevents blocky pixel staircasing.
+   - 16× anisotropic filtering sharpens grazing angles.
+   - Normal scale balanced to 0.45.
+   - `computeVertexNormals()` enabled across all GLTF/GLB/OBJ meshes.
+4. **Master Lore Audit Suite**:
+   - `node tools/audit_atlas_models.js`: **6/6 audit suites passed (100%)**.
+   - Verified 624/624 monsters, 498/498 items, 27/27 3D meshes, and 4096 HD dimensions.
+   - Full documentation in `docs/MODEL_AND_SPRITE_LORE_AUDIT.md`.
 
 ---
 
