@@ -36,7 +36,12 @@ window.GRAPHICS_CONFIG = {
     tileVariation: true,       // Quarter-turn texture rotation and organic stone shading
     item3DModels: true,        // 3D item pickups with authentic models, attributed PBR materials & contact shadows
     biomeVariation: true,      // Procedural geological sub-themes & coherent spatial cluster shading
-    starrySky: true            // High-quality celestial star canopy overhead in town / outdoors
+    starrySky: true,           // High-quality celestial star canopy overhead in town / outdoors
+    depthStrata: true,         // Progressive 4-level depth chapters with atmospheric depth fog
+    creatureRenderer: 'hybrid', // 'hybrid' (3D models for rigged creatures, PBR billboards for rest) | 'classic'
+    normalMapping: true,       // Real-time torchlight normal mapping on creature billboards
+    contactShadows: true,      // Soft ground contact shadow discs anchoring creatures to floor
+    idleBreathing: true        // Organic volume-conserving breathing & hovering
 };
 
 window.setGraphicsPreset = function(presetName) {
@@ -51,6 +56,11 @@ window.setGraphicsPreset = function(presetName) {
     window.GRAPHICS_CONFIG.item3DModels = isEnhanced;
     window.GRAPHICS_CONFIG.biomeVariation = isEnhanced;
     window.GRAPHICS_CONFIG.starrySky = isEnhanced;
+    window.GRAPHICS_CONFIG.depthStrata = isEnhanced;
+    window.GRAPHICS_CONFIG.creatureRenderer = isEnhanced ? 'hybrid' : 'classic';
+    window.GRAPHICS_CONFIG.normalMapping = isEnhanced;
+    window.GRAPHICS_CONFIG.contactShadows = isEnhanced;
+    window.GRAPHICS_CONFIG.idleBreathing = isEnhanced;
 
     if (window.__app && window.__app.dungeon) {
         window.__app.dungeon.applyGraphicsConfig();
@@ -862,26 +872,28 @@ class Dungeon3D {
         const useVar = (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.biomeVariation) && (levelSeed !== 0);
         const sub = useVar ? (Math.abs(levelSeed) % 4) : 0;
 
-        if (depth <= 15) {
+        // Progressive 4-Level Depth Chapters: Every ~200 ft brings a distinct, palpable visual transformation
+        if (depth <= 4) {
+            // Chapter 1: Upper Crypts (Levels 1–4 / 50–200 ft) - Ashlar stone, dry vaults, cold slate mist
             const subThemes = [
-                { name: 'Upper Crypts (Ashlar Sepulchre)', wc: [0.85, 0.85, 0.88], fc: [0.78, 0.78, 0.80], cc: [0.65, 0.65, 0.70], fr: 0.82, wr: 0.82, tc: 0xffdc99, fog: 0x08080c, amb: 0x626880 },
-                { name: 'Upper Crypts (Flooded Undercroft)', wc: [0.74, 0.78, 0.82], fc: [0.65, 0.70, 0.75], cc: [0.58, 0.62, 0.66], fr: 0.52, wr: 0.75, tc: 0xffd485, fog: 0x06080d, amb: 0x58607a },
-                { name: 'Upper Crypts (Sandstone Tomb)', wc: [0.88, 0.82, 0.72], fc: [0.80, 0.74, 0.65], cc: [0.68, 0.62, 0.55], fr: 0.88, wr: 0.86, tc: 0xffc875, fog: 0x0c0a08, amb: 0x6a6258 },
-                { name: 'Upper Crypts (Cinder Catacomb)', wc: [0.70, 0.70, 0.72], fc: [0.68, 0.68, 0.70], cc: [0.55, 0.55, 0.58], fr: 0.85, wr: 0.84, tc: 0xffc280, fog: 0x0a0808, amb: 0x5a5858 }
+                { name: 'Upper Crypts (Ashlar Sepulchre)', wc: [0.84, 0.84, 0.86], fc: [0.76, 0.76, 0.78], cc: [0.62, 0.62, 0.66], fr: 0.82, wr: 0.82, tc: 0xffdc99, fog: 0x10141a, amb: 0x626880 },
+                { name: 'Upper Crypts (Cold Slate Barrow)', wc: [0.78, 0.80, 0.86], fc: [0.70, 0.72, 0.78], cc: [0.56, 0.58, 0.65], fr: 0.80, wr: 0.84, tc: 0xffd890, fog: 0x0e121c, amb: 0x586078 },
+                { name: 'Upper Crypts (Dry Granite Vault)', wc: [0.86, 0.84, 0.82], fc: [0.78, 0.76, 0.74], cc: [0.65, 0.63, 0.60], fr: 0.84, wr: 0.86, tc: 0xffdca0, fog: 0x141212, amb: 0x686460 },
+                { name: 'Upper Crypts (Cobblestone Undercroft)', wc: [0.80, 0.82, 0.80], fc: [0.72, 0.74, 0.72], cc: [0.60, 0.62, 0.60], fr: 0.78, wr: 0.82, tc: 0xffd485, fog: 0x101412, amb: 0x606660 }
             ];
             const t = subThemes[sub];
             return {
                 name: t.name,
-                bgColor: 0x040406,
+                bgColor: 0x06080c,
                 ambientColor: t.amb,
-                ambientEnergy: 0.42,
+                ambientEnergy: 0.38,
                 sunLight: false,
                 sunEnergy: 0.0,
                 fogColor: t.fog,
-                fogDensity: 0.010,
-                exposure: 1.18,
+                fogDensity: 0.012,
+                exposure: 1.16,
                 torchColor: t.tc,
-                torchEnergy: 3.5,
+                torchEnergy: 2.6,
                 wallColor: new THREE.Color(...t.wc),
                 floorColor: new THREE.Color(...t.fc),
                 ceilingColor: new THREE.Color(...t.cc),
@@ -889,19 +901,20 @@ class Dungeon3D {
                 wallRoughness: t.wr
             };
         }
-        if (depth <= 35) {
+        if (depth <= 8) {
+            // Chapter 2: Flooded Undercrofts (Levels 5–8 / 250–400 ft) - Wet slate, reflective water floors (roughness 0.44), damp aquamarine mist
             const subThemes = [
-                { name: 'Overgrown Catacombs (Emerald Sanctuary)', wc: [0.72, 0.86, 0.70], fc: [0.62, 0.78, 0.60], cc: [0.52, 0.65, 0.50], fr: 0.65, wr: 0.80, tc: 0xffe099, fog: 0x061008, amb: 0x426147 },
-                { name: 'Overgrown Catacombs (Peat Barrows)', wc: [0.78, 0.75, 0.60], fc: [0.68, 0.64, 0.52], cc: [0.56, 0.52, 0.42], fr: 0.58, wr: 0.84, tc: 0xffd88a, fog: 0x0a0c06, amb: 0x4e583c },
-                { name: 'Overgrown Catacombs (Fungal Hollows)', wc: [0.66, 0.85, 0.78], fc: [0.58, 0.76, 0.70], cc: [0.48, 0.64, 0.58], fr: 0.60, wr: 0.78, tc: 0xf6dfa0, fog: 0x040e0c, amb: 0x385c52 },
-                { name: 'Overgrown Catacombs (Sunken Necropolis)', wc: [0.70, 0.80, 0.76], fc: [0.60, 0.72, 0.68], cc: [0.50, 0.60, 0.56], fr: 0.46, wr: 0.76, tc: 0xffe4ab, fog: 0x060e10, amb: 0x425854 }
+                { name: 'Flooded Undercroft (Sunken Cistern)', wc: [0.64, 0.72, 0.84], fc: [0.52, 0.62, 0.76], cc: [0.46, 0.54, 0.66], fr: 0.44, wr: 0.72, tc: 0xffd485, fog: 0x0c1622, amb: 0x485c7a },
+                { name: 'Flooded Undercroft (Wet Slate Crypt)', wc: [0.68, 0.74, 0.86], fc: [0.56, 0.64, 0.78], cc: [0.50, 0.56, 0.68], fr: 0.46, wr: 0.74, tc: 0xffd690, fog: 0x0e1826, amb: 0x4c6080 },
+                { name: 'Flooded Undercroft (Algae Dripway)', wc: [0.62, 0.76, 0.80], fc: [0.50, 0.65, 0.72], cc: [0.44, 0.56, 0.62], fr: 0.42, wr: 0.70, tc: 0xf4df94, fog: 0x0a1820, amb: 0x44626e },
+                { name: 'Flooded Undercroft (Drowned Sarcophagi)', wc: [0.66, 0.70, 0.82], fc: [0.54, 0.60, 0.74], cc: [0.48, 0.52, 0.64], fr: 0.45, wr: 0.75, tc: 0xffcc80, fog: 0x0d1420, amb: 0x4a5874 }
             ];
             const t = subThemes[sub];
             return {
                 name: t.name,
-                bgColor: 0x030504,
+                bgColor: 0x040810,
                 ambientColor: t.amb,
-                ambientEnergy: 0.30,
+                ambientEnergy: 0.34,
                 sunLight: false,
                 sunEnergy: 0.0,
                 fogColor: t.fog,
@@ -916,23 +929,136 @@ class Dungeon3D {
                 wallRoughness: t.wr
             };
         }
-        if (depth <= 60) {
+        if (depth <= 12) {
+            // Chapter 3: Deep Sepulchre & Ancient Tombs (Levels 9–12 / 450–600 ft) - Ancient sandstone, dusty sarcophagi, violet-black shadow fog, deep amber flame
             const subThemes = [
-                { name: 'Crystal Caverns (Quartz Labyrinth)', wc: [0.68, 0.78, 0.96], fc: [0.60, 0.70, 0.90], cc: [0.48, 0.56, 0.76], fr: 0.55, wr: 0.70, tc: 0xfadc7b, fog: 0x060c18, amb: 0x425c85 },
-                { name: 'Crystal Caverns (Amethyst Geode)', wc: [0.76, 0.68, 0.94], fc: [0.68, 0.60, 0.86], cc: [0.56, 0.48, 0.72], fr: 0.48, wr: 0.68, tc: 0xf4d08c, fog: 0x0b0616, amb: 0x544078 },
-                { name: 'Crystal Caverns (Beryl Depths)', wc: [0.62, 0.84, 0.88], fc: [0.54, 0.75, 0.80], cc: [0.44, 0.62, 0.68], fr: 0.52, wr: 0.72, tc: 0xf8e090, fog: 0x040e14, amb: 0x365868 },
-                { name: 'Crystal Caverns (Ironstone Cavern)', wc: [0.80, 0.76, 0.84], fc: [0.72, 0.68, 0.76], cc: [0.58, 0.54, 0.62], fr: 0.50, wr: 0.74, tc: 0xfad880, fog: 0x08080c, amb: 0x4c4a56 }
+                { name: 'Deep Sepulchre (Sandstone Necropolis)', wc: [0.90, 0.78, 0.60], fc: [0.78, 0.68, 0.50], cc: [0.62, 0.52, 0.38], fr: 0.88, wr: 0.88, tc: 0xffc060, fog: 0x180e1e, amb: 0x6e5242 },
+                { name: 'Deep Sepulchre (Dusty Crypt of Kings)', wc: [0.86, 0.74, 0.64], fc: [0.75, 0.64, 0.54], cc: [0.58, 0.48, 0.40], fr: 0.86, wr: 0.86, tc: 0xffb866, fog: 0x160c1c, amb: 0x684c44 },
+                { name: 'Deep Sepulchre (Ancestral Sarcophagi)', wc: [0.84, 0.76, 0.68], fc: [0.72, 0.65, 0.58], cc: [0.56, 0.50, 0.44], fr: 0.85, wr: 0.85, tc: 0xffba70, fog: 0x1a1020, amb: 0x645048 },
+                { name: 'Deep Sepulchre (Cinder Vault)', wc: [0.88, 0.72, 0.58], fc: [0.76, 0.62, 0.48], cc: [0.60, 0.48, 0.36], fr: 0.88, wr: 0.88, tc: 0xffb258, fog: 0x180a18, amb: 0x6a483e }
             ];
             const t = subThemes[sub];
             return {
                 name: t.name,
-                bgColor: 0x030407,
+                bgColor: 0x08040a,
                 ambientColor: t.amb,
                 ambientEnergy: 0.32,
                 sunLight: false,
                 sunEnergy: 0.0,
                 fogColor: t.fog,
                 fogDensity: 0.014,
+                exposure: 1.18,
+                torchColor: t.tc,
+                torchEnergy: 2.8,
+                wallColor: new THREE.Color(...t.wc),
+                floorColor: new THREE.Color(...t.fc),
+                ceilingColor: new THREE.Color(...t.cc),
+                floorRoughness: t.fr,
+                wallRoughness: t.wr
+            };
+        }
+        if (depth <= 16) {
+            // Chapter 4: Overgrown Catacombs (Levels 13–16 / 650–800 ft) - Verdant lichen, fungal spores, emerald mist
+            const subThemes = [
+                { name: 'Overgrown Catacombs (Emerald Sanctuary)', wc: [0.60, 0.85, 0.58], fc: [0.50, 0.75, 0.48], cc: [0.42, 0.62, 0.40], fr: 0.60, wr: 0.78, tc: 0xf5dda0, fog: 0x0c1e10, amb: 0x3e6844 },
+                { name: 'Overgrown Catacombs (Lichen Hollows)', wc: [0.64, 0.82, 0.65], fc: [0.54, 0.72, 0.55], cc: [0.45, 0.60, 0.46], fr: 0.62, wr: 0.80, tc: 0xf8e0a4, fog: 0x0e1c12, amb: 0x426448 },
+                { name: 'Overgrown Catacombs (Spore Barrow)', wc: [0.58, 0.86, 0.62], fc: [0.48, 0.76, 0.52], cc: [0.40, 0.64, 0.44], fr: 0.58, wr: 0.76, tc: 0xf2dea8, fog: 0x0a2012, amb: 0x3a6a48 },
+                { name: 'Overgrown Catacombs (Peat Brambles)', wc: [0.68, 0.80, 0.56], fc: [0.58, 0.70, 0.46], cc: [0.48, 0.58, 0.38], fr: 0.64, wr: 0.82, tc: 0xf6d892, fog: 0x101a0e, amb: 0x485e3c }
+            ];
+            const t = subThemes[sub];
+            return {
+                name: t.name,
+                bgColor: 0x030604,
+                ambientColor: t.amb,
+                ambientEnergy: 0.30,
+                sunLight: false,
+                sunEnergy: 0.0,
+                fogColor: t.fog,
+                fogDensity: 0.015,
+                exposure: 1.18,
+                torchColor: t.tc,
+                torchEnergy: 2.7,
+                wallColor: new THREE.Color(...t.wc),
+                floorColor: new THREE.Color(...t.fc),
+                ceilingColor: new THREE.Color(...t.cc),
+                floorRoughness: t.fr,
+                wallRoughness: t.wr
+            };
+        }
+        if (depth <= 20) {
+            // Chapter 5: Chasm Threshold (Levels 17–20 / 850–1000 ft) - Rough ironstone, deep echoes, dark charcoal fog
+            const subThemes = [
+                { name: 'Chasm Threshold (Ironstone Vaults)', wc: [0.74, 0.70, 0.76], fc: [0.64, 0.60, 0.66], cc: [0.50, 0.46, 0.52], fr: 0.75, wr: 0.80, tc: 0xffd078, fog: 0x121014, amb: 0x544e58 },
+                { name: 'Chasm Threshold (Deep Echo)', wc: [0.70, 0.68, 0.74], fc: [0.60, 0.58, 0.64], cc: [0.48, 0.45, 0.50], fr: 0.76, wr: 0.82, tc: 0xffc870, fog: 0x100e12, amb: 0x504a54 },
+                { name: 'Chasm Threshold (Basalt Ledge)', wc: [0.72, 0.72, 0.74], fc: [0.62, 0.62, 0.64], cc: [0.50, 0.50, 0.52], fr: 0.74, wr: 0.78, tc: 0xffcc75, fog: 0x121214, amb: 0x525256 },
+                { name: 'Chasm Threshold (Shadow Pit)', wc: [0.68, 0.65, 0.72], fc: [0.58, 0.55, 0.62], cc: [0.46, 0.42, 0.48], fr: 0.72, wr: 0.84, tc: 0xffc268, fog: 0x0e0c10, amb: 0x4c4650 }
+            ];
+            const t = subThemes[sub];
+            return {
+                name: t.name,
+                bgColor: 0x040406,
+                ambientColor: t.amb,
+                ambientEnergy: 0.32,
+                sunLight: false,
+                sunEnergy: 0.0,
+                fogColor: t.fog,
+                fogDensity: 0.015,
+                exposure: 1.18,
+                torchColor: t.tc,
+                torchEnergy: 2.9,
+                wallColor: new THREE.Color(...t.wc),
+                floorColor: new THREE.Color(...t.fc),
+                ceilingColor: new THREE.Color(...t.cc),
+                floorRoughness: t.fr,
+                wallRoughness: t.wr
+            };
+        }
+        if (depth <= 35) {
+            // Chapter 6: Crystal Caverns (Levels 21–35 / 1050–1750 ft) - Luminous quartz, beryl, amethyst geode
+            const subThemes = [
+                { name: 'Crystal Caverns (Sapphire Quartz)', wc: [0.68, 0.80, 0.96], fc: [0.58, 0.70, 0.90], cc: [0.45, 0.55, 0.75], fr: 0.50, wr: 0.68, tc: 0xfadc7b, fog: 0x081224, amb: 0x425c85 },
+                { name: 'Crystal Caverns (Amethyst Geode)', wc: [0.76, 0.68, 0.94], fc: [0.68, 0.60, 0.86], cc: [0.56, 0.48, 0.72], fr: 0.48, wr: 0.68, tc: 0xf4d08c, fog: 0x0e081c, amb: 0x544078 },
+                { name: 'Crystal Caverns (Beryl Depths)', wc: [0.62, 0.84, 0.88], fc: [0.54, 0.75, 0.80], cc: [0.44, 0.62, 0.68], fr: 0.52, wr: 0.72, tc: 0xf8e090, fog: 0x06141c, amb: 0x365868 },
+                { name: 'Crystal Caverns (Prismatic Seam)', wc: [0.80, 0.76, 0.84], fc: [0.72, 0.68, 0.76], cc: [0.58, 0.54, 0.62], fr: 0.50, wr: 0.74, tc: 0xfad880, fog: 0x0c0e14, amb: 0x4c4a56 }
+            ];
+            const t = subThemes[sub];
+            return {
+                name: t.name,
+                bgColor: 0x030408,
+                ambientColor: t.amb,
+                ambientEnergy: 0.32,
+                sunLight: false,
+                sunEnergy: 0.0,
+                fogColor: t.fog,
+                fogDensity: 0.015,
+                exposure: 1.20,
+                torchColor: t.tc,
+                torchEnergy: 2.8,
+                wallColor: new THREE.Color(...t.wc),
+                floorColor: new THREE.Color(...t.fc),
+                ceilingColor: new THREE.Color(...t.cc),
+                floorRoughness: t.fr,
+                wallRoughness: t.wr
+            };
+        }
+        if (depth <= 60) {
+            // Chapter 7: Deep Nether Mines (Levels 36–60 / 1800–3000 ft) - Pyrite, amethyst, deep mineral chill
+            const subThemes = [
+                { name: 'Deep Nether Mines (Pyrite Seam)', wc: [0.82, 0.76, 0.62], fc: [0.72, 0.66, 0.52], cc: [0.58, 0.52, 0.40], fr: 0.60, wr: 0.75, tc: 0xffd880, fog: 0x14100c, amb: 0x584e3c },
+                { name: 'Deep Nether Mines (Amethyst Vaults)', wc: [0.78, 0.65, 0.92], fc: [0.68, 0.55, 0.84], cc: [0.52, 0.42, 0.68], fr: 0.54, wr: 0.72, tc: 0xf4cf8c, fog: 0x14081e, amb: 0x523868 },
+                { name: 'Deep Nether Mines (Obsidian Seam)', wc: [0.64, 0.60, 0.68], fc: [0.54, 0.50, 0.58], cc: [0.42, 0.38, 0.46], fr: 0.42, wr: 0.65, tc: 0xf6d490, fog: 0x0c0810, amb: 0x443a4e },
+                { name: 'Deep Nether Mines (Brimstone Cavern)', wc: [0.85, 0.75, 0.58], fc: [0.75, 0.65, 0.48], cc: [0.60, 0.50, 0.36], fr: 0.70, wr: 0.78, tc: 0xffcc70, fog: 0x161208, amb: 0x5a4830 }
+            ];
+            const t = subThemes[sub];
+            return {
+                name: t.name,
+                bgColor: 0x040306,
+                ambientColor: t.amb,
+                ambientEnergy: 0.32,
+                sunLight: false,
+                sunEnergy: 0.0,
+                fogColor: t.fog,
+                fogDensity: 0.015,
                 exposure: 1.20,
                 torchColor: t.tc,
                 torchEnergy: 2.8,
@@ -944,16 +1070,17 @@ class Dungeon3D {
             };
         }
         if (depth <= 85) {
+            // Chapter 8: Magma Underworld (Levels 61–85 / 3050–4250 ft) - Basalt obsidian, volcanic ash, glowing fissures
             const subThemes = [
-                { name: 'Magma Underworld (Basalt Crucible)', wc: [0.90, 0.72, 0.65], fc: [0.78, 0.62, 0.55], cc: [0.62, 0.48, 0.40], fr: 0.70, wr: 0.82, tc: 0xffd18c, fog: 0x140603, amb: 0x7a4024 },
-                { name: 'Magma Underworld (Obsidian Abyss)', wc: [0.65, 0.58, 0.62], fc: [0.55, 0.48, 0.52], cc: [0.42, 0.36, 0.40], fr: 0.35, wr: 0.60, tc: 0xffbf78, fog: 0x080202, amb: 0x5a3020 },
-                { name: 'Magma Underworld (Brimstone Wastes)', wc: [0.92, 0.80, 0.58], fc: [0.82, 0.70, 0.50], cc: [0.65, 0.55, 0.38], fr: 0.80, wr: 0.84, tc: 0xffc86a, fog: 0x160c02, amb: 0x7c4e20 },
-                { name: 'Magma Underworld (White-Hot Core)', wc: [0.96, 0.68, 0.54], fc: [0.86, 0.58, 0.46], cc: [0.68, 0.44, 0.34], fr: 0.65, wr: 0.78, tc: 0xffda9a, fog: 0x1c0803, amb: 0x8c4424 }
+                { name: 'Magma Underworld (Basalt Crucible)', wc: [0.90, 0.70, 0.60], fc: [0.78, 0.58, 0.48], cc: [0.60, 0.42, 0.35], fr: 0.68, wr: 0.80, tc: 0xffc070, fog: 0x1e0a04, amb: 0x7a4024 },
+                { name: 'Magma Underworld (Obsidian Abyss)', wc: [0.65, 0.58, 0.62], fc: [0.55, 0.48, 0.52], cc: [0.42, 0.36, 0.40], fr: 0.35, wr: 0.60, tc: 0xffbf78, fog: 0x100404, amb: 0x5a3020 },
+                { name: 'Magma Underworld (Brimstone Wastes)', wc: [0.92, 0.80, 0.58], fc: [0.82, 0.70, 0.50], cc: [0.65, 0.55, 0.38], fr: 0.80, wr: 0.84, tc: 0xffc86a, fog: 0x1c0e04, amb: 0x7c4e20 },
+                { name: 'Magma Underworld (White-Hot Core)', wc: [0.96, 0.68, 0.54], fc: [0.86, 0.58, 0.46], cc: [0.68, 0.44, 0.34], fr: 0.65, wr: 0.78, tc: 0xffda9a, fog: 0x220c04, amb: 0x8c4424 }
             ];
             const t = subThemes[sub];
             return {
                 name: t.name,
-                bgColor: 0x060302,
+                bgColor: 0x080302,
                 ambientColor: t.amb,
                 ambientEnergy: 0.36,
                 sunLight: false,
@@ -962,7 +1089,7 @@ class Dungeon3D {
                 fogDensity: 0.016,
                 exposure: 1.22,
                 torchColor: t.tc,
-                torchEnergy: 3.0,
+                torchEnergy: 3.2,
                 wallColor: new THREE.Color(...t.wc),
                 floorColor: new THREE.Color(...t.fc),
                 ceilingColor: new THREE.Color(...t.cc),
@@ -970,16 +1097,17 @@ class Dungeon3D {
                 wallRoughness: t.wr
             };
         }
+        // Chapter 9: The Abyssal Citadel of Morgoth (Levels 86–100 / 4300–5000 ft) - Blood-iron, nether void, eerie crimson mist
         const subThemes = [
-            { name: 'Abyssal Throne (Void Citadel)', wc: [0.75, 0.65, 0.85], fc: [0.68, 0.58, 0.78], cc: [0.50, 0.40, 0.60], fr: 0.60, wr: 0.75, tc: 0xf2d9bf, fog: 0x0d0414, amb: 0x613370 },
-            { name: 'Abyssal Throne (Necrotic Pit)', wc: [0.68, 0.68, 0.72], fc: [0.60, 0.60, 0.64], cc: [0.45, 0.45, 0.50], fr: 0.75, wr: 0.82, tc: 0xe8d0b5, fog: 0x060608, amb: 0x484252 },
-            { name: 'Abyssal Throne (Blood-Iron Vaults)', wc: [0.85, 0.58, 0.68], fc: [0.75, 0.50, 0.60], cc: [0.55, 0.36, 0.46], fr: 0.55, wr: 0.76, tc: 0xf5cbb0, fog: 0x120206, amb: 0x6c2c42 },
-            { name: 'Abyssal Throne (Nether Core)', wc: [0.60, 0.65, 0.88], fc: [0.52, 0.56, 0.78], cc: [0.40, 0.44, 0.62], fr: 0.38, wr: 0.65, tc: 0xe0d4f5, fog: 0x040308, amb: 0x403666 }
+            { name: 'Abyssal Throne (Void Citadel)', wc: [0.72, 0.55, 0.78], fc: [0.62, 0.45, 0.68], cc: [0.46, 0.32, 0.52], fr: 0.45, wr: 0.70, tc: 0xe8c8f0, fog: 0x140418, amb: 0x613370 },
+            { name: 'Abyssal Throne (Necrotic Pit)', wc: [0.68, 0.68, 0.72], fc: [0.60, 0.60, 0.64], cc: [0.45, 0.45, 0.50], fr: 0.75, wr: 0.82, tc: 0xe8d0b5, fog: 0x08060a, amb: 0x484252 },
+            { name: 'Abyssal Throne (Blood-Iron Vaults)', wc: [0.85, 0.54, 0.64], fc: [0.75, 0.46, 0.56], cc: [0.55, 0.32, 0.42], fr: 0.55, wr: 0.76, tc: 0xf5cbb0, fog: 0x180408, amb: 0x6c2c42 },
+            { name: 'Abyssal Throne (Nether Core)', wc: [0.60, 0.65, 0.88], fc: [0.52, 0.56, 0.78], cc: [0.40, 0.44, 0.62], fr: 0.38, wr: 0.65, tc: 0xe0d4f5, fog: 0x06040e, amb: 0x403666 }
         ];
         const t = subThemes[sub];
         return {
             name: t.name,
-            bgColor: 0x040206,
+            bgColor: 0x060208,
             ambientColor: t.amb,
             ambientEnergy: 0.30,
             sunLight: false,
@@ -988,7 +1116,7 @@ class Dungeon3D {
             fogDensity: 0.016,
             exposure: 1.22,
             torchColor: t.tc,
-            torchEnergy: 2.4,
+            torchEnergy: 2.6,
             wallColor: new THREE.Color(...t.wc),
             floorColor: new THREE.Color(...t.fc),
             ceilingColor: new THREE.Color(...t.cc),
@@ -1749,6 +1877,9 @@ class Dungeon3D {
         loadMonster('frog', '/assets/models/monsters/Frog.obj', frogMat, 0.38, 0.0);
         loadMonster('wasp', '/assets/models/monsters/Wasp.obj', waspMat, 0.42, 0.45);
 
+        // 1b. Initialize Shockbolt 2.5D PBR Monster Billboard Atlas & Normal Map
+        this.initMonsterAtlas();
+
         // Weapon models for Viewmodel (Multi-material PBR matching Blender/FBX/MTL definitions)
         const loadWeapon = (key, url, scale, rot, pos) => {
             this.objLoader.load(url, (obj) => {
@@ -2306,28 +2437,49 @@ class Dungeon3D {
                 const cluster = (((cx * 374761393) ^ (cy * 668265263) ^ (this.currentLevelSeed || 0)) >>> 0) & 0xff;
 
                 if (cluster < 42) {
-                    // ~16% natural geological formations
-                    if (depth > 0 && depth <= 15) {
-                        // Damp/soot deposit
-                        lum -= 0.045;
+                    // ~16% natural geological formations matched to 4-level progressive depth chapters
+                    if (depth <= 4) {
+                        // Chapter 1: Upper Crypts (50–200 ft) — dry soot & crumbling mortar
+                        lum -= 0.040;
                         warm -= 0.015;
-                    } else if (depth > 15 && depth <= 35) {
-                        // Moss/lichen patch
-                        targetColor.g = Math.min(1.0, targetColor.g + 0.045);
-                        targetColor.r = Math.max(0.05, targetColor.r - 0.02);
-                    } else if (depth > 35 && depth <= 60) {
-                        // Quartz / mineral streak
-                        targetColor.b = Math.min(1.0, targetColor.b + 0.055);
-                        targetColor.r = Math.min(1.0, targetColor.r + 0.015);
-                    } else if (depth > 60 && depth <= 85) {
-                        // Thermal stress glow
-                        targetColor.r = Math.min(1.0, targetColor.r + 0.05);
-                        targetColor.b = Math.max(0.05, targetColor.b - 0.025);
-                    } else if (depth > 85) {
-                        // Void shadow
-                        targetColor.r = Math.min(1.0, targetColor.r + 0.02);
-                        targetColor.b = Math.min(1.0, targetColor.b + 0.04);
+                    } else if (depth <= 8) {
+                        // Chapter 2: Flooded Undercrofts (250–400 ft) — wet water seepage & slick algae
+                        targetColor.g = Math.min(1.0, targetColor.g + 0.035);
+                        targetColor.b = Math.min(1.0, targetColor.b + 0.045);
                         lum -= 0.035;
+                    } else if (depth <= 12) {
+                        // Chapter 3: Deep Sepulchre (450–600 ft) — ancient sandstone, sarcophagus dust, terracotta saltpeter
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.055);
+                        targetColor.g = Math.min(1.0, targetColor.g + 0.025);
+                        lum += 0.015;
+                        warm += 0.025;
+                    } else if (depth <= 16) {
+                        // Chapter 4: Overgrown Catacombs (650–800 ft) — verdant lichen, bioluminescent fungal spores
+                        targetColor.g = Math.min(1.0, targetColor.g + 0.065);
+                        targetColor.r = Math.max(0.05, targetColor.r - 0.025);
+                    } else if (depth <= 20) {
+                        // Chapter 5: Chasm Threshold (850–1000 ft) — rough ironstone & rust veins
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.045);
+                        targetColor.b = Math.max(0.05, targetColor.b - 0.020);
+                        lum -= 0.030;
+                    } else if (depth <= 35) {
+                        // Chapter 6: Crystal Caverns (1050–1750 ft) — amethyst & sapphire mineral streaks
+                        targetColor.b = Math.min(1.0, targetColor.b + 0.065);
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.030);
+                    } else if (depth <= 60) {
+                        // Chapter 7: Magma Underworld (1800–3000 ft) — thermal stress glow, ember fissures
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.070);
+                        targetColor.g = Math.min(1.0, targetColor.g + 0.025);
+                        targetColor.b = Math.max(0.05, targetColor.b - 0.035);
+                    } else if (depth <= 85) {
+                        // Chapter 8: Abyssal Nether Vaults (3050–4250 ft) — void shadow seepages & necrotic stains
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.025);
+                        targetColor.b = Math.min(1.0, targetColor.b + 0.050);
+                        lum -= 0.050;
+                    } else {
+                        // Chapter 9: Morgoth's Iron Citadel (4300–5000 ft) — obsidian blackness & blood crimson veins
+                        targetColor.r = Math.min(1.0, targetColor.r + 0.080);
+                        lum -= 0.060;
                     }
                 }
 
@@ -3459,6 +3611,136 @@ class Dungeon3D {
         const sprite = new THREE.Sprite(mat);
         sprite.scale.set(1.15, 0.33, 1.0);
         return sprite;
+    }
+
+    initMonsterAtlas() {
+        const texLoader = new THREE.TextureLoader();
+        this.monsterAtlasData = null;
+        this.monsterAtlasTex = null;
+        this.monsterNormalTex = null;
+        this._monsterAtlasLowerMap = null;
+
+        // Shared PBR Material for all monster billboards (Z-buffer depth tested, dynamic torchlight specular relief)
+        this.monsterBillboardMat = new THREE.MeshStandardMaterial({
+            roughness: 0.72,
+            metalness: 0.10,
+            alphaTest: 0.25,
+            depthWrite: true,
+            transparent: false,
+            side: THREE.DoubleSide
+        });
+
+        texLoader.load('/assets/sprites/monsters/monster_atlas.png', (tex) => {
+            tex.encoding = THREE.sRGBEncoding;
+            tex.generateMipmaps = true;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.magFilter = THREE.NearestFilter;
+            this.monsterAtlasTex = tex;
+            if (this.monsterBillboardMat) {
+                this.monsterBillboardMat.map = tex;
+                this.monsterBillboardMat.needsUpdate = true;
+            }
+        }, undefined, (err) => {
+            console.warn('[3D] monster_atlas.png failed to load, falling back to procedural tokens:', err);
+        });
+
+        texLoader.load('/assets/sprites/monsters/monster_normal.png', (tex) => {
+            tex.generateMipmaps = true;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            this.monsterNormalTex = tex;
+            if (this.monsterBillboardMat) {
+                this.monsterBillboardMat.normalMap = tex;
+                this.monsterBillboardMat.normalScale = new THREE.Vector2(1.2, 1.2);
+                this.monsterBillboardMat.needsUpdate = true;
+            }
+        }, undefined, (err) => {
+            console.warn('[3D] monster_normal.png failed to load:', err);
+        });
+
+        fetch('/assets/sprites/monsters/monster_atlas.json')
+            .then(res => res.json())
+            .then(data => {
+                this.monsterAtlasData = data;
+                console.log(`[3D] Loaded monster sprite atlas: ${Object.keys(data.monsters || {}).length} species, ${Object.keys(data.glyphs || {}).length} glyph fallbacks.`);
+            })
+            .catch(err => {
+                console.warn('[3D] monster_atlas.json failed to load, using procedural fallback:', err);
+            });
+    }
+
+    resolveMonsterAtlasEntry(name, glyph) {
+        if (!this.monsterAtlasData) return null;
+        const monsters = this.monsterAtlasData.monsters;
+        const glyphs = this.monsterAtlasData.glyphs;
+        if (!monsters && !glyphs) return null;
+
+        const rawName = (name || '').trim();
+        // 1. Direct exact name lookup
+        if (monsters && monsters[rawName]) {
+            return monsters[rawName];
+        }
+
+        // 2. Case-insensitive & partial lookup
+        if (monsters) {
+            const lower = rawName.toLowerCase();
+            if (!this._monsterAtlasLowerMap) {
+                this._monsterAtlasLowerMap = new Map();
+                for (const [k, v] of Object.entries(monsters)) {
+                    this._monsterAtlasLowerMap.set(k.toLowerCase(), v);
+                }
+            }
+            if (this._monsterAtlasLowerMap.has(lower)) {
+                return this._monsterAtlasLowerMap.get(lower);
+            }
+
+            for (const [k, v] of this._monsterAtlasLowerMap.entries()) {
+                if (lower.includes(k) || k.includes(lower)) {
+                    return v;
+                }
+            }
+        }
+
+        // 3. Canonical Glyph fallback (100% coverage across all 49 Angband character symbols)
+        if (glyphs && glyph && glyphs[glyph]) {
+            return glyphs[glyph];
+        }
+
+        return null;
+    }
+
+    createMonsterBillboardMesh(atlasEntry) {
+        if (!atlasEntry || !atlasEntry.uv || !this.monsterBillboardMat) return null;
+        const [u0, v0, u1, v1] = atlasEntry.uv;
+
+        // Custom 4-vertex quad with UVs mapping into the 2048x2048 atlas
+        const geo = new THREE.PlaneGeometry(1, 1);
+        geo.translate(0, 0.5, 0); // Ground pivot at feet
+
+        const uvAttr = geo.attributes.uv;
+        uvAttr.setXY(0, u0, v1);
+        uvAttr.setXY(1, u1, v1);
+        uvAttr.setXY(2, u0, v0);
+        uvAttr.setXY(3, u1, v0);
+        uvAttr.needsUpdate = true;
+
+        const mesh = new THREE.Mesh(geo, this.monsterBillboardMat);
+        const w = atlasEntry.width || 1.25;
+        const h = atlasEntry.height || 1.70;
+        mesh.scale.set(w, h, 1.0);
+        mesh.castShadow = true;
+        mesh.receiveShadow = false;
+
+        mesh.isBillboard = true;
+        mesh.baseWidth = w;
+        mesh.baseHeight = h;
+        mesh.isFloating = atlasEntry.isFloating || false;
+        mesh.baseElevation = mesh.isFloating ? 0.35 : 0.0;
+        if (mesh.isFloating) {
+            mesh.position.y = mesh.baseElevation;
+        }
+
+        return mesh;
     }
 
     createProceduralCreatureMesh(glyph, raceName, colorHex) {
@@ -4749,8 +5031,22 @@ class Dungeon3D {
             this.configureCreatureEquipment(mesh, config.role);
         }
 
-        // Procedural anatomical creature fallback for unmapped non-humanoids (eyes, worms, slimes, mushrooms, etc.)
+        // 2. High-Fidelity Shockbolt 2.5D PBR Billboards with Normal Mapping (Hybrid Pipeline)
+        if (!mesh && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
+            const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, glyph);
+            if (atlasEntry) {
+                mesh = this.createMonsterBillboardMesh(atlasEntry);
+                if (mesh) {
+                    modelHeight = atlasEntry.height || 1.70;
+                    isFloating = atlasEntry.isFloating || false;
+                }
+            }
+        }
+
+        let isBillboardFallback = false;
+        // 3. Procedural anatomical creature fallback for unmapped non-humanoids (eyes, worms, slimes, mushrooms, etc.)
         if (!mesh) {
+            isBillboardFallback = true;
             mesh = this.createProceduralCreatureMesh(glyph, m.race || m.name, colorHex);
             if (glyph === 'b' || glyph === 'B' || glyph === 'e' || glyph === 'W' || glyph === 'G' || glyph === 'I' || race.includes('wasp') || race.includes('eye') || race.includes('bat') || race.includes('ghost') || race.includes('wraith')) {
                 isFloating = true;
@@ -4765,6 +5061,16 @@ class Dungeon3D {
         }
 
         root.add(mesh);
+
+        // Soft ground contact shadow disc anchoring creature to floor (eliminates floating paper-doll effect)
+        if ((!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.contactShadows) && this.shadowGeo && this.shadowMat) {
+            const shadowDisc = new THREE.Mesh(this.shadowGeo, this.shadowMat);
+            shadowDisc.position.set(0, 0.005, 0);
+            const footprint = ((mesh && mesh.baseWidth) ? mesh.baseWidth : 1.25) * 0.75;
+            shadowDisc.scale.set(footprint, footprint, footprint);
+            root.add(shadowDisc);
+            root.contactShadow = shadowDisc;
+        }
         root.creatureMesh = mesh;
         root.modelHeight = modelHeight;
         root.isFloating = isFloating;
@@ -4775,6 +5081,7 @@ class Dungeon3D {
         root.isFemale = isFeminineModel || ((config && config.gender === 'female') || (m && (m.isFemale || m.gender === 'female' || m.modelGender === 'female')));
         root.modelGender = root.isFemale ? 'female' : ((config && config.gender) ? config.gender : 'male');
         root.isFallback = !config || !this.monsterTemplates || !this.monsterTemplates.has(config.templateKey);
+        root.isBillboardFallback = isBillboardFallback;
         root.colorHex = colorHex;
         root.glyph = glyph;
         root.race = m.race || m.name || '';
@@ -4902,6 +5209,30 @@ class Dungeon3D {
 
                         if (entity.nameplate) {
                             entity.nameplate.position.set(0, entity.modelHeight + 0.42, 0);
+                        }
+                    }
+                }
+
+                // Auto-upgrade procedural creature fallback to Shockbolt PBR billboard once monster_atlas.json has loaded!
+                if (entity.isBillboardFallback && this.monsterAtlasData && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
+                    const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, entity.glyph);
+                    if (atlasEntry) {
+                        const upgradedBillboard = this.createMonsterBillboardMesh(atlasEntry);
+                        if (upgradedBillboard) {
+                            entity.remove(entity.creatureMesh);
+                            entity.creatureMesh = upgradedBillboard;
+                            entity.add(upgradedBillboard);
+                            entity.modelHeight = atlasEntry.height || 1.70;
+                            entity.isFloating = atlasEntry.isFloating || false;
+                            entity.isBillboardFallback = false;
+                            upgradedBillboard.monsterData = m;
+                            if (entity.contactShadow) {
+                                const footprint = (upgradedBillboard.baseWidth || 1.25) * 0.75;
+                                entity.contactShadow.scale.set(footprint, footprint, footprint);
+                            }
+                            if (entity.nameplate) {
+                                entity.nameplate.position.set(0, entity.modelHeight + 0.42, 0);
+                            }
                         }
                     }
                 }
@@ -5717,6 +6048,21 @@ class Dungeon3D {
             // Vertical hover/float
             const baseY = entity.isFloating ? 0.45 : 0.0;
             entity.position.y = baseY + Math.sin(monTime + entity.position.x * 2.0) * (entity.isFloating ? 0.08 : 0.02);
+
+            // Billboard cylindrical Y-facing & volume-conserving breathing
+            if (entity.creatureMesh && entity.creatureMesh.isBillboard) {
+                const bdx = this.camera.position.x - entity.position.x;
+                const bdz = this.camera.position.z - entity.position.z;
+                if (bdx * bdx + bdz * bdz > 0.001) {
+                    entity.rotation.y = Math.atan2(bdx, bdz);
+                }
+                if (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.idleBreathing) {
+                    const breath = Math.sin(monTime * 1.8 + entity.position.x * 3.7) * 0.018;
+                    const bw = entity.creatureMesh.baseWidth || 1.25;
+                    const bh = entity.creatureMesh.baseHeight || 1.70;
+                    entity.creatureMesh.scale.set(bw * (1.0 - breath * 0.5), bh * (1.0 + breath), 1.0);
+                }
+            }
 
             // Ethereal pulse & ripple rotation for sensed / invisible foggy aura
             if (entity.foggyAura && entity.foggyAura.visible) {
