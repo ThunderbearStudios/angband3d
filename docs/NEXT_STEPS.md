@@ -1,8 +1,32 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.3.0 — Subterranean Geological Biomes, 130 3D Item Pickups, Contact Shadows & Adaptive Vignette)
+## Current System State (Angband3D v2.3.1 — Celestial Star Canopy Overhead, Extended Sky Freelook, Subterranean Biomes & 130 3D Item Pickups)
 
-0. **Graphics Engine & Visual Fidelity Upgrade (Version 2.3.0 — Biome Variations, 3D Item Pickups & Multi-Client Parity)**:
+0. **Overhead Celestial Star Canopy & Sky Freelook (Version 2.3.1 — High-Fidelity Town Sky & Astronomical Precision)**:
+   - **Procedural Canvas Star Texture & Diffraction Bloom (`dungeon3d.js`)**:
+     - Custom 64x64 canvas texture with quadratic Gaussian core, antialiased alpha falloff, and subtle 4-point cross-diffraction spikes simulating true astronomical optics.
+   - **Upper Celestial Dome Distribution & Galactic River (`dungeon3d.js`)**:
+     - 1,800 stars distributed over the upper hemisphere ($R = 70.0$, $Y \ge 0.04$) with 38% concentrated along an inclined galactic plane (the Milky Way / celestial River of Stars).
+     - Fixed Star of Eärendil at magnitude 6.5 in the high eastern quadrant as a brilliant diamond-blue celestial jewel.
+   - **Astronomical Spectral Classes & Thermodynamic Twinkling (`dungeon3d.js`)**:
+     - 5 realistic stellar spectral classes: Class A (diamond white, 45%), Class B (ice blue, 22%), Class F/G (solar gold, 18%), Class K (amber topaz, 10%), Class M (ruby garnet, 5%).
+     - Custom GPU GLSL shader evaluating gentle, non-distracting thermodynamic twinkling (0.25–0.35 Hz wave) and smooth horizon atmospheric extinction (`smoothstep(0.04, 0.24, y)`).
+   - **Infinity Anchoring & Strict Subterranean Isolation (`dungeon3d.js`)**:
+     - Star canopy position is dynamically pinned to `camera.position` in the render loop, ensuring absolute zero parallax drift when walking.
+     - Strictly suppressed underground (`depth > 0` sets visibility to false and uniform to 0.0, resulting in zero draw calls and zero light leak in dungeons).
+   - **Extended Vertical Pitch & Sky Gazing (`dungeon3d.js`, `input.js`)**:
+     - Expanded mouse/touch freelook pitch limit from 0.55 rad (~31°) to 1.25 rad (~72° up).
+     - Expanded keyboard `PageUp`/`PageDown` and mobile on-screen tilt buttons to 1.25 rad with 0.12 rad steps, allowing players to look up into the starry sky.
+   - **Live Production Deployment**:
+     - Live on `https://angband3d.com/` (Google Cloud Run revision `angband3d-cloud-00095-vc6`, cache version `v7.5.0`).
+   - **Verification & Test Status**:
+     - `node tools/test_graphics_enhancements.js`: 8/8 verification invariants passed (100%).
+     - `node server/test/server_test.js`: 20/20 test suites passed (100%).
+     - `node tools/test_chronicle.js`: 33/33 phases passed (100%).
+     - `python tools/smoke_test.py`: 11/11 tests passed (100%).
+     - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
+
+1. **Graphics Engine & Visual Fidelity Upgrade (Version 2.3.0 — Biome Variations, 3D Item Pickups & Multi-Client Parity)**:
    - **Dynamic Depth Biomes & Geological Sub-Themes (`dungeon3d.js`, `DungeonWorld.cs`)**:
      - Upgraded the 6 depth zones with 4 distinct geological sub-themes per tier (e.g. Upper Crypts: Granite Tomb, Sandstone Vaults, Slate Barrow, Damp Sepulchre; Overgrown Catacombs: Verdant Crypt, Fungal Hollows, Ancient Brambles, Spore Marsh; Crystal Caverns: Azure Grotto, Amethyst Depths, Prismatic Seam, Emerald Geode; Magma Underworld: Basalt Crucible, Cinder Caldera, Brimstone Chasm, Obsidian Core; Abyssal Throne: Void Citadel, Necrotic Pit, Blood-Iron Vaults, Nether Core).
      - Deterministic level seed calculation derived from depth, width, and height: `((depth * 73856093) ^ (w * 19349663) ^ (h * 83492791)) >>> 0`.
