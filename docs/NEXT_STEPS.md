@@ -1,8 +1,31 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.5.0 / Web v7.7.0 — Canonical Daggerfall 2.5D Creature & Item Overhaul, Shockbolt PBR Art, Normal Mapping & Maximum Fidelity)
+## Current System State (Angband3D v2.6.0 / Web v7.8.0 — Master Lore Accuracy Audit, 4096×4096 HD Atlases, Bilateral Normal Denoising & 100% Model Fidelity)
 
-0. **Canonical Daggerfall 2.5D Creature & Item Overhaul (Version 2.5.0 / Web v7.7.0 — Universal Shockbolt Art, Normal Mapping, Contact Shadows & 100% Item/Creature Coverage)**:
+0. **Master Lore Accuracy Audit & HD Graphics Pipeline (Version 2.6.0 / Web v7.8.0)**:
+   - **Root Cause & Resolution of the "Hippogriff" Defect**:
+     - Identified mathematical discrepancy between C# integer division ($\lfloor i / 32 \rfloor$) and PowerShell float rounding ($[int](i / 32)$ using IEEE 754 banker's rounding to even).
+     - Whenever $i \bmod 32 \ge 16$, PowerShell rounded up, shifting the UVs down by 32 slots (affected 320/624 monsters and ~250 items).
+     - Fixed via strict `[int][Math]::Floor($i / $tilesPerRow)` across all atlas builders. Verified that Hippogriff (`[H]`, index 147) is mapped to Row 4, SlotCol 19 (eagle-headed winged horse), completely segregated from Flesh Golem (`[g]`, index 179 on Row 5, SlotCol 19).
+   - **4096×4096 HD Atlas Upgrade (4× Pixel Density)**:
+     - Upgraded both `monster_atlas.png` (19.72 MB) and `item_atlas.png` (7.21 MB) to 4096×4096 resolution with 128×128 tiles.
+     - Upscaled using `InterpolationMode.HighQualityBicubic` + `PixelOffsetMode.HighQuality`.
+   - **5×5 Bilateral Normal Map Denoising (Eradicating Specular Sand)**:
+     - Implemented 2-pass separable 5-tap Gaussian/bilateral filter (`1-4-6-4-1 / 16`) on luminance before Sobel gradient calculation.
+     - Eradicated 1-pixel high-frequency pixel-art dither spikes that caused harsh specular grain under moving torchlight.
+     - Added spherical silhouette contouring (`tileRelX`, `tileRelY`).
+   - **Three.js Filtering & Anisotropy**:
+     - Enabled `THREE.LinearFilter` magnification filter to eliminate blocky pixel staircasing at close quarters.
+     - Enabled 16× anisotropic filtering (`tex.anisotropy = 16`) for crisp grazing angles in corridors.
+     - Balanced normal scale to `(0.45, 0.45)` with roughness `0.82` for monsters and `0.65` for items.
+   - **3D Polygon Mesh Smoothing**:
+     - Automated `computeVertexNormals()` across all GLTF, GLB, and OBJ character, creature, and item loaders, eliminating faceted geometry and broken specular breaks.
+   - **Master Lore Audit Suite (`tools/audit_atlas_models.js`)**:
+     - Audits 100% of 624 monsters against canonical `graf-shb-dark.prf` and 498 items against `flvr-shb.prf`.
+     - Validates UTF-8 character encoding (e.g. Sméagol / Smeagol dual-indexing).
+     - 100% passing across all 6 audit suites.
+
+0b. **Canonical Daggerfall 2.5D Creature & Item Overhaul (Universal Shockbolt Art, Normal Mapping, Contact Shadows & 100% Item/Creature Coverage)**:
    - **Universal Daggerfall 2.5D Visual Model Promoted Across the Board**:
      - Standardized visual model on the gritty, authentic Daggerfall / Dungeon Master 2.5D aesthetic preferred by the user over generic 3D low-poly models.
      - **Creatures**: Canonical Shockbolt PBR normal-mapped billboards promoted to **Step 1 (Primary)** for all 624 Angband creatures (including orcs, humanoids, skeletons, dragons, vermin, Morgoth), replacing generic low-poly 3D models.

@@ -1837,6 +1837,9 @@ class Dungeon3D {
                             if (c.isMesh) {
                                 c.castShadow = true;
                                 c.receiveShadow = true;
+                                if (c.geometry) {
+                                    c.geometry.computeVertexNormals();
+                                }
                             }
                         });
                         this.monsterTemplates.set(m.key, {
@@ -1864,6 +1867,9 @@ class Dungeon3D {
                 obj.traverse((c) => {
                     if (c.isMesh) {
                         c.material = mat.clone();
+                        if (c.geometry) {
+                            c.geometry.computeVertexNormals();
+                        }
                     }
                 });
                 obj.scale.set(scale, scale, scale);
@@ -1889,6 +1895,9 @@ class Dungeon3D {
             this.objLoader.load(url, (obj) => {
                 obj.traverse((c) => {
                     if (c.isMesh) {
+                        if (c.geometry) {
+                            c.geometry.computeVertexNormals();
+                        }
                         const mName = ((c.material && c.material.name ? c.material.name : '') + ' ' + (c.name || '')).toLowerCase();
                         if (mName.includes('darkwood') || mName.includes('leather') || mName.includes('grip') || mName.includes('strap')) {
                             c.material = new THREE.MeshStandardMaterial({ color: 0x4a2a14, roughness: 0.85, metalness: 0.05 });
@@ -2030,6 +2039,9 @@ class Dungeon3D {
                 obj.traverse((c) => {
                     if (c.isMesh) {
                         c.material = mat.clone();
+                        if (c.geometry) {
+                            c.geometry.computeVertexNormals();
+                        }
                     }
                 });
                 obj.scale.set(scale, scale, scale);
@@ -3626,7 +3638,7 @@ class Dungeon3D {
 
         // Shared PBR Material for all monster billboards (Z-buffer depth tested, dynamic torchlight specular relief)
         this.monsterBillboardMat = new THREE.MeshStandardMaterial({
-            roughness: 0.72,
+            roughness: 0.82,
             metalness: 0.10,
             alphaTest: 0.25,
             depthWrite: true,
@@ -3638,7 +3650,10 @@ class Dungeon3D {
             tex.encoding = THREE.sRGBEncoding;
             tex.generateMipmaps = true;
             tex.minFilter = THREE.LinearMipmapLinearFilter;
-            tex.magFilter = THREE.NearestFilter;
+            tex.magFilter = THREE.LinearFilter;
+            if (this.renderer && this.renderer.capabilities) {
+                tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+            }
             this.monsterAtlasTex = tex;
             if (this.monsterBillboardMat) {
                 this.monsterBillboardMat.map = tex;
@@ -3652,10 +3667,13 @@ class Dungeon3D {
             tex.generateMipmaps = true;
             tex.minFilter = THREE.LinearMipmapLinearFilter;
             tex.magFilter = THREE.LinearFilter;
+            if (this.renderer && this.renderer.capabilities) {
+                tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+            }
             this.monsterNormalTex = tex;
             if (this.monsterBillboardMat) {
                 this.monsterBillboardMat.normalMap = tex;
-                this.monsterBillboardMat.normalScale = new THREE.Vector2(1.2, 1.2);
+                this.monsterBillboardMat.normalScale = new THREE.Vector2(0.45, 0.45);
                 this.monsterBillboardMat.needsUpdate = true;
             }
         }, undefined, (err) => {
@@ -3717,7 +3735,7 @@ class Dungeon3D {
         if (!atlasEntry || !atlasEntry.uv || !this.monsterBillboardMat) return null;
         const [u0, v0, u1, v1] = atlasEntry.uv;
 
-        // Custom 4-vertex quad with UVs mapping into the 2048x2048 atlas
+        // Custom 4-vertex quad with UVs mapping into the 4096x4096 HD atlas
         const geo = new THREE.PlaneGeometry(1, 1);
         geo.translate(0, 0.5, 0); // Ground pivot at feet
 
@@ -3768,7 +3786,10 @@ class Dungeon3D {
             tex.encoding = THREE.sRGBEncoding;
             tex.generateMipmaps = true;
             tex.minFilter = THREE.LinearMipmapLinearFilter;
-            tex.magFilter = THREE.NearestFilter;
+            tex.magFilter = THREE.LinearFilter;
+            if (this.renderer && this.renderer.capabilities) {
+                tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+            }
             this.itemAtlasTex = tex;
             if (this.itemBillboardMat) {
                 this.itemBillboardMat.map = tex;
@@ -3782,10 +3803,13 @@ class Dungeon3D {
             tex.generateMipmaps = true;
             tex.minFilter = THREE.LinearMipmapLinearFilter;
             tex.magFilter = THREE.LinearFilter;
+            if (this.renderer && this.renderer.capabilities) {
+                tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+            }
             this.itemNormalTex = tex;
             if (this.itemBillboardMat) {
                 this.itemBillboardMat.normalMap = tex;
-                this.itemBillboardMat.normalScale = new THREE.Vector2(1.2, 1.2);
+                this.itemBillboardMat.normalScale = new THREE.Vector2(0.45, 0.45);
                 this.itemBillboardMat.needsUpdate = true;
             }
         }, undefined, (err) => {
@@ -4669,6 +4693,9 @@ class Dungeon3D {
         });
 
         clone.traverse((node) => {
+            if (node.isMesh && node.geometry && !node.geometry.attributes.normal) {
+                node.geometry.computeVertexNormals();
+            }
             if (node.isSkinnedMesh) {
                 const sourceMesh = sourceLookup.get(node);
                 if (sourceMesh && sourceMesh.skeleton) {

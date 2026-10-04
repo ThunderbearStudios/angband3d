@@ -24,7 +24,7 @@ Write-Host "[Item Atlas Builder] Reading items and flavors from Shockbolt PRFs..
 $itemList = [System.Collections.Generic.List[psobject]]::new()
 $seenNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
-$darkLines = Get-Content $darkPrfPath
+$darkLines = [System.IO.File]::ReadAllLines($darkPrfPath, [System.Text.Encoding]::UTF8)
 foreach ($line in $darkLines) {
     $trimmed = $line.Trim()
     if ($trimmed -match '^object:([^:]+):([^:]+):(0x[0-9a-fA-F]+):(0x[0-9a-fA-F]+)') {
@@ -47,7 +47,7 @@ foreach ($line in $darkLines) {
 }
 
 # 2. Parse flvr-shb.prf for flavors: flavor:<num>:<row>:<col> with preceding comment
-$flvrLines = Get-Content $flvrPrfPath
+$flvrLines = [System.IO.File]::ReadAllLines($flvrPrfPath, [System.Text.Encoding]::UTF8)
 $curComment = ""
 foreach ($line in $flvrLines) {
     $trimmed = $line.Trim()
@@ -93,22 +93,29 @@ public class ItemAtlasProcessor {
         using (Bitmap atlasBmp = new Bitmap(atlasSize, atlasSize, PixelFormat.Format32bppArgb))
         using (Bitmap normalBmp = new Bitmap(atlasSize, atlasSize, PixelFormat.Format32bppArgb))
         {
+            int count = srcXs.Length;
+
             using (Graphics g = Graphics.FromImage(atlasBmp)) {
                 g.Clear(Color.Transparent);
-                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
 
-                for (int i = 0; i < srcXs.Length; i++) {
-                    int destX = (i % tilesPerRow) * tileSize;
-                    int destY = (i / tilesPerRow) * tileSize;
+                for (int i = 0; i < count; i++) {
+                    int slotCol = i % tilesPerRow;
+                    int slotRow = i / tilesPerRow;
 
-                    Rectangle srcRect = new Rectangle(srcXs[i], srcYs[i], tileSize, tileSize);
+                    int destX = slotCol * tileSize;
+                    int destY = slotRow * tileSize;
+
                     Rectangle destRect = new Rectangle(destX, destY, tileSize, tileSize);
+                    Rectangle srcRect = new Rectangle(srcXs[i], srcYs[i], 64, 64);
+
                     g.DrawImage(srcBmp, destRect, srcRect, GraphicsUnit.Pixel);
                 }
             }
 
-            // Lock bits to generate tangent-space normal map via 3x3 Sobel filter + contour relief
+            // Generate bilateral denoised volumetric normal map
             BitmapData atlasData = atlasBmp.LockBits(
                 new Rectangle(0, 0, atlasSize, atlasSize),
                 ImageLockMode.ReadOnly,
@@ -129,48 +136,97 @@ public class ItemAtlasProcessor {
 
             Marshal.Copy(atlasScan, atlasBytes, 0, atlasBytes.Length);
 
+            // Step 1: Pre-calculate raw luminance
+            float[] rawLum = new float[atlasSize * atlasSize];
             for (int y = 0; y < atlasSize; y++) {
-                int yMin = Math.Max(0, y - 1);
-                int yMax = Math.Min(atlasSize - 1, y + 1);
+                int rowOffset = y * stride;
+                int lumOffset = y * atlasSize;
+                for (int x = 0; x < atlasSize; x++) {
+                    int idx = rowOffset + x * 4;
+                    byte a = atlasBytes[idx + 3];
+                    if (a < 15) {
+                        rawLum[lumOffset + x] = 0.0f;
+                    } else {
+                        rawLum[lumOffset + x] = (atlasBytes[idx + 2] * 0.299f + atlasBytes[idx + 1] * 0.587f + atlasBytes[idx + 0] * 0.114f) / 255.0f;
+                    }
+                }
+            }
+
+            // Step 2: Separable 5-tap Gaussian / bilateral blur to eliminate pixel dithering noise
+            float[] tempLum = new float[atlasSize * atlasSize];
+            for (int y = 0; y < atlasSize; y++) {
+                int rowOffset = y * atlasSize;
+                for (int x = 0; x < atlasSize; x++) {
+                    int x0 = Math.Max(0, x - 2);
+                    int x1 = Math.Max(0, x - 1);
+                    int x2 = x;
+                    int x3 = Math.Min(atlasSize - 1, x + 1);
+                    int x4 = Math.Min(atlasSize - 1, x + 2);
+                    tempLum[rowOffset + x] = (rawLum[rowOffset + x0] * 1.0f +
+                                              rawLum[rowOffset + x1] * 4.0f +
+                                              rawLum[rowOffset + x2] * 6.0f +
+                                              rawLum[rowOffset + x3] * 4.0f +
+                                              rawLum[rowOffset + x4] * 1.0f) / 16.0f;
+                }
+            }
+
+            float[] smoothLum = new float[atlasSize * atlasSize];
+            for (int y = 0; y < atlasSize; y++) {
+                int y0 = Math.Max(0, y - 2) * atlasSize;
+                int y1 = Math.Max(0, y - 1) * atlasSize;
+                int y2 = y * atlasSize;
+                int y3 = Math.Min(atlasSize - 1, y + 1) * atlasSize;
+                int y4 = Math.Min(atlasSize - 1, y + 2) * atlasSize;
+                for (int x = 0; x < atlasSize; x++) {
+                    smoothLum[y2 + x] = (tempLum[y0 + x] * 1.0f +
+                                         tempLum[y1 + x] * 4.0f +
+                                         tempLum[y2 + x] * 6.0f +
+                                         tempLum[y3 + x] * 4.0f +
+                                         tempLum[y4 + x] * 1.0f) / 16.0f;
+                }
+            }
+
+            // Step 3: Compute Sobel relief + volumetric convex body contouring
+            for (int y = 0; y < atlasSize; y++) {
+                int yMin = Math.Max(0, y - 1) * atlasSize;
+                int yMax = Math.Min(atlasSize - 1, y + 1) * atlasSize;
+                int rowOffset = y * atlasSize;
+                int byteOffset = y * stride;
 
                 for (int x = 0; x < atlasSize; x++) {
-                    int idx = y * stride + x * 4;
+                    int idx = byteOffset + x * 4;
                     byte a = atlasBytes[idx + 3];
 
                     if (a < 15) {
-                        // Flat normal (0.5, 0.5, 1.0) encoded as RGB(128, 128, 255)
+                        // Flat transparent normal (0, 0, 1) encoded as RGB(128, 128, 255)
                         normalBytes[idx + 0] = 255; // B (Z)
                         normalBytes[idx + 1] = 128; // G (Y)
                         normalBytes[idx + 2] = 128; // R (X)
-                        normalBytes[idx + 3] = 0;   // Transparent
+                        normalBytes[idx + 3] = 0;   // A
                         continue;
                     }
 
                     int xMin = Math.Max(0, x - 1);
                     int xMax = Math.Min(atlasSize - 1, x + 1);
 
-                    // Luminance of 4-neighborhood
-                    int lLeft  = GetLum(atlasBytes, y * stride + xMin * 4);
-                    int lRight = GetLum(atlasBytes, y * stride + xMax * 4);
-                    int lUp    = GetLum(atlasBytes, yMin * stride + x * 4);
-                    int lDown  = GetLum(atlasBytes, yMax * stride + x * 4);
+                    float lLeft  = smoothLum[rowOffset + xMin];
+                    float lRight = smoothLum[rowOffset + xMax];
+                    float lUp    = smoothLum[yMin + x];
+                    float lDown  = smoothLum[yMax + x];
 
-                    // Sobel gradients
-                    float dx = (lRight - lLeft) / 255.0f * 1.8f;
-                    float dy = (lDown - lUp) / 255.0f * 1.8f;
+                    // Denoised Sobel relief
+                    float dx = (lRight - lLeft) * 2.2f;
+                    float dy = (lDown - lUp) * 2.2f;
 
-                    // Tile relative coordinates for spherical silhouette contour (0.0 to 1.0)
+                    // Volumetric convex contouring: center faces forward (+Z), edges curve smoothly outward
                     float tileRelX = ((x % tileSize) - (tileSize / 2.0f)) / (tileSize / 2.0f);
                     float tileRelY = ((y % tileSize) - (tileSize / 2.0f)) / (tileSize / 2.0f);
-                    
-                    // Add subtle spherical bevel on opaque edges
                     dx -= tileRelX * 0.45f;
                     dy -= tileRelY * 0.45f;
 
                     float lenSq = dx * dx + dy * dy;
                     float dz = (lenSq < 1.0f) ? (float)Math.Sqrt(1.0f - lenSq) : 0.05f;
 
-                    // Normalize vector (dx, dy, dz)
                     float invLen = 1.0f / (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
                     dx *= invLen;
                     dy *= invLen;
@@ -193,27 +249,22 @@ public class ItemAtlasProcessor {
             normalBmp.Save(outNormalPath, ImageFormat.Png);
         }
     }
-
-    private static int GetLum(byte[] bytes, int idx) {
-        if (bytes[idx + 3] < 15) return 0;
-        return (int)(bytes[idx + 2] * 0.299 + bytes[idx + 1] * 0.587 + bytes[idx + 0] * 0.114);
-    }
 }
 "@
 
-$atlasSize = 2048
-$tileSize = 64
+$atlasSize = 4096
+$tileSize = 128
 $tilesPerRow = [int]($atlasSize / $tileSize) # 32
 
 $srcXs = [int[]]::new($itemList.Count)
 $srcYs = [int[]]::new($itemList.Count)
 
 for ($i = 0; $i -lt $itemList.Count; $i++) {
-    $srcXs[$i] = $itemList[$i].Col * $tileSize
-    $srcYs[$i] = $itemList[$i].Row * $tileSize
+    $srcXs[$i] = $itemList[$i].Col * 64
+    $srcYs[$i] = $itemList[$i].Row * 64
 }
 
-Write-Host "[Item Atlas Builder] Generating $atlasSize x $atlasSize item atlas and normal map..."
+Write-Host "[Item Atlas Builder] Generating $atlasSize x $atlasSize HD item atlas and volumetric normal map..."
 [ItemAtlasProcessor]::GenerateAtlasAndNormal(
     $srcImgPath,
     $srcXs,
@@ -233,8 +284,11 @@ $halfTexel = 0.5 / $atlasSize
 
 for ($i = 0; $i -lt $itemList.Count; $i++) {
     $item = $itemList[$i]
-    $destX = ($i % $tilesPerRow) * $tileSize
-    $destY = [int]($i / $tilesPerRow) * $tileSize
+    $slotCol = $i % $tilesPerRow
+    $slotRow = [int][Math]::Floor($i / $tilesPerRow)
+
+    $destX = $slotCol * $tileSize
+    $destY = $slotRow * $tileSize
 
     # UV coordinates with Three.js orientation (V is inverted: 0 at bottom, 1 at top)
     $u0 = ($destX / $atlasSize) + $halfTexel
@@ -305,7 +359,7 @@ for ($i = 0; $i -lt $itemList.Count; $i++) {
         $elevation = 0.03
     }
 
-    $itemsDict[$item.Name] = [ordered]@{
+    $entryObj = [ordered]@{
         category = $item.Category
         uv = @($u0, $v0, $u1, $v1)
         height = $height
@@ -313,6 +367,21 @@ for ($i = 0; $i -lt $itemList.Count; $i++) {
         footprint = $footprint
         elevation = $elevation
         isFlat = $isFlat
+    }
+    $itemsDict[$item.Name] = $entryObj
+
+    # Also store unaccented alias if name contains non-ASCII characters
+    $normalizedName = $item.Name.Normalize([System.Text.NormalizationForm]::FormD)
+    $sb = [System.Text.StringBuilder]::new()
+    foreach ($ch in $normalizedName.ToCharArray()) {
+        $cat = [System.Globalization.CharUnicodeInfo]::GetUnicodeCategory($ch)
+        if ($cat -ne [System.Globalization.UnicodeCategory]::NonSpacingMark) {
+            $sb.Append($ch) | Out-Null
+        }
+    }
+    $cleanName = $sb.ToString()
+    if ($cleanName -ne $item.Name -and -not $itemsDict.ContainsKey($cleanName)) {
+        $itemsDict[$cleanName] = $entryObj
     }
 }
 
