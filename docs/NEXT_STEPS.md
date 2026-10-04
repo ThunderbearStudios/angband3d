@@ -1,32 +1,55 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.4.0 — High-Fidelity Progressive Biome Chapters, Shockbolt PBR Creature Billboards, Normal Mapping & Internal Maximum Fidelity)
+## Current System State (Angband3D v2.5.0 / Web v7.7.0 — Canonical Daggerfall 2.5D Creature & Item Overhaul, Shockbolt PBR Art, Normal Mapping & Maximum Fidelity)
 
-0. **Progressive Depth Biome Chapters & Shockbolt PBR Creature Overhaul (Version 2.4.0 — Rich Immersion & Flawless Stability)**:
+0. **Canonical Daggerfall 2.5D Creature & Item Overhaul (Version 2.5.0 / Web v7.7.0 — Universal Shockbolt Art, Normal Mapping, Contact Shadows & 100% Item/Creature Coverage)**:
+   - **Universal Daggerfall 2.5D Visual Model Promoted Across the Board**:
+     - Standardized visual model on the gritty, authentic Daggerfall / Dungeon Master 2.5D aesthetic preferred by the user over generic 3D low-poly models.
+     - **Creatures**: Canonical Shockbolt PBR normal-mapped billboards promoted to **Step 1 (Primary)** for all 624 Angband creatures (including orcs, humanoids, skeletons, dragons, vermin, Morgoth), replacing generic low-poly 3D models.
+     - **Items**: Canonical Shockbolt 2.5D illustrated pickups promoted to **Step 1 (Primary)** for all dungeon pickups (weapons, potions, scrolls, rings, gold, chests, ammunition), replacing OBJ low-poly models.
+     - 3D models (130 CC0 items, rigged humanoids/vermin) and procedural geometric meshes retained strictly as **Step 2 & 3 fallback fail-safes**.
+   - **Canonical 2.5D Item Atlas & Normal Maps (`tools/build_item_atlas.ps1`)**:
+     - Built native PowerShell generator reading `engine/lib/tiles/shockbolt/graf-shb-dark.prf` and `flvr-shb.prf`, covering 246 canonical objects, 252 item flavors, and 20 glyph fallbacks (498 unique items).
+     - Generated mobile-safe 2048x2048 texture atlas (`item_atlas.png`, 1.77 MB) with 32x32 tiles (64x64px per tile with 1px gutter padding).
+     - Generated 2048x2048 tangent-space normal map (`item_normal.png`, 1.85 MB) using 3x3 Sobel kernel + spherical silhouette gradient.
+     - Emitted `item_atlas.json` with UV bounds `[u0, v0, u1, v1]`, physical world height (0.28m rings to 0.65m heavy weapons), and ground contact shadow footprint.
+     - Fixed PowerShell UTF-8 BOM trap: explicitly using `[System.Text.UTF8Encoding]::new($false)` to eliminate byte-order-mark parsing failures in Node.js.
+   - **PBR Item Billboard Rendering & Kinematics (`dungeon3d.js`)**:
+     - Shared PBR material (`itemBillboardMat`) with `roughness: 0.65`, `metalness: 0.15`, and `normalScale: (1.0, 1.0)`, dynamically catching moving torchlight glints on blades, potions, and scrolls.
+     - Hardware Z-buffer cutout (`alphaTest: 0.25`, `depthWrite: true`, `transparent: false`) eliminating all sorting popping.
+     - Cylindrical Y-billboarding (`atan2(dx, dz)`) for vertical pickups, horizontal floor quad for flat objects (chests, rugs).
+     - Soft ground contact shadow discs (`y = 0.005`) scaled to footprint.
+     - Calm magical hover breathing ($y = \text{baseElevation} + \sin(t \times 0.0022) \times 0.012$) with inverse shadow pulsing.
+     - Live auto-upgrade: items spawned before asynchronous JSON atlas completion tag `isItemBillboardFallback` and automatically upgrade to the PBR billboard on the next frame once loaded.
+   - **PBR Normal-Mapped Monster Billboards (100% Creature Coverage)**:
+     - Mobile-safe 2048x2048 atlas (`monster_atlas.png`) and tangent-space normal map (`monster_normal.png`) covering all 624 species + 49 glyphs.
+     - Single 4-vertex quad geometry with pivot at feet and atlas UV mapping.
+     - Real-time `MeshStandardMaterial` normal mapping with `normalScale: (1.2, 1.2)`.
+     - Hardware Z-buffer depth testing (`alphaTest: 0.25`, `depthWrite: true`, `transparent: false`).
+     - Cylindrical Y-axis billboarding (`atan2(dx, dz)`) locking creature feet flat to cobblestones.
+     - Soft ground contact shadow discs (`y = 0.005`) scaled to footprint.
+     - Organic volume-conserving breathing ($t \times 1.8$, $\pm 1.8\%$) and floating sinusoids for flying/ethereal apparitions.
+     - Live auto-upgrade of procedural fallbacks when `monster_atlas.json` finishes loading.
    - **Progressive 4-Level Depth Chapters (`dungeon3d.js`)**:
-     - Eliminated the 15-level megazones where levels 1–15 looked identical; divided descent into 4-level progressive chapters (~200 ft per chapter).
+     - Eliminated 15-level megazones; divided descent into 4-level progressive chapters (~200 ft per chapter).
      - Chapter 1 (50–200 ft / Lvl 1–4): Upper Crypts (Granite Ashlar, Cold Slate, Dim Dust, Cool Slate Fog `0x10141a`).
      - Chapter 2 (250–400 ft / Lvl 5–8): Flooded Undercrofts (Wet Slate Blue-Grey, Reflective Water Floor `roughness: 0.44`, Damp Aquamarine Fog `0x0c1622`).
      - Chapter 3 (450–600 ft / Lvl 9–12): Deep Sepulchre & Ancient Tombs (Ancient Earthen Sandstone `[0.90, 0.78, 0.60]`, Deep Amber Flame `0xffc060`, Violet Shadow Fog `0x180e1e`, Crumbly Stone `roughness: 0.88`).
      - Chapter 4 (650–800 ft / Lvl 13–16): Overgrown Catacombs (Verdant Lichen, Fungal Spores, Emerald Mist `0x0c1e10`).
      - Chapters 5–9 (850–5000 ft / Lvl 17–100): Chasm Threshold, Crystal Caverns, Magma Underworld, Abyssal Nether Vaults, and Morgoth's Iron Citadel.
      - Synchronized `computeTileShade` geological cluster micro-formations (lichen, mineral streaks, sandstone salt deposits, water slicks) with each 4-level chapter.
-   - **PBR Normal-Mapped Monster Billboards (100% Creature Coverage)**:
-     - Built mobile-safe 2048x2048 atlas (`monster_atlas.png`) and tangent-space normal map (`monster_normal.png`) from Shockbolt's canonical tile suite.
-     - Single 4-vertex quad geometry with pivot at feet and atlas UV mapping.
-     - Real-time `MeshStandardMaterial` normal mapping with `normalScale: (1.2, 1.2)`, catching specular highlights from moving torchlight.
-     - Hardware Z-buffer depth testing (`alphaTest: 0.25`, `depthWrite: true`, `transparent: false`) eliminating all sorting popping/flicker.
-     - Cylindrical Y-axis billboarding (`atan2(dx, dz)`) locking creature feet flat to cobblestones.
-     - Soft ground contact shadow discs (`y = 0.005`) scaled to footprint.
-     - Organic volume-conserving breathing ($t \times 1.8$, $\pm 1.8\%$) and floating sinusoids for flying/ethereal apparitions.
-     - Live auto-upgrade of procedural fallbacks when `monster_atlas.json` finishes loading.
    - **Strict UI Cleanliness Invariant**:
-     - Zero user-facing graphics selection dropdowns or toggles in `index.html` or HUD; all configuration remains internal (`window.GRAPHICS_CONFIG`) running at maximum fidelity.
-   - **Verification & Test Status**:
-     - `node tools/test_hybrid_graphics.js`: 7/7 verification invariants passed (100%).
-     - `node tools/test_graphics_enhancements.js`: 8/8 verification invariants passed (100%).
-     - `npm test` in `server/`: 20/20 test suites passed (100%).
-     - `python tools/smoke_test.py`: 11/11 tests passed (100%).
+     - Zero user-facing graphics selection dropdowns or toggles in `index.html` or HUD; all configuration remains internal (`window.GRAPHICS_CONFIG` with `itemRenderer: 'billboard'`, `creatureRenderer: 'billboard'`) running at maximum fidelity out-of-the-box.
+   - **Cache Busting & Versioning**:
+     - Bumped cache bust parameter to `v=7.7.0` across all CSS/JS tags in `server/public/index.html`.
+     - Bumped service worker cache name to `angband3d-v7.7` in `server/public/sw.js`.
+     - Updated `server/test/server_test.js` to assert `v7.7` cache version.
+   - **Verification & Test Status (100% Passing)**:
+     - `node tools/test_hybrid_graphics.js`: **9/9 verification invariants passed (100%)**.
+     - `node tools/test_graphics_enhancements.js`: **8/8 verification invariants passed (100%)**.
+     - `npm test` in `server/`: **20/20 test suites passed (100%)**.
+     - `python tools/smoke_test.py`: **11/11 tests passed (100%)**.
+     - `dotnet build client/angband3d.csproj`: **0 warnings, 0 errors**.
    - **Procedural Canvas Star Texture & Diffraction Bloom (`dungeon3d.js`)**:
      - Custom 64x64 canvas texture with quadratic Gaussian core, antialiased alpha falloff, and subtle 4-point cross-diffraction spikes simulating true astronomical optics.
    - **Upper Celestial Dome Distribution & Galactic River (`dungeon3d.js`)**:
