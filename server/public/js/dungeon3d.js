@@ -34,13 +34,14 @@ window.GRAPHICS_CONFIG = {
     adaptiveVignette: true,    // Environmental adaptive perimeter vignette behind HUD
     surfaceBreathing: true,    // Subtle emissive pulse on in-view molten lava (zero light leak)
     tileVariation: true,       // Quarter-turn texture rotation and organic stone shading
-    item3DModels: true,        // 3D item pickups with authentic models, attributed PBR materials & contact shadows
+    itemRenderer: 'billboard', // 'billboard' (Canonical Shockbolt illustrated pickups with normal mapping) | 'classic' (3D models)
+    item3DModels: true,        // fallback if itemRenderer is classic
     biomeVariation: true,      // Procedural geological sub-themes & coherent spatial cluster shading
     starrySky: true,           // High-quality celestial star canopy overhead in town / outdoors
     depthStrata: true,         // Progressive 4-level depth chapters with atmospheric depth fog
-    creatureRenderer: 'hybrid', // 'hybrid' (3D models for rigged creatures, PBR billboards for rest) | 'classic'
-    normalMapping: true,       // Real-time torchlight normal mapping on creature billboards
-    contactShadows: true,      // Soft ground contact shadow discs anchoring creatures to floor
+    creatureRenderer: 'billboard', // 'billboard' (Canonical Shockbolt illustrated creatures with normal mapping) | 'classic' (3D models)
+    normalMapping: true,       // Real-time torchlight normal mapping on creature and item billboards
+    contactShadows: true,      // Soft ground contact shadow discs anchoring creatures and items to floor
     idleBreathing: true        // Organic volume-conserving breathing & hovering
 };
 
@@ -53,11 +54,12 @@ window.setGraphicsPreset = function(presetName) {
     window.GRAPHICS_CONFIG.adaptiveVignette = isEnhanced;
     window.GRAPHICS_CONFIG.surfaceBreathing = isEnhanced;
     window.GRAPHICS_CONFIG.tileVariation = isEnhanced;
+    window.GRAPHICS_CONFIG.itemRenderer = isEnhanced ? 'billboard' : 'classic';
     window.GRAPHICS_CONFIG.item3DModels = isEnhanced;
     window.GRAPHICS_CONFIG.biomeVariation = isEnhanced;
     window.GRAPHICS_CONFIG.starrySky = isEnhanced;
     window.GRAPHICS_CONFIG.depthStrata = isEnhanced;
-    window.GRAPHICS_CONFIG.creatureRenderer = isEnhanced ? 'hybrid' : 'classic';
+    window.GRAPHICS_CONFIG.creatureRenderer = isEnhanced ? 'billboard' : 'classic';
     window.GRAPHICS_CONFIG.normalMapping = isEnhanced;
     window.GRAPHICS_CONFIG.contactShadows = isEnhanced;
     window.GRAPHICS_CONFIG.idleBreathing = isEnhanced;
@@ -1879,6 +1881,8 @@ class Dungeon3D {
 
         // 1b. Initialize Shockbolt 2.5D PBR Monster Billboard Atlas & Normal Map
         this.initMonsterAtlas();
+        // 1c. Initialize Shockbolt 2.5D PBR Item Pickup Atlas & Normal Map
+        this.initItemAtlas();
 
         // Weapon models for Viewmodel (Multi-material PBR matching Blender/FBX/MTL definitions)
         const loadWeapon = (key, url, scale, rot, pos) => {
@@ -3743,6 +3747,144 @@ class Dungeon3D {
         return mesh;
     }
 
+    initItemAtlas() {
+        const texLoader = new THREE.TextureLoader();
+        this.itemAtlasData = null;
+        this.itemAtlasTex = null;
+        this.itemNormalTex = null;
+        this._itemAtlasLowerMap = null;
+
+        // Shared PBR Material for all item pickup billboards (Z-buffer depth tested, dynamic torchlight specular relief)
+        this.itemBillboardMat = new THREE.MeshStandardMaterial({
+            roughness: 0.65,
+            metalness: 0.15,
+            alphaTest: 0.25,
+            depthWrite: true,
+            transparent: false,
+            side: THREE.DoubleSide
+        });
+
+        texLoader.load('/assets/sprites/items/item_atlas.png', (tex) => {
+            tex.encoding = THREE.sRGBEncoding;
+            tex.generateMipmaps = true;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.magFilter = THREE.NearestFilter;
+            this.itemAtlasTex = tex;
+            if (this.itemBillboardMat) {
+                this.itemBillboardMat.map = tex;
+                this.itemBillboardMat.needsUpdate = true;
+            }
+        }, undefined, (err) => {
+            console.warn('[3D] item_atlas.png failed to load, falling back to 3D item templates:', err);
+        });
+
+        texLoader.load('/assets/sprites/items/item_normal.png', (tex) => {
+            tex.generateMipmaps = true;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            this.itemNormalTex = tex;
+            if (this.itemBillboardMat) {
+                this.itemBillboardMat.normalMap = tex;
+                this.itemBillboardMat.normalScale = new THREE.Vector2(1.2, 1.2);
+                this.itemBillboardMat.needsUpdate = true;
+            }
+        }, undefined, (err) => {
+            console.warn('[3D] item_normal.png failed to load:', err);
+        });
+
+        fetch('/assets/sprites/items/item_atlas.json')
+            .then(res => res.json())
+            .then(data => {
+                this.itemAtlasData = data;
+                console.log(`[3D] Loaded item sprite atlas: ${Object.keys(data.items || {}).length} items, ${Object.keys(data.glyphs || {}).length} glyph fallbacks.`);
+            })
+            .catch(err => {
+                console.warn('[3D] item_atlas.json failed to load, using 3D templates:', err);
+            });
+    }
+
+    resolveItemAtlasEntry(name, glyph) {
+        if (!this.itemAtlasData) return null;
+        const items = this.itemAtlasData.items;
+        const glyphs = this.itemAtlasData.glyphs;
+        if (!items && !glyphs) return null;
+
+        const rawName = (name || '').trim();
+
+        // 1. Direct exact name lookup
+        if (items && items[rawName]) {
+            return items[rawName];
+        }
+
+        // 2. Case-insensitive & normalized lookup
+        if (items) {
+            const lower = rawName.toLowerCase();
+            if (!this._itemAtlasLowerMap) {
+                this._itemAtlasLowerMap = new Map();
+                for (const [k, v] of Object.entries(items)) {
+                    this._itemAtlasLowerMap.set(k.toLowerCase(), v);
+                }
+            }
+            if (this._itemAtlasLowerMap.has(lower)) {
+                return this._itemAtlasLowerMap.get(lower);
+            }
+
+            // 3. Substring & prefix lookup (handles enchantments, quantities, ego suffixes: e.g. "Long Sword (1d10)" -> "Long Sword")
+            for (const [k, v] of this._itemAtlasLowerMap.entries()) {
+                if (lower.startsWith(k) || lower.includes(k) || k.includes(lower)) {
+                    return v;
+                }
+            }
+        }
+
+        // 4. Canonical glyph fallback (100% coverage across all 20 Angband item symbols)
+        if (glyphs && glyph && glyphs[glyph]) {
+            return glyphs[glyph];
+        }
+
+        return null;
+    }
+
+    createItemBillboardMesh(atlasEntry) {
+        if (!atlasEntry || !atlasEntry.uv || !this.itemBillboardMat) return null;
+        const [u0, v0, u1, v1] = atlasEntry.uv;
+
+        // Custom 4-vertex quad with UVs mapping into the 2048x2048 item atlas
+        const geo = new THREE.PlaneGeometry(1, 1);
+        if (atlasEntry.isFlat) {
+            // Flat floor items (chests, rugs, floor tiles) lie horizontal
+            geo.rotateX(-Math.PI / 2);
+            geo.translate(0, 0.015, 0);
+        } else {
+            // Vertical billboard facing camera with ground pivot at base
+            geo.translate(0, 0.5, 0);
+        }
+
+        const uvAttr = geo.attributes.uv;
+        uvAttr.setXY(0, u0, v1);
+        uvAttr.setXY(1, u1, v1);
+        uvAttr.setXY(2, u0, v0);
+        uvAttr.setXY(3, u1, v0);
+        uvAttr.needsUpdate = true;
+
+        const mesh = new THREE.Mesh(geo, this.itemBillboardMat);
+        const w = atlasEntry.width || 0.40;
+        const h = atlasEntry.height || 0.40;
+        mesh.scale.set(w, h, 1.0);
+        mesh.castShadow = true;
+        mesh.receiveShadow = false;
+
+        mesh.isItemBillboard = true;
+        mesh.baseWidth = w;
+        mesh.baseHeight = h;
+        mesh.footprint = atlasEntry.footprint || (Math.max(w, h) * 0.85);
+        mesh.baseElevation = atlasEntry.elevation || (atlasEntry.isFlat ? 0.015 : 0.04);
+        mesh.isFlat = !!atlasEntry.isFlat;
+        mesh.position.y = mesh.baseElevation;
+
+        return mesh;
+    }
+
     createProceduralCreatureMesh(glyph, raceName, colorHex) {
         const group = new THREE.Group();
         const lower = (raceName || '').toLowerCase();
@@ -4999,7 +5141,20 @@ class Dungeon3D {
             m.modelKey = config.templateKey;
         }
 
-        if (config && this.monsterTemplates && this.monsterTemplates.has(config.templateKey)) {
+        // 1. Primary: High-Fidelity Shockbolt 2.5D PBR Billboards with Normal Mapping (Canonical Daggerfall / Dungeon Master Style)
+        if (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic') {
+            const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, glyph);
+            if (atlasEntry) {
+                mesh = this.createMonsterBillboardMesh(atlasEntry);
+                if (mesh) {
+                    modelHeight = atlasEntry.height || 1.70;
+                    isFloating = atlasEntry.isFloating || false;
+                }
+            }
+        }
+
+        // 2. Fallback: 3D Low-Poly Character & Monster Templates (KayKit / CC0 GLTF & OBJ Models)
+        if (!mesh && config && this.monsterTemplates && this.monsterTemplates.has(config.templateKey)) {
             const tmplData = this.monsterTemplates.get(config.templateKey);
             const srcObj = tmplData.scene || tmplData;
             mesh = this.cloneModelHierarchy(srcObj);
@@ -5029,18 +5184,6 @@ class Dungeon3D {
 
             // Role-accurate equipment slots
             this.configureCreatureEquipment(mesh, config.role);
-        }
-
-        // 2. High-Fidelity Shockbolt 2.5D PBR Billboards with Normal Mapping (Hybrid Pipeline)
-        if (!mesh && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
-            const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, glyph);
-            if (atlasEntry) {
-                mesh = this.createMonsterBillboardMesh(atlasEntry);
-                if (mesh) {
-                    modelHeight = atlasEntry.height || 1.70;
-                    isFloating = atlasEntry.isFloating || false;
-                }
-            }
         }
 
         let isBillboardFallback = false;
@@ -5322,6 +5465,10 @@ class Dungeon3D {
         const colorHex = getAngbandColorString(it.attr);
 
         let mesh = null;
+        let isBillboard = false;
+        let isFlat = false;
+        let footprint = 0.35;
+        let isItemBillboardFallback = false;
 
         // Deterministic item seed from name for model & aesthetic variation
         let nameHash = 0;
@@ -5330,8 +5477,26 @@ class Dungeon3D {
             nameHash = ((nameHash << 5) - nameHash + itemNameStr.charCodeAt(i)) >>> 0;
         }
 
-        // 1. Comprehensive Model & Keyword Resolver (Matches Godot ItemModelResolver.cs)
-        let tmpl = null;
+        // 1. Primary: Canonical Shockbolt 2.5D PBR Illustrated Pickup with Normal Mapping (Daggerfall Style)
+        if (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.itemRenderer !== 'classic') {
+            const atlasEntry = this.resolveItemAtlasEntry(it.name, g);
+            if (atlasEntry) {
+                mesh = this.createItemBillboardMesh(atlasEntry);
+                if (mesh) {
+                    isBillboard = true;
+                    isFlat = !!atlasEntry.isFlat;
+                    footprint = atlasEntry.footprint || 0.35;
+                }
+            }
+        }
+
+        // 2. Fallback: High-Quality 3D OBJ Models & Templates
+        if (!mesh) {
+            if (!this.itemAtlasData && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.itemRenderer !== 'classic')) {
+                isItemBillboardFallback = true;
+            }
+
+            let tmpl = null;
 
         // Gold & Coins
         if (g === '$' || lowerName.includes('gold') || lowerName.includes('coin') || lowerName.includes('copper') || lowerName.includes('silver')) {
@@ -5657,19 +5822,29 @@ class Dungeon3D {
                 mesh = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), mat);
             }
         }
+        }
 
-        // Soft contact shadow disc right on the floor (y = 0.01)
-        if (this.shadowGeo && this.shadowMat) {
+        // Soft contact shadow disc right on the floor (y = 0.005)
+        if ((!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.contactShadows) && this.shadowGeo && this.shadowMat) {
             const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
-            shadow.position.set(0, 0.01, 0);
+            shadow.position.set(0, 0.005, 0);
+            shadow.scale.set(footprint, footprint, footprint);
             group.add(shadow);
             group.shadowMesh = shadow;
         }
 
-        mesh.position.y = 0.12;
+        if (!isBillboard) {
+            mesh.position.y = 0.12;
+        }
         group.add(mesh);
         group.itemMesh = mesh;
+        group.isItemBillboard = isBillboard;
+        group.isFlat = isFlat;
+        group.isItemBillboardFallback = isItemBillboardFallback;
         group.seed = nameHash;
+        group.glyph = g;
+        group.itemName = it.name;
+        group.colorHex = colorHex;
 
         // Overhead Item Caption Sprite with Material Pooling
         if (it.name) {
@@ -5734,6 +5909,26 @@ class Dungeon3D {
                 entity.position.set(wx, 0.0, wz);
                 this.scene.add(entity);
                 this.items.set(id, entity);
+            } else {
+                // Auto-upgrade fallback 3D/procedural item to Shockbolt PBR billboard once item_atlas.json has loaded!
+                if (entity.isItemBillboardFallback && this.itemAtlasData && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.itemRenderer !== 'classic')) {
+                    const atlasEntry = this.resolveItemAtlasEntry(entity.itemName, entity.glyph);
+                    if (atlasEntry) {
+                        const upgradedBillboard = this.createItemBillboardMesh(atlasEntry);
+                        if (upgradedBillboard) {
+                            entity.remove(entity.itemMesh);
+                            entity.itemMesh = upgradedBillboard;
+                            entity.add(upgradedBillboard);
+                            entity.isItemBillboard = true;
+                            entity.isFlat = !!atlasEntry.isFlat;
+                            entity.isItemBillboardFallback = false;
+                            if (entity.shadowMesh) {
+                                const fp = atlasEntry.footprint || 0.35;
+                                entity.shadowMesh.scale.set(fp, fp, fp);
+                            }
+                        }
+                    }
+                }
             }
 
             // Strict Subterranean Visibility Invariant:
@@ -6080,16 +6275,37 @@ class Dungeon3D {
             }
         }
 
-        // 3D Items continuous gentle hover kinematics & contact shadow modulation
+        // Items continuous gentle hover kinematics, cylindrical facing & contact shadow modulation
         for (const entity of this.items.values()) {
             if (entity.itemMesh) {
                 const seed = entity.seed || 0;
-                entity.itemMesh.rotation.y += delta * 0.75;
-                const hover = Math.sin(tNow * 0.0025 + seed * 0.2) * 0.025;
-                entity.itemMesh.position.y = 0.12 + hover;
-                if (entity.shadowMesh) {
-                    const sScale = Math.max(0.65, 1.0 - hover * 5.0);
-                    entity.shadowMesh.scale.set(sScale, sScale, sScale);
+                if (entity.isItemBillboard) {
+                    // Cylindrical camera-facing for upright 2.5D billboards (flat items stay flat on floor)
+                    if (!entity.isFlat) {
+                        const bdx = this.camera.position.x - entity.position.x;
+                        const bdz = this.camera.position.z - entity.position.z;
+                        if (bdx * bdx + bdz * bdz > 0.001) {
+                            entity.rotation.y = Math.atan2(bdx, bdz);
+                        }
+                    }
+                    // Subtle magical floating breathing hover (1:1 Daggerfall feel)
+                    const hover = Math.sin(tNow * 0.0022 + seed * 0.3) * 0.012;
+                    const baseElevation = entity.itemMesh.baseElevation || 0.04;
+                    entity.itemMesh.position.y = baseElevation + hover;
+                    if (entity.shadowMesh) {
+                        const baseFootprint = entity.itemMesh.footprint || 0.35;
+                        const sScale = baseFootprint * Math.max(0.70, 1.0 - hover * 6.0);
+                        entity.shadowMesh.scale.set(sScale, sScale, sScale);
+                    }
+                } else {
+                    // Fallback 3D item spinning rotation & hover
+                    entity.itemMesh.rotation.y += delta * 0.75;
+                    const hover = Math.sin(tNow * 0.0025 + seed * 0.2) * 0.025;
+                    entity.itemMesh.position.y = 0.12 + hover;
+                    if (entity.shadowMesh) {
+                        const sScale = Math.max(0.65, 1.0 - hover * 5.0);
+                        entity.shadowMesh.scale.set(sScale, sScale, sScale);
+                    }
                 }
             }
         }
