@@ -27,11 +27,17 @@
    - **First-Person 3D HUD Toast (`#chronicle-hud-toast`)**:
      - Glassmorphic dark fantasy HUD toast pill floating in the upper-right corner for situational awareness during first-person dungeon exploration without needing the Tome open.
      - Displays: `⏳ Voicing chronicle with Gemini...` and `⚡ Speech interrupted (+4 paces)`.
+   - **Live Production Multi-Region Deployment on `https://angband3d.com`**:
+     - `angband3d-cloud` (us-central1): Revision `angband3d-cloud-00097-cqm` serving 100% of traffic.
+     - `angband3d-cloud` (us-east1): Revision `angband3d-cloud-00024-ft5` serving 100% of traffic.
+     - `angband3d-web` (us-central1): Revision `angband3d-web-00029-q4f` serving 100% of traffic.
+     - Live verified on `https://angband3d.com/` with cache token `v=8.3.2`, service worker `angband3d-v8.3.2`, live WebSocket bridge (`wss://angband3d.com/ws`), and verified `/health` & `/api/status` endpoints.
    - **Automated Verification**:
      - `tools/test_vocal_exclusion.js`: 5/5 tests passing (zero vocal overlap, vocal state emissions, catch-up action breakdown, ledger summary computation, and interrupted card markup).
      - `tools/test_chronicle.js`: 36/36 verification phases passing with zero errors.
      - `tools/test_chronicle_combat.js`: 16/16 tests passing.
      - `server/test/server_test.js`: 20/20 tests passing.
+     - `tools/test_cloud_live.js`: 100% PASS against `angband3d.com` (health, saves, live WebSocket handshake, engine frame generation).
      - `python tools/smoke_test.py`: 11/11 tests passing.
      - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
 
