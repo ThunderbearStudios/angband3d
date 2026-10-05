@@ -228,13 +228,19 @@ class ChronicleLLMBridge {
 
         const isFlowing = (event.isChapter === false);
         const depth = (player && typeof player.depth === 'number') ? player.depth : 0;
-        const isTown = (depth === 0);        const systemPrompt = isFlowing
+        const isTown = (depth === 0);
+        const systemPrompt = isFlowing
             ? `You are the Master Chronicler of Angband, continuing the active saga of ${player ? player.name : 'the hero'} in the literary tradition: "${tradition.name}".
 Perspective: ${tradition.style}.
 Tolkien tone: Serious, atmospheric, legendary, direct, descriptive of dungeon skirmishes and perilous exploration.
 Critical Story Guidelines:
 - Direct Brevity: Exactly 1 to 2 concise, punchy sentences. Cut excessive purple prose; keep the pacing swift and engaging.
 - Coalesced Combat & Blow-by-Blow: When multiple strikes or combat messages occur concurrently, weave them into one unified, cohesive exchange (e.g., "twin strikes in rapid succession", "parrying one blow only to catch a blade to the shoulder").
+- Tactical Weapon & Method Accuracy: Strictly honor the exact method and weapon of combat provided in event details:
+  * Spells: Depict arcane incantations and elemental eruptions (fire, cold, lightning, acid, holy, arcane)—never swords or drawn steel!
+  * Devices: Depict aiming and channeling magical wands, staves, or rods.
+  * Ranged: Depict arrows, quarrels/bolts, or slingstones launched from bows, crossbows, or slings.
+  * Melee: Accurately match the weapon archetype (blunt impacts for hammers/maces, cleaving chops for axes, piercing thrusts for daggers/spears, or bare-knuckle blows for unarmed)—NEVER use generic "drawn steel" if the hero fights with fists, blunt clubs, staves, or spells!
 - Integrated Status Ailments: If player status effects (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) are present, integrate them directly into the hero's physical struggle.
 - Character Psychology: Reveal the hero's internal thoughts, racial heritage (${player ? player.race : 'Mortal'}), and tactical justification (fear, ruthless survival, or duty).
 - Moral & Lore Judgment: Frame the deed in accordance with ${tradition.name}. Slaying innocents or beggars in town is a dark, tragic deed.
@@ -250,6 +256,11 @@ Tolkien tone: Serious, atmospheric, legendary, never modern slang, never fourth-
 Critical Story Guidelines:
 - Direct Brevity: Exactly 1 to 2 concise, punchy sentences. Cut rambling prose; make every word count while retaining Tolkien gravitas.
 - Coalesced Combat & Blow-by-Blow: Synthesize concurrent strikes, counter-attacks, and lethal blows into one unified tactical exchange.
+- Tactical Weapon & Method Accuracy: Strictly honor the exact method and weapon of combat provided in event details:
+  * Spells: Depict arcane incantations and elemental forces (fire, cold, lightning, acid, holy, arcane)—never blades or drawn steel!
+  * Devices: Depict discharging runic wands, staves, or rods.
+  * Ranged: Depict arrows, bolts, or slingstones loosed from bows, crossbows, or slings.
+  * Melee: Accurately reflect the weapon archetype (crushing hammer/mace impacts, cleaving axe chops, impaling dagger/spear thrusts, or bone-cracking bare fists)—NEVER mention generic "drawn steel" if the hero fights unarmed, casts spells, or wields blunt maces!
 - Integrated Status Ailments: Weave status conditions (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) directly into the sensory peril of the scene.
 - Justification & Internal Narrative: Contextualize why the hero acted according to their race (${player ? player.race : 'Mortal'}) and class (${player ? player.class : 'Warrior'}).
 - Moral Weight: Reflect the reality of the situation (e.g. street violence vs dungeon orc slaying).
@@ -273,7 +284,13 @@ Output: Respond with ONLY a raw JSON object (no markdown code blocks, no backtic
         const backstory = (grounder || ChronicleGrounder).formatBackstorySummary ? (grounder || ChronicleGrounder).formatBackstorySummary(player) : '';
         const backstoryContext = backstory ? ` Backstory: ${backstory}.` : '';
 
-        const userPrompt = `Hero: ${player ? player.name : 'Hero'}, ${player ? player.race : 'Mortal'} ${player ? player.class : 'Warrior'}.${backstoryContext} Location: ${locationText}.
+        let combatMediumContext = '';
+        if (event.data && event.data.attackMedium) {
+            const med = event.data.attackMedium;
+            combatMediumContext = ` Tactical Medium: [Method: ${med.method || med.type}, Name: "${med.name || 'unarmed'}", Archetype: ${med.archetype || 'melee'}${med.element ? `, Element: ${med.element}` : ''}${med.ammo ? `, Ammo: "${med.ammo}"` : ''}].`;
+        }
+
+        const userPrompt = `Hero: ${player ? player.name : 'Hero'}, ${player ? player.race : 'Mortal'} ${player ? player.class : 'Warrior'}.${backstoryContext} Location: ${locationText}.${combatMediumContext}
 Event: ${event.type}. Details: ${JSON.stringify(event.data || {})}.${antiRepetition}
 Compose ${isFlowing ? 'flowing passage' : 'Chapter'}. (For new instance starts and intros, weave the character's backstory and heritage into the scene).`;
 

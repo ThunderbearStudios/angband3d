@@ -30,6 +30,7 @@ public static class ItemModelResolver
         { '(', ("res://assets/models/weapons/Shield_Heater.fbx", 0.22f) },
         { '/', ("res://assets/models/weapons/Spear.fbx", 0.22f) },
         { '_', ("res://assets/models/weapons/Spear.fbx", 0.22f) },
+        { '-', ("res://assets/models/weapons/Spear.fbx", 0.16f) },
         { '|', ("res://assets/models/weapons/Spear.fbx", 0.20f) },
         { ',', ("res://assets/models/items/ChickenLeg.fbx", 0.18f) },
         { '"', ("res://assets/models/items/Necklace1.fbx", 0.18f) },
@@ -254,6 +255,11 @@ public static class ItemModelResolver
             {
                 return ("res://assets/models/weapons/Arrow.fbx", 0.18f);
             }
+            // Wands, Rods & Staves
+            if (glyph == '-' || glyph == '_' || lower.Contains("wand") || lower.Contains("rod") || lower.Contains("staff"))
+            {
+                return ("res://assets/models/weapons/Spear.fbx", 0.16f);
+            }
             // Shields
             if (lower.Contains("shield") || lower.Contains("buckler") || lower.Contains("targe"))
             {
@@ -411,7 +417,7 @@ public static class ItemModelResolver
             '"' => new SphereMesh { Radius = 0.15f, Height = 0.30f, RadialSegments = 12, Rings = 6 },              // Amulet
             ')' => new BoxMesh { Size = new Vector3(0.08f, 0.55f, 0.14f) },                                        // Weapon
             '[' or ']' or '(' => new BoxMesh { Size = new Vector3(0.35f, 0.42f, 0.12f) },                          // Armor / Shield
-            '/' or '_' or '|' => new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.65f },     // Wand / Staff
+            '-' or '/' or '_' or '|' => new CylinderMesh { TopRadius = 0.035f, BottomRadius = 0.035f, Height = 0.55f }, // Wand / Staff / Rod
             _ => new BoxMesh { Size = new Vector3(0.24f, 0.24f, 0.24f) },                                          // Default
         };
 

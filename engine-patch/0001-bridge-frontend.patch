@@ -254,10 +254,10 @@ index 000000000..86bc4945d
 +endmacro()
 diff --git a/src/main-bridge.c b/src/main-bridge.c
 new file mode 100644
-index 000000000..f45c223e1
+index 000000000..a4ed7994c
 --- /dev/null
 +++ b/src/main-bridge.c
-@@ -0,0 +1,1253 @@
+@@ -0,0 +1,1282 @@
 +/**
 + * \file main-bridge.c
 + * \brief JSON state bridge front end, for driving Angband from an external client.
@@ -504,6 +504,22 @@ index 000000000..f45c223e1
 +		fputc(',', fp);
 +		bj_kv_int(fp, "gloves_sval", gloves_obj->sval);
 +		fputc(',', fp);
++	}
++	if (player->upkeep && player->upkeep->quiver && z_info) {
++		for (int q = 0; q < z_info->quiver_size; q++) {
++			struct object *q_obj = player->upkeep->quiver[q];
++			if (q_obj) {
++				char qbuf[80];
++				object_desc(qbuf, sizeof(qbuf), q_obj, ODESC_BASE, player);
++				bj_kv_string(fp, "quiver_item", qbuf);
++				fputc(',', fp);
++				bj_kv_int(fp, "quiver_tval", q_obj->tval);
++				fputc(',', fp);
++				bj_kv_int(fp, "quiver_sval", q_obj->sval);
++				fputc(',', fp);
++				break;
++			}
++		}
 +	}
 +	/*
 +	 * Ambient light of the square the player stands on. Every grid-relative
@@ -1010,17 +1026,30 @@ index 000000000..f45c223e1
 +		fputc(',', fp);
 +		bj_kv_bool(fp, "pile", obj_buf[i].idx > 1);
 +
-+		if (obj_buf[i].kind) {
-+			char name[128];
++		struct object *obj = (cave && bridge_in_play()) ? square_object(cave, loc(obj_buf[i].x, obj_buf[i].y)) : NULL;
++		char name[128];
++		name[0] = '\0';
 +
-+			/*
-+			 * easy_know false keeps the flavour for anything the player
-+			 * has not identified, so the client cannot spoil the item
-+			 * identification game.
-+			 */
-+			object_kind_name(name, sizeof(name), obj_buf[i].kind, false);
++		if (obj) {
++			object_desc(name, sizeof(name), obj, ODESC_BASE, player);
 +			fputc(',', fp);
 +			bj_kv_string(fp, "name", name);
++			fputc(',', fp);
++			bj_kv_int(fp, "tval", obj->tval);
++			fputc(',', fp);
++			bj_kv_int(fp, "sval", obj->sval);
++		} else if (obj_buf[i].kind) {
++			if (!obj_buf[i].kind->aware && obj_buf[i].kind->flavor && obj_buf[i].kind->base && obj_buf[i].kind->base->name) {
++				snprintf(name, sizeof(name), "%s %s", obj_buf[i].kind->flavor->text, obj_buf[i].kind->base->name);
++			} else {
++				object_kind_name(name, sizeof(name), obj_buf[i].kind, false);
++			}
++			fputc(',', fp);
++			bj_kv_string(fp, "name", name);
++			fputc(',', fp);
++			bj_kv_int(fp, "tval", obj_buf[i].kind->tval);
++			fputc(',', fp);
++			bj_kv_int(fp, "sval", obj_buf[i].kind->sval);
 +		}
 +		fputc('}', fp);
 +	}

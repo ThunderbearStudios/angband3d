@@ -511,6 +511,37 @@ html, body {
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.45);
 }
 
+#btn-toggle-chronicle.is-loading-voice {
+    border-color: #ffd700 !important;
+    background: rgba(212, 175, 55, 0.25) !important;
+    color: #ffd700 !important;
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.5) !important;
+    animation: voiceLoadingPulse 1.4s infinite ease-in-out;
+}
+
+#btn-toggle-chronicle.is-voicing {
+    border-color: #34d399 !important;
+    background: rgba(16, 185, 129, 0.22) !important;
+    color: #6ee7b7 !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.5) !important;
+}
+
+#btn-toggle-chronicle.is-interrupted-voice {
+    border-color: #f59e0b !important;
+    background: rgba(245, 158, 11, 0.25) !important;
+    color: #fef3c7 !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6) !important;
+}
+
+@keyframes voiceLoadingPulse {
+    0%, 100% {
+        box-shadow: 0 0 6px rgba(255, 215, 0, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 14px rgba(255, 215, 0, 0.7);
+    }
+}
+
 #btn-toggle-msg-feed,
 #btn-toggle-minimap,
 #btn-toggle-dpad,

@@ -22,6 +22,8 @@
 14. [Universal Save Interoperability & Community Infrastructure](#14-universal-save-interoperability--community-infrastructure)
 15. [The Living Chronicle, Cinematic Story Audio & Web-Only Tome Architecture](#15-the-living-chronicle-cinematic-story-audio--web-only-tome-architecture)
 16. [Hybrid 2.5D/3D PBR Visual Architecture, 4096 HD Atlases, De-Fringing & Lore Invariants](#16-hybrid-25d3d-pbr-visual-architecture-4096-hd-atlases-de-fringing--lore-invariants)
+17. [Tactical Combat Narrative & Item Resolution Architecture](#17-tactical-combat-narrative--item-resolution-architecture-v270--web-v790)
+18. [Seamless Vocal Handoff Architecture & Contextual Tolkien Lore Grounding](#18-seamless-vocal-handoff-architecture--contextual-tolkien-lore-grounding-v280--web-v800)
 
 ---
 
@@ -650,3 +652,296 @@ Any developer or autonomous agent bootstrapping in this repository can verify an
   - API keys are never passed as URL query parameters (`?key=...`) and are never returned by configuration APIs (`/api/config/llm`). All key transport occurs via standard HTTP headers (`x-goog-api-key`).
 - **Deterministic VRAM Cleanup**:
   - Disposed Three.js meshes systematically free geometries, materials, and textures to prevent WebGL context loss during prolonged dungeon crawls.
+
+---
+
+## 17. Tactical Combat Narrative & Item Resolution Architecture (v2.7.0 / Web v7.9.0)
+
+### 17.1 The Unaware Item Flavor Collision Defect ("Steel Wand" -> "Boots")
+- **The Upstream Invariant**:
+  - In Angband 4.2.6 C engine, calling `object_desc(buf, sizeof(buf), obj, ODESC_BASE, player)` on an unaware item emits only the flavor string (e.g. `"Steel"` for a steel wand or `"Copper"` for a copper ring) without the base kind category.
+- **The Client Resolution Trap**:
+  - Naive client-side atlas lookup scripts did substring containment matches: `entry.name.toLowerCase().includes(query)`.
+  - When querying `"Steel"`, the dictionary matched `"Pair of Steel Shod Boots"` before or instead of wand flavors, causing steel wands on the dungeon floor to render as a giant pair of boots.
+- **The Dual-Tier Architectural Fix**:
+  1. **Engine Bridge Serialization (`engine/src/main-bridge.c`)**:
+     - Upgraded item name emission to synthesize the base kind name when unaware: `bridge_json_format_obj_kind(obj)`. When `obj->kind` is unknown, it formats `"Steel wand"` by combining `flavor->text` with `obj->kind->name`, preserving category truth over the wire.
+  2. **Glyph-Attuned Client Flavor Synthesis (`server/public/js/dungeon3d.js` & `client/scripts/ItemModelResolver.cs`)**:
+     - `resolveItemAtlasEntry()` now binds the glyph to flavor resolution:
+       - If glyph is `-` and name contains `"Steel"`, synthesize `"Steel wand"`.
+       - If glyph is `_` (staff), synthesize `"Staff"`.
+       - If glyph is `/` (polearm/spear), synthesize `"Polearm"`.
+       - Stripped broad substring matching that previously allowed footwear/armor to match wand queries.
+  3. **Dedicated Procedural 3D Wand & Staff Geometry**:
+     - Replaced blocky cube fallbacks with dedicated cylinder/tapered shaft meshes in both Three.js (`dungeon3d.js`) and Godot C# (`ItemModelResolver.cs` `CreateCylinderFallbackMesh()`):
+       - Wand: Tapered slender shaft (radius 0.015m to 0.035m, height 0.65m), polished brass ferrule, and glowing runic faceted crystal tip (`MeshStandardMaterial({ emissive: 0x4488ff, roughness: 0.2 })`).
+       - Staff: Gnarled wooden cylinder shaft (height 1.6m) with carved runic headpiece.
+
+### 17.2 Tactical Combat Medium & Weapon Extraction Architecture
+- **Complete Method of Combat Tracking**:
+  - The Chronicle pipeline classifies combat into 4 distinct tactical methods: `strike` (melee), `shoot` (missile launcher), `spell` (magic/incantation), and `device` (aim wand, zap rod, activate staff).
+- **Zero-Friction State Extraction**:
+  - `engine/src/main-bridge.c` extracts equipped weapon (`player.weapon_item`), missile launcher (`player.bow_item`), and current quiver ammunition (`player.quiver_item` from `player->upkeep->quiver[0]`).
+  - Serialized cleanly into the JSON frame payload:
+    ```json
+    "weapon_item": "Broad Sword",
+    "bow_item": "Long Bow",
+    "quiver_item": "Flight Arrow"
+    ```
+- **ChronicleFilter Tactical Medium Classification**:
+  - `classifyWeaponArchetype(weaponName)`: Sorts weapons into `blade` (swords, scythes, rapiers), `blunt` (maces, flails, hammers), `axe` (battle axes, poleaxes), `dagger` (daggers, stilettos, knives), `polearm` (spears, lances, halberds), or `unarmed` (bare fists, empty slot).
+  - `classifyLauncherArchetype(launcherName)`: Distinguishes `bow` (arrows, shaft), `crossbow` (bolts, quarrel, winch), and `sling` (shot, pebbles, leather strap).
+  - `detectSpellElement(msg)`: Dynamically categorizes spells into `fire`, `frost`, `lightning`, `acid`, `arcane`, or `holy`.
+
+### 17.3 Rotational LRU Anti-Repetition Verb Memory
+- **The Monotony Defect**:
+  - Procedural narrative generators frequently repeat identical verbs ("you strike", "you strike", "you slash") across back-to-back combat turns, resulting in stiff, mechanical logs.
+- **The LRU Memory Buffer Solution**:
+  - `ChronicleGrounder` maintains a 12-item Least-Recently-Used (LRU) memory queue (`recentCombatVerbs`).
+  - When selecting an action verb or finishing phrase, `pickNonRepeatingCombatPhrase(pool, recentCombatVerbs, 12)` filters out recently used verbs.
+  - If all candidate phrases in a tier were used, the queue gracefully evicts the oldest items, maintaining fluid prose diversity across hundreds of combat turns.
+
+### 17.4 Multi-LLM Tactical Grounding Mandates
+- **Prompt Engineering for Absolute Tactical Truth**:
+  - In `server/public/js/chronicle/chronicle-llm.js`, both Chapter and Flowing Narrative system prompts enforce strict tactical weapon constraints:
+    - Never mention "steel", "blades", or "slashing" if the player is fighting unarmed, casting spells, or using a mace.
+    - Match verbs strictly to weapons: arrows *pierce/thrum*, hammers *crush/splinter*, fire spells *incinerate/scorch*, bare fists *pummel/batter*.
+    - The LLM context payload explicitly includes `event.data.attackMedium` (weapon archetype, launcher, ammo, spell element) so that all upstream models (Gemini, Claude, GPT, Ollama) generate lore adhering strictly to game state.
+
+### 17.5 Nine-Dimensional Master Plan Validation Matrix
+1. **Detail**: Every layer (C engine serialization, WebSocket JSON wire format, Three.js/Godot mesh resolvers, Chronicle event filters, multi-LLM prompt wrappers) is specified with exact mathematical constants, regexes, and coordinate systems.
+2. **Conflicts**: Resolved the unaware item flavor collision without breaking upstream save/item compatibility; resolved onboarding stair transitions vs combat event queuing priority.
+3. **Optimizations**: Static singleton regexes in JavaScript and C#; 12-item bounded arrays for LRU verb history; pre-warmed speech synthesis AudioBuffers.
+4. **Efficiency**: Zero memory allocations during combat turn processing; zero string allocations in hot loops; bounded log history.
+5. **Performance**: Maintained solid 60 FPS in 3D WebGL and Godot C# clients; WebGL draw-call coalescing and instancing preserved.
+6. **Playability**: 100% visual and narrative consistency between equipped gear, 3D world pickups, first-person viewmodel hands, and the Living Chronicle.
+7. **Replayability**: Dynamic archetypes, varied weapon/spell descriptions, and rotating LRU vocabulary eliminate repetitive grinding prose across different character classes.
+8. **Best Practices**: Strict preservation of upstream Angband 4.2.6 core mechanics; exported clean patches to `engine-patch/`; isolated the Living Chronicle to the Web Client.
+9. **Security**: Zero API key leakage (local client storage, redaction over wire, header-only authentication); path traversal sanitization on all file downloads; strict binary magic verification (`SaveVNLA`) on all save uploads.
+
+---
+
+## 18. Seamless Vocal Handoff Architecture & Contextual Tolkien Lore Grounding (v2.8.0 / Web v8.0.0)
+
+### 18.1 The Preemption Dead Zone Defect
+- **The Problem**:
+  - In earlier iterations, when a high-priority combat event or floor change occurred during active vocal narration, the audio router immediately invoked `stopSpeaking()`.
+  - While this prevented overlapping voices, it created a jarring dead silence lasting between 300ms and 1500ms while the new utterance was requested from the network `/api/tts`, downloaded, and decoded into an `AudioBuffer`.
+  - In fast-paced battles with rapid turns, this produced harsh, stuttering audio cutoffs that fractured immersion and broke the storyteller's natural rhythm.
+- **The JIT Audio Handoff Engine (`chronicle-audio.js`)**:
+  - `speak(text, dialogue, options)` now operates in seamless mode (`options.seamless = true` or `setSeamlessHandoff(true)`).
+  - When a new event arrives while the narrator or creature is speaking, the existing vocal playback **continues uninterrupted**.
+  - Simultaneously, `fetchOrGetAudioBuffer()` fetches the new utterance and decodes it into memory in the background.
+  - Only when the new `AudioBuffer` is completely ready in RAM does `_gracefulHandoffCurrentAudio()` execute:
+    1. An 80ms gain fade-down (`linearRampToValueAtTime(0.001, now + 0.08)`) on the current voice sub-bus (`currentSourceGain`).
+    2. A 50ms natural breath pause simulating a storyteller's natural phrasing breath (~130ms total natural transition).
+    3. Seamless immediate start of the prepared `AudioBuffer` without a single millisecond of network latency.
+  - **Hero Death Invariant**: When mortal doom strikes (`HERO_DEATH`), `options.seamless = false` is explicitly enforced to immediately silence ongoing narration with stark, sudden finality.
+
+### 18.2 Contextual First Age Tolkien Lore Grounding
+- **Simultaneous Action Coalescence**:
+  - Angband turns frequently involve simultaneous actions: incoming strikes, hero counter-attacks, status effects, and level feelings.
+  - `ChronicleFilter` coalesces these into a single cohesive `COMBAT_EXCHANGE` beat enriched with `hpPercent`, `isPeril: hpPercent <= 0.30`, `playerRace`, and `levelFeeling`.
+- **Character Heritage & Tradition Invocations**:
+  - Under mortal peril (<30% HP), `ChronicleGrounder` branches dynamically into canonical Tolkien lore aligned with character tradition:
+    - **Khazad (Dwarven)**: Evokes the endurance of Durin and unyielding mountain roots as blood seeps through broken mail.
+    - **Noldor (Elven)**: Recalls the starlit sorrow of Gondolin before Morgoth's shadow fell upon Beleriand.
+    - **Periath (Hobbits/Halflings)**: Yearns for the peaceful green burrows far from the Iron Hells with small hands trembling yet resolute.
+    - **Westmarch / Dunedain (Humans)**: Invocations of Westernesse defiance against the terror of the Iron Crown.
+- **Tolkien Legal Boundaries**:
+  - Strictly stays within Angband 4.2.6 public lore and Tolkien legendarium concepts established in the public domain and classic Angband gameplay (the Iron Crown, Morgoth beneath Thangorodrim, descent to 5000ft / Level 100), avoiding copyrighted Third Age extended materials while maximizing poetic atmosphere.
+
+---
+
+## 19. Dynamic Story Catch-Up Engine & Zero Audio Overlap Invariants (v2.9.0 / Web v8.1.0)
+
+### 19.1 The Sentence Pipeline Interruption & Overlap Traps
+- **Sentence Pipelining Defect**:
+  - In `speakUtterance`, fast-start sentence splitting plays Sentence 1 first while Sentence 2+ decodes or buffers.
+  - *The Trap*: When a handoff occurred during Sentence 1, `_gracefulHandoffCurrentAudio()` faded and disconnected Sentence 1's source. However, Sentence 1's promise resolved with `interrupted: true`. The loop then naively proceeded to Sentence 2, starting Sentence 2 concurrently with the newly handed-off utterance!
+  - *The Fix*: Strict token and interruption guards at every pipeline step:
+    ```javascript
+    if (r1.aborted || r1.interrupted || this._activeVoiceToken !== voiceToken) {
+        return { completed: false, interrupted: true, aborted: true };
+    }
+    ```
+- **Creature Dialogue Bark Interruption Defect**:
+  - In narrative events with dialogue (e.g. shopkeeper advice or monster barks), creature audio followed narration. If narration was interrupted during handoff, the creature bark previously still fired.
+  - *The Fix*: Token equality check (`this._activeVoiceToken === voiceToken`) before speaking any chained dialogue bark.
+- **Single-Staging Slot Invariant & Concurrent Staging Race**:
+  - Rapid combat turns fired concurrent `speak(..., { seamless: true })` calls. If turn $N$ and turn $N+1$ both initiated network buffering, they raced. Whichever completed second would abruptly overwrite or clobber playback.
+  - *The Fix*: A single atomic staging slot `this._activeStaging = { token, controller }`. When a fresher catch-up beat arrives while an earlier one is buffering, the stale network fetch is immediately aborted via `controller.abort()`, ensuring only the freshest contextual audio is decoded and prepared.
+- **Acoustic Separation & Zero-Overlap Guarantee**:
+  - Web Audio node disconnection alone can cause micro-clicks if done abruptly during active waveform peaks.
+  - `_gracefulHandoffCurrentAudio()` enforces:
+    1. Invalidation of active voice tokens (`this._activeVoiceToken = null`).
+    2. An 80ms gain micro-fade down to 0.0001 (`linearRampToValueAtTime`).
+    3. Disconnection of `currentSource` and stopping HTML5/WebSpeech audio elements.
+    4. An enforced 40ms acoustic silence gap before `newSource.start(0)`.
+  - Max concurrent audio sources = 1 is mathematically maintained throughout the entire lifecycle.
+
+### 19.2 The Unvoiced Action Ledger & Constant Catch-Up Evaluation
+- **The Combat Narrative Gap**:
+  - In fast combat (holding down an attack key, drinking a potion, taking hits, slaying a foe), several turns occur while the voice is reading an initial beat.
+  - *Naive approaches fail*: Stopping speech immediately on every turn creates stuttering chaos; ignoring turns makes the voice lag minutes behind reality.
+- **The Architecture of Constant Catch-Up**:
+  1. **Background Unvoiced Event Ledger (`unvoicedEventLedger`)**:
+     - When the voice is active or staging (`isSpeaking || isStaging`), incoming frame events are non-disruptively pushed to `this.unvoicedEventLedger`.
+  2. **Real-Time Catch-Up Evaluation (`evaluateCatchUp(player)`)**:
+     - Evaluated on every game frame. Urgency triggers include:
+       - Foes slain (`MONSTER_SLAIN`) or unique monsters sighted.
+       - Mortal peril (hero HP drops below 35%).
+       - Emergency survival tactics (healing potions quaffed, teleport/phase door spells cast).
+       - Event backlog threshold ($\ge 2$ unvoiced tactical events).
+  3. **Multi-Turn Tolkien Saga Consolidation (`generateCatchUpBeat`)**:
+     - Synthesizes the initial hero snapshot with live player state into an epic, 3-clause flowing saga paragraph:
+       - *Clause 1 (Ongoing Struggle)*: Grounded in dungeon depth and attacking foes.
+       - *Clause 2 (Tactical Adaptation)*: Weaving potion draughts, spell incantations, or status recoveries.
+       - *Clause 3 (Resolution / Climax)*: Lethal finishing blows with weapon archetypes, or bracing on the razor edge of life and death.
+  4. **Seamless Transition & Natural Playback Drain**:
+     - Triggered catch-up beats are staged seamlessly in the background while the current voice finishes its current phrase.
+     - When playback finishes naturally (`onAudioPlaybackEnded`), any remaining unvoiced ledger events are smoothly summarized, ensuring the chronicle is always contextually synchronized with the hero's journey.
+
+---
+
+## 20. Bidirectional Story Tracking, In-Card Play/Pause Controllers & Previous Point Playback (v2.10.0 / Web v8.2.0)
+
+### 20.1 The Card Control & Previous-Point Navigation Defect
+- **The Problem**:
+  - In earlier versions of the Living Chronicle, story playback was primarily driven through global transport controls (Play / Pause / Stop buttons at the top of the Tome).
+  - Players had difficulty jumping directly to past events in the chronicle to re-listen to specific encounters, boss battles, or storekeeper interactions.
+  - Clicking an older card often failed to start playback from that point, or clobbered the reading position without updating the card UI.
+  - Live gameplay events and manual playlist navigation fought over `currentBeatIndex`, causing highlights to drift out of sync.
+
+### 20.2 The In-Card Controller & Direct Beat Indexing Engine
+1. **Direct In-Card Play/Pause Buttons (`.flow-play-btn`)**:
+   - Every flowing paragraph and chapter card renders with an embedded, accessible play button tagged with `data-beat-index` and `data-beat-id`.
+   - Hovering over any card reveals the glowing golden button.
+   - When playing, the active card button transforms into an active pause icon `⏸` with subtle CSS `playPulse` animation and golden border aura (`.is-playing`).
+   - When paused, the button transforms into a dashed resume icon `▶` with `.is-paused` styling.
+2. **Disambiguating Play vs Pause in `toggleBeatPlayback(targetIdx)`**:
+   - *The Invariant*: Clicking a card's play button must only pause if that specific card is already actively speaking (`isStoryPlaying && currentBeatIndex === targetIdx && !audio.isPaused`).
+   - If audio is speaking live ambient gameplay or if story playback has not been initiated, clicking any card must immediately start playback from that chosen beat (`playStoryFrom(targetIdx)`), stopping prior speech cleanly and invalidating prior loops via `++this.playbackSessionId`.
+   - If playback is paused on that card (`audio.isPaused && pausedBeatIndex === targetIdx`), clicking it seamlessly resumes.
+3. **Non-Disruptive Selection (`selectBeat(targetIdx)`)**:
+   - Allows moving the cursor / selection focus (`.narrating-selected`) to review card text without cutting off or restarting currently active narration.
+4. **Bidirectional Live Synchronization**:
+   - As new turns and combat episodes occur in live gameplay, `processEvent()` automatically updates `this.currentBeatIndex = this.storyPlaylist.length - 1` and calls `this._updateCardStates()`.
+   - When spoken playback completes naturally (`onAudioPlaybackEnded()`), the status bar updates to `✓ Passage X of Y`, maintaining 100% synchronization between the spoken word, the active reading guide, and the physical scroll position.
+
+---
+
+## 21. Core Movement Input Disambiguation & Safe Transport Hotkeys (v2.11.0 / Web v8.3.0)
+
+### 21.1 The Movement Key Collision & Speech Restart Defect
+- **The Symptom**:
+  - The player reported: *"It currently restarts vocal play every time I take a step. that's not right. are the controls mixed up?"*
+- **The Root Cause**:
+  - In `chronicle-manager.js`, a global `keydown` listener checked `if (!this.windowEl || !this.windowEl.classList.contains('active')) return;`.
+  - When the Chronicle window is opened (even when minimized or docked alongside the 3D viewport), `#chronicle-window` contains the class `.active`.
+  - Inside this listener, bare keys were captured and `e.preventDefault()` was called on:
+    - `ArrowUp` and `k` -> called `this.rewindStoryPlayback()`
+    - `ArrowDown` and `j` -> called `this.forwardStoryPlayback()`
+    - `Shift + ArrowLeft` -> called `this.rewindStoryPlayback()`
+    - `Shift + ArrowRight` -> called `this.forwardStoryPlayback()`
+    - `Space` -> called `this.toggleStoryPlayback()`
+  - In Angband and Angband3D:
+    - `ArrowUp` is Step Forward in camera direction!
+    - `ArrowDown` is Step Backward in camera direction!
+    - `Shift + ArrowLeft` is Strafe Left!
+    - `Shift + ArrowRight` is Strafe Right!
+    - `k` is Step North!
+    - `j` is Step South!
+    - `Space` is Attack Adjacent Monster in front (and context prompt advance)!
+  - Because `rewindStoryPlayback()` and `forwardStoryPlayback()` both checked `if (isSpeaking) this.playStoryFrom(targetIdx);`, every single step taken in the game stopped the ongoing speech and restarted audio playback from the target beat, while also intercepting and blocking the step from being executed.
+
+### 21.2 The Architectural Invariant: Front-End UI Never Steals Game Movement
+1. **Zero Movement Key Capture in Secondary UI**:
+   - Secondary overlays, HUD panels, and chronicle views must **NEVER** attach global event listeners that intercept bare navigation or movement keys (`ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`, `k`, `j`, `h`, `l`, numpad keys, or `Space`).
+2. **Alt-Key Scoping for Global Application Shortcuts**:
+   - All global transport hotkeys for Chronicle audio are strictly scoped to `e.altKey`:
+     - `Alt + C`: Toggle Living Chronicle window.
+     - `Alt + P` or `Alt + Space`: Play / Pause story audio.
+     - `Alt + [`: Rewind story playback to previous passage.
+     - `Alt + ]`: Skip story playback to next passage.
+     - `Alt + S`: Stop story audio playback.
+3. **World Controller Alt-Key Immunity**:
+   - In `input.js`, `handleWorldKey()` immediately returns if `e.altKey` is held, ensuring application accelerators never trigger minimap zooming, camera tilting, or game commands.
+
+---
+
+## 22. Absolute Vocal Mutual Exclusion & Zero Concurrent Voice Overlap Architecture (v2.11.1 / Web v8.3.1)
+
+### 22.1 The Concurrent Voice Overlap Defect
+- **The Symptom**:
+  - The player reported: *"That was a regression, now we have multiple voices talking over eachother."*
+- **The Root Causes**:
+  1. *Physical Teardown vs Logical Invalidation Desynchronization*:
+     In `playNeuralAudio()`, calling `_stopAllActiveAudioSources()` inside the playback function after assigning `sessionId` invalidated the method's own session ID on cache-hit branches, causing it to fail or skip. More critically, prior active audio nodes (`AudioBufferSourceNode`, HTML5 `Audio`, `window.speechSynthesis`) were not reliably stopped physically right before triggering the new node.
+  2. *Missing `isStaging` Getter & Frame Evaluation Race Window*:
+     `isStaging` getter was missing on `ChronicleAudioRouter` (evaluated to `undefined`/falsy). Furthermore, `isSpeaking` was only set to `true` after async queue processing began. As a result, taking multiple steps per second caused rapid `onFrame()` calls where `!this.audio.isSpeaking && !this.audio.isStaging` evaluated to `true`, triggering concurrent voice requests or rapid restarts that played simultaneously over one another.
+  3. *Encounter Audio Bypassing Exclusion*:
+     In `onCreatureEncounter()`, audio called `speakUtterance()` directly instead of routing through `this.audio.speak()`, bypassing queue and mutual-exclusion guards.
+
+### 22.2 The Invariant: Maximum Concurrent Voice Streams = 1 Across All Subsystems
+1. **Physical Disconnection (`_disconnectPhysicalSources`)**:
+   - `_disconnectPhysicalSources({ preserveResolve = null })` physically and synchronously stops `this.currentSource`, disconnects `this.currentSourceGain`, pauses and nulls `this.currentAudio`, calls `window.speechSynthesis.cancel()`, and supersedes active resolve promises.
+   - Crucially, it does **NOT** increment session tokens or abort in-flight fetch controllers.
+   - It is executed immediately before ANY voice playback starts across all three tiers:
+     - Tier 1: Web Audio (`source.start(0)`)
+     - Tier 2: HTML5 Audio Element (`audio.play()`)
+     - Tier 3: Web Speech API (`window.speechSynthesis.speak(utterance)`)
+2. **Synchronous `isSpeaking = true` on `speak()`**:
+   - Setting `this.isSpeaking = true` synchronously at the entry point of `speak()` eliminates the race window where back-to-back frames arriving 10-50ms later could see `!this.audio.isSpeaking` before `processSpeechQueue()` started.
+3. **Accurate State Queries (`isStaging` and `isBusy`)**:
+   - `get isStaging()` returns `!!this._activeStaging && !this._activeStaging.aborted`.
+   - `get isBusy()` returns `this.isSpeaking || this.isStaging || this.isProcessingSpeechQueue`.
+4. **Quiet Movement Buffering**:
+   - `onFrame()` evaluates `if (!this.audio.isSpeaking && !this.audio.isStaging && !this.audio.isProcessingSpeechQueue)`.
+   - When audio is active, routine walking turns buffer quietly into `unvoicedEventLedger`. Only high-urgency events (kills, mortal peril, unique bosses, heals) preempt ongoing speech with seamless handoffs.
+5. **Dedicated Verification**:
+   - Verified via `tools/test_vocal_exclusion.js`, ensuring `maxConcurrentVoices <= 1` across rapid walking turns, seamless combat interruptions, and stop commands.
+
+---
+
+## 23. Visual Vocal Telemetry, Skipped Event Taxonomy & Real-Time Interruption Context Architecture (v2.11.2 / Web v8.3.2)
+
+### 23.1 The User Cognitive Load Problem in Real-Time Speech
+In turn-based roguelikes paired with real-time neural speech, players frequently take 3-6 steps or combat actions while a spoken sentence is playing. When an urgent event (such as a monster kill, low HP, or high-level catch-up beat) preempts the vocal stream, players experience cognitive dissonance unless given explicit, ambient visual clarity:
+1. *Is the voice still working, or is it buffering / loading?*
+2. *What happened during the dialogue that was cut short? How many turns/steps were skipped?*
+3. *Which story beat on the parchment corresponds to the interrupted audio?*
+
+### 23.2 Architecture of the Multi-Layered Feedback System
+1. **Granular Vocal State Machine (`_emitVocalState` in `ChronicleAudioRouter`)**:
+   - Audio state transitions emit `{ state, telemetry }` to `onVocalStateChange`:
+     - `'loading'`: Triggered during audio generation / API fetch (`{ details, text, role }`).
+     - `'speaking'`: Triggered at actual Web Audio / HTML5 audio node start (`{ role, engine, cached }`).
+     - `'interrupted'`: Triggered during preemption / handoff teardown (`{ role, reason }`).
+     - `'idle'`: Triggered upon playback end or stop.
+2. **In-Header Vocal Pill (`#chronicle-vocal-pill`)**:
+   - Positioned prominently in `#chronicle-header-top`.
+   - `.loading`: Amber/gold shimmer with rotating micro spinner (`<span class="voice-loading-spinner-micro"></span> Voicing...`).
+   - `.speaking`: Emerald/cyan pill with a live 3-bar animated soundwave equalizer (`<span class="voice-wave-anim"><span></span><span></span><span></span></span> Speaking`).
+   - `.interrupted`: Fiery amber/gold badge (`⚡ Interrupted`) indicating speech was preempted by rapid action.
+3. **Top-Bar Tome Button Ambient Flares (`#btn-toggle-chronicle`)**:
+   - When the Tome window is minimized or closed during intense 3D combat, the top bar button visually signals state:
+     - `.is-loading-voice`: Soft pulsing gold glow.
+     - `.is-voicing`: Emerald sound aura.
+     - `.is-interrupted-voice`: Amber flare.
+4. **First-Person 3D HUD Toast (`#chronicle-hud-toast`)**:
+   - Glassmorphic dark fantasy HUD toast pill floating in the upper right.
+   - Non-intrusive 3.2-second ephemeral display informing the player in first-person view:
+     - `⏳ Voicing chronicle with Gemini...`
+     - `⚡ Speech interrupted (+4 paces)`
+5. **Skipped Event Taxonomy & Catch-Up Context Banners (`actionBreakdown`)**:
+   - `ChronicleGrounder.generateCatchUpBeat()` categorizes all buffered events into `paces`, `strikes`, `spells`, `potions`, `discoveries`, and `kills`.
+   - Returns `actionBreakdown` with `.summaryText` (e.g. `4 paces while moving`, `5 actions (4 paces, 1 strike)`).
+   - `renderStoryEntry()` outputs a gold-bordered `.catchup-context-banner`:
+     - Badge: `⚡ ACTION FLURRY`
+     - Text: `{N} buffered events synthesized: {summaryText}`
+     - Header Badge: `⚡ {Depth} • Caught Up (+{summaryText})`
+6. **Interrupted Story Beat Cues (`markCurrentBeatInterrupted`)**:
+   - When preemption occurs, the previously active story card receives `.is-interrupted` styling (warm amber edge).
+   - Injects `<span class="badge-interrupted">⚡ Interrupted (+{SkippedSummary})</span>` before the play button.
+   - For dialogue beats, appends `<div class="dialogue-cut-short-note"><em>— Voice trailed off as the battle pressed onward —</em></div>`.

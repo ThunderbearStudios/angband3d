@@ -158,6 +158,46 @@ class ChronicleGrounder {
     static clearInstanceVoiceRegistry() {
         this.instanceVoiceRegistry.clear();
         this.recentDialogueBarks.clear();
+        this.recentCombatVerbs.length = 0;
+    }
+
+    static recentCombatVerbs = [];
+    static recordCombatVerb(verb) {
+        if (!verb || typeof verb !== 'string') return;
+        const v = verb.toLowerCase().trim();
+        if (!ChronicleGrounder.recentCombatVerbs.includes(v)) {
+            ChronicleGrounder.recentCombatVerbs.push(v);
+            if (ChronicleGrounder.recentCombatVerbs.length > 12) {
+                ChronicleGrounder.recentCombatVerbs.shift();
+            }
+        }
+    }
+
+    /**
+     * Non-repeating combat phrase selector with rotational verb avoidance.
+     * Prevents consecutive identical attack prose across battle turns.
+     */
+    static pickNonRepeatingCombatPhrase(phraseList, seed = 0) {
+        if (!phraseList || phraseList.length === 0) return '';
+        if (phraseList.length === 1) return phraseList[0];
+
+        let available = phraseList.filter(p => {
+            const lower = p.toLowerCase();
+            return !ChronicleGrounder.recentCombatVerbs.some(v => v.length > 3 && lower.includes(v));
+        });
+
+        if (available.length === 0) {
+            // Relieve oldest half of verb memory
+            ChronicleGrounder.recentCombatVerbs.splice(0, 6);
+            available = phraseList.filter(p => {
+                const lower = p.toLowerCase();
+                return !ChronicleGrounder.recentCombatVerbs.some(v => v.length > 3 && lower.includes(v));
+            });
+            if (available.length === 0) available = phraseList;
+        }
+
+        const chosen = available[Math.abs(seed) % available.length];
+        return chosen;
     }
 
     /**
@@ -2298,16 +2338,24 @@ class ChronicleGrounder {
      * Generates deep, contextual combat saga narratives with genuine Middle-earth color,
      * racial/class internal justification, moral judgment, and rotational anti-repetition.
      */
-    static generateKillSaga(kills = [], player = null, depth = 0, traditionKey = 'westmarch', weapon = 'drawn steel', fleeingMonster = null, attackMedium = null) {
+    static generateKillSaga(kills = [], player = null, depth = 0, traditionKey = 'westmarch', weapon = null, fleeingMonster = null, attackMedium = null) {
         const pName = (player && player.name) ? player.name : 'The Wanderer';
         const pRace = (player && player.race) ? player.race.toLowerCase() : 'mortal';
         const pClass = (player && player.class) ? player.class.toLowerCase() : 'warrior';
         const isTown = (depth === 0);
 
-        const isSpell = (attackMedium && attackMedium.type === 'spell') || (weapon && weapon.toLowerCase().includes('spell'));
-        const isRanged = (attackMedium && attackMedium.type === 'ranged') || (weapon && (weapon.toLowerCase().includes('bow') || weapon.toLowerCase().includes('arrow') || weapon.toLowerCase().includes('bolt') || weapon.toLowerCase().includes('sling') || weapon.toLowerCase().includes('crossbow')));
-        const isDevice = (attackMedium && attackMedium.type === 'device') || (weapon && (weapon.toLowerCase().includes('wand') || weapon.toLowerCase().includes('staff') || weapon.toLowerCase().includes('rod')));
+        let effectiveWeapon = weapon;
+        if (!effectiveWeapon || effectiveWeapon === 'drawn steel') {
+            const rawWeap = (player && player.weapon_item) ? player.weapon_item : ((player && player.equipped && player.equipped.weapon) ? player.equipped.weapon : null);
+            effectiveWeapon = rawWeap ? rawWeap.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : 'bare fists';
+        }
+
+        const isSpell = (attackMedium && attackMedium.type === 'spell') || (effectiveWeapon && effectiveWeapon.toLowerCase().includes('spell'));
+        const isRanged = (attackMedium && attackMedium.type === 'ranged') || (attackMedium && attackMedium.method === 'shoot') || (effectiveWeapon && (effectiveWeapon.toLowerCase().includes('bow') || effectiveWeapon.toLowerCase().includes('arrow') || effectiveWeapon.toLowerCase().includes('bolt') || effectiveWeapon.toLowerCase().includes('sling') || effectiveWeapon.toLowerCase().includes('crossbow')));
+        const isDevice = (attackMedium && attackMedium.type === 'device') || (attackMedium && attackMedium.method === 'device') || (effectiveWeapon && (effectiveWeapon.toLowerCase().includes('wand') || effectiveWeapon.toLowerCase().includes('staff') || effectiveWeapon.toLowerCase().includes('rod')));
         const isSpellOrDevice = isSpell || isDevice;
+
+        const archetype = (attackMedium && attackMedium.archetype) ? attackMedium.archetype : (effectiveWeapon.toLowerCase() === 'bare fists' ? 'unarmed' : (effectiveWeapon.toLowerCase().includes('hammer') || effectiveWeapon.toLowerCase().includes('mace') || effectiveWeapon.toLowerCase().includes('flail') || effectiveWeapon.toLowerCase().includes('club') ? 'blunt' : (effectiveWeapon.toLowerCase().includes('axe') ? 'axe' : (effectiveWeapon.toLowerCase().includes('dagger') || effectiveWeapon.toLowerCase().includes('knife') ? 'dagger' : (effectiveWeapon.toLowerCase().includes('spear') || effectiveWeapon.toLowerCase().includes('pike') || effectiveWeapon.toLowerCase().includes('lance') ? 'polearm_pierce' : 'blade')))));
 
         // Turn-based pseudo-random seed to guarantee rotational variety
         const turnSeed = Math.abs(((player && player.turn ? player.turn : 0) + (kills.length || 1) * 7)) % 12;
@@ -2336,9 +2384,9 @@ class ChronicleGrounder {
                 prose = `A sudden flare of wild magic erupts from ${pName}'s fingers, searing into the tattered rags of the pleading beggar. The helpless wretch collapses into the muddy gutter as sparks hiss against damp cobblestones, leaving the alley thick with the stench of scorched cloth and a horrified, accusing silence.`;
             } else if (pRace.includes('half-orc')) {
                 const halfOrcBeggarVariants = [
-                    `${pName}'s ${weapon} flashes without hesitation, slicing into the tattered rags. The dark, brutal blood of the shadow-pits surges in ${pName}'s veins—a ruthless instinct honed in the slave-pits, where weakness is despised and every reaching hand is suspected of concealing a shiv. Yet as the wretch collapses lifeless into the muddy gutter, a cold prickle of paranoia settles upon the rogue: the Town Watch patrols these lanes with heavy arbalests, and a senseless slaughter leaves a trail that even alley hounds can follow.`,
-                    `With feral, reflexive swiftness, ${pName}'s ${weapon} cuts down the pleading beggar upon the damp paving stones. Born of two worlds that both offer nothing but scorn, ${pName} struck from raw cutthroat calculus, permanently silencing the wretch's cries for coin. The frontier wind whips dust across the fresh crimson pool, leaving an ominous quiet where desperate pleas once hung.`,
-                    `A single vicious thrust silences the beggar's whining pleas. ${pName} looks down at the crumpled heap with cold, narrow eyes: on the harsh streets, survival permits no softness, and beggars often double as eyes for the cutpurse guilds. Wiping ${weapon} on the victim's coat, ${pName} slips into the alley shadows.`,
+                    `${pName}'s ${effectiveWeapon} flashes without hesitation, slicing into the tattered rags. The dark, brutal blood of the shadow-pits surges in ${pName}'s veins—a ruthless instinct honed in the slave-pits, where weakness is despised and every reaching hand is suspected of concealing a shiv. Yet as the wretch collapses lifeless into the muddy gutter, a cold prickle of paranoia settles upon the rogue: the Town Watch patrols these lanes with heavy arbalests, and a senseless slaughter leaves a trail that even alley hounds can follow.`,
+                    `With feral, reflexive swiftness, ${pName}'s ${effectiveWeapon} cuts down the pleading beggar upon the damp paving stones. Born of two worlds that both offer nothing but scorn, ${pName} struck from raw cutthroat calculus, permanently silencing the wretch's cries for coin. The frontier wind whips dust across the fresh crimson pool, leaving an ominous quiet where desperate pleas once hung.`,
+                    `A single vicious thrust silences the beggar's whining pleas. ${pName} looks down at the crumpled heap with cold, narrow eyes: on the harsh streets, survival permits no softness, and beggars often double as eyes for the cutpurse guilds. Wiping ${effectiveWeapon} on the victim's coat, ${pName} slips into the alley shadows.`,
                     `The blade bites deep, and the beggar topples backward into a stack of empty crates with a wet gasp. ${pName}'s pit-born blood relishes the cruel demonstration of force, yet mortal cunning whispers caution: corpses in town draw questions that gold cannot always answer.`
                 ];
                 prose = halfOrcBeggarVariants[turnSeed % halfOrcBeggarVariants.length];
@@ -2347,13 +2395,13 @@ class ChronicleGrounder {
             } else if (pRace.includes('dwarf')) {
                 prose = `The heavy strike ends the beggar's cries with a dull, hollow thud upon the stones. Dwarven iron was forged to shatter troll-bone and carve gold from the deep roots of the mountain, not to waste its edge on alley wretches. ${pName} turns aside in silence, weighed down by the grim dishonor brought upon clan and ancestors.`;
             } else {
-                prose = `The ${weapon} strikes home in sudden, tragic haste, felling the pitiful beggar against the timber wall. In this lawless frontier borderland, where the shadow of the deeps looms like a black cloud, mortal hearts grow cold all too easily. As the figure crumples motionless, a heavy remorse settles over ${pName}, realizing how swiftly fear and desperation can erode the soul.`;
+                prose = `The ${effectiveWeapon} strikes home in sudden, tragic haste, felling the pitiful beggar against the timber wall. In this lawless frontier borderland, where the shadow of the deeps looms like a black cloud, mortal hearts grow cold all too easily. As the figure crumples motionless, a heavy remorse settles over ${pName}, realizing how swiftly fear and desperation can erode the soul.`;
             }
         } else if (isTown && isCatOrDog) {
             title = ['A Startled Strike in the Alley', 'Shadows of the Backstreets', 'Frayed Nerves in Town'][turnSeed % 3];
             prose = isSpellOrDevice
                 ? `A startled crackle of sorcery lashes out from ${pName}'s hand, catching the alley beast as it darts from the garbage. The stray crumples motionless; ${pName} lowers trembling hands amidst the tense silence of the backstreets.`
-                : `${pName}'s ${weapon} lashes out in a reflexive sweep, catching the alley beast as it darts from the garbage. With nerves stretched thin by the looming dread of the descent, every sudden scuttle in the gutter feels like an assassin's dagger. The creature crumples into the dust; ${pName} lowers the steel, breathing heavily amidst the tense silence of the backstreets.`;
+                : `${pName}'s ${effectiveWeapon} lashes out in a reflexive sweep, catching the alley beast as it darts from the garbage. With nerves stretched thin by the looming dread of the descent, every sudden scuttle in the gutter feels like an assassin's dagger. The creature crumples into the dust; ${pName} lowers the weapon, breathing heavily amidst the tense silence of the backstreets.`;
         } else if (isTown && isIdiot) {
             title = ['Silence in the Street', 'An Ill Deed on the Stones', 'The Witless Slain', 'Tragedy in the Market'][turnSeed % 4];
             const idiotVariants = [
@@ -2371,9 +2419,9 @@ class ChronicleGrounder {
                 prose = `Drawing with blinding speed, ${pName} plants an arrow squarely through the highwayman's guard before the dagger could strike! The cutpurse collapses upon the wet paving stones, his ambush brought to an abrupt and fatal close.`;
             } else {
                 const rogueVariants = [
-                    `Steel clangs sharply between the timber eaves! Reading the cutpurse's lunging feint, ${pName} pivots on the damp cobblestones and drives ${weapon} through the brigand's guard. The rogue collapses with a final curse, stolen coins spilling from his loosened grip into the mud. In the lawless frontier, street justice is swift: one less throat-slitter stalks the town alleys tonight.`,
-                    `A desperate grapple in the alley shadows ends with a decisive counter-thrust. ${pName}'s ${weapon} finds its mark, ending the thief's ambush before poison could coat the blade. The frontier fog rolls over the fallen outlaw, restoring uneasy peace to the market approach.`,
-                    `The thief's hidden dagger flashes in the lantern light, but ${pName} is quicker. A brutal sidestep and a sweeping stroke of ${weapon} drops the highwayman cold onto the paving stones. The alleys of the border town have claimed another predator.`,
+                    `Steel clangs sharply between the timber eaves! Reading the cutpurse's lunging feint, ${pName} pivots on the damp cobblestones and drives ${effectiveWeapon} through the brigand's guard. The rogue collapses with a final curse, stolen coins spilling from his loosened grip into the mud. In the lawless frontier, street justice is swift: one less throat-slitter stalks the town alleys tonight.`,
+                    `A desperate grapple in the alley shadows ends with a decisive counter-thrust. ${pName}'s ${effectiveWeapon} finds its mark, ending the thief's ambush before poison could coat the blade. The frontier fog rolls over the fallen outlaw, restoring uneasy peace to the market approach.`,
+                    `The thief's hidden dagger flashes in the lantern light, but ${pName} is quicker. A brutal sidestep and a sweeping stroke of ${effectiveWeapon} drops the highwayman cold onto the paving stones. The alleys of the border town have claimed another predator.`,
                     `Catching the cutpurse's wrist in a vise-like grip, ${pName} runs him through before his accomplices can intervene. The rogue slumps against the wooden rain-barrel, his career of alley extortion brought to an abrupt and bloody close.`
                 ];
                 prose = rogueVariants[turnSeed % rogueVariants.length];
@@ -2405,10 +2453,10 @@ class ChronicleGrounder {
             } else {
                 title = ['Flight Cut Short', 'No Escape in the Dark', 'The Craven Felled', 'Pursuit in the Deep'][turnSeed % 4];
                 const fleeKillVariants = [
-                    `Pursuing the panicked ${cleanFlee}, ${pName}'s ${weapon} strikes true from behind! The craven creature crumples in mid-stride, its desperate flight cut short upon the dark stones.`,
+                    `Pursuing the panicked ${cleanFlee}, ${pName}'s ${effectiveWeapon} strikes true from behind! The craven creature crumples in mid-stride, its desperate flight cut short upon the dark stones.`,
                     `Closing the distance before the ${cleanFlee} could slip down the dark corridor, ${pName} delivers a decisive finishing stroke, felling the fleeing foe upon the flagstones!`,
-                    `Blind terror offered the ${cleanFlee} no sanctuary: ${pName} overtakes the retreating assailant, cutting it down with a swift strike of ${weapon}.`,
-                    `The corridor falls into silence as ${pName}'s ${weapon} ends the flight of the ${cleanFlee}. The subterranean passages echo no further cries.`
+                    `Blind terror offered the ${cleanFlee} no sanctuary: ${pName} overtakes the retreating assailant, cutting it down with a swift strike of ${effectiveWeapon}.`,
+                    `The corridor falls into silence as ${pName}'s ${effectiveWeapon} ends the flight of the ${cleanFlee}. The subterranean passages echo no further cries.`
                 ];
                 prose = fleeKillVariants[turnSeed % fleeKillVariants.length];
             }
@@ -2433,8 +2481,8 @@ class ChronicleGrounder {
             } else {
                 title = ['Bane of the Warrens', 'The Scavenger Silenced', 'The Small Knife Broken', 'Cleansing the Burrows'][turnSeed % 4];
                 const koboldVariants = [
-                    `A swift, punishing strike of ${weapon} cuts down the screeching small kobold! The wretched creature topples across its crude notch-bladed knife, silencing its snarls upon the stone.`,
-                    `Catching the small kobold as it recoils, ${pName}'s ${weapon} pierces cleanly through. The subterranean scavenger collapses lifeless into the dust, leaving the dark passage clear.`,
+                    `A swift, punishing strike of ${effectiveWeapon} cuts down the screeching small kobold! The wretched creature topples across its crude notch-bladed knife, silencing its snarls upon the stone.`,
+                    `Catching the small kobold as it recoils, ${pName}'s ${effectiveWeapon} pierces cleanly through. The subterranean scavenger collapses lifeless into the dust, leaving the dark passage clear.`,
                     `With decisive speed, ${pName} hews down the small kobold before it can loose another crude dart or scamper into the alcoves. The immediate threat is neutralized.`,
                     `The small kobold's wild jab glances harmlessly off guard; ${pName} counters with lethal finality, felling the subterranean craven upon the cold rock.`
                 ];
@@ -2454,10 +2502,10 @@ class ChronicleGrounder {
             } else {
                 title = ['Quivering Protoplasm Pierced', 'The Ooze Dissolved', 'Acidic Remnants', 'Clean Cut Through Slime'][turnSeed % 4];
                 const jellyVariants = [
-                    `A shearing stroke of ${weapon} cleaves through the quivering protoplasm of the ${cleanJelly}! The acidic mass dissolves with a violent hiss, spattering inert slime across the dungeon floor.`,
-                    `Ducking back from the corrosive stench, ${pName} brings ${weapon} down with slicing force. The gelatinous ${cleanJelly} bursts apart, liquefying harmlessly into the cracks of the stone.`,
+                    `A shearing stroke of ${effectiveWeapon} cleaves through the quivering protoplasm of the ${cleanJelly}! The acidic mass dissolves with a violent hiss, spattering inert slime across the dungeon floor.`,
+                    `Ducking back from the corrosive stench, ${pName} brings ${effectiveWeapon} down with slicing force. The gelatinous ${cleanJelly} bursts apart, liquefying harmlessly into the cracks of the stone.`,
                     `With measured strikes, ${pName} destroys the ${cleanJelly} before its stinging touch can corrode armor or burn flesh. The noxious organism is reduced to smoking residue.`,
-                    `The pulsating ${cleanJelly} quivers under the onslaught of ${weapon}, rupturing and collapsing into a lifeless puddle of steaming subterranean goo.`
+                    `The pulsating ${cleanJelly} quivers under the onslaught of ${effectiveWeapon}, rupturing and collapsing into a lifeless puddle of steaming subterranean goo.`
                 ];
                 prose = jellyVariants[turnSeed % jellyVariants.length];
             }
@@ -2487,12 +2535,12 @@ class ChronicleGrounder {
             } else {
                 title = ['Bane of the Orc-Kin', 'Black Blood on Cold Stone', 'The Ancient Feud', 'Heir of the First Age', 'Cleansing the Defilers', 'Iron Against Scimitar'][turnSeed % 6];
                 const orcVariants = [
-                    `Ancestral wrath guides the strike! ${pName}'s ${weapon} cleaves through crude boiled leather and gnawed bone, hewing down the foul orc in a spray of thick, hissing black blood. The ancient feud burns hot in this corridor; the Shadow's defilers will find no quarter in these halls.`,
-                    `With seasoned combat instinct, ${pName} parries the notched scimitar and drives ${weapon} straight into the orc's throat. The creature collapses against the damp shale with a choking rattle, leaving the dark passage reeking of sulfur and dead malice.`,
-                    `Slipping beneath a clumsy overhand chop, ${pName} steps inside the orc's guard. The ${weapon} sinks deep beneath the crude breastplate with brutal efficiency. As the brute thuds heavily onto the flagstones, ${pName} wrenches the blade free, scanning the corridor for more of the pack.`,
+                    `Ancestral wrath guides the strike! ${pName}'s ${effectiveWeapon} cleaves through crude boiled leather and gnawed bone, hewing down the foul orc in a spray of thick, hissing black blood. The ancient feud burns hot in this corridor; the Shadow's defilers will find no quarter in these halls.`,
+                    `With seasoned combat instinct, ${pName} parries the notched scimitar and drives ${effectiveWeapon} straight into the orc's throat. The creature collapses against the damp shale with a choking rattle, leaving the dark passage reeking of sulfur and dead malice.`,
+                    `Slipping beneath a clumsy overhand chop, ${pName} steps inside the orc's guard. The ${effectiveWeapon} sinks deep beneath the crude breastplate with brutal efficiency. As the brute thuds heavily onto the flagstones, ${pName} wrenches the blade free, scanning the corridor for more of the pack.`,
                     `Funneling the screeching orc into the narrow archway, ${pName} denies the beast room to swing its rusted cleaver. A disciplined, bone-shattering thrust punches through mail and sinew, dropping the defiler cold into the dust before its guttural war-cry could echo.`,
                     `The clash of steel rings harsh against the ancient masonry! Sidestepping the orc's vicious lunge, ${pName} delivers a crushing counter-blow that snaps the creature's guard and sends it sprawling lifeless across the blood-slicked stones.`,
-                    `With cold, merciless focus, ${pName}'s ${weapon} flashes through the torchlit gloom, severing the orc's advance in mid-stride. Black ichor spatters the wall as the foul minion of the ancient deeps crumples into an unmoving heap.`
+                    `With cold, merciless focus, ${pName}'s ${effectiveWeapon} flashes through the torchlit gloom, severing the orc's advance in mid-stride. Black ichor spatters the wall as the foul minion of the ancient deeps crumples into an unmoving heap.`
                 ];
                 prose = orcVariants[turnSeed % orcVariants.length];
             }
@@ -2509,9 +2557,9 @@ class ChronicleGrounder {
             } else {
                 title = ['Chitin on the Shale', 'The Crawlers Cleansed', 'Venom Averted', 'Shadows of the Web'][turnSeed % 4];
                 const verminVariants = [
-                    `With cold revulsion, ${pName} crushes the venomous creeper beneath a vicious strike of ${weapon}. Chitin shatters against the subterranean floor, spattering foul ichor across the cracked flags. Kicking the twitching carcass into the gloom, ${pName} checks boots and greaves, ensuring no lingering venom breached the armor.`,
-                    `A sickening crunch echoes through the passage as ${pName}'s ${weapon} smashes into the skittering horror. The creature's jagged mandibles snap convulsively in empty air before curling motionless upon the damp rock.`,
-                    `Anticipating the sudden venomous lunge, ${pName} sidesteps and brings ${weapon} down with shearing force. The skittering monstrosity is split from carapace to stinger, neutralizing the venomous threat in an instant.`,
+                    `With cold revulsion, ${pName} crushes the venomous creeper beneath a vicious strike of ${effectiveWeapon}. Chitin shatters against the subterranean floor, spattering foul ichor across the cracked flags. Kicking the twitching carcass into the gloom, ${pName} checks boots and greaves, ensuring no lingering venom breached the armor.`,
+                    `A sickening crunch echoes through the passage as ${pName}'s ${effectiveWeapon} smashes into the skittering horror. The creature's jagged mandibles snap convulsively in empty air before curling motionless upon the damp rock.`,
+                    `Anticipating the sudden venomous lunge, ${pName} sidesteps and brings ${effectiveWeapon} down with shearing force. The skittering monstrosity is split from carapace to stinger, neutralizing the venomous threat in an instant.`,
                     `Darting fangs scrape harmlessly against greaves as ${pName} steps forward with grim finality, grinding the subterranean creeper into the dust with a decisive, heavy blow.`
                 ];
                 prose = verminVariants[turnSeed % verminVariants.length];
@@ -2530,7 +2578,7 @@ class ChronicleGrounder {
                 title = ['Banishment of the Grave-Chill', 'Peace to the Desecrated', 'Rest for the Fallen', 'Light in the Crypt'][turnSeed % 4];
                 const undeadVariants = [
                     `The sepulchral chill recedes as ${pName}'s blow shatters the dark necromancy binding the restless remains. Bone and brittle armor collapse into harmless dust upon the stones. Whispering an ancient ward of peace, ${pName} turns aside from the scattered fragments, hoping the tortured spirit finally passes beyond the eternal shadows.`,
-                    `With righteous fervor, ${pName}'s ${weapon} strikes straight through the hollow ribcage of the abomination. The malignant blue fire flickering in its sunken eye-sockets dies with an eerie wail, leaving only ancient, brittle dust upon the cold flagstones.`,
+                    `With righteous fervor, ${pName}'s ${effectiveWeapon} strikes straight through the hollow ribcage of the abomination. The malignant blue fire flickering in its sunken eye-sockets dies with an eerie wail, leaving only ancient, brittle dust upon the cold flagstones.`,
                     `As the desiccated claws reach out to drain mortal warmth, ${pName} cleaves through the withered sinew. The unholy ward collapses in an instant, liberating the long-imprisoned spirit from the Enemy's cruel thralldom.`,
                     `A burst of shattered bone and rusted mail rings out against the chamber walls! The walking curse is laid low at last, and the freezing grave-chill that hung in the corridor begins slowly to thaw.`
                 ];
@@ -2550,7 +2598,7 @@ class ChronicleGrounder {
                 title = ['The Colossus Falls', 'Shattered Stone-Hide', 'Triumph Over the Brute', 'The Mountain Cleansed'][turnSeed % 4];
                 const trollVariants = [
                     `A titanic clash resounds through the vault as ${pName}'s decisive blow penetrates the troll's petrified flesh! The hulking brute crashes to earth with a thud that rattles dust from the ancient ceiling, its massive stone club rolling harmlessly into the dark.`,
-                    `Dancing outside the reach of the monster's lumbering fists, ${pName} drives ${weapon} deep behind the creature's thick knee-joint. As the giant stumbles with a roaring curse, a follow-through strike severs the thick neck, felling the subterranean terror once and for all.`,
+                    `Dancing outside the reach of the monster's lumbering fists, ${pName} drives ${effectiveWeapon} deep behind the creature's thick knee-joint. As the giant stumbles with a roaring curse, a follow-through strike severs the thick neck, felling the subterranean terror once and for all.`,
                     `The stone-tough hide shudders under ${pName}'s punishing assault. With an earsplitting roar that shakes the subterranean foundations, the beast topples like an ancient monument felled by lightning, cracking the flagstones beneath its immense bulk.`,
                     `Patience and steel outmatch brute savagery: ducking beneath a tree-trunk club swing that shatters a stone pillar, ${pName} counters with lethal precision, burying the blade to the hilt in the brute's chest.`
                 ];
@@ -2562,7 +2610,7 @@ class ChronicleGrounder {
                 prose = `Through searing heat and blinding sulfur smoke, ${pName} channels an overpowering spear of pure sorcery straight through the wyrm's defenses! The blast detonates against the beast's armored heart, bringing the ancient terror crashing down in a cloud of glowing embers and dying flame.`;
             } else {
                 title = ['The Smoldering Wyrm', 'Scale and Fire', 'Echo of the Dragon-Slayers'][turnSeed % 3];
-                prose = `Through searing heat and blinding sulfur smoke, ${pName} drives ${weapon} into the soft underbelly between the wyrm's gleaming scales. A shriek of draconic agony echoes down the deeps as the beast thrashes in death-spasms, its dying flames casting long, trembling shadows across the vault.`;
+                prose = `Through searing heat and blinding sulfur smoke, ${pName} drives ${effectiveWeapon} into the soft underbelly between the wyrm's gleaming scales. A shriek of draconic agony echoes down the deeps as the beast thrashes in death-spasms, its dying flames casting long, trembling shadows across the vault.`;
             }
         }
         // --- 3. GENERAL COMBAT & ROUTINE FLURRIES ---
@@ -2609,25 +2657,82 @@ class ChronicleGrounder {
                     prose = singleRangedVariants[turnSeed % singleRangedVariants.length];
                 }
             } else {
-                title = (numSlain > 1) ? ['Flurry of Decisive Steel', 'The Red Toll', 'Carving a Path', 'The Hall of the Fallen'][turnSeed % 4] : ['Clash in the Shadows', 'Steel and Resolve', 'A Peril Neutralized', 'The Silent Corridor'][turnSeed % 4];
+                const isUnarmed = archetype === 'unarmed';
+                const isBlunt = archetype === 'blunt';
+                const isAxe = archetype === 'axe';
+                const isPierce = archetype === 'dagger' || archetype === 'polearm_pierce';
+
                 if (numSlain > 1) {
+                    if (isUnarmed) {
+                        title = ['Brawling Carnage', 'Bare-Knuckle Triumph', 'Fists in the Shadows', 'The Crushed Pack'][turnSeed % 4];
+                    } else if (isBlunt) {
+                        title = ['Crushing Carnage', 'The Shattered Ranks', 'Hammer and Anvil', 'The Battered Vault'][turnSeed % 4];
+                    } else if (isAxe) {
+                        title = ['Hewn Asunder', 'The Cleaving Edge', 'Chopped to Pieces', 'Biting Iron'][turnSeed % 4];
+                    } else {
+                        title = ['Flurry of Decisive Steel', 'The Red Toll', 'Carving a Path', 'The Hall of the Fallen'][turnSeed % 4];
+                    }
                     const multiVariants = [
-                        `Steel flashes in the shadows as ${pName} fells multiple foes in a desperate, fluid flurry of blows. The corridor falls quiet once more, save for the heavy rhythm of breathing and the drip of black blood from drawn steel.`,
-                        `Surrounded by snapping teeth and notched blades, ${pName} turns in a ferocious circle of flashing steel. In three rapid, breathtaking strokes, the assailants are laid low, leaving the vault floor strewn with the fallen.`,
+                        isUnarmed
+                            ? `Fists hammer through the shadows as ${pName} fells multiple foes in a desperate, bruising flurry of blows. The corridor falls quiet once more, save for the heavy rhythm of breathing and the stinging dust upon bruised knuckles.`
+                            : (isBlunt
+                                ? `The heavy head of ${effectiveWeapon} crashes through the shadows as ${pName} crushes multiple foes in a brutal flurry of impacts. The corridor falls quiet once more, save for heavy breathing and black ichor spattered upon the iron.`
+                                : `Steel flashes in the shadows as ${pName} fells multiple foes in a desperate, fluid flurry of blows. The corridor falls quiet once more, save for the heavy rhythm of breathing and the drip of black blood from ${effectiveWeapon}.`),
+                        isUnarmed
+                            ? `Surrounded by snapping teeth and reaching claws, ${pName} turns in a ferocious circle of bone-cracking punches. In three rapid, breathtaking blows, the assailants are knocked senseless or broken upon the stones.`
+                            : (isBlunt
+                                ? `Surrounded by snapping teeth and notched blades, ${pName} swings ${effectiveWeapon} in a ferocious arc. Bone and iron splinter together; in three thunderous impacts, the assailants are battered to the floor.`
+                                : `Surrounded by snapping teeth and notched blades, ${pName} turns in a ferocious circle of flashing steel. In three rapid, breathtaking strokes, the assailants are laid low, leaving the vault floor strewn with the fallen.`),
                         `A masterclass of dungeon survival: utilizing the doorway to face the onslaught one at a time, ${pName} methodically dismantles the attacking pack, cutting them down until silence returns to the masonry.`,
-                        `The skirmish is swift and bloody. Before the enemy could close their perimeter, ${pName}'s ${weapon} reaps through the front rank, scattering the rest into panicked retreat and unmoving corpses.`
+                        `The skirmish is swift and bloody. Before the enemy could close their perimeter, ${pName}'s ${effectiveWeapon} reaps through the front rank, scattering the rest into panicked retreat and unmoving corpses.`
                     ];
-                    prose = multiVariants[turnSeed % multiVariants.length];
+                    prose = ChronicleGrounder.pickNonRepeatingCombatPhrase(multiVariants, turnSeed);
                 } else {
                     const killText = kills[0] || 'A foe fell.';
                     const cleanKill = ChronicleGrounder.extractSlainMonsterName(killText);
-                    const singleVariants = [
-                        `${pName}'s ${weapon} strikes true with decisive, bone-jarring momentum, felling the ${cleanKill}! The immediate threat neutralized, ${pName} pauses to catch breath, eyes sweeping the surrounding gloom for flanking ambushes.`,
-                        `A swift, deadly counter-stroke ends the skirmish! Slashing through the guard of the ${cleanKill}, ${pName} steps over the fallen body, listening intently to the distant echoes of the corridors ahead.`,
-                        `Reading the approach of the ${cleanKill} in the flickering torchlight, ${pName} sidesteps and delivers a single, fatal blow. The dark passage falls silent once more.`,
-                        `With calm, surgical lethality, ${pName} drives ${weapon} through the ${cleanKill}'s guard. Wiping the blade clean, the adventurer resumes the perilous descent.`
-                    ];
-                    prose = singleVariants[turnSeed % singleVariants.length];
+                    let singleVariants;
+                    if (isUnarmed) {
+                        title = ['Bare-Knuckle Smite', 'The Bone-Cracker', 'Unarmed Lethality', 'Brawling Finish'][turnSeed % 4];
+                        singleVariants = [
+                            `${pName}'s bare fists strike true with bone-cracking momentum, felling the ${cleanKill}! The immediate threat neutralized, ${pName} pauses to catch breath, eyes sweeping the surrounding gloom for flanking ambushes.`,
+                            `A swift, punishing counter-blow ends the skirmish! Driving a heavy right cross through the guard of the ${cleanKill}, ${pName} steps over the fallen body, listening intently to the distant echoes of the corridors ahead.`,
+                            `Reading the approach of the ${cleanKill} in the flickering torchlight, ${pName} sidesteps and delivers a single, shattering bare-knuckle punch. The dark passage falls silent once more.`,
+                            `With calm, raw physical power, ${pName} drives an iron fist through the ${cleanKill}'s guard. Shaking stinging dust from bruised knuckles, the adventurer resumes the perilous descent.`
+                        ];
+                    } else if (isBlunt) {
+                        title = ['Jarring Impact', 'Bone-Crushing Blow', 'The Heavy Smite', 'Shattered Armor'][turnSeed % 4];
+                        singleVariants = [
+                            `${pName}'s ${effectiveWeapon} strikes true with decisive, bone-shattering momentum, crushing the ${cleanKill}! The immediate threat neutralized, ${pName} pauses to catch breath, eyes sweeping the surrounding gloom for flanking ambushes.`,
+                            `A swift, heavy counter-stroke ends the skirmish! Smashing through the guard of the ${cleanKill} with ${effectiveWeapon}, ${pName} steps over the fallen body, listening intently to the distant echoes of the corridors ahead.`,
+                            `Reading the approach of the ${cleanKill} in the flickering torchlight, ${pName} sidesteps and brings down a crushing blow of ${effectiveWeapon}. The dark passage falls silent once more.`,
+                            `With calm, bone-crushing lethality, ${pName} drives ${effectiveWeapon} through the ${cleanKill}'s guard. Lowering the heavy weapon, the adventurer resumes the perilous descent.`
+                        ];
+                    } else if (isAxe) {
+                        title = ['Cleaving Stroke', 'Hewn in Asunder', 'The Biting Blade', 'Severing Chop'][turnSeed % 4];
+                        singleVariants = [
+                            `${pName}'s ${effectiveWeapon} strikes true with decisive, cleaving momentum, hewing down the ${cleanKill}! The immediate threat neutralized, ${pName} pauses to catch breath, eyes sweeping the surrounding gloom for flanking ambushes.`,
+                            `A swift, deadly counter-chop ends the skirmish! Hacking through the guard of the ${cleanKill} with ${effectiveWeapon}, ${pName} steps over the fallen body, listening intently to the distant echoes of the corridors ahead.`,
+                            `Reading the approach of the ${cleanKill} in the flickering torchlight, ${pName} sidesteps and delivers a single, cleaving blow. The dark passage falls silent once more.`,
+                            `With calm, chopping lethality, ${pName} drives ${effectiveWeapon} through the ${cleanKill}'s guard. Shaking black blood from the axe head, the adventurer resumes the perilous descent.`
+                        ];
+                    } else if (isPierce) {
+                        title = ['Impaling Strike', 'Gleam of Steel', 'The Lethal Thrust', 'Point Driven Home'][turnSeed % 4];
+                        singleVariants = [
+                            `${pName}'s ${effectiveWeapon} strikes true with lightning puncturing momentum, impaling the ${cleanKill}! The immediate threat neutralized, ${pName} pauses to catch breath, eyes sweeping the surrounding gloom for flanking ambushes.`,
+                            `A swift, deadly counter-thrust ends the skirmish! Piercing cleanly through the guard of the ${cleanKill} with ${effectiveWeapon}, ${pName} steps over the fallen body, listening intently to the distant echoes of the corridors ahead.`,
+                            `Reading the approach of the ${cleanKill} in the flickering torchlight, ${pName} sidesteps and delivers a single, fatal thrust. The dark passage falls silent once more.`,
+                            `With calm, surgical lethality, ${pName} drives the point of ${effectiveWeapon} through the ${cleanKill}'s guard. Wiping the point clean, the adventurer resumes the perilous descent.`
+                        ];
+                    } else {
+                        title = ['Decisive Strike', 'Clash in the Shadows', 'Steel and Resolve', 'A Peril Neutralized'][turnSeed % 4];
+                        singleVariants = [
+                            `${pName}'s ${effectiveWeapon} strikes true with decisive, bone-jarring momentum, felling the ${cleanKill}! The immediate threat neutralized, ${pName} pauses to catch breath, eyes sweeping the surrounding gloom for flanking ambushes.`,
+                            `A swift, deadly counter-stroke ends the skirmish! Slashing through the guard of the ${cleanKill}, ${pName} steps over the fallen body, listening intently to the distant echoes of the corridors ahead.`,
+                            `Reading the approach of the ${cleanKill} in the flickering torchlight, ${pName} sidesteps and delivers a single, fatal blow. The dark passage falls silent once more.`,
+                            `With calm, surgical lethality, ${pName} drives ${effectiveWeapon} through the ${cleanKill}'s guard. Wiping the blade clean, the adventurer resumes the perilous descent.`
+                        ];
+                    }
+                    prose = ChronicleGrounder.pickNonRepeatingCombatPhrase(singleVariants, turnSeed);
                 }
             }
         }
@@ -2854,7 +2959,10 @@ class ChronicleGrounder {
         const race = (player && player.race) ? player.race : 'Hero';
         const depth = (player && typeof player.depth === 'number') ? player.depth : (event.data && typeof event.data.depth === 'number' ? event.data.depth : 0);
         const depthFt = `${depth * 50}ft`;
-        const weapon = (player && player.equipped && player.equipped.weapon) ? player.equipped.weapon : 'drawn steel';
+        const rawWeap = (player && player.weapon_item) ? player.weapon_item : ((player && player.equipped && player.equipped.weapon) ? player.equipped.weapon : null);
+        const weapon = rawWeap ? rawWeap.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : 'bare fists';
+        const bow = (player && player.bow_item) ? player.bow_item.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : null;
+        const quiver = (player && player.quiver_item) ? player.quiver_item.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : null;
 
         let title = 'Echoes in the Deep';
         let prose = '';
@@ -3103,17 +3211,53 @@ class ChronicleGrounder {
                 const inTown = exData.inTown || (depth === 0);
 
                 const atkMed = exData.attackMedium || (hAttacks[0] && hAttacks[0].attackMedium) || null;
-                const isSpell = (atkMed && atkMed.type === 'spell') || (weapon && weapon.toLowerCase().includes('spell'));
-                const isRanged = (atkMed && atkMed.type === 'ranged') || (weapon && (weapon.toLowerCase().includes('bow') || weapon.toLowerCase().includes('arrow') || weapon.toLowerCase().includes('bolt') || weapon.toLowerCase().includes('sling') || weapon.toLowerCase().includes('crossbow')));
-                const isDevice = (atkMed && atkMed.type === 'device') || (weapon && (weapon.toLowerCase().includes('wand') || weapon.toLowerCase().includes('staff') || weapon.toLowerCase().includes('rod')));
-                const isSpellOrDevice = isSpell || isDevice;
+                const method = (atkMed && atkMed.method) ? atkMed.method : ((atkMed && atkMed.type === 'spell') ? 'spell' : ((atkMed && atkMed.type === 'ranged') ? 'shoot' : ((atkMed && atkMed.type === 'device') ? 'device' : 'strike')));
+                const isSpell = method === 'spell' || (atkMed && atkMed.type === 'spell');
+                const isRanged = method === 'shoot' || (atkMed && atkMed.type === 'ranged');
+                const isDevice = method === 'device' || (atkMed && atkMed.type === 'device');
+                const weaponArchetype = (atkMed && atkMed.archetype) ? atkMed.archetype : (weapon.toLowerCase() === 'bare fists' ? 'unarmed' : 'blade');
+                const spellElem = (atkMed && atkMed.element) ? atkMed.element : 'arcane';
+                const spellName = (atkMed && atkMed.name) ? atkMed.name : 'incantation';
+                const devType = (atkMed && atkMed.deviceType) ? atkMed.deviceType : 'wand';
+                const devName = (atkMed && atkMed.name) ? atkMed.name : devType;
+                const launcherName = (atkMed && atkMed.name && method === 'shoot') ? atkMed.name : (bow || 'bow');
+                const ammoName = (atkMed && atkMed.ammo) ? atkMed.ammo : (quiver || 'arrow');
 
-                if (isSpellOrDevice) {
-                    title = kills.length > 0 ? (kills.length > 1 ? 'Arcane Conflagration' : 'Searing Spellfire') : (inTown ? 'Mystic Flare in the Street' : 'Eldritch Clash');
+                const turnSeed = Math.abs((player ? player.turn || 0 : 0) + (depth * 31) + (kills.length * 7));
+
+                // Contextual Title Generation
+                if (isSpell) {
+                    const spellTitles = {
+                        fire: kills.length > 0 ? (kills.length > 1 ? 'Blazing Infernal Tempest' : 'Searing Flame Strike') : 'Incandescent Burst',
+                        cold: kills.length > 0 ? (kills.length > 1 ? 'Glacial Cataclysm' : 'Brittle Frost Shatter') : 'Howling Rime',
+                        lightning: kills.length > 0 ? (kills.length > 1 ? 'Chain Lightning Storm' : 'Thunderclap Smite') : 'Blinding Arc',
+                        acid: kills.length > 0 ? (kills.length > 1 ? 'Caustic Deluge' : 'Corrosive Dissolution') : 'Hissing Slag',
+                        holy: kills.length > 0 ? (kills.length > 1 ? 'Consecrated Wrath' : 'Celestial Smite') : 'Radiant Flare',
+                        arcane: kills.length > 0 ? (kills.length > 1 ? 'Arcane Conflagration' : 'Searing Spellfire') : 'Eldritch Clash'
+                    };
+                    title = spellTitles[spellElem] || 'Arcane Clash';
+                } else if (isDevice) {
+                    title = kills.length > 0 ? (kills.length > 1 ? 'Runic Conflagration' : `Lethal ${devType.charAt(0).toUpperCase() + devType.slice(1)} Discharge`) : `Channel of the ${devType.charAt(0).toUpperCase() + devType.slice(1)}`;
                 } else if (isRanged) {
-                    title = kills.length > 0 ? (kills.length > 1 ? 'Flurry of Arrows' : 'Deadly Marksmanship') : (inTown ? 'Shaft from the Alley' : 'Shot in the Dark');
+                    if (weaponArchetype === 'crossbow') {
+                        title = kills.length > 0 ? (kills.length > 1 ? 'Volley of Steel Bolts' : 'Deadly Arbalest Shot') : 'Snapping Steel';
+                    } else if (weaponArchetype === 'sling') {
+                        title = kills.length > 0 ? (kills.length > 1 ? 'Hail of Lead Shot' : 'Crushing Slingstone') : 'Whistling Leather';
+                    } else {
+                        title = kills.length > 0 ? (kills.length > 1 ? 'Flurry of Arrows' : 'Deadly Marksmanship') : (inTown ? 'Shaft from the Alley' : 'Shot in the Dark');
+                    }
                 } else {
-                    title = kills.length > 0 ? (kills.length > 1 ? 'Flurry of Steel' : 'Decisive Strike') : (inTown ? 'Street Skirmish' : 'Clash in the Deep');
+                    if (weaponArchetype === 'blunt') {
+                        title = kills.length > 0 ? (kills.length > 1 ? 'Crushing Carnage' : 'Jarring Impact') : 'Clash of Iron';
+                    } else if (weaponArchetype === 'axe') {
+                        title = kills.length > 0 ? (kills.length > 1 ? 'Hewn to Asunder' : 'Cleaving Stroke') : 'Biting Iron';
+                    } else if (weaponArchetype === 'dagger' || weaponArchetype === 'polearm_pierce') {
+                        title = kills.length > 0 ? (kills.length > 1 ? 'Lethal Thrusts' : 'Impaling Strike') : 'Gleam of Steel';
+                    } else if (weaponArchetype === 'unarmed') {
+                        title = kills.length > 0 ? (kills.length > 1 ? 'Brawling Carnage' : 'Bone-Cracking Fist') : 'Bare-Knuckle Brawl';
+                    } else {
+                        title = kills.length > 0 ? (kills.length > 1 ? 'Flurry of Steel' : 'Decisive Strike') : (inTown ? 'Street Skirmish' : 'Clash in the Deep');
+                    }
                 }
 
                 // 1. Status Clause (e.g. confused, poisoned, blind, stunned, terrified, bleeding)
@@ -3128,8 +3272,6 @@ class ChronicleGrounder {
                     else if (st.includes('terrifi') || st.includes('panic')) statusPrefix = 'Fighting down cold panic, ';
                     else if (st.includes('bleed')) statusPrefix = 'Bleeding from torn armor, ';
                 }
-
-                const turnSeed = Math.abs((player ? player.turn || 0 : 0) + (depth * 31) + (kills.length * 7));
 
                 // 2. Incoming Attack Summary
                 let incomingText = '';
@@ -3159,9 +3301,10 @@ class ChronicleGrounder {
                         const twinPhrases = [
                             `the ${inAttacks[0].monsterName} strikes with rapid twin blows`,
                             `the ${inAttacks[0].monsterName} presses the assault with a relentless flurry of strikes`,
-                            `the ${inAttacks[0].monsterName} bears down with fierce consecutive blows`
+                            `the ${inAttacks[0].monsterName} bears down with fierce consecutive blows`,
+                            `the ${inAttacks[0].monsterName} redoubles its assault with furious blows`
                         ];
-                        incomingText = (statuses.length > 0) ? twinPhrases[0] : twinPhrases[turnSeed % twinPhrases.length];
+                        incomingText = (statuses.length > 0) ? twinPhrases[0] : ChronicleGrounder.pickNonRepeatingCombatPhrase(twinPhrases, turnSeed);
                     } else {
                         const mNames = [...new Set(inAttacks.map(a => a.monsterName))];
                         incomingText = `${mNames.slice(0, 2).join(' and the ')} strike you in a coordinated rush`;
@@ -3175,110 +3318,485 @@ class ChronicleGrounder {
                     const fleeMon = exData.fleeingMonster;
                     if (fleeMon && kills.length === 1) {
                         const cleanFlee = ChronicleGrounder.extractSlainMonsterName(fleeMon);
-                        if (isSpellOrDevice) {
-                            heroText = `pursuing the fleeing ${cleanFlee}, a lance of crackling spellfire blasts the craven creature down before it can escape`;
+                        if (isSpell) {
+                            const fleeSpellElemText = spellElem === 'fire' ? 'a roaring lance of flame' : (spellElem === 'cold' ? 'a howling blast of freezing rime' : (spellElem === 'lightning' ? 'a jagged bolt of blue-white voltage' : (spellElem === 'acid' ? 'a hissing stream of caustic acid' : (spellElem === 'holy' ? 'a blinding shaft of celestial starlight' : 'a concentrated blast of azure spellfire'))));
+                            heroText = `pursuing the fleeing ${cleanFlee}, ${fleeSpellElemText} blasts the craven creature down before it can escape`;
+                            ChronicleGrounder.recordCombatVerb('blasts');
+                        } else if (isDevice) {
+                            heroText = `pursuing the fleeing ${cleanFlee}, a lethal ray from your ${devName} blasts the craven creature down before it can escape`;
+                            ChronicleGrounder.recordCombatVerb('blasts');
                         } else if (isRanged) {
-                            heroText = `pursuing the fleeing ${cleanFlee}, a well-aimed missile pins the craven creature down before it can escape`;
+                            if (weaponArchetype === 'crossbow') {
+                                heroText = `pursuing the fleeing ${cleanFlee}, a heavy steel quarrel from your ${launcherName} punches through its spine before it can escape`;
+                                ChronicleGrounder.recordCombatVerb('punches');
+                            } else if (weaponArchetype === 'sling') {
+                                heroText = `pursuing the fleeing ${cleanFlee}, a whistling lead shot from your ${launcherName} fractures its skull before it can escape`;
+                                ChronicleGrounder.recordCombatVerb('fractures');
+                            } else {
+                                heroText = `pursuing the fleeing ${cleanFlee}, a well-aimed ${ammoName} from your ${launcherName} pins the craven creature down before it can escape`;
+                                ChronicleGrounder.recordCombatVerb('pins');
+                            }
                         } else {
-                            heroText = `pursuing the fleeing ${cleanFlee}, your ${weapon} cuts the craven creature down before it can escape`;
+                            if (weaponArchetype === 'blunt') {
+                                heroText = `pursuing the fleeing ${cleanFlee}, your ${weapon} crashes down upon its back with bone-shattering force before it can escape`;
+                                ChronicleGrounder.recordCombatVerb('crashes');
+                            } else if (weaponArchetype === 'axe') {
+                                heroText = `pursuing the fleeing ${cleanFlee}, a sweeping hew of your ${weapon} severs its stride and fells the craven creature upon the stones`;
+                                ChronicleGrounder.recordCombatVerb('severs');
+                            } else if (weaponArchetype === 'dagger') {
+                                heroText = `sprinting after the fleeing ${cleanFlee}, you slip ${weapon} deep between its ribs from behind, silencing its panic forever`;
+                                ChronicleGrounder.recordCombatVerb('slips');
+                            } else if (weaponArchetype === 'polearm_pierce') {
+                                heroText = `lunging forward with lethal reach, your ${weapon} impales the fleeing ${cleanFlee} through the flank, pinning it to the flagstones`;
+                                ChronicleGrounder.recordCombatVerb('impales');
+                            } else if (weaponArchetype === 'unarmed') {
+                                heroText = `surging after the fleeing ${cleanFlee}, you tackle the wretch to the flagstones and drive a brutal fist into its temple`;
+                                ChronicleGrounder.recordCombatVerb('pummels');
+                            } else {
+                                heroText = `pursuing the fleeing ${cleanFlee}, your ${weapon} cuts the craven creature down before it can escape`;
+                                ChronicleGrounder.recordCombatVerb('cuts');
+                            }
                         }
                     } else if (kills.length === 1) {
-                        if (isSpellOrDevice) {
-                            const singleSpellPhrases = [
-                                `a blazing blast of magic incinerates the ${killNames[0]}`,
-                                `your incantation erupts in crackling flame, striking down the ${killNames[0]} upon the flagstones`,
-                                `unleashing arcane power, you blast the ${killNames[0]} into dust upon the stones`,
-                                `a brilliant flare of spellfire consumes the ${killNames[0]} in a decisive blast`
+                        if (isSpell) {
+                            let spellPhrases = [];
+                            if (spellElem === 'fire') {
+                                spellPhrases = [
+                                    `unleashing ${spellName}, a roaring cone of incandescent flame engulfs the ${killNames[0]}, leaving only charred embers upon the floor`,
+                                    `your ${spellName} detonates in a blinding flare of heat, incinerating the ${killNames[0]} upon the flagstones`,
+                                    `tongues of crackling fire erupt from your hands, reducing the ${killNames[0]} to blackened cinders`,
+                                    `a searing conflagration of sorcery consumes the ${killNames[0]} in an instant`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('incinerates');
+                            } else if (spellElem === 'cold') {
+                                spellPhrases = [
+                                    `channeling ${spellName}, a howling gale of frost flash-freezes the ${killNames[0]}, its brittle form shattering across the stones`,
+                                    `crystalline rime races along the floor as your ${spellName} pierces the ${killNames[0]} with lethal, numbing cold`,
+                                    `a glacial shockwave bursts from your fingertips, encasing the ${killNames[0]} in solid ice before it collapses lifeless`,
+                                    `bitter freezing rime chills the marrow of the ${killNames[0]}, dropping the frozen foe upon the flagstones`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('freezes');
+                            } else if (spellElem === 'lightning') {
+                                spellPhrases = [
+                                    `a deafening thunderclap tears through the corridor as your ${spellName} drives a jagged fork of blue-white voltage through the ${killNames[0]}`,
+                                    `blinding arcs of lightning crackle from your hands, electrocuting the ${killNames[0]} with searing electrical fury`,
+                                    `an ozone-scented bolt of lightning lances through the dark, dropping the ${killNames[0]} in a shower of sparks`,
+                                    `jagged electrical discharge scorches the air, dropping the ${killNames[0]} upon the electrified floor`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('electrocutes');
+                            } else if (spellElem === 'acid') {
+                                spellPhrases = [
+                                    `a caustic stream from your ${spellName} hisses into the ${killNames[0]}, dissolving hide and bone in a steaming puddle of slag`,
+                                    `corrosive deluge from your ${spellName} eats through the defenses of the ${killNames[0]}, melting the foe into silence`,
+                                    `hissing acidic spray bursts across the ${killNames[0]}, dissolving its flesh upon the smoking flagstones`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('dissolves');
+                            } else if (spellElem === 'holy') {
+                                spellPhrases = [
+                                    `consecrated radiance blazes forth as your ${spellName} smites the ${killNames[0]} with searing celestial wrath`,
+                                    `a blinding shaft of holy starlight descends upon the ${killNames[0]}, scouring the darkness from its flesh`,
+                                    `divine brilliance flares in righteous fury, banishing the life from the ${killNames[0]} in pure radiant light`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('smites');
+                            } else {
+                                spellPhrases = [
+                                    `azure darts of concentrated force burst from your ${spellName}, hammering into the ${killNames[0]} with kinetic violence`,
+                                    `a shimmering shockwave of raw sorcery erupts from your hand, blasting the ${killNames[0]} into dust upon the stones`,
+                                    `weaving ${spellName}, you unleash an eldritch rupture that crushes the ${killNames[0]} against the dungeon floor`,
+                                    `a brilliant flare of pure spellfire consumes the ${killNames[0]} in a decisive kinetic blast`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('blasts');
+                            }
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(spellPhrases, turnSeed);
+                        } else if (isDevice) {
+                            const devPhrases = [
+                                `leveling your ${devName}, a piercing ray lances from the tip and burns straight through the ${killNames[0]}`,
+                                `a sharp flick of your ${devName} discharges a focused beam of power that fells the ${killNames[0]} in mid-stride`,
+                                `bringing down the butt of your ${devName} upon the stone, a reverberating shockwave of stored power shatters the ${killNames[0]}`,
+                                `your ${devName} flares with ancient dweomer, obliterating the ${killNames[0]} in a radiant burst`
                             ];
-                            heroText = singleSpellPhrases[turnSeed % singleSpellPhrases.length];
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(devPhrases, turnSeed);
+                            ChronicleGrounder.recordCombatVerb('discharges');
                         } else if (isRanged) {
-                            const singleRangedPhrases = [
-                                `your missile strikes true from the gloom, piercing the ${killNames[0]} with lethal precision`,
-                                `loosing a swift projectile, you bring down the ${killNames[0]} before it can close the distance`,
-                                `with deadly marksmanship, your shot pins the ${killNames[0]} lifeless upon the flagstones`,
-                                `a silent shaft pierces the ${killNames[0]}, felling the foe in mid-stride`
-                            ];
-                            heroText = singleRangedPhrases[turnSeed % singleRangedPhrases.length];
+                            let rangedPhrases = [];
+                            if (weaponArchetype === 'crossbow') {
+                                rangedPhrases = [
+                                    `the steel prod snaps with violent release, sending an iron quarrel from your ${launcherName} punching cleanly through the ${killNames[0]}`,
+                                    `triggering your ${launcherName}, a heavy bolt slams into the ${killNames[0]} with sickening thud, pinning it lifeless to the wall`,
+                                    `a sudden mechanical thrum rings out as a steel quarrel tears through the breast of the ${killNames[0]}`,
+                                    `with cold marksmanship, your ${launcherName} drops the ${killNames[0]} before it can cross the chamber`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('punches');
+                            } else if (weaponArchetype === 'sling') {
+                                rangedPhrases = [
+                                    `whirling your ${launcherName} in a blurred arc, you whip a lead shot squarely into the forehead of the ${killNames[0]} with a resounding crack`,
+                                    `a whistling river pebble loosed from your ${launcherName} shatters the skull of the ${killNames[0]}`,
+                                    `the snap of spinning leather releases a bullet that caves in the brow of the ${killNames[0]}, dropping it instantly`,
+                                    `a lead shot hums through the dark, cracking hard against the ${killNames[0]} and felling the beast`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('fractures');
+                            } else {
+                                rangedPhrases = [
+                                    `drawing the yew limbs taut to the ear, you loose an ${ammoName} that hisses through the gloom and pierces the heart of the ${killNames[0]}`,
+                                    `with deadly marksmanship from your ${launcherName}, a feathered shaft takes the ${killNames[0]} in the throat, felling the foe in mid-stride`,
+                                    `the bowstring thrums like a harp-wire; your ${ammoName} buries itself to the fletching in the ${killNames[0]}`,
+                                    `a silent shaft pierces the ${killNames[0]} from the dark, pinning the foe lifeless upon the flagstones`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('pierces');
+                            }
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(rangedPhrases, turnSeed);
                         } else {
-                            const singleKillPhrases = [
-                                `your ${weapon} cuts down the ${killNames[0]}`,
-                                `with grim resolve your ${weapon} fells the ${killNames[0]} upon the flagstones`,
-                                `your ${weapon} flashes in the torchlight, cleaving down the ${killNames[0]} in a decisive stroke`,
-                                `stepping inside its guard, your ${weapon} cuts down the ${killNames[0]}`
-                            ];
-                            heroText = singleKillPhrases[turnSeed % singleKillPhrases.length];
+                            let meleePhrases = [];
+                            if (weaponArchetype === 'blunt') {
+                                meleePhrases = [
+                                    `bringing down your ${weapon} in a crushing arc, you cave in the guard of the ${killNames[0]} with bone-splintering force`,
+                                    `the flanged head of your ${weapon} connects with a deafening crunch, battering the ${killNames[0]} lifeless upon the flagstones`,
+                                    `stepping inside its reach, you hammer your ${weapon} into the chest of the ${killNames[0]}, shattering ribs and dropping it in a heap`,
+                                    `a resounding blunt impact! Your ${weapon} shatters the skull of the ${killNames[0]} with brutal momentum`,
+                                    `with grim force, you drive your ${weapon} down through helm and bone, felling the ${killNames[0]} instantly`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('crushes');
+                            } else if (weaponArchetype === 'axe') {
+                                meleePhrases = [
+                                    `heaving your ${weapon} in a devastating two-handed arc, you cleave through shield and armor to fell the ${killNames[0]} in a single stroke`,
+                                    `the bearded edge of your ${weapon} bites deep into the shoulder of the ${killNames[0]}, splitting it to the brisket`,
+                                    `with grim momentum, your ${weapon} hews through the creature's guard, dropping the severed carcass upon the bloody floor`,
+                                    `whirling your ${weapon} in a sweeping crescent, you shear through the defenses of the ${killNames[0]}`,
+                                    `a brutal downward chop of your ${weapon} cleaves the ${killNames[0]} upon the flagstones`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('cleaves');
+                            } else if (weaponArchetype === 'dagger') {
+                                meleePhrases = [
+                                    `ducking beneath the wild swing, you drive your ${weapon} deep under the ribcage of the ${killNames[0]} with cold, surgical precision`,
+                                    `slipping past the enemy's guard, your ${weapon} finds the exposed seam in the throat of the ${killNames[0]}`,
+                                    `a lightning jab of your ${weapon} sinks deep into the heart of the ${killNames[0]}, easing the dying creature quietly to the flagstones`,
+                                    `stepping in close, you twist your ${weapon} into a vital joint, ending the ${killNames[0]} in a breathless gasp`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('slips');
+                            } else if (weaponArchetype === 'polearm_pierce') {
+                                meleePhrases = [
+                                    `bracing your stance, you drive the point of your ${weapon} straight through the breastplate of the ${killNames[0]}`,
+                                    `lunging with lethal reach, your ${weapon} skewers the ${killNames[0]} before it can lay a claw upon you`,
+                                    `a decisive forward thrust! The cold iron tip of your ${weapon} pierces through the ${killNames[0]} and rings against the wall behind it`,
+                                    `planting the haft, you impale the lunging ${killNames[0]} upon the sharp steel of your ${weapon}`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('skewers');
+                            } else if (weaponArchetype === 'unarmed') {
+                                meleePhrases = [
+                                    `stepping inside the brute's reach, you drive an iron-knuckled fist squarely into the jaw of the ${killNames[0]} with a sickening crack`,
+                                    `with raw brawling fury, you pummel the ${killNames[0]} with a rapid barrage of bare-fisted strikes until it crumples senseless`,
+                                    `grappling the ${killNames[0]} by the throat, you slam it headfirst into the flagstones with jarring violence`,
+                                    `a punishing bare-knuckle smash catches the ${killNames[0]} beneath the chin, snapping its neck and ending the fight`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('pummels');
+                            } else {
+                                meleePhrases = [
+                                    `your ${weapon} flashes in the torchlight, cleaving down the ${killNames[0]} in a decisive stroke`,
+                                    `parrying the return stroke, you run your ${weapon} cleanly through the heart of the ${killNames[0]}`,
+                                    `with grim resolve your ${weapon} carves through armor and flesh, felling the ${killNames[0]} upon the flagstones`,
+                                    `stepping inside its guard, your ${weapon} cuts down the ${killNames[0]}`,
+                                    `a sweeping, fluid slash of your ${weapon} shears across the flank of the ${killNames[0]}, ending the fight`
+                                ];
+                                ChronicleGrounder.recordCombatVerb('cuts');
+                            }
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(meleePhrases, turnSeed);
                         }
                     } else {
-                        if (isSpellOrDevice) {
-                            const multiSpellPhrases = [
-                                `your sweeping spellfire engulfs and destroys ${kills.length} foes`,
-                                `a devastating burst of sorcery obliterates ${kills.length} assailants in a storm of light`,
-                                `your magical barrage tears through the ranks, slaying ${kills.length} enemies in swift succession`
+                        // Multi-kill
+                        if (isSpell) {
+                            let multiSpellPhrases = [];
+                            if (spellElem === 'fire') {
+                                multiSpellPhrases = [
+                                    `a roaring tempest of flame engulfs the enemy ranks, reducing ${kills.length} foes to heaps of smoking cinders`,
+                                    `your ${spellName} detonates in an expanding ring of fire, incinerating ${kills.length} assailants in blinding heat`
+                                ];
+                            } else if (spellElem === 'cold') {
+                                multiSpellPhrases = [
+                                    `a howling blizzard of razor-sharp rime sweeps outward, freezing and shattering ${kills.length} foes into crystalline shards`,
+                                    `your glacial frost storm sweeps the corridor, encasing ${kills.length} enemies in solid ice`
+                                ];
+                            } else if (spellElem === 'lightning') {
+                                multiSpellPhrases = [
+                                    `forks of chain lightning leap from foe to foe, electrocuting ${kills.length} assailants in a deafening flurry of blue-white arcs`,
+                                    `a blinding discharge of electrical voltage tears through the ranks, dropping ${kills.length} enemies in mid-step`
+                                ];
+                            } else {
+                                multiSpellPhrases = [
+                                    `your sweeping spellfire engulfs and destroys ${kills.length} foes in a blinding eruption of power`,
+                                    `a devastating burst of sorcery obliterates ${kills.length} assailants in a storm of arcane light`,
+                                    `your magical barrage tears through the ranks, slaying ${kills.length} enemies in swift succession`
+                                ];
+                            }
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(multiSpellPhrases, turnSeed);
+                        } else if (isDevice) {
+                            const multiDevPhrases = [
+                                `unleashing the stored power of your ${devName}, a surging shockwave tears through the chamber, destroying ${kills.length} foes`,
+                                `a brilliant cascade of runic energy discharges from your ${devName}, felling ${kills.length} assailants in a flash of light`
                             ];
-                            heroText = multiSpellPhrases[turnSeed % multiSpellPhrases.length];
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(multiDevPhrases, turnSeed);
                         } else if (isRanged) {
-                            const multiRangedPhrases = [
-                                `rapid marksmanship fells ${kills.length} foes before they reach your guard`,
-                                `a deadly volley of missiles cuts down ${kills.length} enemies from the dark`,
-                                `loosing arrow after arrow, you drop ${kills.length} assailants in swift succession`
-                            ];
-                            heroText = multiRangedPhrases[turnSeed % multiRangedPhrases.length];
+                            let multiRangedPhrases = [];
+                            if (weaponArchetype === 'crossbow') {
+                                multiRangedPhrases = [
+                                    `reloading with grim mechanical speed, your ${launcherName} drives steel quarrels through ${kills.length} assailants before they reach your guard`,
+                                    `a deadly volley of heavy bolts punches through ${kills.length} foes, pinning them to the flagstones`
+                                ];
+                            } else if (weaponArchetype === 'sling') {
+                                multiRangedPhrases = [
+                                    `whirling your ${launcherName} in blurred figure-eights, you pelt ${kills.length} foes with deadly lead bullets, dropping them upon the stones`,
+                                    `a rapid hail of slingstones cracks against skulls, felling ${kills.length} assailants in seconds`
+                                ];
+                            } else {
+                                multiRangedPhrases = [
+                                    `rapid marksmanship from your ${launcherName} fells ${kills.length} foes before they reach your guard`,
+                                    `a deadly volley of missiles cuts down ${kills.length} enemies from the dark`,
+                                    `loosing arrow after arrow, you drop ${kills.length} assailants in swift succession`
+                                ];
+                            }
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(multiRangedPhrases, turnSeed);
                         } else {
-                            const multiKillPhrases = [
-                                `your ${weapon} fells ${kills.length} assailants`,
-                                `whirling your ${weapon} in a deadly arc, you cut down ${kills.length} foes upon the bloody stones`,
-                                `your ${weapon} reaps a grim harvest, slaying ${kills.length} enemies in swift succession`
-                            ];
-                            heroText = multiKillPhrases[turnSeed % multiKillPhrases.length];
+                            let multiMeleePhrases = [];
+                            if (weaponArchetype === 'blunt') {
+                                multiMeleePhrases = [
+                                    `whirling your ${weapon} in bone-splintering arcs, you batter aside shields and shatter ${kills.length} assailants upon the bloody flagstones`,
+                                    `your ${weapon} crashes down like a smith's sledge, crushing the skulls and ribs of ${kills.length} foes in brutal succession`,
+                                    `sweeping your ${weapon} with crushing momentum, you batter ${kills.length} enemies lifeless to the floor`
+                                ];
+                            } else if (weaponArchetype === 'axe') {
+                                multiMeleePhrases = [
+                                    `hewing left and right with ferocious momentum, your ${weapon} shears through mail and limb to drop ${kills.length} enemies in a crimson heap`,
+                                    `your ${weapon} reaps a grim harvest, cleaving down ${kills.length} foes with sweeping two-handed strokes`,
+                                    `whirling your ${weapon} in wide crescent hews, you butcher ${kills.length} assailants in rapid succession`
+                                ];
+                            } else if (weaponArchetype === 'dagger' || weaponArchetype === 'polearm_pierce') {
+                                multiMeleePhrases = [
+                                    `lunging and darting through the melee, your ${weapon} skewers ${kills.length} assailants through vital seams before they can turn their guard`,
+                                    `cold iron strikes with blinding agility; your ${weapon} fells ${kills.length} enemies in swift, lethal thrusts`,
+                                    `with lethal precision, your ${weapon} impales ${kills.length} foes upon the flagstones`
+                                ];
+                            } else if (weaponArchetype === 'unarmed') {
+                                multiMeleePhrases = [
+                                    `surging into the thick of the fray with iron knuckles, you batter down ${kills.length} assailants with a devastating flurry of barehanded blows`,
+                                    `bare fists crack like thunderbolts as you pummel ${kills.length} foes into senseless heaps upon the stones`
+                                ];
+                            } else {
+                                multiMeleePhrases = [
+                                    `your ${weapon} fells ${kills.length} assailants in swift, fluid strokes`,
+                                    `whirling your ${weapon} in a deadly arc, you cut down ${kills.length} foes upon the bloody stones`,
+                                    `your ${weapon} reaps a grim harvest, slaying ${kills.length} enemies in swift succession`
+                                ];
+                            }
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(multiMeleePhrases, turnSeed);
                         }
                     }
                 } else if (hAttacks.length > 0) {
                     const ha = hAttacks[0];
                     if (ha.missed) {
-                        heroText = isSpellOrDevice
-                            ? `your incantation fizzles harmlessly in the gloom`
-                            : (isRanged ? `your missile whistles wide into the dark` : `your counter-stroke with ${weapon} whistles wide`);
-                    } else {
-                        if (isSpellOrDevice) {
-                            const spellHitPhrases = [
-                                `you unleash spellfire, blasting the ${ha.monsterName}`,
-                                `a crackling arcane bolt strikes the ${ha.monsterName}`,
-                                `your magic flares in counter-attack, scorching the ${ha.monsterName}`
+                        let missPhrases = [];
+                        if (isSpell) {
+                            missPhrases = [
+                                `your incantation fizzles harmlessly in the gloom`,
+                                `the arc of spellfire splashes off the damp stonework without touching the ${ha.monsterName}`,
+                                `your magic flares wide into the dark shadows`
                             ];
-                            heroText = (statuses.length > 0) ? spellHitPhrases[0] : spellHitPhrases[turnSeed % spellHitPhrases.length];
+                        } else if (isDevice) {
+                            missPhrases = [
+                                `the beam from your ${devName} scorches the stone wall harmlessly`,
+                                `your ${devName} discharges wide into the shadows`
+                            ];
                         } else if (isRanged) {
-                            const rangedHitPhrases = [
-                                `your missile strikes true, piercing the ${ha.monsterName}`,
-                                `you loose a projectile that strikes the ${ha.monsterName}`,
-                                `a swift shot bites deep into the ${ha.monsterName}`
-                            ];
-                            heroText = (statuses.length > 0) ? rangedHitPhrases[0] : rangedHitPhrases[turnSeed % rangedHitPhrases.length];
+                            if (weaponArchetype === 'crossbow') {
+                                missPhrases = [
+                                    `the steel quarrel from your ${launcherName} clatters off the stone wall into the darkness`,
+                                    `your quarrel whistles wide of the dodging ${ha.monsterName}`
+                                ];
+                            } else if (weaponArchetype === 'sling') {
+                                missPhrases = [
+                                    `the slingstone ricochets wildly off the cavern ceiling`,
+                                    `your lead shot whistles harmlessly over the ${ha.monsterName}`
+                                ];
+                            } else {
+                                missPhrases = [
+                                    `your ${ammoName} whistles harmlessly past into the shadows`,
+                                    `the shot from your ${launcherName} embeds itself into a timber post`
+                                ];
+                            }
                         } else {
-                            const hitPhrases = [
-                                `you counter with ${weapon}, striking the ${ha.monsterName}`,
-                                `ducking low, you drive ${weapon} hard into the ${ha.monsterName}`,
-                                `your ${weapon} flashes in counter-attack, striking true against the ${ha.monsterName}`
+                            if (weaponArchetype === 'blunt') {
+                                missPhrases = [
+                                    `your ${weapon} glances heavily off the flagstones with a shower of sparks`,
+                                    `the heavy blow of your ${weapon} whistles wide as the ${ha.monsterName} scrambles back`
+                                ];
+                            } else if (weaponArchetype === 'axe') {
+                                missPhrases = [
+                                    `your sweeping hew bites deeply into the stone wall, jarring your shoulders`,
+                                    `the heavy bearded edge of ${weapon} cleaves empty air`
+                                ];
+                            } else if (weaponArchetype === 'dagger' || weaponArchetype === 'polearm_pierce') {
+                                missPhrases = [
+                                    `the ${ha.monsterName} parries your swift thrust with a frantic dodge`,
+                                    `the point of your ${weapon} scrapes harmlessly against hardened stone`
+                                ];
+                            } else if (weaponArchetype === 'unarmed') {
+                                missPhrases = [
+                                    `your driving punch grazes empty air as the ${ha.monsterName} twists aside`,
+                                    `a wild knuckle strike glances harmlessly off empty space`
+                                ];
+                            } else {
+                                missPhrases = [
+                                    `your counter-stroke with ${weapon} whistles wide in the gloom`,
+                                    `the ${ha.monsterName} ducks beneath the flashing edge of your ${weapon}`
+                                ];
+                            }
+                        }
+                        heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(missPhrases, turnSeed);
+                    } else {
+                        // Successful hit (non-fatal)
+                        let hitPhrases = [];
+                        if (isSpell) {
+                            if (spellElem === 'fire') {
+                                hitPhrases = [
+                                    `you unleash ${spellName}, searing tongues of flame scorching the hide of the ${ha.monsterName}`,
+                                    `a blast of fire from your ${spellName} blisters the flesh of the ${ha.monsterName}`,
+                                    `your magic flares in counter-attack, scorching the ${ha.monsterName} with crackling heat`
+                                ];
+                            } else if (spellElem === 'cold') {
+                                hitPhrases = [
+                                    `a bitter frost bolt from your ${spellName} bites into the ${ha.monsterName}, numbing its limbs`,
+                                    `shards of freezing rime from ${spellName} lacerate the ${ha.monsterName}`,
+                                    `glacial cold wraps around the ${ha.monsterName}, slowing its advance`
+                                ];
+                            } else if (spellElem === 'lightning') {
+                                hitPhrases = [
+                                    `a crackling arc of voltage from your ${spellName} jolts the ${ha.monsterName} backward`,
+                                    `electric current courses through the ${ha.monsterName} with a sharp snap of ozone`,
+                                    `a jagged fork of lightning lashes across the ${ha.monsterName}`
+                                ];
+                            } else if (spellElem === 'acid') {
+                                hitPhrases = [
+                                    `a hissing splash of acid from ${spellName} eats into the flesh of the ${ha.monsterName}`,
+                                    `caustic spray from ${spellName} burns into the hide of the ${ha.monsterName}`
+                                ];
+                            } else if (spellElem === 'holy') {
+                                hitPhrases = [
+                                    `consecrated radiance flares from your hands, searing the corrupt essence of the ${ha.monsterName}`,
+                                    `a shaft of holy starlight scorches the ${ha.monsterName} in radiant judgment`
+                                ];
+                            } else {
+                                hitPhrases = [
+                                    `azure kinetic darts from your ${spellName} hammer hard into the ${ha.monsterName}`,
+                                    `a crackling arcane bolt strikes the ${ha.monsterName}, staggering its advance`,
+                                    `you unleash spellfire, blasting the ${ha.monsterName} with force`
+                                ];
+                            }
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(hitPhrases, turnSeed);
+                        } else if (isDevice) {
+                            hitPhrases = [
+                                `you discharge your ${devName}, blasting the ${ha.monsterName} with an arc of power`,
+                                `a focused ray from your ${devName} strikes true against the ${ha.monsterName}`,
+                                `your ${devName} flares, staggering the ${ha.monsterName} with magical force`
                             ];
-                            heroText = (statuses.length > 0) ? hitPhrases[0] : hitPhrases[turnSeed % hitPhrases.length];
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(hitPhrases, turnSeed);
+                        } else if (isRanged) {
+                            if (weaponArchetype === 'crossbow') {
+                                hitPhrases = [
+                                    `a heavy iron quarrel from your ${launcherName} punches deep into the ${ha.monsterName}`,
+                                    `triggering your ${launcherName}, your steel bolt bites hard into the ${ha.monsterName}`,
+                                    `a swift quarrel from your ${launcherName} strikes the ${ha.monsterName} with a heavy thud`
+                                ];
+                            } else if (weaponArchetype === 'sling') {
+                                hitPhrases = [
+                                    `a whistling lead shot from your ${launcherName} cracks hard against the shoulder of the ${ha.monsterName}`,
+                                    `your slingstone strikes true, bruising the ${ha.monsterName} with resounding force`,
+                                    `a whirling bullet from ${launcherName} batters into the flank of the ${ha.monsterName}`
+                                ];
+                            } else {
+                                hitPhrases = [
+                                    `your ${ammoName} strikes true, piercing deep into the ${ha.monsterName}`,
+                                    `you loose a feathered shaft from your ${launcherName} that bites into the ${ha.monsterName}`,
+                                    `a swift shot from ${launcherName} wounds the ${ha.monsterName}, drawing dark blood`
+                                ];
+                            }
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(hitPhrases, turnSeed);
+                        } else {
+                            if (weaponArchetype === 'blunt') {
+                                hitPhrases = [
+                                    `you drive your ${weapon} hard into the ribs of the ${ha.monsterName}, rattling its bones`,
+                                    `ducking low, you hammer ${weapon} heavily against the guard of the ${ha.monsterName}`,
+                                    `the blunt momentum of your ${weapon} crashes into the ${ha.monsterName}, staggering it backward`,
+                                    `a resounding blow! Your ${weapon} smashes into the flank of the ${ha.monsterName}`
+                                ];
+                            } else if (weaponArchetype === 'axe') {
+                                hitPhrases = [
+                                    `your ${weapon} bites deep into the shoulder of the ${ha.monsterName}, splitting its armor`,
+                                    `heaving ${weapon} in a brutal crescent, you carve a jagged wound into the ${ha.monsterName}`,
+                                    `a punishing hew! Your ${weapon} bites into the flank of the ${ha.monsterName}`,
+                                    `stepping forward, you shear through the defenses of the ${ha.monsterName} with ${weapon}`
+                                ];
+                            } else if (weaponArchetype === 'dagger') {
+                                hitPhrases = [
+                                    `you slip ${weapon} past its defenses, scoring a bleeding gash along the ${ha.monsterName}'s flank`,
+                                    `ducking inside its reach, your ${weapon} bites deep into the thigh of the ${ha.monsterName}`,
+                                    `a swift, surgical thrust of your ${weapon} pierces the hide of the ${ha.monsterName}`,
+                                    `cold steel flashes as you plant ${weapon} into the shoulder of the ${ha.monsterName}`
+                                ];
+                            } else if (weaponArchetype === 'polearm_pierce') {
+                                hitPhrases = [
+                                    `lunging forward, your ${weapon} punches a deep puncture through the ${ha.monsterName}`,
+                                    `keeping the brute at spear's reach, you drive the steel point of ${weapon} into the ${ha.monsterName}`,
+                                    `a decisive forward thrust! Your ${weapon} impales the flank of the ${ha.monsterName}`,
+                                    `you jab your ${weapon} forward, scoring a deep wound upon the ${ha.monsterName}`
+                                ];
+                            } else if (weaponArchetype === 'unarmed') {
+                                hitPhrases = [
+                                    `ducking low, you plant a solid bare-knuckle punch into the gut of the ${ha.monsterName}`,
+                                    `an iron fist catches the ${ha.monsterName} across the jaw, staggering the brute backward`,
+                                    `you drive a heavy knuckle blow into the ribs of the ${ha.monsterName} with a solid thud`,
+                                    `a swift jab of your fist snaps the head of the ${ha.monsterName} to the side`
+                                ];
+                            } else {
+                                hitPhrases = [
+                                    `you counter with ${weapon}, striking true against the ${ha.monsterName}`,
+                                    `ducking low, you drive ${weapon} hard into the ${ha.monsterName}`,
+                                    `your ${weapon} flashes in counter-attack, scoring a deep wound upon the ${ha.monsterName}`,
+                                    `stepping inside its swing, your ${weapon} carves through the defenses of the ${ha.monsterName}`
+                                ];
+                            }
+                            heroText = ChronicleGrounder.pickNonRepeatingCombatPhrase(hitPhrases, turnSeed);
                         }
                     }
                 }
 
+                // Peril prefix when health is critically low (<= 30%)
+                let perilPrefix = '';
+                if (exData.isPeril) {
+                    if (traditionKey === 'khazad' || (exData.playerRace && exData.playerRace.toLowerCase().includes('dwarf'))) {
+                        perilPrefix = 'Calling upon the endurance of Durin and the unyielding mountain roots as blood seeps through mail, ';
+                    } else if (traditionKey === 'noldor' || (exData.playerRace && (exData.playerRace.toLowerCase().includes('elf') || exData.playerRace.toLowerCase().includes('eldar')))) {
+                        perilPrefix = "Remembering the starlit sorrow of Gondolin before Morgoth's shadow fell, ";
+                    } else if (traditionKey === 'periath' || (exData.playerRace && (exData.playerRace.toLowerCase().includes('hobbit') || exData.playerRace.toLowerCase().includes('halfling')))) {
+                        perilPrefix = 'Desperately longing for the green burrows far from the Iron Hells, small hands trembling yet resolute, ';
+                    } else {
+                        perilPrefix = 'Summoning the fierce spirit of Westernesse as the mortal shadow of the deep encroaches, ';
+                    }
+                }
+                const activePrefix = perilPrefix ? `${perilPrefix}${statusPrefix ? statusPrefix.charAt(0).toLowerCase() + statusPrefix.slice(1) : ''}` : statusPrefix;
+
                 // Assemble direct, brief 1-2 sentence narrative
                 if (incomingText && heroText) {
-                    if (statusPrefix) {
-                        prose = `${incomingText}. ${statusPrefix}${heroText}.`;
+                    if (activePrefix) {
+                        prose = `${incomingText}. ${activePrefix}${heroText}.`;
                     } else {
                         prose = `${incomingText.charAt(0).toUpperCase() + incomingText.slice(1)}, but ${heroText}.`;
                     }
                 } else if (heroText) {
-                    prose = statusPrefix ? `${statusPrefix}${heroText}.` : `${heroText.charAt(0).toUpperCase() + heroText.slice(1)}.`;
+                    prose = activePrefix ? `${activePrefix}${heroText}.` : `${heroText.charAt(0).toUpperCase() + heroText.slice(1)}.`;
                 } else if (incomingText) {
-                    prose = statusPrefix ? `${statusPrefix}${incomingText}.` : `${incomingText.charAt(0).toUpperCase() + incomingText.slice(1)}.`;
-                } else if (statusPrefix) {
-                    prose = `${statusPrefix}you fight to maintain your footing in the dark.`;
+                    prose = activePrefix ? `${activePrefix}${incomingText}.` : `${incomingText.charAt(0).toUpperCase() + incomingText.slice(1)}.`;
+                } else if (activePrefix) {
+                    prose = `${activePrefix}you fight to maintain your footing in the dark.`;
                 } else {
-                    prose = `Steel clashes and echoes through the corridors as battle is joined.`;
+                    prose = `Steel and shadows clash as battle is joined in the subterranean vaults.`;
                 }
 
                 // Check for creature dialogue bark if sentient enemy involved
@@ -3325,6 +3843,14 @@ class ChronicleGrounder {
                 const targetMon = (event.data && event.data.monsterName) ? event.data.monsterName : 'foe';
                 const act = (event.data && event.data.action) ? event.data.action : 'hits';
                 const inTown = event.data && event.data.inTown;
+                const atkMed = (event.data && event.data.attackMedium) ? event.data.attackMedium : null;
+                const method = (atkMed && atkMed.method) ? atkMed.method : ((atkMed && atkMed.type === 'spell') ? 'spell' : ((atkMed && atkMed.type === 'ranged') ? 'shoot' : 'strike'));
+                const weaponArchetype = (atkMed && atkMed.archetype) ? atkMed.archetype : (weapon.toLowerCase() === 'bare fists' ? 'unarmed' : 'blade');
+                const spellElem = (atkMed && atkMed.element) ? atkMed.element : 'arcane';
+                const spellName = (atkMed && atkMed.name) ? atkMed.name : 'incantation';
+                const launcherName = (atkMed && atkMed.name && method === 'shoot') ? atkMed.name : (bow || 'bow');
+                const ammoName = (atkMed && atkMed.ammo) ? atkMed.ammo : (quiver || 'arrow');
+
                 const turnSeed = Math.abs((player ? player.turn || 0 : 0) + targetMon.length * 13 + (player && player.name ? player.name.length * 7 : 0));
                 title = inTown ? `Brawl: ${targetMon}` : `Clash: ${targetMon}`;
 
@@ -3332,29 +3858,155 @@ class ChronicleGrounder {
                     const isIdiot = targetMon.toLowerCase().includes('idiot');
                     const isBeggar = targetMon.toLowerCase().includes('beggar');
                     if (isIdiot || isBeggar) {
-                        const idiotHits = [
-                            `${name} strikes the hapless ${targetMon} with ${weapon}! The wretch shrieks in bewilderment, stumbling into the mud.`,
-                            `${name}'s blow catches the ${targetMon} squarely, sending the gibbering soul sprawling across the cobblestones!`,
-                            `With unsparing force, ${name} strikes the cowering ${targetMon}, raising cries of alarm in the street.`
-                        ];
-                        prose = idiotHits[turnSeed % idiotHits.length];
+                        let idiotHits = [];
+                        if (weaponArchetype === 'blunt') {
+                            idiotHits = [
+                                `${name} clubs the hapless ${targetMon} with ${weapon}! The wretch shrieks in bewilderment, stumbling into the mud.`,
+                                `${name}'s heavy strike catches the ${targetMon} squarely, sending the witless soul sprawling across the cobblestones!`,
+                                `With unsparing force, ${name} batters the cowering ${targetMon} with ${weapon}, raising cries of alarm in the street.`
+                            ];
+                        } else if (weaponArchetype === 'unarmed') {
+                            idiotHits = [
+                                `${name} drives a bare fist into the hapless ${targetMon}! The wretch shrieks in bewilderment, stumbling into the mud.`,
+                                `${name}'s punch catches the ${targetMon} squarely, sending the gibbering soul sprawling across the cobblestones!`,
+                                `With unsparing force, ${name} strikes the cowering ${targetMon} with calloused knuckles, raising cries of alarm in the street.`
+                            ];
+                        } else if (method === 'shoot') {
+                            idiotHits = [
+                                `${name} looses an ${ammoName} from ${launcherName} near the hapless ${targetMon}, grazing the wretch as it scurries into the gutter!`,
+                                `A warning shot from ${launcherName} strikes the ground beside the ${targetMon}, sending the fool tumbling into the mud!`
+                            ];
+                        } else if (method === 'spell') {
+                            idiotHits = [
+                                `A startled flare of ${spellElem} magic from ${name}'s fingers scorches the cobblestones near the ${targetMon}, sending the wretch crying in panic!`,
+                                `${name} incants ${spellName}, sending a crackling jolt that knocks the witless ${targetMon} into a stack of empty crates!`
+                            ];
+                        } else {
+                            idiotHits = [
+                                `${name} strikes the hapless ${targetMon} with ${weapon}! The wretch shrieks in bewilderment, stumbling into the mud.`,
+                                `${name}'s blow catches the ${targetMon} squarely, sending the gibbering soul sprawling across the cobblestones!`,
+                                `With unsparing force, ${name} strikes the cowering ${targetMon}, raising cries of alarm in the street.`
+                            ];
+                        }
+                        prose = ChronicleGrounder.pickNonRepeatingCombatPhrase(idiotHits, turnSeed);
                     } else {
-                        const townBrawls = [
-                            `Steel clangs in the alley! ${name} strikes out with ${weapon}, driving the ${targetMon} back against the timber storefronts.`,
-                            `${name} engages the ${targetMon} in swift combat, landing a ringing blow upon the ruffian!`,
-                            `Ducking beneath a clumsy riposte, ${name} lands a solid blow upon the ${targetMon} with ${weapon}.`
-                        ];
-                        prose = townBrawls[turnSeed % townBrawls.length];
+                        let townBrawls = [];
+                        if (weaponArchetype === 'blunt') {
+                            townBrawls = [
+                                `Iron crashes in the alley! ${name} batters the ${targetMon} with ${weapon}, driving the ruffian back against the timber storefronts!`,
+                                `${name} engages the ${targetMon} in swift combat, landing a jarring blunt impact upon the ruffian!`,
+                                `Ducking beneath a clumsy riposte, ${name} lands a solid blow upon the ${targetMon} with ${weapon}.`
+                            ];
+                        } else if (weaponArchetype === 'axe') {
+                            townBrawls = [
+                                `A brutal crescent arc! ${name} hews toward the ${targetMon} with ${weapon}, splintering a wooden barrel and driving the rogue back!`,
+                                `${name} engages the ${targetMon} with ${weapon}, cleaving through the ruffian's guard!`
+                            ];
+                        } else if (weaponArchetype === 'dagger' || weaponArchetype === 'polearm_pierce') {
+                            townBrawls = [
+                                `Cold steel darts in the mist! ${name} lunges at the ${targetMon} with ${weapon}, scoring a bleeding strike past the ruffian's guard!`,
+                                `${name} thrusts ${weapon} into the fray, driving the ${targetMon} backward with swift reach.`
+                            ];
+                        } else if (weaponArchetype === 'unarmed') {
+                            townBrawls = [
+                                `Fists fly in the backstreet! ${name} ducks under a clumsy jab and plants a heavy knuckle blow squarely into the ${targetMon}'s ribs!`,
+                                `${name} grapples the ${targetMon} in the alley, slamming an iron fist into the ruffian's jaw with a sickening crack!`,
+                                `A swift barehanded brawl! ${name} batters the ${targetMon} back against the timber walls.`
+                            ];
+                        } else if (method === 'shoot') {
+                            townBrawls = [
+                                `The hum of ${launcherName} echoes down the alley! ${name} looses an ${ammoName} that bites into the shoulder of the ${targetMon}!`,
+                                `From the shadows of the eaves, ${name} fires ${launcherName}, staggering the ${targetMon} with a lethal missile!`
+                            ];
+                        } else if (method === 'spell') {
+                            townBrawls = [
+                                `Arcane light blazes in the dark lane! ${name} unleashes ${spellName}, blasting the ${targetMon} backward into a timber wall!`,
+                                `A sudden flare of ${spellElem} power from ${name}'s fingertips scorches the rogue, driving the ${targetMon} back in alarm!`
+                            ];
+                        } else {
+                            townBrawls = [
+                                `Steel clangs in the alley! ${name} strikes out with ${weapon}, driving the ${targetMon} back against the timber storefronts.`,
+                                `${name} engages the ${targetMon} in swift combat, landing a ringing blow upon the ruffian!`,
+                                `Ducking beneath a clumsy riposte, ${name} lands a solid blow upon the ${targetMon} with ${weapon}.`
+                            ];
+                        }
+                        prose = ChronicleGrounder.pickNonRepeatingCombatPhrase(townBrawls, turnSeed);
                     }
                 } else {
-                    const dungeonHits = [
-                        `With swift resolve at ${depthFt}, ${name} drives ${weapon} into the ${targetMon}!`,
-                        `Ducking beneath a counter-strike, ${name} strikes the ${targetMon} squarely with ${weapon}.`,
-                        `A decisive, punishing blow! ${name} lands ${weapon} upon the ${targetMon} in the dim torchlight.`,
-                        `The ringing clash of ${weapon} echoes out as ${name} strikes into the ${targetMon} with deadly precision.`,
-                        `Pressing forward, ${name} cleaves through the creature's guard, landing a searing wound upon the ${targetMon}!`
-                    ];
-                    prose = dungeonHits[turnSeed % dungeonHits.length];
+                    let dungeonHits = [];
+                    if (method === 'spell') {
+                        dungeonHits = [
+                            `Incanting words of power at ${depthFt}, ${name} unleashes ${spellName}, blasting the ${targetMon} with searing energy!`,
+                            `A dazzling flare of ${spellElem} light illuminates the damp vault as ${name} channels ${spellName} directly into the ${targetMon}!`,
+                            `Eldritch force ripples through the air; ${name}'s ${spellName} strikes the ${targetMon} with kinetic violence!`,
+                            `Weaving arcane gestures in the dark, ${name} scorches the ${targetMon} with a crackling burst of ${spellName}.`
+                        ];
+                    } else if (method === 'shoot') {
+                        if (weaponArchetype === 'crossbow') {
+                            dungeonHits = [
+                                `At a measured distance of ${depthFt}, the steel prod of ${launcherName} snaps; ${name}'s quarrel punches deep into the ${targetMon}!`,
+                                `The mechanical thrum of ${launcherName} rings through the vault as an iron bolt strikes the ${targetMon} with heavy force!`,
+                                `Triggering ${launcherName} from the shadows, ${name} drives a heavy quarrel cleanly into the ${targetMon}!`
+                            ];
+                        } else if (weaponArchetype === 'sling') {
+                            dungeonHits = [
+                                `Whirling ${launcherName} with deadly speed at ${depthFt}, ${name} whips a lead shot hard against the ${targetMon}!`,
+                                `The whistling crack of a slingstone echoes as ${name} strikes the ${targetMon} with bone-bruising force!`,
+                                `A swift release from ${launcherName} sends a lead bullet humming through the dark into the ${targetMon}!`
+                            ];
+                        } else {
+                            dungeonHits = [
+                                `At a measured distance of ${depthFt}, ${name} looses an ${ammoName} from ${launcherName} that bites deep into the ${targetMon}!`,
+                                `The sharp thrum of ${launcherName} rings out; ${name}'s ${ammoName} strikes true, piercing the ${targetMon} with lethal precision!`,
+                                `From the shadows of the corridor, ${name} fires ${launcherName}, planting an ${ammoName} squarely in the ${targetMon}!`,
+                                `A deadly projectile hisses through the gloom as ${name} shoots the ${targetMon} from beyond its reach.`
+                            ];
+                        }
+                    } else if (weaponArchetype === 'blunt') {
+                        dungeonHits = [
+                            `With crushing momentum at ${depthFt}, ${name} hammers ${weapon} squarely into the ${targetMon}, rattling its bones!`,
+                            `The deafening crunch of ${weapon} rings through the vault as ${name} batters aside the ${targetMon}'s guard!`,
+                            `Ducking beneath a counter-strike, ${name} drives the flanged iron head of ${weapon} into the ribs of the ${targetMon}!`,
+                            `A jarring, punishing blow! ${name} lands ${weapon} upon the ${targetMon} with bone-splintering force in the dim torchlight.`
+                        ];
+                    } else if (weaponArchetype === 'axe') {
+                        dungeonHits = [
+                            `With a two-handed heave at ${depthFt}, ${name} hews ${weapon} into the flank of the ${targetMon}!`,
+                            `The bearded blade of ${weapon} bites deep as ${name} cleaves into the guard of the ${targetMon}!`,
+                            `Stepping forward, ${name} swings ${weapon} in a brutal crescent arc, tearing through the ${targetMon}'s defenses!`,
+                            `A punishing chop! ${name} drives the heavy iron edge of ${weapon} into the ${targetMon}, drawing dark ichor upon the stones.`
+                        ];
+                    } else if (weaponArchetype === 'dagger') {
+                        dungeonHits = [
+                            `Ducking beneath a clumsy swipe at ${depthFt}, ${name} slips ${weapon} deep into the ${targetMon}'s flank!`,
+                            `Cold steel flashes in the shadows; ${name} drives ${weapon} into an exposed seam of the ${targetMon}!`,
+                            `With blinding agility, ${name} lunges inside the reach of the ${targetMon}, scoring a bleeding wound with ${weapon}!`,
+                            `A swift, surgical strike! ${name} plants ${weapon} into the shoulder of the ${targetMon} with deadly precision.`
+                        ];
+                    } else if (weaponArchetype === 'polearm_pierce') {
+                        dungeonHits = [
+                            `Bracing low at ${depthFt}, ${name} drives the point of ${weapon} straight into the chest of the ${targetMon}!`,
+                            `Keeping the brute at reach, ${name} lunges forward with ${weapon}, skewering the ${targetMon} before it can close!`,
+                            `The ringing scrape of iron against stone echoes as ${name}'s ${weapon} punches deep into the ${targetMon}!`,
+                            `A decisive forward thrust! ${name} drives the steel tip of ${weapon} through the hide of the ${targetMon}.`
+                        ];
+                    } else if (weaponArchetype === 'unarmed') {
+                        dungeonHits = [
+                            `Stepping inside the brute's reach at ${depthFt}, ${name} drives a calloused fist hard into the gut of the ${targetMon}!`,
+                            `With raw pugilistic fury, ${name} lands a jarring bare-knuckle punch upon the jaw of the ${targetMon}!`,
+                            `Ducking under a savage claw, ${name} drives an iron fist into the ribs of the ${targetMon} with a sickening thud!`,
+                            `A bone-rattling blow! ${name} batters the ${targetMon} with a swift barehanded strike, staggering the foe backward.`
+                        ];
+                    } else {
+                        dungeonHits = [
+                            `With swift resolve at ${depthFt}, ${name} drives ${weapon} into the ${targetMon}!`,
+                            `Ducking beneath a counter-strike, ${name} strikes the ${targetMon} squarely with ${weapon}.`,
+                            `A decisive, punishing blow! ${name} lands ${weapon} upon the ${targetMon} in the dim torchlight.`,
+                            `The ringing clash of ${weapon} echoes out as ${name} strikes into the ${targetMon} with deadly precision.`,
+                            `Pressing forward, ${name} cleaves through the creature's guard, landing a searing wound upon the ${targetMon}!`
+                        ];
+                    }
+                    prose = ChronicleGrounder.pickNonRepeatingCombatPhrase(dungeonHits, turnSeed);
                 }
                 break;
             }
@@ -3755,6 +4407,267 @@ class ChronicleGrounder {
             isDeath: (event.type === 'HERO_DEATH')
         };
     }
+
+    /**
+     * Context-Aware Narrative Catch-Up Synthesizer:
+     * When multiple actions take place during active speech (attacks, damage, potions, spells, kills),
+     * consolidates the entire unvoiced event ledger into a single flowing, cohesive Tolkien saga beat.
+     * Prevents narration thrashing and catches up the story to the character's exact live state.
+     */
+    static generateCatchUpBeat(events, initialPlayer, livePlayer, traditionKey = 'westmarch') {
+        const player = livePlayer || initialPlayer;
+        if (!events || events.length === 0) {
+            return {
+                title: 'Vigil in the Deep',
+                prose: 'The shadows shift along the damp corridor walls as the hero maintains a watchful stance, senses attuned to the oppressive quiet of the deep.',
+                dialogue: null,
+                insight: null,
+                depth: player ? (player.depth || 0) : 0,
+                isCatchUp: true
+            };
+        }
+
+        if (events.length === 1) {
+            const single = this.generateProceduralChapter(events[0], player, traditionKey);
+            single.isCatchUp = true;
+            const evType = events[0].type;
+            const isMove = (evType === 'HERO_MOVE' || evType === 'EXPLORATION_FLOW' || evType === 'STEP');
+            single.actionBreakdown = {
+                total: 1,
+                paces: isMove ? 1 : 0,
+                strikes: isMove ? 0 : 1,
+                spells: 0,
+                potions: 0,
+                discoveries: 0,
+                summaryText: isMove ? '1 pace' : '1 action'
+            };
+            return single;
+        }
+
+        const name = (player && player.name) ? player.name : 'The Wanderer';
+        const depth = (player && typeof player.depth === 'number') ? player.depth : 0;
+        const depthFt = depth === 0 ? 'the surface frontier' : `${depth * 50}ft`;
+        const rawWeap = (player && player.weapon_item) ? player.weapon_item : ((player && player.equipped && player.equipped.weapon) ? player.equipped.weapon : null);
+        const weapon = rawWeap ? rawWeap.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : 'bare fists';
+
+        // Metric extraction across all events
+        const killSet = new Set();
+        const assailantSet = new Set();
+        let totalDamageTaken = 0;
+        let potionsQuaffed = 0;
+        let spellsCast = 0;
+        let paces = 0;
+        let strikes = 0;
+        const spellNames = [];
+        const statusAfflictions = [];
+        const statusRecoveries = [];
+        let treasureFound = 0;
+        let secretFound = false;
+        let excavationDone = false;
+        let uniqueSlain = null;
+        let vocalCreature = null;
+
+        for (const ev of events) {
+            const data = ev.data || {};
+            // Movement paces & strikes
+            if (ev.type === 'HERO_MOVE' || ev.type === 'EXPLORATION_FLOW' || ev.type === 'FLOOR_CHANGE' || ev.type === 'STEP') {
+                paces++;
+            }
+            if (ev.type === 'COMBAT_EXCHANGE' || ev.type === 'HERO_ATTACK' || ev.type === 'COMBAT_EPISODE') {
+                strikes++;
+            }
+            // Kills
+            if (data.kills && Array.isArray(data.kills)) {
+                for (const k of data.kills) {
+                    const kName = typeof k === 'string' ? k : (k.monsterName || k.name || '');
+                    if (kName) killSet.add(kName);
+                }
+            }
+            if (data.monsterName && (ev.type === 'MONSTER_DIES' || ev.type === 'SLAIN')) {
+                killSet.add(data.monsterName);
+            }
+            if (ev.type === 'UNIQUE_SLAIN' && data.monsterName) {
+                uniqueSlain = data.monsterName;
+                killSet.add(data.monsterName);
+            }
+
+            // Incoming attacks / assailants
+            if (data.incomingAttacks && Array.isArray(data.incomingAttacks)) {
+                for (const ia of data.incomingAttacks) {
+                    if (ia.monsterName) assailantSet.add(ia.monsterName);
+                    if (typeof ia.damage === 'number') totalDamageTaken += ia.damage;
+                    const vProf = this.classifyCreature({ name: ia.monsterName, glyph: ia.glyph });
+                    if (vProf && vProf.isVocal && !vocalCreature) vocalCreature = ia;
+                }
+            }
+            if (data.monsterName && ev.type === 'MONSTER_ATTACK') {
+                assailantSet.add(data.monsterName);
+            }
+
+            // Hero Attacks / Spells
+            if (data.attackMedium && (data.attackMedium.type === 'spell' || data.attackMedium.method === 'spell')) {
+                spellsCast++;
+                if (data.attackMedium.name) spellNames.push(data.attackMedium.name);
+            }
+
+            // Potions & Healing
+            if (ev.type === 'POTION_QUAFFED' || ev.type === 'HEALING_DRAUGHT' || (data.item && data.item.toLowerCase().includes('potion'))) {
+                potionsQuaffed++;
+            }
+
+            // Statuses
+            if (ev.type === 'PLAYER_STATUS' && data.status) {
+                statusAfflictions.push(data.status);
+            }
+            if (ev.type === 'STATUS_RECOVERY') {
+                statusRecoveries.push(data.recovery || 'vision');
+            }
+
+            // Exploration
+            if (ev.type === 'TREASURE_DISCOVERY' && data.gold) {
+                treasureFound += data.gold;
+            }
+            if (ev.type === 'DUNGEON_FEATURE' && data.feature && data.feature.includes('door')) {
+                secretFound = true;
+            }
+            if (ev.type === 'EXCAVATION') {
+                excavationDone = true;
+            }
+        }
+
+        const kills = Array.from(killSet);
+        const assailants = Array.from(assailantSet);
+        const currentHp = player ? (player.chp || 1) : 1;
+        const maxHp = player ? (player.mhp || 1) : 1;
+        const hpPercent = currentHp / maxHp;
+        const inMortalPeril = hpPercent < 0.35;
+
+        // Build Title
+        let title = 'Tides of Battle';
+        if (uniqueSlain) {
+            title = `Bane of ${uniqueSlain}`;
+        } else if (kills.length > 1) {
+            title = 'Sweeping Counter-Stroke';
+        } else if (kills.length === 1) {
+            title = `Felling of the ${kills[0]}`;
+        } else if (inMortalPeril) {
+            title = 'Desperate Standoff';
+        } else if (potionsQuaffed > 0 && assailants.length > 0) {
+            title = 'Hard-Fought Reprieve';
+        } else if (treasureFound > 0 || secretFound) {
+            title = 'Discoveries in the Deep';
+        }
+
+        // Build Multi-Clause Saga Prose
+        const clauses = [];
+
+        // Clause 1: The Ongoing Struggle / Onslaught
+        if (assailants.length > 0) {
+            const foeDesc = assailants.length === 1 ? `the ferocious ${assailants[0]}` : (assailants.length === 2 ? `the ${assailants[0]} and ${assailants[1]}` : `a savage pack of foes`);
+            if (traditionKey === 'khazad') {
+                if (totalDamageTaken > 15 || inMortalPeril) {
+                    clauses.push(`Enduring a battering onslaught from ${foeDesc} amidst the ancient granite roots at ${depthFt}, ${name} absorbs heavy blows through dented mail, teeth gritted in stubborn dwarven defiance`);
+                } else {
+                    clauses.push(`Trading furious blows with ${foeDesc} in the narrow stone passages at ${depthFt}, ${name} stands firm as an iron anvil`);
+                }
+            } else if (traditionKey === 'noldor') {
+                if (totalDamageTaken > 15 || inMortalPeril) {
+                    clauses.push(`Beset by the cruel malice of ${foeDesc} deep at ${depthFt}, where Morgoth's shadow weighs heavy upon the earth, ${name} parries desperately through a storm of strikes`);
+                } else {
+                    clauses.push(`Engaging ${foeDesc} in a swift dance of steel and starlight at ${depthFt}, ${name} maneuvers gracefully across the damp stones`);
+                }
+            } else {
+                if (totalDamageTaken > 15 || inMortalPeril) {
+                    clauses.push(`Hard-pressed by ${foeDesc} in the subterranean gloom at ${depthFt}, ${name} weathers bruising strikes as blood darkens the cold flagstones`);
+                } else {
+                    clauses.push(`Locked in fierce combat against ${foeDesc} at ${depthFt}, ${name} trades swift blows in the flickering torchlight`);
+                }
+            }
+        } else if (excavationDone || treasureFound > 0 || secretFound) {
+            clauses.push(`Carving a determined path through the ancient subterranean chambers at ${depthFt}, ${name} sweeps aside the dust of forgotten ages`);
+        } else {
+            clauses.push(`Pressing forward into the dark vaults of ${depthFt}, ${name} confronts the lurking terrors of the deep`);
+        }
+
+        // Clause 2: Tactical Adaptation (Potions, Spells, Statuses)
+        if (potionsQuaffed > 0) {
+            clauses.push(`hastily seizing a vital opening to quaff a restorative draught, feeling life and warmth surge back into weary limbs`);
+        } else if (spellsCast > 0) {
+            const sName = spellNames[0] || 'eldritch sorcery';
+            clauses.push(`channeling the fiery resonance of ${sName} to blast back the advancing darkness`);
+        } else if (statusAfflictions.length > 0 && statusRecoveries.length > 0) {
+            clauses.push(`fighting through dizzying poison and blindness until sharp clarity returns`);
+        } else if (statusAfflictions.length > 0) {
+            clauses.push(`staggering under foul affliction yet refusing to yield a single inch of ground`);
+        }
+
+        // Clause 3: Resolution / Climax (Kills, Retreat, or Resolute Stance)
+        if (uniqueSlain) {
+            clauses.push(`before driving ${weapon} home in a legendary death-blow that silences the dread ${uniqueSlain} forever, sealing their doom in the annals of the Living Chronicle!`);
+        } else if (kills.length > 1) {
+            clauses.push(`before unleashing a whirlwind counter-attack that fells ${kills[0]} and ${kills[1]} lifeless across the stones!`);
+        } else if (kills.length === 1) {
+            clauses.push(`before driving ${weapon} clean through the defenses of the ${kills[0]}, sending the creature crashing dead upon the dungeon floor!`);
+        } else if (treasureFound > 0 && secretFound) {
+            clauses.push(`uncovering a hidden seam in the masonry that yields a cache of ${treasureFound} gold pieces!`);
+        } else if (treasureFound > 0) {
+            clauses.push(`gathering a scattered hoard of ${treasureFound} gold pieces before turning weapons toward the next shadow.`);
+        } else if (inMortalPeril) {
+            clauses.push(`and bracing desperately against the cold masonry with ${weapon} raised, poised on the razor edge of life and death!`);
+        } else {
+            clauses.push(`and pressing the tactical advantage as the subterranean corridor echoes with the ring of steel.`);
+        }
+
+        // Assemble flowing sentence
+        let prose = clauses.join(', ');
+        if (!prose.endsWith('.') && !prose.endsWith('!')) prose += '.';
+
+        // Capitalize first letter
+        prose = prose.charAt(0).toUpperCase() + prose.slice(1);
+
+        // Vocal dialogue if enemy barked
+        let dialogue = null;
+        if (vocalCreature) {
+            const vProf = this.classifyCreature({ name: vocalCreature.monsterName, glyph: vocalCreature.glyph });
+            if (vProf && vProf.assaultBark) {
+                dialogue = {
+                    speaker: vocalCreature.monsterName,
+                    text: vProf.assaultBark(vocalCreature.action).replace(/"/g, ''),
+                    isNoise: false,
+                    recommendedVoice: vProf.recommendedVoice
+                };
+            }
+        }
+
+        const parts = [];
+        if (paces > 0) parts.push(`${paces} pace${paces > 1 ? 's' : ''}`);
+        if (strikes > 0) parts.push(`${strikes} strike${strikes > 1 ? 's' : ''}`);
+        if (spellsCast > 0) parts.push(`${spellsCast} spell${spellsCast > 1 ? 's' : ''}`);
+        if (potionsQuaffed > 0) parts.push(`${potionsQuaffed} potion${potionsQuaffed > 1 ? 's' : ''}`);
+        if (kills.length > 0) parts.push(`${kills.length} kill${kills.length > 1 ? 's' : ''}`);
+        const summaryText = parts.length > 0 ? parts.join(', ') : `${events.length} action${events.length > 1 ? 's' : ''}`;
+
+        const actionBreakdown = {
+            total: events.length,
+            paces,
+            strikes,
+            spells: spellsCast,
+            potions: potionsQuaffed,
+            discoveries: (treasureFound > 0 ? 1 : 0) + (secretFound ? 1 : 0) + (excavationDone ? 1 : 0),
+            summaryText
+        };
+
+        return {
+            title: title,
+            prose: prose,
+            dialogue: dialogue,
+            insight: inMortalPeril ? "When health drops below 30%, prioritize escape with Phase Door or Word of Recall!" : null,
+            depth: depth,
+            summary: prose.substring(0, 160) + '...',
+            isCatchUp: true,
+            actionBreakdown
+        };
+    }
 }
 
 ChronicleGrounder.FEMALE_3D_MODEL_KEYS = FEMALE_3D_MODEL_KEYS;
@@ -3762,4 +4675,7 @@ ChronicleGrounder.MALE_3D_MODEL_KEYS = MALE_3D_MODEL_KEYS;
 
 if (typeof window !== 'undefined') {
     window.ChronicleGrounder = ChronicleGrounder;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ChronicleGrounder;
 }

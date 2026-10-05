@@ -14,8 +14,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=7.8.0">
-    <link rel="stylesheet" href="/css/chronicle.css?v=7.8.0">
+    <link rel="stylesheet" href="/css/dungeon.css?v=8.3.2">
+    <link rel="stylesheet" href="/css/chronicle.css?v=8.3.2">
 </head>
 <body>
     <div id="app-container">
@@ -120,6 +120,7 @@
                     <div class="chronicle-title-wrap">
                         <span class="chronicle-title">📖 LIVING CHRONICLE</span>
                         <span id="chronicle-tradition-badge" class="chronicle-tradition-badge">Westmarch</span>
+                        <span id="chronicle-vocal-pill" class="chronicle-vocal-pill idle" style="display: none;"></span>
                     </div>
                     <div class="chronicle-window-actions">
                         <button id="btn-chronicle-expand" class="chronicle-ctrl-btn" title="Toggle Window Size">▲ Min</button>
@@ -129,10 +130,10 @@
                 <!-- Row 2: Audiobook Transport Deck -->
                 <div class="chronicle-transport-deck">
                     <div class="chronicle-transport-group">
-                        <button id="btn-chronicle-rewind" class="chronicle-ctrl-btn" title="Rewind to previous paragraph [Shift+Left]">⏮</button>
-                        <button id="btn-chronicle-play" class="chronicle-ctrl-btn chronicle-play-main-btn" title="Play / Pause Story from Current Beat [Space]">▶ Play</button>
-                        <button id="btn-chronicle-stop" class="chronicle-ctrl-btn" title="Stop Audio Playback">⏹</button>
-                        <button id="btn-chronicle-forward" class="chronicle-ctrl-btn" title="Skip to next paragraph [Shift+Right]">⏭</button>
+                        <button id="btn-chronicle-rewind" class="chronicle-ctrl-btn" title="Rewind to previous paragraph [Alt+[]">⏮</button>
+                        <button id="btn-chronicle-play" class="chronicle-ctrl-btn chronicle-play-main-btn" title="Play / Pause Story from Current Beat [Alt+P]">▶ Play</button>
+                        <button id="btn-chronicle-stop" class="chronicle-ctrl-btn" title="Stop Audio Playback [Alt+S]">⏹</button>
+                        <button id="btn-chronicle-forward" class="chronicle-ctrl-btn" title="Skip to next paragraph [Alt+]]">⏭</button>
                     </div>
                     <div class="chronicle-audio-toggles">
                         <button id="btn-chronicle-mute" class="chronicle-ctrl-btn" title="Toggle Voice Narration">🔇 Muted</button>
@@ -175,6 +176,7 @@
 
         <!-- Top Right Telemetry & Controls -->
         <div id="top-right-bar">
+            <div id="chronicle-hud-toast" class="chronicle-hud-toast" style="display: none;"></div>
             <div id="ping-badge" class="badge">Cloud [Connecting...]</div>
             <button id="btn-toggle-chronicle" class="icon-btn in-game-only" title="Toggle The Living Chronicle Window [Alt+C]"><span class="chronicle-icon">📖</span> <span class="chronicle-label">Tome</span></button>
             <button id="btn-toggle-msg-feed" class="icon-btn in-game-only" title="Toggle Message Log Feed"><span class="msg-icon">📜</span> <span class="msg-label">Log</span></button>
@@ -1024,22 +1026,22 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=7.8.0"></script>
-    <script src="/js/mobile-overlay.js?v=7.8.0"></script>
-    <script src="/js/audio.js?v=7.8.0"></script>
-    <script src="/js/terminal.js?v=7.8.0"></script>
-    <script src="/js/dungeon3d.js?v=7.8.0"></script>
-    <script src="/js/hud.js?v=7.8.0"></script>
-    <script src="/js/network.js?v=7.8.0"></script>
-    <script src="/js/local_bridge.js?v=7.8.0"></script>
-    <script src="/js/input.js?v=7.8.0"></script>
+    <script src="/js/device.js?v=8.3.2"></script>
+    <script src="/js/mobile-overlay.js?v=8.3.2"></script>
+    <script src="/js/audio.js?v=8.3.2"></script>
+    <script src="/js/terminal.js?v=8.3.2"></script>
+    <script src="/js/dungeon3d.js?v=8.3.2"></script>
+    <script src="/js/hud.js?v=8.3.2"></script>
+    <script src="/js/network.js?v=8.3.2"></script>
+    <script src="/js/local_bridge.js?v=8.3.2"></script>
+    <script src="/js/input.js?v=8.3.2"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=7.8.0"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=7.8.0"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=7.8.0"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=7.8.0"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=7.8.0"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=7.8.0"></script>
-    <script src="/js/app.js?v=7.8.0"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=8.3.2"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=8.3.2"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=8.3.2"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=8.3.2"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=8.3.2"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=8.3.2"></script>
+    <script src="/js/app.js?v=8.3.2"></script>
 </body>
 </html>

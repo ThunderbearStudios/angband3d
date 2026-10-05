@@ -56,6 +56,7 @@ class ChronicleAudioRouter {
 
         this.isLoading = false;
         this.onLoadingStateChange = null;
+        this.onVocalStateChange = null;
 
         // Web Audio Sub-Graph
         this.ctx = null;
@@ -71,12 +72,29 @@ class ChronicleAudioRouter {
 
         // Neural Streaming & Voices
         this.currentSource = null;
+        this.currentSourceGain = null;
         this.currentAudio = null;
         this.activePlaybackResolve = null;
         this._pauseTimeout = null;
         this.availableVoices = [];
         this._sequenceSessionId = 0;
         this._isExecutingSequence = false;
+        this._transitionSessionId = 0;
+        this._pendingTransitionAbort = null;
+        this.seamlessHandoff = false;
+
+        // Atomic Single-Playback and Single-Staging Slot Architecture (guarantees ZERO voice overlap)
+        this._activePlayToken = 0;
+        this._activeVoiceToken = 0;
+        this._stagingTokenSeq = 0;
+        this._activeStaging = null;
+        this.onPlaybackEnded = null;
+
+        // Buffer Pause and Resume State (preserves Web Audio playback without freezing game sound engine context)
+        this._activeAudioBuffer = null;
+        this._activeBufferEngine = 'gemini';
+        this._sourceStartCtxTime = 0;
+        this._pauseOffset = 0;
 
         // Decoded AudioBuffer In-Memory LRU Cache & Prewarm In-Flight Registry
         // Bypasses both network and Web Audio decodeAudioData CPU decompression (0.01ms playback)
@@ -92,6 +110,10 @@ class ChronicleAudioRouter {
                 };
             } catch (_) {}
         }
+    }
+
+    get isStaging() {
+        return Boolean(this._activeStaging && !this._activeStaging.aborted);
     }
 
     init(soundEngine) {
@@ -241,6 +263,10 @@ class ChronicleAudioRouter {
         } catch (_) {}
     }
 
+    setSeamlessHandoff(enabled) {
+        this.seamlessHandoff = Boolean(enabled);
+    }
+
     setVoice(voiceId) {
         if (!voiceId) return;
         this.narratorVoice = voiceId;
@@ -267,6 +293,22 @@ class ChronicleAudioRouter {
         } catch (_) {}
     }
 
+    _emitVocalState(state, telemetry = {}) {
+        if (typeof this.onVocalStateChange === 'function') {
+            try {
+                this.onVocalStateChange(state, {
+                    role: this.currentRole || 'narrator',
+                    voice: this.narratorVoice,
+                    engine: this.ttsEngine,
+                    isSpeaking: this.isSpeaking,
+                    isLoading: this.isLoading,
+                    isStaging: this.isStaging,
+                    ...telemetry
+                });
+            } catch (_) {}
+        }
+    }
+
     _setLoading(loading, details = '') {
         if (this.isLoading === loading) return;
         this.isLoading = loading;
@@ -275,30 +317,25 @@ class ChronicleAudioRouter {
                 this.onLoadingStateChange(loading, details);
             } catch (_) {}
         }
+        this._emitVocalState(loading ? 'loading' : (this.isSpeaking ? 'speaking' : 'idle'), { details });
     }
 
-    stopSpeaking() {
-        this._playSessionId = (this._playSessionId || 0) + 1;
-        this._sequenceSessionId = (this._sequenceSessionId || 0) + 1;
-        this._isExecutingSequence = false;
-        this.isSpeaking = false;
-        this._setLoading(false);
-        if (this._activeFetchController) {
-            try { this._activeFetchController.abort(); } catch (_) {}
-            this._activeFetchController = null;
-        }
-        if (this._pauseTimeout) {
-            clearTimeout(this._pauseTimeout);
-            this._pauseTimeout = null;
-        }
-        const queueToDrain = this.speechQueue;
-        this.speechQueue = [];
-        this.isProcessingSpeechQueue = false;
-        for (const item of queueToDrain) {
-            if (item && item.resolve) {
-                try { item.resolve({ aborted: true }); } catch (_) {}
-            }
-        }
+    get isStaging() {
+        return !!this._activeStaging && !this._activeStaging.aborted;
+    }
+
+    get isBusy() {
+        return this.isSpeaking || this.isStaging || this.isProcessingSpeechQueue || (this.speechQueue && this.speechQueue.length > 0) || this.isLoading;
+    }
+
+    /**
+     * Absolute Single-Voice Physical Silence Primitive:
+     * Immediately stops, disconnects, and nullifies any and all active sound sources
+     * across Web Audio, HTML5 Audio, and Web Speech API.
+     * Guarantees that at any given millisecond, EXACTLY ZERO or ONE voice is physically emitting audio.
+     */
+    _disconnectPhysicalSources({ preserveResolve = null } = {}) {
+        // 1. Web Audio Source
         if (this.currentSource) {
             try {
                 this.currentSource.onended = null;
@@ -307,6 +344,14 @@ class ChronicleAudioRouter {
             } catch (_) {}
             this.currentSource = null;
         }
+        if (this.currentSourceGain) {
+            try {
+                this.currentSourceGain.disconnect();
+            } catch (_) {}
+            this.currentSourceGain = null;
+        }
+
+        // 2. HTML5 Audio Element
         if (this.currentAudio) {
             try {
                 this.currentAudio.pause();
@@ -316,19 +361,80 @@ class ChronicleAudioRouter {
             } catch (_) {}
             this.currentAudio = null;
         }
-        if (this.ctx && this.ctx.state === 'suspended') {
-            try { this.ctx.resume(); } catch (_) {}
+
+        // 3. Web Speech API (speechSynthesis)
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            try {
+                window.speechSynthesis.cancel();
+            } catch (_) {}
         }
-        if (this.activePlaybackResolve) {
+        this.currentUtterance = null;
+
+        // 4. Supersede active playback promise if not preserved
+        if (this.activePlaybackResolve && this.activePlaybackResolve !== preserveResolve) {
             const res = this.activePlaybackResolve;
             this.activePlaybackResolve = null;
-            try { res({ aborted: true }); } catch (_) {}
+            try { res({ finished: true, interrupted: true, superseded: true }); } catch (_) {}
         }
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            try { window.speechSynthesis.cancel(); } catch (_) {}
+    }
+
+    /**
+     * Logical & Physical Voice Invalidation:
+     * Invalidates all in-flight session and playback tokens, aborts active fetches and staging,
+     * and physically silences all audio sources.
+     */
+    _stopAllActiveAudioSources({ preserveResolve = null } = {}) {
+        this._activePlayToken = (this._activePlayToken || 0) + 1;
+        this._playSessionId = (this._playSessionId || 0) + 1;
+        this._transitionSessionId = (this._transitionSessionId || 0) + 1;
+
+        if (this._activeFetchController) {
+            try { this._activeFetchController.abort(); } catch (_) {}
+            this._activeFetchController = null;
         }
+
+        if (this._activeStaging) {
+            this._activeStaging.aborted = true;
+            if (this._activeStaging.abortCtrl) {
+                try { this._activeStaging.abortCtrl.abort(); } catch (_) {}
+            }
+            this._activeStaging = null;
+        }
+
+        if (this._pauseTimeout) {
+            clearTimeout(this._pauseTimeout);
+            this._pauseTimeout = null;
+        }
+
+        this._disconnectPhysicalSources({ preserveResolve });
+    }
+
+    stopSpeaking() {
+        this._stopAllActiveAudioSources();
+        if (this._pendingTransitionAbort) {
+            try { this._pendingTransitionAbort.abort(); } catch (_) {}
+            this._pendingTransitionAbort = null;
+        }
+        this._isExecutingSequence = false;
         this.isSpeaking = false;
         this.isPaused = false;
+        this._setLoading(false);
+
+        const queueToDrain = this.speechQueue;
+        this.speechQueue = [];
+        this.isProcessingSpeechQueue = false;
+        for (const item of queueToDrain) {
+            if (item && item.resolve) {
+                try { item.resolve({ aborted: true, skipped: true }); } catch (_) {}
+            }
+        }
+
+        if (this.ctx && (!this.soundEngine || this.ctx !== this.soundEngine.ctx) && this.ctx.state === 'suspended') {
+            try { this.ctx.resume(); } catch (_) {}
+        }
+
+        this._activeAudioBuffer = null;
+        this._pauseOffset = 0;
         this._speechStartTime = 0;
         this.currentRole = null;
         this.duckGameAudio(false);
@@ -342,6 +448,12 @@ class ChronicleAudioRouter {
         if (this.currentAudio && typeof this.currentAudio.currentTime === 'number') {
             return this.currentAudio.currentTime;
         }
+        if (this.ctx && this._sourceStartCtxTime) {
+            return Math.max(0, this.ctx.currentTime - this._sourceStartCtxTime);
+        }
+        if (this._speechStartTime) {
+            return Math.max(0, (Date.now() - this._speechStartTime) / 1000.0);
+        }
         return 0;
     }
 
@@ -349,14 +461,28 @@ class ChronicleAudioRouter {
         if (this.currentAudio && typeof this.currentAudio.duration === 'number') {
             return this.currentAudio.duration;
         }
+        if (this._activeAudioBuffer && typeof this._activeAudioBuffer.duration === 'number') {
+            return this._activeAudioBuffer.duration;
+        }
         return 0;
     }
 
     pause() {
         this.isPaused = true;
-        if (this.ctx && this.ctx.state === 'running') {
+        // Pause Web Audio buffer without suspending the shared game AudioContext
+        if (this.currentSource && this.ctx && this._activeAudioBuffer) {
+            const elapsed = Math.max(0, this.ctx.currentTime - (this._sourceStartCtxTime || 0));
+            this._pauseOffset = Math.min(elapsed, this._activeAudioBuffer.duration || 0);
+            try {
+                this.currentSource.onended = null;
+                this.currentSource.stop();
+                this.currentSource.disconnect();
+            } catch (_) {}
+            this.currentSource = null;
+        } else if (this.ctx && (!this.soundEngine || this.ctx !== this.soundEngine.ctx) && this.ctx.state === 'running') {
             try { this.ctx.suspend(); } catch (_) {}
         }
+
         if (this.currentAudio && !this.currentAudio.paused) {
             try { this.currentAudio.pause(); } catch (_) {}
         } else if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
@@ -366,13 +492,444 @@ class ChronicleAudioRouter {
 
     resume() {
         this.isPaused = false;
-        if (this.ctx && this.ctx.state === 'suspended') {
+        // Resume Web Audio buffer from recorded pause offset
+        if (!this.currentSource && this._activeAudioBuffer && this.ctx && this.activePlaybackResolve) {
+            const remaining = (this._activeAudioBuffer.duration || 0) - (this._pauseOffset || 0);
+            if (remaining > 0.05) {
+                const source = this.ctx.createBufferSource();
+                source.buffer = this._activeAudioBuffer;
+                source.playbackRate.value = 1.0;
+                let localGain = this.currentSourceGain;
+                if (!localGain && typeof this.ctx.createGain === 'function') {
+                    try {
+                        localGain = this.ctx.createGain();
+                        localGain.gain.setValueAtTime(1.0, this.ctx.currentTime || 0);
+                        localGain.connect(this.voiceMasterGain);
+                        this.currentSourceGain = localGain;
+                    } catch (_) {}
+                }
+                if (localGain) source.connect(localGain);
+                else source.connect(this.voiceMasterGain);
+
+                this.currentSource = source;
+                this._sourceStartCtxTime = this.ctx.currentTime - this._pauseOffset;
+                const resolve = this.activePlaybackResolve;
+                const engine = this._activeBufferEngine || 'gemini';
+
+                source.onended = () => {
+                    try { source.disconnect(); } catch (_) {}
+                    if (this.currentSourceGain) {
+                        try { this.currentSourceGain.disconnect(); } catch (_) {}
+                        this.currentSourceGain = null;
+                    }
+                    if (this.currentSource === source) {
+                        this.currentSource = null;
+                        this._activeAudioBuffer = null;
+                        if (!this._isExecutingSequence && !this.isStaging) {
+                            this.isSpeaking = false;
+                            this.duckGameAudio(false);
+                            if (typeof this.onPlaybackEnded === 'function') {
+                                try { this.onPlaybackEnded(); } catch (_) {}
+                            }
+                        }
+                    }
+                    if (this.activePlaybackResolve === resolve) {
+                        this.activePlaybackResolve = null;
+                    }
+                    resolve({ finished: true, engine, cached: true });
+                };
+
+                source.start(0, this._pauseOffset);
+            } else {
+                if (this.activePlaybackResolve) {
+                    const r = this.activePlaybackResolve;
+                    this.activePlaybackResolve = null;
+                    r({ finished: true });
+                }
+            }
+        } else if (this.ctx && (!this.soundEngine || this.ctx !== this.soundEngine.ctx) && this.ctx.state === 'suspended') {
             try { this.ctx.resume(); } catch (_) {}
         }
+
         if (this.currentAudio && this.currentAudio.paused) {
             try { this.currentAudio.play(); } catch (_) {}
         } else if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.paused) {
             try { window.speechSynthesis.resume(); } catch (_) {}
+        }
+    }
+
+    /**
+     * Seamless Just-In-Time Vocal Handoff:
+     * When new vocals are ready to interrupt, applies a smooth 80ms gain fade-down
+     * on the existing voice and a 50ms natural breath pause (~130ms total natural transition)
+     * before disconnecting the prior source. Prevents abrupt jarring audio cuts.
+     */
+    async _gracefulHandoffCurrentAudio() {
+        if (!this.isSpeaking && !this.currentSource && !this.currentAudio && !(typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking)) return;
+
+        this._emitVocalState('interrupted', { role: this.currentRole, reason: 'handoff' });
+
+        // Invalidate active playback and fetch tokens immediately so multi-sentence continuations, creature barks, and in-flight fetches CANNOT fire
+        this._activeVoiceToken = (this._activeVoiceToken || 0) + 1;
+        this._sequenceSessionId = (this._sequenceSessionId || 0) + 1;
+        this._playSessionId = (this._playSessionId || 0) + 1;
+        this._activePlayToken = (this._activePlayToken || 0) + 1;
+
+        if (this._activeFetchController) {
+            try { this._activeFetchController.abort(); } catch (_) {}
+            this._activeFetchController = null;
+        }
+
+        // 1. Web Audio Source: smooth 80ms fade down
+        if (this.currentSourceGain && this.ctx && this.currentSource) {
+            try {
+                const fadeDuration = 0.08;
+                const now = this.ctx.currentTime || 0;
+                if (this.currentSourceGain.gain && typeof this.currentSourceGain.gain.setValueAtTime === 'function') {
+                    this.currentSourceGain.gain.setValueAtTime(this.currentSourceGain.gain.value, now);
+                    this.currentSourceGain.gain.linearRampToValueAtTime(0.001, now + fadeDuration);
+                }
+                await new Promise(r => setTimeout(r, (fadeDuration * 1000) + 40));
+            } catch (_) {}
+        }
+
+        // 2. HTML5 Audio Element: smooth fade down
+        if (this.currentAudio && !this.currentAudio.paused) {
+            try {
+                const startVol = this.currentAudio.volume || 1.0;
+                for (let i = 4; i >= 0; i--) {
+                    await new Promise(r => setTimeout(r, 15));
+                    try { this.currentAudio.volume = startVol * (i / 5); } catch (_) {}
+                }
+                await new Promise(r => setTimeout(r, 40));
+            } catch (_) {}
+        }
+
+        // 3. Web Speech API (speechSynthesis): cancel
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
+            try {
+                await new Promise(r => setTimeout(r, 60));
+                window.speechSynthesis.cancel();
+            } catch (_) {}
+        }
+
+        // Disconnect all physical sources and supersede prior resolve
+        this._disconnectPhysicalSources();
+
+        // Guaranteed silence breath gap (40ms) to ensure absolute physical separation between voices
+        await new Promise(r => setTimeout(r, 40));
+    }
+
+    /**
+     * Retrieves an AudioBuffer from cache or fetches/decodes it from /api/tts in background.
+     * Guaranteed zero-alloc on cache hits and safe abort support.
+     */
+    async fetchOrGetAudioBuffer(text, role = 'narrator', customVoice = null, options = {}, signal = null) {
+        const engine = options.engine || this.ttsEngine || 'gemini';
+        let voice = customVoice || (role === 'narrator' ? (engine === 'gemini' ? 'Enceladus' : this.narratorVoice) : '');
+        if (engine === 'gemini' && options.geminiVoice) {
+            voice = options.geminiVoice;
+        }
+        const cacheKey = this.getAudioCacheKey(text, role, customVoice, options);
+
+        // 1. Direct in-memory hit
+        if (this.audioBufferCache.has(cacheKey)) {
+            return { audioBuffer: this.audioBufferCache.get(cacheKey), engine, cached: true };
+        }
+
+        // 2. Prewarm promise in flight
+        if (this._prewarmPromises.has(cacheKey)) {
+            try {
+                const prewarmed = await this._prewarmPromises.get(cacheKey);
+                if (prewarmed) return { audioBuffer: prewarmed, engine, cached: true };
+            } catch (_) {}
+        }
+
+        // 3. Network fetch & decode
+        const emotion = options.emotion || '';
+        const geminiTag = options.geminiTag || '';
+        const directorNote = options.directorNote || '';
+        const pitch = options.pitch || '';
+        const gender = options.gender || '';
+
+        const currentSpeed = Math.max(0.5, Math.min(2.5, this.speed || 1.0));
+        const speedRatePercent = Math.round((currentSpeed - 1.0) * 100);
+        let baseRateNum = 0;
+        if (options.rate) {
+            const m = String(options.rate).match(/([+-]?\d+)/);
+            if (m) baseRateNum = parseInt(m[1], 10);
+        }
+        const combinedRateNum = Math.max(-50, Math.min(100, baseRateNum + speedRatePercent));
+        const rateParam = `${combinedRateNum >= 0 ? '+' : ''}${combinedRateNum}%`;
+
+        const q = new URLSearchParams({
+            text,
+            role,
+            engine,
+            voice: voice || '',
+            emotion,
+            gemini_tag: geminiTag,
+            director_note: directorNote,
+            pitch,
+            rate: rateParam,
+            gender
+        });
+
+        let apiKey = '';
+        if (typeof window !== 'undefined') {
+            if (window.chronicleManager?.inputApiKey?.value) {
+                apiKey = window.chronicleManager.inputApiKey.value.trim();
+            }
+            if (!apiKey && window.chronicleManager?.llm?.apiKey) {
+                apiKey = window.chronicleManager.llm.apiKey;
+            }
+        }
+        const fetchHeaders = {};
+        if (apiKey) fetchHeaders['x-goog-api-key'] = apiKey;
+
+        const url = `/api/tts?${q.toString()}`;
+        const res = await fetch(url, { headers: fetchHeaders, signal: signal || undefined });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const usedEngine = res.headers.get('x-tts-engine') || engine;
+        const fallbackReason = res.headers.get('x-tts-fallback-reason');
+        const arrayBuffer = await res.arrayBuffer();
+
+        let audioBuffer = ChronicleAudioRouter.decodePcmWav(arrayBuffer, this.ctx);
+        if (!audioBuffer && this.ctx) {
+            audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+        }
+
+        if (audioBuffer) {
+            if (this.audioBufferCache.size >= this.MAX_AUDIO_BUFFER_CACHE) {
+                const oldest = this.audioBufferCache.keys().next().value;
+                this.audioBufferCache.delete(oldest);
+            }
+            this.audioBufferCache.set(cacheKey, audioBuffer);
+        }
+
+        return { audioBuffer, engine: usedEngine, fallbackReason, cached: false };
+    }
+
+    /**
+     * Plays an already-decoded AudioBuffer immediately through a dedicated gain sub-bus.
+     */
+    playPreparedBuffer(audioBuffer, engine = 'gemini', options = {}) {
+        return new Promise((resolve) => {
+            if (!this.ctx || !this.voiceMasterGain || !audioBuffer || !this.enabled) {
+                return resolve({ aborted: true });
+            }
+            // Absolute physical mutual exclusion: stop all active sources across all tiers before starting
+            this._disconnectPhysicalSources({ preserveResolve: resolve });
+            this.activePlaybackResolve = resolve;
+
+            this.duckGameAudio(true);
+            this.isSpeaking = true;
+            this._speechStartTime = Date.now();
+            this.currentRole = options.role || (options.narrator ? 'narrator' : 'combat');
+            this._emitVocalState('speaking', { role: this.currentRole, engine });
+
+            const source = this.ctx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.playbackRate.value = 1.0;
+
+            let localGain = null;
+            if (typeof this.ctx.createGain === 'function') {
+                try {
+                    localGain = this.ctx.createGain();
+                    if (localGain.gain && typeof localGain.gain.setValueAtTime === 'function') {
+                        localGain.gain.setValueAtTime(1.0, this.ctx.currentTime || 0);
+                    }
+                    source.connect(localGain);
+                    localGain.connect(this.voiceMasterGain);
+                } catch (_) {
+                    source.connect(this.voiceMasterGain);
+                    localGain = null;
+                }
+            } else {
+                source.connect(this.voiceMasterGain);
+            }
+
+            this.currentSource = source;
+            this.currentSourceGain = localGain;
+            this.activePlaybackResolve = resolve;
+            this._activeAudioBuffer = audioBuffer;
+            this._activeBufferEngine = engine;
+            this._activeBufferOptions = options;
+            this._sourceStartCtxTime = (this.ctx && this.ctx.currentTime) ? this.ctx.currentTime : 0;
+            this._pauseOffset = 0;
+
+            source.onended = () => {
+                try { source.disconnect(); } catch (_) {}
+                try { localGain.disconnect(); } catch (_) {}
+                if (this.currentSourceGain === localGain) this.currentSourceGain = null;
+                if (this.currentSource === source) {
+                    this.currentSource = null;
+                    this._activeAudioBuffer = null;
+                    if (!this._isExecutingSequence && !this.isStaging && this.speechQueue.length === 0) {
+                        this.isSpeaking = false;
+                        this.duckGameAudio(false);
+                        this._emitVocalState('idle');
+                        if (typeof this.onPlaybackEnded === 'function') {
+                            try { this.onPlaybackEnded(); } catch (_) {}
+                        }
+                    }
+                }
+                if (this.activePlaybackResolve === resolve) {
+                    this.activePlaybackResolve = null;
+                }
+                resolve({ finished: true, engine, cached: true });
+            };
+
+            source.start(0);
+        });
+    }
+
+    /**
+     * Executes speech with seamless background buffering:
+     * Keeps current narration playing while fetching/decoding the next vocals.
+     * When ready, smoothly fades down the old audio, pauses 50ms, and cuts over seamlessly.
+     */
+    async _executeSeamlessSpeak(text, dialogue = null, options = {}) {
+        const transitionId = ++this._transitionSessionId;
+        const stagingToken = ++this._stagingTokenSeq;
+        if (this._activeStaging) {
+            this._activeStaging.aborted = true;
+            if (this._activeStaging.abortCtrl) {
+                try { this._activeStaging.abortCtrl.abort(); } catch (_) {}
+            }
+        }
+        const abortCtrl = new AbortController();
+        const staging = {
+            token: stagingToken,
+            transitionId,
+            abortCtrl,
+            aborted: false
+        };
+        this._activeStaging = staging;
+
+        const cleanText = text.replace(/<[^>]*>/g, '').trim();
+        if (!cleanText) {
+            if (this._activeStaging === staging) this._activeStaging = null;
+            return { finished: true };
+        }
+
+        // Pre-warm creature bark in parallel if dialogue exists
+        if (dialogue && dialogue.text && !dialogue.isNoise && this.enabled) {
+            const prewarmVoice = dialogue.recommendedVoice || dialogue.edgeVoice || null;
+            const prewarmOptions = dialogue.voiceProfile ? { ...dialogue.voiceProfile, engine: this.ttsEngine } : {
+                emotion: dialogue.emotion || options.emotion || '',
+                geminiTag: dialogue.geminiTag || '',
+                directorNote: dialogue.directorNote || '',
+                gender: dialogue.gender || '',
+                engine: this.ttsEngine
+            };
+            this.prewarmUtterance(dialogue.text, 'creature', dialogue.speaker, prewarmVoice, prewarmOptions).catch(() => {});
+        }
+
+        // Buffer the first sentence or full utterance while old audio keeps playing!
+        const sentences = cleanText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
+        const isMultiSentence = (sentences.length > 1 && cleanText.length > 40 && sentences[0].length >= 10);
+        const s1 = isMultiSentence ? sentences[0] : cleanText;
+        const remainder = isMultiSentence ? sentences.slice(1).join(' ') : null;
+
+        if (remainder) {
+            this.prewarmUtterance(remainder, 'narrator', '', null, options).catch(() => {});
+        }
+
+        let prep = null;
+        try {
+            this._setLoading(true, 'Staging voice in background...');
+            this._emitVocalState('loading', { details: 'Staging next beat...', text: cleanText, role: options.role || 'narrator' });
+            prep = await this.fetchOrGetAudioBuffer(s1, 'narrator', null, options, abortCtrl.signal);
+        } catch (fetchErr) {
+            if (staging.aborted || abortCtrl.signal.aborted || this._activeStaging !== staging) {
+                this._setLoading(false);
+                return { aborted: true };
+            }
+            console.info('[ChronicleAudio] Seamless buffer fetch bypassed, falling back to local speech:', fetchErr.message);
+        } finally {
+            this._setLoading(false);
+        }
+
+        if (staging.aborted || this._activeStaging !== staging || !this.enabled) {
+            return { aborted: true };
+        }
+
+        // Now that the new vocals are ready in RAM, perform the gentle handoff:
+        // Smooth 80ms fade down + 50ms natural breath pause
+        if (this.isSpeaking || this.currentSource || this.currentAudio || (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking)) {
+            await this._gracefulHandoffCurrentAudio();
+        } else {
+            await new Promise(r => setTimeout(r, 40));
+        }
+
+        if (staging.aborted || this._activeStaging !== staging || !this.enabled) {
+            return { aborted: true };
+        }
+
+        // Promote staging to active playback
+        this._activeStaging = null;
+        this._isExecutingSequence = true;
+        this._sequenceSessionId = (this._sequenceSessionId || 0) + 1;
+        const currentSeqId = this._sequenceSessionId;
+        const currentVoiceToken = ++this._activeVoiceToken;
+        this.duckGameAudio(true);
+        this.isSpeaking = true;
+        this._speechStartTime = Date.now();
+        this.currentRole = options.role || (options.narrator ? 'narrator' : 'combat');
+
+        try {
+            let r1 = null;
+            if (prep && prep.audioBuffer) {
+                r1 = await this.playPreparedBuffer(prep.audioBuffer, prep.engine, options);
+                if (r1 && (r1.aborted || r1.interrupted || r1.superseded)) return { aborted: true };
+                if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId || this._activeVoiceToken !== currentVoiceToken) return { stopped: true };
+
+                // If multi-sentence paragraph, play cached remainder
+                if (remainder) {
+                    const r2 = await this.playNeuralAudio(remainder, 'narrator', null, options);
+                    if (r2 && (r2.aborted || r2.interrupted || r2.superseded)) return { aborted: true };
+                    if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId || this._activeVoiceToken !== currentVoiceToken) return { stopped: true };
+                }
+            } else {
+                r1 = await this.speakSpeechSynthesis(cleanText, 'narrator', '');
+            }
+
+            if (r1 && (r1.aborted || r1.interrupted || r1.superseded)) return { aborted: true };
+            if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId || this._activeVoiceToken !== currentVoiceToken) return { stopped: true };
+
+            // Speak creature bark if present
+            if (dialogue && dialogue.text && !dialogue.isNoise && this.enabled) {
+                await new Promise(r => {
+                    this._pauseTimeout = setTimeout(r, 220);
+                });
+                this._pauseTimeout = null;
+                if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId || this._activeVoiceToken !== currentVoiceToken) return { stopped: true };
+
+                const voice = dialogue.recommendedVoice || dialogue.edgeVoice || null;
+                const dOptions = dialogue.voiceProfile ? { ...dialogue.voiceProfile, engine: this.ttsEngine } : {
+                    emotion: dialogue.emotion || options.emotion || '',
+                    geminiTag: dialogue.geminiTag || '',
+                    directorNote: dialogue.directorNote || '',
+                    gender: dialogue.gender || '',
+                    engine: this.ttsEngine
+                };
+                const rBark = await this.speakUtterance(dialogue.text, 'creature', dialogue.speaker, voice, dOptions);
+                if (rBark && (rBark.aborted || rBark.interrupted)) return { aborted: true };
+            }
+            return { finished: true };
+        } finally {
+            if (this._sequenceSessionId === currentSeqId && this._activeVoiceToken === currentVoiceToken) {
+                this._isExecutingSequence = false;
+                if (!this.isStaging && this.speechQueue.length === 0) {
+                    this.isSpeaking = false;
+                    this.duckGameAudio(false);
+                    if (typeof this.onPlaybackEnded === 'function') {
+                        try { this.onPlaybackEnded(); } catch (_) {}
+                    }
+                }
+            }
         }
     }
 
@@ -385,10 +942,46 @@ class ChronicleAudioRouter {
     speak(text, dialogue = null, monsterCoords = null, playerCoords = null, cameraYaw = 0, options = {}) {
         if (!this.enabled || !text) return Promise.resolve({ skipped: true });
 
-        // Zero-lag real-time preemption:
-        // Always halt prior speech immediately and clear backlog so new game actions speak without latency
-        if (this.flowMode === 'interrupt' || this.isSpeaking || this.speechQueue.length > 0) {
+        // Ergonomic argument normalization: allow speak(text, dialogue, options) or speak(text, options)
+        if (monsterCoords && typeof monsterCoords === 'object' && !('x' in monsterCoords) && !('y' in monsterCoords) && !Array.isArray(monsterCoords)) {
+            options = Object.assign({}, monsterCoords, options);
+            monsterCoords = null;
+        } else if (dialogue && typeof dialogue === 'object' && !('text' in dialogue) && !('speaker' in dialogue)) {
+            options = Object.assign({}, dialogue, options);
+            dialogue = null;
+        }
+
+        const isSeamless = (options.seamless === true) || (this.seamlessHandoff && options.seamless !== false && (this.isSpeaking || this.isStaging));
+
+        if (!isSeamless) {
+            // Zero-lag real-time preemption (Death or hard interrupt):
+            // Always halt prior speech immediately and clear backlog so new game actions speak without latency
             this.stopSpeaking();
+            this.isSpeaking = true;
+            return new Promise((resolve) => {
+                this.speechQueue.push({ text, dialogue, monsterCoords, playerCoords, cameraYaw, options, resolve, seamless: false });
+                if (!this.isProcessingSpeechQueue) {
+                    this.processSpeechQueue();
+                }
+            });
+        }
+
+        // SEAMLESS CONCURRENT JIT VOCAL PIPELINE:
+        // When active vocals are currently speaking or staging:
+        // Do NOT block in a queue waiting for playback to finish!
+        // Immediately start background pre-fetching and decoding of the next utterance right now.
+        // Existing vocals continue playing uninterrupted until the new AudioBuffer is ready in RAM.
+        // Only once ready in RAM does it execute an 80ms micro-fade + 50ms breath pause and cut over seamlessly.
+        if (this.isSpeaking || this.isStaging) {
+            if (this.speechQueue.length > 0) {
+                const stale = this.speechQueue.splice(0, this.speechQueue.length);
+                for (const item of stale) {
+                    if (item && item.resolve) {
+                        try { item.resolve({ skipped: true, superseded: true }); } catch (_) {}
+                    }
+                }
+            }
+            return this._executeSeamlessSpeak(text, dialogue, options);
         }
 
         // Low Latency Pruning: Drop any remaining queued beats so voice stays locked with action
@@ -401,8 +994,9 @@ class ChronicleAudioRouter {
             }
         }
 
+        this.isSpeaking = true;
         return new Promise((resolve) => {
-            this.speechQueue.push({ text, dialogue, monsterCoords, playerCoords, cameraYaw, options, resolve });
+            this.speechQueue.push({ text, dialogue, monsterCoords, playerCoords, cameraYaw, options, resolve, seamless: true });
             if (!this.isProcessingSpeechQueue) {
                 this.processSpeechQueue();
             }
@@ -418,7 +1012,11 @@ class ChronicleAudioRouter {
                 const item = this.speechQueue.shift();
                 let result = null;
                 try {
-                    result = await this._executeSpeak(item.text, item.dialogue, item.options || {});
+                    if (item.seamless && (this.isSpeaking || this.isStaging)) {
+                        result = await this._executeSeamlessSpeak(item.text, item.dialogue, item.options || {});
+                    } else {
+                        result = await this._executeSpeak(item.text, item.dialogue, item.options || {});
+                    }
                 } catch (err) {
                     console.warn('[ChronicleAudio] Error speaking queued utterance:', err);
                 } finally {
@@ -429,6 +1027,13 @@ class ChronicleAudioRouter {
             }
         } finally {
             this.isProcessingSpeechQueue = false;
+            if (!this._isExecutingSequence && !this.isStaging && !this.currentSource && !this.currentAudio && !(typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking)) {
+                this.isSpeaking = false;
+                this.duckGameAudio(false);
+                if (typeof this.onPlaybackEnded === 'function') {
+                    try { this.onPlaybackEnded(); } catch (_) {}
+                }
+            }
         }
     }
 
@@ -440,6 +1045,7 @@ class ChronicleAudioRouter {
         this._isExecutingSequence = true;
         this._sequenceSessionId = (this._sequenceSessionId || 0) + 1;
         const currentSeqId = this._sequenceSessionId;
+        const currentVoiceToken = ++this._activeVoiceToken;
 
         try {
             // High-Performance Parallel Pre-Decoding: If vocal dialogue exists, dispatch
@@ -460,8 +1066,8 @@ class ChronicleAudioRouter {
             // 1. Speak main narrative prose (Narrator voice) with emotion & tradition context
             const narrOptions = options.narrator || options || {};
             const r1 = await this.speakUtterance(text, 'narrator', '', null, narrOptions);
-            if (r1 && r1.aborted) return { aborted: true };
-            if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId) return { stopped: true };
+            if (r1 && (r1.aborted || r1.interrupted || r1.superseded)) return { aborted: true, interrupted: true };
+            if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId || this._activeVoiceToken !== currentVoiceToken) return { stopped: true };
 
             // 2. If vocal dialogue exists (and is NOT a non-vocal creature sound noise), speak creature bark
             if (dialogue && dialogue.text && !dialogue.isNoise && this.enabled) {
@@ -470,7 +1076,7 @@ class ChronicleAudioRouter {
                     this._pauseTimeout = setTimeout(r, 220);
                 });
                 this._pauseTimeout = null;
-                if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId) return { stopped: true };
+                if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId || this._activeVoiceToken !== currentVoiceToken) return { stopped: true };
 
                 const voice = dialogue.recommendedVoice || dialogue.edgeVoice || null;
                 const dOptions = dialogue.voiceProfile ? { ...dialogue.voiceProfile, engine: this.ttsEngine } : {
@@ -481,14 +1087,19 @@ class ChronicleAudioRouter {
                     engine: this.ttsEngine
                 };
                 const r2 = await this.speakUtterance(dialogue.text, 'creature', dialogue.speaker, voice, dOptions);
-                if (r2 && r2.aborted) return { aborted: true };
+                if (r2 && (r2.aborted || r2.interrupted || r2.superseded)) return { aborted: true, interrupted: true };
             }
             return { finished: true };
         } finally {
-            if (this._sequenceSessionId === currentSeqId) {
+            if (this._sequenceSessionId === currentSeqId && this._activeVoiceToken === currentVoiceToken) {
                 this._isExecutingSequence = false;
-                this.isSpeaking = false;
-                this.duckGameAudio(false);
+                if (!this.isStaging && this.speechQueue.length === 0) {
+                    this.isSpeaking = false;
+                    this.duckGameAudio(false);
+                    if (typeof this.onPlaybackEnded === 'function') {
+                        try { this.onPlaybackEnded(); } catch (_) {}
+                    }
+                }
             }
         }
     }
@@ -531,29 +1142,40 @@ class ChronicleAudioRouter {
                     // 1. Speculatively pre-warm remainder in background
                     this.prewarmUtterance(remainder, role, speakerName, customVoice, options).catch(() => {});
                     // 2. Synthesize and speak sentence 1 immediately
+                    const voiceToken = this._activeVoiceToken;
                     try {
                         const r1 = await this.playNeuralAudio(s1, role, customVoice, options);
-                        if (r1 && r1.aborted) return { aborted: true };
-                        if (!this.enabled || this.isPaused) return { stopped: true };
+                        if (r1 && (r1.aborted || r1.interrupted || r1.superseded)) return { aborted: true, interrupted: true };
+                        if (!this.enabled || this.isPaused || this._activeVoiceToken !== voiceToken) return { stopped: true };
 
                         // 3. Sentence 1 finished playing; remainder is now ready in cache!
                         const r2 = await this.playNeuralAudio(remainder, role, customVoice, options);
+                        if (r2 && (r2.aborted || r2.interrupted || r2.superseded)) return { aborted: true, interrupted: true };
                         return r2 || { finished: true };
                     } catch (pipelineErr) {
+                        if (pipelineErr.name === 'AbortError' || this._activeVoiceToken !== voiceToken || !this.enabled) {
+                            return { aborted: true };
+                        }
                         console.info('[ChronicleAudio] Sentence fast-start failed, falling back to full text:', pipelineErr.message);
                     }
                 }
             }
 
             // Standard full utterance playback
+            const voiceToken = this._activeVoiceToken;
             try {
                 const res = await this.playNeuralAudio(cleanText, role, customVoice, options);
+                if (res && (res.aborted || res.interrupted || res.superseded)) return { aborted: true, interrupted: true };
                 return res || { finished: true };
             } catch (err) {
+                if (err.name === 'AbortError' || this._activeVoiceToken !== voiceToken || !this.enabled) {
+                    return { aborted: true };
+                }
                 // Server neural TTS offline or failed; smoothly fall back to browser Web Speech API
                 console.info('[ChronicleAudio] Server neural TTS bypassed, using local speech synthesis:', err.message);
             }
 
+            if (!this.enabled || this.isPaused || this._activeVoiceToken !== voiceToken) return { stopped: true };
             const res = await this.speakSpeechSynthesis(cleanText, role, speakerName);
             return res || { finished: true };
         } finally {
@@ -624,29 +1246,13 @@ class ChronicleAudioRouter {
 
     playNeuralAudio(text, role, customVoice = null, options = {}) {
         return new Promise(async (resolve, reject) => {
-            const sessionId = ++this._playSessionId;
+            // First stop any prior in-flight fetch and invalidate prior sessions
+            this._stopAllActiveAudioSources({ preserveResolve: resolve });
+            const sessionId = this._playSessionId;
+            const playToken = this._activePlayToken;
             const abortCtrl = new AbortController();
             this._activeFetchController = abortCtrl;
             this.activePlaybackResolve = resolve;
-
-            // Stop any prior source and audio immediately
-            if (this.currentSource) {
-                try {
-                    this.currentSource.onended = null;
-                    this.currentSource.stop();
-                    this.currentSource.disconnect();
-                } catch (_) {}
-                this.currentSource = null;
-            }
-            if (this.currentAudio) {
-                try {
-                    this.currentAudio.pause();
-                    this.currentAudio.currentTime = 0;
-                    this.currentAudio.onended = null;
-                    this.currentAudio.onerror = null;
-                } catch (_) {}
-                this.currentAudio = null;
-            }
 
             try {
                 this.isSpeaking = true;
@@ -663,9 +1269,6 @@ class ChronicleAudioRouter {
                 const gender = options.gender || '';
 
                 // --- PITCH-PRESERVED NEURAL SPEED CONTROL ---
-                // Rather than resampling the decoded audio (which alters pitch like a turntable),
-                // we calculate the relative prosody rate adjustment from this.speed and request
-                // the server neural vocoder to generate time-stretched audio with CONSTANT natural formant!
                 const currentSpeed = Math.max(0.5, Math.min(2.5, this.speed || 1.0));
                 const speedRatePercent = Math.round((currentSpeed - 1.0) * 100);
                 let baseRateNum = 0;
@@ -683,28 +1286,62 @@ class ChronicleAudioRouter {
                     try { await this.ctx.resume(); } catch (_) {}
                 }
 
-                if (this._playSessionId !== sessionId || !this.enabled) {
+                if (this._playSessionId !== sessionId || this._activePlayToken !== playToken || !this.enabled) {
                     this.isSpeaking = false;
-                    return resolve({ aborted: true });
+                    return resolve({ aborted: true, superseded: true });
                 }
 
                 // --- INSTANT TIER 0: IN-MEMORY DECODED AUDIOBUFFER CACHE (0.01ms PLAYBACK) ---
                 if (this.ctx && this.voiceMasterGain && this.audioBufferCache.has(cacheKey)) {
                     try {
                         const cachedBuffer = this.audioBufferCache.get(cacheKey);
+                        this._disconnectPhysicalSources({ preserveResolve: resolve });
+                        this.activePlaybackResolve = resolve;
+
                         const source = this.ctx.createBufferSource();
                         source.buffer = cachedBuffer;
-                        source.playbackRate.value = 1.0; // Strictly preserve pitch & formant
-                        source.connect(this.voiceMasterGain);
+                        let localGain = null;
+                        if (typeof this.ctx.createGain === 'function') {
+                            try {
+                                localGain = this.ctx.createGain();
+                                if (localGain.gain && typeof localGain.gain.setValueAtTime === 'function') {
+                                    localGain.gain.setValueAtTime(1.0, this.ctx.currentTime || 0);
+                                }
+                                source.connect(localGain);
+                                localGain.connect(this.voiceMasterGain);
+                            } catch (_) {
+                                source.connect(this.voiceMasterGain);
+                                localGain = null;
+                            }
+                        } else {
+                            source.connect(this.voiceMasterGain);
+                        }
                         this.currentSource = source;
+                        this.currentSourceGain = localGain;
+                        this._activeAudioBuffer = cachedBuffer;
+                        this._activeBufferEngine = engine;
+                        this._activeBufferOptions = options;
+                        this._sourceStartCtxTime = (this.ctx && this.ctx.currentTime) ? this.ctx.currentTime : 0;
+                        this._pauseOffset = 0;
                         this._setLoading(false);
+                        this._emitVocalState('speaking', { role: this.currentRole, engine, cached: true });
 
                         source.onended = () => {
                             try { source.disconnect(); } catch (_) {}
+                            if (localGain) {
+                                try { localGain.disconnect(); } catch (_) {}
+                                if (this.currentSourceGain === localGain) this.currentSourceGain = null;
+                            }
                             if (this.currentSource === source) {
                                 this.currentSource = null;
-                                if (!this._isExecutingSequence) {
+                                this._activeAudioBuffer = null;
+                                if (!this._isExecutingSequence && !this.isStaging && this.speechQueue.length === 0) {
                                     this.isSpeaking = false;
+                                    this.duckGameAudio(false);
+                                    this._emitVocalState('idle');
+                                    if (typeof this.onPlaybackEnded === 'function') {
+                                        try { this.onPlaybackEnded(); } catch (_) {}
+                                    }
                                 }
                             }
                             if (this.activePlaybackResolve === resolve) {
@@ -765,10 +1402,10 @@ class ChronicleAudioRouter {
                         if (!audioBuffer) {
                             this._setLoading(true, 'Voicing lore...');
                             const res = await fetch(url, { headers: fetchHeaders, signal: abortCtrl.signal });
-                            if (this._playSessionId !== sessionId || !this.enabled) {
+                            if (this._playSessionId !== sessionId || this._activePlayToken !== playToken || !this.enabled) {
                                 this.isSpeaking = false;
                                 this._setLoading(false);
-                                return resolve({ aborted: true });
+                                return resolve({ aborted: true, superseded: true });
                             }
                             if (!res.ok) {
                                 this._setLoading(false);
@@ -781,10 +1418,10 @@ class ChronicleAudioRouter {
                             }
 
                             const arrayBuffer = await res.arrayBuffer();
-                            if (this._playSessionId !== sessionId || !this.enabled) {
+                            if (this._playSessionId !== sessionId || this._activePlayToken !== playToken || !this.enabled) {
                                 this.isSpeaking = false;
                                 this._setLoading(false);
-                                return resolve({ aborted: true });
+                                return resolve({ aborted: true, superseded: true });
                             }
 
                             this._setLoading(true, 'Decoding audio...');
@@ -799,28 +1436,62 @@ class ChronicleAudioRouter {
                             this.audioBufferCache.set(cacheKey, audioBuffer);
                         }
 
-                        if (this._playSessionId !== sessionId || !this.enabled) {
+                        if (this._playSessionId !== sessionId || this._activePlayToken !== playToken || !this.enabled) {
                             this.isSpeaking = false;
                             this._setLoading(false);
-                            return resolve({ aborted: true });
+                            return resolve({ aborted: true, superseded: true });
                         }
+
+                        // Absolute physical mutual exclusion right before starting node
+                        this._disconnectPhysicalSources({ preserveResolve: resolve });
+                        this.activePlaybackResolve = resolve;
 
                         const source = this.ctx.createBufferSource();
                         source.buffer = audioBuffer;
                         // KEEP PLAYBACK RATE AT 1.0 TO PRESERVE NATURAL PITCH!
-                        // The audio is already time-stretched at the server level via the prosody rate parameter.
-                        source.playbackRate.value = 1.0;
-                        source.connect(this.voiceMasterGain);
+                        let localGain = null;
+                        if (typeof this.ctx.createGain === 'function') {
+                            try {
+                                localGain = this.ctx.createGain();
+                                if (localGain.gain && typeof localGain.gain.setValueAtTime === 'function') {
+                                    localGain.gain.setValueAtTime(1.0, this.ctx.currentTime || 0);
+                                }
+                                source.connect(localGain);
+                                localGain.connect(this.voiceMasterGain);
+                            } catch (_) {
+                                source.connect(this.voiceMasterGain);
+                                localGain = null;
+                            }
+                        } else {
+                            source.connect(this.voiceMasterGain);
+                        }
 
                         this.currentSource = source;
+                        this.currentSourceGain = localGain;
+                        this._activeAudioBuffer = audioBuffer;
+                        this._activeBufferEngine = usedEngine || engine;
+                        this._activeBufferOptions = options;
+                        this._sourceStartCtxTime = (this.ctx && this.ctx.currentTime) ? this.ctx.currentTime : 0;
+                        this._pauseOffset = 0;
                         this._setLoading(false);
+                        this._emitVocalState('speaking', { role: this.currentRole, engine: usedEngine || engine, cached: false });
 
                         source.onended = () => {
                             try { source.disconnect(); } catch (_) {}
+                            if (localGain) {
+                                try { localGain.disconnect(); } catch (_) {}
+                                if (this.currentSourceGain === localGain) this.currentSourceGain = null;
+                            }
                             if (this.currentSource === source) {
                                 this.currentSource = null;
-                                if (!this._isExecutingSequence) {
+                                this._activeAudioBuffer = null;
+                                if (!this._isExecutingSequence && !this.isStaging && this.speechQueue.length === 0) {
                                     this.isSpeaking = false;
+                                    this.duckGameAudio(false);
+                                    this._emitVocalState('idle');
+                                    if (typeof this.onPlaybackEnded === 'function') {
+                                        try { this.onPlaybackEnded(); } catch (_) {}
+                                    }
                                 }
                             }
                             if (this.activePlaybackResolve === resolve) {
@@ -831,23 +1502,25 @@ class ChronicleAudioRouter {
                         source.start(0);
                         return;
                     } catch (decodeErr) {
-                        if (abortCtrl.signal.aborted || this._playSessionId !== sessionId) {
+                        if (abortCtrl.signal.aborted || this._playSessionId !== sessionId || this._activePlayToken !== playToken) {
                             this.isSpeaking = false;
-                            return resolve({ aborted: true });
+                            return resolve({ aborted: true, superseded: true });
                         }
                         console.info('[ChronicleAudio] Web Audio decode bypassed, falling back to HTML5 audio element:', decodeErr.message);
                     }
                 }
 
-                if (this._playSessionId !== sessionId || !this.enabled) {
+                if (this._playSessionId !== sessionId || this._activePlayToken !== playToken || !this.enabled) {
                     this.isSpeaking = false;
-                    return resolve({ aborted: true });
+                    return resolve({ aborted: true, superseded: true });
                 }
 
                 // --- TIER 2: HTML5 AUDIO ELEMENT FALLBACK ---
+                this._disconnectPhysicalSources({ preserveResolve: resolve });
+                this.activePlaybackResolve = resolve;
+
                 const audio = new Audio();
                 audio.src = url;
-                // Server rendered rate; maintain natural playbackRate 1.0 and enable preservesPitch
                 audio.playbackRate = 1.0;
                 if ('preservesPitch' in audio) audio.preservesPitch = true;
                 this.currentAudio = audio;
@@ -859,8 +1532,13 @@ class ChronicleAudioRouter {
 
                 audio.onended = () => {
                     this.currentAudio = null;
-                    if (!this._isExecutingSequence) {
+                    if (!this._isExecutingSequence && !this.isStaging && this.speechQueue.length === 0) {
                         this.isSpeaking = false;
+                        this.duckGameAudio(false);
+                        this._emitVocalState('idle');
+                        if (typeof this.onPlaybackEnded === 'function') {
+                            try { this.onPlaybackEnded(); } catch (_) {}
+                        }
                     }
                     if (this.activePlaybackResolve === resolve) {
                         this.activePlaybackResolve = null;
@@ -870,17 +1548,19 @@ class ChronicleAudioRouter {
                 audio.onerror = (e) => {
                     this.currentAudio = null;
                     this.isSpeaking = false;
+                    this._emitVocalState('idle');
                     if (this.activePlaybackResolve === resolve) {
                         this.activePlaybackResolve = null;
                     }
-                    if (this._playSessionId === sessionId) {
+                    if (this._playSessionId === sessionId && this._activePlayToken === playToken) {
                         console.warn('[ChronicleAudio] Neural audio streaming error:', e);
                         reject(new Error('HTMLAudio playback failed'));
                     } else {
-                        resolve({ aborted: true });
+                        resolve({ aborted: true, superseded: true });
                     }
                 };
 
+                this._emitVocalState('speaking', { role: this.currentRole, engine: 'html5' });
                 const playPromise = audio.play();
                 if (playPromise !== undefined) {
                     await playPromise;
@@ -888,8 +1568,8 @@ class ChronicleAudioRouter {
             } catch (err) {
                 this.isSpeaking = false;
                 this._setLoading(false);
-                if (abortCtrl.signal.aborted || this._playSessionId !== sessionId) {
-                    return resolve({ aborted: true });
+                if (abortCtrl.signal.aborted || this._playSessionId !== sessionId || this._activePlayToken !== playToken) {
+                    return resolve({ aborted: true, superseded: true });
                 }
                 if (this.activePlaybackResolve === resolve) {
                     this.activePlaybackResolve = null;
@@ -905,9 +1585,12 @@ class ChronicleAudioRouter {
                 return resolve({ finished: true });
             }
 
+            // Absolute physical mutual exclusion right before speech synthesis
+            this._disconnectPhysicalSources({ preserveResolve: resolve });
+            this.activePlaybackResolve = resolve;
+
             const utterance = new SpeechSynthesisUtterance(cleanText);
             this.currentUtterance = utterance;
-            this.activePlaybackResolve = resolve;
 
             // Apply Audiobook Speed Multiplier (0.92 gives deliberate, clear audiobook pacing)
             utterance.rate = Math.max(0.75, Math.min(1.8, (0.92 * this.speed)));
@@ -945,20 +1628,35 @@ class ChronicleAudioRouter {
             utterance.onend = () => {
                 this.currentUtterance = null;
                 this.activePlaybackResolve = null;
+                if (!this._isExecutingSequence && !this.isStaging && this.speechQueue.length === 0) {
+                    this.isSpeaking = false;
+                    this.duckGameAudio(false);
+                    this._emitVocalState('idle');
+                    if (typeof this.onPlaybackEnded === 'function') {
+                        try { this.onPlaybackEnded(); } catch (_) {}
+                    }
+                }
                 resolve({ finished: true });
             };
             utterance.onerror = () => {
                 this.currentUtterance = null;
                 this.activePlaybackResolve = null;
+                if (!this._isExecutingSequence && !this.isStaging && this.speechQueue.length === 0) {
+                    this.isSpeaking = false;
+                    this.duckGameAudio(false);
+                    this._emitVocalState('idle');
+                }
                 resolve({ finished: true });
             };
 
             try {
+                this._emitVocalState('speaking', { role: this.currentRole || 'narrator', engine: 'speechSynthesis' });
                 window.speechSynthesis.speak(utterance);
             } catch (err) {
                 console.warn('[ChronicleAudio] Speech synthesis failed:', err);
                 this.currentUtterance = null;
                 this.activePlaybackResolve = null;
+                this._emitVocalState('idle');
                 resolve({ finished: true });
             }
         });
