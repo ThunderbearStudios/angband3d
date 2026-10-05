@@ -32,8 +32,14 @@
    - **Server HTTP 206 Partial Content Range Streaming (`server.js`)**:
      - Added video MIME types (`.webm`, `.mp4`, `.m4a`) with immutable caching headers.
      - Implemented HTTP 206 Range request streaming for smooth video playback and random scrubbing.
+   - **Live Production Multi-Region Deployment on `https://angband3d.com`**:
+     - `angband3d-cloud` (us-central1): Revision `angband3d-cloud-00098-kt2` serving 100% of traffic.
+     - `angband3d-cloud` (us-east1): Revision `angband3d-cloud-00025-clv` serving 100% of traffic.
+     - `angband3d-web` (us-central1): Revision `angband3d-web-00030-p4m` serving 100% of traffic.
+     - Live verified on `https://angband3d.com/` with cache token `v=8.4.0`, service worker `angband3d-v8.4.0`, live audio manifest (`/assets/audio/demo/demo_manifest.json`), and HTTP 206 Partial Content Range streaming.
    - **Automated Verification**:
      - `tools/test_demo_showcase.js`: 100% PASS (manifest schema, 10 audio stems, HTML DOM IDs, CSS selectors, JS syntax checks, HTTP 206 server streaming).
+     - `tools/test_cloud_live_demo.js`: 100% PASS against `angband3d.com` and all three Cloud Run services.
      - `node server/test/server_test.js`: 20/20 unit tests PASS.
      - `tools/test_vocal_exclusion.js`: 5/5 tests PASS.
      - `tools/test_chronicle.js`: 36/36 verification phases PASS.
