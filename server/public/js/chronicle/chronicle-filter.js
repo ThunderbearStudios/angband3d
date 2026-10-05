@@ -36,6 +36,96 @@ const RE_CHEST = /(?:You have found|You see)\s+(?:a\s+|an\s+)?([A-Za-z0-9\-',\s]
 const RE_DUNGEON_FEATURE = /(?:You have found a (?:trap|secret door)|You have disarmed the trap|You pick the lock|The door is locked|You bash open the door|You kick open the door|You bash the door open|You kick the door open)/i;
 const RE_CLEAN_PARENS = /\s*\([^)]*\)/g;
 const RE_CLEAN_BRACKETS = /\s*\[[^\]]*\]/g;
+const RE_SPELL_NAME_EXTRACT = /^(?:You\s+)(?:cast|pray|chant|recite|channel|invoke|weave|conjure)\s+(?:a\s+|an\s+|the\s+)?([A-Za-z0-9\-'\s]+?)(?:\.|\!|$)/i;
+const RE_DEVICE_FULL_EXTRACT = /^(?:You\s+)(?:aim|zap|use|read)\s+(?:a\s+|an\s+|the\s+)?((?:wand|rod|staff|scroll)(?:\s+of\s+[A-Za-z0-9\-'\s]+?)?)(?:\.|\!|$)/i;
+
+function cleanItemName(rawName) {
+    if (!rawName || typeof rawName !== 'string') return '';
+    return rawName.replace(RE_CLEAN_PARENS, '').replace(RE_CLEAN_BRACKETS, '').trim();
+}
+
+function classifyWeaponArchetype(rawWeapon) {
+    if (!rawWeapon || typeof rawWeapon !== 'string') {
+        return { archetype: 'unarmed', name: 'bare fists', category: 'fist' };
+    }
+    const clean = cleanItemName(rawWeapon);
+    const lower = clean.toLowerCase();
+    if (!lower || lower.includes('bare') || lower.includes('fist') || lower.includes('unarmed') || lower === 'none') {
+        return { archetype: 'unarmed', name: 'bare fists', category: 'fist' };
+    }
+    // 1. Daggers & Knives
+    if (lower.includes('dagger') || lower.includes('main gauche') || lower.includes('stiletto') || lower.includes('knife') || lower.includes('bodkin') || lower.includes('miséricorde')) {
+        return { archetype: 'dagger', name: clean, category: 'pierce' };
+    }
+    // 2. Spears, Pikes & Reach Weapons
+    if (lower.includes('spear') || lower.includes('lance') || lower.includes('pike') || lower.includes('trident') || lower.includes('awl-pike') || lower.includes('javelin')) {
+        return { archetype: 'polearm_pierce', name: clean, category: 'pierce' };
+    }
+    // 3. Axes, Halberds & Poleaxes
+    if (lower.includes('axe') || lower.includes('hatchet') || lower.includes('halberd') || lower.includes('glaive') || lower.includes('scythe') || lower.includes('guisarme') || lower.includes('poleaxe') || lower.includes('lochaber') || lower.includes('bill')) {
+        return { archetype: 'axe', name: clean, category: 'cleave' };
+    }
+    // 4. Hammers, Maces & Blunt
+    if (lower.includes('hammer') || lower.includes('mace') || lower.includes('flail') || lower.includes('morning star') || lower.includes('morningstar') || lower.includes('club') || lower.includes('cudgel') || lower.includes('quarterstaff') || lower.includes('staff') || lower.includes('maul') || lower.includes('war hammer') || lower.includes('ball-and-chain') || lower.includes('lead-filled')) {
+        return { archetype: 'blunt', name: clean, category: 'crush' };
+    }
+    // 5. Blades & Swords
+    if (lower.includes('sword') || lower.includes('blade') || lower.includes('scimitar') || lower.includes('rapier') || lower.includes('sabre') || lower.includes('saber') || lower.includes('katana') || lower.includes('cutlass') || lower.includes('claymore') || lower.includes('broadsword') || lower.includes('shortsword') || lower.includes('longsword') || lower.includes('foil') || lower.includes('falchion') || lower.includes('zweihander') || lower.includes('greatsword')) {
+        return { archetype: 'blade', name: clean, category: 'slash' };
+    }
+    return { archetype: 'melee_weapon', name: clean, category: 'slash' };
+}
+
+function classifyLauncherArchetype(rawBow, rawQuiver) {
+    const bowClean = cleanItemName(rawBow);
+    const quiverClean = cleanItemName(rawQuiver);
+    const bowLower = bowClean.toLowerCase();
+    const quiverLower = quiverClean.toLowerCase();
+
+    if (bowLower.includes('crossbow') || bowLower.includes('arbalest')) {
+        return {
+            archetype: 'crossbow',
+            launcher: bowClean || 'Crossbow',
+            ammo: quiverClean || 'iron bolt',
+            ammoNoun: 'bolt'
+        };
+    }
+    if (bowLower.includes('sling')) {
+        return {
+            archetype: 'sling',
+            launcher: bowClean || 'Leather Sling',
+            ammo: quiverClean || 'lead shot',
+            ammoNoun: 'shot'
+        };
+    }
+    if (bowLower.includes('bow')) {
+        return {
+            archetype: 'bow',
+            launcher: bowClean || 'Long Bow',
+            ammo: quiverClean || 'fletched arrow',
+            ammoNoun: 'arrow'
+        };
+    }
+    if (quiverLower.includes('bolt')) {
+        return { archetype: 'crossbow', launcher: 'Crossbow', ammo: quiverClean || 'bolt', ammoNoun: 'bolt' };
+    }
+    if (quiverLower.includes('shot') || quiverLower.includes('pebble')) {
+        return { archetype: 'sling', launcher: 'Sling', ammo: quiverClean || 'lead shot', ammoNoun: 'lead shot' };
+    }
+    return { archetype: 'bow', launcher: bowClean || 'Bow', ammo: quiverClean || 'fletched arrow', ammoNoun: 'arrow' };
+}
+
+function detectSpellElement(spellName) {
+    if (!spellName || typeof spellName !== 'string') return 'arcane';
+    const s = spellName.toLowerCase();
+    if (s.includes('fire') || s.includes('flame') || s.includes('immolat') || s.includes('plasma')) return 'fire';
+    if (s.includes('frost') || s.includes('ice') || s.includes('cold') || s.includes('glacial')) return 'cold';
+    if (s.includes('lightning') || s.includes('spark') || s.includes('shock') || s.includes('electric') || s.includes('thunder')) return 'lightning';
+    if (s.includes('acid') || s.includes('corros') || s.includes('caustic') || s.includes('dissolv')) return 'acid';
+    if (s.includes('holy') || s.includes('light') || s.includes('sun') || s.includes('star') || s.includes('bless') || s.includes('prayer') || s.includes('divine') || s.includes('hallow') || s.includes('drain') || s.includes('dispel')) return 'holy';
+    if (s.includes('mana') || s.includes('magic missile') || s.includes('force') || s.includes('arcane') || s.includes('disintegrat') || s.includes('phase') || s.includes('teleport')) return 'arcane';
+    return 'arcane';
+}
 
 class ChronicleFilter {
     constructor() {
@@ -63,7 +153,7 @@ class ChronicleFilter {
         };
 
         this.lastVisitedStore = null;
-        this.lastAttackMedium = { type: 'melee', detail: 'weapon', name: 'drawn steel' };
+        this.lastAttackMedium = { method: 'strike', type: 'melee', name: 'bare fists', archetype: 'unarmed', category: 'fist', detail: 'weapon' };
         this.lastSp = null;
 
         // Continuous Ballad Episode Accumulator
@@ -83,7 +173,7 @@ class ChronicleFilter {
         this.lastTurn = null;
         this.lastSeenMessages = [];
         this.lastVisitedStore = null;
-        this.lastAttackMedium = { type: 'melee', detail: 'weapon', name: 'drawn steel' };
+        this.lastAttackMedium = { method: 'strike', type: 'melee', name: 'bare fists', archetype: 'unarmed', category: 'fist', detail: 'weapon' };
         this.lastSp = null;
         this.pendingKills = [];
         this.eventQueue = [];
@@ -132,8 +222,12 @@ class ChronicleFilter {
 
         const player = frame.player;
         const now = Date.now();
+        const equippedWeapon = (player && player.weapon_item) ? player.weapon_item : null;
+        const equippedBow = (player && player.bow_item) ? player.bow_item : null;
+        const equippedQuiver = (player && player.quiver_item) ? player.quiver_item : null;
+
         if (this.lastSp !== null && typeof player.sp === 'number' && player.sp < this.lastSp) {
-            this.lastAttackMedium = { type: 'spell', name: 'incantation', detail: 'mana expenditure' };
+            this.lastAttackMedium = { method: 'spell', type: 'spell', name: 'incantation', element: 'arcane', detail: 'mana expenditure' };
         }
         this.lastSp = (typeof player.sp === 'number') ? player.sp : null;
 
@@ -309,23 +403,58 @@ class ChronicleFilter {
             if (spCastMatch || spProjMatch || spEffMatch) {
                 this.lastCombatActionTime = now;
                 let spellName = 'arcane spell';
-                if (spEffMatch) spellName = spEffMatch[0].toLowerCase();
-                else if (spProjMatch) spellName = 'elemental magic';
-                this.lastAttackMedium = { type: 'spell', name: spellName, detail: msg };
+                const spNameMatch = msg.match(RE_SPELL_NAME_EXTRACT);
+                if (spNameMatch && spNameMatch[1]) {
+                    spellName = spNameMatch[1].trim();
+                } else if (spEffMatch) {
+                    spellName = spEffMatch[0].toLowerCase();
+                } else if (spProjMatch) {
+                    spellName = 'elemental magic';
+                }
+                const spellElem = detectSpellElement(spellName);
+                this.lastAttackMedium = {
+                    method: 'spell',
+                    type: 'spell',
+                    name: spellName,
+                    element: spellElem,
+                    detail: msg
+                };
             }
 
             const devMatch = msg.match(RE_DEVICE_USE);
             if (devMatch) {
                 this.lastCombatActionTime = now;
-                this.lastAttackMedium = { type: 'device', name: devMatch[1].toLowerCase(), detail: msg };
+                const devType = devMatch[1].toLowerCase();
+                let devName = devType;
+                const devFullMatch = msg.match(RE_DEVICE_FULL_EXTRACT);
+                if (devFullMatch && devFullMatch[1]) {
+                    devName = devFullMatch[1].trim();
+                }
+                const devElem = detectSpellElement(devName);
+                this.lastAttackMedium = {
+                    method: 'device',
+                    type: 'device',
+                    deviceType: devType,
+                    name: devName,
+                    element: devElem,
+                    detail: msg
+                };
             }
 
             const mHitMatch = msg.match(RE_MISSILE_HIT);
             const mFireMatch = msg.match(RE_MISSILE_FIRE);
             if (mHitMatch || mFireMatch) {
                 this.lastCombatActionTime = now;
-                const missileName = mHitMatch ? mHitMatch[1].trim() : 'arrow';
-                this.lastAttackMedium = { type: 'ranged', name: missileName, detail: msg };
+                const missileName = mHitMatch ? mHitMatch[1].trim() : (equippedQuiver || 'arrow');
+                const launcherInfo = classifyLauncherArchetype(equippedBow, missileName);
+                this.lastAttackMedium = {
+                    method: 'shoot',
+                    type: 'ranged',
+                    name: launcherInfo.launcher,
+                    ammo: launcherInfo.ammo,
+                    archetype: launcherInfo.archetype,
+                    detail: msg
+                };
                 if (mHitMatch && mHitMatch[2]) {
                     const monName = mHitMatch[2].trim();
                     const monLower = monName.toLowerCase();
@@ -342,7 +471,7 @@ class ChronicleFilter {
                                 depth: depth,
                                 inTown: depth === 0,
                                 missed: msg.includes('fails to harm'),
-                                attackMedium: { type: 'ranged', name: missileName, detail: msg }
+                                attackMedium: { ...this.lastAttackMedium }
                             });
                         }
                     }
@@ -359,9 +488,25 @@ class ChronicleFilter {
                 const monLower = monName.toLowerCase();
                 if (hMatch) {
                     if (act === 'shoot') {
-                        this.lastAttackMedium = { type: 'ranged', name: 'arrow', detail: 'shoot' };
+                        const launcherInfo = classifyLauncherArchetype(equippedBow, equippedQuiver);
+                        this.lastAttackMedium = {
+                            method: 'shoot',
+                            type: 'ranged',
+                            name: launcherInfo.launcher,
+                            ammo: launcherInfo.ammo,
+                            archetype: launcherInfo.archetype,
+                            detail: act
+                        };
                     } else {
-                        this.lastAttackMedium = { type: 'melee', name: 'drawn steel', detail: act };
+                        const weaponInfo = classifyWeaponArchetype(equippedWeapon);
+                        this.lastAttackMedium = {
+                            method: 'strike',
+                            type: 'melee',
+                            name: weaponInfo.name,
+                            archetype: weaponInfo.archetype,
+                            category: weaponInfo.category,
+                            detail: act
+                        };
                     }
                 }
                 if (!slainMonsterNames.has(monLower)) {
@@ -557,6 +702,7 @@ class ChronicleFilter {
             const lfMatch = msg.match(RE_LEVEL_FEELING);
             if (lfMatch) {
                 const feelText = msg.trim();
+                this.currentLevelFeeling = feelText;
                 const lastLf = this._lastLevelFeelingTime || 0;
                 if (now - lastLf >= 6000) {
                     this._lastLevelFeelingTime = now;
@@ -805,7 +951,14 @@ class ChronicleFilter {
                     depth: depth,
                     inTown: depth === 0,
                     accumulated: { ...this.episodeAccumulator },
-                    attackMedium: { ...this.lastAttackMedium }
+                    attackMedium: { ...this.lastAttackMedium },
+                    hpPercent: hpPercent,
+                    isPeril: hpPercent <= 0.30,
+                    chp: player.chp,
+                    mhp: player.mhp,
+                    playerRace: player.race || 'Human',
+                    playerClass: player.class || 'Warrior',
+                    levelFeeling: this.currentLevelFeeling || ''
                 }
             });
             if (frameKills.length > 0) {
@@ -892,8 +1045,9 @@ class ChronicleFilter {
         this.lastHpPercent = hpPercent;
 
         // Artifact Awakening Detection (Only on newly printed messages)
+        const canonLore = (typeof ChronicleGrounder !== 'undefined' ? ChronicleGrounder.CANON_ARTIFACT_LORE : (typeof window !== 'undefined' && window.ChronicleGrounder ? window.ChronicleGrounder.CANON_ARTIFACT_LORE : null)) || {};
         for (const msg of expandedMsgs) {
-            for (const artName of Object.keys(ChronicleGrounder.CANON_ARTIFACT_LORE)) {
+            for (const artName of Object.keys(canonLore)) {
                 if (msg.includes(artName) && !this.identifiedArtifacts.has(artName)) {
                     this.identifiedArtifacts.add(artName);
                     this.lastBeatTime = now;
@@ -1026,6 +1180,10 @@ class ChronicleFilter {
         return null;
     }
 }
+
+ChronicleFilter.classifyWeaponArchetype = classifyWeaponArchetype;
+ChronicleFilter.classifyLauncherArchetype = classifyLauncherArchetype;
+ChronicleFilter.detectSpellElement = detectSpellElement;
 
 if (typeof window !== 'undefined') {
     window.ChronicleFilter = ChronicleFilter;

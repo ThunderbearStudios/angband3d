@@ -612,6 +612,9 @@ class InputController {
     }
 
     handleWorldKey(e) {
+        // Alt key combos are UI/application shortcuts (e.g. Alt+C toggle chronicle, Alt+P play/pause, Alt+[, Alt+]); ignore in world
+        if (e.altKey) return;
+
         // Minimap controls: Screen size ([ / ]) and Grid scale zoom (+ / -)
         if (e.key === '[') {
             e.preventDefault();

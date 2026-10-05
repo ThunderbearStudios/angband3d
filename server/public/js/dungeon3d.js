@@ -3853,15 +3853,50 @@ class Dungeon3D {
                 return this._itemAtlasLowerMap.get(lower);
             }
 
-            // 3. Substring & prefix lookup (handles enchantments, quantities, ego suffixes: e.g. "Long Sword (1d10)" -> "Long Sword")
+            // 3. Glyph-attuned synthesis for flavored items (e.g. "Steel" + '-' -> "Steel wand")
+            if (glyph) {
+                let syntheticCandidates = [];
+                if (glyph === '-') {
+                    syntheticCandidates = [`${lower} wand`, `${lower} rod`, `wand of ${lower}`, `rod of ${lower}`];
+                } else if (glyph === '_') {
+                    syntheticCandidates = [`${lower} staff`, `staff of ${lower}`];
+                } else if (glyph === '!') {
+                    syntheticCandidates = [`${lower} potion`, `potion of ${lower}`];
+                } else if (glyph === '?') {
+                    syntheticCandidates = [`${lower} scroll`, `scroll of ${lower}`, `scroll titled ${lower}`];
+                } else if (glyph === '=') {
+                    syntheticCandidates = [`${lower} ring`, `ring of ${lower}`];
+                } else if (glyph === '"') {
+                    syntheticCandidates = [`${lower} amulet`, `amulet of ${lower}`];
+                } else if (glyph === ']') {
+                    syntheticCandidates = [`pair of ${lower} boots`, `${lower} boots`, `${lower} shod boots`];
+                }
+
+                for (const cand of syntheticCandidates) {
+                    if (this._itemAtlasLowerMap.has(cand)) {
+                        return this._itemAtlasLowerMap.get(cand);
+                    }
+                }
+            }
+
+            // 4. Substring & prefix lookup (handles enchantments, quantities, ego suffixes: e.g. "Long Sword (1d10)" -> "Long Sword")
             for (const [k, v] of this._itemAtlasLowerMap.entries()) {
-                if (lower.startsWith(k) || lower.includes(k) || k.includes(lower)) {
+                if (lower.startsWith(k) || lower.includes(k)) {
                     return v;
+                }
+            }
+
+            // 5. Long-form reverse containment (ONLY if name is specific, >= 8 chars, and category matches)
+            if (lower.length >= 8 && !['steel', 'iron', 'leather', 'wooden', 'copper', 'golden'].includes(lower)) {
+                for (const [k, v] of this._itemAtlasLowerMap.entries()) {
+                    if (k.includes(lower)) {
+                        return v;
+                    }
                 }
             }
         }
 
-        // 4. Canonical glyph fallback (100% coverage across all 20 Angband item symbols)
+        // 6. Canonical glyph fallback (100% coverage across all 20 Angband item symbols)
         if (glyphs && glyph && glyphs[glyph]) {
             return glyphs[glyph];
         }
@@ -5645,8 +5680,8 @@ class Dungeon3D {
         } else if (lowerName.includes('hammer') || lowerName.includes('mace') || lowerName.includes('flail') || lowerName.includes('star') || lowerName.includes('club') || lowerName.includes('cudgel')) {
             tmpl = this.itemTemplates.get('hammer');
         }
-        // Weapons: Staves, Spears & Polearms
-        else if (g === '/' || g === '_' || g === '|' || lowerName.includes('spear') || lowerName.includes('lance') || lowerName.includes('pike') || lowerName.includes('trident') || lowerName.includes('staff')) {
+        // Devices & Polearms: Wands, Rods, Staves, Spears & Polearms
+        else if (g === '-' || g === '/' || g === '_' || g === '|' || lowerName.includes('spear') || lowerName.includes('lance') || lowerName.includes('pike') || lowerName.includes('trident') || lowerName.includes('staff') || lowerName.includes('wand') || lowerName.includes('rod')) {
             tmpl = this.itemTemplates.get('spear');
         }
         // Weapons: Scythes
@@ -5832,8 +5867,58 @@ class Dungeon3D {
             else if (g === '[' || g === '(') {
                 mesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.36, 0.08), mat);
             }
-            // Staves, Wands, Polearms (Glyphs '/', '_', '|')
-            else if (g === '/' || g === '_' || g === '|') {
+            // Wands & Rods (Glyph '-' or wand/rod keywords)
+            else if (g === '-' || lowerName.includes('wand') || lowerName.includes('rod')) {
+                const wandGroup = new THREE.Group();
+                const shaftMat = new THREE.MeshStandardMaterial({
+                    color: isMetal ? new THREE.Color(colorHex) : 0x5a3d28,
+                    metalness: isMetal ? 0.88 : 0.20,
+                    roughness: isMetal ? 0.25 : 0.65
+                });
+                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.020, 0.44, 12), shaftMat);
+                wandGroup.add(shaft);
+
+                // Glowing runic crystal tip
+                const tipMat = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(colorHex),
+                    emissive: new THREE.Color(colorHex),
+                    emissiveIntensity: 1.25,
+                    roughness: 0.15,
+                    metalness: 0.10
+                });
+                const tip = new THREE.Mesh(new THREE.OctahedronGeometry(0.035, 0), tipMat);
+                tip.position.y = 0.23;
+                wandGroup.add(tip);
+
+                // Metallic ferrule ring
+                const ferrule = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 10), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 }));
+                ferrule.position.y = 0.20;
+                wandGroup.add(ferrule);
+
+                mesh = wandGroup;
+            }
+            // Staves (Glyph '_' or staff keyword)
+            else if (g === '_' || lowerName.includes('staff')) {
+                const staffGroup = new THREE.Group();
+                const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a2e1b, roughness: 0.85, metalness: 0.05 });
+                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 0.72, 10), woodMat);
+                staffGroup.add(shaft);
+
+                const crownMat = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(colorHex),
+                    emissive: new THREE.Color(colorHex),
+                    emissiveIntensity: 0.85,
+                    metalness: 0.8,
+                    roughness: 0.25
+                });
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), crownMat);
+                head.position.y = 0.36;
+                staffGroup.add(head);
+
+                mesh = staffGroup;
+            }
+            // Polearms, Spears, Scythes (Glyphs '/', '|')
+            else if (g === '/' || g === '|') {
                 mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.55, 8), mat);
             }
             // Sling ammo / Pebbles / Stones / Rocks / Shots
