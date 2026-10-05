@@ -489,6 +489,7 @@
                 </button>
 
                 <div class="splash-shortcuts">
+                    <button class="splash-shortcut-btn" id="btn-splash-demo" style="border-color: #ffd700; color: #ffd700;"><kbd>[D]</kbd> 🎬 Gameplay Demo</button>
                     <button class="splash-shortcut-btn" id="btn-splash-menu"><kbd>[1]</kbd> Main Menu</button>
                     <button class="splash-shortcut-btn" id="btn-splash-features"><kbd>[2]</kbd> ✨ Key Features</button>
                     <button class="splash-shortcut-btn" id="btn-splash-chronicle"><kbd>[T]</kbd> 📖 Living Tome</button>
@@ -588,10 +589,18 @@
                             <span class="menu-desc" id="menu-pwa-desc">Download standalone offline Android APK or Windows PC client, or install as an app.</span>
                         </div>
                     </button>
+                    <button class="menu-option-btn" id="btn-menu-demo" data-index="8">
+                        <span class="menu-bullet">►</span>
+                        <span class="menu-num">[9]</span>
+                        <div class="menu-text-col">
+                            <span class="menu-label">🎬 Gameplay Demo &amp; Feature Showcase</span>
+                            <span class="menu-desc">Watch an autoplay 2.5-minute narrated commercial highlighting 0-turn yaw, ASCII terminal, and gotchas.</span>
+                        </div>
+                    </button>
                 </div>
 
                 <div class="main-menu-footer">
-                    <span>[↑/↓] Navigate &nbsp;•&nbsp; [1-8] Quick Select &nbsp;•&nbsp; [Enter/Space/Click] Choose &nbsp;•&nbsp; [Esc] Splash Screen</span>
+                    <span>[↑/↓] Navigate &nbsp;•&nbsp; [1-9] Quick Select &nbsp;•&nbsp; [Enter/Space/Click] Choose &nbsp;•&nbsp; [Esc] Splash Screen</span>
                 </div>
             </div>
         </div>
@@ -967,6 +976,74 @@
             </div>
         </div>
 
+        <!-- Gameplay Demo & Commercial Showcase Modal (YouTube-Grade Theater) -->
+        <div id="demo-modal" class="hidden">
+            <div class="demo-backdrop"></div>
+            <div class="demo-theater-container">
+                <button id="btn-demo-close" class="demo-close-btn" title="Close Demo (Esc)">✕</button>
+                <div class="demo-ambient-glow" id="demo-ambient-glow"></div>
+
+                <div class="demo-video-wrapper">
+                    <!-- HTML5 Video Component -->
+                    <video id="demo-video-player" playsinline preload="metadata">
+                        <source src="/assets/video/angband3d_demo.webm" type="video/webm">
+                        <source src="/assets/video/angband3d_demo.mp4" type="video/mp4">
+                    </video>
+
+                    <!-- Broadcast-Quality Canvas Reel Stage (60fps Scene Choreography) -->
+                    <canvas id="demo-canvas-stage" width="1280" height="720"></canvas>
+
+                    <!-- Closed Captions Overlay -->
+                    <div id="demo-captions-overlay" class="demo-captions-overlay"></div>
+
+                    <!-- Center Play/Pause Button Overlay -->
+                    <button id="demo-center-play" class="demo-center-play" title="Play Commercial">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+                    </button>
+
+                    <!-- YouTube-Grade Glassmorphic Transport Controls -->
+                    <div class="demo-transport-bar" id="demo-transport-bar">
+                        <div class="demo-scrubber-track" id="demo-scrubber-track">
+                            <div class="demo-scrubber-buffer" id="demo-scrubber-buffer"></div>
+                            <div class="demo-scrubber-progress" id="demo-scrubber-progress"></div>
+                            <div class="demo-scrubber-handle" id="demo-scrubber-handle"></div>
+                            <div class="demo-chapter-pips" id="demo-chapter-pips"></div>
+                            <div class="demo-scrubber-tooltip" id="demo-scrubber-tooltip">0:00</div>
+                        </div>
+
+                        <div class="demo-controls-row">
+                            <div class="demo-controls-left">
+                                <button id="demo-btn-play" class="demo-ctrl-btn" title="Play/Pause (Space)">▶</button>
+                                <button id="demo-btn-replay" class="demo-ctrl-btn" title="Replay from Beginning">↺</button>
+                                <div class="demo-volume-group">
+                                    <button id="demo-btn-mute" class="demo-ctrl-btn" title="Mute/Unmute (M)">🔊</button>
+                                    <input type="range" id="demo-volume-slider" min="0" max="100" value="85" class="demo-slider">
+                                </div>
+                                <span id="demo-timecode" class="demo-timecode">0:00 / 2:45</span>
+                            </div>
+
+                            <div class="demo-controls-right">
+                                <button id="demo-btn-cc" class="demo-ctrl-btn active" title="Subtitles &amp; Captions (C)">[CC]</button>
+                                <button id="demo-btn-fullscreen" class="demo-ctrl-btn" title="Toggle Fullscreen (F)">⛶</button>
+                                <button id="demo-btn-play-game" class="demo-btn-play-game btn-gold">⚔ Jump In &amp; Play</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chapter Jump Ribbon -->
+                <div class="demo-chapter-ribbon">
+                    <button class="demo-chapter-pill active" data-time="0">✨ Awakening</button>
+                    <button class="demo-chapter-pill" data-time="25">👀 Gotcha #1: 0-Turn Yaw</button>
+                    <button class="demo-chapter-pill" data-time="55">⌨ [Tab] ASCII Terminal</button>
+                    <button class="demo-chapter-pill" data-time="85">🎧 3D Spatial Audio</button>
+                    <button class="demo-chapter-pill" data-time="115">⚔ Vault Combat</button>
+                    <button class="demo-chapter-pill" data-time="140">📖 Living Chronicle</button>
+                    <button class="demo-chapter-pill" data-time="155">🚀 Universal Saves</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Player Capacity Queue Modal -->
         <div id="queue-modal" class="hidden">
             <div class="main-menu-card queue-card" style="max-width: 560px;">
@@ -1026,22 +1103,23 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=8.3.2"></script>
-    <script src="/js/mobile-overlay.js?v=8.3.2"></script>
-    <script src="/js/audio.js?v=8.3.2"></script>
-    <script src="/js/terminal.js?v=8.3.2"></script>
-    <script src="/js/dungeon3d.js?v=8.3.2"></script>
-    <script src="/js/hud.js?v=8.3.2"></script>
-    <script src="/js/network.js?v=8.3.2"></script>
-    <script src="/js/local_bridge.js?v=8.3.2"></script>
-    <script src="/js/input.js?v=8.3.2"></script>
+    <script src="/js/device.js?v=8.4.0"></script>
+    <script src="/js/mobile-overlay.js?v=8.4.0"></script>
+    <script src="/js/audio.js?v=8.4.0"></script>
+    <script src="/js/terminal.js?v=8.4.0"></script>
+    <script src="/js/dungeon3d.js?v=8.4.0"></script>
+    <script src="/js/hud.js?v=8.4.0"></script>
+    <script src="/js/network.js?v=8.4.0"></script>
+    <script src="/js/local_bridge.js?v=8.4.0"></script>
+    <script src="/js/input.js?v=8.4.0"></script>
+    <script src="/js/demo-player.js?v=8.4.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=8.3.2"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=8.3.2"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=8.3.2"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=8.3.2"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=8.3.2"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=8.3.2"></script>
-    <script src="/js/app.js?v=8.3.2"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=8.4.0"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=8.4.0"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=8.4.0"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=8.4.0"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=8.4.0"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=8.4.0"></script>
+    <script src="/js/app.js?v=8.4.0"></script>
 </body>
 </html>

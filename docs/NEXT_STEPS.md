@@ -1,8 +1,46 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.11.2 / Web v8.3.2 — Visual Vocal State Feedback, Skipped Action Taxonomy & Interruption Cues)
+## Current System State (Angband3D v2.12.0 / Web v8.4.0 — Autoplay Gameplay Commercial & Veteran Showcase Theater)
 
-0. **Visual Vocal State Feedback, Skipped Action Taxonomy & Interruption Cues (Version 2.11.2 / Web v8.3.2)**:
+0. **Autoplay Gameplay Commercial & Veteran Showcase Theater (Version 2.12.0 / Web v8.4.0)**:
+   - **Dedicated Main Menu & Splash Screen Entry Points**:
+     - *Main Menu Option [9]*: `#btn-menu-demo` added to `#main-menu-options`. Numbered `[9]` with keyboard shortcuts `9` and `d`/`D`.
+     - *Splash Screen Button*: `#btn-splash-demo` ("🎬 Watch Gameplay Demo [D]") positioned above credits/guide buttons with tactile gold styling and instant hotkey `D`.
+     - *Defensive Coordinator State Handling*: `appState === 'demoModal'` with full modal quarantine, closing cleanly back to the initiating menu state (`splash`, `mainMenu`, or `pauseMenu`).
+   - **YouTube-Grade Responsive Theater Experience (`demo-player.js`, `dungeon.css`)**:
+     - *16:9 Cinema Modal (`#demo-modal`)*: Fixed viewport container with ambient background glow (`.demo-ambient-glow`) adapting color to active dungeon act.
+     - *Interactive Scrubber & Chapter Ribbon*:
+       - Interactive timeline scrubber (`.demo-scrubber-track`) with hover time tooltip, progress gradient, buffer bar, and handle.
+       - Chapter tick marks (`.demo-chapter-pip`) and jump ribbon pills (`.demo-chapter-pill`) for instant act navigation.
+       - Timecode readout (`#demo-timecode`) displaying active time against 2m 45s total duration.
+     - *Closed Captions & Subtitles Engine*:
+       - Real-time closed captioning (`.demo-captions-overlay`) with speaker-specific color coding (Enceladus, Armourer, Snerk the Snaga, Young Red Dragon).
+       - CC toggle button (`[CC]`), volume slider, mute toggle, replay, and fullscreen mode (`⛶`).
+     - *Direct "Jump In & Play" CTA*: `#demo-btn-play-game` allows players to instantly transition from video/canvas showcase to playing the dungeon in 1 click.
+   - **Hybrid 60fps Broadcast Reel Engine**:
+     - High-definition procedural canvas renderer (`renderCanvas`) dynamically visualizing 7 distinct game acts:
+       1. *The Awakening (0-25s)*: Town square 360° panorama, cobblestone texture, store signs, torch glow.
+       2. *Gotcha #1: 0-Turn Camera Yaw (25-55s)*: 50ft Crypts dungeon corridor with freeze badge "0 GAME TURNS CONSUMED - MONSTERS FROZEN".
+       3. *The Dual Reality (55-85s)*: Real-time split screen showcasing 1-to-1 3D world vs authentic 80x24 Angband 4.2.6 CRT green-screen ASCII matrix (`Tab`).
+       4. *3D Spatial Stealth (85-115s)*: Subterranean stealth at 250ft with HRTF directional soundwave radar rings and misty infravision silhouette.
+       5. *Vault Combat & Tactical Roguelike (115-140s)*: 1000ft Red Dragon vault encounter with broadsword viewmodel, phase door escape, and lightning blast VFX.
+       6. *The Living Chronicle (140-155s)*: Illuminated Westmarch tome visualization with real-time soundwave visualizer and epic saga scribe.
+       7. *Universal Saves & Play Free (155-165s)*: Multi-platform `.sav` savefile transfer diagram (Web, PC, Android APK) with `SaveVNLA` binary compatibility callout.
+   - **Pre-Rendered Audio Stems & Subterranean Web Audio Reverb Bus**:
+     - Generated 10 broadcast-quality voice stems via `tools/generate_demo_audio.js` into `/assets/audio/demo/` with zero cloud API runtime dependencies.
+     - Web Audio sub-graph with algorithmic convolution reverb (10% wet) simulating natural subterranean stone reflections.
+   - **Server HTTP 206 Partial Content Range Streaming (`server.js`)**:
+     - Added video MIME types (`.webm`, `.mp4`, `.m4a`) with immutable caching headers.
+     - Implemented HTTP 206 Range request streaming for smooth video playback and random scrubbing.
+   - **Automated Verification**:
+     - `tools/test_demo_showcase.js`: 100% PASS (manifest schema, 10 audio stems, HTML DOM IDs, CSS selectors, JS syntax checks, HTTP 206 server streaming).
+     - `node server/test/server_test.js`: 20/20 unit tests PASS.
+     - `tools/test_vocal_exclusion.js`: 5/5 tests PASS.
+     - `tools/test_chronicle.js`: 36/36 verification phases PASS.
+     - `python tools/smoke_test.py`: 11/11 tests PASS.
+     - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
+
+1. **Visual Vocal State Feedback, Skipped Action Taxonomy & Interruption Cues (Version 2.11.2 / Web v8.3.2)**:
    - **Visual Voice Loading & Vocal State Pill (`#chronicle-vocal-pill`)**:
      - *In-Header Status Pill*: Added `#chronicle-vocal-pill` to `#chronicle-header-top`. Dynamically displays real-time state:
        - `.loading`: Amber/gold shimmer with rotating micro spinner (`<span class="voice-loading-spinner-micro"></span> Voicing...`) when synthesizing neural audio with Gemini.

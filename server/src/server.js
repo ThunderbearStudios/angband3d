@@ -1194,24 +1194,51 @@ const server = http.createServer((req, res) => {
             '.wav': 'audio/wav',
             '.ogg': 'audio/ogg',
             '.mp3': 'audio/mpeg',
+            '.webm': 'video/webm',
+            '.mp4': 'video/mp4',
+            '.m4a': 'audio/mp4',
         };
         const contentType = mimeTypes[ext] || 'application/octet-stream';
 
         // HTTP Caching Strategy:
         // - HTML, JS, CSS: no-cache, no-store, must-revalidate to ensure instant delivery of app updates
-        // - 3D Models, Textures, Audio: 24h caching (immutable static assets)
+        // - 3D Models, Textures, Audio, Video: 24h caching (immutable static assets)
         let cacheControl = 'no-cache, no-store, must-revalidate';
-        if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck', '.wav', '.ogg', '.mp3'].includes(ext)) {
+        if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck', '.wav', '.ogg', '.mp3', '.webm', '.mp4', '.m4a'].includes(ext)) {
             cacheControl = 'public, max-age=86400, immutable';
         }
 
         const headers = {
             'Content-Type': contentType,
             'Cache-Control': cacheControl,
+            'Accept-Ranges': 'bytes',
             // Cross-Origin Isolation headers required for Godot 4 WebAssembly multithreading/SharedArrayBuffer
             'Cross-Origin-Opener-Policy': 'same-origin',
             'Cross-Origin-Embedder-Policy': 'require-corp',
         };
+
+        // HTTP 206 Partial Content (Range Request) support for smooth video/audio seeking & scrubbing
+        const range = req.headers.range;
+        if (range && (ext === '.mp4' || ext === '.webm' || ext === '.mp3' || ext === '.wav' || ext === '.m4a')) {
+            try {
+                const stat = fs.statSync(filePath);
+                const total = stat.size;
+                const parts = range.replace(/bytes=/, '').split('-');
+                const start = parseInt(parts[0], 10);
+                const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
+                if (!isNaN(start) && start < total && end < total && start <= end) {
+                    const chunksize = (end - start) + 1;
+                    const stream = fs.createReadStream(filePath, { start, end });
+                    res.writeHead(206, {
+                        ...headers,
+                        'Content-Range': `bytes ${start}-${end}/${total}`,
+                        'Content-Length': chunksize,
+                    });
+                    stream.pipe(res);
+                    return;
+                }
+            } catch (_) {}
+        }
 
         // Gzip compression for text & code payloads (.html, .js, .css, .json, .obj, .mtl, .svg)
         const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg'].includes(ext);

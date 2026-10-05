@@ -723,6 +723,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const pauseModal = document.getElementById('pause-modal');
     const pauseCharDisplay = document.getElementById('pause-char-display');
     const pauseOptionBtns = document.querySelectorAll('#pause-menu-options .menu-option-btn');
+    const demoModal = document.getElementById('demo-modal');
 
     // Queue Modal DOM Elements
     const queueModal = document.getElementById('queue-modal');
@@ -779,6 +780,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (guideModal) guideModal.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
+        if (demoModal) demoModal.classList.add('hidden');
+        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
         if (queueModal) queueModal.classList.add('hidden');
         stopQueueTipRotation();
         if (terminalContainer) terminalContainer.classList.add('hidden');
@@ -793,6 +796,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (guideModal) guideModal.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
+        if (demoModal) demoModal.classList.add('hidden');
+        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
         if (queueModal) queueModal.classList.add('hidden');
         stopQueueTipRotation();
         if (terminalContainer) terminalContainer.classList.add('hidden');
@@ -813,6 +818,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
         if (guideModal) guideModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
+        if (demoModal) demoModal.classList.add('hidden');
+        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
         if (terminalContainer) terminalContainer.classList.add('hidden');
         const banner = document.getElementById('top-message-banner');
         if (banner) banner.style.display = 'none';
@@ -1210,6 +1217,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (splashOverlay) splashOverlay.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (guideModal) guideModal.classList.add('hidden');
+        if (demoModal) demoModal.classList.add('hidden');
+        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
         const banner = document.getElementById('top-message-banner');
         if (banner) banner.style.display = 'none';
         if (input) input.setTerminalMode(false);
@@ -1315,6 +1324,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
         if (splashOverlay) splashOverlay.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
+        if (demoModal) demoModal.classList.add('hidden');
+        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
         if (terminalContainer) terminalContainer.classList.add('hidden');
         const banner = document.getElementById('top-message-banner');
         if (banner) banner.style.display = 'none';
@@ -1452,6 +1463,9 @@ window.addEventListener('DOMContentLoaded', () => {
             case 7: // Option [8]: Standalone Apps & Downloads (Android / PC)
                 showPWAModal('mainMenu');
                 break;
+            case 8: // Option [9]: 🎬 Gameplay Demo & Commercial Showcase
+                showDemoModal('mainMenu');
+                break;
         }
     }
 
@@ -1482,6 +1496,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (guideModal) guideModal.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
+        if (demoModal) demoModal.classList.add('hidden');
+        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
         if (queueModal) queueModal.classList.add('hidden');
         stopQueueTipRotation();
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
@@ -1528,6 +1544,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (loadingOverlay) loadingOverlay.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
+        if (demoModal) demoModal.classList.add('hidden');
+        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
 
         showMainMenu();
     }
@@ -1605,6 +1623,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnSplashCredits = document.getElementById('btn-splash-credits');
     bindFastTap(btnSplashCredits, () => showGuide(6, 'splash'));
 
+    const btnSplashDemo = document.getElementById('btn-splash-demo');
+    if (btnSplashDemo) bindFastTap(btnSplashDemo, () => showDemoModal('splash'));
+
     const btnSplashStandalone = document.getElementById('btn-splash-standalone');
     if (btnSplashStandalone) bindFastTap(btnSplashStandalone, () => showPWAModal('splash'));
 
@@ -1613,6 +1634,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const btnMenuPwa = document.getElementById('btn-menu-pwa');
     if (btnMenuPwa) bindFastTap(btnMenuPwa, () => showPWAModal('mainMenu'));
+
+    const btnMenuDemo = document.getElementById('btn-menu-demo');
+    if (btnMenuDemo) bindFastTap(btnMenuDemo, () => showDemoModal('mainMenu'));
 
     // Audio Volume & Mute Control Synchronization
     function syncAudioUI() {
@@ -2319,11 +2343,55 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Gameplay Demo & Commercial Showcase Modal Handlers
+    let demoPreviousState = 'mainMenu';
+
+    function showDemoModal(fromState = null) {
+        demoPreviousState = fromState || appState || 'mainMenu';
+        appState = 'demoModal';
+        if (demoModal) demoModal.classList.remove('hidden');
+        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
+        if (splashOverlay) splashOverlay.classList.add('hidden');
+        if (guideModal) guideModal.classList.add('hidden');
+        if (loadModal) loadModal.classList.add('hidden');
+        if (pauseModal) pauseModal.classList.add('hidden');
+        if (pwaModal) pwaModal.classList.add('hidden');
+        if (queueModal) queueModal.classList.add('hidden');
+        stopQueueTipRotation();
+        if (terminalContainer) terminalContainer.classList.add('hidden');
+        const banner = document.getElementById('top-message-banner');
+        if (banner) banner.style.display = 'none';
+        if (input) input.setTerminalMode(false);
+        if (audio) audio.playMenuOpen();
+
+        if (window.demoPlayer && typeof window.demoPlayer.open === 'function') {
+            window.demoPlayer.open(demoPreviousState);
+        }
+    }
+
+    function hideDemoModal() {
+        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') {
+            window.demoPlayer.close();
+        } else if (demoModal) {
+            demoModal.classList.add('hidden');
+        }
+        if (audio) audio.playMenuNav();
+        if (demoPreviousState === 'splash') {
+            showSplash();
+        } else if (demoPreviousState === 'pauseMenu') {
+            showPauseMenu();
+        } else {
+            showMainMenu();
+        }
+    }
+
     // Expose full coordinator interface to window.__app for input controller
     Object.assign(window.__app, {
         getAppState: () => appState,
         showSplash,
         showMainMenu,
+        showDemoModal,
+        hideDemoModal,
         showLoadMenu,
         hideLoadMenu,
         showPWAModal,
