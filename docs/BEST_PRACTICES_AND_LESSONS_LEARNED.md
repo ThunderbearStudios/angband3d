@@ -24,6 +24,12 @@
 16. [Hybrid 2.5D/3D PBR Visual Architecture, 4096 HD Atlases, De-Fringing & Lore Invariants](#16-hybrid-25d3d-pbr-visual-architecture-4096-hd-atlases-de-fringing--lore-invariants)
 17. [Tactical Combat Narrative & Item Resolution Architecture](#17-tactical-combat-narrative--item-resolution-architecture-v270--web-v790)
 18. [Seamless Vocal Handoff Architecture & Contextual Tolkien Lore Grounding](#18-seamless-vocal-handoff-architecture--contextual-tolkien-lore-grounding-v280--web-v800)
+19. [Dynamic Story Catch-Up Engine & Tolkien Saga Context Consolidation Architecture](#19-dynamic-story-catch-up-engine--tolkien-saga-context-consolidation-architecture-v290--web-v810)
+20. [Bidirectional Passage Tracking, Card Play/Pause Controller & Previous Point Playback](#20-bidirectional-passage-tracking-card-playpause-controller--previous-point-playback-architecture-v2100--web-v820)
+21. [Core Movement Input Disambiguation & Safe Transport Hotkeys](#21-core-movement-input-disambiguation--safe-transport-hotkeys-v2110--web-v830)
+22. [Absolute Vocal Mutual Exclusion & Zero Concurrent Voice Overlap](#22-absolute-vocal-mutual-exclusion--zero-concurrent-voice-overlap-v2111--web-v831)
+23. [Visual Vocal Telemetry, Skipped Event Taxonomy & Real-Time Interruption Context Architecture](#23-visual-vocal-telemetry-skipped-event-taxonomy--real-time-interruption-context-architecture-v2112--web-v832)
+24. [YouTube-Grade In-Engine Gameplay Commercial & Veteran Theater Showcase Architecture](#24-youtube-grade-in-engine-gameplay-commercial--veteran-theater-showcase-architecture-v2120--web-v840)
 
 ---
 
@@ -945,3 +951,46 @@ In turn-based roguelikes paired with real-time neural speech, players frequently
    - When preemption occurs, the previously active story card receives `.is-interrupted` styling (warm amber edge).
    - Injects `<span class="badge-interrupted">⚡ Interrupted (+{SkippedSummary})</span>` before the play button.
    - For dialogue beats, appends `<div class="dialogue-cut-short-note"><em>— Voice trailed off as the battle pressed onward —</em></div>`.
+
+---
+
+## 24. YouTube-Grade In-Engine Gameplay Commercial & Veteran Theater Showcase Architecture (v2.12.0 / Web v8.4.0)
+
+### 24.1 Design Motivation & The Roguelike Veteran Conversion Funnel
+Traditional roguelike veterans (Angband, NetHack, DCSS, Moria) are instinctively skeptical of 3D adaptations, fearing dumbed-down action combat, loss of tactical turn pacing, or superficial graphics replacing deep emergent mechanics.
+- **The Core Objective**: Provide an instant, autoplay commercial and feature tour that directly addresses the top veteran gotchas within the first 60 seconds:
+  1. *Gotcha #1: 0-Turn Camera Yaw* — Panning around consumes zero game turns; time remains frozen until a step or action is taken.
+  2. *Gotcha #2: The Dual Reality (`Tab`)* — Instantaneous 1-to-1 switch between 3D view and the authentic 80x24 Angband 4.2.6 ASCII CRT terminal.
+  3. *Gotcha #3: 3D Spatial Audio & Darkness* — Hearing creatures around blind corners before line-of-sight.
+  4. *Gotcha #4: Authoritative 4.2.6 Engine & Universal Saves* — `SaveVNLA` binary saves transfer freely across Web, PC, and Android APK.
+  5. *Gotcha #5: The Living Chronicle* — Generative illuminated Westmarch saga and voiced lorekeeper.
+
+### 24.2 Broadcast-Quality Audio & Pre-Buffered Zero-Latency Assets
+To guarantee broadcast quality with zero runtime API failure or network lag:
+1. **Pre-Buffered Neural Voice Stems**:
+   - Master voice stems are pre-rendered into `/assets/audio/demo/` using Microsoft Edge Neural TTS:
+     - Enceladus (Elder British Chronicler): `en-GB-RyanNeural`
+     - Armourer (Town merchant): `en-IE-ConnorNeural`
+     - Snerk the Snaga (Subterranean goblin): `en-GB-ThomasNeural`
+     - Young Red Dragon (Deep vault guardian): `en-US-ChristopherNeural`
+   - Generated with Node 18 `globalThis.crypto` polyfill via `tools/generate_demo_audio.js`.
+2. **Subterranean Algorithmic Convolver Sub-Graph**:
+   - Audio routes through an in-memory Web Audio `ConvolverNode` with a procedurally synthesized exponential decay impulse response (10% wet) to emulate damp dungeon stone acoustic reflections.
+
+### 24.3 Hybrid 60fps Broadcast Reel Engine
+1. **Procedural Multi-Act Canvas Engine**:
+   - If an external video stream (`demo.mp4`/`demo.webm`) is unavailable, `demo-player.js` runs a 60fps procedural canvas renderer visualizing authentic gameplay across 7 acts:
+     - Act 1: *The Awakening (0-25s)* — Town square 360° pan, cobblestones, shop signs, torchlight.
+     - Act 2: *Gotcha #1: 0-Turn Camera Yaw (25-55s)* — 50ft Crypts corridor with "0 GAME TURNS CONSUMED" badge and frozen spider.
+     - Act 3: *The Dual Reality (55-85s)* — Split screen comparing 3D viewport with authentic CRT 80x24 green-screen terminal (`Tab`).
+     - Act 4: *3D Spatial Stealth (85-115s)* — 250ft dungeon with HRTF directional radar rings and misty infravision silhouette.
+     - Act 5: *Vault Combat & Tactics (115-140s)* — 1000ft Red Dragon vault encounter with broadsword viewmodel, phase door escape, and lightning blast VFX.
+     - Act 6: *The Living Chronicle (140-155s)* — Illuminated Westmarch tome with real-time soundwave equalizer.
+     - Act 7: *Universal Saves & Play Free (155-165s)* — Multi-platform save file transfer diagram and instant launch CTA.
+
+### 24.4 Interactive Theater Transport & Accessibility
+- **Interactive Scrubber**: Timeline hover tooltip with timecode, buffered progress bar, chapter tick markers, and chapter ribbon pills.
+- **Ambient Mode Glow**: `.demo-ambient-glow` smoothly blends background lighting based on active act mood.
+- **Timed Subtitles**: `.demo-captions-overlay` color-coded by speaker (`.speaker-bard`, `.speaker-dragon`, etc.).
+- **HTTP 206 Partial Content Streaming**: Server delivers media via byte-range requests (`Accept-Ranges: bytes`) for instant scrubbing.
+- **Direct Conversion CTA**: `#demo-btn-play-game` launches a new random hero directly into the dungeon with zero friction.

@@ -217,6 +217,11 @@ class InputController {
 
             // 1. Splash Screen Mode: Any key continues to Main Menu (matches Godot SplashContinueRequested)
             if (appState === 'splash') {
+                if (e.key === 'd' || e.key === 'D') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.showDemoModal) window.__app.showDemoModal('splash');
+                    return;
+                }
                 if (e.key === '2' || e.key === 'g' || e.key === 'G') {
                     e.preventDefault();
                     if (window.__app) window.__app.showGuide(0, 'splash');
@@ -265,7 +270,12 @@ class InputController {
                     if (window.__app) window.__app.navigateMenu(1);
                     return;
                 }
-                if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(e.key)) {
+                if (e.key === 'd' || e.key === 'D') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.showDemoModal) window.__app.showDemoModal('mainMenu');
+                    return;
+                }
+                if (['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(e.key)) {
                     e.preventDefault();
                     const idx = parseInt(e.key, 10) - 1;
                     if (window.__app) {
@@ -277,6 +287,57 @@ class InputController {
                 if (e.key === ' ' || e.key === 'Enter') {
                     e.preventDefault();
                     if (window.__app) window.__app.activateMenuItem();
+                    return;
+                }
+                return;
+            }
+
+            // Demo Showcase Modal Keyboard Routing
+            if (appState === 'demoModal') {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.hideDemoModal) window.__app.hideDemoModal();
+                    return;
+                }
+                if (e.key === ' ' || e.key === 'k' || e.key === 'K') {
+                    e.preventDefault();
+                    if (window.demoPlayer) window.demoPlayer.togglePlay();
+                    return;
+                }
+                if (e.key === 'ArrowLeft' || e.key === 'j' || e.key === 'J') {
+                    e.preventDefault();
+                    if (window.demoPlayer) window.demoPlayer.seekDelta(-5);
+                    return;
+                }
+                if (e.key === 'ArrowRight' || e.key === 'l' || e.key === 'L') {
+                    e.preventDefault();
+                    if (window.demoPlayer) window.demoPlayer.seekDelta(5);
+                    return;
+                }
+                if (e.key === 'm' || e.key === 'M') {
+                    e.preventDefault();
+                    if (window.demoPlayer) window.demoPlayer.toggleMute();
+                    return;
+                }
+                if (e.key === 'c' || e.key === 'C') {
+                    e.preventDefault();
+                    if (window.demoPlayer) window.demoPlayer.toggleCaptions();
+                    return;
+                }
+                if (e.key === 'f' || e.key === 'F') {
+                    e.preventDefault();
+                    if (window.demoPlayer) window.demoPlayer.toggleFullscreen();
+                    return;
+                }
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (window.demoPlayer) window.demoPlayer.jumpInAndPlay();
+                    return;
+                }
+                if (['1', '2', '3', '4', '5', '6', '7'].includes(e.key)) {
+                    e.preventDefault();
+                    const chapIdx = parseInt(e.key, 10) - 1;
+                    if (window.demoPlayer) window.demoPlayer.jumpToChapter(chapIdx);
                     return;
                 }
                 return;

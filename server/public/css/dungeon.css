@@ -5153,3 +5153,389 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 .queue-lore-box {
     transition: opacity 0.3s ease;
 }
+
+/* ==============================================================================
+   Gameplay Demo & Commercial Showcase Modal — YouTube-Grade Theater Player
+   ============================================================================== */
+#demo-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9600;
+}
+
+#demo-modal.hidden {
+    display: none !important;
+}
+
+.demo-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(4, 6, 12, 0.90);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.demo-theater-container {
+    position: relative;
+    width: 92%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 2;
+    animation: demo-fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes demo-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.demo-ambient-glow {
+    position: absolute;
+    top: -24px;
+    left: -24px;
+    right: -24px;
+    bottom: 40px;
+    z-index: -1;
+    filter: blur(60px);
+    opacity: 0.65;
+    pointer-events: none;
+    transition: background 0.8s ease;
+    border-radius: 20px;
+}
+
+.demo-close-btn {
+    position: absolute;
+    top: -38px;
+    right: 0;
+    background: none;
+    border: none;
+    color: var(--gold-bright);
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    transition: transform 0.15s, color 0.15s;
+}
+
+.demo-close-btn:hover {
+    transform: scale(1.15);
+    color: #ffffff;
+}
+
+.demo-video-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #040508;
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 35px rgba(212, 175, 55, 0.2);
+}
+
+#demo-video-player,
+#demo-canvas-stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+}
+
+.demo-center-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(212, 175, 55, 0.92);
+    color: #0b0f19;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.7);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s;
+    z-index: 15;
+}
+
+.demo-center-play:hover {
+    transform: translate(-50%, -50%) scale(1.1);
+    background: #ffd700;
+}
+
+.demo-center-play.hidden {
+    display: none !important;
+}
+
+.demo-center-play svg {
+    width: 32px;
+    height: 32px;
+    margin-left: 4px;
+}
+
+/* Captions Overlay */
+.demo-captions-overlay {
+    position: absolute;
+    bottom: 64px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 12;
+    transition: opacity 0.2s ease;
+}
+
+.demo-captions-overlay:not(.visible) {
+    display: none;
+}
+
+.demo-caption-bubble {
+    background: rgba(8, 11, 20, 0.92);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-family: var(--font-ui);
+    font-size: 14.5px;
+    color: #f8fafc;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+    max-width: 82%;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+    line-height: 1.45;
+}
+
+.demo-caption-speaker {
+    font-weight: 700;
+    margin-right: 6px;
+}
+
+.speaker-bard { color: var(--gold-bright); }
+.speaker-dragon { color: #f87171; }
+.speaker-goblin { color: #c084fc; }
+.speaker-npc { color: #38bdf8; }
+
+/* YouTube-Grade Glassmorphic Transport Bar */
+.demo-transport-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(4, 6, 12, 0.96), rgba(4, 6, 12, 0.6) 70%, transparent);
+    padding: 10px 18px 12px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.demo-scrubber-track {
+    position: relative;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: height 0.15s ease;
+}
+
+.demo-scrubber-track:hover {
+    height: 9px;
+}
+
+.demo-scrubber-buffer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.35);
+    border-radius: 3px;
+    width: 0%;
+}
+
+.demo-scrubber-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #d4af37, #ffd700);
+    border-radius: 3px;
+    width: 0%;
+}
+
+.demo-scrubber-handle {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ffd700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    pointer-events: none;
+    transition: transform 0.1s ease;
+}
+
+.demo-scrubber-track:hover .demo-scrubber-handle {
+    transform: translate(-50%, -50%) scale(1.25);
+}
+
+.demo-chapter-pip {
+    position: absolute;
+    top: 0;
+    width: 3px;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.demo-scrubber-tooltip {
+    position: absolute;
+    bottom: 18px;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid var(--gold-bright);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11.5px;
+    font-family: var(--font-terminal);
+    color: var(--gold-bright);
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+    white-space: nowrap;
+}
+
+.demo-scrubber-tooltip.visible {
+    display: block;
+}
+
+.demo-controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.demo-controls-left,
+.demo-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.demo-ctrl-btn {
+    background: none;
+    border: none;
+    color: #e2e8f0;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.demo-ctrl-btn:hover {
+    color: var(--gold-bright);
+    background: rgba(212, 175, 55, 0.15);
+}
+
+.demo-ctrl-btn.active {
+    color: var(--gold-bright);
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+.demo-timecode {
+    font-family: var(--font-terminal);
+    font-size: 12.5px;
+    color: #94a3b8;
+    margin-left: 4px;
+    letter-spacing: 0.5px;
+}
+
+.demo-volume-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.demo-slider {
+    width: 72px;
+    accent-color: var(--gold-bright);
+    cursor: pointer;
+    height: 4px;
+}
+
+.demo-btn-play-game {
+    font-size: 12.5px;
+    padding: 6px 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+}
+
+/* Chapter Jump Ribbon */
+.demo-chapter-ribbon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    width: 100%;
+}
+
+.demo-chapter-pill {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.demo-chapter-pill:hover {
+    background: rgba(212, 175, 55, 0.2);
+    border-color: var(--gold-bright);
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.demo-chapter-pill.active {
+    background: rgba(212, 175, 55, 0.35);
+    border-color: var(--gold-bright);
+    color: var(--gold-bright);
+    font-weight: 700;
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.35);
+}
+

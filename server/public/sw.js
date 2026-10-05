@@ -1,11 +1,12 @@
-// Angband3D Service Worker — v8.3.2 PWA & Standalone Client Caching
-const CACHE_NAME = 'angband3d-v8.3.2';
+// Angband3D Service Worker — v8.4.0 PWA & Standalone Client Caching
+const CACHE_NAME = 'angband3d-v8.4.0';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/css/dungeon.css',
   '/css/chronicle.css',
+  '/js/demo-player.js',
   '/js/chronicle/chronicle-store.js',
   '/js/chronicle/chronicle-grounder.js',
   '/js/chronicle/chronicle-filter.js',
