@@ -25,7 +25,14 @@
      - `server/public/assets/video/angband3d_demo.mp4` (172.94 MB, 1080p H.264 / AAC, 255.0s).
      - `server/public/assets/video/angband3d_demo.webm` (165.88 MB, 1080p VP9 / Opus, 255.0s).
      - 12 verified keyframe captures in `server/public/assets/video/frames/` (including `act0_thunderbear_intro.png` and `act8_outro_thunderbear.png`).
+   - **Live Production Multi-Region Deployment on `https://angband3d.com`**:
+     - `angband3d-cloud` (us-central1): Revision `angband3d-cloud-00099-t7d` serving 100% of traffic.
+     - `angband3d-cloud` (us-east1): Revision `angband3d-cloud-00026-pkz` serving 100% of traffic.
+     - `angband3d-web` (us-central1): Revision `angband3d-web-00031-v76` serving 100% of traffic.
+     - Live verified at `https://angband3d.com/demo` (with aliases `/watch` and `/showcase`).
+     - Full HTTP 206 Partial Content range streaming verified for `https://angband3d.com/assets/video/angband3d_demo.mp4`.
    - **Automated Verification Suites**:
+     - `tools/test_cloud_live_demo.js`: 100% PASS against `https://angband3d.com` and all regional Cloud Run backends.
      - `tools/test_demo_showcase.js`: 7/7 suites PASS.
      - `python tools/smoke_test.py`: 11/11 tests PASS.
      - `dotnet build client/angband3d.csproj`: 0 Errors, 0 Warnings.
