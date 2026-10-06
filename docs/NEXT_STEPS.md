@@ -1,8 +1,39 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.13.0 / Web v8.5.0 — Dedicated /demo Showcase, Controls Underneath, Thunderbear Studios Branding & 4m 15s Full-Length Master Video)
+## Current System State (Angband3D v2.13.2 / Web v8.5.2 — Cinematic Presentation Intro, Action-Packed Town & Crypts Combat Showcase)
 
-0. **Full-Length 4m 15s Gameplay Commercial, Standalone Showcase & Native Parity (v2.13.0 / Web v8.5.0)**:
+0. **Cinematic Presentation Intro, Action-Packed Town & Crypts Combat Showcase (v2.13.2 / Web v8.5.2)**:
+   - **Act 0 (Theatrical Thunderbear Presentation)**:
+     - Upgraded intro title card with radial vignetting (`#0a0f1d` to `#030508`), glowing amber aura around the Thunderbear Studios insignia, Cinzel gold typography, and an illuminated `ANGBAND 3D` presentation sub-title before smoothly fading into the town square.
+   - **Act 1: Awakening & Town Action (0:03.8 - 0:32.0, demo_town)**:
+     - Camera starts tilted upward at the twinkling starry night sky over the cobblestone town square (`yaw = -0.38 * PI`, `pitch = 0.20`), smoothly descending over 4.5s onto the avenue facing `[2] ARMOURY` and `[3] WEAPON SMITHS`.
+     - High-action blade readiness: Unsheathes blade with metallic foley (`playEquipWeapon`), executes dual melee practice slashes with blade audio (`triggerAttackAnimation`, `playWhoosh`), and channels a Necromantic spell aura raising both hands with purple arcane spark particles (`spawnHitSparks`) and floating `'SHADOW VEIL'` text.
+     - Natural town exploration: Glances South-East across the courtyard toward Farmer Maggot and his scruffy little dog (both rendered as crisp 2.5D Shockbolt PBR billboards with real-time dialogue in the message feed: *"Farmer Maggot wants his mushrooms back"*), re-centers North, and strides purposefully along the cobblestones: `(22, 8)` -> `(22, 7)` -> `(23, 7)` -> `(24, 7)`.
+     - Inspects the timbered Armoury storefront, turns North `(24, 6)` -> `(24, 5)` -> `(25, 5)` -> `(25, 4)` directly onto the ancient stone staircase (`>`).
+     - Action bar illuminates `↓ ENTER DUNGEON [>]`, Ostirch gazes down into the dark stairwell abyss (`pitch = -0.22`), triggers stone stairs descent audio (`playStairs`), and plunges into the Crypts at 32.0s.
+   - **Act 2: The Crypts, 0-Turn Yaw & Authentic Combat (0:32.0 - 1:04.0, demo_crypt, 50ft)**:
+     - High-Elf Paladin Renwe steps into DL 1 (50ft) with burning wooden torch, framing the slumbering `small kobold` (`Zzz...`, 6/6 HP) down the stone corridor.
+     - Demonstrates Gotcha #1 (0-Turn Camera Yaw) with a smooth 360° panoramic sweep around pillars, stone archways, and vaulted ceilings while the kobold remains completely frozen in time.
+     - Melee Combat: Enceladus concludes *"...the world moves only when you take a step"*. Renwe steps South (`sendKey('down')`) waking the kobold, lands Strike 1 (`'HIT'` floating text, hit sparks, impact SFX), and lands Strike 2 finishing blow (`'SLAIN'`, monster death vocal, billboard fades, EXP bar jumps to `5/14`, 45 copper gold pieces drop on floor).
+     - Floor Looting: Renwe advances into the defeated foe's tile, turns toward the floor scroll, steps directly onto `(72, 55)`, logs *"You see a Scroll titled 'situm ut bio'"*, and loots it with `g` (`'SCROLL ACQUIRED'`, pickup SFX, gold up to 340 AU), before turning West to gaze down the vaulted hallway toward distant glowing potions.
+   - **Full Master Broadcast Video Rendered**:
+     - `server/public/assets/video/angband3d_demo.mp4` (166.84 MB, 1080p H.264 / AAC, faststart atom).
+     - `server/public/assets/video/angband3d_demo.webm` (142.67 MB, 1080p VP9 / Opus).
+     - Extracted and verified 10 keyframes (`kf_01_intro.png` through `kf_10_dual_reality.png`).
+   - **Automated Verification Pass**:
+     - `tools/test_cloud_live_demo.js`: 100% PASS against `https://angband3d.com` and all regional Cloud Run backends.
+     - `node tools/test_demo_showcase.js`: 7/7 suites PASS.
+     - `python tools/smoke_test.py`: 11/11 tests PASS.
+     - `dotnet build client/angband3d.csproj`: 0 Errors, 0 Warnings.
+   - **Live Production Multi-Region Deployment on `https://angband3d.com`**:
+     - Container image: `gcr.io/resonant-1679933304535/angband3d-cloud:latest` (`sha256:296b7da6948ecaf7a55a5a5ad128eaa7222116a04f54c6faf406b5dc17b096fb`).
+     - `angband3d-cloud` (us-central1): Revision `angband3d-cloud-00101-ggj` serving 100% of traffic.
+     - `angband3d-cloud` (us-east1): Revision `angband3d-cloud-00028-ctb` serving 100% of traffic.
+     - `angband3d-web` (us-central1): Revision `angband3d-web-00033-jzz` serving 100% of traffic.
+     - Live verified at `https://angband3d.com` and `https://angband3d.com/demo`.
+     - Full HTTP 206 Partial Content range streaming verified for `https://angband3d.com/assets/video/angband3d_demo.mp4`.
+
+1. **Full-Length 4m 15s Gameplay Commercial, Standalone Showcase & Native Parity (v2.13.0 / Web v8.5.0)**:
    - **Extended 255.0s Master Video (Zero Cutoffs & No Audio Truncation)**:
      - Extended video timeline to 255.0s (4m 15s) with `-shortest` removed from FFmpeg muxing commands, guaranteeing complete playback of all 12 Gemini voice stems through Enceladus's final outro line (*"...if you dare!"* at 241.3s) and a 14s outro card hold before fading to black.
      - Act 0 (0:00 - 0:03.8): Theatrical intro card featuring the official **Thunderbear Studios** paw-and-crossbones logo (`/assets/thunderbear_logo.png`, 140px, gold radial aura) and Cinzel gold typography (*"THUNDERBEAR STUDIOS PRESENTS"*), gently fading into the live 3D Town cobblestone streets.

@@ -5,20 +5,20 @@
   "chapters": [
     {
       "id": "awakening",
-      "title": "Act 1: Action Hook & Town Departure",
+      "title": "Act 1: Awakening & Town Preparation",
       "start": 0,
-      "end": 41.5
+      "end": 32.0
     },
     {
       "id": "gotcha_yaw",
-      "title": "Act 2: Gotcha #1: 0-Turn Camera Yaw",
-      "start": 41.5,
-      "end": 63.5
+      "title": "Act 2: The Crypts & 0-Turn Camera Yaw",
+      "start": 32.0,
+      "end": 64.0
     },
     {
       "id": "dual_reality",
       "title": "Act 3: Seamless Dual Reality & Classic Sizzle",
-      "start": 63.5,
+      "start": 64.0,
       "end": 105.0
     },
     {
@@ -57,7 +57,7 @@
       "id": "clip_01_awakening",
       "file": "clip_01_awakening.wav",
       "start": 3.8,
-      "duration": 20.88,
+      "duration": 13.52,
       "speaker": "Enceladus",
       "voice": "Enceladus",
       "chapter": "awakening"
@@ -65,8 +65,8 @@
     {
       "id": "clip_02_town_quote",
       "file": "clip_02_town_quote.wav",
-      "start": 25.8,
-      "duration": 13.76,
+      "start": 17.8,
+      "duration": 14.16,
       "speaker": "Enceladus",
       "voice": "Enceladus",
       "chapter": "awakening"
@@ -74,8 +74,8 @@
     {
       "id": "clip_03_gotcha_yaw",
       "file": "clip_03_gotcha_yaw.wav",
-      "start": 41.5,
-      "duration": 19.76,
+      "start": 34.0,
+      "duration": 20.48,
       "speaker": "Enceladus",
       "voice": "Enceladus",
       "chapter": "gotcha_yaw"
@@ -83,8 +83,8 @@
     {
       "id": "clip_04_dual_reality",
       "file": "clip_04_dual_reality.wav",
-      "start": 63.5,
-      "duration": 23.72,
+      "start": 64.0,
+      "duration": 24.56,
       "speaker": "Enceladus",
       "voice": "Enceladus",
       "chapter": "dual_reality"
@@ -93,7 +93,7 @@
       "id": "clip_05_kore_terminal",
       "file": "clip_05_kore_terminal.wav",
       "start": 89.0,
-      "duration": 15.16,
+      "duration": 16.08,
       "speaker": "Enceladus",
       "voice": "Enceladus",
       "chapter": "dual_reality"
@@ -170,49 +170,43 @@
       "text": "Deep in the forgotten vaults of Morgoth, ancient terror stirs!"
     },
     {
-      "start": 10.3,
-      "end": 16.8,
+      "start": 10.1,
+      "end": 17.3,
       "speaker": "Enceladus",
-      "text": "Lightning wands cleave the gloom, blades clash against draconic scales..."
+      "text": "Thirty years of legendary roguelike history are reborn in first-person 3D."
     },
     {
-      "start": 17.3,
-      "end": 24.6,
-      "speaker": "Enceladus",
-      "text": "And thirty years of legendary roguelike history are reborn in first-person 3D."
-    },
-    {
-      "start": 25.8,
-      "end": 32.3,
+      "start": 17.8,
+      "end": 24.5,
       "speaker": "Enceladus",
       "text": "Welcome to Angband. Every journey begins under the stars of the town square."
     },
     {
-      "start": 32.8,
-      "end": 39.5,
+      "start": 24.8,
+      "end": 31.8,
       "speaker": "Enceladus",
       "text": "Stock your pack at the armory, ready your spells, and plunge into the deep."
     },
     {
-      "start": 41.5,
-      "end": 47.5,
+      "start": 34.0,
+      "end": 39.8,
       "speaker": "Enceladus",
       "text": "Rule number one for the veteran: looking around will not get you killed."
     },
     {
-      "start": 48.0,
-      "end": 52.5,
+      "start": 40.2,
+      "end": 44.5,
       "speaker": "Enceladus",
       "text": "Camera yaw costs precisely zero turns."
     },
     {
-      "start": 53.0,
-      "end": 61.2,
+      "start": 45.0,
+      "end": 54.5,
       "speaker": "Enceladus",
       "text": "Pan the darkness, inspect every corridor, scout the pillars—the world moves only when you take a step."
     },
     {
-      "start": 63.5,
+      "start": 64.0,
       "end": 71.0,
       "speaker": "Enceladus",
       "text": "Miss your glyphs? Fear losing your classic overview? Press Tab."

@@ -17,7 +17,7 @@ const clips = [
         id: 'clip_01_awakening',
         voice: 'Enceladus',
         directorNote: 'master chronicler, warm resonant British narrator, dramatic energetic storytelling tone',
-        text: 'Deep in the forgotten vaults of Morgoth, ancient terror stirs! Lightning wands cleave the gloom, blades clash against draconic scales, and thirty years of legendary roguelike history are reborn in first-person 3D.'
+        text: 'Deep in the forgotten vaults of Morgoth, ancient terror stirs! Thirty years of legendary roguelike history are reborn in first-person 3D.'
     },
     {
         id: 'clip_02_town_quote',
