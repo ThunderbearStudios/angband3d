@@ -119,7 +119,7 @@ console.log('✓ server.js contains HTTP 206 Range streaming support');
 
 console.log('\n=== [6] Verifying 1080p Actual Gameplay Video Assets ===');
 const videoDir = path.join(__dirname, '..', 'server', 'public', 'assets', 'video');
-const videoFiles = ['angband3d_demo.mp4', 'angband3d_demo.webm'];
+const videoFiles = ['angband3d_demo.mp4', 'angband3d_demo.webm', 'angband3d_demo_v852.mp4', 'angband3d_demo_v852.webm'];
 for (const vFile of videoFiles) {
     const full = path.join(videoDir, vFile);
     if (!fs.existsSync(full)) {

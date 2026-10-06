@@ -26,12 +26,12 @@
      - `python tools/smoke_test.py`: 11/11 tests PASS.
      - `dotnet build client/angband3d.csproj`: 0 Errors, 0 Warnings.
    - **Live Production Multi-Region Deployment on `https://angband3d.com`**:
-     - Container image: `gcr.io/resonant-1679933304535/angband3d-cloud:latest` (`sha256:296b7da6948ecaf7a55a5a5ad128eaa7222116a04f54c6faf406b5dc17b096fb`).
-     - `angband3d-cloud` (us-central1): Revision `angband3d-cloud-00101-ggj` serving 100% of traffic.
-     - `angband3d-cloud` (us-east1): Revision `angband3d-cloud-00028-ctb` serving 100% of traffic.
-     - `angband3d-web` (us-central1): Revision `angband3d-web-00033-jzz` serving 100% of traffic.
+     - Container image: `gcr.io/resonant-1679933304535/angband3d-cloud:latest` (`sha256:144ac1e30f31dd0a13eb94cab2a287c2e803a771562736264bf54482421f1e85`).
+     - `angband3d-cloud` (us-central1): Revision `angband3d-cloud-00102-hmg` serving 100% of traffic.
+     - `angband3d-cloud` (us-east1): Revision `angband3d-cloud-00029-qvp` serving 100% of traffic.
+     - `angband3d-web` (us-central1): Revision `angband3d-web-00034-gp4` serving 100% of traffic.
      - Live verified at `https://angband3d.com` and `https://angband3d.com/demo`.
-     - Full HTTP 206 Partial Content range streaming verified for `https://angband3d.com/assets/video/angband3d_demo.mp4`.
+     - Cloudflare Edge Cache Invalidation: Versioned assets `angband3d_demo_v852.mp4` / `webm` with HTTP 206 Partial Content range streaming verified for `https://angband3d.com/assets/video/angband3d_demo_v852.mp4` (174,943,175 bytes).
 
 1. **Full-Length 4m 15s Gameplay Commercial, Standalone Showcase & Native Parity (v2.13.0 / Web v8.5.0)**:
    - **Extended 255.0s Master Video (Zero Cutoffs & No Audio Truncation)**:
