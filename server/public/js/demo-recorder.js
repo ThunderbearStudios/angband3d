@@ -120,6 +120,19 @@
             console.log('[Recorder] ✓ Shockbolt PBR atlases fully loaded & ready for broadcast.');
         }
 
+        // 1. Attach presentation intro card immediately so screen is 100% branded
+        const introCard = createPresentationIntroCard();
+        document.body.appendChild(introCard);
+
+        console.log('[Recorder] Pre-loading demo_town behind presentation intro card...');
+        await transitionToState('demo_town');
+        const d = getDungeon();
+        if (d) {
+            d.cameraYaw = -0.38 * Math.PI; // Face Northeast across open square toward Armoury
+            d.cameraPitch = 0.20; // Tilted toward starry sky canopy
+        }
+        await wait(600);
+
         // Continuous layout lock: keeps the user's requested layout locked during active 3D gameplay
         const layoutLockInterval = setInterval(() => {
             if (isRecording && layoutLockActive) {
@@ -132,7 +145,7 @@
         recStartTime = performance.now();
 
         // Drive the authentic in-game sequence
-        executeWalkthroughSequence().finally(() => {
+        executeWalkthroughSequence(introCard).finally(() => {
             clearInterval(layoutLockInterval);
         });
     }
@@ -248,7 +261,116 @@
         if (topMsg) topMsg.style.setProperty('display', 'flex', 'important');
     }
 
-    async function executeWalkthroughSequence() {
+    const getDungeon = () => window.dungeon || (window.__app ? window.__app.dungeon : null);
+    const getNetwork = () => (window.__app ? window.__app.network : null);
+
+    function createPresentationIntroCard() {
+        const introCard = document.createElement('div');
+        introCard.id = 'demo-intro-card';
+        introCard.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, #0a0f1d 0%, #030508 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 999999;
+            color: #f8fafc;
+            opacity: 1;
+            transition: opacity 0.8s ease-in-out;
+            pointer-events: none;
+        `;
+        introCard.innerHTML = `
+            <div style="text-align: center; position: relative;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 380px; height: 380px; background: radial-gradient(circle, rgba(245, 158, 11, 0.32) 0%, transparent 70%); filter: blur(35px); pointer-events: none;"></div>
+                <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" style="width: 148px; height: auto; margin-bottom: 24px; filter: drop-shadow(0 0 30px rgba(245, 158, 11, 0.85)); position: relative; z-index: 1;">
+                <h1 style="font-family: 'Cinzel', serif; font-size: 2.8rem; color: #ffd700; margin: 0 0 6px 0; letter-spacing: 6px; text-shadow: 0 4px 25px rgba(245, 158, 11, 0.7); position: relative; z-index: 1;">
+                    THUNDERBEAR STUDIOS
+                </h1>
+                <p style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: #94a3b8; margin: 0 0 12px 0; letter-spacing: 8px; text-transform: uppercase; font-weight: 500; position: relative; z-index: 1;">
+                    PRESENTS
+                </p>
+                <div style="font-family: 'Cinzel', serif; font-size: 1.25rem; color: #f59e0b; letter-spacing: 5px; text-transform: uppercase; text-shadow: 0 0 16px rgba(245, 158, 11, 0.6); position: relative; z-index: 1;">
+                    ANGBAND 3D
+                </div>
+            </div>
+        `;
+        return introCard;
+    }
+
+    // State Transition Helper: loads authentic Angband save states
+    async function transitionToState(charName) {
+        console.log(`[Recorder] Transitioning to save state: ${charName}...`);
+        if (window.__app && typeof window.__app.startGame === 'function') {
+            if (window.__app.network) {
+                window.__app.network.disconnect();
+            }
+            await wait(400);
+            window.__app.startGame({ charName, saveFile: charName, isNew: false, autoBirth: false });
+            
+            // Target depths: demo_town=0, demo_crypt=1, demo_vault=1, demo_stealth=1, demo_combat=25
+            const expectedDepths = {
+                demo_town: 0,
+                demo_crypt: 1,
+                demo_vault: 1,
+                demo_stealth: 1,
+                demo_combat: 25
+            };
+            const targetDepth = expectedDepths[charName];
+
+            for (let i = 0; i < 40; i++) {
+                await wait(200);
+                const net = window.__app.network;
+                const frame = (typeof window.__app.getLastFrame === 'function') ? window.__app.getLastFrame() : (net ? net.lastFrame : null);
+                if (!frame) continue;
+
+                // 1. Splash screen or non-play setup phase
+                if (frame.phase !== 'play') {
+                    if (net) net.sendKey('space');
+                    continue;
+                }
+
+                // 2. Clear any pending -more- prompt
+                if (frame.ui && frame.ui.more) {
+                    if (net) net.sendKey('space');
+                    continue;
+                }
+
+                // 3. Clear any unintended menu overlay
+                if (frame.ui && frame.ui.overlay > 0) {
+                    if (net) net.sendKey('escape');
+                    continue;
+                }
+
+                // 4. Verify active play with correct depth
+                if (frame.phase === 'play' && frame.map && frame.player && (!frame.ui || (frame.ui.overlay === 0 && !frame.ui.more))) {
+                    if (targetDepth === undefined || frame.player.depth === targetDepth) {
+                        console.log(`[Recorder] Successfully loaded ${charName} in active 3D play! Player: ${frame.player.name}, Depth: ${frame.player.depth}`);
+                        break;
+                    }
+                }
+            }
+        }
+        await wait(250);
+        if (window.__app && window.__app.dungeon && typeof window.__app.dungeon.ensureAtlasesLoaded === 'function') {
+            await window.__app.dungeon.ensureAtlasesLoaded();
+        }
+        if (window.__app && typeof window.__app.setForceTerminal === 'function') {
+            window.__app.setForceTerminal(false);
+        }
+        const termContainer = document.getElementById('terminal-container');
+        if (termContainer) {
+            termContainer.classList.add('hidden');
+            termContainer.style.setProperty('display', 'none', 'important');
+        }
+        document.body.classList.remove('terminal-mode-active');
+
+        // Enforce exact layout requested by user
+        applyUserLayout();
+    }
+
+    async function executeWalkthroughSequence(introCard) {
         console.log(`[Recorder] Starting choreographed 8-act multi-depth sequence (${TARGET_DURATION}s)...`);
 
         const wait = (ms) => new Promise(res => setTimeout(res, ms));
@@ -264,226 +386,235 @@
             }
         }
 
-        // State Transition Helper: loads authentic Angband save states
-        async function transitionToState(charName) {
-            console.log(`[Recorder] Transitioning to save state: ${charName}...`);
-            if (window.__app && typeof window.__app.startGame === 'function') {
-                if (window.__app.network) {
-                    window.__app.network.disconnect();
-                }
-                await wait(400);
-                window.__app.startGame({ charName, saveFile: charName, isNew: false, autoBirth: false });
-                
-                // Target depths: demo_town=0, demo_crypt=1, demo_vault=1, demo_stealth=1, demo_combat=20
-                const expectedDepths = {
-                    demo_town: 0,
-                    demo_crypt: 1,
-                    demo_vault: 1,
-                    demo_stealth: 1,
-                    demo_combat: 25
-                };
-                const targetDepth = expectedDepths[charName];
-
-                for (let i = 0; i < 40; i++) {
-                    await wait(200);
-                    const net = window.__app.network;
-                    const frame = (typeof window.__app.getLastFrame === 'function') ? window.__app.getLastFrame() : (net ? net.lastFrame : null);
-                    if (!frame) continue;
-
-                    // 1. Splash screen or non-play setup phase
-                    if (frame.phase !== 'play') {
-                        if (net) net.sendKey('space');
-                        continue;
-                    }
-
-                    // 2. Clear any pending -more- prompt
-                    if (frame.ui && frame.ui.more) {
-                        if (net) net.sendKey('space');
-                        continue;
-                    }
-
-                    // 3. Clear any unintended menu overlay
-                    if (frame.ui && frame.ui.overlay > 0) {
-                        if (net) net.sendKey('escape');
-                        continue;
-                    }
-
-                    // 4. Verify active play with correct depth
-                    if (frame.phase === 'play' && frame.map && frame.player && (!frame.ui || (frame.ui.overlay === 0 && !frame.ui.more))) {
-                        if (targetDepth === undefined || frame.player.depth === targetDepth) {
-                            console.log(`[Recorder] Successfully loaded ${charName} in active 3D play! Player: ${frame.player.name}, Depth: ${frame.player.depth}`);
-                            break;
-                        }
-                    }
-                }
-            }
-            await wait(250);
-            if (window.__app && window.__app.dungeon && typeof window.__app.dungeon.ensureAtlasesLoaded === 'function') {
-                await window.__app.dungeon.ensureAtlasesLoaded();
-            }
-            if (window.__app && typeof window.__app.setForceTerminal === 'function') {
-                window.__app.setForceTerminal(false);
-            }
-            const termContainer = document.getElementById('terminal-container');
-            if (termContainer) {
-                termContainer.classList.add('hidden');
-                termContainer.style.setProperty('display', 'none', 'important');
-            }
-            document.body.classList.remove('terminal-mode-active');
-
-            // Enforce exact layout requested by user
-            applyUserLayout();
-        }
-
-        const getDungeon = () => window.dungeon || (window.__app ? window.__app.dungeon : null);
-        const getNetwork = () => (window.__app ? window.__app.network : null);
-
         // -------------------------------------------------------------
         // ACT 0: Thunderbear Studios Presentation Intro (0:00 - 0:03.8)
         // -------------------------------------------------------------
         logTelemetry(0, 'Act 0: Thunderbear Studios Presentation Intro');
-        const introCard = document.createElement('div');
-        introCard.id = 'demo-intro-card';
-        introCard.style.cssText = `
-            position: fixed;
-            inset: 0;
-            background: #04060a;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 999999;
-            color: #f8fafc;
-            opacity: 1;
-            transition: opacity 0.8s ease-in-out;
-            pointer-events: none;
-        `;
-        introCard.innerHTML = `
-            <div style="text-align: center; position: relative;">
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 340px; height: 340px; background: radial-gradient(circle, rgba(245, 158, 11, 0.28) 0%, transparent 70%); filter: blur(30px); pointer-events: none;"></div>
-                <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" style="width: 140px; height: auto; margin-bottom: 22px; filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.75)); position: relative; z-index: 1;">
-                <h1 style="font-family: 'Cinzel', serif; font-size: 2.6rem; color: #ffd700; margin: 0 0 8px 0; letter-spacing: 5px; text-shadow: 0 4px 20px rgba(245, 158, 11, 0.6); position: relative; z-index: 1;">
-                    THUNDERBEAR STUDIOS
-                </h1>
-                <p style="font-family: 'Outfit', sans-serif; font-size: 1.05rem; color: #94a3b8; margin: 0; letter-spacing: 7px; text-transform: uppercase; font-weight: 500; position: relative; z-index: 1;">
-                    PRESENTS
-                </p>
-            </div>
-        `;
-        document.body.appendChild(introCard);
-
-        // Preload Town state immediately in background while logo displays
-        const preloadTownPromise = transitionToState('demo_town');
-        await wait(2800);
-        introCard.style.opacity = '0';
-        await wait(800);
-        introCard.remove();
-        await preloadTownPromise;
+        await waitUntil(2.8);
+        if (introCard) introCard.style.opacity = '0';
+        await waitUntil(3.6);
+        if (introCard) introCard.remove();
+        await waitUntil(3.8);
 
         // -------------------------------------------------------------
-        // ACT 1: Awakening & Town Departure (0:03.8 - 0:41.5)
+        // ACT 1: Awakening & Town Preparation (0:03.8 - 0:32.0)
         // -------------------------------------------------------------
-        logTelemetry(3.8, 'Act 1: Awakening & Town Departure (demo_town)');
+        logTelemetry(3.8, 'Act 1: Awakening & Town Preparation (demo_town)');
 
+        // Camera is gazing across town square towards shopfronts under starry night sky
         if (getDungeon()) {
-            getDungeon().cameraYaw = -Math.PI * 0.5; // Face East (+X) down main cobblestone street towards stairs at (25, 4)
-            getDungeon().cameraPitch = 0.0;
+            getDungeon().cameraYaw = -0.38 * Math.PI; // Face Northeast across open square toward Armoury
+            getDungeon().cameraPitch = 0.20; // Tilted toward starry sky canopy
         }
 
-        // Opening welcome & atmosphere (Clip 01: Enceladus introduces Angband 3D)
-        // Gentle, atmospheric look around town: gaze East down the avenue, slowly sweep South to view Farmer Maggot and shops
-        const townLookStart = performance.now();
-        const townLookTimer = setInterval(() => {
+        // 0:03.8 - 0:08.5: Cinematic descent of gaze from starry sky down to timbered shops and cobblestones
+        const skyPanStart = performance.now();
+        const skyPanTimer = setInterval(() => {
             const d = getDungeon();
             if (d) {
-                const el = (performance.now() - townLookStart) / 1000;
-                if (el < 14) {
-                    // Gentle pan from East (-0.5*PI) toward South (-Math.PI) and return
-                    d.cameraYaw = (-Math.PI * 0.5) - Math.sin(el * 0.35) * 0.35;
-                    d.cameraPitch = Math.sin(el * 0.25) * 0.03;
+                const el = (performance.now() - skyPanStart) / 1000;
+                if (el < 4.5) {
+                    d.cameraPitch = 0.20 - (el / 4.5) * 0.24; // Lower gaze from 0.20 to -0.04
+                    d.cameraYaw = (-0.38 * Math.PI) - (el / 4.5) * 0.12 * Math.PI; // Smoothly pan toward -0.5*PI (East)
                 }
             }
         }, 33);
 
-        await wait(14000);
-        clearInterval(townLookTimer);
+        await wait(4500);
+        clearInterval(skyPanTimer);
+
+        // 0:08.5 - 0:17.8: ACTION: Ready blade, test dynamic combat attack animations & Necromantic spell aura!
+        // Enceladus: "blades clash against draconic scales... thirty years of legendary roguelike history are reborn in first-person 3D"
         if (getDungeon()) {
-            getDungeon().cameraYaw = -Math.PI * 0.5; // Re-center East directly toward the stairs
+            if (getDungeon().audio) getDungeon().audio.playEquipWeapon();
+            console.log('[Recorder] Action: Weapon blade unsheathed');
+        }
+        await wait(500);
+
+        // First blade strike swing!
+        if (getDungeon() && typeof getDungeon().triggerAttackAnimation === 'function') {
+            console.log('[Recorder] Action: First blade strike swing in town square');
+            getDungeon().triggerAttackAnimation();
+            if (getDungeon().audio) getDungeon().audio.playWhoosh();
+        }
+        await wait(1400);
+
+        // Second blade strike swing!
+        if (getDungeon() && typeof getDungeon().triggerAttackAnimation === 'function') {
+            console.log('[Recorder] Action: Second blade strike swing');
+            getDungeon().triggerAttackAnimation();
+            if (getDungeon().audio) getDungeon().audio.playWhoosh();
+        }
+        await wait(1600);
+
+        // Necromancy spell aura channeling! Ostirch raises hands with dark purple mystical particles
+        const dTown = getDungeon();
+        if (dTown) {
+            console.log('[Recorder] Action: Ostirch channels Necromantic shadow spell aura');
+            if (typeof dTown.triggerCastAnimation === 'function') dTown.triggerCastAnimation();
+            if (dTown.audio) dTown.audio.playSpell('magic');
+            if (dTown.camera && typeof THREE !== 'undefined') {
+                const dir = new THREE.Vector3();
+                dTown.camera.getWorldDirection(dir);
+                const spawnPos = dTown.camera.position.clone().add(dir.multiplyScalar(1.2));
+                if (typeof dTown.spawnHitSparks === 'function') dTown.spawnHitSparks(spawnPos, '#aa44ff', 24);
+                if (typeof dTown.spawnFloatingText === 'function') dTown.spawnFloatingText('SHADOW VEIL', spawnPos.clone().add(new THREE.Vector3(0, 0.22, 0)), '#cc66ff', 1.25);
+            }
+        }
+        await wait(2200);
+
+        // Glance toward the town square courtyard where Farmer Maggot is tending fields
+        if (getDungeon()) {
+            getDungeon().cameraYaw = 0.22 * Math.PI; // Glance South-East toward Farmer Maggot
             getDungeon().cameraPitch = 0.0;
         }
+        await wait(1200);
 
-        // 0:16 - 0:26: Advance East down the cobblestone road toward the stairs '>' at (25, 4)
-        // Player starts at (23, 4). Step East to (24, 4), then step East to (25, 4) directly onto '>'!
-        await wait(2000);
-        if (getNetwork()) getNetwork().sendKey('right'); // Step to (24, 4)
-        await wait(2200);
-        if (getNetwork()) getNetwork().sendKey('right'); // Step onto stairs '>' at (25, 4)
-        await wait(2000);
-
-        // 0:26 - 0:38: Stand on the ancient stone staircase as Enceladus describes the 100 levels below
+        // Re-center North toward the main cobblestone avenue
         if (getDungeon()) {
-            getDungeon().cameraPitch = -0.12; // Gaze down into the dark stairwell
+            getDungeon().cameraYaw = 0.0;
+            getDungeon().cameraPitch = 0.0;
         }
+        await waitUntil(17.8);
 
-        // 0:38 - 0:41.5: Descend the grand staircase into the dungeon!
-        await waitUntil(38.0);
+        // 0:17.8 - 0:28.0: Enceladus Clip 02: "Welcome to Angband. Every journey begins under the stars of the town square. Stock your pack at the armory, ready your spells, and plunge into the deep."
+        // Player advances purposefully down the cobblestone road past Armoury to stairs:
+        // Starts at (22, 8). Step North to (22, 7)
+        if (getNetwork()) getNetwork().sendKey('up');
+        await wait(700);
+        // Step East to (23, 7)
+        if (getNetwork()) getNetwork().sendKey('right');
+        await wait(700);
+        // Step East to (24, 7) -> directly in front of [2] ARMOURY!
+        if (getNetwork()) getNetwork().sendKey('right');
+        await wait(700);
+        // Quick glance at Armoury storefront!
+        if (getDungeon()) getDungeon().cameraYaw = -Math.PI * 0.5; // Look East directly into Armoury door
+        await wait(1000);
+        if (getDungeon()) getDungeon().cameraYaw = 0.0; // Re-align North toward dungeon stairs
+        await wait(400);
+
+        // Step North to (24, 6)
+        if (getNetwork()) getNetwork().sendKey('up');
+        await wait(600);
+        // Step North to (24, 5)
+        if (getNetwork()) getNetwork().sendKey('up');
+        await wait(600);
+        // Step East to (25, 5)
+        if (getNetwork()) getNetwork().sendKey('right');
+        await wait(600);
+        // Step North onto the stone stairs '>' at (25, 4)!
+        if (getNetwork()) getNetwork().sendKey('up');
+        await wait(800);
+
+        // 0:28.0 - 0:30.5: Stand atop ancient stone staircase, look down into yawning dark stairwell
+        if (getDungeon()) {
+            getDungeon().cameraPitch = -0.22;
+            if (getDungeon().audio) getDungeon().audio.playStairs(true);
+        }
+        await waitUntil(30.5);
+
+        // 0:30.5 - 0:32.0: Plunge into the deep dungeon via '>'!
         console.log('[Recorder] Descending stairs into the deep dungeon (>)...');
         if (getNetwork()) {
             getNetwork().sendKey('>');
         }
-        await waitUntil(41.5);
+        await waitUntil(32.0);
 
         // -------------------------------------------------------------
-        // ACT 2: Gotcha #1: 0-Turn Camera Yaw (0:41.5 - 1:03.5)
+        // ACT 2: The Crypts, 0-Turn Camera Yaw & First Combat (0:32.0 - 1:04.0)
         // -------------------------------------------------------------
-        logTelemetry(41.5, 'Act 2: Gotcha #1: 0-Turn Camera Yaw (demo_crypt, 50ft)');
+        logTelemetry(32.0, 'Act 2: The Crypts & Gotcha #1: 0-Turn Camera Yaw & Combat (demo_crypt, 50ft)');
         await transitionToState('demo_crypt');
 
+        // Renwe starts at (73, 52). Hallway stretches South toward row 56.
+        // Directly ahead at (73, 54) is small kobold asleep in torchlight!
+        // At (72, 55) is floor scroll '?', at (70, 51) are Chartreuse Potions '!'.
         if (getDungeon()) {
-            getDungeon().cameraYaw = 0; // Face North into open crypt room
+            getDungeon().cameraYaw = Math.PI; // Face South directly down hall toward small kobold
+            getDungeon().cameraPitch = 0.0;
         }
 
-        // Active advance into crypt
-        await wait(1800);
-        if (getNetwork()) getNetwork().sendKey('up');
-        await wait(1800);
-        if (getNetwork()) getNetwork().sendKey('up');
-        await wait(1500);
+        // 0:32.0 - 0:34.0: Gaze down dark torchlit crypt hallway at small kobold sleeping in shadows
+        await waitUntil(34.0);
 
-        // Smooth 360 camera yaw demonstration
+        // 0:34.0 - 0:49.0: Demonstrate Gotcha #1: Smooth 360-degree camera yaw while time freezes!
+        // Audio Clip 03: "Rule number one for the veteran: looking around will not get you killed. Camera yaw costs precisely zero turns. Pan the darkness, inspect every corridor, scout the pillars—the world moves only when you take a step."
         const yawStart = performance.now();
         const yawInterval = setInterval(() => {
             const elapsedYaw = (performance.now() - yawStart) / 1000;
-            if (elapsedYaw > 11) {
+            if (elapsedYaw > 14.0) {
                 clearInterval(yawInterval);
                 return;
             }
             const d = getDungeon();
             if (d) {
-                d.cameraYaw = (elapsedYaw / 11) * (Math.PI * 2);
-                d.cameraPitch = Math.sin(elapsedYaw * 0.5) * 0.05;
+                // Complete 360-degree sweep from South around all quadrants and back to South
+                d.cameraYaw = Math.PI + (elapsedYaw / 14.0) * (Math.PI * 2);
+                d.cameraPitch = Math.sin(elapsedYaw * 0.45) * 0.08;
             }
         }, 33);
 
-        await wait(11000);
+        await wait(14500);
         clearInterval(yawInterval);
         if (getDungeon()) {
-            getDungeon().cameraYaw = 0;
-            getDungeon().cameraPitch = 0;
+            getDungeon().cameraYaw = Math.PI; // Re-align South directly at the kobold
+            getDungeon().cameraPitch = 0.0;
         }
 
-        // Stepping forward takes an actual turn
-        if (getNetwork()) getNetwork().sendKey('up');
+        // Wait for Enceladus to conclude: "...the world moves only when you take a step."
+        await waitUntil(50.0);
+
+        // 0:50.0 - 0:57.0: ACTION! Take a step forward, wake the kobold, and engage in melee combat!
+        console.log('[Recorder] Step South: Monster wakes up and engages!');
+        if (getNetwork()) getNetwork().sendKey('down'); // Step to (73, 53) - kobold wakes!
         await wait(1200);
-        if (getDungeon() && typeof getDungeon().triggerAttackAnimation === 'function') {
-            getDungeon().triggerAttackAnimation();
+
+        // Strike 1 against the small kobold at (73, 54)!
+        console.log('[Recorder] Melee strike 1 against small kobold!');
+        if (getNetwork()) getNetwork().sendKey('down');
+        await wait(1400);
+
+        // Strike 2 to finish the kobold!
+        console.log('[Recorder] Melee strike 2: small kobold slain!');
+        if (getNetwork()) getNetwork().sendKey('down');
+        await wait(1600);
+
+        // 0:57.0 - 1:04.0: Advance, inspect floor scroll and pick up Scroll titled "situm ut bio"!
+        console.log('[Recorder] Stepping forward into conquered corridor tile...');
+        if (getNetwork()) getNetwork().sendKey('down'); // Step South to (73, 54)
+        await wait(700);
+        if (getNetwork()) getNetwork().sendKey('down'); // Step South to (73, 55)
+        await wait(700);
+        if (getNetwork()) getNetwork().sendKey('left'); // Step West onto (72, 55) directly on the Scroll!
+        await wait(800);
+
+        // Pick up the floor scroll!
+        console.log('[Recorder] Looting floor scroll with [g]...');
+        if (getNetwork()) getNetwork().sendKey('g');
+        const dCrypt = getDungeon();
+        if (dCrypt) {
+            if (dCrypt.audio) dCrypt.audio.playItemPickup();
+            if (dCrypt.camera && typeof THREE !== 'undefined') {
+                const dir = new THREE.Vector3();
+                dCrypt.camera.getWorldDirection(dir);
+                const spawnPos = dCrypt.camera.position.clone().add(dir.multiplyScalar(1.1));
+                if (typeof dCrypt.spawnFloatingText === 'function') dCrypt.spawnFloatingText('SCROLL ACQUIRED', spawnPos, '#ffd700', 1.2);
+            }
         }
-        await waitUntil(63.5);
+        await wait(1200);
+
+        // Turn West down the torchlit vaulted stone hallway toward the distant glowing potions
+        if (getDungeon()) {
+            getDungeon().cameraYaw = -Math.PI * 0.5; // Turn West
+            getDungeon().cameraPitch = 0.0;
+        }
+        await waitUntil(64.0);
 
         // -------------------------------------------------------------
-        // ACT 3: 1:1 Dual Reality & Seamless Menu Integration (1:03.5 - 1:46.5)
+        // ACT 3: 1:1 Dual Reality & Seamless Menu Integration (1:04.0 - 1:46.5)
         // -------------------------------------------------------------
-        logTelemetry(63.5, 'Act 3: 1:1 Dual Reality & Classic Menu ([Tab] ASCII Terminal, demo_vault, 50ft)');
+        logTelemetry(64.0, 'Act 3: 1:1 Dual Reality & Classic Menu ([Tab] ASCII Terminal, demo_vault, 50ft)');
         await transitionToState('demo_vault');
 
         if (getDungeon()) {

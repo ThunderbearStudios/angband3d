@@ -176,9 +176,9 @@ async function main() {
 
     const clips = [
         { file: 'clip_01_awakening.wav', delayMs: 3800 },
-        { file: 'clip_02_town_quote.wav', delayMs: 25800 },
-        { file: 'clip_03_gotcha_yaw.wav', delayMs: 41500 },
-        { file: 'clip_04_dual_reality.wav', delayMs: 63500 },
+        { file: 'clip_02_town_quote.wav', delayMs: 17800 },
+        { file: 'clip_03_gotcha_yaw.wav', delayMs: 34000 },
+        { file: 'clip_04_dual_reality.wav', delayMs: 64000 },
         { file: 'clip_05_kore_terminal.wav', delayMs: 89000 },
         { file: 'clip_06_spatial_stealth.wav', delayMs: 106500 },
         { file: 'clip_07_vault_combat.wav', delayMs: 126500 },

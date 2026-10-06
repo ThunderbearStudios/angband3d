@@ -1,6 +1,6 @@
 {
   "name": "angband3d-cloud-server",
-  "version": "2.0.0",
+  "version": "2.13.2",
   "description": "Containerized WebSocket bridge and save sync relay for Angband3D",
   "main": "src/server.js",
   "scripts": {

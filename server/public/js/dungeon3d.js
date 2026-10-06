@@ -4032,7 +4032,8 @@ class Dungeon3D {
         for (const [id, entity] of this.monsters.entries()) {
             const m = entity.monsterData;
             if (!m) continue;
-            if ((entity.isBillboardFallback || entity.isFallback) && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
+            // Upgrade any monster entity that is not already a Shockbolt billboard
+            if (!entity.isBillboard && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
                 const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, entity.glyph);
                 if (atlasEntry) {
                     const upgradedBillboard = this.createMonsterBillboardMesh(atlasEntry);
@@ -4040,8 +4041,9 @@ class Dungeon3D {
                         if (entity.creatureMesh) entity.remove(entity.creatureMesh);
                         entity.creatureMesh = upgradedBillboard;
                         entity.add(upgradedBillboard);
-                        entity.modelHeight = atlasEntry.height || 1.70;
+                        entity.modelHeight = upgradedBillboard.baseHeight || Math.min(2.05, atlasEntry.height || 1.70);
                         entity.isFloating = atlasEntry.isFloating || false;
+                        entity.isBillboard = true;
                         entity.isBillboardFallback = false;
                         entity.isFallback = false;
                         upgradedBillboard.monsterData = m;
@@ -5435,8 +5437,9 @@ class Dungeon3D {
         root.modelKey = (config && config.templateKey) ? config.templateKey : null;
         root.isFemale = isFeminineModel || ((config && config.gender === 'female') || (m && (m.isFemale || m.gender === 'female' || m.modelGender === 'female')));
         root.modelGender = root.isFemale ? 'female' : ((config && config.gender) ? config.gender : 'male');
-        root.isFallback = !config || !this.monsterTemplates || !this.monsterTemplates.has(config.templateKey);
-        root.isBillboardFallback = isBillboardFallback;
+        root.isBillboard = (mesh && mesh.geometry && mesh.geometry.type === 'PlaneGeometry');
+        root.isFallback = !root.isBillboard && (!config || !this.monsterTemplates || !this.monsterTemplates.has(config.templateKey));
+        root.isBillboardFallback = !root.isBillboard && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic');
         root.colorHex = colorHex;
         root.glyph = glyph;
         root.race = m.race || m.name || '';
@@ -5568,8 +5571,8 @@ class Dungeon3D {
                     }
                 }
 
-                // Auto-upgrade procedural creature fallback to Shockbolt PBR billboard once monster_atlas.json has loaded!
-                if (entity.isBillboardFallback && this.monsterAtlasData && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
+                // Auto-upgrade monster to Shockbolt PBR billboard once monster_atlas.json has loaded!
+                if (!entity.isBillboard && this.monsterAtlasData && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
                     const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, entity.glyph);
                     if (atlasEntry) {
                         const upgradedBillboard = this.createMonsterBillboardMesh(atlasEntry);
@@ -5579,7 +5582,9 @@ class Dungeon3D {
                             entity.add(upgradedBillboard);
                             entity.modelHeight = upgradedBillboard.baseHeight || Math.min(2.05, atlasEntry.height || 1.70);
                             entity.isFloating = atlasEntry.isFloating || false;
+                            entity.isBillboard = true;
                             entity.isBillboardFallback = false;
+                            entity.isFallback = false;
                             upgradedBillboard.monsterData = m;
                             if (entity.contactShadow) {
                                 const footprint = (upgradedBillboard.baseWidth || 1.25) * 0.75;

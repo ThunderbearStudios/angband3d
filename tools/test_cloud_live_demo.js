@@ -20,7 +20,7 @@ async function run() {
     const root = await fetchAll('https://angband3d.com/?nocache=' + Date.now());
     const html = root.body.toString('utf8');
     console.log(`Root HTML HTTP ${root.statusCode}, size: ${html.length} bytes`);
-    console.log('  ✓ Has demo-player script v8.5.1:', html.includes('demo-player.js?v=8.5.1'));
+    console.log('  ✓ Has demo-player script v8.5.2:', html.includes('demo-player.js?v=8.5.2'));
     console.log('  ✓ Has btn-splash-demo:', html.includes('btn-splash-demo'));
     console.log('  ✓ Has btn-menu-demo:', html.includes('btn-menu-demo'));
     console.log('  ✓ Has demo-modal:', html.includes('id="demo-modal"'));
