@@ -1214,80 +1214,90 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-        const ext = path.extname(filePath).toLowerCase();
-        const mimeTypes = {
-            '.html': 'text/html; charset=utf-8',
-            '.js': 'application/javascript; charset=utf-8',
-            '.wasm': 'application/wasm',
-            '.pck': 'application/octet-stream',
-            '.css': 'text/css; charset=utf-8',
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.webp': 'image/webp',
-            '.svg': 'image/svg+xml',
-            '.json': 'application/json; charset=utf-8',
-            '.obj': 'text/plain; charset=utf-8',
-            '.mtl': 'text/plain; charset=utf-8',
-            '.gltf': 'model/gltf+json',
-            '.glb': 'model/gltf-binary',
-            '.bin': 'application/octet-stream',
-            '.wav': 'audio/wav',
-            '.ogg': 'audio/ogg',
-            '.mp3': 'audio/mpeg',
-            '.webm': 'video/webm',
-            '.mp4': 'video/mp4',
-            '.m4a': 'audio/mp4',
-        };
-        const contentType = mimeTypes[ext] || 'application/octet-stream';
+    if (fs.existsSync(filePath)) {
+        const fileStat = fs.statSync(filePath);
+        if (fileStat.isFile()) {
+            const ext = path.extname(filePath).toLowerCase();
+            const mimeTypes = {
+                '.html': 'text/html; charset=utf-8',
+                '.js': 'application/javascript; charset=utf-8',
+                '.wasm': 'application/wasm',
+                '.pck': 'application/octet-stream',
+                '.css': 'text/css; charset=utf-8',
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.webp': 'image/webp',
+                '.svg': 'image/svg+xml',
+                '.json': 'application/json; charset=utf-8',
+                '.obj': 'text/plain; charset=utf-8',
+                '.mtl': 'text/plain; charset=utf-8',
+                '.gltf': 'model/gltf+json',
+                '.glb': 'model/gltf-binary',
+                '.bin': 'application/octet-stream',
+                '.wav': 'audio/wav',
+                '.ogg': 'audio/ogg',
+                '.mp3': 'audio/mpeg',
+                '.webm': 'video/webm',
+                '.mp4': 'video/mp4',
+                '.m4a': 'audio/mp4',
+            };
+            const contentType = mimeTypes[ext] || 'application/octet-stream';
 
-        // HTTP Caching Strategy:
-        // - HTML, JS, CSS: no-cache, no-store, must-revalidate to ensure instant delivery of app updates
-        // - 3D Models, Textures, Audio, Video: 24h caching (immutable static assets)
-        let cacheControl = 'no-cache, no-store, must-revalidate';
-        if (['.mp4', '.webm', '.mp3', '.wav', '.ogg', '.m4a'].includes(ext)) {
-            cacheControl = 'public, max-age=86400, no-transform';
-        } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck'].includes(ext)) {
-            cacheControl = 'public, max-age=86400, immutable';
-        }
+            // HTTP Caching Strategy:
+            // - HTML, JS, CSS: no-cache, no-store, must-revalidate to ensure instant delivery of app updates
+            // - 3D Models, Textures, Audio, Video: 24h caching (immutable static assets)
+            let cacheControl = 'no-cache, no-store, must-revalidate';
+            if (['.mp4', '.webm', '.mp3', '.wav', '.ogg', '.m4a'].includes(ext)) {
+                cacheControl = (safePath.includes('_v') || req.url.includes('?v=')) ? 'public, max-age=86400, no-transform' : 'public, max-age=3600, must-revalidate, no-transform';
+            } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck'].includes(ext)) {
+                cacheControl = 'public, max-age=86400, immutable';
+            }
 
-        const headers = {
-            'Content-Type': contentType,
-            'Cache-Control': cacheControl,
-            'Accept-Ranges': 'bytes',
-            'Access-Control-Allow-Origin': '*',
-            'Cross-Origin-Resource-Policy': 'cross-origin',
-        };
+            const etag = `W/"${fileStat.size.toString(16)}-${Math.floor(fileStat.mtimeMs).toString(16)}"`;
+            const headers = {
+                'Content-Type': contentType,
+                'Cache-Control': cacheControl,
+                'ETag': etag,
+                'Accept-Ranges': 'bytes',
+                'Access-Control-Allow-Origin': '*',
+                'Cross-Origin-Resource-Policy': 'cross-origin',
+            };
 
-        // Cross-Origin Isolation headers required for Godot 4 WebAssembly multithreading/SharedArrayBuffer on game client
-        if (safePath === '/index.html' || ext === '.wasm' || ext === '.pck') {
-            headers['Cross-Origin-Opener-Policy'] = 'same-origin';
-            headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
-        }
+            // Handle Conditional ETag Revalidation (HTTP 304 Not Modified)
+            if (req.headers['if-none-match'] === etag) {
+                res.writeHead(304, headers);
+                res.end();
+                return;
+            }
 
-        // HTTP 206 Partial Content (Range Request) support for smooth video/audio seeking & scrubbing
-        const range = req.headers.range;
-        if (range && (ext === '.mp4' || ext === '.webm' || ext === '.mp3' || ext === '.wav' || ext === '.m4a')) {
-            try {
-                const stat = fs.statSync(filePath);
-                const total = stat.size;
-                const parts = range.replace(/bytes=/, '').split('-');
-                const start = parseInt(parts[0], 10);
-                const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
-                if (!isNaN(start) && start < total && end < total && start <= end) {
-                    const chunksize = (end - start) + 1;
-                    const stream = fs.createReadStream(filePath, { start, end });
-                    res.writeHead(206, {
-                        ...headers,
-                        'Content-Range': `bytes ${start}-${end}/${total}`,
-                        'Content-Length': chunksize,
-                    });
-                    stream.pipe(res);
-                    return;
-                }
-            } catch (_) {}
-        }
+            // Cross-Origin Isolation headers required for Godot 4 WebAssembly multithreading/SharedArrayBuffer on game client
+            if (safePath === '/index.html' || ext === '.wasm' || ext === '.pck') {
+                headers['Cross-Origin-Opener-Policy'] = 'same-origin';
+                headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
+            }
+
+            // HTTP 206 Partial Content (Range Request) support for smooth video/audio seeking & scrubbing
+            const range = req.headers.range;
+            if (range && (ext === '.mp4' || ext === '.webm' || ext === '.mp3' || ext === '.wav' || ext === '.m4a')) {
+                try {
+                    const total = fileStat.size;
+                    const parts = range.replace(/bytes=/, '').split('-');
+                    const start = parseInt(parts[0], 10);
+                    const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
+                    if (!isNaN(start) && start < total && end < total && start <= end) {
+                        const chunksize = (end - start) + 1;
+                        const stream = fs.createReadStream(filePath, { start, end });
+                        res.writeHead(206, {
+                            ...headers,
+                            'Content-Range': `bytes ${start}-${end}/${total}`,
+                            'Content-Length': chunksize,
+                        });
+                        stream.pipe(res);
+                        return;
+                    }
+                } catch (_) {}
+            }
 
         // Gzip compression for text & code payloads (.html, .js, .css, .json, .obj, .mtl, .svg)
         const compressible = ['.html', '.js', '.css', '.json', '.obj', '.mtl', '.svg'].includes(ext);
@@ -1338,6 +1348,7 @@ const server = http.createServer((req, res) => {
         fs.createReadStream(filePath).pipe(res);
         return;
     }
+}
 
     // Return 404 for missing assets or files with extensions instead of returning HTML landing page
     if (pathname.startsWith('/assets/') || path.extname(pathname)) {

@@ -61,12 +61,17 @@ async function run() {
 
     // 4. Video MP4 HTTP 206 Partial Content Range Request
     console.log('\nTesting live video streaming range requests...');
-    const videoRange = await fetchAll('https://angband3d.com/assets/video/angband3d_demo.mp4', { 'Range': 'bytes=0-102400' });
-    console.log(`  ✓ angband3d_demo.mp4 Range Request HTTP ${videoRange.statusCode}`);
+    const videoRange = await fetchAll('https://angband3d.com/assets/video/angband3d_demo_v852.mp4', { 'Range': 'bytes=0-102400' });
+    console.log(`  ✓ angband3d_demo_v852.mp4 Range Request HTTP ${videoRange.statusCode}`);
     console.log(`  ✓ Content-Type: ${videoRange.headers['content-type']}`);
     console.log(`  ✓ Content-Range: ${videoRange.headers['content-range'] || 'N/A'}`);
     console.log(`  ✓ Chunk Size: ${videoRange.body.length} bytes`);
     console.log(`  ✓ Accept-Ranges: ${videoRange.headers['accept-ranges'] || 'N/A'}`);
+    if (videoRange.statusCode !== 206 || !videoRange.headers['content-range'] || !videoRange.headers['content-range'].includes('174943175')) {
+        console.error('FAIL: Video range request did not return expected HTTP 206 with size 174943175');
+        process.exit(1);
+    }
+    console.log('  ✓ Verified exact new video size (174,943,175 bytes) and HTTP 206 Partial Content!');
 
     console.log('\n=========================================');
     console.log('PRODUCTION DEMO SHOWCASE IS FULLY LIVE! 🚀');
