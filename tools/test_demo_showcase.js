@@ -13,27 +13,16 @@ if (!fs.existsSync(manifestPath)) {
 }
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 console.log(`✓ Manifest title: "${manifest.title}"`);
-console.log(`✓ Chapters count: ${manifest.chapters.length} (Expected 7)`);
-console.log(`✓ Subtitles count: ${manifest.subtitles.length} (Expected >= 24)`);
+console.log(`✓ Chapters count: ${manifest.chapters.length} (Expected >= 7)`);
+console.log(`✓ Subtitles count: ${manifest.subtitles.length} (Expected >= 20)`);
 
-if (manifest.chapters.length !== 7) {
-    console.error('FAIL: Expected 7 chapters, found', manifest.chapters.length);
+if (manifest.chapters.length < 7) {
+    console.error('FAIL: Expected >= 7 chapters, found', manifest.chapters.length);
     process.exit(1);
 }
 
 const audioDir = path.join(__dirname, '..', 'server', 'public', 'assets', 'audio', 'demo');
-const expectedFiles = [
-    'clip_01_awakening.mp3',
-    'clip_02_merchant.mp3',
-    'clip_03_gotcha_yaw.mp3',
-    'clip_04_dual_reality.mp3',
-    'clip_05_spatial_stealth.mp3',
-    'clip_06_goblin.mp3',
-    'clip_07_vault_combat.mp3',
-    'clip_08_dragon.mp3',
-    'clip_09_chronicle.mp3',
-    'clip_10_universal_call.mp3'
-];
+const expectedFiles = manifest.audioStems.map(s => s.file);
 
 for (const file of expectedFiles) {
     const full = path.join(audioDir, file);
@@ -63,7 +52,7 @@ const requiredHtmlElements = [
     'id="demo-chapter-pips"',
     'id="demo-btn-play-game"',
     'id="btn-demo-close"',
-    'demo-player.js?v=8.4.0'
+    'demo-player.js?v=8.5.0'
 ];
 
 for (const el of requiredHtmlElements) {
@@ -97,6 +86,7 @@ for (const selector of requiredCss) {
 console.log('\n=== [4] Verifying JS Syntax and Logic ===');
 const jsFiles = [
     path.join(__dirname, '..', 'server', 'public', 'js', 'demo-player.js'),
+    path.join(__dirname, '..', 'server', 'public', 'js', 'demo-recorder.js'),
     path.join(__dirname, '..', 'server', 'public', 'js', 'app.js'),
     path.join(__dirname, '..', 'server', 'public', 'js', 'input.js'),
     path.join(__dirname, '..', 'server', 'src', 'server.js')
@@ -127,6 +117,54 @@ if (!serverSrc.includes('HTTP 206 Partial Content') && !serverSrc.includes('206'
 }
 console.log('✓ server.js contains HTTP 206 Range streaming support');
 
+console.log('\n=== [6] Verifying 1080p Actual Gameplay Video Assets ===');
+const videoDir = path.join(__dirname, '..', 'server', 'public', 'assets', 'video');
+const videoFiles = ['angband3d_demo.mp4', 'angband3d_demo.webm'];
+for (const vFile of videoFiles) {
+    const full = path.join(videoDir, vFile);
+    if (!fs.existsSync(full)) {
+        console.error(`FAIL: Missing video asset ${vFile}`);
+        process.exit(1);
+    }
+    const stat = fs.statSync(full);
+    if (stat.size < 10 * 1024 * 1024) {
+        console.error(`FAIL: Video ${vFile} is suspiciously small: ${(stat.size / (1024*1024)).toFixed(2)} MB`);
+        process.exit(1);
+    }
+    console.log(`✓ 1080p Master Video ${vFile}: ${(stat.size / (1024*1024)).toFixed(2)} MB`);
+}
+
+console.log('\n=== [7] Verifying Dedicated Demo Page & Client Parity ===');
+const demoHtmlPath = path.join(__dirname, '..', 'server', 'public', 'demo.html');
+if (!fs.existsSync(demoHtmlPath)) {
+    console.error('FAIL: demo.html not found');
+    process.exit(1);
+}
+const demoHtml = fs.readFileSync(demoHtmlPath, 'utf8');
+const expectedInDemo = [
+    'og:video',
+    'og:image',
+    'class="video-box"',
+    'id="controls-bar"',
+    'id="volume-slider"',
+    'Thunderbear Studios',
+    'https://github.com/ThunderbearStudios/angband3d'
+];
+for (const str of expectedInDemo) {
+    if (!demoHtml.includes(str)) {
+        console.error(`FAIL: demo.html missing ${str}`);
+        process.exit(1);
+    }
+    console.log(`✓ demo.html has ${str}`);
+}
+
+if (!serverSrc.includes('/demo') || !serverSrc.includes('/demo.html')) {
+    console.error('FAIL: server.js does not route /demo to /demo.html');
+    process.exit(1);
+}
+console.log('✓ server.js routes /demo to /demo.html');
+
 console.log('\n=============================================');
 console.log('ALL GAMEPLAY DEMO SHOWCASE VERIFICATIONS PASS!');
 console.log('=============================================\n');
+

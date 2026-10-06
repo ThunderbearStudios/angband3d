@@ -790,12 +790,14 @@ class Dungeon3D {
         this.camera.rotation.x = 0;
         this.camera.rotation.z = 0;
 
+        const isRecording = typeof window !== 'undefined' && window.location.search && window.location.search.includes('record_walkthrough=1');
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
             antialias: true,
             powerPreference: 'high-performance',
             stencil: false,
-            depth: true
+            depth: true,
+            preserveDrawingBuffer: isRecording
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
@@ -2389,6 +2391,39 @@ class Dungeon3D {
         return this.camera ? this.camera.rotation.y : (-this.facing * (Math.PI / 2));
     }
 
+    get cameraYaw() {
+        return this.targetYaw !== undefined ? this.targetYaw : (this.camera ? this.camera.rotation.y : 0);
+    }
+
+    set cameraYaw(val) {
+        this.targetYaw = val;
+        // Keep facing aligned to nearest cardinal direction so movement doesn't snap camera backwards
+        const norm = ((-val % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+        this.facing = Math.round(norm / (Math.PI / 2)) % 4;
+        if (this.camera) {
+            this.camera.rotation.y = val;
+        }
+    }
+
+    get cameraPitch() {
+        return this.userPitchOffset || 0.0;
+    }
+
+    set cameraPitch(val) {
+        this.userPitchOffset = val;
+        if (this.camera) {
+            this.camera.rotation.x = (this.basePitch !== undefined ? this.basePitch : -0.157) + val;
+        }
+    }
+
+    setFacing(f) {
+        this.facing = ((f % 4) + 4) % 4;
+        this.targetYaw = -this.facing * (Math.PI / 2);
+        if (this.camera) {
+            this.camera.rotation.y = this.targetYaw;
+        }
+    }
+
     calculateStereoPan(worldX, worldZ) {
         if (!this.camera) return 0.0;
         const dx = worldX - this.currentCamPos.x;
@@ -3530,7 +3565,7 @@ class Dungeon3D {
         }
     }
 
-    createNameplateSprite(m, isTargeted) {
+    createNameplateSprite(m, isTargeted, isSensedParam) {
         const canvas = document.createElement('canvas');
         canvas.width = 384;
         canvas.height = 110;
@@ -3548,7 +3583,7 @@ class Dungeon3D {
         let curY = 6;
 
         // Line 1: Status badge (e.g. 💤 Zzz... matching Godot MonsterModelResolver.cs:500-504)
-        const isSensed = m.invisible || m.detected || m.unlit;
+        const isSensed = (isSensedParam !== undefined) ? isSensedParam : !!(m.invisible || (m.detected && m.unlit));
         if (m.asleep) {
             ctx.font = '700 22px "Fira Code", monospace';
             ctx.textAlign = 'center';
@@ -3646,49 +3681,68 @@ class Dungeon3D {
             side: THREE.DoubleSide
         });
 
-        texLoader.load('/assets/sprites/monsters/monster_atlas.png', (tex) => {
-            tex.encoding = THREE.sRGBEncoding;
-            tex.generateMipmaps = true;
-            tex.minFilter = THREE.LinearMipmapLinearFilter;
-            tex.magFilter = THREE.LinearFilter;
-            if (this.renderer && this.renderer.capabilities) {
-                tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
-            }
-            this.monsterAtlasTex = tex;
-            if (this.monsterBillboardMat) {
-                this.monsterBillboardMat.map = tex;
-                this.monsterBillboardMat.needsUpdate = true;
-            }
-        }, undefined, (err) => {
-            console.warn('[3D] monster_atlas.png failed to load, falling back to procedural tokens:', err);
-        });
+        this.monsterAtlasReady = new Promise((resolve) => {
+            let texDone = false;
+            let jsonDone = false;
+            const checkDone = () => {
+                if (texDone && jsonDone) {
+                    if (this.upgradeAllMonsterEntities) this.upgradeAllMonsterEntities();
+                    resolve(true);
+                }
+            };
 
-        texLoader.load('/assets/sprites/monsters/monster_normal.png', (tex) => {
-            tex.generateMipmaps = true;
-            tex.minFilter = THREE.LinearMipmapLinearFilter;
-            tex.magFilter = THREE.LinearFilter;
-            if (this.renderer && this.renderer.capabilities) {
-                tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
-            }
-            this.monsterNormalTex = tex;
-            if (this.monsterBillboardMat) {
-                this.monsterBillboardMat.normalMap = tex;
-                this.monsterBillboardMat.normalScale = new THREE.Vector2(0.45, 0.45);
-                this.monsterBillboardMat.needsUpdate = true;
-            }
-        }, undefined, (err) => {
-            console.warn('[3D] monster_normal.png failed to load:', err);
-        });
-
-        fetch('/assets/sprites/monsters/monster_atlas.json')
-            .then(res => res.json())
-            .then(data => {
-                this.monsterAtlasData = data;
-                console.log(`[3D] Loaded monster sprite atlas: ${Object.keys(data.monsters || {}).length} species, ${Object.keys(data.glyphs || {}).length} glyph fallbacks.`);
-            })
-            .catch(err => {
-                console.warn('[3D] monster_atlas.json failed to load, using procedural fallback:', err);
+            texLoader.load('/assets/sprites/monsters/monster_atlas.png', (tex) => {
+                tex.encoding = THREE.sRGBEncoding;
+                tex.generateMipmaps = true;
+                tex.minFilter = THREE.LinearMipmapLinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                if (this.renderer && this.renderer.capabilities) {
+                    tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+                }
+                this.monsterAtlasTex = tex;
+                if (this.monsterBillboardMat) {
+                    this.monsterBillboardMat.map = tex;
+                    this.monsterBillboardMat.needsUpdate = true;
+                }
+                texDone = true;
+                checkDone();
+            }, undefined, (err) => {
+                console.warn('[3D] monster_atlas.png failed to load, falling back to procedural tokens:', err);
+                texDone = true;
+                checkDone();
             });
+
+            texLoader.load('/assets/sprites/monsters/monster_normal.png', (tex) => {
+                tex.generateMipmaps = true;
+                tex.minFilter = THREE.LinearMipmapLinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                if (this.renderer && this.renderer.capabilities) {
+                    tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+                }
+                this.monsterNormalTex = tex;
+                if (this.monsterBillboardMat) {
+                    this.monsterBillboardMat.normalMap = tex;
+                    this.monsterBillboardMat.normalScale = new THREE.Vector2(0.45, 0.45);
+                    this.monsterBillboardMat.needsUpdate = true;
+                }
+            }, undefined, (err) => {
+                console.warn('[3D] monster_normal.png failed to load:', err);
+            });
+
+            fetch('/assets/sprites/monsters/monster_atlas.json')
+                .then(res => res.json())
+                .then(data => {
+                    this.monsterAtlasData = data;
+                    console.log(`[3D] Loaded monster sprite atlas: ${Object.keys(data.monsters || {}).length} species, ${Object.keys(data.glyphs || {}).length} glyph fallbacks.`);
+                    jsonDone = true;
+                    checkDone();
+                })
+                .catch(err => {
+                    console.warn('[3D] monster_atlas.json failed to load, using procedural fallback:', err);
+                    jsonDone = true;
+                    checkDone();
+                });
+        });
     }
 
     resolveMonsterAtlasEntry(name, glyph) {
@@ -3747,8 +3801,18 @@ class Dungeon3D {
         uvAttr.needsUpdate = true;
 
         const mesh = new THREE.Mesh(geo, this.monsterBillboardMat);
-        const w = atlasEntry.width || 1.25;
-        const h = atlasEntry.height || 1.70;
+        let w = atlasEntry.width || 1.25;
+        let h = atlasEntry.height || 1.70;
+
+        // Subterranean ceiling safety: wallHeight is 3.0m. Clamp maximum monster height to 2.05m
+        // while preserving aspect ratio, preventing heads and raised weapons from clipping the ceiling
+        const maxMonsterHeight = 2.05;
+        if (h > maxMonsterHeight) {
+            const scaleDown = maxMonsterHeight / h;
+            h = maxMonsterHeight;
+            w = w * scaleDown;
+        }
+
         mesh.scale.set(w, h, 1.0);
         mesh.castShadow = true;
         mesh.receiveShadow = false;
@@ -3782,49 +3846,68 @@ class Dungeon3D {
             side: THREE.DoubleSide
         });
 
-        texLoader.load('/assets/sprites/items/item_atlas.png', (tex) => {
-            tex.encoding = THREE.sRGBEncoding;
-            tex.generateMipmaps = true;
-            tex.minFilter = THREE.LinearMipmapLinearFilter;
-            tex.magFilter = THREE.LinearFilter;
-            if (this.renderer && this.renderer.capabilities) {
-                tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
-            }
-            this.itemAtlasTex = tex;
-            if (this.itemBillboardMat) {
-                this.itemBillboardMat.map = tex;
-                this.itemBillboardMat.needsUpdate = true;
-            }
-        }, undefined, (err) => {
-            console.warn('[3D] item_atlas.png failed to load, falling back to 3D item templates:', err);
-        });
+        this.itemAtlasReady = new Promise((resolve) => {
+            let texDone = false;
+            let jsonDone = false;
+            const checkDone = () => {
+                if (texDone && jsonDone) {
+                    if (this.upgradeAllItemEntities) this.upgradeAllItemEntities();
+                    resolve(true);
+                }
+            };
 
-        texLoader.load('/assets/sprites/items/item_normal.png', (tex) => {
-            tex.generateMipmaps = true;
-            tex.minFilter = THREE.LinearMipmapLinearFilter;
-            tex.magFilter = THREE.LinearFilter;
-            if (this.renderer && this.renderer.capabilities) {
-                tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
-            }
-            this.itemNormalTex = tex;
-            if (this.itemBillboardMat) {
-                this.itemBillboardMat.normalMap = tex;
-                this.itemBillboardMat.normalScale = new THREE.Vector2(0.45, 0.45);
-                this.itemBillboardMat.needsUpdate = true;
-            }
-        }, undefined, (err) => {
-            console.warn('[3D] item_normal.png failed to load:', err);
-        });
-
-        fetch('/assets/sprites/items/item_atlas.json')
-            .then(res => res.json())
-            .then(data => {
-                this.itemAtlasData = data;
-                console.log(`[3D] Loaded item sprite atlas: ${Object.keys(data.items || {}).length} items, ${Object.keys(data.glyphs || {}).length} glyph fallbacks.`);
-            })
-            .catch(err => {
-                console.warn('[3D] item_atlas.json failed to load, using 3D templates:', err);
+            texLoader.load('/assets/sprites/items/item_atlas.png', (tex) => {
+                tex.encoding = THREE.sRGBEncoding;
+                tex.generateMipmaps = true;
+                tex.minFilter = THREE.LinearMipmapLinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                if (this.renderer && this.renderer.capabilities) {
+                    tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+                }
+                this.itemAtlasTex = tex;
+                if (this.itemBillboardMat) {
+                    this.itemBillboardMat.map = tex;
+                    this.itemBillboardMat.needsUpdate = true;
+                }
+                texDone = true;
+                checkDone();
+            }, undefined, (err) => {
+                console.warn('[3D] item_atlas.png failed to load, falling back to 3D item templates:', err);
+                texDone = true;
+                checkDone();
             });
+
+            texLoader.load('/assets/sprites/items/item_normal.png', (tex) => {
+                tex.generateMipmaps = true;
+                tex.minFilter = THREE.LinearMipmapLinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                if (this.renderer && this.renderer.capabilities) {
+                    tex.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1);
+                }
+                this.itemNormalTex = tex;
+                if (this.itemBillboardMat) {
+                    this.itemBillboardMat.normalMap = tex;
+                    this.itemBillboardMat.normalScale = new THREE.Vector2(0.45, 0.45);
+                    this.itemBillboardMat.needsUpdate = true;
+                }
+            }, undefined, (err) => {
+                console.warn('[3D] item_normal.png failed to load:', err);
+            });
+
+            fetch('/assets/sprites/items/item_atlas.json')
+                .then(res => res.json())
+                .then(data => {
+                    this.itemAtlasData = data;
+                    console.log(`[3D] Loaded item sprite atlas: ${Object.keys(data.items || {}).length} items, ${Object.keys(data.glyphs || {}).length} glyph fallbacks.`);
+                    jsonDone = true;
+                    checkDone();
+                })
+                .catch(err => {
+                    console.warn('[3D] item_atlas.json failed to load, using 3D templates:', err);
+                    jsonDone = true;
+                    checkDone();
+                });
+        });
     }
 
     resolveItemAtlasEntry(name, glyph) {
@@ -3942,6 +4025,73 @@ class Dungeon3D {
         mesh.position.y = mesh.baseElevation;
 
         return mesh;
+    }
+
+    upgradeAllMonsterEntities() {
+        if (!this.monsterAtlasData || !this.monsters) return;
+        for (const [id, entity] of this.monsters.entries()) {
+            const m = entity.monsterData;
+            if (!m) continue;
+            if ((entity.isBillboardFallback || entity.isFallback) && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
+                const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, entity.glyph);
+                if (atlasEntry) {
+                    const upgradedBillboard = this.createMonsterBillboardMesh(atlasEntry);
+                    if (upgradedBillboard) {
+                        if (entity.creatureMesh) entity.remove(entity.creatureMesh);
+                        entity.creatureMesh = upgradedBillboard;
+                        entity.add(upgradedBillboard);
+                        entity.modelHeight = atlasEntry.height || 1.70;
+                        entity.isFloating = atlasEntry.isFloating || false;
+                        entity.isBillboardFallback = false;
+                        entity.isFallback = false;
+                        upgradedBillboard.monsterData = m;
+                        if (entity.contactShadow) {
+                            const footprint = (upgradedBillboard.baseWidth || 1.25) * 0.75;
+                            entity.contactShadow.scale.set(footprint, footprint, footprint);
+                        }
+                        if (entity.nameplate) {
+                            entity.nameplate.position.set(0, entity.modelHeight + 0.42, 0);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    upgradeAllItemEntities() {
+        if (!this.itemAtlasData || !this.items) return;
+        for (const [id, entity] of this.items.entries()) {
+            if (entity.isItemBillboardFallback && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.itemRenderer !== 'classic')) {
+                const atlasEntry = this.resolveItemAtlasEntry(entity.itemName, entity.glyph);
+                if (atlasEntry) {
+                    const upgradedBillboard = this.createItemBillboardMesh(atlasEntry);
+                    if (upgradedBillboard) {
+                        if (entity.itemMesh) entity.remove(entity.itemMesh);
+                        entity.itemMesh = upgradedBillboard;
+                        entity.add(upgradedBillboard);
+                        entity.isItemBillboard = true;
+                        entity.isFlat = !!atlasEntry.isFlat;
+                        entity.isItemBillboardFallback = false;
+                        if (entity.shadowMesh) {
+                            const fp = atlasEntry.footprint || 0.35;
+                            entity.shadowMesh.scale.set(fp, fp, fp);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async ensureAtlasesLoaded() {
+        const promises = [];
+        if (this.monsterAtlasReady) promises.push(this.monsterAtlasReady);
+        if (this.itemAtlasReady) promises.push(this.itemAtlasReady);
+        if (promises.length > 0) {
+            await Promise.all(promises);
+        }
+        this.upgradeAllMonsterEntities();
+        this.upgradeAllItemEntities();
+        return true;
     }
 
     createProceduralCreatureMesh(glyph, raceName, colorHex) {
@@ -5184,7 +5334,7 @@ class Dungeon3D {
         return group;
     }
 
-    createMonster3DEntity(m, isTargeted) {
+    createMonster3DEntity(m, isTargeted, isSensed) {
         const root = new THREE.Group();
         const glyph = m.glyph || '?';
         const race = (m.race || m.name || '').toLowerCase();
@@ -5209,7 +5359,7 @@ class Dungeon3D {
             if (atlasEntry) {
                 mesh = this.createMonsterBillboardMesh(atlasEntry);
                 if (mesh) {
-                    modelHeight = atlasEntry.height || 1.70;
+                    modelHeight = mesh.baseHeight || Math.min(2.05, atlasEntry.height || 1.70);
                     isFloating = atlasEntry.isFloating || false;
                 }
             }
@@ -5319,9 +5469,9 @@ class Dungeon3D {
         root.foggyMaterials = foggyAura.foggyMaterials;
         root.groundRipples = foggyAura.groundRipples;
 
-        // Overhead Billboarding Nameplate & Health Bar (always clear of creature model with generous margin)
-        const nameplate = this.createNameplateSprite(m, isTargeted);
-        nameplate.position.set(0, modelHeight + 0.42, 0);
+        // Overhead Billboarding Nameplate & Health Bar (always clear of creature model with generous margin, clamped below 3.0m ceiling)
+        const nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
+        nameplate.position.set(0, Math.min(2.65, modelHeight + 0.35), 0);
         nameplate.monsterData = m;
         root.add(nameplate);
         root.nameplate = nameplate;
@@ -5363,10 +5513,10 @@ class Dungeon3D {
                 const distSq = (m.x - px) ** 2 + (m.y - py) ** 2;
                 isTileLit = inView && (lighting < 3 || distSq <= (this.torchRadius + 1) ** 2);
             }
-            const isSensed = !!(m.invisible || m.detected || m.unlit || !isTileLit);
+            const isSensed = !isTileLit || !!m.invisible;
 
             if (!entity) {
-                entity = this.createMonster3DEntity(m, isTargeted);
+                entity = this.createMonster3DEntity(m, isTargeted, isSensed);
                 entity.position.set(wx, baseY, wz);
                 entity.targetPos = new THREE.Vector3(wx, baseY, wz);
                 entity.lastHp = m.hp;
@@ -5413,7 +5563,7 @@ class Dungeon3D {
                         entity.isFallback = false;
 
                         if (entity.nameplate) {
-                            entity.nameplate.position.set(0, entity.modelHeight + 0.42, 0);
+                            entity.nameplate.position.set(0, Math.min(2.65, entity.modelHeight + 0.35), 0);
                         }
                     }
                 }
@@ -5427,7 +5577,7 @@ class Dungeon3D {
                             entity.remove(entity.creatureMesh);
                             entity.creatureMesh = upgradedBillboard;
                             entity.add(upgradedBillboard);
-                            entity.modelHeight = atlasEntry.height || 1.70;
+                            entity.modelHeight = upgradedBillboard.baseHeight || Math.min(2.05, atlasEntry.height || 1.70);
                             entity.isFloating = atlasEntry.isFloating || false;
                             entity.isBillboardFallback = false;
                             upgradedBillboard.monsterData = m;
@@ -5436,7 +5586,7 @@ class Dungeon3D {
                                 entity.contactShadow.scale.set(footprint, footprint, footprint);
                             }
                             if (entity.nameplate) {
-                                entity.nameplate.position.set(0, entity.modelHeight + 0.42, 0);
+                                entity.nameplate.position.set(0, Math.min(2.65, entity.modelHeight + 0.35), 0);
                             }
                         }
                     }
@@ -5448,7 +5598,7 @@ class Dungeon3D {
                     entity.wasAttacked = true;
                     entity.lastDamageTaken = dmg;
                     entity.lastAttackedTime = Date.now();
-                    const textPos = new THREE.Vector3(wx, entity.modelHeight + 0.55, wz);
+                    const textPos = new THREE.Vector3(wx, Math.min(2.80, entity.modelHeight + 0.45), wz);
                     this.spawnFloatingText(`-${dmg}`, textPos, '#ff9900', 1.20);
                     this.spawnHitSparks(new THREE.Vector3(wx, entity.modelHeight * 0.5, wz), getAngbandColorString(m.attr), 14);
                     if (this.audio) {
@@ -5460,8 +5610,8 @@ class Dungeon3D {
                 // Refresh nameplate if HP, status, target state, or sensed state changed
                 if (entity.lastHp !== m.hp || entity.lastTargeted !== isTargeted || entity.lastAsleep !== m.asleep || entity.lastAfraid !== m.afraid || entity.lastSensed !== isSensed) {
                     entity.remove(entity.nameplate);
-                    entity.nameplate = this.createNameplateSprite(m, isTargeted);
-                    entity.nameplate.position.set(0, entity.modelHeight + 0.42, 0);
+                    entity.nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
+                    entity.nameplate.position.set(0, Math.min(2.65, entity.modelHeight + 0.35), 0);
                     entity.add(entity.nameplate);
                     entity.lastHp = m.hp;
                     entity.lastTargeted = isTargeted;
@@ -6080,7 +6230,8 @@ class Dungeon3D {
         const deathModal = document.getElementById('death-modal');
         const isCovered = (termContainer && !termContainer.classList.contains('hidden')) ||
                           (deathModal && !deathModal.classList.contains('hidden'));
-        if (isCovered) {
+        const isRecording = typeof window !== 'undefined' && window.location.search && window.location.search.includes('record_walkthrough=1');
+        if (isCovered && !isRecording) {
             if (this._lastThrottledRender && (tNow - this._lastThrottledRender < 200)) {
                 return;
             }

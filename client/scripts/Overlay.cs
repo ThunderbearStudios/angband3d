@@ -67,6 +67,7 @@ public partial class Overlay : Control
     public event System.Action GuideCloseRequested;
     public event System.Action SplashContinueRequested;
     public event System.Action SplashGuideRequested;
+    public event System.Action SplashDemoRequested;
     public event System.Action SplashWikiRequested;
     public event System.Action SplashQuitRequested;
     public event System.Action DeathReloadRequested;
@@ -81,6 +82,7 @@ public partial class Overlay : Control
     private readonly System.Collections.Generic.List<Rect2> _deathTabRects = new();
     private Rect2 _splashBtnRect;
     private Rect2 _splashGuideRect;
+    private Rect2 _splashDemoRect;
     private Rect2 _splashWikiRect;
     private Rect2 _splashQuitRect;
     private Rect2 _guideCloseRect;
@@ -294,32 +296,37 @@ public partial class Overlay : Control
         var footerY = View.Y - 42f;
         var s1 = "[1] Main Menu";
         var s2 = "[2] Game Guide & Primer";
-        var s3 = "[W] Angband Wiki";
-        var s4 = "[Esc] Quit";
+        var s3 = "[V] Watch Demo Video";
+        var s4 = "[W] Angband Wiki";
+        var s5 = "[Esc] Quit";
 
         var sz1 = _font.GetStringSize(s1, HorizontalAlignment.Left, -1, 13);
         var sz2 = _font.GetStringSize(s2, HorizontalAlignment.Left, -1, 13);
         var sz3 = _font.GetStringSize(s3, HorizontalAlignment.Left, -1, 13);
         var sz4 = _font.GetStringSize(s4, HorizontalAlignment.Left, -1, 13);
+        var sz5 = _font.GetStringSize(s5, HorizontalAlignment.Left, -1, 13);
 
-        var spacing = 28f;
-        var totalW = sz1.X + sz2.X + sz3.X + sz4.X + spacing * 3;
+        var spacing = 20f;
+        var totalW = sz1.X + sz2.X + sz3.X + sz4.X + sz5.X + spacing * 4;
         var startX = (View.X - totalW) / 2f;
 
         var x1 = startX;
         var x2 = x1 + sz1.X + spacing;
         var x3 = x2 + sz2.X + spacing;
         var x4 = x3 + sz3.X + spacing;
+        var x5 = x4 + sz4.X + spacing;
 
         _splashBtnRect = new Rect2(cx - btnW / 2f, btnY, btnW, btnH);
         _splashGuideRect = new Rect2(x2 - 4, footerY - 16, sz2.X + 8, 22);
-        _splashWikiRect = new Rect2(x3 - 4, footerY - 16, sz3.X + 8, 22);
-        _splashQuitRect = new Rect2(x4 - 4, footerY - 16, sz4.X + 8, 22);
+        _splashDemoRect = new Rect2(x3 - 4, footerY - 16, sz3.X + 8, 22);
+        _splashWikiRect = new Rect2(x4 - 4, footerY - 16, sz4.X + 8, 22);
+        _splashQuitRect = new Rect2(x5 - 4, footerY - 16, sz5.X + 8, 22);
 
         DrawString(_font, new Vector2(x1, footerY), s1, HorizontalAlignment.Left, -1, 13, new Color(0.85f, 0.78f, 0.55f));
         DrawString(_font, new Vector2(x2, footerY), s2, HorizontalAlignment.Left, -1, 13, new Color(0.62f, 0.78f, 1.0f));
-        DrawString(_font, new Vector2(x3, footerY), s3, HorizontalAlignment.Left, -1, 13, new Color(0.55f, 0.88f, 0.72f));
-        DrawString(_font, new Vector2(x4, footerY), s4, HorizontalAlignment.Left, -1, 13, new Color(0.85f, 0.55f, 0.55f));
+        DrawString(_font, new Vector2(x3, footerY), s3, HorizontalAlignment.Left, -1, 13, new Color(1.0f, 0.84f, 0.35f));
+        DrawString(_font, new Vector2(x4, footerY), s4, HorizontalAlignment.Left, -1, 13, new Color(0.55f, 0.88f, 0.72f));
+        DrawString(_font, new Vector2(x5, footerY), s5, HorizontalAlignment.Left, -1, 13, new Color(0.85f, 0.55f, 0.55f));
     }
 
     private void DrawAsciiSplashLogo(float cx, float topY)
@@ -438,7 +445,7 @@ public partial class Overlay : Control
         DrawRect(new Rect2(0, footerY, View.X, 42), new Color(0.06f, 0.08f, 0.12f, 0.96f));
         DrawLine(new Vector2(0, footerY), new Vector2(View.X, footerY), new Color(0.38f, 0.45f, 0.6f), 1f);
 
-        var hintMsg = "[1-6] Tabs   |   [Tab / Left / Right] Cycle Tabs   |   [Up/Down/Wheel] Scroll   |   [W] Open Angband Wiki";
+        var hintMsg = "[1-6] Tabs   |   [Tab / Left / Right] Cycle Tabs   |   [Up/Down/Wheel] Scroll   |   [V] Demo Video   |   [W] Angband Wiki";
         var hintSize = _font.GetStringSize(hintMsg, HorizontalAlignment.Left, -1, 13);
         _guideWikiRect = new Rect2(20, footerY + 6, hintSize.X + 10, 30);
         DrawString(_font, new Vector2(24, footerY + 26),
@@ -548,6 +555,10 @@ public partial class Overlay : Control
             5 => new[]
             {
                 "[ OFFICIAL DOCUMENTATION & COMMUNITY LINKS ]",
+                "• Angband 3D 1080p Gameplay Walkthrough & Video Guide:",
+                "    https://angband3d.com/demo",
+                "    (Theatrical 4-minute voiced walkthrough exploring Town, Combat, Chronicle, and Parley)",
+                "",
                 "• Official Angband Manual & Documentation:",
                 "    https://angband.readthedocs.io/",
                 "    (Comprehensive guides on monsters, artifacts, spells, dungeon mechanics, and commands)",
@@ -560,6 +571,7 @@ public partial class Overlay : Control
                 "    https://github.com/angband/angband",
                 "",
                 "[ ONE-KEY BROWSER LAUNCH ]",
+                "• Press [ V ] to watch the 1080p Gameplay Walkthrough & Video Guide in your browser!",
                 "• Press [ W ] at any time to open the Official Angband Wiki directly in your default browser!"
             },
             _ => System.Array.Empty<string>()
@@ -1819,6 +1831,10 @@ public partial class Overlay : Control
                     if (_splashGuideRect.HasPoint(mb.Position))
                     {
                         SplashGuideRequested?.Invoke();
+                    }
+                    else if (_splashDemoRect.HasPoint(mb.Position))
+                    {
+                        SplashDemoRequested?.Invoke();
                     }
                     else if (_splashWikiRect.HasPoint(mb.Position))
                     {

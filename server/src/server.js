@@ -1134,6 +1134,45 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // REST: Upload Gameplay Recording
+    if (pathname === '/api/recordings/upload' && req.method === 'POST') {
+        const chunks = [];
+        let totalSize = 0;
+        const maxLimit = 250 * 1024 * 1024; // 250 MB limit for raw video capture
+
+        req.on('data', chunk => {
+            totalSize += chunk.length;
+            if (totalSize > maxLimit) {
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Payload too large' }));
+                req.destroy();
+                return;
+            }
+            chunks.push(chunk);
+        });
+
+        req.on('end', () => {
+            const buf = Buffer.concat(chunks);
+            const headerName = req.headers['x-recording-name'] || 'raw_gameplay.webm';
+            const cleanName = sanitizeFilename(headerName);
+            const videoDir = path.join(WEB_DIR, 'assets', 'video');
+            if (!fs.existsSync(videoDir)) {
+                try { fs.mkdirSync(videoDir, { recursive: true }); } catch (_) {}
+            }
+            const destPath = path.join(videoDir, cleanName);
+            fs.writeFileSync(destPath, buf);
+
+            console.log(`[Recording] Uploaded gameplay recording: ${destPath} (${(buf.length / (1024 * 1024)).toFixed(2)} MB)`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                status: 'saved',
+                filename: cleanName,
+                sizeBytes: buf.length
+            }));
+        });
+        return;
+    }
+
     // REST: Delete save
     if (pathname.startsWith('/api/saves/') && req.method === 'DELETE') {
         const rawSaveName = pathname.substring('/api/saves/'.length);
@@ -1163,6 +1202,9 @@ const server = http.createServer((req, res) => {
     // Static Web Client Files
     let safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     if (safePath === '/' || safePath === '\\') safePath = '/index.html';
+    if (['/demo', '\\demo', '/demo/', '\\demo\\', '/watch', '\\watch', '/showcase', '\\showcase'].includes(safePath)) {
+        safePath = '/demo.html';
+    }
     const filePath = path.resolve(WEB_DIR, '.' + path.sep + safePath);
 
     // Guard against directory traversal attacks

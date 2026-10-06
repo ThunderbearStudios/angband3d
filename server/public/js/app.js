@@ -686,6 +686,7 @@ window.addEventListener('DOMContentLoaded', () => {
         terminal,
         input,
         audio,
+        startGame,
         setEngineMode,
         getEngineMode: () => engineMode,
         isApk,
@@ -1505,6 +1506,7 @@ window.addEventListener('DOMContentLoaded', () => {
         quickBirthActive = !!options.autoBirth;
         quickBirthStep = 0;
         forceTerminal = false;
+        lastFrame = null;
 
         if (hud && typeof hud.resetMessages === 'function') {
             hud.resetMessages();
@@ -3418,6 +3420,10 @@ window.addEventListener('DOMContentLoaded', () => {
         const charName = urlParams.get('char') || 'Adventurer';
         const isNew = urlParams.get('new') === '1' || urlParams.get('reroll') === '1';
         startGame({ charName, isNew, autoBirth: isNew });
+    } else if (urlParams.get('demo') === '1' || window.location.hash === '#demo') {
+        showSplash();
+        showDemoModal('splash');
+        checkSaves();
     } else {
         // Show Splash Screen and fetch saves in background
         showSplash();

@@ -180,6 +180,11 @@ public partial class Main : Node
             }
         };
 
+        _overlay.SplashDemoRequested += () =>
+        {
+            OS.ShellOpen("https://angband3d.com/demo");
+        };
+
         _overlay.SplashWikiRequested += () =>
         {
             OS.ShellOpen("https://angband.readthedocs.io/");
@@ -447,6 +452,11 @@ public partial class Main : Node
             OS.ShellOpen(_downloadUrl);
         }));
 
+        _menuItems.Add(("Watch Gameplay Showcase & Video Guide (angband3d.com/demo)", () =>
+        {
+            AudioManager.Play(SoundEffect.MenuSelect);
+            OS.ShellOpen("https://angband3d.com/demo");
+        }));
         _menuItems.Add(("Game Guide & Primer (Controls, Survival, Wiki)", OpenGuide));
         _menuItems.Add(("Toggle Fullscreen / Windowed (F11)", () =>
         {
@@ -871,6 +881,11 @@ public partial class Main : Node
             OS.ShellOpen(_downloadUrl);
         }));
 
+        _menuItems.Add(("Watch Gameplay Showcase & Video Guide (angband3d.com/demo)", () =>
+        {
+            AudioManager.Play(SoundEffect.MenuSelect);
+            OS.ShellOpen("https://angband3d.com/demo");
+        }));
         _menuItems.Add(("Game Guide & Primer", OpenGuide));
         _menuItems.Add(($"Toggle Sound / Mute [Ctrl-M] ({(AudioManager.IsMuted ? "MUTED" : "ENABLED")})", () =>
         {
@@ -1518,6 +1533,10 @@ public partial class Main : Node
             {
                 OpenGuide();
             }
+            else if (key.Keycode is Key.V)
+            {
+                OS.ShellOpen("https://angband3d.com/demo");
+            }
             else if (key.Keycode is Key.Key3 or Key.Kp3 or Key.W)
             {
                 OS.ShellOpen("https://angband.readthedocs.io/");
@@ -1543,6 +1562,13 @@ public partial class Main : Node
                 {
                     OpenMenu();
                 }
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.Keycode == Key.V)
+            {
+                OS.ShellOpen("https://angband3d.com/demo");
                 GetViewport().SetInputAsHandled();
                 return;
             }
