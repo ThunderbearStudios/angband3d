@@ -986,47 +986,47 @@
                 <div class="demo-video-wrapper">
                     <!-- HTML5 Video Component -->
                     <video id="demo-video-player" playsinline preload="metadata">
-                        <source src="/assets/video/angband3d_demo.webm" type="video/webm">
                         <source src="/assets/video/angband3d_demo.mp4" type="video/mp4">
+                        <source src="/assets/video/angband3d_demo.webm" type="video/webm">
                     </video>
 
                     <!-- Broadcast-Quality Canvas Reel Stage (60fps Scene Choreography) -->
                     <canvas id="demo-canvas-stage" width="1280" height="720"></canvas>
 
-                    <!-- Closed Captions Overlay -->
+                    <!-- Closed Captions Overlay (Off by default) -->
                     <div id="demo-captions-overlay" class="demo-captions-overlay"></div>
 
                     <!-- Center Play/Pause Button Overlay -->
-                    <button id="demo-center-play" class="demo-center-play" title="Play Commercial">
+                    <button id="demo-center-play" class="demo-center-play" title="Play Showcase">
                         <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
                     </button>
+                </div>
 
-                    <!-- YouTube-Grade Glassmorphic Transport Controls -->
-                    <div class="demo-transport-bar" id="demo-transport-bar">
-                        <div class="demo-scrubber-track" id="demo-scrubber-track">
-                            <div class="demo-scrubber-buffer" id="demo-scrubber-buffer"></div>
-                            <div class="demo-scrubber-progress" id="demo-scrubber-progress"></div>
-                            <div class="demo-scrubber-handle" id="demo-scrubber-handle"></div>
-                            <div class="demo-chapter-pips" id="demo-chapter-pips"></div>
-                            <div class="demo-scrubber-tooltip" id="demo-scrubber-tooltip">0:00</div>
+                <!-- Glassmorphic Transport Controls Placed UNDERNEATH the Video -->
+                <div class="demo-transport-bar" id="demo-transport-bar">
+                    <div class="demo-scrubber-track" id="demo-scrubber-track">
+                        <div class="demo-scrubber-buffer" id="demo-scrubber-buffer"></div>
+                        <div class="demo-scrubber-progress" id="demo-scrubber-progress"></div>
+                        <div class="demo-scrubber-handle" id="demo-scrubber-handle"></div>
+                        <div class="demo-chapter-pips" id="demo-chapter-pips"></div>
+                        <div class="demo-scrubber-tooltip" id="demo-scrubber-tooltip">0:00</div>
+                    </div>
+
+                    <div class="demo-controls-row">
+                        <div class="demo-controls-left">
+                            <button id="demo-btn-play" class="demo-ctrl-btn" title="Play/Pause (Space)">▶</button>
+                            <button id="demo-btn-replay" class="demo-ctrl-btn" title="Replay from Beginning">↺</button>
+                            <div class="demo-volume-group">
+                                <button id="demo-btn-mute" class="demo-ctrl-btn" title="Mute/Unmute (M)">🔊</button>
+                                <input type="range" id="demo-volume-slider" min="0" max="100" value="85" class="demo-slider" title="Volume">
+                            </div>
+                            <span id="demo-timecode" class="demo-timecode">0:00 / 4:15</span>
                         </div>
 
-                        <div class="demo-controls-row">
-                            <div class="demo-controls-left">
-                                <button id="demo-btn-play" class="demo-ctrl-btn" title="Play/Pause (Space)">▶</button>
-                                <button id="demo-btn-replay" class="demo-ctrl-btn" title="Replay from Beginning">↺</button>
-                                <div class="demo-volume-group">
-                                    <button id="demo-btn-mute" class="demo-ctrl-btn" title="Mute/Unmute (M)">🔊</button>
-                                    <input type="range" id="demo-volume-slider" min="0" max="100" value="85" class="demo-slider">
-                                </div>
-                                <span id="demo-timecode" class="demo-timecode">0:00 / 2:45</span>
-                            </div>
-
-                            <div class="demo-controls-right">
-                                <button id="demo-btn-cc" class="demo-ctrl-btn active" title="Subtitles &amp; Captions (C)">[CC]</button>
-                                <button id="demo-btn-fullscreen" class="demo-ctrl-btn" title="Toggle Fullscreen (F)">⛶</button>
-                                <button id="demo-btn-play-game" class="demo-btn-play-game btn-gold">⚔ Jump In &amp; Play</button>
-                            </div>
+                        <div class="demo-controls-right">
+                            <button id="demo-btn-cc" class="demo-ctrl-btn" title="Subtitles &amp; Captions (C)">[CC]</button>
+                            <button id="demo-btn-fullscreen" class="demo-ctrl-btn" title="Toggle Fullscreen (F)">⛶</button>
+                            <button id="demo-btn-play-game" class="demo-btn-play-game btn-gold">⚔ Jump In &amp; Play</button>
                         </div>
                     </div>
                 </div>
@@ -1034,12 +1034,21 @@
                 <!-- Chapter Jump Ribbon -->
                 <div class="demo-chapter-ribbon">
                     <button class="demo-chapter-pill active" data-time="0">✨ Awakening</button>
-                    <button class="demo-chapter-pill" data-time="25">👀 Gotcha #1: 0-Turn Yaw</button>
-                    <button class="demo-chapter-pill" data-time="55">⌨ [Tab] ASCII Terminal</button>
-                    <button class="demo-chapter-pill" data-time="85">🎧 3D Spatial Audio</button>
-                    <button class="demo-chapter-pill" data-time="115">⚔ Vault Combat</button>
-                    <button class="demo-chapter-pill" data-time="140">📖 Living Chronicle</button>
-                    <button class="demo-chapter-pill" data-time="155">🚀 Universal Saves</button>
+                    <button class="demo-chapter-pill" data-time="42">👀 Gotcha #1: 0-Turn Yaw</button>
+                    <button class="demo-chapter-pill" data-time="63">⌨ [Tab] ASCII Terminal</button>
+                    <button class="demo-chapter-pill" data-time="105">🕯️ Stealth &amp; Infravision</button>
+                    <button class="demo-chapter-pill" data-time="125">⚔ Vault Combat</button>
+                    <button class="demo-chapter-pill" data-time="147">📖 Living Chronicle</button>
+                    <button class="demo-chapter-pill" data-time="178">🗣️ Creature Chat</button>
+                    <button class="demo-chapter-pill" data-time="210">🚀 Universal Saves</button>
+                </div>
+
+                <!-- Thunderbear Studios GitHub Link Strip Underneath -->
+                <div class="demo-footer-strip">
+                    <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" class="demo-github-link" title="Open GitHub Repository">
+                        <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" class="demo-footer-logo">
+                        <span class="demo-github-text">Brought to you by <strong>Thunderbear Studios</strong> • View on GitHub ↗</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -1103,23 +1112,30 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=8.4.0"></script>
-    <script src="/js/mobile-overlay.js?v=8.4.0"></script>
-    <script src="/js/audio.js?v=8.4.0"></script>
-    <script src="/js/terminal.js?v=8.4.0"></script>
-    <script src="/js/dungeon3d.js?v=8.4.0"></script>
-    <script src="/js/hud.js?v=8.4.0"></script>
-    <script src="/js/network.js?v=8.4.0"></script>
-    <script src="/js/local_bridge.js?v=8.4.0"></script>
-    <script src="/js/input.js?v=8.4.0"></script>
-    <script src="/js/demo-player.js?v=8.4.0"></script>
+    <script src="/js/device.js?v=8.5.0"></script>
+    <script src="/js/mobile-overlay.js?v=8.5.0"></script>
+    <script src="/js/audio.js?v=8.5.0"></script>
+    <script src="/js/terminal.js?v=8.5.0"></script>
+    <script src="/js/dungeon3d.js?v=8.5.0"></script>
+    <script src="/js/hud.js?v=8.5.0"></script>
+    <script src="/js/network.js?v=8.5.0"></script>
+    <script src="/js/local_bridge.js?v=8.5.0"></script>
+    <script src="/js/input.js?v=8.5.0"></script>
+    <script src="/js/demo-player.js?v=8.5.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=8.4.0"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=8.4.0"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=8.4.0"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=8.4.0"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=8.4.0"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=8.4.0"></script>
-    <script src="/js/app.js?v=8.4.0"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=8.5.0"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=8.5.0"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=8.5.0"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=8.5.0"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=8.5.0"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=8.5.0"></script>
+    <script src="/js/app.js?v=8.5.0"></script>
+    <script>
+        if (window.location.search && window.location.search.includes('record_walkthrough=1')) {
+            const s = document.createElement('script');
+            s.src = '/js/demo-recorder.js?v=' + Date.now();
+            document.body.appendChild(s);
+        }
+    </script>
 </body>
 </html>

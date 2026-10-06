@@ -21,6 +21,9 @@ dist/
 *.exe
 *.zip
 *.log
+*.mp4
+*.webm
+*.wav
 
 # Local asset packages & raw resources
 /resources/
@@ -41,6 +44,9 @@ Thumbs.db
 /test*.png
 /screenshot*.png
 /*.png
+server/public/assets/video/test_*.png
+tools/test_*.png
+tools/test_*.webm
 tools/temp_chrome_*/
 scratch/
 lib/

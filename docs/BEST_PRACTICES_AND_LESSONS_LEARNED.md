@@ -30,6 +30,8 @@
 22. [Absolute Vocal Mutual Exclusion & Zero Concurrent Voice Overlap](#22-absolute-vocal-mutual-exclusion--zero-concurrent-voice-overlap-v2111--web-v831)
 23. [Visual Vocal Telemetry, Skipped Event Taxonomy & Real-Time Interruption Context Architecture](#23-visual-vocal-telemetry-skipped-event-taxonomy--real-time-interruption-context-architecture-v2112--web-v832)
 24. [YouTube-Grade In-Engine Gameplay Commercial & Veteran Theater Showcase Architecture](#24-youtube-grade-in-engine-gameplay-commercial--veteran-theater-showcase-architecture-v2120--web-v840)
+25. [Broadcast-Quality Authentic In-Engine Walkthrough Video Recording, Monster Scaling Invariants & Coordinate Facing Systems](#25-broadcast-quality-authentic-in-engine-walkthrough-video-recording-monster-scaling-invariants--coordinate-facing-systems)
+26. [Dedicated Walkthrough Showcase Routing, Under-Video Controls Architecture & Cross-Platform Parity Invariants](#26-dedicated-walkthrough-showcase-routing-under-video-controls-architecture--cross-platform-parity-invariants)
 
 ---
 
@@ -994,3 +996,103 @@ To guarantee broadcast quality with zero runtime API failure or network lag:
 - **Timed Subtitles**: `.demo-captions-overlay` color-coded by speaker (`.speaker-bard`, `.speaker-dragon`, etc.).
 - **HTTP 206 Partial Content Streaming**: Server delivers media via byte-range requests (`Accept-Ranges: bytes`) for instant scrubbing.
 - **Direct Conversion CTA**: `#demo-btn-play-game` launches a new random hero directly into the dungeon with zero friction.
+
+---
+
+## 25. Broadcast-Quality Authentic In-Engine Walkthrough Video Recording, Monster Scaling Invariants & Coordinate Facing Systems
+
+### 25.1 Subterranean Monster Scaling & Ceiling Clearance Invariant
+- **The Ceiling Clipping Failure Mode**:
+  - In `Dungeon3D`, dungeon masonry walls and vaulted ceilings are constructed with a canonical height of `wallHeight = 3.0` meters.
+  - The Shockbolt monster atlas (`monster_atlas.json`) contains historical height entries up to `2.4m` for tall or broad creatures (e.g. Forest Troll, Greater Hell-Beast, Titans, Stone Giants).
+  - When rendered in a 3.0m corridor, a 2.4m billboard with idle vertical bobbing (`0.05m`) and an overhead nameplate (`modelHeight + 0.42m = 2.87m - 3.0m`) pushed creature crowns, raised polearms, and floating nameplates directly through the ceiling slabs and into the void.
+- **The Mandatory Scaling Cap & Nameplate Clamping Invariant**:
+  - In `createMonsterBillboardMesh` (`dungeon3d.js`):
+    - Strict physical height cap: `maxMonsterHeight = 2.05`.
+    - If `atlasEntry.height > 2.05`, the entity is scaled down proportionally to preserve exact aspect ratio:
+      ```javascript
+      const maxMonsterHeight = 2.05;
+      if (h > maxMonsterHeight) {
+          const scaleDown = maxMonsterHeight / h;
+          h = maxMonsterHeight;
+          w = w * scaleDown;
+      }
+      ```
+  - In `createMonster3DEntity` and `updateMonsters`:
+    - Overhead nameplates and floating damage numbers are strictly clamped:
+      ```javascript
+      entity.nameplate.position.set(0, Math.min(2.65, entity.modelHeight + 0.35), 0);
+      ```
+    - Guarantees at least 0.35m of clean, unoccluded visual clearance below the 3.0m subterranean masonry ceiling for all 624 monster races in Angband.
+
+### 25.2 Three.js Camera Yaw vs. Compass Coordinate Mapping Trap
+- **The Sign Inversion Trap**:
+  - In Three.js right-handed coordinate systems ($+X$ right, $+Y$ up, $+Z$ back towards viewer):
+    - Default camera at rotation $(0,0,0)$ looks along $-Z$ (**North**).
+    - Rotating around the Y-axis:
+      - $\text{rotation.y} = 0 \implies \text{Direction } (0, 0, -1)$ (**North**)
+      - $\text{rotation.y} = -\frac{\pi}{2} \implies \text{Direction } (+1, 0, 0)$ (**East**)
+      - $\text{rotation.y} = \pi \implies \text{Direction } (0, 0, +1)$ (**South**)
+      - $\text{rotation.y} = +\frac{\pi}{2} \implies \text{Direction } (-1, 0, 0)$ (**West**)
+  - Setting `cameraYaw = Math.PI * 0.5` points **WEST**, NOT EAST!
+  - If a player is standing at $(105, 24)$ and the enemy creature is placed at $(106, 24)$ ($\Delta x = +1, \Delta y = 0$, East), setting `cameraYaw = Math.PI * 0.5` points the camera directly into the western wall ($\Delta x = -1$), blinding the viewer.
+- **The Invariant**:
+  - Facing East always requires `cameraYaw = -Math.PI * 0.5` (or $-1.570796$).
+  - Internal camera facing formula: `yaw = -this.facing * (Math.PI / 2)`.
+
+### 25.3 Narrative-Gameplay Coherence & Golden Save Generation
+- **Elimination of Artificial "Cold Open" Hacks**:
+  - Gameplay showcase videos must present a logical, compelling narrative. Starting a video with an unnatural 4-second cold open fighting a mis-matched creature in a dead-end corridor, flashing CRT scanlines for 4 seconds, and then abruptly teleporting to town breaks viewer immersion.
+  - The walkthrough narrative starts in the serene, star-lit Town above, demonstrates 0-turn camera yaw, descends the grand stone staircase, and journeys into the deep.
+- **Narrative Entity Fidelity (The Young Red Dragon)**:
+  - If narrative audio, lorekeeper consultation, and Tolkien creature dialogue discuss a **Young Red Dragon** at 1250ft (depth 25), the video must authentically feature a Young Red Dragon at depth 25.
+  - Golden save creation (`tools/create_golden_dragon_save.py`) employs authoritative C engine wizard commands:
+    - `C-a` `j` $\to$ jump to depth 25 (1250ft).
+    - `C-a` `A` $\to$ advance hero power (Level 50, 547 HP) to survive draconic fire breath.
+    - `C-a` `w` $\to$ wizard light to illuminate the vaulted chamber.
+    - `C-a` `n` $\to$ summon named monster `Young red dragon`.
+  - All golden saves are version-controlled in `tools/demo_saves_backup/` and restored automatically before recording runs.
+
+---
+
+## 26. Dedicated Walkthrough Showcase Routing, Under-Video Controls Architecture & Cross-Platform Parity Invariants
+
+### 26.1 Under-Video Controls Layout Invariant
+- **The Gameplay Occlusion Failure Mode**:
+  - Placing video playback controls, scrubbers, volume sliders, and timecodes inside or layered on top of the 1080p video player occludes vital game UI elements (such as the 3-row Angband status bar, message banner, or minimap).
+  - Floating controls also induce visual fatigue and trigger unwanted hover popups during playback.
+- **The Invariant**:
+  - The `.demo-transport-bar` / `.controls-bar` is strictly structured **underneath** the video wrapper outside the video canvas:
+    - Video container: `border-radius: 12px 12px 0 0; border-bottom: none`.
+    - Transport bar: `border-radius: 0 0 12px 12px; border-top: 1px solid rgba(255, 255, 255, 0.08)`.
+  - This ensures 100% unobstructed visibility of all native Angband 4.2.6 C engine HUD text, message history, and 3D dungeon visuals.
+
+### 26.2 Closed Captions Default State
+- **The Subtitle Occlusion Trap**:
+  - Defaulting closed captions (CC) to `true` permanently occupies the lower quarter of the video stage with subtitle bubbles, blocking Angband's message log and HP/SP statistics.
+- **The Invariant**:
+  - Closed captions MUST default to **OFF** (`captionsEnabled = false`).
+  - Users can toggle captions on-demand via the `[CC]` button or pressing `C`.
+
+### 26.3 Branding Invariants & FFmpeg Video Duration Math
+- **Thunderbear Studios Branding**:
+  - Act 0 (0:00 - 0:03.8): Theatrical intro card featuring the official Thunderbear Studios logo, radiant gold aura, and Cinzel gold font (*"THUNDERBEAR STUDIOS PRESENTS"*).
+  - Act 8 (3:45 - 4:15): Theatrical outro card featuring the Thunderbear Studios logo, *"BROUGHT TO YOU BY THUNDERBEAR STUDIOS"*, 6-pillar feature grid, and GitHub link `https://github.com/ThunderbearStudios/angband3d`.
+- **The `-shortest` FFmpeg Track Truncation Trap**:
+  - Using `-shortest` in FFmpeg muxing commands causes FFmpeg to terminate the entire output video the millisecond *any* input stream reaches EOF. If the raw video recording stream finishes 1-2 seconds early, the final vocal narration stem (e.g. Enceladus's concluding line *"Descend... if you dare!"*) is abruptly clipped mid-sentence.
+- **The Invariant**:
+  - Never use `-shortest` when muxing choreographed multi-track vocal stems.
+  - Video recording timeline (`TARGET_DURATION = 255.0s`) includes a generous 14-second hold on the outro card after the final vocal completes (at 241.3s), ensuring the voiceover resolves naturally and the audience has ample time to read features and repository links before fading to black.
+
+### 26.4 Native Client Distribution & Routing Invariant
+- **The Binary Bloat Trap**:
+  - Bundling 300MB+ of 1080p MP4 and WebM video files into the Godot Windows Desktop installer or Android APK swells distribution artifacts from ~25MB to >350MB, causing bandwidth strain, slow downloads, and app store rejection.
+- **The Invariant**:
+  - The high-definition showcase video is hosted exclusively on the web client (`https://angband3d.com/demo`).
+  - All native clients (Godot C# Windows desktop and Android APK) reference the web showcase via `OS.ShellOpen("https://angband3d.com/demo")`:
+    - Splash screen: `[V] Watch Demo Video` button & `Key.V` shortcut.
+    - Title Menu & Pause Menu: `"Watch Gameplay Showcase & Video Guide (angband3d.com/demo)"`.
+    - In-game Survival Guide (Tab 6): Clickable link and `[V]` shortcut.
+  - Server daemon (`server.js`) natively routes `/demo`, `/demo/`, `/watch`, and `/showcase` to `server/public/demo.html`.
+
+

@@ -19,7 +19,9 @@
 !server/test
 !server/test/**
 
-# Strictly ignore node_modules
+# Strictly ignore node_modules and intermediate raw capture
 server/node_modules/
 server/node_modules/**
 **/node_modules/**
+server/public/assets/video/raw_gameplay.webm
+
