@@ -396,7 +396,11 @@
                 const playPromise = this.videoEl.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(err => {
-                        console.warn('[DemoPlayer] Video playback was prevented:', err);
+                        console.warn('[DemoPlayer] Video playback was prevented, falling back to muted play:', err);
+                        this.videoEl.muted = true;
+                        this.isMuted = true;
+                        this.updateVolumeUI();
+                        this.videoEl.play().catch(e => console.error('[DemoPlayer] Muted playback error:', e));
                     });
                 }
             }

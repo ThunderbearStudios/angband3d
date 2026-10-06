@@ -620,9 +620,9 @@
             <div class="ambient-glow" id="ambient-glow"></div>
 
             <div class="video-box">
-                <video id="video-player" playsinline preload="metadata">
-                    <source src="/assets/video/angband3d_demo.mp4" type="video/mp4">
-                    <source src="/assets/video/angband3d_demo.webm" type="video/webm">
+                <video id="video-player" playsinline preload="auto" crossorigin="anonymous">
+                    <source src="/assets/video/angband3d_demo.mp4?v=8.5.1" type="video/mp4">
+                    <source src="/assets/video/angband3d_demo.webm?v=8.5.1" type="video/webm">
                 </video>
 
                 <!-- Closed Captions (Off by default) -->
@@ -800,7 +800,15 @@
 
             function togglePlay() {
                 if (video.paused) {
-                    video.play();
+                    const p = video.play();
+                    if (p && typeof p.catch === 'function') {
+                        p.catch(err => {
+                            console.warn('[DemoPlayer] Unmuted playback blocked, falling back to muted playback:', err);
+                            video.muted = true;
+                            updateVolume();
+                            video.play().catch(e => console.error('[DemoPlayer] Muted playback error:', e));
+                        });
+                    }
                     btnPlay.textContent = '⏸';
                     btnCenterPlay.classList.add('hidden');
                 } else {
@@ -810,6 +818,9 @@
                 }
             }
 
+            video.addEventListener('error', () => {
+                console.error('[DemoPlayer] Video element error:', video.error);
+            });
             video.addEventListener('timeupdate', updateUI);
             video.addEventListener('play', () => {
                 btnPlay.textContent = '⏸';

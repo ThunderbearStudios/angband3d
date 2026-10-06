@@ -1246,7 +1246,9 @@ const server = http.createServer((req, res) => {
         // - HTML, JS, CSS: no-cache, no-store, must-revalidate to ensure instant delivery of app updates
         // - 3D Models, Textures, Audio, Video: 24h caching (immutable static assets)
         let cacheControl = 'no-cache, no-store, must-revalidate';
-        if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck', '.wav', '.ogg', '.mp3', '.webm', '.mp4', '.m4a'].includes(ext)) {
+        if (['.mp4', '.webm', '.mp3', '.wav', '.ogg', '.m4a'].includes(ext)) {
+            cacheControl = 'public, max-age=86400, no-transform';
+        } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck'].includes(ext)) {
             cacheControl = 'public, max-age=86400, immutable';
         }
 
@@ -1254,10 +1256,15 @@ const server = http.createServer((req, res) => {
             'Content-Type': contentType,
             'Cache-Control': cacheControl,
             'Accept-Ranges': 'bytes',
-            // Cross-Origin Isolation headers required for Godot 4 WebAssembly multithreading/SharedArrayBuffer
-            'Cross-Origin-Opener-Policy': 'same-origin',
-            'Cross-Origin-Embedder-Policy': 'require-corp',
+            'Access-Control-Allow-Origin': '*',
+            'Cross-Origin-Resource-Policy': 'cross-origin',
         };
+
+        // Cross-Origin Isolation headers required for Godot 4 WebAssembly multithreading/SharedArrayBuffer on game client
+        if (safePath === '/index.html' || ext === '.wasm' || ext === '.pck') {
+            headers['Cross-Origin-Opener-Policy'] = 'same-origin';
+            headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
+        }
 
         // HTTP 206 Partial Content (Range Request) support for smooth video/audio seeking & scrubbing
         const range = req.headers.range;
