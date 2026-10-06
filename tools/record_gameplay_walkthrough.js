@@ -214,6 +214,7 @@ async function main() {
         '-preset', 'fast',
         '-crf', '21',
         '-pix_fmt', 'yuv420p',
+        '-movflags', '+faststart',
         '-c:a', 'aac',
         '-b:a', '192k',
         OUT_MP4_PATH

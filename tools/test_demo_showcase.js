@@ -52,7 +52,7 @@ const requiredHtmlElements = [
     'id="demo-chapter-pips"',
     'id="demo-btn-play-game"',
     'id="btn-demo-close"',
-    'demo-player.js?v=8.5.0'
+    'demo-player.js?v=8.5.1'
 ];
 
 for (const el of requiredHtmlElements) {
