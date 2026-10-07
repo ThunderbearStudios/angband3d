@@ -1,13 +1,22 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.15.0 / Web v8.8.4 — Broadcast Showcase Parity, Cloud Run 32MB Safe 4MB Range Chunking, Edge Proxy Dynamic Bypass, Prominent README Showcase Badges & Global Deployment)
+## Current System State (Angband3D v2.15.0 / Web v8.8.5 — Broadcast Showcase Parity, True Fullscreen Video with Auto-Hiding Floating HUD, Cloud Run 32MB Safe 4MB Range Chunking, Edge Proxy Dynamic Bypass, Prominent README Showcase Badges & Global Deployment)
 
-0. **Production Finalization & CDN Streaming Parity (Angband3D v2.15.0 / Web v8.8.4 — The Definitive Master Release)**:
+0. **Production Finalization & CDN Streaming Parity (Angband3D v2.15.0 / Web v8.8.5 — The Definitive Master Release)**:
    - **Streamlined In-Game Splash Screen (`index.html`, `dungeon.css`)**:
      - Stripped wordy 4-line server notice and redundant tome text; replaced with 4 sleek obsidian/gold glowing feature chips: `⚔ Bit-for-Bit 4.2.6 Rules`, `⌨ [Tab] CRT Terminal`, `📖 AI Living Chronicle`, `💾 Universal Saves`.
      - Compacted universal save portability note to a single punchy line with instant download trigger: `⚡ Universal .SAV Portability: Play in browser or download Standalone PC (.zip) & Android APK`.
      - Refined action button to `[ PRESS SPACE / ENTER / CLICK TO PLAY ]`.
      - Streamlined shortcut buttons to 7 essential, gold-accented quick-actions: `[D] 🎬 Gameplay Demo`, `[1] ⚔ Main Menu`, `[2] ✨ Features`, `[4] 📖 Guide`, `[6] 📱 Downloads`, `[5] 📜 Credits`, `[W] Wiki`.
+   - **True Fullscreen Video & Floating HUD Controls (`dungeon.css`, `demo-player.js`, `sw.js` v8.8.5)**:
+     - Solved the defect where clicking Fullscreen (`⛶`) or pressing `F` failed to make the video fill the screen.
+     - Implemented true 100vw/100vh viewport expansion (`object-fit: contain; width: 100%; height: 100%`) eliminating the 1040px desktop container constraint in fullscreen.
+     - Overlayed glassmorphic transport controls and chapter ribbon as floating bottom HUD elements with ambient blur.
+     - Implemented 2.5s idle auto-hide (`.hud-hidden`) with cursor suppression while playing, instantly restoring on mousemove, touch, or keypress. Controls never hide while paused.
+     - Added double-click video to toggle fullscreen, single-click video to play/pause, `F` to toggle, and `Escape` to exit fullscreen first before closing modal.
+     - Added iOS WebKit native video fallback (`video.webkitEnterFullscreen()`) for mobile devices lacking container fullscreen.
+     - Synchronized browser `fullscreenchange` events, ensuring icon toggling and CSS state remain in lockstep.
+     - Verified 100% pass across both `/demo` and modal `#demo-modal` via `node tools/test_fullscreen.js`.
    - **Unified Showcase Parity (`angband3d.com/demo` vs In-Game `#demo-modal`)**:
      - Both standalone `/demo` and the in-game modal now stream from identical canonical master video assets (`angband3d_demo_v884.mp4` / `.webm`) with dynamic alias routing to `angband3d_demo.mp4` on disk.
      - Both standalone `/demo` and the in-game modal share the single source of truth stylesheet (`dungeon.css`), identical `.demo-theater-container` structure, and unified controller (`demo-player.js`).
@@ -32,6 +41,7 @@
        - 29.5 Unified Standalone Showcase Routing & HTTP 206 Partial Content Streaming.
        - 29.6 Distribution Package Hygiene & Heavy Demo Video Separation Invariants.
    - **Comprehensive Automated Verification Suites (100% PASS)**:
+     - `node tools/test_fullscreen.js`: 4/4 suites PASS (Dedicated Demo Fullscreen Video Fill, Dedicated Demo HUD Auto-Hide, Modal Fullscreen Video Fill, Modal HUD Auto-Hide).
      - `node tools/test_live_act_nav.js https://angband3d.com`: 4/4 suites PASS on live production (Dedicated Demo Act Nav, Modal Act Nav, Demo Arrow Key Skipping, Modal Arrow Key Skipping).
      - `node tools/test_demo_showcase.js`: 7/7 suites PASS.
      - `node tools/test_cloud_live_demo.js`: 100% PASS across production and regional Cloud Run backends.

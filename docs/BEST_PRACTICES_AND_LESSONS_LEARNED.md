@@ -1321,5 +1321,41 @@ To guarantee broadcast quality with zero runtime API failure or network lag:
     - Clicking Act 3 ($75.0\text{s}$) and Act 7 ($197.5\text{s}$) updates `currentTime` instantly without snap-back.
     - Pressing Arrow Right (+5s) and Arrow Left (-5s) navigates forward and backward seamlessly.
 
+### 29.8 True Fullscreen Video Architecture & Auto-Hiding Floating HUD Controls
+- **The Failure Mode**:
+  - Clicking the Fullscreen button (`⛶`) or pressing `F` failed to make the video fill the screen.
+  - The player container retained its desktop windowed constraints (`max-width: 1040px`, `max-height: min(580px, calc(100vh - 220px))`).
+  - The video remained in a small letterboxed box in the center of the display with massive black borders and vertically stacked controls underneath.
+  - On iOS Safari, `div.requestFullscreen` is unsupported, causing the button to do nothing.
+  - Pressing `Escape` in fullscreen closed the entire game modal rather than exiting fullscreen first.
+- **The Triple Root Cause**:
+  1. **Missing `:fullscreen` CSS Rules**: No `:fullscreen`, `:-webkit-full-screen`, or `.is-fullscreen` style rules existed in the stylesheet, so browser native fullscreen applied default centered box styling with origin dimensions.
+  2. **Vertical Flow vs. Overlay Layout**: In normal layout, transport controls and chapter pills were stacked vertically beneath the video wrapper. In fullscreen, these controls occupied vertical space and prevented the video from utilizing 100vh.
+  3. **Event & Key Handler Desynchronization**: The player did not listen to `fullscreenchange` / `webkitfullscreenchange`, so browser-initiated exits (such as `Esc` or browser controls) left `this.isFullscreen` out of sync. Pressing `Escape` closed the modal rather than exiting fullscreen first.
+- **The Mandatory Architectural Invariants**:
+  1. **Complete Viewport Video Fill**:
+     - In fullscreen mode, `.demo-theater-container` and `.demo-video-wrapper` expand to `100vw !important` and `100vh !important`, while `#demo-video-player` uses `object-fit: contain; width: 100%; height: 100%;` to letterbox cleanly to the monitor's exact aspect ratio.
+  2. **Floating HUD Controls**:
+     - `.demo-transport-bar` and `.demo-chapter-ribbon` float over the bottom of the video (`position: absolute; bottom: 50px / 8px; left: 50%; transform: translateX(-50%)`) with dark glassmorphism and ambient blur.
+  3. **Auto-Hiding HUD on Idle**:
+     - After 2.5s of mouse/keyboard inactivity while video is playing, `.hud-hidden` is applied, transitioning controls to `opacity: 0; pointer-events: none;` and setting `cursor: none;`.
+     - On any mouse move, click, touch, or keypress, the HUD immediately reappears.
+     - Controls are never hidden while playback is paused.
+  4. **Native iOS WebKit Fallback**:
+     - For iOS Safari, when `container.requestFullscreen` is unavailable or rejected, fallback immediately to `video.webkitEnterFullscreen()`.
+  5. **Bi-directional Fullscreen Event Sync**:
+     - Listen to `document.fullscreenchange` and `webkitfullscreenchange` to synchronize `this.isFullscreen`, update button glyph (`⛶` vs `⤓`), and toggle `.is-fullscreen` on the container.
+  6. **Ergonomic Keyboard & Mouse Shortcuts**:
+     - Double-click on video toggles fullscreen.
+     - Single-click on video toggles play/pause.
+     - `F` key toggles fullscreen.
+     - `Escape` key exits fullscreen if active, or closes the modal if already windowed.
+- **Verification Proof**:
+  - Automated headless Chrome CDP test (`tools/test_fullscreen.js`) verifies:
+    - Normal dimensions: video 1038x579, container 1040x764.
+    - Fullscreen dimensions: video 1904x929 (100% of viewport), container 1904x929.
+    - HUD auto-hide: Opacity drops to 0 after 2.5s idle on both dedicated showcase (`/demo`) and in-game modal (`/`).
+
+
 
 

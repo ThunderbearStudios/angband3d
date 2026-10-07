@@ -71,6 +71,7 @@
             this.activeSubtitle = null;
             this._seekTimeout = null;
             this._keydownHandler = null;
+            this._hudIdleTimeout = null;
 
             this.manifest = {
                 title: 'Angband3D — Award-Winning 10-Act Gameplay Walkthrough',
@@ -303,6 +304,34 @@
                 this.btnFullscreenEl.addEventListener('click', () => this.toggleFullscreen());
             }
 
+            // Sync with browser native fullscreen changes (Esc, browser controls, F11)
+            document.addEventListener('fullscreenchange', () => this.onFullscreenChange());
+            document.addEventListener('webkitfullscreenchange', () => this.onFullscreenChange());
+
+            // Video wrapper click (single click: play/pause, double click: toggle fullscreen)
+            if (this.videoWrapperEl) {
+                let clickTimer = null;
+                this.videoWrapperEl.addEventListener('click', (e) => {
+                    if (e.target.closest('#demo-center-play') || e.target.closest('.demo-close-btn') || e.target.closest('.demo-captions-overlay')) return;
+                    if (clickTimer) {
+                        clearTimeout(clickTimer);
+                        clickTimer = null;
+                        this.toggleFullscreen();
+                    } else {
+                        clickTimer = setTimeout(() => {
+                            clickTimer = null;
+                            this.togglePlay();
+                        }, 240);
+                    }
+                });
+            }
+
+            // Reset HUD auto-hide timer on user interaction
+            const onUserActivity = () => this.resetHudTimer();
+            window.addEventListener('mousemove', onUserActivity, { passive: true });
+            window.addEventListener('mousedown', onUserActivity, { passive: true });
+            window.addEventListener('touchstart', onUserActivity, { passive: true });
+
             // Jump In & Play CTA button
             if (this.btnPlayGameEl) {
                 this.btnPlayGameEl.addEventListener('click', () => this.jumpInAndPlay());
@@ -310,7 +339,13 @@
 
             // Close button
             if (this.btnCloseEl) {
-                this.btnCloseEl.addEventListener('click', () => this.close());
+                this.btnCloseEl.addEventListener('click', () => {
+                    if (this.isFullscreen) {
+                        this.exitFullscreen();
+                    } else {
+                        this.close();
+                    }
+                });
             }
 
             // Escape key or backdrop click closes modal
@@ -324,6 +359,7 @@
                 this._keydownHandler = (e) => {
                     if (!this.isOpen && !this.isStandalone) return;
                     if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+                    this.resetHudTimer();
 
                     if (e.code === 'Space' || e.code === 'KeyK') {
                         e.preventDefault();
@@ -345,7 +381,11 @@
                         this.toggleFullscreen();
                     } else if (e.code === 'Escape') {
                         e.preventDefault();
-                        this.close();
+                        if (this.isFullscreen) {
+                            this.exitFullscreen();
+                        } else {
+                            this.close();
+                        }
                     }
                 };
                 window.addEventListener('keydown', this._keydownHandler);
@@ -489,6 +529,7 @@
         play() {
             this.isPlaying = true;
             this.updatePlayPauseUI();
+            this.resetHudTimer();
 
             if (this.videoEl) {
                 if (this.videoEl.ended) {
@@ -511,6 +552,12 @@
         pause() {
             this.isPlaying = false;
             this.updatePlayPauseUI();
+            if (this._hudIdleTimeout) {
+                clearTimeout(this._hudIdleTimeout);
+                this._hudIdleTimeout = null;
+            }
+            const container = this.getContainer();
+            if (container) container.classList.remove('hud-hidden');
 
             if (this.videoEl) {
                 this.videoEl.pause();
@@ -623,18 +670,29 @@
             }
         }
 
+        getContainer() {
+            return this.modalEl ? this.modalEl.querySelector('.demo-theater-container') : document.querySelector('.demo-theater-container');
+        }
+
         toggleFullscreen() {
-            const container = this.modalEl ? this.modalEl.querySelector('.demo-theater-container') : document.querySelector('.demo-theater-container');
+            const container = this.getContainer();
             if (!container) return;
 
-            if (!document.fullscreenElement) {
-                if (container.requestFullscreen) {
-                    container.requestFullscreen();
-                } else if (container.webkitRequestFullscreen) {
-                    container.webkitRequestFullscreen();
+            const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+            if (!isFs) {
+                const req = container.requestFullscreen ? container.requestFullscreen() :
+                            container.webkitRequestFullscreen ? container.webkitRequestFullscreen() : null;
+                if (req && req.catch) {
+                    req.catch(err => {
+                        console.warn('[DemoPlayer] Container fullscreen failed, trying video element fallback:', err);
+                        if (this.videoEl && this.videoEl.webkitEnterFullscreen) {
+                            this.videoEl.webkitEnterFullscreen();
+                        }
+                    });
+                } else if (!req && this.videoEl && this.videoEl.webkitEnterFullscreen) {
+                    // Mobile Safari iOS fallback
+                    this.videoEl.webkitEnterFullscreen();
                 }
-                this.isFullscreen = true;
-                if (this.btnFullscreenEl) this.btnFullscreenEl.textContent = '⤓';
             } else {
                 this.exitFullscreen();
             }
@@ -646,8 +704,59 @@
             } else if (document.webkitExitFullscreen) {
                 document.webkitExitFullscreen();
             }
+            const container = this.getContainer();
+            if (container) {
+                container.classList.remove('is-fullscreen', 'hud-hidden');
+            }
             this.isFullscreen = false;
-            if (this.btnFullscreenEl) this.btnFullscreenEl.textContent = '⛶';
+            if (this.btnFullscreenEl) {
+                this.btnFullscreenEl.textContent = '⛶';
+                this.btnFullscreenEl.title = 'Toggle Fullscreen (F)';
+            }
+            if (this._hudIdleTimeout) {
+                clearTimeout(this._hudIdleTimeout);
+                this._hudIdleTimeout = null;
+            }
+        }
+
+        onFullscreenChange() {
+            const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+            this.isFullscreen = isFs;
+            const container = this.getContainer();
+            if (container) {
+                if (isFs) {
+                    container.classList.add('is-fullscreen');
+                } else {
+                    container.classList.remove('is-fullscreen', 'hud-hidden');
+                }
+            }
+            if (this.btnFullscreenEl) {
+                this.btnFullscreenEl.textContent = isFs ? '⤓' : '⛶';
+                this.btnFullscreenEl.title = isFs ? 'Exit Fullscreen (F / Esc)' : 'Toggle Fullscreen (F)';
+            }
+            if (isFs && this.isPlaying) {
+                this.resetHudTimer();
+            } else if (this._hudIdleTimeout) {
+                clearTimeout(this._hudIdleTimeout);
+                this._hudIdleTimeout = null;
+            }
+        }
+
+        resetHudTimer() {
+            const container = this.getContainer();
+            if (!container) return;
+            container.classList.remove('hud-hidden');
+            if (this._hudIdleTimeout) {
+                clearTimeout(this._hudIdleTimeout);
+                this._hudIdleTimeout = null;
+            }
+            if (this.isFullscreen && this.isPlaying) {
+                this._hudIdleTimeout = setTimeout(() => {
+                    if (this.isFullscreen && this.isPlaying) {
+                        container.classList.add('hud-hidden');
+                    }
+                }, 2500);
+            }
         }
 
         jumpInAndPlay() {
