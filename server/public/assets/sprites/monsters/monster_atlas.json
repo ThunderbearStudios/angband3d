@@ -250,7 +250,7 @@
                                                                   0.9998779296875
                                                               ],
                                                        "height":  1.7,
-                                                       "width":  1.25,
+                                                       "width":  0.94,
                                                        "isFloating":  false
                                                    },
                      "Large white snake":  {
@@ -470,7 +470,7 @@
                                                         0.9686279296875
                                                     ],
                                              "height":  2.4,
-                                             "width":  1.8,
+                                             "width":  1.3,
                                              "isFloating":  false
                                          },
                      "Salamander":  {
@@ -547,7 +547,7 @@
                                                          0.9686279296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  false
                                           },
                      "Cave spider":  {
@@ -701,7 +701,7 @@
                                                         0.9686279296875
                                                     ],
                                              "height":  2.4,
-                                             "width":  1.8,
+                                             "width":  1.3,
                                              "isFloating":  false
                                          },
                      "Yellow mold":  {
@@ -921,7 +921,7 @@
                                                      0.9373779296875
                                                  ],
                                           "height":  1.05,
-                                          "width":  0.9,
+                                          "width":  0.58,
                                           "isFloating":  false
                                       },
                      "Skeleton kobold":  {
@@ -1009,7 +1009,7 @@
                                                         0.9373779296875
                                                     ],
                                              "height":  2.4,
-                                             "width":  1.8,
+                                             "width":  1.3,
                                              "isFloating":  true
                                          },
                      "Kobold archer":  {
@@ -1240,7 +1240,7 @@
                                                          0.9061279296875
                                                      ],
                                               "height":  2.4,
-                                              "width":  1.8,
+                                              "width":  1.3,
                                               "isFloating":  false
                                           },
                      "Green mold":  {
@@ -1306,7 +1306,7 @@
                                              0.9061279296875
                                          ],
                                   "height":  2.4,
-                                  "width":  1.8,
+                                  "width":  1.3,
                                   "isFloating":  false
                               },
                      "Bloodshot icky thing":  {
@@ -1416,7 +1416,7 @@
                                                       0.9061279296875
                                                   ],
                                            "height":  2.4,
-                                           "width":  1.8,
+                                           "width":  1.3,
                                            "isFloating":  false
                                        },
                      "Brodda, the Easterling":  {
@@ -1559,7 +1559,7 @@
                                                       0.8748779296875
                                                   ],
                                            "height":  2.6,
-                                           "width":  2.3,
+                                           "width":  1.5,
                                            "isFloating":  false
                                        },
                      "Tengu":  {
@@ -1603,7 +1603,7 @@
                                                         0.8748779296875
                                                     ],
                                              "height":  2.4,
-                                             "width":  1.8,
+                                             "width":  1.3,
                                              "isFloating":  false
                                          },
                      "Panther":  {
@@ -1646,8 +1646,8 @@
                                                    0.6248779296875,
                                                    0.8748779296875
                                                ],
-                                        "height":  1.85,
-                                        "width":  1.75,
+                                        "height":  1.95,
+                                        "width":  1.25,
                                         "isFloating":  false
                                     },
                      "Zombified orc":  {
@@ -1735,7 +1735,7 @@
                                                                       0.8748779296875
                                                                   ],
                                                            "height":  1.65,
-                                                           "width":  1.2,
+                                                           "width":  0.91,
                                                            "isFloating":  false
                                                        },
                      "Master yeek":  {
@@ -1845,7 +1845,7 @@
                                                        0.8436279296875
                                                    ],
                                             "height":  1.7,
-                                            "width":  1.25,
+                                            "width":  0.94,
                                             "isFloating":  false
                                         },
                      "Spotted jelly":  {
@@ -1889,7 +1889,7 @@
                                              0.8436279296875
                                          ],
                                   "height":  2.4,
-                                  "width":  1.8,
+                                  "width":  1.3,
                                   "isFloating":  false
                               },
                      "Creeping mithril coins":  {
@@ -1966,7 +1966,7 @@
                                                                0.8436279296875
                                                            ],
                                                     "height":  1.7,
-                                                    "width":  1.25,
+                                                    "width":  0.94,
                                                     "isFloating":  false
                                                 },
                      "Giant white dragon fly":  {
@@ -1977,7 +1977,7 @@
                                                                0.8436279296875
                                                            ],
                                                     "height":  2.6,
-                                                    "width":  2.3,
+                                                    "width":  1.5,
                                                     "isFloating":  false
                                                 },
                      "Blue icky thing":  {
@@ -1999,7 +1999,7 @@
                                                    0.8436279296875
                                                ],
                                         "height":  2.4,
-                                        "width":  1.8,
+                                        "width":  1.3,
                                         "isFloating":  false
                                     },
                      "Flesh golem":  {
@@ -2010,7 +2010,7 @@
                                                     0.8436279296875
                                                 ],
                                          "height":  2.4,
-                                         "width":  1.8,
+                                         "width":  1.3,
                                          "isFloating":  false
                                      },
                      "Warg":  {
@@ -2065,7 +2065,7 @@
                                                    0.8436279296875
                                                ],
                                         "height":  2.4,
-                                        "width":  1.8,
+                                        "width":  1.3,
                                         "isFloating":  false
                                     },
                      "Magic mushroom patch":  {
@@ -2087,7 +2087,7 @@
                                                       0.8436279296875
                                                   ],
                                            "height":  0.65,
-                                           "width":  0.75,
+                                           "width":  0.36,
                                            "isFloating":  false
                                        },
                      "Light hound":  {
@@ -2131,7 +2131,7 @@
                                                         0.8436279296875
                                                     ],
                                              "height":  2.4,
-                                             "width":  1.8,
+                                             "width":  1.3,
                                              "isFloating":  false
                                          },
                      "Giant clear centipede":  {
@@ -2164,7 +2164,7 @@
                                                     0.8123779296875
                                                 ],
                                          "height":  2.4,
-                                         "width":  1.8,
+                                         "width":  1.3,
                                          "isFloating":  false
                                      },
                      "Griffon":  {
@@ -2174,8 +2174,8 @@
                                                 0.0936279296875,
                                                 0.8123779296875
                                             ],
-                                     "height":  1.85,
-                                     "width":  1.75,
+                                     "height":  1.95,
+                                     "width":  1.25,
                                      "isFloating":  false
                                  },
                      "Homunculus":  {
@@ -2208,7 +2208,7 @@
                                                    0.8123779296875
                                                ],
                                         "height":  2.4,
-                                        "width":  1.8,
+                                        "width":  1.3,
                                         "isFloating":  false
                                     },
                      "Umber hulk":  {
@@ -2252,7 +2252,7 @@
                                                                0.8123779296875
                                                            ],
                                                     "height":  2.6,
-                                                    "width":  2.3,
+                                                    "width":  1.5,
                                                     "isFloating":  false
                                                 },
                      "Fire giant":  {
@@ -2263,7 +2263,7 @@
                                                    0.8123779296875
                                                ],
                                         "height":  2.4,
-                                        "width":  1.8,
+                                        "width":  1.3,
                                         "isFloating":  false
                                     },
                      "Hummerhorn":  {
@@ -2318,7 +2318,7 @@
                                                      0.8123779296875
                                                  ],
                                           "height":  2.4,
-                                          "width":  1.8,
+                                          "width":  1.3,
                                           "isFloating":  false
                                       },
                      "Nár, the Dwarf":  {
@@ -2351,7 +2351,7 @@
                                                        0.8123779296875
                                                    ],
                                             "height":  2.2,
-                                            "width":  2,
+                                            "width":  1.4,
                                             "isFloating":  false
                                         },
                      "Water spirit":  {
@@ -2461,7 +2461,7 @@
                                              0.8123779296875
                                          ],
                                   "height":  1.65,
-                                  "width":  1.2,
+                                  "width":  0.91,
                                   "isFloating":  false
                               },
                      "Shagrat, the Orc Captain":  {
@@ -2472,7 +2472,7 @@
                                                                  0.8123779296875
                                                              ],
                                                       "height":  1.65,
-                                                      "width":  1.2,
+                                                      "width":  0.91,
                                                       "isFloating":  false
                                                   },
                      "Gorbag, the Orc Captain":  {
@@ -2483,7 +2483,7 @@
                                                                 0.8123779296875
                                                             ],
                                                      "height":  1.65,
-                                                     "width":  1.2,
+                                                     "width":  0.91,
                                                      "isFloating":  false
                                                  },
                      "Shambling mound":  {
@@ -2505,7 +2505,7 @@
                                                     0.8123779296875
                                                 ],
                                          "height":  2.4,
-                                         "width":  1.8,
+                                         "width":  1.3,
                                          "isFloating":  false
                                      },
                      "Giant black dragon fly":  {
@@ -2516,7 +2516,7 @@
                                                                0.7811279296875
                                                            ],
                                                     "height":  2.6,
-                                                    "width":  2.3,
+                                                    "width":  1.5,
                                                     "isFloating":  false
                                                 },
                      "Stone golem":  {
@@ -2527,7 +2527,7 @@
                                                     0.7811279296875
                                                 ],
                                          "height":  2.4,
-                                         "width":  1.8,
+                                         "width":  1.3,
                                          "isFloating":  false
                                      },
                      "Red mold":  {
@@ -2549,7 +2549,7 @@
                                                               0.7811279296875
                                                           ],
                                                    "height":  2.6,
-                                                   "width":  2.3,
+                                                   "width":  1.5,
                                                    "isFloating":  false
                                                },
                      "Bolg, Son of Azog":  {
@@ -2560,7 +2560,7 @@
                                                           0.7811279296875
                                                       ],
                                                "height":  1.7,
-                                               "width":  1.25,
+                                               "width":  0.94,
                                                "isFloating":  false
                                            },
                      "Phase spider":  {
@@ -2582,7 +2582,7 @@
                                                        0.7811279296875
                                                    ],
                                             "height":  2.2,
-                                            "width":  2,
+                                            "width":  1.4,
                                             "isFloating":  false
                                         },
                      "Earth hound":  {
@@ -2659,7 +2659,7 @@
                                                   0.7811279296875
                                               ],
                                        "height":  1.7,
-                                       "width":  1.25,
+                                       "width":  0.94,
                                        "isFloating":  false
                                    },
                      "Werewolf":  {
@@ -2692,7 +2692,7 @@
                                                     0.7811279296875
                                                 ],
                                          "height":  2.4,
-                                         "width":  1.8,
+                                         "width":  1.3,
                                          "isFloating":  false
                                      },
                      "Lugdush, the Uruk":  {
@@ -2703,7 +2703,7 @@
                                                           0.7811279296875
                                                       ],
                                                "height":  1.65,
-                                               "width":  1.2,
+                                               "width":  0.91,
                                                "isFloating":  false
                                            },
                      "Uglúk, the Uruk":  {
@@ -2714,7 +2714,7 @@
                                                         0.7811279296875
                                                     ],
                                              "height":  1.65,
-                                             "width":  1.2,
+                                             "width":  0.91,
                                              "isFloating":  false
                                          },
                      "Ugluk, the Uruk":  {
@@ -2725,7 +2725,7 @@
                                                         0.7811279296875
                                                     ],
                                              "height":  1.65,
-                                             "width":  1.2,
+                                             "width":  0.91,
                                              "isFloating":  false
                                          },
                      "Blue dragon bat":  {
@@ -2736,7 +2736,7 @@
                                                         0.7811279296875
                                                     ],
                                              "height":  2.6,
-                                             "width":  2.3,
+                                             "width":  1.5,
                                              "isFloating":  true
                                          },
                      "Scroll mimic":  {
@@ -2824,7 +2824,7 @@
                                                    0.7811279296875
                                                ],
                                         "height":  2.4,
-                                        "width":  1.8,
+                                        "width":  1.3,
                                         "isFloating":  false
                                     },
                      "Giant yellow scorpion":  {
@@ -2868,7 +2868,7 @@
                                                                    0.7811279296875
                                                                ],
                                                         "height":  1.7,
-                                                        "width":  1.25,
+                                                        "width":  0.94,
                                                         "isFloating":  false
                                                     },
                      "rogue":  {
@@ -2890,7 +2890,7 @@
                                                        0.7498779296875
                                                    ],
                                             "height":  2.6,
-                                            "width":  2.3,
+                                            "width":  1.5,
                                             "isFloating":  true
                                         },
                      "Killer white beetle":  {
@@ -2967,7 +2967,7 @@
                                                        0.7498779296875
                                                    ],
                                             "height":  2.2,
-                                            "width":  2,
+                                            "width":  1.4,
                                             "isFloating":  false
                                         },
                      "Mummified human":  {
@@ -3000,7 +3000,7 @@
                                                              0.7498779296875
                                                          ],
                                                   "height":  1.7,
-                                                  "width":  1.25,
+                                                  "width":  0.94,
                                                   "isFloating":  false
                                               },
                      "Angamaitë of Umbar":  {
@@ -3011,7 +3011,7 @@
                                                            0.7498779296875
                                                        ],
                                                 "height":  1.7,
-                                                "width":  1.25,
+                                                "width":  0.94,
                                                 "isFloating":  false
                                             },
                      "Angamaite of Umbar":  {
@@ -3022,7 +3022,7 @@
                                                            0.7498779296875
                                                        ],
                                                 "height":  1.7,
-                                                "width":  1.25,
+                                                "width":  0.94,
                                                 "isFloating":  false
                                             },
                      "Banshee":  {
@@ -3077,7 +3077,7 @@
                                                     0.7498779296875
                                                 ],
                                          "height":  2.4,
-                                         "width":  1.8,
+                                         "width":  1.3,
                                          "isFloating":  false
                                      },
                      "Troll priest":  {
@@ -3088,7 +3088,7 @@
                                                      0.7498779296875
                                                  ],
                                           "height":  2.4,
-                                          "width":  1.8,
+                                          "width":  1.3,
                                           "isFloating":  false
                                       },
                      "Wereworm":  {
@@ -3132,7 +3132,7 @@
                                                        0.7498779296875
                                                    ],
                                             "height":  2.4,
-                                            "width":  1.8,
+                                            "width":  1.3,
                                             "isFloating":  false
                                         },
                      "Ulwarth, Son of Ulfang":  {
@@ -3176,7 +3176,7 @@
                                                   0.7498779296875
                                               ],
                                        "height":  2.4,
-                                       "width":  1.8,
+                                       "width":  1.3,
                                        "isFloating":  false
                                    },
                      "White wraith":  {
@@ -3242,7 +3242,7 @@
                                                         0.7498779296875
                                                     ],
                                              "height":  2.4,
-                                             "width":  1.8,
+                                             "width":  1.3,
                                              "isFloating":  false
                                          },
                      "Vibration hound":  {
@@ -3275,7 +3275,7 @@
                                                   0.7498779296875
                                               ],
                                        "height":  2.4,
-                                       "width":  1.8,
+                                       "width":  1.3,
                                        "isFloating":  false
                                    },
                      "Lokkak, the Ogre Chieftain":  {
@@ -3286,7 +3286,7 @@
                                                                    0.7186279296875
                                                                ],
                                                         "height":  2.4,
-                                                        "width":  1.8,
+                                                        "width":  1.3,
                                                         "isFloating":  false
                                                     },
                      "Vampire":  {
@@ -3330,7 +3330,7 @@
                                                     0.7186279296875
                                                 ],
                                          "height":  0.65,
-                                         "width":  0.75,
+                                         "width":  0.36,
                                          "isFloating":  true
                                      },
                      "5-headed hydra":  {
@@ -3341,7 +3341,7 @@
                                                        0.7186279296875
                                                    ],
                                             "height":  2.2,
-                                            "width":  2,
+                                            "width":  1.4,
                                             "isFloating":  false
                                         },
                      "black knight":  {
@@ -3363,7 +3363,7 @@
                                                            0.7186279296875
                                                        ],
                                                 "height":  1.7,
-                                                "width":  1.25,
+                                                "width":  0.94,
                                                 "isFloating":  false
                                             },
                      "Mage":  {
@@ -3374,7 +3374,7 @@
                                              0.7186279296875
                                          ],
                                   "height":  1.7,
-                                  "width":  1.25,
+                                  "width":  0.94,
                                   "isFloating":  false
                               },
                      "Mind flayer":  {
@@ -3385,7 +3385,7 @@
                                                     0.7186279296875
                                                 ],
                                          "height":  1.7,
-                                         "width":  1.25,
+                                         "width":  0.94,
                                          "isFloating":  false
                                      },
                      "Draebor, the Imp":  {
@@ -3407,7 +3407,7 @@
                                                  0.7186279296875
                                              ],
                                       "height":  1.7,
-                                      "width":  1.25,
+                                      "width":  0.94,
                                       "isFloating":  false
                                   },
                      "snow troll":  {
@@ -3418,7 +3418,7 @@
                                                    0.7186279296875
                                                ],
                                         "height":  2.4,
-                                        "width":  1.8,
+                                        "width":  1.3,
                                         "isFloating":  false
                                     },
                      "Purple worm":  {
@@ -3440,7 +3440,7 @@
                                              0.7186279296875
                                          ],
                                   "height":  1.7,
-                                  "width":  1.25,
+                                  "width":  0.94,
                                   "isFloating":  false
                               },
                      "Catoblepas":  {
@@ -3506,7 +3506,7 @@
                                                       0.7186279296875
                                                   ],
                                            "height":  2.4,
-                                           "width":  1.8,
+                                           "width":  1.3,
                                            "isFloating":  false
                                        },
                      "Shadow drake":  {
@@ -3517,7 +3517,7 @@
                                                      0.7186279296875
                                                  ],
                                           "height":  2.6,
-                                          "width":  2.3,
+                                          "width":  1.5,
                                           "isFloating":  true
                                       },
                      "Skeleton troll":  {
@@ -3528,7 +3528,7 @@
                                                        0.7186279296875
                                                    ],
                                             "height":  1.65,
-                                            "width":  1.2,
+                                            "width":  0.91,
                                             "isFloating":  false
                                         },
                      "Manticore":  {
@@ -3539,7 +3539,7 @@
                                                   0.7186279296875
                                               ],
                                        "height":  2.2,
-                                       "width":  2,
+                                       "width":  1.4,
                                        "isFloating":  false
                                    },
                      "Giant blue ant":  {
@@ -3550,7 +3550,7 @@
                                                        0.7186279296875
                                                    ],
                                             "height":  2.4,
-                                            "width":  1.8,
+                                            "width":  1.3,
                                             "isFloating":  false
                                         },
                      "Giant army ant":  {
@@ -3561,7 +3561,7 @@
                                                        0.7186279296875
                                                    ],
                                             "height":  2.4,
-                                            "width":  1.8,
+                                            "width":  1.3,
                                             "isFloating":  false
                                         },
                      "Grave wight":  {
@@ -3616,7 +3616,7 @@
                                                     0.7186279296875
                                                 ],
                                          "height":  2.4,
-                                         "width":  1.8,
+                                         "width":  1.3,
                                          "isFloating":  false
                                      },
                      "Nexus quylthulg":  {
@@ -3638,7 +3638,7 @@
                                                                    0.6873779296875
                                                                ],
                                                         "height":  0.55,
-                                                        "width":  0.65,
+                                                        "width":  0.3,
                                                         "isFloating":  false
                                                     },
                      "southron assassin":  {
@@ -3671,7 +3671,7 @@
                                                     0.6873779296875
                                                 ],
                                          "height":  2.4,
-                                         "width":  1.8,
+                                         "width":  1.3,
                                          "isFloating":  false
                                      },
                      "Cave troll":  {
@@ -3682,7 +3682,7 @@
                                                    0.6873779296875
                                                ],
                                         "height":  2.4,
-                                        "width":  1.8,
+                                        "width":  1.3,
                                         "isFloating":  false
                                     },
                      "troll blackguard":  {
@@ -3693,7 +3693,7 @@
                                                          0.6873779296875
                                                      ],
                                               "height":  2.4,
-                                              "width":  1.8,
+                                              "width":  1.3,
                                               "isFloating":  false
                                           },
                      "Mystic":  {
@@ -3715,7 +3715,7 @@
                                                      0.6873779296875
                                                  ],
                                           "height":  1.65,
-                                          "width":  1.2,
+                                          "width":  0.91,
                                           "isFloating":  false
                                       },
                      "Skeleton etten":  {
@@ -3726,7 +3726,7 @@
                                                        0.6873779296875
                                                    ],
                                             "height":  1.65,
-                                            "width":  1.2,
+                                            "width":  0.91,
                                             "isFloating":  false
                                         },
                      "Chaos drake":  {
@@ -3737,7 +3737,7 @@
                                                     0.6873779296875
                                                 ],
                                          "height":  2.6,
-                                         "width":  2.3,
+                                         "width":  1.5,
                                          "isFloating":  false
                                      },
                      "Law drake":  {
@@ -3748,7 +3748,7 @@
                                                   0.6873779296875
                                               ],
                                        "height":  2.6,
-                                       "width":  2.3,
+                                       "width":  1.5,
                                        "isFloating":  false
                                    },
                      "Balance drake":  {
@@ -3759,7 +3759,7 @@
                                                       0.6873779296875
                                                   ],
                                            "height":  2.6,
-                                           "width":  2.3,
+                                           "width":  1.5,
                                            "isFloating":  false
                                        },
                      "Ethereal drake":  {
@@ -3770,7 +3770,7 @@
                                                        0.6873779296875
                                                    ],
                                             "height":  2.6,
-                                            "width":  2.3,
+                                            "width":  1.5,
                                             "isFloating":  false
                                         },
                      "Bert the Stone Troll":  {
@@ -3781,7 +3781,7 @@
                                                              0.6873779296875
                                                          ],
                                                   "height":  2.4,
-                                                  "width":  1.8,
+                                                  "width":  1.3,
                                                   "isFloating":  false
                                               },
                      "Bill the Stone Troll":  {
@@ -3792,7 +3792,7 @@
                                                              0.6873779296875
                                                          ],
                                                   "height":  2.4,
-                                                  "width":  1.8,
+                                                  "width":  1.3,
                                                   "isFloating":  false
                                               },
                      "Tom the Stone Troll":  {
@@ -3803,7 +3803,7 @@
                                                             0.6873779296875
                                                         ],
                                                  "height":  2.4,
-                                                 "width":  1.8,
+                                                 "width":  1.3,
                                                  "isFloating":  false
                                              },
                      "Shade":  {
@@ -3836,7 +3836,7 @@
                                                    0.6873779296875
                                                ],
                                         "height":  2.4,
-                                        "width":  1.8,
+                                        "width":  1.3,
                                         "isFloating":  false
                                     },
                      "Fire elemental":  {
@@ -3847,7 +3847,7 @@
                                                        0.6873779296875
                                                    ],
                                             "height":  1.7,
-                                            "width":  1.25,
+                                            "width":  0.94,
                                             "isFloating":  false
                                         },
                      "Maia of Nienna":  {
@@ -3979,7 +3979,7 @@
                                                         0.6873779296875
                                                     ],
                                              "height":  1.7,
-                                             "width":  1.25,
+                                             "width":  0.94,
                                              "isFloating":  false
                                          },
                      "great water elemental":  {
@@ -3990,7 +3990,7 @@
                                                               0.6873779296875
                                                           ],
                                                    "height":  1.7,
-                                                   "width":  1.25,
+                                                   "width":  0.94,
                                                    "isFloating":  false
                                                },
                      "Invisible stalker":  {
@@ -4034,7 +4034,7 @@
                                              0.6561279296875
                                          ],
                                   "height":  1.7,
-                                  "width":  1.25,
+                                  "width":  0.94,
                                   "isFloating":  false
                               },
                      "Master vampire":  {
@@ -4067,7 +4067,7 @@
                                                         0.6561279296875
                                                     ],
                                              "height":  1.7,
-                                             "width":  1.25,
+                                             "width":  0.94,
                                              "isFloating":  false
                                          },
                      "great earth elemental":  {
@@ -4078,7 +4078,7 @@
                                                               0.6561279296875
                                                           ],
                                                    "height":  1.7,
-                                                   "width":  1.25,
+                                                   "width":  0.94,
                                                    "isFloating":  false
                                                },
                      "Air elemental":  {
@@ -4089,7 +4089,7 @@
                                                       0.6561279296875
                                                   ],
                                            "height":  1.7,
-                                           "width":  1.25,
+                                           "width":  0.94,
                                            "isFloating":  false
                                        },
                      "Hellhound":  {
@@ -4111,7 +4111,7 @@
                                                   0.6561279296875
                                               ],
                                        "height":  2.4,
-                                       "width":  1.8,
+                                       "width":  1.3,
                                        "isFloating":  false
                                    },
                      "Olog":  {
@@ -4122,7 +4122,7 @@
                                              0.6561279296875
                                          ],
                                   "height":  1.7,
-                                  "width":  1.25,
+                                  "width":  0.94,
                                   "isFloating":  false
                               },
                      "southron archer":  {
@@ -4133,7 +4133,7 @@
                                                         0.6561279296875
                                                     ],
                                              "height":  1.7,
-                                             "width":  1.25,
+                                             "width":  0.94,
                                              "isFloating":  false
                                          },
                      "Gravity hound":  {
@@ -4188,7 +4188,7 @@
                                                        0.6561279296875
                                                    ],
                                             "height":  1.7,
-                                            "width":  1.25,
+                                            "width":  0.94,
                                             "isFloating":  false
                                         },
                      "Smoke elemental":  {
@@ -4199,7 +4199,7 @@
                                                         0.6561279296875
                                                     ],
                                              "height":  1.7,
-                                             "width":  1.25,
+                                             "width":  0.94,
                                              "isFloating":  false
                                          },
                      "Young black dragon":  {
@@ -4221,7 +4221,7 @@
                                               0.6561279296875
                                           ],
                                    "height":  1.7,
-                                   "width":  1.25,
+                                   "width":  0.94,
                                    "isFloating":  false
                                },
                      "Mumak":  {
@@ -4232,7 +4232,7 @@
                                               0.6561279296875
                                           ],
                                    "height":  1.7,
-                                   "width":  1.25,
+                                   "width":  0.94,
                                    "isFloating":  false
                                },
                      "Giant fire ant":  {
@@ -4243,7 +4243,7 @@
                                                        0.6561279296875
                                                    ],
                                             "height":  2.4,
-                                            "width":  1.8,
+                                            "width":  1.3,
                                             "isFloating":  false
                                         },
                      "Mature white dragon":  {
@@ -4254,7 +4254,7 @@
                                                             0.6561279296875
                                                         ],
                                                  "height":  2.6,
-                                                 "width":  2.3,
+                                                 "width":  1.5,
                                                  "isFloating":  false
                                              },
                      "Xorn":  {
@@ -4276,7 +4276,7 @@
                                                0.6561279296875
                                            ],
                                     "height":  1.7,
-                                    "width":  1.25,
+                                    "width":  0.94,
                                     "isFloating":  true
                                 },
                      "Phantom":  {
@@ -4298,7 +4298,7 @@
                                                     0.6561279296875
                                                 ],
                                          "height":  1.65,
-                                         "width":  1.2,
+                                         "width":  0.91,
                                          "isFloating":  true
                                      },
                      "Young multi-hued dragon":  {
@@ -4320,7 +4320,7 @@
                                                  0.6561279296875
                                              ],
                                       "height":  2.4,
-                                      "width":  1.8,
+                                      "width":  1.3,
                                       "isFloating":  false
                                   },
                      "Young gold dragon":  {
@@ -4342,7 +4342,7 @@
                                                                0.6561279296875
                                                            ],
                                                     "height":  2.4,
-                                                    "width":  1.8,
+                                                    "width":  1.3,
                                                     "isFloating":  false
                                                 },
                      "Mature blue dragon":  {
@@ -4353,7 +4353,7 @@
                                                            0.6561279296875
                                                        ],
                                                 "height":  2.6,
-                                                "width":  2.3,
+                                                "width":  1.5,
                                                 "isFloating":  false
                                             },
                      "Mature green dragon":  {
@@ -4364,7 +4364,7 @@
                                                             0.6561279296875
                                                         ],
                                                  "height":  2.6,
-                                                 "width":  2.3,
+                                                 "width":  1.5,
                                                  "isFloating":  false
                                              },
                      "Young red dragon":  {
@@ -4386,7 +4386,7 @@
                                                 0.6248779296875
                                             ],
                                      "height":  1.7,
-                                     "width":  1.25,
+                                     "width":  0.94,
                                      "isFloating":  false
                                  },
                      "Bodak":  {
@@ -4408,7 +4408,7 @@
                                                       0.6248779296875
                                                   ],
                                            "height":  1.7,
-                                           "width":  1.25,
+                                           "width":  0.94,
                                            "isFloating":  false
                                        },
                      "Necromancer":  {
@@ -4430,7 +4430,7 @@
                                                                          0.6248779296875
                                                                      ],
                                                               "height":  1.7,
-                                                              "width":  1.25,
+                                                              "width":  0.94,
                                                               "isFloating":  false
                                                           },
                      "Demonologist":  {
@@ -4452,7 +4452,7 @@
                                                         0.6248779296875
                                                     ],
                                              "height":  2.4,
-                                             "width":  1.8,
+                                             "width":  1.3,
                                              "isFloating":  false
                                          },
                      "The Queen Ant":  {
@@ -4463,7 +4463,7 @@
                                                       0.6248779296875
                                                   ],
                                            "height":  1.7,
-                                           "width":  1.25,
+                                           "width":  0.94,
                                            "isFloating":  false
                                        },
                      "Will o\u0027 the wisp":  {
@@ -4485,7 +4485,7 @@
                                                         0.6248779296875
                                                     ],
                                              "height":  1.7,
-                                             "width":  1.25,
+                                             "width":  0.94,
                                              "isFloating":  false
                                          },
                      "Killer iridescent beetle":  {
@@ -4529,7 +4529,7 @@
                                                           0.6248779296875
                                                       ],
                                                "height":  2.6,
-                                               "width":  2.3,
+                                               "width":  1.5,
                                                "isFloating":  false
                                            },
                      "Mature gold dragon":  {
@@ -4540,7 +4540,7 @@
                                                            0.6248779296875
                                                        ],
                                                 "height":  2.6,
-                                                "width":  2.3,
+                                                "width":  1.5,
                                                 "isFloating":  false
                                             },
                      "Crystal drake":  {
@@ -4551,7 +4551,7 @@
                                                       0.6248779296875
                                                   ],
                                            "height":  2.6,
-                                           "width":  2.3,
+                                           "width":  1.5,
                                            "isFloating":  false
                                        },
                      "Mature black dragon":  {
@@ -4562,7 +4562,7 @@
                                                             0.6248779296875
                                                         ],
                                                  "height":  2.6,
-                                                 "width":  2.3,
+                                                 "width":  1.5,
                                                  "isFloating":  false
                                              },
                      "Mature multi-hued dragon":  {
@@ -4573,7 +4573,7 @@
                                                                  0.6248779296875
                                                              ],
                                                       "height":  2.6,
-                                                      "width":  2.3,
+                                                      "width":  1.5,
                                                       "isFloating":  false
                                                   },
                      "Death knight":  {
@@ -4584,7 +4584,7 @@
                                                      0.6248779296875
                                                  ],
                                           "height":  1.7,
-                                          "width":  1.25,
+                                          "width":  0.94,
                                           "isFloating":  false
                                       },
                      "Castamir the Usurper":  {
@@ -4595,7 +4595,7 @@
                                                              0.6248779296875
                                                          ],
                                                   "height":  1.7,
-                                                  "width":  1.25,
+                                                  "width":  0.94,
                                                   "isFloating":  false
                                               },
                      "Time vortex":  {
@@ -4606,7 +4606,7 @@
                                                     0.6248779296875
                                                 ],
                                          "height":  1.7,
-                                         "width":  1.25,
+                                         "width":  0.94,
                                          "isFloating":  true
                                      },
                      "Shimmering vortex":  {
@@ -4617,7 +4617,7 @@
                                                           0.6248779296875
                                                       ],
                                                "height":  1.7,
-                                               "width":  1.25,
+                                               "width":  0.94,
                                                "isFloating":  true
                                            },
                      "Ancient blue dragon":  {
@@ -4627,8 +4627,8 @@
                                                             0.7186279296875,
                                                             0.6248779296875
                                                         ],
-                                                 "height":  3.4,
-                                                 "width":  2.8,
+                                                 "height":  3.2,
+                                                 "width":  1.8,
                                                  "isFloating":  false
                                              },
                      "Beholder":  {
@@ -4639,7 +4639,7 @@
                                                  0.6248779296875
                                              ],
                                       "height":  1.7,
-                                      "width":  1.25,
+                                      "width":  0.94,
                                       "isFloating":  true
                                   },
                      "Emperor wight":  {
@@ -4650,7 +4650,7 @@
                                                       0.6248779296875
                                                   ],
                                            "height":  1.65,
-                                           "width":  1.2,
+                                           "width":  0.91,
                                            "isFloating":  false
                                        },
                      "Vargo, Tyrant of Fire":  {
@@ -4661,7 +4661,7 @@
                                                               0.6248779296875
                                                           ],
                                                    "height":  1.7,
-                                                   "width":  1.25,
+                                                   "width":  0.94,
                                                    "isFloating":  false
                                                },
                      "Black wraith":  {
@@ -4683,7 +4683,7 @@
                                              0.6248779296875
                                          ],
                                   "height":  1.7,
-                                  "width":  1.25,
+                                  "width":  0.94,
                                   "isFloating":  false
                               },
                      "Nether wraith":  {
@@ -4694,7 +4694,7 @@
                                                       0.6248779296875
                                                   ],
                                            "height":  1.65,
-                                           "width":  1.2,
+                                           "width":  0.91,
                                            "isFloating":  true
                                        },
                      "mountain troll":  {
@@ -4705,7 +4705,7 @@
                                                        0.6248779296875
                                                    ],
                                             "height":  2.4,
-                                            "width":  1.8,
+                                            "width":  1.3,
                                             "isFloating":  false
                                         },
                      "etten":  {
@@ -4716,7 +4716,7 @@
                                               0.6248779296875
                                           ],
                                    "height":  1.7,
-                                   "width":  1.25,
+                                   "width":  0.94,
                                    "isFloating":  false
                                },
                      "Waldern, King of Water":  {
@@ -4727,7 +4727,7 @@
                                                                0.6248779296875
                                                            ],
                                                     "height":  1.7,
-                                                    "width":  1.25,
+                                                    "width":  0.94,
                                                     "isFloating":  false
                                                 },
                      "Kavlax the Many-Headed":  {
@@ -4738,7 +4738,7 @@
                                                                0.5936279296875
                                                            ],
                                                     "height":  1.7,
-                                                    "width":  1.25,
+                                                    "width":  0.94,
                                                     "isFloating":  false
                                                 },
                      "Ancient white dragon":  {
@@ -4748,8 +4748,8 @@
                                                              0.0623779296875,
                                                              0.5936279296875
                                                          ],
-                                                  "height":  3.4,
-                                                  "width":  2.8,
+                                                  "height":  3.2,
+                                                  "width":  1.8,
                                                   "isFloating":  false
                                               },
                      "Ancient green dragon":  {
@@ -4759,8 +4759,8 @@
                                                              0.0936279296875,
                                                              0.5936279296875
                                                          ],
-                                                  "height":  3.4,
-                                                  "width":  2.8,
+                                                  "height":  3.2,
+                                                  "width":  1.8,
                                                   "isFloating":  false
                                               },
                      "6-headed hydra":  {
@@ -4771,7 +4771,7 @@
                                                        0.5936279296875
                                                    ],
                                             "height":  2.2,
-                                            "width":  2,
+                                            "width":  1.4,
                                             "isFloating":  false
                                         },
                      "Night mare":  {
@@ -4782,7 +4782,7 @@
                                                    0.5936279296875
                                                ],
                                         "height":  1.7,
-                                        "width":  1.25,
+                                        "width":  0.94,
                                         "isFloating":  false
                                     },
                      "Vampire lord":  {
@@ -4793,7 +4793,7 @@
                                                      0.5936279296875
                                                  ],
                                           "height":  1.65,
-                                          "width":  1.2,
+                                          "width":  0.91,
                                           "isFloating":  false
                                       },
                      "Ancient black dragon":  {
@@ -4803,8 +4803,8 @@
                                                              0.2186279296875,
                                                              0.5936279296875
                                                          ],
-                                                  "height":  3.4,
-                                                  "width":  2.8,
+                                                  "height":  3.2,
+                                                  "width":  1.8,
                                                   "isFloating":  false
                                               },
                      "Disenchanter worm mass":  {
@@ -4837,7 +4837,7 @@
                                                      0.5936279296875
                                                  ],
                                           "height":  2.4,
-                                          "width":  1.8,
+                                          "width":  1.3,
                                           "isFloating":  true
                                       },
                      "Lesser titan":  {
@@ -4848,7 +4848,7 @@
                                                      0.5936279296875
                                                  ],
                                           "height":  2.4,
-                                          "width":  1.8,
+                                          "width":  1.3,
                                           "isFloating":  false
                                       },
                      "Gilim, the Giant of Eruman":  {
@@ -4859,7 +4859,7 @@
                                                                    0.5936279296875
                                                                ],
                                                         "height":  2.4,
-                                                        "width":  1.8,
+                                                        "width":  1.3,
                                                         "isFloating":  false
                                                     },
                      "Nan, the Giant":  {
@@ -4870,7 +4870,7 @@
                                                        0.5936279296875
                                                    ],
                                             "height":  2.4,
-                                            "width":  1.8,
+                                            "width":  1.3,
                                             "isFloating":  false
                                         },
                      "7-headed hydra":  {
@@ -4881,7 +4881,7 @@
                                                        0.5936279296875
                                                    ],
                                             "height":  2.2,
-                                            "width":  2,
+                                            "width":  1.4,
                                             "isFloating":  false
                                         },
                      "Enchantress":  {
@@ -4903,7 +4903,7 @@
                                                   0.5936279296875
                                               ],
                                        "height":  1.7,
-                                       "width":  1.25,
+                                       "width":  0.94,
                                        "isFloating":  false
                                    },
                      "Sorcerer":  {
@@ -4936,7 +4936,7 @@
                                                   0.5936279296875
                                               ],
                                        "height":  2.4,
-                                       "width":  1.8,
+                                       "width":  1.3,
                                        "isFloating":  false
                                    },
                      "Uvatha the Horseman":  {
@@ -4947,7 +4947,7 @@
                                                             0.5936279296875
                                                         ],
                                                  "height":  1.7,
-                                                 "width":  1.25,
+                                                 "width":  0.94,
                                                  "isFloating":  false
                                              },
                      "Minotaur":  {
@@ -4958,7 +4958,7 @@
                                                  0.5936279296875
                                              ],
                                       "height":  1.7,
-                                      "width":  1.25,
+                                      "width":  0.94,
                                       "isFloating":  false
                                   },
                      "gorgon":  {
@@ -4969,7 +4969,7 @@
                                                0.5936279296875
                                            ],
                                     "height":  1.7,
-                                    "width":  1.25,
+                                    "width":  0.94,
                                     "isFloating":  false
                                 },
                      "Death drake":  {
@@ -4980,7 +4980,7 @@
                                                     0.5936279296875
                                                 ],
                                          "height":  2.6,
-                                         "width":  2.3,
+                                         "width":  1.5,
                                          "isFloating":  false
                                      },
                      "Ancient red dragon":  {
@@ -4990,8 +4990,8 @@
                                                            0.7498779296875,
                                                            0.5936279296875
                                                        ],
-                                                "height":  3.4,
-                                                "width":  2.8,
+                                                "height":  3.2,
+                                                "width":  1.8,
                                                 "isFloating":  false
                                             },
                      "Ancient gold dragon":  {
@@ -5001,8 +5001,8 @@
                                                             0.7811279296875,
                                                             0.5936279296875
                                                         ],
-                                                 "height":  3.4,
-                                                 "width":  2.8,
+                                                 "height":  3.2,
+                                                 "width":  1.8,
                                                  "isFloating":  false
                                              },
                      "Great crystal drake":  {
@@ -5013,7 +5013,7 @@
                                                             0.5936279296875
                                                         ],
                                                  "height":  2.6,
-                                                 "width":  2.3,
+                                                 "width":  1.5,
                                                  "isFloating":  false
                                              },
                      "Vrock":  {
@@ -5046,7 +5046,7 @@
                                                             0.5936279296875
                                                         ],
                                                  "height":  1.7,
-                                                 "width":  1.25,
+                                                 "width":  0.94,
                                                  "isFloating":  false
                                              },
                      "stiffbeard sorcerer":  {
@@ -5068,7 +5068,7 @@
                                                     0.5936279296875
                                                 ],
                                          "height":  1.7,
-                                         "width":  1.25,
+                                         "width":  0.94,
                                          "isFloating":  false
                                      },
                      "Hezrou":  {
@@ -5079,7 +5079,7 @@
                                                0.5936279296875
                                            ],
                                     "height":  1.7,
-                                    "width":  1.25,
+                                    "width":  0.94,
                                     "isFloating":  false
                                 },
                      "Akhorahil the Blind":  {
@@ -5090,7 +5090,7 @@
                                                             0.5623779296875
                                                         ],
                                                  "height":  1.7,
-                                                 "width":  1.25,
+                                                 "width":  0.94,
                                                  "isFloating":  false
                                              },
                      "Gorlim, Betrayer of Barahir":  {
@@ -5101,7 +5101,7 @@
                                                                     0.5623779296875
                                                                 ],
                                                          "height":  1.7,
-                                                         "width":  1.25,
+                                                         "width":  0.94,
                                                          "isFloating":  false
                                                      },
                      "Glabrezu":  {
@@ -5112,7 +5112,7 @@
                                                  0.5623779296875
                                              ],
                                       "height":  1.7,
-                                      "width":  1.25,
+                                      "width":  0.94,
                                       "isFloating":  false
                                   },
                      "Ren the Unclean":  {
@@ -5123,7 +5123,7 @@
                                                         0.5623779296875
                                                     ],
                                              "height":  1.7,
-                                             "width":  1.25,
+                                             "width":  0.94,
                                              "isFloating":  false
                                          },
                      "Nalfeshnee":  {
@@ -5134,7 +5134,7 @@
                                                    0.5623779296875
                                                ],
                                         "height":  1.7,
-                                        "width":  1.25,
+                                        "width":  0.94,
                                         "isFloating":  false
                                     },
                      "Undead beholder":  {
@@ -5145,7 +5145,7 @@
                                                         0.5623779296875
                                                     ],
                                              "height":  1.7,
-                                             "width":  1.25,
+                                             "width":  0.94,
                                              "isFloating":  true
                                          },
                      "Ancient multi-hued dragon":  {
@@ -5155,8 +5155,8 @@
                                                                   0.2186279296875,
                                                                   0.5623779296875
                                                               ],
-                                                       "height":  3.4,
-                                                       "width":  2.8,
+                                                       "height":  3.2,
+                                                       "width":  1.8,
                                                        "isFloating":  false
                                                    },
                      "Ethereal dragon":  {
@@ -5167,7 +5167,7 @@
                                                         0.5623779296875
                                                     ],
                                              "height":  2.6,
-                                             "width":  2.3,
+                                             "width":  1.5,
                                              "isFloating":  false
                                          },
                      "Ji Indur Dawndeath":  {
@@ -5178,7 +5178,7 @@
                                                            0.5623779296875
                                                        ],
                                                 "height":  1.7,
-                                                "width":  1.25,
+                                                "width":  0.94,
                                                 "isFloating":  false
                                             },
                      "Marilith":  {
@@ -5189,7 +5189,7 @@
                                                  0.5623779296875
                                              ],
                                       "height":  1.7,
-                                      "width":  1.25,
+                                      "width":  0.94,
                                       "isFloating":  false
                                   },
                      "Quaker, Master of Earth":  {
@@ -5200,7 +5200,7 @@
                                                                 0.5623779296875
                                                             ],
                                                      "height":  1.7,
-                                                     "width":  1.25,
+                                                     "width":  0.94,
                                                      "isFloating":  false
                                                  },
                      "Lesser Balrog":  {
@@ -5211,7 +5211,7 @@
                                                       0.5623779296875
                                                   ],
                                            "height":  3,
-                                           "width":  2.2,
+                                           "width":  1.65,
                                            "isFloating":  false
                                        },
                      "Ariel, Queen of Air":  {
@@ -5222,7 +5222,7 @@
                                                             0.5623779296875
                                                         ],
                                                  "height":  1.7,
-                                                 "width":  1.25,
+                                                 "width":  0.94,
                                                  "isFloating":  false
                                              },
                      "8-headed hydra":  {
@@ -5233,7 +5233,7 @@
                                                        0.5623779296875
                                                    ],
                                             "height":  2.2,
-                                            "width":  2,
+                                            "width":  1.4,
                                             "isFloating":  false
                                         },
                      "lord of Carn Dûm":  {
@@ -5244,7 +5244,7 @@
                                                          0.5623779296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  false
                                           },
                      "lord of Carn Dum":  {
@@ -5255,7 +5255,7 @@
                                                          0.5623779296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  false
                                           },
                      "Dreadmaster":  {
@@ -5266,7 +5266,7 @@
                                                     0.5623779296875
                                                 ],
                                          "height":  1.7,
-                                         "width":  1.25,
+                                         "width":  0.94,
                                          "isFloating":  false
                                      },
                      "Drolem":  {
@@ -5277,7 +5277,7 @@
                                                0.5623779296875
                                            ],
                                     "height":  1.7,
-                                    "width":  1.25,
+                                    "width":  0.94,
                                     "isFloating":  false
                                 },
                      "Scatha the Worm":  {
@@ -5287,8 +5287,8 @@
                                                         0.5623779296875,
                                                         0.5623779296875
                                                     ],
-                                             "height":  3.4,
-                                             "width":  2.8,
+                                             "height":  3.2,
+                                             "width":  1.8,
                                              "isFloating":  false
                                          },
                      "Dwar, Dog Lord of Waw":  {
@@ -5299,7 +5299,7 @@
                                                               0.5623779296875
                                                           ],
                                                    "height":  1.7,
-                                                   "width":  1.25,
+                                                   "width":  0.94,
                                                    "isFloating":  false
                                                },
                      "Smaug the Golden":  {
@@ -5309,8 +5309,8 @@
                                                          0.6248779296875,
                                                          0.5623779296875
                                                      ],
-                                              "height":  3.4,
-                                              "width":  2.8,
+                                              "height":  3.2,
+                                              "width":  1.8,
                                               "isFloating":  false
                                           },
                      "Dracolich":  {
@@ -5321,7 +5321,7 @@
                                                   0.5623779296875
                                               ],
                                        "height":  1.7,
-                                       "width":  1.25,
+                                       "width":  0.94,
                                        "isFloating":  false
                                    },
                      "Greater titan":  {
@@ -5332,7 +5332,7 @@
                                                       0.5623779296875
                                                   ],
                                            "height":  2.4,
-                                           "width":  1.8,
+                                           "width":  1.3,
                                            "isFloating":  false
                                        },
                      "Dracolisk":  {
@@ -5343,7 +5343,7 @@
                                                   0.5623779296875
                                               ],
                                        "height":  1.7,
-                                       "width":  1.25,
+                                       "width":  0.94,
                                        "isFloating":  false
                                    },
                      "Death mold":  {
@@ -5364,8 +5364,8 @@
                                                                 0.7811279296875,
                                                                 0.5623779296875
                                                             ],
-                                                     "height":  3.4,
-                                                     "width":  2.8,
+                                                     "height":  3.2,
+                                                     "width":  1.8,
                                                      "isFloating":  false
                                                  },
                      "Glaurung, Father of the Dragons":  {
@@ -5375,8 +5375,8 @@
                                                                         0.8123779296875,
                                                                         0.5623779296875
                                                                     ],
-                                                             "height":  3.4,
-                                                             "width":  2.8,
+                                                             "height":  3.2,
+                                                             "width":  1.8,
                                                              "isFloating":  false
                                                          },
                      "Master mystic":  {
@@ -5398,7 +5398,7 @@
                                                             0.5623779296875
                                                         ],
                                                  "height":  3,
-                                                 "width":  2.2,
+                                                 "width":  1.65,
                                                  "isFloating":  false
                                              },
                      "Nightwing":  {
@@ -5409,7 +5409,7 @@
                                                   0.5623779296875
                                               ],
                                        "height":  1.7,
-                                       "width":  1.25,
+                                       "width":  0.94,
                                        "isFloating":  false
                                    },
                      "Nether hound":  {
@@ -5464,7 +5464,7 @@
                                                          0.5311279296875
                                                      ],
                                               "height":  2.6,
-                                              "width":  2.3,
+                                              "width":  1.5,
                                               "isFloating":  false
                                           },
                      "Baphomet the Minotaur Lord":  {
@@ -5474,8 +5474,8 @@
                                                                    0.0936279296875,
                                                                    0.5311279296875
                                                                ],
-                                                        "height":  3.4,
-                                                        "width":  2.8,
+                                                        "height":  3.2,
+                                                        "width":  1.8,
                                                         "isFloating":  false
                                                     },
                      "Harowen the Black Hand":  {
@@ -5486,7 +5486,7 @@
                                                                0.5311279296875
                                                            ],
                                                     "height":  1.7,
-                                                    "width":  1.25,
+                                                    "width":  0.94,
                                                     "isFloating":  false
                                                 },
                      "Hoarmurath of Dir":  {
@@ -5497,7 +5497,7 @@
                                                           0.5311279296875
                                                       ],
                                                "height":  1.7,
-                                               "width":  1.25,
+                                               "width":  0.94,
                                                "isFloating":  false
                                            },
                      "Grand master mystic":  {
@@ -5508,7 +5508,7 @@
                                                             0.5311279296875
                                                         ],
                                                  "height":  1.7,
-                                                 "width":  1.25,
+                                                 "width":  0.94,
                                                  "isFloating":  false
                                              },
                      "Khamûl, the Black Easterling":  {
@@ -5519,7 +5519,7 @@
                                                                      0.5311279296875
                                                                  ],
                                                           "height":  1.7,
-                                                          "width":  1.25,
+                                                          "width":  0.94,
                                                           "isFloating":  false
                                                       },
                      "Khamul, the Black Easterling":  {
@@ -5530,7 +5530,7 @@
                                                                      0.5311279296875
                                                                  ],
                                                           "height":  1.7,
-                                                          "width":  1.25,
+                                                          "width":  0.94,
                                                           "isFloating":  false
                                                       },
                      "hound of Tindalos":  {
@@ -5552,7 +5552,7 @@
                                                        0.5311279296875
                                                    ],
                                             "height":  2.6,
-                                            "width":  2.3,
+                                            "width":  1.5,
                                             "isFloating":  false
                                         },
                      "The Phoenix":  {
@@ -5574,7 +5574,7 @@
                                                      0.5311279296875
                                                  ],
                                           "height":  1.7,
-                                          "width":  1.25,
+                                          "width":  0.94,
                                           "isFloating":  false
                                       },
                      "Hand druj":  {
@@ -5585,7 +5585,7 @@
                                                   0.5311279296875
                                               ],
                                        "height":  1.7,
-                                       "width":  1.25,
+                                       "width":  0.94,
                                        "isFloating":  false
                                    },
                      "Eye druj":  {
@@ -5596,7 +5596,7 @@
                                                  0.5311279296875
                                              ],
                                       "height":  1.7,
-                                      "width":  1.25,
+                                      "width":  0.94,
                                       "isFloating":  true
                                   },
                      "Skull druj":  {
@@ -5607,7 +5607,7 @@
                                                    0.5311279296875
                                                ],
                                         "height":  1.7,
-                                        "width":  1.25,
+                                        "width":  0.94,
                                         "isFloating":  false
                                     },
                      "Chaos vortex":  {
@@ -5629,7 +5629,7 @@
                                                       0.5311279296875
                                                   ],
                                            "height":  1.7,
-                                           "width":  1.25,
+                                           "width":  0.94,
                                            "isFloating":  true
                                        },
                      "9-headed hydra":  {
@@ -5640,7 +5640,7 @@
                                                        0.5311279296875
                                                    ],
                                             "height":  2.2,
-                                            "width":  2,
+                                            "width":  1.4,
                                             "isFloating":  false
                                         },
                      "Thuringwethil, the Vampire Messenger":  {
@@ -5651,7 +5651,7 @@
                                                                              0.5311279296875
                                                                          ],
                                                                   "height":  1.65,
-                                                                  "width":  1.2,
+                                                                  "width":  0.91,
                                                                   "isFloating":  false
                                                               },
                      "Great Hell Wyrm":  {
@@ -5662,7 +5662,7 @@
                                                         0.5311279296875
                                                     ],
                                              "height":  2.6,
-                                             "width":  2.3,
+                                             "width":  1.5,
                                              "isFloating":  false
                                          },
                      "Draconic quylthulg":  {
@@ -5684,7 +5684,7 @@
                                                          0.5311279296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  false
                                           },
                      "Ossë, Herald of Ulmo":  {
@@ -5695,7 +5695,7 @@
                                                              0.5311279296875
                                                          ],
                                                   "height":  1.7,
-                                                  "width":  1.25,
+                                                  "width":  0.94,
                                                   "isFloating":  false
                                               },
                      "Osse, Herald of Ulmo":  {
@@ -5706,7 +5706,7 @@
                                                              0.5311279296875
                                                          ],
                                                   "height":  1.7,
-                                                  "width":  1.25,
+                                                  "width":  0.94,
                                                   "isFloating":  false
                                               },
                      "Ancalagon the Black":  {
@@ -5716,8 +5716,8 @@
                                                             0.7186279296875,
                                                             0.5311279296875
                                                         ],
-                                                 "height":  3.4,
-                                                 "width":  2.8,
+                                                 "height":  3.2,
+                                                 "width":  1.8,
                                                  "isFloating":  false
                                              },
                      "Nightwalker":  {
@@ -5728,7 +5728,7 @@
                                                     0.5311279296875
                                                 ],
                                          "height":  1.7,
-                                         "width":  1.25,
+                                         "width":  0.94,
                                          "isFloating":  false
                                      },
                      "Saruman of Many Colours":  {
@@ -5739,7 +5739,7 @@
                                                                 0.5311279296875
                                                             ],
                                                      "height":  1.7,
-                                                     "width":  1.25,
+                                                     "width":  0.94,
                                                      "isFloating":  false
                                                  },
                      "Dreadlord":  {
@@ -5750,7 +5750,7 @@
                                                   0.5311279296875
                                               ],
                                        "height":  1.7,
-                                       "width":  1.25,
+                                       "width":  0.94,
                                        "isFloating":  false
                                    },
                      "Tevildo, Prince of Cats":  {
@@ -5761,7 +5761,7 @@
                                                                 0.5311279296875
                                                             ],
                                                      "height":  1.7,
-                                                     "width":  1.25,
+                                                     "width":  0.94,
                                                      "isFloating":  false
                                                  },
                      "Jabberwock":  {
@@ -5772,7 +5772,7 @@
                                                    0.5311279296875
                                                ],
                                         "height":  1.7,
-                                        "width":  1.25,
+                                        "width":  0.94,
                                         "isFloating":  false
                                     },
                      "Chaos hound":  {
@@ -5793,8 +5793,8 @@
                                                             0.9373779296875,
                                                             0.5311279296875
                                                         ],
-                                                 "height":  3.4,
-                                                 "width":  2.8,
+                                                 "height":  3.2,
+                                                 "width":  1.8,
                                                  "isFloating":  false
                                              },
                      "Great Wyrm of Law":  {
@@ -5804,8 +5804,8 @@
                                                           0.9686279296875,
                                                           0.5311279296875
                                                       ],
-                                               "height":  3.4,
-                                               "width":  2.8,
+                                               "height":  3.2,
+                                               "width":  1.8,
                                                "isFloating":  false
                                            },
                      "Great Wyrm of Annihilation":  {
@@ -5815,8 +5815,8 @@
                                                                    0.9998779296875,
                                                                    0.5311279296875
                                                                ],
-                                                        "height":  3.4,
-                                                        "width":  2.8,
+                                                        "height":  3.2,
+                                                        "width":  1.8,
                                                         "isFloating":  false
                                                     },
                      "Sky Dragon":  {
@@ -5827,7 +5827,7 @@
                                                    0.4998779296875
                                                ],
                                         "height":  2.6,
-                                        "width":  2.3,
+                                        "width":  1.5,
                                         "isFloating":  false
                                     },
                      "Great Wyrm of Balance":  {
@@ -5837,8 +5837,8 @@
                                                               0.0623779296875,
                                                               0.4998779296875
                                                           ],
-                                                   "height":  3.4,
-                                                   "width":  2.8,
+                                                   "height":  3.2,
+                                                   "width":  1.8,
                                                    "isFloating":  false
                                                },
                      "Tselakus, the Dreadlord":  {
@@ -5849,7 +5849,7 @@
                                                                 0.4998779296875
                                                             ],
                                                      "height":  1.7,
-                                                     "width":  1.25,
+                                                     "width":  0.94,
                                                      "isFloating":  false
                                                  },
                      "Great Wyrm of Many Colours":  {
@@ -5859,8 +5859,8 @@
                                                                    0.1248779296875,
                                                                    0.4998779296875
                                                                ],
-                                                        "height":  3.4,
-                                                        "width":  2.8,
+                                                        "height":  3.2,
+                                                        "width":  1.8,
                                                         "isFloating":  false
                                                     },
                      "Black reaver":  {
@@ -5871,7 +5871,7 @@
                                                      0.4998779296875
                                                  ],
                                           "height":  1.7,
-                                          "width":  1.25,
+                                          "width":  0.94,
                                           "isFloating":  false
                                       },
                      "Greater demonic quylthulg":  {
@@ -5882,7 +5882,7 @@
                                                                   0.4998779296875
                                                               ],
                                                        "height":  1.7,
-                                                       "width":  1.25,
+                                                       "width":  0.94,
                                                        "isFloating":  true
                                                    },
                      "Greater draconic quylthulg":  {
@@ -5893,7 +5893,7 @@
                                                                    0.4998779296875
                                                                ],
                                                         "height":  1.7,
-                                                        "width":  1.25,
+                                                        "width":  0.94,
                                                         "isFloating":  true
                                                     },
                      "Greater rotting quylthulg":  {
@@ -5904,7 +5904,7 @@
                                                                   0.4998779296875
                                                               ],
                                                        "height":  1.7,
-                                                       "width":  1.25,
+                                                       "width":  0.94,
                                                        "isFloating":  true
                                                    },
                      "Feagwath, the Undead Sorcerer":  {
@@ -5915,7 +5915,7 @@
                                                                       0.4998779296875
                                                                   ],
                                                            "height":  1.7,
-                                                           "width":  1.25,
+                                                           "width":  0.94,
                                                            "isFloating":  false
                                                        },
                      "Omarax, the Eye Tyrant":  {
@@ -5926,7 +5926,7 @@
                                                                0.4998779296875
                                                            ],
                                                     "height":  1.7,
-                                                    "width":  1.25,
+                                                    "width":  0.94,
                                                     "isFloating":  true
                                                 },
                      "Ungoliant, the Unlight":  {
@@ -5936,8 +5936,8 @@
                                                                0.3436279296875,
                                                                0.4998779296875
                                                            ],
-                                                    "height":  3.4,
-                                                    "width":  2.8,
+                                                    "height":  3.2,
+                                                    "width":  1.8,
                                                     "isFloating":  false
                                                 },
                      "Aether hound":  {
@@ -5958,8 +5958,8 @@
                                                             0.4061279296875,
                                                             0.4998779296875
                                                         ],
-                                                 "height":  3.4,
-                                                 "width":  2.8,
+                                                 "height":  3.2,
+                                                 "width":  1.8,
                                                  "isFloating":  false
                                              },
                      "Master quylthulg":  {
@@ -5970,7 +5970,7 @@
                                                          0.4998779296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  true
                                           },
                      "Qlzqqlzuup, the Emperor Quylthulg":  {
@@ -5981,7 +5981,7 @@
                                                                           0.4998779296875
                                                                       ],
                                                                "height":  1.7,
-                                                               "width":  1.25,
+                                                               "width":  0.94,
                                                                "isFloating":  true
                                                            },
                      "The Witch-King of Angmar":  {
@@ -5992,7 +5992,7 @@
                                                                  0.4998779296875
                                                              ],
                                                       "height":  1.7,
-                                                      "width":  1.25,
+                                                      "width":  0.94,
                                                       "isFloating":  false
                                                   },
                      "Pazuzu, Lord of Air":  {
@@ -6003,7 +6003,7 @@
                                                             0.4998779296875
                                                         ],
                                                  "height":  1.7,
-                                                 "width":  1.25,
+                                                 "width":  0.94,
                                                  "isFloating":  false
                                              },
                      "Cantoras, the Skeletal Lord":  {
@@ -6014,7 +6014,7 @@
                                                                     0.4998779296875
                                                                 ],
                                                          "height":  1.7,
-                                                         "width":  1.25,
+                                                         "width":  0.94,
                                                          "isFloating":  false
                                                      },
                      "The Tarrasque":  {
@@ -6025,7 +6025,7 @@
                                                       0.4998779296875
                                                   ],
                                            "height":  1.7,
-                                           "width":  1.25,
+                                           "width":  0.94,
                                            "isFloating":  false
                                        },
                      "Lungorthin, the Balrog of White Fire":  {
@@ -6036,7 +6036,7 @@
                                                                              0.4998779296875
                                                                          ],
                                                                   "height":  3,
-                                                                  "width":  2.2,
+                                                                  "width":  1.65,
                                                                   "isFloating":  false
                                                               },
                      "Draugluin, Sire of All Werewolves":  {
@@ -6047,7 +6047,7 @@
                                                                           0.4998779296875
                                                                       ],
                                                                "height":  1.7,
-                                                               "width":  1.25,
+                                                               "width":  0.94,
                                                                "isFloating":  false
                                                            },
                      "Vecna, the Emperor Lich":  {
@@ -6058,7 +6058,7 @@
                                                                 0.4998779296875
                                                             ],
                                                      "height":  1.7,
-                                                     "width":  1.25,
+                                                     "width":  0.94,
                                                      "isFloating":  false
                                                  },
                      "Huan, Wolfhound of the Valar":  {
@@ -6069,7 +6069,7 @@
                                                                      0.4998779296875
                                                                  ],
                                                           "height":  1.7,
-                                                          "width":  1.25,
+                                                          "width":  0.94,
                                                           "isFloating":  false
                                                       },
                      "Carcharoth, the Jaws of Thirst":  {
@@ -6080,7 +6080,7 @@
                                                                        0.4998779296875
                                                                    ],
                                                             "height":  1.7,
-                                                            "width":  1.25,
+                                                            "width":  0.94,
                                                             "isFloating":  false
                                                         },
                      "Gothmog, the High Captain of Balrogs":  {
@@ -6091,7 +6091,7 @@
                                                                              0.4998779296875
                                                                          ],
                                                                   "height":  3,
-                                                                  "width":  2.2,
+                                                                  "width":  1.65,
                                                                   "isFloating":  false
                                                               },
                      "Sauron, the Sorcerer":  {
@@ -6101,8 +6101,8 @@
                                                              0.8123779296875,
                                                              0.4998779296875
                                                          ],
-                                                  "height":  3.4,
-                                                  "width":  2.8,
+                                                  "height":  3.2,
+                                                  "width":  1.8,
                                                   "isFloating":  false
                                               },
                      "Morgoth, Lord of Darkness":  {
@@ -6112,8 +6112,8 @@
                                                                   0.8436279296875,
                                                                   0.4998779296875
                                                               ],
-                                                       "height":  3.4,
-                                                       "width":  2.8,
+                                                       "height":  3.2,
+                                                       "width":  1.8,
                                                        "isFloating":  false
                                                    },
                      "Silver mouse":  {
@@ -6146,7 +6146,7 @@
                                                       0.4998779296875
                                                   ],
                                            "height":  2.4,
-                                           "width":  1.8,
+                                           "width":  1.3,
                                            "isFloating":  true
                                        },
                      "Giant silver ant":  {
@@ -6157,7 +6157,7 @@
                                                          0.4998779296875
                                                      ],
                                               "height":  2.4,
-                                              "width":  1.8,
+                                              "width":  1.3,
                                               "isFloating":  false
                                           },
                      "Abyss spider":  {
@@ -6168,7 +6168,7 @@
                                                      0.4998779296875
                                                  ],
                                           "height":  0.55,
-                                          "width":  0.65,
+                                          "width":  0.3,
                                           "isFloating":  false
                                       },
                      "Disenchanter bat":  {
@@ -6223,7 +6223,7 @@
                                                  0.4686279296875
                                              ],
                                       "height":  1.7,
-                                      "width":  1.25,
+                                      "width":  0.94,
                                       "isFloating":  false
                                   },
                      "Archlich":  {
@@ -6234,7 +6234,7 @@
                                                  0.4686279296875
                                              ],
                                       "height":  1.7,
-                                      "width":  1.25,
+                                      "width":  0.94,
                                       "isFloating":  false
                                   },
                      "Crow":  {
@@ -6278,7 +6278,7 @@
                                                       0.4686279296875
                                                   ],
                                            "height":  1.7,
-                                           "width":  1.25,
+                                           "width":  0.94,
                                            "isFloating":  false
                                        },
                      "Cave bear":  {
@@ -6300,7 +6300,7 @@
                                                      0.4686279296875
                                                  ],
                                           "height":  1.7,
-                                          "width":  1.25,
+                                          "width":  0.94,
                                           "isFloating":  false
                                       },
                      "Werebear":  {
@@ -6322,7 +6322,7 @@
                                                                  0.4686279296875
                                                              ],
                                                       "height":  1.7,
-                                                      "width":  1.25,
+                                                      "width":  0.94,
                                                       "isFloating":  false
                                                   },
                      "Beorn, the Mountain Bear":  {
@@ -6344,7 +6344,7 @@
                                                 0.4686279296875
                                             ],
                                      "height":  1.7,
-                                     "width":  1.25,
+                                     "width":  0.94,
                                      "isFloating":  false
                                  },
                      "Bile Demon":  {
@@ -6355,7 +6355,7 @@
                                                    0.4686279296875
                                                ],
                                         "height":  1.7,
-                                        "width":  1.25,
+                                        "width":  0.94,
                                         "isFloating":  false
                                     },
                      "Osyluth":  {
@@ -6366,7 +6366,7 @@
                                                 0.4686279296875
                                             ],
                                      "height":  1.7,
-                                     "width":  1.25,
+                                     "width":  0.94,
                                      "isFloating":  false
                                  },
                      "Gelugon":  {
@@ -6377,7 +6377,7 @@
                                                 0.4686279296875
                                             ],
                                      "height":  1.7,
-                                     "width":  1.25,
+                                     "width":  0.94,
                                      "isFloating":  false
                                  },
                      "Horned Reaper":  {
@@ -6388,7 +6388,7 @@
                                                       0.4686279296875
                                                   ],
                                            "height":  1.7,
-                                           "width":  1.25,
+                                           "width":  0.94,
                                            "isFloating":  false
                                        },
                      "Pit Fiend":  {
@@ -6399,7 +6399,7 @@
                                                   0.4686279296875
                                               ],
                                        "height":  1.7,
-                                       "width":  1.25,
+                                       "width":  0.94,
                                        "isFloating":  false
                                    },
                      "Greater Balrog":  {
@@ -6410,7 +6410,7 @@
                                                        0.4686279296875
                                                    ],
                                             "height":  3,
-                                            "width":  2.2,
+                                            "width":  1.65,
                                             "isFloating":  false
                                         },
                      "Baby gold dragon":  {
@@ -6432,7 +6432,7 @@
                                                          0.4686279296875
                                                      ],
                                               "height":  2.6,
-                                              "width":  2.3,
+                                              "width":  1.5,
                                               "isFloating":  false
                                           },
                      "Great Bile Wyrm":  {
@@ -6443,7 +6443,7 @@
                                                         0.4686279296875
                                                     ],
                                              "height":  2.6,
-                                             "width":  2.3,
+                                             "width":  1.5,
                                              "isFloating":  false
                                          },
                      "Great Wyrm of Thunder":  {
@@ -6453,8 +6453,8 @@
                                                               0.8123779296875,
                                                               0.4686279296875
                                                           ],
-                                                   "height":  3.4,
-                                                   "width":  2.8,
+                                                   "height":  3.2,
+                                                   "width":  1.8,
                                                    "isFloating":  false
                                                },
                      "Ranger":  {
@@ -6487,7 +6487,7 @@
                                                          0.4686279296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  false
                                           },
                      "Berserker":  {
@@ -6509,7 +6509,7 @@
                                                 0.4686279296875
                                             ],
                                      "height":  2.4,
-                                     "width":  1.8,
+                                     "width":  1.3,
                                      "isFloating":  false
                                  },
                      "Makar, the Warrior":  {
@@ -6520,7 +6520,7 @@
                                                            0.4686279296875
                                                        ],
                                                 "height":  1.7,
-                                                "width":  1.25,
+                                                "width":  0.94,
                                                 "isFloating":  false
                                             },
                      "Meássë, the Bloody":  {
@@ -6531,7 +6531,7 @@
                                                            0.4373779296875
                                                        ],
                                                 "height":  1.7,
-                                                "width":  1.25,
+                                                "width":  0.94,
                                                 "isFloating":  false
                                             },
                      "Measse, the Bloody":  {
@@ -6542,7 +6542,7 @@
                                                            0.4373779296875
                                                        ],
                                                 "height":  1.7,
-                                                "width":  1.25,
+                                                "width":  0.94,
                                                 "isFloating":  false
                                             },
                      "Evil eye":  {
@@ -6564,7 +6564,7 @@
                                                   0.4373779296875
                                               ],
                                        "height":  1.7,
-                                       "width":  1.25,
+                                       "width":  0.94,
                                        "isFloating":  false
                                    },
                      "Gauth":  {
@@ -6575,7 +6575,7 @@
                                               0.4373779296875
                                           ],
                                    "height":  1.7,
-                                   "width":  1.25,
+                                   "width":  0.94,
                                    "isFloating":  false
                                },
                      "Beholder hive-mother":  {
@@ -6586,7 +6586,7 @@
                                                              0.4373779296875
                                                          ],
                                                   "height":  1.7,
-                                                  "width":  1.25,
+                                                  "width":  0.94,
                                                   "isFloating":  true
                                               },
                      "Neekerbreeker":  {
@@ -6608,7 +6608,7 @@
                                                       0.4373779296875
                                                   ],
                                            "height":  2.4,
-                                           "width":  1.8,
+                                           "width":  1.3,
                                            "isFloating":  false
                                        },
                      "Eöl, the Dark Elf":  {
@@ -6619,7 +6619,7 @@
                                                           0.4373779296875
                                                       ],
                                                "height":  1.7,
-                                               "width":  1.25,
+                                               "width":  0.94,
                                                "isFloating":  false
                                            },
                      "Eol, the Dark Elf":  {
@@ -6630,7 +6630,7 @@
                                                           0.4373779296875
                                                       ],
                                                "height":  1.7,
-                                               "width":  1.25,
+                                               "width":  0.94,
                                                "isFloating":  false
                                            },
                      "Maeglin, the Traitor of Gondolin":  {
@@ -6641,7 +6641,7 @@
                                                                          0.4373779296875
                                                                      ],
                                                               "height":  1.7,
-                                                              "width":  1.25,
+                                                              "width":  0.94,
                                                               "isFloating":  false
                                                           },
                      "Elder vampire":  {
@@ -6652,7 +6652,7 @@
                                                       0.4373779296875
                                                   ],
                                            "height":  1.65,
-                                           "width":  1.2,
+                                           "width":  0.91,
                                            "isFloating":  false
                                        },
                      "Silent watcher":  {
@@ -6663,7 +6663,7 @@
                                                        0.4373779296875
                                                    ],
                                             "height":  1.7,
-                                            "width":  1.25,
+                                            "width":  0.94,
                                             "isFloating":  false
                                         },
                      "blood falcon":  {
@@ -6707,7 +6707,7 @@
                                                          0.4373779296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  false
                                           },
                      "Ancient spider":  {
@@ -6751,7 +6751,7 @@
                                                          0.4373779296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  true
                                           },
                      "Doombat":  {
@@ -6773,7 +6773,7 @@
                                                        0.4373779296875
                                                    ],
                                             "height":  1.7,
-                                            "width":  1.25,
+                                            "width":  0.94,
                                             "isFloating":  false
                                         },
                      "Bone golem":  {
@@ -6784,7 +6784,7 @@
                                                    0.4373779296875
                                                ],
                                         "height":  2.4,
-                                        "width":  1.8,
+                                        "width":  1.3,
                                         "isFloating":  false
                                     },
                      "Bronze golem":  {
@@ -6795,7 +6795,7 @@
                                                      0.4373779296875
                                                  ],
                                           "height":  2.4,
-                                          "width":  1.8,
+                                          "width":  1.3,
                                           "isFloating":  false
                                       },
                      "Ogre chieftain":  {
@@ -6806,7 +6806,7 @@
                                                        0.4373779296875
                                                    ],
                                             "height":  2.4,
-                                            "width":  1.8,
+                                            "width":  1.3,
                                             "isFloating":  false
                                         },
                      "Ar-Pharazôn the Golden":  {
@@ -6817,7 +6817,7 @@
                                                                0.4373779296875
                                                            ],
                                                     "height":  1.7,
-                                                    "width":  1.25,
+                                                    "width":  0.94,
                                                     "isFloating":  false
                                                 },
                      "Ar-Pharazon the Golden":  {
@@ -6828,7 +6828,7 @@
                                                                0.4373779296875
                                                            ],
                                                     "height":  1.7,
-                                                    "width":  1.25,
+                                                    "width":  0.94,
                                                     "isFloating":  false
                                                 },
                      "Troll chieftain":  {
@@ -6839,7 +6839,7 @@
                                                         0.4373779296875
                                                     ],
                                              "height":  2.4,
-                                             "width":  1.8,
+                                             "width":  1.3,
                                              "isFloating":  false
                                          },
                      "Shardstorm":  {
@@ -6861,7 +6861,7 @@
                                                          0.4373779296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  false
                                           },
                      "mummified chieftain":  {
@@ -6905,7 +6905,7 @@
                                                         0.4373779296875
                                                     ],
                                              "height":  1.7,
-                                             "width":  1.25,
+                                             "width":  0.94,
                                              "isFloating":  false
                                          },
                      "green elf archer":  {
@@ -6949,7 +6949,7 @@
                                               0.4061279296875
                                           ],
                                    "height":  1.7,
-                                   "width":  1.25,
+                                   "width":  0.94,
                                    "isFloating":  false
                                },
                      "hasty ent":  {
@@ -6960,7 +6960,7 @@
                                                   0.4061279296875
                                               ],
                                        "height":  1.7,
-                                       "width":  1.25,
+                                       "width":  0.94,
                                        "isFloating":  false
                                    },
                      "Old Man Willow":  {
@@ -6971,7 +6971,7 @@
                                                        0.4061279296875
                                                    ],
                                             "height":  1.7,
-                                            "width":  1.25,
+                                            "width":  0.94,
                                             "isFloating":  false
                                         },
                      "black-hearted huorn":  {
@@ -6982,7 +6982,7 @@
                                                             0.4061279296875
                                                         ],
                                                  "height":  1.7,
-                                                 "width":  1.25,
+                                                 "width":  0.94,
                                                  "isFloating":  false
                                              },
                      "werewolf of Sauron":  {
@@ -6992,8 +6992,8 @@
                                                            0.2498779296875,
                                                            0.4061279296875
                                                        ],
-                                                "height":  3.4,
-                                                "width":  2.8,
+                                                "height":  3.2,
+                                                "width":  1.8,
                                                 "isFloating":  false
                                             },
                      "Fëanorian raider":  {
@@ -7004,7 +7004,7 @@
                                                          0.4061279296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  false
                                           },
                      "Feanorian raider":  {
@@ -7015,7 +7015,7 @@
                                                          0.4061279296875
                                                      ],
                                               "height":  1.7,
-                                              "width":  1.25,
+                                              "width":  0.94,
                                               "isFloating":  false
                                           },
                      "Wiruin, the Maelstrom":  {
@@ -7026,7 +7026,7 @@
                                                               0.4061279296875
                                                           ],
                                                    "height":  1.7,
-                                                   "width":  1.25,
+                                                   "width":  0.94,
                                                    "isFloating":  false
                                                },
                      "Wolf-Sauron":  {
@@ -7036,8 +7036,8 @@
                                                     0.3436279296875,
                                                     0.4061279296875
                                                 ],
-                                         "height":  3.4,
-                                         "width":  2.8,
+                                         "height":  3.2,
+                                         "width":  1.8,
                                          "isFloating":  false
                                      },
                      "Serpent-Sauron":  {
@@ -7047,8 +7047,8 @@
                                                        0.3748779296875,
                                                        0.4061279296875
                                                    ],
-                                            "height":  3.4,
-                                            "width":  2.8,
+                                            "height":  3.2,
+                                            "width":  1.8,
                                             "isFloating":  false
                                         },
                      "Vampire-Sauron":  {
@@ -7058,8 +7058,8 @@
                                                        0.4061279296875,
                                                        0.4061279296875
                                                    ],
-                                            "height":  3.4,
-                                            "width":  2.8,
+                                            "height":  3.2,
+                                            "width":  1.8,
                                             "isFloating":  false
                                         },
                      "red-hatted elf":  {
@@ -7182,7 +7182,7 @@
                                         0.8436279296875
                                     ],
                              "height":  2.4,
-                             "width":  1.8,
+                             "width":  1.3,
                              "isFloating":  false
                          },
                    "h":  {
@@ -7402,7 +7402,7 @@
                                         0.6873779296875
                                     ],
                              "height":  1.7,
-                             "width":  1.25,
+                             "width":  0.94,
                              "isFloating":  false
                          },
                    "F":  {
@@ -7413,7 +7413,7 @@
                                         0.8748779296875
                                     ],
                              "height":  2.4,
-                             "width":  1.8,
+                             "width":  1.3,
                              "isFloating":  false
                          },
                    "G":  {
@@ -7479,7 +7479,7 @@
                                         0.6561279296875
                                     ],
                              "height":  1.7,
-                             "width":  1.25,
+                             "width":  0.94,
                              "isFloating":  false
                          },
                    "M":  {
@@ -7490,7 +7490,7 @@
                                         0.8123779296875
                                     ],
                              "height":  2.2,
-                             "width":  2,
+                             "width":  1.4,
                              "isFloating":  false
                          },
                    "O":  {
@@ -7501,7 +7501,7 @@
                                         0.8436279296875
                                     ],
                              "height":  2.4,
-                             "width":  1.8,
+                             "width":  1.3,
                              "isFloating":  false
                          },
                    "P":  {
@@ -7556,7 +7556,7 @@
                                         0.8123779296875
                                     ],
                              "height":  2.4,
-                             "width":  1.8,
+                             "width":  1.3,
                              "isFloating":  false
                          },
                    "U":  {
@@ -7611,7 +7611,7 @@
                                         0.9061279296875
                                     ],
                              "height":  2.4,
-                             "width":  1.8,
+                             "width":  1.3,
                              "isFloating":  false
                          },
                    "Z":  {

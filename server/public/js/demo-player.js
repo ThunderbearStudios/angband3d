@@ -56,18 +56,20 @@
             this.activeSubtitle = null;
 
             this.manifest = {
-                title: 'Angband3D — Official Gameplay Showcase & Veteran Guide',
-                narrator: 'Master Chronicler Enceladus (Gemini Native Audio)',
-                totalDuration: 255.0,
+                title: 'Angband3D — Award-Winning 10-Act Gameplay Walkthrough',
+                narrator: 'Master Chronicler Enceladus & Lorekeeper Aoede (Gemini Native Audio)',
+                totalDuration: 275.0,
                 chapters: [
-                    { id: 'awakening', title: 'Act 1: Awakening & Town Preparation', start: 0, end: 32.0, color: '#f59e0b' },
-                    { id: 'gotcha_yaw', title: 'Act 2: The Crypts & 0-Turn Yaw', start: 32.0, end: 64.0, color: '#38bdf8' },
-                    { id: 'dual_reality', title: 'Act 3: [Tab] Dual Reality', start: 64.0, end: 105.0, color: '#10b981' },
-                    { id: 'stealth_infravision', title: 'Act 4: Stealth & Infravision', start: 105.0, end: 125.0, color: '#8b5cf6' },
-                    { id: 'vault_combat', title: 'Act 5: Tactical Vault Combat', start: 125.0, end: 147.0, color: '#f97316' },
-                    { id: 'chronicle_lorekeeper', title: 'Act 6: The Living Chronicle', start: 147.0, end: 178.0, color: '#ec4899' },
-                    { id: 'creature_chat', title: 'Act 7: Interactive Creature Chat', start: 178.0, end: 210.0, color: '#fb923c' },
-                    { id: 'universal_call', title: 'Act 8: Universal Saves & Community', start: 210.0, end: 255.0, color: '#ffd700' }
+                    { id: 'intro', title: 'Act 0: Insignia', start: 0, end: 18.5, color: '#ffd700' },
+                    { id: 'town', title: 'Act 1: Town & Descent', start: 18.5, end: 48.0, color: '#f59e0b' },
+                    { id: 'crypt', title: 'Act 2: 0-Turn Yaw & Radar', start: 48.0, end: 75.0, color: '#38bdf8' },
+                    { id: 'terminal', title: 'Act 3: 80x24 CRT Terminal', start: 75.0, end: 106.5, color: '#10b981' },
+                    { id: 'caverns', title: 'Act 4: Archery & Combat Log', start: 106.5, end: 133.5, color: '#8b5cf6' },
+                    { id: 'sorcery', title: 'Act 5: Grimoire & Potions', start: 133.5, end: 157.5, color: '#c084fc' },
+                    { id: 'chronicle', title: 'Act 6: Living Chronicle', start: 157.5, end: 197.5, color: '#ec4899' },
+                    { id: 'combat', title: 'Act 7: Dragon Clash', start: 197.5, end: 223.5, color: '#ef4444' },
+                    { id: 'saves', title: 'Act 8: Universal Saves', start: 223.5, end: 244.5, color: '#06b6d4' },
+                    { id: 'finale', title: 'Act 9: Grand Finale', start: 244.5, end: 275.0, color: '#eab308' }
                 ],
                 subtitles: [
                     { start: 3.8, end: 9.8, speaker: 'Enceladus', text: 'Deep in the forgotten vaults of Morgoth, ancient terror stirs!' },
@@ -319,6 +321,9 @@
                     const data = await res.json();
                     if (data && data.chapters) {
                         this.manifest = data;
+                        if (!this.manifest.subtitles && this.manifest.audioStems) {
+                            this.manifest.subtitles = this.manifest.audioStems;
+                        }
                         if (data.totalDuration) this.duration = data.totalDuration;
                         this.renderChapterPips();
                     }
@@ -613,7 +618,8 @@
 
             const t = this.currentTime;
             let currentSub = null;
-            for (const sub of this.manifest.subtitles) {
+            const subs = this.manifest.subtitles || this.manifest.audioStems || [];
+            for (const sub of subs) {
                 if (t >= sub.start && t <= sub.end) {
                     currentSub = sub;
                     break;
@@ -624,6 +630,8 @@
                 this.activeSubtitle = currentSub;
                 if (currentSub) {
                     const speakerClass = (currentSub.speaker === 'Enceladus') ? 'speaker-bard' :
+                                         (currentSub.speaker === 'Aoede') ? 'speaker-lorekeeper' :
+                                         (currentSub.speaker === 'Fenrir') ? 'speaker-creature' :
                                          (currentSub.speaker === 'Young Red Dragon') ? 'speaker-dragon' :
                                          (currentSub.speaker === 'Snerk the Snaga') ? 'speaker-goblin' : 'speaker-npc';
                     this.captionsEl.innerHTML = `

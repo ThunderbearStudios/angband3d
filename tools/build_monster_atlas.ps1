@@ -67,6 +67,7 @@ public class AtlasProcessor {
         string srcPath,
         int[] srcXs,
         int[] srcYs,
+        int[] srcHeights,
         string outAtlasPath,
         string outNormalPath,
         int atlasSize,
@@ -93,7 +94,7 @@ public class AtlasProcessor {
                     int destY = slotRow * tileSize;
 
                     Rectangle destRect = new Rectangle(destX, destY, tileSize, tileSize);
-                    Rectangle srcRect = new Rectangle(srcXs[i], srcYs[i], 64, 64);
+                    Rectangle srcRect = new Rectangle(srcXs[i], srcYs[i], 64, srcHeights[i]);
 
                     g.DrawImage(srcBmp, destRect, srcRect, GraphicsUnit.Pixel);
                 }
@@ -320,10 +321,21 @@ $tilesPerRow = [int]($atlasSize / $tileSize) # 32
 
 $srcXs = [int[]]::new($monsterList.Count)
 $srcYs = [int[]]::new($monsterList.Count)
+$srcHeights = [int[]]::new($monsterList.Count)
 
 for ($i = 0; $i -lt $monsterList.Count; $i++) {
-    $srcXs[$i] = $monsterList[$i].Col * 64
-    $srcYs[$i] = $monsterList[$i].Row * 64
+    $m = $monsterList[$i]
+    $isTall = ($m.Row -eq 29 -or $m.Row -eq 31 -or ($m.Row -eq 27 -and $m.Col -ge 122))
+    $srcXs[$i] = $m.Col * 64
+    if ($isTall) {
+        # Shockbolt 2-tile tall monsters (trolls, giants, dragons, wyrms, colossi)
+        # have their head and upper torso located in the row directly above (Row - 1)
+        $srcYs[$i] = ($m.Row - 1) * 64
+        $srcHeights[$i] = 128
+    } else {
+        $srcYs[$i] = $m.Row * 64
+        $srcHeights[$i] = 64
+    }
 }
 
 Write-Host "[Atlas Builder] Generating $atlasSize x $atlasSize HD monster atlas and volumetric normal map..."
@@ -331,6 +343,7 @@ Write-Host "[Atlas Builder] Generating $atlasSize x $atlasSize HD monster atlas 
     $srcImgPath,
     $srcXs,
     $srcYs,
+    $srcHeights,
     $atlasPngPath,
     $normalPngPath,
     $atlasSize,
@@ -363,6 +376,7 @@ for ($i = 0; $i -lt $monsterList.Count; $i++) {
     $height = 1.70
     $width = 1.25
     $isFloating = $false
+    $isTall = ($m.Row -eq 29 -or $m.Row -eq 31 -or ($m.Row -eq 27 -and $m.Col -ge 122))
 
     if ($nameLower -match 'farmer maggot') {
         $height = 1.20
@@ -371,20 +385,20 @@ for ($i = 0; $i -lt $monsterList.Count; $i++) {
         $height = 1.45
         $width = 1.60
     } elseif ($nameLower -match 'great wyrm|ancient.*dragon|morgoth|sauron|ancalagon|glaurung|smaug|scatha|itangast|baphomet|kronos|ungoliant') {
-        $height = 3.40
-        $width = 2.80
+        $height = 3.20
+        $width = 1.80
     } elseif ($nameLower -match '\b(balrog|lungorthin|gothmog)\b') {
         $height = 3.00
-        $width = 2.20
+        $width = 1.65
     } elseif ($nameLower -match '\b(dragon|drake|wyrm)\b') {
         $height = 2.60
-        $width = 2.30
+        $width = 1.50
     } elseif ($nameLower -match '\b(hippogriff|pegasus|griffon|gryphon)\b') {
-        $height = 1.85
-        $width = 1.75
+        $height = 1.95
+        $width = 1.25
     } elseif ($nameLower -match '\b(hydra|chimera|manticore)\b') {
         $height = 2.20
-        $width = 2.00
+        $width = 1.40
     } elseif ($nameLower -match '\b(rat|mouse|flea|worm|centipede|maggot|spider|tick|crawler|scorpion|louse|beetle)\b') {
         $height = 0.55
         $width = 0.65
@@ -399,7 +413,12 @@ for ($i = 0; $i -lt $monsterList.Count; $i++) {
         $width = 1.20
     } elseif ($nameLower -match '\b(ogre|troll|giant|golem|cyclops|colossus|titan|yeti)\b') {
         $height = 2.40
-        $width = 1.80
+        $width = 1.30
+    }
+
+    # Ensure all 2-tile tall monsters (64x128 source aspect ratio) maintain upright biological proportions
+    if ($isTall -and $width -gt ($height * 0.65)) {
+        $width = [Math]::Round($height * 0.55, 2)
     }
 
     if ($nameLower -match '\b(ghost|spectre|wraith|phantom|spirit|shadow|poltergeist|vortex|eye|beholder|bat|bird|wasp|quylthulg)\b') {

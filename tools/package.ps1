@@ -66,6 +66,13 @@ if (Test-Path $webSource) {
     Write-Host "Staging full enhanced game assets into $webDest..." -ForegroundColor Cyan
     New-Item -ItemType Directory -Path $webDest -Force | Out-Null
     Copy-Item "$webSource\*" $webDest -Recurse -Force
+
+    # Keep standalone distribution clean: strip web demo video walkthroughs & recording caches
+    $pkgVideoDir = Join-Path $webDest 'assets\video'
+    if (Test-Path $pkgVideoDir) {
+        Write-Host "Excluding heavy web demo videos from game distribution package..." -ForegroundColor Gray
+        Remove-Item $pkgVideoDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # Optional: Build Godot C# Client in Release mode & Export Godot Executable if available

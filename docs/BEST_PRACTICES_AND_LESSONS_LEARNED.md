@@ -32,6 +32,9 @@
 24. [YouTube-Grade In-Engine Gameplay Commercial & Veteran Theater Showcase Architecture](#24-youtube-grade-in-engine-gameplay-commercial--veteran-theater-showcase-architecture-v2120--web-v840)
 25. [Broadcast-Quality Authentic In-Engine Walkthrough Video Recording, Monster Scaling Invariants & Coordinate Facing Systems](#25-broadcast-quality-authentic-in-engine-walkthrough-video-recording-monster-scaling-invariants--coordinate-facing-systems)
 26. [Dedicated Walkthrough Showcase Routing, Under-Video Controls Architecture & Cross-Platform Parity Invariants](#26-dedicated-walkthrough-showcase-routing-under-video-controls-architecture--cross-platform-parity-invariants)
+27. [Choreographed Gameplay Walkthrough Invariants: Authentic Grid Topology, Real In-Engine Turn Actions & Vocal Mutual Exclusion](#27-choreographed-gameplay-walkthrough-invariants-authentic-grid-topology-real-in-engine-turn-actions--vocal-mutual-exclusion)
+28. [Reimagined Showcase Architecture: Dynamic Multi-Depth Perspectives, Camera Facing Synchronization, UI Spotlight & Clean Insignia Cards](#28-reimagined-showcase-architecture-dynamic-multi-depth-perspectives-camera-facing-synchronization-ui-spotlight--clean-insignia-cards)
+29. [Award-Ready Production Finalization: Tall 2-Tile Shockbolt Detection, Vocal Dialogue Choreography, Message Drawer Mutual Exclusion, and Release Asset Isolation](#29-award-ready-production-finalization-tall-2-tile-shockbolt-detection-vocal-dialogue-choreography-message-drawer-mutual-exclusion-and-release-asset-isolation)
 
 ---
 
@@ -1094,5 +1097,176 @@ To guarantee broadcast quality with zero runtime API failure or network lag:
     - Title Menu & Pause Menu: `"Watch Gameplay Showcase & Video Guide (angband3d.com/demo)"`.
     - In-game Survival Guide (Tab 6): Clickable link and `[V]` shortcut.
   - Server daemon (`server.js`) natively routes `/demo`, `/demo/`, `/watch`, and `/showcase` to `server/public/demo.html`.
+
+---
+
+## 27. Choreographed Gameplay Walkthrough Invariants: Authentic Grid Topology, Real In-Engine Turn Actions & Vocal Mutual Exclusion
+
+### 27.1 The Grid Blindness & Wall Collision Trap
+- **The Failure Mode**:
+  - Scripting movements in `demo-recorder.js` by assuming open space without inspecting the authoritative C engine coordinate map leads to catastrophic collisions.
+  - In Act 2, the player at $(73, 55)$ was scripted to step South repeatedly. Because coordinate $(73, 56)$ is a granite wall (`#`), every step generated `"There is a wall in the way!"` in the message log while the camera stared point-blank into masonry.
+  - In Act 4, the player at $(142, 14)$ was scripted to step North into row 13, which is solid granite (`#######`), producing identical wall collisions while an untracked snake attacked from behind.
+- **The Mandatory Grid Inspection Protocol**:
+  - Before writing or modifying movement steps in `demo-recorder.js`, developers and AI agents **MUST** execute a Python simulation script (e.g. `test_act*_sim.py` utilizing `bridge.py` or the socket bridge).
+  - The script must dump the local $15 \times 15$ ASCII grid centered on the player and verify every planned step lands strictly on passable open floor (`.`) or open doorways (`'`).
+  - Never guess or approximate coordinates. Verify start positions, intermediate turns, target monster coordinates, and loot drop tiles directly against active engine frames.
+
+### 27.2 Absolute Elimination of Synthetic/Phantom Overlays
+- **The Failure Mode**:
+  - Displaying floating damage text, synthetic hit notifications, or phantom death notices when the engine state has not registered a genuine strike destroys player trust and creates glaring contradictions between the visual scene and the message log.
+  - If the message log says `"There is a wall in the way!"` while a floating text overlay says `"-12 (Critical Strike!)"`, the recording is fundamentally broken.
+- **The Invariant**:
+  - 100% of visible combat actions, monster damage, and loot acquisitions must originate from real in-engine game turns executed via stdio/socket keypresses (`stepMove`, `stepAttack`, `g` loot).
+  - Text appearing in the message log (`"You hit the small kobold. You have slain the small kobold."`, `"You have found 45 gold pieces worth of copper."`, `"You have a Scroll..."`) is the authoritative source of truth.
+  - Floats and visual VFX must trigger strictly in response to genuine engine state changes, never hardcoded timers running decoupled from game events.
+
+### 27.3 Authoritative Golden Save Generation & Rogue Monster Banishment
+- **The Failure Mode**:
+  - Loading an unvetted or stale save file where the intended target monster is already dead, positioned in an unreachable quadrant, or surrounded by hostile wandering monsters (e.g. wandering snake biting the player from behind during a stealth showcase).
+- **The Invariant**:
+  - Golden save creation scripts (`tools/setup_golden_*.py`) must:
+    1. Jump to the exact target dungeon depth (`C-a j`).
+    2. Illuminate the local region or vault chamber (`C-a w`).
+    3. Banish any existing rogue or interfering monsters on the level using long-range teleport/destruction wand commands.
+    4. Summon the specific target monster (`C-a n`) at the exact target coordinate $(y, x)$.
+    5. Set sleep flags appropriately for stealth scenarios (`m_ptr->mflag |= MFLAG_ASLEEP`).
+    6. Verify the player has open, unobstructed line-of-sight and passable walking corridors to the encounter.
+  - All golden saves (`demo_intro`, `demo_town`, `demo_crypt`, `demo_vault`, `demo_stealth`, `demo_combat`) must be versioned in `tools/demo_saves_backup/` and restored before recording.
+
+### 27.4 Voiceover Stem Timeline Scheduling & Mutual Exclusion Invariant
+- **The Failure Mode**:
+  - In Act 8, `clip_19_universal_saves.wav` had an 18.2-second spoken duration and started at 291.8s (ending at 310.0s), while `clip_20_grand_finale.wav` started at 298.5s. This resulted in 11.5 seconds of simultaneous, unintelligible overlapping speech.
+- **The Invariant**:
+  - Spoken narrative voice tracks must be strictly mutually exclusive.
+  - For any two consecutive audio clips $i$ and $i+1$:
+    $$\text{delayMs}_{i} + \text{durationMs}_{i} + \text{bufferMs} \le \text{delayMs}_{i+1}$$
+    where $\text{bufferMs} \ge 500\text{ms}$ (clean silent buffer between spoken statements).
+  - When script content is adjusted, voiceover audio must be regenerated to a duration that strictly fits the time allocation, or the downstream delay must be pushed forward.
+  - Video muxing scripts must validate track durations via `ffprobe` prior to running `ffmpeg -filter_complex`.
+
+---
+
+## 28. Reimagined Showcase Architecture: Dynamic Multi-Depth Perspectives, Camera Facing Synchronization, UI Spotlight & Clean Insignia Cards
+
+### 28.1 Dynamic Camera Facing Synchronization on Save State Transition
+- **The Failure Mode**:
+  - In Angband, restoring a save or spawning into a level defaults client state to `facing = 0` (North) unless overridden. If the architectural corridor, active monsters, or open town square lie to the South, West, or East, the camera immediately stares directly into a blank dead-end wall upon load.
+  - Earlier recording passes in Acts 1, 4, 5, and 6 suffered from this: the Orc Archer was South, the Cave Troll was West, and the Young Red Dragon was East, resulting in jarring wall views before any player turn.
+- **The Architectural Invariant**:
+  - The client transition function `transitionToState(charName, initialFacing)` in `demo-recorder.js` must explicitly accept an `initialFacing` parameter (`0` = North, `1` = East, `2` = South, `3` = West).
+  - Immediately upon loading the game frame, the client must invoke `dungeon.setFacing(initialFacing)` and set `cameraYaw` accordingly:
+    - `facing = 0` (North): `yaw = 0`
+    - `facing = 1` (East): `yaw = -Math.PI / 2`
+    - `facing = 2` (South): `yaw = -Math.PI`
+    - `facing = 3` (West): `yaw = Math.PI / 2`
+  - This guarantees the camera opens with instant, panoramic framing of monsters, corridors, and chambers without requiring blind dummy turns.
+
+### 28.2 Isolated Pristine Golden Save State Management
+- **The Failure Mode**:
+  - Angband writes persistent game updates directly to `engine/build/game/lib/save/`. A single live capture or automated test run can deal damage to monsters, consume inventory consumables (potions, scrolls, arrows), alter player gold, or leave the player facing an altered orientation.
+  - Subsequent recording passes then load degraded or dead saves, causing cascading test and video failures.
+- **The Architectural Invariant**:
+  - All golden saves (`demo_town`, `demo_crypt`, `demo_vault`, `demo_caverns`, `demo_mage`, `demo_combat`) must be maintained in an isolated backup repository (`tools/demo_saves_backup/`).
+  - Prior to launching any recording session or verification suite, the automation script **MUST** copy pristine backup files to `engine/build/game/lib/save/`.
+  - Canonical generator scripts (`tools/setup_reimagined_golden_saves.py`) must be maintained to regenerate all 6 pristine saves deterministically if engine data structures evolve.
+
+### 28.3 Theatrical Pure Insignia Cards vs. Gameplay Purity
+- **The Failure Mode**:
+  - Displaying cluttered menus, play buttons, or UI headers during the theatrical splash screen detracts from brand polish and feels uncinematic.
+- **The Architectural Invariant**:
+  - The opening splash card (0:00 - 0:04) and outro card (3:24 - 3:35) render pure **Thunderbear Studios** branding on obsidian black with warm amber/gold radial backglow.
+  - Zero HUD buttons, zero menu options, and zero text occlusions appear on the theatrical card.
+  - The scene transitions smoothly into live 3D gameplay with zero artificial cuts.
+
+### 28.4 Comprehensive In-Engine UI Spotlight Across Depths
+- **The Invariant**:
+  - Rather than focusing on invisible stealth mechanics or infravision, the walkthrough actively highlights visible, responsive UI systems across 6 distinct character classes and dungeon depths:
+    1. **Town DL 0 (Half-Elf Necromancer)**: Street life, cobblestone arches, Armoury storefront, celestial canopy, and town stair descent.
+    2. **Shallow Crypts DL 1 / 50ft (High-Elf Paladin)**: Vaulted stone arches, 0-turn camera yaw look-around, interactive minimap zoom (`+`/`-`), tactical melee, and copper loot pickup.
+    3. **Dual Reality DL 1 / 50ft (Half-Orc Druid)**: Full classic 80x24 green-screen CRT terminal (`[Tab]`) switching seamlessly to 3D Druid quarterstaff vs White Jelly with floating `"Zzz..."`.
+    4. **Caverns DL 12 / 600ft (High-Elf Ranger)**: Deep brick corridors, ranged bow archery (`[f]`) striking an Orc Archer down the hall, and collapsible message log drawer (`[L]`).
+    5. **Arcane Vault DL 20 / 1000ft (Dunadan Mage)**: Grimoire spellcasting (`[m]`), Magic Missile impact on towering Cave Troll, and potion of cure critical wounds quaffing (`[q]`).
+    6. **Magma Vault DL 25 / 1250ft (Half-Orc Necromancer)**: Westernesse fire blade melee against towering Young Red Dragon in magma fissures, combat log reactions, and phase door emergency teleport (`[r]`).
+    7. **Pause Menu & Portability**: Glassmorphism pause menu (`[Esc]`) highlighting universal `.SAV` savefile download.
+
+### 28.5 Audio Stems Scheduling & Mutual Exclusion Invariants
+- **The Invariant**:
+  - All 16 Gemini Native Audio stems must be measured with `ffprobe` prior to muxing.
+  - Narrative audio timeline must maintain $\ge 1.5\text{s}$ silent separation between any two consecutive voice tracks to guarantee zero speech collision, zero auditory fatigue, and seamless musical underscore breathing room.
+
+---
+
+## 29. Award-Ready Production Finalization: Tall 2-Tile Shockbolt Detection, Vocal Dialogue Choreography, Message Drawer Mutual Exclusion, and Release Asset Isolation
+
+### 29.1 Tall 2-Tile Monster Atlas Extraction & Anatomical Aspect Ratio Heuristics
+- **The Upstream Shockbolt Peculiarity**:
+  - In upstream Angband's 64x64 graphical tileset (`graf-dvg.prf`), massive creatures (Cave Trolls, Stone Giants, Great Wyrms, Ancient Dragons, Colossi, and Shelob) actually span **two vertical tiles** (`64x128` source area).
+  - The font preference mapping file indexes creatures by their **lower tile** (representing the creature's feet and legs).
+  - Naive single-cell extraction (`64x64`) sliced creatures horizontally across their waist, rendering "headless" monsters in 3D billboard space.
+- **The Anatomical Coordinate Rule**:
+  - Systematic inspection of the master tile sheets revealed that 2-tile creatures inhabit Row 29, Row 31, and Row 27 (columns $\ge 122$).
+  - For these creatures, the upper tile (head, shoulders, and chest) is located at `Row - 1` with identical column offset.
+- **The Automated Atlas Invariant (`build_monster_atlas.ps1`)**:
+  - When `$isTall` is detected (`$m.Row -eq 29 -or $m.Row -eq 31 -or ($m.Row -eq 27 -and $m.Col -ge 122)`):
+    - Source rectangle is dynamically shifted up: `srcY = (m.Row - 1) * 64`
+    - Source height is doubled: `srcHeight = 128`
+    - The full anatomical body is composited cleanly into the destination atlas tile.
+  - **Billboard Aspect Ratio Clamping**:
+    - When rendered in 3D world space, a 1:2 source sprite must not be stretched into a 1:1 square.
+    - Clamping rule: If `$isTall` and `$width > ($height * 0.65)`, `$width` is automatically adjusted to `Math.Round($height * 0.55, 2)`. This preserves natural, upright physiological proportions for towering beasts in first-person 3D.
+
+### 29.2 Act 6 Authentic Creature Voice & Tactical Lorekeeper Dialogue Choreography
+- **The Failure Mode**:
+  - In conversational or tactical encounters where both an adversary (e.g. Orc Shaman) and a party companion (Lorekeeper Aoede) speak within the same act, naive parallel playback creates cacophonous audio collision.
+- **The Choreographed Dialogue Pattern**:
+  - Adversarial dialogue must precede companion analysis:
+    1. **Adversary Speech (164.0s - 169.5s)**: In Act 6, the Orc Shaman sneers: *"Ghash! Die, surface filth! The dark lord's fire shall roast your bones!"*
+    2. **Acoustic Rest Buffer (169.5s - 172.0s)**: A clean $2.5\text{s}$ pause allows sound effects and combat grunts to resonate without speech clutter.
+    3. **Companion Tactical Counsel (172.0s - 178.5s)**: Lorekeeper Aoede advises: *"Careful! His curses sap your vigor. Strike him down before his shamans rally!"*
+- **Visual Subtitle Speaker Attribution**:
+  - In both `demo-player.js` and `demo.html`, subtitle stems include explicit `speaker` identifiers rendered with dedicated CSS classes:
+    - `.speaker-lorekeeper`: Radiant sky blue (`#38bdf8`) with tome iconography.
+    - `.speaker-creature`: Threatening crimson (`#ef4444`) with combat dagger iconography.
+  - This visual distinction ensures closed captions provide crystal-clear speaker context for viewers and judges.
+
+### 29.3 Strict Angband Source Adherence vs. External Lore Invariants
+- **The Mechanical Integrity Invariant**:
+  - Dialogue, tooltips, and narrative text must **strictly adhere** to Angband 4.2.6 C engine rules and Tolkien lore as codified in `list-mon-races.h` and upstream documentation.
+  - Invented fanfiction, non-canonical stats, or mechanics from unrelated games are strictly prohibited.
+  - All demonstrated combat capabilities reflect authoritative engine formulas:
+    - Young Red Dragon breath weapons and fire resistance mechanics.
+    - Phase door teleport radius ($r \le 10$ tiles).
+    - Sound propagation and infravision distance ($40\text{ft}$).
+    - Classic 0-turn camera yaw (client-side viewport transformation with zero turn cost).
+
+### 29.4 Layout Lock Interval vs. Modal Drawer Display Invariants
+- **The Failure Mode**:
+  - `demo-recorder.js` maintains a periodic `layoutLockInterval` (executing every 300ms) to guarantee that HUD elements, mini-bars, and overlays adhere to responsive mobile/desktop boundaries during automated recording.
+  - When an automation script invoked `btnMsgClose.click()` or set `msgWin.style.display = 'none'` in Act 6 to showcase an uncluttered 3D corridor view, the layout lock interval immediately re-asserted `msgWin.style.setProperty('display', 'flex', 'important')`.
+  - The message log drawer repeatedly snapped back open, obstructing the corridor camera and blocking keyframes.
+- **The Architectural Invariant**:
+  - UI controllers with active layout monitoring loops must check higher-level semantic state flags rather than relying on direct DOM property tampering.
+  - A boolean state flag `messageLogVisible` was integrated into the core layout manager:
+    ```javascript
+    msgWin.style.setProperty('display', (splashVisible || !messageLogVisible) ? 'none' : 'flex', 'important');
+    window.__messageLogClosed = !messageLogVisible;
+    ```
+  - During Act 6, setting `messageLogVisible = false` cleanly suppresses the drawer across all layout recalculations.
+  - When entering Act 7, setting `messageLogVisible = true` restores the combat log smoothly for dragon battle telemetry.
+
+### 29.5 Unified Standalone Showcase Routing & HTTP 206 Partial Content Streaming
+- **The Parity Invariant**:
+  - The standalone showcase URL (`angband3d.com/demo`) and the in-game splash screen modal (`#demo-modal`) share identical master video streams, subtitle stems, and chapter metadata.
+  - Fallback mechanisms in both players support both legacy property naming (`subtitles`) and modern stem naming (`audioStems`).
+- **HTTP 206 Byte-Range Streaming**:
+  - In `server/src/server.js`, media streaming handles `Range: bytes=start-end` headers with status code `206 Partial Content`, `Content-Range: bytes START-END/TOTAL`, and `Accept-Ranges: bytes`.
+  - This allows instant timeline seeking and scrubbing across the 275-second showcase video without requiring the browser to buffer the complete 115 MB MP4 file upfront.
+
+### 29.6 Distribution Package Hygiene & Heavy Demo Video Separation Invariants
+- **The Separation Invariant**:
+  - Demo videos, promotional capture tools, and raw screen recordings must remain **strictly isolated** from production game releases.
+  - `tools/package.ps1` explicitly purges `assets/video/` from the staged distribution directory (`dist/Angband3D-Windows-x64/www/`) before creating release archives.
+  - This prevents game distribution packages (`angband3d-standalone.zip`) from being bloated by 260+ MB of video data, guaranteeing lightweight, instant downloads for players while maintaining all marketing assets on the web server and dedicated `/demo` showcase.
 
 

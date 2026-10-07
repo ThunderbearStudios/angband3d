@@ -1,323 +1,231 @@
 {
-  "title": "Angband3D — Official Gameplay Showcase & Veteran Guide",
-  "narrator": "Master Chronicler Enceladus (Gemini Native Audio)",
-  "totalDuration": 255,
+  "title": "Angband 3D — 5-Minute Award-Winning Gameplay Walkthrough",
+  "narrator": "Master Chronicler Enceladus & Lorekeeper Aoede (Gemini Native Audio)",
+  "totalDuration": 275,
   "chapters": [
     {
-      "id": "awakening",
-      "title": "Act 1: Awakening & Town Preparation",
+      "id": "intro",
+      "title": "Act 0: Theatrical Thunderbear Studios Insignia",
       "start": 0,
-      "end": 32.0
+      "end": 18.5
     },
     {
-      "id": "gotcha_yaw",
-      "title": "Act 2: The Crypts & 0-Turn Camera Yaw",
-      "start": 32.0,
-      "end": 64.0
+      "id": "town",
+      "title": "Act 1: Town of Angband, Armoury & Stair Descent",
+      "start": 18.5,
+      "end": 48.0
     },
     {
-      "id": "dual_reality",
-      "title": "Act 3: Seamless Dual Reality & Classic Sizzle",
-      "start": 64.0,
-      "end": 105.0
+      "id": "crypt",
+      "title": "Act 2: The Crypts, 0-Turn Yaw & Minimap Zoom",
+      "start": 48.0,
+      "end": 75.0
     },
     {
-      "id": "stealth_infravision",
-      "title": "Act 4: Spatial Stealth & Infravision",
-      "start": 105.0,
-      "end": 125.0
+      "id": "terminal",
+      "title": "Act 3: Seamless Dual Reality & 80x24 CRT Terminal",
+      "start": 75.0,
+      "end": 106.5
     },
     {
-      "id": "vault_combat",
-      "title": "Act 5: Tactical Vault Combat & Spells",
-      "start": 125.0,
-      "end": 147.0
+      "id": "caverns",
+      "title": "Act 4: Caverns — Ranged Archery & Message Log Drawer",
+      "start": 106.5,
+      "end": 133.5
     },
     {
-      "id": "chronicle_lorekeeper",
-      "title": "Act 6: The Living Chronicle & Voiced Lorekeeper",
-      "start": 147.0,
-      "end": 178.0
+      "id": "sorcery",
+      "title": "Act 5: Arcane Vault — Grimoire Sorcery & Potion Quaff",
+      "start": 133.5,
+      "end": 157.5
     },
     {
-      "id": "creature_chat",
-      "title": "Act 7: Interactive Creature Chat & Parley",
-      "start": 178.0,
-      "end": 210.0
+      "id": "chronicle",
+      "title": "Act 6: Living Chronicle, Voiced Orc Shaman & Lorekeeper",
+      "start": 157.5,
+      "end": 197.5
     },
     {
-      "id": "universal_call",
-      "title": "Act 8: Universal Saves & Open Source Community",
-      "start": 210.0,
-      "end": 255.0
+      "id": "combat",
+      "title": "Act 7: Magma Vault — Young Red Dragon & Phase Door",
+      "start": 197.5,
+      "end": 223.5
+    },
+    {
+      "id": "saves",
+      "title": "Act 8: Universal Savefile Portability (.SAV Export)",
+      "start": 223.5,
+      "end": 244.5
+    },
+    {
+      "id": "finale",
+      "title": "Act 9: Grand Finale — Free, Open Source & Replication",
+      "start": 244.5,
+      "end": 275.0
     }
   ],
   "audioStems": [
     {
-      "id": "clip_01_awakening",
-      "file": "clip_01_awakening.wav",
-      "start": 3.8,
-      "duration": 13.52,
+      "id": "v3_clip_00_thunderbear",
+      "file": "v3_clip_00_thunderbear.wav",
       "speaker": "Enceladus",
-      "voice": "Enceladus",
-      "chapter": "awakening"
+      "start": 1.00,
+      "duration": 16.80,
+      "end": 17.80,
+      "text": "Thunderbear Studios presents Angband 3D — thirty years of legendary roguelike heritage, completely reborn in a stunning, fully-playable 3D first-person world."
     },
     {
-      "id": "clip_02_town_quote",
-      "file": "clip_02_town_quote.wav",
-      "start": 17.8,
-      "duration": 14.16,
+      "id": "v3_clip_01_town_intro",
+      "file": "v3_clip_01_town_intro.wav",
       "speaker": "Enceladus",
-      "voice": "Enceladus",
-      "chapter": "awakening"
+      "start": 19.30,
+      "duration": 11.20,
+      "end": 30.50,
+      "text": "Welcome to the Town of Angband. Beneath these peaceful cobblestones lies fifty levels of peril and ancient treasure."
     },
     {
-      "id": "clip_03_gotcha_yaw",
-      "file": "clip_03_gotcha_yaw.wav",
-      "start": 34.0,
-      "duration": 20.48,
+      "id": "v3_clip_02_town_gear_stairs",
+      "file": "v3_clip_02_town_gear_stairs.wav",
       "speaker": "Enceladus",
-      "voice": "Enceladus",
-      "chapter": "gotcha_yaw"
+      "start": 32.00,
+      "duration": 15.04,
+      "end": 47.04,
+      "text": "From storefront exploration and street interactions to full first-person equipment management, Angband 3D brings unprecedented depth and atmosphere to classic dungeon crawling."
     },
     {
-      "id": "clip_04_dual_reality",
-      "file": "clip_04_dual_reality.wav",
-      "start": 64.0,
-      "duration": 24.56,
+      "id": "v3_clip_03_crypt_minimap",
+      "file": "v3_clip_03_crypt_minimap.wav",
       "speaker": "Enceladus",
-      "voice": "Enceladus",
-      "chapter": "dual_reality"
+      "start": 48.54,
+      "duration": 14.76,
+      "end": 63.30,
+      "text": "Descending into the shallow crypts, dynamic torchlight illuminates vaulted halls. Seamless camera turning offers instant situational awareness with zero game turn penalty."
     },
     {
-      "id": "clip_05_kore_terminal",
-      "file": "clip_05_kore_terminal.wav",
-      "start": 89.0,
-      "duration": 16.08,
+      "id": "v3_clip_04_crypt_combat_loot",
+      "file": "v3_clip_04_crypt_combat_loot.wav",
       "speaker": "Enceladus",
-      "voice": "Enceladus",
-      "chapter": "dual_reality"
+      "start": 64.80,
+      "duration": 9.72,
+      "end": 74.52,
+      "text": "The interactive tactical minimap keeps your bearings razor-sharp as you slay foes and claim valuable dungeon loot."
     },
     {
-      "id": "clip_06_spatial_stealth",
-      "file": "clip_06_spatial_stealth.wav",
-      "start": 106.5,
-      "duration": 16.96,
+      "id": "v3_clip_05_dual_reality_intro",
+      "file": "v3_clip_05_dual_reality_intro.wav",
       "speaker": "Enceladus",
-      "voice": "Enceladus",
-      "chapter": "stealth_infravision"
+      "start": 76.02,
+      "duration": 11.00,
+      "end": 87.02,
+      "text": "Every single roll, stat, and mechanic is 100% faithful to authoritative Angband C engine rules."
     },
     {
-      "id": "clip_07_vault_combat",
-      "file": "clip_07_vault_combat.wav",
-      "start": 126.5,
-      "duration": 16.92,
+      "id": "v3_clip_06_dual_reality_sync",
+      "file": "v3_clip_06_dual_reality_sync.wav",
       "speaker": "Enceladus",
-      "voice": "Enceladus",
-      "chapter": "vault_combat"
+      "start": 88.52,
+      "duration": 17.40,
+      "end": 105.92,
+      "text": "With a single tap of the Tab key, toggle instantly between modern 3D first-person rendering and the legendary 80x24 green-screen CRT terminal — seamlessly synchronized in real time."
     },
     {
-      "id": "clip_08_chronicle_intro",
-      "file": "clip_08_chronicle_intro.wav",
-      "start": 148.0,
-      "duration": 10.20,
+      "id": "v3_clip_07_caverns_archery",
+      "file": "v3_clip_07_caverns_archery.wav",
       "speaker": "Enceladus",
-      "voice": "Enceladus",
-      "chapter": "chronicle_lorekeeper"
-    },
-    {
-      "id": "clip_09_lorekeeper_voice",
-      "file": "clip_09_lorekeeper_voice.wav",
-      "start": 161.5,
+      "start": 107.42,
       "duration": 15.20,
-      "speaker": "Lorekeeper",
-      "voice": "Aoede",
-      "chapter": "chronicle_lorekeeper"
+      "end": 122.62,
+      "text": "Deeper in the caverns, long-range tactical combat comes alive. Draw your bow and let fly arrows down winding corridors with fluid 3D projectile targeting."
     },
     {
-      "id": "clip_10_parley_intro",
-      "file": "clip_10_parley_intro.wav",
-      "start": 180.0,
-      "duration": 8.40,
+      "id": "v3_clip_08_caverns_log_drawer",
+      "file": "v3_clip_08_caverns_log_drawer.wav",
       "speaker": "Enceladus",
-      "voice": "Enceladus",
-      "chapter": "creature_chat"
+      "start": 124.12,
+      "duration": 8.64,
+      "end": 132.76,
+      "text": "While the expandable message log drawer delivers full tactical combat telemetry at your fingertips."
     },
     {
-      "id": "clip_11_creature_voice",
-      "file": "clip_11_creature_voice.wav",
-      "start": 191.5,
-      "duration": 16.72,
-      "speaker": "Young Red Dragon",
-      "voice": "Charon",
-      "chapter": "creature_chat"
-    },
-    {
-      "id": "clip_12_universal_call",
-      "file": "clip_12_universal_call.wav",
-      "start": 211.0,
-      "duration": 29.0,
+      "id": "v3_clip_09_mage_grimoire",
+      "file": "v3_clip_09_mage_grimoire.wav",
       "speaker": "Enceladus",
-      "voice": "Enceladus",
-      "chapter": "universal_call"
-    }
-  ],
-  "subtitles": [
+      "start": 134.26,
+      "duration": 13.16,
+      "end": 147.42,
+      "text": "Master the arcane arts with authentic grimoire spellcasting. Channel Magic Missiles and unleash elemental bursts against dark sorcerers."
+    },
     {
-      "start": 3.8,
-      "end": 9.8,
+      "id": "v3_clip_10_mage_healing_potion",
+      "file": "v3_clip_10_mage_healing_potion.wav",
       "speaker": "Enceladus",
-      "text": "Deep in the forgotten vaults of Morgoth, ancient terror stirs!"
+      "start": 150.48,
+      "duration": 6.72,
+      "end": 157.20,
+      "text": "And quaff restorative elixirs in the heat of battle to survive the darkest depths."
     },
     {
-      "start": 10.1,
-      "end": 17.3,
+      "id": "v3_clip_11_chronicle_web_exclusive",
+      "file": "v3_clip_11_chronicle_web_exclusive.wav",
       "speaker": "Enceladus",
-      "text": "Thirty years of legendary roguelike history are reborn in first-person 3D."
+      "start": 158.50,
+      "duration": 9.00,
+      "end": 167.50,
+      "text": "Available exclusively on the web edition, the Living Chronicle is your interactive AI lore companion."
     },
     {
-      "start": 17.8,
-      "end": 24.5,
+      "id": "v3_clip_12_creature_dialogue",
+      "file": "v3_clip_12_creature_dialogue.wav",
+      "speaker": "Fenrir (Orc Shaman)",
+      "start": 169.50,
+      "duration": 9.72,
+      "end": 179.22,
+      "text": "Back, surface dog! Douse that torch or my curses will rend your flesh before you reach the stairs!"
+    },
+    {
+      "id": "v3_clip_13_lorekeeper_counsel",
+      "file": "v3_clip_13_lorekeeper_counsel.wav",
+      "speaker": "Aoede (Lorekeeper)",
+      "start": 181.00,
+      "duration": 14.20,
+      "end": 195.20,
+      "text": "Heed well, traveler: dragon breath ignores common armor. Wield rings of Resist Heat, and keep scrolls of Phase Door ready to break line of sight!"
+    },
+    {
+      "id": "v3_clip_14_dragon_melee_clash",
+      "file": "v3_clip_14_dragon_melee_clash.wav",
       "speaker": "Enceladus",
-      "text": "Welcome to Angband. Every journey begins under the stars of the town square."
+      "start": 198.44,
+      "duration": 14.04,
+      "end": 212.48,
+      "text": "In the deepest magma vaults, survival demands every ounce of strategy. Trade blows with towering dragons, and leverage elemental resistances."
     },
     {
-      "start": 24.8,
-      "end": 31.8,
+      "id": "v3_clip_15_dragon_phase_door",
+      "file": "v3_clip_15_dragon_phase_door.wav",
       "speaker": "Enceladus",
-      "text": "Stock your pack at the armory, ready your spells, and plunge into the deep."
+      "start": 213.98,
+      "duration": 9.00,
+      "end": 222.98,
+      "text": "Trigger phase door escapes when the flames burn too close, turning the tide of battle in an instant."
     },
     {
-      "start": 34.0,
-      "end": 39.8,
+      "id": "v3_clip_16_universal_saves",
+      "file": "v3_clip_16_universal_saves.wav",
       "speaker": "Enceladus",
-      "text": "Rule number one for the veteran: looking around will not get you killed."
+      "start": 224.48,
+      "duration": 19.24,
+      "end": 243.72,
+      "text": "Your adventures are entirely your own. With universal save file export, take your character save file seamlessly between the browser, native desktop clients, and classic terminal Angband with 100% interoperability."
     },
     {
-      "start": 40.2,
-      "end": 44.5,
+      "id": "v3_clip_17_grand_finale_open_source",
+      "file": "v3_clip_17_grand_finale_open_source.wav",
       "speaker": "Enceladus",
-      "text": "Camera yaw costs precisely zero turns."
-    },
-    {
-      "start": 45.0,
-      "end": 54.5,
-      "speaker": "Enceladus",
-      "text": "Pan the darkness, inspect every corridor, scout the pillars—the world moves only when you take a step."
-    },
-    {
-      "start": 64.0,
-      "end": 71.0,
-      "speaker": "Enceladus",
-      "text": "Miss your glyphs? Fear losing your classic overview? Press Tab."
-    },
-    {
-      "start": 71.5,
-      "end": 79.0,
-      "speaker": "Enceladus",
-      "text": "Instantaneous, bit-for-bit Angband 4.2.6 CRT terminal mode."
-    },
-    {
-      "start": 79.5,
-      "end": 87.2,
-      "speaker": "Enceladus",
-      "text": "Every dungeon tile, monster letter, and stat line is preserved. The 3D world and classic matrix are one and the same."
-    },
-    {
-      "start": 89.0,
-      "end": 96.5,
-      "speaker": "Enceladus",
-      "text": "Step through the dungeon in ASCII, open your classic equipment menus with 'e'..."
-    },
-    {
-      "start": 97.0,
-      "end": 104.1,
-      "speaker": "Enceladus",
-      "text": "And return to 3D right where you stand. Seamless, uncompromising dual reality."
-    },
-    {
-      "start": 106.5,
-      "end": 114.5,
-      "speaker": "Enceladus",
-      "text": "In first-person, corridors are narrow and corners are blind. Manage your torchlight..."
-    },
-    {
-      "start": 115.0,
-      "end": 123.4,
-      "speaker": "Enceladus",
-      "text": "And when the deep closes in, let your ranger's infravision pierce the dark to track lurking predators."
-    },
-    {
-      "start": 126.5,
-      "end": 133.0,
-      "speaker": "Enceladus",
-      "text": "At twelve-hundred and fifty feet, the dragon vault opens!"
-    },
-    {
-      "start": 133.5,
-      "end": 143.4,
-      "speaker": "Enceladus",
-      "text": "Phase Door to break line of sight, unleash lightning wands to soften scales, and strike with Westernesse. Pure turn-based roguelike combat."
-    },
-    {
-      "start": 148.0,
-      "end": 158.2,
-      "speaker": "Enceladus",
-      "text": "Every deed is penned in real time into the Living Chronicle. Consult the Voiced Lorekeeper for tactical secrets."
-    },
-    {
-      "start": 161.5,
-      "end": 168.0,
-      "speaker": "Lorekeeper",
-      "text": "Fire resistance is vital against draconic breath."
-    },
-    {
-      "start": 168.5,
-      "end": 176.7,
-      "speaker": "Lorekeeper",
-      "text": "Don a Ring of Fire Resistance or quaff a Potion of Resist Heat before entering open halls."
-    },
-    {
-      "start": 180.0,
-      "end": 188.4,
-      "speaker": "Enceladus",
-      "text": "And the monsters of the deep hold secrets. Click any creature in the dungeon to parley with authentic characters."
-    },
-    {
-      "start": 191.5,
-      "end": 199.0,
-      "speaker": "Young Red Dragon",
-      "text": "My scales are like iron, and my breath is flame! Fools dare challenge the brood of the deep."
-    },
-    {
-      "start": 199.5,
-      "end": 208.2,
-      "speaker": "Young Red Dragon",
-      "text": "Flee, mortal, ere your bones join the embers of the vault!"
-    },
-    {
-      "start": 211.0,
-      "end": 219.0,
-      "speaker": "Enceladus",
-      "text": "Angband 3D is one-hundred percent free and open-source on GitHub, built for the community to explore, mod, and improve."
-    },
-    {
-      "start": 219.5,
-      "end": 228.0,
-      "speaker": "Enceladus",
-      "text": "Export and load your savefiles universally across Web Browser, Windows PC, and Android APK."
-    },
-    {
-      "start": 228.5,
-      "end": 236.0,
-      "speaker": "Enceladus",
-      "text": "The cloud chronicler is hosted on angband3d.com, with complete DIY instructions in the repo to plug in your own keys."
-    },
-    {
-      "start": 236.5,
-      "end": 240.0,
-      "speaker": "Enceladus",
-      "text": "The descent awaits."
+      "start": 245.22,
+      "duration": 20.12,
+      "end": 265.34,
+      "text": "Angband 3D is 100% free and open source. Play now directly in your browser at angband3d dot com, inspect the source, host your own server, and build the future of roguelikes. Brought to you by Thunderbear Studios."
     }
   ]
 }

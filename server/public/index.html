@@ -464,44 +464,39 @@
 
                 <h1 class="splash-title">ANGBAND 3D</h1>
                 <div class="splash-subtitle">The Classic Roguelike Dungeon Crawler • Reborn in First-Person 3D</div>
-                <div class="splash-engine-tag">Angband 4.2.6 C Engine • Three.js WebGL • First-Person 3D Roguelike</div>
+                <div class="splash-engine-tag">Angband 4.2.6 C Engine • Three.js WebGL • 0-Turn Yaw • Dual Reality CRT Terminal</div>
 
-                <!-- Adventure Tome Note -->
-                <div class="splash-chronicle-compact">
-                    <span class="splash-chronicle-badge">📖 ADVENTURE TOME</span>
-                    <span class="splash-chronicle-text">Real-time chronicle &amp; voiced narration companion. Press <kbd>Alt+C</kbd> or click <em>Tome</em> in-game.</span>
+                <!-- Clean Feature Highlights Strip -->
+                <div class="splash-highlights-strip">
+                    <span class="splash-highlight-chip">⚔ Bit-for-Bit 4.2.6 Rules</span>
+                    <span class="splash-highlight-chip">⌨ [Tab] CRT Terminal</span>
+                    <span class="splash-highlight-chip">📖 AI Living Chronicle</span>
+                    <span class="splash-highlight-chip">💾 Universal Saves</span>
                 </div>
 
-                <!-- Humble Community Notice & Standalone Recommendation -->
+                <!-- Compact Standalone Recommendation -->
                 <div class="splash-notice-banner">
-                    <div class="splash-notice-badge">⚡ SERVER NOTICE &amp; STANDALONE RECOMMENDATION</div>
-                    <p class="splash-notice-text">
-                        This web edition runs on a modest, community-hosted cloud server with limited concurrent capacity. If you experience wait times or network lag, we warmly encourage downloading the 
-                        <a href="javascript:void(0)" id="splash-notice-download" class="splash-notice-link">Standalone Windows PC (.zip) or Android APK</a>!
-                    </p>
-                    <p class="splash-notice-subtext">
-                        💾 <strong>Universal Save Game Portability:</strong> Save files are 100% interoperable between Web, PC, and Mobile. Export, import, or back up your <code>.sav</code> hero anytime via the pause menu!
-                    </p>
+                    <span class="splash-notice-text">
+                        ⚡ <strong>Universal .SAV Portability:</strong> Play in browser or download <a href="javascript:void(0)" id="splash-notice-download" class="splash-notice-link">Standalone PC (.zip) &amp; Android APK</a>.
+                    </span>
                 </div>
 
                 <button id="btn-splash-start" class="btn-splash-start">
-                    [ PRESS SPACE / ENTER / CLICK TO ENTER MAIN MENU ]
+                    [ PRESS SPACE / ENTER / CLICK TO PLAY ]
                 </button>
 
                 <div class="splash-shortcuts">
                     <button class="splash-shortcut-btn" id="btn-splash-demo" style="border-color: #ffd700; color: #ffd700;"><kbd>[D]</kbd> 🎬 Gameplay Demo</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-menu"><kbd>[1]</kbd> Main Menu</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-features"><kbd>[2]</kbd> ✨ Key Features</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-chronicle"><kbd>[T]</kbd> 📖 Living Tome</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-protips"><kbd>[3]</kbd> 💡 Pro Tips</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-guide"><kbd>[4]</kbd> 📖 Survival Guide</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-credits"><kbd>[5]</kbd> 📜 Full Credits</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-standalone"><kbd>[6]</kbd> 📱 Standalone Apps</button>
-                    <a href="https://angband.readthedocs.io/" target="_blank" rel="noopener noreferrer" class="splash-shortcut-btn"><kbd>[W]</kbd> Angband Wiki</a>
+                    <button class="splash-shortcut-btn" id="btn-splash-menu"><kbd>[1]</kbd> ⚔ Main Menu</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-features"><kbd>[2]</kbd> ✨ Features</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-guide"><kbd>[4]</kbd> 📖 Guide</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-standalone"><kbd>[6]</kbd> 📱 Downloads</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-credits"><kbd>[5]</kbd> 📜 Credits</button>
+                    <a href="https://angband.readthedocs.io/" target="_blank" rel="noopener noreferrer" class="splash-shortcut-btn"><kbd>[W]</kbd> Wiki</a>
                 </div>
 
                 <div class="splash-credits-footer">
-                    <span>Angband 4.2.6 C Engine by the Angband Development Team • 3D WebGL Architecture &amp; Direction by Thunderbear Studios</span>
+                    <span>Angband 4.2.6 C Engine • 3D Architecture &amp; Direction by Thunderbear Studios</span>
                 </div>
             </div>
         </div>
@@ -594,7 +589,7 @@
                         <span class="menu-num">[9]</span>
                         <div class="menu-text-col">
                             <span class="menu-label">🎬 Gameplay Demo &amp; Feature Showcase</span>
-                            <span class="menu-desc">Watch an autoplay 2.5-minute narrated commercial highlighting 0-turn yaw, ASCII terminal, and gotchas.</span>
+                            <span class="menu-desc">Watch the official 1080p narrated walkthrough featuring 0-turn yaw, CRT terminal, and dragon vault combat.</span>
                         </div>
                     </button>
                 </div>
@@ -986,8 +981,10 @@
                 <div class="demo-video-wrapper">
                     <!-- HTML5 Video Component -->
                     <video id="demo-video-player" playsinline preload="auto" crossorigin="anonymous">
-                        <source src="/assets/video/angband3d_demo_v852.mp4" type="video/mp4">
-                        <source src="/assets/video/angband3d_demo_v852.webm" type="video/webm">
+                        <source src="/assets/video/angband3d_demo.mp4" type="video/mp4">
+                        <source src="/assets/video/angband3d_demo.webm" type="video/webm">
+                        <source src="/assets/video/angband3d_demo_v860.mp4" type="video/mp4">
+                        <source src="/assets/video/angband3d_demo_v860.webm" type="video/webm">
                     </video>
 
                     <!-- Broadcast-Quality Canvas Reel Stage (60fps Scene Choreography) -->
@@ -1020,7 +1017,7 @@
                                 <button id="demo-btn-mute" class="demo-ctrl-btn" title="Mute/Unmute (M)">🔊</button>
                                 <input type="range" id="demo-volume-slider" min="0" max="100" value="85" class="demo-slider" title="Volume">
                             </div>
-                            <span id="demo-timecode" class="demo-timecode">0:00 / 4:15</span>
+                            <span id="demo-timecode" class="demo-timecode">0:00 / 4:35</span>
                         </div>
 
                         <div class="demo-controls-right">
@@ -1033,14 +1030,16 @@
 
                 <!-- Chapter Jump Ribbon -->
                 <div class="demo-chapter-ribbon">
-                    <button class="demo-chapter-pill active" data-time="0">✨ Awakening</button>
-                    <button class="demo-chapter-pill" data-time="11">👀 Gotcha #1: 0-Turn Yaw</button>
-                    <button class="demo-chapter-pill" data-time="63">⌨ [Tab] ASCII Terminal</button>
-                    <button class="demo-chapter-pill" data-time="105">🕯️ Stealth &amp; Infravision</button>
-                    <button class="demo-chapter-pill" data-time="125">⚔ Vault Combat</button>
-                    <button class="demo-chapter-pill" data-time="147">📖 Living Chronicle</button>
-                    <button class="demo-chapter-pill" data-time="178">🗣️ Creature Chat</button>
-                    <button class="demo-chapter-pill" data-time="210">🚀 Universal Saves</button>
+                    <button class="demo-chapter-pill active" data-time="0">✨ Act 0: Insignia</button>
+                    <button class="demo-chapter-pill" data-time="18.5">🏰 Act 1: Town &amp; Descent</button>
+                    <button class="demo-chapter-pill" data-time="48.0">👀 Act 2: 0-Turn Yaw &amp; Radar</button>
+                    <button class="demo-chapter-pill" data-time="75.0">⌨ Act 3: 80x24 CRT Terminal</button>
+                    <button class="demo-chapter-pill" data-time="106.5">🏹 Act 4: Archery &amp; Combat Log</button>
+                    <button class="demo-chapter-pill" data-time="133.5">🔮 Act 5: Grimoire &amp; Potions</button>
+                    <button class="demo-chapter-pill" data-time="157.5">📖 Act 6: Living Chronicle</button>
+                    <button class="demo-chapter-pill" data-time="197.5">🐲 Act 7: Dragon Clash</button>
+                    <button class="demo-chapter-pill" data-time="223.5">💾 Act 8: Universal Saves</button>
+                    <button class="demo-chapter-pill" data-time="244.5">🚀 Act 9: Grand Finale</button>
                 </div>
 
                 <!-- Thunderbear Studios GitHub Link Strip Underneath -->
@@ -1049,6 +1048,7 @@
                         <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" class="demo-footer-logo">
                         <span class="demo-github-text">Brought to you by <strong>Thunderbear Studios</strong> • View on GitHub ↗</span>
                     </a>
+                    <a href="/demo" target="_blank" rel="noopener noreferrer" class="demo-permalink-link" style="color: var(--cyan); font-size: 0.85rem; text-decoration: none; margin-left: 16px;" title="Open Dedicated Showcase Page">🔗 Standalone Page (angband3d.com/demo) ↗</a>
                 </div>
             </div>
         </div>
@@ -1121,7 +1121,7 @@
     <script src="/js/network.js?v=8.5.2"></script>
     <script src="/js/local_bridge.js?v=8.5.2"></script>
     <script src="/js/input.js?v=8.5.2"></script>
-    <script src="/js/demo-player.js?v=8.5.2"></script>
+    <script src="/js/demo-player.js?v=8.6.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
     <script src="/js/chronicle/chronicle-store.js?v=8.5.2"></script>
     <script src="/js/chronicle/chronicle-grounder.js?v=8.5.2"></script>
