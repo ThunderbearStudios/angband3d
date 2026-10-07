@@ -1,10 +1,10 @@
 /**
  * Angband3D — Automated 1080p Actual Gameplay Walkthrough Capture & Video Muxer
  *
- * Launches local Chrome with GPU acceleration, runs the authentic 8-act multi-depth
+ * Launches local Chrome with GPU acceleration, runs the authentic 10-act multi-depth
  * in-game walkthrough across multiple dungeon depths, records pristine 1080p video
  * from the WebGL viewport & classic terminal, and uses FFmpeg to mux with the
- * 12 Gemini Native voice audio stems.
+ * 18 Gemini Native voice audio stems (100% non-overlapping, >= 1.5s silence gap).
  */
 
 const fs = require('fs');
@@ -23,7 +23,7 @@ const OUT_WEBM_PATH = path.join(VIDEO_DIR, 'angband3d_demo.webm');
 
 async function main() {
     console.log('================================================================');
-    console.log('   Angband3D — Broadcast Gameplay Walkthrough Capture & Muxer   ');
+    console.log('   Angband3D — Award-Winning 10-Act Gameplay Walkthrough (275s) ');
     console.log('================================================================');
 
     if (!fs.existsSync(CHROME_PATH)) {
@@ -48,7 +48,9 @@ async function main() {
     const BACKUP_DIR = path.join(ROOT_DIR, 'tools', 'demo_saves_backup');
     const SAVE_DIRS = [
         path.join(ROOT_DIR, 'engine', 'build', 'game', 'lib', 'save'),
-        path.join(ROOT_DIR, 'engine', 'build', 'game', 'lib', 'user', 'save')
+        path.join(ROOT_DIR, 'engine', 'build', 'game', 'lib', 'user', 'save'),
+        path.join(ROOT_DIR, 'engine', 'lib', 'save'),
+        path.join(ROOT_DIR, 'engine', 'lib', 'user', 'save')
     ];
     if (fs.existsSync(BACKUP_DIR)) {
         console.log('[Saves] Restoring golden demo save states for 100% authentic playthrough...');
@@ -57,12 +59,14 @@ async function main() {
             if (fs.existsSync(sDir)) {
                 for (const bFile of backupFiles) {
                     const src = path.join(BACKUP_DIR, bFile);
-                    const dest = path.join(sDir, bFile);
-                    fs.copyFileSync(src, dest);
+                    fs.copyFileSync(src, path.join(sDir, bFile));
+                    if (!bFile.endsWith('.sav')) {
+                        fs.copyFileSync(src, path.join(sDir, bFile + '.sav'));
+                    }
                 }
             }
         }
-        console.log('[Saves] ✓ Golden demo saves restored (demo_town, demo_crypt, demo_vault, demo_stealth, demo_combat).');
+        console.log('[Saves] ✓ Golden demo saves restored across all engine save directories.');
     }
 
     const tempProfileDir = path.join(require('os').tmpdir(), 'angband3d_chrome_rec_' + Date.now());
@@ -89,47 +93,56 @@ async function main() {
     // Stream browser console logs to terminal via CDP
     const { WebSocket } = require('../server/node_modules/ws');
     const http = require('http');
-    setTimeout(async () => {
-        try {
-            const targets = await new Promise((resolve, reject) => {
-                http.get('http://127.0.0.1:9222/json', res => {
-                    let d = '';
-                    res.on('data', c => d += c);
-                    res.on('end', () => resolve(JSON.parse(d)));
-                }).on('error', reject);
-            });
-            const pt = targets.find(t => t.type === 'page');
-            if (pt) {
-                const cdp = new WebSocket(pt.webSocketDebuggerUrl);
-                cdp.on('open', () => {
-                    cdp.send(JSON.stringify({ id: 1, method: 'Runtime.enable' }));
-                    cdp.send(JSON.stringify({
-                        id: 2,
-                        method: 'Emulation.setDeviceMetricsOverride',
-                        params: { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false }
-                    }));
+    (async () => {
+        let connected = false;
+        for (let attempt = 0; attempt < 20; attempt++) {
+            await new Promise(r => setTimeout(r, 500));
+            try {
+                const targets = await new Promise((resolve, reject) => {
+                    const req = http.get('http://127.0.0.1:9222/json', res => {
+                        let d = '';
+                        res.on('data', c => d += c);
+                        res.on('end', () => {
+                            try { resolve(JSON.parse(d)); } catch (e) { reject(e); }
+                        });
+                    });
+                    req.on('error', reject);
                 });
-                cdp.on('message', m => {
-                    try {
-                        const parsed = JSON.parse(m);
-                        if (parsed.method === 'Runtime.consoleAPICalled') {
-                            const str = parsed.params.args.map(a => a.value || JSON.stringify(a)).join(' ');
-                            if (str.includes('[Recorder]') || str.includes('[Angband3D]')) {
-                                console.log(`[Browser] ${str}`);
+                const pageTarget = targets.find(t => t.type === 'page' && t.webSocketDebuggerUrl);
+                if (pageTarget) {
+                    const ws = new WebSocket(pageTarget.webSocketDebuggerUrl);
+                    ws.on('open', () => {
+                        ws.send(JSON.stringify({ id: 1, method: 'Runtime.enable' }));
+                        console.log('[CDP] Attached to browser console via CDP!');
+                    });
+                    ws.on('message', data => {
+                        try {
+                            const msg = JSON.parse(data);
+                            if (msg.method === 'Runtime.consoleAPICalled') {
+                                const args = msg.params.args.map(a => a.value !== undefined ? a.value : (a.description || ''));
+                                const text = args.join(' ');
+                                if (text.includes('[Recorder]')) {
+                                    console.log(text);
+                                }
                             }
-                        }
-                    } catch (_) {}
-                });
-            }
-        } catch (_) {}
-    }, 2000);
+                        } catch (_) {}
+                    });
+                    connected = true;
+                    break;
+                }
+            } catch (_) {}
+        }
+        if (!connected) {
+            console.warn('[CDP] Could not attach to browser debug target after retries.');
+        }
+    })();
 
-    console.log('[Recorder] Waiting for walkthrough recording to complete (~240 seconds)...');
+    console.log('[Recorder] Waiting for walkthrough recording to complete (~275 seconds / 4m 35s)...');
     const startTime = Date.now();
     let recorded = false;
 
-    // Poll for raw_gameplay.webm to appear and finish writing
-    while ((Date.now() - startTime) < 420000) { // 420s timeout (7 minutes)
+    // Poll for raw_gameplay.webm to appear and finish writing (up to 480 seconds)
+    while ((Date.now() - startTime) < 480000) {
         await new Promise(r => setTimeout(r, 4000));
         const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
 
@@ -137,7 +150,7 @@ async function main() {
             const stat1 = fs.statSync(RAW_VIDEO_PATH);
             if (stat1.size > 500000) { // At least 500KB
                 console.log(`[Recorder] Detected uploaded video (${(stat1.size / (1024 * 1024)).toFixed(2)} MB). Waiting for file flush...`);
-                await new Promise(r => setTimeout(r, 3000));
+                await new Promise(r => setTimeout(r, 5000));
                 const stat2 = fs.statSync(RAW_VIDEO_PATH);
                 if (stat2.size === stat1.size) {
                     console.log(`[Recorder] Video upload complete! Final size: ${(stat2.size / (1024 * 1024)).toFixed(2)} MB`);
@@ -146,7 +159,7 @@ async function main() {
                 }
             }
         } else {
-            process.stdout.write(`\r[Recorder] Recording progress: ${elapsedSec}s / 255s...`);
+            process.stdout.write(`\r[Recorder] Recording progress: ${elapsedSec}s / 275s...`);
         }
     }
 
@@ -168,25 +181,31 @@ async function main() {
     }
 
     // -------------------------------------------------------------
-    // FFmpeg Audio/Video Muxing Stage (12 Gemini Native Audio Stems)
+    // FFmpeg Audio/Video Muxing Stage (18 Gemini Native Audio Stems)
     // -------------------------------------------------------------
     console.log('================================================================');
-    console.log('   Muxing Gemini Native Voice Stems & Real Gameplay Video       ');
+    console.log('   Muxing 18 Gemini Native Voice Stems & 275s Master Video      ');
     console.log('================================================================');
 
     const clips = [
-        { file: 'clip_01_awakening.wav', delayMs: 3800 },
-        { file: 'clip_02_town_quote.wav', delayMs: 17800 },
-        { file: 'clip_03_gotcha_yaw.wav', delayMs: 34000 },
-        { file: 'clip_04_dual_reality.wav', delayMs: 64000 },
-        { file: 'clip_05_kore_terminal.wav', delayMs: 89000 },
-        { file: 'clip_06_spatial_stealth.wav', delayMs: 106500 },
-        { file: 'clip_07_vault_combat.wav', delayMs: 126500 },
-        { file: 'clip_08_chronicle_intro.wav', delayMs: 148000 },
-        { file: 'clip_09_lorekeeper_voice.wav', delayMs: 161500 },
-        { file: 'clip_10_parley_intro.wav', delayMs: 180000 },
-        { file: 'clip_11_creature_voice.wav', delayMs: 191500 },
-        { file: 'clip_12_universal_call.wav', delayMs: 211000 }
+        { file: 'v3_clip_00_thunderbear.wav', delayMs: 1000 },
+        { file: 'v3_clip_01_town_intro.wav', delayMs: 19300 },
+        { file: 'v3_clip_02_town_gear_stairs.wav', delayMs: 32000 },
+        { file: 'v3_clip_03_crypt_minimap.wav', delayMs: 48540 },
+        { file: 'v3_clip_04_crypt_combat_loot.wav', delayMs: 64800 },
+        { file: 'v3_clip_05_dual_reality_intro.wav', delayMs: 76020 },
+        { file: 'v3_clip_06_dual_reality_sync.wav', delayMs: 88520 },
+        { file: 'v3_clip_07_caverns_archery.wav', delayMs: 107420 },
+        { file: 'v3_clip_08_caverns_log_drawer.wav', delayMs: 124120 },
+        { file: 'v3_clip_09_mage_grimoire.wav', delayMs: 134260 },
+        { file: 'v3_clip_10_mage_healing_potion.wav', delayMs: 150480 },
+        { file: 'v3_clip_11_chronicle_web_exclusive.wav', delayMs: 158500 },
+        { file: 'v3_clip_12_creature_dialogue.wav', delayMs: 169500 },
+        { file: 'v3_clip_13_lorekeeper_counsel.wav', delayMs: 181000 },
+        { file: 'v3_clip_14_dragon_melee_clash.wav', delayMs: 198440 },
+        { file: 'v3_clip_15_dragon_phase_door.wav', delayMs: 213980 },
+        { file: 'v3_clip_16_universal_saves.wav', delayMs: 224480 },
+        { file: 'v3_clip_17_grand_finale_open_source.wav', delayMs: 245220 }
     ];
 
     let ffmpegInputs = ['-y', '-i', RAW_VIDEO_PATH];
@@ -248,7 +267,7 @@ async function main() {
     }
 
     console.log('================================================================');
-    console.log('   WALKTHROUGH RECORDING & VIDEO MUXING COMPLETE!               ');
+    console.log('   AWARD-WINNING 275s MASTER RECORDING & MUXING COMPLETE!       ');
     console.log('================================================================');
 }
 

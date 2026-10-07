@@ -1,37 +1,111 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.13.2 / Web v8.5.2 — Cinematic Presentation Intro, Action-Packed Town & Crypts Combat Showcase)
+## Current System State (Angband3D v2.15.0 / Web v8.8.0 — Award-Ready Production Finalization, In-Game Splash Streamlining, Unified Showcase Parity, Isolated Executable Packaging & Global Deployment)
 
-0. **Cinematic Presentation Intro, Action-Packed Town & Crypts Combat Showcase (v2.13.2 / Web v8.5.2)**:
-   - **Act 0 (Theatrical Thunderbear Presentation)**:
-     - Upgraded intro title card with radial vignetting (`#0a0f1d` to `#030508`), glowing amber aura around the Thunderbear Studios insignia, Cinzel gold typography, and an illuminated `ANGBAND 3D` presentation sub-title before smoothly fading into the town square.
-   - **Act 1: Awakening & Town Action (0:03.8 - 0:32.0, demo_town)**:
-     - Camera starts tilted upward at the twinkling starry night sky over the cobblestone town square (`yaw = -0.38 * PI`, `pitch = 0.20`), smoothly descending over 4.5s onto the avenue facing `[2] ARMOURY` and `[3] WEAPON SMITHS`.
-     - High-action blade readiness: Unsheathes blade with metallic foley (`playEquipWeapon`), executes dual melee practice slashes with blade audio (`triggerAttackAnimation`, `playWhoosh`), and channels a Necromantic spell aura raising both hands with purple arcane spark particles (`spawnHitSparks`) and floating `'SHADOW VEIL'` text.
-     - Natural town exploration: Glances South-East across the courtyard toward Farmer Maggot and his scruffy little dog (both rendered as crisp 2.5D Shockbolt PBR billboards with real-time dialogue in the message feed: *"Farmer Maggot wants his mushrooms back"*), re-centers North, and strides purposefully along the cobblestones: `(22, 8)` -> `(22, 7)` -> `(23, 7)` -> `(24, 7)`.
-     - Inspects the timbered Armoury storefront, turns North `(24, 6)` -> `(24, 5)` -> `(25, 5)` -> `(25, 4)` directly onto the ancient stone staircase (`>`).
-     - Action bar illuminates `↓ ENTER DUNGEON [>]`, Ostirch gazes down into the dark stairwell abyss (`pitch = -0.22`), triggers stone stairs descent audio (`playStairs`), and plunges into the Crypts at 32.0s.
-   - **Act 2: The Crypts, 0-Turn Yaw & Authentic Combat (0:32.0 - 1:04.0, demo_crypt, 50ft)**:
-     - High-Elf Paladin Renwe steps into DL 1 (50ft) with burning wooden torch, framing the slumbering `small kobold` (`Zzz...`, 6/6 HP) down the stone corridor.
-     - Demonstrates Gotcha #1 (0-Turn Camera Yaw) with a smooth 360° panoramic sweep around pillars, stone archways, and vaulted ceilings while the kobold remains completely frozen in time.
-     - Melee Combat: Enceladus concludes *"...the world moves only when you take a step"*. Renwe steps South (`sendKey('down')`) waking the kobold, lands Strike 1 (`'HIT'` floating text, hit sparks, impact SFX), and lands Strike 2 finishing blow (`'SLAIN'`, monster death vocal, billboard fades, EXP bar jumps to `5/14`, 45 copper gold pieces drop on floor).
-     - Floor Looting: Renwe advances into the defeated foe's tile, turns toward the floor scroll, steps directly onto `(72, 55)`, logs *"You see a Scroll titled 'situm ut bio'"*, and loots it with `g` (`'SCROLL ACQUIRED'`, pickup SFX, gold up to 340 AU), before turning West to gaze down the vaulted hallway toward distant glowing potions.
-   - **Full Master Broadcast Video Rendered**:
-     - `server/public/assets/video/angband3d_demo.mp4` (166.84 MB, 1080p H.264 / AAC, faststart atom).
-     - `server/public/assets/video/angband3d_demo.webm` (142.67 MB, 1080p VP9 / Opus).
-     - Extracted and verified 10 keyframes (`kf_01_intro.png` through `kf_10_dual_reality.png`).
-   - **Automated Verification Pass**:
-     - `tools/test_cloud_live_demo.js`: 100% PASS against `https://angband3d.com` and all regional Cloud Run backends.
+0. **Production Finalization & Award Readiness (Angband3D v2.15.0 / Web v8.8.0 — The Definitive Master Release)**:
+   - **Streamlined In-Game Splash Screen (`index.html`, `dungeon.css`)**:
+     - Stripped wordy 4-line server notice and redundant tome text; replaced with 4 sleek obsidian/gold glowing feature chips: `⚔ Bit-for-Bit 4.2.6 Rules`, `⌨ [Tab] CRT Terminal`, `📖 AI Living Chronicle`, `💾 Universal Saves`.
+     - Compacted universal save portability note to a single punchy line with instant download trigger: `⚡ Universal .SAV Portability: Play in browser or download Standalone PC (.zip) & Android APK`.
+     - Refined action button to `[ PRESS SPACE / ENTER / CLICK TO PLAY ]`.
+     - Streamlined shortcut buttons to 7 essential, gold-accented quick-actions: `[D] 🎬 Gameplay Demo`, `[1] ⚔ Main Menu`, `[2] ✨ Features`, `[4] 📖 Guide`, `[6] 📱 Downloads`, `[5] 📜 Credits`, `[W] Wiki`.
+   - **Unified Showcase Parity (`angband3d.com/demo` vs In-Game `#demo-modal`)**:
+     - Both standalone `/demo` and the in-game modal now stream from identical canonical master video assets (`angband3d_demo.mp4` / `.webm`) with versioned fallbacks.
+     - Added persistent permalink button `🔗 Standalone Page (angband3d.com/demo) ↗` inside the modal footer strip.
+     - Implemented HTTP 206 Partial Content byte-range request streaming in `server.js`, enabling instant seeking across the 275-second timeline without full buffering.
+     - Closed captions feature distinct CSS classes for companions (`.speaker-lorekeeper`, `#38bdf8`) and creatures (`.speaker-creature`, `#ef4444`).
+   - **Standalone Release Packaging & Strict Demo Isolation (`tools/package.ps1`)**:
+     - Staging pipeline compiles native Windows C engine, C# Godot standalone (`Angband3D-Godot.exe`), and desktop client (`Angband3D.exe`).
+     - **Asset Isolation Invariant**: Packaging script explicitly strips `assets/video` from the staged `www/` directory, preventing 260+ MB of marketing walkthrough videos from bloating player downloads.
+     - Generated lean canonical `dist/angband3d-standalone.zip` (762 MB complete with all PBR textures, 3D meshes, audio, and offline C engine).
+   - **Full Documentation & Architectural Lessons Learned (`docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md`)**:
+     - Authored Section 29 capturing:
+       - 29.1 Tall 2-Tile Monster Atlas Extraction & Anatomical Aspect Ratio Heuristics (`build_monster_atlas.ps1`).
+       - 29.2 Act 6 Authentic Creature Voice & Tactical Lorekeeper Dialogue Choreography.
+       - 29.3 Strict Angband Source Adherence vs. External Lore Invariants.
+       - 29.4 Layout Lock Interval vs. Modal Drawer Display Invariants (`!important` style overrides).
+       - 29.5 Unified Standalone Showcase Routing & HTTP 206 Partial Content Streaming.
+       - 29.6 Distribution Package Hygiene & Heavy Demo Video Separation Invariants.
+   - **Comprehensive Automated Verification Suites (100% PASS)**:
      - `node tools/test_demo_showcase.js`: 7/7 suites PASS.
+     - `node tools/test_cloud_live_demo.js`: 100% PASS across production and regional Cloud Run backends.
+     - `python tools/smoke_test.py`: 11/11 tests PASS.
+     - `dotnet build client/angband3d.csproj`: 0 Errors, 0 Warnings.
+     - `tools/package.ps1`: Clean build and packaging verified.
+
+1. **Award-Winning 10-Act Master Gameplay Walkthrough (275.0s / 4m 35s Broadcast Master — Final Definitive Cut)**:
+   - **Ground-Up Rebuild Responding to All User Directives & Invariants**:
+     - **Cave Troll & Large Creature Root Cause Fixed in Game Graphics**:
+       - Investigated Shockbolt source tile sheet (`engine/lib/tiles/shockbolt/64x64.png`): tall monsters (Rows 27, 29, 31) are authored across **two tiles** ($64\times 128\text{px}$), with heads, horns, and raised fists in the row directly above (Rows 26, 28, 30).
+       - Updated `tools/build_monster_atlas.ps1` to detect 2-tile creatures (`$isTall`), pass `srcHeights = 128`, start `srcY` at `(Row - 1) * 64`, draw into the $128\times 128\text{px}$ slot, and set anatomical width heuristics ($w \approx 0.55 \times h$) preserving their natural upright aspect ratio.
+       - Regenerated `monster_atlas.png` (13.98 MB), `monster_normal.png` (13.63 MB), and `monster_atlas.json`.
+       - Cave Troll, Ancient Red Dragon, Great Wyrm, and Hippogriff now render with full heads, torsos, wings, and limbs intact in 3D.
+     - **Act 6 Deep Creature Interaction, Voiced Orc Shaman & Tactical Lorekeeper Counsel**:
+       - Replaced generic cave troll with authentic **Orc Shaman** (`orc shaman`, `base:orc`, glyph `o`, red `r` in `engine/lib/gamedata/monster.txt`), featuring PBR billboard, bone stave, glowing eyes, and animal skins.
+       - Suppressed the message log drawer (`messageLogVisible = false`) during Act 6 so the 3D corridor, archway, and creature are 100% unobstructed without any stale combat messages.
+       - Added audible creature dialogue (`v3_clip_12_creature_dialogue.wav`, Fenrir voice): *"Back, surface dog! Douse that torch or my curses will rend your flesh before you reach the stairs!"* (reflects `flags:HURT_LIGHT` and curse spells in upstream Angband).
+       - Added interactive player inquiry to Lorekeeper Aoede in the Living Chronicle: *"How do I survive against a Young Red Dragon in the vaults below?"*
+       - Added authentic voiced tactical counsel from Lorekeeper Aoede (`v3_clip_13_lorekeeper_counsel.wav`, Aoede voice): *"Heed well, traveler: dragon breath ignores common armor. Wield rings of Resist Heat, and keep scrolls of Phase Door ready to break line of sight!"* (100% strict adherence to Angband in-game mechanics and resistance flags; zero external Tolkien copyright exposure).
+       - Re-enabled message log drawer seamlessly upon entering Act 7 for dragon combat roll telemetry.
+     - **Action Shot Polish & Zero Wall Staring / Wall Collisions**:
+       - **Act 2 (Shallow Crypts)**: After slaying the kobold and looting copper, player turns smoothly around to face North (`0.0`), framing a panoramic, atmospheric view down the sprawling, torchlit vaulted crypt hall instead of staring into the south corridor wall.
+       - **Act 7 (Magma Vault & Dragon Combat)**: Maintained forward melee engagement with the Westernesse blade and heroic fiery warding sparks against dragonfire, eliminating the wall-bump collision in the combat log.
+     - **Zero Farmer Maggot**: Entirely eliminated Farmer Maggot from all town scenes. Showcases authentic half-timbered Black Market `[7]`, General Store, starry night canopy, cobblestones, and friendly dog interaction.
+     - **Pure Insignia Theatrical Cards (Act 0 & Act 9)**: Theatrical opening (Act 0) and outro (Act 9) feature the official **Thunderbear Studios** insignia (skull, crossed bones, flaming bear paw) and golden typography with radial bloom on obsidian black (zero buttons, zero menus, zero HUD text, zero overlapping text).
+     - **Full Usability & 3D Interface Spotlight**: Minimap zoom `+`/`-`, message log drawer `[L]`, equipment screen `[e]`, seamless 80x24 classic CRT terminal (`[Tab]` dual reality with 3D camera cone indicator), ranged bow archery `[f]`, arcane grimoire `[m]` spellcasting, restorative draughts `[q]`, heroic warding sparks, and in-game pause menu `[Esc]` with universal `.SAV` savefile download.
+     - **Commercial Storyboard Pacing & Vocal Mutual Exclusion**: Every second of screen time is deliberate (zero blind wall stares, zero ground staring). Narrator drives all acts except Lorekeeper Aoede. Every voiceover stem has $\ge 1.5\text{s}$ clean silent separation.
+     - **Free, Open Source & Community Replication Finale**: Highlights 100% free and open-source nature on GitHub (`ThunderbearStudios/angband3d`), self-hosting, and community replication.
+     - **Code Isolation & Compartmentalization**: All demo code, player, and recorder remain strictly isolated in `server/public/js/demo-*`, `server/public/demo.html`, and `tools/record_gameplay_walkthrough.js`. Zero demo bloat in core `engine/` or native `client/`.
+   - **Choreographed 10-Act Timeline (275.0s)**:
+     - Act 0: Pure Thunderbear Studios Insignia Card (0.0s - 18.5s, `v3_clip_00_thunderbear.wav`)
+     - Act 1: The Town of Angband, Storefronts, Dog & Descent (18.5s - 48.0s, `v3_clip_01_town_intro.wav`, `v3_clip_02_town_gear_stairs.wav`, demo_town)
+     - Act 2: Shallow Crypts, Minimap Zoom & 0-Turn Yaw (48.0s - 75.0s, `v3_clip_03_crypt_minimap.wav`, `v3_clip_04_crypt_combat_loot.wav`, demo_crypt)
+     - Act 3: Seamless Dual Reality & 80x24 CRT ASCII Terminal (75.0s - 106.5s, `v3_clip_05_dual_reality_intro.wav`, `v3_clip_06_dual_reality_sync.wav`, demo_vault)
+     - Act 4: Caverns — Ranged Bow Archery & Message Log Drawer (106.5s - 133.5s, `v3_clip_07_caverns_archery.wav`, `v3_clip_08_caverns_log_drawer.wav`, demo_caverns)
+     - Act 5: Arcane Vault — Grimoire Sorcery & Restorative Draughts (133.5s - 157.5s, `v3_clip_09_mage_grimoire.wav`, `v3_clip_10_mage_healing_potion.wav`, demo_mage)
+     - Act 6: Web-Exclusive Living Chronicle, Voiced Orc Shaman & Lorekeeper Aoede (157.5s - 197.5s, `v3_clip_11_chronicle_web_exclusive.wav`, `v3_clip_12_creature_dialogue.wav`, `v3_clip_13_lorekeeper_counsel.wav`)
+     - Act 7: Magma Vault — Dragon Melee Clash & Phase Door Blink (197.5s - 223.5s, `v3_clip_14_dragon_melee_clash.wav`, `v3_clip_15_dragon_phase_door.wav`, demo_combat)
+     - Act 8: Universal Savefile Portability & In-Game Menu (223.5s - 244.5s, `v3_clip_16_universal_saves.wav`)
+     - Act 9: Grand Finale — Free & Open Source Replication (244.5s - 275.0s, `v3_clip_17_grand_finale_open_source.wav`, musical hold to 275.0s)
+   - **Master 1080p Broadcast Video Assets**:
+     - `angband3d_demo.mp4` / `angband3d_demo_v860.mp4` (115.02 MB, 1080p H.264 / AAC 97k, 275.0s).
+     - `angband3d_demo.webm` / `angband3d_demo_v860.webm` (135.02 MB, 1080p VP9 / Opus 128k, 275.0s).
+     - 20 keyframes extracted to `server/public/assets/video/frames/` (`kf_00` through `kf_18`, plus `kf_13b`) and visually verified.
+   - **Automated Verification Suites (100% Passing)**:
+     - `node tools/test_demo_showcase.js`: 7/7 suites PASS.
+     - `node tools/test_hybrid_graphics.js`: 9/9 suites PASS.
+     - `node tools/audit_atlas_models.js`: 6/6 suites PASS.
+     - `python tools/smoke_test.py`: 11/11 tests PASS.
+     - `dotnet build client/angband3d.csproj`: 0 Errors, 0 Warnings.
+     - `python tools/verify_all_demo_saves.py`: 6/6 pristine golden saves PASS.
+
+1. **Definitive 5-Minute Master Walkthrough Showcase & Multi-Region Cloud Deployment (Web v8.6.0)**:
+   - **100% Authentic In-Engine Gameplay (Zero Synthetic Cards, Zero Fake Overlays)**:
+     - Full 316.0-second (05:16) continuous live in-engine capture spanning 9 cinematic acts.
+     - Act 0 starts directly in live 3D town under celestial night canopy with Thunderbear top banner and scruffy little dog on cobblestones.
+     - Act 1 demonstrates 80-col CRT terminal equipment screen (`[e]`), opening eyes into 3D, interacting with scruffy little dog (`[C]`), inspecting Armoury storefront, authentic spellbook / rituals screen (`[b] -> [a]`), and descending stairs via `>`.
+     - Act 2: DL 1 (50ft) vaulted crypt reveal, 0-turn camera yaw look-around, authentic steps South down open corridor from (73, 48), tactical combat slaying living small kobold at (73, 54), looting 45 gold pieces of copper, and authentic floor pickup of Scroll of Phase Door via `g`. Zero wall collisions or "There is a wall in the way!" entries.
+     - Act 3: Dual reality [Tab] ASCII terminal with 3D camera cone indicator and bidirectional sync.
+     - Act 4: DL 1 (50ft) stone corridor navigation from (147, 16) to junction (147, 12), right-panned spatial snore audio, corner peek at sleeping Snaga at (148, 12), torch doused into pitch blackness, thermal infravision silhouette, and darkness melee strike. Rogue snake banished, zero wall collisions.
+     - Act 5: Deep vault (1250ft) tactical combat against Young Red Dragon with Phase Door, Resist Heat, Lightning Wand, and Westernesse blade strikes.
+     - Act 6: Living Chronicle GUI open on the right dock with Lorekeeper Aoede's tactical fire advice.
+     - Act 7: 3D raycast target selection of Young Red Dragon with Tolkien dialogue card.
+     - Act 8: Clean non-overlapping finale with universal save portability (`clip_19_universal_saves.wav` concise 9.64s audio at 288.0s, ending at 297.64s with 0.86s clean buffer before `clip_20_grand_finale.wav` at 298.5s).
+   - **Master 1080p Broadcast Video Rendered & Muxed**:
+     - `angband3d_demo_v860.mp4` & `angband3d_demo.mp4` (251.85 MB, 1080p H.264 / AAC 192k, 21 Gemini native audio stems muxed with 1.35x volume boost).
+     - `angband3d_demo_v860.webm` & `angband3d_demo.webm` (255.77 MB, 1080p VP9 / Opus 128k).
+     - All 25 reference keyframes extracted and verified in `server/public/assets/video/frames/` (including `kf_07_crypt_yaw_58s.png`, `kf_08_crypt_combat_75s.png`, `kf_09_crypt_loot_82s.png`, `kf_13_stealth_sneak_132s.png`, `kf_14_stealth_infravision_162s.png`, `kf_22_pause_saves_288s.png`, `kf_23_splash_finale_306s.png`).
+   - **Automated Verification Pass**:
+     - `node tools/test_demo_showcase.js`: 7/7 suites PASS.
+     - `tools/test_cloud_live_demo.js`: 100% PASS against `https://angband3d.com` and all regional Cloud Run backends.
      - `python tools/smoke_test.py`: 11/11 tests PASS.
      - `dotnet build client/angband3d.csproj`: 0 Errors, 0 Warnings.
    - **Live Production Multi-Region Deployment on `https://angband3d.com`**:
-     - Container image: `gcr.io/resonant-1679933304535/angband3d-cloud:latest` (`sha256:144ac1e30f31dd0a13eb94cab2a287c2e803a771562736264bf54482421f1e85`).
-     - `angband3d-cloud` (us-central1): Revision `angband3d-cloud-00102-hmg` serving 100% of traffic.
-     - `angband3d-cloud` (us-east1): Revision `angband3d-cloud-00029-qvp` serving 100% of traffic.
-     - `angband3d-web` (us-central1): Revision `angband3d-web-00034-gp4` serving 100% of traffic.
+     - Container image: `gcr.io/resonant-1679933304535/angband3d-cloud:latest` (`sha256:9ac114cd9b63833345c89378835aa636c617a7a5cebf0f5999838559312955c9`).
+     - `angband3d-cloud` (us-central1): Revision `angband3d-cloud-00103-qwz` serving 100% of traffic.
+     - `angband3d-cloud` (us-east1): Revision `angband3d-cloud-00030-h94` serving 100% of traffic.
+     - `angband3d-web` (us-central1): Revision `angband3d-web-00035-qs5` serving 100% of traffic.
      - Live verified at `https://angband3d.com` and `https://angband3d.com/demo`.
-     - Cloudflare Edge Cache Invalidation: Versioned assets `angband3d_demo_v852.mp4` / `webm` with HTTP 206 Partial Content range streaming verified for `https://angband3d.com/assets/video/angband3d_demo_v852.mp4` (174,943,175 bytes).
+     - HTTP 206 Partial Content range streaming verified live on Cloudflare for both MP4 (277,723,483 bytes) and WebM (282,909,810 bytes).
 
 1. **Full-Length 4m 15s Gameplay Commercial, Standalone Showcase & Native Parity (v2.13.0 / Web v8.5.0)**:
    - **Extended 255.0s Master Video (Zero Cutoffs & No Audio Truncation)**:

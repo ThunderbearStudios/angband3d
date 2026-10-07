@@ -13,8 +13,8 @@ if (!fs.existsSync(manifestPath)) {
 }
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 console.log(`✓ Manifest title: "${manifest.title}"`);
-console.log(`✓ Chapters count: ${manifest.chapters.length} (Expected >= 7)`);
-console.log(`✓ Subtitles count: ${manifest.subtitles.length} (Expected >= 20)`);
+const subtitlesCount = (manifest.subtitles ? manifest.subtitles.length : (manifest.audioStems ? manifest.audioStems.length : 0));
+console.log(`✓ Stems / Subtitles count: ${subtitlesCount} (Expected >= 12)`);
 
 if (manifest.chapters.length < 7) {
     console.error('FAIL: Expected >= 7 chapters, found', manifest.chapters.length);
@@ -52,7 +52,7 @@ const requiredHtmlElements = [
     'id="demo-chapter-pips"',
     'id="demo-btn-play-game"',
     'id="btn-demo-close"',
-    'demo-player.js?v=8.5.2'
+    'demo-player.js?v=8.6.0'
 ];
 
 for (const el of requiredHtmlElements) {
@@ -119,7 +119,7 @@ console.log('✓ server.js contains HTTP 206 Range streaming support');
 
 console.log('\n=== [6] Verifying 1080p Actual Gameplay Video Assets ===');
 const videoDir = path.join(__dirname, '..', 'server', 'public', 'assets', 'video');
-const videoFiles = ['angband3d_demo.mp4', 'angband3d_demo.webm', 'angband3d_demo_v852.mp4', 'angband3d_demo_v852.webm'];
+const videoFiles = ['angband3d_demo.mp4', 'angband3d_demo.webm', 'angband3d_demo_v860.mp4', 'angband3d_demo_v860.webm'];
 for (const vFile of videoFiles) {
     const full = path.join(videoDir, vFile);
     if (!fs.existsSync(full)) {

@@ -112,6 +112,10 @@ class Bridge:
     def set_map(self, enabled: bool) -> None:
         self._write("map " + ("on" if enabled else "off"))
 
+    def command(self, cmd: str) -> dict[str, Any]:
+        self._write(cmd)
+        return self._read()
+
     def quit(self) -> None:
         try:
             self._write("quit")

@@ -1135,40 +1135,40 @@ const server = http.createServer((req, res) => {
     }
 
     // REST: Upload Gameplay Recording
-    if (pathname === '/api/recordings/upload' && req.method === 'POST') {
-        const chunks = [];
+    if ((pathname === '/api/recordings/upload' || pathname === '/api/demo/upload') && req.method === 'POST') {
+        const headerName = req.headers['x-recording-name'] || 'raw_gameplay.webm';
+        const cleanName = sanitizeFilename(headerName);
+        const videoDir = path.join(WEB_DIR, 'assets', 'video');
+        if (!fs.existsSync(videoDir)) {
+            try { fs.mkdirSync(videoDir, { recursive: true }); } catch (_) {}
+        }
+        const destPath = path.join(videoDir, cleanName);
+        const writeStream = fs.createWriteStream(destPath);
         let totalSize = 0;
-        const maxLimit = 250 * 1024 * 1024; // 250 MB limit for raw video capture
+        const maxLimit = 1024 * 1024 * 1024; // 1 GB limit for raw 5-minute video capture
 
         req.on('data', chunk => {
             totalSize += chunk.length;
             if (totalSize > maxLimit) {
+                writeStream.destroy();
                 res.writeHead(413, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Payload too large' }));
                 req.destroy();
                 return;
             }
-            chunks.push(chunk);
+            writeStream.write(chunk);
         });
 
         req.on('end', () => {
-            const buf = Buffer.concat(chunks);
-            const headerName = req.headers['x-recording-name'] || 'raw_gameplay.webm';
-            const cleanName = sanitizeFilename(headerName);
-            const videoDir = path.join(WEB_DIR, 'assets', 'video');
-            if (!fs.existsSync(videoDir)) {
-                try { fs.mkdirSync(videoDir, { recursive: true }); } catch (_) {}
-            }
-            const destPath = path.join(videoDir, cleanName);
-            fs.writeFileSync(destPath, buf);
-
-            console.log(`[Recording] Uploaded gameplay recording: ${destPath} (${(buf.length / (1024 * 1024)).toFixed(2)} MB)`);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-                status: 'saved',
-                filename: cleanName,
-                sizeBytes: buf.length
-            }));
+            writeStream.end(() => {
+                console.log(`[Recording] Uploaded gameplay recording: ${destPath} (${(totalSize / (1024 * 1024)).toFixed(2)} MB)`);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    status: 'saved',
+                    filename: cleanName,
+                    sizeBytes: totalSize
+                }));
+            });
         });
         return;
     }
@@ -1204,6 +1204,12 @@ const server = http.createServer((req, res) => {
     if (safePath === '/' || safePath === '\\') safePath = '/index.html';
     if (['/demo', '\\demo', '/demo/', '\\demo\\', '/watch', '\\watch', '/showcase', '\\showcase'].includes(safePath)) {
         safePath = '/demo.html';
+    }
+    // Alias versioned walkthrough demo video URLs to canonical master video assets
+    if (safePath.includes('angband3d_demo_') && safePath.endsWith('.mp4')) {
+        safePath = '/assets/video/angband3d_demo.mp4';
+    } else if (safePath.includes('angband3d_demo_') && safePath.endsWith('.webm')) {
+        safePath = '/assets/video/angband3d_demo.webm';
     }
     const filePath = path.resolve(WEB_DIR, '.' + path.sep + safePath);
 

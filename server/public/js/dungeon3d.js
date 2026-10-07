@@ -4032,7 +4032,7 @@ class Dungeon3D {
         for (const [id, entity] of this.monsters.entries()) {
             const m = entity.monsterData;
             if (!m) continue;
-            // Upgrade any monster entity that is not already a Shockbolt billboard
+            // Auto-upgrade procedural creature fallback to Shockbolt PBR billboard
             if (!entity.isBillboard && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
                 const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, entity.glyph);
                 if (atlasEntry) {

@@ -12,8 +12,8 @@
     <meta property="og:url" content="https://angband3d.com/demo">
     <meta property="og:title" content="Angband 3D — Official Gameplay Showcase &amp; Veteran Guide">
     <meta property="og:description" content="100% authentic in-engine gameplay: 0-turn camera yaw, bit-for-bit Angband 4.2.6 C engine, CRT terminal mode, tactical vault combat against a Young Red Dragon, and living voiced chronicle.">
-    <meta property="og:image" content="https://angband3d.com/assets/video/frames/act5_combat_dragon.png">
-    <meta property="og:video" content="https://angband3d.com/assets/video/angband3d_demo_v852.mp4">
+    <meta property="og:image" content="https://angband3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png">
+    <meta property="og:video" content="https://angband3d.com/assets/video/angband3d_demo.mp4">
     <meta property="og:video:type" content="video/mp4">
     <meta property="og:video:width" content="1920">
     <meta property="og:video:height" content="1080">
@@ -22,7 +22,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Angband 3D — Official Gameplay Showcase">
     <meta name="twitter:description" content="Experience the 30-year roguelike reborn in first-person 3D. Bit-for-bit Angband 4.2.6 C engine, 0-turn yaw, dual reality CRT mode, and universal .SAV portability.">
-    <meta name="twitter:image" content="https://angband3d.com/assets/video/frames/act5_combat_dragon.png">
+    <meta name="twitter:image" content="https://angband3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png">
 
     <!-- Favicon & Icons -->
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
@@ -621,8 +621,10 @@
 
             <div class="video-box">
                 <video id="video-player" playsinline preload="auto" crossorigin="anonymous">
-                    <source src="/assets/video/angband3d_demo_v852.mp4" type="video/mp4">
-                    <source src="/assets/video/angband3d_demo_v852.webm" type="video/webm">
+                    <source src="/assets/video/angband3d_demo.mp4" type="video/mp4">
+                    <source src="/assets/video/angband3d_demo.webm" type="video/webm">
+                    <source src="/assets/video/angband3d_demo_v860.mp4" type="video/mp4">
+                    <source src="/assets/video/angband3d_demo_v860.webm" type="video/webm">
                 </video>
 
                 <!-- Closed Captions (Off by default) -->
@@ -652,7 +654,7 @@
                             <button id="btn-mute" class="ctrl-btn" title="Mute / Unmute (M)">🔊</button>
                             <input type="range" id="volume-slider" min="0" max="100" value="85" class="volume-slider" title="Volume">
                         </div>
-                        <span id="timecode" class="timecode">0:00 / 4:15</span>
+                        <span id="timecode" class="timecode">0:00 / 4:35</span>
                     </div>
 
                     <div class="controls-right">
@@ -665,14 +667,16 @@
 
             <!-- Chapter Navigation Ribbon -->
             <div class="chapter-ribbon" id="chapter-ribbon">
-                <button class="chapter-pill active" data-time="0">✨ Act 1: Awakening</button>
-                <button class="chapter-pill" data-time="11.0">👀 Act 2: 0-Turn Yaw</button>
-                <button class="chapter-pill" data-time="63.5">⌨ Act 3: ASCII Terminal</button>
-                <button class="chapter-pill" data-time="105.0">🕯️ Act 4: Stealth</button>
-                <button class="chapter-pill" data-time="125.0">⚔ Act 5: Vault Combat</button>
-                <button class="chapter-pill" data-time="147.0">📖 Act 6: Chronicle</button>
-                <button class="chapter-pill" data-time="178.0">🗣️ Act 7: Creature Chat</button>
-                <button class="chapter-pill" data-time="210.0">🚀 Act 8: Universal Saves</button>
+                <button class="chapter-pill active" data-time="0">✨ Act 0: Insignia</button>
+                <button class="chapter-pill" data-time="18.5">🏰 Act 1: Town &amp; Descent</button>
+                <button class="chapter-pill" data-time="48.0">👀 Act 2: 0-Turn Yaw &amp; Radar</button>
+                <button class="chapter-pill" data-time="75.0">⌨ Act 3: 80x24 CRT Terminal</button>
+                <button class="chapter-pill" data-time="106.5">🏹 Act 4: Archery &amp; Combat Log</button>
+                <button class="chapter-pill" data-time="133.5">🔮 Act 5: Grimoire &amp; Potions</button>
+                <button class="chapter-pill" data-time="157.5">📖 Act 6: Living Chronicle</button>
+                <button class="chapter-pill" data-time="197.5">🐲 Act 7: Dragon Clash</button>
+                <button class="chapter-pill" data-time="223.5">💾 Act 8: Universal Saves</button>
+                <button class="chapter-pill" data-time="244.5">🚀 Act 9: Grand Finale</button>
             </div>
 
             <!-- Presentation Footer Strip -->
@@ -726,26 +730,30 @@
             const chapterPips = document.getElementById('chapter-pips');
             const chapterRibbon = document.getElementById('chapter-ribbon');
 
-            let duration = 255.0;
+            let duration = 275.0;
             let captionsEnabled = false; // Closed captions OFF by default
             let subtitles = [];
             let chapters = [
-                { start: 0, end: 11.0, name: 'Act 1: Awakening' },
-                { start: 11.0, end: 63.5, name: 'Act 2: 0-Turn Yaw' },
-                { start: 63.5, end: 105.0, name: 'Act 3: ASCII Terminal' },
-                { start: 105.0, end: 125.0, name: 'Act 4: Stealth' },
-                { start: 125.0, end: 147.0, name: 'Act 5: Vault Combat' },
-                { start: 147.0, end: 178.0, name: 'Act 6: Chronicle' },
-                { start: 178.0, end: 210.0, name: 'Act 7: Creature Chat' },
-                { start: 210.0, end: 255.0, name: 'Act 8: Universal Saves' }
+                { start: 0, end: 18.5, name: 'Act 0: Insignia' },
+                { start: 18.5, end: 48.0, name: 'Act 1: Town & Descent' },
+                { start: 48.0, end: 75.0, name: 'Act 2: 0-Turn Yaw & Radar' },
+                { start: 75.0, end: 106.5, name: 'Act 3: 80x24 CRT Terminal' },
+                { start: 106.5, end: 133.5, name: 'Act 4: Archery & Combat Log' },
+                { start: 133.5, end: 157.5, name: 'Act 5: Grimoire & Potions' },
+                { start: 157.5, end: 197.5, name: 'Act 6: Living Chronicle' },
+                { start: 197.5, end: 223.5, name: 'Act 7: Dragon Clash' },
+                { start: 223.5, end: 244.5, name: 'Act 8: Universal Saves' },
+                { start: 244.5, end: 275.0, name: 'Act 9: Grand Finale' }
             ];
 
-            // Load manifest subtitles
+            // Load manifest subtitles and metadata
             fetch('/assets/audio/demo/demo_manifest.json')
                 .then(r => r.json())
                 .then(data => {
+                    if (data.audioStems) subtitles = data.audioStems;
                     if (data.subtitles) subtitles = data.subtitles;
                     if (data.totalDuration) duration = data.totalDuration;
+                    if (data.chapters && data.chapters.length > 0) chapters = data.chapters;
                     renderPips();
                 })
                 .catch(() => {});
