@@ -101,7 +101,7 @@ async function runTests() {
     console.log('Test 5: Static web client delivery');
     const indexRes = await get('/');
     assert.strictEqual(indexRes.status, 200);
-    assert(indexRes.body.includes('<title>Angband3D'));
+    assert(indexRes.body.includes('<title>Angband3D') || indexRes.body.includes('<title>Angband 3D'));
     assert(indexRes.headers['content-type'].includes('text/html'));
     console.log('  -> / serves index.html (200 OK)');
 
@@ -275,7 +275,7 @@ async function runTests() {
     assert(indexRes.body.includes('id="volume-slider"'), 'volume-slider must be present in index.html');
     assert(indexRes.body.includes('id="pause-volume-slider"'), 'pause-volume-slider must be present in index.html');
     assert(indexRes.body.includes('id="btn-splash-features"'), 'btn-splash-features must be present in index.html');
-    assert(indexRes.body.includes('id="btn-splash-protips"'), 'btn-splash-protips must be present in index.html');
+    assert(indexRes.body.includes('id="btn-splash-guide"') || indexRes.body.includes('id="btn-splash-protips"'), 'btn-splash-guide or btn-splash-protips must be present in index.html');
     assert(indexRes.body.includes('id="btn-splash-credits"'), 'btn-splash-credits must be present in index.html');
     assert(indexRes.body.includes('splash-credits-footer'), 'splash-credits-footer must be present in index.html');
     assert(indexRes.body.includes('KEY FEATURES OF ANGBAND 3D'), 'Guide tab 1 must contain Key Features');

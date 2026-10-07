@@ -74,6 +74,7 @@
             this._seekTimeout = null;
             this._keydownHandler = null;
             this._hudIdleTimeout = null;
+            this._isHoveringControls = false;
 
             this.manifest = {
                 title: 'Angband3D — Award-Winning 10-Act Gameplay Walkthrough',
@@ -270,38 +271,118 @@
                 });
             }
 
-            // Scrubber interaction
+            // Scrubber interaction with Modern Pointer Events, setPointerCapture & throttled seeking
             if (this.scrubberTrackEl) {
-                const handleScrub = (e) => {
+                let scrubSeekRaf = null;
+                let lastScrubSeekTime = 0;
+
+                const getPosFromEvent = (e) => {
                     const rect = this.scrubberTrackEl.getBoundingClientRect();
-                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                    const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-                    this.seek(pos * this.duration);
+                    const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : 0));
+                    return Math.max(0, Math.min(1, (clientX - rect.left) / (rect.width || 1)));
                 };
 
-                this.scrubberTrackEl.addEventListener('mousedown', (e) => {
-                    this.isScrubbing = true;
-                    handleScrub(e);
-                });
-                window.addEventListener('mousemove', (e) => {
-                    if (this.isScrubbing) handleScrub(e);
-                    this.updateTooltip(e);
-                });
-                window.addEventListener('mouseup', () => {
-                    if (this.isScrubbing) this.isScrubbing = false;
-                });
+                const updateScrubberVisuals = (pos) => {
+                    const dur = this.getSafeDuration();
+                    const pct = Math.max(0, Math.min(100, pos * 100));
+                    if (this.scrubberProgressEl) this.scrubberProgressEl.style.width = `${pct}%`;
+                    if (this.scrubberHandleEl) this.scrubberHandleEl.style.left = `${pct}%`;
+                    if (this.timecodeEl) {
+                        this.timecodeEl.textContent = `${this.formatTime(pos * dur)} / ${this.formatTime(dur)}`;
+                    }
+                };
 
-                // Touch support
-                this.scrubberTrackEl.addEventListener('touchstart', (e) => {
-                    this.isScrubbing = true;
-                    handleScrub(e);
-                }, { passive: true });
-                this.scrubberTrackEl.addEventListener('touchmove', (e) => {
-                    if (this.isScrubbing) handleScrub(e);
-                }, { passive: true });
-                this.scrubberTrackEl.addEventListener('touchend', () => {
-                    this.isScrubbing = false;
-                });
+                const performScrub = (e, immediateSeek = false) => {
+                    const pos = getPosFromEvent(e);
+                    const dur = this.getSafeDuration();
+                    const targetTime = pos * dur;
+                    this.currentTime = targetTime;
+                    updateScrubberVisuals(pos);
+                    this.resetHudTimer();
+
+                    const now = performance.now();
+                    if (immediateSeek || (now - lastScrubSeekTime > 50)) {
+                        lastScrubSeekTime = now;
+                        this.seek(targetTime);
+                    } else {
+                        if (scrubSeekRaf) cancelAnimationFrame(scrubSeekRaf);
+                        scrubSeekRaf = requestAnimationFrame(() => {
+                            this.seek(targetTime);
+                        });
+                    }
+                };
+
+                if (window.PointerEvent) {
+                    this.scrubberTrackEl.addEventListener('pointerdown', (e) => {
+                        if (e.button !== undefined && e.button !== 0) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.isScrubbing = true;
+                        try {
+                            this.scrubberTrackEl.setPointerCapture(e.pointerId);
+                        } catch (_) {}
+                        performScrub(e, true);
+                    });
+
+                    this.scrubberTrackEl.addEventListener('pointermove', (e) => {
+                        if (this.isScrubbing) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            performScrub(e, false);
+                        }
+                        this.updateTooltip(e);
+                    });
+
+                    const onPointerFinish = (e) => {
+                        if (this.isScrubbing) {
+                            this.isScrubbing = false;
+                            try {
+                                if (this.scrubberTrackEl.hasPointerCapture(e.pointerId)) {
+                                    this.scrubberTrackEl.releasePointerCapture(e.pointerId);
+                                }
+                            } catch (_) {}
+                            performScrub(e, true);
+                            if (this.isPlaying && this.videoEl && this.videoEl.paused) {
+                                this.videoEl.play().catch(() => {});
+                            }
+                        }
+                    };
+
+                    this.scrubberTrackEl.addEventListener('pointerup', onPointerFinish);
+                    this.scrubberTrackEl.addEventListener('pointercancel', onPointerFinish);
+                } else {
+                    this.scrubberTrackEl.addEventListener('mousedown', (e) => {
+                        if (e.button !== 0) return;
+                        this.isScrubbing = true;
+                        performScrub(e, true);
+                    });
+                    window.addEventListener('mousemove', (e) => {
+                        if (this.isScrubbing) performScrub(e, false);
+                        this.updateTooltip(e);
+                    });
+                    window.addEventListener('mouseup', () => {
+                        if (this.isScrubbing) {
+                            this.isScrubbing = false;
+                            performScrub(e, true);
+                        }
+                    });
+                    this.scrubberTrackEl.addEventListener('touchstart', (e) => {
+                        this.isScrubbing = true;
+                        performScrub(e, true);
+                    }, { passive: false });
+                    this.scrubberTrackEl.addEventListener('touchmove', (e) => {
+                        if (this.isScrubbing) {
+                            e.preventDefault();
+                            performScrub(e, false);
+                        }
+                    }, { passive: false });
+                    this.scrubberTrackEl.addEventListener('touchend', () => {
+                        if (this.isScrubbing) {
+                            this.isScrubbing = false;
+                            performScrub(e, true);
+                        }
+                    });
+                }
             }
 
             // Volume controls
@@ -366,11 +447,37 @@
                 this.videoEl.addEventListener('click', () => this.togglePlay());
             }
 
+            // Hold HUD visible while user hovers over transport controls or chapter ribbon
+            const bindHoverHold = (el) => {
+                if (!el) return;
+                el.addEventListener('mouseenter', () => {
+                    this._isHoveringControls = true;
+                    const c = this.getContainer();
+                    if (c) c.classList.remove('hud-hidden');
+                    if (this._hudIdleTimeout) {
+                        clearTimeout(this._hudIdleTimeout);
+                        this._hudIdleTimeout = null;
+                    }
+                });
+                el.addEventListener('mouseleave', () => {
+                    this._isHoveringControls = false;
+                    this.resetHudTimer();
+                });
+            };
+            bindHoverHold(this.transportBarEl);
+            bindHoverHold(this.chapterPillContainer);
+            const ribbon = document.querySelector('.demo-chapter-ribbon');
+            if (ribbon && ribbon !== this.chapterPillContainer) bindHoverHold(ribbon);
+
             // Reset HUD auto-hide timer on user interaction
             const onUserActivity = () => this.resetHudTimer();
             window.addEventListener('mousemove', onUserActivity, { passive: true });
             window.addEventListener('mousedown', onUserActivity, { passive: true });
             window.addEventListener('touchstart', onUserActivity, { passive: true });
+            window.addEventListener('pointermove', onUserActivity, { passive: true });
+            window.addEventListener('pointerdown', onUserActivity, { passive: true });
+            document.addEventListener('mousemove', onUserActivity, { passive: true });
+            document.addEventListener('pointermove', onUserActivity, { passive: true });
 
             // Jump In & Play CTA button
             if (this.btnPlayGameEl) {
@@ -436,16 +543,39 @@
             if (!this.chapterPillContainer) {
                 this.chapterPillContainer = this.modalEl ? this.modalEl.querySelector('.demo-chapter-ribbon') : document.querySelector('.demo-chapter-ribbon');
             }
-            if (!this.chapterPillContainer) return;
 
-            const pills = this.chapterPillContainer.querySelectorAll('.demo-chapter-pill');
-            pills.forEach((pill, idx) => {
+            const ribbons = document.querySelectorAll('.demo-chapter-ribbon');
+            ribbons.forEach(ribbon => {
+                if (ribbon._pillDelegated) return;
+                ribbon._pillDelegated = true;
+
+                ribbon.addEventListener('click', (e) => {
+                    const pill = e.target.closest('.demo-chapter-pill');
+                    if (!pill) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rawTime = pill.dataset.time !== undefined ? pill.dataset.time : pill.getAttribute('data-time');
+                    const targetTime = parseFloat(rawTime || 0);
+                    const pills = Array.from(ribbon.querySelectorAll('.demo-chapter-pill'));
+                    const idx = pills.indexOf(pill);
+                    this.jumpToChapter(idx >= 0 ? idx : 0, targetTime);
+                });
+            });
+
+            // Defensive direct bindings for any existing pill elements
+            const allPills = document.querySelectorAll('.demo-chapter-pill');
+            allPills.forEach(pill => {
+                if (pill._boundDirect) return;
+                pill._boundDirect = true;
                 pill.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     const rawTime = pill.dataset.time !== undefined ? pill.dataset.time : pill.getAttribute('data-time');
                     const targetTime = parseFloat(rawTime || 0);
-                    this.jumpToChapter(idx, targetTime);
+                    const ribbon = pill.closest('.demo-chapter-ribbon');
+                    const pills = ribbon ? Array.from(ribbon.querySelectorAll('.demo-chapter-pill')) : [];
+                    const idx = pills.indexOf(pill);
+                    this.jumpToChapter(idx >= 0 ? idx : 0, targetTime);
                 });
             });
         }
@@ -545,6 +675,10 @@
                 this.canvasEl.style.display = 'none';
             }
 
+            // Re-bind chapter pills and refresh UI on open
+            this.bindChapterPills();
+            this.updateActiveChapterUI();
+
             // Auto-play from start
             this.seek(0);
             this.play();
@@ -625,22 +759,38 @@
             else this.play();
         }
 
+        getSafeDuration() {
+            if (this.duration && !isNaN(this.duration) && isFinite(this.duration) && this.duration > 0) {
+                return this.duration;
+            }
+            if (this.manifest && this.manifest.totalDuration && !isNaN(this.manifest.totalDuration) && this.manifest.totalDuration > 0) {
+                return this.manifest.totalDuration;
+            }
+            return 275.0;
+        }
+
         seek(time) {
             this.isSeeking = true;
             if (this._seekTimeout) clearTimeout(this._seekTimeout);
             this._seekTimeout = setTimeout(() => {
                 this.isSeeking = false;
-            }, 800);
+            }, 300);
 
-            this.currentTime = Math.max(0, Math.min(this.duration, time));
+            const dur = this.getSafeDuration();
+            const safeTime = isNaN(time) ? 0 : time;
+            this.currentTime = Math.max(0, Math.min(dur, safeTime));
             if (this.videoEl) {
                 try {
                     if (this.videoEl.readyState >= 1) {
                         this.videoEl.currentTime = this.currentTime;
                     } else {
-                        this.videoEl.addEventListener('loadedmetadata', () => {
-                            this.videoEl.currentTime = this.currentTime;
-                        }, { once: true });
+                        const onReady = () => {
+                            try {
+                                this.videoEl.currentTime = this.currentTime;
+                            } catch (_) {}
+                        };
+                        this.videoEl.addEventListener('loadedmetadata', onReady, { once: true });
+                        this.videoEl.addEventListener('canplay', onReady, { once: true });
                     }
                 } catch (e) {
                     console.warn('[DemoPlayer] Seek error:', e);
@@ -662,23 +812,26 @@
             }
 
             this.activeChapterIndex = idx;
+            this.updateActiveChapterUI();
             this.seek(targetTime);
 
             if (this.videoEl) {
-                const playPromise = this.videoEl.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(err => {
-                        console.warn('[DemoPlayer] Chapter jump autoplay blocked, falling back to muted play:', err);
-                        this.videoEl.muted = true;
-                        this.isMuted = true;
-                        this.updateVolumeUI();
-                        this.videoEl.play().catch(e => console.error('[DemoPlayer] Chapter jump playback error:', e));
-                    });
+                if (this.videoEl.paused) {
+                    const playPromise = this.videoEl.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(err => {
+                            console.warn('[DemoPlayer] Chapter jump autoplay blocked, falling back to muted play:', err);
+                            this.videoEl.muted = true;
+                            this.isMuted = true;
+                            this.updateVolumeUI();
+                            this.videoEl.play().catch(e => console.error('[DemoPlayer] Chapter jump playback error:', e));
+                        });
+                    }
                 }
             }
             this.isPlaying = true;
             this.updatePlayPauseUI();
-            this.updateActiveChapterUI();
+            this.resetHudTimer();
             this.startLoop();
         }
 
@@ -844,9 +997,13 @@
             if (this.isFullscreen && this.isPlaying) {
                 this._hudIdleTimeout = setTimeout(() => {
                     if (this.isFullscreen && this.isPlaying) {
+                        if (this.isScrubbing || this._isHoveringControls) {
+                            this.resetHudTimer();
+                            return;
+                        }
                         container.classList.add('hud-hidden');
                     }
-                }, 2500);
+                }, 3500);
             }
         }
 
@@ -901,13 +1058,16 @@
         }
 
         updateUI() {
+            const dur = this.getSafeDuration();
+            const safeCurrent = isNaN(this.currentTime) ? 0 : this.currentTime;
+
             // Timecode display
             if (this.timecodeEl) {
-                this.timecodeEl.textContent = `${this.formatTime(this.currentTime)} / ${this.formatTime(this.duration)}`;
+                this.timecodeEl.textContent = `${this.formatTime(safeCurrent)} / ${this.formatTime(dur)}`;
             }
 
             // Scrubber progress & buffer
-            const pct = (this.currentTime / this.duration) * 100;
+            const pct = Math.max(0, Math.min(100, (safeCurrent / dur) * 100));
             if (this.scrubberProgressEl) {
                 this.scrubberProgressEl.style.width = `${pct}%`;
             }
