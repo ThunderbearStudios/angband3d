@@ -7,17 +7,17 @@ async function testPage(url, isModal = false) {
   const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
   const chrome = spawn(chromePath, [
     '--headless=new',
-    '--remote-debugging-port=9400',
+    '--remote-debugging-port=9412',
     '--window-size=1920,1080',
     '--disable-gpu',
     '--no-sandbox',
     url
   ]);
 
-  await new Promise(r => setTimeout(r, 2500));
+  await new Promise(r => setTimeout(r, 3000));
 
   const versionData = await new Promise((resolve) => {
-    http.get('http://127.0.0.1:9400/json', res => {
+    http.get('http://127.0.0.1:9412/json', res => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => resolve(JSON.parse(data)));
@@ -49,10 +49,9 @@ async function testPage(url, isModal = false) {
   await send('Page.enable');
   await send('Runtime.enable');
 
-  await new Promise(r => setTimeout(r, 1000));
+  await new Promise(r => setTimeout(r, 1500));
 
   if (isModal) {
-    // Open modal on home page
     await send('Runtime.evaluate', {
       expression: `(() => {
         if (window.__app && window.__app.demoPlayer) {
@@ -126,8 +125,10 @@ async function testPage(url, isModal = false) {
 }
 
 async function main() {
-  const r1 = await testPage('http://localhost:8080/demo', false);
-  const r2 = await testPage('http://localhost:8080/', true);
+  const targetHost = process.argv[2] || 'http://localhost:8080';
+  console.log(`Running fullscreen test suite against: ${targetHost}`);
+  const r1 = await testPage(`${targetHost}/demo`, false);
+  const r2 = await testPage(`${targetHost}/`, true);
 
   console.log('\n================ SUMMARY ================');
   console.log('Demo Page Fullscreen Video Fill:', r1.fullscreen.video.w === r1.fullscreen.window.w && r1.fullscreen.video.h === r1.fullscreen.window.h ? '✅ PASS' : '❌ FAIL');
