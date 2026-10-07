@@ -1,5 +1,5 @@
-// Angband3D Service Worker — v8.8.1 PWA & Standalone Client Caching
-const CACHE_NAME = 'angband3d-v8.8.1';
+// Angband3D Service Worker — v8.8.2 PWA & Standalone Client Caching
+const CACHE_NAME = 'angband3d-v8.8.2';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
