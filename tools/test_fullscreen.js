@@ -25,7 +25,8 @@ async function testPage(url, isModal = false) {
   });
 
   const pageTarget = versionData.find(t => t.type === 'page');
-  const WebSocket = require('ws');
+  let WebSocket;
+  try { WebSocket = require('ws'); } catch (_) { WebSocket = require('../server/node_modules/ws'); }
   const ws = new WebSocket(pageTarget.webSocketDebuggerUrl);
 
   await new Promise(r => ws.on('open', r));
@@ -69,25 +70,38 @@ async function testPage(url, isModal = false) {
 
   const evalRes = await send('Runtime.evaluate', {
     expression: `(async () => {
+      const player = window.__app && window.__app.demoPlayer ? window.__app.demoPlayer : window.demoPlayer;
+      const container = player ? player.getContainer() : document.querySelector('.demo-theater-container');
       const video = document.getElementById('demo-video-player');
       const wrapper = document.querySelector('.demo-video-wrapper');
-      const container = document.querySelector('.demo-theater-container');
       const transport = document.querySelector('.demo-transport-bar');
       const ribbon = document.querySelector('.demo-chapter-ribbon');
+      const fsBtn = document.getElementById('demo-btn-fullscreen');
 
       const normal = {
+        hasContainer: Boolean(container),
         video: { w: video.offsetWidth, h: video.offsetHeight },
         wrapper: { w: wrapper.offsetWidth, h: wrapper.offsetHeight },
-        container: { w: container.offsetWidth, h: container.offsetHeight }
+        container: { w: container ? container.offsetWidth : 0, h: container ? container.offsetHeight : 0 }
       };
 
-      // Enter fullscreen
-      container.classList.add('is-fullscreen');
-      const player = window.__app && window.__app.demoPlayer ? window.__app.demoPlayer : window.demoPlayer;
-      if (player) player.isFullscreen = true;
+      // Trigger fullscreen via player or button click
+      if (fsBtn) {
+        fsBtn.click();
+      } else if (player) {
+        player.toggleFullscreen();
+      }
+      // If headless browser doesn't execute native requestFullscreen without gesture, ensure fallback active
+      if (!container.classList.contains('is-fullscreen') && player) {
+        player.enterCssFullscreen(container);
+      }
+
+      await new Promise(r => setTimeout(r, 400));
 
       const fsRect = {
         window: { w: window.innerWidth, h: window.innerHeight },
+        isFsActive: container.classList.contains('is-fullscreen'),
+        btnText: fsBtn ? fsBtn.textContent : '',
         video: { w: video.offsetWidth, h: video.offsetHeight },
         wrapper: { w: wrapper.offsetWidth, h: wrapper.offsetHeight },
         container: { w: container.offsetWidth, h: container.offsetHeight },
@@ -102,9 +116,12 @@ async function testPage(url, isModal = false) {
       const hudHiddenOpacity = parseFloat(transportStyle.opacity);
       const hudHiddenPointerEvents = transportStyle.pointerEvents;
 
-      // Revert
-      container.classList.remove('hud-hidden', 'is-fullscreen');
-      if (player) player.isFullscreen = false;
+      // Revert fullscreen
+      if (player) {
+        player.exitFullscreen();
+      } else {
+        container.classList.remove('hud-hidden', 'is-fullscreen');
+      }
 
       return {
         normal,
