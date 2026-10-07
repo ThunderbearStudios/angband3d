@@ -10,6 +10,12 @@
      - Streamlined shortcut buttons to 7 essential, gold-accented quick-actions: `[D] 🎬 Gameplay Demo`, `[1] ⚔ Main Menu`, `[2] ✨ Features`, `[4] 📖 Guide`, `[6] 📱 Downloads`, `[5] 📜 Credits`, `[W] Wiki`.
    - **Unified Showcase Parity (`angband3d.com/demo` vs In-Game `#demo-modal`)**:
      - Both standalone `/demo` and the in-game modal now stream from identical canonical master video assets (`angband3d_demo.mp4` / `.webm`) with versioned fallbacks.
+     - Both standalone /demo and the in-game modal now share the single source of truth stylesheet (dungeon.css), identical .demo-theater-container structure, and unified controller (demo-player.js).
+     - Resolved Act navigation failures: added this.isSeeking asynchronous seek protection in demo-player.js to eliminate the snap-back race condition in startLoop() and timeupdate.
+     - Resolved autoplay rejections: wrapped video.play() in Promise catch handlers with seamless muted fallback for modern browser autoplay policies.
+     - Added bindChapterPills() with explicit data-time seeking, ambient glow matching chapter accent colors, and smooth scrollIntoView() keeping active act pills centered in the horizontal ribbon.
+     - Fixed visual layout: replaced wrapping pills and overflowing headers with a sleek single-row horizontal ribbon (max-height: min(580px, calc(100vh - 220px))), integrated top-right close button, and unified branding.
+     - Both standalone page and modal verified via automated CDP testing (diagnose_acts.js, snap_demos.js, test_act7.js).
      - Added persistent permalink button `🔗 Standalone Page (angband3d.com/demo) ↗` inside the modal footer strip.
      - Implemented HTTP 206 Partial Content byte-range request streaming in `server.js`, enabling instant seeking across the 275-second timeline without full buffering.
      - Closed captions feature distinct CSS classes for companions (`.speaker-lorekeeper`, `#38bdf8`) and creatures (`.speaker-creature`, `#ef4444`).
