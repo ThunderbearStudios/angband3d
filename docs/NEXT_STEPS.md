@@ -1,8 +1,22 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.16.0 / Web v8.8.6 — Standalone Client External Link Decoupling, Web-Only Showcase Isolation, Zero-Bloat Distribution Hygiene & Universal Multi-Client Integration Masterclass)
+## Current System State (Angband3D v2.16.1 / Web v8.8.7 — Standalone Showcase Page Fullscreen & DOM Container Hierarchy Resolution, Web-Only Showcase Isolation & Universal Multi-Client Integration Masterclass)
 
-0. **Standalone Client External Link Decoupling & Distribution Hygiene (Angband3D v2.16.0 / Web v8.8.6 — Final Production Polish)**:
+0. **Standalone Showcase Page Fullscreen & DOM Container Hierarchy Resolution (Web v8.8.7 / Angband3D v2.16.1)**:
+   - **Root Cause Identified**:
+     - On the home page splash screen (`/`), the showcase theater is nested inside a modal: `<div id="demo-modal"><div class="demo-theater-container">...</div></div>`. Here, `this.modalEl` was `#demo-modal` and `this.modalEl.querySelector('.demo-theater-container')` correctly returned the inner container.
+     - On the standalone showcase page (`/demo`), there is no `#demo-modal`. The controller fell back to `this.modalEl = document.querySelector('.demo-theater-container')`.
+     - When `getContainer()` ran, `this.modalEl.querySelector('.demo-theater-container')` searched for a *descendant* `.demo-theater-container` inside `.demo-theater-container`. Because `Element.querySelector()` only inspects descendant nodes (never the root element itself), it returned `null`.
+     - Consequently, `toggleFullscreen()`, `onFullscreenChange()`, and `resetHudTimer()` all aborted immediately on `/demo`, preventing native fullscreen, CSS fullscreen fallback, button icon updates, and auto-hide HUD from functioning.
+   - **Comprehensive Architectural Fix (`server/public/js/demo-player.js`, `demo.html`, `index.html`, `sw.js` v8.8.7)**:
+     - **Clean Element Decoupling**: Separated `this.modalEl` (strictly `#demo-modal` if present) from `this.theaterContainerEl` (`document.querySelector('.demo-theater-container')`) and `this.videoWrapperEl` (`document.querySelector('.demo-video-wrapper')`).
+     - **Resilient Container Resolution (`getContainer()`)**: Checks `this.theaterContainerEl` (verified via `document.contains`), then `document.querySelector('.demo-theater-container')`, and finally falls back through `this.modalEl` (checking both child and self matching). Guaranteed non-null on both `/demo` and `/`.
+     - **Dual Fullscreen Engine & CSS Fallback**: If browser native `requestFullscreen()` is denied or requires explicit gesture, cleanly activates `enterCssFullscreen()` (`.is-fullscreen` with 100vw/100vh fixed layout, z-index: 999999) and synchronizes with `fullscreenchange`.
+     - **Click & Double-Click Gesture Parity**: Initialized `this.videoWrapperEl` with single-click (play/pause with 240ms debounce) and double-click (instant fullscreen toggle), matching YouTube behavior without double-toggling.
+     - **Version Bump & Cache Invalidation**: Bumped assets to `v=8.8.7` in `sw.js`, `demo.html`, and `index.html`.
+     - **Automated Verification**: `tools/test_fullscreen.js` runs via CDP against headless Chrome, verifying 4/4 PASS across `/demo` and `/` (100vw x 100vh true viewport fill, 2.5s idle HUD auto-hide, button state transitions).
+
+1. **Standalone Client External Link Decoupling & Distribution Hygiene (Angband3D v2.16.0 / Web v8.8.6)**:
    - **Standalone Client External Redirection Invariant (`desktop/MainForm.cs`, `app.js`, `input.js`)**:
      - Enforced strict invariant: The interactive 1080p narrated gameplay showcase is **hosted strictly on the official website** (`https://angband3d.com/demo`). Non-web clients (Desktop Windows WebView2, Godot C#, Android APK) must never bundle video or attempt native video playback.
      - **Triple-Layer Redirection Protocol in WebView2 (`desktop/MainForm.cs`)**:

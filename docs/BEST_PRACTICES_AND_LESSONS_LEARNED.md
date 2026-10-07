@@ -36,6 +36,7 @@
 28. [Reimagined Showcase Architecture: Dynamic Multi-Depth Perspectives, Camera Facing Synchronization, UI Spotlight & Clean Insignia Cards](#28-reimagined-showcase-architecture-dynamic-multi-depth-perspectives-camera-facing-synchronization-ui-spotlight--clean-insignia-cards)
 29. [Award-Ready Production Finalization: Tall 2-Tile Shockbolt Detection, Vocal Dialogue Choreography, Message Drawer Mutual Exclusion, and Release Asset Isolation](#29-award-ready-production-finalization-tall-2-tile-shockbolt-detection-vocal-dialogue-choreography-message-drawer-mutual-exclusion-and-release-asset-isolation)
 30. [Standalone Client External Link Decoupling, Distribution Hygiene & Web-Only Media Architecture](#30-standalone-client-external-link-decoupling-distribution-hygiene--web-only-media-architecture)
+31. [DOM Target Hierarchy Invariants & Fullscreen Dual-Engine Resolution](#31-dom-target-hierarchy-invariants--fullscreen-dual-engine-resolution)
 
 ---
 
@@ -1526,7 +1527,117 @@ To ensure zero orphaned files, zero bloat, and total package cleanliness:
 | **External Links** | `window.open(url, '_blank')` | WebView2 intercepted -> `Process.Start` | Godot `OS.ShellOpen(url)` | Capacitor `Browser.open({ url })` |
 | **Save File Sync** | IndexedDB / Cloud Storage | Local disk (`lib/save/`) | Local disk (`user://save/`) | Android App Sandbox (`IDBFS`) |
 
+---
 
+## 31. DOM Target Hierarchy Invariants & Fullscreen Dual-Engine Resolution
 
+### 31.1 The Failure Mode: The Self-Querying `Element.querySelector()` Trap
+When a single client-side controller (e.g. `demo-player.js`) is reused across two distinct hosting paradigms:
+1. **Modal Context (`index.html`)**: An overarching wrapper `#demo-modal` houses `<div class="demo-theater-container">`.
+2. **Standalone Page Context (`demo.html`)**: The theater stage is a top-level child of `<main class="demo-standalone-main">` without any `#demo-modal`.
 
+A subtle defect arises when assigning `this.modalEl`:
+```javascript
+// DEFECTIVE IMPLEMENTATION:
+this.modalEl = document.getElementById('demo-modal') || document.querySelector('.demo-theater-container') || document.body;
+
+getContainer() {
+    return this.modalEl ? this.modalEl.querySelector('.demo-theater-container') : document.querySelector('.demo-theater-container');
+}
+```
+**Why this fails on the standalone page**:
+- In the modal, `this.modalEl` is `#demo-modal`, so `modalEl.querySelector('.demo-theater-container')` searches within `#demo-modal` and successfully returns the inner container.
+- On `/demo`, `#demo-modal` is `null`. `this.modalEl` falls back to `document.querySelector('.demo-theater-container')`.
+- `this.modalEl` is now truthy (`div.demo-theater-container`).
+- `getContainer()` calls `this.modalEl.querySelector('.demo-theater-container')`.
+- In W3C DOM specifications, `Element.querySelector(selector)` **exclusively inspects descendant nodes of the element** — it never matches the element itself.
+- Because there is no nested `.demo-theater-container` inside the container, `querySelector()` returns `null`.
+- As a consequence, `toggleFullscreen()`, `exitFullscreen()`, `onFullscreenChange()`, and `resetHudTimer()` all silently abort when `container` evaluates to `null`.
+
+### 31.2 Architectural Invariant: Explicit DOM Target Separation
+Never conflate a modal overlay with the component stage itself. Maintain distinct, unambiguous references:
+```javascript
+// CORRECT & RESILIENT IMPLEMENTATION:
+this.modalEl = document.getElementById('demo-modal');
+this.theaterContainerEl = document.querySelector('.demo-theater-container');
+this.videoWrapperEl = document.querySelector('.demo-video-wrapper');
+
+getContainer() {
+    if (this.theaterContainerEl && document.contains(this.theaterContainerEl)) {
+        return this.theaterContainerEl;
+    }
+    const el = document.querySelector('.demo-theater-container');
+    if (el) {
+        this.theaterContainerEl = el;
+        return el;
+    }
+    if (this.modalEl) {
+        const inner = this.modalEl.querySelector('.demo-theater-container');
+        if (inner) return inner;
+        if (this.modalEl.classList.contains('demo-theater-container')) return this.modalEl;
+    }
+    return null;
+}
+```
+
+### 31.3 Dual-Engine Fullscreen Architecture: Native API with CSS Fallback
+Different browser contexts handle the Fullscreen API differently:
+- Embedded WebViews, iframe security boundaries, or headless test runners may reject `container.requestFullscreen()` if transient user activation is absent.
+- Mobile Safari (iOS) does not support Fullscreen API on arbitrary `div` containers, supporting only `HTMLVideoElement.webkitEnterFullscreen()`.
+
+The player must implement a layered defense:
+```javascript
+toggleFullscreen() {
+    const container = this.getContainer();
+    if (!container) return;
+
+    const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement || container.classList.contains('is-fullscreen'));
+    if (!isFs) {
+        const req = container.requestFullscreen ? container.requestFullscreen() :
+                    container.webkitRequestFullscreen ? container.webkitRequestFullscreen() : null;
+        if (req && req.catch) {
+            req.catch(err => {
+                console.warn('[DemoPlayer] Container fullscreen failed, using CSS fallback:', err);
+                this.enterCssFullscreen(container);
+            });
+        } else if (!req) {
+            if (this.videoEl && this.videoEl.webkitEnterFullscreen) {
+                this.videoEl.webkitEnterFullscreen();
+            } else {
+                this.enterCssFullscreen(container);
+            }
+        }
+    } else {
+        this.exitFullscreen();
+    }
+}
+```
+
+### 31.4 Single-Click vs. Double-Click Video Gesture Disambiguation
+To support standard video streaming UX (single-click toggles play/pause, double-click toggles fullscreen) without event collisions or double toggling:
+```javascript
+if (this.videoWrapperEl) {
+    let clickTimer = null;
+    this.videoWrapperEl.addEventListener('click', (e) => {
+        // Guard interactive controls
+        if (e.target.closest('#demo-center-play') || 
+            e.target.closest('.demo-close-btn') || 
+            e.target.closest('.demo-captions-overlay') || 
+            e.target.closest('.demo-transport-bar') || 
+            e.target.closest('.demo-chapter-ribbon')) return;
+
+        if (clickTimer) {
+            clearTimeout(clickTimer);
+            clickTimer = null;
+            this.toggleFullscreen();
+        } else {
+            clickTimer = setTimeout(() => {
+                clickTimer = null;
+                this.togglePlay();
+            }, 240);
+        }
+    });
+}
+```
+Eliminates duplicate click listeners on `videoEl` when wrapped inside `videoWrapperEl`, allowing single clicks to debounce into play/pause and rapid double-clicks to toggle cinema fullscreen seamlessly.
 

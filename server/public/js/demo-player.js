@@ -30,6 +30,8 @@
         constructor(options = {}) {
             this.isStandalone = options.isStandalone || false;
             this.modalEl = null;
+            this.theaterContainerEl = null;
+            this.videoWrapperEl = null;
             this.videoEl = null;
             this.canvasEl = null;
             this.ambientGlowEl = null;
@@ -144,7 +146,9 @@
                                     !document.getElementById('demo-modal');
             }
 
-            this.modalEl = document.getElementById('demo-modal') || document.querySelector('.demo-theater-container') || document.body;
+            this.modalEl = document.getElementById('demo-modal');
+            this.theaterContainerEl = document.querySelector('.demo-theater-container');
+            this.videoWrapperEl = document.querySelector('.demo-video-wrapper');
             this.videoEl = document.getElementById('demo-video-player');
             if (!this.videoEl) return;
 
@@ -176,7 +180,7 @@
             this.btnFullscreenEl = document.getElementById('demo-btn-fullscreen');
             this.btnPlayGameEl = document.getElementById('demo-btn-play-game');
             this.btnCloseEl = document.getElementById('btn-demo-close');
-            this.chapterPillContainer = this.modalEl ? this.modalEl.querySelector('.demo-chapter-ribbon') : document.querySelector('.demo-chapter-ribbon');
+            this.chapterPillContainer = document.querySelector('.demo-chapter-ribbon');
 
             if (this.isStandalone) {
                 this.isOpen = true;
@@ -208,7 +212,6 @@
         setupEvents() {
             // HTML5 Video Element Wireup
             if (this.videoEl) {
-                this.videoEl.addEventListener('click', () => this.togglePlay());
                 this.videoEl.addEventListener('timeupdate', () => {
                     if (!this.isScrubbing && !this.isSeeking) {
                         this.currentTime = this.videoEl.currentTime;
@@ -330,7 +333,11 @@
             if (this.videoWrapperEl) {
                 let clickTimer = null;
                 this.videoWrapperEl.addEventListener('click', (e) => {
-                    if (e.target.closest('#demo-center-play') || e.target.closest('.demo-close-btn') || e.target.closest('.demo-captions-overlay')) return;
+                    if (e.target.closest('#demo-center-play') || 
+                        e.target.closest('.demo-close-btn') || 
+                        e.target.closest('.demo-captions-overlay') || 
+                        e.target.closest('.demo-transport-bar') || 
+                        e.target.closest('.demo-chapter-ribbon')) return;
                     if (clickTimer) {
                         clearTimeout(clickTimer);
                         clickTimer = null;
@@ -342,6 +349,21 @@
                         }, 240);
                     }
                 });
+                this.videoWrapperEl.addEventListener('dblclick', (e) => {
+                    if (e.target.closest('#demo-center-play') || 
+                        e.target.closest('.demo-close-btn') || 
+                        e.target.closest('.demo-captions-overlay') || 
+                        e.target.closest('.demo-transport-bar') || 
+                        e.target.closest('.demo-chapter-ribbon')) return;
+                    e.preventDefault();
+                    if (clickTimer) {
+                        clearTimeout(clickTimer);
+                        clickTimer = null;
+                    }
+                    this.toggleFullscreen();
+                });
+            } else if (this.videoEl) {
+                this.videoEl.addEventListener('click', () => this.togglePlay());
             }
 
             // Reset HUD auto-hide timer on user interaction
@@ -701,38 +723,71 @@
         }
 
         getContainer() {
-            return this.modalEl ? this.modalEl.querySelector('.demo-theater-container') : document.querySelector('.demo-theater-container');
+            if (this.theaterContainerEl && document.contains(this.theaterContainerEl)) {
+                return this.theaterContainerEl;
+            }
+            const el = document.querySelector('.demo-theater-container');
+            if (el) {
+                this.theaterContainerEl = el;
+                return el;
+            }
+            if (this.modalEl) {
+                const inner = this.modalEl.querySelector('.demo-theater-container');
+                if (inner) return inner;
+                if (this.modalEl.classList.contains('demo-theater-container')) return this.modalEl;
+            }
+            return null;
         }
 
         toggleFullscreen() {
             const container = this.getContainer();
             if (!container) return;
 
-            const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+            const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement || container.classList.contains('is-fullscreen'));
             if (!isFs) {
                 const req = container.requestFullscreen ? container.requestFullscreen() :
                             container.webkitRequestFullscreen ? container.webkitRequestFullscreen() : null;
                 if (req && req.catch) {
                     req.catch(err => {
-                        console.warn('[DemoPlayer] Container fullscreen failed, trying video element fallback:', err);
-                        if (this.videoEl && this.videoEl.webkitEnterFullscreen) {
-                            this.videoEl.webkitEnterFullscreen();
-                        }
+                        console.warn('[DemoPlayer] Container fullscreen failed, using CSS fullscreen fallback:', err);
+                        this.enterCssFullscreen(container);
                     });
-                } else if (!req && this.videoEl && this.videoEl.webkitEnterFullscreen) {
-                    // Mobile Safari iOS fallback
-                    this.videoEl.webkitEnterFullscreen();
+                } else if (!req) {
+                    if (this.videoEl && this.videoEl.webkitEnterFullscreen) {
+                        this.videoEl.webkitEnterFullscreen();
+                    } else {
+                        this.enterCssFullscreen(container);
+                    }
                 }
             } else {
                 this.exitFullscreen();
             }
         }
 
+        enterCssFullscreen(container) {
+            if (!container) container = this.getContainer();
+            if (!container) return;
+            container.classList.add('is-fullscreen');
+            this.isFullscreen = true;
+            if (this.btnFullscreenEl) {
+                this.btnFullscreenEl.textContent = '⤓';
+                this.btnFullscreenEl.title = 'Exit Fullscreen (F / Esc)';
+            }
+            if (this.btnCloseEl) {
+                this.btnCloseEl.title = 'Exit Fullscreen (Esc)';
+            }
+            if (this.isPlaying) {
+                this.resetHudTimer();
+            }
+        }
+
         exitFullscreen() {
-            if (document.exitFullscreen) {
-                document.exitFullscreen().catch(() => {});
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {});
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
             }
             const container = this.getContainer();
             if (container) {
@@ -742,6 +797,9 @@
             if (this.btnFullscreenEl) {
                 this.btnFullscreenEl.textContent = '⛶';
                 this.btnFullscreenEl.title = 'Toggle Fullscreen (F)';
+            }
+            if (this.btnCloseEl) {
+                this.btnCloseEl.title = this.isStandalone ? 'Back to Angband 3D (Esc)' : 'Close Demo (Esc)';
             }
             if (this._hudIdleTimeout) {
                 clearTimeout(this._hudIdleTimeout);
@@ -763,6 +821,9 @@
             if (this.btnFullscreenEl) {
                 this.btnFullscreenEl.textContent = isFs ? '⤓' : '⛶';
                 this.btnFullscreenEl.title = isFs ? 'Exit Fullscreen (F / Esc)' : 'Toggle Fullscreen (F)';
+            }
+            if (this.btnCloseEl) {
+                this.btnCloseEl.title = isFs ? 'Exit Fullscreen (Esc)' : (this.isStandalone ? 'Back to Angband 3D (Esc)' : 'Close Demo (Esc)');
             }
             if (isFs && this.isPlaying) {
                 this.resetHudTimer();
@@ -876,7 +937,7 @@
 
         updateActiveChapterUI() {
             if (!this.chapterPillContainer) {
-                this.chapterPillContainer = this.modalEl ? this.modalEl.querySelector('.demo-chapter-ribbon') : document.querySelector('.demo-chapter-ribbon');
+                this.chapterPillContainer = document.querySelector('.demo-chapter-ribbon');
             }
             if (this.chapterPillContainer) {
                 const pills = this.chapterPillContainer.querySelectorAll('.demo-chapter-pill');
