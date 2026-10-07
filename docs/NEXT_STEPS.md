@@ -1,8 +1,30 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.16.2 / Web v8.8.8 — Masterclass Award Submission Dossier, GAG Accessibility Audit, FOSS Community Governance & Social Graph Modernization)
+## Current System State (Angband3D v2.16.3 / Web v8.8.9 — Studio Contact Governance, Scrubber Pointer Capture & Fullscreen HUD Collision Elimination)
 
-0. **Masterclass Award Submission Dossier, GAG Accessibility Audit & FOSS Governance (Angband3D v2.16.2 / Web v8.8.8)**:
+0. **Studio Contact Governance, Scrubber Pointer Capture & Fullscreen HUD Geometry (Angband3D v2.16.3 / Web v8.8.9)**:
+   - **Unified Studio Contact Governance (`PRESSKIT.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, Git Config)**:
+     - Updated official contact point to `thunderbearstudios@gmail.com` across all press kit factsheets, code of conduct enforcement guidelines, and responsible vulnerability disclosure policies.
+     - Configured local git repository author email to `thunderbearstudios@gmail.com`.
+   - **Demo Scrubber Pointer Capture & Touch Invariant (`demo-player.js`, `dungeon.css`)**:
+     - Upgraded scrubber timeline interaction with W3C Pointer Events API (`pointerdown`, `pointermove`, `pointerup`, `pointercancel`) utilizing `setPointerCapture` and `releasePointerCapture`.
+     - Drag scrubbing now tracks smoothly even when mouse or finger wanders above or below the transport bar.
+     - Expanded interactive clickable hit area to 32px vertical height (`.demo-scrubber-track::before`) with `cursor: pointer`.
+     - Added `pointer-events: none !important` to scrubber buffer, progress bar, chapter marker pips, and thumb handle to prevent child element event absorption.
+     - Implemented 50ms throttled seeking with `requestAnimationFrame` coalescing, preventing media pipeline stutter during rapid scrub drags.
+   - **Chapter Pill Selection & Delegation (`demo-player.js`, `dungeon.css`)**:
+     - Implemented event delegation on `.demo-chapter-ribbon` with fallback direct pill bindings, ensuring reliable act jumping on dynamic loads and re-opens.
+     - Added `touch-action: manipulation`, `pointer-events: auto !important`, and active tactile scale feedback (`:active { transform: scale(0.96); }`).
+   - **Fullscreen HUD Collision Elimination (`dungeon.css`)**:
+     - Elevated `.demo-transport-bar` to `bottom: 78px !important` and `.demo-captions-overlay` to `bottom: 162px !important`.
+     - Eliminated 2px visual and hit-test collision with `.demo-chapter-ribbon` (`bottom: 12px`, 54px height), establishing a clean 12px separation gap.
+     - Added hover guard preventing auto-hide HUD lockout while hovering or scrubbing transport controls.
+   - **Comprehensive Verification (`tools/verify_demo_fixes.js`, `server/test/server_test.js`)**:
+     - Automated 8-part Chrome CDP test suite validating normal view scrubber clicks, drag seeks, chapter pill clicks, fullscreen zero-overlap geometry, fullscreen scrubber dragging, fullscreen chapter clicks, control hover idle suppression, and in-game modal `/index.html` navigation.
+     - 100% test pass rate across all 8 suites (0 errors).
+     - Verified 11/11 engine bridge smoke tests, 20/20 server unit tests, and 0-warning Godot C# compilation.
+
+1. **Masterclass Award Submission Dossier, GAG Accessibility Audit & FOSS Governance (Angband3D v2.16.2 / Web v8.8.8)**:
    - **Award Submission Dossier (`docs/AWARD_SUBMISSION_DOSSIER.md`)**:
      - Authored complete, copy-pasteable submission essays tailored to exact category rubrics and word counts:
        - *Independent Games Festival (IGF)*: Technical Excellence, Excellence in Design, Excellence in Audio, The Nuovo Award (The Preservation Manifesto), and Seumas McNally Grand Prize.

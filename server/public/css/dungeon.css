@@ -5485,15 +5485,30 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 
 .demo-scrubber-track {
     position: relative;
-    height: 6px;
+    height: 8px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
+    border-radius: 4px;
     cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
     transition: height 0.15s ease;
 }
 
 .demo-scrubber-track:hover {
-    height: 9px;
+    height: 10px;
+}
+
+/* Expanded invisible hit area: 32px total vertical clickable height */
+.demo-scrubber-track::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    bottom: -12px;
+    left: 0;
+    right: 0;
+    cursor: pointer;
+    z-index: 3;
 }
 
 .demo-scrubber-buffer {
@@ -5502,8 +5517,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     left: 0;
     height: 100%;
     background: rgba(255, 255, 255, 0.35);
-    border-radius: 3px;
+    border-radius: 4px;
     width: 0%;
+    pointer-events: none !important;
 }
 
 .demo-scrubber-progress {
@@ -5512,8 +5528,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     left: 0;
     height: 100%;
     background: linear-gradient(90deg, #d4af37, #ffd700);
-    border-radius: 3px;
+    border-radius: 4px;
     width: 0%;
+    pointer-events: none !important;
 }
 
 .demo-scrubber-handle {
@@ -5526,7 +5543,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     border-radius: 50%;
     background: #ffd700;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
-    pointer-events: none;
+    pointer-events: none !important;
     transition: transform 0.1s ease;
 }
 
@@ -5541,7 +5558,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     height: 100%;
     background: rgba(0, 0, 0, 0.65);
     z-index: 2;
-    pointer-events: none;
+    pointer-events: none !important;
 }
 
 .demo-scrubber-tooltip {
@@ -5676,14 +5693,18 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     font-size: 12px;
     font-weight: 500;
     color: #94a3b8;
-    cursor: pointer;
+    cursor: pointer !important;
     white-space: nowrap;
     flex-shrink: 0;
     transition: all 0.15s ease;
     user-select: none;
+    -webkit-user-select: none;
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    position: relative;
+    pointer-events: auto !important;
+    touch-action: manipulation;
 }
 
 .demo-chapter-pill:hover {
@@ -5692,6 +5713,10 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     color: #f8fafc;
     transform: translateY(-1px);
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+
+.demo-chapter-pill:active {
+    transform: scale(0.96) !important;
 }
 
 .demo-chapter-pill.active {
@@ -5803,7 +5828,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 .demo-theater-container:fullscreen .demo-captions-overlay,
 .demo-theater-container:-webkit-full-screen .demo-captions-overlay,
 .demo-theater-container.is-fullscreen .demo-captions-overlay {
-    bottom: 130px !important;
+    bottom: 162px !important;
     z-index: 35 !important;
     transition: bottom 0.3s ease, opacity 0.3s ease !important;
 }
@@ -5813,10 +5838,10 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 .demo-theater-container:-webkit-full-screen .demo-transport-bar,
 .demo-theater-container.is-fullscreen .demo-transport-bar {
     position: absolute !important;
-    bottom: 50px !important;
+    bottom: 78px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    width: min(1200px, calc(100% - 48px)) !important;
+    width: min(1200px, calc(100% - 32px)) !important;
     background: rgba(8, 12, 21, 0.92) !important;
     backdrop-filter: blur(16px) !important;
     -webkit-backdrop-filter: blur(16px) !important;
@@ -5824,6 +5849,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     border-radius: 12px !important;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.95) !important;
     z-index: 40 !important;
+    pointer-events: auto !important;
     transition: opacity 0.3s ease, transform 0.3s ease !important;
 }
 
@@ -5831,13 +5857,22 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 .demo-theater-container:-webkit-full-screen .demo-chapter-ribbon,
 .demo-theater-container.is-fullscreen .demo-chapter-ribbon {
     position: absolute !important;
-    bottom: 8px !important;
+    bottom: 12px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    width: min(1200px, calc(100% - 48px)) !important;
+    width: min(1200px, calc(100% - 32px)) !important;
     margin: 0 !important;
-    z-index: 40 !important;
-    background: transparent !important;
+    z-index: 45 !important;
+    background: rgba(10, 15, 26, 0.78) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(212, 175, 55, 0.3) !important;
+    border-radius: 20px !important;
+    padding: 6px 14px 6px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+    pointer-events: auto !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
     transition: opacity 0.3s ease, transform 0.3s ease !important;
 }
 
@@ -5867,15 +5902,16 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     .demo-theater-container:fullscreen .demo-transport-bar,
     .demo-theater-container:-webkit-full-screen .demo-transport-bar,
     .demo-theater-container.is-fullscreen .demo-transport-bar {
-        bottom: 42px !important;
+        bottom: 54px !important;
         width: calc(100% - 16px) !important;
         padding: 8px 12px !important;
     }
     .demo-theater-container:fullscreen .demo-chapter-ribbon,
     .demo-theater-container:-webkit-full-screen .demo-chapter-ribbon,
     .demo-theater-container.is-fullscreen .demo-chapter-ribbon {
-        bottom: 4px !important;
+        bottom: 6px !important;
         width: calc(100% - 16px) !important;
+        padding: 4px 8px !important;
     }
     .demo-theater-container:fullscreen .demo-close-btn,
     .demo-theater-container:-webkit-full-screen .demo-close-btn,

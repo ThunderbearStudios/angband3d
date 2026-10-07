@@ -33,7 +33,7 @@ Angband 3D is designed with defence-in-depth across multiple runtime environment
 We take the security of our players, contributors, and infrastructure seriously. If you discover a security vulnerability or potential exploit, please do **NOT** open a public GitHub issue.
 
 Instead, please report security vulnerabilities privately:
-- **Email**: `security@angband3d.com`
+- **Email**: `thunderbearstudios@gmail.com`
 - **Subject**: `[SECURITY VULNERABILITY] <Component/Summary>`
 
 ### What to Include in Your Report

@@ -19,7 +19,7 @@
 * **Licence**: GNU General Public License v2 (GPLv2) & Permissive Open Source Assets
 * **Engine**: Authoritative Upstream Angband 4.2.6 C Engine + Three.js WebGL / Godot 4.3+ .NET
 * **Repository**: [https://github.com/ThunderbearStudios/angband3d](https://github.com/ThunderbearStudios/angband3d)
-* **Press & Curators Contact**: `press@angband3d.com` / GitHub Discussions
+* **Press & Curators Contact**: `thunderbearstudios@gmail.com` / GitHub Discussions
 
 ---
 
@@ -115,4 +115,4 @@ Watch the official broadcast-quality 10-act walkthrough directly in your browser
 * **Mission**: Reinvigorate foundational gaming milestones by creating open-architecture frontends that respect original design philosophy while delivering modern sensory excellence.
 * **Website**: [https://angband3d.com](https://angband3d.com)
 * **GitHub**: [https://github.com/ThunderbearStudios](https://github.com/ThunderbearStudios)
-* **Press Inquiries**: `press@angband3d.com`
+* **Press Inquiries**: `thunderbearstudios@gmail.com`
