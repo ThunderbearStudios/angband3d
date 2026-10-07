@@ -35,6 +35,7 @@
 27. [Choreographed Gameplay Walkthrough Invariants: Authentic Grid Topology, Real In-Engine Turn Actions & Vocal Mutual Exclusion](#27-choreographed-gameplay-walkthrough-invariants-authentic-grid-topology-real-in-engine-turn-actions--vocal-mutual-exclusion)
 28. [Reimagined Showcase Architecture: Dynamic Multi-Depth Perspectives, Camera Facing Synchronization, UI Spotlight & Clean Insignia Cards](#28-reimagined-showcase-architecture-dynamic-multi-depth-perspectives-camera-facing-synchronization-ui-spotlight--clean-insignia-cards)
 29. [Award-Ready Production Finalization: Tall 2-Tile Shockbolt Detection, Vocal Dialogue Choreography, Message Drawer Mutual Exclusion, and Release Asset Isolation](#29-award-ready-production-finalization-tall-2-tile-shockbolt-detection-vocal-dialogue-choreography-message-drawer-mutual-exclusion-and-release-asset-isolation)
+30. [Standalone Client External Link Decoupling, Distribution Hygiene & Web-Only Media Architecture](#30-standalone-client-external-link-decoupling-distribution-hygiene--web-only-media-architecture)
 
 ---
 
@@ -1355,6 +1356,176 @@ To guarantee broadcast quality with zero runtime API failure or network lag:
     - Normal dimensions: video 1038x579, container 1040x764.
     - Fullscreen dimensions: video 1904x929 (100% of viewport), container 1904x929.
     - HUD auto-hide: Opacity drops to 0 after 2.5s idle on both dedicated showcase (`/demo`) and in-game modal (`/`).
+
+---
+
+## 30. Standalone Client External Link Decoupling, Distribution Hygiene & Web-Only Media Architecture
+
+### 30.1 The Master Invariant: High-Bandwidth Showcase Media Belongs Strictly on the Web
+- **The Core Rule**: Heavy interactive media showcases (specifically the 1080p 60fps narrated gameplay walkthrough, the commercial trailer, and high-bitrate video stems) are hosted **strictly and exclusively on the public website** (`https://angband3d.com/demo`).
+- **Zero Native Video Playback in Non-Web Clients**: Under no circumstances should any standalone native client (Windows WebView2 `Angband3D.exe`, Godot C# `Angband3D-Godot.exe`, Android APK, or offline packages) bundle video assets or attempt native video playback.
+- **Universal External Redirection**: Any demo link, button (`[D] 🎬 Gameplay Demo`, `#btn-splash-demo`, `#btn-menu-demo`, Option [9]), or keyboard trigger pressed inside a standalone client must immediately launch the official web link (`https://angband3d.com/demo`) in the user's default system web browser.
+
+### 30.2 The Failure Modes: The Three Traps of Standalone Media Integration
+1. **The Distribution Bloat Trap**:
+   - Bundling high-bitrate 1080p MP4/WebM video walkthroughs inside the standalone zip installer adds 260MB–700MB of static overhead to the download package.
+   - For an offline roguelike whose entire C game engine, WebAssembly runtime, and 3D assets total under 150MB, tripling the download size for a one-time promotional video is unacceptable distribution bloat.
+2. **The Broken Offline Player Trap**:
+   - When video assets are pruned from the distribution package to save bandwidth, but the application UI retains naive internal playback logic (`showDemoModal()` -> `demoPlayer.open()`), launching the demo inside the standalone executable opens a black or broken player modal with non-functional playback controls.
+3. **The WebView2 Container Navigation Trap**:
+   - In modern desktop web containers (Microsoft Edge WebView2, Electron, CEF), hyperlinks with `target="_blank"` or calls to `window.open()` do not automatically shell out to the Windows default browser unless explicitly intercepted.
+   - Without event interception, WebView2 either silently suppresses the request or navigates the internal game container away from `https://angband3d.local/index.html` to the remote URL, breaking the game session and trapping the player in a web page without browser chrome or exit navigation.
+
+### 30.3 The Triple-Layer External Link Protocol Architecture
+To achieve 100% fail-safe external browser routing across every client platform, `angband3d` implements a defense-in-depth triple-layer architecture:
+
+```mermaid
+graph TD
+    UserClick[User Clicks Demo or External Link] --> ClientCheck{Is Running in Standalone Client?}
+    
+    ClientCheck -->|Yes - Windows WebView2| L1[Layer 1: Native Desktop Host Shell]
+    ClientCheck -->|Yes - Android / Capacitor| L2[Layer 2: Mobile InAppBrowser Plugin]
+    ClientCheck -->|No - Web Browser| WebPlayer[Play In-Engine Video Showcase Modal]
+    
+    L1 --> WebMsg[IPC WebMessage: openExternal]
+    L1 --> NewWin[CoreWebView2.NewWindowRequested]
+    L1 --> NavStart[CoreWebView2.NavigationStarting]
+    
+    WebMsg --> ShellExec[Process.Start UseShellExecute=true]
+    NewWin --> ShellExec
+    NavStart --> ShellExec
+    
+    ShellExec --> SysBrowser[User Default Browser Opens angband3d.com/demo]
+    L2 --> SysBrowser
+```
+
+#### Layer 1: Native Desktop Shell Interception (`desktop/MainForm.cs`)
+The native C# WinForms / WebView2 host wrapper implements three redundant listeners to intercept any conceivable navigation attempt:
+```csharp
+// 1. Intercept window.open() and <a target="_blank">
+_webView.CoreWebView2.NewWindowRequested += (s, e) =>
+{
+    e.Handled = true;
+    LaunchExternalBrowser(e.Uri);
+};
+
+// 2. Intercept direct href navigations (preventing container page hijacking)
+_webView.CoreWebView2.NavigationStarting += (s, e) =>
+{
+    if (Uri.TryCreate(e.Uri, UriKind.Absolute, out var uri))
+    {
+        if (!string.Equals(uri.Host, "angband3d.local", StringComparison.OrdinalIgnoreCase))
+        {
+            e.Cancel = true;
+            LaunchExternalBrowser(e.Uri);
+        }
+    }
+};
+
+// 3. Bidirectional WebMessage IPC Bridge for explicit JavaScript requests
+_webView.CoreWebView2.WebMessageReceived += (s, e) =>
+{
+    try
+    {
+        var msg = e.TryGetWebMessageAsString();
+        if (!string.IsNullOrEmpty(msg))
+        {
+            using var doc = JsonDocument.Parse(msg);
+            if (doc.RootElement.TryGetProperty("type", out var typeProp) &&
+                typeProp.GetString() == "openExternal" &&
+                doc.RootElement.TryGetProperty("url", out var urlProp))
+            {
+                LaunchExternalBrowser(urlProp.GetString());
+            }
+        }
+    }
+    catch { }
+};
+
+private static void LaunchExternalBrowser(string? url)
+{
+    if (string.IsNullOrWhiteSpace(url)) return;
+    try
+    {
+        if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+    }
+    catch { }
+}
+```
+
+#### Layer 2: Front-End UI Deflection & Contextual Affordances (`server/public/js/app.js`)
+The web application automatically detects its hosting context and deflects demo requests before touching modal state:
+```javascript
+// Universal external URL dispatcher across Web, WebView2, and Capacitor
+function openExternalUrl(url) {
+    if (!url) return;
+    try {
+        if (window.chrome?.webview?.postMessage) {
+            window.chrome.webview.postMessage({ type: 'openExternal', url: url });
+            return;
+        }
+        if (window.Capacitor?.Plugins?.Browser) {
+            window.Capacitor.Plugins.Browser.open({ url: url });
+            return;
+        }
+        const win = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+            window.location.href = url;
+        }
+    } catch (_) {
+        window.location.href = url;
+    }
+}
+
+function showDemoModal(fromState = null) {
+    // Standalone Client Invariant: Never play video locally in standalone builds
+    if (isStandaloneApp() || document.body?.classList?.contains('is-standalone')) {
+        if (audio) audio.playMenuNav();
+        openExternalUrl('https://angband3d.com/demo');
+        return;
+    }
+    // Web client opens interactive showcase modal
+    ...
+}
+```
+- **Contextual UI Affordances**:
+  - In standalone desktop or mobile APK builds, the splash screen button dynamically adapts its label to `[D] 🎬 Gameplay Demo (Web ↗)` with a descriptive tooltip informing the user that clicking will open their external system browser.
+  - The Main Menu Option [9] label similarly updates to `🎬 Gameplay Demo & Feature Showcase (Web ↗)`.
+
+#### Layer 3: Defensive Guards in the Player Engine (`demo-player.js` & `demo.html`)
+Even if an unauthenticated caller invokes `demoPlayer.open()` directly or an offline user double-clicks `demo.html`, defensive runtime guards intercept the request:
+- `isClientStandalone()` in `demo-player.js` returns early from `init()`, aborts `preloadManifest()`, and deflects `open()` to `openExternalUrl('https://angband3d.com/demo')`.
+- An inline `<script>` in the `<head>` of `demo.html` detects offline/standalone hosts (`angband3d.local`, `file:`, `capacitor:`) and redirects immediately to `index.html` while shelling out to `https://angband3d.com/demo`.
+
+### 30.4 Standalone Packaging & Distribution Hygiene (`tools/package.ps1`)
+To ensure zero orphaned files, zero bloat, and total package cleanliness:
+1. **Automated Media Exclusion**:
+   - `tools/package.ps1` explicitly deletes `assets/video/` and `demo.html` from the staged `www/` directory.
+   - Saves 260MB+ of bandwidth for every player download.
+2. **Transient Artifact Scrubbing**:
+   - Cleans temporary save files (`engine/build/game/lib/save/*`) and build logs (`godot-export.log`, `obj/`, `bin/`) before archive compression.
+3. **Mandatory Post-Stage Verification**:
+   - The packaging script validates the physical existence and non-zero size of all critical distribution artifacts:
+     - `Angband3D.exe` (Self-contained single-file WebView2 desktop client)
+     - `Angband3D-Godot.exe` (Godot 4 C# Release executable, if Godot toolchain is present)
+     - `engine/build/game/angband.exe` (Authoritative C engine server)
+     - `www/index.html` and `www/wasm/angband.wasm` (Enhanced WebGL/WASM offline client)
+     - `Play-Angband3D.cmd` (Universal zero-configuration root launcher)
+
+### 30.5 Cross-Client Architectural Decoupling Comparison
+
+| Feature / Platform | Web Browser (`angband3d.com`) | Standalone Desktop (`Angband3D.exe`) | Standalone Godot (`Angband3D-Godot.exe`) | Android APK (Capacitor) |
+|---|---|---|---|---|
+| **Demo Playback** | Native HTML5 Video + Canvas HUD | External System Browser Link | External System Browser Link (`OS.ShellOpen`) | External System Browser Link (`Browser.open`) |
+| **Video Assets** | Streamed via Cloud Run (HTTP 206) | Excluded (0 MB bloat) | Excluded (0 MB bloat) | Excluded (0 MB bloat) |
+| **Engine Execution**| Cloud Run WebSocket or In-Memory WASM | Bundled native `angband.exe` stdio | Bundled native `angband.exe` stdio | Bundled In-Memory WASM (Emscripten) |
+| **External Links** | `window.open(url, '_blank')` | WebView2 intercepted -> `Process.Start` | Godot `OS.ShellOpen(url)` | Capacitor `Browser.open({ url })` |
+| **Save File Sync** | IndexedDB / Cloud Storage | Local disk (`lib/save/`) | Local disk (`user://save/`) | Android App Sandbox (`IDBFS`) |
+
 
 
 

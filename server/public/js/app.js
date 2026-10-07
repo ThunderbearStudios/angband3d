@@ -29,6 +29,33 @@ window.addEventListener('DOMContentLoaded', () => {
                (window.chrome && window.chrome.webview !== undefined);
     };
 
+    // Cross-Client External URL Dispatcher:
+    // Guarantees all non-web standalone clients (Desktop Windows WebView2, Android APK)
+    // shell out to the default system browser instead of navigating within the game container.
+    function openExternalUrl(url) {
+        if (!url) return;
+        try {
+            // 1. Standalone WebView2 Desktop: post message to host process
+            if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
+                window.chrome.webview.postMessage({ type: 'openExternal', url: url });
+                return;
+            }
+            // 2. Capacitor Android / iOS App: use InAppBrowser / Browser plugin
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+                window.Capacitor.Plugins.Browser.open({ url: url });
+                return;
+            }
+            // 3. Standard web / browser: window.open in new tab
+            const win = window.open(url, '_blank', 'noopener,noreferrer');
+            if (!win || win.closed || typeof win.closed === 'undefined') {
+                window.location.href = url;
+            }
+        } catch (_) {
+            window.location.href = url;
+        }
+    }
+    window.openExternalUrl = openExternalUrl;
+
     const isApk = isStandaloneApp();
     if (isApk && typeof document !== 'undefined') {
         if (document.body) {
@@ -1459,7 +1486,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 showGuide(5, 'mainMenu');
                 break;
             case 6: // Angband Online Wiki
-                window.open('https://angband.readthedocs.io/', '_blank');
+                openExternalUrl('https://angband.readthedocs.io/');
                 break;
             case 7: // Option [8]: Standalone Apps & Downloads (Android / PC)
                 showPWAModal('mainMenu');
@@ -1626,7 +1653,13 @@ window.addEventListener('DOMContentLoaded', () => {
     bindFastTap(btnSplashCredits, () => showGuide(6, 'splash'));
 
     const btnSplashDemo = document.getElementById('btn-splash-demo');
-    if (btnSplashDemo) bindFastTap(btnSplashDemo, () => showDemoModal('splash'));
+    if (btnSplashDemo) {
+        if (isStandaloneApp()) {
+            btnSplashDemo.innerHTML = '<kbd>[D]</kbd> 🎬 Gameplay Demo <span style="font-size:11px; opacity:0.85; margin-left:2px;">(Web ↗)</span>';
+            btnSplashDemo.title = 'Watch official narrated 1080p gameplay showcase on angband3d.com (opens in default web browser)';
+        }
+        bindFastTap(btnSplashDemo, () => showDemoModal('splash'));
+    }
 
     const btnSplashStandalone = document.getElementById('btn-splash-standalone');
     if (btnSplashStandalone) bindFastTap(btnSplashStandalone, () => showPWAModal('splash'));
@@ -1638,7 +1671,15 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btnMenuPwa) bindFastTap(btnMenuPwa, () => showPWAModal('mainMenu'));
 
     const btnMenuDemo = document.getElementById('btn-menu-demo');
-    if (btnMenuDemo) bindFastTap(btnMenuDemo, () => showDemoModal('mainMenu'));
+    if (btnMenuDemo) {
+        if (isStandaloneApp()) {
+            const label = btnMenuDemo.querySelector('.menu-label');
+            const desc = btnMenuDemo.querySelector('.menu-desc');
+            if (label) label.textContent = '🎬 Gameplay Demo & Feature Showcase (Web ↗)';
+            if (desc) desc.textContent = 'Opens the official 1080p narrated showcase on angband3d.com in your web browser.';
+        }
+        bindFastTap(btnMenuDemo, () => showDemoModal('mainMenu'));
+    }
 
     // Audio Volume & Mute Control Synchronization
     function syncAudioUI() {
@@ -2349,6 +2390,15 @@ window.addEventListener('DOMContentLoaded', () => {
     let demoPreviousState = 'mainMenu';
 
     function showDemoModal(fromState = null) {
+        // Standalone Client Invariant: The video showcase player is hosted ONLY on the website.
+        // All non-web clients (Desktop Windows WebView2, Godot, Android APK) must point to the official website link
+        // and never attempt to play video natively or open the local modal.
+        if (isStandaloneApp() || (typeof document !== 'undefined' && document.body?.classList?.contains('is-standalone'))) {
+            if (audio) audio.playMenuNav();
+            openExternalUrl('https://angband3d.com/demo');
+            return;
+        }
+
         demoPreviousState = fromState || appState || 'mainMenu';
         appState = 'demoModal';
         if (demoModal) demoModal.classList.remove('hidden');

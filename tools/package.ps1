@@ -67,11 +67,16 @@ if (Test-Path $webSource) {
     New-Item -ItemType Directory -Path $webDest -Force | Out-Null
     Copy-Item "$webSource\*" $webDest -Recurse -Force
 
-    # Keep standalone distribution clean: strip web demo video walkthroughs & recording caches
+    # Keep standalone distribution clean: strip web demo video walkthroughs, recording caches, and web-only pages
     $pkgVideoDir = Join-Path $webDest 'assets\video'
     if (Test-Path $pkgVideoDir) {
         Write-Host "Excluding heavy web demo videos from game distribution package..." -ForegroundColor Gray
         Remove-Item $pkgVideoDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    $pkgDemoHtml = Join-Path $webDest 'demo.html'
+    if (Test-Path $pkgDemoHtml) {
+        Write-Host "Excluding web-only demo page from standalone package..." -ForegroundColor Gray
+        Remove-Item $pkgDemoHtml -Force -ErrorAction SilentlyContinue
     }
 }
 
