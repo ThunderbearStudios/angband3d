@@ -1269,4 +1269,42 @@ To guarantee broadcast quality with zero runtime API failure or network lag:
   - `tools/package.ps1` explicitly purges `assets/video/` from the staged distribution directory (`dist/Angband3D-Windows-x64/www/`) before creating release archives.
   - This prevents game distribution packages (`angband3d-standalone.zip`) from being bloated by 260+ MB of video data, guaranteeing lightweight, instant downloads for players while maintaining all marketing assets on the web server and dedicated `/demo` showcase.
 
+### 29.7 CDN Edge Cache Monolith Trap & Service Worker Range Interception (The "Zero-Seek" Production Defect)
+- **The Failure Mode**:
+  - Video chapter navigation (Act 0 through Act 9) worked smoothly on `localhost:8080`, but completely froze on the live production domain (`angband3d.com` and `angband3d.com/demo`).
+  - Clicking any Act button or dragging the scrubber updated UI state momentarily, but the video immediately snapped back to $t=0$ or buffered playback stalled.
+  - Headless Chrome CDP evaluation revealed:
+    ```json
+    "videoSeekable": [{ "start": 0, "end": 0 }],
+    "directSeekAssignment": { "before": 1.94, "immediate": 0 }
+    ```
+- **The Dual Root Cause**:
+  1. **Cloudflare Edge Proxy Range Stripping**:
+     - Origin `server.js` previously emitted `Cache-Control: public, max-age=86400` on video assets.
+     - When Cloudflare edge proxies cached the 120 MB MP4 file, they stored it as a monolithic `HTTP 200 OK` response.
+     - Subsequent client `Range: bytes=start-end` requests were answered directly by Cloudflare's edge cache with `HTTP 200 OK` (chunked transfer) rather than querying the origin with the `Range` header.
+     - Because the browser received `HTTP 200` instead of `HTTP 206 Partial Content` (with `Content-Range: bytes ...`), Chrome's native AV decoder marked the stream as unseekable (`seekable.length === 1 && end === 0`), causing any `video.currentTime = X` assignment to immediately reset to $0$.
+  2. **Service Worker Range Interception**:
+     - `server/public/sw.js` was intercepting all `fetch` events with `event.respondWith(fetch(event.request))`.
+     - Standard Service Worker `respondWith()` pipelines in Chromium and WebKit strip or buffer HTTP 206 byte ranges unless explicitly bypassed.
+- **The Mandatory Architectural Invariants**:
+  1. **Strictly Dynamic Media Caching for Byte-Range Endpoints**:
+     - In `server.js`, video and audio streams requiring byte ranges (`.mp4`, `.webm`, `.m4a`) must NEVER be served with `public` caching.
+     - Always emit `Cache-Control: no-cache, no-store, must-revalidate` on both full and `HTTP 206 Partial Content` responses. This guarantees CDN edge proxies (Cloudflare) mark requests as `DYNAMIC`, forwarding client `Range` headers to origin and streaming `HTTP 206` slices directly to the browser.
+  2. **Explicit Service Worker Media Stream Bypass**:
+     - In `sw.js`, any request matching `/assets/video/`, `.mp4`, `.webm`, or containing a `Range` header must return immediately without calling `event.respondWith()`:
+       ```javascript
+       if (url.pathname.startsWith('/assets/video/') || url.pathname.endsWith('.mp4') || url.pathname.endsWith('.webm') || event.request.headers.has('range')) {
+           return; // Allow native browser media pipeline to handle HTTP 206 range streaming
+       }
+       ```
+  3. **Versioned Asset Aliases for Edge Cache Invalidation**:
+     - Because CDNs like Cloudflare cache by URL and may hold stale 200 responses for hours, bump the video asset alias in markup (e.g. `/assets/video/angband3d_demo_v882.mp4`) and resolve it dynamically on origin to the canonical file on disk.
+- **Verification Proof**:
+  - Headless Chrome CDP tests (`tools/test_live_act_nav.js`) verify:
+    - `video.seekable` spans the complete 275s duration (`[{ start: 0, end: 274.96 }]`).
+    - Network responses return `HTTP 206 Partial Content` with `Content-Range: bytes ...`.
+    - Clicking Act 3 ($75.0\text{s}$) and Act 7 ($197.5\text{s}$) updates `currentTime` instantly without snap-back.
+
+
 
