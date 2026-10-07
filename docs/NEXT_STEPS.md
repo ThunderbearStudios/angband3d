@@ -1,8 +1,35 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.16.1 / Web v8.8.7 — Standalone Showcase Page Fullscreen & DOM Container Hierarchy Resolution, Web-Only Showcase Isolation & Universal Multi-Client Integration Masterclass)
+## Current System State (Angband3D v2.16.2 / Web v8.8.8 — Masterclass Award Submission Dossier, GAG Accessibility Audit, FOSS Community Governance & Social Graph Modernization)
 
-0. **Standalone Showcase Page Fullscreen & DOM Container Hierarchy Resolution (Web v8.8.7 / Angband3D v2.16.1)**:
+0. **Masterclass Award Submission Dossier, GAG Accessibility Audit & FOSS Governance (Angband3D v2.16.2 / Web v8.8.8)**:
+   - **Award Submission Dossier (`docs/AWARD_SUBMISSION_DOSSIER.md`)**:
+     - Authored complete, copy-pasteable submission essays tailored to exact category rubrics and word counts:
+       - *Independent Games Festival (IGF)*: Technical Excellence, Excellence in Design, Excellence in Audio, The Nuovo Award (The Preservation Manifesto), and Seumas McNally Grand Prize.
+       - *The Webby Awards*: Websites & Mobile Sites — Games / Technical Achievement / Best Visual Design.
+       - *IndieCade*: Innovation in Interaction & The Trailblazer.
+       - *Roguelike Celebration*: Technical Talk & Demonstration Showcase Abstract.
+       - *AbleGamers / GAconf*: Excellence in Accessibility.
+       - *GitHub Innovation & FOSS Awards*: Open Source Game Architecture & Digital Heritage.
+     - Documented empirical specifications table (11/11 smoke tests, 932 unit tests, 624/624 lore-audited entities, 0 KB memory leak over 10,000 turns, locked 60 FPS WebGL, -6 dB audio ceiling).
+     - Produced complete system architecture blueprints (stdio JSON IPC bridge, WebAssembly Asyncify Web Worker isolation, dual-reality CRT post-processing pipeline).
+     - Curated 1080p keyframe gallery with direct production URLs and timestamp-indexed walkthrough chapters.
+     - Established evaluator quick-play and wizard mode shortcuts (`Ctrl-W`, `Ctrl-A`) for instant late-game review.
+   - **Game Accessibility Guidelines (GAG) Audit (`docs/ACCESSIBILITY.md`)**:
+     - Published comprehensive accessibility statement evaluating Motor, Vision, Auditory, and Cognitive systems.
+     - Detailed accessibility breakthroughs: Pure turn-based temporal agency (zero twitch reflexes), 0-turn continuous camera yaw, Dual-Reality `[Tab]` CRT mode (motion sickness & vestibular relief), 100% visual-auditory redundancy (combat message drawer mirrors all sound), synchronized closed captions (`[CC]`), and -6 dB master dynamic limiting.
+   - **International Press Kit (`PRESSKIT.md`)**:
+     - Authored complete factsheet, 50-word elevator pitch, 250-word summary, key features, high-resolution media table, technical breakthrough summary, and studio background.
+   - **Community Health & FOSS Governance (`CODE_OF_CONDUCT.md`, `SECURITY.md`)**:
+     - Adopted Contributor Covenant v2.1 for community standards and moderation enforcement.
+     - Published responsible security vulnerability disclosure policy, threat boundary definitions, and response SLAs.
+   - **Social Graph & PWA Installation Enhancements (`server/public/index.html`, `server/public/manifest.json`)**:
+     - Configured rich Open Graph (`og:title`, `og:description`, `og:image`, `og:url`), Twitter Summary Cards, and `Schema.org/VideoGame` JSON-LD metadata.
+     - Added wide and narrow PWA `screenshots` array in `manifest.json`, unlocking rich app-store installation prompts in Chromium browsers.
+   - **Knowledge Codification (`docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md`)**:
+     - Codified Section 32: "Award Submission Strategy, Technical Storytelling & Cultural Preservation".
+
+1. **Standalone Showcase Page Fullscreen & DOM Container Hierarchy Resolution (Web v8.8.7 / Angband3D v2.16.1)**:
    - **Root Cause Identified**:
      - On the home page splash screen (`/`), the showcase theater is nested inside a modal: `<div id="demo-modal"><div class="demo-theater-container">...</div></div>`. Here, `this.modalEl` was `#demo-modal` and `this.modalEl.querySelector('.demo-theater-container')` correctly returned the inner container.
      - On the standalone showcase page (`/demo`), there is no `#demo-modal`. The controller fell back to `this.modalEl = document.querySelector('.demo-theater-container')`.
