@@ -1293,20 +1293,44 @@ const server = http.createServer((req, res) => {
             if (range && (ext === '.mp4' || ext === '.webm' || ext === '.mp3' || ext === '.wav' || ext === '.m4a')) {
                 try {
                     const total = fileStat.size;
-                    const parts = range.replace(/bytes=/, '').split('-');
-                    const start = parseInt(parts[0], 10);
-                    const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
-                    if (!isNaN(start) && start < total && end < total && start <= end) {
-                        const chunksize = (end - start) + 1;
-                        const stream = fs.createReadStream(filePath, { start, end });
-                        res.writeHead(206, {
-                            ...headers,
-                            'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Content-Range': `bytes ${start}-${end}/${total}`,
-                            'Content-Length': chunksize,
-                        });
-                        stream.pipe(res);
-                        return;
+                    const matches = range.match(/bytes=(\d*)-(\d*)/);
+                    if (matches) {
+                        let start = matches[1] ? parseInt(matches[1], 10) : NaN;
+                        let end = matches[2] ? parseInt(matches[2], 10) : NaN;
+
+                        if (isNaN(start) && !isNaN(end)) {
+                            // Suffix range: bytes=-500 (last 500 bytes)
+                            start = Math.max(0, total - end);
+                            end = total - 1;
+                        } else if (!isNaN(start) && isNaN(end)) {
+                            // Open-ended range: bytes=0- or bytes=1000-
+                            end = total - 1;
+                        }
+
+                        if (!isNaN(start) && !isNaN(end) && start < total && start <= end) {
+                            // Cloud Run (Google Frontend) enforces a strict 32MB payload limit on response bodies.
+                            // Cap streaming chunks to 4MB (4,194,304 bytes) for instant seeking and proxy resilience.
+                            const MAX_CHUNK = 4 * 1024 * 1024;
+                            const actualEnd = Math.min(end, start + MAX_CHUNK - 1, total - 1);
+                            const chunksize = (actualEnd - start) + 1;
+                            const stream = fs.createReadStream(filePath, { start, end: actualEnd });
+                            res.writeHead(206, {
+                                ...headers,
+                                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                'Content-Range': `bytes ${start}-${actualEnd}/${total}`,
+                                'Content-Length': chunksize,
+                            });
+                            stream.pipe(res);
+                            return;
+                        } else {
+                            // Unsatisfiable range
+                            res.writeHead(416, {
+                                'Content-Range': `bytes */${total}`,
+                                'Cache-Control': 'no-cache, no-store, must-revalidate'
+                            });
+                            res.end();
+                            return;
+                        }
                     }
                 } catch (_) {}
             }

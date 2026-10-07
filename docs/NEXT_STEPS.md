@@ -1,20 +1,22 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.15.0 / Web v8.8.2 — Broadcast Showcase Parity, Cloudflare Byte-Range Streaming Passthrough, Service Worker Bypass, Prominent README Showcase Badges & Global Deployment)
+## Current System State (Angband3D v2.15.0 / Web v8.8.4 — Broadcast Showcase Parity, Cloud Run 32MB Safe 4MB Range Chunking, Edge Proxy Dynamic Bypass, Prominent README Showcase Badges & Global Deployment)
 
-0. **Production Finalization & CDN Streaming Parity (Angband3D v2.15.0 / Web v8.8.2 — The Definitive Master Release)**:
+0. **Production Finalization & CDN Streaming Parity (Angband3D v2.15.0 / Web v8.8.4 — The Definitive Master Release)**:
    - **Streamlined In-Game Splash Screen (`index.html`, `dungeon.css`)**:
      - Stripped wordy 4-line server notice and redundant tome text; replaced with 4 sleek obsidian/gold glowing feature chips: `⚔ Bit-for-Bit 4.2.6 Rules`, `⌨ [Tab] CRT Terminal`, `📖 AI Living Chronicle`, `💾 Universal Saves`.
      - Compacted universal save portability note to a single punchy line with instant download trigger: `⚡ Universal .SAV Portability: Play in browser or download Standalone PC (.zip) & Android APK`.
      - Refined action button to `[ PRESS SPACE / ENTER / CLICK TO PLAY ]`.
      - Streamlined shortcut buttons to 7 essential, gold-accented quick-actions: `[D] 🎬 Gameplay Demo`, `[1] ⚔ Main Menu`, `[2] ✨ Features`, `[4] 📖 Guide`, `[6] 📱 Downloads`, `[5] 📜 Credits`, `[W] Wiki`.
    - **Unified Showcase Parity (`angband3d.com/demo` vs In-Game `#demo-modal`)**:
-     - Both standalone `/demo` and the in-game modal now stream from identical canonical master video assets (`angband3d_demo_v882.mp4` / `.webm`) with dynamic alias routing to `angband3d_demo.mp4` on disk.
+     - Both standalone `/demo` and the in-game modal now stream from identical canonical master video assets (`angband3d_demo_v884.mp4` / `.webm`) with dynamic alias routing to `angband3d_demo.mp4` on disk.
      - Both standalone `/demo` and the in-game modal share the single source of truth stylesheet (`dungeon.css`), identical `.demo-theater-container` structure, and unified controller (`demo-player.js`).
+     - **Cloud Run 32MB Streaming Limit & Safe 4MB Range Chunking**: Solved the production "zero-seek" snapback bug. Google Cloud Run's Google Frontend load balancer enforces a strict 32MB payload limit on response bodies. Open-ended browser range requests (`bytes=0-`, `bytes=X-`) naively produced >32MB responses, causing Google Frontend to abort with HTTP 500. Clamped range responses to safe 4MB slices (`MAX_CHUNK = 4 * 1024 * 1024`) under RFC 7233 / RFC 9110, enabling instantaneous seeking, silky timeline scrubbing, and zero proxy errors.
      - **CDN Byte-Range Streaming Trap Resolved**: Eliminated `Cache-Control: public` on media files in `server.js`. Emitted `Cache-Control: no-cache, no-store, must-revalidate` on all video responses and `HTTP 206 Partial Content` slices, preventing Cloudflare edge proxies from caching monolithic 200 chunked responses that broke browser seekability.
-     - **Service Worker Media Bypass**: Configured `sw.js` (v8.8.2) to return immediately on `/assets/video/`, `.mp4`, `.webm`, or any request with `Range` header, delegating media range streaming directly to the browser's native AV pipeline.
+     - **Service Worker Media Bypass**: Configured `sw.js` (v8.8.4) to return immediately on `/assets/video/`, `.mp4`, `.webm`, or any request with `Range` header, delegating media range streaming directly to the browser's native AV pipeline.
      - **Prominent GitHub README Showcase Links**: Added high-visibility shields badges and a dedicated `🌟 Official Live Links` callout linking directly to `https://angband3d.com` and `https://angband3d.com/demo`.
      - Added `bindChapterPills()` with explicit data-time seeking, ambient glow matching chapter accent colors, and smooth `scrollIntoView()` keeping active act pills centered in the horizontal ribbon.
+     - Full keyboard accessibility verified: Space/K play/pause, Arrow Right skip forward 5s, Arrow Left skip backward 5s, M mute, C captions, F fullscreen, Esc close.
      - Both standalone page and modal verified via automated CDP testing (`tools/test_live_act_nav.js`).
      - Added persistent permalink button `🔗 Standalone Page (angband3d.com/demo) ↗` inside the modal footer strip.
    - **Standalone Release Packaging & Strict Demo Isolation (`tools/package.ps1`)**:

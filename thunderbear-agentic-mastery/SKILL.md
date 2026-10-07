@@ -45,7 +45,7 @@ When booting or resuming:
 - **Audio Mutual Exclusion**: $\text{delay}_i + \text{duration}_i + \text{buffer} \le \text{delay}_{i+1}$.
 - **Semantic State**: Never rely on DOM mutations surviving layout loops. Bind UI elements to explicit state booleans.
 - **Golden State Vaulting**: Maintain pristine backups of persistent game/data state and restore before automated test runs.
-- **Media Streaming & Edge Proxy Invariant**: Any endpoint serving video/audio requiring timeline seeking/scrubbing MUST use `HTTP 206 Partial Content` with `Accept-Ranges: bytes` and `Content-Range`. It must NEVER be served with `public` caching headers to CDN edge proxies (Cloudflare); always emit `Cache-Control: no-cache, no-store, must-revalidate` so proxies mark requests as dynamic, avoiding monolithic 200 chunked responses that destroy browser seekability. Service workers must explicitly return early to bypass media range requests.
+- **Media Streaming & Edge Proxy Invariant**: Any endpoint serving video/audio requiring timeline seeking/scrubbing MUST use `HTTP 206 Partial Content` with `Accept-Ranges: bytes` and `Content-Range`. It must NEVER be served with `public` caching headers to CDN edge proxies (Cloudflare); always emit `Cache-Control: no-cache, no-store, must-revalidate` so proxies mark requests as dynamic, avoiding monolithic 200 chunked responses that destroy browser seekability. Range requests MUST clamp open-ended slices (`bytes=0-`, `bytes=X-`) to safe chunks (e.g. 4MB) under RFC 7233 to prevent Cloud Run / Google Frontend 32MB payload buffer limit failures (`HTTP 500`). Service workers must explicitly return early to bypass media range requests.
 
 ---
 

@@ -1278,7 +1278,7 @@ To guarantee broadcast quality with zero runtime API failure or network lag:
     "videoSeekable": [{ "start": 0, "end": 0 }],
     "directSeekAssignment": { "before": 1.94, "immediate": 0 }
     ```
-- **The Dual Root Cause**:
+- **The Triple Root Cause**:
   1. **Cloudflare Edge Proxy Range Stripping**:
      - Origin `server.js` previously emitted `Cache-Control: public, max-age=86400` on video assets.
      - When Cloudflare edge proxies cached the 120 MB MP4 file, they stored it as a monolithic `HTTP 200 OK` response.
@@ -1287,6 +1287,12 @@ To guarantee broadcast quality with zero runtime API failure or network lag:
   2. **Service Worker Range Interception**:
      - `server/public/sw.js` was intercepting all `fetch` events with `event.respondWith(fetch(event.request))`.
      - Standard Service Worker `respondWith()` pipelines in Chromium and WebKit strip or buffer HTTP 206 byte ranges unless explicitly bypassed.
+  3. **Cloud Run / Google Frontend 32MB Response Body Limit & Range Oversizing**:
+     - Google Cloud Run (and Google Frontend load balancer) enforces a strict 32 MB response body limit (`HTTP 500` with `server: Google Frontend` and `content-length: 0`).
+     - When Chrome streams or seeks HTML5 video, Chrome sends open-ended range requests (`Range: bytes=0-` or `Range: bytes=32000000-`).
+     - If origin server naively resolves open-ended ranges to `end = total - 1`, the response payload equals the remaining file size (e.g. 120MB or 88MB).
+     - This exceeds the 32MB limit, causing Google Frontend to immediately terminate the connection with `HTTP 500`.
+     - In response to HTTP 500, Chrome's media pipeline never fires `loadedmetadata`, `duration` stays null, and seeking immediately aborts or snaps back to 0.
 - **The Mandatory Architectural Invariants**:
   1. **Strictly Dynamic Media Caching for Byte-Range Endpoints**:
      - In `server.js`, video and audio streams requiring byte ranges (`.mp4`, `.webm`, `.m4a`) must NEVER be served with `public` caching.
@@ -1298,13 +1304,22 @@ To guarantee broadcast quality with zero runtime API failure or network lag:
            return; // Allow native browser media pipeline to handle HTTP 206 range streaming
        }
        ```
-  3. **Versioned Asset Aliases for Edge Cache Invalidation**:
-     - Because CDNs like Cloudflare cache by URL and may hold stale 200 responses for hours, bump the video asset alias in markup (e.g. `/assets/video/angband3d_demo_v882.mp4`) and resolve it dynamically on origin to the canonical file on disk.
+  3. **RFC 7233 / RFC 9110 Safe Range Chunk Clamping (4MB Slices)**:
+     - Under the HTTP range specification, an origin server is explicitly permitted to return a smaller byte range than requested in an `HTTP 206 Partial Content` response.
+     - Never resolve open-ended ranges (`bytes=0-`, `bytes=X-`) to `total - 1`. Always clamp the response chunk size:
+       ```javascript
+       const MAX_CHUNK = 4 * 1024 * 1024; // 4MB safe chunk size
+       const actualEnd = Math.min(end, start + MAX_CHUNK - 1, total - 1);
+       ```
+     - This guarantees every response body stays well below the 32MB Cloud Run limit, minimizes Time-to-First-Frame (TTFB), and delivers instant, silky-smooth chapter seeking and timeline scrubbing.
+  4. **Versioned Asset Aliases for Edge Cache Invalidation**:
+     - Because CDNs like Cloudflare cache by URL and may hold stale 200 responses or proxy errors for hours, bump the video asset alias in markup (e.g. `/assets/video/angband3d_demo_v884.mp4`) and resolve it dynamically on origin to the canonical file on disk.
 - **Verification Proof**:
-  - Headless Chrome CDP tests (`tools/test_live_act_nav.js`) verify:
+  - Automated Chrome CDP tests (`tools/test_live_act_nav.js`) verify:
     - `video.seekable` spans the complete 275s duration (`[{ start: 0, end: 274.96 }]`).
-    - Network responses return `HTTP 206 Partial Content` with `Content-Range: bytes ...`.
+    - Network responses return `HTTP 206 Partial Content` with `Content-Range: bytes ...` and `Content-Length: 4194304`.
     - Clicking Act 3 ($75.0\text{s}$) and Act 7 ($197.5\text{s}$) updates `currentTime` instantly without snap-back.
+    - Pressing Arrow Right (+5s) and Arrow Left (-5s) navigates forward and backward seamlessly.
 
 
 
