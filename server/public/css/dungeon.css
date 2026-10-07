@@ -5704,6 +5704,188 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 /* ==============================================================================
+   Demo Theater True Fullscreen & Floating HUD Controls
+   ============================================================================== */
+.demo-theater-container:fullscreen,
+.demo-theater-container:-webkit-full-screen,
+.demo-theater-container.is-fullscreen,
+.demo-standalone-main .demo-theater-container:fullscreen,
+.demo-standalone-main .demo-theater-container:-webkit-full-screen,
+.demo-standalone-main .demo-theater-container.is-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #000000 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    z-index: 999999 !important;
+}
+
+.demo-theater-container:fullscreen .demo-ambient-glow,
+.demo-theater-container:-webkit-full-screen .demo-ambient-glow,
+.demo-theater-container.is-fullscreen .demo-ambient-glow {
+    display: none !important;
+}
+
+.demo-theater-container:fullscreen .demo-footer-strip,
+.demo-theater-container:-webkit-full-screen .demo-footer-strip,
+.demo-theater-container.is-fullscreen .demo-footer-strip {
+    display: none !important;
+}
+
+.demo-theater-container:fullscreen .demo-video-wrapper,
+.demo-theater-container:-webkit-full-screen .demo-video-wrapper,
+.demo-theater-container.is-fullscreen .demo-video-wrapper {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    aspect-ratio: unset !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #000000 !important;
+    z-index: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.demo-theater-container:fullscreen #demo-video-player,
+.demo-theater-container:-webkit-full-screen #demo-video-player,
+.demo-theater-container.is-fullscreen #demo-video-player {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    object-fit: contain !important;
+    background: #000000 !important;
+}
+
+/* Floating Top-Right Close Button in Fullscreen */
+.demo-theater-container:fullscreen .demo-close-btn,
+.demo-theater-container:-webkit-full-screen .demo-close-btn,
+.demo-theater-container.is-fullscreen .demo-close-btn {
+    top: 20px !important;
+    right: 24px !important;
+    width: 42px !important;
+    height: 42px !important;
+    font-size: 20px !important;
+    background: rgba(10, 15, 26, 0.88) !important;
+    border: 1px solid rgba(212, 175, 55, 0.6) !important;
+    z-index: 50 !important;
+    transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+/* Captions Overlay position in Fullscreen */
+.demo-theater-container:fullscreen .demo-captions-overlay,
+.demo-theater-container:-webkit-full-screen .demo-captions-overlay,
+.demo-theater-container.is-fullscreen .demo-captions-overlay {
+    bottom: 130px !important;
+    z-index: 35 !important;
+    transition: bottom 0.3s ease, opacity 0.3s ease !important;
+}
+
+/* Floating HUD Controls in Fullscreen */
+.demo-theater-container:fullscreen .demo-transport-bar,
+.demo-theater-container:-webkit-full-screen .demo-transport-bar,
+.demo-theater-container.is-fullscreen .demo-transport-bar {
+    position: absolute !important;
+    bottom: 50px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: min(1200px, calc(100% - 48px)) !important;
+    background: rgba(8, 12, 21, 0.92) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(212, 175, 55, 0.45) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.95) !important;
+    z-index: 40 !important;
+    transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+.demo-theater-container:fullscreen .demo-chapter-ribbon,
+.demo-theater-container:-webkit-full-screen .demo-chapter-ribbon,
+.demo-theater-container.is-fullscreen .demo-chapter-ribbon {
+    position: absolute !important;
+    bottom: 8px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: min(1200px, calc(100% - 48px)) !important;
+    margin: 0 !important;
+    z-index: 40 !important;
+    background: transparent !important;
+    transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+/* Auto-Hide HUD on Mouse Inactivity */
+.demo-theater-container.is-fullscreen.hud-hidden {
+    cursor: none !important;
+}
+
+.demo-theater-container.is-fullscreen.hud-hidden .demo-transport-bar,
+.demo-theater-container.is-fullscreen.hud-hidden .demo-chapter-ribbon {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translate(-50%, 20px) !important;
+}
+
+.demo-theater-container.is-fullscreen.hud-hidden .demo-close-btn {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(-20px) !important;
+}
+
+.demo-theater-container.is-fullscreen.hud-hidden .demo-captions-overlay {
+    bottom: 36px !important;
+}
+
+@media (max-width: 768px) {
+    .demo-theater-container:fullscreen .demo-transport-bar,
+    .demo-theater-container:-webkit-full-screen .demo-transport-bar,
+    .demo-theater-container.is-fullscreen .demo-transport-bar {
+        bottom: 42px !important;
+        width: calc(100% - 16px) !important;
+        padding: 8px 12px !important;
+    }
+    .demo-theater-container:fullscreen .demo-chapter-ribbon,
+    .demo-theater-container:-webkit-full-screen .demo-chapter-ribbon,
+    .demo-theater-container.is-fullscreen .demo-chapter-ribbon {
+        bottom: 4px !important;
+        width: calc(100% - 16px) !important;
+    }
+    .demo-theater-container:fullscreen .demo-close-btn,
+    .demo-theater-container:-webkit-full-screen .demo-close-btn,
+    .demo-theater-container.is-fullscreen .demo-close-btn {
+        top: 12px !important;
+        right: 12px !important;
+    }
+}
+
+/* ==============================================================================
    Standalone Showcase Page Layout (/demo) — Pixel-Perfect Parity with In-Game Theater
    ============================================================================== */
 .demo-standalone-page {

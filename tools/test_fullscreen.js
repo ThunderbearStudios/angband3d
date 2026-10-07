@@ -1,0 +1,141 @@
+const { spawn } = require('child_process');
+const http = require('http');
+const fs = require('fs');
+
+async function testPage(url, isModal = false) {
+  console.log(`\n=== Testing ${url} (isModal: ${isModal}) ===`);
+  const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  const chrome = spawn(chromePath, [
+    '--headless=new',
+    '--remote-debugging-port=9400',
+    '--window-size=1920,1080',
+    '--disable-gpu',
+    '--no-sandbox',
+    url
+  ]);
+
+  await new Promise(r => setTimeout(r, 2500));
+
+  const versionData = await new Promise((resolve) => {
+    http.get('http://127.0.0.1:9400/json', res => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(JSON.parse(data)));
+    });
+  });
+
+  const pageTarget = versionData.find(t => t.type === 'page');
+  const WebSocket = require('ws');
+  const ws = new WebSocket(pageTarget.webSocketDebuggerUrl);
+
+  await new Promise(r => ws.on('open', r));
+
+  let id = 1;
+  function send(method, params = {}) {
+    return new Promise((resolve) => {
+      const msgId = id++;
+      const handler = (data) => {
+        const msg = JSON.parse(data);
+        if (msg.id === msgId) {
+          ws.off('message', handler);
+          resolve(msg.result);
+        }
+      };
+      ws.on('message', handler);
+      ws.send(JSON.stringify({ id: msgId, method, params }));
+    });
+  }
+
+  await send('Page.enable');
+  await send('Runtime.enable');
+
+  await new Promise(r => setTimeout(r, 1000));
+
+  if (isModal) {
+    // Open modal on home page
+    await send('Runtime.evaluate', {
+      expression: `(() => {
+        if (window.__app && window.__app.demoPlayer) {
+          window.__app.demoPlayer.open('splash');
+        } else if (window.demoPlayer) {
+          window.demoPlayer.open('splash');
+        } else {
+          const btn = document.getElementById('btn-splash-demo');
+          if (btn) btn.click();
+        }
+      })()`
+    });
+    await new Promise(r => setTimeout(r, 1000));
+  }
+
+  const evalRes = await send('Runtime.evaluate', {
+    expression: `(async () => {
+      const video = document.getElementById('demo-video-player');
+      const wrapper = document.querySelector('.demo-video-wrapper');
+      const container = document.querySelector('.demo-theater-container');
+      const transport = document.querySelector('.demo-transport-bar');
+      const ribbon = document.querySelector('.demo-chapter-ribbon');
+
+      const normal = {
+        video: { w: video.offsetWidth, h: video.offsetHeight },
+        wrapper: { w: wrapper.offsetWidth, h: wrapper.offsetHeight },
+        container: { w: container.offsetWidth, h: container.offsetHeight }
+      };
+
+      // Enter fullscreen
+      container.classList.add('is-fullscreen');
+      const player = window.__app && window.__app.demoPlayer ? window.__app.demoPlayer : window.demoPlayer;
+      if (player) player.isFullscreen = true;
+
+      const fsRect = {
+        window: { w: window.innerWidth, h: window.innerHeight },
+        video: { w: video.offsetWidth, h: video.offsetHeight },
+        wrapper: { w: wrapper.offsetWidth, h: wrapper.offsetHeight },
+        container: { w: container.offsetWidth, h: container.offsetHeight },
+        transport: { w: transport.offsetWidth, h: transport.offsetHeight, bottom: Math.round(window.innerHeight - transport.getBoundingClientRect().bottom) },
+        ribbon: { w: ribbon.offsetWidth, h: ribbon.offsetHeight, bottom: Math.round(window.innerHeight - ribbon.getBoundingClientRect().bottom) }
+      };
+
+      // Test HUD auto-hide state
+      container.classList.add('hud-hidden');
+      await new Promise(r => setTimeout(r, 450));
+      const transportStyle = window.getComputedStyle(transport);
+      const hudHiddenOpacity = parseFloat(transportStyle.opacity);
+      const hudHiddenPointerEvents = transportStyle.pointerEvents;
+
+      // Revert
+      container.classList.remove('hud-hidden', 'is-fullscreen');
+      if (player) player.isFullscreen = false;
+
+      return {
+        normal,
+        fullscreen: fsRect,
+        hudHidden: {
+          opacity: hudHiddenOpacity,
+          pointerEvents: hudHiddenPointerEvents
+        }
+      };
+    })()`,
+    awaitPromise: true,
+    returnByValue: true
+  });
+
+  console.log('Result:', JSON.stringify(evalRes.result.value, null, 2));
+  chrome.kill();
+  return evalRes.result.value;
+}
+
+async function main() {
+  const r1 = await testPage('http://localhost:8080/demo', false);
+  const r2 = await testPage('http://localhost:8080/', true);
+
+  console.log('\n================ SUMMARY ================');
+  console.log('Demo Page Fullscreen Video Fill:', r1.fullscreen.video.w === r1.fullscreen.window.w && r1.fullscreen.video.h === r1.fullscreen.window.h ? '✅ PASS' : '❌ FAIL');
+  console.log('Demo Page HUD Auto-Hide:', r1.hudHidden.opacity < 0.05 && r1.hudHidden.pointerEvents === 'none' ? '✅ PASS' : '❌ FAIL');
+  console.log('Modal Page Fullscreen Video Fill:', r2.fullscreen.video.w === r2.fullscreen.window.w && r2.fullscreen.video.h === r2.fullscreen.window.h ? '✅ PASS' : '❌ FAIL');
+  console.log('Modal Page HUD Auto-Hide:', r2.hudHidden.opacity < 0.05 && r2.hudHidden.pointerEvents === 'none' ? '✅ PASS' : '❌ FAIL');
+
+  process.exit(0);
+}
+
+main().catch(e => { console.error(e); process.exit(1); });
