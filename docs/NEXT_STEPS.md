@@ -32,6 +32,7 @@
        - 29.5 Unified Standalone Showcase Routing & HTTP 206 Partial Content Streaming.
        - 29.6 Distribution Package Hygiene & Heavy Demo Video Separation Invariants.
    - **Comprehensive Automated Verification Suites (100% PASS)**:
+     - `node tools/test_live_act_nav.js https://angband3d.com`: 4/4 suites PASS on live production (Dedicated Demo Act Nav, Modal Act Nav, Demo Arrow Key Skipping, Modal Arrow Key Skipping).
      - `node tools/test_demo_showcase.js`: 7/7 suites PASS.
      - `node tools/test_cloud_live_demo.js`: 100% PASS across production and regional Cloud Run backends.
      - `python tools/smoke_test.py`: 11/11 tests PASS.
