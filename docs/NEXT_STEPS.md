@@ -1,24 +1,22 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.15.0 / Web v8.8.0 — Award-Ready Production Finalization, In-Game Splash Streamlining, Unified Showcase Parity, Isolated Executable Packaging & Global Deployment)
+## Current System State (Angband3D v2.15.0 / Web v8.8.2 — Broadcast Showcase Parity, Cloudflare Byte-Range Streaming Passthrough, Service Worker Bypass, Prominent README Showcase Badges & Global Deployment)
 
-0. **Production Finalization & Award Readiness (Angband3D v2.15.0 / Web v8.8.0 — The Definitive Master Release)**:
+0. **Production Finalization & CDN Streaming Parity (Angband3D v2.15.0 / Web v8.8.2 — The Definitive Master Release)**:
    - **Streamlined In-Game Splash Screen (`index.html`, `dungeon.css`)**:
      - Stripped wordy 4-line server notice and redundant tome text; replaced with 4 sleek obsidian/gold glowing feature chips: `⚔ Bit-for-Bit 4.2.6 Rules`, `⌨ [Tab] CRT Terminal`, `📖 AI Living Chronicle`, `💾 Universal Saves`.
      - Compacted universal save portability note to a single punchy line with instant download trigger: `⚡ Universal .SAV Portability: Play in browser or download Standalone PC (.zip) & Android APK`.
      - Refined action button to `[ PRESS SPACE / ENTER / CLICK TO PLAY ]`.
      - Streamlined shortcut buttons to 7 essential, gold-accented quick-actions: `[D] 🎬 Gameplay Demo`, `[1] ⚔ Main Menu`, `[2] ✨ Features`, `[4] 📖 Guide`, `[6] 📱 Downloads`, `[5] 📜 Credits`, `[W] Wiki`.
    - **Unified Showcase Parity (`angband3d.com/demo` vs In-Game `#demo-modal`)**:
-     - Both standalone `/demo` and the in-game modal now stream from identical canonical master video assets (`angband3d_demo.mp4` / `.webm`) with versioned fallbacks.
-     - Both standalone /demo and the in-game modal now share the single source of truth stylesheet (dungeon.css), identical .demo-theater-container structure, and unified controller (demo-player.js).
-     - Resolved Act navigation failures: added this.isSeeking asynchronous seek protection in demo-player.js to eliminate the snap-back race condition in startLoop() and timeupdate.
-     - Resolved autoplay rejections: wrapped video.play() in Promise catch handlers with seamless muted fallback for modern browser autoplay policies.
-     - Added bindChapterPills() with explicit data-time seeking, ambient glow matching chapter accent colors, and smooth scrollIntoView() keeping active act pills centered in the horizontal ribbon.
-     - Fixed visual layout: replaced wrapping pills and overflowing headers with a sleek single-row horizontal ribbon (max-height: min(580px, calc(100vh - 220px))), integrated top-right close button, and unified branding.
-     - Both standalone page and modal verified via automated CDP testing (diagnose_acts.js, snap_demos.js, test_act7.js).
+     - Both standalone `/demo` and the in-game modal now stream from identical canonical master video assets (`angband3d_demo_v882.mp4` / `.webm`) with dynamic alias routing to `angband3d_demo.mp4` on disk.
+     - Both standalone `/demo` and the in-game modal share the single source of truth stylesheet (`dungeon.css`), identical `.demo-theater-container` structure, and unified controller (`demo-player.js`).
+     - **CDN Byte-Range Streaming Trap Resolved**: Eliminated `Cache-Control: public` on media files in `server.js`. Emitted `Cache-Control: no-cache, no-store, must-revalidate` on all video responses and `HTTP 206 Partial Content` slices, preventing Cloudflare edge proxies from caching monolithic 200 chunked responses that broke browser seekability.
+     - **Service Worker Media Bypass**: Configured `sw.js` (v8.8.2) to return immediately on `/assets/video/`, `.mp4`, `.webm`, or any request with `Range` header, delegating media range streaming directly to the browser's native AV pipeline.
+     - **Prominent GitHub README Showcase Links**: Added high-visibility shields badges and a dedicated `🌟 Official Live Links` callout linking directly to `https://angband3d.com` and `https://angband3d.com/demo`.
+     - Added `bindChapterPills()` with explicit data-time seeking, ambient glow matching chapter accent colors, and smooth `scrollIntoView()` keeping active act pills centered in the horizontal ribbon.
+     - Both standalone page and modal verified via automated CDP testing (`tools/test_live_act_nav.js`).
      - Added persistent permalink button `🔗 Standalone Page (angband3d.com/demo) ↗` inside the modal footer strip.
-     - Implemented HTTP 206 Partial Content byte-range request streaming in `server.js`, enabling instant seeking across the 275-second timeline without full buffering.
-     - Closed captions feature distinct CSS classes for companions (`.speaker-lorekeeper`, `#38bdf8`) and creatures (`.speaker-creature`, `#ef4444`).
    - **Standalone Release Packaging & Strict Demo Isolation (`tools/package.ps1`)**:
      - Staging pipeline compiles native Windows C engine, C# Godot standalone (`Angband3D-Godot.exe`), and desktop client (`Angband3D.exe`).
      - **Asset Isolation Invariant**: Packaging script explicitly strips `assets/video` from the staged `www/` directory, preventing 260+ MB of marketing walkthrough videos from bloating player downloads.
