@@ -37,6 +37,7 @@
 29. [Award-Ready Production Finalization: Tall 2-Tile Shockbolt Detection, Vocal Dialogue Choreography, Message Drawer Mutual Exclusion, and Release Asset Isolation](#29-award-ready-production-finalization-tall-2-tile-shockbolt-detection-vocal-dialogue-choreography-message-drawer-mutual-exclusion-and-release-asset-isolation)
 30. [Standalone Client External Link Decoupling, Distribution Hygiene & Web-Only Media Architecture](#30-standalone-client-external-link-decoupling-distribution-hygiene--web-only-media-architecture)
 31. [DOM Target Hierarchy Invariants & Fullscreen Dual-Engine Resolution](#31-dom-target-hierarchy-invariants--fullscreen-dual-engine-resolution)
+32. [Award Submission Strategy, Technical Storytelling & Cultural Preservation](#32-award-submission-strategy-technical-storytelling--cultural-preservation)
 
 ---
 
@@ -1641,3 +1642,33 @@ if (this.videoWrapperEl) {
 ```
 Eliminates duplicate click listeners on `videoEl` when wrapped inside `videoWrapperEl`, allowing single clicks to debounce into play/pause and rapid double-clicks to toggle cinema fullscreen seamlessly.
 
+---
+
+## 32. Award Submission Strategy, Technical Storytelling & Cultural Preservation
+
+> **Target Competitions**: Independent Games Festival (IGF), The Webby Awards, IndieCade, Roguelike Celebration, AbleGamers / GAconf Awards, and GitHub Innovation / FOSS Awards.  
+> **Core Premise**: *Preservation Over Reimplementation* — Winning technical and design awards requires transforming complex engineering decisions into a compelling, evidence-backed narrative of cultural stewardship.
+
+### 32.1 The Winning Narrative: The "Preservation Over Reimplementation" Thesis
+In competition judging, technical ambition without an artistic or philosophical anchor is often dismissed as dry engineering. Conversely, artistic concepts lacking deep technical execution fail technical juries.
+- **The Core Tension**: The games industry suffers from a pervasive remake culture that erases foundational codebases. Studios rebuild classics with generic modern engines, discarding decades of mathematical depth, heuristic balance, and emergent AI ecology.
+- **The Angband 3D Solution**: Treat foundational games the way architectural conservation treats historic cathedrals: keep the 35-year-old C simulation bedrock 100% authoritative and build a modern sensory bridge around it.
+- **The Double Impact**: This simultaneously establishes **Technical Ambition** (interfacing a 35-year-old monolithic C engine with 60 FPS WebAssembly/WebGL) and **Design / Artistic Integrity** (honoring game design history without compromise).
+
+### 32.2 Category-Tailored Technical Storytelling
+Award jurors review dozens or hundreds of submissions under tight time constraints. Technical storytelling must immediately front-load concrete breakthroughs:
+
+| Award Category | Juror Question | Angband 3D Concrete Evidence |
+|---|---|---|
+| **IGF Technical Excellence** | *"What hard computational or architectural barrier was overcome?"* | Hijacking single-threaded C `getch()` with Emscripten `ASYNCIFY` inside a Web Worker, decoupling engine compute from 60 FPS WebGL PBR rendering over a zero-allocation stdio JSON bridge. |
+| **IGF Excellence in Design** | *"How does this advance player interaction or mechanics?"* | Eliminating the 30-year turn-based 3D dilemma via **0-turn continuous camera yaw** and **Dual-Reality `[Tab]` CRT mode**, maintaining 100% temporal player agency. |
+| **IGF Excellence in Audio** | *"How does sound enhance world-building and tactical feedback?"* | Procedural Web Audio DSP synthesis with a hard **-6 dB master dynamics limiter** and *The Living Chronicle* dual-voice AI narration adhering to strict vocal mutual exclusion. |
+| **The Webby Awards** | *"Does it deliver an exceptional, friction-free web experience?"* | Zero-install, console-quality 60 FPS 3D gaming in any modern browser, PWA offline caching via IndexedDB, and responsive split-thumb mobile touch ergonomics. |
+| **AbleGamers / GAconf** | *"How does it dismantle traditional gaming barriers?"* | Turn-based temporal agency (zero reflex requirements), 2D CRT terminal mode eliminating 3D motion sickness, closed captions (`[CC]`), and 100% visual-auditory redundancy. |
+
+### 32.3 Judge Evaluation Optimization & Zero Friction
+Jurors often have less than 15 minutes to form an initial impression. Every barrier to entry reduces submission score.
+1. **Zero-Install Web Entry**: Always provide an unauthenticated, zero-friction link (`https://angband3d.com`) requiring zero plugins, downloads, or accounts.
+2. **Curated Showcase Alternative**: For jurors who cannot play immediately or prefer a guided experience, provide a broadcast-quality, chapter-scrubbable interactive walkthrough (`https://angband3d.com/demo`).
+3. **Wizard Mode Shortcuts for Deep Content**: Roguelikes take dozens of hours to reach late-game content (unique dragons, ancient artifact vaults). Provide clear, prominent debug hotkeys (`Ctrl-W` Wizard Mode, `Ctrl-A` Debug Commands) in the submission dossier so jurors can immediately inspect endgame content.
+4. **Permanent Empirical Grounding**: Never make unverified marketing claims. Always cite automated test counts (11/11 C smoke tests, 932 unit tests), lore audits (624/624 entities), memory benchmarks (0 KB leaks over 10,000 turns), and open-source file paths.
