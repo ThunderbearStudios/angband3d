@@ -116,7 +116,25 @@
             };
         }
 
+        isClientStandalone() {
+            return (typeof window !== 'undefined' && (
+                (window.chrome && window.chrome.webview !== undefined) ||
+                window.location.hostname === 'angband3d.local' ||
+                (typeof document !== 'undefined' && document.body?.classList?.contains('is-standalone')) ||
+                window.Capacitor !== undefined ||
+                window.location.protocol === 'file:' ||
+                window.location.protocol === 'capacitor:'
+            ));
+        }
+
         init() {
+            // Standalone Native Client Guard:
+            // Standalone desktop/Android apps never bundle video or play demo locally;
+            // demo showcase is strictly hosted on https://angband3d.com/demo.
+            if (this.isClientStandalone()) {
+                return;
+            }
+
             // Auto-detect standalone page context
             if (!this.isStandalone) {
                 const path = window.location.pathname || '';
@@ -440,6 +458,7 @@
         }
 
         async preloadManifest() {
+            if (this.isClientStandalone()) return;
             try {
                 const res = await fetch('/assets/audio/demo/demo_manifest.json');
                 if (res.ok) {
@@ -463,6 +482,17 @@
         }
 
         open(fromState = 'mainMenu') {
+            // Standalone Client Invariant: Demo showcase is strictly web-only.
+            // Shell out to https://angband3d.com/demo and exit without opening modal.
+            if (this.isClientStandalone()) {
+                if (typeof window.openExternalUrl === 'function') {
+                    window.openExternalUrl('https://angband3d.com/demo');
+                } else {
+                    window.open('https://angband3d.com/demo', '_blank');
+                }
+                return;
+            }
+
             if (this.isOpen) return;
             this.isOpen = true;
             this.previousState = fromState;

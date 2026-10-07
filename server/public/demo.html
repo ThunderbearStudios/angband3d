@@ -34,7 +34,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Outfit:wght@400;500;600;700&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
 
     <!-- Single Source of Truth Stylesheet -->
-    <link rel="stylesheet" href="/css/dungeon.css?v=8.8.2">
+    <link rel="stylesheet" href="/css/dungeon.css?v=8.8.6">
+
+    <!-- Standalone Client Redirection: The video showcase is hosted strictly on https://angband3d.com/demo -->
+    <script>
+        (function() {
+            var isStandalone = (window.chrome && window.chrome.webview !== undefined) ||
+                               window.location.hostname === 'angband3d.local' ||
+                               window.location.protocol === 'file:' ||
+                               window.location.protocol === 'capacitor:' ||
+                               window.Capacitor !== undefined;
+            if (isStandalone) {
+                if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+                    window.chrome.webview.postMessage({ type: 'openExternal', url: 'https://angband3d.com/demo' });
+                } else {
+                    window.open('https://angband3d.com/demo', '_blank');
+                }
+                window.location.href = '/index.html';
+            }
+        })();
+    </script>
 </head>
 <body class="demo-standalone-page">
 
@@ -155,6 +174,6 @@
     </main>
 
     <!-- Single Source of Truth Video Controller Script -->
-    <script src="/js/demo-player.js?v=8.8.2"></script>
+    <script src="/js/demo-player.js?v=8.8.6"></script>
 </body>
 </html>

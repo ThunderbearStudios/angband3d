@@ -244,7 +244,11 @@ class InputController {
                 }
                 if (e.key === 'w' || e.key === 'W') {
                     e.preventDefault();
-                    window.open('https://angband.readthedocs.io/', '_blank');
+                    if (typeof window.openExternalUrl === 'function') {
+                        window.openExternalUrl('https://angband.readthedocs.io/');
+                    } else {
+                        window.open('https://angband.readthedocs.io/', '_blank');
+                    }
                     return;
                 }
                 // Any key advances from splash screen to main menu
@@ -452,7 +456,11 @@ class InputController {
                 }
                 if (e.key === 'w' || e.key === 'W') {
                     e.preventDefault();
-                    window.open('https://angband.readthedocs.io/', '_blank');
+                    if (typeof window.openExternalUrl === 'function') {
+                        window.openExternalUrl('https://angband.readthedocs.io/');
+                    } else {
+                        window.open('https://angband.readthedocs.io/', '_blank');
+                    }
                     return;
                 }
                 if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown'].includes(e.key)) {

@@ -1,8 +1,31 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.15.0 / Web v8.8.5 — Broadcast Showcase Parity, True Fullscreen Video with Auto-Hiding Floating HUD, Cloud Run 32MB Safe 4MB Range Chunking, Edge Proxy Dynamic Bypass, Prominent README Showcase Badges & Global Deployment)
+## Current System State (Angband3D v2.16.0 / Web v8.8.6 — Standalone Client External Link Decoupling, Web-Only Showcase Isolation, Zero-Bloat Distribution Hygiene & Universal Multi-Client Integration Masterclass)
 
-0. **Production Finalization & CDN Streaming Parity (Angband3D v2.15.0 / Web v8.8.5 — The Definitive Master Release)**:
+0. **Standalone Client External Link Decoupling & Distribution Hygiene (Angband3D v2.16.0 / Web v8.8.6 — Final Production Polish)**:
+   - **Standalone Client External Redirection Invariant (`desktop/MainForm.cs`, `app.js`, `input.js`)**:
+     - Enforced strict invariant: The interactive 1080p narrated gameplay showcase is **hosted strictly on the official website** (`https://angband3d.com/demo`). Non-web clients (Desktop Windows WebView2, Godot C#, Android APK) must never bundle video or attempt native video playback.
+     - **Triple-Layer Redirection Protocol in WebView2 (`desktop/MainForm.cs`)**:
+       - `CoreWebView2.NewWindowRequested`: Intercepts `window.open` and `<a target="_blank">`, sets `e.Handled = true`, and invokes `Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })` to launch the Windows default system browser.
+       - `CoreWebView2.NavigationStarting`: Prevents internal container hijacking; if target URI is not `angband3d.local`, cancels navigation (`e.Cancel = true`) and opens in the system browser.
+       - `CoreWebView2.WebMessageReceived`: IPC bridge responding to `{ type: 'openExternal', url: '...' }` for direct, reliable shell-out from JavaScript.
+     - **Front-End UI Deflection & Contextual Affordances (`server/public/js/app.js`, `input.js`)**:
+       - `openExternalUrl(url)` dispatcher supporting WebView2 postMessage, Capacitor Browser plugin, and window.open fallback.
+       - `showDemoModal()` guard: Detects `isStandaloneApp()` and immediately deflects to `https://angband3d.com/demo` via external browser, bypassing modal rendering and audio pausing.
+       - Context-aware UI affordances: Standalone clients render `[D] 🎬 Gameplay Demo (Web ↗)` on the splash screen with tooltip: `Watch official narrated 1080p gameplay showcase on angband3d.com (opens in default web browser)`. Main Menu Option [9] updates to `🎬 Gameplay Demo & Feature Showcase (Web ↗)`.
+       - Keyboard shortcuts (`D`, Option `9`) and Wiki links (`W`) route through `openExternalUrl`.
+     - **Player Engine Defensive Guards (`demo-player.js`, `demo.html`)**:
+       - `isClientStandalone()` in `demo-player.js` suppresses manifest preloading and redirects `open()` to `https://angband3d.com/demo`.
+       - Inline `<head>` guard in `demo.html` redirects standalone/offline access to the live website and navigates back to `/index.html`.
+     - **Zero-Bloat Packaging Hygiene (`tools/package.ps1`)**:
+       - Automatically excludes `assets/video/` and `demo.html` from `dist/Angband3D-Windows-x64/www/`, saving 260MB+ of bandwidth per player download.
+       - Cleans temporary save files and export logs before building release ZIP archive.
+       - Verifies critical binaries: `Angband3D.exe`, `Angband3D-Godot.exe`, `angband.exe`, `www/index.html`, `www/wasm/angband.wasm`.
+   - **Comprehensive Documentation & Knowledge Codification**:
+     - Authored Section 30 in `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md`: Standalone Client External Link Decoupling, Distribution Hygiene & Web-Only Media Architecture.
+     - Updated global and local `thunderbear-agentic-mastery/SKILL.md` with masterclass integration rules for future projects.
+
+1. **Broadcast Showcase Parity & True Fullscreen Video (Angband3D v2.15.0 / Web v8.8.5)**:
    - **Streamlined In-Game Splash Screen (`index.html`, `dungeon.css`)**:
      - Stripped wordy 4-line server notice and redundant tome text; replaced with 4 sleek obsidian/gold glowing feature chips: `⚔ Bit-for-Bit 4.2.6 Rules`, `⌨ [Tab] CRT Terminal`, `📖 AI Living Chronicle`, `💾 Universal Saves`.
      - Compacted universal save portability note to a single punchy line with instant download trigger: `⚡ Universal .SAV Portability: Play in browser or download Standalone PC (.zip) & Android APK`.

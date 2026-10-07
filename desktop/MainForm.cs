@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Text.Json;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
@@ -94,6 +96,56 @@ public class MainForm : Form
             _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             _webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
 
+            // Intercept new window requests (window.open / target="_blank") and shell out to default system browser
+            _webView.CoreWebView2.NewWindowRequested += (s, e) =>
+            {
+                e.Handled = true;
+                LaunchExternalBrowser(e.Uri);
+            };
+
+            // Intercept any non-local navigation and open in external system browser
+            _webView.CoreWebView2.NavigationStarting += (s, e) =>
+            {
+                if (Uri.TryCreate(e.Uri, UriKind.Absolute, out var uri))
+                {
+                    if (!string.Equals(uri.Host, "angband3d.local", StringComparison.OrdinalIgnoreCase))
+                    {
+                        e.Cancel = true;
+                        LaunchExternalBrowser(e.Uri);
+                    }
+                }
+            };
+
+            // Web message bridge for explicit JavaScript external link requests
+            _webView.CoreWebView2.WebMessageReceived += (s, e) =>
+            {
+                try
+                {
+                    var msg = e.TryGetWebMessageAsString();
+                    if (!string.IsNullOrEmpty(msg))
+                    {
+                        using var doc = JsonDocument.Parse(msg);
+                        if (doc.RootElement.TryGetProperty("type", out var typeProp))
+                        {
+                            var msgType = typeProp.GetString();
+                            if (msgType == "openExternal" && doc.RootElement.TryGetProperty("url", out var urlProp))
+                            {
+                                LaunchExternalBrowser(urlProp.GetString());
+                            }
+                            else if (msgType == "exitApp")
+                            {
+                                Application.Exit();
+                            }
+                            else if (msgType == "toggleFullscreen")
+                            {
+                                ToggleFullScreen();
+                            }
+                        }
+                    }
+                }
+                catch { }
+            };
+
             // Map virtual host name to local game assets directory
             _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
                 "angband3d.local",
@@ -176,5 +228,19 @@ public class MainForm : Form
     private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
     {
         // Graceful exit
+    }
+
+    private static void LaunchExternalBrowser(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+        try
+        {
+            if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            }
+        }
+        catch { }
     }
 }
