@@ -1,5 +1,5 @@
-// Angband3D Service Worker — v8.5.1 PWA & Standalone Client Caching
-const CACHE_NAME = 'angband3d-v8.5.1';
+// Angband3D Service Worker — v8.8.1 PWA & Standalone Client Caching
+const CACHE_NAME = 'angband3d-v8.8.1';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -44,11 +44,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Strictly bypass WebSockets, live API calls, health probes, and range requests
+  // Strictly bypass WebSockets, live API calls, health probes, and heavy media / range requests
   if (
     url.pathname.startsWith('/ws') ||
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/health') ||
+    url.pathname.startsWith('/assets/video/') ||
+    url.pathname.endsWith('.mp4') ||
+    url.pathname.endsWith('.webm') ||
+    event.request.headers.has('range') ||
     event.request.method !== 'GET'
   ) {
     return;

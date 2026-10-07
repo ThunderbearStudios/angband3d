@@ -6,15 +6,29 @@
  *  - 16:9 Cinema stage with ambient background glow matched to active chapter accent
  *  - Interactive scrubber with timeline hover tooltips and chapter tick markers
  *  - Timed closed captions / subtitle engine with speaker badges
- *  - Full keyboard accessibility (Space/K play, Arrows seek, M mute, C captions, F fullscreen, Esc close, Enter play)
+ *  - Full keyboard accessibility (Space/K play, Arrows seek, M mute, C captions, F fullscreen, Esc close/back)
  *  - Direct "Jump In & Play" CTA button to launch hero into the dungeon instantly
  */
 
 (function() {
     'use strict';
 
+    const CHAPTER_COLORS = [
+        '#ffd700', // Act 0: Insignia (Gold)
+        '#f59e0b', // Act 1: Town & Descent (Amber)
+        '#38bdf8', // Act 2: 0-Turn Yaw & Radar (Cyan)
+        '#10b981', // Act 3: 80x24 CRT Terminal (Emerald)
+        '#8b5cf6', // Act 4: Archery & Combat Log (Violet)
+        '#c084fc', // Act 5: Grimoire & Potions (Purple)
+        '#ec4899', // Act 6: Living Chronicle (Pink)
+        '#ef4444', // Act 7: Dragon Clash (Crimson)
+        '#06b6d4', // Act 8: Universal Saves (Teal)
+        '#eab308'  // Act 9: Grand Finale (Bright Gold)
+    ];
+
     class DemoPlayer {
-        constructor() {
+        constructor(options = {}) {
+            this.isStandalone = options.isStandalone || false;
             this.modalEl = null;
             this.videoEl = null;
             this.canvasEl = null;
@@ -42,11 +56,12 @@
             this.previousState = 'mainMenu';
             this.isOpen = false;
             this.isPlaying = false;
+            this.isSeeking = false;
             this.currentTime = 0;
-            this.duration = 255.0; // 4m 15s
+            this.duration = 275.0; // 4m 35s Master Walkthrough
             this.volume = 0.85;
             this.isMuted = false;
-            this.captionsEnabled = false; // Closed captions OFF by default as requested
+            this.captionsEnabled = false; // Closed captions OFF by default
             this.isFullscreen = false;
             this.useVideo = true;
 
@@ -54,6 +69,8 @@
             this.isScrubbing = false;
             this.activeChapterIndex = 0;
             this.activeSubtitle = null;
+            this._seekTimeout = null;
+            this._keydownHandler = null;
 
             this.manifest = {
                 title: 'Angband3D — Award-Winning 10-Act Gameplay Walkthrough',
@@ -99,21 +116,27 @@
         }
 
         init() {
-            this.modalEl = document.getElementById('demo-modal');
-            if (!this.modalEl) return;
+            // Auto-detect standalone page context
+            if (!this.isStandalone) {
+                const path = window.location.pathname || '';
+                this.isStandalone = path.endsWith('/demo') || 
+                                    path.endsWith('/demo.html') || 
+                                    document.body.classList.contains('demo-standalone-page') || 
+                                    !document.getElementById('demo-modal');
+            }
 
+            this.modalEl = document.getElementById('demo-modal') || document.querySelector('.demo-theater-container') || document.body;
             this.videoEl = document.getElementById('demo-video-player');
-            this.canvasEl = document.getElementById('demo-canvas-stage');
+            if (!this.videoEl) return;
 
-            // Enforce genuine recorded video playback only — canvas stage is permanently disabled
+            this.canvasEl = document.getElementById('demo-canvas-stage');
             if (this.canvasEl) {
                 this.canvasEl.style.display = 'none';
             }
-            if (this.videoEl) {
-                this.videoEl.style.display = 'block';
-                this.videoEl.volume = this.volume;
-                this.videoEl.muted = this.isMuted;
-            }
+
+            this.videoEl.style.display = 'block';
+            this.videoEl.volume = this.volume;
+            this.videoEl.muted = this.isMuted;
 
             this.ambientGlowEl = document.getElementById('demo-ambient-glow');
             this.captionsEl = document.getElementById('demo-captions-overlay');
@@ -134,9 +157,17 @@
             this.btnFullscreenEl = document.getElementById('demo-btn-fullscreen');
             this.btnPlayGameEl = document.getElementById('demo-btn-play-game');
             this.btnCloseEl = document.getElementById('btn-demo-close');
-            this.chapterPillContainer = this.modalEl.querySelector('.demo-chapter-ribbon');
+            this.chapterPillContainer = this.modalEl ? this.modalEl.querySelector('.demo-chapter-ribbon') : document.querySelector('.demo-chapter-ribbon');
+
+            if (this.isStandalone) {
+                this.isOpen = true;
+                if (this.btnCloseEl) {
+                    this.btnCloseEl.title = 'Back to Angband 3D (Esc)';
+                }
+            }
 
             this.setupEvents();
+            this.bindChapterPills();
             this.renderChapterPips();
             this.preloadManifest();
 
@@ -147,6 +178,12 @@
                 this.captionsEl.style.display = this.captionsEnabled ? 'flex' : 'none';
             }
             this.updateVolumeUI();
+            this.updateActiveChapterUI();
+
+            if (this.isStandalone) {
+                // Standalone page: autoplay immediately with graceful unmuted/muted fallback
+                this.play();
+            }
         }
 
         setupEvents() {
@@ -154,7 +191,17 @@
             if (this.videoEl) {
                 this.videoEl.addEventListener('click', () => this.togglePlay());
                 this.videoEl.addEventListener('timeupdate', () => {
-                    if (!this.isScrubbing) {
+                    if (!this.isScrubbing && !this.isSeeking) {
+                        this.currentTime = this.videoEl.currentTime;
+                        this.updateUI();
+                    }
+                });
+                this.videoEl.addEventListener('seeking', () => {
+                    this.isSeeking = true;
+                });
+                this.videoEl.addEventListener('seeked', () => {
+                    this.isSeeking = false;
+                    if (this.videoEl && !this.isScrubbing) {
                         this.currentTime = this.videoEl.currentTime;
                         this.updateUI();
                     }
@@ -266,23 +313,61 @@
                 this.btnCloseEl.addEventListener('click', () => this.close());
             }
 
-            // Chapter pills
-            if (this.chapterPillContainer) {
-                const pills = this.chapterPillContainer.querySelectorAll('.demo-chapter-pill');
-                pills.forEach(pill => {
-                    pill.addEventListener('click', () => {
-                        const targetTime = parseFloat(pill.dataset.time || 0);
-                        this.seek(targetTime);
-                        if (!this.isPlaying) this.play();
-                    });
-                });
-            }
-
             // Escape key or backdrop click closes modal
             const backdrop = this.modalEl ? this.modalEl.querySelector('.demo-backdrop') : null;
             if (backdrop) {
                 backdrop.addEventListener('click', () => this.close());
             }
+
+            // Keyboard Shortcuts (Space, K, Arrows, M, C, F, Esc)
+            if (!this._keydownHandler) {
+                this._keydownHandler = (e) => {
+                    if (!this.isOpen && !this.isStandalone) return;
+                    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+
+                    if (e.code === 'Space' || e.code === 'KeyK') {
+                        e.preventDefault();
+                        this.togglePlay();
+                    } else if (e.code === 'ArrowLeft') {
+                        e.preventDefault();
+                        this.seekDelta(-5);
+                    } else if (e.code === 'ArrowRight') {
+                        e.preventDefault();
+                        this.seekDelta(5);
+                    } else if (e.code === 'KeyM') {
+                        e.preventDefault();
+                        this.toggleMute();
+                    } else if (e.code === 'KeyC') {
+                        e.preventDefault();
+                        this.toggleCaptions();
+                    } else if (e.code === 'KeyF') {
+                        e.preventDefault();
+                        this.toggleFullscreen();
+                    } else if (e.code === 'Escape') {
+                        e.preventDefault();
+                        this.close();
+                    }
+                };
+                window.addEventListener('keydown', this._keydownHandler);
+            }
+        }
+
+        bindChapterPills() {
+            if (!this.chapterPillContainer) {
+                this.chapterPillContainer = this.modalEl ? this.modalEl.querySelector('.demo-chapter-ribbon') : document.querySelector('.demo-chapter-ribbon');
+            }
+            if (!this.chapterPillContainer) return;
+
+            const pills = this.chapterPillContainer.querySelectorAll('.demo-chapter-pill');
+            pills.forEach((pill, idx) => {
+                pill.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rawTime = pill.dataset.time !== undefined ? pill.dataset.time : pill.getAttribute('data-time');
+                    const targetTime = parseFloat(rawTime || 0);
+                    this.jumpToChapter(idx, targetTime);
+                });
+            });
         }
 
         renderChapterPips() {
@@ -320,12 +405,18 @@
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.chapters) {
+                        data.chapters.forEach((ch, idx) => {
+                            if (!ch.color) {
+                                ch.color = CHAPTER_COLORS[idx % CHAPTER_COLORS.length];
+                            }
+                        });
                         this.manifest = data;
                         if (!this.manifest.subtitles && this.manifest.audioStems) {
                             this.manifest.subtitles = this.manifest.audioStems;
                         }
                         if (data.totalDuration) this.duration = data.totalDuration;
                         this.renderChapterPips();
+                        this.updateActiveChapterUI();
                     }
                 }
             } catch (_) {}
@@ -368,6 +459,11 @@
         }
 
         close() {
+            if (this.isStandalone) {
+                window.location.href = '/';
+                return;
+            }
+
             if (!this.isOpen) return;
             this.isOpen = false;
             this.pause();
@@ -431,14 +527,24 @@
         }
 
         seek(time) {
+            this.isSeeking = true;
+            if (this._seekTimeout) clearTimeout(this._seekTimeout);
+            this._seekTimeout = setTimeout(() => {
+                this.isSeeking = false;
+            }, 800);
+
             this.currentTime = Math.max(0, Math.min(this.duration, time));
             if (this.videoEl) {
-                if (this.videoEl.readyState >= 1) {
-                    this.videoEl.currentTime = this.currentTime;
-                } else {
-                    this.videoEl.addEventListener('loadedmetadata', () => {
+                try {
+                    if (this.videoEl.readyState >= 1) {
                         this.videoEl.currentTime = this.currentTime;
-                    }, { once: true });
+                    } else {
+                        this.videoEl.addEventListener('loadedmetadata', () => {
+                            this.videoEl.currentTime = this.currentTime;
+                        }, { once: true });
+                    }
+                } catch (e) {
+                    console.warn('[DemoPlayer] Seek error:', e);
                 }
             }
             this.updateUI();
@@ -448,10 +554,33 @@
             this.seek(this.currentTime + delta);
         }
 
-        jumpToChapter(idx) {
-            if (!this.manifest.chapters || idx < 0 || idx >= this.manifest.chapters.length) return;
-            this.seek(this.manifest.chapters[idx].start);
-            if (!this.isPlaying) this.play();
+        jumpToChapter(idx, explicitTime) {
+            let targetTime = 0;
+            if (explicitTime !== undefined && !isNaN(explicitTime)) {
+                targetTime = explicitTime;
+            } else if (this.manifest && this.manifest.chapters && this.manifest.chapters[idx]) {
+                targetTime = this.manifest.chapters[idx].start;
+            }
+
+            this.activeChapterIndex = idx;
+            this.seek(targetTime);
+
+            if (this.videoEl) {
+                const playPromise = this.videoEl.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(err => {
+                        console.warn('[DemoPlayer] Chapter jump autoplay blocked, falling back to muted play:', err);
+                        this.videoEl.muted = true;
+                        this.isMuted = true;
+                        this.updateVolumeUI();
+                        this.videoEl.play().catch(e => console.error('[DemoPlayer] Chapter jump playback error:', e));
+                    });
+                }
+            }
+            this.isPlaying = true;
+            this.updatePlayPauseUI();
+            this.updateActiveChapterUI();
+            this.startLoop();
         }
 
         setVolume(vol) {
@@ -495,7 +624,7 @@
         }
 
         toggleFullscreen() {
-            const container = this.modalEl ? this.modalEl.querySelector('.demo-theater-container') : null;
+            const container = this.modalEl ? this.modalEl.querySelector('.demo-theater-container') : document.querySelector('.demo-theater-container');
             if (!container) return;
 
             if (!document.fullscreenElement) {
@@ -522,6 +651,10 @@
         }
 
         jumpInAndPlay() {
+            if (this.isStandalone) {
+                window.location.href = '/';
+                return;
+            }
             this.close();
             if (window.__app && typeof window.__app.startNewRandomHero === 'function') {
                 window.__app.startNewRandomHero();
@@ -556,7 +689,7 @@
             const loop = () => {
                 if (!this.isPlaying) return;
 
-                if (this.videoEl && !this.isScrubbing) {
+                if (this.videoEl && !this.isScrubbing && !this.isSeeking) {
                     this.currentTime = this.videoEl.currentTime;
                     this.updateUI();
                 }
@@ -584,11 +717,14 @@
 
             // Update active chapter
             let currentChapterIdx = 0;
-            this.manifest.chapters.forEach((ch, i) => {
-                if (this.currentTime >= ch.start && this.currentTime < ch.end) {
-                    currentChapterIdx = i;
+            if (this.manifest && this.manifest.chapters && this.manifest.chapters.length > 0) {
+                for (let i = 0; i < this.manifest.chapters.length; i++) {
+                    const ch = this.manifest.chapters[i];
+                    if (this.currentTime >= ch.start && (ch.end === undefined || this.currentTime < ch.end)) {
+                        currentChapterIdx = i;
+                    }
                 }
-            });
+            }
 
             if (currentChapterIdx !== this.activeChapterIndex) {
                 this.activeChapterIndex = currentChapterIdx;
@@ -600,16 +736,27 @@
         }
 
         updateActiveChapterUI() {
-            if (!this.chapterPillContainer) return;
-            const pills = this.chapterPillContainer.querySelectorAll('.demo-chapter-pill');
-            pills.forEach((pill, i) => {
-                pill.classList.toggle('active', i === this.activeChapterIndex);
-            });
+            if (!this.chapterPillContainer) {
+                this.chapterPillContainer = this.modalEl ? this.modalEl.querySelector('.demo-chapter-ribbon') : document.querySelector('.demo-chapter-ribbon');
+            }
+            if (this.chapterPillContainer) {
+                const pills = this.chapterPillContainer.querySelectorAll('.demo-chapter-pill');
+                pills.forEach((pill, i) => {
+                    const isActive = (i === this.activeChapterIndex);
+                    pill.classList.toggle('active', isActive);
+                    if (isActive) {
+                        try {
+                            pill.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+                        } catch (_) {}
+                    }
+                });
+            }
 
             // Ambient background glow matches active chapter accent
-            if (this.ambientGlowEl && this.manifest.chapters[this.activeChapterIndex]) {
-                const ch = this.manifest.chapters[this.activeChapterIndex];
-                this.ambientGlowEl.style.background = `radial-gradient(ellipse at center, ${ch.color}33 0%, rgba(0,0,0,0) 70%)`;
+            if (this.ambientGlowEl) {
+                const ch = (this.manifest && this.manifest.chapters) ? this.manifest.chapters[this.activeChapterIndex] : null;
+                const color = (ch && ch.color) ? ch.color : (CHAPTER_COLORS[this.activeChapterIndex % CHAPTER_COLORS.length] || '#ffd700');
+                this.ambientGlowEl.style.background = `radial-gradient(ellipse at center, ${color}33 0%, rgba(0,0,0,0) 70%)`;
             }
         }
 

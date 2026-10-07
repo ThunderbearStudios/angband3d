@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>Angband 3D — Official Gameplay Showcase &amp; Veteran Guide</title>
+    <title>Angband 3D — Official Gameplay Showcase &amp; 10-Act Guide</title>
     <meta name="description" content="Watch the official 1080p gameplay showcase of Angband 3D: the 30-year classic roguelike reborn in real-time first-person 3D with bit-for-bit Angband 4.2.6 C engine mechanics, 0-turn camera yaw, CRT terminal toggle, and AI-voiced chronicle.">
     <meta name="theme-color" content="#060910">
 
@@ -33,918 +33,130 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Outfit:wght@400;500;600;700&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
 
-    <style>
-        :root {
-            --bg-dark: #050811;
-            --card-bg: #090d18;
-            --gold: #d4af37;
-            --gold-bright: #ffd700;
-            --cyan: #38bdf8;
-            --border-gold: rgba(212, 175, 55, 0.4);
-            --font-title: 'Cinzel', serif;
-            --font-ui: 'Outfit', sans-serif;
-            --font-mono: 'Fira Code', monospace;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            background-color: var(--bg-dark);
-            background-image: 
-                radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.12) 0%, transparent 60%),
-                radial-gradient(circle at 10% 40%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 90% 60%, rgba(245, 158, 11, 0.05) 0%, transparent 40%);
-            color: #f1f5f9;
-            font-family: var(--font-ui);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-        }
-
-        /* Top Navigation Header */
-        .site-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 28px;
-            background: rgba(7, 11, 20, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(212, 175, 55, 0.25);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .header-brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            text-decoration: none;
-        }
-
-        .brand-logo {
-            width: 32px;
-            height: auto;
-            filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.7));
-        }
-
-        .brand-text {
-            font-family: var(--font-title);
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: var(--gold-bright);
-            letter-spacing: 2px;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .btn-github {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 14px;
-            border-radius: 6px;
-            background: rgba(30, 41, 59, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #cbd5e1;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-
-        .btn-github:hover {
-            background: rgba(51, 65, 85, 0.95);
-            color: #fff;
-            border-color: rgba(255, 255, 255, 0.35);
-        }
-
-        .btn-play-hero {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 18px;
-            border-radius: 6px;
-            background: linear-gradient(135deg, #b8860b 0%, #ffd700 100%);
-            border: 1px solid #ffe066;
-            color: #0b0f19;
-            text-decoration: none;
-            font-size: 13.5px;
-            font-weight: 700;
-            box-shadow: 0 0 16px rgba(255, 215, 0, 0.4);
-            transition: transform 0.15s, box-shadow 0.15s;
-        }
-
-        .btn-play-hero:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 0 24px rgba(255, 215, 0, 0.65);
-        }
-
-        /* Main Theater Content */
-        .theater-wrapper {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 24px 20px 40px;
-            max-width: 1240px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .title-block {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .title-block h1 {
-            font-family: var(--font-title);
-            font-size: clamp(1.8rem, 3.5vw, 2.7rem);
-            color: var(--gold-bright);
-            letter-spacing: 2px;
-            text-shadow: 0 2px 16px rgba(245, 158, 11, 0.45);
-            margin-bottom: 6px;
-        }
-
-        .title-block p {
-            font-size: clamp(0.95rem, 1.8vw, 1.15rem);
-            color: #94a3b8;
-            max-width: 780px;
-            margin: 0 auto;
-        }
-
-        /* Video Stage */
-        .video-stage-container {
-            width: 100%;
-            position: relative;
-            background: var(--card-bg);
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 35px rgba(212, 175, 55, 0.2);
-        }
-
-        .ambient-glow {
-            position: absolute;
-            inset: -15px;
-            z-index: -1;
-            filter: blur(50px);
-            opacity: 0.55;
-            background: radial-gradient(circle, rgba(212, 175, 55, 0.35) 0%, transparent 70%);
-            border-radius: 20px;
-            pointer-events: none;
-            transition: background 0.8s ease;
-        }
-
-        .video-box {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 16 / 9;
-            background: #000;
-            border: 1px solid var(--border-gold);
-            border-bottom: none;
-            border-radius: 12px 12px 0 0;
-            overflow: hidden;
-        }
-
-        video {
-            width: 100%;
-            height: 100%;
-            display: block;
-            object-fit: contain;
-            background: #000;
-        }
-
-        /* Center Play Button */
-        .center-play {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 76px;
-            height: 76px;
-            border-radius: 50%;
-            background: rgba(212, 175, 55, 0.95);
-            color: #0b0f19;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 32px rgba(255, 215, 0, 0.7);
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s;
-            z-index: 10;
-        }
-
-        .center-play:hover {
-            transform: translate(-50%, -50%) scale(1.1);
-            background: #ffd700;
-        }
-
-        .center-play svg {
-            width: 34px;
-            height: 34px;
-            margin-left: 4px;
-        }
-
-        .center-play.hidden {
-            display: none !important;
-        }
-
-        /* Captions Overlay (OFF by default) */
-        .captions-box {
-            position: absolute;
-            bottom: 24px;
-            left: 20px;
-            right: 20px;
-            display: flex;
-            justify-content: center;
-            pointer-events: none;
-            z-index: 8;
-        }
-
-        .captions-box:not(.visible) {
-            display: none;
-        }
-
-        .caption-bubble {
-            background: rgba(8, 11, 20, 0.92);
-            border: 1px solid rgba(212, 175, 55, 0.45);
-            border-radius: 8px;
-            padding: 8px 18px;
-            font-size: 14.5px;
-            color: #f8fafc;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
-            max-width: 82%;
-            text-align: center;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
-            line-height: 1.45;
-        }
-
-        .caption-speaker {
-            font-weight: 700;
-            color: var(--gold-bright);
-            margin-right: 6px;
-        }
-
-        /* Controls UNDERNEATH (Not Overlay) */
-        .controls-bar {
-            position: relative;
-            width: 100%;
-            background: #080c15;
-            border: 1px solid var(--border-gold);
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 0 0 12px 12px;
-            padding: 10px 18px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
-        }
-
-        /* Scrubber */
-        .scrubber-track {
-            position: relative;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 3px;
-            cursor: pointer;
-            transition: height 0.15s ease;
-        }
-
-        .scrubber-track:hover {
-            height: 9px;
-        }
-
-        .scrubber-buffer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.35);
-            border-radius: 3px;
-            width: 0%;
-        }
-
-        .scrubber-progress {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            background: linear-gradient(90deg, #d4af37, #ffd700);
-            border-radius: 3px;
-            width: 0%;
-        }
-
-        .scrubber-handle {
-            position: absolute;
-            top: 50%;
-            left: 0%;
-            transform: translate(-50%, -50%);
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #ffd700;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
-            pointer-events: none;
-            transition: transform 0.1s ease;
-        }
-
-        .scrubber-track:hover .scrubber-handle {
-            transform: translate(-50%, -50%) scale(1.25);
-        }
-
-        .chapter-pips {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-        }
-
-        .chapter-pip {
-            position: absolute;
-            top: 0;
-            width: 3px;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.65);
-            z-index: 2;
-        }
-
-        .scrubber-tooltip {
-            position: absolute;
-            bottom: 18px;
-            transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.95);
-            border: 1px solid var(--gold-bright);
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 11.5px;
-            font-family: var(--font-mono);
-            color: var(--gold-bright);
-            pointer-events: none;
-            display: none;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
-            white-space: nowrap;
-        }
-
-        .scrubber-tooltip.visible {
-            display: block;
-        }
-
-        /* Controls Row */
-        .controls-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .controls-left, .controls-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .ctrl-btn {
-            background: none;
-            border: none;
-            color: #e2e8f0;
-            font-size: 16px;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 4px;
-            transition: color 0.15s, background 0.15s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: var(--font-ui);
-            font-weight: 600;
-        }
-
-        .ctrl-btn:hover {
-            color: var(--gold-bright);
-            background: rgba(212, 175, 55, 0.15);
-        }
-
-        .ctrl-btn.active {
-            color: var(--gold-bright);
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
-        }
-
-        .volume-group {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .volume-slider {
-            width: 75px;
-            height: 4px;
-            -webkit-appearance: none;
-            background: rgba(255, 255, 255, 0.25);
-            border-radius: 2px;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .volume-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--gold-bright);
-            cursor: pointer;
-            box-shadow: 0 0 6px rgba(255, 215, 0, 0.8);
-        }
-
-        .timecode {
-            font-family: var(--font-mono);
-            font-size: 12.5px;
-            color: #94a3b8;
-            margin-left: 4px;
-        }
-
-        /* Chapter Ribbon */
-        .chapter-ribbon {
-            margin-top: 14px;
-            display: flex;
-            gap: 6px;
-            overflow-x: auto;
-            padding: 6px 2px;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(212, 175, 55, 0.3) transparent;
-            width: 100%;
-        }
-
-        .chapter-pill {
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 16px;
-            padding: 6px 14px;
-            color: #94a3b8;
-            font-size: 12px;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.15s ease;
-            font-family: var(--font-ui);
-            font-weight: 500;
-        }
-
-        .chapter-pill:hover {
-            color: #f8fafc;
-            border-color: rgba(212, 175, 55, 0.5);
-            background: rgba(30, 41, 59, 0.9);
-        }
-
-        .chapter-pill.active {
-            color: #0b0f19;
-            background: linear-gradient(135deg, #d4af37, #ffd700);
-            border-color: #ffd700;
-            font-weight: 700;
-            box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
-        }
-
-        /* Presentation Footer Strip */
-        .footer-strip {
-            margin-top: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-        }
-
-        .github-banner {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid var(--border-gold);
-            border-radius: 24px;
-            padding: 8px 22px;
-            text-decoration: none;
-            color: #cbd5e1;
-            font-size: 13.5px;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-        }
-
-        .github-banner:hover {
-            background: rgba(30, 41, 59, 0.95);
-            border-color: #ffd700;
-            color: #ffd700;
-            transform: translateY(-1px);
-            box-shadow: 0 6px 22px rgba(245, 158, 11, 0.35);
-        }
-
-        .footer-logo {
-            width: 24px;
-            height: auto;
-            filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.7));
-        }
-
-        /* Feature Highlights Grid */
-        .features-grid {
-            margin-top: 36px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 16px;
-            width: 100%;
-        }
-
-        .feature-card {
-            background: rgba(15, 23, 42, 0.65);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
-            padding: 18px 20px;
-            transition: border-color 0.2s ease;
-        }
-
-        .feature-card:hover {
-            border-color: rgba(212, 175, 55, 0.4);
-        }
-
-        .feature-title {
-            font-family: var(--font-title);
-            color: var(--gold-bright);
-            font-size: 1.05rem;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .feature-desc {
-            font-size: 0.92rem;
-            color: #94a3b8;
-            line-height: 1.5;
-        }
-
-        @media (max-width: 768px) {
-            .site-header { padding: 10px 16px; }
-            .theater-wrapper { padding: 16px 12px 30px; }
-            .controls-bar { padding: 8px 12px; }
-            .volume-group { display: none; }
-        }
-    </style>
+    <!-- Single Source of Truth Stylesheet -->
+    <link rel="stylesheet" href="/css/dungeon.css?v=8.8.1">
 </head>
-<body>
+<body class="demo-standalone-page">
 
-    <!-- Site Header -->
-    <header class="site-header">
-        <a href="/" class="header-brand" title="Angband 3D Homepage">
-            <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" class="brand-logo">
+    <!-- Top Site Navigation Header -->
+    <header class="demo-site-header">
+        <a href="/" class="demo-site-brand" title="Return to Angband 3D">
+            <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios Logo" class="brand-logo">
             <span class="brand-text">ANGBAND 3D</span>
+            <span class="brand-badge">OFFICIAL 10-ACT WALKTHROUGH</span>
         </a>
-        <div class="header-actions">
-            <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" class="btn-github">
-                <span>GitHub ↗</span>
+        <div class="demo-header-actions">
+            <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" class="demo-header-link" title="Open GitHub Repository">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                <span>GitHub</span>
             </a>
-            <a href="/" class="btn-play-hero">⚔ Play Now</a>
+            <a href="/" class="demo-btn-play-game btn-gold" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <span>⚔ Play Free in Browser</span>
+            </a>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="theater-wrapper">
-        <div class="title-block">
-            <h1>GAMEPLAY SHOWCASE &amp; GUIDE</h1>
-            <p>1080p live in-engine walkthrough: 0-turn camera yaw, bit-for-bit Angband 4.2.6 C engine, CRT dual reality, tactical dragon combat, and universal save portability.</p>
-        </div>
+    <!-- Main Theater Showcase Stage -->
+    <main class="demo-standalone-main">
+        <div class="demo-theater-container">
+            <button id="btn-demo-close" class="demo-close-btn" title="Back to Angband 3D (Esc)">✕</button>
+            <div class="demo-ambient-glow" id="demo-ambient-glow"></div>
 
-        <div class="video-stage-container">
-            <div class="ambient-glow" id="ambient-glow"></div>
-
-            <div class="video-box">
-                <video id="video-player" playsinline preload="auto" crossorigin="anonymous">
+            <div class="demo-video-wrapper">
+                <!-- HTML5 Video Component -->
+                <video id="demo-video-player" playsinline preload="auto" crossorigin="anonymous">
                     <source src="/assets/video/angband3d_demo.mp4" type="video/mp4">
                     <source src="/assets/video/angband3d_demo.webm" type="video/webm">
                     <source src="/assets/video/angband3d_demo_v860.mp4" type="video/mp4">
                     <source src="/assets/video/angband3d_demo_v860.webm" type="video/webm">
                 </video>
 
-                <!-- Closed Captions (Off by default) -->
-                <div id="captions-box" class="captions-box"></div>
+                <!-- Broadcast-Quality Canvas Reel Stage -->
+                <canvas id="demo-canvas-stage" width="1280" height="720"></canvas>
 
-                <!-- Center Play Button -->
-                <button id="btn-center-play" class="center-play" title="Play Showcase">
+                <!-- Closed Captions Overlay (Off by default) -->
+                <div id="demo-captions-overlay" class="demo-captions-overlay"></div>
+
+                <!-- Center Play/Pause Button Overlay -->
+                <button id="demo-center-play" class="demo-center-play" title="Play Showcase">
                     <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
                 </button>
             </div>
 
-            <!-- Controls Placed UNDERNEATH the Video -->
-            <div class="controls-bar" id="controls-bar">
-                <div class="scrubber-track" id="scrubber-track">
-                    <div class="scrubber-buffer" id="scrubber-buffer"></div>
-                    <div class="scrubber-progress" id="scrubber-progress"></div>
-                    <div class="scrubber-handle" id="scrubber-handle"></div>
-                    <div class="chapter-pips" id="chapter-pips"></div>
-                    <div class="scrubber-tooltip" id="scrubber-tooltip">0:00</div>
+            <!-- Glassmorphic Transport Controls Underneath Video -->
+            <div class="demo-transport-bar" id="demo-transport-bar">
+                <div class="demo-scrubber-track" id="demo-scrubber-track">
+                    <div class="demo-scrubber-buffer" id="demo-scrubber-buffer"></div>
+                    <div class="demo-scrubber-progress" id="demo-scrubber-progress"></div>
+                    <div class="demo-scrubber-handle" id="demo-scrubber-handle"></div>
+                    <div class="demo-chapter-pips" id="demo-chapter-pips"></div>
+                    <div class="demo-scrubber-tooltip" id="demo-scrubber-tooltip">0:00</div>
                 </div>
 
-                <div class="controls-row">
-                    <div class="controls-left">
-                        <button id="btn-play" class="ctrl-btn" title="Play / Pause (Space)">▶</button>
-                        <button id="btn-replay" class="ctrl-btn" title="Replay (↺)">↺</button>
-                        <div class="volume-group">
-                            <button id="btn-mute" class="ctrl-btn" title="Mute / Unmute (M)">🔊</button>
-                            <input type="range" id="volume-slider" min="0" max="100" value="85" class="volume-slider" title="Volume">
+                <div class="demo-controls-row">
+                    <div class="demo-controls-left">
+                        <button id="demo-btn-play" class="demo-ctrl-btn" title="Play/Pause (Space)">▶</button>
+                        <button id="demo-btn-replay" class="demo-ctrl-btn" title="Replay from Beginning">↺</button>
+                        <div class="demo-volume-group">
+                            <button id="demo-btn-mute" class="demo-ctrl-btn" title="Mute/Unmute (M)">🔊</button>
+                            <input type="range" id="demo-volume-slider" min="0" max="100" value="85" class="demo-slider" title="Volume">
                         </div>
-                        <span id="timecode" class="timecode">0:00 / 4:35</span>
+                        <span id="demo-timecode" class="demo-timecode">0:00 / 4:35</span>
                     </div>
 
-                    <div class="controls-right">
-                        <button id="btn-cc" class="ctrl-btn" title="Closed Captions (C)">[CC]</button>
-                        <button id="btn-fullscreen" class="ctrl-btn" title="Fullscreen (F)">⛶</button>
-                        <a href="/" class="btn-play-hero" style="padding: 5px 14px; font-size: 12.5px;">⚔ Enter Dungeon</a>
+                    <div class="demo-controls-right">
+                        <button id="demo-btn-cc" class="demo-ctrl-btn" title="Subtitles &amp; Captions (C)">[CC]</button>
+                        <button id="demo-btn-fullscreen" class="demo-ctrl-btn" title="Toggle Fullscreen (F)">⛶</button>
+                        <button id="demo-btn-play-game" class="demo-btn-play-game btn-gold">⚔ Jump In &amp; Play</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Chapter Navigation Ribbon -->
-            <div class="chapter-ribbon" id="chapter-ribbon">
-                <button class="chapter-pill active" data-time="0">✨ Act 0: Insignia</button>
-                <button class="chapter-pill" data-time="18.5">🏰 Act 1: Town &amp; Descent</button>
-                <button class="chapter-pill" data-time="48.0">👀 Act 2: 0-Turn Yaw &amp; Radar</button>
-                <button class="chapter-pill" data-time="75.0">⌨ Act 3: 80x24 CRT Terminal</button>
-                <button class="chapter-pill" data-time="106.5">🏹 Act 4: Archery &amp; Combat Log</button>
-                <button class="chapter-pill" data-time="133.5">🔮 Act 5: Grimoire &amp; Potions</button>
-                <button class="chapter-pill" data-time="157.5">📖 Act 6: Living Chronicle</button>
-                <button class="chapter-pill" data-time="197.5">🐲 Act 7: Dragon Clash</button>
-                <button class="chapter-pill" data-time="223.5">💾 Act 8: Universal Saves</button>
-                <button class="chapter-pill" data-time="244.5">🚀 Act 9: Grand Finale</button>
+            <!-- Chapter Jump Ribbon (10 Acts) -->
+            <div class="demo-chapter-ribbon">
+                <button class="demo-chapter-pill active" data-time="0">✨ Act 0: Insignia</button>
+                <button class="demo-chapter-pill" data-time="18.5">🏰 Act 1: Town &amp; Descent</button>
+                <button class="demo-chapter-pill" data-time="48.0">👀 Act 2: 0-Turn Yaw &amp; Radar</button>
+                <button class="demo-chapter-pill" data-time="75.0">⌨ Act 3: 80x24 CRT Terminal</button>
+                <button class="demo-chapter-pill" data-time="106.5">🏹 Act 4: Archery &amp; Combat Log</button>
+                <button class="demo-chapter-pill" data-time="133.5">🔮 Act 5: Grimoire &amp; Potions</button>
+                <button class="demo-chapter-pill" data-time="157.5">📖 Act 6: Living Chronicle</button>
+                <button class="demo-chapter-pill" data-time="197.5">🐲 Act 7: Dragon Clash</button>
+                <button class="demo-chapter-pill" data-time="223.5">💾 Act 8: Universal Saves</button>
+                <button class="demo-chapter-pill" data-time="244.5">🚀 Act 9: Grand Finale</button>
             </div>
 
-            <!-- Presentation Footer Strip -->
-            <div class="footer-strip">
-                <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" class="github-banner" title="Open Thunderbear Studios GitHub">
-                    <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" class="footer-logo">
-                    <span>Brought to you by <strong>Thunderbear Studios</strong> • 100% Free &amp; Open Source on GitHub ↗</span>
+            <!-- Thunderbear Studios Presentation Footer -->
+            <div class="demo-footer-strip">
+                <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" class="demo-github-link" title="Open GitHub Repository">
+                    <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" class="demo-footer-logo">
+                    <span class="demo-github-text">Brought to you by <strong>Thunderbear Studios</strong> • View on GitHub ↗</span>
                 </a>
             </div>
         </div>
 
-        <!-- Highlights Grid -->
-        <section class="features-grid">
-            <div class="feature-card">
-                <div class="feature-title">⚙ 100% Authentic C Engine</div>
-                <div class="feature-desc">Powered bit-for-bit by upstream Angband 4.2.6. Every formula, combat roll, monster AI, and artifact is authentic.</div>
+        <!-- Four Key Pillars Highlights -->
+        <div class="demo-highlights-strip">
+            <div class="demo-highlight-chip">
+                <strong>⚙ 100% Authentic C Engine</strong>
+                <span>Bit-for-bit upstream Angband 4.2.6 mechanics</span>
             </div>
-            <div class="feature-card">
-                <div class="feature-title">👀 0-Turn Camera Yaw</div>
-                <div class="feature-desc">Looking around, surveying the ceiling, and panning the dark corridors costs zero game turns. The world advances only when you step.</div>
+            <div class="demo-highlight-chip">
+                <strong>👀 0-Turn Camera Yaw</strong>
+                <span>Scout and pan 360° without passing time</span>
             </div>
-            <div class="feature-card">
-                <div class="feature-title">⌨ Seamless [Tab] CRT Mode</div>
-                <div class="feature-desc">Toggle between first-person 3D and 80x24 classic ASCII terminal at any instant without pausing or re-loading.</div>
+            <div class="demo-highlight-chip">
+                <strong>⌨ Dual Reality [Tab] CRT</strong>
+                <span>Instant toggle between 3D &amp; 80x24 ASCII</span>
             </div>
-            <div class="feature-card">
-                <div class="feature-title">💾 Universal .SAV Portability</div>
-                <div class="feature-desc">Your character save files are cross-compatible between Web Browser, Windows PC, Android APK, and classic terminal Angband.</div>
+            <div class="demo-highlight-chip">
+                <strong>💾 Universal .SAV Portability</strong>
+                <span>Browser, Windows &amp; Android save compatibility</span>
             </div>
-        </section>
+        </div>
     </main>
 
-    <!-- Demo Showcase Logic -->
-    <script>
-        (function() {
-            const video = document.getElementById('video-player');
-            const btnPlay = document.getElementById('btn-play');
-            const btnCenterPlay = document.getElementById('btn-center-play');
-            const btnReplay = document.getElementById('btn-replay');
-            const btnMute = document.getElementById('btn-mute');
-            const volumeSlider = document.getElementById('volume-slider');
-            const timecode = document.getElementById('timecode');
-            const btnCc = document.getElementById('btn-cc');
-            const btnFullscreen = document.getElementById('btn-fullscreen');
-            const captionsBox = document.getElementById('captions-box');
-            const scrubberTrack = document.getElementById('scrubber-track');
-            const scrubberBuffer = document.getElementById('scrubber-buffer');
-            const scrubberProgress = document.getElementById('scrubber-progress');
-            const scrubberHandle = document.getElementById('scrubber-handle');
-            const scrubberTooltip = document.getElementById('scrubber-tooltip');
-            const chapterPips = document.getElementById('chapter-pips');
-            const chapterRibbon = document.getElementById('chapter-ribbon');
-
-            let duration = 275.0;
-            let captionsEnabled = false; // Closed captions OFF by default
-            let subtitles = [];
-            let chapters = [
-                { start: 0, end: 18.5, name: 'Act 0: Insignia' },
-                { start: 18.5, end: 48.0, name: 'Act 1: Town & Descent' },
-                { start: 48.0, end: 75.0, name: 'Act 2: 0-Turn Yaw & Radar' },
-                { start: 75.0, end: 106.5, name: 'Act 3: 80x24 CRT Terminal' },
-                { start: 106.5, end: 133.5, name: 'Act 4: Archery & Combat Log' },
-                { start: 133.5, end: 157.5, name: 'Act 5: Grimoire & Potions' },
-                { start: 157.5, end: 197.5, name: 'Act 6: Living Chronicle' },
-                { start: 197.5, end: 223.5, name: 'Act 7: Dragon Clash' },
-                { start: 223.5, end: 244.5, name: 'Act 8: Universal Saves' },
-                { start: 244.5, end: 275.0, name: 'Act 9: Grand Finale' }
-            ];
-
-            // Load manifest subtitles and metadata
-            fetch('/assets/audio/demo/demo_manifest.json')
-                .then(r => r.json())
-                .then(data => {
-                    if (data.audioStems) subtitles = data.audioStems;
-                    if (data.subtitles) subtitles = data.subtitles;
-                    if (data.totalDuration) duration = data.totalDuration;
-                    if (data.chapters && data.chapters.length > 0) chapters = data.chapters;
-                    renderPips();
-                })
-                .catch(() => {});
-
-            function renderPips() {
-                chapterPips.innerHTML = '';
-                chapters.forEach(c => {
-                    if (c.start > 0) {
-                        const pip = document.createElement('div');
-                        pip.className = 'chapter-pip';
-                        pip.style.left = (c.start / duration * 100) + '%';
-                        chapterPips.appendChild(pip);
-                    }
-                });
-            }
-
-            function fmt(sec) {
-                const m = Math.floor(sec / 60);
-                const s = Math.floor(sec % 60);
-                return `${m}:${s < 10 ? '0' : ''}${s}`;
-            }
-
-            function updateUI() {
-                const cur = video.currentTime;
-                const d = video.duration || duration;
-                const pct = (cur / d) * 100;
-                scrubberProgress.style.width = pct + '%';
-                scrubberHandle.style.left = pct + '%';
-                timecode.textContent = `${fmt(cur)} / ${fmt(d)}`;
-
-                // Update active chapter pill
-                const pills = chapterRibbon.querySelectorAll('.chapter-pill');
-                chapters.forEach((c, idx) => {
-                    if (cur >= c.start && cur < c.end) {
-                        pills.forEach((p, pIdx) => p.classList.toggle('active', pIdx === idx));
-                    }
-                });
-
-                // Update subtitles
-                if (captionsEnabled) {
-                    const sub = subtitles.find(s => cur >= s.start && cur <= s.end);
-                    if (sub) {
-                        captionsBox.classList.add('visible');
-                        captionsBox.innerHTML = `<div class="caption-bubble"><span class="caption-speaker">${sub.speaker}:</span> "${sub.text}"</div>`;
-                    } else {
-                        captionsBox.classList.remove('visible');
-                    }
-                } else {
-                    captionsBox.classList.remove('visible');
-                }
-            }
-
-            function togglePlay() {
-                if (video.paused) {
-                    const p = video.play();
-                    if (p && typeof p.catch === 'function') {
-                        p.catch(err => {
-                            console.warn('[DemoPlayer] Unmuted playback blocked, falling back to muted playback:', err);
-                            video.muted = true;
-                            updateVolume();
-                            video.play().catch(e => console.error('[DemoPlayer] Muted playback error:', e));
-                        });
-                    }
-                    btnPlay.textContent = '⏸';
-                    btnCenterPlay.classList.add('hidden');
-                } else {
-                    video.pause();
-                    btnPlay.textContent = '▶';
-                    btnCenterPlay.classList.remove('hidden');
-                }
-            }
-
-            video.addEventListener('error', () => {
-                console.error('[DemoPlayer] Video element error:', video.error);
-            });
-            video.addEventListener('timeupdate', updateUI);
-            video.addEventListener('play', () => {
-                btnPlay.textContent = '⏸';
-                btnCenterPlay.classList.add('hidden');
-            });
-            video.addEventListener('pause', () => {
-                btnPlay.textContent = '▶';
-                btnCenterPlay.classList.remove('hidden');
-            });
-            video.addEventListener('ended', () => {
-                btnPlay.textContent = '▶';
-                btnCenterPlay.classList.remove('hidden');
-            });
-            video.addEventListener('progress', () => {
-                if (video.buffered.length > 0) {
-                    const end = video.buffered.end(video.buffered.length - 1);
-                    scrubberBuffer.style.width = (end / (video.duration || duration) * 100) + '%';
-                }
-            });
-
-            btnPlay.addEventListener('click', togglePlay);
-            btnCenterPlay.addEventListener('click', togglePlay);
-            video.addEventListener('click', togglePlay);
-
-            btnReplay.addEventListener('click', () => {
-                video.currentTime = 0;
-                video.play();
-            });
-
-            // Volume
-            function updateVolume() {
-                video.muted = (video.volume === 0);
-                btnMute.textContent = video.muted ? '🔇' : (video.volume > 0.5 ? '🔊' : '🔉');
-                volumeSlider.value = video.muted ? 0 : Math.round(video.volume * 100);
-            }
-
-            volumeSlider.addEventListener('input', (e) => {
-                video.volume = parseFloat(e.target.value) / 100;
-                video.muted = false;
-                updateVolume();
-            });
-
-            btnMute.addEventListener('click', () => {
-                video.muted = !video.muted;
-                btnMute.textContent = video.muted ? '🔇' : (video.volume > 0.5 ? '🔊' : '🔉');
-                volumeSlider.value = video.muted ? 0 : Math.round(video.volume * 100);
-            });
-
-            // Captions
-            btnCc.addEventListener('click', () => {
-                captionsEnabled = !captionsEnabled;
-                btnCc.classList.toggle('active', captionsEnabled);
-                if (!captionsEnabled) captionsBox.classList.remove('visible');
-            });
-
-            // Fullscreen
-            btnFullscreen.addEventListener('click', () => {
-                const stage = document.querySelector('.video-stage-container');
-                if (!document.fullscreenElement) {
-                    if (stage.requestFullscreen) stage.requestFullscreen();
-                } else {
-                    if (document.exitFullscreen) document.exitFullscreen();
-                }
-            });
-
-            // Scrubber scrubbing
-            let isScrubbing = false;
-            function scrub(e) {
-                const rect = scrubberTrack.getBoundingClientRect();
-                const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                video.currentTime = pos * (video.duration || duration);
-            }
-
-            scrubberTrack.addEventListener('mousedown', (e) => {
-                isScrubbing = true;
-                scrub(e);
-            });
-            window.addEventListener('mousemove', (e) => {
-                if (isScrubbing) scrub(e);
-                const rect = scrubberTrack.getBoundingClientRect();
-                if (e.clientY >= rect.top - 20 && e.clientY <= rect.bottom + 20 && e.clientX >= rect.left && e.clientX <= rect.right) {
-                    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                    scrubberTooltip.style.left = (pos * 100) + '%';
-                    scrubberTooltip.textContent = fmt(pos * (video.duration || duration));
-                    scrubberTooltip.classList.add('visible');
-                } else {
-                    scrubberTooltip.classList.remove('visible');
-                }
-            });
-            window.addEventListener('mouseup', () => { isScrubbing = false; });
-
-            // Chapter Pills
-            chapterRibbon.querySelectorAll('.chapter-pill').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const time = parseFloat(btn.getAttribute('data-time'));
-                    video.currentTime = time;
-                    if (video.paused) video.play();
-                });
-            });
-
-            // Keyboard Shortcuts
-            window.addEventListener('keydown', (e) => {
-                if (e.target.tagName === 'INPUT') return;
-                if (e.code === 'Space' || e.code === 'KeyK') { e.preventDefault(); togglePlay(); }
-                if (e.code === 'KeyM') { btnMute.click(); }
-                if (e.code === 'KeyC') { btnCc.click(); }
-                if (e.code === 'KeyF') { btnFullscreen.click(); }
-                if (e.code === 'ArrowLeft') { video.currentTime = Math.max(0, video.currentTime - 5); }
-                if (e.code === 'ArrowRight') { video.currentTime = Math.min(video.duration || duration, video.currentTime + 5); }
-            });
-
-            // Auto-play on load if requested or user gesture
-            video.volume = 0.85;
-            updateVolume();
-            renderPips();
-        })();
-    </script>
+    <!-- Single Source of Truth Video Controller Script -->
+    <script src="/js/demo-player.js?v=8.8.1"></script>
 </body>
 </html>

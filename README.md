@@ -2,7 +2,8 @@
 
 > **A 35-year-old C codebase meets modern 3D: Preserving roguelike history through high-performance engine decoupling.**
 
-[![Play Online in Browser](https://img.shields.io/badge/Play_Online-angband3d.com-gold?style=for-the-badge&logo=googlechrome)](https://angband3d.com)
+[![Play Online in Browser](https://img.shields.io/badge/⚔_Play_Online-angband3d.com-gold?style=for-the-badge&logo=googlechrome)](https://angband3d.com)
+[![Watch 10-Act Showcase](https://img.shields.io/badge/🎬_Watch_Showcase-angband3d.com%2Fdemo-red?style=for-the-badge&logo=youtube)](https://angband3d.com/demo)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
 [![Engine: Angband 4.2.6](https://img.shields.io/badge/Engine-Angband_4.2.6-darkgreen.svg)](https://github.com/angband/angband)
 [![Web Client: Three.js WebGL](https://img.shields.io/badge/Web_Client-Three.js_WebGL-orange.svg)](server/public)
@@ -11,6 +12,12 @@
 [![Audit: 100% Lore Accurate](https://img.shields.io/badge/Lore_Audit-100%25_Passing_(624%2F624)-brightgreen.svg)](docs/MODEL_AND_SPRITE_LORE_AUDIT.md)
 [![Vulnerabilities: 0](https://img.shields.io/badge/Vulnerabilities-0_Reported-success.svg)](server)
 [![Smoke Tests: 11/11 Passing](https://img.shields.io/badge/Smoke_Tests-11%2F11_Passing-success.svg)](tools/smoke_test.py)
+
+---
+
+> ### 🌟 Official Live Links
+> - ⚔ **Play Now in Browser**: **[https://angband3d.com](https://angband3d.com)** *(Instant full 3D Roguelike, zero install across Desktop, iOS & Android)*
+> - 🎬 **Official 10-Act Showcase**: **[https://angband3d.com/demo](https://angband3d.com/demo)** *(YouTube-grade 1080p interactive walkthrough with chapter jump, 0-turn yaw, dual-reality CRT mode & boss dragon clash)*
 
 ---
 
@@ -29,8 +36,10 @@ We believe that classic game preservation thrives through open code, transparent
 
 ---
 
-## 🎮 Play Instantly (Web & Standalone Downloads)
+## 🎮 Play Instantly & Official Showcase (Web & Standalone Downloads)
 
+* **Official Interactive Showcase**: 👉 **[https://angband3d.com/demo](https://angband3d.com/demo)**  
+  Watch the broadcast-quality 10-act gameplay walkthrough with chapter navigation, 0-turn camera yaw demonstration, bit-for-bit Angband 4.2.6 mechanics, dual-reality [Tab] CRT terminal mode, and voiced AI Living Chronicle.
 * **Web Edition (Desktop & Mobile)**: 👉 **[https://angband3d.com](https://angband3d.com)**  
   *(Cloud Run Mirror: [https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app))*  
   Runs directly in Chrome, Safari, Edge, or Firefox across PC, Mac, iPad, iPhone, and Android with zero installation. Features full mouse/keyboard look, responsive touch D-pad, and the **exclusive Adventure Tome / Living Chronicle**.
