@@ -1252,10 +1252,15 @@ const server = http.createServer((req, res) => {
 
             // HTTP Caching Strategy:
             // - HTML, JS, CSS: no-cache, no-store, must-revalidate to ensure instant delivery of app updates
-            // - 3D Models, Textures, Audio, Video: 24h caching (immutable static assets)
+            // - Video & Audio Streams (.mp4, .webm, .m4a): strictly no-cache, no-store so CDN proxies (Cloudflare)
+            //   never cache or buffer full 200 responses, ensuring HTTP 206 Partial Content byte ranges stream cleanly
+            // - Static Audio SFX (.mp3, .wav, .ogg): 24h caching
+            // - 3D Models, Textures, Atlases, WASM: 24h immutable caching
             let cacheControl = 'no-cache, no-store, must-revalidate';
-            if (['.mp4', '.webm', '.mp3', '.wav', '.ogg', '.m4a'].includes(ext)) {
-                cacheControl = (safePath.includes('_v') || req.url.includes('?v=')) ? 'public, max-age=86400, no-transform' : 'public, max-age=3600, must-revalidate, no-transform';
+            if (['.mp4', '.webm', '.m4a'].includes(ext)) {
+                cacheControl = 'no-cache, no-store, must-revalidate';
+            } else if (['.mp3', '.wav', '.ogg'].includes(ext)) {
+                cacheControl = 'public, max-age=86400, no-transform';
             } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck'].includes(ext)) {
                 cacheControl = 'public, max-age=86400, immutable';
             }
@@ -1296,6 +1301,7 @@ const server = http.createServer((req, res) => {
                         const stream = fs.createReadStream(filePath, { start, end });
                         res.writeHead(206, {
                             ...headers,
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
                             'Content-Range': `bytes ${start}-${end}/${total}`,
                             'Content-Length': chunksize,
                         });
