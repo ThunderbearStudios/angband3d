@@ -254,10 +254,10 @@ index 000000000..86bc4945d
 +endmacro()
 diff --git a/src/main-bridge.c b/src/main-bridge.c
 new file mode 100644
-index 000000000..a4ed7994c
+index 000000000..b9896abff
 --- /dev/null
 +++ b/src/main-bridge.c
-@@ -0,0 +1,1282 @@
+@@ -0,0 +1,1300 @@
 +/**
 + * \file main-bridge.c
 + * \brief JSON state bridge front end, for driving Angband from an external client.
@@ -290,6 +290,7 @@ index 000000000..a4ed7994c
 +#include "mon-timed.h"
 +#include "mon-predicate.h"
 +#include "mon-util.h"
++#include "mon-make.h"
 +#include "obj-desc.h"
 +#include "obj-gear.h"
 +#include "object.h"
@@ -1362,6 +1363,23 @@ index 000000000..a4ed7994c
 +			emit_event("ok", ok ? "saved" : "save_failed");
 +		} else {
 +			emit_event("error", "not in play");
++		}
++		return 0;
++	}
++
++	if (streq(cmd, "banish")) {
++		if (cave) {
++			int i;
++			for (i = cave_monster_max(cave) - 1; i >= 1; i--) {
++				if (rest && *rest) {
++					struct monster *mon = cave_monster(cave, i);
++					if (!mon || !mon->race || !mon->race->name || !strstr(mon->race->name, rest)) continue;
++				}
++				delete_monster_idx(cave, i);
++			}
++			emit_event("ok", "banished");
++		} else {
++			emit_event("ok", "no cave");
 +		}
 +		return 0;
 +	}
