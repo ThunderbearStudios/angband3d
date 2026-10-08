@@ -134,6 +134,14 @@ class ChronicleManager {
         this.initialized = false;
     }
 
+    _isAudioMuted() {
+        if (!this.audio) return true;
+        if (typeof this.audio.isMuted === 'function') return this.audio.isMuted();
+        if (this.audio.enabled === false) return true;
+        if (typeof this.audio.voiceVolume === 'number' && this.audio.voiceVolume <= 0) return true;
+        return false;
+    }
+
     init(dungeon, soundEngine) {
         if (this.initialized) return;
 
@@ -846,7 +854,7 @@ class ChronicleManager {
         // 8. Speculative Pre-Warming: Immediately warm the opening town arrival prologue in the background!
         // Guarantees zero-latency, instant vocal initiation when the player appears in town.
         // Requires complete hero profile (hero.race) to avoid firing duplicate pre-warms on dummy UI stubs.
-        if (hero && hero.race && this.grounder && this.audio && this.audio.enabled && typeof this.audio.prewarmUtterance === 'function') {
+        if (hero && hero.race && this.grounder && this.audio && !this._isAudioMuted() && typeof this.audio.prewarmUtterance === 'function') {
             try {
                 const townArrivalEvent = {
                     type: 'ONBOARDING_TOWN_ARRIVAL',
@@ -1223,7 +1231,7 @@ class ChronicleManager {
         this.renderStoryEntry(entry, true);
 
         // Speak aloud if audio is unmuted (respects isNoise for non-vocal creatures)
-        if (shouldSpeak && this.audio && this.audio.enabled) {
+        if (shouldSpeak && this.audio && !this._isAudioMuted()) {
             const isDeath = (event && event.type === 'HERO_DEATH');
             if (isDeath && this.audio.isSpeaking) {
                 this.audio.stopSpeaking();
@@ -1604,6 +1612,7 @@ class ChronicleManager {
      */
     prewarmBeat(beat) {
         if (!beat || !beat.text || !this.audio || typeof this.audio.prewarmUtterance !== 'function') return;
+        if (this._isAudioMuted()) return;
         try {
             if (beat.role === 'mentor') {
                 const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: 'Elder Lorekeeper', race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
@@ -2201,7 +2210,7 @@ class ChronicleManager {
         }
 
         // Voice playback upon encounter: speak aloud for ALL entities with contextual casting
-        if (this.audio && this.audio.enabled && res) {
+        if (this.audio && !this._isAudioMuted() && res) {
             const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(monster, this.currentHero, stateObj.state, this.tradition) : null;
             const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, stateObj.state, this.tradition) : null;
             const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
@@ -2275,7 +2284,7 @@ class ChronicleManager {
             this.store.appendChapter(this.activeChronicle, entry);
             this.renderStoryEntry(entry, true);
 
-            if (this.audio && this.audio.enabled) {
+            if (this.audio && !this._isAudioMuted()) {
                 const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
                 if (entry.dialogue) {
                     this.audio.speak(entry.prose, entry.dialogue, null, null, 0, speakOpts);

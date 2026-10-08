@@ -221,12 +221,18 @@ class ChronicleAudioRouter {
         }
         if (this.voiceVolume > 0 && !this.enabled) {
             this.setMuted(false);
+        } else if (this.voiceVolume === 0 && this.enabled) {
+            this.setMuted(true);
         }
         return this.voiceVolume;
     }
 
     getVoiceVolume() {
         return this.voiceVolume;
+    }
+
+    isMuted() {
+        return !this.enabled || (typeof this.voiceVolume === 'number' && this.voiceVolume <= 0);
     }
 
     setMuted(muted) {
@@ -236,6 +242,29 @@ class ChronicleAudioRouter {
         } catch (_) {}
         if (muted) {
             this.stopSpeaking();
+            if (this._activeFetchController) {
+                try { this._activeFetchController.abort(); } catch (_) {}
+                this._activeFetchController = null;
+            }
+            if (this._activeStaging && this._activeStaging.abortCtrl) {
+                try { this._activeStaging.abortCtrl.abort(); } catch (_) {}
+                this._activeStaging = null;
+            }
+            if (this._prewarmPromises) {
+                this._prewarmPromises.clear();
+            }
+            if (this.speechQueue) {
+                this.speechQueue.length = 0;
+            }
+            this.isSpeaking = false;
+            this._isExecutingSequence = false;
+            this.duckGameAudio(false);
+            if (typeof this._emitVocalState === 'function') {
+                this._emitVocalState('idle');
+            }
+            if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
+                try { window.speechSynthesis.cancel(); } catch (_) {}
+            }
         }
     }
 
@@ -626,6 +655,9 @@ class ChronicleAudioRouter {
      */
     async fetchOrGetAudioBuffer(text, role = 'narrator', customVoice = null, options = {}, signal = null) {
         const engine = options.engine || this.ttsEngine || 'gemini';
+        if (this.isMuted()) {
+            return { audioBuffer: null, engine, cached: false, muted: true };
+        }
         let voice = customVoice || (role === 'narrator' ? (engine === 'gemini' ? 'Enceladus' : this.narratorVoice) : '');
         if (engine === 'gemini' && options.geminiVoice) {
             voice = options.geminiVoice;
@@ -791,6 +823,9 @@ class ChronicleAudioRouter {
      * When ready, smoothly fades down the old audio, pauses 50ms, and cuts over seamlessly.
      */
     async _executeSeamlessSpeak(text, dialogue = null, options = {}) {
+        if (this.isMuted() || !text) {
+            return { skipped: true, muted: true };
+        }
         const transitionId = ++this._transitionSessionId;
         const stagingToken = ++this._stagingTokenSeq;
         if (this._activeStaging) {
@@ -940,7 +975,7 @@ class ChronicleAudioRouter {
      * Tier 2: In-browser Web Speech API with clean formant preservation.
      */
     speak(text, dialogue = null, monsterCoords = null, playerCoords = null, cameraYaw = 0, options = {}) {
-        if (!this.enabled || !text) return Promise.resolve({ skipped: true });
+        if (this.isMuted() || !text) return Promise.resolve({ skipped: true, muted: true });
 
         // Ergonomic argument normalization: allow speak(text, dialogue, options) or speak(text, options)
         if (monsterCoords && typeof monsterCoords === 'object' && !('x' in monsterCoords) && !('y' in monsterCoords) && !Array.isArray(monsterCoords)) {
@@ -1008,7 +1043,7 @@ class ChronicleAudioRouter {
         this.isProcessingSpeechQueue = true;
 
         try {
-            while (this.speechQueue.length > 0 && this.enabled) {
+            while (this.speechQueue.length > 0 && !this.isMuted()) {
                 const item = this.speechQueue.shift();
                 let result = null;
                 try {
@@ -1038,6 +1073,9 @@ class ChronicleAudioRouter {
     }
 
     async _executeSpeak(text, dialogue = null, options = {}) {
+        if (this.isMuted() || !text) {
+            return { skipped: true, muted: true };
+        }
         this.duckGameAudio(true);
         this.isSpeaking = true;
         this._speechStartTime = Date.now();
@@ -1109,7 +1147,7 @@ class ChronicleAudioRouter {
      * Attempts server-side neural streaming first; falls back cleanly to local browser synthesis.
      */
     async speakUtterance(text, role = 'narrator', speakerName = '', customVoice = null, options = {}) {
-        if (!this.enabled) return { aborted: true };
+        if (this.isMuted()) return { aborted: true, muted: true };
         const cleanText = text.replace(/<[^>]*>/g, '').trim();
         if (!cleanText) return { finished: true };
 
@@ -1146,14 +1184,14 @@ class ChronicleAudioRouter {
                     try {
                         const r1 = await this.playNeuralAudio(s1, role, customVoice, options);
                         if (r1 && (r1.aborted || r1.interrupted || r1.superseded)) return { aborted: true, interrupted: true };
-                        if (!this.enabled || this.isPaused || this._activeVoiceToken !== voiceToken) return { stopped: true };
+                        if (this.isMuted() || this.isPaused || this._activeVoiceToken !== voiceToken) return { stopped: true };
 
                         // 3. Sentence 1 finished playing; remainder is now ready in cache!
                         const r2 = await this.playNeuralAudio(remainder, role, customVoice, options);
                         if (r2 && (r2.aborted || r2.interrupted || r2.superseded)) return { aborted: true, interrupted: true };
                         return r2 || { finished: true };
                     } catch (pipelineErr) {
-                        if (pipelineErr.name === 'AbortError' || this._activeVoiceToken !== voiceToken || !this.enabled) {
+                        if (pipelineErr.name === 'AbortError' || this._activeVoiceToken !== voiceToken || this.isMuted()) {
                             return { aborted: true };
                         }
                         console.info('[ChronicleAudio] Sentence fast-start failed, falling back to full text:', pipelineErr.message);
@@ -1168,14 +1206,14 @@ class ChronicleAudioRouter {
                 if (res && (res.aborted || res.interrupted || res.superseded)) return { aborted: true, interrupted: true };
                 return res || { finished: true };
             } catch (err) {
-                if (err.name === 'AbortError' || this._activeVoiceToken !== voiceToken || !this.enabled) {
+                if (err.name === 'AbortError' || this._activeVoiceToken !== voiceToken || this.isMuted()) {
                     return { aborted: true };
                 }
                 // Server neural TTS offline or failed; smoothly fall back to browser Web Speech API
                 console.info('[ChronicleAudio] Server neural TTS bypassed, using local speech synthesis:', err.message);
             }
 
-            if (!this.enabled || this.isPaused || this._activeVoiceToken !== voiceToken) return { stopped: true };
+            if (this.isMuted() || this.isPaused || this._activeVoiceToken !== voiceToken) return { stopped: true };
             const res = await this.speakSpeechSynthesis(cleanText, role, speakerName);
             return res || { finished: true };
         } finally {
@@ -1246,6 +1284,10 @@ class ChronicleAudioRouter {
 
     playNeuralAudio(text, role, customVoice = null, options = {}) {
         return new Promise(async (resolve, reject) => {
+            if (this.isMuted()) {
+                this.isSpeaking = false;
+                return resolve({ skipped: true, muted: true });
+            }
             // First stop any prior in-flight fetch and invalidate prior sessions
             this._stopAllActiveAudioSources({ preserveResolve: resolve });
             const sessionId = this._playSessionId;
@@ -1286,7 +1328,7 @@ class ChronicleAudioRouter {
                     try { await this.ctx.resume(); } catch (_) {}
                 }
 
-                if (this._playSessionId !== sessionId || this._activePlayToken !== playToken || !this.enabled) {
+                if (this._playSessionId !== sessionId || this._activePlayToken !== playToken || this.isMuted()) {
                     this.isSpeaking = false;
                     return resolve({ aborted: true, superseded: true });
                 }
@@ -1770,6 +1812,7 @@ class ChronicleAudioRouter {
      */
     async prewarmUtterance(text, role = 'narrator', speakerName = '', customVoice = null, options = {}) {
         if (!text || typeof window === 'undefined') return null;
+        if (this.isMuted()) return null; // STRICT: Zero processing or network requests when Tome audio is muted
         const cleanText = text.replace(/<[^>]*>/g, '').trim();
         if (!cleanText) return null;
 
@@ -1825,6 +1868,8 @@ class ChronicleAudioRouter {
                 }
                 const fetchHeaders = {};
                 if (apiKey) fetchHeaders['x-goog-api-key'] = apiKey;
+
+                if (this.isMuted()) return null; // Abort prewarm if Tome audio is muted
 
                 const url = `/api/tts?${q.toString()}`;
                 const res = await fetch(url, { headers: fetchHeaders });

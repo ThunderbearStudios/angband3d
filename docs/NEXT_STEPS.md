@@ -1,8 +1,40 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.16.3 / Web v8.8.9 — Studio Contact Governance, Scrubber Pointer Capture & Fullscreen HUD Collision Elimination)
+## Current System State (Angband3D v2.16.4 / Web v8.9.0 — High-Availability Cloud Session Persistence, Long Disconnect Preservation & In-Flight Auto-Save)
 
-0. **Studio Contact Governance, Scrubber Pointer Capture & Fullscreen HUD Geometry (Angband3D v2.16.3 / Web v8.8.9)**:
+0. **Bulletproof Cloud High-Traffic Resilience, Session Persistence & Web Performance (Angband3D v2.16.4 / Web v8.9.0)**:
+   - **Root Cause Analysis (Load & Disconnect Instabilities)**:
+     - *Superseded Socket Race*: Reconnections asynchronously fired the previous socket's `close` handler, wiping `session.ws = null` on live engines and scheduling abrupt death timers.
+     - *Stale Reconnect Filter*: Reconnection previously required `candidate.ws === null`. If TCP was half-open, the match failed and spawned a duplicate engine process reloading stale savefiles.
+     - *No Mid-Level Checkpointing*: Upstream Angband only flushes saves on stairs or `save` commands. During active battles on a level, state was never saved to disk.
+     - *Disk I/O Thrashing Under Surge*: Uncached `/api/saves` performed hundreds of synchronous filesystem reads per second under concurrent character selection load.
+     - *Buffer Bloat & Zombie Connections*: Slow clients accumulated thousands of queued frames in Node.js heap memory, and dead TCP connections held open child processes indefinitely.
+   - **Architectural Fixes (`server/src/server.js`, `network.js`)**:
+     - *Socket Verification Guard*: `handleSessionDisconnect(sessionId, socket)` ignores close/error events from superseded sockets if `session.ws !== socket`.
+     - *Clean Socket Dismantling*: `attachWebSocketToSession` strips all listeners (`close`, `error`, `message`) from old WebSockets before closing.
+     - *Seamless Reconnection*: Removed `candidate.ws === null` restriction from session lookup, matching by `sessionId` or normalized character/save name regardless of half-open TCP state.
+     - *Immediate Disconnect Checkpoint*: On any client disconnect, `save\n` is immediately written to engine stdin non-disruptively before starting the 30-minute grace period timer.
+     - *60-Second In-Flight Checkpointing*: Background interval continuously writes `save\n` to live engine instances every 60s, preserving in-progress battles, dungeon exploration, and inventory changes.
+     - *30-Minute Disconnect Grace Period*: Live engine processes remain active for 30 minutes (`30 * 60 * 1000` ms) across network blips, tab switches, and mobile network drops.
+     - *2.5-Second TTL In-Memory Save Cache*: Cached `/api/saves` response with automatic invalidation on uploads, deletes, and session exits, shielding disk I/O from traffic spikes.
+     - *Input Command Rate Limiter*: Enforced a 60 commands/sec token-bucket rate limiter per session on WebSocket commands, protecting engine stdio pipes from command flood scripts.
+     - *WebSocket Backpressure Protection*: Throttled intermediate dungeon visual frames when `session.ws.bufferedAmount > 65536`, preventing server RAM exhaustion on congested links.
+     - *Heartbeat & Ghost Socket Reaper*: 30s `isAlive` ping/pong sweep terminates zombie sockets, releasing network resources while preserving the underlying game sessions.
+     - *HTTP Keep-Alive & Reverse Proxy Tuning*: Configured `keepAliveTimeout = 65000` and `headersTimeout = 66000`, eliminating 502 Bad Gateway race conditions with Cloudflare/ALB/Nginx proxies.
+     - *Stream File Descriptor Safety*: Bound `res.on('close', () => stream.destroy())` and error handlers across static asset and video chunk readers to prevent descriptor leaks on dropped connections.
+     - *Conditional ETag 304 Validation*: Configured `no-cache, must-revalidate` for dynamic static bundles, returning instant HTTP 304 Not Modified (0 bytes transferred) on repeat loads.
+     - *Tab Visibility & Online Reconnect Trigger*: Bound `visibilitychange` and `online` events in `network.js` to immediately re-verify socket liveness and reconnect when returning to backgrounded tabs.
+   - **Tome Mute Optimization (`chronicle-audio.js`, `chronicle-manager.js`, `server.js`)**:
+     - Fast HTTP 204 No Content for muted TTS requests with `X-TTS-Status: MUTED`.
+     - Completely bypassed speech synthesis, pre-buffering, and network fetches when the Living Chronicle is muted.
+   - **Verification**:
+     - `tools/test_server_stability.js`: 100% passed across all tests including half-open TCP hot socket takeover with zero duplicate processes.
+     - `server/test/server_test.js`: 20/20 passed.
+     - `tools/test_chronicle.js`: 36/36 passed.
+     - `python tools/smoke_test.py`: 11/11 passed.
+     - `dotnet build client/angband3d.csproj`: 0 errors, 0 warnings.
+
+1. **Studio Contact Governance, Scrubber Pointer Capture & Fullscreen HUD Geometry (Angband3D v2.16.3 / Web v8.8.9)**:
    - **Unified Studio Contact Governance (`PRESSKIT.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, Git Config)**:
      - Updated official contact point to `thunderbearstudios@gmail.com` across all press kit factsheets, code of conduct enforcement guidelines, and responsible vulnerability disclosure policies.
      - Configured local git repository author email to `thunderbearstudios@gmail.com`.

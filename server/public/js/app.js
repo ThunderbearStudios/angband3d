@@ -3286,6 +3286,13 @@ window.addEventListener('DOMContentLoaded', () => {
             if (loadingOverlay) {
                 loadingOverlay.classList.add('hidden');
             }
+            const topBanner = document.getElementById('top-message-banner');
+            if (topBanner && msg.resumed) {
+                topBanner.classList.add('hidden');
+            }
+            if (msg.resumed && hud && typeof hud.setStatus === 'function') {
+                hud.setStatus('⚡ Session Resumed');
+            }
         };
 
         network.onQueue = (queueData) => {
@@ -3320,6 +3327,14 @@ window.addEventListener('DOMContentLoaded', () => {
             lastFrame = frame;
             if (window.__app) window.__app.lastFrame = frame;
             currentPhase = frame.phase || 'play';
+
+            // Synchronize active character name with network client so reconnections never default to 'Adventurer'
+            if (frame.player && frame.player.name && frame.player.name !== 'PLAYER') {
+                network.currentChar = frame.player.name;
+                try {
+                    localStorage.setItem('angband3d_session_char', frame.player.name);
+                } catch (_) {}
+            }
 
             // Dispatch to The Living Chronicle & Voiced Lorekeeper
             if (window.chronicleManager) {

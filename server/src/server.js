@@ -29,9 +29,22 @@ try {
 // Active session registry for telemetry, leak prevention, and graceful shutdown
 const activeSessions = new Map();
 
+// In-Memory Save Metadata Cache (TTL: 2.5s) to eliminate synchronous disk thrashing on /api/saves under load
+let savesCache = null;
+let savesCacheTime = 0;
+const SAVES_CACHE_TTL_MS = 2500;
+
+function invalidateSavesCache() {
+    savesCache = null;
+    savesCacheTime = 0;
+}
+
 // In-Memory Neural TTS Audio Cache (LRU up to 250 items to keep RAM tiny ~5MB)
 const ttsAudioCache = new Map();
 const MAX_TTS_CACHE_ITEMS = 250;
+
+// In-Flight TTS Request Deduplication (prevents redundant API syntheses during traffic spikes)
+const inFlightTTS = new Map();
 
 // In-Memory Static Gzip Cache (eliminates repeated compression CPU overhead on static assets)
 const staticGzipCache = new Map();
@@ -352,6 +365,8 @@ const IS_WIN = process.platform === 'win32';
 const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${20 * 60 * 1000}`, 10); // 20 minutes
 const MAX_CONCURRENT_GAMES = parseInt(process.env.MAX_CONCURRENT_GAMES || '50', 10);
 const MAX_QUEUE_SIZE = parseInt(process.env.MAX_QUEUE_SIZE || '100', 10);
+// Reconnect Grace Period: Keeps headless game engine alive across network drops, tab reloads, or lag spikes (30 minutes)
+const DISCONNECT_GRACE_PERIOD_MS = parseInt(process.env.DISCONNECT_GRACE_PERIOD_MS || `${30 * 60 * 1000}`, 10); // 30 minutes
 
 // Waiting queue for connections when activeSessions.size >= MAX_CONCURRENT_GAMES
 // Each item: { id, ws, request, enqueueTime, user, save }
@@ -573,6 +588,16 @@ const server = http.createServer((req, res) => {
 
     // REST: List saves
     if (pathname === '/api/saves' && req.method === 'GET') {
+        const now = Date.now();
+        if (savesCache && (now - savesCacheTime < SAVES_CACHE_TTL_MS)) {
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'public, max-age=2, stale-while-revalidate=5'
+            });
+            res.end(savesCache);
+            return;
+        }
+
         try {
             const saveDirs = getSaveDirs();
             const saves = [];
@@ -612,8 +637,14 @@ const server = http.createServer((req, res) => {
                 }
             }
             saves.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ saves }));
+            const jsonStr = JSON.stringify({ saves });
+            savesCache = jsonStr;
+            savesCacheTime = Date.now();
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'public, max-age=2, stale-while-revalidate=5'
+            });
+            res.end(jsonStr);
         } catch (err) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));
@@ -748,6 +779,16 @@ const server = http.createServer((req, res) => {
             res.end();
             return;
         }
+
+        // Fast mute exit: If audio is muted by client, skip processing and return 204 No Content
+        if (urlObj.searchParams.get('muted') === '1' || req.headers['x-tome-muted'] === '1') {
+            res.writeHead(204, {
+                'X-TTS-Status': 'MUTED',
+                'Cache-Control': 'no-cache'
+            });
+            res.end();
+            return;
+        }
         const text = (urlObj.searchParams.get('text') || '').trim();
         const role = (urlObj.searchParams.get('role') || 'narrator').toLowerCase();
 
@@ -825,8 +866,21 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
+            if (inFlightTTS.has(geminiCacheKey)) {
+                inFlightTTS.get(geminiCacheKey)
+                    .then(wavBuffer => sendWav(wavBuffer, false))
+                    .catch(geminiErr => {
+                        console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
+                        if (!res.headersSent) {
+                            res.writeHead(502, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: redactSecret(geminiErr.message, geminiApiKey) }));
+                        }
+                    });
+                return;
+            }
+
             console.log(`[TTS] Gemini Native Request: voice=${geminiVoice}, role=${role}, emotion=${emotion || 'calm'}, text="${text.substring(0, 50)}..."`);
-            synthesizeGeminiTTS({
+            const synthPromise = synthesizeGeminiTTS({
                 text,
                 voice: geminiVoice,
                 emotion,
@@ -835,11 +889,21 @@ const server = http.createServer((req, res) => {
                 role,
                 apiKey: geminiApiKey
             }).then(wavBuffer => {
+                inFlightTTS.delete(geminiCacheKey);
                 if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {
                     const oldestKey = ttsAudioCache.keys().next().value;
                     ttsAudioCache.delete(oldestKey);
                 }
                 ttsAudioCache.set(geminiCacheKey, wavBuffer);
+                return wavBuffer;
+            }).catch(geminiErr => {
+                inFlightTTS.delete(geminiCacheKey);
+                throw geminiErr;
+            });
+
+            inFlightTTS.set(geminiCacheKey, synthPromise);
+
+            synthPromise.then(wavBuffer => {
                 sendWav(wavBuffer, false);
             }).catch(geminiErr => {
                 console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
@@ -898,16 +962,32 @@ const server = http.createServer((req, res) => {
 
             const edgeCacheKey = `edge:${voice}:${prosodyOptions.pitch}:${prosodyOptions.rate}:${text}`;
 
-            if (ttsAudioCache.has(edgeCacheKey)) {
-                const cached = ttsAudioCache.get(edgeCacheKey);
+            function sendEdgeMp3(buffer, isHit = false) {
+                if (res.headersSent) return;
                 res.writeHead(200, {
                     'Content-Type': 'audio/mpeg',
-                    'Content-Length': cached.length,
+                    'Content-Length': buffer.length,
                     'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
                     'X-TTS-Engine': 'edge',
-                    'X-TTS-Cache': 'HIT'
+                    'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
                 });
-                res.end(cached);
+                res.end(buffer);
+            }
+
+            if (ttsAudioCache.has(edgeCacheKey)) {
+                sendEdgeMp3(ttsAudioCache.get(edgeCacheKey), true);
+                return;
+            }
+
+            if (inFlightTTS.has(edgeCacheKey)) {
+                inFlightTTS.get(edgeCacheKey)
+                    .then(buffer => sendEdgeMp3(buffer, false))
+                    .catch(err => {
+                        if (!res.headersSent) {
+                            res.writeHead(502, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: err.message }));
+                        }
+                    });
                 return;
             }
 
@@ -917,44 +997,40 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            getWarmEdgeTTS(voice)
-                .then(tts => {
-                    const { audioStream } = tts.toStream(text, prosodyOptions);
-                    const chunks = [];
+            const edgePromise = new Promise((resolve, reject) => {
+                getWarmEdgeTTS(voice)
+                    .then(tts => {
+                        const { audioStream } = tts.toStream(text, prosodyOptions);
+                        const chunks = [];
 
-                    audioStream.on('data', chunk => chunks.push(chunk));
-                    audioStream.on('end', () => {
-                        const buffer = Buffer.concat(chunks);
-                        if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {
-                            const oldestKey = ttsAudioCache.keys().next().value;
-                            ttsAudioCache.delete(oldestKey);
-                        }
-                        ttsAudioCache.set(edgeCacheKey, buffer);
+                        audioStream.on('data', chunk => chunks.push(chunk));
+                        audioStream.on('end', () => {
+                            const buffer = Buffer.concat(chunks);
+                            if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {
+                                const oldestKey = ttsAudioCache.keys().next().value;
+                                ttsAudioCache.delete(oldestKey);
+                            }
+                            ttsAudioCache.set(edgeCacheKey, buffer);
+                            resolve(buffer);
+                        });
 
-                        if (!res.headersSent) {
-                            res.writeHead(200, {
-                                'Content-Type': 'audio/mpeg',
-                                'Content-Length': buffer.length,
-                                'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
-                                'X-TTS-Engine': 'edge',
-                                'X-TTS-Cache': 'MISS'
-                            });
-                            res.end(buffer);
-                        }
-                    });
+                        audioStream.on('error', err => {
+                            console.warn('[TTS] audioStream error:', err.message);
+                            try { tts.close(); } catch (_) {}
+                            edgeVoicePool.delete(voice);
+                            reject(err);
+                        });
+                    })
+                    .catch(reject);
+            }).finally(() => {
+                inFlightTTS.delete(edgeCacheKey);
+            });
 
-                    audioStream.on('error', err => {
-                        console.warn('[TTS] audioStream error:', err.message);
-                        try { tts.close(); } catch (_) {}
-                        edgeVoicePool.delete(voice);
-                        if (!res.headersSent) {
-                            res.writeHead(500, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ error: err.message }));
-                        }
-                    });
-                })
+            inFlightTTS.set(edgeCacheKey, edgePromise);
+
+            edgePromise
+                .then(buffer => sendEdgeMp3(buffer, false))
                 .catch(err => {
-                    console.warn('[TTS] getWarmEdgeTTS failed:', err.message);
                     if (!res.headersSent) {
                         res.writeHead(500, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ error: err.message }));
@@ -1123,6 +1199,7 @@ const server = http.createServer((req, res) => {
 
             const destPath = path.join(SAVE_DIR, targetName);
             fs.renameSync(tempFile, destPath);
+            invalidateSavesCache();
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
@@ -1186,6 +1263,7 @@ const server = http.createServer((req, res) => {
         if (fs.existsSync(savePath) && fs.statSync(savePath).isFile()) {
             try {
                 fs.unlinkSync(savePath);
+                invalidateSavesCache();
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ status: 'deleted', filename: saveName }));
             } catch (err) {
@@ -1251,18 +1329,21 @@ const server = http.createServer((req, res) => {
             const contentType = mimeTypes[ext] || 'application/octet-stream';
 
             // HTTP Caching Strategy:
-            // - HTML, JS, CSS: no-cache, no-store, must-revalidate to ensure instant delivery of app updates
+            // - HTML: public, max-age=0, must-revalidate (enables instant ETag 304 Not Modified validation on fresh loads)
+            // - JS, CSS: public, max-age=0, must-revalidate (enables instant ETag 304 with 0 body bytes, saving up to 90% bandwidth)
             // - Video & Audio Streams (.mp4, .webm, .m4a): strictly no-cache, no-store so CDN proxies (Cloudflare)
             //   never cache or buffer full 200 responses, ensuring HTTP 206 Partial Content byte ranges stream cleanly
             // - Static Audio SFX (.mp3, .wav, .ogg): 24h caching
             // - 3D Models, Textures, Atlases, WASM: 24h immutable caching
-            let cacheControl = 'no-cache, no-store, must-revalidate';
+            let cacheControl = 'no-cache, must-revalidate';
             if (['.mp4', '.webm', '.m4a'].includes(ext)) {
                 cacheControl = 'no-cache, no-store, must-revalidate';
             } else if (['.mp3', '.wav', '.ogg'].includes(ext)) {
                 cacheControl = 'public, max-age=86400, no-transform';
             } else if (['.png', '.jpg', '.jpeg', '.webp', '.obj', '.mtl', '.gltf', '.glb', '.bin', '.wasm', '.pck'].includes(ext)) {
                 cacheControl = 'public, max-age=86400, immutable';
+            } else if (['.js', '.css'].includes(ext)) {
+                cacheControl = 'no-cache, must-revalidate';
             }
 
             const etag = `W/"${fileStat.size.toString(16)}-${Math.floor(fileStat.mtimeMs).toString(16)}"`;
@@ -1320,6 +1401,8 @@ const server = http.createServer((req, res) => {
                                 'Content-Range': `bytes ${start}-${actualEnd}/${total}`,
                                 'Content-Length': chunksize,
                             });
+                            stream.on('error', () => { if (!res.headersSent) { res.writeHead(500); } res.end(); });
+                            res.on('close', () => { stream.destroy(); });
                             stream.pipe(res);
                             return;
                         } else {
@@ -1342,7 +1425,7 @@ const server = http.createServer((req, res) => {
         if (compressible && acceptEncoding.includes('gzip')) {
             headers['Content-Encoding'] = 'gzip';
             try {
-                const stat = fs.statSync(filePath);
+                const stat = fileStat;
                 const cacheKey = `${filePath}:${stat.mtimeMs}`;
                 const cached = staticGzipCache.get(cacheKey);
                 if (cached) {
@@ -1364,24 +1447,33 @@ const server = http.createServer((req, res) => {
                         res.end(gzipped);
                     } else {
                         res.writeHead(200, headers);
-                        fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(res);
+                        const fallbackStream = fs.createReadStream(filePath);
+                        res.on('close', () => { fallbackStream.destroy(); });
+                        fallbackStream.pipe(zlib.createGzip({ level: 6 })).pipe(res);
                     }
                 });
                 return;
             } catch (_) {
                 res.writeHead(200, headers);
-                fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(res);
+                const fallbackStream = fs.createReadStream(filePath);
+                res.on('close', () => { fallbackStream.destroy(); });
+                fallbackStream.pipe(zlib.createGzip({ level: 6 })).pipe(res);
                 return;
             }
         } else if (compressible && acceptEncoding.includes('deflate')) {
             headers['Content-Encoding'] = 'deflate';
             res.writeHead(200, headers);
-            fs.createReadStream(filePath).pipe(zlib.createDeflate()).pipe(res);
+            const deflateStream = fs.createReadStream(filePath);
+            res.on('close', () => { deflateStream.destroy(); });
+            deflateStream.pipe(zlib.createDeflate()).pipe(res);
             return;
         }
 
         res.writeHead(200, headers);
-        fs.createReadStream(filePath).pipe(res);
+        const stream = fs.createReadStream(filePath);
+        stream.on('error', () => { if (!res.headersSent) { res.writeHead(500); } res.end(); });
+        res.on('close', () => { stream.destroy(); });
+        stream.pipe(res);
         return;
     }
 }
@@ -1497,12 +1589,174 @@ setInterval(() => {
     }
 }, 5000).unref();
 
+function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
+    const session = activeSessions.get(sessionId);
+    if (!session) return;
+
+    if (session.disconnectTimer) {
+        clearTimeout(session.disconnectTimer);
+        session.disconnectTimer = null;
+    }
+
+    const { child, ws } = session;
+    activeSessions.delete(sessionId);
+
+    if (ws && ws.readyState === 1 /* OPEN */) {
+        try {
+            if (byeMessage) {
+                ws.send(JSON.stringify({ t: 'bye', detail: byeMessage }));
+            }
+            ws.close();
+        } catch (_) {}
+    }
+
+    if (child && !child.killed && child.exitCode === null) {
+        try {
+            if (child.stdin && child.stdin.writable) {
+                console.log(`[Session] Saving authoritative state for session ${sessionId}...`);
+                child.stdin.write('save\n');
+                // Allow ample time (1200ms) for engine to flush savegame to disk without truncation
+                setTimeout(() => {
+                    try {
+                        if (child && !child.killed && child.exitCode === null) {
+                            child.stdin.write('quit\n');
+                            child.stdin.end();
+                            setTimeout(() => {
+                                try {
+                                    if (child && !child.killed && child.exitCode === null) {
+                                        child.kill();
+                                    }
+                                    invalidateSavesCache();
+                                } catch (_) {}
+                            }, 500);
+                        }
+                    } catch (_) {}
+                }, 1200);
+            } else {
+                child.kill();
+            }
+        } catch (_) {
+            try { child.kill(); } catch (_) {}
+        }
+    }
+
+    setTimeout(processWaitingQueue, 50);
+}
+
+function handleSessionDisconnect(sessionId, socket = null) {
+    const session = activeSessions.get(sessionId);
+    if (!session) return;
+
+    // Invariant: If a socket is provided, verify it is still the active socket for this session.
+    // If the session was already re-attached to a new socket, ignore close/error events from the superseded socket!
+    if (socket && session.ws && session.ws !== socket) {
+        console.log(`[WebSocket] Ignoring close/error event from superseded socket for session ${sessionId}`);
+        return;
+    }
+
+    session.ws = null;
+    session.disconnectedAt = Date.now();
+
+    // Check if the engine process is still running
+    if (session.child && !session.child.killed && session.child.exitCode === null) {
+        console.log(`[WebSocket] Client disconnected from session ${sessionId}. Keeping engine alive for ${Math.round(DISCONNECT_GRACE_PERIOD_MS / 1000)}s grace period...`);
+
+        // CRITICAL: Immediately issue a non-blocking save command to the engine so the latest battle / state
+        // is safely flushed to disk in case the server or process terminates before reconnect.
+        if (session.child.stdin && session.child.stdin.writable) {
+            try {
+                session.child.stdin.write('save\n');
+            } catch (err) {
+                console.warn(`[Session] Failed to issue disconnect save for ${sessionId}: ${err.message}`);
+            }
+        }
+
+        if (session.disconnectTimer) {
+            clearTimeout(session.disconnectTimer);
+        }
+        session.disconnectTimer = setTimeout(() => {
+            console.log(`[Session] Grace period expired for session ${sessionId}. Saving and terminating...`);
+            gracefulSessionSaveAndExit(sessionId, 'Session disconnected and saved.');
+        }, DISCONNECT_GRACE_PERIOD_MS);
+    } else {
+        // Child is already dead or exited
+        activeSessions.delete(sessionId);
+        setTimeout(processWaitingQueue, 50);
+    }
+}
+
+function attachWebSocketToSession(session, ws) {
+    // If there was an old WebSocket attached to this session, strip all listeners before closing
+    // so its asynchronous close/error callbacks will NEVER touch this session or trigger handleSessionDisconnect!
+    if (session.ws && session.ws !== ws) {
+        const oldWs = session.ws;
+        session.ws = null;
+        oldWs.removeAllListeners('close');
+        oldWs.removeAllListeners('error');
+        oldWs.removeAllListeners('message');
+        try { oldWs.close(); } catch (_) {}
+    }
+
+    session.ws = ws;
+    if (session.disconnectTimer) {
+        clearTimeout(session.disconnectTimer);
+        session.disconnectTimer = null;
+    }
+    session.disconnectedAt = null;
+
+    let cmdCount = 0;
+    let cmdWindowStart = Date.now();
+    const MAX_CMDS_PER_SEC = 60; // Max 60 inputs/sec (burst tolerance, guards against spam bots and buffer bloat)
+
+    ws.on('message', message => {
+        session.lastActivityTime = Date.now();
+        const str = message.toString();
+        // Respond immediately to latency heartbeat pings
+        if (str.startsWith('{')) {
+            try {
+                const parsed = JSON.parse(str);
+                if (parsed.t === 'ping') {
+                    if (ws.readyState === ws.OPEN) {
+                        ws.send(JSON.stringify({ t: 'pong', time: parsed.time }));
+                    }
+                    return;
+                }
+            } catch (_) {}
+        }
+
+        // Rate limit commands to protect engine stdio pipe
+        const now = Date.now();
+        if (now - cmdWindowStart > 1000) {
+            cmdWindowStart = now;
+            cmdCount = 0;
+        }
+        cmdCount++;
+        if (cmdCount > MAX_CMDS_PER_SEC) {
+            return;
+        }
+
+        // Client sends command line e.g. "key left" or "frame"
+        if (session.child && session.child.stdin && session.child.stdin.writable) {
+            session.child.stdin.write(str.trim() + '\n');
+        }
+    });
+
+    ws.on('close', () => {
+        handleSessionDisconnect(session.sessionId, ws);
+    });
+
+    ws.on('error', err => {
+        console.error(`[WebSocket Error] Session ${session.sessionId}: ${err.message}`);
+        handleSessionDisconnect(session.sessionId, ws);
+    });
+}
+
 function spawnGameSession(ws, request) {
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
     const rawUser = urlObj.searchParams.get('user') || null;
     const rawSave = urlObj.searchParams.get('save') || null;
     const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
-    const save = rawSave ? rawSave.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+    const save = rawSave ? rawSave.replace(/\.sav$/i, '').replace(/[^a-zA-Z0-9_.-]/g, '') : null;
 
     const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
     ws.send(JSON.stringify({ t: 'hello', sessionId, version: '1.0.0' }));
@@ -1569,8 +1823,20 @@ function spawnGameSession(ws, request) {
         stdio: ['pipe', 'pipe', 'pipe']
     });
 
-    // Register session in active session tracking with idle timer
-    activeSessions.set(sessionId, { child, ws, startTime: Date.now(), lastActivityTime: Date.now(), user });
+    const session = {
+        sessionId,
+        child,
+        ws,
+        startTime: Date.now(),
+        lastActivityTime: Date.now(),
+        user,
+        save,
+        disconnectedAt: null,
+        disconnectTimer: null,
+        lastFrame: null
+    };
+
+    activeSessions.set(sessionId, session);
 
     let lineBuffer = '';
 
@@ -1580,8 +1846,24 @@ function spawnGameSession(ws, request) {
         while ((newlineIdx = lineBuffer.indexOf('\n')) !== -1) {
             const line = lineBuffer.substring(0, newlineIdx).trim();
             lineBuffer = lineBuffer.substring(newlineIdx + 1);
-            if (line.length > 0 && ws.readyState === ws.OPEN) {
-                ws.send(line);
+            if (line.length > 0) {
+                if (line.startsWith('{"t":"frame"') || line.startsWith('{"t":"hello"')) {
+                    session.lastFrame = line;
+                }
+                if (line.startsWith('{"t":"hello"')) {
+                    try {
+                        const parsed = JSON.parse(line);
+                        if (parsed.savefile) session.engineSavefile = parsed.savefile;
+                    } catch (_) {}
+                }
+                if (session.ws && session.ws.readyState === 1 /* OPEN */) {
+                    // Backpressure Guard: If socket has >64KB queued in OS/Node buffer, drop intermediate visual frames
+                    // to prevent latency delay and memory bloat for slow network connections.
+                    if (line.startsWith('{"t":"frame"') && session.ws.bufferedAmount > 65536) {
+                        return;
+                    }
+                    session.ws.send(line);
+                }
             }
         }
     });
@@ -1591,91 +1873,127 @@ function spawnGameSession(ws, request) {
     });
 
     child.on('error', err => {
-        console.error(`[Engine Process Error] ${err.message}`);
+        console.error(`[Engine Process Error] Session ${sessionId}: ${err.message}`);
+        if (session.disconnectTimer) {
+            clearTimeout(session.disconnectTimer);
+            session.disconnectTimer = null;
+        }
         activeSessions.delete(sessionId);
-        if (ws.readyState === ws.OPEN) {
-            ws.send(JSON.stringify({ t: 'bye', detail: err.message }));
-            ws.close();
+        if (session.ws && session.ws.readyState === 1) {
+            session.ws.send(JSON.stringify({ t: 'bye', detail: err.message }));
+            session.ws.close();
         }
         setTimeout(processWaitingQueue, 50);
     });
 
     child.on('close', (code, signal) => {
-        console.log(`[Engine Process Exit] Code: ${code}, Signal: ${signal}`);
+        console.log(`[Engine Process Exit] Session ${sessionId} - Code: ${code}, Signal: ${signal}`);
+        if (session.disconnectTimer) {
+            clearTimeout(session.disconnectTimer);
+            session.disconnectTimer = null;
+        }
         activeSessions.delete(sessionId);
-        if (ws.readyState === ws.OPEN) {
-            ws.send(JSON.stringify({ t: 'bye', detail: `process exited with code ${code}` }));
-            ws.close();
+        if (session.ws && session.ws.readyState === 1) {
+            session.ws.send(JSON.stringify({ t: 'bye', detail: `process exited with code ${code}` }));
+            session.ws.close();
         }
         setTimeout(processWaitingQueue, 50);
     });
 
-    ws.on('message', message => {
-        const session = activeSessions.get(sessionId);
-        if (session) {
-            session.lastActivityTime = Date.now();
-        }
-        const str = message.toString();
-        // Respond immediately to latency heartbeat pings
-        if (str.startsWith('{')) {
-            try {
-                const parsed = JSON.parse(str);
-                if (parsed.t === 'ping') {
-                    if (ws.readyState === ws.OPEN) {
-                        ws.send(JSON.stringify({ t: 'pong', time: parsed.time }));
-                    }
-                    return;
-                }
-            } catch (_) {}
-        }
-        // Client sends command line e.g. "key left" or "frame"
-        if (child.stdin && child.stdin.writable) {
-            child.stdin.write(str.trim() + '\n');
-        }
-    });
+    attachWebSocketToSession(session, ws);
+}
 
-    ws.on('close', () => {
-        console.log('[WebSocket] Client disconnected. Saving authoritative state before stopping engine...');
-        activeSessions.delete(sessionId);
-        try {
-            if (child && !child.killed && child.stdin && child.stdin.writable) {
-                // Issue clean bridge 'save' command to write persistent state without triggering panic save
-                child.stdin.write('save\n');
-                setTimeout(() => {
-                    try {
-                        if (child && !child.killed) {
-                            child.stdin.end();
-                            child.kill();
-                        }
-                    } catch (_) {}
-                }, 200);
-            } else if (child && !child.killed) {
-                child.kill();
-            }
-        } catch (_) {}
-        setTimeout(processWaitingQueue, 50);
-    });
-
-    ws.on('error', err => {
-        console.error(`[WebSocket Error] ${err.message}`);
-        activeSessions.delete(sessionId);
-        try {
-            if (child && !child.killed) {
-                child.kill('SIGKILL');
-            }
-        } catch (_) {}
-        setTimeout(processWaitingQueue, 50);
-    });
+function normalizeSessionKey(str) {
+    if (!str) return '';
+    return str.toLowerCase().replace(/\.sav$/i, '').trim();
 }
 
 wss.on('connection', (ws, request) => {
+    ws.isAlive = true;
+    ws.on('pong', function wsHeartbeat() {
+        this.isAlive = true;
+    });
+
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
     const rawUser = urlObj.searchParams.get('user') || null;
     const rawSave = urlObj.searchParams.get('save') || null;
-    const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
-    const save = rawSave ? rawSave.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+    const rawSession = urlObj.searchParams.get('session') || null;
+    const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
 
-    console.log(`[WebSocket] Client connection attempt. User: ${user || 'default'}, Save: ${save || 'none'}. (Active: ${activeSessions.size}/${MAX_CONCURRENT_GAMES}, Queue: ${waitingQueue.length})`);
+    const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+    const save = rawSave ? rawSave.replace(/\.sav$/i, '').replace(/[^a-zA-Z0-9_.-]/g, '') : null;
+    const clientSessionId = rawSession ? rawSession.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+
+    console.log(`[WebSocket] Client connection attempt. Session: ${clientSessionId || 'none'}, User: ${user || 'default'}, Save: ${save || 'none'}, isNew: ${isNew}. (Active: ${activeSessions.size}/${MAX_CONCURRENT_GAMES}, Queue: ${waitingQueue.length})`);
+
+    // Priority Check 1: Can we seamlessly reconnect to a live session in memory?
+    if (!isNew) {
+        let existingSession = null;
+        if (clientSessionId && activeSessions.has(clientSessionId)) {
+            const candidate = activeSessions.get(clientSessionId);
+            if (candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
+                existingSession = candidate;
+            }
+        }
+        if (!existingSession && (save || user)) {
+            const targetKey = normalizeSessionKey(save || user);
+            // Search all active sessions for a live engine running this character.
+            // DO NOT require candidate.ws === null!
+            // Even if the previous WebSocket is still half-open, take over the live session.
+            for (const candidate of activeSessions.values()) {
+                if (candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
+                    const candSave = normalizeSessionKey(candidate.save);
+                    const candUser = normalizeSessionKey(candidate.user);
+                    const candEngineSave = candidate.engineSavefile ? normalizeSessionKey(path.basename(candidate.engineSavefile)) : '';
+                    if (candSave === targetKey || candUser === targetKey || candEngineSave === targetKey) {
+                        existingSession = candidate;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (existingSession) {
+            console.log(`[WebSocket] Seamlessly re-attaching client to live session ${existingSession.sessionId} (User: ${existingSession.user || 'none'}, Save: ${existingSession.save || 'none'})`);
+
+            attachWebSocketToSession(existingSession, ws);
+
+            try {
+                ws.send(JSON.stringify({
+                    t: 'hello',
+                    sessionId: existingSession.sessionId,
+                    version: '1.0.0',
+                    resumed: true
+                }));
+
+                // Immediately emit cached last frame for 0ms visual reconnection
+                if (existingSession.lastFrame) {
+                    ws.send(existingSession.lastFrame);
+                }
+
+                // Request an immediate fresh frame from the engine
+                if (existingSession.child && existingSession.child.stdin && existingSession.child.stdin.writable) {
+                    existingSession.child.stdin.write('frame\n');
+                }
+            } catch (e) {
+                console.error(`[WebSocket] Error sending resume frame: ${e.message}`);
+            }
+            return;
+        }
+    } else {
+        // If player explicitly requested a brand new hero (-n / isNew=true),
+        // terminate any lingering session for this character so two engines never run against the same save
+        const targetKey = normalizeSessionKey(save || user);
+        if (targetKey) {
+            for (const [sId, cand] of activeSessions.entries()) {
+                const candKey = normalizeSessionKey(cand.save || cand.user || (cand.engineSavefile ? path.basename(cand.engineSavefile) : null));
+                if (candKey === targetKey) {
+                    console.log(`[WebSocket] Terminating existing session ${sId} to begin fresh hero for ${targetKey}`);
+                    gracefulSessionSaveAndExit(sId, 'Starting new character.');
+                }
+            }
+        }
+    }
 
     // If active games are at capacity or a queue already exists, enqueue!
     if (activeSessions.size >= MAX_CONCURRENT_GAMES || waitingQueue.length > 0) {
@@ -1759,38 +2077,44 @@ wss.on('connection', (ws, request) => {
     spawnGameSession(ws, request);
 });
 
-// Periodic idle session reaper: safely flush saves and release memory for inactive tabs
+// WebSocket Heartbeat / Ghost Connection Terminator
+// Every 30 seconds, ping all active sockets. If a socket did not respond with a pong
+// since the last cycle (e.g. abrupt carrier drop, dead WiFi, suspended tab), terminate it.
+const wsLivenessInterval = setInterval(() => {
+    wss.clients.forEach(ws => {
+        if (ws.isAlive === false) {
+            console.log('[WebSocket] Terminating silent/unresponsive ghost socket');
+            return ws.terminate();
+        }
+        ws.isAlive = false;
+        try {
+            ws.ping();
+        } catch (_) {}
+    });
+}, 30000);
+wsLivenessInterval.unref();
+
+// In-Flight Checkpointing: Periodically checkpoint active game sessions to disk every 60s
+// so that active battles, dungeon exploration, and player inventory changes are continuously written to disk
+// and never lost across unexpected client disconnects, power loss, or container restarts.
+setInterval(() => {
+    for (const [sessionId, session] of activeSessions.entries()) {
+        if (session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
+            try {
+                session.child.stdin.write('save\n');
+            } catch (_) {}
+        }
+    }
+}, 60000).unref();
+
+// Periodic idle session reaper: safely flush saves and release memory for inactive connected sessions
 setInterval(() => {
     const now = Date.now();
     for (const [sessionId, session] of activeSessions.entries()) {
-        if (now - session.lastActivityTime > IDLE_TIMEOUT_MS) {
+        // Disconnected sessions are governed by their own disconnectTimer (DISCONNECT_GRACE_PERIOD_MS)
+        if (session.ws && (now - session.lastActivityTime > IDLE_TIMEOUT_MS)) {
             console.log(`[Angband3D Cloud] Reaping idle session ${sessionId} (${Math.round((now - session.lastActivityTime) / 60000)}m inactive). Saving state...`);
-            try {
-                if (session.ws && session.ws.readyState === 1) {
-                    session.ws.send(JSON.stringify({
-                        t: 'bye',
-                        detail: 'Session timed out due to 20 minutes of inactivity. Progress has been safely saved.'
-                    }));
-                    session.ws.close();
-                }
-                if (session.child && !session.child.killed && session.child.stdin && session.child.stdin.writable) {
-                    session.child.stdin.write('save\n');
-                    setTimeout(() => {
-                        try {
-                            if (session.child && !session.child.killed) {
-                                session.child.stdin.end();
-                                session.child.kill();
-                            }
-                        } catch (_) {}
-                    }, 200);
-                } else if (session.child && !session.child.killed) {
-                    session.child.kill();
-                }
-            } catch (err) {
-                console.error(`[Idle Reaper Error] ${err.message}`);
-            }
-            activeSessions.delete(sessionId);
-            setTimeout(processWaitingQueue, 50);
+            gracefulSessionSaveAndExit(sessionId, 'Session timed out due to 20 minutes of inactivity. Progress has been safely saved.');
         }
     }
 }, 30000).unref();
@@ -1831,6 +2155,10 @@ function gracefulShutdown(signal) {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Ensure keepAliveTimeout exceeds reverse proxy (Cloudflare/ALB/Nginx) standard 60s idle timeout
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
 
 server.listen(PORT, () => {
     console.log(`[Angband3D Cloud Server] Listening on http://localhost:${PORT}`);
