@@ -38,6 +38,7 @@
 30. [Standalone Client External Link Decoupling, Distribution Hygiene & Web-Only Media Architecture](#30-standalone-client-external-link-decoupling-distribution-hygiene--web-only-media-architecture)
 31. [DOM Target Hierarchy Invariants & Fullscreen Dual-Engine Resolution](#31-dom-target-hierarchy-invariants--fullscreen-dual-engine-resolution)
 32. [Award Submission Strategy, Technical Storytelling & Cultural Preservation](#32-award-submission-strategy-technical-storytelling--cultural-preservation)
+33. [Death Screen Save Reload Architecture, Permadeath Mechanics vs. Living Save Protection & Zombie Process Elimination](#33-death-screen-save-reload-architecture-permadeath-mechanics-vs-living-save-protection--zombie-process-elimination)
 
 ---
 
@@ -1672,3 +1673,60 @@ Jurors often have less than 15 minutes to form an initial impression. Every barr
 2. **Curated Showcase Alternative**: For jurors who cannot play immediately or prefer a guided experience, provide a broadcast-quality, chapter-scrubbable interactive walkthrough (`https://angband3d.com/demo`).
 3. **Wizard Mode Shortcuts for Deep Content**: Roguelikes take dozens of hours to reach late-game content (unique dragons, ancient artifact vaults). Provide clear, prominent debug hotkeys (`Ctrl-W` Wizard Mode, `Ctrl-A` Debug Commands) in the submission dossier so jurors can immediately inspect endgame content.
 4. **Permanent Empirical Grounding**: Never make unverified marketing claims. Always cite automated test counts (11/11 C smoke tests, 932 unit tests), lore audits (624/624 entities), memory benchmarks (0 KB leaks over 10,000 turns), and open-source file paths.
+
+---
+
+## 33. Death Screen Save Reload Architecture, Permadeath Mechanics vs. Living Save Protection & Zombie Process Elimination
+
+### 33.1 The Permadeath Trap vs. Authoritative Living Saves
+In classical Angband, player death sets `player->is_dead = 1`. In traditional CLI execution, the savefile is unlinked or overwritten with a dead tombstone upon death. However, in modern cross-platform, cloud-hosted, and web environments:
+- **The Accidental Overwrite Hazard**: If the server's periodic auto-save interval, disconnect reaper, or container shutdown handler writes `save\n` to engine `stdin` after `player->is_dead` is set, upstream Angband serializes the dead state (`is_dead = 1`) into the on-disk savefile.
+- **The Character Creation Redirect**: When Angband's `start_game()` loads a savefile where `player->is_dead` is true, it treats the save as exhausted/unusable, prints `"Character is dead"`, and automatically diverts into `textui_do_birth()` (the new character creation wizard)! Players attempting to reload their saved game were dumped into character birth with no living state.
+- **The Architectural Invariant**: **Authoritative Save Protection at the C Layer**. In `engine/src/main-bridge.c:1101`, the `save` command strictly requires `(!player || !player->is_dead)`. If the player is dead, saving is refused with an `"error": "player is dead"` event. The living savefile on disk remains permanently preserved and uncorrupted.
+
+### 33.2 Multi-Layered Dead State Defense
+Protecting player progress across client, server, and engine requires a multi-layered defense:
+1. **Engine Bridge (`main-bridge.c`)**: Authoritative rejection of `save` command if `player->is_dead`.
+2. **Server Process Orchestrator (`server.js`)**:
+   - `child.stdout.on('data')` parses frames; if `parsed.player.dead` or `hp <= 0`, marks `session.isDead = true`.
+   - 60s auto-save interval and disconnect handler check `!session.isDead` before emitting `save\n`.
+   - `gracefulSessionSaveAndExit()` skips `save\n` when `session.isDead` is true, immediately terminating the child process.
+3. **Network Controller (`network.js`)**:
+   - Tracks `this.isDead = true` on death frames.
+   - `saveGame()` refuses to transmit `save` if `this.isDead` is true.
+   - `leaveSession()` dispatches `{"t":"quit"}`, nullifies `this.sessionId`, wipes `angband3d_session_*` from `localStorage`, and cleanly disconnects.
+4. **Application Coordinator (`app.js`)**:
+   - `returnToMainMenu()` verifies `!isDead` before invoking `network.saveAndDisconnect()`.
+
+### 33.3 Modal State Machine Latching & Input Capture
+A subtle UI latch bug occurred in `hud.js`:
+```javascript
+// BROKEN PATTERN:
+if (isDead) {
+    this.isDeadInPlay = true;
+    this.showDeathModal(frame);
+} else if (!this.isDeadInPlay) {
+    this.hideDeathModal();
+}
+```
+Once `this.isDeadInPlay` became `true`, subsequent living frames (`isDead: false`) saw `!this.isDeadInPlay` as `false`, causing `this.hideDeathModal()` to **never execute**. Because `input.js` intercepted all keyboard strokes when `!deathModal.classList.contains('hidden')`, the user remained permanently trapped in the death modal even after reloading a living game.
+- **The Fix**: The branch must unconditionally reset the latch:
+  ```javascript
+  // ROBUST PATTERN:
+  if (isDead) {
+      this.isDeadInPlay = true;
+      this.showDeathModal(frame);
+  } else {
+      this.isDeadInPlay = false;
+      this.hideDeathModal();
+  }
+  ```
+
+### 33.4 The `reloadLastSave()` Workflow
+1. Clear HUD death state and hide death modal (`hud.isDeadInPlay = false; hud.hideDeathModal()`).
+2. Terminate the dead engine session cleanly via `network.leaveSession()`.
+3. Fetch candidate saves from `/api/saves` (or `LocalSaveManager.listSaves()` for offline/Wasm).
+4. Match the character's last active savefile.
+5. Invoke `startGame({ charName, saveFile, isNew: false, autoBirth: false })` to reboot directly into 3D play.
+6. The server's `wss.on('connection')` inspects `candidate.isDead`. If true, it rejects re-attachment (`isDeadHijack`), reaps the dead process, and launches the living savefile in a fresh engine process.
+
