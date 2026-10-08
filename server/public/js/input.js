@@ -161,7 +161,12 @@ class InputController {
                 // [R] Reload save / restart game (matches Godot Main.cs:1684)
                 if (e.key === 'r' || e.key === 'R') {
                     e.preventDefault();
-                    this.network.sendKey('R');
+                    if (window.__app && window.__app.reloadLastSave) {
+                        window.__app.reloadLastSave();
+                    } else if (window.__app && window.__app.hud && window.__app.hud.hideDeathModal) {
+                        window.__app.hud.hideDeathModal();
+                        window.location.reload();
+                    }
                     return;
                 }
 

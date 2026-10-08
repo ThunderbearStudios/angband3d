@@ -254,7 +254,7 @@ index 000000000..86bc4945d
 +endmacro()
 diff --git a/src/main-bridge.c b/src/main-bridge.c
 new file mode 100644
-index 000000000..b9896abff
+index 000000000..b974288d6
 --- /dev/null
 +++ b/src/main-bridge.c
 @@ -0,0 +1,1300 @@
@@ -1358,11 +1358,11 @@ index 000000000..b9896abff
 +	}
 +
 +	if (streq(cmd, "save")) {
-+		if (bridge_in_play() && savefile[0]) {
++		if (bridge_in_play() && (!player || !player->is_dead) && savefile[0]) {
 +			bool ok = savefile_save(savefile);
 +			emit_event("ok", ok ? "saved" : "save_failed");
 +		} else {
-+			emit_event("error", "not in play");
++			emit_event("error", (player && player->is_dead) ? "player is dead" : "not in play");
 +		}
 +		return 0;
 +	}

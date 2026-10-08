@@ -1394,7 +1394,8 @@ class WebHUD {
         if (isDead) {
             this.isDeadInPlay = true;
             this.showDeathModal(frame);
-        } else if (!this.isDeadInPlay) {
+        } else {
+            this.isDeadInPlay = false;
             this.hideDeathModal();
         }
     }
@@ -1485,7 +1486,9 @@ class WebHUD {
         if (btnReload) {
             btnReload.addEventListener('click', () => {
                 this.hideDeathModal();
-                if (window.__app && window.__app.startNewRandomHero) {
+                if (window.__app && window.__app.reloadLastSave) {
+                    window.__app.reloadLastSave();
+                } else if (window.__app && window.__app.startNewRandomHero) {
                     window.__app.startNewRandomHero();
                 } else {
                     window.location.reload();
