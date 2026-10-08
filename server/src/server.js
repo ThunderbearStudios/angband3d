@@ -437,6 +437,53 @@ function sanitizeFilename(name) {
 }
 
 /**
+ * Resolves a requested save name against disk files in all known save directories.
+ * Preserves the exact on-disk filename (e.g. "Hero.sav" vs "Hero"), ensuring Angband's
+ * start_game() engine check finds the savefile and does not drop the player into character creation!
+ */
+function resolveSavefileName(requestedSave) {
+    if (!requestedSave) return null;
+    const clean = requestedSave.replace(/[^a-zA-Z0-9_.-]/g, '');
+    if (!clean) return null;
+    const cleanNoExt = clean.replace(/\.sav$/i, '');
+    const saveDirs = getSaveDirs();
+
+    // Check each save directory for candidate matches in order:
+    // 1. Exact match (e.g. "Brian.sav" or "Brian")
+    // 2. Name with .sav extension ("Brian.sav")
+    // 3. Name without extension ("Brian")
+    for (const dir of saveDirs) {
+        if (!fs.existsSync(dir)) continue;
+        const exact = path.join(dir, clean);
+        if (fs.existsSync(exact) && fs.statSync(exact).isFile()) return path.basename(exact);
+
+        const withSav = path.join(dir, cleanNoExt + '.sav');
+        if (fs.existsSync(withSav) && fs.statSync(withSav).isFile()) return path.basename(withSav);
+
+        const withoutExt = path.join(dir, cleanNoExt);
+        if (fs.existsSync(withoutExt) && fs.statSync(withoutExt).isFile()) return path.basename(withoutExt);
+    }
+
+    // Case-insensitive check fallback:
+    for (const dir of saveDirs) {
+        if (!fs.existsSync(dir)) continue;
+        try {
+            const files = fs.readdirSync(dir);
+            for (const f of files) {
+                const fNoExt = f.replace(/\.sav$/i, '');
+                if (f.toLowerCase() === clean.toLowerCase() ||
+                    f.toLowerCase() === (cleanNoExt + '.sav').toLowerCase() ||
+                    fNoExt.toLowerCase() === cleanNoExt.toLowerCase()) {
+                    return f;
+                }
+            }
+        } catch (_) {}
+    }
+
+    return clean;
+}
+
+/**
  * Parses Angband 4.2.6 SaveVNLA header from binary save file.
  * Structure:
  *  0..7:   "SaveVNLA" magic
@@ -1659,11 +1706,11 @@ function handleSessionDisconnect(sessionId, socket = null) {
 
     // Check if the engine process is still running
     if (session.child && !session.child.killed && session.child.exitCode === null) {
-        console.log(`[WebSocket] Client disconnected from session ${sessionId}. Keeping engine alive for ${Math.round(DISCONNECT_GRACE_PERIOD_MS / 1000)}s grace period...`);
+        const graceMs = session.phase === 'setup' ? Math.min(DISCONNECT_GRACE_PERIOD_MS, 60000) : DISCONNECT_GRACE_PERIOD_MS;
+        console.log(`[WebSocket] Client disconnected from session ${sessionId} (Phase: ${session.phase || 'unknown'}). Keeping engine alive for ${Math.round(graceMs / 1000)}s grace period...`);
 
-        // CRITICAL: Immediately issue a non-blocking save command to the engine so the latest battle / state
-        // is safely flushed to disk in case the server or process terminates before reconnect.
-        if (session.child.stdin && session.child.stdin.writable) {
+        // Only issue non-blocking save command if actively in gameplay (never during character creation)
+        if (session.phase === 'play' && session.child.stdin && session.child.stdin.writable) {
             try {
                 session.child.stdin.write('save\n');
             } catch (err) {
@@ -1675,9 +1722,9 @@ function handleSessionDisconnect(sessionId, socket = null) {
             clearTimeout(session.disconnectTimer);
         }
         session.disconnectTimer = setTimeout(() => {
-            console.log(`[Session] Grace period expired for session ${sessionId}. Saving and terminating...`);
+            console.log(`[Session] Grace period expired for session ${sessionId}. Terminating...`);
             gracefulSessionSaveAndExit(sessionId, 'Session disconnected and saved.');
-        }, DISCONNECT_GRACE_PERIOD_MS);
+        }, graceMs);
     } else {
         // Child is already dead or exited
         activeSessions.delete(sessionId);
@@ -1711,7 +1758,7 @@ function attachWebSocketToSession(session, ws) {
     ws.on('message', message => {
         session.lastActivityTime = Date.now();
         const str = message.toString();
-        // Respond immediately to latency heartbeat pings
+        // Respond immediately to latency heartbeat pings or explicit session terminations
         if (str.startsWith('{')) {
             try {
                 const parsed = JSON.parse(str);
@@ -1719,6 +1766,11 @@ function attachWebSocketToSession(session, ws) {
                     if (ws.readyState === ws.OPEN) {
                         ws.send(JSON.stringify({ t: 'pong', time: parsed.time }));
                     }
+                    return;
+                }
+                if (parsed.t === 'quit' || parsed.t === 'cancel') {
+                    console.log(`[WebSocket] Client explicitly ended session ${session.sessionId}`);
+                    gracefulSessionSaveAndExit(session.sessionId, 'Client requested exit.');
                     return;
                 }
             } catch (_) {}
@@ -1756,7 +1808,10 @@ function spawnGameSession(ws, request) {
     const rawUser = urlObj.searchParams.get('user') || null;
     const rawSave = urlObj.searchParams.get('save') || null;
     const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
-    const save = rawSave ? rawSave.replace(/\.sav$/i, '').replace(/[^a-zA-Z0-9_.-]/g, '') : null;
+    // Resolve savefile name against disk before launching engine so exact on-disk name (with or without .sav)
+    // is passed to -u, preventing Angband's start_game() from failing file_exists and falling back into character birth wizard!
+    const resolvedSave = rawSave ? resolveSavefileName(rawSave) : null;
+    const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
 
     const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
     ws.send(JSON.stringify({ t: 'hello', sessionId, version: '1.0.0' }));
@@ -1831,6 +1886,7 @@ function spawnGameSession(ws, request) {
         lastActivityTime: Date.now(),
         user,
         save,
+        phase: 'setup',
         disconnectedAt: null,
         disconnectTimer: null,
         lastFrame: null
@@ -1849,6 +1905,12 @@ function spawnGameSession(ws, request) {
             if (line.length > 0) {
                 if (line.startsWith('{"t":"frame"') || line.startsWith('{"t":"hello"')) {
                     session.lastFrame = line;
+                }
+                if (line.startsWith('{"t":"frame"')) {
+                    try {
+                        const parsed = JSON.parse(line);
+                        if (parsed.phase) session.phase = parsed.phase;
+                    } catch (_) {}
                 }
                 if (line.startsWith('{"t":"hello"')) {
                     try {
@@ -1921,7 +1983,8 @@ wss.on('connection', (ws, request) => {
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
 
     const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
-    const save = rawSave ? rawSave.replace(/\.sav$/i, '').replace(/[^a-zA-Z0-9_.-]/g, '') : null;
+    const resolvedSave = rawSave ? resolveSavefileName(rawSave) : null;
+    const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
     const clientSessionId = rawSession ? rawSession.replace(/[^a-zA-Z0-9_-]/g, '') : null;
 
     console.log(`[WebSocket] Client connection attempt. Session: ${clientSessionId || 'none'}, User: ${user || 'default'}, Save: ${save || 'none'}, isNew: ${isNew}. (Active: ${activeSessions.size}/${MAX_CONCURRENT_GAMES}, Queue: ${waitingQueue.length})`);
@@ -1932,7 +1995,24 @@ wss.on('connection', (ws, request) => {
         if (clientSessionId && activeSessions.has(clientSessionId)) {
             const candidate = activeSessions.get(clientSessionId);
             if (candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
-                existingSession = candidate;
+                // VERIFICATION GUARD: Only attach to clientSessionId if it actually matches the requested save/user,
+                // or if no specific save/user was requested.
+                // If the candidate session was in 'setup' (character creation) while the client requested a saved game,
+                // or if the candidate belongs to a different save, REJECT the hijack and let the server spawn the requested save cleanly!
+                const reqSave = normalizeSessionKey(save);
+                const candSave = normalizeSessionKey(candidate.save || (candidate.engineSavefile ? path.basename(candidate.engineSavefile) : ''));
+                const reqUser = normalizeSessionKey(user);
+                const candUser = normalizeSessionKey(candidate.user);
+
+                const saveMatches = !reqSave || (candSave && (candSave === reqSave || candSave.includes(reqSave) || reqSave.includes(candSave)));
+                const userMatches = !reqUser || reqUser === 'adventurer' || (candUser && candUser === reqUser);
+                const isSetupHijack = Boolean(reqSave && candidate.phase === 'setup');
+
+                if (saveMatches && userMatches && !isSetupHijack) {
+                    existingSession = candidate;
+                } else {
+                    console.log(`[WebSocket] Session ${clientSessionId} does not match requested target (reqSave=${reqSave}, candSave=${candSave}, candPhase=${candidate.phase}). Rejecting re-attachment.`);
+                }
             }
         }
         if (!existingSession && (save || user)) {

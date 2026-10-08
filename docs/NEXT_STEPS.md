@@ -1,8 +1,24 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.16.4 / Web v8.9.0 — High-Availability Cloud Session Persistence, Long Disconnect Preservation & In-Flight Auto-Save)
+## Current System State (Angband3D v2.16.5 / Web v8.9.1 — Savefile Extension Resolution, Session Hijack Prevention & Character Creation Escape Hatch)
 
-0. **Bulletproof Cloud High-Traffic Resilience, Session Persistence & Web Performance (Angband3D v2.16.4 / Web v8.9.0)**:
+0. **Savefile Extension Resolution & Character Creation Trap Elimination (Angband3D v2.16.5 / Web v8.9.1)**:
+   - **Root Cause Analysis (Stuck in Character Creation on Save Load)**:
+     - *Savefile Extension Mismatch*: Upstream Angband 4.2.6 C engine tests `file_exists(loadpath)` where `loadpath` matches the exact string passed to `-u`. In `server/src/server.js`, line 1759 previously stripped `.sav` (`rawSave.replace(/\.sav$/i, '')`), so any savefile stored on disk with a `.sav` extension (e.g. `Character.sav`, `TestOne.sav`, demo files) failed `file_exists()`. Upstream Angband's `start_game(false)` in C automatically falls back into `textui_do_birth()` (the character creation wizard) when `file_exists` is false!
+     - *Session Reconnect Hijack Trap*: `server/public/js/network.js` persisted `this.sessionId` in `localStorage` and appended `&session=${this.sessionId}` to connection URLs. When loading a saved game, if the client previously visited character creation, the server's session lookup matched the old `clientSessionId` in `activeSessions` without verifying that the requested save matched, re-attaching the player straight back to the old unfinished character creation engine!
+     - *Setup Session Pollution*: Unfinished character creation sessions (`phase: "setup"`) remained alive in memory for up to 30 minutes, intercepting re-connections.
+     - *Trapped in Character Creation UI*: In the character creation wizard terminal, pressing Escape does not exit upstream Angband's birth wizard, and there was no visible "Main Menu" button in the contextual touch action ribbon.
+   - **Architectural Fixes (`server/src/server.js`, `network.js`, `app.js`)**:
+     - *Disk Savefile Resolution (`resolveSavefileName`)*: Checks known save directories (`SAVE_DIR`, `engineDir/lib/save`, `engineDir/lib/user/save`, `~/.angband/Angband/save`) for candidate matches (exact match, `.sav`, extensionless, case-insensitive) before spawning the engine, passing the exact on-disk name to `-u` so `file_exists()` succeeds and loads the savefile into `phase: "play"` cleanly.
+     - *Session Verification Guard*: In `wss.on('connection')`, incoming `clientSessionId` is validated against requested `save` and `user`. If the candidate session is in `phase: "setup"` while the client requested a saved game, or if candidate save does not match requested save, re-attachment is rejected and the server cleanly launches the requested saved game.
+     - *Phase-Aware Session Lifecycle*: Engines track `phase` (`setup` vs `play`). On disconnect, `phase: "setup"` sessions do not emit destructive `save\n` commands to engine stdin and have a reduced grace period. Explicit client exit sends `{"t":"quit"}` or `{"t":"cancel"}` to immediately terminate and clean up abandoned sessions.
+     - *Client Session Reset on Save Switch*: In `network.js`, whenever loading a savefile, starting a fresh character, or switching characters, any mismatched `angband3d_session_id` and `angband3d_session_save` are purged from `localStorage`. Added `leaveSession()` which notifies the server before unbinding.
+     - *Visible Main Menu Escape Hatch*: Added a prominent `<button class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>` across all character creation wizard screens (welcome/title, name prompt, history, stat roller, review hero, trait/race/class choice menus). Bound `key === 'mainmenu'` in `executeTouchAction` to `returnToMainMenu()`, ensuring players can easily abort and return to the main menu at any time.
+   - **Verification**:
+     - `tools/test_save_load_routing.js`: Verified loading on-disk `.sav` file (`TestOne.sav`) reaches `phase: "play"`, and stale setup session ID does not hijack the save load request.
+     - `tools/test_server_stability.js`: 100% passed across all reconnect and stability suites.
+     - `server/test/server_test.js`: 20/20 passed.
+     - `python tools/smoke_test.py`: 11/11 passed.
    - **Root Cause Analysis (Load & Disconnect Instabilities)**:
      - *Superseded Socket Race*: Reconnections asynchronously fired the previous socket's `close` handler, wiping `session.ws = null` on live engines and scheduling abrupt death timers.
      - *Stale Reconnect Filter*: Reconnection previously required `candidate.ws === null`. If TCP was half-open, the match failed and spawned a duplicate engine process reloading stale savefiles.

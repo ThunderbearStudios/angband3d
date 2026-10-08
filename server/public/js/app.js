@@ -384,6 +384,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 forceTerminal = false;
                 window.__manualTerminalOpen = false;
                 updateViewMode();
+            } else if (key === 'mainmenu') {
+                cancelQuickBirth();
+                if (audio) audio.playMenuNav();
+                returnToMainMenu();
             } else if (key === 'escape') {
                 cancelQuickBirth();
                 network.sendKey('escape');
@@ -1550,11 +1554,20 @@ window.addEventListener('DOMContentLoaded', () => {
         if (audio) audio.playMenuOpen();
         cancelQuickBirth();
         try {
-            if (network && typeof network.saveAndDisconnect === 'function') {
-                await network.saveAndDisconnect();
-            } else if (network) {
-                network.sendCommand('save');
-                network.disconnect();
+            if (currentPhase === 'play') {
+                if (network && typeof network.saveAndDisconnect === 'function') {
+                    await network.saveAndDisconnect();
+                } else if (network) {
+                    network.sendCommand('save');
+                    network.disconnect();
+                }
+            } else {
+                // If exiting during character creation / setup, immediately terminate and discard setup session
+                if (network && typeof network.leaveSession === 'function') {
+                    network.leaveSession();
+                } else if (network) {
+                    network.disconnect();
+                }
             }
         } catch (_) {}
 
@@ -2739,6 +2752,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (termCtxActions) {
                     termCtxActions.innerHTML = `
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> Continue (Enter)</button>
+                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
                     `;
                 }
             } else if (isNamePrompt) {
@@ -2759,6 +2773,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (termCtxActions) {
                     termCtxActions.innerHTML = `
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
                     `;
                 }
             } else if (isHistoryPrompt) {
@@ -2771,6 +2786,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn btn-gold" data-key="y"><span>[y]</span> ✓ Accept History</button>
                         <button type="button" class="term-ctx-btn" data-key="n"><span>[n]</span> 🔄 Reroll History</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
                     `;
                 }
             } else if (isStatRoller) {
@@ -2783,6 +2799,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ✓ Accept Stats</button>
                         <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> 🔄 Reset</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
                     `;
                 }
             } else if (isReviewScreen) {
@@ -2798,6 +2815,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> 🎲 Reroll Hero</button>
                         <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> 🛠 Custom Create</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
                     `;
                 }
             } else {
@@ -2816,6 +2834,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ✓ Select</button>
                         <button type="button" class="term-ctx-btn" data-key="*"><span>[*]</span> 🎲 Random</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
                     `;
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
