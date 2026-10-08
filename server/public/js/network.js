@@ -27,6 +27,8 @@ class GameNetwork {
             this.sessionId = localStorage.getItem('angband3d_session_id') || null;
             const savedChar = localStorage.getItem('angband3d_session_char');
             if (savedChar) this.currentChar = savedChar;
+            const savedSave = localStorage.getItem('angband3d_session_save');
+            if (savedSave) this.currentSave = savedSave;
         } catch (_) {}
 
         if (typeof document !== 'undefined' && typeof window !== 'undefined') {
@@ -59,11 +61,28 @@ class GameNetwork {
         this.currentIsNew = isNew;
         this.currentSave = saveFile;
 
-        // If player explicitly requested a brand new character, drop any previous session reference
-        if (isNew) {
+        // Invariant: Verify if the requested character or savefile matches what is stored in localStorage.
+        // If the player starts a new game, switches saves, or switches characters, discard any stale sessionId!
+        const reqSaveNorm = saveFile ? saveFile.toLowerCase().replace(/\.sav$/i, '').trim() : null;
+        let storedSaveNorm = null;
+        let storedCharNorm = null;
+        try {
+            const storedSave = localStorage.getItem('angband3d_session_save');
+            if (storedSave) storedSaveNorm = storedSave.toLowerCase().replace(/\.sav$/i, '').trim();
+            const storedChar = localStorage.getItem('angband3d_session_char');
+            if (storedChar) storedCharNorm = storedChar.toLowerCase().trim();
+        } catch (_) {}
+
+        const reqCharNorm = (charName && charName !== 'Adventurer') ? charName.toLowerCase().trim() : null;
+        const saveChanged = reqSaveNorm && storedSaveNorm && reqSaveNorm !== storedSaveNorm;
+        const charChanged = reqCharNorm && storedCharNorm && storedCharNorm !== 'adventurer' && reqCharNorm !== storedCharNorm;
+
+        // If explicitly starting fresh, or switching save/character, or loading a save without matching stored save, drop stale session ID!
+        if (isNew || saveChanged || charChanged || (saveFile && !storedSaveNorm)) {
             this.sessionId = null;
             try {
                 localStorage.removeItem('angband3d_session_id');
+                localStorage.removeItem('angband3d_session_save');
             } catch (_) {}
         }
 
@@ -116,6 +135,9 @@ class GameNetwork {
                         try {
                             localStorage.setItem('angband3d_session_id', msg.sessionId);
                             localStorage.setItem('angband3d_session_char', this.currentChar || '');
+                            if (this.currentSave) {
+                                localStorage.setItem('angband3d_session_save', this.currentSave);
+                            }
                         } catch (_) {}
                     }
                     // CRITICAL: Once the engine session is initialized, subsequent reconnects must NOT send &new=1!
@@ -146,6 +168,7 @@ class GameNetwork {
                     try {
                         localStorage.removeItem('angband3d_session_id');
                         localStorage.removeItem('angband3d_session_char');
+                        localStorage.removeItem('angband3d_session_save');
                     } catch (_) {}
                     if (msg.detail && msg.detail.toLowerCase().includes('idle')) {
                         this.manualDisconnect = true;
@@ -208,6 +231,7 @@ class GameNetwork {
         try {
             localStorage.removeItem('angband3d_session_id');
             localStorage.removeItem('angband3d_session_char');
+            localStorage.removeItem('angband3d_session_save');
         } catch (_) {}
         if (this.ws) {
             try { this.ws.close(); } catch (_) {}
@@ -221,6 +245,15 @@ class GameNetwork {
             try { this.ws.send(JSON.stringify({ t: 'cancel' })); } catch (_) {}
             try { this.ws.close(); } catch (_) {}
         }
+    }
+
+    leaveSession() {
+        this.manualDisconnect = true;
+        this.isInQueue = false;
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            try { this.ws.send(JSON.stringify({ t: 'quit' })); } catch (_) {}
+        }
+        this.disconnect();
     }
 
     startPingHeartbeat() {
