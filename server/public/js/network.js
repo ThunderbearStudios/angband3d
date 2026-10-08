@@ -57,6 +57,7 @@ class GameNetwork {
         }
         this.manualDisconnect = false;
         this.isInQueue = false;
+        this.isDead = false;
         this.currentChar = charName;
         this.currentIsNew = isNew;
         this.currentSave = saveFile;
@@ -156,11 +157,16 @@ class GameNetwork {
                     }
                 } else if (msg.t === 'frame') {
                     this.currentIsNew = false;
-                    if (msg.player && msg.player.name && msg.player.name !== 'PLAYER') {
-                        this.currentChar = msg.player.name;
-                        try {
-                            localStorage.setItem('angband3d_session_char', msg.player.name);
-                        } catch (_) {}
+                    if (msg.player) {
+                        if (msg.player.name && msg.player.name !== 'PLAYER') {
+                            this.currentChar = msg.player.name;
+                            try {
+                                localStorage.setItem('angband3d_session_char', msg.player.name);
+                            } catch (_) {}
+                        }
+                        if (msg.player.dead || (msg.player.hp !== undefined && msg.player.hp <= 0 && msg.player.hp_max > 0)) {
+                            this.isDead = true;
+                        }
                     }
                     if (this.onFrame) this.onFrame(msg);
                 } else if (msg.t === 'bye') {
@@ -208,6 +214,10 @@ class GameNetwork {
 
     async saveGame() {
         if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        if (this.isDead) {
+            console.log('[GameNetwork] Refusing to send save command: Player is dead, protecting living save.');
+            return;
+        }
         this.sendCommand('save');
         await new Promise(r => setTimeout(r, 300));
     }
@@ -250,9 +260,16 @@ class GameNetwork {
     leaveSession() {
         this.manualDisconnect = true;
         this.isInQueue = false;
+        this.isDead = false;
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             try { this.ws.send(JSON.stringify({ t: 'quit' })); } catch (_) {}
         }
+        this.sessionId = null;
+        try {
+            localStorage.removeItem('angband3d_session_id');
+            localStorage.removeItem('angband3d_session_char');
+            localStorage.removeItem('angband3d_session_save');
+        } catch (_) {}
         this.disconnect();
     }
 

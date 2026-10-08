@@ -1659,7 +1659,7 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
 
     if (child && !child.killed && child.exitCode === null) {
         try {
-            if (child.stdin && child.stdin.writable) {
+            if (!session.isDead && session.phase === 'play' && child.stdin && child.stdin.writable) {
                 console.log(`[Session] Saving authoritative state for session ${sessionId}...`);
                 child.stdin.write('save\n');
                 // Allow ample time (1200ms) for engine to flush savegame to disk without truncation
@@ -1680,7 +1680,21 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
                     } catch (_) {}
                 }, 1200);
             } else {
-                child.kill();
+                // If player is dead or in setup, NEVER write 'save\n'! Immediately quit to protect living save on disk.
+                if (child.stdin && child.stdin.writable) {
+                    try {
+                        child.stdin.write('quit\n');
+                        child.stdin.end();
+                    } catch (_) {}
+                }
+                setTimeout(() => {
+                    try {
+                        if (child && !child.killed && child.exitCode === null) {
+                            child.kill();
+                        }
+                        invalidateSavesCache();
+                    } catch (_) {}
+                }, 300);
             }
         } catch (_) {
             try { child.kill(); } catch (_) {}
@@ -1707,10 +1721,10 @@ function handleSessionDisconnect(sessionId, socket = null) {
     // Check if the engine process is still running
     if (session.child && !session.child.killed && session.child.exitCode === null) {
         const graceMs = session.phase === 'setup' ? Math.min(DISCONNECT_GRACE_PERIOD_MS, 60000) : DISCONNECT_GRACE_PERIOD_MS;
-        console.log(`[WebSocket] Client disconnected from session ${sessionId} (Phase: ${session.phase || 'unknown'}). Keeping engine alive for ${Math.round(graceMs / 1000)}s grace period...`);
+        console.log(`[WebSocket] Client disconnected from session ${sessionId} (Phase: ${session.phase || 'unknown'}, isDead: ${session.isDead || false}). Keeping engine alive for ${Math.round(graceMs / 1000)}s grace period...`);
 
-        // Only issue non-blocking save command if actively in gameplay (never during character creation)
-        if (session.phase === 'play' && session.child.stdin && session.child.stdin.writable) {
+        // Only issue non-blocking save command if actively in gameplay and player is NOT dead
+        if (!session.isDead && session.phase === 'play' && session.child.stdin && session.child.stdin.writable) {
             try {
                 session.child.stdin.write('save\n');
             } catch (err) {
@@ -1887,6 +1901,7 @@ function spawnGameSession(ws, request) {
         user,
         save,
         phase: 'setup',
+        isDead: false,
         disconnectedAt: null,
         disconnectTimer: null,
         lastFrame: null
@@ -1910,6 +1925,9 @@ function spawnGameSession(ws, request) {
                     try {
                         const parsed = JSON.parse(line);
                         if (parsed.phase) session.phase = parsed.phase;
+                        if (parsed.player && (parsed.player.dead || (parsed.player.hp !== undefined && parsed.player.hp <= 0 && parsed.player.hp_max > 0))) {
+                            session.isDead = true;
+                        }
                     } catch (_) {}
                 }
                 if (line.startsWith('{"t":"hello"')) {
@@ -2007,11 +2025,15 @@ wss.on('connection', (ws, request) => {
                 const saveMatches = !reqSave || (candSave && (candSave === reqSave || candSave.includes(reqSave) || reqSave.includes(candSave)));
                 const userMatches = !reqUser || reqUser === 'adventurer' || (candUser && candUser === reqUser);
                 const isSetupHijack = Boolean(reqSave && candidate.phase === 'setup');
+                const isDeadHijack = Boolean(candidate.isDead);
 
-                if (saveMatches && userMatches && !isSetupHijack) {
+                if (saveMatches && userMatches && !isSetupHijack && !isDeadHijack) {
                     existingSession = candidate;
                 } else {
-                    console.log(`[WebSocket] Session ${clientSessionId} does not match requested target (reqSave=${reqSave}, candSave=${candSave}, candPhase=${candidate.phase}). Rejecting re-attachment.`);
+                    console.log(`[WebSocket] Session ${clientSessionId} rejected for re-attachment (reqSave=${reqSave}, candSave=${candSave}, candPhase=${candidate.phase}, isDead=${candidate.isDead}).`);
+                    if (isDeadHijack) {
+                        gracefulSessionSaveAndExit(candidate.sessionId, 'Dead session discarded on reload attempt.');
+                    }
                 }
             }
         }
@@ -2019,9 +2041,10 @@ wss.on('connection', (ws, request) => {
             const targetKey = normalizeSessionKey(save || user);
             // Search all active sessions for a live engine running this character.
             // DO NOT require candidate.ws === null!
-            // Even if the previous WebSocket is still half-open, take over the live session.
+            // Even if the previous WebSocket is still half-open, take over the live session,
+            // but NEVER re-attach to a dead session!
             for (const candidate of activeSessions.values()) {
-                if (candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
+                if (!candidate.isDead && candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
                     const candSave = normalizeSessionKey(candidate.save);
                     const candUser = normalizeSessionKey(candidate.user);
                     const candEngineSave = candidate.engineSavefile ? normalizeSessionKey(path.basename(candidate.engineSavefile)) : '';
@@ -2179,7 +2202,7 @@ wsLivenessInterval.unref();
 // and never lost across unexpected client disconnects, power loss, or container restarts.
 setInterval(() => {
     for (const [sessionId, session] of activeSessions.entries()) {
-        if (session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
+        if (!session.isDead && session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
             try {
                 session.child.stdin.write('save\n');
             } catch (_) {}

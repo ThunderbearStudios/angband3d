@@ -1,8 +1,29 @@
 # Angband3D — Status & Next Steps Roadmap
 
-## Current System State (Angband3D v2.16.5 / Web v8.9.1 — Savefile Extension Resolution, Session Hijack Prevention & Character Creation Escape Hatch)
+## Current System State (Angband3D v2.16.6 / Web v8.9.2 — Death Screen Save Reload & Living Save Protection)
 
-0. **Savefile Extension Resolution & Character Creation Trap Elimination (Angband3D v2.16.5 / Web v8.9.1)**:
+0. **Death Screen Save Reload & Living Save Protection (Angband3D v2.16.6 / Web v8.9.2)**:
+   - **Root Cause Analysis (Stuck in Death Screen / Corrupted Dead Savefile)**:
+     - *Permanent Death Modal Bug (`hud.js:1397`)*: The HUD loop checked `if (isDead) { this.isDeadInPlay = true; this.showDeathModal(frame); } else if (!this.isDeadInPlay) { this.hideDeathModal(); }`. Once `isDeadInPlay` became true, subsequent living frames (`isDead: false`) saw `!this.isDeadInPlay` as false, so `this.hideDeathModal()` was never called!
+     - *Death Modal Input Interception Trap (`input.js`)*: `input.js` checked `if (!deathModal.classList.contains('hidden'))`. Because the death modal was never hidden after loading, all keyboard strokes were permanently captured by the death modal handler.
+     - *Stdio Echo Trap on [R] Key*: Pressing `[R]` in the death modal sent `key R` to the dead engine process's stdin pipe instead of triggering the client's save reload workflow.
+     - *Mismatched Reload Button Action*: The "Load Last Saved Game" button in the death modal called `startNewRandomHero()` instead of loading the player's last living save.
+     - *Dead State Savefile Overwrite*: The 60s auto-save interval, `handleSessionDisconnect`, and `gracefulSessionSaveAndExit` in `server/src/server.js` unconditionally wrote `save\n` to the engine stdin. When a character died, upstream Angband wrote `player->is_dead = 1` into the savefile on disk. Loading a savefile with `is_dead = 1` causes Angband's `start_game()` to treat it as "No living character loaded" and dump the player into character creation!
+     - *Dead Engine Session Re-Attachment*: When attempting to reconnect/reload, `wss.on('connection')` re-attached to the still-running dead engine session instead of discarding it.
+   - **Architectural Fixes (`main-bridge.c`, `server.js`, `network.js`, `hud.js`, `input.js`, `app.js`)**:
+     - *Bridge Save Protection (`main-bridge.c:1101`)*: C bridge strictly verifies `(!player || !player->is_dead)` before calling `savefile_save()`. If the player is dead, saving is refused, preserving the living save on disk.
+     - *Server Dead State Tracking (`server.js`)*: Tracks `session.isDead`. Guarded the 60s auto-save interval, disconnect handler, and session exit handler to never issue `save\n` when `session.isDead` is true.
+     - *Dead Session Re-Attachment Rejection (`server.js`)*: In `wss.on('connection')`, rejected re-attaching to candidate sessions where `candidate.isDead` is true; cleanly reaped the dead process and spawned a fresh engine with the living save.
+     - *HUD Death Modal Lifecycle (`hud.js`)*: Changed `else if (!this.isDeadInPlay)` to `else { this.isDeadInPlay = false; this.hideDeathModal(); }`.
+     - *Client Reload Workflow (`app.js`, `input.js`, `hud.js`, `network.js`)*: Implemented `reloadLastSave()`. Cleans up the dead session with `network.leaveSession()`, queries `/api/saves` for the matching character savefile, hides the death modal, and launches `startGame({ charName, saveFile, isNew: false, autoBirth: false })`.
+     - *Living Save Protection on Menu Return (`app.js:1553`, `network.js:210`)*: `returnToMainMenu()` and `network.saveGame()` check `isDead` and refuse to emit `save` when dead, preserving the player's living savefile.
+   - **Verification**:
+     - `tools/test_death_reload_flow.js`: 100% passed across all contracts.
+     - `tools/test_save_load_routing.js`: 100% passed.
+     - `tools/test_server_stability.js`: 100% passed.
+     - `server/test/server_test.js`: 20/20 passed.
+     - `python tools/smoke_test.py`: 11/11 passed.
+     - `dotnet build client/angband3d.csproj`: 0 errors, 0 warnings.
    - **Root Cause Analysis (Stuck in Character Creation on Save Load)**:
      - *Savefile Extension Mismatch*: Upstream Angband 4.2.6 C engine tests `file_exists(loadpath)` where `loadpath` matches the exact string passed to `-u`. In `server/src/server.js`, line 1759 previously stripped `.sav` (`rawSave.replace(/\.sav$/i, '')`), so any savefile stored on disk with a `.sav` extension (e.g. `Character.sav`, `TestOne.sav`, demo files) failed `file_exists()`. Upstream Angband's `start_game(false)` in C automatically falls back into `textui_do_birth()` (the character creation wizard) when `file_exists` is false!
      - *Session Reconnect Hijack Trap*: `server/public/js/network.js` persisted `this.sessionId` in `localStorage` and appended `&session=${this.sessionId}` to connection URLs. When loading a saved game, if the client previously visited character creation, the server's session lookup matched the old `clientSessionId` in `activeSessions` without verifying that the requested save matched, re-attaching the player straight back to the old unfinished character creation engine!

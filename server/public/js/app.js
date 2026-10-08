@@ -1550,11 +1550,77 @@ window.addEventListener('DOMContentLoaded', () => {
         network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null);
     }
 
+    async function reloadLastSave() {
+        console.log('[Angband3D] Reloading last living save game after death...');
+        if (hud) {
+            hud.isDeadInPlay = false;
+            if (typeof hud.hideDeathModal === 'function') {
+                hud.hideDeathModal();
+            }
+        }
+        try {
+            // Disconnect and terminate the dead session cleanly so the server does not attempt to reconnect to it
+            if (network && typeof network.leaveSession === 'function') {
+                network.leaveSession();
+            } else if (network) {
+                network.disconnect();
+            }
+        } catch (_) {}
+
+        // Identify which character/save to load
+        const currentChar = (lastFrame && lastFrame.player && lastFrame.player.name)
+            ? lastFrame.player.name
+            : (network.currentChar || 'Adventurer');
+
+        let targetSave = null;
+        try {
+            let saves = [];
+            if (engineMode === 'local' && window.LocalSaveManager) {
+                saves = await LocalSaveManager.listSaves();
+            } else {
+                const res = await fetch('/api/saves');
+                if (res.ok) {
+                    const data = await res.json();
+                    saves = data.saves || [];
+                }
+            }
+            if (saves && saves.length > 0) {
+                targetSave = saves.find(s =>
+                    (s.characterName && s.characterName.toLowerCase() === currentChar.toLowerCase()) ||
+                    (s.filename && s.filename.toLowerCase() === currentChar.toLowerCase()) ||
+                    (s.filename && s.filename.toLowerCase().startsWith(currentChar.toLowerCase()))
+                );
+                if (!targetSave) {
+                    targetSave = saves[0];
+                }
+            }
+        } catch (e) {
+            console.warn('[Angband3D] Failed to fetch save list for reload:', e);
+        }
+
+        if (targetSave) {
+            console.log('[Angband3D] Reloading living save:', targetSave);
+            startGame({
+                charName: targetSave.characterName || currentChar || 'Adventurer',
+                saveFile: targetSave.filename,
+                isNew: false,
+                autoBirth: false
+            });
+        } else {
+            console.log('[Angband3D] No existing save found. Starting fresh hero...');
+            startNewRandomHero();
+        }
+    }
+
     async function returnToMainMenu() {
         if (audio) audio.playMenuOpen();
         cancelQuickBirth();
         try {
-            if (currentPhase === 'play') {
+            const isDead = Boolean(hud && hud.isDeadInPlay) ||
+                           Boolean(network && network.isDead) ||
+                           Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && lastFrame.player.hp <= 0 && lastFrame.player.hp_max > 0)));
+
+            if (currentPhase === 'play' && !isDead) {
                 if (network && typeof network.saveAndDisconnect === 'function') {
                     await network.saveAndDisconnect();
                 } else if (network) {
@@ -1562,7 +1628,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     network.disconnect();
                 }
             } else {
-                // If exiting during character creation / setup, immediately terminate and discard setup session
+                // If exiting during character creation / setup or after death, immediately terminate and discard session without saving
                 if (network && typeof network.leaveSession === 'function') {
                     network.leaveSession();
                 } else if (network) {
@@ -2485,6 +2551,7 @@ window.addEventListener('DOMContentLoaded', () => {
         startCustomHeroCreation,
         startGame,
         rerollHero,
+        reloadLastSave,
         returnToMainMenu,
         navigateMenu,
         selectMenuItem,
