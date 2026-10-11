@@ -76,9 +76,56 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch (_) {}
     }
 
+    // =========================================================================
+    // Multi-Realm Architecture & State (v8.9.3+)
+    // Hoisted before subsystem instantiation to guard against TDZ ReferenceErrors
+    // =========================================================================
+    const REALM_DATA = {
+        angband: {
+            name: 'Vanilla Angband 4.2.6',
+            tagline: 'The Classic Tolkien Descent',
+            desc: 'The purest, bit-for-bit roguelike dungeon crawl. 100 dungeon levels descending into the iron fortress of Angband to overthrow Morgoth, Lord of Darkness.',
+            voiceAccent: 'Old British Scholar',
+            lorekeeper: 'Eldritch Lorekeeper of the West'
+        },
+        frogcomposband: {
+            name: 'FrogComposBand',
+            tagline: 'Wilderness Overland & Unlimited Monster Races',
+            desc: 'Over 50 diverse classes, procedural overland wilderness, monster races (Dragons, Ringwraiths, Angels), and endless high-fantasy chaos.',
+            voiceAccent: 'Mythic Bard (Rich neutral epic)',
+            lorekeeper: 'The Wandering Skald of Wilderland'
+        },
+        hengband: {
+            name: 'Hengband 3.0+',
+            tagline: 'Eastern Mythos & Amberite Chronicles',
+            desc: 'Inspired by Zelazny\'s Amber and Japanese folklore. Unique magic realms, quest towers, mythical deities, and legendary samurai combat.',
+            voiceAccent: 'Eastern Mystic (Refined chronicle)',
+            lorekeeper: 'Chronicle of the Celestial Courts'
+        },
+        silq: {
+            name: 'Sil-Q 1.5+',
+            tagline: 'First Age Stealth & The Crown Heist',
+            desc: 'Tactical stealth roguelike in the First Age. Sing songs of power, avoid deadly Balrogs in the shadows, and pry a Silmaril from Morgoth\'s crown.',
+            voiceAccent: 'Elven Skald (Melodic northern)',
+            lorekeeper: 'Keeper of the Lay of Leithian'
+        }
+    };
+
+    const _bootParams = new URLSearchParams(window.location.search);
+    const _bootRealm = _bootParams.get('realm');
+    let activeRealm = (_bootRealm && (REALM_DATA[_bootRealm] ? _bootRealm : (_bootRealm === 'vanilla' ? 'angband' : null)))
+        || localStorage.getItem('angband3d_active_realm')
+        || 'angband';
+    if (!REALM_DATA[activeRealm]) activeRealm = 'angband';
+
+    // Multilingual Language State for Hengband ('en' = English, 'bilingual' = Japanese + English, 'jp' = Pure Kanji/Japanese)
+    let langMode = localStorage.getItem('angband3d_lang_mode') || 'en';
+    window.__langMode = (activeRealm === 'hengband') ? langMode : 'en';
+
     let network = (engineMode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
     const dungeon = new Dungeon3D('viewport-canvas');
     window.dungeon = dungeon;
+    window.__dungeon = dungeon;
     const hud = new WebHUD('minimap-canvas');
 
     let forceTerminal = false;
@@ -129,7 +176,20 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.__app = { audio, network, dungeon, hud, terminal, setEngineMode, getEngineMode: () => engineMode, isApk };
+    window.__app = {
+        audio,
+        network,
+        dungeon,
+        hud,
+        terminal,
+        setEngineMode,
+        getEngineMode: () => engineMode,
+        isApk,
+        isBirthReviewActive: () => birthReviewActive,
+        rerollHero: () => rerollHero(),
+        generateHeroName: (r, l) => generateHeroName(r, l),
+        getActiveRealm: () => (typeof activeRealm !== 'undefined' && activeRealm) ? activeRealm : 'angband'
+    };
 
     let birthReviewActive = false;
 
@@ -141,18 +201,38 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let quickBirthActive = false;
     let quickBirthStep = 0;
+    let birthConfirming = false;
+    let silqStatAllocated = false;
+    let silqNameSent = false;
+    let fcbRandomized = false;
 
     const cancelQuickBirth = () => {
         quickBirthActive = false;
         quickBirthStep = 0;
+        birthConfirming = false;
+        silqStatAllocated = false;
+        silqNameSent = false;
+        fcbRandomized = false;
     };
 
     const confirmHeroBirth = () => {
         cancelQuickBirth();
         birthReviewActive = false;
+        birthConfirming = true;
+        network.sendKey('enter');
+    };
+
+    const finalizeHeroBirth = () => {
+        cancelQuickBirth();
+        birthReviewActive = false;
+        birthConfirming = false;
         forceTerminal = false;
         window.__manualTerminalOpen = false;
-        if (terminalContainer) terminalContainer.classList.add('hidden');
+        if (terminalContainer) {
+            terminalContainer.classList.add('hidden');
+            terminalContainer.classList.remove('in-game-modal');
+        }
+        document.body.classList.remove('terminal-mode-active');
         if (input) input.setTerminalMode(false);
         const quickBirthBtn = document.getElementById('btn-quick-birth');
         const termRerollBtn = document.getElementById('btn-term-reroll');
@@ -172,22 +252,32 @@ window.addEventListener('DOMContentLoaded', () => {
             termEscapeBtn.textContent = 'Back (Esc)';
         }
         if (terminalTitle) terminalTitle.textContent = '⚔ ANGBAND CLASSIC TERMINAL';
+        updateViewMode(lastFrame);
     };
 
     let wasInStore = false;
 
+    function decodeHengbandText(str) {
+        if (!str) return '';
+        if (/[\u3000-\u9faf]/.test(str)) return str;
+        if (terminal && typeof terminal.decodeText === 'function') {
+            return terminal.decodeText(str);
+        }
+        return str;
+    }
+
     function stepQuickBirth(frame) {
         if (!quickBirthActive || !frame) return;
 
-        const screenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '').toLowerCase();
+        const rawText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
+        const decodedText = decodeHengbandText(rawText);
+        const screenText = (rawText + '\n' + decodedText).toLowerCase();
         const hasMore = screenText.includes('-more-') || (frame.ui && frame.ui.more);
 
-        // Once in active play with valid map and awaiting a command with no -more- prompts,
+        // Once in active play with valid map and player object,
         // birth is 100% finished: dismiss terminal and switch directly to 3D world view!
-        if (frame.phase === 'play' && frame.map && !hasMore && frame.ui && frame.ui.awaiting_command) {
-            quickBirthActive = false;
-            forceTerminal = false;
-            updateViewMode(frame);
+        if (frame.phase === 'play' && frame.map && frame.player && !hasMore) {
+            finalizeHeroBirth();
             return;
         }
 
@@ -199,53 +289,256 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 1. Character confirmation / review screens ('use as is' or 'S' to start over)
-        // PAUSE HERE: Give the player a moment to inspect stats and choose whether to accept or reroll!
-        if (screenText.includes("use as is") || screenText.includes("'y': use") ||
-            screenText.includes("to start over") || screenText.includes("r to reroll") ||
-            screenText.includes("reroll") || screenText.includes("'s' to start")) {
+        // 1. Review & Confirmation Screen reached across variants!
+        const isReviewScreen = screenText.includes('to start over') ||
+                               screenText.includes("'s' to start") ||
+                               screenText.includes('accept character') ||
+                               screenText.includes('re-roll') ||
+                               screenText.includes("['r'eroll") ||
+                               screenText.includes("or enter to accept") ||
+                               screenText.includes("reroll, 'h'istory") ||
+                               screenText.includes("能力値の決定") ||
+                               screenText.includes("能力値決定") ||
+                               screenText.includes("次の数値") ||
+                               screenText.includes("前の数値") ||
+                               screenText.includes("この数値に決定") ||
+                               (screenText.includes('enter your starting stats') && screenText.includes('begin play')) ||
+                               (screenText.includes('step back') && screenText.includes('continue'));
+
+        if (isReviewScreen) {
             quickBirthActive = false;
             birthReviewActive = true;
             forceTerminal = true;
-            updateTerminalToolbar(frame);
             updateViewMode(frame);
-            console.log('[QuickStart] Reached character review screen; pausing for player inspection.');
+
+            const quickBirthBtn = document.getElementById('btn-quick-birth');
+            const termRerollBtn = document.getElementById('btn-term-reroll');
+            const termCustomBtn = document.getElementById('btn-term-custom');
+            const termAdvanceBtn = document.getElementById('btn-term-advance');
+            const termEscapeBtn = document.getElementById('btn-term-escape');
+            const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
+
+            if (quickBirthBtn) quickBirthBtn.style.display = 'none';
+            if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
+            if (termCustomBtn) termCustomBtn.style.display = 'inline-flex';
+            if (termAdvanceBtn) {
+                termAdvanceBtn.style.display = 'inline-flex';
+                termAdvanceBtn.textContent = '⚔ Accept & Play (Enter)';
+            }
+            if (termEscapeBtn) {
+                termEscapeBtn.style.display = 'inline-flex';
+                termEscapeBtn.textContent = 'Back (Esc)';
+            }
+            if (terminalTitle) {
+                const hasPrev = screenText.includes('前の数値') || screenText.includes('previous roll') || screenText.includes("'p' for previous");
+                terminalTitle.textContent = hasPrev
+                    ? '🎲 HERO STATS — Reroll [R] | Prev Roll [P] | Custom [C] | Accept [Enter]'
+                    : '🎲 HERO REVIEW — Reroll [R] | Custom [C] | Accept [Enter]';
+            }
             return;
         }
 
-        // 2. More prompts during setup/selection
-        if (hasMore) {
-            network.sendKey('enter');
+        // 1b. Vanilla Angband Quickstart prompt: do not reuse previous character during quick birth; roll fresh with 'n'
+        if (screenText.includes('use as is') || screenText.includes("'y': use as is") || screenText.includes("'n': redo")) {
+            network.sendKey('n');
             return;
         }
-        // 3. Quit or overwrite confirmation
-        if (screenText.includes('[y/n]') || screenText.includes('are you sure')) {
+
+        // 2. Universal Confirmation Prompts ([y/n] or are you sure or よろしいですか)
+        if (screenText.includes('[y/n]') || screenText.includes('(y/n)') || screenText.includes('are you sure') || screenText.includes('よろしいですか')) {
             network.sendKey('y');
             return;
         }
-        // 4. Press any key / space pauses
-        if (screenText.includes('press any key') || screenText.includes('[press') || screenText.includes('press space')) {
+
+        // 3. Hengband Birth Options screen -> escape to accept options
+        if (screenText.includes('esc:accept') || screenText.includes('birth options') || screenText.includes('esc to return') ||
+            screenText.includes('smart_learn') || (screenText.includes('esc:終了') && screenText.includes('初期オプション'))) {
+            network.sendKey('escape');
+            return;
+        }
+
+        // 4. Hengband Stat Roller (Set minimum stats / goto next / 能力値を抽選)
+        if (screenText.includes('set minimum stats') || screenText.includes('enter for goto next') ||
+            screenText.includes('能力値を抽選') || screenText.includes('この数値に決定')) {
             network.sendKey('enter');
             return;
         }
-        // 5. Selection menu: trait, race, class, roller -> send '@' for random
-        network.sendKey('@');
+
+        // 5. Hengband Realm Selection (for spellcasting classes) -> select first realm 'a'
+        if (screenText.includes('choose a realm') || screenText.includes('choose realm') || screenText.includes('realm 1:') ||
+            screenText.includes('魔法領域') || screenText.includes('領域を選んで')) {
+            network.sendKey('a');
+            return;
+        }
+
+        // 6. FrogComposBand Mode Selection: 'n' is Normal Mode (never 'b' Beginner which forces pre-rolled Hobbit Rogue)
+        if (screenText.includes('choose the type of game to play')) {
+            network.sendKey('n');
+            return;
+        }
+        if (activeRealm === 'frogcomposband') {
+            if (screenText.includes('change race') && screenText.includes('change class')) {
+                if (!fcbRandomized) {
+                    fcbRandomized = true;
+                    ['r', '*', '*', 'c', '*', '*', 'p', '*', '*', 'enter'].forEach(k => network.sendKey(k));
+                }
+                return;
+            }
+            if (fcbRandomized) {
+                // Randomizing keys already sent in burst; wait cleanly for Screen 2 review pause without spurious inputs
+                return;
+            }
+        }
+        if (screenText.includes('ret) next screen') || screenText.includes('next screen')) {
+            network.sendKey('enter');
+            return;
+        }
+
+        // 7. Vanilla Angband autoroller / quick-finish
+        if (screenText.includes('finish the character with random') || screenText.includes("'@' to finish") || screenText.includes("'@' finish")) {
+            network.sendKey('@');
+            return;
+        }
+
+        // 8. Sil-Q / Hengband / FrogComposBand Random Option Menu (Sex, Race, Class, Personality, House)
+        if (screenText.includes('choose a sex') || screenText.includes('choose a race') ||
+            screenText.includes('choose a class') || screenText.includes('choose a personality') ||
+            screenText.includes('性別を選んで') || screenText.includes('種族を選んで') ||
+            screenText.includes('職業を選んで') || screenText.includes('性格を選んで') ||
+            screenText.includes('random menu item') || screenText.includes('* random') || screenText.includes('*)ランダム') ||
+            screenText.includes('choose your race') || screenText.includes('choose your class') ||
+            screenText.includes('choose house') || screenText.includes('choose a house')) {
+            network.sendKey('*');
+            return;
+        }
+
+        // 9. Sil-Q Skills & Stats Allocation
+        if (screenText.includes('allocate points to skills') || screenText.includes('skill increases') || screenText.includes('accept skills')) {
+            network.sendKey('enter');
+            return;
+        }
+        if (screenText.includes('allocate points to stats') || screenText.includes('accept stats')) {
+            if (silqStatAllocated) return;
+            silqStatAllocated = true;
+            const archetype = Math.floor(Math.random() * 4);
+            let seq = ['6', '6', '2', '6', '6', '2', '6', '6', '2', '6', '8', '6', 'enter'];
+            if (archetype === 0) {
+                seq = ['6', '6', '6', '2', '6', '6', '2', '6', '6', '2', '6', 'enter'];
+            } else if (archetype === 1) {
+                seq = ['6', '6', '2', '6', '6', '6', '2', '6', '6', '2', '6', 'enter'];
+            } else if (archetype === 3) {
+                seq = ['6', '2', '6', '6', '2', '6', '6', '2', '6', '6', '6', 'enter'];
+            }
+            seq.forEach(k => network.sendKey(k));
+            return;
+        }
+
+        // 10. History, Age/Height/Weight, Name Prompts
+        if (screenText.includes('accept history') || screenText.includes('reroll history') || screenText.includes('accept age/height/weight')) {
+            network.sendKey('enter');
+            return;
+        }
+        if (screenText.includes('enter accept name') || screenText.includes('accept name') || screenText.includes('tab random name')) {
+            if (silqNameSent) return;
+            silqNameSent = true;
+            network.sendKey('tab');
+            network.sendKey('enter');
+            return;
+        }
+        if (screenText.includes("enter a name for your character") || screenText.includes("enter your player's name") ||
+            screenText.includes("enter name:") || screenText.includes('名前を入力') || screenText.includes('キャラクターの名前')) {
+            network.sendKey('enter');
+            return;
+        }
+
+        // 11. Post-review background edit & embark screens (Hengband)
+        if (screenText.includes('character background') || screenText.includes('cursor key for move, enter for end') ||
+            screenText.includes('生い立ち') || screenText.includes('編集モード') || screenText.includes('編集済み')) {
+            network.sendKey('enter');
+            return;
+        }
+        if (screenText.includes("start over, or enter to continue") || screenText.includes("['q'uit, 's'tart over, or enter to continue]") ||
+            screenText.includes('ゲーム開始') || screenText.includes('冒険に出ますか')) {
+            network.sendKey('enter');
+            return;
+        }
+
+        // 12. More prompts or splash screens
+        if (hasMore || screenText.includes('press any key') || screenText.includes('press space') ||
+            screenText.includes('press any other key to play') || screenText.includes('press ? for credits')) {
+            network.sendKey('space');
+            return;
+        }
+        if (screenText.includes('into the vast and echoing gloom') || screenText.includes('down awful corridors') ||
+            screenText.includes('depths they went alone') || screenText.includes('menace dark enshrined') ||
+            screenText.includes('when the world is old') || screenText.includes('rephial.org') || screenText.includes('last battle be gathered')) {
+            network.sendKey('enter');
+            return;
+        }
+
+        // 13. Fallback selection menu
+        if (screenText.includes('select your character') || screenText.includes('choose a') || screenText.includes('selection')) {
+            network.sendKey('@');
+            return;
+        }
+        network.sendKey('enter');
     }
 
     const rerollHero = () => {
         cancelQuickBirth();
         birthReviewActive = false;
-        if (audio) audio.playMenuNav();
-        network.sendKey('s');
+        forceTerminal = true;
+        if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
+        const currentRealm = (typeof getActiveRealm === 'function') ? getActiveRealm() : activeRealm;
+        if (currentRealm === 'silq') {
+            network.sendKey('r');
+        } else if (currentRealm === 'frogcomposband') {
+            fcbRandomized = false;
+            network.sendKey('escape');
+        } else if (currentRealm === 'hengband') {
+            network.sendKey('r');
+        } else {
+            // Vanilla Angband
+            const rawText = (lastFrame && lastFrame.term && lastFrame.term.rows ? lastFrame.term.rows.map(r => r.g || '').join('\n') : '').toLowerCase();
+            if (rawText.includes("'r' to reroll") || rawText.includes("['r'eroll") || rawText.includes("r to reroll")) {
+                network.sendKey('r');
+            } else if (rawText.includes('use as is') || rawText.includes("'y': use")) {
+                network.sendKey('n');
+            } else {
+                network.sendKey('s');
+            }
+        }
         quickBirthActive = true;
         quickBirthStep = 0;
+
+        const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
+        if (terminalTitle) {
+            terminalTitle.textContent = '🎲 REROLLING HERO...';
+        }
+    };
+
+    const previousStatRoll = () => {
+        if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
+        network.sendKey('p');
+        const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
+        if (terminalTitle) {
+            terminalTitle.textContent = '⏪ RESTORING PREVIOUS ROLL...';
+        }
     };
 
     const startCustomHeroCreation = () => {
         cancelQuickBirth();
         birthReviewActive = false;
-        if (audio) audio.playMenuNav();
-        network.sendKey('s');
+        forceTerminal = true;
+        if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
+        const currentRealm = (typeof getActiveRealm === 'function') ? getActiveRealm() : activeRealm;
+        if (currentRealm === 'silq' || currentRealm === 'frogcomposband') {
+            network.sendKey('escape');
+        } else if (currentRealm === 'hengband') {
+            network.sendKey('S');
+        } else {
+            network.sendKey('s');
+        }
         quickBirthActive = false;
         quickBirthStep = 0;
     };
@@ -297,9 +590,10 @@ window.addEventListener('DOMContentLoaded', () => {
             if (audio) audio.unlock();
             if (birthReviewActive) {
                 confirmHeroBirth();
+            } else {
+                if (audio) audio.playWhoosh();
+                network.sendKey('enter');
             }
-            if (audio) audio.playWhoosh();
-            network.sendKey('enter');
         });
     }
 
@@ -384,6 +678,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 forceTerminal = false;
                 window.__manualTerminalOpen = false;
                 updateViewMode();
+            } else if (key === 'toggle-run') {
+                if (input && typeof input.toggleDpadRunMode === 'function') {
+                    input.toggleDpadRunMode();
+                }
+                return;
             } else if (key === 'mainmenu') {
                 cancelQuickBirth();
                 if (audio) audio.playMenuNav();
@@ -391,6 +690,8 @@ window.addEventListener('DOMContentLoaded', () => {
             } else if (key === 'escape') {
                 cancelQuickBirth();
                 network.sendKey('escape');
+            } else if (key === 'enter' && birthReviewActive) {
+                confirmHeroBirth();
             } else if ((key === 'r' || key === 'R') && (!lastFrame || lastFrame.phase !== 'play')) {
                 const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
                     ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
@@ -403,10 +704,29 @@ window.addEventListener('DOMContentLoaded', () => {
                 } else {
                     network.sendKey(key);
                 }
+            } else if ((key === 's' || key === 'S' || key === 'c' || key === 'C') && birthReviewActive) {
+                startCustomHeroCreation();
             } else if (key === 's' && (!lastFrame || lastFrame.phase !== 'play')) {
                 cancelQuickBirth();
                 network.sendKey('s');
             } else {
+                // In terminal play mode, check if run toggle is active on directional keys
+                const isRunMode = Boolean(input && input.dpadRunMode);
+                const isPlayCommand = Boolean(lastFrame && lastFrame.phase === 'play' &&
+                    (lastFrame.awaiting_command || (lastFrame.ui && lastFrame.ui.awaiting_command)) &&
+                    (!lastFrame.ui || !lastFrame.ui.more) && (!lastFrame.ui || !lastFrame.ui.overlay));
+
+                if (isRunMode && isPlayCommand) {
+                    const dirDigits = {
+                        'up': 8, 'down': 2, 'left': 4, 'right': 6,
+                        'home': 7, 'pageup': 9, 'end': 1, 'pagedown': 3
+                    };
+                    const d = dirDigits[key];
+                    if (d) {
+                        network.sendCommand(`keys .${d}`);
+                        return;
+                    }
+                }
                 network.sendKey(key);
             }
         };
@@ -468,8 +788,11 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!nameInput) return;
             const nameVal = nameInput.value.trim();
             if (audio) audio.playWhoosh();
-            if (nameVal) {
+            network.sendKey('C-u');
+            for (let i = 0; i < 20; i++) {
                 network.sendKey('backspace');
+            }
+            if (nameVal) {
                 for (const ch of nameVal) {
                     network.sendKey(ch);
                 }
@@ -709,6 +1032,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (tomeWin) tomeWin.style.display = 'none';
     }
 
+    let lastFrame = null;
     const input = new InputController(network, dungeon, terminal, audio, toggleTerminalView);
     window.__app = {
         network,
@@ -726,10 +1050,27 @@ window.addEventListener('DOMContentLoaded', () => {
         toggleTerminalView,
         cancelQuickBirth,
         confirmHeroBirth,
-        rerollHero
+        finalizeHeroBirth,
+        rerollHero,
+        startCustomHeroCreation,
+        startNewRandomHero,
+        get inPlay() { return currentPhase === 'play'; },
+        isBirthReviewActive: () => birthReviewActive,
+        get lastFrame() { return lastFrame; },
+        getLastFrame: () => lastFrame,
+        showRealmSelector,
+        hideRealmSelector,
+        showCommandPalette,
+        hideCommandPalette,
+        getActiveRealm,
+        setActiveRealm,
+        selectRealm,
+        cycleRealm,
+        showRealmToast,
+        toggleLanguageMode,
+        getLanguageMode,
+        setLanguageMode
     };
-
-    let lastFrame = null;
     let appState = 'splash';
     let guidePreviousState = 'mainMenu';
     let loadPreviousState = 'mainMenu';
@@ -756,6 +1097,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const pauseCharDisplay = document.getElementById('pause-char-display');
     const pauseOptionBtns = document.querySelectorAll('#pause-menu-options .menu-option-btn');
     const demoModal = document.getElementById('demo-modal');
+    const realmModal = document.getElementById('realm-selector-modal');
+    const cmdPaletteModal = document.getElementById('command-palette-modal');
+    let realmPreviousState = 'mainMenu';
+    let cmdPalettePreviousState = 'game';
 
     // Queue Modal DOM Elements
     const queueModal = document.getElementById('queue-modal');
@@ -807,12 +1152,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function showSplash() {
         appState = 'splash';
+        updateRealmUI();
         if (splashOverlay) splashOverlay.classList.remove('hidden');
         if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
         if (guideModal) guideModal.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
         if (demoModal) demoModal.classList.add('hidden');
+        if (realmModal) realmModal.classList.add('hidden');
+        if (cmdPaletteModal) cmdPaletteModal.classList.add('hidden');
         if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
         if (queueModal) queueModal.classList.add('hidden');
         stopQueueTipRotation();
@@ -823,12 +1171,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function showMainMenu() {
         appState = 'mainMenu';
+        updateRealmUI();
         if (splashOverlay) splashOverlay.classList.add('hidden');
         if (mainMenuOverlay) mainMenuOverlay.classList.remove('hidden');
         if (guideModal) guideModal.classList.add('hidden');
         if (loadModal) loadModal.classList.add('hidden');
         if (pauseModal) pauseModal.classList.add('hidden');
         if (demoModal) demoModal.classList.add('hidden');
+        if (realmModal) realmModal.classList.add('hidden');
+        if (cmdPaletteModal) cmdPaletteModal.classList.add('hidden');
         if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
         if (queueModal) queueModal.classList.add('hidden');
         stopQueueTipRotation();
@@ -884,7 +1235,8 @@ window.addEventListener('DOMContentLoaded', () => {
             if (engineMode === 'local' && window.LocalSaveManager) {
                 loadedSaves = await LocalSaveManager.listSaves();
             } else {
-                const res = await fetch('/api/saves');
+                const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+                const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
                 if (res.ok) {
                     const data = await res.json();
                     loadedSaves = data.saves || [];
@@ -1073,7 +1425,8 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const url = `/api/saves/${encodeURIComponent(target.filename)}`;
+        const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+        const url = `/api/saves/${encodeURIComponent(target.filename)}?realm=${encodeURIComponent(realmParam)}`;
         await triggerFileDownload(url, outName);
     }
 
@@ -1172,7 +1525,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 ? lastFrame.player.name.trim()
                 : (network.currentChar || 'Adventurer');
 
-            const res = await fetch('/api/saves');
+            const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+            const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
             let matchedSave = null;
             if (res.ok) {
                 const data = await res.json();
@@ -1228,7 +1582,8 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const res = await fetch(`/api/saves/${encodeURIComponent(target.filename)}`, { method: 'DELETE' });
+            const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+            const res = await fetch(`/api/saves/${encodeURIComponent(target.filename)}?realm=${encodeURIComponent(realmParam)}`, { method: 'DELETE' });
             if (res.ok) {
                 if (audio) audio.playMenuNav();
                 await fetchAndRenderSaves();
@@ -1433,7 +1788,8 @@ window.addEventListener('DOMContentLoaded', () => {
             if (engineMode === 'local' && window.LocalSaveManager) {
                 saves = await LocalSaveManager.listSaves();
             } else {
-                const res = await fetch('/api/saves');
+                const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+                const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
                 if (res.ok) {
                     const data = await res.json();
                     saves = data.saves || [];
@@ -1441,27 +1797,33 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             if (saves && saves.length > 0) {
                 latestSave = saves[0];
+                loadedSaves = saves;
                 const label = document.getElementById('menu-continue-label');
                 const desc = document.getElementById('menu-continue-desc');
                 const btn = document.getElementById('btn-menu-continue');
-                if (label) label.textContent = `Continue Last Played (${latestSave.characterName || latestSave.filename})`;
+                if (label) label.textContent = `Continue (${latestSave.characterName || latestSave.filename})`;
                 if (desc) desc.textContent = `${latestSave.description || 'Saved Adventurer'}${latestSave.lastModified ? ' • Modified ' + new Date(latestSave.lastModified).toLocaleTimeString() : ''}`;
                 if (btn) btn.style.opacity = '1.0';
                 return;
             }
         } catch (_) {}
+        latestSave = null;
+        loadedSaves = [];
+        const label = document.getElementById('menu-continue-label');
+        if (label) label.textContent = 'Continue Adventure';
         const desc = document.getElementById('menu-continue-desc');
         if (desc) desc.textContent = engineMode === 'local'
-            ? 'No offline saved game found on device (Choose option 2 or 3 to begin)'
-            : 'No saved game found on server (Choose option 2 or 3 to begin)';
+            ? 'No saved adventurer found in this realm (Choose [3] Quick Start or [4] Custom Hero)'
+            : 'No saved adventurer found in this realm (Choose [3] Quick Start or [4] Custom Hero)';
         const btn = document.getElementById('btn-menu-continue');
         if (btn) btn.style.opacity = '0.6';
     }
 
-    function activateMenuItem() {
+    function activateMenuItem(overrideIndex = null) {
         if (audio) audio.playMenuSelect();
-        switch (selectedMenuIndex) {
-            case 0: // Continue Last Played
+        const idx = overrideIndex !== null ? overrideIndex : selectedMenuIndex;
+        switch (idx) {
+            case 0: // Continue Adventure
                 if (latestSave) {
                     startGame({
                         charName: latestSave.characterName || 'Adventurer',
@@ -1483,27 +1845,76 @@ window.addEventListener('DOMContentLoaded', () => {
             case 3: // Start from Scratch (Custom Hero)
                 startNewCustomHero();
                 break;
-            case 4: // Game Guide & Primer
+            case 4: // Option [5]: Game Guide & Primer
                 showGuide(0, 'mainMenu');
                 break;
-            case 5: // Summary & Credits
-                showGuide(5, 'mainMenu');
-                break;
-            case 6: // Angband Online Wiki
-                openExternalUrl('https://angband.readthedocs.io/');
-                break;
-            case 7: // Option [8]: Standalone Apps & Downloads (Android / PC)
+            case 5: // Option [6]: Standalone Apps & Downloads (Android / PC)
                 showPWAModal('mainMenu');
                 break;
-            case 8: // Option [9]: 🎬 Gameplay Demo & Commercial Showcase
+            case 6: // Option [7]: 🎬 Gameplay Demo & Showcase
                 showDemoModal('mainMenu');
+                break;
+            case 7: // Option [8]: Summary & Credits
+                showGuide(6, 'mainMenu');
+                break;
+            case 8: // Option [R]: Switch Realm
+                showSplash();
                 break;
         }
     }
 
+    const REALM_HERO_NAMES = {
+        hengband: {
+            japanese: [
+                'Musashi', 'Kojiro', 'Nobunaga', 'Masamune', 'Yukimura',
+                'Hanzo', 'Goemon', 'Raiko', 'Kenshin', 'Shingen',
+                'Benkei', 'Yoshitsune', 'Tomoe', 'Kotaro', 'Jubei',
+                'Saizo', 'Sasuke', 'Genji', 'Kiyomori', 'Hideyoshi'
+            ],
+            amberite: [
+                'Corwin', 'Benedict', 'Eric', 'Random', 'Bleys',
+                'Brand', 'Gerard', 'Julian', 'Caine', 'Dworkin',
+                'Merlin', 'Martin', 'Jurt', 'Fiona', 'Llewella'
+            ]
+        },
+        silq: [
+            'Beren', 'Fingolfin', 'Feanor', 'Turin', 'Tuor',
+            'Earendil', 'Hurin', 'Beleg', 'Mablung', 'Finrod',
+            'Glorfindel', 'Ecthelion', 'Voronwe', 'Daeron', 'Luthien',
+            'Idril', 'Morwen', 'Celegorm', 'Curufin', 'Maglor'
+        ],
+        frogcomposband: [
+            'Elric', 'Conan', 'Fafhrd', 'GrayMouser', 'Belgarath',
+            'Sparrowhawk', 'Corwin', 'Arthur', 'Roland', 'Gwydion',
+            'Vlad', 'Geralt', 'Locke', 'Kvothe', 'Cugel'
+        ],
+        angband: [
+            'Aragorn', 'Boromir', 'Faramir', 'Theoden', 'Eomer',
+            'Bard', 'Beren', 'Isildur', 'Elendil', 'Thorin',
+            'Gimli', 'Gloin', 'Dain', 'Frodo', 'Samwise'
+        ]
+    };
+
+    function generateHeroName(realmKey = 'angband', lang = 'en') {
+        const r = (realmKey || activeRealm || 'angband').toLowerCase();
+        let base = 'Hero';
+        if (r === 'hengband') {
+            const isJp = (lang === 'jp' || langMode === 'jp' || Math.random() < 0.65);
+            const pool = isJp ? REALM_HERO_NAMES.hengband.japanese : REALM_HERO_NAMES.hengband.amberite;
+            base = pool[Math.floor(Math.random() * pool.length)];
+        } else if (r === 'silq') {
+            base = REALM_HERO_NAMES.silq[Math.floor(Math.random() * REALM_HERO_NAMES.silq.length)];
+        } else if (r === 'frogcomposband') {
+            base = REALM_HERO_NAMES.frogcomposband[Math.floor(Math.random() * REALM_HERO_NAMES.frogcomposband.length)];
+        } else {
+            base = REALM_HERO_NAMES.angband[Math.floor(Math.random() * REALM_HERO_NAMES.angband.length)];
+        }
+        const suffix = Math.floor(10 + Math.random() * 90);
+        return `${base}_${suffix}`;
+    }
+
     function startNewRandomHero() {
-        const randId = Math.random().toString(36).substring(2, 6).toUpperCase();
-        const heroName = `Hero_${randId}`;
+        const heroName = generateHeroName(activeRealm);
         startGame({
             charName: heroName,
             isNew: true,
@@ -1512,8 +1923,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function startNewCustomHero() {
-        const randId = Math.random().toString(36).substring(2, 6).toUpperCase();
-        const heroName = `Hero_${randId}`;
+        const heroName = generateHeroName(activeRealm);
         startGame({
             charName: heroName,
             isNew: true,
@@ -1534,6 +1944,17 @@ window.addEventListener('DOMContentLoaded', () => {
         stopQueueTipRotation();
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
 
+        // Watchdog: If engine fails to respond or socket hangs, dismiss loading overlay after 10s and return to menu
+        if (window.__startWatchdog) clearTimeout(window.__startWatchdog);
+        window.__startWatchdog = setTimeout(() => {
+            if (loadingOverlay && !loadingOverlay.classList.contains('hidden') && !lastFrame) {
+                console.warn('[Angband3D] Game start watchdog: engine response timed out after 10s.');
+                loadingOverlay.classList.add('hidden');
+                showRealmToast(`⚠️ Connection timed out while starting realm "${chosenRealm}". Please check server.`);
+                returnToMainMenu();
+            }
+        }, 10000);
+
         quickBirthActive = !!options.autoBirth;
         quickBirthStep = 0;
         forceTerminal = false;
@@ -1547,7 +1968,8 @@ window.addEventListener('DOMContentLoaded', () => {
             window.chronicleManager.resetForNewCharacter({ name: options.charName });
         }
 
-        network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null);
+        const chosenRealm = options.realm || activeRealm || 'angband';
+        network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm);
     }
 
     async function reloadLastSave() {
@@ -1578,7 +2000,8 @@ window.addEventListener('DOMContentLoaded', () => {
             if (engineMode === 'local' && window.LocalSaveManager) {
                 saves = await LocalSaveManager.listSaves();
             } else {
-                const res = await fetch('/api/saves');
+                const realmParam = (network && network.currentRealm) || (window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : activeRealm) || 'angband';
+                const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
                 if (res.ok) {
                     const data = await res.json();
                     saves = data.saves || [];
@@ -1646,6 +2069,10 @@ window.addEventListener('DOMContentLoaded', () => {
         if (window.chronicleManager && typeof window.chronicleManager.stopStoryPlayback === 'function') {
             window.chronicleManager.stopStoryPlayback();
         }
+        if (window.__startWatchdog) {
+            clearTimeout(window.__startWatchdog);
+            window.__startWatchdog = null;
+        }
         if (queueModal) queueModal.classList.add('hidden');
         stopQueueTipRotation();
         if (terminalContainer) terminalContainer.classList.add('hidden');
@@ -1671,7 +2098,7 @@ window.addEventListener('DOMContentLoaded', () => {
             lastActionTime = now;
             if (e && e.cancelable && e.type !== 'click') e.preventDefault();
             if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
-            fn();
+            fn(e);
         };
 
         el.addEventListener('touchstart', (e) => {
@@ -1711,25 +2138,49 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Attach DOM event listeners for splash buttons
     const btnSplashStart = document.getElementById('btn-splash-start');
-    bindFastTap(btnSplashStart, () => showMainMenu());
+    if (btnSplashStart) bindFastTap(btnSplashStart, () => showMainMenu());
 
     const btnSplashMenu = document.getElementById('btn-splash-menu');
-    bindFastTap(btnSplashMenu, () => showMainMenu());
+    if (btnSplashMenu) bindFastTap(btnSplashMenu, () => showMainMenu());
+
+    // Splash screen 4 interactive realm cards
+    const splashCards = document.querySelectorAll('.splash-realm-card');
+    splashCards.forEach((card) => {
+        const rKey = card.dataset.realm;
+        bindFastTap(card, () => {
+            if (rKey) {
+                selectRealm(rKey, false);
+            }
+        });
+        card.addEventListener('dblclick', () => {
+            if (rKey) {
+                selectRealm(rKey, false);
+                showMainMenu();
+            }
+        });
+    });
+
+    const splashHengbandLang = document.getElementById('splash-hengband-lang-select');
+    if (splashHengbandLang) {
+        splashHengbandLang.addEventListener('change', (e) => {
+            setLanguageMode(e.target.value);
+        });
+    }
 
     const btnSplashGuide = document.getElementById('btn-splash-guide');
-    bindFastTap(btnSplashGuide, () => showGuide(0, 'splash'));
+    if (btnSplashGuide) bindFastTap(btnSplashGuide, () => showGuide(0, 'splash'));
 
     const btnSplashFeatures = document.getElementById('btn-splash-features');
-    bindFastTap(btnSplashFeatures, () => showGuide(1, 'splash'));
+    if (btnSplashFeatures) bindFastTap(btnSplashFeatures, () => showGuide(1, 'splash'));
 
     const btnSplashChronicle = document.getElementById('btn-splash-chronicle');
     if (btnSplashChronicle) bindFastTap(btnSplashChronicle, () => showGuide(1, 'splash'));
 
     const btnSplashProtips = document.getElementById('btn-splash-protips');
-    bindFastTap(btnSplashProtips, () => showGuide(4, 'splash'));
+    if (btnSplashProtips) bindFastTap(btnSplashProtips, () => showGuide(4, 'splash'));
 
     const btnSplashCredits = document.getElementById('btn-splash-credits');
-    bindFastTap(btnSplashCredits, () => showGuide(6, 'splash'));
+    if (btnSplashCredits) bindFastTap(btnSplashCredits, () => showGuide(6, 'splash'));
 
     const btnSplashDemo = document.getElementById('btn-splash-demo');
     if (btnSplashDemo) {
@@ -1746,6 +2197,13 @@ window.addEventListener('DOMContentLoaded', () => {
     const splashNoticeDownload = document.getElementById('splash-notice-download');
     if (splashNoticeDownload) bindFastTap(splashNoticeDownload, () => showPWAModal('splash'));
 
+    // Main Menu secondary dock buttons ([5] Guide, [6] Downloads, [7] Demo, [8] Credits)
+    const menuDockBtns = document.querySelectorAll('.main-menu-secondary-dock .menu-dock-btn');
+    menuDockBtns.forEach((btn) => {
+        const idx = parseInt(btn.dataset.index, 10);
+        bindFastTap(btn, () => activateMenuItem(idx));
+    });
+
     const btnMenuPwa = document.getElementById('btn-menu-pwa');
     if (btnMenuPwa) bindFastTap(btnMenuPwa, () => showPWAModal('mainMenu'));
 
@@ -1759,6 +2217,45 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         bindFastTap(btnMenuDemo, () => showDemoModal('mainMenu'));
     }
+
+    const btnMenuGuide = document.getElementById('btn-menu-guide');
+    if (btnMenuGuide) bindFastTap(btnMenuGuide, () => showGuide(0, 'mainMenu'));
+
+    const btnMenuCredits = document.getElementById('btn-menu-credits');
+    if (btnMenuCredits) bindFastTap(btnMenuCredits, () => showGuide(6, 'mainMenu'));
+
+    const btnSplashRealms = document.getElementById('btn-splash-realms');
+    if (btnSplashRealms) {
+        bindFastTap(btnSplashRealms, (e) => {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            showRealmSelector('splash');
+        });
+    }
+
+    const btnSplashCommands = document.getElementById('btn-splash-commands');
+    if (btnSplashCommands) {
+        bindFastTap(btnSplashCommands, (e) => {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            showCommandPalette('splash');
+        });
+    }
+
+    const btnMenuRealms = document.getElementById('btn-menu-realms');
+    if (btnMenuRealms) bindFastTap(btnMenuRealms, () => showSplash());
+
+    const btnLoadRealmSwitch = document.getElementById('btn-load-realm-switch');
+    if (btnLoadRealmSwitch) bindFastTap(btnLoadRealmSwitch, () => showRealmSelector('loadMenu'));
+
+    const btnHudRealm = document.getElementById('btn-hud-realm');
+    if (btnHudRealm) {
+        bindFastTap(btnHudRealm, () => {
+            const realm = REALM_DATA[activeRealm] || REALM_DATA.angband;
+            showRealmToast(`Active Realm: ${realm.name} • Locked during active dungeon descent.`);
+        });
+    }
+
+    const btnCommandPalette = document.getElementById('btn-command-palette');
+    if (btnCommandPalette) bindFastTap(btnCommandPalette, () => showCommandPalette('game'));
 
     // Audio Volume & Mute Control Synchronization
     function syncAudioUI() {
@@ -2156,8 +2653,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (splashOverlay) {
         splashOverlay.addEventListener('click', (e) => {
-            // Clicking splash card or background advances to main menu
-            if (e.target.closest('.splash-shortcut-btn') || e.target.closest('a')) return;
+            // Clicking buttons, shortcut actions, links, or badges advances via their own dedicated handler
+            if (e.target.closest('button') || e.target.closest('.splash-shortcut-btn') || e.target.closest('.splash-realm-badge-btn') || e.target.closest('a')) return;
             showMainMenu();
         });
     }
@@ -2465,6 +2962,794 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // =========================================================================
+    // Multi-Realm Architecture & Lorekeeper Attunement Handlers (v8.9.3)
+    // Note: REALM_DATA, activeRealm, and langMode are declared at top of DOMContentLoaded
+    // =========================================================================
+    let realmToastTimeout = null;
+    function showRealmToast(message) {
+        let toast = document.getElementById('realm-toast-banner');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'realm-toast-banner';
+            toast.className = 'realm-toast';
+            document.body.appendChild(toast);
+        }
+        toast.innerHTML = `<span style="font-size: 20px;">🌌</span><span>${message}</span>`;
+        toast.classList.add('show');
+        if (realmToastTimeout) clearTimeout(realmToastTimeout);
+        realmToastTimeout = setTimeout(() => {
+            if (toast) toast.classList.remove('show');
+        }, 3200);
+    }
+
+    function getActiveRealm() {
+        return activeRealm;
+    }
+
+    function setActiveRealm(realmKey) {
+        if (appState === 'game') {
+            const current = REALM_DATA[activeRealm] || REALM_DATA.angband;
+            showRealmToast(`Active Realm: ${current.name} • Realm cannot be switched during an active dungeon crawl. Return to Main Menu to switch.`);
+            return false;
+        }
+        if (!REALM_DATA[realmKey]) return false;
+        activeRealm = realmKey;
+        window.__langMode = (activeRealm === 'hengband') ? langMode : 'en';
+        try {
+            localStorage.setItem('angband3d_active_realm', realmKey);
+        } catch (_) {}
+        updateRealmUI();
+
+        // Attune living chronicle tradition and lorekeeper voice profile
+        if (window.chronicleManager) {
+            try {
+                const grounder = window.chronicleManager.grounder || window.ChronicleGrounder;
+                const tradition = (grounder && typeof grounder.getTraditionForRealm === 'function')
+                    ? grounder.getTraditionForRealm(realmKey)
+                    : (realmKey === 'frogcomposband' ? 'mythicbard' : realmKey === 'hengband' ? 'easternmythos' : realmKey === 'silq' ? 'beleriand' : 'westmarch');
+                window.chronicleManager.tradition = tradition;
+                if (window.chronicleManager.audio && typeof window.chronicleManager.audio.setTradition === 'function') {
+                    window.chronicleManager.audio.setTradition(tradition);
+                }
+                if (typeof window.chronicleManager.updateTraditionBadge === 'function') {
+                    window.chronicleManager.updateTraditionBadge();
+                }
+            } catch (_) {}
+        }
+
+        if (audio) {
+            if (typeof audio.playMenuSelect === 'function') {
+                audio.playMenuSelect();
+            } else if (typeof audio.playMenuOpen === 'function') {
+                audio.playMenuOpen();
+            }
+        }
+        return true;
+    }
+
+    function selectRealm(realmKey, autoClose = false) {
+        if (appState === 'game') {
+            const current = REALM_DATA[activeRealm] || REALM_DATA.angband;
+            showRealmToast(`Active Realm: ${current.name} • Realm cannot be switched during an active dungeon crawl.`);
+            return;
+        }
+        if (!REALM_DATA[realmKey]) return;
+        setActiveRealm(realmKey);
+
+        // Invariant: Changing realm immediately invalidates any stale saves and session ID from the previous realm
+        latestSave = null;
+        loadedSaves = [];
+        if (typeof network !== 'undefined' && network) {
+            network.sessionId = null;
+            network.currentRealm = realmKey;
+            try {
+                localStorage.removeItem('angband3d_session_id');
+                localStorage.removeItem('angband3d_session_save');
+                localStorage.setItem('angband3d_session_realm', realmKey);
+            } catch (_) {}
+        }
+
+        const realm = REALM_DATA[realmKey];
+        showRealmToast(`Realm Attuned: <strong>${realm.name}</strong> • ${realm.tagline}`);
+        updateRealmUI();
+        checkSaves();
+
+        if (autoClose) {
+            setTimeout(() => {
+                if (appState === 'realmModal') {
+                    hideRealmSelector();
+                }
+            }, 450);
+        }
+    }
+
+    function cycleRealm(delta = 1) {
+        if (appState === 'game') return;
+        const realms = ['angband', 'frogcomposband', 'hengband', 'silq'];
+        const currentIdx = realms.indexOf(activeRealm);
+        const nextIdx = (currentIdx + delta + realms.length) % realms.length;
+        selectRealm(realms[nextIdx], false);
+    }
+
+    // Multilingual Language State for Hengband (langMode is declared at top of DOMContentLoaded)
+    function getLanguageMode() {
+        return langMode;
+    }
+
+    function setLanguageMode(mode) {
+        if (activeRealm !== 'hengband') {
+            langMode = 'en';
+            window.__langMode = 'en';
+            return;
+        }
+        if (mode !== 'en' && mode !== 'bilingual' && mode !== 'jp') mode = 'en';
+        langMode = mode;
+        window.__langMode = mode;
+        try {
+            localStorage.setItem('angband3d_lang_mode', mode);
+        } catch (_) {}
+        updateLanguageUI();
+        const desc = mode === 'en' ? 'English (純英語)' : (mode === 'jp' ? 'Japanese / 漢字 (Kanji)' : 'Bilingual (日本語 + English)');
+        showRealmToast(`🌐 Hengband Language Mode: <strong>${desc}</strong> [Alt+L]`);
+        if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
+
+        // If in setup or play, re-render terminal & HUD to reflect updated language immediately
+        if (window.__lastFrame) {
+            updateViewMode(window.__lastFrame);
+            if (terminal && terminal.render) {
+                terminal.render(window.__lastFrame.term || {});
+            }
+            if (hud && typeof hud.update === 'function') {
+                hud.update(window.__lastFrame);
+            }
+            if (input && typeof input.updateContextualControls === 'function') {
+                input.updateContextualControls(window.__lastFrame);
+            }
+        }
+    }
+
+    function toggleLanguageMode() {
+        if (activeRealm !== 'hengband') return;
+        const next = langMode === 'en' ? 'bilingual' : (langMode === 'bilingual' ? 'jp' : 'en');
+        setLanguageMode(next);
+    }
+
+    function updateLanguageUI() {
+        const btnLang = document.getElementById('btn-toggle-lang');
+        const langLabel = document.getElementById('hud-lang-label');
+        const isHengband = activeRealm === 'hengband';
+        const effLang = isHengband ? langMode : 'en';
+        window.__langMode = effLang;
+
+        if (btnLang) {
+            btnLang.style.display = isHengband ? 'inline-flex' : 'none';
+            btnLang.classList.toggle('lang-kanji', isHengband && langMode === 'jp');
+            btnLang.classList.toggle('lang-bilingual', isHengband && langMode === 'bilingual');
+            btnLang.title = `Switch Language: Currently ${effLang === 'en' ? 'English' : effLang === 'jp' ? 'Kanji (日本語)' : 'Bilingual'} [Alt+L]`;
+        }
+        if (langLabel) {
+            langLabel.textContent = effLang === 'en' ? 'EN' : (effLang === 'jp' ? '漢 (JP)' : 'EN/漢');
+        }
+
+        // Delegate to WebHUD to update all HUD widgets, stats, gauges, action bar, death screen, dpad, and minimap
+        if (hud && typeof hud.updateLanguageUI === 'function') {
+            hud.updateLanguageUI(activeRealm, effLang);
+        }
+
+        // Main Menu / Pause Menu Localization
+        const continueLabel = document.getElementById('menu-continue-label');
+        if (continueLabel) {
+            if (isHengband && langMode === 'jp') continueLabel.textContent = '冒険を続ける';
+            else if (isHengband && langMode === 'bilingual') continueLabel.textContent = 'Continue Adventure (冒険継続)';
+            else continueLabel.textContent = 'Continue Adventure';
+        }
+        const loadLabel = document.querySelector('#btn-menu-load .menu-label');
+        if (loadLabel) {
+            if (isHengband && langMode === 'jp') loadLabel.textContent = 'セーブデータを読込...';
+            else if (isHengband && langMode === 'bilingual') loadLabel.textContent = 'Load Saved Character (記録読込)...';
+            else loadLabel.textContent = 'Load Saved Character...';
+        }
+        const randLabel = document.querySelector('#btn-menu-random .menu-label');
+        if (randLabel) {
+            if (isHengband && langMode === 'jp') randLabel.textContent = 'クイックスタート (ランダム英雄)';
+            else if (isHengband && langMode === 'bilingual') randLabel.textContent = 'Quick Start (即時開始)';
+            else randLabel.textContent = 'Quick Start (Random Hero)';
+        }
+        const custLabel = document.querySelector('#btn-menu-custom .menu-label');
+        if (custLabel) {
+            if (isHengband && langMode === 'jp') custLabel.textContent = 'キャラクター作成 (詳細)';
+            else if (isHengband && langMode === 'bilingual') custLabel.textContent = 'Custom Hero (英雄作成)';
+            else custLabel.textContent = 'Custom Hero (Character Wizard)';
+        }
+    }
+
+    function updateRealmUI() {
+        updateLanguageUI();
+        const realm = REALM_DATA[activeRealm] || REALM_DATA.angband;
+
+        // 1. Splash Screen UI Synchronization
+        const splashName = document.getElementById('splash-active-realm-name');
+        if (splashName) splashName.textContent = realm.name;
+
+        const splashCtaName = document.getElementById('splash-cta-realm-name');
+        if (splashCtaName) splashCtaName.textContent = realm.name;
+
+        const splashCards = document.querySelectorAll('.splash-realm-card');
+        splashCards.forEach((card) => {
+            const isMatch = card.dataset.realm === activeRealm;
+            card.classList.toggle('active', isMatch);
+            card.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+            const badge = card.querySelector('.splash-realm-badge');
+            if (badge) badge.style.display = isMatch ? 'block' : 'none';
+        });
+
+        const splashLangSelect = document.getElementById('splash-hengband-lang-select');
+        if (splashLangSelect) {
+            try {
+                const storedLang = localStorage.getItem('angband3d_lang_mode') || 'en';
+                splashLangSelect.value = (storedLang === 'jp' ? 'jp' : 'en');
+            } catch (_) {}
+        }
+
+        // 2. Main Menu UI Synchronization
+        const menuActiveRealmName = document.getElementById('menu-active-realm-name');
+        if (menuActiveRealmName) menuActiveRealmName.textContent = realm.name;
+
+        const menuDesc = document.getElementById('menu-realm-desc');
+        if (menuDesc) menuDesc.textContent = `Active: ${realm.name} • ${realm.tagline}`;
+
+        // 3. Modals & HUD Synchronization
+        const loadActiveRealmName = document.getElementById('load-active-realm-name');
+        if (loadActiveRealmName) loadActiveRealmName.textContent = realm.name;
+
+        const hudLabel = document.getElementById('hud-realm-label');
+        if (hudLabel) hudLabel.textContent = realm.name;
+
+        const btnHud = document.getElementById('btn-hud-realm');
+        if (btnHud) {
+            btnHud.title = `Active Realm: ${realm.name} (Locked during gameplay. Return to Main Menu to switch).`;
+        }
+
+        const modalActiveTitle = document.getElementById('realm-modal-active-title');
+        if (modalActiveTitle) modalActiveTitle.textContent = realm.name;
+
+        const modalActiveVoice = document.getElementById('realm-modal-active-voice');
+        if (modalActiveVoice) modalActiveVoice.textContent = realm.voiceAccent;
+
+        const btnReturn = document.getElementById('btn-realm-modal-return');
+        if (btnReturn) {
+            btnReturn.innerHTML = `[Esc / Enter] Return with <strong>${realm.name}</strong> Attuned`;
+        }
+
+        const cards = document.querySelectorAll('.realm-card');
+        cards.forEach((card) => {
+            const isMatch = card.dataset.realm === activeRealm;
+            if (isMatch) {
+                card.classList.add('active');
+                const badge = card.querySelector('.realm-card-badge');
+                if (badge) badge.style.display = 'block';
+                const btn = card.querySelector('.btn-realm-select');
+                if (btn) {
+                    btn.className = 'btn-realm-select btn-gold';
+                    btn.textContent = '✓ Active Realm (Selected)';
+                }
+            } else {
+                card.classList.remove('active');
+                const badge = card.querySelector('.realm-card-badge');
+                if (badge) badge.style.display = 'none';
+                const btn = card.querySelector('.btn-realm-select');
+                if (btn) {
+                    btn.className = 'btn-realm-select btn-gold-outline';
+                    btn.textContent = 'Switch to Realm';
+                }
+            }
+        });
+
+        const langSelect = document.getElementById('hengband-lang-select');
+        if (langSelect) {
+            try {
+                const storedLang = localStorage.getItem('angband3d_lang_mode') || 'en';
+                langSelect.value = storedLang;
+            } catch (_) {}
+        }
+
+        // 4. Action Bar Synchronization (Variant actions & bilingual labels)
+        const btnSkills = document.getElementById('btn-skills');
+        const btnPower = document.getElementById('btn-power');
+        const btnOverland = document.getElementById('btn-overland');
+        const btnQuests = document.getElementById('btn-quests');
+        const btnBrowse = document.getElementById('btn-browse');
+        const btnStudy = document.getElementById('btn-study');
+        const btnCast = document.getElementById('btn-cast');
+        const btnQuaff = document.getElementById('btn-quaff');
+        const btnRead = document.getElementById('btn-read');
+        const btnInventory = document.getElementById('btn-inventory');
+        const btnEquipment = document.getElementById('btn-equipment');
+        const btnAttack = document.getElementById('btn-attack');
+        const btnThrow = document.getElementById('btn-throw');
+        const btnFire = document.getElementById('btn-fire');
+        const btnDoor = document.getElementById('btn-door');
+        const btnPickup = document.getElementById('btn-pickup');
+        const btnRest = document.getElementById('btn-rest');
+        const btnTerminal = document.getElementById('btn-terminal');
+        const btnGuideHud = document.getElementById('btn-guide-hud');
+
+        if (activeRealm === 'silq') {
+            if (btnSkills) {
+                btnSkills.style.display = 'flex';
+                btnSkills.innerHTML = '🌳 Skills <kbd>Tab</kbd>';
+                btnSkills.title = 'Open Ability & Skill Tree [Tab]';
+            }
+            if (btnPower) btnPower.style.display = 'none';
+            if (btnOverland) btnOverland.style.display = 'none';
+            if (btnQuests) btnQuests.style.display = 'none';
+            if (btnBrowse) btnBrowse.style.display = 'none';
+            if (btnStudy) btnStudy.style.display = 'none';
+            if (btnCast) {
+                btnCast.innerHTML = '🎵 Song <kbd>s</kbd>';
+                btnCast.title = 'Sing Song of Power (Elbereth, Slaying, Lorien, Freedom, Staying, Sharpness) [s]';
+            }
+            if (btnThrow) {
+                btnThrow.innerHTML = '🎯 Throw <kbd>t</kbd>';
+                btnThrow.title = 'Throw weapon or flask towards aimed direction [t]';
+            }
+            if (btnRest) {
+                btnRest.innerHTML = '⏳ Rest <kbd>%</kbd>';
+                btnRest.title = 'Rest until Voice & Health are recovered [%]';
+            }
+            if (btnQuaff) {
+                btnQuaff.innerHTML = '🧪 Draught <kbd>q</kbd>';
+                btnQuaff.title = 'Drink / quaff draught [q]';
+            }
+            if (btnRead) {
+                btnRead.innerHTML = '📜 Scroll <kbd>r</kbd>';
+                btnRead.title = 'Read magical scroll [r]';
+            }
+        } else if (activeRealm === 'frogcomposband') {
+            if (btnSkills) btnSkills.style.display = 'none';
+            if (btnPower) {
+                btnPower.style.display = 'flex';
+                btnPower.innerHTML = '🔮 Power <kbd>U</kbd>';
+                btnPower.title = 'Use Racial, Class, or Mutation Power [U]';
+            }
+            if (btnOverland) {
+                btnOverland.style.display = 'flex';
+                btnOverland.innerHTML = '🗺️ Map <kbd>O</kbd>';
+                btnOverland.title = 'Overland Wilderness Map [O]';
+            }
+            if (btnQuests) {
+                btnQuests.style.display = 'flex';
+                btnQuests.innerHTML = '📜 Quests <kbd>Q</kbd>';
+                btnQuests.title = 'Active Quests & Monster Bounties [Q]';
+            }
+            if (btnBrowse) btnBrowse.style.display = 'none';
+            if (btnStudy) btnStudy.style.display = 'none';
+            if (btnCast) {
+                btnCast.innerHTML = '✨ Cast <kbd>m</kbd>';
+                btnCast.title = 'Cast spell or prayer from chosen realms [m]';
+            }
+            if (btnQuaff) {
+                btnQuaff.innerHTML = '🧪 Potion <kbd>q</kbd>';
+                btnQuaff.title = 'Drink / quaff potion [q]';
+            }
+        } else if (activeRealm === 'hengband') {
+            if (btnSkills) btnSkills.style.display = 'none';
+            if (btnBrowse) btnBrowse.style.display = 'none';
+            if (btnStudy) btnStudy.style.display = 'none';
+            const isJp = (langMode === 'jp');
+            if (btnPower) {
+                btnPower.style.display = 'flex';
+                btnPower.innerHTML = isJp ? '🔮 特殊能力 <kbd>U</kbd>' : '🔮 Power <kbd>U</kbd>';
+                btnPower.title = isJp ? '特殊能力を使用 [U]' : 'Use Racial/Class Power or Mutation [U]';
+            }
+            if (btnOverland) {
+                btnOverland.style.display = 'flex';
+                btnOverland.innerHTML = isJp ? '🗺️ 広域 <kbd>O</kbd>' : '🗺️ Map <kbd>O</kbd>';
+                btnOverland.title = isJp ? '広域マップ表示 [O]' : 'Overland Wilderness Map [O]';
+            }
+            if (btnQuests) {
+                btnQuests.style.display = 'flex';
+                btnQuests.innerHTML = isJp ? '📜 任務 <kbd>Q</kbd>' : '📜 Quests <kbd>Q</kbd>';
+                btnQuests.title = isJp ? 'クエスト情報確認 [Q]' : 'Quest Information & Status [Q]';
+            }
+            if (btnCast) {
+                btnCast.innerHTML = isJp ? '✨ 詠唱 <kbd>m</kbd>' : '✨ Cast <kbd>m</kbd>';
+                btnCast.title = isJp ? '呪文詠唱 [m]' : 'Cast spell or prayer [m]';
+            }
+            if (btnQuaff) {
+                btnQuaff.innerHTML = isJp ? '🧪 薬 <kbd>q</kbd>' : '🧪 Potion <kbd>q</kbd>';
+                btnQuaff.title = isJp ? '薬を飲む [q]' : 'Drink / quaff potion [q]';
+            }
+            if (btnRead) {
+                btnRead.innerHTML = isJp ? '📜 巻物 <kbd>r</kbd>' : '📜 Scroll <kbd>r</kbd>';
+                btnRead.title = isJp ? '巻物を読む [r]' : 'Read magical scroll [r]';
+            }
+            if (btnInventory) {
+                btnInventory.innerHTML = isJp ? '🎒 持ち物 <kbd>i</kbd>' : '🎒 Pack <kbd>i</kbd>';
+                btnInventory.title = isJp ? '所持品一覧 [i]' : 'Open inventory pack [i]';
+            }
+            if (btnEquipment) {
+                btnEquipment.innerHTML = isJp ? '🛡 装備 <kbd>e</kbd>' : '🛡 Gear <kbd>e</kbd>';
+                btnEquipment.title = isJp ? '装備品一覧 [e]' : 'Inspect worn equipment [e]';
+            }
+            if (btnAttack) {
+                btnAttack.innerHTML = isJp ? '⚔ 攻撃 <kbd>Space</kbd>' : '⚔ Attack <kbd>Space</kbd>';
+                btnAttack.title = isJp ? '正面の敵を攻撃 [Space]' : 'Attack adjacent monster [Space]';
+            }
+            if (btnThrow) {
+                btnThrow.innerHTML = isJp ? '🎯 投げる <kbd>v</kbd>' : '🎯 Throw <kbd>v</kbd>';
+            }
+            if (btnFire) {
+                btnFire.innerHTML = isJp ? '🏹 射撃 <kbd>f</kbd>' : '🏹 Shoot <kbd>f</kbd>';
+            }
+            if (btnDoor) {
+                btnDoor.innerHTML = isJp ? '🚪 扉 <kbd>o</kbd>' : '🚪 Door <kbd>o</kbd>';
+            }
+            if (btnPickup) {
+                btnPickup.innerHTML = isJp ? '💎 拾う <kbd>g</kbd>' : '💎 Get <kbd>g</kbd>';
+            }
+            if (btnRest) {
+                btnRest.innerHTML = isJp ? '⏳ 休憩 <kbd>R</kbd>' : '⏳ Rest <kbd>R</kbd>';
+            }
+            if (btnTerminal) {
+                btnTerminal.innerHTML = isJp ? '📜 端末 <kbd>Tab</kbd>' : '📜 Classic <kbd>Tab</kbd>';
+            }
+            if (btnGuideHud) {
+                btnGuideHud.innerHTML = isJp ? '❓ ヘルプ <kbd>?</kbd>' : '❓ Help <kbd>?</kbd>';
+            }
+        } else {
+            // Vanilla Angband
+            if (btnSkills) btnSkills.style.display = 'none';
+            if (btnPower) btnPower.style.display = 'none';
+            if (btnOverland) btnOverland.style.display = 'none';
+            if (btnQuests) btnQuests.style.display = 'none';
+            if (btnBrowse) {
+                btnBrowse.style.display = 'flex';
+                btnBrowse.innerHTML = '📖 Browse <kbd>b</kbd>';
+                btnBrowse.title = 'Browse Spellbook [b]';
+            }
+            if (btnStudy) {
+                btnStudy.style.display = 'flex';
+                btnStudy.innerHTML = '✨ Study <kbd>G</kbd>';
+                btnStudy.title = 'Study / Gain New Spells [G]';
+            }
+            if (btnCast) {
+                btnCast.innerHTML = '✨ Cast <kbd>m</kbd>';
+                btnCast.title = 'Cast spell or prayer [m]';
+            }
+            if (btnQuaff) {
+                btnQuaff.innerHTML = '🧪 Potion <kbd>q</kbd>';
+                btnQuaff.title = 'Drink / quaff potion [q]';
+            }
+            if (btnRead) {
+                btnRead.innerHTML = '📜 Scroll <kbd>r</kbd>';
+                btnRead.title = 'Read magical scroll [r]';
+            }
+            if (btnInventory) {
+                btnInventory.innerHTML = '🎒 Pack <kbd>i</kbd>';
+                btnInventory.title = 'Open inventory pack [i]';
+            }
+            if (btnEquipment) {
+                btnEquipment.innerHTML = '🛡 Gear <kbd>e</kbd>';
+                btnEquipment.title = 'Inspect worn equipment [e]';
+            }
+            if (btnAttack) {
+                btnAttack.innerHTML = '⚔ Attack <kbd>Space</kbd>';
+                btnAttack.title = 'Attack adjacent monster in front [Space]';
+            }
+            if (btnThrow) btnThrow.innerHTML = '🎯 Throw <kbd>v</kbd>';
+            if (btnFire) btnFire.innerHTML = '🏹 Shoot <kbd>f</kbd>';
+            if (btnDoor) btnDoor.innerHTML = '🚪 Door <kbd>o</kbd>';
+            if (btnPickup) btnPickup.innerHTML = '💎 Get <kbd>g</kbd>';
+            if (btnRest) btnRest.innerHTML = '⏳ Rest <kbd>R</kbd>';
+            if (btnTerminal) btnTerminal.innerHTML = '📜 Classic <kbd>Tab</kbd>';
+            if (btnGuideHud) btnGuideHud.innerHTML = '❓ Help <kbd>?</kbd>';
+        }
+    }
+
+    function showRealmSelector(fromState = 'mainMenu') {
+        if (fromState === 'game' || appState === 'game') {
+            const realm = REALM_DATA[activeRealm] || REALM_DATA.angband;
+            showRealmToast(`Active Realm: ${realm.name} • Locked during active gameplay. Return to Main Menu to switch.`);
+            return;
+        }
+        realmPreviousState = fromState;
+        appState = 'realmModal';
+        updateRealmUI();
+        if (realmModal) realmModal.classList.remove('hidden');
+        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
+        if (splashOverlay) splashOverlay.classList.add('hidden');
+        if (guideModal) guideModal.classList.add('hidden');
+        if (loadModal) loadModal.classList.add('hidden');
+        if (pauseModal) pauseModal.classList.add('hidden');
+        if (cmdPaletteModal) cmdPaletteModal.classList.add('hidden');
+        if (audio) audio.playMenuOpen();
+    }
+
+    function hideRealmSelector() {
+        if (realmModal) realmModal.classList.add('hidden');
+        if (audio) audio.playMenuNav();
+        if (realmPreviousState === 'splash') {
+            showSplash();
+        } else if (realmPreviousState === 'loadMenu') {
+            showLoadMenu(false);
+        } else {
+            showMainMenu();
+        }
+    }
+
+    function setupRealmModalEvents() {
+        const btnClose = document.getElementById('btn-realm-modal-close');
+        const btnReturn = document.getElementById('btn-realm-modal-return');
+        if (btnClose) bindFastTap(btnClose, () => hideRealmSelector());
+        if (btnReturn) bindFastTap(btnReturn, () => hideRealmSelector());
+
+        if (realmModal) {
+            realmModal.addEventListener('click', (e) => {
+                if (e.target === realmModal) hideRealmSelector();
+            });
+        }
+
+        const cards = document.querySelectorAll('.realm-card');
+        cards.forEach((card) => {
+            const realmKey = card.dataset.realm;
+            const btn = card.querySelector('.btn-realm-select');
+            if (btn) {
+                bindFastTap(btn, (e) => {
+                    if (e && e.stopPropagation) e.stopPropagation();
+                    selectRealm(realmKey, true);
+                });
+            }
+        });
+
+        const langSelect = document.getElementById('hengband-lang-select');
+        if (langSelect) {
+            langSelect.addEventListener('change', (e) => {
+                const val = e.target.value;
+                window.__langMode = val;
+                try {
+                    localStorage.setItem('angband3d_lang_mode', val);
+                } catch (_) {}
+            });
+            langSelect.addEventListener('click', (e) => e.stopPropagation());
+            langSelect.addEventListener('mousedown', (e) => e.stopPropagation());
+        }
+    }
+
+    // =========================================================================
+    // Roguelike Command Reference & Palette Registry (v8.9.3)
+    // =========================================================================
+    function getRealmCommandRegistry(realmKey, lang) {
+        const r = (realmKey || activeRealm || 'angband').toLowerCase();
+        const isJp = (r === 'hengband') && (lang === 'jp' || langMode === 'jp' || window.__langMode === 'jp');
+
+        // Universal Base Commands
+        const base = [
+            { id: 'attack', cat: 'tactical', icon: '⚔️', name: isJp ? '攻撃 / Melee Attack' : 'Context Hero Action / Attack', key: ' ', keyDisplay: 'Space', desc: isJp ? '正面の敵を攻撃します。' : 'Perform physical melee strike or context action against facing tile.' },
+            { id: 'throw', cat: 'tactical', icon: '🎯', name: (r === 'silq') ? 'Throw Weapon / Flask' : (isJp ? '投擲 / Throw Item' : 'Throw Item'), key: (r === 'silq') ? 't' : 'v', keyDisplay: (r === 'silq') ? 't' : 'v', desc: (r === 'silq') ? 'Throw a weapon, stone, flask, or potion towards aimed target.' : (isJp ? 'アイテムを狙った方向に投げます。' : 'Throw a weapon, stone, flask, or potion towards aimed direction.') },
+            { id: 'fire', cat: 'tactical', icon: '🏹', name: isJp ? '射撃 / Fire Missile' : 'Fire Ranged Weapon', key: 'f', keyDisplay: 'f', desc: isJp ? '装備した弓、スリング、クロスボウから射撃します。' : 'Shoot arrows, bolts, or shot from wielded bow/crossbow/sling.' },
+            { id: 'tunnel', cat: 'exploration', icon: '⛏️', name: isJp ? '壁を掘る / Tunnel' : 'Tunnel through Wall / Rubble', key: 'T', keyDisplay: 'Shift+T', desc: isJp ? 'つるはし等で壁や瓦礫を掘削します。' : 'Dig through adjacent granite, quartz, or rubble with wielded pick/digger.' },
+            { id: 'disarm', cat: 'exploration', icon: '🖐️', name: isJp ? '罠解除 / Disarm Trap' : 'Disarm Trap', key: 'D', keyDisplay: 'Shift+D', desc: isJp ? '発見した床の罠や宝箱を解除します。' : 'Carefully disarm a spotted dungeon floor trap or chest mechanism.' },
+            { id: 'bash', cat: 'tactical', icon: '💥', name: isJp ? '扉を破壊 / Bash Door' : 'Bash / Break Door', key: 'B', keyDisplay: 'Shift+B', desc: isJp ? '体当たりで扉を打ち破ります。' : 'Slam with body and shield to smash open jammed or locked doors.' },
+            { id: 'rest', cat: 'tactical', icon: '⏳', name: (r === 'silq') ? 'Rest & Recover Voice' : (isJp ? '休憩 / Rest' : 'Rest & Recover'), key: (r === 'silq') ? '%' : 'R', keyDisplay: (r === 'silq') ? '%' : 'Shift+R', desc: (r === 'silq') ? 'Rest until Voice and Health are recovered.' : (isJp ? 'HPとMPが回復するまで休憩します。' : 'Rest until HP and Mana are fully restored, or until disturbed.') },
+            { id: 'close', cat: 'exploration', icon: '🚪', name: isJp ? '扉を閉める / Close Door' : 'Close Door', key: 'c', keyDisplay: 'c', desc: isJp ? '開いている扉を閉めます。' : 'Close an adjacent open door to block line of sight and funnel foes.' },
+            { id: 'open', cat: 'exploration', icon: '🔑', name: isJp ? '扉を開ける / Open Door' : 'Open Door or Chest', key: 'o', keyDisplay: 'o', desc: isJp ? '閉じた扉や宝箱を開けます。' : 'Open an adjacent closed door or unopened dungeon chest.' },
+            { id: 'quaff', cat: 'magic', icon: '🧪', name: (r === 'silq') ? 'Quaff Draught' : (isJp ? '薬を飲む / Quaff Potion' : 'Quaff Potion'), key: 'q', keyDisplay: 'q', desc: (r === 'silq') ? 'Drink a healing or herbal draught from your pack.' : (isJp ? '所持している薬を飲みます。' : 'Drink a magical potion or elixir from your backpack.') },
+            { id: 'read', cat: 'magic', icon: '📜', name: isJp ? '巻物を読む / Read Scroll' : 'Read Magical Scroll', key: 'r', keyDisplay: 'r', desc: isJp ? '魔力の巻物を読みます。' : 'Read and unleash the incantation from an arcane parchment scroll.' },
+            { id: 'eat', cat: 'magic', icon: '🍖', name: isJp ? '食料を食べる / Eat Food' : 'Eat Food / Ration', key: 'E', keyDisplay: 'Shift+E', desc: isJp ? '携帯食糧などを食べて空腹を満たします。' : 'Consume iron ration, lembas, or mushroom to stave off starvation.' },
+            { id: 'descend', cat: 'exploration', icon: '⬇️', name: isJp ? '階段を下りる / Descend Stairs' : 'Descend Staircase', key: '>', keyDisplay: '>', desc: isJp ? '深いフロアへ下ります。' : 'Descend down staircase or ladder into a deeper dungeon floor.' },
+            { id: 'ascend', cat: 'exploration', icon: '⬆️', name: isJp ? '階段を上る / Ascend Stairs' : 'Ascend Staircase', key: '<', keyDisplay: '<', desc: isJp ? '浅いフロアや地上へ戻ります。' : 'Ascend up staircase to shallower depths or return to Town.' },
+            { id: 'pickup', cat: 'exploration', icon: '💎', name: isJp ? 'アイテムを拾う / Pick Up' : 'Pick Up Item', key: 'g', keyDisplay: 'g', desc: isJp ? '足元のアイテムや金を拾います。' : 'Retrieve item, gold, weapon, or armor from current floor tile.' },
+            { id: 'look', cat: 'tactical', icon: '👁️', name: isJp ? '周囲を見渡す / Look Target' : 'Inspect / Look at Target', key: 'l', keyDisplay: 'l', desc: isJp ? '目標のタイルやモンスターを観察します。' : 'Target and inspect distant tiles, monsters, and objects.' },
+            { id: 'inventory', cat: 'system', icon: '🎒', name: isJp ? '所持品一覧 / Inventory' : 'Inventory Pack', key: 'i', keyDisplay: 'i', desc: isJp ? 'ザックの中のアイテム一覧を確認します。' : 'View all items carried in backpack with weights and charges.' },
+            { id: 'equipment', cat: 'system', icon: '🛡️', name: isJp ? '装備品一覧 / Equipment' : 'Worn Equipment', key: 'e', keyDisplay: 'e', desc: isJp ? '現在装備している武器や防具を確認します。' : 'Inspect equipped weapons, shield, armor, rings, amulet, and light.' },
+            { id: 'character', cat: 'system', icon: '👤', name: isJp ? 'キャラクター情報 / Character' : 'Character Sheet', key: 'C', keyDisplay: 'Shift+C', desc: isJp ? 'ステータスや耐性などの詳細情報を表示します。' : 'Detailed view of stats, resists, speed, stealth, infravision, and history.' },
+            { id: 'terminal', cat: 'system', icon: '🖥️', name: isJp ? '端末表示切替 / Classic CRT' : 'Toggle CRT Terminal', key: 'Tab', keyDisplay: 'Tab', desc: isJp ? '3D視点と伝統の80x24クラシック端末を切り替えます。' : 'Switch instantly between immersive 3D first-person and classic 80x24 CRT.' }
+        ];
+
+        // Realm-Specific Actions
+        let realmCmds = [];
+        if (r === 'silq') {
+            realmCmds = [
+                { id: 'skills', cat: 'tactical', icon: '🌳', name: 'Learn Ability & Skill Tree', key: 'Tab', keyDisplay: 'Tab', badge: 'Sil-Q', desc: 'Open the Skill and Ability Tree to allocate experience and master powers.' },
+                { id: 'cast', cat: 'magic', icon: '🎵', name: 'Sing Song of Power', key: 's', keyDisplay: 's', badge: 'Sil-Q', desc: 'Begin singing Songs of Power (Elbereth, Slaying, Lorien, Freedom, Staying, Sharpness).' },
+                { id: 'wait', cat: 'tactical', icon: '⏳', name: 'Wait / Rest 1 Turn', key: '.', keyDisplay: '.', badge: 'Sil-Q', desc: 'Pass 1 turn in place conserving stealth and observing foes.' },
+                { id: 'stance', cat: 'tactical', icon: '🥷', name: 'Stance & Stealth Mode', key: 'S', keyDisplay: 'Shift+S', badge: 'Sil-Q', desc: 'Toggle between standard stance and careful stealth mode.' },
+                { id: 'cycle_target', cat: 'tactical', icon: '🎯', name: 'Cycle Target Foes', key: '*', keyDisplay: '*', badge: 'Sil-Q', desc: 'Cycle target cursor across visible Morgoth servants.' },
+                { id: 'prev_target', cat: 'tactical', icon: '📍', name: 'Target Previous Monster', key: '^', keyDisplay: '^', badge: 'Sil-Q', desc: 'Lock target onto previously aimed monster.' },
+                { id: 'smith', cat: 'tactical', icon: '🔨', name: 'Smithing Forge & Artifacts', key: 'a', keyDisplay: 'a', badge: 'Sil-Q', desc: 'Forge items at subterranean smithies or play harps.' }
+            ];
+        } else if (r === 'frogcomposband') {
+            realmCmds = [
+                { id: 'power', cat: 'magic', icon: '🔮', name: 'Use Racial/Class Power or Mutation', key: 'U', keyDisplay: 'Shift+U', badge: 'FrogComposBand', desc: 'Invoke your innate racial ability, class talent, or chaos mutation.' },
+                { id: 'overland', cat: 'exploration', icon: '🗺️', name: 'Overland Wilderness Map', key: 'O', keyDisplay: 'Shift+O', badge: 'FrogComposBand', desc: 'View the overland world map to travel across the continent.' },
+                { id: 'quests', cat: 'system', icon: '📜', name: 'Active Quests & Monster Bounties', key: 'Q', keyDisplay: 'Shift+Q', badge: 'FrogComposBand', desc: 'Check royal quests, finished tasks, and bounty targets.' },
+                { id: 'pet', cat: 'tactical', icon: '🐕', name: 'Pet & Minion Command', key: 'p', keyDisplay: 'p', badge: 'FrogComposBand', desc: 'Issue orders to loyal pets, summons, and mounts.' },
+                { id: 'cast', cat: 'magic', icon: '✨', name: 'Cast Spell or Prayer', key: 'm', keyDisplay: 'm', badge: 'FrogComposBand', desc: 'Invoke known spells from your chosen magic realms.' },
+                { id: 'browse', cat: 'magic', icon: '📖', name: 'Browse Spellbook', key: 'b', keyDisplay: 'b', badge: 'FrogComposBand', desc: 'Inspect spells and requirements in carried books.' },
+                { id: 'gain', cat: 'magic', icon: '✨', name: 'Gain New Spells', key: 'G', keyDisplay: 'Shift+G', badge: 'FrogComposBand', desc: 'Study and memorize newly unlocked realm spells.' },
+                { id: 'activate', cat: 'magic', icon: '⚡', name: 'Activate Equipment / Artifact', key: 'A', keyDisplay: 'Shift+A', badge: 'FrogComposBand', desc: 'Trigger the power of an equipped magical artifact or device.' },
+                { id: 'knowledge', cat: 'system', icon: '📚', name: 'Knowledge Menu', key: '~', keyDisplay: '~', badge: 'FrogComposBand', desc: 'Check monster recall, ego items, and artifacts.' }
+            ];
+        } else if (r === 'hengband') {
+            realmCmds = [
+                { id: 'power', cat: 'magic', icon: '🔮', name: isJp ? '特殊能力を使用' : 'Use Special Power / 特殊能力', key: 'U', keyDisplay: 'Shift+U', badge: 'Hengband', desc: isJp ? '種族・職業・変異の特殊能力を使用します。' : 'Activate racial power, class technique, or mutation.' },
+                { id: 'overland', cat: 'exploration', icon: '🗺️', name: isJp ? '広域マップ表示' : 'Overland Map / 広域マップ', key: 'O', keyDisplay: 'Shift+O', badge: 'Hengband', desc: isJp ? '地上世界の広域マップを表示します。' : 'View the overland Amber wilderness map.' },
+                { id: 'quests', cat: 'system', icon: '📜', name: isJp ? 'クエスト情報確認' : 'Quest Information / クエスト情報', key: 'Q', keyDisplay: 'Shift+Q', badge: 'Hengband', desc: isJp ? '現在のクエストの進行状況を確認します。' : 'Review ongoing castle and wilderness quests.' },
+                { id: 'pet', cat: 'tactical', icon: '🐕', name: isJp ? 'ペットへの指示' : 'Pet Command / ペット指示', key: 'p', keyDisplay: 'p', badge: 'Hengband', desc: isJp ? 'ペットや仲間に命令を下します。' : 'Command pets and summoned allies in battle.' },
+                { id: 'cast', cat: 'magic', icon: '✨', name: isJp ? '呪文詠唱' : 'Cast Spell / 呪文詠唱', key: 'm', keyDisplay: 'm', badge: 'Hengband', desc: isJp ? '習得した呪文を詠唱します。' : 'Cast a learned realm spell or Amber incantation.' },
+                { id: 'browse', cat: 'magic', icon: '📖', name: isJp ? '呪文の閲覧' : 'Browse Spellbook / 呪文閲覧', key: 'b', keyDisplay: 'b', badge: 'Hengband', desc: isJp ? '所持している魔道書の呪文を閲覧します。' : 'Browse spell details in carried spellbooks.' },
+                { id: 'gain', cat: 'magic', icon: '✨', name: isJp ? '新しい呪文の習得' : 'Gain Spell / 呪文習得', key: 'G', keyDisplay: 'Shift+G', badge: 'Hengband', desc: isJp ? '魔道書から新しい呪文を習得します。' : 'Study new spells from realm spellbooks.' },
+                { id: 'activate', cat: 'magic', icon: '⚡', name: isJp ? 'アーティファクトの発動' : 'Activate Artifact / 発動', key: 'A', keyDisplay: 'Shift+A', badge: 'Hengband', desc: isJp ? '装備品やアーティファクトを発動します。' : 'Trigger the power of an equipped artifact.' },
+                { id: 'staff', cat: 'magic', icon: '🦯', name: isJp ? '杖を振る' : 'Use Staff / 杖', key: 'u', keyDisplay: 'u', badge: 'Hengband', desc: isJp ? '杖を使用します。' : 'Invoke charges from a magical staff.' },
+                { id: 'wand', cat: 'magic', icon: '🪄', name: isJp ? '魔法棒を使用' : 'Aim Wand / 魔法棒', key: 'z', keyDisplay: 'z', badge: 'Hengband', desc: isJp ? '魔法棒を目標に向けて振ります。' : 'Aim a magical wand towards a target.' },
+                { id: 'rod', cat: 'magic', icon: '⚡', name: isJp ? 'ロッドを使用' : 'Zap Rod / ロッド', key: 'a', keyDisplay: 'a', badge: 'Hengband', desc: isJp ? 'ロッドの魔力を放ちます。' : 'Zap a rechargeable magical rod.' },
+                { id: 'knowledge', cat: 'system', icon: '📚', name: isJp ? '知識メニュー' : 'Knowledge Menu / 知識', key: '~', keyDisplay: '~', badge: 'Hengband', desc: isJp ? 'モンスター情報、アーティファクトの知識。' : 'Check monster memory, artifacts, and dungeon lore.' }
+            ];
+        } else {
+            // Vanilla Angband
+            realmCmds = [
+                { id: 'cast', cat: 'magic', icon: '✨', name: 'Cast Spell or Prayer', key: 'm', keyDisplay: 'm', badge: 'Vanilla', desc: 'Invoke known arcane spell or holy prayer.' },
+                { id: 'browse', cat: 'magic', icon: '📖', name: 'Browse Spellbook', key: 'b', keyDisplay: 'b', badge: 'Vanilla', desc: 'Inspect spells in your carried magical books.' },
+                { id: 'gain', cat: 'magic', icon: '✨', name: 'Gain New Spells', key: 'G', keyDisplay: 'Shift+G', badge: 'Vanilla', desc: 'Study newly available spells or prayers.' },
+                { id: 'activate', cat: 'magic', icon: '⚡', name: 'Activate Equipment / Artifact', key: 'A', keyDisplay: 'Shift+A', badge: 'Vanilla', desc: 'Activate the magical property of worn armor, ring, or weapon.' },
+                { id: 'staff', cat: 'magic', icon: '🦯', name: 'Use Staff', key: 'u', keyDisplay: 'u', badge: 'Vanilla', desc: 'Discharge charges from a magical staff.' },
+                { id: 'wand', cat: 'magic', icon: '🪄', name: 'Aim Wand', key: 'z', keyDisplay: 'z', badge: 'Vanilla', desc: 'Aim a beam or ball wand at a target.' },
+                { id: 'rod', cat: 'magic', icon: '⚡', name: 'Zap Rod', key: 'a', keyDisplay: 'a', badge: 'Vanilla', desc: 'Discharge a rechargeable rod.' },
+                { id: 'knowledge', cat: 'system', icon: '📚', name: 'Check Knowledge', key: '~', keyDisplay: '~', badge: 'Vanilla', desc: 'Access monster recall, ego items, artifacts, and dungeon lore.' },
+                { id: 'quiver', cat: 'tactical', icon: '🏹', name: 'Inspect Quiver', key: '|', keyDisplay: '|', badge: 'Vanilla', desc: 'View ammunition currently carried in your quiver.' }
+            ];
+        }
+
+        return [...realmCmds, ...base];
+    }
+
+    let activeCmdCategory = 'all';
+    let cmdPaletteFilter = '';
+    let selectedCmdIndex = 0;
+
+    function renderCommandPalette() {
+        const list = document.getElementById('cmd-palette-list');
+        if (!list) return;
+        const filter = cmdPaletteFilter.toLowerCase().trim();
+        const currentCommands = getRealmCommandRegistry(activeRealm, langMode);
+        const items = currentCommands.filter((cmd) => {
+            const matchesCat = activeCmdCategory === 'all' || cmd.cat === activeCmdCategory;
+            const matchesText = !filter ||
+                cmd.name.toLowerCase().includes(filter) ||
+                cmd.desc.toLowerCase().includes(filter) ||
+                cmd.keyDisplay.toLowerCase().includes(filter) ||
+                (cmd.badge && cmd.badge.toLowerCase().includes(filter));
+            return matchesCat && matchesText;
+        });
+
+        if (selectedCmdIndex >= items.length) selectedCmdIndex = Math.max(0, items.length - 1);
+
+        list.innerHTML = '';
+        if (items.length === 0) {
+            list.innerHTML = `<div style="text-align:center; padding:24px; color:#64748b;">No matching commands found. Type another query.</div>`;
+            return;
+        }
+
+        items.forEach((cmd, idx) => {
+            const row = document.createElement('div');
+            row.className = `cmd-row ${idx === selectedCmdIndex ? 'selected' : ''}`;
+            row.innerHTML = `
+                <div class="cmd-row-left">
+                    <span class="cmd-row-icon">${cmd.icon}</span>
+                    <div class="cmd-row-text">
+                        <span class="cmd-row-name">${cmd.name} ${cmd.badge ? `<span class="cmd-badge">${cmd.badge}</span>` : ''}</span>
+                        <span class="cmd-row-desc">${cmd.desc}</span>
+                    </div>
+                </div>
+                <div class="cmd-row-right">
+                    <kbd class="cmd-kbd">${cmd.keyDisplay}</kbd>
+                </div>
+            `;
+            row.addEventListener('click', () => {
+                executePaletteCommand(cmd);
+            });
+            list.appendChild(row);
+        });
+    }
+
+    function executePaletteCommand(cmd) {
+        hideCommandPalette();
+        if (input && typeof input.handleDirectKey === 'function') {
+            input.handleDirectKey(cmd.key);
+        } else if (network && typeof network.sendKey === 'function') {
+            network.sendKey(cmd.key);
+        }
+    }
+
+    function showCommandPalette(fromState = 'game') {
+        cmdPalettePreviousState = fromState;
+        appState = 'cmdPaletteModal';
+        cmdPaletteFilter = '';
+        selectedCmdIndex = 0;
+        const inputEl = document.getElementById('cmd-search-input');
+        if (inputEl) {
+            inputEl.value = '';
+            setTimeout(() => inputEl.focus(), 50);
+        }
+        renderCommandPalette();
+        if (cmdPaletteModal) cmdPaletteModal.classList.remove('hidden');
+        if (audio) audio.playMenuOpen();
+    }
+
+    function hideCommandPalette() {
+        if (cmdPaletteModal) cmdPaletteModal.classList.add('hidden');
+        if (audio) audio.playMenuNav();
+        if (cmdPalettePreviousState === 'splash') {
+            showSplash();
+        } else if (cmdPalettePreviousState === 'mainMenu') {
+            showMainMenu();
+        } else {
+            appState = 'game';
+        }
+    }
+
+    function setupCommandPaletteEvents() {
+        const btnClose = document.getElementById('btn-cmd-palette-close');
+        if (btnClose) bindFastTap(btnClose, () => hideCommandPalette());
+
+        if (cmdPaletteModal) {
+            cmdPaletteModal.addEventListener('click', (e) => {
+                if (e.target === cmdPaletteModal) hideCommandPalette();
+            });
+        }
+
+        const inputEl = document.getElementById('cmd-search-input');
+        if (inputEl) {
+            inputEl.addEventListener('input', (e) => {
+                cmdPaletteFilter = e.target.value;
+                selectedCmdIndex = 0;
+                renderCommandPalette();
+            });
+            inputEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    hideCommandPalette();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const filter = cmdPaletteFilter.toLowerCase().trim();
+                    const items = COMMAND_REGISTRY.filter((cmd) => {
+                        const matchesCat = activeCmdCategory === 'all' || cmd.cat === activeCmdCategory;
+                        const matchesText = !filter ||
+                            cmd.name.toLowerCase().includes(filter) ||
+                            cmd.desc.toLowerCase().includes(filter) ||
+                            cmd.keyDisplay.toLowerCase().includes(filter);
+                        return matchesCat && matchesText;
+                    });
+                    if (items.length > 0) {
+                        const target = items[selectedCmdIndex] || items[0];
+                        executePaletteCommand(target);
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedCmdIndex++;
+                    renderCommandPalette();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (selectedCmdIndex > 0) selectedCmdIndex--;
+                    renderCommandPalette();
+                }
+            });
+        }
+
+        const catPills = document.querySelectorAll('.cmd-cat-pill');
+        catPills.forEach((pill) => {
+            bindFastTap(pill, () => {
+                catPills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                activeCmdCategory = pill.dataset.cat || 'all';
+                selectedCmdIndex = 0;
+                renderCommandPalette();
+            });
+        });
+    }
+
     // Gameplay Demo & Commercial Showcase Modal Handlers
     let demoPreviousState = 'mainMenu';
 
@@ -2612,9 +3897,11 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!terminalTitle || !termEscapeBtn) return;
 
         const inPlay = Boolean(frame && frame.phase === 'play' && frame.map);
-        const screenText = (frame && frame.term && frame.term.rows)
-            ? frame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
+        const rawScreenText = (frame && frame.term && frame.term.rows)
+            ? frame.term.rows.map(r => r.g || '').join('\n')
             : '';
+        const decodedScreenText = decodeHengbandText(rawScreenText);
+        const screenText = (rawScreenText + '\n' + decodedScreenText).toLowerCase();
 
         // Always display external navigation dock so classic interactions can be performed via navigation keys outside the view on all devices
         if (termTouchControls) {
@@ -2719,51 +4006,120 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Japanese-to-English translation mapping for Hengband character creation & HUD
+        const JP_TERM_TRANSLATIONS = {
+            '女性': 'Female', '男性': 'Male',
+            '人間': 'Human', 'ハーフエルフ': 'Half-Elf', 'エルフ': 'Elf', 'ホビット': 'Hobbit', 'ノーム': 'Gnome',
+            'ドワーフ': 'Dwarf', 'ハーフオーク': 'Half-Orc', 'ハーフトロル': 'Half-Troll', 'ハーフトロール': 'Half-Troll',
+            'アンバライト': 'Amberite', 'ハイエルフ': 'High-Elf', '野蛮人': 'Barbarian', 'ハーフオーガ': 'Half-Ogre',
+            '半巨人': 'Half-Giant', '半タイタン': 'Half-Titan', 'サイクロプス': 'Cyclops', 'イーク': 'Yeek',
+            'クラッコン': 'Klackon', 'コボルド': 'Kobold', 'ニーベルング': 'Nibelung', 'ダークエルフ': 'Dark-Elf',
+            'ドラコニアン': 'Draconian', 'マインドフレア': 'Mindflayer', 'インプ': 'Imp', 'ゴーレム': 'Golem',
+            '骸骨': 'Skeleton', 'ゾンビ': 'Zombie', '吸血鬼': 'Vampire', '幽霊': 'Spectre', '妖精': 'Sprite',
+            '獣人': 'Beastman', 'エント': 'Ent', 'アルコン': 'Archon', 'バルログ': 'Balrog', 'ドゥナダン': 'Dúnadan',
+            '影フェアリー': 'Shadow-Fairy', 'クター': 'Kutar', 'アンドロイド': 'Android', 'マーフォーク': 'Merfolk',
+            '戦士': 'Warrior', 'メイジ': 'Mage', 'プリースト': 'Priest', '盗賊': 'Rogue', 'レンジャー': 'Ranger',
+            'パラディン': 'Paladin', '魔法戦士': 'Warrior-Mage', '混沌の戦士': 'Chaos-Warrior', '修行僧': 'Monk',
+            '超能力者': 'Mindcrafter', 'ハイ=メイジ': 'High-Mage', 'ハイメイジ': 'High-Mage', '観光客': 'Tourist',
+            'ものまね師': 'Imitator', '魔獣使い': 'Beastmaster', 'スペルマスター': 'Sorcerer', 'アーチャー': 'Archer',
+            '魔道具術師': 'Magic-Eater', '吟遊詩人': 'Bard', '赤魔道師': 'Red-Mage', '剣術家': 'Swordsman',
+            '練気術師': 'Ki-Master', '青魔道師': 'Blue-Mage', '騎兵': 'Cavalry', '狂戦士': 'Berserker',
+            '鍛冶師': 'Weaponsmith', '鏡使い': 'Mirror-Master', '忍者': 'Ninja', 'スナイパー': 'Sniper',
+            '元素使い': 'Elementalist',
+            'ふつう': 'Ordinary', 'ちからじまん': 'Strong', 'きれもの': 'Clever', 'しあわせもの': 'Lucky',
+            'すばしっこい': 'Nimble', 'いのちしらず': 'Fearless', 'コンバット': 'Combatant', 'なまけもの': 'Lazy',
+            'セクシーギャル': 'Sexy', 'がまんづよい': 'Patient', 'いかさま': 'Trickster', 'チャージマン': 'Chargeman',
+            '生命': 'Life', '仙術': 'Sorcery', '自然': 'Nature', 'カオス': 'Chaos', '暗黒': 'Death',
+            'トランプ': 'Trump', '秘術': 'Arcane', '匠': 'Craft', '悪魔': 'Daemon', '破邪': 'Crusade',
+            'ランダム': 'Random', '決定': 'Accept', 'やり直し': 'Reroll'
+        };
+        window.__JP_TERM_TRANSLATIONS = JP_TERM_TRANSLATIONS;
+        if (!window.__EN_TO_JP_TRANSLATIONS) {
+            window.__EN_TO_JP_TRANSLATIONS = {};
+            for (const [jp, en] of Object.entries(JP_TERM_TRANSLATIONS)) {
+                window.__EN_TO_JP_TRANSLATIONS[en] = jp;
+            }
+        }
+
         // Helper to populate letter ribbon (supports single & multi-column menus, excludes item description stats)
         let lastPopulatedLetters = '';
         const populateLetterRibbon = (rows, explicitLetters = null) => {
             if (!termLetterRibbon) return;
-            let letters = [];
+            let options = [];
             if (explicitLetters && Array.isArray(explicitLetters)) {
-                letters = explicitLetters;
+                options = explicitLetters.map(lt => ({ key: lt, display: `[${lt}]` }));
             } else if (rows) {
-                // Match option tags strictly at line start or multi-column spacing (2+ spaces)
-                // Strictly avoids matching armor values [2], to-hit (+1,+2), etc.
-                const lineRegex = /(?:^|\s{2,})([a-zA-Z0-9])[\)\.\:\-]\s+/g;
-                const bracketTagRegex = /^\s*\[([a-zA-Z0-9*@?])\]\s+/g;
+                // Unified option tag extraction across all variants (Angband 4.2.6, Hengband 3.0.1, Sil-Q, FrogComposBand)
+                const regexes = [
+                    /(?:^|\s+)\(([a-zA-Z0-9*@?])\)\s*([^\s\(\)\[\]]{1,20})?/g,
+                    /(?:^|\s+)\[([a-zA-Z0-9*@?])\]\s*([^\s\(\)\[\]]{1,20})?/g,
+                    /(?:^|\s+)([a-zA-Z0-9*@?])[\)\.\:\-]\s*([^\s\(\)\[\]]{1,20})?/g,
+                    /(?:^|\s+)(\*)\s*(ランダム|random|Random)/gi
+                ];
+                const isHeng = activeRealm === 'hengband';
+                const effLang = isHeng ? (window.__langMode || langMode || 'en') : 'en';
+                const seenKeys = new Set();
+
                 for (let r = 0; r < rows.length; r++) {
-                    const line = rows[r].g || '';
-                    let m;
-                    while ((m = lineRegex.exec(line)) !== null) {
-                        const lt = m[1];
-                        if (lt && !letters.includes(lt)) {
-                            letters.push(lt);
-                        }
-                    }
-                    while ((m = bracketTagRegex.exec(line)) !== null) {
-                        const lt = m[1];
-                        if (lt && !letters.includes(lt)) {
-                            letters.push(lt);
+                    const rawLine = rows[r].g || '';
+                    const line = isHeng ? decodeHengbandText(rawLine) : rawLine;
+                    if (isHeng && (line.includes('選んで下さい') || line.includes('初期オプション設定') || line.includes('注意：'))) continue;
+
+                    for (const re of regexes) {
+                        re.lastIndex = 0;
+                        let m;
+                        while ((m = re.exec(line)) !== null) {
+                            const key = m[1];
+                            let label = (m[2] || '').trim();
+                            label = label.replace(/^[\(\[\{]/, '').replace(/[\)\]\}]$/, '');
+
+                            if (key && !seenKeys.has(key)) {
+                                seenKeys.add(key);
+                                let display = `[${key}]`;
+                                if (label) {
+                                    const enTrans = isHeng ? JP_TERM_TRANSLATIONS[label] : null;
+                                    if (enTrans) {
+                                        if (effLang === 'en') {
+                                            display = `[${key}] ${enTrans}`;
+                                        } else if (effLang === 'jp') {
+                                            display = `[${key}] ${label}`;
+                                        } else {
+                                            display = `[${key}] ${label} (${enTrans})`;
+                                        }
+                                    } else {
+                                        display = `[${key}] ${label}`;
+                                    }
+                                } else if (key === '*') {
+                                    if (!isHeng || effLang === 'en') {
+                                        display = `[*] Random`;
+                                    } else if (effLang === 'jp') {
+                                        display = `[*] ランダム`;
+                                    } else {
+                                        display = `[*] ランダム (Random)`;
+                                    }
+                                }
+                                options.push({ key, display });
+                            }
                         }
                     }
                 }
                 // If yes/no is present in prompt, ensure y and n are available
-                if (screenText.includes('[y/n]') || screenText.includes('(y/n)')) {
-                    if (!letters.includes('y')) letters.unshift('y');
-                    if (!letters.includes('n')) letters.push('n');
+                if (screenText.includes('[y/n]') || screenText.includes('(y/n)') || (isHeng && screenText.includes('よろしいですか'))) {
+                    if (!seenKeys.has('y')) options.unshift({ key: 'y', display: '[y] ✓ Yes' });
+                    if (!seenKeys.has('n')) options.push({ key: 'n', display: '[n] ✕ No' });
                 }
             }
 
-            const letterKey = letters.join(',');
+            const letterKey = options.map(o => o.key + ':' + o.display).join(',');
             if (letterKey === lastPopulatedLetters) {
                 return; // DOM stability: do not recreate buttons if options are unchanged
             }
             lastPopulatedLetters = letterKey;
 
-            if (letters.length > 0) {
+            if (options.length > 0) {
                 termLetterRibbon.style.display = 'flex';
-                termLetterRibbon.innerHTML = letters.map(lt =>
-                    `<button type="button" class="term-letter-btn" data-key="${lt}">[${lt}]</button>`
+                termLetterRibbon.innerHTML = options.map(opt =>
+                    `<button type="button" class="term-letter-btn" data-key="${opt.key}">${opt.display}</button>`
                 ).join('');
             } else {
                 termLetterRibbon.style.display = 'none';
@@ -2786,32 +4142,95 @@ window.addEventListener('DOMContentLoaded', () => {
                                   !screenText.includes('character traits') &&
                                   !screenText.includes('affects stats');
 
-            const isNamePrompt = screenText.includes("enter a name for your character") ||
+            const isHeng = activeRealm === 'hengband';
+
+            const isHengInitialOpt = isHeng && (((screenText.includes('smart_learn') && screenText.includes('初期オプション')) ||
+                                     (screenText.includes('esc:終了') && screenText.includes('初期オプション'))));
+            const isHengSex = isHeng && screenText.includes('性別を選んで');
+            const isHengRace = isHeng && screenText.includes('種族を選んで');
+            const isHengClass = isHeng && screenText.includes('職業を選んで');
+            const isHengPersonality = isHeng && screenText.includes('性格を選んで');
+            const isHengRealm = isHeng && (screenText.includes('魔法領域') || screenText.includes('領域を選んで'));
+            const isHengStatRoller = isHeng && (screenText.includes('能力値を抽選') || screenText.includes('最低限得たい能力値'));
+            const isHengStatDecide = isHeng && (screenText.includes('この数値に決定') || screenText.includes('次の数値'));
+            const isHengName = isHeng && (screenText.includes('名前を入力') || screenText.includes('キャラクターの名前を入力'));
+            const isHengHistory = isHeng && (screenText.includes('キャラクターの生い立ち') || screenText.includes('生い立ちを表示'));
+            const isHengEmbark = isHeng && (screenText.includes('ゲーム開始') || screenText.includes('冒険に出ますか'));
+
+            const isNamePrompt = isHengName ||
+                                 screenText.includes("enter a name for your character") ||
                                  screenText.includes("enter a name") ||
                                  screenText.includes("enter character's name") ||
+                                 screenText.includes("enter your player's name") ||
                                  screenText.includes("choose your name");
 
-            const isHistoryPrompt = screenText.includes("accept character history") ||
+            const isHistoryPrompt = isHengHistory ||
+                                    screenText.includes("accept character history") ||
                                     (screenText.includes("[y/n]") && !screenText.includes("use as is") && !screenText.includes("to start over"));
 
-            const isStatRoller = screenText.includes("left/right to modify") ||
+            const isStatRoller = isHengStatRoller ||
+                                 screenText.includes("left/right to modify") ||
                                  screenText.includes("to modify") ||
                                  screenText.includes("total cost:") ||
                                  screenText.includes("point-based") ||
                                  screenText.includes("standard roller") ||
+                                 screenText.includes("set minimum stats") ||
+                                 screenText.includes("enter for goto next") ||
                                  screenText.includes("roller");
 
-            const isReviewScreen = !isNamePrompt && !isHistoryPrompt && !isStatRoller &&
+            const isBackgroundEdit = isHengHistory ||
+                                     screenText.includes("character background") ||
+                                     screenText.includes("cursor key for move, enter for end");
+
+            const isReadyPrompt = isHengEmbark ||
+                                  screenText.includes("start over, or enter to continue") ||
+                                  screenText.includes("['q'uit, 's'tart over, or enter to continue]");
+
+            const isReviewScreen = !isNamePrompt && !isHistoryPrompt && !isStatRoller && !isBackgroundEdit && !isReadyPrompt &&
                                    !screenText.includes('character traits') &&
                                    !screenText.includes('affects stats') &&
                                    (screenText.includes("to start over") ||
                                     screenText.includes("any other key to continue") ||
                                     screenText.includes("use as is") ||
+                                    screenText.includes("accept character") ||
+                                    screenText.includes("re-roll") ||
                                     screenText.includes("r to reroll") ||
                                     screenText.includes("'s' to start") ||
+                                    screenText.includes("['r'eroll") ||
+                                    screenText.includes("or enter to accept") ||
+                                    screenText.includes("reroll, 'h'istory") ||
+                                    screenText.includes("enter to begin play") ||
+                                    screenText.includes("能力値決定") ||
+                                    screenText.includes("次の数値") ||
                                     (screenText.includes("best") && screenText.includes("cur exp")));
 
-            if (isTitleScreen) {
+            if (isHengInitialOpt) {
+                terminalTitle.textContent = '🎴 HENGBAND — 初期オプション / Options [Esc to Accept]';
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ 終了 (Accept Options)</button>
+                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
+                    `;
+                }
+            } else if (isHengStatDecide) {
+                terminalTitle.textContent = '🎴 HENGBAND — 能力値決定 / Review Stats [Enter]';
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ✓ 決定 (Accept Stats)</button>
+                        <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> 🔄 次の数値 (Next Roll)</button>
+                        <button type="button" class="term-ctx-btn" data-key="p"><span>[p]</span> ⏪ 前の数値 (Previous Roll)</button>
+                        <button type="button" class="term-ctx-btn" data-key="S"><span>[S]</span> 🔄 初めから (Start Over)</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ 戻る (Back)</button>
+                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
+                    `;
+                }
+            } else if (isTitleScreen) {
                 terminalTitle.textContent = '⚔ WELCOME TO ANGBAND';
                 if (termDpad) termDpad.style.display = 'none';
                 if (birthNameBar) birthNameBar.style.display = 'none';
@@ -2823,7 +4242,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     `;
                 }
             } else if (isNamePrompt) {
-                terminalTitle.textContent = '⚔ NAME YOUR ADVENTURER';
+                terminalTitle.textContent = isHengName ? '🎴 HENGBAND — 名前入力 / Enter Name' : '⚔ NAME YOUR ADVENTURER';
                 if (termDpad) termDpad.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (birthNameBar) {
@@ -2844,33 +4263,60 @@ window.addEventListener('DOMContentLoaded', () => {
                     `;
                 }
             } else if (isHistoryPrompt) {
-                terminalTitle.textContent = '⚔ CHARACTER HISTORY';
+                terminalTitle.textContent = isHengHistory ? '🎴 HENGBAND — 生い立ち / Background' : '⚔ CHARACTER HISTORY';
                 if (termDpad) termDpad.style.display = 'none';
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
+                    const isHeng = activeRealm === 'hengband';
                     termCtxActions.innerHTML = `
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="y"><span>[y]</span> ✓ Accept History</button>
-                        <button type="button" class="term-ctx-btn" data-key="n"><span>[n]</span> 🔄 Reroll History</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${isHeng ? '✓ Accept / 決定' : '✓ Accept'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${isHeng ? '⎋ Step Back / 戻る' : '⎋ Step Back'}</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
                     `;
                 }
             } else if (isStatRoller) {
-                terminalTitle.textContent = '⚔ ATTRIBUTE ALLOCATION';
+                terminalTitle.textContent = isHengStatRoller ? '🎴 HENGBAND — 能力値抽選 / Stat Roller' : '⚔ ATTRIBUTE ALLOCATION';
                 if (termDpad) termDpad.style.display = 'grid'; // Left/Right modifies stats
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
+                    const isHeng = activeRealm === 'hengband';
                     termCtxActions.innerHTML = `
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ✓ Accept Stats</button>
-                        <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> 🔄 Reset</button>
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${isHeng ? '✓ Accept / 決定' : '✓ Accept'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> ${isHeng ? '🔄 Reset / 再抽選' : '🔄 Reset Stats'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${isHeng ? '⎋ Step Back / 戻る' : '⎋ Step Back'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
+                    `;
+                }
+            } else if (isBackgroundEdit) {
+                terminalTitle.textContent = '📜 CHARACTER BACKGROUND — Enter to Continue';
+                if (termDpad) termDpad.style.display = 'grid';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                if (termCtxActions) {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> Continue (Enter)</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
                     `;
                 }
+            } else if (isReadyPrompt) {
+                terminalTitle.textContent = isHengEmbark ? '🎴 HENGBAND — ゲーム開始 / Embark' : '⚔ READY TO EMBARK — Enter to Begin';
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                if (termCtxActions) {
+                    const isHeng = activeRealm === 'hengband';
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${isHeng ? '⚔ ゲーム開始 (Enter Realm)' : '⚔ Enter Realm'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="S"><span>[S]</span> ${isHeng ? '🔄 初めから (Start Over)' : '🔄 Start Over'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="Q"><span>[Q]</span> ${isHeng ? '⎋ 終了 (Quit)' : '⎋ Quit'}</button>
+                    `;
+                }
             } else if (isReviewScreen) {
-                terminalTitle.textContent = '⚔ REVIEW YOUR HERO';
+                const hasPrevRoll = screenText.includes("previous roll") || screenText.includes("前の数値") || screenText.includes("for previous");
+                terminalTitle.textContent = (activeRealm === 'hengband') ? '🎴 HENGBAND — キャラクター確認 / Review Hero' : '⚔ REVIEW YOUR HERO';
                 if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
                 if (termAdvanceBtn) termAdvanceBtn.textContent = '⚔ Accept & Play (Enter)';
                 if (termDpad) termDpad.style.display = 'none';
@@ -2880,14 +4326,25 @@ window.addEventListener('DOMContentLoaded', () => {
                     termCtxActions.innerHTML = `
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ⚔ Accept & Play</button>
                         <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> 🎲 Reroll Hero</button>
+                        ${hasPrevRoll ? '<button type="button" class="term-ctx-btn" data-key="p"><span>[p]</span> ⏪ Previous Roll</button>' : ''}
                         <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> 🛠 Custom Create</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
                     `;
                 }
             } else {
-                // Choice menu (Race, Class, Traits) — D-pad stays active for Up/Down highlight and Enter selection
-                if (screenText.includes('race affects stats')) {
+                // Choice menu (Sex, Race, Class, Personality, Realm, Traits)
+                if (isHengSex) {
+                    terminalTitle.textContent = '🎴 HENGBAND — 性別 / Choose Sex [a-b, *]';
+                } else if (isHengRace) {
+                    terminalTitle.textContent = '🎴 HENGBAND — 種族 / Choose Race [a-L, *]';
+                } else if (isHengClass) {
+                    terminalTitle.textContent = '🎴 HENGBAND — 職業 / Choose Class [a-C, *]';
+                } else if (isHengPersonality) {
+                    terminalTitle.textContent = '🎴 HENGBAND — 性格 / Choose Personality [a-m, *]';
+                } else if (isHengRealm) {
+                    terminalTitle.textContent = '🎴 HENGBAND — 魔法領域 / Choose Realm [a-j]';
+                } else if (screenText.includes('race affects stats')) {
                     terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
                 } else if (screenText.includes('class affects stats')) {
                     terminalTitle.textContent = '⚔ CHOOSE CHARACTER CLASS';
@@ -2897,10 +4354,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (termDpad) termDpad.style.display = 'grid'; // D-pad Up/Down navigates highlight, Enter selects
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termCtxActions) {
+                    const isHeng = activeRealm === 'hengband';
                     termCtxActions.innerHTML = `
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ✓ Select</button>
-                        <button type="button" class="term-ctx-btn" data-key="*"><span>[*]</span> 🎲 Random</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Step Back</button>
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${isHeng ? '✓ Select / 決定' : '✓ Select'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="*"><span>[*]</span> ${isHeng ? '🎲 Random / ランダム' : '🎲 Random'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${isHeng ? '⎋ Back / 戻る' : '⎋ Back'}</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
                     `;
                 }
@@ -3076,17 +4534,35 @@ window.addEventListener('DOMContentLoaded', () => {
             if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling and selecting items
 
             if (termCtxActions) {
-                termCtxActions.innerHTML = `
-                    <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
-                    <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> ${isEquipView ? '🎒 View Pack' : '🛡 View Gear'}</button>
-                    <button type="button" class="term-ctx-btn" data-key="|"><span>[|]</span> ${isQuiverView ? '🎒 Pack' : '🏹 Quiver'}</button>
-                    <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                `;
+                if (activeRealm === 'silq') {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
+                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> ${isEquipView ? '🎒 View Pack' : '🛡 View Gear'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="x"><span>[x]</span> 🔍 Examine</button>
+                        <button type="button" class="term-ctx-btn" data-key="w"><span>[w]</span> ⚔ Wield/Wear</button>
+                        <button type="button" class="term-ctx-btn" data-key="t"><span>[t]</span> 🎯 Throw</button>
+                        <button type="button" class="term-ctx-btn" data-key="d"><span>[d]</span> 📦 Drop</button>
+                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                    `;
+                } else {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
+                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> ${isEquipView ? '🎒 View Pack' : '🛡 View Gear'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="|"><span>[|]</span> ${isQuiverView ? '🎒 Pack' : '🏹 Quiver'}</button>
+                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                    `;
+                }
             }
             populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
         } else {
             // Classic Dungeon View (Walking around in 2D classic grid)
-            terminalTitle.textContent = '⚔ ANGBAND CLASSIC TERMINAL';
+            const realmTitles = {
+                'silq': '💍 SIL-Q CLASSIC TERMINAL',
+                'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL',
+                'hengband': '🎴 HENGBAND CLASSIC TERMINAL',
+                'angband': '⚔ ANGBAND CLASSIC TERMINAL'
+            };
+            terminalTitle.textContent = realmTitles[activeRealm] || '⚔ ANGBAND CLASSIC TERMINAL';
             if (termDpad) termDpad.style.display = 'grid'; // 8-way movement
             if (termLetterRibbon) termLetterRibbon.style.display = 'none';
 
@@ -3098,14 +4574,49 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ⏩ Continue (-more-)</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Dismiss</button>
                     `;
+                } else if (activeRealm === 'silq') {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="e"><span>[e]</span> 🛡 Gear</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="\t"><span>[Tab]</span> 📜 Skills</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="s"><span>[s]</span> 🎵 Song</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="t"><span>[t]</span> 🎯 Throw</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="%"><span>[%]</span> ⏳ Rest</button>
+                    `;
+                } else if (activeRealm === 'frogcomposband') {
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="e"><span>[e]</span> 🛡 Gear</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="U"><span>[U]</span> 🔮 Power</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="O"><span>[O]</span> 🗺️ Map</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="Q"><span>[Q]</span> 📜 Quests</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="m"><span>[m]</span> ✨ Cast</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="R"><span>[R]</span> ⏳ Rest</button>
+                    `;
+                } else if (activeRealm === 'hengband') {
+                    const isJp = (langMode === 'jp');
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="e"><span>[e]</span> 🛡 Gear</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="U"><span>[U]</span> ${isJp ? '🔮 特殊能力' : '🔮 Power'}</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="Q"><span>[Q]</span> ${isJp ? '📜 クエスト' : '📜 Quests'}</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="m"><span>[m]</span> ${isJp ? '✨ 呪文' : '✨ Cast'}</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="R"><span>[R]</span> ${isJp ? '⏳ 休息' : '⏳ Rest'}</button>
+                    `;
                 } else {
                     termCtxActions.innerHTML = `
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
-                        <button type="button" class="term-ctx-btn" data-key="i"><span>[i]</span> 🎒 Pack</button>
-                        <button type="button" class="term-ctx-btn" data-key="e"><span>[e]</span> 🛡 Gear</button>
-                        <button type="button" class="term-ctx-btn" data-key="m"><span>[m]</span> ✨ Cast</button>
-                        <button type="button" class="term-ctx-btn" data-key="R"><span>[R]</span> ⏳ Rest</button>
+                        <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="e"><span>[e]</span> 🛡 Gear</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="m"><span>[m]</span> ✨ Cast</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="R"><span>[R]</span> ⏳ Rest</button>
                     `;
                 }
             }
@@ -3119,6 +4630,10 @@ window.addEventListener('DOMContentLoaded', () => {
             needsTerminal,
             updateViewMode,
             confirmHeroBirth,
+            rerollHero,
+            startCustomHeroCreation,
+            cancelQuickBirth,
+            isBirthReviewActive: () => birthReviewActive,
             getAppState: () => appState,
             getLastFrame: () => lastFrame
         });
@@ -3136,8 +4651,53 @@ window.addEventListener('DOMContentLoaded', () => {
         if (forceTerminal) return true;
         const ui = frame.ui;
         if (!ui) return false;
-        if ((ui.overlay || 0) > 0) return true;
-        return !ui.awaiting_command && !ui.more;
+
+        // In-dungeon messages and -more- prompts must strictly remain in 3D view
+        if (ui.more) return false;
+
+        if (ui.context && (ui.context === 'menu' || ui.context === 'birth' || ui.context === 'setup')) return true;
+        if ((ui.overlay || 0) > 0) {
+            const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
+            const decoded = decodeHengbandText(rawScreenText);
+            const fullText = (rawScreenText + '\n' + decoded).toLowerCase();
+            if (fullText.includes('low hitpoint warning') || fullText.includes('low hitpoint')) {
+                return false;
+            }
+            return true;
+        }
+
+        // In active play exploration with map:
+        // If awaiting_command is false and more is false, route to terminal UNLESS it is a directional
+        // targeting prompt (e.g. aiming a spell or bow in 3D using the rosette or target cursor).
+        // This ensures 100% of menus (inventory, equipment, shops, character sheet, spellbooks, options)
+        // cleanly open in the classic CRT terminal modal across all variants and languages!
+        if (!ui.awaiting_command && !ui.more) {
+            const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
+            const decoded = decodeHengbandText(rawScreenText);
+            const fullText = (rawScreenText + '\n' + decoded).toLowerCase();
+
+            // Low hitpoint warnings must never engage terminal mode or interrupt 3D exploration
+            if (fullText.includes('low hitpoint warning') || fullText.includes('low hitpoint')) {
+                return false;
+            }
+
+            const isDirectionalTargeting = fullText.includes('direction?') ||
+                                          fullText.includes('target [') ||
+                                          fullText.includes('target:') ||
+                                          fullText.includes('which direction?') ||
+                                          fullText.includes('aim which direction?') ||
+                                          fullText.includes('select target') ||
+                                          fullText.includes('方向') ||
+                                          fullText.includes('どの方向') ||
+                                          fullText.includes('ターゲット');
+
+            if (isDirectionalTargeting) {
+                return false; // Stay in 3D view for rosette / crosshair aiming
+            }
+
+            return true;
+        }
+        return false;
     }
 
     function updateViewMode(frame) {
@@ -3301,6 +4861,15 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const btnToggleLang = document.getElementById('btn-toggle-lang');
+    if (btnToggleLang) {
+        btnToggleLang.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleLanguageMode();
+            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+        });
+    }
+
     const btnToggleMsg = document.getElementById('btn-toggle-msg-feed');
     const btnMsgClose = document.getElementById('btn-msg-close');
     const topMsgBanner = document.getElementById('top-message-banner');
@@ -3364,7 +4933,11 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!network) return;
 
         network.onHello = (msg) => {
-            console.log('[Angband3D] Engine session established:', msg.sessionId || 'local');
+            if (window.__startWatchdog) {
+                clearTimeout(window.__startWatchdog);
+                window.__startWatchdog = null;
+            }
+            console.log('[Angband3D] Engine session established:', msg.sessionId || 'local', 'Realm:', msg.realm || 'angband', 'Fallback:', !!msg.isFallback);
             stopQueueTipRotation();
             if (queueModal) {
                 queueModal.classList.add('hidden');
@@ -3375,6 +4948,19 @@ window.addEventListener('DOMContentLoaded', () => {
             const topBanner = document.getElementById('top-message-banner');
             if (topBanner && msg.resumed) {
                 topBanner.classList.add('hidden');
+            }
+            // Strict Invariant: Under NO circumstances load the wrong realm or a fallback
+            if (msg.isFallback || (activeRealm && msg.realm && msg.realm !== activeRealm)) {
+                console.error(`[Angband3D] Strict Invariant Violation: Server returned realm "${msg.realm}" or fallback for requested "${activeRealm}". Aborting.`);
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                if (network) network.disconnect();
+                showRealmToast(`❌ Error: Realm "${activeRealm}" could not be loaded. Fallbacks are disabled.`);
+                returnToMainMenu();
+                return;
+            }
+
+            if (msg.realm && typeof setActiveRealm === 'function' && activeRealm !== msg.realm) {
+                setActiveRealm(msg.realm);
             }
             if (msg.resumed && hud && typeof hud.setStatus === 'function') {
                 hud.setStatus('⚡ Session Resumed');
@@ -3410,6 +4996,24 @@ window.addEventListener('DOMContentLoaded', () => {
         };
 
         network.onFrame = (frame) => {
+            if (window.__startWatchdog) {
+                clearTimeout(window.__startWatchdog);
+                window.__startWatchdog = null;
+            }
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
+
+            // Strict Invariant: Reject any frame that belongs to a different realm than active
+            if (frame.realm && activeRealm && frame.realm !== activeRealm) {
+                console.error(`[Angband3D] Strict Invariant Violation: Frame received for wrong realm "${frame.realm}" (expected "${activeRealm}"). Aborting.`);
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                if (network) network.disconnect();
+                showRealmToast(`❌ Error: Engine running wrong realm "${frame.realm}". Fallbacks are disabled.`);
+                returnToMainMenu();
+                return;
+            }
+
             lastFrame = frame;
             if (window.__app) window.__app.lastFrame = frame;
             currentPhase = frame.phase || 'play';
@@ -3430,23 +5034,70 @@ window.addEventListener('DOMContentLoaded', () => {
             // Automated quick-birth advancement
             if (quickBirthActive) {
                 stepQuickBirth(frame);
+            } else if (birthConfirming) {
+                if (frame.phase === 'play' && frame.map && frame.player) {
+                    finalizeHeroBirth();
+                } else {
+                    const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
+                    const decodedScreenText = decodeHengbandText(rawScreenText);
+                    const screenText = (rawScreenText + '\n' + decodedScreenText).toLowerCase();
+                    if (screenText.includes("enter a name for your character") ||
+                        screenText.includes("character background") ||
+                        screenText.includes("start over, or enter to continue") ||
+                        screenText.includes("['q'uit, 's'tart over, or enter to continue]") ||
+                        screenText.includes("into the vast and echoing gloom") ||
+                        screenText.includes("down to the depths") ||
+                        screenText.includes("down awful corridors") ||
+                        screenText.includes("enter to continue") ||
+                        screenText.includes("名前を入力") ||
+                        screenText.includes("生い立ち") ||
+                        screenText.includes("ゲーム開始") ||
+                        screenText.includes("冒険に出ますか")) {
+                        network.sendKey('enter');
+                    }
+                }
             } else if (frame.phase === 'play' && frame.map && frame.player) {
-                // Once in active play with map, ensure character birth review is exited and 3D world is active
-                if (birthReviewActive) {
-                    confirmHeroBirth();
+                // Whenever active play is reached with map and player, ensure birth review/setup terminal is closed
+                // unless the player explicitly opened the terminal using the manual toggle
+                if (!window.__manualTerminalOpen) {
+                    if (forceTerminal || birthReviewActive || birthConfirming) {
+                        finalizeHeroBirth();
+                    }
                 }
             } else if (frame.phase === 'setup' && !quickBirthActive) {
-                // When loading an existing saved character or starting fresh without autoBirth,
-                // Angband pauses at startup on the title screen with "[Press any key to continue]".
-                // Auto-advance it into the loaded game!
+                // During manual character creation or saved character loading:
+                // NEVER auto-advance menu screens, stat rollers, birth options, name inputs, or review screens!
                 const screenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '').toLowerCase();
-                const hasMore = screenText.includes('-more-') || (frame.ui && frame.ui.more);
-                const isReviewScreen = screenText.includes("use as is") || screenText.includes("'y': use") ||
-                                       screenText.includes("to start over") || screenText.includes("r to reroll") ||
-                                       screenText.includes("reroll") || screenText.includes("'s' to start");
-                if (!isReviewScreen) {
-                    if (screenText.includes('press any key') || screenText.includes('[press') || screenText.includes('press space') || hasMore) {
-                        network.sendKey('enter');
+                
+                const isMenuOrInteractive = 
+                    screenText.includes('choose a') || screenText.includes('choose the') ||
+                    screenText.includes('select a') || screenText.includes('selection') ||
+                    screenText.includes('race') || screenText.includes('class') ||
+                    screenText.includes('sex') || screenText.includes('personality') ||
+                    screenText.includes('realm') || screenText.includes('house') ||
+                    screenText.includes('options') || screenText.includes('allocate points') ||
+                    screenText.includes('set minimum stats') || screenText.includes('roller') ||
+                    screenText.includes('point-based') || screenText.includes('are you sure') ||
+                    screenText.includes('[y/n]') || screenText.includes('(y/n)') ||
+                    screenText.includes('name:') || screenText.includes('enter a name') ||
+                    screenText.includes('enter your player\'s name') ||
+                    screenText.includes('character background') ||
+                    screenText.includes('use as is') || screenText.includes("'y': use") ||
+                    screenText.includes('to start over') || screenText.includes('r to reroll') ||
+                    screenText.includes('reroll') || screenText.includes("'s' to start") ||
+                    screenText.includes('accept character') || screenText.includes("['r'eroll") ||
+                    screenText.includes('or enter to accept') || screenText.includes("['q'uit");
+
+                if (!isMenuOrInteractive) {
+                    // Only auto-advance non-interactive splash screens (like title poem or saved character press space to enter)
+                    if (screenText.includes('into the vast and echoing gloom') || 
+                        screenText.includes('depths they went alone') || 
+                        screenText.includes('menace dark enshrined') ||
+                        screenText.includes('when the world is old and the days of wonder') ||
+                        screenText.includes('rephial.org') ||
+                        screenText.includes('last battle be gathered') ||
+                        (screenText.includes('press any key to continue') && !screenText.includes('character traits'))) {
+                        network.sendKey('space');
                     }
                 }
             }
@@ -3517,6 +5168,13 @@ window.addEventListener('DOMContentLoaded', () => {
         };
 
         network.onBye = (detail) => {
+            if (window.__startWatchdog) {
+                clearTimeout(window.__startWatchdog);
+                window.__startWatchdog = null;
+            }
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
             console.warn('[Angband3D] Disconnected:', detail);
             if (hud.setStatus) {
                 hud.setStatus(engineMode === 'local' ? 'Local [Stopped]' : 'Cloud [Disconnected]');
@@ -3524,6 +5182,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 hud.pingBadge.textContent = engineMode === 'local' ? 'Local [Stopped]' : 'Cloud [Disconnected]';
             }
             if (detail) {
+                showRealmToast(`⚠️ ${detail}`);
                 const topBanner = document.getElementById('top-message-banner');
                 const topText = document.getElementById('message-text');
                 if (topBanner && topText) {
@@ -3534,10 +5193,28 @@ window.addEventListener('DOMContentLoaded', () => {
                         topBanner.removeEventListener('click', resumeHandler);
                         topBanner.style.cursor = 'default';
                         network.manualDisconnect = false;
-                        network.connect(network.currentChar, false, network.currentSave);
+                        network.connect(network.currentChar, false, network.currentSave, network.currentRealm || activeRealm);
                     };
                     topBanner.addEventListener('click', resumeHandler, { once: true });
                 }
+            }
+            if (appState === 'game' && !lastFrame) {
+                returnToMainMenu();
+            }
+        };
+
+        network.onError = (errMsg) => {
+            if (window.__startWatchdog) {
+                clearTimeout(window.__startWatchdog);
+                window.__startWatchdog = null;
+            }
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
+            console.error('[Angband3D] Network Error:', errMsg);
+            showRealmToast(`❌ Engine Error: ${errMsg}`);
+            if (appState === 'game' && !lastFrame) {
+                returnToMainMenu();
             }
         };
 
@@ -3564,12 +5241,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
     bindNetworkEventHandlers();
     updateEngineModeUI();
+    updateRealmUI();
+    setupRealmModalEvents();
+    setupCommandPaletteEvents();
 
     // 3. Initial Boot: Check URL query parameters
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('play') === '1' || urlParams.get('autoplay') === '1') {
-        const charName = urlParams.get('char') || 'Adventurer';
         const isNew = urlParams.get('new') === '1' || urlParams.get('reroll') === '1';
+        const charName = urlParams.get('char') || (isNew ? generateHeroName(activeRealm) : 'Adventurer');
         startGame({ charName, isNew, autoBirth: isNew });
     } else if (urlParams.get('demo') === '1' || window.location.hash === '#demo') {
         showSplash();

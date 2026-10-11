@@ -31,8 +31,90 @@ class ChronicleGrounder {
             name: 'The Record of Khazad-Dûm',
             badge: 'Dwarven Annals',
             style: 'Deep, solemn, stone-hewn, measured rhythmic prose, ancient foundations, delve-depth, forged steel, and oaths.'
+        },
+        mythicbard: {
+            id: 'mythicbard',
+            name: 'The Wilderland Saga',
+            badge: 'Mythic Bard',
+            style: 'Lively, grand epic of overland wilderness, myriad monster folk, wondrous enchantments, and legendary feats across boundless realms.'
+        },
+        easternmythos: {
+            id: 'easternmythos',
+            name: 'The Eastern Mythos & Amberite Scrolls',
+            badge: 'Eastern Mystic',
+            style: 'Zen tranquility, Bushido valor, celestial court judgments, mythical deities, and the shadow patterns of infinite Amber.'
+        },
+        beleriand: {
+            id: 'beleriand',
+            name: 'The Lay of Leithian & Beleriand Songs',
+            badge: 'First Age Skald',
+            style: 'Solemn First Age epic, songs of stealth and woven spells, shadows beneath Thangorodrim, and the desperate quest for Morgoth\'s Iron Crown.'
         }
     };
+
+    static getTraditionForRealm(realmKey, race = '') {
+        switch ((realmKey || 'angband').toLowerCase()) {
+            case 'frogcomposband': return 'mythicbard';
+            case 'hengband': return 'easternmythos';
+            case 'silq': return 'beleriand';
+            case 'angband':
+            default:
+                return this.getTraditionForRace(race);
+        }
+    }
+
+    static getLorekeeperName(realmKey = 'angband') {
+        switch ((realmKey || 'angband').toLowerCase()) {
+            case 'silq': return 'Pengolodh of Gondolin';
+            case 'hengband': return 'Dworkin Barimen';
+            case 'frogcomposband': return 'Grand Archivist';
+            case 'angband':
+            default:
+                return 'Elder Lorekeeper';
+        }
+    }
+
+    static getRealmContext(realmKey = 'angband') {
+        switch ((realmKey || 'angband').toLowerCase()) {
+            case 'silq':
+                return {
+                    realm: 'silq',
+                    chronicler: 'Pengolodh of Gondolin, master lorekeeper and chronicler of the First Age',
+                    lorekeeperName: 'Pengolodh of Gondolin',
+                    setting: 'Beleriand in the First Age of the Sun, under the shadow of Morgoth Bauglir and the iron peaks of Thangorodrim',
+                    traditionKey: 'beleriand',
+                    style: 'Solemn First Age epic, songs of stealth and woven spells, shadows beneath Thangorodrim, and the desperate quest for Morgoth\'s Iron Crown'
+                };
+            case 'hengband':
+                return {
+                    realm: 'hengband',
+                    chronicler: 'Dworkin Barimen, master of the Trumps of Doom, Pattern of Amber, and cosmic mystic of the Eastern Realm',
+                    lorekeeperName: 'Dworkin Barimen',
+                    setting: 'The multiverse confluence of the Realm of Amber and the Eastern Sengoku cosmos, ruled by celestial spirits, ancient clans, and shadow paths',
+                    traditionKey: 'easternmythos',
+                    style: 'Zen tranquility, Bushido valor, celestial court judgments, mythical deities, and the shadow patterns of infinite Amber'
+                };
+            case 'frogcomposband':
+                return {
+                    realm: 'frogcomposband',
+                    chronicler: 'The Grand Archivist of the Boundless Multiverse',
+                    lorekeeperName: 'Grand Archivist',
+                    setting: 'The Wilderland Crossroads of the Infinite Multiverse, uniting high fantasy realms, sentient monster champions, and myriad wandering adventurers',
+                    traditionKey: 'mythicbard',
+                    style: 'Lively, grand epic of overland wilderness, myriad monster folk, wondrous enchantments, and legendary feats across boundless realms'
+                };
+            case 'angband':
+            default:
+                return {
+                    realm: 'angband',
+                    chronicler: 'The Elder Lorekeeper of Westmarch',
+                    lorekeeperName: 'Elder Lorekeeper',
+                    setting: 'Middle-earth in the Third Age, beneath the dread Fortress of Angband in the Iron Hell',
+                    traditionKey: 'westmarch',
+                    style: 'Direct, courageous, humble steadfastness, songs of forgotten valor, stubborn endurance against darkness'
+                };
+        }
+    }
 
     static CANON_ARTIFACT_LORE = {
         "Phial of Galadriel": "It shines with the trapped light of Eärendil's Star, distilled from the Silmaril. In places where all other lights go out, its silver ray pierces the deepest dark of Morgoth.",
@@ -666,64 +748,64 @@ class ChronicleGrounder {
             directorNote = heroDirectorNote || 'A brave adventurer speaking with courage and steadfast resolve';
             if (isPeril) {
                 emotion = 'panicked';
-                geminiTag = '[panicked, gasping for breath]';
+                geminiTag = '[panicked, gasping for breath, no American southern drawl]';
                 directorNote = `${directorNote}, desperately fighting for survival`;
                 const baseP = parseInt(heroPitch, 10) || 0;
                 pitch = (baseP >= 0 ? `+${baseP + 3}` : `${baseP + 3}`) + 'Hz';
                 rate = '+8%';
             } else if (isBleedingOrStun) {
                 emotion = 'strained';
-                geminiTag = '[groaning in pain]';
+                geminiTag = '[groaning in pain, no American southern drawl]';
                 directorNote = `${directorNote}, heavily wounded and straining against injury`;
                 const baseP = parseInt(heroPitch, 10) || 0;
                 pitch = (baseP >= 0 ? `+${baseP + 2}` : `${baseP + 2}`) + 'Hz';
                 rate = '+4%';
             } else if (isStealth) {
                 emotion = 'whispering';
-                geminiTag = '[whispers]';
+                geminiTag = '[whispers, no American southern drawl]';
                 directorNote = `${directorNote}, whispering softly in the dark shadows`;
                 const baseP = parseInt(heroPitch, 10) || 0;
                 pitch = (baseP >= 0 ? `+${baseP - 1}` : `${baseP - 1}`) + 'Hz';
                 rate = '-6%';
             } else {
-                geminiTag = '[resolute, heroic]';
+                geminiTag = '[resolute, heroic, no American southern drawl]';
             }
         } else {
-            // Creature & NPC Dynamic Emotion
+            // Creature & NPC Dynamic Emotion (Strictly No Southern Accents)
             if (isPeril) {
                 emotion = 'panicked';
-                geminiTag = '[panicked, trembling]';
-                directorNote = 'Desperate mortal panic, breathless and fighting for survival';
+                geminiTag = '[panicked, trembling, in character, no American southern drawl]';
+                directorNote = 'Desperate mortal panic, breathless and fighting for survival, in character, no American southern drawl';
                 pitch = '+3Hz';
                 rate = '+8%';
             } else if (isBoss) {
                 emotion = 'serious';
-                geminiTag = '[grimly, with grave dread]';
-                directorNote = 'An epic confrontation with an ancient terror of the First Age';
+                geminiTag = '[grimly, with grave dread, in character, no American southern drawl]';
+                directorNote = 'An epic confrontation with an ancient terror of the First Age, in character, no American southern drawl';
                 pitch = '-3Hz';
                 rate = '-4%';
             } else if (isBleedingOrStun) {
                 emotion = 'strained';
-                geminiTag = '[groaning in pain]';
-                directorNote = 'Grievously wounded, voice trembling with pain';
+                geminiTag = '[groaning in pain, in character, no American southern drawl]';
+                directorNote = 'Grievously wounded, voice trembling with pain, in character, no American southern drawl';
                 pitch = '+2Hz';
                 rate = '+4%';
             } else if (isStealth) {
                 emotion = 'whispering';
-                geminiTag = '[whispers]';
-                directorNote = 'Hushed stealth in complete darkness, avoiding waking patrolling monsters';
+                geminiTag = '[whispers, in character, no American southern drawl]';
+                directorNote = 'Hushed stealth in complete darkness, avoiding waking patrolling monsters, in character, no American southern drawl';
                 pitch = '-1Hz';
                 rate = '-7%';
             } else if (isTown) {
                 emotion = 'cheerful';
-                geminiTag = '[warmly, with hearty camaraderie]';
-                directorNote = 'A warm fireside tavern keeper or friendly townsman';
+                geminiTag = '[warmly, with hearty camaraderie, in character, no American southern drawl]';
+                directorNote = 'A warm fireside tavern keeper or friendly townsman, in character, no American southern drawl';
                 pitch = '+1Hz';
                 rate = '+3%';
             } else {
                 emotion = 'calm';
-                geminiTag = '[in character]';
-                directorNote = 'Speaking in character with authentic creature presence';
+                geminiTag = '[in character, no American southern drawl]';
+                directorNote = 'Speaking in character with authentic creature presence, no American southern drawl';
                 pitch = '+0Hz';
                 rate = '+0%';
             }
@@ -2304,8 +2386,16 @@ class ChronicleGrounder {
             return `Upon descending to a new tier, your sixth sense whispers a feeling from 1 to 9. A feeling above 5 portends legendary artifact vaults or dread unique terrors. If your healing flasks are empty and the air feels ominous, retreat up the stairs ('<') without shame!`;
         }
 
-        // General in-character survival counsel
-        return `The Lorekeeper hears your question, ${pName}. In the deeps of Angband, your survival hinges on discipline: inspect your pack with 'i', keep your back to the stone, funnel multiple foes into narrow 1-tile corridors, and never venture downward without food, torches, and scrolls of escape.`;
+        // General in-character survival counsel attuned to realm
+        const activeRealm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        if (activeRealm === 'silq') {
+            return `Pengolodh speaks, ${pName}. In the shadowed halls beneath Thangorodrim, subtlety is your greatest shield. Master the songs of weaving, husband your light, forge arms at the secret anvils, and remember that combat here is measured in wound thresholds rather than vast pools of health.`;
+        } else if (activeRealm === 'hengband') {
+            return `Dworkin counsels you, ${pName}. In this cosmic confluence of Amber and the Eastern realm, keep your blade keen and your soul guarded against chaotic mutations. Study the paths of magic carefully, harness your trump powers, and never underestimate the unique lords of legend!`;
+        } else if (activeRealm === 'frogcomposband') {
+            return `The Grand Archivist observes your journey, ${pName}. In the boundless multiverse, whether you wander as an Elven knight or a sentient monster, leverage your racial gifts, explore the wild overworld with caution, and let no forgotten relic escape your grasp!`;
+        }
+        return `The Elder Lorekeeper hears your question, ${pName}. In the deeps of Angband, your survival hinges on discipline: inspect your pack with 'i', keep your back to the stone, funnel multiple foes into narrow 1-tile corridors, and never venture downward without food, torches, and scrolls of escape.`;
     }
 
     /**

@@ -9,8 +9,9 @@
     <ApplicationTitle>Angband 3D</ApplicationTitle>
     <Company>Angband3D</Company>
     <Product>Angband 3D</Product>
-    <Version>2.0.0</Version>
-    <FileVersion>2.0.0.0</FileVersion>
+    <Version>3.0.0</Version>
+    <FileVersion>3.0.0.0</FileVersion>
+    <AssemblyVersion>3.0.0.0</AssemblyVersion>
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <NoWarn>MSB3277</NoWarn>
   </PropertyGroup>

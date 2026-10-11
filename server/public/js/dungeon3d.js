@@ -159,7 +159,7 @@ function procFractalNoise(x, y, octaves = 3, seed = 0) {
     return value / maxVal;
 }
 
-function procCreateTexture(size, pixelFunc) {
+function procCreateTexture(size, pixelFunc, isColor = false) {
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
@@ -180,6 +180,7 @@ function procCreateTexture(size, pixelFunc) {
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
+    if (isColor) tex.encoding = THREE.sRGBEncoding;
     return tex;
 }
 
@@ -224,70 +225,901 @@ function getStoreColorHex(shopNum) {
     return `rgb(${r},${g},${b})`;
 }
 
-function procCreateStoneWallTexture() {
-    const size = 512;
-    const rowHeight = 256;
-    const halfRow = 128;
+// ==============================================================================
+// 2b. Contextual Lore, Location & Realm Themes Catalog
+// ==============================================================================
+const CONTEXTUAL_THEMES = {
+    // 1. Vanilla Angband / Bree Market Town
+    'angband_town': {
+        id: 'angband_town',
+        name: 'Bree Market Town (Cobblestones & Medieval Fieldstone)',
+        courses: 4,
+        wallRoughness: 0.82,
+        floorRoughness: 0.84,
+        wallBase: [0.65, 0.60, 0.54],
+        wallMortar: [0.18, 0.16, 0.14],
+        floorBase: [0.55, 0.52, 0.48],
+        floorMortar: [0.15, 0.14, 0.12],
+        pbrWall: true,
+        pbrFloor: true
+    },
+    // 2. Vanilla Chapter 1: Upper Crypts (Levels 1–4 / 50–200 ft)
+    'angband_crypts': {
+        id: 'angband_crypts',
+        name: 'Upper Crypts (Ashlar Slate & Cold Barrow Granite)',
+        courses: 4,
+        wallRoughness: 0.82,
+        floorRoughness: 0.80,
+        wallBase: [0.42, 0.43, 0.46],
+        wallMortar: [0.08, 0.08, 0.10],
+        floorBase: [0.38, 0.39, 0.42],
+        floorMortar: [0.06, 0.06, 0.08],
+        grainScale: 1.0,
+        chisel: 0.06
+    },
+    // 3. Vanilla Chapter 2: Flooded Undercrofts (Levels 5–8 / 250–400 ft)
+    'angband_flooded': {
+        id: 'angband_flooded',
+        name: 'Flooded Undercrofts (Wet Slate & Sunken Cistern Pools)',
+        courses: 4,
+        wallRoughness: 0.70,
+        floorRoughness: 0.38,
+        wallBase: [0.32, 0.38, 0.42],
+        wallMortar: [0.06, 0.10, 0.09],
+        floorBase: [0.26, 0.32, 0.38],
+        floorMortar: [0.04, 0.06, 0.08],
+        algaeBleed: true,
+        waterPuddles: true,
+        grainScale: 0.9,
+        chisel: 0.04
+    },
+    // 4. Vanilla Chapter 3: Deep Sepulchre (Levels 9–12 / 450–600 ft)
+    'angband_sepulchre': {
+        id: 'angband_sepulchre',
+        name: 'Deep Sepulchre (Ancient Sandstone Necropolis & Saltpeter)',
+        courses: 4,
+        wallRoughness: 0.88,
+        floorRoughness: 0.86,
+        wallBase: [0.55, 0.46, 0.36],
+        wallMortar: [0.26, 0.20, 0.15],
+        floorBase: [0.48, 0.40, 0.30],
+        floorMortar: [0.20, 0.16, 0.12],
+        saltpeterBloom: true,
+        grainScale: 1.2,
+        chisel: 0.08
+    },
+    // 5. Vanilla Chapter 4: Overgrown Catacombs (Levels 13–16 / 650–800 ft)
+    'angband_catacombs': {
+        id: 'angband_catacombs',
+        name: 'Overgrown Catacombs (Verdant Lichen & Spore Barrow)',
+        courses: 4,
+        wallRoughness: 0.78,
+        floorRoughness: 0.60,
+        wallBase: [0.34, 0.44, 0.32],
+        wallMortar: [0.08, 0.16, 0.08],
+        floorBase: [0.30, 0.40, 0.28],
+        floorMortar: [0.06, 0.12, 0.06],
+        lichenPatches: true,
+        grainScale: 1.1,
+        chisel: 0.05
+    },
+    // 6. Vanilla Chapter 5: Chasm Threshold (Levels 17–20 / 850–1000 ft)
+    'angband_chasm': {
+        id: 'angband_chasm',
+        name: 'Chasm Threshold (Ironstone Deeps & Rust-Veined Quarry)',
+        courses: 4,
+        wallRoughness: 0.82,
+        floorRoughness: 0.78,
+        wallBase: [0.46, 0.40, 0.42],
+        wallMortar: [0.16, 0.10, 0.12],
+        floorBase: [0.38, 0.34, 0.36],
+        floorMortar: [0.12, 0.08, 0.10],
+        hematiteVeins: true,
+        grainScale: 1.4,
+        chisel: 0.10
+    },
+    // 7. Vanilla Chapter 6: Crystal Caverns (Levels 21–35 / 1050–1750 ft)
+    'angband_crystal': {
+        id: 'angband_crystal',
+        name: 'Crystal Caverns (Luminous Quartz & Amethyst Geodes)',
+        courses: 4,
+        wallRoughness: 0.68,
+        floorRoughness: 0.48,
+        wallBase: [0.44, 0.48, 0.58],
+        wallMortar: [0.14, 0.16, 0.24],
+        floorBase: [0.40, 0.44, 0.54],
+        floorMortar: [0.12, 0.14, 0.20],
+        crystalVeins: true,
+        grainScale: 0.8,
+        chisel: 0.04
+    },
+    // 8. Vanilla Chapter 7: Deep Nether Mines (Levels 36–60 / 1800–3000 ft)
+    'angband_nether': {
+        id: 'angband_nether',
+        name: 'Deep Nether Mines (Pyrite Seams & Brimstone Vaults)',
+        courses: 4,
+        wallRoughness: 0.74,
+        floorRoughness: 0.60,
+        wallBase: [0.36, 0.34, 0.32],
+        wallMortar: [0.12, 0.11, 0.08],
+        floorBase: [0.32, 0.30, 0.28],
+        floorMortar: [0.10, 0.09, 0.07],
+        pyriteSulfur: true,
+        grainScale: 1.3,
+        chisel: 0.08
+    },
+    // 9. Vanilla Chapter 8: Magma Underworld (Levels 61–85 / 3050–4250 ft)
+    'angband_magma': {
+        id: 'angband_magma',
+        name: 'Magma Underworld (Scorched Basalt & Thermal Fissures)',
+        courses: 4,
+        wallRoughness: 0.78,
+        floorRoughness: 0.65,
+        wallBase: [0.26, 0.20, 0.18],
+        wallMortar: [0.14, 0.05, 0.03],
+        floorBase: [0.24, 0.18, 0.16],
+        floorMortar: [0.16, 0.06, 0.03],
+        thermalCracks: true,
+        grainScale: 1.2,
+        chisel: 0.08
+    },
+    // 10. Vanilla Chapter 9: The Abyssal Citadel (Levels 86–100 / 4300–5000 ft)
+    'angband_abyss': {
+        id: 'angband_abyss',
+        name: 'The Abyssal Citadel (Monolithic Black Obsidian & Blood-Iron)',
+        courses: 2,
+        wallRoughness: 0.65,
+        floorRoughness: 0.30,
+        wallBase: [0.18, 0.14, 0.22],
+        wallMortar: [0.06, 0.02, 0.08],
+        floorBase: [0.14, 0.11, 0.17],
+        floorMortar: [0.04, 0.01, 0.06],
+        abyssalRunes: true,
+        grainScale: 0.7,
+        chisel: 0.03
+    },
+    // 11. Sil-Q Iron Pits of Angband (Gates of Slag & Upper Deeps, 50–250 ft)
+    'silq_slag': {
+        id: 'silq_slag',
+        name: 'The Gates of Slag & Iron Pits of Angband',
+        courses: 4,
+        wallRoughness: 0.85,
+        floorRoughness: 0.88,
+        wallBase: [0.30, 0.30, 0.32],
+        wallMortar: [0.08, 0.08, 0.09],
+        floorBase: [0.26, 0.26, 0.28],
+        floorMortar: [0.06, 0.06, 0.07],
+        ironStrips: true,
+        grainScale: 1.3,
+        chisel: 0.09
+    },
+    // 12. Sil-Q Morgoth's Armouries (300–500 ft)
+    'silq_armouries': {
+        id: 'silq_armouries',
+        name: "Morgoth's Armouries (Dark Foundries & Forge Deeps)",
+        courses: 4,
+        wallRoughness: 0.82,
+        floorRoughness: 0.84,
+        wallBase: [0.34, 0.28, 0.26],
+        wallMortar: [0.10, 0.08, 0.07],
+        floorBase: [0.28, 0.24, 0.22],
+        floorMortar: [0.08, 0.06, 0.05],
+        slagDrips: true,
+        grainScale: 1.2,
+        chisel: 0.07
+    },
+    // 13. Sil-Q Deep Torment (550–750 ft)
+    'silq_torment': {
+        id: 'silq_torment',
+        name: 'Deep Torment (Barrows of Thangorodrim & Balrog Halls)',
+        courses: 4,
+        wallRoughness: 0.80,
+        floorRoughness: 0.78,
+        wallBase: [0.26, 0.24, 0.28],
+        wallMortar: [0.08, 0.06, 0.09],
+        floorBase: [0.22, 0.20, 0.24],
+        floorMortar: [0.06, 0.05, 0.07],
+        charMarks: true,
+        grainScale: 1.1,
+        chisel: 0.07
+    },
+    // 14. Sil-Q Citadel of the Iron Crown & Throne of Morgoth (800–1000 ft / Level 20)
+    'silq_throne': {
+        id: 'silq_throne',
+        name: 'Citadel of the Iron Crown (Throne of Morgoth)',
+        courses: 2,
+        wallRoughness: 0.60,
+        floorRoughness: 0.24,
+        wallBase: [0.16, 0.15, 0.18],
+        wallMortar: [0.05, 0.04, 0.06],
+        floorBase: [0.12, 0.11, 0.14],
+        floorMortar: [0.03, 0.03, 0.04],
+        ironInlay: true,
+        grainScale: 0.6,
+        chisel: 0.02
+    },
+    // 15. Hengband Eastern Overworld / Castle Town (Depth 0)
+    'hengband_town': {
+        id: 'hengband_town',
+        name: 'Eastern Overworld (Japanese Shikkui Plaster & Hinoki Cedar)',
+        courses: 4,
+        wallRoughness: 0.80,
+        floorRoughness: 0.82,
+        wallBase: [0.82, 0.80, 0.78],
+        wallMortar: [0.22, 0.16, 0.12],
+        floorBase: [0.55, 0.53, 0.50],
+        floorMortar: [0.18, 0.16, 0.14],
+        japaneseTimberPlaster: true,
+        grainScale: 0.9,
+        chisel: 0.04
+    },
+    // 16. Hengband Dungeons (Fuji Caverns & Pagoda Crypts)
+    'hengband_dungeon': {
+        id: 'hengband_dungeon',
+        name: 'Eastern Pagoda Crypts & Fuji Basalt Caverns',
+        courses: 3,
+        wallRoughness: 0.78,
+        floorRoughness: 0.76,
+        wallBase: [0.42, 0.40, 0.42],
+        wallMortar: [0.12, 0.10, 0.10],
+        floorBase: [0.38, 0.36, 0.38],
+        floorMortar: [0.10, 0.08, 0.08],
+        ishigakiStyle: true,
+        grainScale: 1.1,
+        chisel: 0.07
+    },
+    // 17. FrogComposBand Wilderness Town & High Fantasy Dungeons
+    'frog_town': {
+        id: 'frog_town',
+        name: 'Highland Frontier Town (Rustic Fieldstone & Cobblestone)',
+        courses: 4,
+        wallRoughness: 0.82,
+        floorRoughness: 0.84,
+        wallBase: [0.70, 0.66, 0.60],
+        wallMortar: [0.22, 0.18, 0.14],
+        floorBase: [0.58, 0.56, 0.52],
+        floorMortar: [0.18, 0.16, 0.12],
+        pbrWall: true,
+        pbrFloor: true
+    }
+};
+
+function resolveContextualTheme(realm, depth, levelSeed = 0) {
+    const r = (realm || 'angband').toLowerCase();
+    if (depth <= 0) {
+        if (r === 'silq') return CONTEXTUAL_THEMES['silq_slag'];
+        if (r === 'hengband') return CONTEXTUAL_THEMES['hengband_town'];
+        if (r === 'frogcomposband') return CONTEXTUAL_THEMES['frog_town'];
+        return CONTEXTUAL_THEMES['angband_town'];
+    }
+
+    if (r === 'silq') {
+        if (depth <= 5) return CONTEXTUAL_THEMES['silq_slag'];
+        if (depth <= 10) return CONTEXTUAL_THEMES['silq_armouries'];
+        if (depth <= 15) return CONTEXTUAL_THEMES['silq_torment'];
+        return CONTEXTUAL_THEMES['silq_throne'];
+    }
+
+    if (r === 'hengband') {
+        if (depth <= 8) return CONTEXTUAL_THEMES['hengband_dungeon'];
+        if (depth <= 20) return CONTEXTUAL_THEMES['angband_chasm'];
+        if (depth <= 40) return CONTEXTUAL_THEMES['angband_crystal'];
+        if (depth <= 70) return CONTEXTUAL_THEMES['angband_magma'];
+        return CONTEXTUAL_THEMES['angband_abyss'];
+    }
+
+    // Default: Vanilla Angband & FrogComposBand
+    if (depth <= 4) return CONTEXTUAL_THEMES['angband_crypts'];
+    if (depth <= 8) return CONTEXTUAL_THEMES['angband_flooded'];
+    if (depth <= 12) return CONTEXTUAL_THEMES['angband_sepulchre'];
+    if (depth <= 16) return CONTEXTUAL_THEMES['angband_catacombs'];
+    if (depth <= 20) return CONTEXTUAL_THEMES['angband_chasm'];
+    if (depth <= 35) return CONTEXTUAL_THEMES['angband_crystal'];
+    if (depth <= 60) return CONTEXTUAL_THEMES['angband_nether'];
+    if (depth <= 85) return CONTEXTUAL_THEMES['angband_magma'];
+    return CONTEXTUAL_THEMES['angband_abyss'];
+}
+
+function procCreateContextualWallTexture(theme, size = 512) {
+    const courses = theme.courses || 4;
+    const rowHeight = Math.floor(size / courses);
+    const blockWidth = rowHeight * 2;
+    const halfWidth = rowHeight;
+    const wallBase = theme.wallBase || [0.42, 0.43, 0.46];
+    const wallMortar = theme.wallMortar || [0.08, 0.08, 0.10];
+    const gScale = theme.grainScale || 1.0;
+    const chiselScale = theme.chisel || 0.06;
+
     return procCreateTexture(size, (x, y) => {
         const row = Math.floor(y / rowHeight);
         const yInRow = y % rowHeight;
         const distY = Math.min(yInRow, rowHeight - 1 - yInRow);
-        const xOff = (row % 2 === 1) ? halfRow : 0;
-        const xInRow = (x + size - xOff) % rowHeight;
-        const distX = Math.min(xInRow, rowHeight - 1 - xInRow);
-        const mortarDist = Math.min(distX, distY);
+        const xOff = (row % 2 === 1) ? halfWidth : 0;
+        let inBlockX = (x + size - xOff) % blockWidth;
+        let distX = Math.min(inBlockX, blockWidth - 1 - inBlockX);
 
-        if (mortarDist <= 8) {
-            const mn = procSmoothNoise(x * 0.125, y * 0.125, 101) * 0.04 - 0.02;
-            return [0.12 + mn, 0.12 + mn, 0.14 + mn];
+        if (theme.ishigakiStyle) {
+            const skew = (yInRow - rowHeight * 0.5) * 0.22;
+            const skewedX = (inBlockX + skew + blockWidth) % blockWidth;
+            distX = Math.min(skewedX, blockWidth - 1 - skewedX);
         }
 
-        const blockId = row * 2 + Math.floor((x + size - xOff) / rowHeight);
+        const mortarDist = Math.min(distX, distY);
+
+        if (mortarDist <= 4) {
+            if (theme.thermalCracks && mortarDist <= 2) {
+                const fissureNoise = procSmoothNoise(x * 0.05, y * 0.05, 99);
+                if (fissureNoise > 0.58) {
+                    return [0.96, 0.42, 0.08];
+                }
+            }
+            const mn = (procSmoothNoise(x * 0.25, y * 0.25, 101) - 0.5) * 0.04;
+            return [
+                Math.max(0, wallMortar[0] + mn),
+                Math.max(0, wallMortar[1] + mn),
+                Math.max(0, wallMortar[2] + mn)
+            ];
+        }
+
+        if (theme.japaneseTimberPlaster) {
+            // Authentic Japanese Machiya Post-and-Beam: continuous vertical Hinoki cedar pillars & horizontal lintels
+            const pillarSpacing = Math.floor(size / 4); // 4 columns across 512px
+            const distToPillar = Math.min(x % pillarSpacing, pillarSpacing - (x % pillarSpacing));
+            const beamSpacing = Math.floor(size / 2); // 2 course tiers
+            const distToBeam = Math.min(y % beamSpacing, beamSpacing - (y % beamSpacing));
+            const isWood = (distToPillar <= 14) || (distToBeam <= 14);
+
+            if (isWood) {
+                // Hinoki / Sugi Cedar wood texture with authentic directional grain
+                const grain = (procSmoothNoise(x * 0.08, y * 0.40, 31) - 0.5) * 0.07;
+                return [
+                    Math.max(0, Math.min(1, 0.26 + grain)),
+                    Math.max(0, Math.min(1, 0.17 + grain * 0.8)),
+                    Math.max(0, Math.min(1, 0.11 + grain * 0.6))
+                ];
+            }
+            // Traditional Japanese white Shikkui lime plaster with subtle wabi-sabi mineral flecks
+            const plasterGrain = (procSmoothNoise(x * 0.12, y * 0.12, 19) - 0.5) * 0.03;
+            const plasterWabi = (procSmoothNoise(x * 0.02, y * 0.02, 53) - 0.5) * 0.04;
+            return [
+                Math.max(0, Math.min(1, 0.90 + plasterGrain + plasterWabi)),
+                Math.max(0, Math.min(1, 0.88 + plasterGrain + plasterWabi)),
+                Math.max(0, Math.min(1, 0.83 + plasterGrain + plasterWabi))
+            ];
+        }
+
+        const blockId = row * 4 + Math.floor((x + size - xOff) / blockWidth);
         const blockHue = procHash(blockId, 0, 77);
-        const rBase = 0.44 + (blockHue - 0.5) * 0.05;
-        const gBase = 0.44 + (blockHue - 0.5) * 0.04;
-        const bBase = 0.46 + (0.5 - blockHue) * 0.04;
 
-        const bevelX = (xInRow < halfRow) ? (xInRow - 8) / 32.0 : (rowHeight - 9 - xInRow) / 32.0;
-        const bevelY = (yInRow < halfRow) ? (yInRow - 8) / 32.0 : (rowHeight - 9 - yInRow) / 32.0;
-        const bevel = Math.max(0, Math.min(1.0, Math.min(bevelX, bevelY)));
-        const lightGradient = ((halfRow - xInRow) + (halfRow - yInRow)) * 0.0004;
+        let rBase = wallBase[0] + (blockHue - 0.5) * 0.10;
+        let gBase = wallBase[1] + (blockHue - 0.5) * 0.09;
+        let bBase = wallBase[2] + (0.5 - blockHue) * 0.09;
 
-        const grain = (procSmoothNoise(x * 0.06, y * 0.06, 1) - 0.5) * 0.08;
-        const microGrain = (procSmoothNoise(x * 0.18, y * 0.18, 2) - 0.5) * 0.04;
-        const chisel = (procSmoothNoise(x * 0.18, y * 0.04, 14) - 0.5) * 0.03;
+        const bevel = Math.min(1.0, (mortarDist - 4) / 18.0);
+        const macroGrain = (procFractalNoise(x * 0.04 * gScale, y * 0.04 * gScale, 3, 11) - 0.5) * 0.14;
+        const microGrain = (procSmoothNoise(x * 0.16 * gScale, y * 0.16 * gScale, 2) - 0.5) * 0.07;
+        const chisel = (procSmoothNoise(x * 0.28, y * 0.07, 14) - 0.5) * chiselScale;
+        const speckle = procHash(x, y, 42);
+        const fleck = speckle > 0.96 ? 0.16 : (speckle < 0.04 ? -0.16 : 0.0);
 
-        const r = Math.max(0, Math.min(1, rBase * (0.80 + bevel * 0.20) + lightGradient + grain + microGrain + chisel));
-        const g = Math.max(0, Math.min(1, gBase * (0.80 + bevel * 0.20) + lightGradient + grain + microGrain + chisel));
-        const b = Math.max(0, Math.min(1, bBase * (0.80 + bevel * 0.20) + lightGradient + grain + microGrain + chisel));
+        const shade = 0.72 + bevel * 0.28;
+        let r = rBase * shade + macroGrain + microGrain + chisel + fleck;
+        let g = gBase * shade + macroGrain + microGrain + chisel + fleck;
+        let b = bBase * shade + macroGrain + microGrain + chisel + fleck;
+
+        if (theme.algaeBleed) {
+            const algae = Math.max(0, procSmoothNoise(x * 0.06, y * 0.02, 88) - 0.44) * (y / size) * 0.45;
+            g += algae * 0.38;
+            r -= algae * 0.15;
+            b -= algae * 0.10;
+        }
+
+        if (theme.saltpeterBloom) {
+            const sp = Math.max(0, procSmoothNoise(x * 0.05, y * 0.05, 44) - 0.62) * 0.40;
+            r += sp * 0.45;
+            g += sp * 0.42;
+            b += sp * 0.38;
+        }
+
+        if (theme.lichenPatches) {
+            const lic = Math.max(0, procFractalNoise(x * 0.05, y * 0.05, 3, 55) - 0.48) * 0.45;
+            g += lic * 0.48;
+            r += lic * 0.12;
+            b += lic * 0.08;
+        }
+
+        if (theme.hematiteVeins) {
+            const hem = Math.max(0, procSmoothNoise(x * 0.03, y * 0.12, 63) - 0.55) * 0.40;
+            r += hem * 0.40;
+            g -= hem * 0.10;
+            b -= hem * 0.12;
+        }
+
+        if (theme.crystalVeins) {
+            const dist = Math.abs(x - y * 0.75 + Math.sin(y * 0.05) * 18 - 180);
+            if (dist < 12) {
+                const cv = (1.0 - dist / 12.0) * 0.42;
+                b += cv * 0.48;
+                r += cv * 0.30;
+                g += cv * 0.25;
+            }
+        }
+
+        if (theme.pyriteSulfur) {
+            if (procHash(x, y, 77) > 0.97) {
+                r += 0.44;
+                g += 0.38;
+                b += 0.05;
+            } else {
+                const sulf = Math.max(0, procSmoothNoise(x * 0.08, y * 0.08, 33) - 0.68) * 0.32;
+                r += sulf * 0.32;
+                g += sulf * 0.30;
+                b += sulf * 0.05;
+            }
+        }
+
+        if (theme.abyssalRunes) {
+            const distR = Math.abs(y - x * 0.65 + Math.cos(x * 0.04) * 25 - 240);
+            if (distR < 8) {
+                const ar = (1.0 - distR / 8.0) * 0.55;
+                r += ar * 0.58;
+                b += ar * 0.48;
+            }
+        }
+
+        if (theme.charMarks || theme.slagDrips) {
+            const slag = Math.max(0, procSmoothNoise(x * 0.05, y * 0.02, 19) - 0.50) * 0.35;
+            r -= slag * 0.25;
+            g -= slag * 0.25;
+            b -= slag * 0.25;
+        }
+
+        return [
+            Math.max(0, Math.min(1, r)),
+            Math.max(0, Math.min(1, g)),
+            Math.max(0, Math.min(1, b))
+        ];
+    }, true);
+}
+
+function procCreateContextualWallNormal(theme, size = 512) {
+    const courses = theme.courses || 4;
+    const rowHeight = Math.floor(size / courses);
+    const blockWidth = rowHeight * 2;
+    const halfWidth = rowHeight;
+    const gScale = theme.grainScale || 1.0;
+
+    return procCreateTexture(size, (x, y) => {
+        const row = Math.floor(y / rowHeight);
+        const yInRow = y % rowHeight;
+        const distY = Math.min(yInRow, rowHeight - 1 - yInRow);
+        const xOff = (row % 2 === 1) ? halfWidth : 0;
+        let inBlockX = (x + size - xOff) % blockWidth;
+        let distX = Math.min(inBlockX, blockWidth - 1 - inBlockX);
+
+        if (theme.ishigakiStyle) {
+            const skew = (yInRow - rowHeight * 0.5) * 0.22;
+            const skewedX = (inBlockX + skew + blockWidth) % blockWidth;
+            distX = Math.min(skewedX, blockWidth - 1 - skewedX);
+        }
+
+        if (theme.japaneseTimberPlaster) {
+            const pillarSpacing = Math.floor(size / 4);
+            const distToPillar = Math.min(x % pillarSpacing, pillarSpacing - (x % pillarSpacing));
+            const beamSpacing = Math.floor(size / 2);
+            const distToBeam = Math.min(y % beamSpacing, beamSpacing - (y % beamSpacing));
+            const isWood = (distToPillar <= 14) || (distToBeam <= 14);
+            if (isWood) {
+                const wg = (procSmoothNoise(x * 0.08, y * 0.40, 31) - 0.5) * 0.15;
+                const len = Math.hypot(wg, -wg, 1.0);
+                return [wg / len * 0.5 + 0.5, -wg / len * 0.5 + 0.5, 1.0 / len * 0.5 + 0.5];
+            }
+            const pgX = (procSmoothNoise(x * 0.12, y * 0.12, 19) - 0.5) * 0.08;
+            const pgY = (procSmoothNoise(x * 0.12, y * 0.12, 20) - 0.5) * 0.08;
+            const len = Math.hypot(pgX, pgY, 1.0);
+            return [pgX / len * 0.5 + 0.5, pgY / len * 0.5 + 0.5, 1.0 / len * 0.5 + 0.5];
+        }
+
+        const mortarDist = Math.min(distX, distY);
+        if (mortarDist <= 4) return [0.5, 0.5, 1.0];
+
+        let dx = 0, dy = 0;
+        const bevelWidth = 18;
+        if (mortarDist < 4 + bevelWidth) {
+            const t = (mortarDist - 4) / bevelWidth;
+            if (distX < distY) {
+                dx = (inBlockX < halfWidth) ? (1.0 - t) : -(1.0 - t);
+            } else {
+                dy = (yInRow < rowHeight / 2) ? (1.0 - t) : -(1.0 - t);
+            }
+        }
+
+        const rockBump = (procFractalNoise(x * 0.05 * gScale, y * 0.05 * gScale, 3, 50) - 0.5) * 0.22;
+        const chiselBump = (procSmoothNoise(x * 0.28, y * 0.07, 51) - 0.5) * (theme.chisel || 0.06) * 2.0;
+
+        let extraBump = 0;
+        if (theme.crystalVeins) {
+            const dist = Math.abs(x - y * 0.75 + Math.sin(y * 0.05) * 18 - 180);
+            if (dist < 12) extraBump += (1.0 - dist / 12.0) * 0.20;
+        }
+
+        const nx = dx * 0.65 + rockBump + chiselBump + extraBump;
+        const ny = -(dy * 0.65 + rockBump + chiselBump + extraBump);
+        const nz = 1.0;
+        const len = Math.hypot(nx, ny, nz);
+        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
+    }, false);
+}
+
+function procCreateContextualWallRoughness(theme, size = 512) {
+    const baseR = theme.wallRoughness || 0.82;
+    return procCreateTexture(size, (x, y) => {
+        const grain = (procSmoothNoise(x * 0.08, y * 0.08, 11) - 0.5) * 0.08;
+        let r = baseR + grain;
+
+        if (theme.algaeBleed) {
+            const algae = Math.max(0, procSmoothNoise(x * 0.06, y * 0.02, 88) - 0.44) * (y / size);
+            r -= algae * 0.28;
+        }
+        if (theme.abyssalRunes) {
+            r = Math.min(r, 0.42);
+        }
+        if (theme.saltpeterBloom) {
+            r = Math.min(0.98, r + 0.12);
+        }
+
+        const cr = Math.max(0.05, Math.min(0.98, r));
+        return [cr, cr, cr];
+    }, false);
+}
+
+function procCreateContextualFloorTexture(theme, size = 512) {
+    const tileSize = 256;
+    const floorBase = theme.floorBase || [0.38, 0.39, 0.42];
+    const floorMortar = theme.floorMortar || [0.06, 0.06, 0.08];
+    const gScale = theme.grainScale || 1.0;
+
+    return procCreateTexture(size, (x, y) => {
+        const inTileX = x % tileSize;
+        const inTileY = y % tileSize;
+        const distX = Math.min(inTileX, tileSize - 1 - inTileX);
+        const distY = Math.min(inTileY, tileSize - 1 - inTileY);
+        const mortarDist = Math.min(distX, distY);
+
+        if (mortarDist <= 4) {
+            if (theme.thermalCracks && mortarDist <= 2) {
+                if (procSmoothNoise(x * 0.06, y * 0.06, 115) > 0.56) {
+                    return [0.98, 0.44, 0.09];
+                }
+            }
+            const mn = (procSmoothNoise(x * 0.25, y * 0.25, 202) - 0.5) * 0.04;
+            return [
+                Math.max(0, floorMortar[0] + mn),
+                Math.max(0, floorMortar[1] + mn),
+                Math.max(0, floorMortar[2] + mn)
+            ];
+        }
+
+        const tileId = Math.floor(y / tileSize) * 2 + Math.floor(x / tileSize);
+        const tileHue = procHash(tileId, 0, 99);
+
+        let rBase = floorBase[0] + (tileHue - 0.5) * 0.08;
+        let gBase = floorBase[1] + (tileHue - 0.5) * 0.07;
+        let bBase = floorBase[2] + (0.5 - tileHue) * 0.07;
+
+        const bevel = Math.min(1.0, (mortarDist - 4) / 16.0);
+        const centerDist = Math.hypot(inTileX - tileSize / 2, inTileY - tileSize / 2) / (tileSize * 0.707);
+        const wear = 0.88 + Math.min(1.0, centerDist) * 0.12;
+
+        const grain = (procFractalNoise(x * 0.05 * gScale, y * 0.05 * gScale, 3, 3) - 0.5) * 0.12;
+        const microGrain = (procSmoothNoise(x * 0.18 * gScale, y * 0.18 * gScale, 4) - 0.5) * 0.06;
+
+        let r = rBase * bevel * wear + grain + microGrain;
+        let g = gBase * bevel * wear + grain + microGrain;
+        let b = bBase * bevel * wear + grain + microGrain;
+
+        if (theme.waterPuddles) {
+            const puddle = Math.max(0, procSmoothNoise(x * 0.04, y * 0.04, 120) - 0.50) * 2.2;
+            if (puddle > 0) {
+                const darkFactor = 1.0 - Math.min(0.60, puddle * 0.60);
+                r *= darkFactor;
+                g = g * darkFactor + Math.min(0.08, puddle * 0.06);
+                b = b * darkFactor + Math.min(0.12, puddle * 0.10);
+            }
+        }
+
+        if (theme.lichenPatches) {
+            const jointReach = Math.max(0, (18 - mortarDist) / 18.0);
+            const mossCluster = procSmoothNoise(x * 0.08, y * 0.08, 88);
+            if (mossCluster > 0.40) {
+                const moss = jointReach * (mossCluster - 0.40) * 1.5;
+                g += moss * 0.45;
+                r += moss * 0.10;
+                b += moss * 0.05;
+            }
+        }
+
+        if (theme.crystalVeins) {
+            const dist = Math.abs(x + y * 0.60 - 260);
+            if (dist < 10) {
+                const cv = (1.0 - dist / 10.0) * 0.35;
+                b += cv * 0.45;
+                r += cv * 0.30;
+                g += cv * 0.25;
+            }
+        }
+
+        if (theme.abyssalRunes) {
+            const voidPulse = (procSmoothNoise(x * 0.03, y * 0.03, 66) - 0.5) * 0.08;
+            r = Math.max(0, r * 0.85 + voidPulse);
+            g = Math.max(0, g * 0.80);
+            b = Math.max(0, b * 0.90 + voidPulse * 1.5);
+        }
+
+        return [
+            Math.max(0, Math.min(1, r)),
+            Math.max(0, Math.min(1, g)),
+            Math.max(0, Math.min(1, b))
+        ];
+    }, true);
+}
+
+function procCreateContextualFloorNormal(theme, size = 512) {
+    const tileSize = 256;
+    const gScale = theme.grainScale || 1.0;
+
+    return procCreateTexture(size, (x, y) => {
+        const inTileX = x % tileSize;
+        const inTileY = y % tileSize;
+        const distX = Math.min(inTileX, tileSize - 1 - inTileX);
+        const distY = Math.min(inTileY, tileSize - 1 - inTileY);
+        const mortarDist = Math.min(distX, distY);
+
+        if (mortarDist <= 4) return [0.5, 0.5, 1.0];
+
+        if (theme.waterPuddles) {
+            const puddle = Math.max(0, procSmoothNoise(x * 0.04, y * 0.04, 120) - 0.50);
+            if (puddle > 0.15) {
+                return [0.5, 0.5, 1.0];
+            }
+        }
+
+        let dx = 0, dy = 0;
+        const bevelWidth = 16;
+        if (mortarDist < 4 + bevelWidth) {
+            const t = (mortarDist - 4) / bevelWidth;
+            if (distX < distY) {
+                dx = (inTileX < tileSize / 2) ? (1.0 - t) : -(1.0 - t);
+            } else {
+                dy = (inTileY < tileSize / 2) ? (1.0 - t) : -(1.0 - t);
+            }
+        }
+
+        const rockBump = (procFractalNoise(x * 0.05 * gScale, y * 0.05 * gScale, 3, 4) - 0.5) * 0.20;
+        const nx = dx * 0.60 + rockBump;
+        const ny = -(dy * 0.60 + rockBump);
+        const nz = 1.0;
+        const len = Math.hypot(nx, ny, nz);
+        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
+    }, false);
+}
+
+function procCreateContextualFloorRoughness(theme, size = 512) {
+    const baseR = theme.floorRoughness || 0.74;
+    return procCreateTexture(size, (x, y) => {
+        let r = baseR;
+        if (theme.waterPuddles) {
+            const puddle = Math.max(0, procSmoothNoise(x * 0.04, y * 0.04, 120) - 0.50) * 2.5;
+            if (puddle > 0) {
+                r = Math.max(0.18, r - puddle * 0.55);
+            }
+        }
+        if (theme.abyssalRunes) {
+            r = Math.min(r, 0.28);
+        }
+        if (theme.crystalVeins) {
+            r = Math.min(r, 0.45);
+        }
+        if (theme.saltpeterBloom) {
+            r = Math.min(0.96, r + 0.10);
+        }
+        const cr = Math.max(0.05, Math.min(0.98, r));
+        return [cr, cr, cr];
+    }, false);
+}
+
+function procCreateContextualPermWallTexture(theme, size = 512) {
+    const wallBase = (theme.id === 'hengband_town')
+        ? [0.32, 0.30, 0.32] // Authentic Japanese curved Ishigaki castle masonry
+        : (theme.wallBase || [0.35, 0.35, 0.38]);
+    return procCreateTexture(size, (x, y) => {
+        const strata = Math.sin(y * 0.04 + procSmoothNoise(x * 0.03, y * 0.015, 11) * 6.0) * 0.09;
+        const fracture = (procFractalNoise(x * 0.03, y * 0.03, 4, 15) - 0.5) * 0.16;
+        const mineralGrain = (procSmoothNoise(x * 0.15, y * 0.15, 17) - 0.5) * 0.05;
+
+        let r = wallBase[0] * 0.85 + strata + fracture + mineralGrain;
+        let g = wallBase[1] * 0.85 + strata + fracture + mineralGrain;
+        let b = wallBase[2] * 0.90 + strata * 1.2 + fracture + mineralGrain;
+
+        if (theme.thermalCracks) {
+            r = Math.max(0, r * 0.70 + Math.max(0, fracture * 0.40));
+            g = Math.max(0, g * 0.60);
+            b = Math.max(0, b * 0.55);
+        }
+
+        return [
+            Math.max(0, Math.min(1, r)),
+            Math.max(0, Math.min(1, g)),
+            Math.max(0, Math.min(1, b))
+        ];
+    }, true);
+}
+
+function procCreateContextualPermWallNormal(theme, size = 512) {
+    return procCreateTexture(size, (x, y) => {
+        const h0 = procFractalNoise(x * 0.03, y * 0.03, 4, 15);
+        const hx = procFractalNoise((x + 1) * 0.03, y * 0.03, 4, 15);
+        const hy = procFractalNoise(x * 0.03, (y + 1) * 0.03, 4, 15);
+
+        const dx = (hx - h0) * 4.0;
+        const dy = (hy - h0) * 4.0;
+        const nx = dx;
+        const ny = -dy;
+        const nz = 1.0;
+        const len = Math.hypot(nx, ny, nz);
+        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
+    }, false);
+}
+
+function procCreateContextualCeilingTexture(theme, size = 512) {
+    const wallBase = theme.wallBase || [0.35, 0.35, 0.38];
+    return procCreateTexture(size, (x, y) => {
+        const n1 = (procFractalNoise(x * 0.06, y * 0.06, 3, 10) - 0.5) * 0.16;
+        const n2 = (procSmoothNoise(x * 0.20, y * 0.20, 20) - 0.5) * 0.08;
+        const r = wallBase[0] * 0.70 + n1 + n2;
+        const g = wallBase[1] * 0.70 + n1 + n2;
+        const b = wallBase[2] * 0.72 + n1 + n2;
+        return [
+            Math.max(0, Math.min(1, r)),
+            Math.max(0, Math.min(1, g)),
+            Math.max(0, Math.min(1, b))
+        ];
+    }, true);
+}
+
+function procCreateContextualCeilingNormal(theme, size = 512) {
+    return procCreateTexture(size, (x, y) => {
+        const h0 = procFractalNoise(x * 0.06, y * 0.06, 3, 10);
+        const hx = procFractalNoise((x + 1) * 0.06, y * 0.06, 3, 10);
+        const hy = procFractalNoise(x * 0.06, (y + 1) * 0.06, 3, 10);
+
+        const dx = (hx - h0) * 3.0;
+        const dy = (hy - h0) * 3.0;
+        const nx = dx;
+        const ny = -dy;
+        const nz = 1.0;
+        const len = Math.hypot(nx, ny, nz);
+        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
+    }, false);
+}
+
+function procCreateStoneWallTexture() {
+    const size = 512;
+    const rowHeight = 128; // 4 horizontal courses of dressed ashlar stone
+    const blockWidth = 256;
+    const halfWidth = 128;
+    return procCreateTexture(size, (x, y) => {
+        const row = Math.floor(y / rowHeight);
+        const yInRow = y % rowHeight;
+        const distY = Math.min(yInRow, rowHeight - 1 - yInRow);
+        const xOff = (row % 2 === 1) ? halfWidth : 0;
+        const inBlockX = (x + size - xOff) % blockWidth;
+        const distX = Math.min(inBlockX, blockWidth - 1 - inBlockX);
+        const mortarDist = Math.min(distX, distY);
+
+        // Deep dark charcoal recessed mortar joints with sand grit
+        if (mortarDist <= 4) {
+            const mn = (procSmoothNoise(x * 0.25, y * 0.25, 101) - 0.5) * 0.04;
+            return [0.06 + mn, 0.06 + mn, 0.08 + mn];
+        }
+
+        const blockId = row * 4 + Math.floor((x + size - xOff) / blockWidth);
+        const blockHue = procHash(blockId, 0, 77);
+        // Rich natural quarried stone block variation (slate grays to warm granite)
+        const rBase = 0.38 + (blockHue - 0.5) * 0.14;
+        const gBase = 0.38 + (blockHue - 0.5) * 0.12;
+        const bBase = 0.40 + (0.5 - blockHue) * 0.12;
+
+        // Chamfered edge shadow towards recessed mortar
+        const bevel = Math.min(1.0, (mortarDist - 4) / 18.0);
+        // Multi-scale tactile stone grain, granite flecks & chisel grooves
+        const macroGrain = (procFractalNoise(x * 0.04, y * 0.04, 3, 11) - 0.5) * 0.16;
+        const microGrain = (procSmoothNoise(x * 0.16, y * 0.16, 2) - 0.5) * 0.08;
+        const chisel = (procSmoothNoise(x * 0.28, y * 0.07, 14) - 0.5) * 0.06;
+        const speckle = procHash(x, y, 42);
+        const fleck = speckle > 0.96 ? 0.20 : (speckle < 0.04 ? -0.22 : 0.0);
+
+        const shade = 0.70 + bevel * 0.30;
+        const r = Math.max(0, Math.min(1, rBase * shade + macroGrain + microGrain + chisel + fleck));
+        const g = Math.max(0, Math.min(1, gBase * shade + macroGrain + microGrain + chisel + fleck));
+        const b = Math.max(0, Math.min(1, bBase * shade + macroGrain + microGrain + chisel + fleck));
         return [r, g, b];
-    });
+    }, true);
 }
 
 function procCreateStoneWallNormal() {
     const size = 512;
-    const rowHeight = 256;
-    const halfRow = 128;
+    const rowHeight = 128;
+    const blockWidth = 256;
+    const halfWidth = 128;
     return procCreateTexture(size, (x, y) => {
         const row = Math.floor(y / rowHeight);
         const yInRow = y % rowHeight;
         const distY = Math.min(yInRow, rowHeight - 1 - yInRow);
-        const xOff = (row % 2 === 1) ? halfRow : 0;
-        const xInRow = (x + size - xOff) % rowHeight;
-        const distX = Math.min(xInRow, rowHeight - 1 - xInRow);
+        const xOff = (row % 2 === 1) ? halfWidth : 0;
+        const inBlockX = (x + size - xOff) % blockWidth;
+        const distX = Math.min(inBlockX, blockWidth - 1 - inBlockX);
         const mortarDist = Math.min(distX, distY);
 
-        if (mortarDist <= 8) return [0.5, 0.5, 1.0];
+        if (mortarDist <= 4) return [0.5, 0.5, 1.0];
 
-        let dx = (xInRow < halfRow) ? (1.0 - xInRow / 32.0) : -(1.0 - (rowHeight - 1 - xInRow) / 32.0);
-        let dy = (yInRow < halfRow) ? (1.0 - yInRow / 32.0) : -(1.0 - (rowHeight - 1 - yInRow) / 32.0);
-        dx = Math.max(-1, Math.min(1, dx));
-        dy = Math.max(-1, Math.min(1, dy));
+        // Chamfered bevel slope at block perimeter
+        let dx = 0, dy = 0;
+        const bevelWidth = 18;
+        if (mortarDist < 4 + bevelWidth) {
+            const t = (mortarDist - 4) / bevelWidth;
+            if (distX < distY) {
+                dx = (inBlockX < halfWidth) ? (1.0 - t) : -(1.0 - t);
+            } else {
+                dy = (yInRow < rowHeight / 2) ? (1.0 - t) : -(1.0 - t);
+            }
+        }
 
-        const microBump = (procSmoothNoise(x * 0.08, y * 0.08, 50) - 0.5) * 0.15;
-        const fineBump = (procSmoothNoise(x * 0.22, y * 0.22, 51) - 0.5) * 0.08;
-        const nx = (dx + microBump + fineBump) * 0.55;
-        const ny = -(dy + microBump + fineBump) * 0.55;
+        // Tactile stone surface chisel relief & rock roughness across entire face
+        const rockBump = (procFractalNoise(x * 0.05, y * 0.05, 3, 50) - 0.5) * 0.24;
+        const chiselBump = (procSmoothNoise(x * 0.28, y * 0.07, 51) - 0.5) * 0.12;
+        const speckle = procHash(x, y, 42);
+        const fleckBump = speckle > 0.96 ? 0.18 : (speckle < 0.04 ? -0.18 : 0.0);
+
+        const nx = (dx * 0.65 + rockBump + chiselBump + fleckBump);
+        const ny = -(dy * 0.65 + rockBump + chiselBump + fleckBump);
+        const nz = 1.0;
+        const len = Math.hypot(nx, ny, nz);
+        return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
+    }, false);
+}
+
+function procCreatePermWallTexture() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        // Primordial cyclopean bedrock: flowing geological strata, tectonic fissures, no brick seams
+        const strata = Math.sin(y * 0.04 + procSmoothNoise(x * 0.03, y * 0.015, 11) * 6.0) * 0.08;
+        const fracture = (procFractalNoise(x * 0.03, y * 0.03, 4, 15) - 0.5) * 0.16;
+        const mineralGrain = (procSmoothNoise(x * 0.15, y * 0.15, 17) - 0.5) * 0.05;
+
+        const rBase = 0.28 + strata + fracture + mineralGrain;
+        const gBase = 0.28 + strata + fracture + mineralGrain;
+        const bBase = 0.30 + strata * 1.2 + fracture + mineralGrain;
+
+        return [
+            Math.max(0, Math.min(1, rBase)),
+            Math.max(0, Math.min(1, gBase)),
+            Math.max(0, Math.min(1, bBase))
+        ];
+    });
+}
+
+function procCreatePermWallNormal() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const h0 = procFractalNoise(x * 0.03, y * 0.03, 4, 15);
+        const hx = procFractalNoise((x + 1) * 0.03, y * 0.03, 4, 15);
+        const hy = procFractalNoise(x * 0.03, (y + 1) * 0.03, 4, 15);
+
+        const dx = (hx - h0) * 4.0;
+        const dy = (hy - h0) * 4.0;
+        const nx = dx;
+        const ny = -dy;
         const nz = 1.0;
         const len = Math.hypot(nx, ny, nz);
         return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
@@ -306,26 +1138,35 @@ function procCreateFloorTexture() {
         const distY = Math.min(inTileY, tileSize - 1 - inTileY);
         const mortarDist = Math.min(distX, distY);
 
-        if (mortarDist <= 8) {
-            const mn = procSmoothNoise(x * 0.125, y * 0.125, 202) * 0.03 - 0.015;
-            return [0.10 + mn, 0.10 + mn, 0.11 + mn];
+        // Recessed charcoal mortar seam with sand grit
+        if (mortarDist <= 4) {
+            const mn = (procSmoothNoise(x * 0.25, y * 0.25, 202) - 0.5) * 0.03;
+            return [0.06 + mn, 0.06 + mn, 0.08 + mn];
         }
 
         const tileId = tileY * 2 + tileX;
         const tileHue = procHash(tileId, 0, 99);
-        const rBase = 0.38 + (tileHue - 0.5) * 0.04;
-        const gBase = 0.39 + (tileHue - 0.5) * 0.03;
-        const bBase = 0.41 + (0.5 - tileHue) * 0.03;
+        // Flagstone stone hue variation (slate, basalt, cold granite)
+        const rBase = 0.34 + (tileHue - 0.5) * 0.10;
+        const gBase = 0.34 + (tileHue - 0.5) * 0.09;
+        const bBase = 0.36 + (0.5 - tileHue) * 0.09;
 
-        const bevel = Math.max(0.75, Math.min(1.0, (mortarDist - 8) / 32.0));
-        const grain = (procSmoothNoise(x * 0.06, y * 0.06, 3) - 0.5) * 0.06;
-        const microGrain = (procSmoothNoise(x * 0.18, y * 0.18, 4) - 0.5) * 0.03;
+        // Chamfer edge shadow towards mortar
+        const bevel = Math.min(1.0, (mortarDist - 4) / 16.0);
+        // Multi-scale tactile stone grain, subtle center wear, and flecks
+        const macroGrain = (procFractalNoise(x * 0.04, y * 0.04, 3, 21) - 0.5) * 0.14;
+        const microGrain = (procSmoothNoise(x * 0.18, y * 0.18, 4) - 0.5) * 0.06;
+        const speckle = procHash(x, y, 99);
+        const fleck = speckle > 0.96 ? 0.16 : (speckle < 0.04 ? -0.18 : 0.0);
+        const centerDist = Math.hypot(inTileX - 128, inTileY - 128) / 128.0;
+        const wornCenter = (1.0 - Math.min(1.0, centerDist)) * 0.06;
 
-        const r = Math.max(0, Math.min(1, rBase * bevel + grain + microGrain));
-        const g = Math.max(0, Math.min(1, gBase * bevel + grain + microGrain));
-        const b = Math.max(0, Math.min(1, bBase * bevel + grain + microGrain));
+        const shade = 0.72 + bevel * 0.28 + wornCenter;
+        const r = Math.max(0, Math.min(1, rBase * shade + macroGrain + microGrain + fleck));
+        const g = Math.max(0, Math.min(1, gBase * shade + macroGrain + microGrain + fleck));
+        const b = Math.max(0, Math.min(1, bBase * shade + macroGrain + microGrain + fleck));
         return [r, g, b];
-    });
+    }, true);
 }
 
 function procCreateFloorNormal() {
@@ -338,20 +1179,28 @@ function procCreateFloorNormal() {
         const distY = Math.min(inTileY, tileSize - 1 - inTileY);
         const mortarDist = Math.min(distX, distY);
 
-        if (mortarDist <= 8) return [0.5, 0.5, 1.0];
+        if (mortarDist <= 4) return [0.5, 0.5, 1.0];
 
-        let dx = (inTileX < tileSize / 2) ? (1.0 - inTileX / 36.0) : -(1.0 - (tileSize - 1 - inTileX) / 36.0);
-        let dy = (inTileY < tileSize / 2) ? (1.0 - inTileY / 36.0) : -(1.0 - (tileSize - 1 - inTileY) / 36.0);
-        dx = Math.max(-1, Math.min(1, dx));
-        dy = Math.max(-1, Math.min(1, dy));
+        // Chamfered slope at paver perimeter
+        let dx = 0, dy = 0;
+        const bevelWidth = 16;
+        if (mortarDist < 4 + bevelWidth) {
+            const t = (mortarDist - 4) / bevelWidth;
+            if (distX < distY) {
+                dx = (inTileX < tileSize / 2) ? (1.0 - t) : -(1.0 - t);
+            } else {
+                dy = (inTileY < tileSize / 2) ? (1.0 - t) : -(1.0 - t);
+            }
+        }
 
-        const microBump = (procSmoothNoise(x * 0.08, y * 0.08, 52) - 0.5) * 0.12;
-        const nx = (dx + microBump) * 0.45;
-        const ny = -(dy + microBump) * 0.45;
+        const rockBump = (procFractalNoise(x * 0.05, y * 0.05, 3, 62) - 0.5) * 0.20;
+        const microBump = (procSmoothNoise(x * 0.16, y * 0.16, 52) - 0.5) * 0.08;
+        const nx = (dx * 0.55 + rockBump + microBump);
+        const ny = -(dy * 0.55 + rockBump + microBump);
         const nz = 1.0;
         const len = Math.hypot(nx, ny, nz);
         return [nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5];
-    });
+    }, false);
 }
 
 function procCreateShadowTexture() {
@@ -577,6 +1426,316 @@ function procCreateQuartzTexture() {
     });
 }
 
+function procCreateGoldVeinTexture() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const vein = (procFractalNoise(x * 0.025, y * 0.025, 4, 83) - 0.5) * 2.0;
+        const goldNugget = procSmoothNoise(x * 0.15, y * 0.15, 105);
+        const inVein = Math.abs(vein) < 0.22;
+        const isNugget = (inVein && goldNugget > 0.42) || (!inVein && Math.abs(vein) < 0.32 && goldNugget > 0.70);
+
+        if (isNugget) {
+            // Raw glittering native gold ore
+            const luster = procSmoothNoise(x * 0.35, y * 0.35, 120) * 0.15;
+            return [0.96 + luster * 0.04, 0.80 + luster, 0.15 + luster * 0.5];
+        }
+        if (inVein) {
+            // Quartz border around gold vein
+            const rim = procSmoothNoise(x * 0.1, y * 0.1, 91) * 0.08;
+            return [0.46 + rim, 0.40 + rim, 0.28 + rim];
+        }
+        const rockGrain = (procSmoothNoise(x * 0.08, y * 0.08, 88) - 0.5) * 0.05;
+        return [0.22 + rockGrain, 0.20 + rockGrain, 0.22 + rockGrain];
+    });
+}
+
+function procCreateGoldVeinEmission() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const vein = (procFractalNoise(x * 0.025, y * 0.025, 4, 83) - 0.5) * 2.0;
+        const goldNugget = procSmoothNoise(x * 0.15, y * 0.15, 105);
+        const inVein = Math.abs(vein) < 0.22;
+        const isNugget = (inVein && goldNugget > 0.42) || (!inVein && Math.abs(vein) < 0.32 && goldNugget > 0.70);
+
+        if (isNugget) {
+            return [0.55, 0.42, 0.06]; // Warm golden glint in torchlight
+        }
+        return [0, 0, 0];
+    });
+}
+
+function procCreateGemVeinTexture() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const crystalVein = (procFractalNoise((x * 1.2 - y * 0.8) * 0.025, (x * 0.5 + y) * 0.025, 4, 44) - 0.5) * 2.0;
+        const gemCluster = procSmoothNoise(x * 0.18, y * 0.18, 215);
+        const inVein = Math.abs(crystalVein) < 0.24;
+        const isGem = inVein && gemCluster > 0.56;
+
+        if (isGem) {
+            // Multi-faceted sparkling gemstones: Emeralds, Rubies, Sapphires, Amethysts!
+            const gemType = Math.floor(procHash(Math.floor(x / 24), Math.floor(y / 24), 77) * 4);
+            const facet = (procSmoothNoise(x * 0.4, y * 0.4, 301) - 0.5) * 0.25;
+            if (gemType === 0) {
+                // Brilliant Emerald Green
+                return [0.08 + facet * 0.5, 0.92 + facet, 0.32 + facet * 0.8];
+            } else if (gemType === 1) {
+                // Brilliant Ruby Red
+                return [0.96 + facet, 0.12 + facet * 0.5, 0.24 + facet * 0.8];
+            } else if (gemType === 2) {
+                // Brilliant Sapphire Blue
+                return [0.12 + facet * 0.5, 0.45 + facet * 0.8, 0.98 + facet];
+            } else {
+                // Brilliant Amethyst
+                return [0.88 + facet, 0.35 + facet * 0.5, 0.95 + facet];
+            }
+        }
+        if (inVein) {
+            const glint = procSmoothNoise(x * 0.2, y * 0.2, 12) * 0.12;
+            return [0.72 + glint, 0.78 + glint, 0.84 + glint];
+        }
+        const grain = (procSmoothNoise(x * 0.08, y * 0.08, 9) - 0.5) * 0.06;
+        return [0.38 + grain, 0.39 + grain, 0.42 + grain];
+    });
+}
+
+function procCreateGemVeinEmission() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const crystalVein = (procFractalNoise((x * 1.2 - y * 0.8) * 0.025, (x * 0.5 + y) * 0.025, 4, 44) - 0.5) * 2.0;
+        const gemCluster = procSmoothNoise(x * 0.18, y * 0.18, 215);
+        const inVein = Math.abs(crystalVein) < 0.24;
+        const isGem = inVein && gemCluster > 0.56;
+
+        if (isGem) {
+            const gemType = Math.floor(procHash(Math.floor(x / 24), Math.floor(y / 24), 77) * 4);
+            if (gemType === 0) return [0.04, 0.45, 0.15]; // Emerald luminescence
+            if (gemType === 1) return [0.48, 0.06, 0.12]; // Ruby luminescence
+            if (gemType === 2) return [0.06, 0.22, 0.50]; // Sapphire luminescence
+            return [0.42, 0.15, 0.48]; // Amethyst luminescence
+        }
+        return [0, 0, 0];
+    });
+}
+
+function procCreateGrassTexture() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        // High-frequency directional blade striations (blade angle ~ 75-80 deg)
+        const bladeAngle = x * 0.85 + y * 0.18;
+        const bladeWave = Math.sin(bladeAngle * 1.6 + procSmoothNoise(x * 0.10, y * 0.10, 61) * 6.0);
+        const fineBlade = (bladeWave * 0.5 + 0.5) * (procSmoothNoise(x * 0.35, y * 0.12, 62) * 0.4 + 0.6);
+
+        // Turf clumps & soil patches
+        const clumpNoise = procSmoothNoise(x * 0.04, y * 0.04, 63);
+        const soilPatch = procSmoothNoise(x * 0.015, y * 0.015, 64);
+        const cloverNoise = procSmoothNoise(x * 0.12, y * 0.12, 65);
+
+        // Color palette: Lush spring meadow green with golden blade tips and dark thatch roots
+        let r = 0.14 + fineBlade * 0.26 + clumpNoise * 0.08;
+        let g = 0.34 + fineBlade * 0.40 + clumpNoise * 0.12;
+        let b = 0.08 + fineBlade * 0.12 + clumpNoise * 0.04;
+
+        // Soil loam peeking through in thin turf patches
+        if (soilPatch < 0.24) {
+            const t = (0.24 - soilPatch) / 0.24;
+            r = r * (1 - t) + 0.36 * t;
+            g = g * (1 - t) + 0.26 * t;
+            b = b * (1 - t) + 0.16 * t;
+        }
+
+        // Occasional clover / micro-flora flecks
+        if (cloverNoise > 0.82) {
+            const c = (cloverNoise - 0.82) / 0.18;
+            r = r * (1 - c) + 0.42 * c;
+            g = g * (1 - c) + 0.72 * c;
+            b = b * (1 - c) + 0.26 * c;
+        }
+
+        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
+    }, true);
+}
+
+function procCreateGrassNormal() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const h = (u, v) => {
+            const bladeWave = Math.sin((u * 0.85 + v * 0.18) * 1.6 + procSmoothNoise(u * 0.10, v * 0.10, 61) * 6.0);
+            return bladeWave * 0.6 + procSmoothNoise(u * 0.04, v * 0.04, 63) * 0.4;
+        };
+        const h0 = h(x, y);
+        const hx = h(x + 1, y);
+        const hy = h(x, y + 1);
+
+        const dx = (hx - h0) * 2.2;
+        const dy = (hy - h0) * 2.2;
+        const nx = dx;
+        const ny = -dy;
+        const nz = 1.0;
+        const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        return [
+            Math.max(0, Math.min(1, nx / len * 0.5 + 0.5)),
+            Math.max(0, Math.min(1, ny / len * 0.5 + 0.5)),
+            Math.max(0, Math.min(1, nz / len * 0.5 + 0.5))
+        ];
+    });
+}
+
+function procCreateDirtTexture() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const soilGrain = (procSmoothNoise(x * 0.12, y * 0.12, 71) - 0.5) * 0.08;
+        const pebbleNoise = procSmoothNoise(x * 0.3, y * 0.3, 72);
+        const pebble = pebbleNoise > 0.78 ? (pebbleNoise - 0.78) * 0.8 : 0;
+
+        const r = 0.44 + soilGrain + pebble * 0.2;
+        const g = 0.34 + soilGrain * 0.8 + pebble * 0.2;
+        const b = 0.24 + soilGrain * 0.6 + pebble * 0.2;
+        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
+    });
+}
+
+function procCreateWaterTexture() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const wave1 = Math.sin(x * 0.08 + y * 0.04) * 0.06;
+        const wave2 = Math.cos(x * 0.04 - y * 0.08) * 0.06;
+        const ripple = (procSmoothNoise(x * 0.15, y * 0.15, 81) - 0.5) * 0.05;
+
+        const r = 0.14 + wave1 * 0.3;
+        const g = 0.44 + wave1 + wave2 + ripple;
+        const b = 0.74 + wave2 * 0.5 + ripple * 0.5;
+        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
+    });
+}
+
+function procCreateDeepWaterTexture() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const wave = Math.sin(x * 0.05 + y * 0.05) * 0.04;
+        const r = 0.06 + wave * 0.2;
+        const g = 0.20 + wave * 0.5;
+        const b = 0.48 + wave;
+        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
+    });
+}
+
+function procCreateTreeLeavesTexture() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        // Cluster grid (leaf bunches / puffs of canopy)
+        const clusterScale = 0.04;
+        const cx = x * clusterScale;
+        const cy = y * clusterScale;
+
+        // Voronoi-like clump center distance
+        const clumpNoise = procSmoothNoise(cx, cy, 91);
+        const clumpDist = Math.sin(cx * 3.14) * Math.sin(cy * 3.14);
+
+        // Overlapping leaf edges and silhouettes
+        const leafSerration = (procSmoothNoise(x * 0.22, y * 0.22, 92) - 0.5) * 0.24;
+        const microLeaves = (procSmoothNoise(x * 0.45, y * 0.45, 93) - 0.5) * 0.14;
+
+        // Density of foliage cluster: high inside clump, drops off into deep canopy shadow crevices
+        const puff = Math.max(0, Math.min(1, clumpNoise * 0.6 + clumpDist * 0.3 + 0.2 + leafSerration));
+
+        // Deep ancient arbor canopy palette:
+        let r, g, b;
+        if (puff < 0.35) {
+            // Deep canopy shadow void between leaf bunches
+            const t = puff / 0.35;
+            r = 0.03 * (1 - t) + 0.10 * t;
+            g = 0.09 * (1 - t) + 0.30 * t;
+            b = 0.04 * (1 - t) + 0.13 * t;
+        } else {
+            const t = (puff - 0.35) / 0.65;
+            r = 0.10 * (1 - t) + 0.28 * t + microLeaves * 0.3;
+            g = 0.30 * (1 - t) + 0.62 * t + microLeaves;
+            b = 0.13 * (1 - t) + 0.25 * t + microLeaves * 0.3;
+        }
+
+        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
+    }, true);
+}
+
+function procCreateTreeLeavesNormal() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const h = (u, v) => {
+            const cx = u * 0.04;
+            const cy = v * 0.04;
+            const puff = procSmoothNoise(cx, cy, 91) * 0.6 + (procSmoothNoise(u * 0.22, v * 0.22, 92) - 0.5) * 0.20;
+            return puff;
+        };
+        const h0 = h(x, y);
+        const hx = h(x + 1, y);
+        const hy = h(x, y + 1);
+
+        const dx = (hx - h0) * 3.5;
+        const dy = (hy - h0) * 3.5;
+        const nx = dx;
+        const ny = -dy;
+        const nz = 1.0;
+        const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        return [
+            Math.max(0, Math.min(1, nx / len * 0.5 + 0.5)),
+            Math.max(0, Math.min(1, ny / len * 0.5 + 0.5)),
+            Math.max(0, Math.min(1, nz / len * 0.5 + 0.5))
+        ];
+    });
+}
+
+function procCreateTreeBarkTexture() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const furrow = Math.sin(x * 0.30 + procSmoothNoise(x * 0.04, y * 0.15, 94) * 4.0) * 0.14;
+        const grain = (procSmoothNoise(x * 0.06, y * 0.30, 95) - 0.5) * 0.12;
+        const microGrain = (procSmoothNoise(x * 0.25, y * 0.50, 96) - 0.5) * 0.05;
+        const mossFleck = procSmoothNoise(x * 0.06, y * 0.06, 97);
+
+        let r = 0.32 + furrow + grain + microGrain;
+        let g = 0.22 + furrow * 0.8 + grain * 0.7 + microGrain * 0.7;
+        let b = 0.13 + furrow * 0.5 + grain * 0.5 + microGrain * 0.5;
+
+        // Organic pale moss nestled in deep furrow crevices
+        if (mossFleck > 0.66 && furrow < -0.02) {
+            const m = (mossFleck - 0.66) / 0.34;
+            r = r * (1 - m) + 0.22 * m;
+            g = g * (1 - m) + 0.40 * m;
+            b = b * (1 - m) + 0.16 * m;
+        }
+
+        return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
+    }, true);
+}
+
+function procCreateTreeBarkNormal() {
+    const size = 512;
+    return procCreateTexture(size, (x, y) => {
+        const h = (u, v) => {
+            const furrow = Math.sin(u * 0.30 + procSmoothNoise(u * 0.04, v * 0.15, 94) * 4.0);
+            const grain = procSmoothNoise(u * 0.06, v * 0.30, 95) * 0.3;
+            return furrow * 0.7 + grain;
+        };
+        const h0 = h(x, y);
+        const hx = h(x + 1, y);
+        const hy = h(x, y + 1);
+
+        const dx = (hx - h0) * 3.8;
+        const dy = (hy - h0) * 1.5;
+        const nx = dx;
+        const ny = -dy;
+        const nz = 1.0;
+        const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        return [
+            Math.max(0, Math.min(1, nx / len * 0.5 + 0.5)),
+            Math.max(0, Math.min(1, ny / len * 0.5 + 0.5)),
+            Math.max(0, Math.min(1, nz / len * 0.5 + 0.5))
+        ];
+    });
+}
+
+
 function procCreateOrganicNormal() {
     const size = 256;
     return procCreateTexture(size, (x, y) => {
@@ -619,11 +1778,13 @@ function procCreateFurNormal() {
     });
 }
 
+
 function createChamferedWallGeometry(cellSize, wallHeight, chamfer = 0.40) {
     const half = cellSize / 2;
     const c = chamfer;
     const shape = new THREE.Shape();
     // 8-sided polygon with 45-degree chamfers on the 4 vertical corners
+    // Creates a clear 0.57m diagonal aperture when two wall corners meet diagonally
     shape.moveTo(-half + c, -half);
     shape.lineTo(half - c, -half);
     shape.lineTo(half, -half + c);
@@ -754,10 +1915,23 @@ class Dungeon3D {
         this.audio = null;
         this.lastPlayerStatuses = new Set();
 
+        this.realm = 'angband';
+
         // Zero-allocation scratch math objects for fast high-fps grid updates
         this._scratchWallColor = new THREE.Color();
+        this._scratchPermWallColor = new THREE.Color();
         this._scratchFloorColor = new THREE.Color();
         this._scratchCeilingColor = new THREE.Color();
+        this._scratchGrassColor = new THREE.Color();
+        this._scratchDirtColor = new THREE.Color();
+        this._scratchWaterColor = new THREE.Color();
+        this._scratchDeepWaterColor = new THREE.Color();
+        this._scratchMountainColor = new THREE.Color();
+        this._scratchSwampColor = new THREE.Color();
+        this._scratchTreeColor = new THREE.Color();
+        this._scratchTreeTrunkColor = new THREE.Color();
+        this._scratchTrunkBaseColor = new THREE.Color();
+        this._sunlightFloorColor = new THREE.Color(1.30, 1.25, 0.90);
         this._tintDark = new THREE.Color(0.24, 0.26, 0.32);
         this._tintMemLit = new THREE.Color(0.55, 0.58, 0.65);
         this._tintMemDark = new THREE.Color(0.22, 0.24, 0.30);
@@ -851,8 +2025,54 @@ class Dungeon3D {
         });
     }
 
-    getBiomeProfile(depth, levelSeed = 0) {
+    getBiomeProfile(depth, levelSeed = 0, realm = 'angband') {
+        const r = (realm || this.realm || 'angband').toLowerCase();
+        const useVar = (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.biomeVariation) && (levelSeed !== 0);
+        const sub = useVar ? (((levelSeed ^ ((depth * 2654435761) >>> 0)) >>> 0) % 4) : 0;
+
         if (depth <= 0) {
+            if (r === 'hengband') {
+                const names = ['Eastern Overworld (Mount Fuji Foothills)', 'Eastern Overworld (Bamboo Forest Glade)', 'Eastern Overworld (Jingu Shrine Valley)', 'Eastern Overworld (Ancient Pine Sanctuary)'];
+                return {
+                    name: names[sub],
+                    bgColor: 0x141e33,
+                    ambientColor: 0x948aa3,
+                    ambientEnergy: 0.85,
+                    sunLight: true,
+                    sunEnergy: 1.05,
+                    fogColor: 0x141e33,
+                    fogDensity: 0.0035,
+                    exposure: 1.08,
+                    torchColor: 0xffe099,
+                    torchEnergy: 2.2,
+                    wallColor: new THREE.Color(0.85, 0.85, 0.88),
+                    floorColor: new THREE.Color(0.80, 0.78, 0.76),
+                    ceilingColor: new THREE.Color(0.70, 0.70, 0.75),
+                    floorRoughness: 0.82,
+                    wallRoughness: 0.80
+                };
+            }
+            if (r === 'frogcomposband') {
+                const names = ['Wilderness Overworld (Verdant Meadow)', 'Wilderness Overworld (Whispering Woods)', 'Wilderness Overworld (Highland Moors)', 'Wilderness Overworld (Sunlit Dale)'];
+                return {
+                    name: names[sub],
+                    bgColor: 0x0f1933,
+                    ambientColor: 0x8f9eb8,
+                    ambientEnergy: 0.88,
+                    sunLight: true,
+                    sunEnergy: 1.10,
+                    fogColor: 0x0f1933,
+                    fogDensity: 0.003,
+                    exposure: 1.06,
+                    torchColor: 0xffe0a6,
+                    torchEnergy: 2.2,
+                    wallColor: new THREE.Color(0.88, 0.86, 0.82),
+                    floorColor: new THREE.Color(0.82, 0.80, 0.78),
+                    ceilingColor: new THREE.Color(0.70, 0.70, 0.75),
+                    floorRoughness: 0.84,
+                    wallRoughness: 0.82
+                };
+            }
             return {
                 name: 'Town & Overworld',
                 bgColor: 0x141e38,
@@ -873,8 +2093,104 @@ class Dungeon3D {
             };
         }
 
-        const useVar = (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.biomeVariation) && (levelSeed !== 0);
-        const sub = useVar ? (Math.abs(levelSeed) % 4) : 0;
+        // Sil-Q First Age Beleriand - The Iron Pits of Angband beneath Thangorodrim
+        if (r === 'silq') {
+            if (depth <= 5) {
+                // 50ft – 250ft: Iron Pits (Gates of Slag & Ash Galleries)
+                const names = ['Iron Pits (Gates of Slag)', 'Iron Pits (Ash-Stained Delvings)', 'Iron Pits (Smoky Galleries)', 'Iron Pits (Orc Barracks)'];
+                const wcs = [[0.55, 0.54, 0.56], [0.50, 0.50, 0.54], [0.58, 0.52, 0.50], [0.52, 0.52, 0.55]];
+                const fcs = [[0.46, 0.44, 0.48], [0.42, 0.42, 0.46], [0.48, 0.44, 0.42], [0.44, 0.44, 0.46]];
+                const ccs = [[0.38, 0.36, 0.40], [0.34, 0.34, 0.38], [0.40, 0.36, 0.34], [0.36, 0.36, 0.38]];
+                return {
+                    name: names[sub],
+                    bgColor: 0x030304,
+                    ambientColor: 0x33333d,
+                    ambientEnergy: 0.25,
+                    sunLight: false,
+                    sunEnergy: 0.0,
+                    fogColor: 0x030304,
+                    fogDensity: 0.016,
+                    exposure: 1.15,
+                    torchColor: 0xf5dcb0,
+                    torchEnergy: 2.4,
+                    wallColor: new THREE.Color(...wcs[sub]),
+                    floorColor: new THREE.Color(...fcs[sub]),
+                    ceilingColor: new THREE.Color(...ccs[sub]),
+                    floorRoughness: 0.88,
+                    wallRoughness: 0.85
+                };
+            }
+            if (depth <= 10) {
+                // 300ft – 500ft: Morgoth's Armouries (Furnace Deeps & Dark Foundries)
+                const names = ["Morgoth's Armouries (Furnace Deep)", "Morgoth's Armouries (Dark Foundries)", "Morgoth's Armouries (Soot Vaults)", "Morgoth's Armouries (Iron Cisterns)"];
+                const wcs = [[0.60, 0.50, 0.46], [0.55, 0.48, 0.44], [0.62, 0.52, 0.45], [0.54, 0.50, 0.48]];
+                const fcs = [[0.50, 0.42, 0.38], [0.46, 0.40, 0.36], [0.52, 0.44, 0.38], [0.45, 0.42, 0.40]];
+                const ccs = [[0.40, 0.34, 0.30], [0.36, 0.32, 0.28], [0.42, 0.35, 0.30], [0.38, 0.34, 0.32]];
+                return {
+                    name: names[sub],
+                    bgColor: 0x040202,
+                    ambientColor: 0x523326,
+                    ambientEnergy: 0.28,
+                    sunLight: false,
+                    sunEnergy: 0.0,
+                    fogColor: 0x040202,
+                    fogDensity: 0.018,
+                    exposure: 1.18,
+                    torchColor: 0xffcc8c,
+                    torchEnergy: 2.6,
+                    wallColor: new THREE.Color(...wcs[sub]),
+                    floorColor: new THREE.Color(...fcs[sub]),
+                    ceilingColor: new THREE.Color(...ccs[sub]),
+                    floorRoughness: 0.85,
+                    wallRoughness: 0.82
+                };
+            }
+            if (depth <= 15) {
+                // 550ft – 750ft: Deep Torment (Barrows of Thangorodrim & Balrog Halls)
+                const names = ["Deep Torment (Barrows of Thangorodrim)", "Deep Torment (Balrog Halls)", "Deep Torment (Dragon Kennels)", "Deep Torment (Dungeon of Shackles)"];
+                const wcs = [[0.46, 0.44, 0.50], [0.42, 0.40, 0.46], [0.48, 0.42, 0.48], [0.40, 0.42, 0.45]];
+                const fcs = [[0.38, 0.36, 0.42], [0.35, 0.34, 0.40], [0.40, 0.35, 0.40], [0.34, 0.36, 0.38]];
+                const ccs = [[0.30, 0.28, 0.34], [0.28, 0.26, 0.32], [0.32, 0.28, 0.32], [0.28, 0.28, 0.30]];
+                return {
+                    name: names[sub],
+                    bgColor: 0x030204,
+                    ambientColor: 0x382e47,
+                    ambientEnergy: 0.24,
+                    sunLight: false,
+                    sunEnergy: 0.0,
+                    fogColor: 0x030204,
+                    fogDensity: 0.018,
+                    exposure: 1.16,
+                    torchColor: 0xebd6b8,
+                    torchEnergy: 2.4,
+                    wallColor: new THREE.Color(...wcs[sub]),
+                    floorColor: new THREE.Color(...fcs[sub]),
+                    ceilingColor: new THREE.Color(...ccs[sub]),
+                    floorRoughness: 0.80,
+                    wallRoughness: 0.82
+                };
+            }
+            // 800ft – 1000ft: Citadel of the Iron Crown (Morgoth's Throne Room at 1000ft / Level 20)
+            const silqEndNames = ["Citadel of the Iron Crown (Throne of Morgoth)", "Citadel of the Iron Crown (The Iron Pit)", "Citadel of the Iron Crown (Abyss of Thangorodrim)", "Citadel of the Iron Crown (Vault of the Silmarils)"];
+            return {
+                name: silqEndNames[sub],
+                bgColor: 0x040205,
+                ambientColor: 0x3d1f47,
+                ambientEnergy: 0.26,
+                sunLight: false,
+                sunEnergy: 0.0,
+                fogColor: 0x040205,
+                fogDensity: 0.018,
+                exposure: 1.20,
+                torchColor: 0xebe0f5,
+                torchEnergy: 2.4,
+                wallColor: new THREE.Color(0.34, 0.34, 0.38), // Pitch-black volcanic basalt and obsidian of Thangorodrim
+                floorColor: new THREE.Color(0.28, 0.26, 0.30),
+                ceilingColor: new THREE.Color(0.22, 0.21, 0.24),
+                floorRoughness: 0.35, // Smooth polished obsidian
+                wallRoughness: 0.70
+            };
+        }
 
         // Progressive 4-Level Depth Chapters: Every ~200 ft brings a distinct, palpable visual transformation
         if (depth <= 4) {
@@ -1131,6 +2447,8 @@ class Dungeon3D {
 
     initTextures() {
         const maxAniso = this.renderer.capabilities.getMaxAnisotropy();
+        this.contextualTextureCache = new Map();
+        this._currentThemeId = null;
 
         // 1. Instant Procedural Textures (Exact Godot DungeonWorld Parity fallback)
         this.wallTex = procCreateStoneWallTexture();
@@ -1143,6 +2461,21 @@ class Dungeon3D {
         this.magmaTex = procCreateMagmaTexture();
         this.magmaEmission = procCreateMagmaEmission();
         this.quartzTex = procCreateQuartzTexture();
+        this.goldVeinTex = procCreateGoldVeinTexture();
+        this.goldVeinEmission = procCreateGoldVeinEmission();
+        this.gemVeinTex = procCreateGemVeinTexture();
+        this.gemVeinEmission = procCreateGemVeinEmission();
+        this.grassTex = procCreateGrassTexture();
+        this.grassNormal = procCreateGrassNormal();
+        this.dirtTex = procCreateDirtTexture();
+        this.waterTex = procCreateWaterTexture();
+        this.deepWaterTex = procCreateDeepWaterTexture();
+        this.treeLeavesTex = procCreateTreeLeavesTexture();
+        this.treeLeavesNormal = procCreateTreeLeavesNormal();
+        this.treeBarkTex = procCreateTreeBarkTexture();
+        this.treeBarkNormal = procCreateTreeBarkNormal();
+        this.permWallTex = procCreatePermWallTexture();
+        this.permWallNormal = procCreatePermWallNormal();
         this.shadowTex = procCreateShadowTexture();
 
         // Procedural Creature Normal Maps (eliminates flat untextured models)
@@ -1223,6 +2556,106 @@ class Dungeon3D {
             vertexColors: true
         });
 
+        // Magma Vein with Gold Treasure (feat 19: MAGMA_K) - Rich metallic gold nuggets in dark basalt
+        this.goldVeinMaterial = new THREE.MeshStandardMaterial({
+            map: this.goldVeinTex,
+            emissiveMap: this.goldVeinEmission,
+            emissive: new THREE.Color(0xffaa22),
+            emissiveIntensity: 1.6,
+            roughness: 0.32,
+            metalness: 0.88,
+            vertexColors: true
+        });
+
+        // Quartz Vein with Gemstones (feat 20: QUARTZ_K) - Faceted sparkling emeralds, rubies, sapphires
+        this.gemVeinMaterial = new THREE.MeshStandardMaterial({
+            map: this.gemVeinTex,
+            emissiveMap: this.gemVeinEmission,
+            emissive: new THREE.Color(0x33eebb),
+            emissiveIntensity: 1.8,
+            roughness: 0.22,
+            metalness: 0.18,
+            vertexColors: true
+        });
+
+        // Verdant Outdoor Grass / Meadow (feat 26: GRASS)
+        this.grassMaterial = new THREE.MeshStandardMaterial({
+            map: this.grassTex,
+            normalMap: this.grassNormal,
+            normalScale: new THREE.Vector2(1.20, 1.20),
+            roughness: 0.88,
+            metalness: 0.0,
+            side: THREE.DoubleSide,
+            vertexColors: true
+        });
+
+        // Packed Dirt / Earthen Road (feat 27: DIRT)
+        this.dirtMaterial = new THREE.MeshStandardMaterial({
+            map: this.dirtTex,
+            roughness: 0.88,
+            metalness: 0.0,
+            side: THREE.DoubleSide,
+            vertexColors: true
+        });
+
+        // Shallow Sparkling Water (feat 28: SHALLOW_WATER)
+        this.waterMaterial = new THREE.MeshStandardMaterial({
+            map: this.waterTex,
+            roughness: 0.12,
+            metalness: 0.15,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.86,
+            vertexColors: true
+        });
+
+        // Deep Oceanic Water (feat 29: DEEP_WATER)
+        this.deepWaterMaterial = new THREE.MeshStandardMaterial({
+            map: this.deepWaterTex,
+            roughness: 0.16,
+            metalness: 0.18,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.94,
+            vertexColors: true
+        });
+
+        // Alpine Mountain Peaks (feat 30: MOUNTAIN)
+        this.mountainMaterial = new THREE.MeshStandardMaterial({
+            map: this.wallTex,
+            normalMap: this.wallNormal,
+            roughness: 0.92,
+            metalness: 0.04,
+            vertexColors: true
+        });
+
+        // Swamp & Wetland Marsh (feat 31: SWAMP)
+        this.swampMaterial = new THREE.MeshStandardMaterial({
+            map: this.dirtTex,
+            roughness: 0.40,
+            metalness: 0.08,
+            side: THREE.DoubleSide,
+            vertexColors: true
+        });
+
+        // Forest Trees (feat 25: TREE) - Foliage canopy with organic bark trunk
+        this.treeMaterial = new THREE.MeshStandardMaterial({
+            map: this.treeLeavesTex,
+            normalMap: this.treeLeavesNormal,
+            normalScale: new THREE.Vector2(1.35, 1.35),
+            roughness: 0.78,
+            metalness: 0.02,
+            vertexColors: true
+        });
+        this.treeTrunkMaterial = new THREE.MeshStandardMaterial({
+            map: this.treeBarkTex,
+            normalMap: this.treeBarkNormal,
+            normalScale: new THREE.Vector2(1.40, 1.40),
+            roughness: 0.88,
+            metalness: 0.02,
+            vertexColors: true
+        });
+
         // In-View Molten Lava
         this.lavaMaterial = new THREE.MeshStandardMaterial({
             color: 0xff3300,
@@ -1249,9 +2682,60 @@ class Dungeon3D {
             vertexColors: true
         });
 
-        // 2. Load Local Texture Assets (1:1 with Godot LoadTextureOrFallback in DungeonWorld.cs:1192-1209)
+        // Cyclopean Permanent Bedrock / Fortress Ramparts (feat 22) - default white so vertex colors illuminate properly
+        this.permWallMaterial = new THREE.MeshStandardMaterial({
+            map: this.permWallTex,
+            normalMap: this.permWallNormal,
+            normalScale: new THREE.Vector2(1.35, 1.35),
+            roughness: 0.90,
+            metalness: 0.05,
+            vertexColors: true
+        });
+
+        // Separate town PBR textures from subterranean dungeon procedural textures
+        this.townWallTex = null;
+        this.townWallNormal = null;
+        this.townWallRoughness = null;
+        this.townPermWallTex = null;
+        this.townPermWallNormal = null;
+        this.townPermWallRoughness = null;
+        this.townFloorTex = null;
+        this.townFloorNormal = null;
+        this.townFloorRoughness = null;
+
         const loader = new THREE.TextureLoader();
-        const loadPBR = (url, targetMat, prop, isSRGB, repX = 1, repY = 1) => {
+        const loadTownPBR = (url, propKey, isSRGB, repX = 1, repY = 1) => {
+            loader.load(url, (tex) => {
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(repX, repY);
+                if (isSRGB) tex.encoding = THREE.sRGBEncoding;
+                tex.anisotropy = maxAniso;
+                this[propKey] = tex;
+                if (this.lastDepth === 0 || this.lastDepth === null || this.lastDepth === undefined) {
+                    this._currentTexturesAreOutdoors = null;
+                    this.applyEnvironmentTextures(true);
+                }
+            }, undefined, () => {});
+        };
+
+        // Town Wall Textures (tan masonry brick for town buildings)
+        loadTownPBR('/assets/textures/T_Brick_BaseColor.png', 'townWallTex', true, 2, 3);
+        loadTownPBR('/assets/textures/T_Brick_Normal.png', 'townWallNormal', false, 2, 3);
+        loadTownPBR('/assets/textures/T_Brick_Roughness.png', 'townWallRoughness', false, 2, 3);
+
+        // Permanent Bedrock & Fortress Ramparts: Heavy Rock Trim with cyclopean stone joints
+        loadTownPBR('/assets/textures/T_RockTrim_BaseColor.png', 'townPermWallTex', true, 2, 3);
+        loadTownPBR('/assets/textures/T_RockTrim_Normal.png', 'townPermWallNormal', false, 2, 3);
+        loadTownPBR('/assets/textures/T_RockTrim_Roughness.png', 'townPermWallRoughness', false, 2, 3);
+
+        // Town Floor Textures: Cobblestone street pavers
+        loadTownPBR('/assets/textures/T_UnevenBrick_BaseColor.png', 'townFloorTex', true, 2, 2);
+        loadTownPBR('/assets/textures/T_UnevenBrick_Normal.png', 'townFloorNormal', false, 2, 2);
+        loadTownPBR('/assets/textures/T_UnevenBrick_Roughness.png', 'townFloorRoughness', false, 2, 2);
+
+        // Ceiling, Door & Store Textures
+        const loadMatPBR = (url, targetMat, prop, isSRGB, repX = 1, repY = 1) => {
             loader.load(url, (tex) => {
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
@@ -1260,46 +2744,123 @@ class Dungeon3D {
                 tex.anisotropy = maxAniso;
                 targetMat[prop] = tex;
                 targetMat.needsUpdate = true;
-            }, undefined, () => {
-                // Procedural texture remains active gracefully if asset unavailable
-            });
+            }, undefined, () => {});
+        };
+        loadMatPBR('/assets/textures/T_RockTrim_BaseColor.png', this.ceilingMaterial, 'map', true, 2, 2);
+        loadMatPBR('/assets/textures/T_RockTrim_Normal.png', this.ceilingMaterial, 'normalMap', false, 2, 2);
+        loadMatPBR('/assets/textures/T_WoodTrim_BaseColor.png', this.doorMaterial, 'map', true, 1, 1);
+        loadMatPBR('/assets/textures/T_WoodTrim_Normal.png', this.doorMaterial, 'normalMap', false, 1, 1);
+        loadMatPBR('/assets/textures/T_WoodTrim_Roughness.png', this.doorMaterial, 'roughnessMap', false, 1, 1);
+        loadMatPBR('/assets/textures/T_Plaster_BaseColor.png', this.storeMaterial, 'map', true, 1, 1);
+        loadMatPBR('/assets/textures/T_Plaster_Normal.png', this.storeMaterial, 'normalMap', false, 1, 1);
+        loadMatPBR('/assets/textures/T_Plaster_ORM.png', this.storeMaterial, 'roughnessMap', false, 1, 1);
+    }
+
+    getContextualTextureSet(theme, outdoors) {
+        if (!this.contextualTextureCache) this.contextualTextureCache = new Map();
+
+        // If outdoors and town PBR textures are loaded and applicable:
+        if (outdoors && theme.pbrWall && this.townWallTex && this.townFloorTex) {
+            return {
+                wallTex: this.townWallTex,
+                wallNormal: this.townWallNormal,
+                wallRoughness: this.townWallRoughness,
+                floorTex: this.townFloorTex,
+                floorNormal: this.townFloorNormal,
+                floorRoughness: this.townFloorRoughness,
+                permWallTex: this.townPermWallTex || this.permWallTex,
+                permWallNormal: this.townPermWallNormal || this.permWallNormal,
+                permWallRoughness: this.townPermWallRoughness || null,
+                ceilingTex: this.ceilingTex,
+                ceilingNormal: null
+            };
+        }
+
+        const cacheKey = theme.id;
+        if (this.contextualTextureCache.has(cacheKey)) {
+            return this.contextualTextureCache.get(cacheKey);
+        }
+
+        const wallTex = procCreateContextualWallTexture(theme, 512);
+        const wallNormal = procCreateContextualWallNormal(theme, 512);
+        const wallRoughness = procCreateContextualWallRoughness(theme, 512);
+
+        const floorTex = procCreateContextualFloorTexture(theme, 512);
+        const floorNormal = procCreateContextualFloorNormal(theme, 512);
+        const floorRoughness = procCreateContextualFloorRoughness(theme, 512);
+
+        const permWallTex = procCreateContextualPermWallTexture(theme, 512);
+        const permWallNormal = procCreateContextualPermWallNormal(theme, 512);
+
+        const ceilingTex = procCreateContextualCeilingTexture(theme, 512);
+        const ceilingNormal = procCreateContextualCeilingNormal(theme, 512);
+
+        const set = {
+            wallTex,
+            wallNormal,
+            wallRoughness,
+            floorTex,
+            floorNormal,
+            floorRoughness,
+            permWallTex,
+            permWallNormal,
+            permWallRoughness: null,
+            ceilingTex,
+            ceilingNormal
         };
 
-        // Wall Textures: cell is 1.4m wide x 2.4m tall -> repX=2, repY=3 gives square, natural-sized masonry blocks
-        loadPBR('/assets/textures/T_Brick_BaseColor.png', this.wallMaterial, 'map', true, 2, 3);
-        loadPBR('/assets/textures/T_Brick_Normal.png', this.wallMaterial, 'normalMap', false, 2, 3);
-        loadPBR('/assets/textures/T_Brick_Roughness.png', this.wallMaterial, 'roughnessMap', false, 2, 3);
+        this.contextualTextureCache.set(cacheKey, set);
+        return set;
+    }
 
-        // Floor Textures: cell is 1.4m x 1.4m -> repX=2, repY=2 gives authentic 0.7m flagstone pavers
-        loadPBR('/assets/textures/T_UnevenBrick_BaseColor.png', this.floorMaterial, 'map', true, 2, 2);
-        loadPBR('/assets/textures/T_UnevenBrick_Normal.png', this.floorMaterial, 'normalMap', false, 2, 2);
-        loadPBR('/assets/textures/T_UnevenBrick_Roughness.png', this.floorMaterial, 'roughnessMap', false, 2, 2);
+    applyEnvironmentTextures(outdoors, biome, realm = 'angband', depth = 0, levelSeed = 0) {
+        const theme = resolveContextualTheme(realm, depth, levelSeed);
+        if (this._currentThemeId === theme.id && this._currentTexturesAreOutdoors === outdoors) return;
+        this._currentThemeId = theme.id;
+        this._currentTexturesAreOutdoors = outdoors;
 
-        // Ceiling Textures: 0.7m ceiling rock blocks
-        loadPBR('/assets/textures/T_RockTrim_BaseColor.png', this.ceilingMaterial, 'map', true, 2, 2);
-        loadPBR('/assets/textures/T_RockTrim_Normal.png', this.ceilingMaterial, 'normalMap', false, 2, 2);
+        const texSet = this.getContextualTextureSet(theme, outdoors);
 
-        // Door Textures
-        loadPBR('/assets/textures/T_WoodTrim_BaseColor.png', this.doorMaterial, 'map', true, 1, 1);
-        loadPBR('/assets/textures/T_WoodTrim_Normal.png', this.doorMaterial, 'normalMap', false, 1, 1);
-        loadPBR('/assets/textures/T_WoodTrim_Roughness.png', this.doorMaterial, 'roughnessMap', false, 1, 1);
+        this.wallMaterial.map = texSet.wallTex;
+        this.wallMaterial.normalMap = texSet.wallNormal;
+        this.wallMaterial.roughnessMap = texSet.wallRoughness || null;
+        this.wallMaterial.roughness = theme.wallRoughness || 0.82;
+        this.wallMaterial.needsUpdate = true;
 
-        // Store Textures
-        loadPBR('/assets/textures/T_Plaster_BaseColor.png', this.storeMaterial, 'map', true, 1, 1);
-        loadPBR('/assets/textures/T_Plaster_Normal.png', this.storeMaterial, 'normalMap', false, 1, 1);
-        loadPBR('/assets/textures/T_Plaster_ORM.png', this.storeMaterial, 'roughnessMap', false, 1, 1);
+        this.floorMaterial.map = texSet.floorTex;
+        this.floorMaterial.normalMap = texSet.floorNormal;
+        this.floorMaterial.roughnessMap = texSet.floorRoughness || null;
+        this.floorMaterial.roughness = theme.floorRoughness || 0.74;
+        this.floorMaterial.needsUpdate = true;
 
-        // Stairs Textures
-        loadPBR('/assets/textures/T_Brick_BaseColor.png', this.stairsMaterial, 'map', true, 2, 3);
-        loadPBR('/assets/textures/T_Brick_Normal.png', this.stairsMaterial, 'normalMap', false, 2, 3);
-        loadPBR('/assets/textures/T_Brick_Roughness.png', this.stairsMaterial, 'roughnessMap', false, 2, 3);
+        this.permWallMaterial.map = texSet.permWallTex;
+        this.permWallMaterial.normalMap = texSet.permWallNormal;
+        this.permWallMaterial.roughnessMap = texSet.permWallRoughness || null;
+        this.permWallMaterial.needsUpdate = true;
+
+        this.ceilingMaterial.map = texSet.ceilingTex;
+        if (texSet.ceilingNormal) {
+            this.ceilingMaterial.normalMap = texSet.ceilingNormal;
+        }
+        this.ceilingMaterial.needsUpdate = true;
+
+        this.stairsMaterial.map = texSet.wallTex;
+        this.stairsMaterial.normalMap = texSet.wallNormal;
+        this.stairsMaterial.roughnessMap = texSet.wallRoughness || null;
+        this.stairsMaterial.needsUpdate = true;
+
+        if (this.mountainMaterial) {
+            this.mountainMaterial.map = texSet.permWallTex;
+            this.mountainMaterial.normalMap = texSet.permWallNormal;
+            this.mountainMaterial.needsUpdate = true;
+        }
     }
 
     initMeshes() {
         this.maxInstances = 8192;
         // 45-degree chamfered geometry creates a visible 0.57m aperture between diagonal blocks
-        const wallGeo = createChamferedWallGeometry(this.cellSize, this.wallHeight, 0.40);
-        applyWallVertexAO(wallGeo, this.wallHeight);
+        const wallGeo = createChamferedWallGeometry(this.cellSize, this.wallHeight + 0.10, 0.40);
+        applyWallVertexAO(wallGeo, this.wallHeight + 0.10);
 
         // Subdivided floor with baked edge contact ambient occlusion
         const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize, 2, 2);
@@ -1423,15 +2984,15 @@ class Dungeon3D {
         // 5. Authentic 3D Stepped Staircases (Matches Godot DungeonWorld.cs:1708-1735)
         const buildStairsBoxes = (down) => {
             const boxes = [
-                { pos: [-0.85, 0.40, 0], size: [0.30, 0.80, 2.0] }, // Left curb
-                { pos: [0.85, 0.40, 0], size: [0.30, 0.80, 2.0] }   // Right curb
+                { pos: [-0.90, 0.20, 0], size: [0.20, 0.45, 2.0] }, // Left low stone stringer
+                { pos: [0.90, 0.20, 0], size: [0.20, 0.45, 2.0] }   // Right low stone stringer
             ];
             const stepCount = 5;
-            const stepWidth = 1.40;
+            const stepWidth = 1.60;
             const stepDepth = 2.0 / stepCount;
             for (let i = 0; i < stepCount; i++) {
                 const z = -1.0 + stepDepth * (i + 0.5);
-                const stepHeight = down ? (0.50 - i * 0.10) : (0.10 + i * 0.10);
+                const stepHeight = down ? (0.45 - i * 0.08) : (0.10 + i * 0.08);
                 const yCenter = stepHeight / 2.0;
                 boxes.push({ pos: [0, yCenter, z], size: [stepWidth, stepHeight, stepDepth] });
             }
@@ -1458,9 +3019,33 @@ class Dungeon3D {
             { pos: [-0.10, 0.85, 0.08], size: [0.70, 0.50, 0.65], rotY: 0.80, rotX: 0.22 }
         ]);
 
+        // 6b. Discovered Floor Traps (feat 1 with glyph '^'): Metallic trigger plate with crossbar runes
+        const trapGeo = createMergedBoxGeometry([
+            { pos: [0, 0.02, 0], size: [1.10, 0.04, 1.10] },         // Base trigger plate
+            { pos: [0, 0.05, 0], size: [0.70, 0.03, 0.14] },         // Longitudinal raised rune/crossbar
+            { pos: [0, 0.05, 0], size: [0.14, 0.03, 0.70] },         // Transverse raised rune/crossbar
+            { pos: [-0.40, 0.05, -0.40], size: [0.08, 0.03, 0.08] },   // Corner rivets
+            { pos: [0.40, 0.05, -0.40], size: [0.08, 0.03, 0.08] },
+            { pos: [-0.40, 0.05, 0.40], size: [0.08, 0.03, 0.08] },
+            { pos: [0.40, 0.05, 0.40], size: [0.08, 0.03, 0.08] }
+        ]);
+        this.trapMaterial = new THREE.MeshStandardMaterial({
+            roughness: 0.40,
+            metalness: 0.70,
+            vertexColors: true
+        });
+        this.trapMesh = new THREE.InstancedMesh(trapGeo, this.trapMaterial, 128);
+        this.trapMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.trapMesh);
+
         this.wallMesh = new THREE.InstancedMesh(wallGeo, this.wallMaterial, this.maxInstances);
         this.wallMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.wallMesh);
+
+        // Cyclopean Permanent Bedrock & Outer Fortress Ramparts (feat 22)
+        this.permWallMesh = new THREE.InstancedMesh(wallGeo, this.permWallMaterial, this.maxInstances);
+        this.permWallMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.permWallMesh);
 
         this.floorMesh = new THREE.InstancedMesh(floorGeo, this.floorMaterial, this.maxInstances);
         this.floorMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -1509,6 +3094,8 @@ class Dungeon3D {
             this.shopMeshes.push(mesh);
         }
 
+
+
         this.magmaMesh = new THREE.InstancedMesh(wallGeo, this.magmaMaterial, 256);
         this.magmaMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.magmaMesh);
@@ -1516,6 +3103,78 @@ class Dungeon3D {
         this.quartzMesh = new THREE.InstancedMesh(wallGeo, this.quartzMaterial, 256);
         this.quartzMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.quartzMesh);
+
+        // Magma Vein with Gold Treasure (feat 19: MAGMA_K) - Rich metallic gold nuggets in dark basalt
+        this.goldVeinMesh = new THREE.InstancedMesh(wallGeo, this.goldVeinMaterial, 512);
+        this.goldVeinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.goldVeinMesh);
+
+        // Quartz Vein with Gemstones (feat 20: QUARTZ_K) - Sparkling faceted emeralds, rubies, sapphires
+        this.gemVeinMesh = new THREE.InstancedMesh(wallGeo, this.gemVeinMaterial, 512);
+        this.gemVeinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.gemVeinMesh);
+
+        // Forest Trees (feat 25: TREE) - Stylized 3D Bark Trunk + Tiered Foliage Canopy
+        const treeTrunkGeo = createMergedBoxGeometry([
+            { pos: [0, 0.55, 0], size: [0.36, 1.10, 0.36] }
+        ]);
+        const treeLeavesGeo = createMergedBoxGeometry([
+            { pos: [0, 1.35, 0], size: [1.60, 0.70, 1.60] },
+            { pos: [0, 1.95, 0], size: [1.25, 0.65, 1.25], rotY: 0.35 },
+            { pos: [0, 2.50, 0], size: [0.80, 0.60, 0.80], rotY: -0.25 }
+        ]);
+        this.treeTrunkMesh = new THREE.InstancedMesh(treeTrunkGeo, this.treeTrunkMaterial, this.maxInstances);
+        this.treeTrunkMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.treeTrunkMesh);
+
+        this.treeLeavesMesh = new THREE.InstancedMesh(treeLeavesGeo, this.treeMaterial, this.maxInstances);
+        this.treeLeavesMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.treeLeavesMesh);
+
+        // Dense Brush / Thicket / Flowers (feat 42: BUSH / BRAKE) - Low organic rounded foliage cluster
+        const bushGeo = createMergedBoxGeometry([
+            { pos: [0, 0.22, 0], size: [0.92, 0.44, 0.92] },
+            { pos: [0, 0.38, 0], size: [0.72, 0.30, 0.72], rotY: 0.40 },
+            { pos: [0.12, 0.20, -0.08], size: [0.45, 0.38, 0.45], rotY: -0.25 }
+        ]);
+        this.bushMesh = new THREE.InstancedMesh(bushGeo, this.treeMaterial, this.maxInstances);
+        this.bushMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.bushMesh);
+
+        // Verdant Meadow Grass (feat 26: GRASS)
+        this.grassMesh = new THREE.InstancedMesh(floorGeo, this.grassMaterial, this.maxInstances);
+        this.grassMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.grassMesh);
+
+        // Packed Dirt Road / Trail (feat 27: DIRT)
+        this.dirtMesh = new THREE.InstancedMesh(floorGeo, this.dirtMaterial, this.maxInstances);
+        this.dirtMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.dirtMesh);
+
+        // Shallow Sparkling Water (feat 28: SHALLOW_WATER)
+        this.waterMesh = new THREE.InstancedMesh(floorGeo, this.waterMaterial, this.maxInstances);
+        this.waterMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.waterMesh);
+
+        // Deep Oceanic Water (feat 29: DEEP_WATER)
+        this.deepWaterMesh = new THREE.InstancedMesh(floorGeo, this.deepWaterMaterial, this.maxInstances);
+        this.deepWaterMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.deepWaterMesh);
+
+        // Alpine Mountain Crags (feat 30: MOUNTAIN)
+        const mountainGeo = createMergedBoxGeometry([
+            { pos: [0, 1.5, 0], size: [2.0, 3.0, 2.0] },
+            { pos: [0, 3.5, 0], size: [1.4, 1.3, 1.4], rotY: 0.4 },
+            { pos: [0, 4.3, 0], size: [0.7, 0.8, 0.7], rotY: -0.3 }
+        ]);
+        this.mountainMesh = new THREE.InstancedMesh(mountainGeo, this.mountainMaterial, this.maxInstances);
+        this.mountainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.mountainMesh);
+
+        // Swamp & Wetland Marsh (feat 31: SWAMP)
+        this.swampMesh = new THREE.InstancedMesh(floorGeo, this.swampMaterial, this.maxInstances);
+        this.swampMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.swampMesh);
 
         this.lavaMesh = new THREE.InstancedMesh(floorGeo, this.lavaMaterial, 512);
         this.lavaMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -1542,6 +3201,7 @@ class Dungeon3D {
             mesh.count = 0; // Initialize to 0 so unpopulated instances are never drawn
         };
         initInstancedColors(this.wallMesh, this.maxInstances);
+        initInstancedColors(this.permWallMesh, this.maxInstances);
         initInstancedColors(this.floorMesh, this.maxInstances);
         initInstancedColors(this.ceilingMesh, this.maxInstances);
         initInstancedColors(this.doorFrameMesh, 512);
@@ -1552,8 +3212,20 @@ class Dungeon3D {
         initInstancedColors(this.doorBrokenMesh, 256);
         initInstancedColors(this.stairsMesh, 128);
         initInstancedColors(this.stairsUpMesh, 128);
+        initInstancedColors(this.trapMesh, 128);
         initInstancedColors(this.magmaMesh, 256);
         initInstancedColors(this.quartzMesh, 256);
+        initInstancedColors(this.goldVeinMesh, 512);
+        initInstancedColors(this.gemVeinMesh, 512);
+        initInstancedColors(this.treeTrunkMesh, this.maxInstances);
+        initInstancedColors(this.treeLeavesMesh, this.maxInstances);
+        initInstancedColors(this.bushMesh, this.maxInstances);
+        initInstancedColors(this.grassMesh, this.maxInstances);
+        initInstancedColors(this.dirtMesh, this.maxInstances);
+        initInstancedColors(this.waterMesh, this.maxInstances);
+        initInstancedColors(this.deepWaterMesh, this.maxInstances);
+        initInstancedColors(this.mountainMesh, this.maxInstances);
+        initInstancedColors(this.swampMesh, this.maxInstances);
         this.lavaMesh.count = 0;
         this.lavaCooledMesh.count = 0;
         for (let i = 0; i < 8; i++) initInstancedColors(this.shopMeshes[i], 64);
@@ -1746,6 +3418,8 @@ class Dungeon3D {
         this.starGroup = new THREE.Group();
         this.starGroup.name = "StarCanopy";
         this.starGroup.add(this.starPoints);
+
+
         this.scene.add(this.starGroup);
     }
 
@@ -1850,6 +3524,10 @@ class Dungeon3D {
                         });
                     }
                 }, undefined, (err) => {
+                    // Suppress harmless aborts when tab/page navigates or closes during model loading
+                    if (err && (err.name === 'AbortError' || (err.message && err.message.includes('fetch')))) {
+                        return;
+                    }
                     console.warn(`[3D] Failed to load character model '${m.key}':`, err);
                 });
             });
@@ -2445,7 +4123,40 @@ class Dungeon3D {
         if (idx + 1 >= row.f.length) return 0;
         const hi = parseInt(row.f[idx], 16) || 0;
         const lo = parseInt(row.f[idx + 1], 16) || 0;
-        return (hi << 4) | lo;
+        let feat = (hi << 4) | lo;
+
+        // Disambiguate Tree (feat 25) vs Grass (feat 26) vs Bush (feat 42):
+        // In Angband and roguelike variants, open ground / lawn / meadow is '.' (or ',', '\'').
+        // Trees are solid obstacles represented by '#' (or '%', '*', '&', 'T').
+        // Dense bushes/brakes/flowers are green ':' (FEAT_BUSH = 42).
+        // A green '.' is GRASS, NEVER a 3D tree!
+        // In Sil-Q, feat 25 is FEAT_SUNLIGHT, never grass or tree!
+        if (row.g && x < row.g.length) {
+            const g = row.g[x];
+            let attr = 0;
+            if (row.a && x * 2 + 1 < row.a.length) {
+                attr = (parseInt(row.a[x * 2], 16) << 4) | (parseInt(row.a[x * 2 + 1], 16) || 0);
+            }
+            if (this.realm !== 'silq') {
+                if (feat === 25 && (g === '.' || g === ',' || g === "'")) {
+                    feat = 26; // Feat 26: Grass
+                } else if (feat === 26 && (g === '#' || g === '%' || g === '&' || g === 'T')) {
+                    feat = 25; // Feat 25: Tree
+                } else if (feat === 42) {
+                    feat = 42; // Feat 42: Bush / Brake / Foliage
+                } else if (g === ':') {
+                    // In Angband and variants: ':' in green (attr 3, 5, 11, 13) is a Bush / Brake!
+                    // In slate/grey/white (attr 1, 2, 9), ':' is Rubble (feat 16)!
+                    const isGreen = (attr === 3 || attr === 5 || attr === 11 || attr === 13);
+                    if (isGreen) {
+                        feat = 42; // Bush
+                    } else if (feat === 0 || feat === 1) {
+                        feat = 16; // Rubble
+                    }
+                }
+            }
+        }
+        return feat;
     }
 
     getFlagAt(map, x, y) {
@@ -2455,16 +4166,103 @@ class Dungeon3D {
         return parseInt(row.l[x], 16) || 0;
     }
 
+    getGlyphAt(map, x, y) {
+        if (!map || !map.rows || y < 0 || y >= map.h || x < 0 || x >= map.w) return ' ';
+        const row = map.rows[y];
+        if (!row || !row.g || x >= row.g.length) return ' ';
+        return row.g[x];
+    }
+
+    getAttrAt(map, x, y) {
+        if (!map || !map.rows || y < 0 || y >= map.h || x < 0 || x >= map.w) return 0;
+        const row = map.rows[y];
+        if (!row || !row.a) return 0;
+        const idx = x * 2;
+        if (idx + 1 >= row.a.length) return 0;
+        const hi = parseInt(row.a[idx], 16) || 0;
+        const lo = parseInt(row.a[idx + 1], 16) || 0;
+        return (hi << 4) | lo;
+    }
+
     isSolidWall(feat) {
-        return feat === 15 || (feat >= 17 && feat <= 22);
+        return feat === 15 || (feat >= 17 && feat <= 22) || feat === 30;
     }
 
     isStoreKind(feat) {
-        return feat >= 7 && feat <= 14;
+        return (feat >= 7 && feat <= 14) || (feat >= 32 && feat <= 40);
     }
 
     isWalkableOrPortal(feat) {
-        return feat === 1 || feat === 2 || feat === 3 || feat === 4 || feat === 5 || feat === 6 || feat === 16 || feat === 23 || feat === 24 || this.isStoreKind(feat);
+        return feat === 1 || feat === 2 || feat === 3 || feat === 4 || feat === 5 || feat === 6 || feat === 16 || feat === 23 || feat === 24 || feat === 25 || feat === 26 || feat === 27 || feat === 28 || feat === 29 || feat === 31 || feat === 37 || feat === 42 || this.isStoreKind(feat);
+    }
+
+    /**
+     * Contextual realm-aware base color lookup (1:1 with Godot DungeonWorld.cs:BaseColour).
+     * Strictly preserves distinct granite ashlar masonry vs primordial bedrock/Thangorodrim basalt,
+     * chlorophyll-rich grass and leaf canopies, azure waters, and rich loam trails.
+     */
+    getBaseColour(feat, biome) {
+        if (!biome) return new THREE.Color(1, 1, 1);
+        const r = (this.realm || 'angband').toLowerCase();
+        switch (feat) {
+            case 21: // Feat.Wall / Feat.Granite
+            case 15: // Feat.Secret
+                return biome.wallColor;
+            case 22: // Feat.PermWall / Feat.Perm (Monolithic bedrock)
+                return (r === 'silq')
+                    ? new THREE.Color(0.38 * biome.wallColor.r, 0.38 * biome.wallColor.g, 0.44 * biome.wallColor.b) // Volcanic obsidian roots of Thangorodrim
+                    : new THREE.Color(0.85 * biome.wallColor.r, 0.85 * biome.wallColor.g, 0.90 * biome.wallColor.b); // Monolithic ancient bedrock
+            case 30: // Feat.Mountain
+                return (r === 'hengband')
+                    ? new THREE.Color(0.72, 0.74, 0.80) // Eastern craggy mountain slate
+                    : biome.wallColor;
+            case 1:  // Feat.Floor
+            case 24: // Feat.PassableRubble (Vanilla / Variants)
+                return biome.floorColor;
+            case 26: // Feat.Grass
+                switch (r) {
+                    case 'silq':
+                        return new THREE.Color(0.60, 0.68, 0.55); // Ash-dusted withered heath of Anfauglith
+                    case 'hengband':
+                        return new THREE.Color(0.88, 1.05, 0.88); // Vibrant bamboo & moss green
+                    case 'frogcomposband':
+                        return new THREE.Color(0.95, 1.12, 0.90); // Lush high-fantasy rolling meadow
+                    default:
+                        return new THREE.Color(0.90, 1.05, 0.88); // Bree woodland grass
+                }
+            case 42: // Feat.Bush (feat 42: BUSH, BRAKE, FLOWER)
+                switch (r) {
+                    case 'silq':
+                        return new THREE.Color(0.50, 0.58, 0.45);
+                    case 'hengband':
+                        return new THREE.Color(0.68, 0.95, 0.65);
+                    case 'frogcomposband':
+                        return new THREE.Color(0.78, 1.08, 0.70);
+                    default:
+                        return new THREE.Color(0.75, 1.02, 0.72);
+                }
+            case 27: // Feat.Dirt
+                return new THREE.Color(1.0, 0.96, 0.90); // Warm packed earth loam trail
+            case 28: // Feat.ShallowWater
+                return new THREE.Color(1.0, 1.0, 1.0); // Pure translucent azure caustic ripples
+            case 29: // Feat.DeepWater
+                return new THREE.Color(1.0, 1.0, 1.0); // Pure oceanic navy specular sheen
+            case 31: // Feat.Swamp
+                return new THREE.Color(0.85, 0.90, 0.80); // Brackish peat marsh
+            case 25: // Feat.Tree (canopy)
+                switch (r) {
+                    case 'silq':
+                        return new THREE.Color(0.55, 0.60, 0.52); // Gnarled withered ash-pine of the Iron Mountains
+                    case 'hengband':
+                        return new THREE.Color(0.72, 0.98, 0.80); // Sacred Japanese cedar (Sugi) & cypress
+                    case 'frogcomposband':
+                        return new THREE.Color(0.88, 1.10, 0.85); // Verdant deciduous oak woodland
+                    default:
+                        return new THREE.Color(1.0, 1.0, 1.0);
+                }
+            default:
+                return new THREE.Color(1.0, 1.0, 1.0);
+        }
     }
 
     /**
@@ -2701,7 +4499,25 @@ class Dungeon3D {
         const px = frame.player ? frame.player.x : Math.floor(w / 2);
         const py = frame.player ? frame.player.y : Math.floor(h / 2);
         const depth = (frame.player && frame.player.depth !== undefined) ? frame.player.depth : 0;
-        const outdoors = depth === 0; // Town is outdoors under daylight
+        let hasWilderness = false;
+        if (map && map.rows) {
+            for (let r = 0; r < Math.min(map.rows.length, 12); r++) {
+                const row = map.rows[r];
+                if (row && row.f) {
+                    for (let c = 0; c < row.f.length; c += 2) {
+                        const fVal = parseInt(row.f.substring(c, c + 2), 16);
+                        if (fVal >= 25 && fVal <= 31) {
+                            hasWilderness = true;
+                            break;
+                        }
+                    }
+                }
+                if (hasWilderness) break;
+            }
+        }
+        // Strict Invariant: Outdoors is ONLY depth 0 (Town or Wilderness). Subterranean dungeons (depth > 0)
+        // are always indoors with solid stone ceilings, preventing sunlight tiles/vaults from stripping ceilings.
+        const outdoors = (depth === 0);
 
         // Detect stairs / depth transitions
         if (this.lastDepth !== null && this.lastDepth !== undefined && this.lastDepth !== depth) {
@@ -2719,10 +4535,18 @@ class Dungeon3D {
         const levelSeed = ((depth * 73856093) ^ (w * 19349663) ^ (h * 83492791) ^ (map.rows && map.rows[0] && map.rows[0].f ? parseInt(map.rows[0].f.substring(0, 8), 16) : 0)) >>> 0;
         this.currentLevelSeed = levelSeed;
 
-        // Apply 6-Tier Depth Biomes & Procedural Sub-Themes (Exact Parity with Godot BiomeProfile)
-        const biome = this.getBiomeProfile(depth, levelSeed);
+        // Resolve realm context
+        const realm = (frame && (frame.realm || (frame.player && frame.player.realm)))
+            || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : (this.realm || 'angband'));
+        this.realm = realm ? realm.toLowerCase() : 'angband';
+
+        // Apply Depth Biomes & Procedural Sub-Themes (Exact Parity with Godot BiomeProfile)
+        const biome = this.getBiomeProfile(depth, levelSeed, this.realm);
         this.currentBiome = biome;
         this.targetTorchEnergy = biome.torchEnergy;
+
+        // Apply Contextual Lore, Depth & Realm Textures (Wall, Floor, PermWall, Ceiling, Stairs)
+        this.applyEnvironmentTextures(outdoors, biome, this.realm, depth, levelSeed);
 
         // Dynamic PBR surface roughness modulation based on depth stratum
         if (this.floorMaterial && biome.floorRoughness !== undefined) {
@@ -2945,7 +4769,26 @@ class Dungeon3D {
             }
         }
 
-        this.targetCamPos.set(px * this.cellSize, this.eyeHeight, py * this.cellSize);
+        const playerFeat = this.getFeatAt(map, px, py);
+        let waterYOffset = 0;
+        let footstepSurface = null;
+        if (playerFeat === 28) {
+            waterYOffset = -0.08;
+            footstepSurface = 'water';
+        } else if (playerFeat === 29) {
+            waterYOffset = -0.22;
+            footstepSurface = 'deep_water';
+        } else if (playerFeat === 31) {
+            waterYOffset = -0.10;
+            footstepSurface = 'swamp';
+        } else if (playerFeat === 27) {
+            footstepSurface = 'dirt';
+        } else if (playerFeat === 26 || playerFeat === 42) {
+            footstepSurface = 'grass';
+        }
+        this.playerWaterYOffset = waterYOffset;
+
+        this.targetCamPos.set(px * this.cellSize, this.eyeHeight + waterYOffset, py * this.cellSize);
 
         const dist = this.currentCamPos.distanceTo(this.targetCamPos);
         if (dist > this.cellSize * 1.5) {
@@ -2961,13 +4804,14 @@ class Dungeon3D {
                 this.stepPlayedThisMove = true;
                 this.lastStepSoundTime = now;
                 if (this.audio) {
-                    this.audio.playFootstep(outdoors, this.heightRatio || 1.0);
+                    this.audio.playFootstep(outdoors, this.heightRatio || 1.0, footstepSurface);
                 }
             }
         }
 
         // MultiMesh instance counts reset
         let wallCount = 0;
+        let permWallCount = 0;
         let floorCount = 0;
         let ceilingCount = 0;
         let doorFrameCount = 0;
@@ -2981,10 +4825,21 @@ class Dungeon3D {
         let stairsUpCount = 0;
         let magmaCount = 0;
         let quartzCount = 0;
+        let goldVeinCount = 0;
+        let gemVeinCount = 0;
+        let treeCount = 0;
+        let bushCount = 0;
+        let grassCount = 0;
+        let dirtCount = 0;
+        let waterCount = 0;
+        let deepWaterCount = 0;
+        let mountainCount = 0;
+        let swampCount = 0;
         let rubbleCount = 0;
+        let trapCount = 0;
         const shopCounts = [0, 0, 0, 0, 0, 0, 0, 0];
 
-        const sightRange = outdoors ? 45 : 28;
+        const sightRange = outdoors ? 40 : 22;
         const minX = Math.max(0, px - sightRange);
         const maxX = Math.min(w - 1, px + sightRange);
         const minY = Math.max(0, py - sightRange);
@@ -2993,6 +4848,21 @@ class Dungeon3D {
         for (let y = minY; y <= maxY; y++) {
             for (let x = minX; x <= maxX; x++) {
                 let feat = this.getFeatAt(map, x, y);
+                const glyph = this.getGlyphAt(map, x, y);
+
+                // Disambiguate Tree (feat 25) vs Grass (feat 26):
+                // In Angband and roguelike variants, open ground / lawn / meadow is '.' (or ',', '\'').
+                // Trees are solid obstacles represented by '#' (or '%', '*', '&', 'T').
+                // A green '.' is GRASS, NEVER a 3D tree!
+                const isSilQSunlight = (this.realm === 'silq' && feat === 25);
+                if (!isSilQSunlight) {
+                    if (feat === 25 && (glyph === '.' || glyph === ',' || glyph === "'")) {
+                        feat = 26; // Feat 26: Grass
+                    } else if (feat === 26 && (glyph === '#' || glyph === '%' || glyph === '&' || glyph === 'T')) {
+                        feat = 25; // Feat 25: Tree
+                    }
+                }
+
                 const flag = this.getFlagAt(map, x, y);
 
                 let known = outdoors || (flag & 0x1) !== 0;
@@ -3006,7 +4876,7 @@ class Dungeon3D {
                     continue;
                 }
 
-                const isWall = feat === 15 || feat === 21 || feat === 22 || feat === 17 || feat === 18 || feat === 19 || feat === 20;
+                const isWall = feat === 15 || feat === 21 || feat === 22 || feat === 17 || feat === 18 || feat === 19 || feat === 20 || feat === 30;
 
                 // Interior rock culling (1:1 with Godot DungeonWorld.cs:2386-2412):
                 // If all 8 neighbors are solid walls/skip (no adjacent floor, door, rubble, or open space),
@@ -3062,17 +4932,19 @@ class Dungeon3D {
 
                 const wx = x * this.cellSize;
                 const wz = y * this.cellSize;
-                const wallYCenter = (this.wallHeight - 0.15) / 2; // Bottom sinks into floor at Y=-0.15, top at Y=3.00
+                const wallYCenter = this.wallHeight / 2;
 
-                // Magma fissures (list-terrain.h feat 17=MAGMA, 19=MAGMA_K)
-                if (feat === 17 || feat === 19) {
+                // Plain Magma fissures (list-terrain.h feat 17=MAGMA)
+                if (feat === 17) {
                     // Seal chamfered corner base with floor quad
-                    this.dummy.position.set(wx, -0.05, wz);
-                    this.dummy.rotation.set(0, floorRot, 0);
-                    this.dummy.updateMatrix();
-                    this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
-                    floorCount++;
+                    if (floorCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                        this.floorMesh.setColorAt(floorCount, floorShade);
+                        floorCount++;
+                    }
 
                     this.dummy.position.set(wx, wallYCenter, wz);
                     this.dummy.rotation.set(0, wallRot, 0);
@@ -3080,18 +4952,29 @@ class Dungeon3D {
                     this.magmaMesh.setMatrixAt(magmaCount, this.dummy.matrix);
                     this.magmaMesh.setColorAt(magmaCount, wallShade);
                     magmaCount++;
+
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
                     continue;
                 }
 
-                // Quartz crystal veins (list-terrain.h feat 18=QUARTZ, 20=QUARTZ_K)
-                if (feat === 18 || feat === 20) {
+                // Plain Quartz crystal veins (list-terrain.h feat 18=QUARTZ)
+                if (feat === 18) {
                     // Seal chamfered corner base with floor quad
-                    this.dummy.position.set(wx, -0.05, wz);
-                    this.dummy.rotation.set(0, floorRot, 0);
-                    this.dummy.updateMatrix();
-                    this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
-                    floorCount++;
+                    if (floorCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                        this.floorMesh.setColorAt(floorCount, floorShade);
+                        floorCount++;
+                    }
 
                     this.dummy.position.set(wx, wallYCenter, wz);
                     this.dummy.rotation.set(0, wallRot, 0);
@@ -3099,6 +4982,89 @@ class Dungeon3D {
                     this.quartzMesh.setMatrixAt(quartzCount, this.dummy.matrix);
                     this.quartzMesh.setColorAt(quartzCount, wallShade);
                     quartzCount++;
+
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
+                // Magma Vein with Gold Treasure (feat 19=MAGMA_K) - Rich metallic gold nuggets in dark basalt
+                if (feat === 19) {
+                    // Seal chamfered corner base with floor quad
+                    if (floorCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                        this.floorMesh.setColorAt(floorCount, floorShade);
+                        floorCount++;
+                    }
+
+                    this.dummy.position.set(wx, wallYCenter, wz);
+                    this.dummy.rotation.set(0, wallRot, 0);
+                    this.dummy.updateMatrix();
+                    this.goldVeinMesh.setMatrixAt(goldVeinCount, this.dummy.matrix);
+                    this.goldVeinMesh.setColorAt(goldVeinCount, wallShade);
+                    goldVeinCount++;
+
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
+                // Quartz Vein with Gemstones (feat 20=QUARTZ_K) - Sparkling multifaceted emeralds, rubies, sapphires
+                if (feat === 20) {
+                    // Seal chamfered corner base with floor quad
+                    if (floorCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                        this.floorMesh.setColorAt(floorCount, floorShade);
+                        floorCount++;
+                    }
+
+                    this.dummy.position.set(wx, wallYCenter, wz);
+                    this.dummy.rotation.set(0, wallRot, 0);
+                    this.dummy.updateMatrix();
+                    this.gemVeinMesh.setMatrixAt(gemVeinCount, this.dummy.matrix);
+                    this.gemVeinMesh.setColorAt(gemVeinCount, wallShade);
+                    gemVeinCount++;
+
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
+                // Alpine Mountain Peaks (feat 30=MOUNTAIN) - Towering craggy alpine massif
+                if (feat === 30) {
+                    if (mountainCount < this.maxInstances) {
+                        this.dummy.position.set(wx, 0, wz);
+                        this.dummy.rotation.set(0, wallRot, 0);
+                        this.dummy.updateMatrix();
+                        const mountainShade = this.computeTileShade(this._scratchMountainColor, this.getBaseColour(30, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.mountainMesh.setMatrixAt(mountainCount, this.dummy.matrix);
+                        this.mountainMesh.setColorAt(mountainCount, mountainShade);
+                        mountainCount++;
+                    }
                     continue;
                 }
 
@@ -3123,25 +5089,63 @@ class Dungeon3D {
                     if (!hasExposedFace) continue; // Interior bedrock culling
 
                     // Seal chamfered corner base with floor quad
-                    this.dummy.position.set(wx, -0.05, wz);
-                    this.dummy.rotation.set(0, floorRot, 0);
-                    this.dummy.updateMatrix();
-                    this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
-                    floorCount++;
+                    if (floorCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                        this.floorMesh.setColorAt(floorCount, floorShade);
+                        floorCount++;
+                    }
 
                     this.dummy.position.set(wx, wallYCenter, wz);
-                    this.dummy.rotation.set(0, wallRot, 0);
+                    this.dummy.rotation.set(0, 0, 0); // Wall masonry running-bond courses must ALWAYS remain horizontal!
                     this.dummy.updateMatrix();
-                    this.wallMesh.setMatrixAt(wallCount, this.dummy.matrix);
-                    this.wallMesh.setColorAt(wallCount, wallShade);
-                    wallCount++;
+                    if (feat === 22) {
+                        if (permWallCount < this.maxInstances) {
+                            const permShade = this.computeTileShade(this._scratchPermWallColor, this.getBaseColour(22, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                            this.permWallMesh.setMatrixAt(permWallCount, this.dummy.matrix);
+                            this.permWallMesh.setColorAt(permWallCount, permShade);
+                            permWallCount++;
+                        }
+                    } else {
+                        if (wallCount < this.maxInstances) {
+                            this.wallMesh.setMatrixAt(wallCount, this.dummy.matrix);
+                            this.wallMesh.setColorAt(wallCount, wallShade);
+                            wallCount++;
+                        }
+                    }
+
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight + 0.05, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
                     continue;
                 }
 
-                // Store Entrances (feat 7 to 14) -> General Store, Armoury, Weaponsmith, Bookseller, Alchemy, Magic, Black Market, Home!
+                // Store Entrances (feat 7 to 14) and Special Town Buildings (feat 32 to 40)
+                let shopIdx = -1;
                 if (feat >= 7 && feat <= 14) {
-                    const shopIdx = feat - 7;
+                    shopIdx = feat - 7;
+                } else if (feat >= 32 && feat <= 40) {
+                    switch (feat) {
+                        case 32: shopIdx = 7; break; // Castle / Guild / Mayor -> Regal Home facade
+                        case 33: shopIdx = 0; break; // Inn / Tavern -> General Store / Tavern
+                        case 34: shopIdx = 4; break; // Healer -> Alchemy
+                        case 35: shopIdx = 5; break; // Museum -> Magic
+                        case 36: shopIdx = 6; break; // Casino -> Black Market
+                        case 37: shopIdx = 2; break; // Forge -> Weaponsmith
+                        case 38: shopIdx = 3; break; // Pagoda / Temple -> Temple
+                        case 39: shopIdx = 3; break; // Bookstore -> Bookseller
+                        case 40: shopIdx = 0; break; // Stable -> General
+                        default: shopIdx = 0; break;
+                    }
+                }
+                if (shopIdx >= 0 && shopIdx < 8) {
                     // Floor underneath shop entrance
                     this.dummy.position.set(wx, -0.05, wz);
                     this.dummy.rotation.set(0, 0, 0);
@@ -3274,16 +5278,202 @@ class Dungeon3D {
                     continue;
                 }
 
-                // Floor / Walkable corridor (feat 1, 24)
-                if (feat === 1 || feat === 24) {
+                // Floor / Walkable corridor / Passable rubble / Sunlight (feat 25 strictly in Sil-Q only)
+                const isSunlightTile = (this.realm === 'silq' && feat === 25);
+                if (feat === 1 || feat === 24 || isSunlightTile) {
                     this.dummy.position.set(wx, -0.05, wz);
                     this.dummy.rotation.set(0, floorRot, 0);
                     this.dummy.updateMatrix();
                     this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
-                    this.floorMesh.setColorAt(floorCount, floorShade);
+                    this.floorMesh.setColorAt(floorCount, isSunlightTile ? this._sunlightFloorColor : floorShade);
                     floorCount++;
 
-                    if (!outdoors) {
+                    // Discovered floor traps ('^' glyph on floor):
+                    if (glyph === '^' && trapCount < 128) {
+                        this.dummy.position.set(wx, 0.015, wz);
+                        this.dummy.rotation.set(0, floorRot, 0);
+                        this.dummy.updateMatrix();
+                        this.trapMesh.setMatrixAt(trapCount, this.dummy.matrix);
+                        const trapAttr = this.getAttrAt(map, x, y);
+                        const trapColorHex = getAngbandHex(trapAttr);
+                        if (!this._scratchTrapColor) this._scratchTrapColor = new THREE.Color();
+                        this._scratchTrapColor.setHex(trapColorHex);
+                        const trapShade = this.computeTileShade(this._scratchTrapShade || (this._scratchTrapShade = new THREE.Color()), this._scratchTrapColor, inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.trapMesh.setColorAt(trapCount, trapShade);
+                        trapCount++;
+                    }
+
+                    // Ceilings over subterranean dungeon corridors (skip for open sunbeam fissures in Sil-Q)
+                    if (!outdoors && !isSunlightTile) {
+                        this.dummy.position.set(wx, this.wallHeight, wz);
+                        this.dummy.rotation.set(0, ceilingRot, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
+                // Forest Trees (feat 25: TREE) - Stylized 3D Bark Trunk + Foliage Crown Canopy
+                if (feat === 25) {
+                    // Underneath tree is grass floor
+                    if (grassCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, floorRot, 0);
+                        this.dummy.updateMatrix();
+                        const grassShade = this.computeTileShade(this._scratchGrassColor, this.getBaseColour(26, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.grassMesh.setMatrixAt(grassCount, this.dummy.matrix);
+                        this.grassMesh.setColorAt(grassCount, grassShade);
+                        grassCount++;
+                    }
+
+                    // 3D Tree trunk & foliage
+                    if (treeCount < this.maxInstances) {
+                        this.dummy.position.set(wx, 0, wz);
+                        const treeYaw = ((x * 67 + y * 97) % 8) * (Math.PI / 4);
+                        this.dummy.rotation.set(0, treeYaw, 0);
+                        this.dummy.updateMatrix();
+                        const trunkBase = (this.realm === 'silq')
+                            ? this._scratchTrunkBaseColor.setRGB(0.65, 0.62, 0.58)
+                            : this._scratchTrunkBaseColor.setRGB(1.0, 0.95, 0.90);
+                        const trunkShade = this.computeTileShade(this._scratchTreeTrunkColor, trunkBase, inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.treeTrunkMesh.setMatrixAt(treeCount, this.dummy.matrix);
+                        this.treeTrunkMesh.setColorAt(treeCount, trunkShade);
+
+                        const canopyShade = this.computeTileShade(this._scratchTreeColor, this.getBaseColour(25, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.treeLeavesMesh.setMatrixAt(treeCount, this.dummy.matrix);
+                        this.treeLeavesMesh.setColorAt(treeCount, canopyShade);
+                        treeCount++;
+                    }
+                    // Tree canopy reaches into open sky: NO ceiling!
+                    continue;
+                }
+
+                // Dense Brush / Thicket / Flowers (feat 42: BUSH / BRAKE) - Low organic foliage cluster
+                if (feat === 42) {
+                    if (grassCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, floorRot, 0);
+                        this.dummy.updateMatrix();
+                        const grassShade = this.computeTileShade(this._scratchGrassColor, this.getBaseColour(26, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.grassMesh.setMatrixAt(grassCount, this.dummy.matrix);
+                        this.grassMesh.setColorAt(grassCount, grassShade);
+                        grassCount++;
+                    }
+                    if (bushCount < this.maxInstances) {
+                        this.dummy.position.set(wx, 0, wz);
+                        const bushYaw = ((x * 43 + y * 71) % 8) * (Math.PI / 4);
+                        this.dummy.rotation.set(0, bushYaw, 0);
+                        this.dummy.updateMatrix();
+                        const bushShade = this.computeTileShade(this._scratchTreeColor, this.getBaseColour(42, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.bushMesh.setMatrixAt(bushCount, this.dummy.matrix);
+                        this.bushMesh.setColorAt(bushCount, bushShade);
+                        bushCount++;
+                    }
+                    continue;
+                }
+
+                // Verdant Meadow Grass (feat 26: GRASS)
+                if (feat === 26) {
+                    if (grassCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, floorRot, 0);
+                        this.dummy.updateMatrix();
+                        const grassShade = this.computeTileShade(this._scratchGrassColor, this.getBaseColour(26, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.grassMesh.setMatrixAt(grassCount, this.dummy.matrix);
+                        this.grassMesh.setColorAt(grassCount, grassShade);
+                        grassCount++;
+                    }
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight, wz);
+                        this.dummy.rotation.set(0, ceilingRot, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
+                // Packed Dirt Road / Trail (feat 27: DIRT)
+                if (feat === 27) {
+                    if (dirtCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.05, wz);
+                        this.dummy.rotation.set(0, floorRot, 0);
+                        this.dummy.updateMatrix();
+                        const dirtShade = this.computeTileShade(this._scratchDirtColor, this.getBaseColour(27, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.dirtMesh.setMatrixAt(dirtCount, this.dummy.matrix);
+                        this.dirtMesh.setColorAt(dirtCount, dirtShade);
+                        dirtCount++;
+                    }
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight, wz);
+                        this.dummy.rotation.set(0, ceilingRot, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
+                // Shallow Sparkling Water (feat 28: SHALLOW_WATER)
+                if (feat === 28) {
+                    if (waterCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.08, wz);
+                        this.dummy.rotation.set(0, floorRot, 0);
+                        this.dummy.updateMatrix();
+                        const waterShade = this.computeTileShade(this._scratchWaterColor, this.getBaseColour(28, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.waterMesh.setMatrixAt(waterCount, this.dummy.matrix);
+                        this.waterMesh.setColorAt(waterCount, waterShade);
+                        waterCount++;
+                    }
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight, wz);
+                        this.dummy.rotation.set(0, ceilingRot, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
+                // Deep Oceanic Water (feat 29: DEEP_WATER)
+                if (feat === 29) {
+                    if (deepWaterCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.12, wz);
+                        this.dummy.rotation.set(0, floorRot, 0);
+                        this.dummy.updateMatrix();
+                        const deepWaterShade = this.computeTileShade(this._scratchDeepWaterColor, this.getBaseColour(29, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.deepWaterMesh.setMatrixAt(deepWaterCount, this.dummy.matrix);
+                        this.deepWaterMesh.setColorAt(deepWaterCount, deepWaterShade);
+                        deepWaterCount++;
+                    }
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight, wz);
+                        this.dummy.rotation.set(0, ceilingRot, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
+                // Swamp & Wetland Marsh (feat 31: SWAMP)
+                if (feat === 31) {
+                    if (swampCount < this.maxInstances) {
+                        this.dummy.position.set(wx, -0.06, wz);
+                        this.dummy.rotation.set(0, floorRot, 0);
+                        this.dummy.updateMatrix();
+                        const swampShade = this.computeTileShade(this._scratchSwampColor, this.getBaseColour(31, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.swampMesh.setMatrixAt(swampCount, this.dummy.matrix);
+                        this.swampMesh.setColorAt(swampCount, swampShade);
+                        swampCount++;
+                    }
+                    if (!outdoors && ceilingCount < this.maxInstances) {
                         this.dummy.position.set(wx, this.wallHeight, wz);
                         this.dummy.rotation.set(0, ceilingRot, 0);
                         this.dummy.updateMatrix();
@@ -3379,69 +5569,50 @@ class Dungeon3D {
             }
         }
 
-        this.wallMesh.count = wallCount;
-        this.wallMesh.instanceMatrix.needsUpdate = true;
-        if (this.wallMesh.instanceColor) this.wallMesh.instanceColor.needsUpdate = true;
+        const updateMesh = (mesh, newCount) => {
+            const oldCount = mesh.count;
+            mesh.count = newCount;
+            if (newCount > 0 || oldCount > 0) {
+                mesh.instanceMatrix.needsUpdate = true;
+                if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+            }
+        };
 
-        this.floorMesh.count = floorCount;
-        this.floorMesh.instanceMatrix.needsUpdate = true;
-        if (this.floorMesh.instanceColor) this.floorMesh.instanceColor.needsUpdate = true;
+        updateMesh(this.wallMesh, wallCount);
+        updateMesh(this.permWallMesh, permWallCount);
+        updateMesh(this.floorMesh, floorCount);
+        updateMesh(this.ceilingMesh, ceilingCount);
+        updateMesh(this.doorFrameMesh, doorFrameCount);
+        updateMesh(this.shopFrameMesh, shopFrameCount);
+        updateMesh(this.rubbleMesh, rubbleCount);
+        updateMesh(this.doorMesh, doorCount);
+        updateMesh(this.doorOpenMesh, doorOpenCount);
+        updateMesh(this.doorBrokenMesh, doorBrokenCount);
+        for (let i = 0; i < 8; i++) updateMesh(this.shopMeshes[i], shopCounts[i]);
+        updateMesh(this.magmaMesh, magmaCount);
+        updateMesh(this.quartzMesh, quartzCount);
+        updateMesh(this.goldVeinMesh, goldVeinCount);
+        updateMesh(this.gemVeinMesh, gemVeinCount);
+        updateMesh(this.treeTrunkMesh, treeCount);
+        updateMesh(this.treeLeavesMesh, treeCount);
+        updateMesh(this.bushMesh, bushCount);
+        updateMesh(this.grassMesh, grassCount);
+        updateMesh(this.dirtMesh, dirtCount);
+        updateMesh(this.waterMesh, waterCount);
+        updateMesh(this.deepWaterMesh, deepWaterCount);
+        updateMesh(this.mountainMesh, mountainCount);
+        updateMesh(this.swampMesh, swampCount);
+        updateMesh(this.stairsMesh, stairsCount);
+        updateMesh(this.stairsUpMesh, stairsUpCount);
+        updateMesh(this.trapMesh, trapCount);
 
-        this.ceilingMesh.count = ceilingCount;
-        this.ceilingMesh.instanceMatrix.needsUpdate = true;
-        if (this.ceilingMesh.instanceColor) this.ceilingMesh.instanceColor.needsUpdate = true;
-
-        this.doorFrameMesh.count = doorFrameCount;
-        this.doorFrameMesh.instanceMatrix.needsUpdate = true;
-        if (this.doorFrameMesh.instanceColor) this.doorFrameMesh.instanceColor.needsUpdate = true;
-
-        this.shopFrameMesh.count = shopFrameCount;
-        this.shopFrameMesh.instanceMatrix.needsUpdate = true;
-        if (this.shopFrameMesh.instanceColor) this.shopFrameMesh.instanceColor.needsUpdate = true;
-
-        this.rubbleMesh.count = rubbleCount;
-        this.rubbleMesh.instanceMatrix.needsUpdate = true;
-        if (this.rubbleMesh.instanceColor) this.rubbleMesh.instanceColor.needsUpdate = true;
-
-        this.doorMesh.count = doorCount;
-        this.doorMesh.instanceMatrix.needsUpdate = true;
-        if (this.doorMesh.instanceColor) this.doorMesh.instanceColor.needsUpdate = true;
-
-        this.doorOpenMesh.count = doorOpenCount;
-        this.doorOpenMesh.instanceMatrix.needsUpdate = true;
-        if (this.doorOpenMesh.instanceColor) this.doorOpenMesh.instanceColor.needsUpdate = true;
-
-        this.doorBrokenMesh.count = doorBrokenCount;
-        this.doorBrokenMesh.instanceMatrix.needsUpdate = true;
-        if (this.doorBrokenMesh.instanceColor) this.doorBrokenMesh.instanceColor.needsUpdate = true;
-
-        for (let i = 0; i < 8; i++) {
-            this.shopMeshes[i].count = shopCounts[i];
-            this.shopMeshes[i].instanceMatrix.needsUpdate = true;
-            if (this.shopMeshes[i].instanceColor) this.shopMeshes[i].instanceColor.needsUpdate = true;
-        }
-
-        this.magmaMesh.count = magmaCount;
-        this.magmaMesh.instanceMatrix.needsUpdate = true;
-        if (this.magmaMesh.instanceColor) this.magmaMesh.instanceColor.needsUpdate = true;
-
-        this.quartzMesh.count = quartzCount;
-        this.quartzMesh.instanceMatrix.needsUpdate = true;
-        if (this.quartzMesh.instanceColor) this.quartzMesh.instanceColor.needsUpdate = true;
-
+        const oldLava = this.lavaMesh.count;
         this.lavaMesh.count = lavaCount;
-        this.lavaMesh.instanceMatrix.needsUpdate = true;
+        if (lavaCount > 0 || oldLava > 0) this.lavaMesh.instanceMatrix.needsUpdate = true;
 
+        const oldLavaCooled = this.lavaCooledMesh.count;
         this.lavaCooledMesh.count = lavaCooledCount;
-        this.lavaCooledMesh.instanceMatrix.needsUpdate = true;
-
-        this.stairsMesh.count = stairsCount;
-        this.stairsMesh.instanceMatrix.needsUpdate = true;
-        if (this.stairsMesh.instanceColor) this.stairsMesh.instanceColor.needsUpdate = true;
-
-        this.stairsUpMesh.count = stairsUpCount;
-        this.stairsUpMesh.instanceMatrix.needsUpdate = true;
-        if (this.stairsUpMesh.instanceColor) this.stairsUpMesh.instanceColor.needsUpdate = true;
+        if (lavaCooledCount > 0 || oldLavaCooled > 0) this.lavaCooledMesh.instanceMatrix.needsUpdate = true;
 
         this.updateMonsters(frame.monsters || [], frame.player);
         this.updateItems(frame.objects || frame.items || [], frame.player);
@@ -3515,7 +5686,7 @@ class Dungeon3D {
             ctx.clearRect(0, 0, 512, 96);
 
             // Clean, crisp outlined text matching Godot Label3D (OutlineSize = 8, OutlineModulate = Black)
-            ctx.font = isStore ? '700 30px "Cinzel", serif' : '700 24px "Cinzel", serif';
+            ctx.font = isStore ? '700 30px "Cinzel", "Noto Sans JP", "Yu Gothic", sans-serif' : '700 24px "Cinzel", "Noto Sans JP", "Yu Gothic", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
 
@@ -3571,7 +5742,10 @@ class Dungeon3D {
         canvas.height = 110;
         const ctx = canvas.getContext('2d');
 
-        const race = m.race || m.name || 'creature';
+        const rawRace = m.race || m.name || 'creature';
+        const race = (window.getLocalizedMonsterName && (this.realm === 'hengband' || (window.__app && window.__app.activeRealm === 'hengband')))
+            ? window.getLocalizedMonsterName(rawRace, 'hengband', window.__langMode)
+            : rawRace;
         const glyph = m.glyph || '?';
         const colorHex = getAngbandColorString(m.attr);
         const hp = m.hp !== undefined ? m.hp : 1;
@@ -3615,7 +5789,10 @@ class Dungeon3D {
         }
 
         // Line 2: Monster Race Name with crisp black outline
-        ctx.font = '700 24px "Cinzel", serif';
+        let fontSize = 24;
+        if (race.length > 26) fontSize = 17;
+        else if (race.length > 18) fontSize = 20;
+        ctx.font = `700 ${fontSize}px "Cinzel", "Noto Sans JP", "Yu Gothic", sans-serif`;
         ctx.textAlign = 'center';
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 4;
@@ -3752,6 +5929,8 @@ class Dungeon3D {
         if (!monsters && !glyphs) return null;
 
         const rawName = (name || '').trim();
+        const lower = rawName.toLowerCase();
+
         // 1. Direct exact name lookup
         if (monsters && monsters[rawName]) {
             return monsters[rawName];
@@ -3759,7 +5938,6 @@ class Dungeon3D {
 
         // 2. Case-insensitive & partial lookup
         if (monsters) {
-            const lower = rawName.toLowerCase();
             if (!this._monsterAtlasLowerMap) {
                 this._monsterAtlasLowerMap = new Map();
                 for (const [k, v] of Object.entries(monsters)) {
@@ -3777,13 +5955,170 @@ class Dungeon3D {
             }
         }
 
-        // 3. Canonical Glyph fallback (100% coverage across all 49 Angband character symbols)
-        if (glyphs && glyph && glyphs[glyph]) {
-            return glyphs[glyph];
+        // 3. Variant creature taxonomy & archetypes (Hengband, FrogComposBand, Sil-Q, OAngband)
+        if (monsters) {
+            // Specific Eastern & Variant archetypes
+            if (lower.includes('samurai') || lower.includes('ninja') || lower.includes('ronin') || lower.includes('warrior') || lower.includes('guard')) {
+                if (monsters['Novice warrior']) return monsters['Novice warrior'];
+            }
+            if (lower.includes('miko') || lower.includes('priest') || lower.includes('shrine maiden') || lower.includes('geisha')) {
+                if (monsters['Novice priest']) return monsters['Novice priest'];
+            }
+            if (lower.includes('light') || lower.includes('sphere') || lower.includes('fireball') || lower.includes('orb')) {
+                if (monsters['Will o\' the wisp']) return monsters['Will o\' the wisp'];
+                if (monsters['Fire vortex']) return monsters['Fire vortex'];
+            }
+            if (lower.includes('sword') || lower.includes('blade') || lower.includes('axe') || lower.includes('polearm')) {
+                if (monsters['Death sword']) return monsters['Death sword'];
+                if (monsters['Novice warrior']) return monsters['Novice warrior'];
+            }
+            if (lower.includes('naga')) {
+                if (monsters['Red naga']) return monsters['Red naga'];
+                if (monsters['Spirit naga']) return monsters['Spirit naga'];
+            }
+            if (lower.includes('vortex')) {
+                if (monsters['Fire vortex']) return monsters['Fire vortex'];
+                if (monsters['Water vortex']) return monsters['Water vortex'];
+            }
+            if (lower.includes('coin') || lower.includes('copper') || lower.includes('silver') || lower.includes('gold')) {
+                if (monsters['Creeping copper coins']) return monsters['Creeping copper coins'];
+            }
+            if (lower.includes('mold') || lower.includes('fungus') || lower.includes('mushroom') || lower.includes('growth')) {
+                if (monsters['Hairy mold']) return monsters['Hairy mold'];
+            }
+            if (lower.includes('slime') || lower.includes('ooze') || lower.includes('jelly') || lower.includes('slug')) {
+                if (monsters['Giant clear slime']) return monsters['Giant clear slime'];
+            }
+            if (lower.includes('skirmisher') || (lower.includes('orc') && (lower.includes('soldier') || lower.includes('warrior')))) {
+                if (monsters['Cave orc']) return monsters['Cave orc'];
+            }
+            if (lower.includes('thrallmaster') || (lower.includes('orc') && (lower.includes('shaman') || lower.includes('curse')))) {
+                if (monsters['Orc shaman']) return monsters['Orc shaman'];
+            }
+            if (lower.includes('grimhawk') || lower.includes('war-raven') || lower.includes('hawk') || lower.includes('crow')) {
+                if (monsters['Crow']) return monsters['Crow'];
+                if (monsters['War-raven']) return monsters['War-raven'];
+            }
+            if (lower.includes('mewlip')) {
+                if (monsters['Ghost']) return monsters['Ghost'];
+            }
+            if (lower.includes('tanglethorn') || lower.includes('madthorn') || lower.includes('nightthorn') || lower.includes('thorn') || lower.includes('creeper')) {
+                if (monsters['Hairy mold']) return monsters['Hairy mold'];
+                if (monsters['Green mold']) return monsters['Green mold'];
+                if (glyphs && glyphs['m']) return glyphs['m'];
+            }
+            if (lower.includes('cold-drake') || lower.includes('cold drake')) {
+                if (monsters['Cold drake']) return monsters['Cold drake'];
+            }
+            if (lower.includes('fire-drake') || lower.includes('fire drake')) {
+                if (monsters['Fire drake']) return monsters['Fire drake'];
+            }
+            if (lower.includes('glaurung')) {
+                if (monsters['Glaurung, Father of the Dragons']) return monsters['Glaurung, Father of the Dragons'];
+            }
+            if (lower.includes('easterling') || lower.includes('thrall') || lower.includes('feanor') || lower.includes('luthien') || lower.includes('thingol') || lower.includes('beren') || lower.includes('maeglin') || lower.includes('turin')) {
+                if (monsters['Novice warrior']) return monsters['Novice warrior'];
+                if (monsters['<player>']) return monsters['<player>'];
+            }
+            if (lower.includes('nameless')) {
+                if (monsters['Mind flayer']) return monsters['Mind flayer'];
+                if (monsters['Red naga']) return monsters['Red naga'];
+            }
+            // General creature family keywords
+            if (lower.includes('orc')) {
+                if (lower.includes('archer') || lower.includes('scout') || lower.includes('sniper')) {
+                    if (monsters['orc archer']) return monsters['orc archer'];
+                }
+                if (monsters['Cave orc']) return monsters['Cave orc'];
+            }
+            // Equine & Mounts (Hengband / FrogComposBand / Variants)
+            if (lower.includes('horse') || lower.includes('pony') || lower.includes('steed') || lower.includes('unicorn') || lower.includes('pegasus') || lower.includes('馬') || lower.includes('乗用馬') || lower.includes('野生馬') || lower.includes('ポニー')) {
+                if (monsters['Uvatha the Horseman']) return monsters['Uvatha the Horseman'];
+                if (glyphs && glyphs['q']) return glyphs['q'];
+            }
+            if (lower.includes('wolf') || lower.includes('warg') || lower.includes('hound')) {
+                if (monsters['Wolf']) return monsters['Wolf'];
+                if (monsters['Warg']) return monsters['Warg'];
+            }
+            if (lower.includes('spider')) {
+                if (monsters['Giant spider']) return monsters['Giant spider'];
+            }
+            if (lower.includes('snake') || lower.includes('serpent') || lower.includes('viper')) {
+                if (monsters['Pit viper']) return monsters['Pit viper'];
+            }
+            if (lower.includes('skeleton')) {
+                if (monsters['Skeleton warrior']) return monsters['Skeleton warrior'];
+            }
+            if (lower.includes('zombie')) {
+                if (monsters['Zombified orc']) return monsters['Zombified orc'];
+            }
+            if (lower.includes('troll')) {
+                if (monsters['Cave troll']) return monsters['Cave troll'];
+            }
+            if (lower.includes('dragon') || lower.includes('drake')) {
+                if (monsters['Young red dragon']) return monsters['Young red dragon'];
+            }
+            if (lower.includes('vampire')) {
+                if (monsters['Vampire']) return monsters['Vampire'];
+            }
+            if (lower.includes('ghost') || lower.includes('wraith') || lower.includes('spectre')) {
+                if (monsters['Ghost']) return monsters['Ghost'];
+            }
         }
 
-        return null;
+        // 4. Canonical Glyph fallback (100% coverage across all Angband & variant character symbols)
+        let effectiveGlyph = (glyph || '').trim();
+        if (!effectiveGlyph || effectiveGlyph === '?') {
+            // Deduce glyph from name if glyph was blank, uninitialized or '?'
+            if (lower.includes('orc') || lower.includes('snaga') || lower.includes('uruk') || lower.includes('goblin')) effectiveGlyph = 'o';
+            else if (lower.includes('horse') || lower.includes('pony') || lower.includes('steed') || lower.includes('unicorn') || lower.includes('pegasus') || lower.includes('馬') || lower.includes('ポニー')) effectiveGlyph = 'q';
+            else if (lower.includes('wolf') || lower.includes('hound') || lower.includes('warg')) effectiveGlyph = 'C';
+            else if (lower.includes('spider') || lower.includes('scorpion')) effectiveGlyph = 'S';
+            else if (lower.includes('snake') || lower.includes('serpent') || lower.includes('viper') || lower.includes('naga')) effectiveGlyph = 'J';
+            else if (lower.includes('troll') || lower.includes('ogre')) effectiveGlyph = 'T';
+            else if (lower.includes('dragon') || lower.includes('drake')) effectiveGlyph = 'd';
+            else if (lower.includes('hawk') || lower.includes('bird') || lower.includes('bat') || lower.includes('crow')) effectiveGlyph = 'b';
+            else if (lower.includes('skeleton')) effectiveGlyph = 's';
+            else if (lower.includes('zombie') || lower.includes('ghoul') || lower.includes('mummy')) effectiveGlyph = 'z';
+            else if (lower.includes('ghost') || lower.includes('wraith') || lower.includes('spectre')) effectiveGlyph = 'G';
+            else if (lower.includes('thrall') || lower.includes('easterling') || lower.includes('human') || lower.includes('elf')) effectiveGlyph = '@';
+        }
+
+        if (glyphs && effectiveGlyph && glyphs[effectiveGlyph]) {
+            return glyphs[effectiveGlyph];
+        }
+
+        // Expanded glyph aliases for symbols not directly present in atlas.glyphs
+        if (monsters && effectiveGlyph) {
+            const glyphAliases = {
+                '@': monsters['<player>'] || monsters['Novice warrior'],
+                'D': monsters['Ancient red dragon'] || monsters['Cold drake'],
+                'A': monsters['Angel'],
+                '&': monsters['Hairy mold'] || monsters['Green mold'] || (glyphs && glyphs['m']) || (glyphs && glyphs['u']),
+                'N': monsters['Red naga'] || monsters['Mind flayer'],
+                'n': monsters['Red naga'] || monsters['Mind flayer'],
+                '*': monsters['Fire vortex'] || monsters['Will o\' the wisp'] || (glyphs && glyphs['v']),
+                '|': monsters['Novice warrior'] || (glyphs && glyphs['p']),
+                '(': monsters['Novice rogue'] || (glyphs && glyphs['p']),
+                '[': monsters['Iron golem'] || (glyphs && glyphs['g']),
+                ']': monsters['Iron golem'] || (glyphs && glyphs['g']),
+                '?': monsters['Ghost'] || (glyphs && glyphs['G']),
+                '!': monsters['Giant clear slime'] || (glyphs && glyphs['j']),
+                '$': monsters['Creeping copper coins'] || (glyphs && glyphs['m']),
+                '#': monsters['Stone golem'] || (glyphs && glyphs['g']),
+                ',': monsters['Hairy mold'] || (glyphs && glyphs['m']),
+                '.': monsters['Giant clear slime'] || (glyphs && glyphs['j']),
+                '~': monsters['Giant salamander'] || (glyphs && glyphs['R'])
+            };
+            if (glyphAliases[effectiveGlyph]) {
+                return glyphAliases[effectiveGlyph];
+            }
+        }
+
+        // Absolute fallback: Generic creature glyph or novice adventurer (guarantees 100% bestiary coverage)
+        return (glyphs && glyphs['o']) || (monsters && monsters['<player>']) || null;
     }
+
 
     createMonsterBillboardMesh(atlasEntry) {
         if (!atlasEntry || !atlasEntry.uv || !this.monsterBillboardMat) return null;
@@ -4737,19 +7072,95 @@ class Dungeon3D {
             group.add(eyeL); group.add(eyeR);
 
         } else if (glyph === 'q') {
-            // Beast / Quadruped: Sturdy muscular body
-            const beastMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.85 });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.65), beastMat);
-            body.position.y = 0.35;
-            group.add(body);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.28), beastMat);
-            head.position.set(0, 0.50, 0.38);
-            group.add(head);
-            const legGeo = new THREE.CylinderGeometry(0.05, 0.04, 0.28, 6);
-            for (let i = 0; i < 4; i++) {
-                const leg = new THREE.Mesh(legGeo, beastMat);
-                leg.position.set(i % 2 === 0 ? -0.14 : 0.14, 0.14, i < 2 ? 0.22 : -0.22);
-                group.add(leg);
+            const isEquine = lower.includes('horse') || lower.includes('pony') || lower.includes('steed') || lower.includes('unicorn') || lower.includes('pegasus') || lower.includes('馬') || lower.includes('乗用馬') || lower.includes('野生馬') || lower.includes('ポニー');
+            if (isEquine) {
+                // Equine / Horse / Mount: Slender athletic body, arched neck, head, pointed ears, mane, tail & hooves
+                const isUnicorn = lower.includes('unicorn') || lower.includes('一角獣');
+                const horseMat = new THREE.MeshStandardMaterial({ color: isUnicorn ? 0xf5f7fa : mainColor, roughness: 0.75 });
+                const maneMat = new THREE.MeshStandardMaterial({ color: isUnicorn ? 0xddffff : 0x221c18, roughness: 0.85 });
+                const hoofMat = new THREE.MeshStandardMaterial({ color: 0x1a1512, roughness: 0.5, metalness: 0.4 });
+
+                // Athletic barrel torso
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.38, 0.72), horseMat);
+                body.position.y = 0.52;
+                group.add(body);
+
+                // Arched neck (tilted forward)
+                const neck = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.34, 0.20), horseMat);
+                neck.position.set(0, 0.74, 0.28);
+                neck.rotation.x = -0.35;
+                group.add(neck);
+
+                // Mane crest along neck
+                const mane = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.36, 0.12), maneMat);
+                mane.position.set(0, 0.76, 0.20);
+                mane.rotation.x = -0.35;
+                group.add(mane);
+
+                // Tapered equine head & muzzle
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.28), horseMat);
+                head.position.set(0, 0.88, 0.42);
+                group.add(head);
+
+                // Pointed ears
+                const earGeo = new THREE.ConeGeometry(0.035, 0.08, 4);
+                const earL = new THREE.Mesh(earGeo, horseMat);
+                earL.position.set(-0.06, 0.98, 0.36);
+                const earR = new THREE.Mesh(earGeo, horseMat);
+                earR.position.set(0.06, 0.98, 0.36);
+                group.add(earL); group.add(earR);
+
+                // Unicorn Horn
+                if (isUnicorn) {
+                    const hornGeo = new THREE.ConeGeometry(0.03, 0.24, 6);
+                    const hornMat = new THREE.MeshStandardMaterial({
+                        color: 0xffffea,
+                        emissive: 0x66bbff,
+                        emissiveIntensity: 0.8,
+                        roughness: 0.2,
+                        metalness: 0.8
+                    });
+                    const horn = new THREE.Mesh(hornGeo, hornMat);
+                    horn.position.set(0, 1.02, 0.46);
+                    horn.rotation.x = -0.45;
+                    group.add(horn);
+                }
+
+                // Flowing tail
+                const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.02, 0.35, 6), maneMat);
+                tail.position.set(0, 0.42, -0.42);
+                tail.rotation.x = 0.30;
+                group.add(tail);
+
+                // 4 Slender legs with hooves
+                const legGeo = new THREE.CylinderGeometry(0.038, 0.03, 0.38, 6);
+                const hoofGeo = new THREE.CylinderGeometry(0.036, 0.042, 0.08, 6);
+                for (let i = 0; i < 4; i++) {
+                    const lx = (i % 2 === 0 ? -0.12 : 0.12);
+                    const lz = (i < 2 ? 0.24 : -0.24);
+                    const leg = new THREE.Mesh(legGeo, horseMat);
+                    leg.position.set(lx, 0.23, lz);
+                    group.add(leg);
+
+                    const hoof = new THREE.Mesh(hoofGeo, hoofMat);
+                    hoof.position.set(lx, 0.04, lz);
+                    group.add(hoof);
+                }
+            } else {
+                // Beast / Quadruped: Sturdy muscular body
+                const beastMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.85 });
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.65), beastMat);
+                body.position.y = 0.35;
+                group.add(body);
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.28), beastMat);
+                head.position.set(0, 0.50, 0.38);
+                group.add(head);
+                const legGeo = new THREE.CylinderGeometry(0.05, 0.04, 0.28, 6);
+                for (let i = 0; i < 4; i++) {
+                    const leg = new THREE.Mesh(legGeo, beastMat);
+                    leg.position.set(i % 2 === 0 ? -0.14 : 0.14, 0.14, i < 2 ? 0.22 : -0.22);
+                    group.add(leg);
+                }
             }
 
         } else if (glyph === 'y' || glyph === 'Y') {
@@ -5338,7 +7749,7 @@ class Dungeon3D {
 
     createMonster3DEntity(m, isTargeted, isSensed) {
         const root = new THREE.Group();
-        const glyph = m.glyph || '?';
+        const glyph = (m.glyph && m.glyph.trim()) ? m.glyph.trim() : '?';
         const race = (m.race || m.name || '').toLowerCase();
         const colorHex = getAngbandColorString(m.attr);
 
@@ -5671,6 +8082,22 @@ class Dungeon3D {
                 }
                 this.scene.remove(entity);
                 this.monsters.delete(id);
+            }
+        }
+    }
+
+    refreshMonsterNameplates() {
+        if (!this.monsters) return;
+        for (const [id, entity] of this.monsters.entries()) {
+            if (entity.nameplate && entity.monsterData) {
+                const m = entity.monsterData;
+                const isTargeted = Boolean(this.currentTarget && this.currentTarget.key === id);
+                const isSensed = !!(m.invisible || (m.detected && m.unlit));
+                entity.remove(entity.nameplate);
+                entity.nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
+                entity.nameplate.position.set(0, Math.min(2.65, (entity.modelHeight || 1.6) + 0.35), 0);
+                entity.nameplate.monsterData = m;
+                entity.add(entity.nameplate);
             }
         }
     }
@@ -6255,7 +8682,8 @@ class Dungeon3D {
 
             // Reactive Walking Head-bob (subtle vertical sinusoidal breathing)
             this.cameraBobPhase += delta * 18;
-            this.camera.position.y = this.eyeHeight + Math.sin(this.cameraBobPhase) * 0.045;
+            const baseY = this.targetCamPos ? this.targetCamPos.y : this.eyeHeight;
+            this.camera.position.y = baseY + Math.sin(this.cameraBobPhase) * 0.045;
 
             if (progress >= 1.0) {
                 this.currentCamPos.copy(this.targetCamPos);
@@ -6267,8 +8695,11 @@ class Dungeon3D {
             this.camera.position.copy(this.targetCamPos);
             this.isStepping = false;
             this.stepPlayedThisMove = false;
-            // Idle breathing bob
-            this.camera.position.y = this.eyeHeight + Math.sin(tNow * 0.002) * 0.012;
+            // Idle breathing bob & buoyant liquid bobbing in water
+            const baseY = this.targetCamPos ? this.targetCamPos.y : this.eyeHeight;
+            const idleBob = Math.sin(tNow * 0.002) * 0.012;
+            const waterBob = (this.playerWaterYOffset && this.playerWaterYOffset < 0) ? Math.sin(tNow * 0.0035) * 0.016 : 0;
+            this.camera.position.y = baseY + idleBob + waterBob;
         }
 
         // Calm, subtle subterranean torch draft (slow 0.3-0.5Hz gentle breath, max ±2.5% variation, NO rapid strobe)

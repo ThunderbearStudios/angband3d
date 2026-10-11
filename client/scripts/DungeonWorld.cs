@@ -71,6 +71,11 @@ public partial class DungeonWorld : Node3D
     public float CurrentHeightRatio { get; private set; } = 1.0f;
 
     /// <summary>
+    /// Current immersion depth offset when standing in water, deep water, or swamp.
+    /// </summary>
+    private float _currentWaterYOffset = 0f;
+
+    /// <summary>
     /// Feature indices from engine/src/list-terrain.h.
     /// For non-Angband engines, map external tile IDs to equivalent <see cref="Feat"/> values in <see cref="KindOf(int)"/>.
     /// </summary>
@@ -83,6 +88,8 @@ public partial class DungeonWorld : Node3D
         Secret = 15, Rubble = 16,
         Magma = 17, Quartz = 18, MagmaK = 19, QuartzK = 20,
         Granite = 21, Perm = 22, Lava = 23, PassRubble = 24,
+        Tree = 25, Grass = 26, Dirt = 27, ShallowWater = 28, DeepWater = 29, Mountain = 30, Swamp = 31,
+        Guild = 32, Inn = 33, Healer = 34, Museum = 35, Casino = 36, Forge = 37, Pagoda = 38, Bookstore = 39, Stable = 40, Chasm = 41, Bush = 42
     }
 
     /// <summary>
@@ -94,8 +101,18 @@ public partial class DungeonWorld : Node3D
         Floor,
         Ceiling,
         Wall,
+        PermWall,
         Magma,
         Quartz,
+        GoldVein,
+        GemVein,
+        Tree,
+        Grass,
+        Dirt,
+        ShallowWater,
+        DeepWater,
+        Mountain,
+        Swamp,
         Store1,
         Store2,
         Store3,
@@ -104,17 +121,41 @@ public partial class DungeonWorld : Node3D
         Store6,
         Store7,
         Store8,
+        Guild,
+        Inn,
+        Healer,
+        Museum,
+        Casino,
+        Forge,
+        Pagoda,
+        Bookstore,
+        Stable,
+        Chasm,
         DoorClosed,
         DoorOpen,
         DoorBroken,
         StairsDown,
         StairsUp,
         Rubble,
-        Lava
+        Lava,
+        Bush
     }
 
-    private static bool IsStoreKind(Kind k) => k is >= Kind.Store1 and <= Kind.Store8;
-    private static int StoreNumOf(Kind k) => k is >= Kind.Store1 and <= Kind.Store8 ? (int)(k - Kind.Store1 + 1) : 0;
+    private static bool IsStoreKind(Kind k) => k is (>= Kind.Store1 and <= Kind.Store8) or (>= Kind.Guild and <= Kind.Stable);
+    private static int StoreNumOf(Kind k) => k switch
+    {
+        >= Kind.Store1 and <= Kind.Store8 => (int)(k - Kind.Store1 + 1),
+        Kind.Guild => 32,
+        Kind.Inn => 33,
+        Kind.Healer => 34,
+        Kind.Museum => 35,
+        Kind.Casino => 36,
+        Kind.Forge => 37,
+        Kind.Pagoda => 38,
+        Kind.Bookstore => 39,
+        Kind.Stable => 40,
+        _ => 0
+    };
 
     private enum DoorState { Closed, Open, Broken }
 
@@ -198,6 +239,7 @@ public partial class DungeonWorld : Node3D
         public Color FloorColor { get; set; } = new Color(0.70f, 0.70f, 0.72f);
         public Color CeilingColor { get; set; } = new Color(0.55f, 0.55f, 0.58f);
         public float FloorRoughness { get; set; } = 0.84f;
+        public float WallRoughness { get; set; } = 0.82f;
         public Color ParticleColor { get; set; } = new Color(0.85f, 0.82f, 0.75f, 0.35f);
         public int ParticleAmount { get; set; } = 22;
         public float ParticleScaleMin { get; set; } = 0.015f;
@@ -206,11 +248,76 @@ public partial class DungeonWorld : Node3D
         public float ParticleSpeedMax { get; set; } = 0.25f;
         public Vector3 ParticleGravity { get; set; } = new Vector3(0, -0.04f, 0);
 
-        public static BiomeProfile GetForDepth(int depth, uint levelSeed = 0)
+        public static BiomeProfile GetForDepth(int depth, uint levelSeed = 0, string realm = "angband")
         {
+            var r = (realm ?? "angband").ToLowerInvariant();
+            int sub = (int)((levelSeed ^ (uint)(depth * 2654435761u)) % 4);
+
             if (depth <= 0)
             {
-                // Zone 0: Town / Overworld (Depth 0)
+                // Zone 0: Town / Wilderness Overworld (Depth 0)
+                if (r == "hengband")
+                {
+                    var names = new[] { "Eastern Overworld (Mount Fuji Foothills)", "Eastern Overworld (Bamboo Forest Glade)", "Eastern Overworld (Jingu Shrine Valley)", "Eastern Overworld (Ancient Pine Sanctuary)" };
+                    return new BiomeProfile
+                    {
+                        Name = names[sub],
+                        BackgroundColor = new Color(0.08f, 0.12f, 0.20f),
+                        AmbientLightColor = new Color(0.58f, 0.54f, 0.64f),
+                        AmbientLightEnergy = 1.65f,
+                        FogLightColor = new Color(0.08f, 0.12f, 0.20f),
+                        FogDensity = 0.0035f,
+                        VolumetricFogDensity = 0.0025f,
+                        VolumetricFogAlbedo = new Color(0.14f, 0.16f, 0.24f),
+                        VolumetricFogEmission = Colors.Black,
+                        TonemapExposure = 1.08f,
+                        TorchLightColor = new Color(1.0f, 0.88f, 0.60f),
+                        TorchLightEnergy = 2.2f,
+                        WallColor = new Color(0.85f, 0.85f, 0.88f),
+                        FloorColor = new Color(0.80f, 0.78f, 0.76f),
+                        CeilingColor = new Color(0.70f, 0.70f, 0.75f),
+                        FloorRoughness = 0.82f,
+                        ParticleColor = new Color(0.88f, 0.92f, 1.0f, 0.0f),
+                        ParticleAmount = 0,
+                        ParticleScaleMin = 0.015f,
+                        ParticleScaleMax = 0.030f,
+                        ParticleSpeedMin = 0.1f,
+                        ParticleSpeedMax = 0.3f,
+                        ParticleGravity = new Vector3(0, -0.05f, 0),
+                    };
+                }
+                if (r == "frogcomposband")
+                {
+                    var names = new[] { "Wilderness Overworld (Verdant Meadow)", "Wilderness Overworld (Whispering Woods)", "Wilderness Overworld (Highland Moors)", "Wilderness Overworld (Sunlit Dale)" };
+                    return new BiomeProfile
+                    {
+                        Name = names[sub],
+                        BackgroundColor = new Color(0.06f, 0.10f, 0.20f),
+                        AmbientLightColor = new Color(0.56f, 0.62f, 0.72f),
+                        AmbientLightEnergy = 1.70f,
+                        FogLightColor = new Color(0.06f, 0.10f, 0.20f),
+                        FogDensity = 0.003f,
+                        VolumetricFogDensity = 0.002f,
+                        VolumetricFogAlbedo = new Color(0.12f, 0.15f, 0.22f),
+                        VolumetricFogEmission = Colors.Black,
+                        TonemapExposure = 1.06f,
+                        TorchLightColor = new Color(1.0f, 0.88f, 0.65f),
+                        TorchLightEnergy = 2.2f,
+                        WallColor = new Color(0.88f, 0.86f, 0.82f),
+                        FloorColor = new Color(0.82f, 0.80f, 0.78f),
+                        CeilingColor = new Color(0.70f, 0.70f, 0.75f),
+                        FloorRoughness = 0.84f,
+                        ParticleColor = new Color(0.75f, 0.82f, 0.95f, 0.0f),
+                        ParticleAmount = 0,
+                        ParticleScaleMin = 0.015f,
+                        ParticleScaleMax = 0.030f,
+                        ParticleSpeedMin = 0.1f,
+                        ParticleSpeedMax = 0.3f,
+                        ParticleGravity = new Vector3(0, -0.05f, 0),
+                    };
+                }
+
+                // Default Bree Town & Outskirts (Angband)
                 return new BiomeProfile
                 {
                     Name = "Town & Overworld",
@@ -239,7 +346,142 @@ public partial class DungeonWorld : Node3D
                 };
             }
 
-            int sub = (int)((levelSeed ^ (uint)(depth * 2654435761u)) % 4);
+            // Sil-Q First Age Beleriand - The Iron Pits of Angband beneath Thangorodrim
+            // 20 Dungeon Levels Total (50ft to 1000ft / Level 20 Throne of Morgoth)
+            if (r == "silq")
+            {
+                if (depth <= 5)
+                {
+                    // 50ft – 250ft: Iron Pits (Gates of Slag & Ash Galleries)
+                    var names = new[] { "Iron Pits (Gates of Slag)", "Iron Pits (Ash-Stained Delvings)", "Iron Pits (Smoky Galleries)", "Iron Pits (Orc Barracks)" };
+                    var wcs = new[] { new Color(0.55f, 0.54f, 0.56f), new Color(0.50f, 0.50f, 0.54f), new Color(0.58f, 0.52f, 0.50f), new Color(0.52f, 0.52f, 0.55f) };
+                    var fcs = new[] { new Color(0.46f, 0.44f, 0.48f), new Color(0.42f, 0.42f, 0.46f), new Color(0.48f, 0.44f, 0.42f), new Color(0.44f, 0.44f, 0.46f) };
+                    var ccs = new[] { new Color(0.38f, 0.36f, 0.40f), new Color(0.34f, 0.34f, 0.38f), new Color(0.40f, 0.36f, 0.34f), new Color(0.36f, 0.36f, 0.38f) };
+                    return new BiomeProfile
+                    {
+                        Name = names[sub],
+                        BackgroundColor = new Color(0.012f, 0.012f, 0.014f),
+                        AmbientLightColor = new Color(0.20f, 0.20f, 0.24f),
+                        AmbientLightEnergy = 0.25f,
+                        FogLightColor = new Color(0.012f, 0.012f, 0.014f),
+                        FogDensity = 0.016f,
+                        VolumetricFogDensity = 0.012f,
+                        VolumetricFogAlbedo = new Color(0.18f, 0.18f, 0.20f),
+                        VolumetricFogEmission = Colors.Black,
+                        TonemapExposure = 1.15f,
+                        TorchLightColor = new Color(0.96f, 0.86f, 0.68f),
+                        TorchLightEnergy = 2.4f,
+                        WallColor = wcs[sub],
+                        FloorColor = fcs[sub],
+                        CeilingColor = ccs[sub],
+                        FloorRoughness = 0.88f,
+                        ParticleColor = new Color(0.45f, 0.44f, 0.42f, 0.65f), // Falling ash & soot flakes
+                        ParticleAmount = 30,
+                        ParticleScaleMin = 0.02f,
+                        ParticleScaleMax = 0.04f,
+                        ParticleSpeedMin = 0.06f,
+                        ParticleSpeedMax = 0.20f,
+                        ParticleGravity = new Vector3(0, -0.06f, 0),
+                    };
+                }
+                if (depth <= 10)
+                {
+                    // 300ft – 500ft: Morgoth's Armouries (Furnace Deeps & Dark Foundries)
+                    var names = new[] { "Morgoth's Armouries (Furnace Deep)", "Morgoth's Armouries (Dark Foundries)", "Morgoth's Armouries (Soot Vaults)", "Morgoth's Armouries (Iron Cisterns)" };
+                    var wcs = new[] { new Color(0.60f, 0.50f, 0.46f), new Color(0.55f, 0.48f, 0.44f), new Color(0.62f, 0.52f, 0.45f), new Color(0.54f, 0.50f, 0.48f) };
+                    var fcs = new[] { new Color(0.50f, 0.42f, 0.38f), new Color(0.46f, 0.40f, 0.36f), new Color(0.52f, 0.44f, 0.38f), new Color(0.45f, 0.42f, 0.40f) };
+                    var ccs = new[] { new Color(0.40f, 0.34f, 0.30f), new Color(0.36f, 0.32f, 0.28f), new Color(0.42f, 0.35f, 0.30f), new Color(0.38f, 0.34f, 0.32f) };
+                    return new BiomeProfile
+                    {
+                        Name = names[sub],
+                        BackgroundColor = new Color(0.016f, 0.008f, 0.006f),
+                        AmbientLightColor = new Color(0.32f, 0.20f, 0.15f),
+                        AmbientLightEnergy = 0.28f,
+                        FogLightColor = new Color(0.016f, 0.008f, 0.006f),
+                        FogDensity = 0.018f,
+                        VolumetricFogDensity = 0.014f,
+                        VolumetricFogAlbedo = new Color(0.32f, 0.18f, 0.12f),
+                        VolumetricFogEmission = new Color(0.02f, 0.008f, 0.004f),
+                        TonemapExposure = 1.18f,
+                        TorchLightColor = new Color(1.0f, 0.80f, 0.55f),
+                        TorchLightEnergy = 2.6f,
+                        WallColor = wcs[sub],
+                        FloorColor = fcs[sub],
+                        CeilingColor = ccs[sub],
+                        FloorRoughness = 0.85f,
+                        ParticleColor = new Color(0.95f, 0.48f, 0.12f, 0.80f), // Rising furnace embers
+                        ParticleAmount = 28,
+                        ParticleScaleMin = 0.02f,
+                        ParticleScaleMax = 0.045f,
+                        ParticleSpeedMin = 0.15f,
+                        ParticleSpeedMax = 0.50f,
+                        ParticleGravity = new Vector3(0, 0.08f, 0),
+                    };
+                }
+                if (depth <= 15)
+                {
+                    // 550ft – 750ft: Deep Torment (Barrows of Thangorodrim & Balrog Halls)
+                    var names = new[] { "Deep Torment (Barrows of Thangorodrim)", "Deep Torment (Balrog Halls)", "Deep Torment (Dragon Kennels)", "Deep Torment (Dungeon of Shackles)" };
+                    var wcs = new[] { new Color(0.46f, 0.44f, 0.50f), new Color(0.42f, 0.40f, 0.46f), new Color(0.48f, 0.42f, 0.48f), new Color(0.40f, 0.42f, 0.45f) };
+                    var fcs = new[] { new Color(0.38f, 0.36f, 0.42f), new Color(0.35f, 0.34f, 0.40f), new Color(0.40f, 0.35f, 0.40f), new Color(0.34f, 0.36f, 0.38f) };
+                    var ccs = new[] { new Color(0.30f, 0.28f, 0.34f), new Color(0.28f, 0.26f, 0.32f), new Color(0.32f, 0.28f, 0.32f), new Color(0.28f, 0.28f, 0.30f) };
+                    return new BiomeProfile
+                    {
+                        Name = names[sub],
+                        BackgroundColor = new Color(0.010f, 0.008f, 0.015f),
+                        AmbientLightColor = new Color(0.22f, 0.18f, 0.28f),
+                        AmbientLightEnergy = 0.24f,
+                        FogLightColor = new Color(0.010f, 0.008f, 0.015f),
+                        FogDensity = 0.018f,
+                        VolumetricFogDensity = 0.014f,
+                        VolumetricFogAlbedo = new Color(0.20f, 0.16f, 0.28f),
+                        VolumetricFogEmission = Colors.Black,
+                        TonemapExposure = 1.16f,
+                        TorchLightColor = new Color(0.92f, 0.84f, 0.72f),
+                        TorchLightEnergy = 2.4f,
+                        WallColor = wcs[sub],
+                        FloorColor = fcs[sub],
+                        CeilingColor = ccs[sub],
+                        FloorRoughness = 0.80f,
+                        ParticleColor = new Color(0.55f, 0.55f, 0.65f, 0.50f),
+                        ParticleAmount = 26,
+                        ParticleScaleMin = 0.02f,
+                        ParticleScaleMax = 0.04f,
+                        ParticleSpeedMin = 0.08f,
+                        ParticleSpeedMax = 0.25f,
+                        ParticleGravity = new Vector3(0, -0.04f, 0),
+                    };
+                }
+
+                // 800ft – 1000ft: Citadel of the Iron Crown (Morgoth's Throne Room at 1000ft / Level 20)
+                var silqEndNames = new[] { "Citadel of the Iron Crown (Throne of Morgoth)", "Citadel of the Iron Crown (The Iron Pit)", "Citadel of the Iron Crown (Abyss of Thangorodrim)", "Citadel of the Iron Crown (Vault of the Silmarils)" };
+                return new BiomeProfile
+                {
+                    Name = silqEndNames[sub],
+                    BackgroundColor = new Color(0.014f, 0.006f, 0.018f),
+                    AmbientLightColor = new Color(0.24f, 0.12f, 0.28f),
+                    AmbientLightEnergy = 0.26f,
+                    FogLightColor = new Color(0.014f, 0.006f, 0.018f),
+                    FogDensity = 0.018f,
+                    VolumetricFogDensity = 0.014f,
+                    VolumetricFogAlbedo = new Color(0.24f, 0.10f, 0.30f),
+                    VolumetricFogEmission = new Color(0.02f, 0.006f, 0.025f),
+                    TonemapExposure = 1.20f,
+                    TorchLightColor = new Color(0.92f, 0.88f, 0.96f),
+                    TorchLightEnergy = 2.4f,
+                    WallColor = new Color(0.34f, 0.34f, 0.38f), // Pitch black basalt and obsidian
+                    FloorColor = new Color(0.28f, 0.26f, 0.30f),
+                    CeilingColor = new Color(0.22f, 0.21f, 0.24f),
+                    FloorRoughness = 0.35f, // Smooth polished obsidian
+                    ParticleColor = new Color(0.70f, 0.25f, 0.90f, 0.80f), // Void purple energy wisps
+                    ParticleAmount = 36,
+                    ParticleScaleMin = 0.025f,
+                    ParticleScaleMax = 0.050f,
+                    ParticleSpeedMin = 0.2f,
+                    ParticleSpeedMax = 0.6f,
+                    ParticleGravity = new Vector3(0, 0.12f, 0),
+                };
+            }
 
             if (depth <= 15)
             {
@@ -448,6 +690,8 @@ public partial class DungeonWorld : Node3D
         public string EffectType { get; set; }
     }
 
+    public string Realm { get; set; } = "angband";
+
     private BiomeProfile _currentBiome;
     private BiomeProfile _targetBiome;
     private CpuParticles3D _biomeParticles;
@@ -455,17 +699,29 @@ public partial class DungeonWorld : Node3D
 
     // Materials
     private static StandardMaterial3D _wallMaterial;
+    private static StandardMaterial3D _permWallMaterial;
     private static StandardMaterial3D _floorMaterial;
     private static StandardMaterial3D _ceilingMaterial;
     private static Material _magmaMaterial;
     private static StandardMaterial3D _quartzMaterial;
+    private static Material _goldVeinMaterial;
+    private static StandardMaterial3D _gemVeinMaterial;
+    private static StandardMaterial3D _grassMaterial;
+    private static StandardMaterial3D _dirtMaterial;
+    private static StandardMaterial3D _waterMaterial;
+    private static StandardMaterial3D _deepWaterMaterial;
+    private static StandardMaterial3D _mountainMaterial;
+    private static StandardMaterial3D _swampMaterial;
+    private static StandardMaterial3D _treeMaterial;
+    private static StandardMaterial3D _treeBarkMaterial;
     private static StandardMaterial3D _storeMaterial;
     private static StandardMaterial3D _doorFrameMaterial;
     private static StandardMaterial3D _doorWoodMaterial;
-    private static readonly StandardMaterial3D[] _shopDoorMaterials = new StandardMaterial3D[8];
+    private static readonly StandardMaterial3D[] _shopDoorMaterials = new StandardMaterial3D[42];
     private static StandardMaterial3D _stairsMaterial;
     private static StandardMaterial3D _rubbleMaterial;
     private static Material _lavaMaterial;
+    private static StandardMaterial3D _chasmMaterial;
 
     private static readonly Dictionary<Kind, Mesh> _meshCache = new();
 
@@ -473,7 +729,7 @@ public partial class DungeonWorld : Node3D
     {
         InitMaterials();
 
-        _currentBiome = BiomeProfile.GetForDepth(0);
+        _currentBiome = BiomeProfile.GetForDepth(0, 0, Realm);
         _targetBiome = _currentBiome;
 
         _env = BuildEnvironment(_currentBiome);
@@ -515,7 +771,8 @@ public partial class DungeonWorld : Node3D
         _biomeParticles = new CpuParticles3D
         {
             Name = "BiomeAtmosphericParticles",
-            Amount = _currentBiome.ParticleAmount,
+            Amount = Mathf.Max(1, _currentBiome.ParticleAmount),
+            Emitting = _currentBiome.ParticleAmount > 0,
             Lifetime = 3.5f,
             EmissionShape = CpuParticles3D.EmissionShapeEnum.Box,
             EmissionBoxExtents = new Vector3(8.0f, 2.5f, 8.0f),
@@ -976,6 +1233,382 @@ public partial class DungeonWorld : Node3D
         });
     }
 
+    private static ImageTexture CreateGoldVeinTexture()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            var vein = (FractalNoise(x * 0.025f, y * 0.025f, 4, 83) - 0.5f) * 2.0f;
+            var goldNugget = SmoothNoise(x * 0.15f, y * 0.15f, 105);
+            var inVein = Math.Abs(vein) < 0.22f;
+            var isNugget = (inVein && goldNugget > 0.42f) || (!inVein && Math.Abs(vein) < 0.32f && goldNugget > 0.70f);
+
+            if (isNugget)
+            {
+                var luster = SmoothNoise(x * 0.35f, y * 0.35f, 120) * 0.15f;
+                return new Color(0.96f + luster * 0.04f, 0.80f + luster, 0.15f + luster * 0.5f);
+            }
+            if (inVein)
+            {
+                var rim = SmoothNoise(x * 0.1f, y * 0.1f, 91) * 0.08f;
+                return new Color(0.46f + rim, 0.40f + rim, 0.28f + rim);
+            }
+            var rockGrain = (SmoothNoise(x * 0.08f, y * 0.08f, 88) - 0.5f) * 0.05f;
+            return new Color(0.22f + rockGrain, 0.20f + rockGrain, 0.22f + rockGrain);
+        });
+    }
+
+    private static ImageTexture CreateGoldVeinEmission()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            var vein = (FractalNoise(x * 0.025f, y * 0.025f, 4, 83) - 0.5f) * 2.0f;
+            var goldNugget = SmoothNoise(x * 0.15f, y * 0.15f, 105);
+            var inVein = Math.Abs(vein) < 0.22f;
+            var isNugget = (inVein && goldNugget > 0.42f) || (!inVein && Math.Abs(vein) < 0.32f && goldNugget > 0.70f);
+            if (isNugget) return new Color(0.55f, 0.42f, 0.06f);
+            return Colors.Black;
+        });
+    }
+
+    private static ImageTexture CreateGemVeinTexture()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            var crystalVein = (FractalNoise((x * 1.2f - y * 0.8f) * 0.025f, (x * 0.5f + y) * 0.025f, 4, 44) - 0.5f) * 2.0f;
+            var gemCluster = SmoothNoise(x * 0.18f, y * 0.18f, 215);
+            var inVein = Math.Abs(crystalVein) < 0.24f;
+            var isGem = inVein && gemCluster > 0.56f;
+
+            if (isGem)
+            {
+                var gemType = (int)(Hash(x / 24, y / 24, 77) * 4);
+                var facet = (SmoothNoise(x * 0.4f, y * 0.4f, 301) - 0.5f) * 0.25f;
+                return gemType switch
+                {
+                    0 => new Color(0.08f + facet * 0.5f, 0.92f + facet, 0.32f + facet * 0.8f),
+                    1 => new Color(0.96f + facet, 0.12f + facet * 0.5f, 0.24f + facet * 0.8f),
+                    2 => new Color(0.12f + facet * 0.5f, 0.45f + facet * 0.8f, 0.98f + facet),
+                    _ => new Color(0.88f + facet, 0.35f + facet * 0.5f, 0.95f + facet)
+                };
+            }
+            if (inVein)
+            {
+                var glint = SmoothNoise(x * 0.2f, y * 0.2f, 12) * 0.12f;
+                return new Color(0.72f + glint, 0.78f + glint, 0.84f + glint);
+            }
+            var grain = (SmoothNoise(x * 0.08f, y * 0.08f, 9) - 0.5f) * 0.06f;
+            return new Color(0.38f + grain, 0.39f + grain, 0.42f + grain);
+        });
+    }
+
+    private static ImageTexture CreateGemVeinEmission()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            var crystalVein = (FractalNoise((x * 1.2f - y * 0.8f) * 0.025f, (x * 0.5f + y) * 0.025f, 4, 44) - 0.5f) * 2.0f;
+            var gemCluster = SmoothNoise(x * 0.18f, y * 0.18f, 215);
+            var inVein = Math.Abs(crystalVein) < 0.24f;
+            var isGem = inVein && gemCluster > 0.56f;
+            if (isGem)
+            {
+                var gemType = (int)(Hash(x / 24, y / 24, 77) * 4);
+                return gemType switch
+                {
+                    0 => new Color(0.04f, 0.45f, 0.15f),
+                    1 => new Color(0.48f, 0.06f, 0.12f),
+                    2 => new Color(0.06f, 0.22f, 0.50f),
+                    _ => new Color(0.42f, 0.15f, 0.48f)
+                };
+            }
+            return Colors.Black;
+        });
+    }
+
+    private static ImageTexture CreateGrassTexture()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            // High-frequency directional blade striations (blade angle ~ 75-80 deg)
+            var bladeAngle = x * 0.85f + y * 0.18f;
+            var bladeWave = MathF.Sin(bladeAngle * 1.6f + SmoothNoise(x * 0.10f, y * 0.10f, 61) * 6.0f);
+            var fineBlade = (bladeWave * 0.5f + 0.5f) * (SmoothNoise(x * 0.35f, y * 0.12f, 62) * 0.4f + 0.6f);
+
+            // Turf clumps & soil patches
+            var clumpNoise = SmoothNoise(x * 0.04f, y * 0.04f, 63);
+            var soilPatch = SmoothNoise(x * 0.015f, y * 0.015f, 64);
+            var cloverNoise = SmoothNoise(x * 0.12f, y * 0.12f, 65);
+
+            // Color palette: Lush spring meadow green with golden blade tips and dark thatch roots
+            var r = 0.14f + fineBlade * 0.26f + clumpNoise * 0.08f;
+            var g = 0.34f + fineBlade * 0.40f + clumpNoise * 0.12f;
+            var b = 0.08f + fineBlade * 0.12f + clumpNoise * 0.04f;
+
+            // Soil loam peeking through in thin turf patches
+            if (soilPatch < 0.24f)
+            {
+                var t = (0.24f - soilPatch) / 0.24f;
+                r = r * (1f - t) + 0.36f * t;
+                g = g * (1f - t) + 0.26f * t;
+                b = b * (1f - t) + 0.16f * t;
+            }
+
+            // Occasional clover / micro-flora flecks
+            if (cloverNoise > 0.82f)
+            {
+                var c = (cloverNoise - 0.82f) / 0.18f;
+                r = r * (1f - c) + 0.42f * c;
+                g = g * (1f - c) + 0.72f * c;
+                b = b * (1f - c) + 0.26f * c;
+            }
+
+            return new Color(Mathf.Clamp(r, 0f, 1f), Mathf.Clamp(g, 0f, 1f), Mathf.Clamp(b, 0f, 1f));
+        });
+    }
+
+    private static ImageTexture CreateGrassNormal()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            float H(float u, float v)
+            {
+                var bladeWave = MathF.Sin((u * 0.85f + v * 0.18f) * 1.6f + SmoothNoise(u * 0.10f, v * 0.10f, 61) * 6.0f);
+                return bladeWave * 0.6f + SmoothNoise(u * 0.04f, v * 0.04f, 63) * 0.4f;
+            }
+
+            var h0 = H(x, y);
+            var hx = H(x + 1, y);
+            var hy = H(x, y + 1);
+
+            var dx = (hx - h0) * 2.2f;
+            var dy = (hy - h0) * 2.2f;
+            var nx = dx;
+            var ny = -dy;
+            var nz = 1.0f;
+            var len = MathF.Sqrt(nx * nx + ny * ny + nz * nz);
+            return new Color(
+                Mathf.Clamp(nx / len * 0.5f + 0.5f, 0f, 1f),
+                Mathf.Clamp(ny / len * 0.5f + 0.5f, 0f, 1f),
+                Mathf.Clamp(nz / len * 0.5f + 0.5f, 0f, 1f));
+        });
+    }
+
+    private static ImageTexture CreateDirtTexture()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            var soilGrain = (SmoothNoise(x * 0.12f, y * 0.12f, 71) - 0.5f) * 0.08f;
+            var pebbleNoise = SmoothNoise(x * 0.3f, y * 0.3f, 72);
+            var pebble = pebbleNoise > 0.78f ? (pebbleNoise - 0.78f) * 0.8f : 0f;
+
+            var r = 0.44f + soilGrain + pebble * 0.2f;
+            var g = 0.34f + soilGrain * 0.8f + pebble * 0.2f;
+            var b = 0.24f + soilGrain * 0.6f + pebble * 0.2f;
+            return new Color(Mathf.Clamp(r, 0f, 1f), Mathf.Clamp(g, 0f, 1f), Mathf.Clamp(b, 0f, 1f));
+        });
+    }
+
+    private static ImageTexture CreateWaterTexture()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            var wave1 = MathF.Sin(x * 0.08f + y * 0.04f) * 0.06f;
+            var wave2 = MathF.Cos(x * 0.04f - y * 0.08f) * 0.06f;
+            var ripple = (SmoothNoise(x * 0.15f, y * 0.15f, 81) - 0.5f) * 0.05f;
+
+            var r = 0.14f + wave1 * 0.3f;
+            var g = 0.44f + wave1 + wave2 + ripple;
+            var b = 0.74f + wave2 * 0.5f + ripple * 0.5f;
+            return new Color(Mathf.Clamp(r, 0f, 1f), Mathf.Clamp(g, 0f, 1f), Mathf.Clamp(b, 0f, 1f));
+        });
+    }
+
+    private static ImageTexture CreateDeepWaterTexture()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            var wave = MathF.Sin(x * 0.05f + y * 0.05f) * 0.04f;
+            var r = 0.06f + wave * 0.2f;
+            var g = 0.20f + wave * 0.5f;
+            var b = 0.48f + wave;
+            return new Color(Mathf.Clamp(r, 0f, 1f), Mathf.Clamp(g, 0f, 1f), Mathf.Clamp(b, 0f, 1f));
+        });
+    }
+
+    private static ImageTexture CreateTreeBarkTexture()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            var furrow = MathF.Sin(x * 0.30f + SmoothNoise(x * 0.04f, y * 0.15f, 94) * 4.0f) * 0.14f;
+            var grain = (SmoothNoise(x * 0.06f, y * 0.30f, 95) - 0.5f) * 0.12f;
+            var microGrain = (SmoothNoise(x * 0.25f, y * 0.50f, 96) - 0.5f) * 0.05f;
+            var mossFleck = SmoothNoise(x * 0.06f, y * 0.06f, 97);
+
+            var r = 0.32f + furrow + grain + microGrain;
+            var g = 0.22f + furrow * 0.8f + grain * 0.7f + microGrain * 0.7f;
+            var b = 0.13f + furrow * 0.5f + grain * 0.5f + microGrain * 0.5f;
+
+            // Organic pale moss nestled in deep furrow crevices
+            if (mossFleck > 0.66f && furrow < -0.02f)
+            {
+                var m = (mossFleck - 0.66f) / 0.34f;
+                r = r * (1f - m) + 0.22f * m;
+                g = g * (1f - m) + 0.40f * m;
+                b = b * (1f - m) + 0.16f * m;
+            }
+
+            return new Color(Mathf.Clamp(r, 0f, 1f), Mathf.Clamp(g, 0f, 1f), Mathf.Clamp(b, 0f, 1f));
+        });
+    }
+
+    private static ImageTexture CreateTreeBarkNormal()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            float H(float u, float v)
+            {
+                var furrow = MathF.Sin(u * 0.30f + SmoothNoise(u * 0.04f, v * 0.15f, 94) * 4.0f);
+                var grain = SmoothNoise(u * 0.06f, v * 0.30f, 95) * 0.3f;
+                return furrow * 0.7f + grain;
+            }
+
+            var h0 = H(x, y);
+            var hx = H(x + 1, y);
+            var hy = H(x, y + 1);
+
+            var dx = (hx - h0) * 3.8f;
+            var dy = (hy - h0) * 1.5f;
+            var nx = dx;
+            var ny = -dy;
+            var nz = 1.0f;
+            var len = MathF.Sqrt(nx * nx + ny * ny + nz * nz);
+            return new Color(
+                Mathf.Clamp(nx / len * 0.5f + 0.5f, 0f, 1f),
+                Mathf.Clamp(ny / len * 0.5f + 0.5f, 0f, 1f),
+                Mathf.Clamp(nz / len * 0.5f + 0.5f, 0f, 1f));
+        });
+    }
+
+    private static ImageTexture CreatePermWallTexture()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            // Primordial cyclopean bedrock: flowing geological strata, tectonic fissures, no brick seams
+            var strata = MathF.Sin(y * 0.04f + SmoothNoise(x * 0.03f, y * 0.015f, 11) * 6.0f) * 0.08f;
+            var fracture = (FractalNoise(x * 0.03f, y * 0.03f, 4, 15) - 0.5f) * 0.16f;
+            var mineralGrain = (SmoothNoise(x * 0.15f, y * 0.15f, 17) - 0.5f) * 0.05f;
+
+            var rBase = 0.28f + strata + fracture + mineralGrain;
+            var gBase = 0.28f + strata + fracture + mineralGrain;
+            var bBase = 0.30f + strata * 1.2f + fracture + mineralGrain;
+
+            return new Color(Mathf.Clamp(rBase, 0f, 1f), Mathf.Clamp(gBase, 0f, 1f), Mathf.Clamp(bBase, 0f, 1f));
+        });
+    }
+
+    private static ImageTexture CreatePermWallNormal()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            var h0 = FractalNoise(x * 0.03f, y * 0.03f, 4, 15);
+            var hx = FractalNoise((x + 1) * 0.03f, y * 0.03f, 4, 15);
+            var hy = FractalNoise(x * 0.03f, (y + 1) * 0.03f, 4, 15);
+
+            var dx = (hx - h0) * 4.0f;
+            var dy = (hy - h0) * 4.0f;
+            var nx = dx;
+            var ny = -dy;
+            var nz = 1.0f;
+            var len = MathF.Sqrt(nx * nx + ny * ny + nz * nz);
+            return new Color(nx / len * 0.5f + 0.5f, ny / len * 0.5f + 0.5f, nz / len * 0.5f + 0.5f);
+        });
+    }
+
+    private static ImageTexture CreateTreeLeavesTexture()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            // Cluster grid (leaf bunches / puffs of canopy)
+            const float clusterScale = 0.04f;
+            var cx = x * clusterScale;
+            var cy = y * clusterScale;
+
+            // Voronoi-like clump center distance
+            var clumpNoise = SmoothNoise(cx, cy, 91);
+            var clumpDist = MathF.Sin(cx * MathF.PI) * MathF.Sin(cy * MathF.PI);
+
+            // Overlapping leaf edges and silhouettes
+            var leafSerration = (SmoothNoise(x * 0.22f, y * 0.22f, 92) - 0.5f) * 0.24f;
+            var microLeaves = (SmoothNoise(x * 0.45f, y * 0.45f, 93) - 0.5f) * 0.14f;
+
+            // Density of foliage cluster: high inside clump, drops off into deep canopy shadow crevices
+            var puff = Mathf.Clamp(clumpNoise * 0.6f + clumpDist * 0.3f + 0.2f + leafSerration, 0f, 1f);
+
+            // Deep ancient arbor canopy palette:
+            float r, g, b;
+            if (puff < 0.35f)
+            {
+                // Deep canopy shadow void between leaf bunches
+                var t = puff / 0.35f;
+                r = 0.03f * (1f - t) + 0.10f * t;
+                g = 0.09f * (1f - t) + 0.30f * t;
+                b = 0.04f * (1f - t) + 0.13f * t;
+            }
+            else
+            {
+                var t = (puff - 0.35f) / 0.65f;
+                r = 0.10f * (1f - t) + 0.28f * t + microLeaves * 0.3f;
+                g = 0.30f * (1f - t) + 0.62f * t + microLeaves;
+                b = 0.13f * (1f - t) + 0.25f * t + microLeaves * 0.3f;
+            }
+
+            return new Color(Mathf.Clamp(r, 0f, 1f), Mathf.Clamp(g, 0f, 1f), Mathf.Clamp(b, 0f, 1f));
+        });
+    }
+
+    private static ImageTexture CreateTreeLeavesNormal()
+    {
+        const int size = 512;
+        return CreateTexture(size, size, (x, y) =>
+        {
+            float H(float u, float v)
+            {
+                var cx = u * 0.04f;
+                var cy = v * 0.04f;
+                var puff = SmoothNoise(cx, cy, 91) * 0.6f + (SmoothNoise(u * 0.22f, v * 0.22f, 92) - 0.5f) * 0.20f;
+                return puff;
+            }
+
+            var h0 = H(x, y);
+            var hx = H(x + 1, y);
+            var hy = H(x, y + 1);
+
+            var dx = (hx - h0) * 3.5f;
+            var dy = (hy - h0) * 3.5f;
+            var nx = dx;
+            var ny = -dy;
+            var nz = 1.0f;
+            var len = MathF.Sqrt(nx * nx + ny * ny + nz * nz);
+            return new Color(
+                Mathf.Clamp(nx / len * 0.5f + 0.5f, 0f, 1f),
+                Mathf.Clamp(ny / len * 0.5f + 0.5f, 0f, 1f),
+                Mathf.Clamp(nz / len * 0.5f + 0.5f, 0f, 1f));
+        });
+    }
+
     private static readonly byte[][] DigitPatterns =
     {
         // 1
@@ -1006,6 +1639,15 @@ public partial class DungeonWorld : Node3D
         6 => new Color(0.85f, 0.65f, 1.0f),  // Magic: Arcane Violet
         7 => new Color(1.0f, 0.45f, 0.65f),  // Black Market: Crimson Rose
         8 => new Color(1.0f, 0.95f, 0.70f),  // Home: Cozy Amber
+        32 => new Color(0.95f, 0.80f, 0.30f), // Guild: Adventurers Gold
+        33 => new Color(0.85f, 0.50f, 0.25f), // Inn: Hearth Amber
+        34 => new Color(0.50f, 0.95f, 0.80f), // Healer: Healing Emerald
+        35 => new Color(0.40f, 0.60f, 0.95f), // Museum: Relic Sapphire
+        36 => new Color(0.95f, 0.85f, 0.20f), // Casino: Fortune Gold
+        37 => new Color(1.0f, 0.40f, 0.20f),  // Forge: Hearth Fire Orange
+        38 => new Color(0.85f, 0.25f, 0.25f), // Pagoda: Vermilion Shrine
+        39 => new Color(0.75f, 0.65f, 0.45f), // Bookstore: Ancient Parchment
+        40 => new Color(0.55f, 0.75f, 0.40f), // Stable: Woodland Green
         _ => new Color(1.0f, 0.90f, 0.50f)
     };
 
@@ -1315,6 +1957,26 @@ public partial class DungeonWorld : Node3D
             Metallic = 0.0f,
         };
 
+        var permWallTex = LoadTextureOrFallback("res://assets/models/town/T_RockTrim_BaseColor.png", CreatePermWallTexture);
+        var permWallNormal = LoadTextureOrFallback("res://assets/models/town/T_RockTrim_Normal.png", CreatePermWallNormal);
+        var permWallRoughness = LoadTextureOrFallback("res://assets/models/town/T_RockTrim_Roughness.png", () => null);
+
+        _permWallMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = true,
+            AlbedoTexture = permWallTex,
+            NormalEnabled = true,
+            NormalTexture = permWallNormal,
+            NormalScale = 1.05f,
+            RoughnessTexture = permWallRoughness,
+            Roughness = 0.82f,
+            Metallic = 0.08f,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Uv1Triplanar = true,
+            Uv1WorldTriplanar = true,
+            Uv1Scale = new Vector3(0.5f, 0.5f, 0.5f),
+        };
+
         _magmaMaterial = CreateEmissiveTerrainMaterial(
             magmaTex,
             magmaEmission,
@@ -1383,11 +2045,11 @@ public partial class DungeonWorld : Node3D
             Metallic = 0.10f,
         };
 
-        for (var i = 0; i < 8; i++)
+        int[] shopIndices = { 1, 2, 3, 4, 5, 6, 7, 8, 32, 33, 34, 35, 36, 37, 38, 39, 40 };
+        foreach (var shopNum in shopIndices)
         {
-            var shopNum = i + 1;
             var shopTex = CreateShopDoorTexture(shopNum, StoreColor(shopNum));
-            _shopDoorMaterials[i] = new StandardMaterial3D
+            var mat = new StandardMaterial3D
             {
                 VertexColorUseAsAlbedo = true,
                 AlbedoTexture = shopTex,
@@ -1399,7 +2061,21 @@ public partial class DungeonWorld : Node3D
                 Roughness = 0.68f,
                 Metallic = 0.15f,
             };
+            _shopDoorMaterials[shopNum] = mat;
+            if (shopNum <= 8)
+            {
+                _shopDoorMaterials[shopNum - 1] = mat;
+            }
         }
+
+        _chasmMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = false,
+            AlbedoColor = new Color(0.01f, 0.01f, 0.02f),
+            Roughness = 0.98f,
+            Metallic = 0.0f,
+            CullMode = BaseMaterial3D.CullModeEnum.Disabled
+        };
 
         _stairsMaterial = new StandardMaterial3D
         {
@@ -1435,6 +2111,149 @@ public partial class DungeonWorld : Node3D
             0.45f,
             0.0f,
             0.5f);
+
+        var goldVeinTex = CreateGoldVeinTexture();
+        var goldVeinEmission = CreateGoldVeinEmission();
+        var gemVeinTex = CreateGemVeinTexture();
+        var grassTex = CreateGrassTexture();
+        var grassNormal = CreateGrassNormal();
+        var dirtTex = CreateDirtTexture();
+        var waterTex = CreateWaterTexture();
+        var deepWaterTex = CreateDeepWaterTexture();
+        var treeLeavesTex = CreateTreeLeavesTexture();
+        var treeLeavesNormal = CreateTreeLeavesNormal();
+        var treeBarkTex = CreateTreeBarkTexture();
+        var treeBarkNormal = CreateTreeBarkNormal();
+
+        _goldVeinMaterial = CreateEmissiveTerrainMaterial(
+            goldVeinTex,
+            goldVeinEmission,
+            new Color(1.0f, 0.75f, 0.15f),
+            1.6f,
+            0.32f,
+            0.88f,
+            0.5f);
+
+        _gemVeinMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = true,
+            AlbedoTexture = gemVeinTex,
+            NormalEnabled = true,
+            NormalTexture = wallNormal,
+            NormalScale = 0.85f,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Uv1Triplanar = true,
+            Uv1WorldTriplanar = true,
+            Uv1Scale = new Vector3(0.5f, 0.5f, 0.5f),
+            Roughness = 0.22f,
+            Metallic = 0.20f,
+            EmissionEnabled = true,
+            Emission = new Color(0.2f, 0.8f, 0.6f),
+            EmissionEnergyMultiplier = 0.8f,
+        };
+
+        _grassMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = true,
+            AlbedoTexture = grassTex,
+            NormalEnabled = true,
+            NormalTexture = grassNormal,
+            NormalScale = 1.20f,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Uv1Triplanar = true,
+            Uv1WorldTriplanar = true,
+            Uv1Scale = new Vector3(0.5f, 0.5f, 0.5f),
+            Roughness = 0.88f,
+            Metallic = 0.0f,
+        };
+
+        _dirtMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = true,
+            AlbedoTexture = dirtTex,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Uv1Triplanar = true,
+            Uv1WorldTriplanar = true,
+            Uv1Scale = new Vector3(0.5f, 0.5f, 0.5f),
+            Roughness = 0.88f,
+            Metallic = 0.0f,
+        };
+
+        _waterMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = true,
+            AlbedoTexture = waterTex,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+            AlbedoColor = new Color(1f, 1f, 1f, 0.85f),
+            Roughness = 0.12f,
+            Metallic = 0.15f,
+        };
+
+        _deepWaterMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = true,
+            AlbedoTexture = deepWaterTex,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+            AlbedoColor = new Color(1f, 1f, 1f, 0.94f),
+            Roughness = 0.16f,
+            Metallic = 0.18f,
+        };
+
+        _mountainMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = true,
+            AlbedoTexture = wallTex,
+            NormalEnabled = true,
+            NormalTexture = wallNormal,
+            NormalScale = 0.95f,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Uv1Triplanar = true,
+            Uv1WorldTriplanar = true,
+            Uv1Scale = new Vector3(0.5f, 0.5f, 0.5f),
+            Roughness = 0.92f,
+            Metallic = 0.04f,
+        };
+
+        _swampMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = true,
+            AlbedoTexture = dirtTex,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Uv1Triplanar = true,
+            Uv1WorldTriplanar = true,
+            Uv1Scale = new Vector3(0.5f, 0.5f, 0.5f),
+            Roughness = 0.40f,
+            Metallic = 0.08f,
+        };
+
+        _treeBarkMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = true,
+            AlbedoTexture = treeBarkTex,
+            NormalEnabled = true,
+            NormalTexture = treeBarkNormal,
+            NormalScale = 1.40f,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Uv1Triplanar = true,
+            Uv1WorldTriplanar = true,
+            Uv1Scale = new Vector3(0.5f, 0.5f, 0.5f),
+            Roughness = 0.88f,
+            Metallic = 0.02f,
+        };
+
+        _treeMaterial = new StandardMaterial3D
+        {
+            VertexColorUseAsAlbedo = true,
+            AlbedoTexture = treeLeavesTex,
+            NormalEnabled = true,
+            NormalTexture = treeLeavesNormal,
+            NormalScale = 1.35f,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Roughness = 0.78f,
+            Metallic = 0.02f,
+        };
     }
 
     /// <summary>
@@ -1753,9 +2572,11 @@ void fragment() {
         stDoor.GenerateTangents();
         mesh = stDoor.Commit(mesh);
 
-        var matIdx = Math.Clamp(shopNum - 1, 0, 7);
+        var mat = (shopNum >= 0 && shopNum < _shopDoorMaterials.Length && _shopDoorMaterials[shopNum] != null)
+            ? _shopDoorMaterials[shopNum]
+            : _shopDoorMaterials[Math.Clamp(shopNum - 1, 0, 7)];
         mesh.SurfaceSetMaterial(0, _doorFrameMaterial);
-        mesh.SurfaceSetMaterial(1, _shopDoorMaterials[matIdx]);
+        mesh.SurfaceSetMaterial(1, mat);
         return mesh;
     }
 
@@ -1806,6 +2627,158 @@ void fragment() {
         return mesh;
     }
 
+    private static Mesh BuildTreeMesh()
+    {
+        // Surface 0: Wood Trunk
+        var stTrunk = new SurfaceTool();
+        stTrunk.Begin(Mesh.PrimitiveType.Triangles);
+        AddBox(stTrunk, new Vector3(0, 0.55f, 0), new Vector3(0.36f, 1.10f, 0.36f));
+        stTrunk.GenerateNormals();
+        stTrunk.GenerateTangents();
+        var mesh = stTrunk.Commit();
+
+        // Surface 1: Foliage Crown (Tiered canopy)
+        var stFoliage = new SurfaceTool();
+        stFoliage.Begin(Mesh.PrimitiveType.Triangles);
+        AddBox(stFoliage, new Vector3(0, 1.35f, 0), new Vector3(1.60f, 0.70f, 1.60f));
+        AddBox(stFoliage, new Vector3(0, 1.95f, 0), new Vector3(1.25f, 0.65f, 1.25f));
+        AddBox(stFoliage, new Vector3(0, 2.50f, 0), new Vector3(0.80f, 0.60f, 0.80f));
+        stFoliage.GenerateNormals();
+        stFoliage.GenerateTangents();
+        mesh = stFoliage.Commit(mesh);
+
+        mesh.SurfaceSetMaterial(0, _treeBarkMaterial ?? _doorWoodMaterial);
+        mesh.SurfaceSetMaterial(1, _treeMaterial);
+        return mesh;
+    }
+
+    private static Mesh BuildBushMesh()
+    {
+        var st = new SurfaceTool();
+        st.Begin(Mesh.PrimitiveType.Triangles);
+        AddBox(st, new Vector3(0, 0.22f, 0), new Vector3(0.92f, 0.44f, 0.92f));
+        AddBox(st, new Vector3(0, 0.38f, 0), new Vector3(0.72f, 0.30f, 0.72f));
+        AddBox(st, new Vector3(0.12f, 0.20f, -0.08f), new Vector3(0.45f, 0.38f, 0.45f));
+        st.GenerateNormals();
+        st.GenerateTangents();
+        var mesh = st.Commit();
+        mesh.SurfaceSetMaterial(0, _treeMaterial);
+        return mesh;
+    }
+
+    private static Mesh BuildMountainMesh()
+    {
+        var st = new SurfaceTool();
+        st.Begin(Mesh.PrimitiveType.Triangles);
+        AddBox(st, new Vector3(0, 1.5f, 0), new Vector3(2.0f, 3.0f, 2.0f));
+        AddBox(st, new Vector3(0, 3.5f, 0), new Vector3(1.4f, 1.3f, 1.4f));
+        AddBox(st, new Vector3(0, 4.3f, 0), new Vector3(0.7f, 0.8f, 0.7f));
+        st.GenerateNormals();
+        st.GenerateTangents();
+        var mesh = st.Commit();
+        mesh.SurfaceSetMaterial(0, _mountainMaterial);
+        return mesh;
+    }
+
+    private static Mesh BuildChamferedWallMesh(float cell, float wallHeight, float chamfer = 0.40f)
+    {
+        var st = new SurfaceTool();
+        st.Begin(Mesh.PrimitiveType.Triangles);
+
+        float half = cell * 0.5f;
+        float c = chamfer;
+        float halfH = wallHeight * 0.5f;
+
+        // 8-sided polygon with 45-degree chamfers on the 4 vertical corners
+        // Counter-clockwise in the 2D XZ plane (where +X is East/right and +Z is South/down)
+        // Creates a visible 0.57m diagonal aperture matching Three.js Web client
+        Vector2[] poly =
+        {
+            new(-half + c, -half),     // 0: North face left
+            new(-half, -half + c),      // 1: NW chamfer end / West face top
+            new(-half, half - c),       // 2: West face bottom / SW chamfer start
+            new(-half + c, half),       // 3: SW chamfer end / South face left
+            new(half - c, half),        // 4: South face right / SE chamfer start
+            new(half, half - c),        // 5: SE chamfer end / East face bottom
+            new(half, -half + c),       // 6: East face top / NE chamfer start
+            new(half - c, -half)        // 7: NE chamfer end / North face right
+        };
+
+        // 8 vertical side quads
+        for (int i = 0; i < 8; i++)
+        {
+            int next = (i + 1) % 8;
+            Vector2 p1 = poly[i];
+            Vector2 p2 = poly[next];
+
+            // Looking from outside: p1 is left, p2 is right
+            Vector3 v0 = new(p1.X, -halfH, p1.Y); // bottom-left
+            Vector3 v1 = new(p2.X, -halfH, p2.Y); // bottom-right
+            Vector3 v2 = new(p2.X, halfH, p2.Y);  // top-right
+            Vector3 v3 = new(p1.X, halfH, p1.Y);  // top-left
+
+            // Triangle 1: v0 -> v2 -> v3
+            st.SetUV(new Vector2(0, 1));
+            st.AddVertex(v0);
+
+            st.SetUV(new Vector2(1, 0));
+            st.AddVertex(v2);
+
+            st.SetUV(new Vector2(0, 0));
+            st.AddVertex(v3);
+
+            // Triangle 2: v0 -> v1 -> v2
+            st.SetUV(new Vector2(0, 1));
+            st.AddVertex(v0);
+
+            st.SetUV(new Vector2(1, 1));
+            st.AddVertex(v1);
+
+            st.SetUV(new Vector2(1, 0));
+            st.AddVertex(v2);
+        }
+
+        // Top face (+Y) fan: center at (0, halfH, 0)
+        Vector3 topCenter = new(0, halfH, 0);
+        for (int i = 0; i < 8; i++)
+        {
+            int next = (i + 1) % 8;
+            Vector3 v1 = new(poly[i].X, halfH, poly[i].Y);
+            Vector3 v2 = new(poly[next].X, halfH, poly[next].Y);
+
+            st.SetUV(new Vector2(0.5f, 0.5f));
+            st.AddVertex(topCenter);
+
+            st.SetUV(new Vector2(poly[i].X / cell + 0.5f, poly[i].Y / cell + 0.5f));
+            st.AddVertex(v1);
+
+            st.SetUV(new Vector2(poly[next].X / cell + 0.5f, poly[next].Y / cell + 0.5f));
+            st.AddVertex(v2);
+        }
+
+        // Bottom face (-Y) fan: center at (0, -halfH, 0)
+        Vector3 botCenter = new(0, -halfH, 0);
+        for (int i = 0; i < 8; i++)
+        {
+            int next = (i + 1) % 8;
+            Vector3 v1 = new(poly[i].X, -halfH, poly[i].Y);
+            Vector3 v2 = new(poly[next].X, -halfH, poly[next].Y);
+
+            st.SetUV(new Vector2(0.5f, 0.5f));
+            st.AddVertex(botCenter);
+
+            st.SetUV(new Vector2(poly[next].X / cell + 0.5f, poly[next].Y / cell + 0.5f));
+            st.AddVertex(v2);
+
+            st.SetUV(new Vector2(poly[i].X / cell + 0.5f, poly[i].Y / cell + 0.5f));
+            st.AddVertex(v1);
+        }
+
+        st.GenerateNormals();
+        st.GenerateTangents();
+        return st.Commit();
+    }
+
     private static Mesh MeshFor(Kind k)
     {
         if (_meshCache.TryGetValue(k, out var cached) && cached != null)
@@ -1815,10 +2788,22 @@ void fragment() {
 
         Mesh mesh = k switch
         {
-            Kind.Wall or Kind.Magma or Kind.Quartz =>
-                new BoxMesh { Size = new Vector3(Cell, WallHeight, Cell) },
-            Kind.Floor =>
+            Kind.Wall or Kind.PermWall or Kind.Magma or Kind.Quartz or Kind.GoldVein or Kind.GemVein =>
+                BuildChamferedWallMesh(Cell, WallHeight, 0.40f),
+            Kind.Floor or Kind.Grass or Kind.Dirt =>
                 new BoxMesh { Size = new Vector3(Cell, 0.1f, Cell) },
+            Kind.ShallowWater =>
+                new BoxMesh { Size = new Vector3(Cell, 0.08f, Cell) },
+            Kind.DeepWater =>
+                new BoxMesh { Size = new Vector3(Cell, 0.06f, Cell) },
+            Kind.Swamp =>
+                new BoxMesh { Size = new Vector3(Cell, 0.09f, Cell) },
+            Kind.Tree =>
+                BuildTreeMesh(),
+            Kind.Bush =>
+                BuildBushMesh(),
+            Kind.Mountain =>
+                BuildMountainMesh(),
             Kind.Ceiling =>
                 new BoxMesh { Size = new Vector3(Cell, 0.1f, Cell) },
             Kind.DoorClosed =>
@@ -1835,6 +2820,8 @@ void fragment() {
                 BuildRubbleMesh(),
             Kind.Lava =>
                 new BoxMesh { Size = new Vector3(Cell, 0.12f, Cell) },
+            Kind.Chasm =>
+                new BoxMesh { Size = new Vector3(Cell, 0.04f, Cell) },
             _ when IsStoreKind(k) =>
                 BuildShopDoorMesh(StoreNumOf(k)),
             _ => new BoxMesh { Size = new Vector3(Cell, WallHeight, Cell) },
@@ -1847,12 +2834,23 @@ void fragment() {
     private static Material MaterialFor(Kind k) => k switch
     {
         Kind.Wall => _wallMaterial,
+        Kind.PermWall => _permWallMaterial ?? _wallMaterial,
         Kind.Floor => _floorMaterial,
         Kind.Ceiling => _ceilingMaterial,
         Kind.Magma => _magmaMaterial,
         Kind.Quartz => _quartzMaterial,
+        Kind.GoldVein => _goldVeinMaterial,
+        Kind.GemVein => _gemVeinMaterial,
+        Kind.Grass => _grassMaterial,
+        Kind.Dirt => _dirtMaterial,
+        Kind.ShallowWater => _waterMaterial,
+        Kind.DeepWater => _deepWaterMaterial,
+        Kind.Mountain => _mountainMaterial,
+        Kind.Swamp => _swampMaterial,
         Kind.Lava => _lavaMaterial,
-        // Composite meshes (Doors, Shop Doors, Stairs, Rubble) have materials already assigned per surface
+        Kind.Chasm => _chasmMaterial,
+        Kind.Bush => _treeMaterial,
+        // Composite meshes (Doors, Shop Doors, Stairs, Rubble, Tree, Mountain) have materials already assigned per surface
         _ => null,
     };
 
@@ -1870,8 +2868,18 @@ void fragment() {
         Feat.More => Kind.StairsDown,
         Feat.Rubble => Kind.Rubble,
         Feat.Lava => Kind.Lava,
-        Feat.Magma or Feat.MagmaK => Kind.Magma,
-        Feat.Quartz or Feat.QuartzK => Kind.Quartz,
+        Feat.Magma => Kind.Magma,
+        Feat.Quartz => Kind.Quartz,
+        Feat.MagmaK => Kind.GoldVein,
+        Feat.QuartzK => Kind.GemVein,
+        Feat.Tree => Kind.Tree,
+        Feat.Bush => Kind.Bush,
+        Feat.Grass => Kind.Grass,
+        Feat.Dirt => Kind.Dirt,
+        Feat.ShallowWater => Kind.ShallowWater,
+        Feat.DeepWater => Kind.DeepWater,
+        Feat.Mountain => Kind.Mountain,
+        Feat.Swamp => Kind.Swamp,
         Feat.StoreGeneral => Kind.Store1,
         Feat.StoreArmor => Kind.Store2,
         Feat.StoreWeapon => Kind.Store3,
@@ -1880,7 +2888,18 @@ void fragment() {
         Feat.StoreMagic => Kind.Store6,
         Feat.StoreBlack => Kind.Store7,
         Feat.Home => Kind.Store8,
-        Feat.Granite or Feat.Perm => Kind.Wall,
+        Feat.Guild => Kind.Guild,
+        Feat.Inn => Kind.Inn,
+        Feat.Healer => Kind.Healer,
+        Feat.Museum => Kind.Museum,
+        Feat.Casino => Kind.Casino,
+        Feat.Forge => Kind.Forge,
+        Feat.Pagoda => Kind.Pagoda,
+        Feat.Bookstore => Kind.Bookstore,
+        Feat.Stable => Kind.Stable,
+        Feat.Chasm => Kind.Chasm,
+        Feat.Granite => Kind.Wall,
+        Feat.Perm => Kind.PermWall,
         _ => Kind.Wall,
     };
 
@@ -1891,15 +2910,64 @@ void fragment() {
         return k switch
         {
             Kind.Wall => biome.WallColor,
+            Kind.PermWall => Realm == "silq"
+                ? new Color(0.38f, 0.38f, 0.44f) * biome.WallColor // Volcanic obsidian roots of Thangorodrim
+                : new Color(0.85f, 0.85f, 0.90f) * biome.WallColor,
+            Kind.Mountain => Realm == "hengband"
+                ? new Color(0.72f, 0.74f, 0.80f) // Eastern craggy mountain slate
+                : biome.WallColor,
             Kind.Floor => biome.FloorColor,
+            Kind.Grass => Realm switch
+            {
+                "silq" => new Color(0.60f, 0.68f, 0.55f), // Ash-dusted withered heath of Anfauglith
+                "hengband" => new Color(0.88f, 1.05f, 0.88f), // Vibrant bamboo & moss green
+                "frogcomposband" => new Color(0.95f, 1.12f, 0.90f), // Lush high-fantasy rolling meadow
+                _ => new Color(0.90f, 1.05f, 0.88f) // Bree woodland grass
+            },
+            Kind.Dirt => new Color(1.0f, 0.96f, 0.90f), // Warm packed earth loam trail
+            Kind.ShallowWater => Colors.White, // Pure translucent azure caustic ripples
+            Kind.DeepWater => Colors.White, // Pure oceanic navy specular sheen
+            Kind.Swamp => new Color(0.85f, 0.90f, 0.80f), // Brackish peat marsh
             Kind.Ceiling => biome.CeilingColor,
             Kind.DoorClosed or Kind.DoorOpen or Kind.DoorBroken => biome.WallColor,
             Kind.StairsDown or Kind.StairsUp => biome.FloorColor,
             Kind.Rubble => biome.WallColor,
             Kind.Lava => new Color(1.0f, 0.45f, 0.12f),
+            Kind.Chasm => new Color(0.02f, 0.02f, 0.03f),
+            Kind.Tree => Realm switch
+            {
+                "silq" => new Color(0.55f, 0.60f, 0.52f), // Gnarled withered ash-pine of the Iron Mountains
+                "hengband" => new Color(0.72f, 0.98f, 0.80f), // Sacred Japanese cedar (Sugi) & cypress
+                "frogcomposband" => new Color(0.88f, 1.10f, 0.85f), // Verdant deciduous oak woodland
+                _ => Colors.White
+            },
+            Kind.Bush => Realm switch
+            {
+                "silq" => new Color(0.50f, 0.58f, 0.45f),
+                "hengband" => new Color(0.68f, 0.95f, 0.65f),
+                "frogcomposband" => new Color(0.78f, 1.08f, 0.70f),
+                _ => new Color(0.75f, 1.02f, 0.72f)
+            },
             _ when IsStoreKind(k) => Colors.White,
             _ => Colors.White,
         };
+    }
+
+    private static float CalculateWaterYOffset(JsonElement map, int x, int y)
+    {
+        if (!map.TryGetProperty("rows", out var rows)) return 0f;
+        var h = map.GetProperty("h").GetInt32();
+        var w = map.GetProperty("w").GetInt32();
+        if (y < 0 || y >= h || x < 0 || x >= w) return 0f;
+        var row = rows[y];
+        if (!row.TryGetProperty("f", out var fProp)) return 0f;
+        var feats = fProp.GetString() ?? "";
+        if (x * 2 + 1 >= feats.Length) return 0f;
+        var feat = (AngbandColors.HexVal(feats[x * 2]) << 4) | AngbandColors.HexVal(feats[x * 2 + 1]);
+        if (feat == (int)Feat.ShallowWater) return -0.08f;
+        if (feat == (int)Feat.DeepWater) return -0.22f;
+        if (feat == (int)Feat.Swamp) return -0.10f;
+        return 0f;
     }
 
     public void OnFrame(JsonElement frame)
@@ -1920,6 +2988,31 @@ void fragment() {
         {
             var isInitial = string.IsNullOrEmpty(_levelKey);
             _levelKey = depthKey;
+            var hasWilderness = false;
+            if (map.TryGetProperty("rows", out var rowsElem) && rowsElem.ValueKind == JsonValueKind.Array)
+            {
+                var rCount = Math.Min(rowsElem.GetArrayLength(), 12);
+                for (var r = 0; r < rCount; r++)
+                {
+                    var row = rowsElem[r];
+                    if (row.TryGetProperty("f", out var fElem))
+                    {
+                        var fStr = fElem.GetString() ?? "";
+                        for (var c = 0; c + 1 < fStr.Length; c += 2)
+                        {
+                            var fVal = Convert.ToInt32(fStr.Substring(c, 2), 16);
+                            if (fVal is >= 25 and <= 31)
+                            {
+                                hasWilderness = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hasWilderness) break;
+                }
+            }
+            // Strict Invariant: Outdoors is ONLY depth 0 (Town or Wilderness). Subterranean dungeons (depth > 0)
+            // are always indoors with solid stone ceilings, preventing sunlight tiles/vaults from stripping ceilings.
             _outdoors = depth == 0;
 
             if (_sunLight != null)
@@ -1932,7 +3025,7 @@ void fragment() {
             var mapW = map.GetProperty("w").GetInt32();
             var mapH = map.GetProperty("h").GetInt32();
             uint levelSeed = (uint)((depth * 73856093) ^ (mapW * 19349663) ^ (mapH * 83492791));
-            _targetBiome = BiomeProfile.GetForDepth(depth, levelSeed);
+            _targetBiome = BiomeProfile.GetForDepth(depth, levelSeed, Realm);
             _currentBiome = _targetBiome;
             _env.BackgroundColor = _targetBiome.BackgroundColor;
             _env.AmbientLightColor = _targetBiome.AmbientLightColor;
@@ -1945,10 +3038,15 @@ void fragment() {
             {
                 _floorMaterial.Roughness = _targetBiome.FloorRoughness;
             }
+            if (_wallMaterial != null)
+            {
+                _wallMaterial.Roughness = _targetBiome.WallRoughness;
+            }
 
             if (_biomeParticles != null)
             {
-                _biomeParticles.Amount = _targetBiome.ParticleAmount;
+                _biomeParticles.Amount = Mathf.Max(1, _targetBiome.ParticleAmount);
+                _biomeParticles.Emitting = _targetBiome.ParticleAmount > 0;
                 _biomeParticles.Color = _targetBiome.ParticleColor;
                 _biomeParticles.InitialVelocityMin = _targetBiome.ParticleSpeedMin;
                 _biomeParticles.InitialVelocityMax = _targetBiome.ParticleSpeedMax;
@@ -1973,7 +3071,9 @@ void fragment() {
             CalculateCharacterHeight(player);
 
             FaceSomethingOpen(map, px, py);
-            _targetPos = new Vector3(px * Cell, CurrentEyeHeight, py * Cell);
+            var initWater = CalculateWaterYOffset(map, px, py);
+            _currentWaterYOffset = initWater;
+            _targetPos = new Vector3(px * Cell, CurrentEyeHeight + initWater, py * Cell);
             _camera.Position = _targetPos;
         }
 
@@ -1982,7 +3082,9 @@ void fragment() {
 
         Rebuild(map, px, py);
 
-        _targetPos = new Vector3(px * Cell, CurrentEyeHeight, py * Cell);
+        var activeWater = CalculateWaterYOffset(map, px, py);
+        _currentWaterYOffset = activeWater;
+        _targetPos = new Vector3(px * Cell, CurrentEyeHeight + activeWater, py * Cell);
         _torchRadius = Math.Max(1, player.GetProperty("light").GetInt32());
         UpdateStairsHint(map, px, py);
 
@@ -2275,15 +3377,16 @@ void fragment() {
         }
         var feat = FeatAt(map, x, y);
         var k = KindOf(feat);
-        return k is Kind.Wall or Kind.Magma or Kind.Quartz or Kind.Skip || IsStoreKind(k);
+        return k is Kind.Wall or Kind.PermWall or Kind.Magma or Kind.Quartz or Kind.Skip || IsStoreKind(k);
     }
 
     private static bool IsSolidWall(Kind k) =>
-        k is Kind.Wall or Kind.Magma or Kind.Quartz;
+        k is Kind.Wall or Kind.PermWall or Kind.Magma or Kind.Quartz or Kind.GoldVein or Kind.GemVein or Kind.Mountain;
 
     private static bool IsWalkableOrPortal(Kind k) =>
         k is Kind.Floor or Kind.DoorClosed or Kind.DoorOpen or Kind.DoorBroken
             or Kind.StairsDown or Kind.StairsUp or Kind.Lava or Kind.Rubble
+            or Kind.Tree or Kind.Grass or Kind.Dirt or Kind.ShallowWater or Kind.DeepWater or Kind.Swamp
             || IsStoreKind(k);
 
     private static float DetermineDoorOrientation(JsonElement map, int x, int y, int w, int h)
@@ -2442,6 +3545,8 @@ void fragment() {
             var row = rows[y];
             var feats = row.GetProperty("f").GetString() ?? "";
             var flags = row.GetProperty("l").GetString() ?? "";
+            var glyphs = row.TryGetProperty("g", out var gp) ? (gp.GetString() ?? "") : "";
+            var attrs = row.TryGetProperty("a", out var ap) ? (ap.GetString() ?? "") : "";
 
             for (var x = minX; x <= maxX; x++)
             {
@@ -2456,6 +3561,44 @@ void fragment() {
                 var lighting = (flag >> 2) & 0x3;
 
                 var feat = (AngbandColors.HexVal(feats[x * 2]) << 4) | AngbandColors.HexVal(feats[x * 2 + 1]);
+                var glyph = x < glyphs.Length ? glyphs[x] : ' ';
+                var tileAttr = (x * 2 + 1 < attrs.Length)
+                    ? ((AngbandColors.HexVal(attrs[x * 2]) << 4) | AngbandColors.HexVal(attrs[x * 2 + 1]))
+                    : 0;
+                var isSunlight = Realm == "silq" && feat == 25;
+                if (Realm != "silq")
+                {
+                    if (feat == (int)Feat.Tree && (glyph == '.' || glyph == ',' || glyph == '\''))
+                    {
+                        feat = (int)Feat.Grass;
+                    }
+                    else if (feat == (int)Feat.Grass && (glyph == '#' || glyph == '%' || glyph == '&' || glyph == 'T'))
+                    {
+                        feat = (int)Feat.Tree;
+                    }
+                    else if (feat == (int)Feat.Bush)
+                    {
+                        feat = (int)Feat.Bush;
+                    }
+                    else if (glyph == ':')
+                    {
+                        var isGreen = (tileAttr == 3 || tileAttr == 5 || tileAttr == 11 || tileAttr == 13);
+                        if (isGreen)
+                        {
+                            feat = (int)Feat.Bush;
+                        }
+                        else if (feat == 0 || feat == (int)Feat.Floor)
+                        {
+                            feat = (int)Feat.Rubble;
+                        }
+                    }
+                }
+                else if (feat == (int)Feat.Tree || isSunlight)
+                {
+                    // In Sil-Q, Feat 25 is FEAT_SUNLIGHT: render as sunlit stone floor, never grass or tree!
+                    feat = (int)Feat.Floor;
+                    isSunlight = true;
+                }
                 var kind = KindOf(feat);
 
                 // Unexplored dark space (not known and not in view) or skip tiles must NOT be rendered.
@@ -2477,7 +3620,7 @@ void fragment() {
 
                 // For known/in-view wall tiles, infer visibility from adjacent lit walkable floor/doors
                 // so walls bordering illuminated corridors/rooms render cleanly without pitch-black gaps.
-                var isWallKind = kind is Kind.Wall or Kind.Magma or Kind.Quartz;
+                var isWallKind = kind is Kind.Wall or Kind.PermWall or Kind.Magma or Kind.Quartz;
                     if (isWallKind)
                     {
                         // Interior rock culling: if all 8 neighbors are solid walls/skip (no adjacent floor, door, or open space),
@@ -2565,15 +3708,79 @@ void fragment() {
                         : new Color(0.22f, 0.24f, 0.30f));
                 }
 
+                if (isSunlight)
+                {
+                    shade = new Color(1.30f, 1.25f, 0.90f);
+                }
+
                 // Alpha channel modulates dynamic shader emission (1.0 = active emission in LOS, 0.0 = zero emission in memory/void)
                 shade.A = inView ? 1.0f : 0.0f;
 
-                if (kind is Kind.Wall or Kind.Magma or Kind.Quartz)
+                if (kind is Kind.Wall or Kind.PermWall or Kind.Magma or Kind.Quartz or Kind.GoldVein or Kind.GemVein)
                 {
+                    // Seal chamfered corner base with floor quad
+                    _xf[Kind.Floor].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, -0.05f, y * Cell)));
+                    _col[Kind.Floor].Add(shade);
+
                     // Solid stone blocks spanning from Y=0 to Y=WallHeight=3.0m
                     var pos = new Vector3(x * Cell, WallHeight / 2.0f, y * Cell);
                     _xf[kind].Add(new Transform3D(Basis.Identity, pos));
                     _col[kind].Add(shade);
+                }
+                else if (kind == Kind.Mountain)
+                {
+                    var pos = new Vector3(x * Cell, 0, y * Cell);
+                    _xf[Kind.Mountain].Add(new Transform3D(Basis.Identity, pos));
+                    _col[Kind.Mountain].Add(shade);
+                }
+                else if (kind == Kind.Tree)
+                {
+                    // Underneath tree is grass
+                    _xf[Kind.Grass].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, -0.05f, y * Cell)));
+                    _col[Kind.Grass].Add(shade);
+
+                    // Tree at Y=0 with subtle deterministic yaw rotation
+                    var treeYaw = ((x * 67 + y * 97) % 8) * (Mathf.Pi / 4.0f);
+                    var basis = Basis.Identity.Rotated(Vector3.Up, treeYaw);
+                    _xf[Kind.Tree].Add(new Transform3D(basis, new Vector3(x * Cell, 0, y * Cell)));
+                    _col[Kind.Tree].Add(shade);
+                }
+                else if (kind == Kind.Bush)
+                {
+                    // Underneath bush is grass
+                    _xf[Kind.Grass].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, -0.05f, y * Cell)));
+                    _col[Kind.Grass].Add(shade);
+
+                    // Bush at Y=0 with subtle deterministic yaw rotation
+                    var bushYaw = ((x * 43 + y * 71) % 8) * (Mathf.Pi / 4.0f);
+                    var basis = Basis.Identity.Rotated(Vector3.Up, bushYaw);
+                    _xf[Kind.Bush].Add(new Transform3D(basis, new Vector3(x * Cell, 0, y * Cell)));
+                    _col[Kind.Bush].Add(shade);
+                }
+                else if (kind == Kind.Grass)
+                {
+                    _xf[Kind.Grass].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, -0.05f, y * Cell)));
+                    _col[Kind.Grass].Add(shade);
+                }
+                else if (kind == Kind.Dirt)
+                {
+                    _xf[Kind.Dirt].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, -0.05f, y * Cell)));
+                    _col[Kind.Dirt].Add(shade);
+                }
+                else if (kind == Kind.ShallowWater)
+                {
+                    _xf[Kind.ShallowWater].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, -0.08f, y * Cell)));
+                    _col[Kind.ShallowWater].Add(shade);
+                }
+                else if (kind == Kind.DeepWater)
+                {
+                    _xf[Kind.DeepWater].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, -0.12f, y * Cell)));
+                    _col[Kind.DeepWater].Add(shade);
+                }
+                else if (kind == Kind.Swamp)
+                {
+                    _xf[Kind.Swamp].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, -0.06f, y * Cell)));
+                    _col[Kind.Swamp].Add(shade);
                 }
                 else if (IsStoreKind(kind))
                 {
@@ -2628,9 +3835,10 @@ void fragment() {
                     _col[Kind.Lava].Add(shade);
                 }
 
-                // Ceiling over walkable areas and doorways in the dungeon (including subterranean lava pools)
-                if (!_outdoors && (kind is Kind.Floor or Kind.StairsDown or Kind.StairsUp
-                    or Kind.DoorClosed or Kind.DoorOpen or Kind.DoorBroken or Kind.Rubble or Kind.Lava || IsStoreKind(kind)))
+                // Ceiling over walkable areas and doorways in the dungeon (including subterranean lava pools, skip sunlight fissures)
+                if (!_outdoors && !isSunlight && (kind is Kind.Floor or Kind.StairsDown or Kind.StairsUp
+                    or Kind.DoorClosed or Kind.DoorOpen or Kind.DoorBroken or Kind.Rubble or Kind.Lava
+                    or Kind.Wall or Kind.PermWall or Kind.Magma or Kind.Quartz or Kind.GoldVein or Kind.GemVein || IsStoreKind(kind)))
                 {
                     _xf[Kind.Ceiling].Add(new Transform3D(Basis.Identity,
                         new Vector3(x * Cell, WallHeight + 0.05f, y * Cell)));
@@ -3030,6 +4238,37 @@ void fragment() {
     public string MoveKey(bool forward)
     {
         return RelativeMoveKey(forward ? 8 : 2);
+    }
+
+    /// <summary>
+    /// World direction digit (1-9) for a local direction (numpad 1-9) relative to the current facing.
+    /// Used for atomic multi-realm run command sequences: "keys .&lt;digit&gt;".
+    /// </summary>
+    public int RelativeMoveDigit(int numpadDir)
+    {
+        if (numpadDir == 5) return 5;
+        int localIndex = numpadDir switch
+        {
+            8 => 0,
+            9 => 1,
+            6 => 2,
+            3 => 3,
+            2 => 4,
+            1 => 5,
+            4 => 6,
+            7 => 7,
+            _ => -1
+        };
+        if (localIndex < 0) return 0;
+        int[] sectorToDigit = { 8, 9, 6, 3, 2, 1, 4, 7 };
+        var worldIndex = (localIndex + _facing * 2) % 8;
+        return sectorToDigit[worldIndex];
+    }
+
+    /// <summary>World direction digit (1-9) for forward (8) or backward (2) relative to current facing.</summary>
+    public int MoveDigit(bool forward)
+    {
+        return RelativeMoveDigit(forward ? 8 : 2);
     }
 
     /// <summary>Add kinetic screen trauma/shake on taking damage or heavy impacts.</summary>
@@ -3583,14 +4822,22 @@ void fragment() {
             {
                 _stepPlayedThisMove = true;
                 var pitchScale = Mathf.Clamp(1.0f / Mathf.Pow(CurrentHeightRatio, 0.35f), 0.78f, 1.32f) + (GD.Randf() * 0.06f - 0.03f);
-                AudioManager.Play(_outdoors ? SoundEffect.FootstepOutdoor : SoundEffect.Footstep, pitchScale, volumeDb: -7f);
+                if (_currentWaterYOffset < 0f)
+                {
+                    AudioManager.Play(SoundEffect.FootstepWater, pitchScale, volumeDb: -5f);
+                }
+                else
+                {
+                    AudioManager.Play(_outdoors ? SoundEffect.FootstepOutdoor : SoundEffect.Footstep, pitchScale, volumeDb: -7f);
+                }
             }
         }
         else
         {
             _stepPlayedThisMove = false;
         }
-        _camera.Position = new Vector3(_camera.Position.X, CurrentEyeHeight + bob, _camera.Position.Z);
+        var waterBob = _currentWaterYOffset < 0f ? Mathf.Sin((float)Time.GetTicksMsec() * 0.0035f) * 0.016f : 0f;
+        _camera.Position = new Vector3(_camera.Position.X, _targetPos.Y + bob + waterBob, _camera.Position.Z);
 
         _pitch = Mathf.Lerp(_pitch, _targetPitch, t);
         _yaw = Mathf.LerpAngle(_yaw, _targetYaw, t);

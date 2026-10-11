@@ -735,15 +735,23 @@ class ChronicleManager {
         this.updatePlayButtonUI();
     }
 
+    getLorekeeperName() {
+        const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        return (this.grounder && typeof this.grounder.getLorekeeperName === 'function')
+            ? this.grounder.getLorekeeperName(realm)
+            : 'Elder Lorekeeper';
+    }
+
     updateTraditionBadge() {
         if (typeof document === 'undefined') return;
         const tradBadge = document.getElementById('chronicle-tradition-badge');
         if (tradBadge && this.grounder && this.grounder.TRADITIONS && this.grounder.TRADITIONS[this.tradition]) {
-            tradBadge.textContent = this.grounder.TRADITIONS[this.tradition].name
+            const trad = this.grounder.TRADITIONS[this.tradition];
+            tradBadge.textContent = trad.badge || trad.name
                 .replace('The Annals of the ', '')
                 .replace('The Record of ', '')
                 .replace('The Red Book of ', '');
-            tradBadge.title = `Literary Tradition: ${this.grounder.TRADITIONS[this.tradition].name} (Attuned to ${this.currentHero?.race || 'Adventurer'})`;
+            tradBadge.title = `Literary Tradition: ${trad.name} (${this.getLorekeeperName()} • Attuned to ${this.currentHero?.race || 'Adventurer'})`;
         }
     }
 
@@ -844,9 +852,10 @@ class ChronicleManager {
         }
         this.characterDied = false;
 
-        // 7. Attune tradition to hero race best fit
-        if (hero && hero.race && this.grounder) {
-            this.tradition = this.grounder.getTraditionForRace(hero.race);
+        // 7. Attune tradition to active realm and hero race best fit
+        if (this.grounder) {
+            const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+            this.tradition = this.grounder.getTraditionForRealm(realm, hero?.race || '');
             if (this.audio) this.audio.setTradition(this.tradition);
             this.updateTraditionBadge();
         }
@@ -936,9 +945,10 @@ class ChronicleManager {
             if (playerTurn !== null) this.lastSeenTurn = playerTurn;
             if (engineTurn !== null) this.lastEngineTurn = engineTurn;
 
-            // Auto-attune literary tradition based on character race best fit
-            if (frame.player && frame.player.race && this.grounder) {
-                const bestTradition = this.grounder.getTraditionForRace(frame.player.race);
+            // Auto-attune literary tradition based on active realm and character race best fit
+            if (this.grounder) {
+                const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+                const bestTradition = this.grounder.getTraditionForRealm(realm, frame.player?.race || '');
                 if (this.tradition !== bestTradition) {
                     this.tradition = bestTradition;
                     if (this.audio) this.audio.setTradition(bestTradition);
@@ -1615,13 +1625,14 @@ class ChronicleManager {
         if (this._isAudioMuted()) return;
         try {
             if (beat.role === 'mentor') {
-                const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: 'Elder Lorekeeper', race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+                const mentorName = this.getLorekeeperName();
+                const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
                 if (mentorProfile) {
                     mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
                     mentorProfile.directorNote = 'An ancient scholar and lorekeeper reciting the living chronicle';
                 }
                 const mOpts = { ...(mentorProfile || {}), engine: this.audio.ttsEngine || 'gemini' };
-                this.audio.prewarmUtterance(beat.text, 'mentor', 'Elder Lorekeeper', null, mOpts).catch(() => {});
+                this.audio.prewarmUtterance(beat.text, 'mentor', mentorName, null, mOpts).catch(() => {});
             } else {
                 const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition) : null;
                 const speakOpts = { ...(narrProfile || {}), narrator: narrProfile, engine: this.audio.ttsEngine || 'gemini' };
@@ -1684,12 +1695,13 @@ class ChronicleManager {
         this.isSpeakingBeat = true;
         try {
             if (beat.role === 'mentor') {
-                const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: 'Elder Lorekeeper', race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+                const mentorName = this.getLorekeeperName();
+                const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
                 if (mentorProfile) {
                     mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
                     mentorProfile.directorNote = 'An ancient scholar and lorekeeper reciting the living chronicle';
                 }
-                await this.audio.speakUtterance(beat.text, 'mentor', 'Elder Lorekeeper', null, mentorProfile || { engine: this.audio.ttsEngine });
+                await this.audio.speakUtterance(beat.text, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
             } else {
                 const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition) : null;
                 if (beat.dialogue && this.grounder) {
@@ -2394,7 +2406,8 @@ class ChronicleManager {
             intro = generalIntros[turnSeed % generalIntros.length];
         }
 
-        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: 'Elder Lorekeeper', race: 'Human' }, player, 'counsel', this.tradition) : null;
+        const mentorName = this.getLorekeeperName();
+        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, player, 'counsel', this.tradition) : null;
         if (mentorProfile) {
             mentorProfile.geminiTag = '[solemnly, with wise gravitas]';
             mentorProfile.directorNote = 'An ancient scholar and lorekeeper offering survival counsel';
@@ -2425,7 +2438,7 @@ class ChronicleManager {
 
         // Voice immediately in the deep, warm Mentor voice speaking the full prose (matching card 100%)
         if (this.audio && this.audio.enabled) {
-            this.audio.speakUtterance(entry.prose, 'mentor', 'Elder Lorekeeper', null, mentorProfile || { engine: this.audio.ttsEngine });
+            this.audio.speakUtterance(entry.prose, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
 
             this._highlightActiveCard(entry);
         }
@@ -2590,8 +2603,9 @@ class ChronicleManager {
     closeSettings() {
         if (!this.settingsModal) return;
         if (this.audio) this.audio.setEngine('gemini');
-        if (this.currentHero && this.currentHero.race && this.grounder) {
-            this.tradition = this.grounder.getTraditionForRace(this.currentHero.race);
+        if (this.grounder) {
+            const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+            this.tradition = this.grounder.getTraditionForRealm(realm, this.currentHero?.race || '');
             if (this.audio) this.audio.setTradition(this.tradition);
             this.updateTraditionBadge();
         }

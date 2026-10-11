@@ -3,8 +3,36 @@
 
 # Allow cloudbuild and engine patch
 !cloudbuild.yaml
+!engine-manifest.json
 !engine-patch
 !engine-patch/**
+
+# Allow multi-realm variant engines and libraries
+!variants
+!variants/frogcomposband-src
+!variants/frogcomposband-src/**
+!variants/frogcomposband/lib
+!variants/frogcomposband/lib/**
+!variants/silq-src
+!variants/silq-src/**
+!variants/silq/lib
+!variants/silq/lib/**
+!variants/hengband-src
+!variants/hengband-src/**
+!variants/hengband/lib
+!variants/hengband/lib/**
+
+# Exclude heavy IDE/Windows intermediates from cloud upload
+variants/**/.git
+variants/**/.git/**
+variants/**/build
+variants/**/build/**
+variants/**/VisualStudio
+variants/**/VisualStudio/**
+variants/**/msvc2022
+variants/**/msvc2022/**
+variants/**/bin/*.exe
+variants/**/bin/*.pdb
 
 # Allow server files needed by Dockerfile
 !server
@@ -24,4 +52,5 @@ server/node_modules/
 server/node_modules/**
 **/node_modules/**
 server/public/assets/video/raw_gameplay.webm
-
+server/public/assets/video/*_v*.mp4
+server/public/assets/video/*_v*.webm

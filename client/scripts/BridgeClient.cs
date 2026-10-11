@@ -36,6 +36,9 @@ public interface IGameEngineBridge
     /// <summary>Send a virtual key event (e.g. "left", "up", "enter", "escape", "C-s").</summary>
     void SendKey(string spec);
 
+    /// <summary>Send an atomic sequence of keystrokes via the 'keys' command (e.g. ".8").</summary>
+    void SendKeys(string text);
+
     /// <summary>Send a raw bridge protocol line (e.g. "map on", "frame", "quit").</summary>
     void Send(string command);
 
@@ -127,10 +130,21 @@ public partial class BridgeClient : Node, IGameEngineBridge
     /// <param name="newCharacter">Whether to pass -n to create a new character slot.</param>
     public void Start(string exePath, string saveName = null, bool newCharacter = false)
     {
+        var exeDir = System.IO.Path.GetDirectoryName(exePath) ?? ".";
+        var workDir = exeDir;
+        if (!System.IO.Directory.Exists(System.IO.Path.Combine(workDir, "lib")))
+        {
+            var parentDir = System.IO.Path.GetDirectoryName(exeDir);
+            if (!string.IsNullOrEmpty(parentDir) && System.IO.Directory.Exists(System.IO.Path.Combine(parentDir, "lib")))
+            {
+                workDir = parentDir;
+            }
+        }
+
         var info = new ProcessStartInfo
         {
             FileName = exePath,
-            WorkingDirectory = System.IO.Path.GetDirectoryName(exePath) ?? ".",
+            WorkingDirectory = workDir,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -138,6 +152,15 @@ public partial class BridgeClient : Node, IGameEngineBridge
             CreateNoWindow = true,
             StandardOutputEncoding = new UTF8Encoding(false),
         };
+
+        var libDir = System.IO.Path.Combine(workDir, "lib");
+        if (System.IO.Directory.Exists(libDir))
+        {
+            info.EnvironmentVariables["ANGBAND_PATH"] = libDir;
+            info.EnvironmentVariables["SIL_PATH"] = libDir;
+            info.EnvironmentVariables["FROX_PATH"] = libDir;
+            info.EnvironmentVariables["HENG_PATH"] = libDir;
+        }
 
         // -mbridge selects the bridge frontend in main.c
         info.ArgumentList.Add("-mbridge");
@@ -269,6 +292,20 @@ public partial class BridgeClient : Node, IGameEngineBridge
         }
         Busy = true;
         Send($"key {spec}");
+    }
+
+    /// <summary>
+    /// Dispatches an atomic sequence of characters to the engine via the 'keys' command.
+    /// Gated on <see cref="Busy"/> to prevent frame queue pile-ups.
+    /// </summary>
+    public void SendKeys(string text)
+    {
+        if (Busy || string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+        Busy = true;
+        Send($"keys {text}");
     }
 
     /// <summary>

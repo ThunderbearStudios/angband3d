@@ -828,17 +828,43 @@ public partial class Overlay : Control
                 {
                     list.Add(new DeathLine { Text = "", IsHeader = false });
                     list.Add(new DeathLine { Text = "[ ABILITY SCORES ]", IsHeader = true });
-                    string[] statNames = { "str", "int", "wis", "dex", "con" };
-                    string[] statLabels = { "Strength (STR):", "Intelligence (INT):", "Wisdom (WIS):", "Dexterity (DEX):", "Constitution (CON):" };
+                    string[] statNames = { "str", "int", "wis", "dex", "con", "chr", "gra" };
+                    string[] statLabels = { "Strength (STR):", "Intelligence (INT):", "Wisdom (WIS):", "Dexterity (DEX):", "Constitution (CON):", "Charisma (CHR):", "Grace (GRA):" };
                     for (int s = 0; s < statNames.Length; s++)
                     {
                         if (stats.TryGetProperty(statNames[s], out var st) && st.ValueKind == JsonValueKind.Object)
                         {
-                            var use = st.TryGetProperty("use", out var u) ? u.GetInt32() : 10;
-                            var top = st.TryGetProperty("top", out var tp) ? tp.GetInt32() : use;
+                            string statValStr = "10";
+                            string topValStr = "10";
+                            if (st.TryGetProperty("use", out var u))
+                            {
+                                if (u.ValueKind == JsonValueKind.Number)
+                                {
+                                    var uv = u.GetInt32();
+                                    statValStr = uv > 18 ? $"18/{uv - 18}" : $"{uv}";
+                                }
+                                else if (u.ValueKind == JsonValueKind.String)
+                                {
+                                    statValStr = u.GetString()?.Trim() ?? "10";
+                                }
+                            }
+                            if (st.TryGetProperty("top", out var tp))
+                            {
+                                if (tp.ValueKind == JsonValueKind.Number)
+                                {
+                                    var tpv = tp.GetInt32();
+                                    topValStr = tpv > 18 ? $"18/{tpv - 18}" : $"{tpv}";
+                                }
+                                else if (tp.ValueKind == JsonValueKind.String)
+                                {
+                                    topValStr = tp.GetString()?.Trim() ?? statValStr;
+                                }
+                            }
+                            else
+                            {
+                                topValStr = statValStr;
+                            }
                             var reduced = st.TryGetProperty("reduced", out var r) && r.GetBoolean();
-                            var statValStr = use > 18 ? $"18/{use - 18}" : $"{use}";
-                            var topValStr = top > 18 ? $"18/{top - 18}" : $"{top}";
                             var desc = reduced ? $"{statValStr} (reduced from top: {topValStr})" : $"{statValStr}";
                             var col = reduced ? new Color(0.95f, 0.55f, 0.45f) : new Color(0.90f, 0.92f, 0.98f);
                             list.Add(new DeathLine { Prefix = statLabels[s], Text = desc, Color = col });
@@ -1087,7 +1113,7 @@ public partial class Overlay : Control
         }
 
         var player = frame.GetProperty("player");
-        var depth = player.GetProperty("depth").GetInt32();
+        var depth = player.TryGetProperty("depth", out var pDep) ? pDep.GetInt32() : 0;
 
         // Level transition: reset discoveries
         if (_lastKnownDepth != depth)
@@ -1194,7 +1220,7 @@ public partial class Overlay : Control
 
         var px = player.GetProperty("x").GetInt32();
         var py = player.GetProperty("y").GetInt32();
-        var depth = player.GetProperty("depth").GetInt32();
+        var depth = player.TryGetProperty("depth", out var pDep) ? pDep.GetInt32() : 0;
         var locStr = depth == 0 ? "Town" : $"{depth * 50}ft";
         var headingChar = GetFacingArrowChar(FacingName);
 
@@ -1410,7 +1436,7 @@ public partial class Overlay : Control
         // Header Title & Orientation Heading: Left-aligned with automatic compacting based on available width
         var titleFont = 10;
         var maxLeftW = hintX - headerRect.Position.X - 8;
-        var depth = player.GetProperty("depth").GetInt32();
+        var depth = player.TryGetProperty("depth", out var pDep) ? pDep.GetInt32() : 0;
         var locStr = depth == 0 ? "Town" : $"{depth * 50}ft";
         var arrowChar = GetFacingArrowChar(FacingName);
         var fullTitle = $"MINIMAP ({px},{py}) {locStr}  [{arrowChar} {FacingName}]";
@@ -1604,33 +1630,50 @@ public partial class Overlay : Control
                 HorizontalAlignment.Right, -1, _fontSize, new Color(0.35f, 0.85f, 1.0f));
         }
 
-        var wizard = p.GetProperty("wizard").GetBoolean() ? " [WIZARD]" : "";
-        var depth = p.GetProperty("depth").GetInt32();
-        var place = depth == 0 ? "Town" : $"Depth {depth} ({depth * 50}ft)";
+        var realm = p.TryGetProperty("realm", out var rlmProp) ? rlmProp.GetString() ?? "" : "";
+        var isSilQ = realm == "silq";
+        var wizard = p.TryGetProperty("wizard", out var wz) && wz.GetBoolean() ? " [WIZARD]" : "";
+        var depth = p.TryGetProperty("depth", out var dp) ? dp.GetInt32() : (frame.TryGetProperty("dungeon", out var dg) && dg.TryGetProperty("depth", out var dgp) ? dgp.GetInt32() : 0);
+        var isWilderness = depth == 0 && (realm == "hengband" || realm == "frogcomposband" || (frame.TryGetProperty("dungeon", out var dgObj) && dgObj.TryGetProperty("name", out var dn) && (dn.GetString()?.Contains("Wilderness") == true || dn.GetString()?.Contains("Outpost") == true)));
+        var place = isSilQ ? $"{depth * 50}ft" : (depth == 0 ? (isWilderness ? "Wilderness" : "Town") : $"Depth {depth} ({depth * 50}ft)");
 
-        var hp = p.GetProperty("hp").GetInt32();
-        var hpMax = p.GetProperty("hp_max").GetInt32();
+        var hp = p.TryGetProperty("hp", out var hpProp) ? hpProp.GetInt32() : 0;
+        var hpMax = p.TryGetProperty("hp_max", out var hpmProp) ? hpmProp.GetInt32() : (p.TryGetProperty("max_hp", out var mhProp) ? mhProp.GetInt32() : 1);
         var hpRatio = hpMax > 0 ? (float)hp / hpMax : 1f;
 
         var hasSp = p.TryGetProperty("sp_max", out var spmProp) && spmProp.GetInt32() > 0;
         var sp = p.TryGetProperty("sp", out var spProp) ? spProp.GetInt32() : 0;
         var spMax = hasSp ? spmProp.GetInt32() : 0;
 
-        var ac = p.TryGetProperty("ac", out var acProp) ? acProp.GetInt32() : 0;
-        var acToA = p.TryGetProperty("ac_to_a", out var actProp) ? actProp.GetInt32() : 0;
-        var acStr = acToA != 0 ? $"AC {ac}(+{acToA})" : $"AC {ac}";
+        var hasEvn = p.TryGetProperty("evn", out var evnProp);
+        var prMin = p.TryGetProperty("pr_min", out var prmProp) ? prmProp.GetInt32() : 0;
+        var prMax = p.TryGetProperty("pr_max", out var prxProp) ? prxProp.GetInt32() : 0;
+        string acStr;
+        if (isSilQ || hasEvn)
+        {
+            var evn = hasEvn && evnProp.TryGetInt32(out var eVal) ? eVal : 0;
+            var evnStr = evn >= 0 ? $"+{evn}" : $"{evn}";
+            acStr = $"EV: {evnStr}  PR: [{prMin}-{prMax}]";
+        }
+        else
+        {
+            var ac = p.TryGetProperty("ac", out var acProp) ? acProp.GetInt32() : 0;
+            var acToA = p.TryGetProperty("ac_to_a", out var actProp) ? actProp.GetInt32() : 0;
+            acStr = acToA != 0 ? $"AC {ac}(+{acToA})" : $"AC {ac}";
+        }
 
-        var gold = p.GetProperty("gold").GetInt32();
+        var gold = p.TryGetProperty("gold", out var gp) ? gp.GetInt32() : (p.TryGetProperty("au", out var aup) ? aup.GetInt32() : 0);
         var exp = p.TryGetProperty("exp", out var expProp) ? expProp.GetInt32() : 0;
         var expNext = p.TryGetProperty("exp_next", out var expnProp) ? expnProp.GetInt32() : 0;
-        var level = p.GetProperty("level").GetInt32();
+        var level = p.TryGetProperty("level", out var lp) ? lp.GetInt32() : (p.TryGetProperty("lev", out var levp) ? levp.GetInt32() : 1);
         var maxLev = p.TryGetProperty("max_lev", out var mlProp) ? mlProp.GetInt32() : level;
         var levStr = maxLev > level ? $"L{level}({maxLev})" : $"L{level}";
 
-        var speed = p.TryGetProperty("speed", out var spdProp) ? spdProp.GetInt32() : 0;
-        var spdStr = speed > 0 ? $"+{speed}" : (speed < 0 ? $"{speed}" : "Norm");
+        var speed = p.TryGetProperty("speed", out var spdProp) && spdProp.TryGetInt32(out var spdVal) ? spdVal : 0;
+        var relSpeed = speed >= 100 ? speed - 110 : speed;
+        var spdStr = relSpeed > 0 ? $"+{relSpeed}" : (relSpeed < 0 ? $"{relSpeed}" : "Norm");
 
-        var lightRadius = p.GetProperty("light").GetInt32();
+        var lightRadius = p.TryGetProperty("light", out var ltp) ? ltp.GetInt32() : (p.TryGetProperty("cur_light", out var clp) ? clp.GetInt32() : 0);
         var hasLightItem = p.TryGetProperty("light_item", out var liProp) && !string.IsNullOrEmpty(liProp.GetString());
         var lightItemName = hasLightItem ? liProp.GetString() : "None";
         var lightFuel = p.TryGetProperty("light_fuel", out var lfProp) ? lfProp.GetInt32() : 0;
@@ -1646,7 +1689,7 @@ public partial class Overlay : Control
         // Row 1: Keybindings & contextual stairs hint
         var row1Y = View.Y - barH + _font.GetAscent(_fontSize) + 2;
         var hintPrefix = StairsHint != null ? StairsHint + "   |   " : "";
-        var keyHints = "arrows/numpad: move/turn   Shift-M: map   Tab: term   F11: fullscreen   [ ]: size   PgUp/Dn: scale   i: inv   e: equip   m: cast   q: quaff   r: read   ^S: save   Esc: menu";
+        var keyHints = "arrows/numpad: move/turn   Shift-M: map   Tab: term   F11: fullscreen   [ ]: size   +/-: zoom   i: inv   e: equip   m: cast   q: quaff   r: read   ^S: save   Esc: menu";
         if (StairsHint != null)
         {
             DrawString(_font, new Vector2(6, row1Y), hintPrefix, HorizontalAlignment.Left, -1, _fontSize, new Color(1.0f, 0.88f, 0.45f));
@@ -1661,7 +1704,10 @@ public partial class Overlay : Control
         // Row 2: Comprehensive dynamic character statistics
         var row2Y = View.Y - barH + _cell.Y + _font.GetAscent(_fontSize) + 4;
         var name = p.TryGetProperty("name", out var nProp) && !string.IsNullOrEmpty(nProp.GetString()) ? nProp.GetString() : "Hero";
-        var charStr = $"{name} the {p.GetProperty("race").GetString()} {p.GetProperty("class").GetString()}  {levStr}  ";
+        var raceStr = p.TryGetProperty("race", out var rProp) ? rProp.GetString() ?? "" : "";
+        var classStr = p.TryGetProperty("class", out var clProp) ? clProp.GetString() : (p.TryGetProperty("house", out var hProp) ? hProp.GetString() : "");
+        var titlePart = !string.IsNullOrEmpty(classStr) ? $"{raceStr} {classStr}" : raceStr;
+        var charStr = !string.IsNullOrEmpty(titlePart) ? $"{name} the {titlePart}  {levStr}  " : $"{name}  {levStr}  ";
         DrawString(_font, new Vector2(6, row2Y), charStr, HorizontalAlignment.Left, -1, _fontSize, new Color(1.0f, 0.92f, 0.65f));
         var curX = 6 + _font.GetStringSize(charStr, HorizontalAlignment.Left, -1, _fontSize).X;
 
@@ -1674,13 +1720,15 @@ public partial class Overlay : Control
         // SP if available
         if (hasSp)
         {
-            var spStr = $"SP {sp}/{spMax}  ";
+            var spLabel = isSilQ ? "Voice" : "SP";
+            var spStr = $"{spLabel} {sp}/{spMax}  ";
             DrawString(_font, new Vector2(curX, row2Y), spStr, HorizontalAlignment.Left, -1, _fontSize, new Color(0.4f, 0.82f, 1.0f));
             curX += _font.GetStringSize(spStr, HorizontalAlignment.Left, -1, _fontSize).X;
         }
 
-        // AC, Gold, EXP, Place, Speed, Light
-        var statTail = $"{acStr}  AU {gold}  EXP {exp}{(expNext > 0 && exp < expNext ? $"/{expNext}" : "")}  {place}  Spd {spdStr}  Light: {lightStr}  Facing {FacingName}{wizard}";
+        // AC/EV, Gold (suppressed in Sil-Q), EXP, Place, Speed, Light
+        var goldStr = isSilQ ? "" : $"AU {gold}  ";
+        var statTail = $"{acStr}  {goldStr}EXP {exp}{(expNext > 0 && exp < expNext ? $"/{expNext}" : "")}  {place}  Spd {spdStr}  Light: {lightStr}  Facing {FacingName}{wizard}";
         DrawString(_font, new Vector2(curX, row2Y), statTail, HorizontalAlignment.Left, -1, _fontSize, new Color(0.75f, 0.84f, 0.95f));
 
         // Row 3: Target tracking, status condition badges, and secondary attributes
@@ -1716,36 +1764,71 @@ public partial class Overlay : Control
         }
 
         // Study spell badge
-        if (p.TryGetProperty("study", out var studyProp) && studyProp.GetInt32() > 0)
+        if (p.TryGetProperty("study", out var studyProp))
         {
-            var sStr = $"[STUDY: {studyProp.GetInt32()}] ";
-            DrawString(_font, new Vector2(curBadgeX, row3Y), sStr, HorizontalAlignment.Left, -1, _fontSize, new Color(1.0f, 0.85f, 0.3f));
-            curBadgeX += _font.GetStringSize(sStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            if (studyProp.ValueKind == JsonValueKind.Number && studyProp.TryGetInt32(out var sNum) && sNum > 0)
+            {
+                var sStr = $"[STUDY: {sNum}] ";
+                DrawString(_font, new Vector2(curBadgeX, row3Y), sStr, HorizontalAlignment.Left, -1, _fontSize, new Color(1.0f, 0.85f, 0.3f));
+                curBadgeX += _font.GetStringSize(sStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            }
+            else if (studyProp.ValueKind == JsonValueKind.True)
+            {
+                var sStr = "[STUDY] ";
+                DrawString(_font, new Vector2(curBadgeX, row3Y), sStr, HorizontalAlignment.Left, -1, _fontSize, new Color(1.0f, 0.85f, 0.3f));
+                curBadgeX += _font.GetStringSize(sStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            }
         }
 
         // Resting badge
-        if (p.TryGetProperty("resting", out var restProp) && restProp.GetInt32() != 0)
+        if (p.TryGetProperty("resting", out var restProp))
         {
-            var rVal = restProp.GetInt32();
-            var rStr = $"[RESTING{(rVal > 0 ? $": {rVal}" : "")}] ";
-            DrawString(_font, new Vector2(curBadgeX, row3Y), rStr, HorizontalAlignment.Left, -1, _fontSize, new Color(0.4f, 0.85f, 0.95f));
-            curBadgeX += _font.GetStringSize(rStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            if (restProp.ValueKind == JsonValueKind.Number && restProp.TryGetInt32(out var rVal) && rVal != 0)
+            {
+                var rStr = $"[RESTING{(rVal > 0 ? $": {rVal}" : "")}] ";
+                DrawString(_font, new Vector2(curBadgeX, row3Y), rStr, HorizontalAlignment.Left, -1, _fontSize, new Color(0.4f, 0.85f, 0.95f));
+                curBadgeX += _font.GetStringSize(rStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            }
+            else if (restProp.ValueKind == JsonValueKind.True)
+            {
+                var rStr = "[RESTING] ";
+                DrawString(_font, new Vector2(curBadgeX, row3Y), rStr, HorizontalAlignment.Left, -1, _fontSize, new Color(0.4f, 0.85f, 0.95f));
+                curBadgeX += _font.GetStringSize(rStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            }
         }
 
         // Word of Recall badge
-        if (p.TryGetProperty("word_recall", out var recProp) && recProp.GetInt32() > 0)
+        if (p.TryGetProperty("word_recall", out var recProp))
         {
-            var rcStr = $"[RECALL: {recProp.GetInt32()}t] ";
-            DrawString(_font, new Vector2(curBadgeX, row3Y), rcStr, HorizontalAlignment.Left, -1, _fontSize, new Color(0.85f, 0.5f, 1.0f));
-            curBadgeX += _font.GetStringSize(rcStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            if (recProp.ValueKind == JsonValueKind.Number && recProp.TryGetInt32(out var rcVal) && rcVal > 0)
+            {
+                var rcStr = $"[RECALL: {rcVal}t] ";
+                DrawString(_font, new Vector2(curBadgeX, row3Y), rcStr, HorizontalAlignment.Left, -1, _fontSize, new Color(0.85f, 0.5f, 1.0f));
+                curBadgeX += _font.GetStringSize(rcStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            }
+            else if (recProp.ValueKind == JsonValueKind.True)
+            {
+                var rcStr = "[RECALL] ";
+                DrawString(_font, new Vector2(curBadgeX, row3Y), rcStr, HorizontalAlignment.Left, -1, _fontSize, new Color(0.85f, 0.5f, 1.0f));
+                curBadgeX += _font.GetStringSize(rcStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            }
         }
 
         // Deep Descent badge
-        if (p.TryGetProperty("deep_descent", out var descProp) && descProp.GetInt32() > 0)
+        if (p.TryGetProperty("deep_descent", out var descProp))
         {
-            var ddStr = $"[DESCENT: {descProp.GetInt32()}t] ";
-            DrawString(_font, new Vector2(curBadgeX, row3Y), ddStr, HorizontalAlignment.Left, -1, _fontSize, new Color(0.9f, 0.4f, 0.7f));
-            curBadgeX += _font.GetStringSize(ddStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            if (descProp.ValueKind == JsonValueKind.Number && descProp.TryGetInt32(out var ddVal) && ddVal > 0)
+            {
+                var ddStr = $"[DESCENT: {ddVal}t] ";
+                DrawString(_font, new Vector2(curBadgeX, row3Y), ddStr, HorizontalAlignment.Left, -1, _fontSize, new Color(0.9f, 0.4f, 0.7f));
+                curBadgeX += _font.GetStringSize(ddStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            }
+            else if (descProp.ValueKind == JsonValueKind.True)
+            {
+                var ddStr = "[DESCENT] ";
+                DrawString(_font, new Vector2(curBadgeX, row3Y), ddStr, HorizontalAlignment.Left, -1, _fontSize, new Color(0.9f, 0.4f, 0.7f));
+                curBadgeX += _font.GetStringSize(ddStr, HorizontalAlignment.Left, -1, _fontSize).X;
+            }
         }
 
         // If no badges/target active on row 3, display equipped gear summary

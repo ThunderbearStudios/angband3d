@@ -1,0 +1,210 @@
+{
+  "$schema": "./schemas/engine-manifest.schema.json",
+  "version": "2.0.0",
+  "default_realm": "angband",
+  "realms": {
+    "angband": {
+      "id": "angband",
+      "name": "Vanilla Angband 4.2.6",
+      "tagline": "The Classic Tolkien Descent",
+      "version": "4.2.6",
+      "lineage": "Vanilla Angband Canon",
+      "binary": {
+        "win_x64": "engine/build/game/angband.exe",
+        "linux_x64": "engine/build/game/angband"
+      },
+      "cli": {
+        "frontend_switch": "-mbridge",
+        "save_token_format": "-u{name}",
+        "save_dir_switch": "-dsave={path}",
+        "panic_dir_switch": "-dpanic={path}",
+        "new_char_switch": "-n",
+        "env_vars": {
+          "ANGBAND_PATH": "engine/lib"
+        }
+      },
+      "save_system": {
+        "magic_signature": "SaveVANILLA",
+        "directory": "engine/build/game/lib/save",
+        "extension": ".sav"
+      },
+      "capabilities": {
+        "wilderness": false,
+        "multitown": false,
+        "stealth_engine": false,
+        "songs_of_power": false,
+        "monster_races": false,
+        "quests": false,
+        "mounts": false,
+        "depth_max": 100
+      },
+      "terminal": {
+        "default_width": 80,
+        "default_height": 24,
+        "supports_dynamic_resize": false
+      },
+      "theme": {
+        "primary_color": "#38bdf8",
+        "secondary_color": "#0284c7",
+        "voice_profile": "Old British Scholar",
+        "voice_id": "en-GB-RyanNeural",
+        "tradition": "classic",
+        "ui_badges": ["Tolkien Canon", "Bit-for-Bit 4.2.6", "100 Dungeon Levels", "Morgoth"]
+      },
+      "lore": "The original descent into the pits of Angband to defeat Morgoth, Lord of Darkness. Standard 4.2.6 rules and bit-for-bit mechanics."
+    },
+    "frogcomposband": {
+      "id": "frogcomposband",
+      "name": "FrogComposBand",
+      "tagline": "Wilderness Overland & Unlimited Monster Races",
+      "version": "7.1.0",
+      "lineage": "PosChengband / Composband / ZAngband",
+      "binary": {
+        "win_x64": "variants/frogcomposband/bin/frogcomposband.exe",
+        "linux_x64": "variants/frogcomposband/bin/frogcomposband"
+      },
+      "cli": {
+        "frontend_switch": "-mbridge",
+        "save_token_format": "-u{name}",
+        "save_dir_switch": "-dsave={path}",
+        "panic_dir_switch": "-dpanic={path}",
+        "new_char_switch": "-n",
+        "env_vars": {
+          "ANGBAND_PATH": "variants/frogcomposband/lib",
+          "FROX_PATH": "variants/frogcomposband/lib"
+        }
+      },
+      "save_system": {
+        "magic_signature": "SaveFROX",
+        "directory": "variants/frogcomposband/lib/save",
+        "extension": ".sav"
+      },
+      "capabilities": {
+        "wilderness": true,
+        "multitown": true,
+        "stealth_engine": false,
+        "songs_of_power": false,
+        "monster_races": true,
+        "quests": true,
+        "mounts": true,
+        "depth_max": 127
+      },
+      "terminal": {
+        "default_width": 80,
+        "default_height": 24,
+        "supports_dynamic_resize": true
+      },
+      "theme": {
+        "primary_color": "#34d399",
+        "secondary_color": "#059669",
+        "voice_profile": "Mythic Skald",
+        "voice_id": "en-IE-ConnorNeural",
+        "tradition": "mythicbard",
+        "ui_badges": ["Wilderness Overland", "60+ Monster Races", "40+ Classes", "Mounts & Quests"]
+      },
+      "lore": "Vast expanded universe featuring Monster races (Dragons, Angels, Beholders), wild magic, multiple towns, and mounts."
+    },
+    "hengband": {
+      "id": "hengband",
+      "name": "Hengband",
+      "tagline": "Oriental Mythos & Martial Arts",
+      "version": "3.0.1",
+      "lineage": "Hengband / Japanese Angband Lineage",
+      "binary": {
+        "win_x64": "variants/hengband/bin/hengband.exe",
+        "linux_x64": "variants/hengband/bin/hengband"
+      },
+      "cli": {
+        "frontend_switch": "-mbridge",
+        "save_token_format": "-u{name}",
+        "save_dir_switch": "-dsave={path}",
+        "panic_dir_switch": "-dpanic={path}",
+        "new_char_switch": "-n",
+        "env_vars": {
+          "ANGBAND_PATH": "variants/hengband/lib",
+          "HENG_PATH": "variants/hengband/lib"
+        }
+      },
+      "save_system": {
+        "magic_signature": "SaveHENG",
+        "directory": "variants/hengband/lib/save",
+        "extension": ".sav"
+      },
+      "capabilities": {
+        "wilderness": true,
+        "multitown": true,
+        "stealth_engine": false,
+        "songs_of_power": false,
+        "monster_races": true,
+        "quests": true,
+        "mounts": false,
+        "depth_max": 100
+      },
+      "terminal": {
+        "default_width": 80,
+        "default_height": 24,
+        "supports_dynamic_resize": true
+      },
+      "theme": {
+        "primary_color": "#f43f5e",
+        "secondary_color": "#e11d48",
+        "voice_profile": "Eastern Chronicle",
+        "voice_id": "en-SG-WayneNeural",
+        "tradition": "easternmythos",
+        "ui_badges": ["Eastern Mythos", "Samurai & Ninja", "Shinto Lore", "Overworld Quests"]
+      },
+      "lore": "Eastern mythos infused with martial arts, ninja techniques, exotic magic realms, and sprawling quests."
+    },
+    "silq": {
+      "id": "silq",
+      "name": "Sil-Q",
+      "tagline": "Tactical First Age Stealth & Songs of Power",
+      "version": "1.5.0",
+      "lineage": "Sil 1.3 / Sil-Q Lineage",
+      "binary": {
+        "win_x64": "variants/silq/bin/silq.exe",
+        "linux_x64": "variants/silq/bin/silq"
+      },
+      "cli": {
+        "frontend_switch": "-mbridge",
+        "save_token_format": "-u{name}",
+        "save_dir_switch": "-ds={path}",
+        "panic_dir_switch": null,
+        "new_char_switch": "-n",
+        "env_vars": {
+          "ANGBAND_PATH": "variants/silq/lib",
+          "SIL_PATH": "variants/silq/lib"
+        }
+      },
+      "save_system": {
+        "magic_signature": "SaveSILQ",
+        "directory": "variants/silq/lib/save",
+        "extension": ".sav"
+      },
+      "capabilities": {
+        "wilderness": false,
+        "multitown": false,
+        "stealth_engine": true,
+        "songs_of_power": true,
+        "monster_races": false,
+        "quests": true,
+        "mounts": false,
+        "depth_max": 20
+      },
+      "terminal": {
+        "default_width": 80,
+        "default_height": 24,
+        "supports_dynamic_resize": false
+      },
+      "theme": {
+        "primary_color": "#fbbf24",
+        "secondary_color": "#d97706",
+        "voice_profile": "First Age Beleriand",
+        "voice_id": "en-GB-ThomasNeural",
+        "tradition": "beleriand",
+        "ui_badges": ["Grim Stealth", "Songs of Power", "First Age Lore", "Cut the Silmaril"]
+      },
+      "lore": "Tense, deadly stealth-focused crawl in the Iron Pits of Angband during the First Age. Detailed combat mechanics and grim atmosphere."
+    }
+  }
+}

@@ -58,6 +58,7 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
     private Task _receiveTask;
     private Task _sendTask;
     private long _lastPingSentTick;
+    private string _requestedRealm;
 
     private static readonly byte[] ByeBytes = Encoding.UTF8.GetBytes("{\"t\":\"bye\",\"detail\":\"server connection closed\"}");
 
@@ -76,17 +77,19 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
     /// <param name="wsUrl">Full WebSocket URL e.g. ws://localhost:8080/ws or wss://game.example.com/ws</param>
     /// <param name="saveName">Character/save slot name to load or initialize.</param>
     /// <param name="newCharacter">Whether this connection starts a fresh character slot (passes new=1).</param>
-    public void ConnectToServer(string wsUrl, string saveName = null, bool newCharacter = false)
+    public void ConnectToServer(string wsUrl, string saveName = null, bool newCharacter = false, string realm = null)
     {
         Stop();
 
         ServerUrl = wsUrl;
+        _requestedRealm = realm ?? "angband";
         var uriBuilder = new UriBuilder(wsUrl);
         var parts = new List<string>();
         var existingQuery = uriBuilder.Query.TrimStart('?');
         if (!string.IsNullOrEmpty(existingQuery)) parts.Add(existingQuery);
         if (!string.IsNullOrEmpty(saveName)) parts.Add($"save={Uri.EscapeDataString(saveName)}");
         if (newCharacter) parts.Add("new=1");
+        if (!string.IsNullOrEmpty(realm)) parts.Add($"realm={Uri.EscapeDataString(realm)}");
         if (parts.Count > 0)
         {
             uriBuilder.Query = string.Join("&", parts);
@@ -208,6 +211,24 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
             {
                 case "hello":
                     Hello = msg;
+                    if (msg.TryGetProperty("isFallback", out var fbProp) && fbProp.GetBoolean())
+                    {
+                        GD.PushError("ws-bridge: server returned fallback engine! Aborting connection.");
+                        EmitSignal(SignalName.Disconnected, "Wrong realm loaded as fallback - aborted");
+                        Stop();
+                        return;
+                    }
+                    if (msg.TryGetProperty("realm", out var rProp))
+                    {
+                        var helloRealm = rProp.GetString();
+                        if (!string.IsNullOrEmpty(_requestedRealm) && helloRealm != _requestedRealm)
+                        {
+                            GD.PushError($"ws-bridge: wrong realm loaded ({helloRealm} != {_requestedRealm})! Aborting connection.");
+                            EmitSignal(SignalName.Disconnected, $"Wrong realm loaded ({helloRealm} != {_requestedRealm}) - aborted");
+                            Stop();
+                            return;
+                        }
+                    }
                     GD.Print($"ws-bridge: {msg.GetProperty("build").GetString()} " +
                              $"protocol {msg.GetProperty("protocol").GetInt32()}");
                     break;
@@ -222,6 +243,17 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
                     break;
 
                 case "frame":
+                    if (msg.TryGetProperty("realm", out var frameRealmProp))
+                    {
+                        var frameRealm = frameRealmProp.GetString();
+                        if (!string.IsNullOrEmpty(_requestedRealm) && frameRealm != _requestedRealm)
+                        {
+                            GD.PushError($"ws-bridge: frame received for wrong realm ({frameRealm} != {_requestedRealm})! Aborting connection.");
+                            EmitSignal(SignalName.Disconnected, $"Wrong realm frame ({frameRealm} != {_requestedRealm}) - aborted");
+                            Stop();
+                            return;
+                        }
+                    }
                     Frame = msg;
                     Seq = msg.GetProperty("seq").GetInt64();
                     Busy = false;
@@ -233,7 +265,10 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
                     break;
 
                 case "error":
-                    GD.PushWarning($"ws-bridge error: {Truncate(Encoding.UTF8.GetString(bytes))}");
+                    var errMsg = msg.TryGetProperty("message", out var mProp) ? mProp.GetString() : "Cloud engine error";
+                    GD.PushWarning($"ws-bridge error: {errMsg}");
+                    EmitSignal(SignalName.Disconnected, errMsg);
+                    Stop();
                     break;
             }
         }
@@ -249,6 +284,16 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
         }
         Busy = true;
         Send($"key {spec}");
+    }
+
+    public void SendKeys(string text)
+    {
+        if (Busy || string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+        Busy = true;
+        Send($"keys {text}");
     }
 
     public void Send(string command)

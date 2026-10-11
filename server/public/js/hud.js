@@ -37,6 +37,16 @@ class WebHUD {
         this.statWis = document.getElementById('stat-wis');
         this.statDex = document.getElementById('stat-dex');
         this.statCon = document.getElementById('stat-con');
+        this.statChr = document.getElementById('stat-chr');
+        this.statGra = document.getElementById('stat-gra');
+
+        this.itemInt = document.getElementById('stat-item-int');
+        this.itemWis = document.getElementById('stat-item-wis');
+        this.itemChr = document.getElementById('stat-item-chr');
+        this.itemGra = document.getElementById('stat-item-gra');
+        this.itemGold = document.getElementById('stat-item-gold');
+
+        this.spLabel = document.querySelector('.gauge-sp .gauge-header span:first-child');
 
         this.depthVal = document.getElementById('val-depth');
         this.goldVal = document.getElementById('val-gold');
@@ -637,10 +647,22 @@ class WebHUD {
         const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
         const sectorNames = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
         const sectorArrows = ['▲', '↗', '►', '↘', '▼', '↙', '◄', '↖'];
+        const sectorKanji = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
         const dirName = sectorNames[sector] || 'N';
         const dirArrow = sectorArrows[sector] || '▲';
-        this.footerFacing.textContent = `🧭 ${dirName}`;
-        this.footerFacing.title = `Camera Facing: ${dirName} (${dirArrow})`;
+        const dirKanji = sectorKanji[sector] || '北';
+        const lang = window.__langMode || 'en';
+        const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+        if (realm === 'hengband' && lang === 'jp') {
+            this.footerFacing.textContent = `🧭 ${dirKanji}`;
+            this.footerFacing.title = `視線方向: ${dirKanji} (${dirArrow})`;
+        } else if (realm === 'hengband' && lang === 'bilingual') {
+            this.footerFacing.textContent = `🧭 ${dirName} (${dirKanji})`;
+            this.footerFacing.title = `Camera Facing: ${dirName} (${dirKanji}) [${dirArrow}]`;
+        } else {
+            this.footerFacing.textContent = `🧭 ${dirName}`;
+            this.footerFacing.title = `Camera Facing: ${dirName} (${dirArrow})`;
+        }
     }
 
     renderCompass(yaw) {
@@ -938,6 +960,314 @@ class WebHUD {
         ctx.stroke();
     }
 
+    updateLanguageUI(realm, lang = 'en') {
+        const isHeng = realm === 'hengband';
+
+        // 1. Primary Attributes & Combat Stats
+        const statLabels = {
+            str: { en: 'STR', bi: 'STR (腕力)', jp: '腕力' },
+            int: { en: 'INT', bi: 'INT (知能)', jp: '知能' },
+            wis: { en: 'WIS', bi: 'WIS (賢さ)', jp: '賢さ' },
+            dex: { en: 'DEX', bi: 'DEX (器用)', jp: '器用' },
+            con: { en: 'CON', bi: 'CON (耐久)', jp: '耐久' },
+            chr: { en: 'CHR', bi: 'CHR (魅力)', jp: '魅力' },
+            gra: { en: 'GRA', bi: 'GRA (威厳)', jp: '威厳' },
+            ac:  { en: 'AC',  bi: 'AC (防御)',  jp: '防御' },
+            gold:{ en: 'GOLD',bi: 'AU (金貨)', jp: '金貨' },
+        };
+        for (const [key, trans] of Object.entries(statLabels)) {
+            const el = document.querySelector(`#stat-item-${key} .stat-label`);
+            if (el) {
+                if (isHeng && lang === 'jp') el.textContent = trans.jp;
+                else if (isHeng && lang === 'bilingual') el.textContent = trans.bi;
+                else el.textContent = trans.en;
+            }
+        }
+
+        // 2. Health & Mana/Voice Gauges
+        const hpHeader = document.querySelector('.gauge-hp .gauge-header > span:first-child');
+        const spHeader = document.querySelector('.gauge-sp .gauge-header > span:first-child') || this.spLabel;
+        if (isHeng && lang === 'jp') {
+            if (hpHeader) hpHeader.textContent = '体力';
+            if (spHeader) spHeader.textContent = '魔力';
+            if (this.spLabel) this.spLabel.textContent = '魔力';
+        } else if (isHeng && lang === 'bilingual') {
+            if (hpHeader) hpHeader.textContent = 'HP (体力)';
+            if (spHeader) spHeader.textContent = 'MANA (魔力)';
+            if (this.spLabel) this.spLabel.textContent = 'MANA (魔力)';
+        } else {
+            if (hpHeader) hpHeader.textContent = 'HEALTH';
+            const defaultSp = (realm === 'silq') ? 'VOICE' : 'MANA';
+            if (spHeader) spHeader.textContent = defaultSp;
+            if (this.spLabel) this.spLabel.textContent = defaultSp;
+        }
+
+        // 3. Quick Action Bar Buttons
+        const actionButtons = {
+            'btn-attack': {
+                en: '⚔ Attack <kbd>Space</kbd>',
+                bi: '⚔ Attack (攻撃) <kbd>Space</kbd>',
+                jp: '⚔ 攻撃 <kbd>Space</kbd>'
+            },
+            'btn-throw': {
+                en: '🎯 Throw <kbd>v</kbd>',
+                bi: '🎯 Throw (投擲) <kbd>v</kbd>',
+                jp: '🎯 投擲 <kbd>v</kbd>'
+            },
+            'btn-fire': {
+                en: '🏹 Shoot <kbd>f</kbd>',
+                bi: '🏹 Shoot (射撃) <kbd>f</kbd>',
+                jp: '🏹 射撃 <kbd>f</kbd>'
+            },
+            'btn-cast': {
+                en: '✨ Cast <kbd>m</kbd>',
+                bi: '✨ Cast (呪文) <kbd>m</kbd>',
+                jp: '✨ 呪文 <kbd>m</kbd>'
+            },
+            'btn-skills': {
+                en: '📜 Skills <kbd>N</kbd>',
+                bi: '📜 Skills (特技) <kbd>N</kbd>',
+                jp: '📜 特技 <kbd>N</kbd>'
+            },
+            'btn-power': {
+                en: '🔮 Power <kbd>U</kbd>',
+                bi: '🔮 Power (能力) <kbd>U</kbd>',
+                jp: '🔮 能力 <kbd>U</kbd>'
+            },
+            'btn-overland': {
+                en: '🗺️ Map <kbd>O</kbd>',
+                bi: '🗺️ Map (地図) <kbd>O</kbd>',
+                jp: '🗺️ 地図 <kbd>O</kbd>'
+            },
+            'btn-quests': {
+                en: '📜 Quests <kbd>Q</kbd>',
+                bi: '📜 Quests (任務) <kbd>Q</kbd>',
+                jp: '📜 任務 <kbd>Q</kbd>'
+            },
+            'btn-browse': {
+                en: '📖 Browse <kbd>b</kbd>',
+                bi: '📖 Browse (閲覧) <kbd>b</kbd>',
+                jp: '📖 閲覧 <kbd>b</kbd>'
+            },
+            'btn-study': {
+                en: '✨ Study <kbd>G</kbd>',
+                bi: '✨ Study (学習) <kbd>G</kbd>',
+                jp: '✨ 学習 <kbd>G</kbd>'
+            },
+            'btn-quaff': {
+                en: '🧪 Potion <kbd>q</kbd>',
+                bi: '🧪 Potion (薬飲) <kbd>q</kbd>',
+                jp: '🧪 薬飲 <kbd>q</kbd>'
+            },
+            'btn-read': {
+                en: '📜 Scroll <kbd>r</kbd>',
+                bi: '📜 Scroll (巻読) <kbd>r</kbd>',
+                jp: '📜 巻読 <kbd>r</kbd>'
+            },
+            'btn-door': {
+                en: '🚪 Door <kbd>o</kbd>',
+                bi: '🚪 Door (開閉) <kbd>o</kbd>',
+                jp: '🚪 開閉 <kbd>o</kbd>'
+            },
+            'btn-pickup': {
+                en: '💎 Get <kbd>g</kbd>',
+                bi: '💎 Get (拾う) <kbd>g</kbd>',
+                jp: '💎 拾う <kbd>g</kbd>'
+            },
+            'btn-rest': {
+                en: '⏳ Rest <kbd>R</kbd>',
+                bi: '⏳ Rest (休息) <kbd>R</kbd>',
+                jp: '⏳ 休息 <kbd>R</kbd>'
+            },
+            'btn-inventory': {
+                en: '🎒 Pack <kbd>i</kbd>',
+                bi: '🎒 Pack (持物) <kbd>i</kbd>',
+                jp: '🎒 持物 <kbd>i</kbd>'
+            },
+            'btn-equipment': {
+                en: '🛡 Gear <kbd>e</kbd>',
+                bi: '🛡 Gear (装備) <kbd>e</kbd>',
+                jp: '🛡 装備 <kbd>e</kbd>'
+            },
+            'btn-terminal': {
+                en: '📜 Classic <kbd>Tab</kbd>',
+                bi: '📜 Classic (端末) <kbd>Tab</kbd>',
+                jp: '📜 端末 <kbd>Tab</kbd>'
+            },
+            'btn-guide-hud': {
+                en: '❓ Help <kbd>?</kbd>',
+                bi: '❓ Help (案内) <kbd>?</kbd>',
+                jp: '❓ 案内 <kbd>?</kbd>'
+            },
+            'btn-command-palette': {
+                en: '⌨ Cmds <kbd>Ctrl+K</kbd>',
+                bi: '⌨ Cmds (指令) <kbd>Ctrl+K</kbd>',
+                jp: '⌨ 指令 <kbd>Ctrl+K</kbd>'
+            },
+            'btn-action-more': {
+                en: '⋯ More',
+                bi: '⋯ More (他)',
+                jp: '⋯ 他'
+            }
+        };
+
+        const isSilq = realm === 'silq';
+        for (const [id, trans] of Object.entries(actionButtons)) {
+            const btn = document.getElementById(id);
+            if (btn) {
+                if (isSilq) {
+                    if (id === 'btn-throw') btn.innerHTML = '🎯 Throw <kbd>t</kbd>';
+                    else if (id === 'btn-cast') btn.innerHTML = '🎵 Song <kbd>s</kbd>';
+                    else if (id === 'btn-skills') btn.innerHTML = '📜 Skills <kbd>Tab</kbd>';
+                    else if (id === 'btn-rest') btn.innerHTML = '⏳ Rest <kbd>%</kbd>';
+                    else btn.innerHTML = trans.en;
+                } else if (isHeng && lang === 'jp') {
+                    btn.innerHTML = trans.jp;
+                } else if (isHeng && lang === 'bilingual') {
+                    btn.innerHTML = trans.bi;
+                } else {
+                    btn.innerHTML = trans.en;
+                }
+            }
+        }
+
+        // 4. Run Mode Toggle Button Texts
+        const isRun = window.__app && window.__app.input ? window.__app.input.isRunningActive() : false;
+        const runText = document.getElementById('action-run-text');
+        const dpadRunText = document.getElementById('dpad-run-text');
+        const termRunText = document.querySelector('#term-run-toggle .term-run-text');
+        const runWord = isRun
+            ? { en: 'Run', bi: 'Run (走る)', jp: '走る' }
+            : { en: 'Walk', bi: 'Walk (歩く)', jp: '歩く' };
+        const chosenRun = (isHeng && lang === 'jp') ? runWord.jp : ((isHeng && lang === 'bilingual') ? runWord.bi : runWord.en);
+        if (runText) runText.textContent = chosenRun;
+        if (dpadRunText) dpadRunText.textContent = chosenRun;
+        if (termRunText) termRunText.textContent = chosenRun;
+
+        // 5. Terminal Toolbar Buttons
+        const termButtons = {
+            'btn-term-advance': {
+                en: 'Advance (Enter)',
+                bi: 'Advance (決定)',
+                jp: '決定 (Enter)'
+            },
+            'btn-term-escape': {
+                en: 'Back (Esc)',
+                bi: 'Back (戻る)',
+                jp: '戻る (Esc)'
+            },
+            'btn-term-reroll': {
+                en: '🎲 Reroll Hero (R)',
+                bi: '🎲 Reroll (再生成)',
+                jp: '🎲 英雄再生成 (R)'
+            },
+            'btn-term-custom': {
+                en: '🛠 Custom Hero (C)',
+                bi: '🛠 Custom (作成)',
+                jp: '🛠 英雄作成 (C)'
+            },
+            'btn-term-exit-menu': {
+                en: '✕ Main Menu',
+                bi: '✕ Main Menu (主献立)',
+                jp: '✕ メインメニュー'
+            }
+        };
+        for (const [id, trans] of Object.entries(termButtons)) {
+            const btn = document.getElementById(id);
+            if (btn) {
+                if (isHeng && lang === 'jp') btn.textContent = trans.jp;
+                else if (isHeng && lang === 'bilingual') btn.textContent = trans.bi;
+                else btn.textContent = trans.en;
+            }
+        }
+
+        // 6. Death Screen Tabs and Action Buttons
+        const deathTabLabels = [
+            { en: '1. Tombstone & Menus', bi: '1. Tombstone (墓碑)', jp: '1. 墓碑と記録' },
+            { en: '2. Equipment', bi: '2. Equipment (装備)', jp: '2. 装備品' },
+            { en: '3. Inventory', bi: '3. Inventory (持物)', jp: '3. 所持品' },
+            { en: '4. Quiver', bi: '4. Quiver (矢筒)', jp: '4. 矢筒' },
+            { en: '5. Stats & Attributes', bi: '5. Stats (能力値)', jp: '5. 能力値' }
+        ];
+        if (this.deathTabs && this.deathTabs.length) {
+            this.deathTabs.forEach(t => {
+                const idx = parseInt(t.dataset.tab, 10);
+                if (deathTabLabels[idx]) {
+                    const l = deathTabLabels[idx];
+                    if (isHeng && lang === 'jp') t.textContent = l.jp;
+                    else if (isHeng && lang === 'bilingual') t.textContent = l.bi;
+                    else t.textContent = l.en;
+                }
+            });
+        }
+
+        const deathActionButtons = {
+            'btn-death-reload': {
+                en: '<kbd>[R]</kbd> Load Last Saved Game',
+                bi: '<kbd>[R]</kbd> Load Game (再読込)',
+                jp: '<kbd>[R]</kbd> セーブデータを読込'
+            },
+            'btn-death-reroll': {
+                en: '<kbd>[N]</kbd> Re-Roll / New Character',
+                bi: '<kbd>[N]</kbd> New Hero (新キャラ)',
+                jp: '<kbd>[N]</kbd> 新規キャラクター'
+            },
+            'btn-death-menu': {
+                en: '<kbd>[M / Esc]</kbd> Main Menu',
+                bi: '<kbd>[M / Esc]</kbd> Main Menu (主献立)',
+                jp: '<kbd>[M / Esc]</kbd> メインメニュー'
+            }
+        };
+        for (const [id, trans] of Object.entries(deathActionButtons)) {
+            const btn = document.getElementById(id);
+            if (btn) {
+                if (isHeng && lang === 'jp') btn.innerHTML = trans.jp;
+                else if (isHeng && lang === 'bilingual') btn.innerHTML = trans.bi;
+                else btn.innerHTML = trans.en;
+            }
+        }
+
+        // 7. Minimap Header & Hint (when not in play)
+        const minimapTitle = document.getElementById('minimap-title-text');
+        const minimapHint = document.getElementById('minimap-hint-text');
+        if (minimapTitle && (!this.lastFrame || !this.lastFrame.player)) {
+            if (isHeng && lang === 'jp') minimapTitle.textContent = '地図';
+            else if (isHeng && lang === 'bilingual') minimapTitle.textContent = 'MINIMAP (地図)';
+            else minimapTitle.textContent = 'MINIMAP';
+        }
+        if (minimapHint) {
+            if (isHeng && lang === 'jp') minimapHint.textContent = '[ ] 画面  +/- 縮小';
+            else if (isHeng && lang === 'bilingual') minimapHint.textContent = '[ ] Size (画面)  +/- Zoom';
+            else minimapHint.textContent = '[ ] Size  +/- Zoom';
+        }
+
+        // 8. D-Pad Turning Wings
+        const dpadTurnLeft = document.querySelector('#dpad-turn-left .dpad-turn-text');
+        const dpadTurnRight = document.querySelector('#dpad-turn-right .dpad-turn-text');
+        if (dpadTurnLeft) {
+            if (isHeng && lang === 'jp') dpadTurnLeft.textContent = '左回転';
+            else if (isHeng && lang === 'bilingual') dpadTurnLeft.textContent = 'Turn L (左)';
+            else dpadTurnLeft.textContent = 'Turn L';
+        }
+        if (dpadTurnRight) {
+            if (isHeng && lang === 'jp') dpadTurnRight.textContent = '右回転';
+            else if (isHeng && lang === 'bilingual') dpadTurnRight.textContent = 'Turn R (右)';
+            else dpadTurnRight.textContent = 'Turn R';
+        }
+
+        // 9. Quick Help Trigger Pill
+        const btnQuickHelp = document.getElementById('btn-quick-help');
+        if (btnQuickHelp) {
+            if (isHeng && lang === 'jp') btnQuickHelp.textContent = '⌨ 案内 [?]';
+            else if (isHeng && lang === 'bilingual') btnQuickHelp.textContent = '⌨ Controls (案内) [?]';
+            else btnQuickHelp.textContent = '⌨ Controls [?]';
+        }
+    }
+
+    updateHengbandLanguageUI(realm, lang = 'en') {
+        return this.updateLanguageUI(realm, lang);
+    }
+
     /* -------------------------------------------------------------
      * Frame Update: Gauges, 3-Row Telemetry Footer, Minimap Header
      * ------------------------------------------------------------- */
@@ -948,42 +1278,121 @@ class WebHUD {
         const player = frame.player || {};
         const ui = frame.ui || {};
 
-        // Character Name, Race, Class
+        // Realm and Game System Differentiation
+        const realm = (player.realm) || (frame.realm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
+        const isSilQ = realm === 'silq' || (player.stats && player.stats.gra !== undefined);
+        this.updateHengbandLanguageUI(realm, window.__langMode || 'en');
+
+        // Character Name, Race, Class / House
         if (player.name) {
-            const r = player.race || '';
-            const c = player.class || '';
-            this.charTitle.textContent = `${player.name} (${r} ${c})`;
+            let r = player.race || '';
+            let c = player.class || '';
+            const house = player.house || '';
+            if (realm === 'hengband') {
+                const lang = window.__langMode || 'en';
+                const jpToEn = window.__JP_TERM_TRANSLATIONS || {};
+                const enToJp = window.__EN_TO_JP_TRANSLATIONS || {};
+                if (lang === 'en') {
+                    if (jpToEn[r]) r = jpToEn[r];
+                    if (jpToEn[c]) c = jpToEn[c];
+                } else if (lang === 'jp') {
+                    if (enToJp[r]) r = enToJp[r];
+                    if (enToJp[c]) c = enToJp[c];
+                } else if (lang === 'bilingual') {
+                    if (jpToEn[r]) r = `${r} (${jpToEn[r]})`;
+                    else if (enToJp[r]) r = `${enToJp[r]} (${r})`;
+                    if (jpToEn[c]) c = `${c} (${jpToEn[c]})`;
+                    else if (enToJp[c]) c = `${enToJp[c]} (${c})`;
+                }
+            }
+            if (isSilQ) {
+                this.charTitle.textContent = `${player.name} (${r}${house ? ` - ${house}` : (c && c !== r ? ` - ${c}` : '')})`;
+            } else {
+                this.charTitle.textContent = `${player.name} (${r} ${c})`;
+            }
         } else {
-            this.charTitle.textContent = 'Hero of Angband';
+            this.charTitle.textContent = isSilQ ? 'Hero of Beleriand' : 'Hero of Angband';
         }
 
         // HP Bar
         const curHp = player.hp !== undefined ? player.hp : (player.chp !== undefined ? player.chp : 100);
-        const maxHp = player.hp_max !== undefined ? player.hp_max : (player.mhp !== undefined ? player.mhp : 100);
+        const maxHp = player.hp_max !== undefined ? player.hp_max : (player.max_hp !== undefined ? player.max_hp : (player.mhp !== undefined ? player.mhp : 100));
         const hpPct = Math.max(0, Math.min(100, (curHp / Math.max(1, maxHp)) * 100));
         this.hpFill.style.width = `${hpPct}%`;
         this.hpText.textContent = `${curHp} / ${maxHp}`;
 
-        // SP Bar
+        // SP / Voice Bar
+        if (this.spLabel) {
+            const lang = window.__langMode || 'en';
+            if (realm === 'hengband' && lang === 'jp') {
+                this.spLabel.textContent = '魔力';
+            } else if (realm === 'hengband' && lang === 'bilingual') {
+                this.spLabel.textContent = 'MANA (魔力)';
+            } else {
+                this.spLabel.textContent = isSilQ ? 'VOICE' : 'MANA';
+            }
+        }
         const curSp = player.sp !== undefined ? player.sp : (player.csp !== undefined ? player.csp : 0);
-        const maxSp = player.sp_max !== undefined ? player.sp_max : (player.msp !== undefined ? player.msp : 0);
+        const maxSp = player.sp_max !== undefined ? player.sp_max : (player.max_sp !== undefined ? player.max_sp : (player.msp !== undefined ? player.msp : 0));
         const spPct = maxSp > 0 ? Math.max(0, Math.min(100, (curSp / maxSp) * 100)) : 0;
         this.spFill.style.width = `${spPct}%`;
         this.spText.textContent = `${curSp} / ${maxSp}`;
 
         // Left Panel Stats
-        if (player.stats) {
-            const getStat = s => (s && typeof s === 'object') ? (s.use || s.top || '10') : (s || '10');
-            this.statStr.textContent = getStat(player.stats.str);
-            this.statInt.textContent = getStat(player.stats.int);
-            this.statWis.textContent = getStat(player.stats.wis);
-            this.statDex.textContent = getStat(player.stats.dex);
-            this.statCon.textContent = getStat(player.stats.con);
+        const getStat = s => (s && typeof s === 'object') ? (s.use || s.top || '10') : (s || '10');
+        if (isSilQ) {
+            if (this.itemGra) this.itemGra.style.display = 'flex';
+            if (this.itemInt) this.itemInt.style.display = 'none';
+            if (this.itemWis) this.itemWis.style.display = 'none';
+            if (this.itemChr) this.itemChr.style.display = 'none';
+            if (this.itemGold) this.itemGold.style.display = 'none';
+
+            if (player.stats) {
+                if (this.statStr) this.statStr.textContent = getStat(player.stats.str);
+                if (this.statDex) this.statDex.textContent = getStat(player.stats.dex);
+                if (this.statCon) this.statCon.textContent = getStat(player.stats.con);
+                if (this.statGra) this.statGra.textContent = getStat(player.stats.gra);
+            }
+        } else {
+            if (this.itemGra) this.itemGra.style.display = 'none';
+            if (this.itemInt) this.itemInt.style.display = 'flex';
+            if (this.itemWis) this.itemWis.style.display = 'flex';
+            if (this.itemChr) this.itemChr.style.display = 'flex';
+            if (this.itemGold) this.itemGold.style.display = 'flex';
+
+            if (player.stats) {
+                if (this.statStr) this.statStr.textContent = getStat(player.stats.str);
+                if (this.statInt) this.statInt.textContent = getStat(player.stats.int);
+                if (this.statWis) this.statWis.textContent = getStat(player.stats.wis);
+                if (this.statDex) this.statDex.textContent = getStat(player.stats.dex);
+                if (this.statCon) this.statCon.textContent = getStat(player.stats.con);
+                if (this.statChr) this.statChr.textContent = getStat(player.stats.chr || player.stats.cha);
+            }
         }
 
-        // Depth, Gold, AC
+        // Depth, Wilderness, Gold, AC
         const depth = player.depth !== undefined ? player.depth : 0;
-        const locStr = depth === 0 ? 'Town' : `${depth * 50}ft`;
+        let locStr = depth === 0 ? 'Town' : `${depth * 50}ft`;
+        if (isSilQ) {
+            locStr = `${depth * 50}ft`;
+        } else if (depth === 0 && frame.map && frame.map.rows) {
+            const px = player.x || 0;
+            const py = player.y || 0;
+            const feat = this.getFeatAt(frame.map, px, py);
+            if ((feat >= 25 && feat <= 31) || player.wilderness || frame.is_wild_mode) {
+                locStr = 'Wilderness';
+            }
+        }
+        if (realm === 'hengband') {
+            const lang = window.__langMode || 'en';
+            if (lang === 'jp') {
+                if (locStr === 'Town') locStr = '街 (宿場町)';
+                else if (locStr === 'Wilderness') locStr = '荒野';
+            } else if (lang === 'bilingual') {
+                if (locStr === 'Town') locStr = 'Town (街)';
+                else if (locStr === 'Wilderness') locStr = 'Wilderness (荒野)';
+            }
+        }
         if (this.depthVal) this.depthVal.textContent = locStr;
         if (this.goldVal) {
             this.goldVal.textContent = (player.gold || 0).toLocaleString();
@@ -993,7 +1402,9 @@ class WebHUD {
             const acTotal = player.ac !== undefined ? player.ac : 0;
             const acToA = player.ac_to_a || 0;
             this.acVal.textContent = acToA !== 0 ? `${acTotal} (${acToA > 0 ? '+' : ''}${acToA})` : `${acTotal}`;
-            this.acVal.title = `Armor Class: ${acTotal} (Base: ${player.ac_base || 0}, Bonus: ${acToA >= 0 ? '+' : ''}${acToA})`;
+            this.acVal.title = isSilQ
+                ? `Evasion & Protection: ${acTotal}`
+                : `Armor Class: ${acTotal} (Base: ${player.ac_base || 0}, Bonus: ${acToA >= 0 ? '+' : ''}${acToA})`;
         }
         const yaw = (window.__app && window.__app.dungeon) ? window.__app.dungeon.yaw : (this.currentCameraYaw || 0);
         const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
@@ -1009,7 +1420,9 @@ class WebHUD {
         if (player.x !== undefined && player.y !== undefined) {
             const titleEl = document.getElementById('minimap-title-text');
             if (titleEl) {
-                titleEl.innerHTML = `MINIMAP (${player.x},${player.y}) <span style="color:#ffd700;">[${arrowChar} ${facingName}]</span>`;
+                const lang = window.__langMode || 'en';
+                const prefix = (realm === 'hengband' && lang === 'jp') ? '地図' : ((realm === 'hengband' && lang === 'bilingual') ? 'MINIMAP (地図)' : 'MINIMAP');
+                titleEl.innerHTML = `${prefix} (${player.x},${player.y}) <span style="color:#ffd700;">[${arrowChar} ${facingName}]</span>`;
             }
         }
 
@@ -1063,12 +1476,18 @@ class WebHUD {
         if (frame.map && player.x !== undefined && player.y !== undefined) {
             const currentFeat = this.getFeatAt(frame.map, player.x, player.y);
             let stairsText = '';
+            const lang = window.__langMode || 'en';
             if (currentFeat === 6) { // Downstairs
                 stairsText = depth === 0 ? `[>] Down to Dungeon (50')` : `[>] Down to ${(depth + 1) * 50}ft`;
                 if (btnStair) {
                     btnStair.style.display = 'inline-flex';
                     btnStair.classList.add('stair-active');
-                    btnStair.innerHTML = depth === 0 ? '⬇ Enter Dungeon <kbd>&gt;</kbd>' : '⬇ Descend <kbd>&gt;</kbd>';
+                    let stairHtml = depth === 0 ? '⬇ Enter Dungeon <kbd>&gt;</kbd>' : '⬇ Descend <kbd>&gt;</kbd>';
+                    if (realm === 'hengband') {
+                        if (lang === 'jp') stairHtml = depth === 0 ? '⬇ ダンジョンに入る <kbd>&gt;</kbd>' : '⬇ 降りる <kbd>&gt;</kbd>';
+                        else if (lang === 'bilingual') stairHtml = depth === 0 ? '⬇ Enter Dungeon (入山) <kbd>&gt;</kbd>' : '⬇ Descend (降りる) <kbd>&gt;</kbd>';
+                    }
+                    btnStair.innerHTML = stairHtml;
                     if (btnStair.dataset) btnStair.dataset.key = '>';
                     btnStair.setAttribute('data-key', '>');
                 }
@@ -1077,7 +1496,12 @@ class WebHUD {
                 if (btnStair) {
                     btnStair.style.display = 'inline-flex';
                     btnStair.classList.add('stair-active');
-                    btnStair.innerHTML = depth === 1 ? '⬆ Return to Town <kbd>&lt;</kbd>' : '⬆ Ascend <kbd>&lt;</kbd>';
+                    let stairHtml = depth === 1 ? '⬆ Return to Town <kbd>&lt;</kbd>' : '⬆ Ascend <kbd>&lt;</kbd>';
+                    if (realm === 'hengband') {
+                        if (lang === 'jp') stairHtml = depth === 1 ? '⬆ 街へ戻る <kbd>&lt;</kbd>' : '⬆ 登る <kbd>&lt;</kbd>';
+                        else if (lang === 'bilingual') stairHtml = depth === 1 ? '⬆ Return to Town (帰還) <kbd>&lt;</kbd>' : '⬆ Ascend (登る) <kbd>&lt;</kbd>';
+                    }
+                    btnStair.innerHTML = stairHtml;
                     if (btnStair.dataset) btnStair.dataset.key = '<';
                     btnStair.setAttribute('data-key', '<');
                 }
@@ -1098,10 +1522,23 @@ class WebHUD {
 
         // Detailed 3-Row Telemetry Footer / Streamlined Status Bar
         if (this.footerCharIdentity) {
-            this.footerCharIdentity.textContent = `${player.name || 'Hero'} the ${player.race || 'Human'} ${player.class || 'Warrior'}`;
+            if (isSilQ) {
+                const house = player.house || '';
+                this.footerCharIdentity.textContent = `${player.name || 'Hero'} of the ${house || player.race || 'Noldor'}`;
+            } else {
+                this.footerCharIdentity.textContent = `${player.name || 'Hero'} the ${player.race || 'Human'} ${player.class || 'Warrior'}`;
+            }
         }
         if (this.footerLevel) {
-            this.footerLevel.textContent = `⭐ Lvl ${player.level || 1}`;
+            const plLevel = player.level !== undefined ? player.level : (player.lev !== undefined ? player.lev : 1);
+            const lang = window.__langMode || 'en';
+            if (realm === 'hengband' && lang === 'jp') {
+                this.footerLevel.textContent = `⭐ レベル ${plLevel}`;
+            } else if (realm === 'hengband' && lang === 'bilingual') {
+                this.footerLevel.textContent = `⭐ Lvl (Lv) ${plLevel}`;
+            } else {
+                this.footerLevel.textContent = `⭐ Lvl ${plLevel}`;
+            }
         }
         if (this.footerHp) {
             this.footerHp.textContent = `HP ${curHp}/${maxHp}`;
@@ -1111,43 +1548,111 @@ class WebHUD {
         if (this.footerSp) {
             if (maxSp > 0) {
                 this.footerSp.style.display = 'inline';
-                this.footerSp.textContent = `SP ${curSp}/${maxSp}`;
+                this.footerSp.textContent = `${isSilQ ? 'VOICE' : 'SP'} ${curSp}/${maxSp}`;
             } else {
                 this.footerSp.style.display = 'none';
             }
         }
         if (this.footerAc) {
-            this.footerAc.textContent = `AC ${player.ac !== undefined ? player.ac : '0'}`;
+            if (isSilQ || player.evn !== undefined) {
+                const evn = player.evn !== undefined ? player.evn : (player.ac || 0);
+                const evnStr = evn >= 0 ? `+${evn}` : `${evn}`;
+                const prMin = player.pr_min || 0;
+                const prMax = player.pr_max || 0;
+                this.footerAc.textContent = `[${evnStr}, ${prMin}-${prMax}]`;
+            } else {
+                this.footerAc.textContent = `AC ${player.ac !== undefined ? player.ac : '0'}`;
+            }
         }
         if (this.footerGold) {
-            this.footerGold.textContent = `AU ${(player.gold || 0).toLocaleString()}`;
+            if (isSilQ) {
+                this.footerGold.style.display = 'none';
+            } else {
+                this.footerGold.style.display = 'inline';
+                this.footerGold.textContent = `AU ${(player.gold || 0).toLocaleString()}`;
+            }
         }
         if (this.footerExp) {
             const expNext = player.exp_next;
             const expVal = (player.exp !== undefined) ? player.exp.toLocaleString() : '0';
             const nextStr = (expNext !== undefined && expNext > 0) ? `/${expNext.toLocaleString()}` : '';
-            this.footerExp.textContent = `✨ EXP ${expVal}${nextStr}`;
+            const lang = window.__langMode || 'en';
+            if (realm === 'hengband' && lang === 'jp') {
+                this.footerExp.textContent = `✨ 経験値 ${expVal}${nextStr}`;
+            } else if (realm === 'hengband' && lang === 'bilingual') {
+                this.footerExp.textContent = `✨ EXP (経験値) ${expVal}${nextStr}`;
+            } else {
+                this.footerExp.textContent = `✨ EXP ${expVal}${nextStr}`;
+            }
         }
         if (this.footerPlace) {
-            this.footerPlace.textContent = depth === 0 ? 'Town' : `DL ${depth} (${depth * 50}ft)`;
+            const lang = window.__langMode || 'en';
+            if (realm === 'hengband') {
+                if (lang === 'jp') {
+                    this.footerPlace.textContent = (locStr.includes('荒野') || locStr === 'Wilderness')
+                        ? '荒野'
+                        : (depth === 0 ? '街 (宿場町)' : `地下${depth}階 (${depth * 50}ft)`);
+                } else if (lang === 'bilingual') {
+                    this.footerPlace.textContent = (locStr.includes('荒野') || locStr === 'Wilderness')
+                        ? 'Wilderness (荒野)'
+                        : (depth === 0 ? 'Town (街)' : `DL ${depth} (${depth * 50}ft - 地下${depth}階)`);
+                } else {
+                    this.footerPlace.textContent = locStr === 'Wilderness' ? 'Wilderness' : (depth === 0 ? 'Town' : `DL ${depth} (${depth * 50}ft)`);
+                }
+            } else {
+                this.footerPlace.textContent = isSilQ ? `${depth * 50}ft` : (locStr === 'Wilderness' ? 'Wilderness' : (depth === 0 ? 'Town' : `DL ${depth} (${depth * 50}ft)`));
+            }
         }
         if (this.footerSpeed) {
-            const spd = player.speed !== undefined ? player.speed : 110;
-            const spdStr = spd > 110 ? `Fast (+${spd - 110})` : (spd < 110 ? `Slow (-${110 - spd})` : 'Normal (0)');
-            this.footerSpeed.textContent = `⚡ Spd ${spdStr}`;
+            const spd = player.speed !== undefined ? player.speed : (isSilQ ? 0 : 110);
+            let spdStr = 'Normal (0)';
+            if (isSilQ) {
+                spdStr = spd > 0 ? `Fast (+${spd})` : (spd < 0 ? `Slow (${spd})` : 'Normal (0)');
+            } else {
+                if (spd >= 110) {
+                    spdStr = spd > 110 ? `Fast (+${spd - 110})` : 'Normal (0)';
+                } else if (spd > 0 && spd < 110) {
+                    spdStr = `Slow (-${110 - spd})`;
+                } else if (spd > 0) {
+                    spdStr = `Fast (+${spd})`;
+                } else if (spd < 0) {
+                    spdStr = `Slow (${spd})`;
+                }
+            }
+            const lang = window.__langMode || 'en';
+            if (realm === 'hengband' && lang === 'jp') {
+                const jpSpd = spdStr.replace('Normal', '普通').replace('Fast', '加速').replace('Slow', '減速');
+                this.footerSpeed.textContent = `⚡ 速度 ${jpSpd}`;
+            } else if (realm === 'hengband' && lang === 'bilingual') {
+                this.footerSpeed.textContent = `⚡ Spd (速度) ${spdStr}`;
+            } else {
+                this.footerSpeed.textContent = `⚡ Spd ${spdStr}`;
+            }
         }
         if (this.footerLight) {
             const lightRadius = player.light !== undefined ? player.light : 0;
             const hasLightItem = !!player.light_item;
             const lightItemName = player.light_item || 'None';
             const lightFuel = player.light_fuel || 0;
-            const lightStr = depth === 0
+            const lang = window.__langMode || 'en';
+            let lightStr = depth === 0
                 ? (hasLightItem ? `☀️ ${lightItemName}` : '☀️ Daylight')
                 : (hasLightItem ? `🏮 ${lightItemName} (${lightFuel > 0 ? `${lightFuel}t` : `R:${lightRadius}`})` : (lightRadius > 0 ? `🏮 Light ${lightRadius}` : '🌑 Dark'));
+            if (realm === 'hengband') {
+                if (lang === 'jp') {
+                    if (lightStr.includes('Daylight')) lightStr = '☀️ 昼光';
+                    else if (lightStr.includes('Dark')) lightStr = '🌑 暗闇';
+                    else if (lightStr.includes('Light')) lightStr = `🏮 光源 ${lightRadius}`;
+                } else if (lang === 'bilingual') {
+                    if (lightStr.includes('Daylight')) lightStr = '☀️ Daylight (昼光)';
+                    else if (lightStr.includes('Dark')) lightStr = '🌑 Dark (暗闇)';
+                    else if (lightStr.includes('Light')) lightStr = `🏮 Light (光源) ${lightRadius}`;
+                }
+            }
             this.footerLight.textContent = lightStr;
         }
         if (this.footerFacing) {
-            this.footerFacing.textContent = `🧭 ${facingName}`;
+            this.updateFooterFacing(yaw);
         }
 
         // Target tracking
@@ -1164,10 +1669,28 @@ class WebHUD {
         if (this.footerBadges) {
             this.footerBadges.innerHTML = '';
             if (player.statuses && Array.isArray(player.statuses) && player.statuses.length > 0) {
+                const statusDict = {
+                    'Fast': '加速', 'Slow': '減速', 'Blind': '盲目', 'Confused': '混乱',
+                    'Poisoned': '毒', 'Afraid': '恐怖', 'Paralyzed': '麻痺', 'Hungry': '空腹',
+                    'Weak': '衰弱', 'Cut': '切創', 'Stun': '朦朧', 'Blessed': '祝福',
+                    'Hero': '英雄', 'Berserk': '狂戦士', 'Protec': '防護', 'Shield': '盾',
+                    'Invuln': '無敵', 'Infra': '赤外視', 'Recall': '帰還', 'Rest': '休息',
+                    'Study': '学習', 'Halluc': '幻覚', 'Tired': '疲労', 'Mortal Wound': '致命傷',
+                    'Heavy Stun': '大朦朧', 'Knocked Out': '気絶'
+                };
+                const lang = window.__langMode || 'en';
                 player.statuses.forEach(st => {
+                    let displayName = st.name || '';
+                    if (realm === 'hengband') {
+                        if (lang === 'jp' && statusDict[displayName]) {
+                            displayName = statusDict[displayName];
+                        } else if (lang === 'bilingual' && statusDict[displayName]) {
+                            displayName = `${displayName} (${statusDict[displayName]})`;
+                        }
+                    }
                     const span = document.createElement('span');
                     span.className = 'footer-badge';
-                    span.textContent = `[${st.name}]`;
+                    span.textContent = `[${displayName}]`;
                     if (window.getAngbandColorString && st.attr !== undefined) {
                         span.style.color = window.getAngbandColorString(st.attr);
                     }
@@ -1193,6 +1716,22 @@ class WebHUD {
                 const span = document.createElement('span');
                 span.className = 'footer-badge badge-recall';
                 span.textContent = `[RECALL: ${player.word_recall}t]`;
+                this.footerBadges.appendChild(span);
+            }
+
+            if (player.song) {
+                const span = document.createElement('span');
+                span.className = 'footer-badge badge-song';
+                span.textContent = `[SONG: ${player.song}]`;
+                span.style.color = '#70c0ff';
+                this.footerBadges.appendChild(span);
+            }
+
+            if (player.stealth_mode) {
+                const span = document.createElement('span');
+                span.className = 'footer-badge badge-stealth';
+                span.textContent = '[STEALTH]';
+                span.style.color = '#a0a0a0';
                 this.footerBadges.appendChild(span);
             }
         }
@@ -1416,7 +1955,7 @@ class WebHUD {
     }
 
     isWalkableOrPortal(feat) {
-        return feat === 1 || feat === 2 || feat === 3 || feat === 4 || feat === 5 || feat === 6 || feat === 16 || feat === 23 || feat === 24 || this.isStoreKind(feat);
+        return feat === 1 || feat === 2 || feat === 3 || feat === 4 || feat === 5 || feat === 6 || feat === 16 || feat === 23 || feat === 24 || (feat >= 25 && feat <= 28) || feat === 31 || this.isStoreKind(feat);
     }
 
     updateContextPulses(frame) {
@@ -1466,10 +2005,14 @@ class WebHUD {
     rerollCharacter() {
         this.hideDeathModal();
         this.isDeadInPlay = false;
-        const randomId = Math.random().toString(36).substring(2, 6).toUpperCase();
-        const newChar = 'Hero_' + randomId;
+        const newChar = (window.__app && typeof window.__app.generateHeroName === 'function')
+            ? window.__app.generateHeroName()
+            : ('Hero_' + Math.random().toString(36).substring(2, 6).toUpperCase());
         console.log('[Angband3D] Reroll requested. Starting fresh character:', newChar);
-        window.location.href = `/?char=${encodeURIComponent(newChar)}&new=1`;
+        const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function')
+            ? `&realm=${encodeURIComponent(window.__app.getActiveRealm())}`
+            : '';
+        window.location.href = `/?char=${encodeURIComponent(newChar)}&new=1${realmParam}`;
     }
 
     setupDeathModal() {

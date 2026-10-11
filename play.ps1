@@ -28,6 +28,7 @@
 [CmdletBinding()]
 param(
     [string]$Character,
+    [string]$Realm,
     [switch]$Random,
     [switch]$Manual,
     [switch]$List,
@@ -112,6 +113,7 @@ if ((Test-Path $standaloneExe) -and (-not $Editor)) {
     Write-Host "Launching standalone Angband3D..." -ForegroundColor Cyan
     $exeArgs = @()
     if ($Character) { $exeArgs += "--save=$Character" }
+    if ($Realm) { $exeArgs += "--realm=$Realm" }
     if ($Random) { $exeArgs += '--autobirth' }
     if ($Manual) { $exeArgs += '--manual' }
     if ($exeArgs.Count -gt 0) {
@@ -178,6 +180,7 @@ $clientArgs = @('--path', $client)
 if ($Editor) { $clientArgs += '--editor' }
 $userArgs = @()
 if ($Character) { $userArgs += "--save=$Character" }
+if ($Realm) { $userArgs += "--realm=$Realm" }
 if ($Random) { $userArgs += '--autobirth' }
 if ($Manual) { $userArgs += '--manual' }
 if ($userArgs.Count -gt 0) {

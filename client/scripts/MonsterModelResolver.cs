@@ -2552,12 +2552,14 @@ public static class MonsterModelResolver
         var isBull = lowerName.Contains("bull") || lowerName.Contains("ox") || lowerName.Contains("minotaur") || lowerName.Contains("bison") || lowerName.Contains("yak");
         var isStag = lowerName.Contains("stag") || lowerName.Contains("deer") || lowerName.Contains("elk") || lowerName.Contains("moose");
         var isBear = lowerName.Contains("bear");
+        var isHorse = lowerName.Contains("horse") || lowerName.Contains("pony") || lowerName.Contains("steed") || lowerName.Contains("unicorn") || lowerName.Contains("pegasus") || lowerName.Contains("mare") || lowerName.Contains("stallion") || lowerName.Contains("馬") || lowerName.Contains("乗用馬") || lowerName.Contains("野生馬");
+        var isUnicorn = lowerName.Contains("unicorn");
 
-        var baseFur = isBear ? new Color(0.24f, 0.18f, 0.14f) : isBoar ? new Color(0.28f, 0.22f, 0.20f) : new Color(0.32f, 0.25f, 0.18f);
+        var baseFur = isBear ? new Color(0.24f, 0.18f, 0.14f) : isBoar ? new Color(0.28f, 0.22f, 0.20f) : isHorse ? (isUnicorn ? new Color(0.92f, 0.94f, 0.98f) : new Color(0.42f, 0.28f, 0.18f)) : new Color(0.32f, 0.25f, 0.18f);
         var furColor = baseFur.Lerp(glowColor, 0.35f);
         var bodyMat = new StandardMaterial3D { AlbedoColor = furColor, Roughness = 0.75f };
         var darkMat = new StandardMaterial3D { AlbedoColor = new Color(0.10f, 0.08f, 0.08f), Roughness = 0.60f };
-        var hornMat = new StandardMaterial3D { AlbedoColor = new Color(0.85f, 0.82f, 0.75f), Roughness = 0.40f };
+        var hornMat = new StandardMaterial3D { AlbedoColor = isUnicorn ? new Color(0.95f, 0.85f, 0.40f) : new Color(0.85f, 0.82f, 0.75f), Roughness = 0.35f };
         var eyeMat = new StandardMaterial3D { AlbedoColor = glowColor, EmissionEnabled = true, Emission = glowColor, EmissionEnergyMultiplier = 1.8f };
 
         var bodyNode = new Node3D { Position = new Vector3(0, 0.26f, 0) };
@@ -2566,46 +2568,75 @@ public static class MonsterModelResolver
         entity.InitialBodyScale = Vector3.One;
 
         // Massive sturdy barrel torso
-        var torsoSize = new Vector3(0.44f, 0.38f, 0.70f);
+        var torsoSize = isHorse ? new Vector3(0.38f, 0.40f, 0.76f) : new Vector3(0.44f, 0.38f, 0.70f);
         var torsoMesh = new BoxMesh { Size = torsoSize };
         bodyNode.AddChild(new MeshInstance3D { Mesh = torsoMesh, MaterialOverride = bodyMat });
 
         // Heavy withers / shoulder hump
-        var humpMesh = new BoxMesh { Size = new Vector3(0.40f, 0.14f, 0.35f) };
+        var humpMesh = new BoxMesh { Size = isHorse ? new Vector3(0.34f, 0.16f, 0.36f) : new Vector3(0.40f, 0.14f, 0.35f) };
         bodyNode.AddChild(new MeshInstance3D { Mesh = humpMesh, MaterialOverride = bodyMat, Position = new Vector3(0, torsoSize.Y * 0.50f + 0.05f, 0.14f) });
 
-        // Head node
-        var headNode = new Node3D { Position = new Vector3(0, 0.10f, torsoSize.Z * 0.50f) };
+        // Head and neck node
+        var headNode = new Node3D { Position = isHorse ? new Vector3(0, 0.28f, torsoSize.Z * 0.48f) : new Vector3(0, 0.10f, torsoSize.Z * 0.50f) };
         bodyNode.AddChild(headNode);
         entity.HeadNode = headNode;
 
-        var headSize = new Vector3(0.30f, 0.28f, 0.34f);
-        var headMesh = new BoxMesh { Size = headSize };
-        headNode.AddChild(new MeshInstance3D { Mesh = headMesh, MaterialOverride = bodyMat });
-
-        // Glowing eyes
-        var eyeMesh = new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 8, Rings = 4 };
-        headNode.AddChild(new MeshInstance3D { Mesh = eyeMesh, MaterialOverride = eyeMat, Position = new Vector3(0.12f, 0.08f, 0.12f) });
-        headNode.AddChild(new MeshInstance3D { Mesh = eyeMesh, MaterialOverride = eyeMat, Position = new Vector3(-0.12f, 0.08f, 0.12f) });
-
-        // Special features: Boar tusks, Bull horns, Stag antlers, Bear ears
-        if (isBoar)
+        if (isHorse)
         {
-            var tuskMesh = new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.035f, Height = 0.18f, RadialSegments = 6 };
-            headNode.AddChild(new MeshInstance3D { Mesh = tuskMesh, MaterialOverride = hornMat, Position = new Vector3(0.12f, -0.06f, 0.20f), Rotation = new Vector3(Mathf.DegToRad(35), 0, Mathf.DegToRad(30)) });
-            headNode.AddChild(new MeshInstance3D { Mesh = tuskMesh, MaterialOverride = hornMat, Position = new Vector3(-0.12f, -0.06f, 0.20f), Rotation = new Vector3(Mathf.DegToRad(35), 0, Mathf.DegToRad(-30)) });
-        }
-        else if (isBull || isStag)
-        {
-            var hornMesh = new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.05f, Height = 0.32f, RadialSegments = 6 };
-            headNode.AddChild(new MeshInstance3D { Mesh = hornMesh, MaterialOverride = hornMat, Position = new Vector3(0.16f, 0.22f, 0.02f), Rotation = new Vector3(Mathf.DegToRad(-20), 0, Mathf.DegToRad(-45)) });
-            headNode.AddChild(new MeshInstance3D { Mesh = hornMesh, MaterialOverride = hornMat, Position = new Vector3(-0.16f, 0.22f, 0.02f), Rotation = new Vector3(Mathf.DegToRad(-20), 0, Mathf.DegToRad(45)) });
+            // Arched equine neck
+            var neckMesh = new BoxMesh { Size = new Vector3(0.20f, 0.32f, 0.24f) };
+            headNode.AddChild(new MeshInstance3D { Mesh = neckMesh, MaterialOverride = bodyMat, Position = new Vector3(0, 0.08f, -0.06f), Rotation = new Vector3(Mathf.DegToRad(-20), 0, 0) });
+
+            // Elongated equine head and muzzle
+            var headMesh = new BoxMesh { Size = new Vector3(0.22f, 0.22f, 0.36f) };
+            headNode.AddChild(new MeshInstance3D { Mesh = headMesh, MaterialOverride = bodyMat, Position = new Vector3(0, 0.20f, 0.10f), Rotation = new Vector3(Mathf.DegToRad(15), 0, 0) });
+
+            // Tall pointed perked horse ears
+            var earMesh = new BoxMesh { Size = new Vector3(0.04f, 0.12f, 0.05f) };
+            headNode.AddChild(new MeshInstance3D { Mesh = earMesh, MaterialOverride = bodyMat, Position = new Vector3(0.09f, 0.34f, -0.02f) });
+            headNode.AddChild(new MeshInstance3D { Mesh = earMesh, MaterialOverride = bodyMat, Position = new Vector3(-0.09f, 0.34f, -0.02f) });
+
+            // Mane crest
+            var maneMesh = new BoxMesh { Size = new Vector3(0.06f, 0.30f, 0.10f) };
+            headNode.AddChild(new MeshInstance3D { Mesh = maneMesh, MaterialOverride = darkMat, Position = new Vector3(0, 0.14f, -0.16f), Rotation = new Vector3(Mathf.DegToRad(-20), 0, 0) });
+
+            // Unicorn horn
+            if (isUnicorn)
+            {
+                var hornMesh = new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.035f, Height = 0.35f, RadialSegments = 6 };
+                headNode.AddChild(new MeshInstance3D { Mesh = hornMesh, MaterialOverride = hornMat, Position = new Vector3(0, 0.38f, 0.12f), Rotation = new Vector3(Mathf.DegToRad(40), 0, 0) });
+            }
         }
         else
         {
-            var earMesh = new BoxMesh { Size = new Vector3(0.08f, 0.08f, 0.04f) };
-            headNode.AddChild(new MeshInstance3D { Mesh = earMesh, MaterialOverride = bodyMat, Position = new Vector3(0.14f, 0.14f, -0.05f) });
-            headNode.AddChild(new MeshInstance3D { Mesh = earMesh, MaterialOverride = bodyMat, Position = new Vector3(-0.14f, 0.14f, -0.05f) });
+            var headSize = new Vector3(0.30f, 0.28f, 0.34f);
+            var headMesh = new BoxMesh { Size = headSize };
+            headNode.AddChild(new MeshInstance3D { Mesh = headMesh, MaterialOverride = bodyMat });
+
+            // Glowing eyes
+            var eyeMesh = new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 8, Rings = 4 };
+            headNode.AddChild(new MeshInstance3D { Mesh = eyeMesh, MaterialOverride = eyeMat, Position = new Vector3(0.12f, 0.08f, 0.12f) });
+            headNode.AddChild(new MeshInstance3D { Mesh = eyeMesh, MaterialOverride = eyeMat, Position = new Vector3(-0.12f, 0.08f, 0.12f) });
+
+            // Special features: Boar tusks, Bull horns, Stag antlers, Bear ears
+            if (isBoar)
+            {
+                var tuskMesh = new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.035f, Height = 0.18f, RadialSegments = 6 };
+                headNode.AddChild(new MeshInstance3D { Mesh = tuskMesh, MaterialOverride = hornMat, Position = new Vector3(0.12f, -0.06f, 0.20f), Rotation = new Vector3(Mathf.DegToRad(35), 0, Mathf.DegToRad(30)) });
+                headNode.AddChild(new MeshInstance3D { Mesh = tuskMesh, MaterialOverride = hornMat, Position = new Vector3(-0.12f, -0.06f, 0.20f), Rotation = new Vector3(Mathf.DegToRad(35), 0, Mathf.DegToRad(-30)) });
+            }
+            else if (isBull || isStag)
+            {
+                var hornMesh = new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.05f, Height = 0.32f, RadialSegments = 6 };
+                headNode.AddChild(new MeshInstance3D { Mesh = hornMesh, MaterialOverride = hornMat, Position = new Vector3(0.16f, 0.22f, 0.02f), Rotation = new Vector3(Mathf.DegToRad(-20), 0, Mathf.DegToRad(-45)) });
+                headNode.AddChild(new MeshInstance3D { Mesh = hornMesh, MaterialOverride = hornMat, Position = new Vector3(-0.16f, 0.22f, 0.02f), Rotation = new Vector3(Mathf.DegToRad(-20), 0, Mathf.DegToRad(45)) });
+            }
+            else
+            {
+                var earMesh = new BoxMesh { Size = new Vector3(0.08f, 0.08f, 0.04f) };
+                headNode.AddChild(new MeshInstance3D { Mesh = earMesh, MaterialOverride = bodyMat, Position = new Vector3(0.14f, 0.14f, -0.05f) });
+                headNode.AddChild(new MeshInstance3D { Mesh = earMesh, MaterialOverride = bodyMat, Position = new Vector3(-0.14f, 0.14f, -0.05f) });
+            }
         }
 
         // Tail

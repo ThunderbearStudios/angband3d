@@ -58,12 +58,12 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Fira+Code:wght@400;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Fira+Code:wght@400;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin="anonymous">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=8.8.9">
-    <link rel="stylesheet" href="/css/chronicle.css?v=8.8.2">
+    <link rel="stylesheet" href="/css/dungeon.css?v=8.9.3">
+    <link rel="stylesheet" href="/css/chronicle.css?v=8.9.3">
 </head>
 <body>
     <div id="app-container">
@@ -72,6 +72,49 @@
 
         <!-- Environmental Adaptive Vignette (Zero GPU overhead, sits behind HUD & terminal) -->
         <div id="dungeon-vignette" class="dungeon-vignette"></div>
+
+        <!-- Top-Center Target Plaque (Never obscures 3D characters, crosshair, or environment) -->
+        <div id="reticle-target-card" class="reticle-target-card hidden" aria-live="polite">
+            <div class="target-card-header">
+                <span id="target-card-name" class="target-card-name">Azog ('o')</span>
+                <span id="target-card-tier" class="target-card-tier badge-unique">Unique</span>
+            </div>
+            <div class="target-card-hp-bar">
+                <div id="target-card-hp-fill" class="target-card-hp-fill" style="width: 100%;"></div>
+            </div>
+            <div id="target-card-affinities" class="target-card-affinities"></div>
+        </div>
+
+        <!-- Diegetic Center Reticle (Clean crosshair, zero center popups) -->
+        <div id="diegetic-reticle" class="diegetic-reticle" aria-hidden="true">
+            <div class="reticle-crosshair">
+                <span class="reticle-dot"></span>
+            </div>
+        </div>
+
+        <!-- Non-Intrusive Context Action Cue (Bottom-Center, completely clear of central viewport) -->
+        <div id="context-action-cue" class="context-action-cue hidden" role="button" tabindex="0" title="Click or press key to perform action">
+            <span id="action-cue-icon" class="action-cue-icon">⚔</span>
+            <kbd id="action-cue-key" class="action-cue-key">Space</kbd>
+            <span id="action-cue-text" class="action-cue-text">Attack</span>
+        </div>
+
+        <!-- 8-Way Directional Aim Rosette -->
+        <div id="directional-aim-rosette" class="directional-aim-rosette hidden" role="dialog" aria-label="Direction Aiming Compass">
+            <div class="rosette-backdrop"></div>
+            <div class="rosette-dial">
+                <button type="button" class="rosette-sector rosette-nw" data-dir="7" title="North-West [7]">↖</button>
+                <button type="button" class="rosette-sector rosette-n" data-dir="8" title="North [8]">▲</button>
+                <button type="button" class="rosette-sector rosette-ne" data-dir="9" title="North-East [9]">↗</button>
+                <button type="button" class="rosette-sector rosette-w" data-dir="4" title="West [4]">◀</button>
+                <button type="button" id="btn-rosette-center" class="rosette-sector rosette-center" data-dir="5" title="Self / Cancel [5 / Esc]">⦿</button>
+                <button type="button" class="rosette-sector rosette-e" data-dir="6" title="East [6]">▶</button>
+                <button type="button" class="rosette-sector rosette-sw" data-dir="1" title="South-West [1]">↙</button>
+                <button type="button" class="rosette-sector rosette-s" data-dir="2" title="South [2]">▼</button>
+                <button type="button" class="rosette-sector rosette-se" data-dir="3" title="South-East [3]">↘</button>
+            </div>
+            <div class="rosette-hint">Aim with Mouse / Numpad / Touch [Esc to cancel]</div>
+        </div>
 
         <!-- Top Live Message & Combat Banner (1:1 with Godot Overlay.cs:1572-1587) -->
         <div id="top-message-banner" class="top-message-banner">
@@ -95,7 +138,7 @@
                         <button id="btn-quick-birth" class="btn-gold" style="display: none;" title="Quickly create a random hero and jump straight into the 3D dungeon!">⚔ Quick Start Hero (@)</button>
                         <button id="btn-term-reroll" class="btn-gold-outline" style="display: none;" title="Reroll this character with new random attributes">🎲 Reroll Hero (R)</button>
                         <button id="btn-term-custom" class="btn-gold-outline" style="display: none;" title="Customize your character by choosing race, class, and stats">🛠 Custom Hero (C)</button>
-                        <button id="btn-term-advance" class="btn-gold-outline" title="Press Enter to confirm or advance">Advance (Enter)</button>
+                        <button id="btn-term-advance" class="btn-gold-outline" style="display: none;" title="Press Enter to confirm or advance">Advance (Enter)</button>
                         <button id="btn-term-escape" class="btn-gold-outline" title="Press Escape to cancel or go back">Back (Esc)</button>
                         <button id="btn-term-exit-menu" class="btn-gold-outline" style="display: none;" title="Exit to Main Menu">✕ Main Menu</button>
                     </div>
@@ -109,8 +152,13 @@
                     <div id="term-letter-ribbon" class="term-letter-ribbon" style="display: none;"></div>
 
                     <div class="term-controls-main-row">
-                        <!-- 8-Way Directional D-Pad (with 3D forward highlight indicator) -->
+                        <!-- 8-Way Directional D-Pad (with 3D forward highlight indicator & Run Mode Toggle) -->
                         <div class="term-touch-dpad-col">
+                            <div class="term-dpad-header">
+                                <button type="button" id="term-run-toggle" class="term-run-toggle" data-key="toggle-run" title="Toggle Run / Sprint Mode [Alt+R]">
+                                    <span class="term-run-icon">🚶</span> <span class="term-run-text">Walk</span>
+                                </button>
+                            </div>
                             <div class="term-dpad term-dpad-grid" id="term-dpad-grid">
                                 <button type="button" class="term-dpad-btn term-dpad-ul" data-key="home" title="North-West [7]">↖</button>
                                 <button type="button" class="term-dpad-btn term-dpad-up" data-key="up" title="Move Up / North [8]">▲</button>
@@ -226,6 +274,8 @@
         <div id="top-right-bar">
             <div id="chronicle-hud-toast" class="chronicle-hud-toast" style="display: none;"></div>
             <div id="ping-badge" class="badge">Cloud [Connecting...]</div>
+            <button id="btn-hud-realm" class="icon-btn in-game-only realm-hud-pill" title="Active Realm: Angband 4.2.6 (Locked during active gameplay. Return to Main Menu to switch)."><span class="realm-icon">🌌</span> <span id="hud-realm-label">Angband 4.2.6</span></button>
+            <button id="btn-toggle-lang" class="icon-btn in-game-only lang-toggle-pill" style="display: none;" title="Toggle Language: English / Kanji / 日本語 [Alt+L]"><span class="lang-icon">🌐</span> <span id="hud-lang-label">EN / 漢</span></button>
             <button id="btn-toggle-chronicle" class="icon-btn in-game-only" title="Toggle The Living Chronicle Window [Alt+C]"><span class="chronicle-icon">📖</span> <span class="chronicle-label">Tome</span></button>
             <button id="btn-toggle-msg-feed" class="icon-btn in-game-only" title="Toggle Message Log Feed"><span class="msg-icon">📜</span> <span class="msg-label">Log</span></button>
             <button id="btn-toggle-minimap" class="icon-btn in-game-only" title="Toggle Minimap Radar"><span class="map-icon">🗺</span> <span class="map-label">Map</span></button>
@@ -334,6 +384,10 @@
                     <span class="dpad-turn-symbol">↺</span>
                     <span class="dpad-turn-text">Turn L</span>
                 </button>
+                <button type="button" id="dpad-run-toggle" class="dpad-btn dpad-run-toggle" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]">
+                    <span id="dpad-run-icon" class="dpad-run-icon">🚶</span>
+                    <span id="dpad-run-text" class="dpad-run-text">Walk</span>
+                </button>
                 <button type="button" id="dpad-turn-right" class="dpad-btn dpad-turn-btn" title="Turn Camera Right 90° [Right Arrow]">
                     <span class="dpad-turn-symbol">↻</span>
                     <span class="dpad-turn-text">Turn R</span>
@@ -380,14 +434,16 @@
                     </div>
                 </div>
                 <div id="stats-strip">
-                    <div class="stat-item"><span class="stat-label">STR</span><span id="stat-str" class="stat-value">10</span></div>
-                    <div class="stat-item"><span class="stat-label">INT</span><span id="stat-int" class="stat-value">10</span></div>
-                    <div class="stat-item"><span class="stat-label">WIS</span><span id="stat-wis" class="stat-value">10</span></div>
-                    <div class="stat-item"><span class="stat-label">DEX</span><span id="stat-dex" class="stat-value">10</span></div>
-                    <div class="stat-item"><span class="stat-label">CON</span><span id="stat-con" class="stat-value">10</span></div>
+                    <div class="stat-item" id="stat-item-str"><span class="stat-label">STR</span><span id="stat-str" class="stat-value">10</span></div>
+                    <div class="stat-item" id="stat-item-int"><span class="stat-label">INT</span><span id="stat-int" class="stat-value">10</span></div>
+                    <div class="stat-item" id="stat-item-wis"><span class="stat-label">WIS</span><span id="stat-wis" class="stat-value">10</span></div>
+                    <div class="stat-item" id="stat-item-dex"><span class="stat-label">DEX</span><span id="stat-dex" class="stat-value">10</span></div>
+                    <div class="stat-item" id="stat-item-con"><span class="stat-label">CON</span><span id="stat-con" class="stat-value">10</span></div>
+                    <div class="stat-item" id="stat-item-chr"><span class="stat-label">CHR</span><span id="stat-chr" class="stat-value">10</span></div>
+                    <div class="stat-item" id="stat-item-gra" style="display: none;"><span class="stat-label">GRA</span><span id="stat-gra" class="stat-value">10</span></div>
                     <div class="stat-divider"></div>
-                    <div class="stat-item" title="Armor Class"><span class="stat-label">AC</span><span id="val-ac" class="stat-value">0</span></div>
-                    <div class="stat-item" title="Gold (AU)"><span class="stat-label">GOLD</span><span id="val-gold" class="stat-value" style="color: #ffd700;">0</span></div>
+                    <div class="stat-item" id="stat-item-ac" title="Armor Class"><span class="stat-label">AC</span><span id="val-ac" class="stat-value">0</span></div>
+                    <div class="stat-item" id="stat-item-gold" title="Gold (AU)"><span class="stat-label">GOLD</span><span id="val-gold" class="stat-value" style="color: #ffd700;">0</span></div>
                 </div>
             </div>
 
@@ -395,10 +451,17 @@
             <div id="hud-center-column">
                 <!-- Quick Action Bar -->
                 <div id="action-bar" class="hud-panel">
+                    <button id="btn-hero-action" class="action-btn action-hero-btn" title="Context Action (Attack / Open / Pickup / Tunnel / Wait)"><span id="hero-action-icon">⚔</span> <span id="hero-action-text">Attack</span> <kbd id="hero-action-key">Space</kbd></button>
                     <button id="btn-attack" class="action-btn" title="Attack adjacent monster in front [Space]">⚔ Attack <kbd>Space</kbd></button>
                     <button id="btn-throw" class="action-btn" title="Throw item at target [v]">🎯 Throw <kbd>v</kbd></button>
                     <button id="btn-fire" class="action-btn" title="Shoot ranged weapon from quiver [f]">🏹 Shoot <kbd>f</kbd></button>
                     <button id="btn-cast" class="action-btn" title="Cast spell or prayer [m]">✨ Cast <kbd>m</kbd></button>
+                    <button id="btn-skills" class="action-btn" style="display: none;" title="Learn Ability &amp; Skill Tree [N]">📜 Skills <kbd>N</kbd></button>
+                    <button id="btn-power" class="action-btn" style="display: none;" title="Use Racial/Class Power or Mutation [U]">🔮 Power <kbd>U</kbd></button>
+                    <button id="btn-overland" class="action-btn" style="display: none;" title="Overland / Wilderness Map [O]">🗺️ Map <kbd>O</kbd></button>
+                    <button id="btn-quests" class="action-btn" style="display: none;" title="Active Quests &amp; Status [Q]">📜 Quests <kbd>Q</kbd></button>
+                    <button id="btn-browse" class="action-btn" style="display: none;" title="Browse Spellbook [b]">📖 Browse <kbd>b</kbd></button>
+                    <button id="btn-study" class="action-btn" style="display: none;" title="Study New Spells [G]">✨ Study <kbd>G</kbd></button>
                     <button id="btn-quaff" class="action-btn" title="Drink / quaff potion [q]">🧪 Potion <kbd>q</kbd></button>
                     <button id="btn-read" class="action-btn" title="Read magical scroll [r]">📜 Scroll <kbd>r</kbd></button>
                     <button id="btn-door" class="action-btn" title="Open closed door or chest in front [o]">🚪 Door <kbd>o</kbd></button>
@@ -407,8 +470,10 @@
                     <button id="btn-inventory" class="action-btn" title="Open inventory pack [i]">🎒 Pack <kbd>i</kbd></button>
                     <button id="btn-equipment" class="action-btn" title="Inspect worn equipment [e]">🛡 Gear <kbd>e</kbd></button>
                     <button id="btn-stair" class="action-btn stair-btn" style="display: none;" title="Use stairs [&gt; or &lt;]">⬇ Descend <kbd>&gt;</kbd></button>
+                    <button id="btn-run-toggle" class="action-btn action-run-pill" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="action-run-icon">🚶</span> <span id="action-run-text">Walk</span> <kbd>Alt+R</kbd></button>
                     <button id="btn-terminal" class="action-btn" title="Toggle 80x24 classic CRT terminal view [Tab]">📜 Classic <kbd>Tab</kbd></button>
                     <button id="btn-guide-hud" class="action-btn" title="View Complete Controls &amp; Commands Guide [?]">❓ Help <kbd>?</kbd></button>
+                    <button id="btn-command-palette" class="action-btn action-cmd-btn" title="Search all Roguelike Commands [Ctrl+K or ?]">⌨ Cmds <kbd>Ctrl+K</kbd></button>
                     <button id="btn-action-more" class="action-btn action-more-btn" title="Toggle All Action Commands">⋯ More</button>
                 </div>
 
@@ -503,48 +568,119 @@
                 <div class="splash-ornament-corner bottom-left"></div>
                 <div class="splash-ornament-corner bottom-right"></div>
 
-                <div class="splash-presentation">★ &nbsp; T H U N D E R B E A R &nbsp; S T U D I O S &nbsp; ★</div>
-                <div class="splash-presents">— &nbsp; P R E S E N T S &nbsp; —</div>
-                
-                <div class="splash-logo-container">
+                <div class="splash-logo-wrap">
                     <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" class="splash-logo">
                 </div>
-
+                <div class="splash-presentation">★ &nbsp; T H U N D E R B E A R &nbsp; S T U D I O S &nbsp; ★</div>
+                
                 <h1 class="splash-title">ANGBAND 3D</h1>
                 <div class="splash-subtitle">The Classic Roguelike Dungeon Crawler • Reborn in First-Person 3D</div>
-                <div class="splash-engine-tag">Angband 4.2.6 C Engine • Three.js WebGL • 0-Turn Yaw • Dual Reality CRT Terminal</div>
+                <div class="splash-instructions">⚔ Choose a Legendary Realm to Begin Your Descent ⚔</div>
 
-                <!-- Clean Feature Highlights Strip -->
-                <div class="splash-highlights-strip">
-                    <span class="splash-highlight-chip">⚔ Bit-for-Bit 4.2.6 Rules</span>
-                    <span class="splash-highlight-chip">⌨ [Tab] CRT Terminal</span>
-                    <span class="splash-highlight-chip">📖 AI Living Chronicle</span>
-                    <span class="splash-highlight-chip">💾 Universal Saves</span>
+                <!-- 4 Interactive Realm Selection Cards (Forced Choice on Splash) -->
+                <div class="splash-realm-grid" id="splash-realm-grid">
+                    <!-- Realm 1: Angband 4.2.6 -->
+                    <div class="splash-realm-card active" data-realm="angband" role="button" tabindex="0" title="Select Vanilla Angband 4.2.6 [1]">
+                        <div class="splash-realm-badge" id="splash-badge-angband">✓ ATTUNED</div>
+                        <div class="splash-realm-header">
+                            <span class="splash-realm-icon">⚔️</span>
+                            <div class="splash-realm-title-group">
+                                <span class="splash-realm-key">[1]</span>
+                                <h3 class="splash-realm-name">Angband 4.2.6</h3>
+                            </div>
+                        </div>
+                        <div class="splash-realm-tagline">The Classic Tolkien Descent</div>
+                        <p class="splash-realm-desc">Bit-for-bit 4.2.6 engine mechanics. 100 dungeon levels into the Iron Fortress to overthrow Morgoth.</p>
+                        <div class="splash-realm-chips">
+                            <span class="splash-chip">Bit-for-Bit Rules</span>
+                            <span class="splash-chip">100 Depths</span>
+                            <span class="splash-chip">Scholar Voice</span>
+                        </div>
+                    </div>
+
+                    <!-- Realm 2: FrogComposBand -->
+                    <div class="splash-realm-card" data-realm="frogcomposband" role="button" tabindex="0" title="Select FrogComposBand [2]">
+                        <div class="splash-realm-badge" id="splash-badge-frogcomposband" style="display:none;">✓ ATTUNED</div>
+                        <div class="splash-realm-header">
+                            <span class="splash-realm-icon">🐸</span>
+                            <div class="splash-realm-title-group">
+                                <span class="splash-realm-key">[2]</span>
+                                <h3 class="splash-realm-name">FrogComposBand</h3>
+                            </div>
+                        </div>
+                        <div class="splash-realm-tagline">Wilderness &amp; Monster Races</div>
+                        <p class="splash-realm-desc">Over 50 classes, playable monster races (Dragons, Angels, Ringwraiths), and vast overland wilderness.</p>
+                        <div class="splash-realm-chips">
+                            <span class="splash-chip">50+ Classes</span>
+                            <span class="splash-chip">Monster Races</span>
+                            <span class="splash-chip">Overland World</span>
+                        </div>
+                    </div>
+
+                    <!-- Realm 3: Hengband -->
+                    <div class="splash-realm-card" data-realm="hengband" role="button" tabindex="0" title="Select Hengband 3.0+ [3]">
+                        <div class="splash-realm-badge" id="splash-badge-hengband" style="display:none;">✓ ATTUNED</div>
+                        <div class="splash-realm-header">
+                            <span class="splash-realm-icon">⛩️</span>
+                            <div class="splash-realm-title-group">
+                                <span class="splash-realm-key">[3]</span>
+                                <h3 class="splash-realm-name">Hengband 3.0+</h3>
+                            </div>
+                        </div>
+                        <div class="splash-realm-tagline">Eastern Mythos &amp; Amberite Lore</div>
+                        <p class="splash-realm-desc">Zelazny's Amber &amp; Japanese folklore. Ninja, magic realms, and quest citadels.</p>
+                        <div class="splash-realm-chips">
+                            <span class="splash-chip">Eastern Mythos</span>
+                            <span class="splash-chip">Quest Citadels</span>
+                            <span class="splash-chip">EN / 日本語</span>
+                        </div>
+                        <div class="splash-lang-select-wrap" onclick="event.stopPropagation();">
+                            <label for="splash-hengband-lang-select">Language:</label>
+                            <select id="splash-hengband-lang-select" title="Toggle Hengband Language">
+                                <option value="en">English (hengband-en)</option>
+                                <option value="jp">日本語 / Japanese (Kanji)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Realm 4: Sil-Q -->
+                    <div class="splash-realm-card" data-realm="silq" role="button" tabindex="0" title="Select Sil-Q 1.5+ [4]">
+                        <div class="splash-realm-badge" id="splash-badge-silq" style="display:none;">✓ ATTUNED</div>
+                        <div class="splash-realm-header">
+                            <span class="splash-realm-icon">👑</span>
+                            <div class="splash-realm-title-group">
+                                <span class="splash-realm-key">[4]</span>
+                                <h3 class="splash-realm-name">Sil-Q 1.5+</h3>
+                            </div>
+                        </div>
+                        <div class="splash-realm-tagline">First Age Stealth &amp; Crown Heist</div>
+                        <p class="splash-realm-desc">Tactical stealth roguelike in the First Age. Sing songs of power, evade Balrogs, and pry a Silmaril.</p>
+                        <div class="splash-realm-chips">
+                            <span class="splash-chip">Stealth Radius</span>
+                            <span class="splash-chip">Songs of Power</span>
+                            <span class="splash-chip">Crown Heist</span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Compact Standalone Recommendation -->
-                <div class="splash-notice-banner">
-                    <span class="splash-notice-text">
-                        ⚡ <strong>Universal .SAV Portability:</strong> Play in browser or download <a href="javascript:void(0)" id="splash-notice-download" class="splash-notice-link">Standalone PC (.zip) &amp; Android APK</a>.
-                    </span>
-                </div>
-
-                <button id="btn-splash-start" class="btn-splash-start">
-                    [ PRESS SPACE / ENTER / CLICK TO PLAY ]
+                <!-- Primary Enter Realm CTA -->
+                <button id="btn-splash-start" class="btn-splash-start" title="Enter attuned realm">
+                    <span class="btn-splash-start-text">⚔ ENTER REALM: <strong id="splash-cta-realm-name">Vanilla Angband 4.2.6</strong> ➔</span>
+                    <span class="btn-splash-start-sub">[ PRESS SPACE / ENTER / CLICK TO DESCEND ]</span>
                 </button>
 
+                <!-- Clean, Elegant Secondary Action Bar -->
                 <div class="splash-shortcuts">
-                    <button class="splash-shortcut-btn" id="btn-splash-demo" style="border-color: #ffd700; color: #ffd700;"><kbd>[D]</kbd> 🎬 Gameplay Demo</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-menu"><kbd>[1]</kbd> ⚔ Main Menu</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-features"><kbd>[2]</kbd> ✨ Features</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-guide"><kbd>[4]</kbd> 📖 Guide</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-standalone"><kbd>[6]</kbd> 📱 Downloads</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-credits"><kbd>[5]</kbd> 📜 Credits</button>
-                    <a href="https://angband.readthedocs.io/" target="_blank" rel="noopener noreferrer" class="splash-shortcut-btn"><kbd>[W]</kbd> Wiki</a>
+                    <button class="splash-shortcut-btn" id="btn-splash-demo"><kbd>[D]</kbd> 🎬 Gameplay Demo</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-guide"><kbd>[G]</kbd> 📖 Adventurer's Guide</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-features" style="display:none;" aria-hidden="true">Features</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-menu" style="display:none;" aria-hidden="true">Menu</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-standalone"><kbd>[A]</kbd> 📱 Standalone Downloads</button>
+                    <button class="splash-shortcut-btn" id="btn-splash-credits"><kbd>[C]</kbd> 📜 Credits</button>
                 </div>
 
                 <div class="splash-credits-footer">
-                    <span>Angband 4.2.6 C Engine • 3D Architecture &amp; Direction by Thunderbear Studios</span>
+                    <span>Angband 4.2.6 C Engine • Multi-Realm Architecture &amp; Direction by Thunderbear Studios</span>
                 </div>
             </div>
         </div>
@@ -559,20 +695,19 @@
 
                 <div class="main-menu-header">
                     <h2 class="main-menu-title">⚔ ANGBAND 3D ⚔</h2>
-                    <div class="main-menu-subtitle">Choose your path to begin the descent into the pits of Angband</div>
-                    <div class="main-menu-notice-banner">
-                        <span>⚡ <strong>Tip:</strong> For buttery 60+ FPS and zero server latency, play the <strong>Standalone Desktop (.zip)</strong> or <strong>Android APK</strong> in <em>[8] Standalone Apps</em>! Save files are 100% universal across all platforms.</span>
+                    <div class="main-menu-realm-strip" id="main-menu-realm-strip">
+                        <span>Active Realm: <strong id="menu-active-realm-name" class="menu-realm-highlight">Vanilla Angband 4.2.6 (Tolkien)</strong></span>
+                        <button type="button" id="btn-menu-realms" class="menu-realm-badge-btn" title="Switch Realm [R]">🌌 Switch Realm [R]</button>
                     </div>
                 </div>
 
-
-
+                <!-- Primary Gameplay Options -->
                 <div class="main-menu-options" id="main-menu-options">
                     <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0">
                         <span class="menu-bullet">►</span>
                         <span class="menu-num">[1]</span>
                         <div class="menu-text-col">
-                            <span class="menu-label" id="menu-continue-label">Continue Last Played</span>
+                            <span class="menu-label" id="menu-continue-label">Continue Adventure</span>
                             <span class="menu-desc" id="menu-continue-desc">Checking saved adventurers...</span>
                         </div>
                     </button>
@@ -580,70 +715,51 @@
                         <span class="menu-bullet">►</span>
                         <span class="menu-num">[2]</span>
                         <div class="menu-text-col">
-                            <span class="menu-label">Load Saved Game...</span>
-                            <span class="menu-desc">Choose an adventurer from your realm archive or delete obsolete saves.</span>
+                            <span class="menu-label">Load Saved Character...</span>
+                            <span class="menu-desc">Choose an adventurer from your realm archive or upload a .sav file.</span>
                         </div>
                     </button>
                     <button class="menu-option-btn" id="btn-menu-random" data-index="2">
                         <span class="menu-bullet">►</span>
                         <span class="menu-num">[3]</span>
                         <div class="menu-text-col">
-                            <span class="menu-label">Start from Scratch (Random — Quick Start &amp; Review)</span>
-                            <span class="menu-desc">Generate a ready-to-play random hero and jump straight into the 3D town!</span>
+                            <span class="menu-label">Quick Start (Random Hero)</span>
+                            <span class="menu-desc">Generate a ready-to-play random adventurer and enter the 3D town immediately!</span>
                         </div>
                     </button>
                     <button class="menu-option-btn" id="btn-menu-custom" data-index="3">
                         <span class="menu-bullet">►</span>
                         <span class="menu-num">[4]</span>
                         <div class="menu-text-col">
-                            <span class="menu-label">Start from Scratch (Custom — Race, Class &amp; Stats)</span>
-                            <span class="menu-desc">Choose race, class, and roll stats in the classic terminal wizard.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-menu-guide" data-index="4">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[5]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Game Guide &amp; Primer</span>
-                            <span class="menu-desc">3D controls, combat, spellcasting, survival tactics, and dungeon lore.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-menu-credits" data-index="5">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[6]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Summary &amp; Credits</span>
-                            <span class="menu-desc">Thunderbear Studios, Angband Devteam, and development history.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-menu-wiki" data-index="6">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[7]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Angband Online Wiki &amp; Manual</span>
-                            <span class="menu-desc">Official monster, artifact, and spell compendium (external link).</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-menu-pwa" data-index="7">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[8]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label" id="menu-pwa-label">Standalone Apps &amp; Downloads (Android / PC)</span>
-                            <span class="menu-desc" id="menu-pwa-desc">Download standalone offline Android APK or Windows PC client, or install as an app.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-menu-demo" data-index="8">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[9]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">🎬 Gameplay Demo &amp; Feature Showcase</span>
-                            <span class="menu-desc">Watch the official 1080p narrated walkthrough featuring 0-turn yaw, CRT terminal, and dragon vault combat.</span>
+                            <span class="menu-label">Custom Hero (Character Wizard)</span>
+                            <span class="menu-desc">Choose race, class, and roll stats step-by-step in the classic terminal wizard.</span>
                         </div>
                     </button>
                 </div>
 
+                <!-- Secondary Utilities Dock (Clean 4-column row) -->
+                <div class="main-menu-secondary-dock">
+                    <button class="menu-dock-btn" id="btn-menu-guide" data-index="4" title="Game Guide & Lore [5]">
+                        <span class="dock-icon">📖</span>
+                        <span class="dock-label"><kbd>[5]</kbd> Guide</span>
+                    </button>
+                    <button class="menu-dock-btn" id="btn-menu-pwa" data-index="5" title="Standalone PC & Android Downloads [6]">
+                        <span class="dock-icon">📱</span>
+                        <span class="dock-label"><kbd>[6]</kbd> Downloads</span>
+                    </button>
+                    <button class="menu-dock-btn" id="btn-menu-demo" data-index="6" title="Gameplay Walkthrough Video [7]">
+                        <span class="dock-icon">🎬</span>
+                        <span class="dock-label"><kbd>[7]</kbd> Demo</span>
+                    </button>
+                    <button class="menu-dock-btn" id="btn-menu-credits" data-index="7" title="Summary & Credits [8]">
+                        <span class="dock-icon">📜</span>
+                        <span class="dock-label"><kbd>[8]</kbd> Credits</span>
+                    </button>
+                    <button class="menu-dock-btn" id="btn-menu-wiki" style="display:none;" aria-hidden="true">Wiki</button>
+                </div>
+
                 <div class="main-menu-footer">
-                    <span>[↑/↓] Navigate &nbsp;•&nbsp; [1-9] Quick Select &nbsp;•&nbsp; [Enter/Space/Click] Choose &nbsp;•&nbsp; [Esc] Splash Screen</span>
+                    <span>[↑/↓] Navigate &nbsp;•&nbsp; [1-4] Play &nbsp;•&nbsp; [5-8] Extras &nbsp;•&nbsp; [R] Switch Realm &nbsp;•&nbsp; [Esc] Splash</span>
                 </div>
             </div>
         </div>
@@ -665,6 +781,7 @@
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <button id="btn-save-upload" class="btn-gold-outline" title="Upload an Angband .sav file from your computer">📤 Upload Save (.sav)</button>
                         <input type="file" id="file-save-upload" accept=".sav,*" style="display: none;">
+                        <button type="button" id="btn-load-realm-switch" class="btn-gold-outline" style="font-size: 12px; padding: 6px 12px; border-color: rgba(56, 189, 248, 0.5); color: #38bdf8;" title="Switch Realm for this Saved Game [R]">🌌 Realm: <strong id="load-active-realm-name">Vanilla Angband 4.2.6</strong></button>
                         <span id="save-upload-status" class="save-status-msg"></span>
                     </div>
                     <span style="font-size: 11.5px; color: #8892b0; font-family: var(--font-terminal);">Drag &amp; drop .sav files here</span>
@@ -678,7 +795,7 @@
                 </div>
 
                 <div class="load-footer">
-                    <span>[↑/↓] Navigate &nbsp;•&nbsp; [Enter] Load Selected &nbsp;•&nbsp; [📥 Download] &nbsp;•&nbsp; [Del / D] Delete &nbsp;•&nbsp; [Esc] Back</span>
+                    <span>[↑/↓] Navigate &nbsp;•&nbsp; [Enter] Load Selected &nbsp;•&nbsp; [R] Switch Realm &nbsp;•&nbsp; [📥 Download] &nbsp;•&nbsp; [Del / D] Delete &nbsp;•&nbsp; [Esc] Back</span>
                     <button id="btn-load-back" class="btn-gold-outline">[Esc] Back</button>
                 </div>
             </div>
@@ -845,6 +962,8 @@
                             <li>• <kbd>Numpad 4 / 6</kbd>: Strafe step left or right without turning.</li>
                             <li>• <kbd>Numpad 7 / 9 / 1 / 3</kbd>: Diagonal movement (Forward-Left, Forward-Right, etc.).</li>
                             <li>• <kbd>.</kbd> or <kbd>Numpad 5</kbd>: Rest / Pass turn (1 game turn).</li>
+                            <li>• <kbd>Shift + ↑ / ↓</kbd> or <kbd>Shift + Numpad</kbd>: <strong>Run / Sprint</strong> in selected direction until an obstacle or monster disturbance is encountered.</li>
+                            <li>• <kbd>Alt+R</kbd> or <strong>Run Toggle (🏃 Walk/Run)</strong>: Toggle Run Mode. When active, all directional move keys (Arrows, Numpad, 3D D-Pad, Terminal D-Pad) sprint in the chosen direction as if holding down Shift.</li>
                             <li>• <kbd>PageUp / PageDown</kbd>: Tilt head camera up or down. <kbd>Home</kbd> recenters view.</li>
                             <li>• <kbd>[ / ]</kbd>: Cycle Minimap size (Compact, Standard, Expanded, Tactical, Command).</li>
                             <li>• <kbd>+ / -</kbd> or <kbd>Mouse Wheel</kbd>: Zoom Minimap radar in or out.</li>
@@ -855,7 +974,7 @@
 
                     <!-- Tab 3: Commands -->
                     <div class="guide-tab-content" id="guide-tab-3">
-                        <div class="guide-section-header">[ COMBAT &amp; ACTION COMMANDS ]</div>
+                        <div class="guide-section-header">[ ⚔ UNIVERSAL ROGUELIKE COMMANDS ]</div>
                         <ul class="guide-list">
                             <li>• <kbd>Space / Enter</kbd>: Attack adjacent monster in front or confirm message prompt.</li>
                             <li>• <kbd>i</kbd>: Open Inventory pack (inspect, examine, identify items).</li>
@@ -864,15 +983,57 @@
                             <li>• <kbd>t</kbd>: Take off / un-wield equipped armor or weapon.</li>
                             <li>• <kbd>d</kbd>: Drop an item from inventory onto the dungeon floor.</li>
                             <li>• <kbd>g</kbd>: Pick up items or gold coins from the ground.</li>
-                            <li>• <kbd>q</kbd>: Quaff potion (Healing, Cure Poison, Speed, Resistances).</li>
+                            <li>• <kbd>q</kbd>: Quaff potion or draught (Healing, Speed, Resistances).</li>
                             <li>• <kbd>r</kbd>: Read magic scroll (Phase Door, Teleport, Word of Recall).</li>
-                            <li>• <kbd>m</kbd>: Cast spell or pray (Mages, Priests, Rangers, Paladins, Rogues).</li>
                             <li>• <kbd>v</kbd>: Throw / hurl flask, stone, or weapon at a targeted monster.</li>
                             <li>• <kbd>f</kbd>: Fire missile from equipped bow, sling, or crossbow.</li>
                             <li>• <kbd>&gt;</kbd>: Descend downstairs to deeper dungeon floor.</li>
                             <li>• <kbd>&lt;</kbd>: Ascend upstairs toward the safety of town.</li>
                             <li>• <kbd>R</kbd>: Rest until fully recovered in Hit Points and Mana.</li>
                             <li>• <kbd>Esc</kbd>: Cancel targeting, close open menus, or dismiss prompts.</li>
+                            <li>• <kbd>Ctrl+K / ?</kbd>: Open searchable Roguelike Command Palette.</li>
+                        </ul>
+
+                        <div class="guide-section-header" style="margin-top: 14px;">[ 🧝 SIL-Q 1.5+ FIRST AGE STEALTH &amp; SONGS ]</div>
+                        <ul class="guide-list">
+                            <li>• <kbd>N</kbd>: <strong>Learn New Ability &amp; Skill Tree</strong>: Spend experience points to master combat, stealth, perception, smithing, or song abilities.</li>
+                            <li>• <kbd>m</kbd>: <strong>Sing Song of Power</strong>: Begin singing a Song of Power (Elbereth, Slaying, Lorien, Freedom, Staying, Sharpness).</li>
+                            <li>• <kbd>.</kbd>: <strong>Wait 1 Turn</strong>: Pass a single turn in place, preserving stealth and watching foe movements.</li>
+                            <li>• <kbd>S</kbd>: <strong>Stance &amp; Stealth Mode</strong>: Toggle between normal stance and careful stalking mode.</li>
+                            <li>• <kbd>a</kbd>: <strong>Smithing &amp; Artifact Activation</strong>: Craft weapons and armor at subterranean forges, or play magical harps.</li>
+                            <li>• <kbd>*</kbd>: <strong>Cycle Targets</strong>: Cycle target focus across visible Morgoth servants.</li>
+                        </ul>
+
+                        <div class="guide-section-header" style="margin-top: 14px;">[ 🐸 FROGCOMPOSBAND POWERS &amp; WILDERNESS ]</div>
+                        <ul class="guide-list">
+                            <li>• <kbd>U</kbd>: <strong>Use Special Power</strong>: Invoke innate racial abilities, class powers, or chaos mutations.</li>
+                            <li>• <kbd>O</kbd>: <strong>Overland Wilderness Map</strong>: Travel across the expansive continent between towns and multi-level dungeons.</li>
+                            <li>• <kbd>Q</kbd>: <strong>Active Quests Log</strong>: Review castle quests, monster extermination bounties, and rewards.</li>
+                            <li>• <kbd>p</kbd>: <strong>Pet &amp; Steed Command</strong>: Issue commands to summoned minions, charmed thralls, and riding steeds.</li>
+                            <li>• <kbd>m / b / G</kbd>: <strong>Cast / Browse / Study</strong>: Dual-realm magic system with spellbooks from 10 distinct magical disciplines.</li>
+                            <li>• <kbd>~</kbd>: <strong>Comprehensive Knowledge</strong>: Browse lore on unique monsters, artifacts, ego types, and history.</li>
+                        </ul>
+
+                        <div class="guide-section-header" style="margin-top: 14px;">[ 🎴 HENGBAND 3.0+ EASTERN MYTHOS &amp; AMBER ]</div>
+                        <ul class="guide-list">
+                            <li>• <kbd>U</kbd>: <strong>特殊能力を使用 / Use Power</strong>: Activate racial powers, samurai stances, ninja arts, or amberite trump sorcery.</li>
+                            <li>• <kbd>O</kbd>: <strong>広域マップ表示 / Overland Map</strong>: View the Amberite world map and travel between royal courts and dungeons.</li>
+                            <li>• <kbd>Q</kbd>: <strong>クエスト情報確認 / Quest Info</strong>: Inspect active tower quests, royal assassination contracts, and underworld bounties.</li>
+                            <li>• <kbd>p</kbd>: <strong>ペットへの指示 / Pet Orders</strong>: Command allied familiars, steeds, and summoned deities.</li>
+                            <li>• <kbd>m / b / G</kbd>: <strong>呪文詠唱 / 閲覧 / 習得 (Magic)</strong>: Cast, browse, and study esoteric spells and Amber runes.</li>
+                            <li>• <kbd>A</kbd>: <strong>発動 / Activate Artifact</strong>: Trigger the dormant magical powers of carried relics and equipment.</li>
+                            <li>• <kbd>Alt+L</kbd>: <strong>Language Mode Toggle</strong>: Switch seamlessly between English, Kanji (日本語), and Bilingual mode.</li>
+                        </ul>
+
+                        <div class="guide-section-header" style="margin-top: 14px;">[ 🏰 VANILLA ANGBAND 4.2.6 CLASSICAL ARCHITECTURE ]</div>
+                        <ul class="guide-list">
+                            <li>• <kbd>m</kbd>: <strong>Cast Spell / Pray</strong>: Channel arcane magic (Mage, Ranger, Rogue) or holy prayers (Priest, Paladin).</li>
+                            <li>• <kbd>b</kbd>: <strong>Browse Spellbook</strong>: Inspect spell success rates, mana costs, and requirements in carried books.</li>
+                            <li>• <kbd>G</kbd>: <strong>Gain / Study Spells</strong>: Memorize newly available spells when levelling up.</li>
+                            <li>• <kbd>A</kbd>: <strong>Activate Equipment</strong>: Unleash the special magic of rings, dragon armor, and artifacts.</li>
+                            <li>• <kbd>u / z / a</kbd>: <strong>Devices</strong>: Use Staff (<kbd>u</kbd>), Aim Wand (<kbd>z</kbd>), or Zap rechargeable Rod (<kbd>a</kbd>).</li>
+                            <li>• <kbd>~</kbd>: <strong>Check Knowledge</strong>: Monster recall memory, artifact spoilers, object lore, and dungeon history.</li>
+                            <li>• <kbd>|</kbd>: <strong>Inspect Quiver</strong>: Check ammunition slots, counts, and inscribed arrows/bolts.</li>
                         </ul>
                     </div>
 
@@ -1029,8 +1190,8 @@
                 <div class="demo-video-wrapper">
                     <!-- HTML5 Video Component -->
                     <video id="demo-video-player" playsinline preload="auto" crossorigin="anonymous">
-                        <source src="/assets/video/angband3d_demo_v884.mp4" type="video/mp4">
-                        <source src="/assets/video/angband3d_demo_v884.webm" type="video/webm">
+                        <source src="/assets/video/angband3d_demo.mp4" type="video/mp4">
+                        <source src="/assets/video/angband3d_demo.webm" type="video/webm">
                     </video>
 
                     <!-- Broadcast-Quality Canvas Reel Stage (60fps Scene Choreography) -->
@@ -1144,6 +1305,134 @@
             </div>
         </div>
 
+        <!-- Multi-Realm & Variant Selector Modal -->
+        <div id="realm-selector-modal" class="hidden" role="dialog" aria-label="Multi-Realm Selector">
+            <div class="main-menu-card realm-selector-card" style="max-width: 860px; width: 95vw;">
+                <button id="btn-realm-modal-close" class="btn-guide-close" title="Close [Esc]" style="position: absolute; top: 14px; right: 16px; font-size: 18px; color: #ffd700; background: none; border: none; cursor: pointer; z-index: 5;">✕</button>
+                <div class="main-menu-ornament-corner top-left"></div>
+                <div class="main-menu-ornament-corner top-right"></div>
+                <div class="main-menu-ornament-corner bottom-left"></div>
+                <div class="main-menu-ornament-corner bottom-right"></div>
+
+                <div class="main-menu-header">
+                    <h2 class="main-menu-title">🌌 MULTI-REALM ARCHIVES &amp; LORE 🌌</h2>
+                    <div class="main-menu-subtitle">Select realm before starting or loading an adventure • Locked during active dungeon exploration</div>
+                    <div class="realm-voice-audit-banner">
+                        <span>🎙 <strong>Lorekeeper Guarantee:</strong> Authentic character-attuned vocal timbre (Old British scholar, Mythic Skald, Eastern chronicle) • Zero southern accents • 100% LLM hallucination-free</span>
+                    </div>
+                    <div class="realm-selection-status-bar" id="realm-selection-status-bar" style="margin: 10px 0 6px; padding: 8px 16px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 13px; color: #e2e8f0;">Attuned Realm: <strong id="realm-modal-active-title" style="color: #38bdf8;">Vanilla Angband 4.2.6</strong> • Vocal Timbre: <span id="realm-modal-active-voice" style="color: #cbd5e1;">Old British Scholar</span></span>
+                        <span class="realm-modal-badge" id="realm-modal-status-badge" style="background: #38bdf8; color: #020617; font-weight: 800; font-size: 11px; padding: 2px 10px; border-radius: 4px; letter-spacing: 0.5px;">✓ ACTIVE</span>
+                    </div>
+                </div>
+
+                <div class="realm-grid" id="realm-grid">
+                    <!-- Realm 1: Vanilla Angband 4.2.6 -->
+                    <div class="realm-card active" data-realm="angband">
+                        <div class="realm-card-badge">ACTIVE REALM</div>
+                        <div class="realm-card-icon">⚔️</div>
+                        <h3 class="realm-card-title">Angband 4.2.6</h3>
+                        <div class="realm-card-tagline">The Classic Tolkien Descent</div>
+                        <p class="realm-card-desc">The purest, bit-for-bit roguelike dungeon crawl. 100 dungeon levels descending into the iron fortress of Angband to overthrow Morgoth, Lord of Darkness.</p>
+                        <div class="realm-card-features">
+                            <span class="realm-feat-chip">Bit-for-Bit 4.2.6 Engine</span>
+                            <span class="realm-feat-chip">Dual CRT Terminal</span>
+                            <span class="realm-feat-chip">0-Turn Camera Yaw</span>
+                            <span class="realm-feat-chip">Scholar Narrator</span>
+                        </div>
+                        <button type="button" class="btn-realm-select btn-gold" data-realm="angband">✓ Selected</button>
+                    </div>
+
+                    <!-- Realm 2: FrogComposBand -->
+                    <div class="realm-card" data-realm="frogcomposband">
+                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div>
+                        <div class="realm-card-icon">🐸</div>
+                        <h3 class="realm-card-title">FrogComposBand</h3>
+                        <div class="realm-card-tagline">Wilderness, Monster Races &amp; Unlimited Diversity</div>
+                        <p class="realm-card-desc">Over 50 diverse classes, procedural overland wilderness, monster races (Dragons, Ringwraiths, Angels), and endless high-fantasy chaos.</p>
+                        <div class="realm-card-features">
+                            <span class="realm-feat-chip">50+ Classes &amp; Races</span>
+                            <span class="realm-feat-chip">Wilderness Overland</span>
+                            <span class="realm-feat-chip">Playable Monster Races</span>
+                            <span class="realm-feat-chip">Mythic Bard Voice</span>
+                        </div>
+                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="frogcomposband">Switch to Realm</button>
+                    </div>
+
+                    <!-- Realm 3: Hengband -->
+                    <div class="realm-card" data-realm="hengband">
+                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div>
+                        <div class="realm-card-icon">⛩️</div>
+                        <h3 class="realm-card-title">Hengband 3.0+</h3>
+                        <div class="realm-card-tagline">Eastern Mythos &amp; Amberite Chronicles</div>
+                        <p class="realm-card-desc">Inspired by Zelazny's Amber and Japanese folklore. Unique magic realms, quest towers, mythical deities, and legendary samurai combat.</p>
+                        <div class="realm-card-features">
+                            <span class="realm-feat-chip">Eastern Mythos &amp; Ninja</span>
+                            <span class="realm-feat-chip">Karma System</span>
+                            <span class="realm-feat-chip">Quest Citadel Towers</span>
+                            <span class="realm-feat-chip">Eastern Chronicle</span>
+                        </div>
+                        <div class="hengband-lang-toggle" style="margin: 10px 0; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <label for="hengband-lang-select" style="font-size: 0.85rem; color: #c8a858; font-weight: 600;">Language:</label>
+                            <select id="hengband-lang-select" style="background: rgba(15,18,28,0.9); color: #ffd700; border: 1px solid #c8a858; border-radius: 4px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer;">
+                                <option value="en">English (hengband-en)</option>
+                                <option value="jp">日本語 / Japanese (Kanji)</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="hengband">Switch to Realm</button>
+                    </div>
+
+                    <!-- Realm 4: Sil-Q -->
+                    <div class="realm-card" data-realm="silq">
+                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div>
+                        <div class="realm-card-icon">👑</div>
+                        <h3 class="realm-card-title">Sil-Q 1.5+</h3>
+                        <div class="realm-card-tagline">First Age Stealth &amp; The Crown Heist</div>
+                        <p class="realm-card-desc">Tactical stealth roguelike in the First Age. Sing songs of power, avoid deadly Balrogs in the shadows, and pry a Silmaril from Morgoth's crown.</p>
+                        <div class="realm-card-features">
+                            <span class="realm-feat-chip">Stealth Light Radius</span>
+                            <span class="realm-feat-chip">Songs of the Edain</span>
+                            <span class="realm-feat-chip">Crown Heist Objective</span>
+                            <span class="realm-feat-chip">Elven Skald Voice</span>
+                        </div>
+                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="silq">Switch to Realm</button>
+                    </div>
+                </div>
+
+                <div class="main-menu-footer" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:12px; color:#94a3b8;">[Esc] Return to Menu &nbsp;•&nbsp; All realms run with zero-turn camera yaw &amp; CRT dual-reality terminal</span>
+                    <button id="btn-realm-modal-return" class="btn-gold-outline">[Esc / Enter] Return</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Roguelike Command Palette & Searchable Action Drawer -->
+        <div id="command-palette-modal" class="hidden" role="dialog" aria-label="Command Palette">
+            <div class="cmd-palette-card">
+                <button id="btn-cmd-palette-close" class="btn-guide-close" title="Close Palette [Esc]">✕</button>
+                <div class="cmd-palette-header">
+                    <div class="cmd-search-wrap">
+                        <span class="cmd-search-icon">🔍</span>
+                        <input type="text" id="cmd-search-input" class="cmd-search-input" placeholder="Type a command (Tunnel, Disarm, Rest, Throw, Cast, Stairs, Door)..." autocomplete="off" spellcheck="false">
+                        <kbd class="cmd-esc-badge">Esc</kbd>
+                    </div>
+                    <div class="cmd-category-tabs">
+                        <button type="button" class="cmd-cat-pill active" data-cat="all">All Commands</button>
+                        <button type="button" class="cmd-cat-pill" data-cat="tactical">⚔️ Combat &amp; Tactics</button>
+                        <button type="button" class="cmd-cat-pill" data-cat="exploration">⛏️ Dig &amp; Explore</button>
+                        <button type="button" class="cmd-cat-pill" data-cat="magic">✨ Spells &amp; Items</button>
+                        <button type="button" class="cmd-cat-pill" data-cat="system">⚙️ Views &amp; Info</button>
+                    </div>
+                </div>
+                <div class="cmd-list" id="cmd-palette-list">
+                    <!-- Populated dynamically by input.js / app.js with instant fuzzy filter -->
+                </div>
+                <div class="cmd-palette-footer">
+                    <span>[↑/↓] Navigate &nbsp;•&nbsp; [Enter] Execute Command &nbsp;•&nbsp; [Esc] Close Palette &nbsp;•&nbsp; [Ctrl+K or ?] Global Shortcut</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Initial Connection Spinner -->
         <div id="loading-overlay" class="hidden">
             <div class="spinner"></div>
@@ -1158,24 +1447,25 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/device.js?v=8.5.2"></script>
-    <script src="/js/mobile-overlay.js?v=8.5.2"></script>
-    <script src="/js/audio.js?v=8.5.2"></script>
-    <script src="/js/terminal.js?v=8.5.2"></script>
-    <script src="/js/dungeon3d.js?v=8.5.2"></script>
-    <script src="/js/hud.js?v=8.5.2"></script>
-    <script src="/js/network.js?v=8.5.2"></script>
-    <script src="/js/local_bridge.js?v=8.5.2"></script>
-    <script src="/js/input.js?v=8.5.2"></script>
-    <script src="/js/demo-player.js?v=8.8.9"></script>
+    <script src="/js/device.js?v=9.1.0"></script>
+    <script src="/js/mobile-overlay.js?v=9.1.0"></script>
+    <script src="/js/audio.js?v=9.1.0"></script>
+    <script src="/js/terminal.js?v=9.1.0"></script>
+    <script src="/js/heng-dict.js?v=9.1.0"></script>
+    <script src="/js/dungeon3d.js?v=9.1.0"></script>
+    <script src="/js/hud.js?v=9.1.0"></script>
+    <script src="/js/network.js?v=9.1.0"></script>
+    <script src="/js/local_bridge.js?v=9.1.0"></script>
+    <script src="/js/input.js?v=9.1.0"></script>
+    <script src="/js/demo-player.js?v=9.1.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=8.5.2"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=8.5.2"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=8.5.2"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=8.5.2"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=8.5.2"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=8.5.2"></script>
-    <script src="/js/app.js?v=8.5.2"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=9.1.0"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=9.1.0"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=9.1.0"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=9.1.0"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=9.1.0"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=9.1.0"></script>
+    <script src="/js/app.js?v=9.1.0"></script>
     <script>
         if (window.location.search && window.location.search.includes('record_walkthrough=1')) {
             const s = document.createElement('script');

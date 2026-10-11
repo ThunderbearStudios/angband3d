@@ -30,13 +30,11 @@ try {
 const activeSessions = new Map();
 
 // In-Memory Save Metadata Cache (TTL: 2.5s) to eliminate synchronous disk thrashing on /api/saves under load
-let savesCache = null;
-let savesCacheTime = 0;
+const savesCacheMap = new Map(); // realm -> { json, time }
 const SAVES_CACHE_TTL_MS = 2500;
 
 function invalidateSavesCache() {
-    savesCache = null;
-    savesCacheTime = 0;
+    savesCacheMap.clear();
 }
 
 // In-Memory Neural TTS Audio Cache (LRU up to 250 items to keep RAM tiny ~5MB)
@@ -61,8 +59,8 @@ const geminiHttpsAgent = new https.Agent({
     keepAlive: true,
     maxSockets: 25,
     maxFreeSockets: 5,
-    timeout: 60000,
-    freeSocketTimeout: 30000
+    timeout: 20000,
+    freeSocketTimeout: 10000
 });
 
 setInterval(() => {
@@ -178,6 +176,37 @@ const GEMINI_VOICE_MAP = {
     default: 'Enceladus'
 };
 
+// Canonical Character Accent Directorial Map for Immersion (Enforces Zero Southern Accents)
+const CHARACTER_ACCENT_MAP = {
+    narrator: 'expressive, older British storyteller, standard RP British accent',
+    elf: 'regal, ethereal High-Elven RP accent, crisp consonants',
+    female_elf: 'ethereal, melodic High-Elven accent',
+    male_elf: 'regal, poetic High-Elven accent',
+    dwarf: 'deep, gravelly Scottish brogue, stone-hewn dwarven timbre',
+    female_dwarf: 'hearty, resonant Scottish dwarven timbre',
+    male_dwarf: 'deep, gruff Scottish brogue',
+    hobbit: 'warm, cheerful English countryside West Country accent, lively hobbit',
+    gnome: 'lively, eccentric, high-spirited English accent',
+    orc: 'harsh, guttural, raspy Cockney monster growl',
+    giant: 'cavernous, slow, booming ancient bass',
+    troll: 'sluggish, heavy, guttural monstrous grunt',
+    samurai: 'dignified, disciplined feudal Japanese accent, measured cadence with crisp consonants',
+    ninja: 'quiet, hushed, disciplined feudal Japanese whisper',
+    amber_noble: 'witty, aristocratic, polished Mid-Atlantic courtly cadence',
+    veteran: 'grizzled, seasoned, disciplined British battlefield veteran',
+    mentor: 'wise, ancient British scholar with deep gravitas',
+    townsperson: 'natural, warm Classical British or Mid-Atlantic cadence',
+    female_townsperson: 'gentle, warm English folklore cadence',
+    male_townsperson: 'natural, hearty Classical British cadence',
+    female_rogue: 'sharp, streetwise British or Celtic cadence',
+    male_rogue: 'cunning, raspy urban British cutthroat',
+    female_spellcaster: 'smooth, eerie, mystical cadence with crisp enunciation',
+    male_spellcaster: 'deep, resonant, arcane scholar with formal British diction',
+    beggar: 'raspy, weather-beaten street urchin cadence',
+    high_undead: 'sepulchral, chilling, hollow ancient whisper',
+    dragon: 'resonant, cavernous, ancient draconic baritone'
+};
+
 // Generates a standard 44-byte RIFF WAV header for raw 16-bit linear PCM audio
 function createWavHeader(pcmLength, sampleRate = 24000, numChannels = 1, bitsPerSample = 16) {
     const header = Buffer.alloc(44);
@@ -217,22 +246,38 @@ function redactSecret(val, secret = '') {
 }
 
 // Proxies text-to-speech to Gemini Native Audio (gemini-3.1-flash-tts-preview) with directorial prompting
-function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey }) {
+function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, isRetry = false }) {
     return new Promise((resolve, reject) => {
         if (!apiKey) {
             return reject(new Error('No Gemini API key provided'));
         }
 
-        // Lean Directorial Prompting: Minimize token overhead to maximize generation speed
+        // Directorial Prompting: Enforce character-accurate accent and strictly forbid southern accents
         let promptText = text;
-        let tag = geminiTag ? geminiTag.trim() : '';
-        if (!tag && directorNote) {
-            tag = `[${directorNote.trim()}]`;
-        } else if (!tag && role === 'narrator') {
-            tag = '[expressive, older British storyteller]';
-        }
-        if (tag) {
-            promptText = `${tag} ${text}`;
+        let tag = '';
+        if (!isRetry) {
+            if (geminiTag) {
+                tag = geminiTag.trim();
+            } else if (directorNote) {
+                tag = `[${directorNote.trim()}]`;
+            } else {
+                const roleKey = role ? role.toLowerCase() : 'narrator';
+                const accent = CHARACTER_ACCENT_MAP[roleKey] || (roleKey === 'narrator' ? CHARACTER_ACCENT_MAP.narrator : 'natural, noble Classical British or Mid-Atlantic cadence');
+                tag = `[${accent}]`;
+            }
+
+            // Strict Accent Invariant: Prohibit American southern drawl across all voices
+            if (tag) {
+                const lowerTag = tag.toLowerCase();
+                if (!lowerTag.includes('no southern') && !lowerTag.includes('no american southern')) {
+                    if (tag.endsWith(']')) {
+                        tag = tag.slice(0, -1) + ', no American southern drawl]';
+                    } else {
+                        tag = `[${tag}, no American southern drawl]`;
+                    }
+                }
+                promptText = `${tag} ${text}`;
+            }
         }
 
         const payload = JSON.stringify({
@@ -253,7 +298,6 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
 
         const req = https.request('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent', {
             method: 'POST',
-            agent: geminiHttpsAgent,
             headers: {
                 'Content-Type': 'application/json',
                 'x-goog-api-key': apiKey
@@ -288,16 +332,17 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                         }
                     }
                     if (!inlineData || !inlineData.data) {
-                        // If prompt was rejected or blocked due to directorial brackets (e.g. single-word probes), retry cleanly with raw text
-                        if (tag && promptText !== text) {
+                        // If prompt was rejected or blocked due to directorial brackets (e.g. single-word probes), retry cleanly ONCE with raw text
+                        if (!isRetry && tag && promptText !== text) {
                             return synthesizeGeminiTTS({
                                 text,
                                 voice,
                                 emotion,
                                 geminiTag: '',
                                 directorNote: '',
-                                role: '',
-                                apiKey
+                                role,
+                                apiKey,
+                                isRetry: true
                             }).then(resolve).catch(reject);
                         }
                         const candidateErr = data.candidates?.[0]?.finishReason || data.promptFeedback?.blockReason || data.error?.message || 'Gemini TTS returned no audio data in payload';
@@ -320,11 +365,17 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             });
         });
 
-        req.on('timeout', () => {
-            req.destroy();
+        req.setTimeout(20000, () => {
+            req.destroy(new Error('Gemini TTS request timed out'));
             reject(new Error('Gemini TTS request timed out'));
         });
-        req.on('error', reject);
+        req.on('timeout', () => {
+            req.destroy(new Error('Gemini TTS request timed out'));
+            reject(new Error('Gemini TTS request timed out'));
+        });
+        req.on('error', err => {
+            reject(err);
+        });
         req.write(payload);
         req.end();
     });
@@ -425,6 +476,135 @@ console.log(`[Angband3D Cloud] Save directory:    ${SAVE_DIR}`);
 console.log(`[Angband3D Cloud] Standalone dist:   ${DIST_DIR}`);
 console.log(`[Angband3D Cloud] Web root:          ${WEB_DIR}`);
 
+// Universal Engine Manifest & Multi-Realm Registry
+const MANIFEST_PATH = path.resolve(__dirname, '../../engine-manifest.json');
+let engineManifest = null;
+try {
+    if (fs.existsSync(MANIFEST_PATH)) {
+        engineManifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+        console.log(`[Multi-Realm] Loaded engine manifest (v${engineManifest.version || '1.0'}). Realms: ${Object.keys(engineManifest.realms || {}).join(', ')}`);
+    }
+} catch (e) {
+    console.warn('[Multi-Realm] Could not load engine-manifest.json:', e.message);
+}
+
+function resolveRealmEngine(realmId = 'angband', lang = 'en') {
+    const defaultEngine = {
+        realm: 'angband',
+        name: 'Vanilla Angband 4.2.6',
+        exe: ENGINE_EXE,
+        saveDir: SAVE_DIR,
+        cwd: path.dirname(ENGINE_EXE),
+        env: {
+            ANGBAND_PATH: path.join(path.dirname(ENGINE_EXE), 'lib')
+        },
+        cli: {
+            frontend_switch: '-mbridge',
+            save_token_format: '-u{name}',
+            save_dir_switch: '-dsave={path}',
+            panic_dir_switch: '-dpanic={path}',
+            new_char_switch: '-n'
+        },
+        installed: fs.existsSync(ENGINE_EXE),
+        isFallback: false
+    };
+
+    if (!engineManifest || !engineManifest.realms || !engineManifest.realms[realmId]) {
+        if (realmId === 'angband') return defaultEngine;
+        return {
+            realm: realmId,
+            name: realmId,
+            exe: null,
+            saveDir: null,
+            cwd: null,
+            env: {},
+            cli: defaultEngine.cli,
+            installed: false,
+            isFallback: false,
+            fallbackNotice: `Realm "${realmId}" is not defined in engine manifest.`
+        };
+    }
+
+    if (realmId === 'angband') {
+        return defaultEngine;
+    }
+
+    const realmDef = engineManifest.realms[realmId];
+    let binRelPath = IS_WIN ? realmDef.binary?.win_x64 : realmDef.binary?.linux_x64;
+
+    // Multilingual variant binary resolution: Hengband supports both pure English (hengband-en) and native Kanji/Japanese (hengband)
+    if (realmId === 'hengband') {
+        const isJp = (lang === 'jp' || lang === 'kanji' || lang === 'ja' || lang === 'bilingual');
+        const enBin = IS_WIN ? 'variants/hengband/bin/hengband-en.exe' : 'variants/hengband/bin/hengband-en';
+        const jpBin = IS_WIN ? 'variants/hengband/bin/hengband.exe' : 'variants/hengband/bin/hengband';
+        if (isJp && fs.existsSync(path.resolve(__dirname, '../../', jpBin))) {
+            binRelPath = jpBin;
+        } else if (!isJp && fs.existsSync(path.resolve(__dirname, '../../', enBin))) {
+            binRelPath = enBin;
+        }
+    }
+
+    const variantExe = binRelPath ? path.resolve(__dirname, '../../', binRelPath) : null;
+
+    if (variantExe && fs.existsSync(variantExe)) {
+        const variantSaveDir = path.resolve(__dirname, '../../', realmDef.save_system?.directory || `engine/build/game/lib/save/${realmId}`);
+        if (!fs.existsSync(variantSaveDir)) {
+            try { fs.mkdirSync(variantSaveDir, { recursive: true }); } catch (_) {}
+        }
+        let variantCwd = path.dirname(variantExe);
+        if (!fs.existsSync(path.join(variantCwd, 'lib')) && fs.existsSync(path.join(variantCwd, '..', 'lib'))) {
+            variantCwd = path.resolve(variantCwd, '..');
+        }
+        const variantEnv = {};
+        if (realmDef.cli && realmDef.cli.env_vars) {
+            for (const [k, v] of Object.entries(realmDef.cli.env_vars)) {
+                variantEnv[k] = path.resolve(__dirname, '../../', v);
+            }
+        }
+        if (!variantEnv.ANGBAND_PATH && fs.existsSync(path.join(variantCwd, 'lib'))) {
+            variantEnv.ANGBAND_PATH = path.join(variantCwd, 'lib');
+        }
+        return {
+            realm: realmId,
+            name: realmDef.name,
+            exe: variantExe,
+            saveDir: variantSaveDir,
+            cwd: variantCwd,
+            env: variantEnv,
+            cli: realmDef.cli || defaultEngine.cli,
+            installed: true,
+            isFallback: false
+        };
+    }
+
+    return {
+        realm: realmId,
+        name: realmDef.name,
+        exe: null,
+        saveDir: null,
+        cwd: null,
+        env: {},
+        cli: realmDef.cli || defaultEngine.cli,
+        installed: false,
+        isFallback: false,
+        fallbackNotice: `Engine binary for realm "${realmDef.name}" is not installed on this server.`
+    };
+}
+
+function getSaveDirsForRealm(realmId = 'angband') {
+    const dirs = new Set();
+    const engineInfo = resolveRealmEngine(realmId);
+    if (engineInfo.saveDir && fs.existsSync(engineInfo.saveDir)) {
+        dirs.add(path.resolve(engineInfo.saveDir));
+    }
+    if (realmId === 'angband') {
+        for (const d of getSaveDirs()) {
+            dirs.add(d);
+        }
+    }
+    return Array.from(dirs);
+}
+
 function isReservedFilename(name) {
     if (!name) return true;
     const base = name.split('.')[0].trim();
@@ -441,12 +621,12 @@ function sanitizeFilename(name) {
  * Preserves the exact on-disk filename (e.g. "Hero.sav" vs "Hero"), ensuring Angband's
  * start_game() engine check finds the savefile and does not drop the player into character creation!
  */
-function resolveSavefileName(requestedSave) {
+function resolveSavefileName(requestedSave, realmId = 'angband') {
     if (!requestedSave) return null;
     const clean = requestedSave.replace(/[^a-zA-Z0-9_.-]/g, '');
     if (!clean) return null;
     const cleanNoExt = clean.replace(/\.sav$/i, '');
-    const saveDirs = getSaveDirs();
+    const saveDirs = getSaveDirsForRealm(realmId);
 
     // Check each save directory for candidate matches in order:
     // 1. Exact match (e.g. "Player.sav" or "Brian")
@@ -503,9 +683,24 @@ function readSaveMetadata(filePath) {
         fs.readSync(fd, header, 0, 36, 0);
 
         const magic = header.toString('ascii', 0, 8);
-        if (magic !== 'SaveVNLA') {
-            fs.closeSync(fd);
-            return null;
+        const VALID_MAGICS = ['SaveVNLA', 'SaveSILQ', 'SaveFROX', 'SaveHENG'];
+        let detectedRealm = 'angband';
+        if (magic === 'SaveSILQ') detectedRealm = 'silq';
+        else if (magic === 'SaveFROX') detectedRealm = 'frogcomposband';
+        else if (magic === 'SaveHENG') detectedRealm = 'hengband';
+
+        if (!VALID_MAGICS.includes(magic)) {
+            // Check sidecar
+            const sidecarPath = filePath + '.realm.json';
+            if (fs.existsSync(sidecarPath)) {
+                try {
+                    const sidecar = JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
+                    if (sidecar.realm) detectedRealm = sidecar.realm;
+                } catch (_) {}
+            } else {
+                fs.closeSync(fd);
+                return null;
+            }
         }
 
         const blockName = header.toString('ascii', 8, 24).replace(/\0.*$/, '');
@@ -528,10 +723,12 @@ function readSaveMetadata(filePath) {
         }
 
         fs.closeSync(fd);
+        const baseNameNoExt = path.basename(filePath).replace(/\.sav$/i, '');
         return {
             filename: path.basename(filePath),
-            characterName: charName || path.basename(filePath),
-            description: description || path.basename(filePath),
+            characterName: charName || baseNameNoExt,
+            description: description || baseNameNoExt,
+            realm: detectedRealm,
             sizeBytes: stat.size,
             lastModified: stat.mtime.toISOString(),
         };
@@ -545,11 +742,49 @@ const server = http.createServer((req, res) => {
     const urlObj = new URL(req.url, `http://${req.headers.host}`);
     const pathname = urlObj.pathname;
 
+    // HTTPS Redirection behind SSL Proxies (Cloud Run / Load Balancers)
+    const proto = req.headers['x-forwarded-proto'];
+    const host = req.headers.host || '';
+    if (proto === 'http' && host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
+        res.writeHead(301, {
+            'Location': `https://${host}${req.url}`,
+            'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload'
+        });
+        res.end();
+        return;
+    }
+
     // CORS headers for web client interop
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, x-goog-api-key, X-Goog-Api-Key, x-api-key, Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'X-TTS-Engine, X-TTS-Cache, X-TTS-Fallback-Reason, Content-Type, Content-Length');
+
+    // Industry-Standard Security Headers (Eliminates browser security warnings & MIME confusion)
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+    if (proto === 'https' || req.socket.encrypted) {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
+
+    // Modern Content Security Policy (permits WebGL Three.js, local shaders, Web Audio, Cloudflare Insights, and Google Fonts)
+    const cspDirectives = [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://static.cloudflareinsights.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: blob: https://angband3d.com https://fonts.gstatic.com",
+        "media-src 'self' data: blob: https://angband3d.com",
+        "connect-src 'self' blob: data: ws: wss: https://generativelanguage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com",
+        "worker-src 'self' blob:",
+        "manifest-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'self'"
+    ].join('; ');
+    res.setHeader('Content-Security-Policy', cspDirectives);
 
     if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -568,7 +803,7 @@ const server = http.createServer((req, res) => {
             uptime: Math.floor(process.uptime()),
             activeSessions: activeSessions.size,
             engine: fs.existsSync(ENGINE_EXE) ? 'ready' : 'missing',
-            version: '2.0.0',
+            version: '3.0.0',
             timestamp: Date.now()
         }));
         return;
@@ -635,20 +870,23 @@ const server = http.createServer((req, res) => {
 
     // REST: List saves
     if (pathname === '/api/saves' && req.method === 'GET') {
+        const queryRealm = urlObj.searchParams.get('realm') || 'angband';
         const now = Date.now();
-        if (savesCache && (now - savesCacheTime < SAVES_CACHE_TTL_MS)) {
+        const cached = savesCacheMap.get(queryRealm);
+        if (cached && (now - cached.time < SAVES_CACHE_TTL_MS)) {
             res.writeHead(200, {
                 'Content-Type': 'application/json',
                 'Cache-Control': 'public, max-age=2, stale-while-revalidate=5'
             });
-            res.end(savesCache);
+            res.end(cached.json);
             return;
         }
 
         try {
-            const saveDirs = getSaveDirs();
+            const saveDirs = getSaveDirsForRealm(queryRealm);
             const saves = [];
             const seenFiles = new Set();
+            const primarySaveDir = saveDirs[0] || SAVE_DIR;
 
             for (const sDir of saveDirs) {
                 if (!fs.existsSync(sDir)) continue;
@@ -671,10 +909,10 @@ const server = http.createServer((req, res) => {
                             }
                             if (meta) {
                                 seenFiles.add(file);
-                                // Ensure save is mirrored into primary SAVE_DIR if found in a secondary dir
-                                if (SAVE_DIR && sDir !== SAVE_DIR) {
+                                // Ensure save is mirrored into primary save directory if found in a secondary dir
+                                if (primarySaveDir && sDir !== primarySaveDir) {
                                     try {
-                                        fs.copyFileSync(fullPath, path.join(SAVE_DIR, file));
+                                        fs.copyFileSync(fullPath, path.join(primarySaveDir, file));
                                     } catch (_) {}
                                 }
                                 saves.push(meta);
@@ -684,18 +922,53 @@ const server = http.createServer((req, res) => {
                 }
             }
             saves.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
-            const jsonStr = JSON.stringify({ saves });
-            savesCache = jsonStr;
-            savesCacheTime = Date.now();
+            const jsonStr = JSON.stringify({ saves, realm: queryRealm });
+            savesCacheMap.set(queryRealm, { json: jsonStr, time: Date.now() });
             res.writeHead(200, {
                 'Content-Type': 'application/json',
                 'Cache-Control': 'public, max-age=2, stale-while-revalidate=5'
             });
             res.end(jsonStr);
+            return;
         } catch (err) {
+            console.error('[API] /api/saves error:', err);
             res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: err.message }));
+            res.end(JSON.stringify({ error: err.message, saves: [] }));
+            return;
         }
+    }
+
+    // REST: Multi-Realm Registry & Capabilities
+    if (pathname === '/api/realms' && req.method === 'GET') {
+        const realmsStatus = {};
+        if (engineManifest && engineManifest.realms) {
+            for (const [rId, def] of Object.entries(engineManifest.realms)) {
+                const resolved = resolveRealmEngine(rId);
+                realmsStatus[rId] = {
+                    id: rId,
+                    name: def.name,
+                    tagline: def.tagline,
+                    version: def.version,
+                    lineage: def.lineage,
+                    installed: resolved.installed && !resolved.isFallback,
+                    isFallback: resolved.isFallback,
+                    fallbackNotice: resolved.fallbackNotice || null,
+                    capabilities: def.capabilities,
+                    theme: def.theme,
+                    lore: def.lore
+                };
+            }
+        }
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+            'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({
+            status: 'ok',
+            defaultRealm: engineManifest?.default_realm || 'angband',
+            realms: realmsStatus
+        }));
         return;
     }
 
@@ -708,7 +981,7 @@ const server = http.createServer((req, res) => {
             maxCapacity: MAX_CONCURRENT_GAMES,
             waitingQueue: waitingQueue.length,
             maxQueueSize: MAX_QUEUE_SIZE,
-            version: '2.0.0'
+            version: '3.0.0'
         }));
         return;
     }
@@ -838,6 +1111,7 @@ const server = http.createServer((req, res) => {
         }
         const text = (urlObj.searchParams.get('text') || '').trim();
         const role = (urlObj.searchParams.get('role') || 'narrator').toLowerCase();
+        const isNarrator = (role === 'narrator');
 
         if (!text) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -858,11 +1132,12 @@ const server = http.createServer((req, res) => {
                              '';
 
         const reqEngineParam = urlObj.searchParams.get('engine');
-        const requestedEngine = (reqEngineParam ? reqEngineParam.toLowerCase() : 'gemini');
+        // STRICT USER REQUIREMENT: Narrator must ALWAYS use Gemini Native Audio Enceladus, never Edge Neural
+        const requestedEngine = isNarrator ? 'gemini' : (reqEngineParam ? reqEngineParam.toLowerCase() : 'gemini');
         const emotion = (urlObj.searchParams.get('emotion') || '').toLowerCase().trim();
         const geminiTag = (urlObj.searchParams.get('gemini_tag') || '').trim();
         const directorNote = (urlObj.searchParams.get('director_note') || '').trim();
-        const reqVoice = (urlObj.searchParams.get('voice') || '').trim();
+        const reqVoice = isNarrator ? 'Enceladus' : (urlObj.searchParams.get('voice') || '').trim();
         const reqGender = (urlObj.searchParams.get('gender') || '').toLowerCase().trim();
         const reqPitch = (urlObj.searchParams.get('pitch') || '').trim();
         const reqRate = (urlObj.searchParams.get('rate') || '').trim();
@@ -1176,7 +1451,8 @@ const server = http.createServer((req, res) => {
             res.end(JSON.stringify({ error: 'Invalid save file name' }));
             return;
         }
-        const saveDirs = getSaveDirs();
+        const queryRealm = urlObj.searchParams.get('realm') || 'angband';
+        const saveDirs = getSaveDirsForRealm(queryRealm);
         let targetPath = null;
 
         for (const sDir of saveDirs) {
@@ -1262,6 +1538,12 @@ const server = http.createServer((req, res) => {
     if ((pathname === '/api/recordings/upload' || pathname === '/api/demo/upload') && req.method === 'POST') {
         const headerName = req.headers['x-recording-name'] || 'raw_gameplay.webm';
         const cleanName = sanitizeFilename(headerName);
+        const recExt = path.extname(cleanName).toLowerCase();
+        if (recExt !== '.webm' && recExt !== '.mp4') {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid recording format. Only .webm and .mp4 allowed.' }));
+            return;
+        }
         const videoDir = path.join(WEB_DIR, 'assets', 'video');
         if (!fs.existsSync(videoDir)) {
             try { fs.mkdirSync(videoDir, { recursive: true }); } catch (_) {}
@@ -1306,13 +1588,22 @@ const server = http.createServer((req, res) => {
             res.end(JSON.stringify({ error: 'Invalid save file name' }));
             return;
         }
-        const savePath = path.join(SAVE_DIR, saveName);
-        if (fs.existsSync(savePath) && fs.statSync(savePath).isFile()) {
+        const queryRealm = urlObj.searchParams.get('realm') || 'angband';
+        const saveDirs = getSaveDirsForRealm(queryRealm);
+        let savePath = null;
+        for (const sDir of saveDirs) {
+            const p = path.join(sDir, saveName);
+            if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+                savePath = p;
+                break;
+            }
+        }
+        if (savePath) {
             try {
                 fs.unlinkSync(savePath);
                 invalidateSavesCache();
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ status: 'deleted', filename: saveName }));
+                res.end(JSON.stringify({ status: 'deleted', filename: saveName, realm: queryRealm }));
             } catch (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));
@@ -1340,6 +1631,14 @@ const server = http.createServer((req, res) => {
 
     // Guard against directory traversal attacks
     if (!filePath.startsWith(path.resolve(WEB_DIR))) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Access denied' }));
+        return;
+    }
+
+    // Guard against hidden dotfiles (.env, .git, etc.)
+    const pathSegments = safePath.split(/[/\\]/);
+    if (pathSegments.some(seg => seg.startsWith('.') && seg !== '.' && seg !== '..')) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Access denied' }));
         return;
@@ -1373,7 +1672,12 @@ const server = http.createServer((req, res) => {
                 '.mp4': 'video/mp4',
                 '.m4a': 'audio/mp4',
             };
-            const contentType = mimeTypes[ext] || 'application/octet-stream';
+            if (!mimeTypes[ext]) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'File type not supported' }));
+                return;
+            }
+            const contentType = mimeTypes[ext];
 
             // HTTP Caching Strategy:
             // - HTML: public, max-age=0, must-revalidate (enables instant ETag 304 Not Modified validation on fresh loads)
@@ -1382,8 +1686,11 @@ const server = http.createServer((req, res) => {
             //   never cache or buffer full 200 responses, ensuring HTTP 206 Partial Content byte ranges stream cleanly
             // - Static Audio SFX (.mp3, .wav, .ogg): 24h caching
             // - 3D Models, Textures, Atlases, WASM: 24h immutable caching
+            const posixPath = safePath.replace(/\\/g, '/');
             let cacheControl = 'no-cache, must-revalidate';
-            if (['.mp4', '.webm', '.m4a'].includes(ext)) {
+            if (posixPath === '/index.html' || posixPath === '/' || posixPath === '/sw.js') {
+                cacheControl = 'no-store, no-cache, must-revalidate, max-age=0';
+            } else if (['.mp4', '.webm', '.m4a'].includes(ext)) {
                 cacheControl = 'no-cache, no-store, must-revalidate';
             } else if (['.mp3', '.wav', '.ogg'].includes(ext)) {
                 cacheControl = 'public, max-age=86400, no-transform';
@@ -1404,16 +1711,17 @@ const server = http.createServer((req, res) => {
             };
 
             // Handle Conditional ETag Revalidation (HTTP 304 Not Modified)
-            if (req.headers['if-none-match'] === etag) {
+            // (Strictly bypass 304 for HTML shell and sw.js to ensure immediate localhost live updates)
+            if (req.headers['if-none-match'] === etag && posixPath !== '/index.html' && posixPath !== '/' && posixPath !== '/sw.js') {
                 res.writeHead(304, headers);
                 res.end();
                 return;
             }
 
             // Cross-Origin Isolation headers required for Godot 4 WebAssembly multithreading/SharedArrayBuffer on game client
-            if (safePath === '/index.html' || ext === '.wasm' || ext === '.pck') {
+            if (posixPath === '/index.html' || ext === '.wasm' || ext === '.pck') {
                 headers['Cross-Origin-Opener-Policy'] = 'same-origin';
-                headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
+                headers['Cross-Origin-Embedder-Policy'] = 'credentialless';
             }
 
             // HTTP 206 Partial Content (Range Request) support for smooth video/audio seeking & scrubbing
@@ -1819,49 +2127,74 @@ function attachWebSocketToSession(session, ws) {
 
 function spawnGameSession(ws, request) {
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
-    const rawUser = urlObj.searchParams.get('user') || null;
+    const rawUser = urlObj.searchParams.get('user') || urlObj.searchParams.get('char') || null;
     const rawSave = urlObj.searchParams.get('save') || null;
-    const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
-    // Resolve savefile name against disk before launching engine so exact on-disk name (with or without .sav)
-    // is passed to -u, preventing Angband's start_game() from failing file_exists and falling back into character birth wizard!
-    const resolvedSave = rawSave ? resolveSavefileName(rawSave) : null;
-    const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
+    let user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+    if (!user && !rawSave) {
+        user = 'Adventurer';
+    }
+    const rawRealm = urlObj.searchParams.get('realm') || 'angband';
+    const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';
+    const rawLang = urlObj.searchParams.get('lang') || 'en';
+    const lang = rawLang.toLowerCase();
+    const engineInfo = resolveRealmEngine(realm, lang);
 
-    const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
-    ws.send(JSON.stringify({ t: 'hello', sessionId, version: '1.0.0' }));
-
-    if (!fs.existsSync(ENGINE_EXE)) {
-        ws.send(JSON.stringify({
-            t: 'bye',
-            detail: `Engine binary not found: ${ENGINE_EXE}`
-        }));
-        ws.close();
+    if (!engineInfo.installed || !engineInfo.exe || !fs.existsSync(engineInfo.exe)) {
+        console.error(`[Session Rejected] Realm "${realm}" (${engineInfo.name || realm}) binary is not installed on this host.`);
+        try {
+            ws.send(JSON.stringify({
+                t: 'error',
+                message: `Engine binary for realm "${engineInfo.name || realm}" is not installed on this server.`
+            }));
+            ws.send(JSON.stringify({
+                t: 'bye',
+                detail: `Realm "${engineInfo.name || realm}" is not installed on this host.`
+            }));
+            ws.close();
+        } catch (_) {}
         return;
     }
 
+    const resolvedSave = rawSave ? resolveSavefileName(rawSave, realm) : null;
+    const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
+
+    const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
+    ws.send(JSON.stringify({
+        t: 'hello',
+        sessionId,
+        version: '1.0.0',
+        realm,
+        engineName: engineInfo.name || engineInfo.targetName,
+        isFallback: false
+    }));
+
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
 
-    const args = ['-mbridge'];
-    if (SAVE_DIR) {
-        args.push(`-dsave=${SAVE_DIR}`);
-        args.push(`-dpanic=${path.join(SAVE_DIR, 'panic')}`);
+    const frontendSwitch = engineInfo.cli?.frontend_switch || '-mbridge';
+    const args = [frontendSwitch];
+    if (engineInfo.saveDir && engineInfo.cli?.save_dir_switch) {
+        args.push(engineInfo.cli.save_dir_switch.replace('{path}', engineInfo.saveDir));
     }
+    if (engineInfo.saveDir && engineInfo.cli?.panic_dir_switch) {
+        args.push(engineInfo.cli.panic_dir_switch.replace('{path}', path.join(engineInfo.saveDir, 'panic')));
+    }
+    const saveTokenFormat = engineInfo.cli?.save_token_format || '-u{name}';
     if (save) {
-        args.push(`-u${save}`);
+        args.push(saveTokenFormat.replace('{name}', save));
     } else if (user) {
-        args.push(`-u${user}`);
+        args.push(saveTokenFormat.replace('{name}', user));
     }
     if (isNew) {
-        args.push('-n');
+        args.push(engineInfo.cli?.new_char_switch || '-n');
     }
 
-    const engineDir = path.dirname(ENGINE_EXE);
+    const engineDir = engineInfo.cwd;
 
     // If starting a fresh character, purge any stale panic save files so the engine starts cleanly without prompts
     if (isNew) {
         const targetSlot = save || user || 'Adventurer';
         const panicDirs = [
-            path.join(SAVE_DIR, 'panic'),
+            path.join(engineInfo.saveDir || SAVE_DIR, 'panic'),
             path.join(engineDir, 'lib/user/panic'),
             path.join(engineDir, 'lib/save/panic')
         ];
@@ -1878,19 +2211,47 @@ function spawnGameSession(ws, request) {
             } catch (_) {}
         }
     }
-    const child = spawn(ENGINE_EXE, args, {
-        cwd: engineDir,
-        env: {
-            ...process.env,
-            ANGBAND_PATH: path.join(engineDir, 'lib'),
-            LANG: process.env.LANG || 'C.UTF-8',
-            LC_ALL: process.env.LC_ALL || 'C.UTF-8',
-            LC_CTYPE: 'C.UTF-8',
-            TERM: 'xterm-256color',
-            HOME: process.env.HOME || '/app',
-        },
-        stdio: ['pipe', 'pipe', 'pipe']
-    });
+    let child = null;
+    let spawnError = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            child = spawn(engineInfo.exe, args, {
+                cwd: engineDir,
+                env: {
+                    ...process.env,
+                    ...engineInfo.env,
+                    LANG: process.env.LANG || 'C.UTF-8',
+                    LC_ALL: process.env.LC_ALL || 'C.UTF-8',
+                    LC_CTYPE: 'C.UTF-8',
+                    TERM: 'xterm-256color',
+                    HOME: process.env.HOME || '/app',
+                },
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
+            spawnError = null;
+            break;
+        } catch (err) {
+            spawnError = err;
+            if ((err.code === 'EBUSY' || err.code === 'ETXTBSY') && attempt < 2) {
+                const sleepUntil = Date.now() + 150;
+                while (Date.now() < sleepUntil) {}
+                continue;
+            }
+            break;
+        }
+    }
+
+    if (!child || spawnError) {
+        console.error(`[Session Spawn Failed] Unable to spawn engine "${engineInfo.exe}": ${spawnError?.message}`);
+        try {
+            ws.send(JSON.stringify({
+                t: 'error',
+                message: `Failed to launch game engine (${spawnError?.code || 'ERROR'})`
+            }));
+            ws.close();
+        } catch (_) {}
+        return;
+    }
 
     const session = {
         sessionId,
@@ -1900,6 +2261,8 @@ function spawnGameSession(ws, request) {
         lastActivityTime: Date.now(),
         user,
         save,
+        realm,
+        engineInfo,
         phase: 'setup',
         isDead: false,
         disconnectedAt: null,
@@ -1910,9 +2273,10 @@ function spawnGameSession(ws, request) {
     activeSessions.set(sessionId, session);
 
     let lineBuffer = '';
+    const stdoutDecoder = new TextDecoder('utf-8');
 
     child.stdout.on('data', chunk => {
-        lineBuffer += chunk.toString('utf8');
+        lineBuffer += stdoutDecoder.decode(chunk, { stream: true });
         let newlineIdx;
         while ((newlineIdx = lineBuffer.indexOf('\n')) !== -1) {
             const line = lineBuffer.substring(0, newlineIdx).trim();
@@ -1934,6 +2298,21 @@ function spawnGameSession(ws, request) {
                     try {
                         const parsed = JSON.parse(line);
                         if (parsed.savefile) session.engineSavefile = parsed.savefile;
+                        parsed.sessionId = session.sessionId;
+                        parsed.realm = session.realm || 'angband';
+                        if (session.engineInfo) {
+                            parsed.engineName = session.engineInfo.name || session.engineInfo.targetName;
+                            parsed.isFallback = !!session.engineInfo.isFallback;
+                            if (session.engineInfo.fallbackNotice) {
+                                parsed.fallbackNotice = session.engineInfo.fallbackNotice;
+                            }
+                        }
+                        const augmentedLine = JSON.stringify(parsed);
+                        session.lastFrame = augmentedLine;
+                        if (session.ws && session.ws.readyState === 1 /* OPEN */) {
+                            session.ws.send(augmentedLine);
+                        }
+                        continue;
                     } catch (_) {}
                 }
                 if (session.ws && session.ws.readyState === 1 /* OPEN */) {
@@ -2000,19 +2379,46 @@ wss.on('connection', (ws, request) => {
     const rawSession = urlObj.searchParams.get('session') || null;
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
 
+    const rawRealm = urlObj.searchParams.get('realm') || 'angband';
+    const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';
+
     const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
-    const resolvedSave = rawSave ? resolveSavefileName(rawSave) : null;
+    const resolvedSave = rawSave ? resolveSavefileName(rawSave, realm) : null;
     const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
     const clientSessionId = rawSession ? rawSession.replace(/[^a-zA-Z0-9_-]/g, '') : null;
 
-    console.log(`[WebSocket] Client connection attempt. Session: ${clientSessionId || 'none'}, User: ${user || 'default'}, Save: ${save || 'none'}, isNew: ${isNew}. (Active: ${activeSessions.size}/${MAX_CONCURRENT_GAMES}, Queue: ${waitingQueue.length})`);
+    console.log(`[WebSocket] Client connection attempt. Realm: ${realm}, Session: ${clientSessionId || 'none'}, User: ${user || 'default'}, Save: ${save || 'none'}, isNew: ${isNew}. (Active: ${activeSessions.size}/${MAX_CONCURRENT_GAMES}, Queue: ${waitingQueue.length})`);
+
+    const reqRealm = realm || 'angband';
+    const rawLang = urlObj.searchParams.get('lang') || 'en';
+    const lang = rawLang.toLowerCase();
+
+    // STRICT INVARIANT: Never load or fall back to the wrong realm.
+    // If the requested realm binary is missing, uninstalled, or invalid, reject immediately.
+    const engineInfo = resolveRealmEngine(reqRealm, lang);
+    if (!engineInfo.installed || !engineInfo.exe || !fs.existsSync(engineInfo.exe)) {
+        console.error(`[WebSocket] Connection rejected: realm "${reqRealm}" (${engineInfo.name || reqRealm}) binary is not installed on this server. Fallbacks are strictly disabled.`);
+        try {
+            ws.send(JSON.stringify({
+                t: 'error',
+                message: `Engine binary for realm "${engineInfo.name || reqRealm}" is not installed on this server. Fallbacks are strictly disabled.`
+            }));
+            ws.send(JSON.stringify({
+                t: 'bye',
+                detail: `Realm "${engineInfo.name || reqRealm}" is not installed on this host.`
+            }));
+            ws.close();
+        } catch (_) {}
+        return;
+    }
 
     // Priority Check 1: Can we seamlessly reconnect to a live session in memory?
     if (!isNew) {
         let existingSession = null;
         if (clientSessionId && activeSessions.has(clientSessionId)) {
             const candidate = activeSessions.get(clientSessionId);
-            if (candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
+            const candRealm = candidate.realm || 'angband';
+            if (candRealm === reqRealm && candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
                 // VERIFICATION GUARD: Only attach to clientSessionId if it actually matches the requested save/user,
                 // or if no specific save/user was requested.
                 // If the candidate session was in 'setup' (character creation) while the client requested a saved game,
@@ -2030,21 +2436,21 @@ wss.on('connection', (ws, request) => {
                 if (saveMatches && userMatches && !isSetupHijack && !isDeadHijack) {
                     existingSession = candidate;
                 } else {
-                    console.log(`[WebSocket] Session ${clientSessionId} rejected for re-attachment (reqSave=${reqSave}, candSave=${candSave}, candPhase=${candidate.phase}, isDead=${candidate.isDead}).`);
+                    console.log(`[WebSocket] Session ${clientSessionId} in realm ${candRealm} rejected for re-attachment (reqSave=${reqSave}, candSave=${candSave}, candPhase=${candidate.phase}, isDead=${candidate.isDead}).`);
                     if (isDeadHijack) {
                         gracefulSessionSaveAndExit(candidate.sessionId, 'Dead session discarded on reload attempt.');
                     }
                 }
             }
         }
-        if (!existingSession && (save || user)) {
+        // Priority Check 2: Match by save or non-generic username within the SAME realm
+        const isGenericUser = !user || normalizeSessionKey(user) === 'adventurer';
+        if (!existingSession && (save || !isGenericUser)) {
             const targetKey = normalizeSessionKey(save || user);
-            // Search all active sessions for a live engine running this character.
-            // DO NOT require candidate.ws === null!
-            // Even if the previous WebSocket is still half-open, take over the live session,
-            // but NEVER re-attach to a dead session!
+            // Search active sessions within the requested realm for a live engine running this character.
             for (const candidate of activeSessions.values()) {
-                if (!candidate.isDead && candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
+                const candRealm = candidate.realm || 'angband';
+                if (candRealm === reqRealm && !candidate.isDead && candidate.child && !candidate.child.killed && candidate.child.exitCode === null) {
                     const candSave = normalizeSessionKey(candidate.save);
                     const candUser = normalizeSessionKey(candidate.user);
                     const candEngineSave = candidate.engineSavefile ? normalizeSessionKey(path.basename(candidate.engineSavefile)) : '';
@@ -2057,7 +2463,7 @@ wss.on('connection', (ws, request) => {
         }
 
         if (existingSession) {
-            console.log(`[WebSocket] Seamlessly re-attaching client to live session ${existingSession.sessionId} (User: ${existingSession.user || 'none'}, Save: ${existingSession.save || 'none'})`);
+            console.log(`[WebSocket] Seamlessly re-attaching client to live ${existingSession.realm || 'angband'} session ${existingSession.sessionId} (User: ${existingSession.user || 'none'}, Save: ${existingSession.save || 'none'})`);
 
             attachWebSocketToSession(existingSession, ws);
 
@@ -2066,6 +2472,9 @@ wss.on('connection', (ws, request) => {
                     t: 'hello',
                     sessionId: existingSession.sessionId,
                     version: '1.0.0',
+                    realm: existingSession.realm || 'angband',
+                    engineName: existingSession.engineInfo?.name || existingSession.engineInfo?.targetName,
+                    isFallback: false,
                     resumed: true
                 }));
 
@@ -2085,14 +2494,18 @@ wss.on('connection', (ws, request) => {
         }
     } else {
         // If player explicitly requested a brand new hero (-n / isNew=true),
-        // terminate any lingering session for this character so two engines never run against the same save
-        const targetKey = normalizeSessionKey(save || user);
+        // terminate any lingering session for this character within the SAME realm
+        const isGenericUser = !user || normalizeSessionKey(user) === 'adventurer';
+        const targetKey = normalizeSessionKey(save || (!isGenericUser ? user : null));
         if (targetKey) {
             for (const [sId, cand] of activeSessions.entries()) {
-                const candKey = normalizeSessionKey(cand.save || cand.user || (cand.engineSavefile ? path.basename(cand.engineSavefile) : null));
-                if (candKey === targetKey) {
-                    console.log(`[WebSocket] Terminating existing session ${sId} to begin fresh hero for ${targetKey}`);
-                    gracefulSessionSaveAndExit(sId, 'Starting new character.');
+                const candRealm = cand.realm || 'angband';
+                if (candRealm === reqRealm) {
+                    const candKey = normalizeSessionKey(cand.save || cand.user || (cand.engineSavefile ? path.basename(cand.engineSavefile) : null));
+                    if (candKey === targetKey) {
+                        console.log(`[WebSocket] Terminating existing session ${sId} in realm ${candRealm} to begin fresh hero for ${targetKey}`);
+                        gracefulSessionSaveAndExit(sId, 'Starting new character.');
+                    }
                 }
             }
         }
@@ -2258,6 +2671,14 @@ function gracefulShutdown(signal) {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+process.on('uncaughtException', (err) => {
+    console.error('[Angband3D Server Uncaught Exception]', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[Angband3D Server Unhandled Rejection]', reason);
+});
 
 // Ensure keepAliveTimeout exceeds reverse proxy (Cloudflare/ALB/Nginx) standard 60s idle timeout
 server.keepAliveTimeout = 65000;

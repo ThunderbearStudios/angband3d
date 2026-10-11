@@ -16,11 +16,15 @@ class InputController {
         this.invertDragLook = (function() {
             try { return localStorage.getItem('angband3d_invert_drag') === 'true'; } catch (_) { return false; }
         })();
+        this.dpadRunMode = (function() {
+            try { return localStorage.getItem('angband3d_dpad_run') === '1'; } catch (_) { return false; }
+        })();
         this.setupKeyboardEvents();
         this.setupActionButtons();
         this.setupTouchEvents();
         this.setupViewportGestures();
         this.setupInvertControls();
+        this.updateRunToggleUI();
     }
 
     setupInvertControls() {
@@ -76,6 +80,131 @@ class InputController {
         }
     }
 
+    /**
+     * Check if Run mode is currently engaged via keyboard Shift modifier or D-Pad / Global Run Toggle.
+     */
+    isRunningActive(e = null) {
+        return Boolean((e && e.shiftKey) || this.dpadRunMode);
+    }
+
+    /**
+     * Get the absolute world direction digit (1-9) for a relative local direction (numpad 1-9)
+     * based on current camera facing in 3D world view, or 1:1 in terminal view.
+     */
+    getRelativeWorldDirectionDigit(numpadDir) {
+        if (numpadDir === 5) return 5;
+        const localIndexMap = {
+            8: 0,
+            9: 1,
+            6: 2,
+            3: 3,
+            2: 4,
+            1: 5,
+            4: 6,
+            7: 7
+        };
+        const localIndex = localIndexMap[numpadDir];
+        if (localIndex === undefined) return numpadDir;
+
+        // In 3D world mode, apply camera facing rotation; in 2D terminal mode, top-down is fixed North
+        const facing = (!this.inTerminal && this.dungeon && typeof this.dungeon.facing === 'number')
+            ? this.dungeon.facing
+            : 0;
+        const targetWorldSector = (localIndex + facing * 2) % 8;
+        const sectorToDigit = [8, 9, 6, 3, 2, 1, 4, 7];
+        return sectorToDigit[targetWorldSector];
+    }
+
+    /**
+     * Send run movement in a given local direction (8=fwd, 2=back, 4=strafe left, 6=strafe right, diagonals).
+     * Dispatches atomic run command sequence to engine bridge.
+     */
+    sendRunMove(localDir) {
+        const now = Date.now();
+        if (this._lastRunSendTime && now - this._lastRunSendTime < 300) {
+            return;
+        }
+        this._lastRunSendTime = now;
+
+        if (this.dungeon && typeof this.dungeon.snapCameraToDefault === 'function') {
+            this.dungeon.snapCameraToDefault();
+        }
+        const worldDigit = this.getRelativeWorldDirectionDigit(localDir);
+        if (!worldDigit || worldDigit === 5) return;
+
+        // Multi-realm atomic run: "keys .<digit>" sends '.' (CMD_RUN) immediately followed by
+        // direction digit. This bypasses bridge walk-key interception (';' in FCB/Hengband)
+        // and guarantees seamless running across Vanilla Angband, FrogComposBand, Hengband, and Sil-Q.
+        this.network.sendCommand(`keys .${worldDigit}`);
+    }
+
+    toggleDpadRunMode() {
+        this.dpadRunMode = !this.dpadRunMode;
+        try {
+            localStorage.setItem('angband3d_dpad_run', this.dpadRunMode ? '1' : '0');
+        } catch (_) {}
+        this.updateRunToggleUI();
+        if (this.audio && typeof this.audio.playMenuNav === 'function') {
+            this.audio.playMenuNav();
+        }
+        if (window.DeviceProfile && typeof window.DeviceProfile.triggerHaptic === 'function') {
+            window.DeviceProfile.triggerHaptic('medium');
+        }
+        return this.dpadRunMode;
+    }
+
+    updateRunToggleUI() {
+        const isRun = Boolean(this.dpadRunMode);
+        const lang = window.__langMode || 'en';
+        const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const isHeng = realm === 'hengband';
+        let runWord = isRun ? 'Run' : 'Walk';
+        if (isHeng && lang === 'jp') {
+            runWord = isRun ? '走る' : '歩く';
+        } else if (isHeng && lang === 'bilingual') {
+            runWord = isRun ? 'Run (走る)' : 'Walk (歩く)';
+        }
+
+        // 1. 3D On-Screen D-Pad Run Toggle
+        const dpadRunBtn = document.getElementById('dpad-run-toggle');
+        const dpadRunIcon = document.getElementById('dpad-run-icon');
+        const dpadRunText = document.getElementById('dpad-run-text');
+        if (dpadRunBtn) {
+            dpadRunBtn.classList.toggle('dpad-run-active', isRun);
+            dpadRunBtn.title = isRun
+                ? 'D-Pad in RUN Mode [Alt+R] (Dash / Sprint in selected direction)'
+                : 'D-Pad in WALK Mode [Alt+R] (Single-Step Precision)';
+        }
+        if (dpadRunIcon) dpadRunIcon.textContent = isRun ? '🏃' : '🚶';
+        if (dpadRunText) dpadRunText.textContent = runWord;
+
+        // 2. Action Bar Run Toggle Pill
+        const actionRunBtn = document.getElementById('btn-run-toggle');
+        const actionRunIcon = document.getElementById('action-run-icon');
+        const actionRunText = document.getElementById('action-run-text');
+        if (actionRunBtn) {
+            actionRunBtn.classList.toggle('run-active', isRun);
+            actionRunBtn.title = isRun
+                ? 'RUN Mode Active [Alt+R] (Move keys sprint in selected direction)'
+                : 'WALK Mode Active [Alt+R] (Move keys step one tile at a time)';
+        }
+        if (actionRunIcon) actionRunIcon.textContent = isRun ? '🏃' : '🚶';
+        if (actionRunText) actionRunText.textContent = runWord;
+
+        // 3. Classic Terminal Touch Controls Run Toggle
+        const termRunBtn = document.getElementById('term-run-toggle');
+        if (termRunBtn) {
+            termRunBtn.classList.toggle('active', isRun);
+            termRunBtn.title = isRun
+                ? 'Terminal in RUN Mode [Alt+R] (Direction buttons sprint)'
+                : 'Terminal in WALK Mode [Alt+R] (Direction buttons step 1 tile)';
+            const termRunIcon = termRunBtn.querySelector('.term-run-icon');
+            const termRunText = termRunBtn.querySelector('.term-run-text');
+            if (termRunIcon) termRunIcon.textContent = isRun ? '🏃' : '🚶';
+            if (termRunText) termRunText.textContent = runWord;
+        }
+    }
+
     setTerminalMode(active) {
         this.inTerminal = active;
     }
@@ -83,7 +212,11 @@ class InputController {
     setupKeyboardEvents() {
         window.addEventListener('keydown', (e) => {
             // Unlock audio on first user key interaction
-            if (this.audio) this.audio.unlock();
+            if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
+
+            const appState = (window.__app && typeof window.__app.getAppState === 'function')
+                ? window.__app.getAppState()
+                : 'game';
 
             // If typing in a text input or textarea (e.g. character name entry), don't intercept typing
             if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
@@ -106,6 +239,15 @@ class InputController {
                 return;
             }
 
+            // Global Roguelike Command Palette (Ctrl+K or Cmd+K)
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+                e.preventDefault();
+                if (window.__app && typeof window.__app.showCommandPalette === 'function') {
+                    window.__app.showCommandPalette(appState);
+                }
+                return;
+            }
+
             // Toggle Fullscreen (F11 or Alt+Enter)
             if (e.key === 'F11' || (e.key === 'Enter' && e.altKey)) {
                 e.preventDefault();
@@ -113,11 +255,31 @@ class InputController {
                 return;
             }
 
+            // Global Alt+L: Toggle Language Mode (English / Kanji / Bilingual)
+            if (e.altKey && (e.key === 'l' || e.key === 'L')) {
+                e.preventDefault();
+                if (window.__app && typeof window.__app.toggleLanguageMode === 'function') {
+                    window.__app.toggleLanguageMode();
+                }
+                return;
+            }
+
+            // Global Alt+R: Toggle Virtual D-Pad Run / Walk Mode
+            if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+                e.preventDefault();
+                if (typeof this.toggleDpadRunMode === 'function') {
+                    this.toggleDpadRunMode();
+                }
+                return;
+            }
+
 
             // In Death Screen Modal: support tabs 1-5, [R] reload, [N] reroll, [M / Esc] menu, [u] identify, and full interactive terminal on Tab 0
             const deathModal = document.getElementById('death-modal');
             const isDeadModal = Boolean(deathModal && !deathModal.classList.contains('hidden'));
-            const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
+            const lastFrame = (window.__app && typeof window.__app.getLastFrame === 'function')
+                ? window.__app.getLastFrame()
+                : (window.__app ? window.__app.lastFrame : null);
             const isDeadFrame = Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && lastFrame.player.hp <= 0 && lastFrame.player.hp_max > 0)));
 
             if (isDeadModal || isDeadFrame) {
@@ -178,8 +340,13 @@ class InputController {
                     } else if (window.__app && window.__app.hud && window.__app.hud.rerollCharacter) {
                         window.__app.hud.rerollCharacter();
                     } else {
-                        const randomId = Math.random().toString(36).substring(2, 6).toUpperCase();
-                        window.location.href = `/?char=Hero_${randomId}`;
+                        const heroName = (window.__app && typeof window.__app.generateHeroName === 'function')
+                            ? window.__app.generateHeroName()
+                            : ('Hero_' + Math.random().toString(36).substring(2, 6).toUpperCase());
+                        const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function')
+                            ? `&realm=${encodeURIComponent(window.__app.getActiveRealm())}`
+                            : '';
+                        window.location.href = `/?char=${encodeURIComponent(heroName)}&new=1${realmParam}`;
                     }
                     return;
                 }
@@ -216,49 +383,78 @@ class InputController {
                 return;
             }
 
-            const appState = (window.__app && typeof window.__app.getAppState === 'function')
-                ? window.__app.getAppState()
-                : 'game';
-
-            // 1. Splash Screen Mode: Any key continues to Main Menu (matches Godot SplashContinueRequested)
+            // 1. Splash Screen Mode: Realm selection & entry
             if (appState === 'splash') {
+                if (e.key === '1') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.selectRealm) window.__app.selectRealm('angband', false);
+                    return;
+                }
+                if (e.key === '2') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.selectRealm) window.__app.selectRealm('frogcomposband', false);
+                    return;
+                }
+                if (e.key === '3') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.selectRealm) window.__app.selectRealm('hengband', false);
+                    return;
+                }
+                if (e.key === '4') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.selectRealm) window.__app.selectRealm('silq', false);
+                    return;
+                }
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.code === 'Numpad4' || e.code === 'Numpad8') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.cycleRealm) window.__app.cycleRealm(-1);
+                    return;
+                }
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.code === 'Numpad6' || e.code === 'Numpad2') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.cycleRealm) window.__app.cycleRealm(1);
+                    return;
+                }
+                if (e.key === 'l' || e.key === 'L') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.toggleLanguageMode) window.__app.toggleLanguageMode();
+                    return;
+                }
                 if (e.key === 'd' || e.key === 'D') {
                     e.preventDefault();
                     if (window.__app && window.__app.showDemoModal) window.__app.showDemoModal('splash');
                     return;
                 }
-                if (e.key === '2' || e.key === 'g' || e.key === 'G') {
+                if (e.key === 'g' || e.key === 'G') {
                     e.preventDefault();
                     if (window.__app) window.__app.showGuide(0, 'splash');
                     return;
                 }
-                if (e.key === 't' || e.key === 'T') {
-                    e.preventDefault();
-                    if (window.__app) window.__app.showGuide(1, 'splash');
-                    return;
-                }
-                if (e.key === '3' || e.key === 'c' || e.key === 'C') {
-                    e.preventDefault();
-                    if (window.__app) window.__app.showGuide(5, 'splash');
-                    return;
-                }
-                if (e.key === '6') {
+                if (e.key === 'a' || e.key === 'A') {
                     e.preventDefault();
                     if (window.__app && window.__app.showPWAModal) window.__app.showPWAModal('splash');
                     return;
                 }
-                if (e.key === 'w' || e.key === 'W') {
+                if (e.key === 'c' || e.key === 'C') {
                     e.preventDefault();
-                    if (typeof window.openExternalUrl === 'function') {
-                        window.openExternalUrl('https://angband.readthedocs.io/');
-                    } else {
-                        window.open('https://angband.readthedocs.io/', '_blank');
-                    }
+                    if (window.__app) window.__app.showGuide(6, 'splash');
                     return;
                 }
-                // Any key advances from splash screen to main menu
-                e.preventDefault();
-                if (window.__app) window.__app.showMainMenu();
+                if (e.key === 'r' || e.key === 'R') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.cycleRealm) window.__app.cycleRealm(1);
+                    return;
+                }
+                if (e.key === 'k' || e.key === 'K') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.showCommandPalette) window.__app.showCommandPalette('splash');
+                    return;
+                }
+                if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    if (window.__app) window.__app.showMainMenu();
+                    return;
+                }
                 return;
             }
 
@@ -279,17 +475,35 @@ class InputController {
                     if (window.__app) window.__app.navigateMenu(1);
                     return;
                 }
+                if (e.key === 'r' || e.key === 'R') {
+                    e.preventDefault();
+                    if (window.__app) window.__app.showSplash();
+                    return;
+                }
                 if (e.key === 'd' || e.key === 'D') {
                     e.preventDefault();
                     if (window.__app && window.__app.showDemoModal) window.__app.showDemoModal('mainMenu');
                     return;
                 }
-                if (['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(e.key)) {
+                if (e.key === 'k' || e.key === 'K') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.showCommandPalette) window.__app.showCommandPalette('mainMenu');
+                    return;
+                }
+                if (['1', '2', '3', '4'].includes(e.key)) {
                     e.preventDefault();
                     const idx = parseInt(e.key, 10) - 1;
                     if (window.__app) {
                         window.__app.selectMenuItem(idx);
-                        window.__app.activateMenuItem();
+                        window.__app.activateMenuItem(idx);
+                    }
+                    return;
+                }
+                if (['5', '6', '7', '8'].includes(e.key)) {
+                    e.preventDefault();
+                    const idx = parseInt(e.key, 10) - 1;
+                    if (window.__app) {
+                        window.__app.activateMenuItem(idx);
                     }
                     return;
                 }
@@ -362,6 +576,53 @@ class InputController {
                 return;
             }
 
+            // Multi-Realm Modal Keyboard Routing
+            if (appState === 'realmModal') {
+                if (e.key === 'Escape' || e.key === 'Enter') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.hideRealmSelector) window.__app.hideRealmSelector();
+                    return;
+                }
+                const realms = ['angband', 'frogcomposband', 'hengband', 'silq'];
+                if (['1', '2', '3', '4'].includes(e.key)) {
+                    e.preventDefault();
+                    const chosen = realms[parseInt(e.key, 10) - 1];
+                    if (chosen && window.__app) {
+                        if (window.__app.selectRealm) {
+                            window.__app.selectRealm(chosen, false);
+                        } else if (window.__app.setActiveRealm) {
+                            window.__app.setActiveRealm(chosen);
+                        }
+                    }
+                    return;
+                }
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'Tab') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.cycleRealm) {
+                        window.__app.cycleRealm(1);
+                    }
+                    return;
+                }
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.cycleRealm) {
+                        window.__app.cycleRealm(-1);
+                    }
+                    return;
+                }
+                return;
+            }
+
+            // Command Palette Modal Keyboard Routing
+            if (appState === 'cmdPaletteModal') {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.hideCommandPalette) window.__app.hideCommandPalette();
+                    return;
+                }
+                return;
+            }
+
             // 3. Load Saved Game Menu Mode
             if (appState === 'loadMenu') {
                 if (e.key === 'Escape') {
@@ -392,6 +653,11 @@ class InputController {
                 if (e.key === 'u' || e.key === 'U') {
                     e.preventDefault();
                     if (window.__app) window.__app.triggerSaveUpload();
+                    return;
+                }
+                if (e.key === 'r' || e.key === 'R') {
+                    e.preventDefault();
+                    if (window.__app && window.__app.showRealmSelector) window.__app.showRealmSelector('loadMenu');
                     return;
                 }
                 if (e.key === 'x' || e.key === 'X' || e.key === 'e' || e.key === 'E') {
@@ -510,18 +776,43 @@ class InputController {
                 }
             }
 
-            // Quick toggle between 3D world and Classic CRT Terminal
+            // Quick toggle between 3D world and Classic CRT Terminal (or Sil-Q Skills)
             if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                if (realm === 'silq') {
+                    e.preventDefault();
+                    if (this.audio) this.audio.playMenuOpen();
+                    this.network.sendKey('tab');
+                    return;
+                }
                 e.preventDefault();
                 if (this.audio) this.audio.playMenuNav();
                 if (this.toggleTerminalView) this.toggleTerminalView();
                 return;
             }
 
+            // Alt+L: Toggle Language Mode (English / Kanji / Bilingual)
+            if (e.altKey && (e.key === 'l' || e.key === 'L')) {
+                e.preventDefault();
+                if (window.__app && typeof window.__app.toggleLanguageMode === 'function') {
+                    window.__app.toggleLanguageMode();
+                }
+                return;
+            }
+
+            // Alt+R: Toggle Virtual D-Pad Run / Walk Mode
+            if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+                e.preventDefault();
+                if (typeof this.toggleDpadRunMode === 'function') {
+                    this.toggleDpadRunMode();
+                }
+                return;
+            }
+
             // Escape: reliably cancel prompts, dismiss menus/overlays, or open Pause Menu (1:1 with Godot Main.cs:1820-1835)
             if (e.key === 'Escape') {
                 e.preventDefault();
-                if (this.audio) this.audio.playMenuNav();
+                if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
 
                 if (window.__app && window.__app.cancelQuickBirth) {
                     window.__app.cancelQuickBirth();
@@ -532,14 +823,22 @@ class InputController {
                 const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
                     ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
                     : '';
-                const isReviewScreen = !inPlay && (screenText.includes("use as is") || screenText.includes("'y': use") ||
+                const isReviewActive = Boolean(window.__app && typeof window.__app.isBirthReviewActive === 'function' && window.__app.isBirthReviewActive());
+                const isReviewScreen = isReviewActive || (!inPlay && (screenText.includes("use as is") || screenText.includes("'y': use") ||
                                        screenText.includes("to start over") || screenText.includes("r to reroll") ||
                                        screenText.includes("reroll") || screenText.includes("'s' to start") ||
-                                       screenText.includes("step back") || screenText.includes("any other key to continue"));
+                                       screenText.includes("accept character") ||
+                                       (screenText.includes("enter your starting stats") && screenText.includes("begin play")) ||
+                                       screenText.includes("能力値の決定") ||
+                                       screenText.includes("step back") || screenText.includes("any other key to continue")));
 
                 if (!inPlay) {
                     if (isReviewScreen) {
-                        this.network.sendKey('s');
+                        if (window.__app && window.__app.rerollHero) {
+                            window.__app.rerollHero();
+                        } else {
+                            this.network.sendKey('s');
+                        }
                     } else {
                         // Forward Escape to engine to step back one question in character birth
                         this.network.sendKey('escape');
@@ -566,8 +865,10 @@ class InputController {
                 return;
             }
 
-            // In Terminal Mode (Character creation, birth choices, help, shops)
-            if (this.inTerminal) {
+            // In Terminal Mode (Character creation, birth choices, help, shops, inventory, equipment)
+            const termContainer = document.getElementById('terminal-container');
+            const isTermVisible = Boolean(termContainer && !termContainer.classList.contains('hidden'));
+            if (this.inTerminal || isTermVisible) {
                 this.handleTerminalKey(e);
                 return;
             }
@@ -578,25 +879,43 @@ class InputController {
     }
 
     handleTerminalKey(e) {
-        const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
+        const lastFrame = (window.__app && typeof window.__app.getLastFrame === 'function')
+            ? window.__app.getLastFrame()
+            : (window.__app ? window.__app.lastFrame : null);
         const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && lastFrame.map);
         const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
             ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
             : '';
-        const isReviewScreen = !inPlay && (screenText.includes("use as is") || screenText.includes("'y': use") ||
+        const isReviewActive = Boolean(window.__app && typeof window.__app.isBirthReviewActive === 'function' && window.__app.isBirthReviewActive());
+        const isReviewScreen = isReviewActive || (!inPlay && (screenText.includes("use as is") || screenText.includes("'y': use") ||
                                screenText.includes("to start over") || screenText.includes("r to reroll") ||
                                screenText.includes("reroll") || screenText.includes("'s' to start") ||
-                               screenText.includes("step back") || screenText.includes("any other key to continue"));
+                               screenText.includes("accept character") ||
+                               (screenText.includes("enter your starting stats") && screenText.includes("begin play")) ||
+                               screenText.includes("能力値の決定") ||
+                               screenText.includes("能力値決定") ||
+                               screenText.includes("次の数値") ||
+                               screenText.includes("この数値に決定") ||
+                               screenText.includes("step back") || screenText.includes("any other key to continue")));
 
         // Reroll hotkey on review screen ('R') -> Re-randomize
         if (isReviewScreen && (e.key === 'r' || e.key === 'R')) {
             e.preventDefault();
-            if (this.audio) this.audio.playMenuNav();
+            if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
             if (window.__app && window.__app.rerollHero) {
                 window.__app.rerollHero();
             } else {
-                this.network.sendKey('s');
+                const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+                this.network.sendKey(realm === 'silq' || realm === 'hengband' ? 'r' : 's');
             }
+            return;
+        }
+
+        // Previous roll hotkey on review/stat screen ('P') -> Step back to previous rolled stats (Hengband)
+        if (isReviewScreen && (e.key === 'p' || e.key === 'P')) {
+            e.preventDefault();
+            if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
+            this.network.sendKey('p');
             return;
         }
 
@@ -617,9 +936,10 @@ class InputController {
         if (isReviewScreen && (e.key === 'Enter' || e.key === 'y' || e.key === 'Y' || e.key === ' ')) {
             e.preventDefault();
             if (this.audio) this.audio.playWhoosh();
-            this.network.sendKey(e.key === 'y' || e.key === 'Y' ? 'y' : 'enter');
             if (window.__app && window.__app.confirmHeroBirth) {
                 window.__app.confirmHeroBirth();
+            } else {
+                this.network.sendKey(e.key === 'y' || e.key === 'Y' ? 'y' : 'enter');
             }
             return;
         }
@@ -647,6 +967,30 @@ class InputController {
             return;
         }
 
+        const isAwaitingCmd = inPlay && Boolean(
+            (lastFrame.awaiting_command || (lastFrame.ui && lastFrame.ui.awaiting_command)) &&
+            (!lastFrame.ui || !lastFrame.ui.more) &&
+            (!lastFrame.ui || !lastFrame.ui.overlay)
+        );
+
+        if (isAwaitingCmd && this.isRunningActive(e)) {
+            let termDir = 0;
+            if (e.key === 'ArrowUp' || e.code === 'Numpad8') termDir = 8;
+            else if (e.key === 'ArrowDown' || e.code === 'Numpad2') termDir = 2;
+            else if (e.key === 'ArrowLeft' || e.code === 'Numpad4') termDir = 4;
+            else if (e.key === 'ArrowRight' || e.code === 'Numpad6') termDir = 6;
+            else if (e.key === 'Home' || e.code === 'Numpad7') termDir = 7;
+            else if (e.key === 'PageUp' || e.code === 'Numpad9') termDir = 9;
+            else if (e.key === 'End' || e.code === 'Numpad1') termDir = 1;
+            else if (e.key === 'PageDown' || e.code === 'Numpad3') termDir = 3;
+
+            if (termDir > 0) {
+                e.preventDefault();
+                this.network.sendCommand(`keys .${termDir}`);
+                return;
+            }
+        }
+
         let keySpec = null;
 
         if (e.key === 'ArrowUp' || e.code === 'Numpad8') keySpec = 'up';
@@ -671,6 +1015,7 @@ class InputController {
         else if (e.key === 'Tab') keySpec = 'tab';
         else if (e.key === ' ') keySpec = 'space';
         else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) keySpec = e.key;
+        else if (e.key.length === 1 && e.ctrlKey && !e.altKey && !e.metaKey) keySpec = `C-${e.key.toLowerCase()}`;
 
         if (keySpec) {
             e.preventDefault();
@@ -706,29 +1051,31 @@ class InputController {
             return;
         }
 
-        // Head Tilt Up (PageUp) & Tilt Down (PageDown) & Recenter (Home)
-        if (e.key === 'PageUp') {
-            e.preventDefault();
-            if (this.dungeon) {
-                this.dungeon.userPitchOffset = Math.min(1.25, (this.dungeon.userPitchOffset || 0) + 0.12);
+        // Head Tilt Up (Ctrl+PageUp) & Tilt Down (Ctrl+PageDown) & Recenter (Ctrl+Home)
+        if (e.ctrlKey || e.altKey) {
+            if (e.key === 'PageUp') {
+                e.preventDefault();
+                if (this.dungeon) {
+                    this.dungeon.userPitchOffset = Math.min(1.25, (this.dungeon.userPitchOffset || 0) + 0.12);
+                }
+                return;
             }
-            return;
-        }
 
-        if (e.key === 'PageDown') {
-            e.preventDefault();
-            if (this.dungeon) {
-                this.dungeon.userPitchOffset = Math.max(-0.65, (this.dungeon.userPitchOffset || 0) - 0.12);
+            if (e.key === 'PageDown') {
+                e.preventDefault();
+                if (this.dungeon) {
+                    this.dungeon.userPitchOffset = Math.max(-0.65, (this.dungeon.userPitchOffset || 0) - 0.12);
+                }
+                return;
             }
-            return;
-        }
 
-        if (e.key === 'Home') {
-            e.preventDefault();
-            if (this.dungeon) {
-                this.dungeon.userPitchOffset = 0.0;
+            if (e.key === 'Home') {
+                e.preventDefault();
+                if (this.dungeon) {
+                    this.dungeon.userPitchOffset = 0.0;
+                }
+                return;
             }
-            return;
         }
 
         if (e.key === '+' || e.key === '=') {
@@ -747,6 +1094,20 @@ class InputController {
             return;
         }
 
+        // Relative directional movement via number pad, top-row numbers, or navigation keys
+        // 8 = forward, 2 = back, 4 = strafe left, 6 = strafe right, diagonals 7,9,1,3, 5 = stay.
+        const numpadDirMap = {
+            'Numpad8': 8, 'Digit8': 8,
+            'Numpad2': 2, 'Digit2': 2,
+            'Numpad4': 4, 'Digit4': 4,
+            'Numpad6': 6, 'Digit6': 6,
+            'Numpad7': 7, 'Digit7': 7, 'Home': 7,
+            'Numpad9': 9, 'Digit9': 9, 'PageUp': 9,
+            'Numpad1': 1, 'Digit1': 1, 'End': 1,
+            'Numpad3': 3, 'Digit3': 3, 'PageDown': 3,
+            'Numpad5': 5, 'Digit5': 5, 'NumpadClear': 5, 'Clear': 5
+        };
+
         const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
         const ui = lastFrame ? lastFrame.ui : null;
 
@@ -760,23 +1121,62 @@ class InputController {
                 this.dungeon.turn(-1);
             } else if (e.key === 'ArrowRight') {
                 this.dungeon.turn(1);
-            } else if (e.key === 'ArrowUp' || e.code === 'Numpad8') {
-                const moveKey = this.getRelativeDirectionKey(8);
-                if (moveKey) setTimeout(() => this.sendMovementKey(moveKey), 35);
-            } else if (e.key === 'ArrowDown' || e.code === 'Numpad2') {
-                const moveKey = this.getRelativeDirectionKey(2);
-                if (moveKey) setTimeout(() => this.sendMovementKey(moveKey), 35);
+            } else {
+                const dir = numpadDirMap[e.code] || numpadDirMap[e.key];
+                if (dir) {
+                    if (this.isRunningActive(e) && dir !== 5) {
+                        setTimeout(() => this.sendRunMove(dir), 35);
+                    } else {
+                        const moveKey = this.getRelativeDirectionKey(dir);
+                        if (moveKey) setTimeout(() => this.sendMovementKey(moveKey), 35);
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    if (this.isRunningActive(e)) {
+                        setTimeout(() => this.sendRunMove(8), 35);
+                    } else {
+                        const moveKey = this.getRelativeDirectionKey(8);
+                        if (moveKey) setTimeout(() => this.sendMovementKey(moveKey), 35);
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    if (this.isRunningActive(e)) {
+                        setTimeout(() => this.sendRunMove(2), 35);
+                    } else {
+                        const moveKey = this.getRelativeDirectionKey(2);
+                        if (moveKey) setTimeout(() => this.sendMovementKey(moveKey), 35);
+                    }
+                }
             }
             return;
         }
 
+        const dirKey = numpadDirMap[e.code] || numpadDirMap[e.key];
+        if (dirKey) {
+            const isDigitShift = e.shiftKey && e.code && e.code.startsWith('Digit');
+            if (!isDigitShift) {
+                e.preventDefault();
+                const dir = dirKey;
+                if (dir === 5) {
+                    this.network.sendKey('5');
+                    return;
+                }
+                if (this.isRunningActive(e)) {
+                    if (e.repeat) return;
+                    this.sendRunMove(dir);
+                } else {
+                    const moveKey = this.getRelativeDirectionKey(dir);
+                    if (moveKey) this.sendMovementKey(moveKey);
+                }
+                return;
+            }
+        }
+
         // Turning is instant camera yaw (0 engine turns)
-        // Holding Shift with ArrowLeft / ArrowRight executes Strafe Left / Strafe Right
+        // Holding Shift with ArrowLeft / ArrowRight executes Strafe Run Left / Strafe Run Right
         if (e.key === 'ArrowLeft') {
             e.preventDefault();
-            if (e.shiftKey) {
-                const moveKey = this.getRelativeDirectionKey(4); // Strafe Left
-                if (moveKey) this.sendMovementKey(moveKey);
+            if (this.isRunningActive(e) && e.shiftKey) {
+                if (e.repeat) return;
+                this.sendRunMove(4); // Strafe Run Left
             } else {
                 this.dungeon.turn(-1);
             }
@@ -785,9 +1185,9 @@ class InputController {
 
         if (e.key === 'ArrowRight') {
             e.preventDefault();
-            if (e.shiftKey) {
-                const moveKey = this.getRelativeDirectionKey(6); // Strafe Right
-                if (moveKey) this.sendMovementKey(moveKey);
+            if (this.isRunningActive(e) && e.shiftKey) {
+                if (e.repeat) return;
+                this.sendRunMove(6); // Strafe Run Right
             } else {
                 this.dungeon.turn(1);
             }
@@ -795,56 +1195,67 @@ class InputController {
         }
 
         // Forward / Backward in current camera facing direction
+        // If Shift is held or Run Toggle is active, runs forward or backward
         if (e.key === 'ArrowUp') {
             e.preventDefault();
-            const moveKey = this.getRelativeDirectionKey(8);
-            if (moveKey) this.sendMovementKey(moveKey);
+            if (this.isRunningActive(e)) {
+                if (e.repeat) return;
+                this.sendRunMove(8);
+            } else {
+                const moveKey = this.getRelativeDirectionKey(8);
+                if (moveKey) this.sendMovementKey(moveKey);
+            }
             return;
         }
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            const moveKey = this.getRelativeDirectionKey(2);
-            if (moveKey) this.sendMovementKey(moveKey);
-            return;
-        }
-
-        // Number Pad directional movement (Strictly Numpad only, NO WSAD, top-row digits remain repeat counts)
-        // 8 = forward, 2 = back, 4 = strafe left, 6 = strafe right, diagonals 7,9,1,3, 5 = stay.
-        const numpadDirMap = {
-            'Numpad8': 8,
-            'Numpad2': 2,
-            'Numpad4': 4,
-            'Numpad6': 6,
-            'Numpad7': 7,
-            'Numpad9': 9,
-            'Numpad1': 1,
-            'Numpad3': 3,
-            'Numpad5': 5
-        };
-
-        if (numpadDirMap[e.code]) {
-            e.preventDefault();
-            const dir = numpadDirMap[e.code];
-            const moveKey = this.getRelativeDirectionKey(dir);
-            if (moveKey) {
-                this.sendMovementKey(moveKey);
+            if (this.isRunningActive(e)) {
+                if (e.repeat) return;
+                this.sendRunMove(2);
+            } else {
+                const moveKey = this.getRelativeDirectionKey(2);
+                if (moveKey) this.sendMovementKey(moveKey);
             }
             return;
         }
 
-        if (e.key === '.') {
+        if (e.key === '.' && !e.shiftKey) {
             e.preventDefault();
             this.network.sendKey('5'); // Rest 1 turn
             return;
         }
 
-        // Attack swing on Space / Enter
-        if (e.key === ' ' || e.code === 'Space' || e.key === 'Enter') {
+        if (e.key === ',') {
             e.preventDefault();
-            this.dungeon.triggerAttackAnimation();
-            if (this.audio) this.audio.playWhoosh();
+            this.network.sendKey('5'); // Rest 1 turn (Roguelike standard comma rest)
+            return;
+        }
+
+        // Contextual Hero Action on Space / Enter
+        if (e.key === ' ' || e.code === 'Space') {
+            e.preventDefault();
+            if (this.smartAction) {
+                this.executeSmartAction(this.smartAction);
+            } else {
+                this.dungeon.triggerAttackAnimation();
+                if (this.audio) this.audio.playWhoosh();
+                const fwdKey = this.getRelativeDirectionKey(8) || 'up';
+                this.network.sendKey(fwdKey);
+            }
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
             this.network.sendKey('enter');
+            return;
+        }
+
+        // Forward Ctrl+letter combinations to engine (e.g. C-s save, C-x quit, C-d debug)
+        if (e.key.length === 1 && e.ctrlKey && !e.altKey && !e.metaKey) {
+            e.preventDefault();
+            this.network.sendKey(`C-${e.key.toLowerCase()}`);
             return;
         }
 
@@ -852,10 +1263,30 @@ class InputController {
         // ALL single-character keys pass through to the Angband engine without interception!
         if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
             e.preventDefault();
+            const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+            let keyToSend = e.key;
+            if (realm === 'silq') {
+                if (keyToSend === 'm') keyToSend = 's'; // Sil-Q: Songs of Power instead of main menu
+                else if (keyToSend === 'v') keyToSend = 't'; // Sil-Q: Throw
+                else if (keyToSend === 'R') keyToSend = '%'; // Sil-Q: Rest
+            }
             if (this.audio) {
-                const k = e.key;
+                const k = keyToSend;
                 const kl = k.toLowerCase();
-                if (kl === 'm' || kl === 'b' || kl === 'p') this.audio.playSpell();
+                if (k === 'T') {
+                    if (typeof this.audio.playWallBump === 'function') this.audio.playWallBump(0.9);
+                    else this.audio.playWhoosh();
+                } else if (k === 'B') {
+                    if (typeof this.audio.playDoorBreak === 'function') this.audio.playDoorBreak();
+                    else this.audio.playWhoosh();
+                } else if (k === 'D') {
+                    if (typeof this.audio.playTrapDisarm === 'function') this.audio.playTrapDisarm();
+                    else this.audio.playDoor(true);
+                } else if (k === 'R' || k === '%') {
+                    if (typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
+                } else if (k === '>' || k === '<') {
+                    if (typeof this.audio.playStairs === 'function') this.audio.playStairs(k === '>');
+                } else if (kl === 'm' || kl === 's' || kl === 'b' || kl === 'p') this.audio.playSpell();
                 else if (kl === 'q') this.audio.playQuaff();
                 else if (kl === 'r') this.audio.playScroll();
                 else if (kl === 'g' || kl === ',') this.audio.playItemPickup();
@@ -863,14 +1294,13 @@ class InputController {
                 else if (k === 'E') this.audio.playEat();
                 else if (k === 'w') this.audio.playEquipWeapon();
                 else if (k === 'W') this.audio.playEquipArmor();
-                else if (k === 't') this.audio.playItemDrop();
+                else if (k === 't') this.audio.playBowShoot();
                 else if (kl === 'o') this.audio.playDoor(true);
                 else if (kl === 'c') this.audio.playDoor(false);
                 else if (kl === 'f' || kl === 'v') this.audio.playBowShoot();
-                else if (k === 'D') this.audio.playTrapDisarm();
                 else if (kl === 'i' || kl === 'e') this.audio.playMenuOpen();
             }
-            this.network.sendKey(e.key);
+            this.network.sendKey(keyToSend);
         }
     }
 
@@ -965,7 +1395,19 @@ class InputController {
                     if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
                     if (this.audio) this.audio.unlock();
 
-                    if (key === 'attack') {
+                    const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                    let effKey = key;
+                    if (realm === 'silq') {
+                        if (id === 'btn-throw') effKey = 't';
+                        else if (id === 'btn-cast') effKey = 's';
+                        else if (id === 'btn-skills') effKey = 'tab';
+                        else if (id === 'btn-rest') effKey = '%';
+                    }
+
+                    if (key === 'toggle-run') {
+                        this.toggleDpadRunMode();
+                        return;
+                    } else if (key === 'attack') {
                         const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
                         if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
                             this.network.sendKey('space');
@@ -975,12 +1417,18 @@ class InputController {
                         if (this.audio) this.audio.playWhoosh();
                         const fwdKey = this.getRelativeDirectionKey(8) || 'up';
                         this.network.sendKey(fwdKey);
-                    } else if (key === 'R') {
-                        // In Angband, 'R' prompts for rest duration defaulting to '&' (rest until healed)
-                        this.network.sendKey('R');
-                        setTimeout(() => {
-                            this.network.sendKey('enter');
-                        }, 80);
+                    } else if (id === 'btn-rest') {
+                        if (realm === 'silq') {
+                            if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
+                            this.network.sendKey('%');
+                        } else {
+                            // In Angband, 'R' prompts for rest duration defaulting to '&' (rest until healed)
+                            if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
+                            this.network.sendKey('R');
+                            setTimeout(() => {
+                                this.network.sendKey('enter');
+                            }, 80);
+                        }
                     } else if (key === 'o') {
                         // Open door in front of camera facing
                         if (this.audio) this.audio.playDoor();
@@ -989,18 +1437,18 @@ class InputController {
                         setTimeout(() => {
                             this.network.sendKey(fwdKey);
                         }, 80);
-                    } else if (key === 'tab') {
+                    } else if (id === 'btn-terminal') {
                         if (this.toggleTerminalView) this.toggleTerminalView();
                     } else {
                         if (this.audio) {
-                            if (key === 'm') this.audio.playSpell();
-                            else if (key === 'i' || key === 'e' || key === 'v') this.audio.playMenuOpen();
-                            else if (key === 'g') this.audio.playItemPickup();
-                            else if (key === 'q') this.audio.playMenuOpen();
-                            else if (key === 'r') this.audio.playMenuOpen();
-                            else if (key === 'f') this.audio.playWhoosh();
+                            if (effKey === 'm' || effKey === 's') this.audio.playSpell();
+                            else if (effKey === 'i' || effKey === 'e' || effKey === 'v' || effKey === 't' || effKey === 'N' || effKey === 'tab' || effKey === 'U' || effKey === 'O' || effKey === 'Q' || effKey === 'b' || effKey === 'G') this.audio.playMenuOpen();
+                            else if (effKey === 'g') this.audio.playItemPickup();
+                            else if (effKey === 'q') this.audio.playMenuOpen();
+                            else if (effKey === 'r') this.audio.playMenuOpen();
+                            else if (effKey === 'f') this.audio.playWhoosh();
                         }
-                        this.network.sendKey(key);
+                        this.network.sendKey(effKey);
                     }
                 };
 
@@ -1012,6 +1460,12 @@ class InputController {
         bind('btn-throw', 'v');
         bind('btn-fire', 'f');
         bind('btn-cast', 'm');
+        bind('btn-skills', 'N');
+        bind('btn-power', 'U');
+        bind('btn-overland', 'O');
+        bind('btn-quests', 'Q');
+        bind('btn-browse', 'b');
+        bind('btn-study', 'G');
         bind('btn-quaff', 'q');
         bind('btn-read', 'r');
         bind('btn-door', 'o');
@@ -1020,6 +1474,68 @@ class InputController {
         bind('btn-inventory', 'i');
         bind('btn-equipment', 'e');
         bind('btn-terminal', 'tab');
+        bind('btn-run-toggle', 'toggle-run');
+
+        // Dynamic Hero Context Action Button (#btn-hero-action)
+        const btnHero = document.getElementById('btn-hero-action');
+        if (btnHero) {
+            bindReliableAction(btnHero, () => {
+                const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
+                if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
+                    this.network.sendKey('space');
+                    return;
+                }
+                if (this.smartAction) {
+                    this.executeSmartAction(this.smartAction);
+                } else {
+                    this.network.sendKey('5');
+                }
+            });
+        }
+
+        // Non-Intrusive Context Action Cue (#context-action-cue)
+        const actionCue = document.getElementById('context-action-cue');
+        if (actionCue) {
+            bindReliableAction(actionCue, () => {
+                const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
+                if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
+                    this.network.sendKey('space');
+                    return;
+                }
+                if (this.smartAction) {
+                    this.executeSmartAction(this.smartAction);
+                } else {
+                    this.network.sendKey('5');
+                }
+            });
+        }
+
+        // 8-Way Directional Aim Rosette
+        const rosette = document.getElementById('directional-aim-rosette');
+        if (rosette) {
+            const backdrop = rosette.querySelector('.rosette-backdrop');
+            if (backdrop) {
+                backdrop.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    rosette.classList.add('hidden');
+                    this.network.sendKey('escape');
+                });
+            }
+            const sectors = rosette.querySelectorAll('.rosette-sector');
+            sectors.forEach(sec => {
+                bindReliableAction(sec, () => {
+                    const dir = parseInt(sec.dataset.dir, 10);
+                    if (dir === 5) {
+                        this.network.sendKey('5');
+                    } else if (!isNaN(dir)) {
+                        const moveKey = this.getRelativeDirectionKey(dir);
+                        if (moveKey) this.network.sendKey(moveKey);
+                    }
+                    rosette.classList.add('hidden');
+                });
+            });
+        }
 
         // Dynamic Staircase Action Button
         const stairBtn = document.getElementById('btn-stair');
@@ -1045,7 +1561,7 @@ class InputController {
             let lastMoreTime = 0;
             const toggleDrawer = (ev) => {
                 const now = Date.now();
-                if (now - lastMoreTime < 180) return;
+                if (now - lastMoreTime < 100) return;
                 lastMoreTime = now;
                 if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
                 if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
@@ -1149,11 +1665,15 @@ class InputController {
                 if (window.DeviceProfile) window.DeviceProfile.vibrate(12);
                 action();
 
-                if (allowRepeat) {
+                if (allowRepeat && !this.dpadRunMode) {
                     clearTimeout(holdTimer);
                     clearInterval(repeatInterval);
                     holdTimer = setTimeout(() => {
                         repeatInterval = setInterval(() => {
+                            if (this.dpadRunMode) {
+                                clearInterval(repeatInterval);
+                                return;
+                            }
                             if (window.DeviceProfile) window.DeviceProfile.vibrate(8);
                             action();
                         }, 140);
@@ -1180,6 +1700,31 @@ class InputController {
             btn.addEventListener('mouseleave', stopAction);
         };
 
+        // D-Pad Run / Walk Mode Toggle Button & Persisted State
+        const runToggleBtn = document.getElementById('dpad-run-toggle');
+        if (runToggleBtn) {
+            let lastToggleTime = 0;
+            const doToggle = (e) => {
+                if (e && e.cancelable) e.preventDefault();
+                const now = Date.now();
+                if (now - lastToggleTime < 250) return;
+                lastToggleTime = now;
+                this.toggleDpadRunMode();
+            };
+            runToggleBtn.addEventListener('click', doToggle);
+            runToggleBtn.addEventListener('touchend', doToggle);
+        }
+
+        // Directional movement dispatcher with automatic continuous sprinting in Run mode
+        const sendDirectionalMove = (dir) => {
+            if (this.dpadRunMode) {
+                this.sendRunMove(dir);
+            } else {
+                const key = this.getRelativeDirectionKey(dir);
+                if (key) this.sendMovementKey(key);
+            }
+        };
+
         // Top Turning Shoulder Wings
         bindTouch('dpad-turn-left', () => {
             this.dungeon.turn(-1);
@@ -1189,26 +1734,22 @@ class InputController {
             this.dungeon.turn(1);
         }, false);
 
-        // Directional cardinal and diagonal movement buttons support hold-to-repeat walking
+        // Directional cardinal and diagonal movement buttons support hold-to-repeat
         bindTouch('dpad-up', () => {
-            const key = this.getRelativeDirectionKey(8);
-            if (key) this.sendMovementKey(key);
+            sendDirectionalMove(8);
         }, true);
 
         bindTouch('dpad-down', () => {
-            const key = this.getRelativeDirectionKey(2);
-            if (key) this.sendMovementKey(key);
+            sendDirectionalMove(2);
         }, true);
 
         // Strafe Left & Strafe Right on primary D-pad cardinal wings
         bindTouch('dpad-left', () => {
-            const key = this.getRelativeDirectionKey(4);
-            if (key) this.sendMovementKey(key);
+            sendDirectionalMove(4);
         }, true);
 
         bindTouch('dpad-right', () => {
-            const key = this.getRelativeDirectionKey(6);
-            if (key) this.sendMovementKey(key);
+            sendDirectionalMove(6);
         }, true);
 
         // Smart Multifunction Center D-Pad Action
@@ -1229,30 +1770,63 @@ class InputController {
 
         // Diagonal Touch D-Pad buttons with hold-to-repeat
         bindTouch('dpad-ul', () => {
-            const key = this.getRelativeDirectionKey(7);
-            if (key) this.sendMovementKey(key);
+            sendDirectionalMove(7);
         }, true);
 
         bindTouch('dpad-ur', () => {
-            const key = this.getRelativeDirectionKey(9);
-            if (key) this.sendMovementKey(key);
+            sendDirectionalMove(9);
         }, true);
 
         bindTouch('dpad-dl', () => {
-            const key = this.getRelativeDirectionKey(1);
-            if (key) this.sendMovementKey(key);
+            sendDirectionalMove(1);
         }, true);
 
         bindTouch('dpad-dr', () => {
-            const key = this.getRelativeDirectionKey(3);
-            if (key) this.sendMovementKey(key);
+            sendDirectionalMove(3);
         }, true);
+    }
+
+    getFeatAt(map, x, y) {
+        if (!map || !map.rows || y < 0 || y >= (map.h || map.rows.length) || x < 0) return 0;
+        const row = map.rows[y];
+        if (!row || !row.f) return 0;
+        const idx = x * 2;
+        if (idx + 1 >= row.f.length) return 0;
+        const hi = parseInt(row.f[idx], 16) || 0;
+        const lo = parseInt(row.f[idx + 1], 16) || 0;
+        return (hi << 4) | lo;
+    }
+
+    raycastTargetAhead(frame, px, py, fwd) {
+        if (!frame || !frame.map) return null;
+        for (let d = 1; d <= 8; d++) {
+            const rx = px + fwd.dx * d;
+            const ry = py + fwd.dy * d;
+
+            if (frame.monsters && Array.isArray(frame.monsters)) {
+                const m = frame.monsters.find(mon => mon.x === rx && mon.y === ry);
+                if (m) {
+                    return { type: 'monster', data: m, dist: d, x: rx, y: ry };
+                }
+            }
+
+            const feat = this.getFeatAt(frame.map, rx, ry);
+            if (feat === 2 || feat === 3 || feat === 4) {
+                return { type: 'door', feat, dist: d, x: rx, y: ry };
+            }
+            if (feat === 16 || (feat >= 17 && feat <= 22)) {
+                return { type: 'wall', feat, dist: d, x: rx, y: ry };
+            }
+        }
+        return null;
     }
 
     executeSmartAction(action) {
         if (action === 'descend') {
+            if (this.audio) this.audio.playStairs();
             this.network.sendKey('>');
         } else if (action === 'ascend') {
+            if (this.audio) this.audio.playStairs();
             this.network.sendKey('<');
         } else if (action === 'door') {
             if (this.audio) this.audio.playDoor();
@@ -1261,6 +1835,21 @@ class InputController {
             setTimeout(() => {
                 this.network.sendKey(fwdKey);
             }, 80);
+        } else if (action === 'tunnel') {
+            if (this.audio && typeof this.audio.playWallBump === 'function') {
+                this.audio.playWallBump(0.9);
+            }
+            const fwdKey = this.getRelativeDirectionKey(8) || 'up';
+            this.network.sendKey('T');
+            setTimeout(() => {
+                this.network.sendKey(fwdKey);
+            }, 80);
+        } else if (action === 'pickup') {
+            if (this.audio) this.audio.playItemPickup();
+            this.network.sendKey('g');
+        } else if (action === 'shoot') {
+            if (this.audio) this.audio.playWhoosh();
+            this.network.sendKey('f');
         } else if (action === 'attack') {
             this.dungeon.triggerAttackAnimation();
             if (this.audio) this.audio.playWhoosh();
@@ -1277,78 +1866,344 @@ class InputController {
         const player = frame.player;
         const px = player.x;
         const py = player.y;
+        if (px === undefined || py === undefined) return;
+
+        // Elements
         const dpadCenter = document.getElementById('dpad-center');
-        if (!dpadCenter) return;
+        const btnHero = document.getElementById('btn-hero-action');
+        const heroIcon = document.getElementById('hero-action-icon');
+        const heroText = document.getElementById('hero-action-text');
+        const heroKey = document.getElementById('hero-action-key');
 
-        // 1. Check if standing on stairs
-        let currentFeat = 0;
-        if (frame.map.rows && frame.map.rows[py] && frame.map.rows[py].f) {
-            currentFeat = parseInt(frame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16) || 0;
-        }
+        const reticle = document.getElementById('diegetic-reticle');
+        const targetCard = document.getElementById('reticle-target-card');
+        const targetName = document.getElementById('target-card-name');
+        const targetTier = document.getElementById('target-card-tier');
+        const targetHpFill = document.getElementById('target-card-hp-fill');
+        const targetAffinities = document.getElementById('target-card-affinities');
+        const actionCue = document.getElementById('context-action-cue');
+        const actionCueIcon = document.getElementById('action-cue-icon');
+        const actionCueKey = document.getElementById('action-cue-key');
+        const actionCueText = document.getElementById('action-cue-text');
+        const rosette = document.getElementById('directional-aim-rosette');
 
-        if (currentFeat === 6) { // Downstairs
-            this.smartAction = 'descend';
-            dpadCenter.textContent = '⬇';
-            dpadCenter.title = 'Descend Staircase (>)';
-            dpadCenter.classList.add('smart-active', 'smart-stairs');
-            dpadCenter.classList.remove('smart-door', 'smart-attack');
-            return;
-        } else if (currentFeat === 5) { // Upstairs
-            this.smartAction = 'ascend';
-            dpadCenter.textContent = '⬆';
-            dpadCenter.title = 'Ascend Staircase (<)';
-            dpadCenter.classList.add('smart-active', 'smart-stairs');
-            dpadCenter.classList.remove('smart-door', 'smart-attack');
-            return;
-        }
+        // Check 1: Standing on stairs
+        const currentFeat = this.getFeatAt(frame.map, px, py);
+        const depth = player.depth !== undefined ? player.depth : 0;
 
-        // 2. Check facing direction
-        const facing = (this.dungeon && typeof this.dungeon.facing === 'number') ? this.dungeon.facing : 0;
+        // Check 2: Standing on items
+        const items = frame.items || frame.objects || [];
+        const itemOnTile = items.find(it => it.x === px && it.y === py);
+
+        // Check 3: Camera facing yaw and 8-way directional sector
+        const yaw = (this.dungeon && typeof this.dungeon.yaw === 'number') ? this.dungeon.yaw : 0;
+        const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
         const forwardOffsets = [
-            { dx: 0, dy: -1 }, // 0: North
-            { dx: 1, dy: 0 },  // 1: East
-            { dx: 0, dy: 1 },  // 2: South
-            { dx: -1, dy: 0 }  // 3: West
+            { dx: 0, dy: -1 }, // 0: N
+            { dx: 1, dy: -1 }, // 1: NE
+            { dx: 1, dy: 0 },  // 2: E
+            { dx: 1, dy: 1 },  // 3: SE
+            { dx: 0, dy: 1 },  // 4: S
+            { dx: -1, dy: 1 }, // 5: SW
+            { dx: -1, dy: 0 }, // 6: W
+            { dx: -1, dy: -1 } // 7: NW
         ];
-        const fwd = forwardOffsets[facing] || { dx: 0, dy: -1 };
-        const frontX = px + fwd.dx;
-        const frontY = py + fwd.dy;
+        const fwd = forwardOffsets[sector] || { dx: 0, dy: -1 };
 
-        // Check if monster in front
-        let monsterInFront = false;
-        if (frame.monsters && Array.isArray(frame.monsters)) {
-            monsterInFront = frame.monsters.some(m => m.x === frontX && m.y === frontY);
+        // Raycast ahead along camera facing beam
+        const rayTarget = this.raycastTargetAhead(frame, px, py, fwd);
+
+        // Determine context action & target card state
+        let action = 'wait';
+        let icon = '⏳';
+        let text = 'Wait';
+        let key = '5';
+        let title = 'Wait / Rest 1 Turn [5]';
+        let cueText = '';
+        let showCard = false;
+        let cName = '';
+        let cTier = '';
+        let cTierCls = '';
+        let cHpPct = 100;
+        let cAffinityHtml = '';
+        let isTargeted = false;
+
+        if (rayTarget && rayTarget.type === 'monster' && rayTarget.dist === 1) {
+            // Adjacent monster (melee attack)
+            const m = rayTarget.data;
+            action = 'attack';
+            icon = '⚔';
+            text = 'Attack';
+            key = 'Space';
+            title = `Attack ${m.name || 'Monster'} in Front [Space]`;
+            cueText = `Attack ${m.name || 'Monster'}`;
+            isTargeted = true;
+            showCard = true;
+            cName = `${m.name || 'Monster'} ('${m.glyph || m.c || 'm'}')`;
+            cTier = m.unique ? 'Unique' : 'Monster';
+            cTierCls = m.unique ? 'badge-unique' : 'badge-monster';
+            cHpPct = m.pct !== undefined ? m.pct : (m.hp_max ? Math.round((m.hp / m.hp_max) * 100) : 100);
+            const asleepBadge = m.asleep ? '<span class="target-affinity-chip">💤 Asleep</span>' : '';
+            const afraidBadge = m.afraid ? '<span class="target-affinity-chip">😱 Afraid</span>' : '';
+            cAffinityHtml = `<span class="target-affinity-chip">⚔ Melee Range</span>${asleepBadge}${afraidBadge}`;
+        } else if (currentFeat === 6) {
+            // Stairs Down
+            action = 'descend';
+            icon = '⬇';
+            text = 'Descend';
+            key = '>';
+            title = depth === 0 ? 'Enter Dungeon [>]' : `Descend to ${(depth + 1) * 50}ft [>]`;
+            cueText = depth === 0 ? 'Enter Dungeon [>]' : `Descend to ${(depth + 1) * 50}ft [>]`;
+            showCard = false;
+            cName = depth === 0 ? 'Dungeon Entrance (50\')' : `Staircase Down (${(depth + 1) * 50}ft)`;
+            cTier = 'Portal';
+            cTierCls = 'badge-portal';
+            cHpPct = 100;
+            cAffinityHtml = '<span class="target-affinity-chip">⬇ Descend [>]</span>';
+        } else if (currentFeat === 5) {
+            // Stairs Up
+            action = 'ascend';
+            icon = '⬆';
+            text = 'Ascend';
+            key = '<';
+            title = depth === 1 ? 'Ascend to Town [<]' : `Ascend to ${(depth - 1) * 50}ft [<]`;
+            cueText = depth === 1 ? 'Ascend to Town [<]' : `Ascend to ${(depth - 1) * 50}ft [<]`;
+            showCard = false;
+            cName = depth === 1 ? 'Staircase Up to Town' : `Staircase Up (${(depth - 1) * 50}ft)`;
+            cTier = 'Portal';
+            cTierCls = 'badge-portal';
+            cHpPct = 100;
+            cAffinityHtml = '<span class="target-affinity-chip">⬆ Ascend [<]</span>';
+        } else if (itemOnTile) {
+            // Item on floor
+            action = 'pickup';
+            icon = '🎒';
+            text = 'Get';
+            key = 'g';
+            title = `Pick Up ${itemOnTile.name || 'Item'} [g]`;
+            cueText = `Pick Up ${itemOnTile.name || 'Item'}`;
+            showCard = false;
+            cName = itemOnTile.name || 'Item on Floor';
+            cTier = 'Loot';
+            cTierCls = 'badge-item';
+            cHpPct = 100;
+            cAffinityHtml = '<span class="target-affinity-chip">🎒 Pickup [g]</span>';
+        } else if (rayTarget && rayTarget.type === 'door' && rayTarget.dist === 1) {
+            // Door in front
+            action = 'door';
+            icon = '🚪';
+            text = 'Open';
+            key = 'o';
+            title = 'Open Door in Front [o]';
+            cueText = 'Open Closed Door';
+            showCard = false;
+            cName = 'Closed Door';
+            cTier = 'Door';
+            cTierCls = 'badge-door';
+            cHpPct = 100;
+            cAffinityHtml = '<span class="target-affinity-chip">🚪 Open [o]</span>';
+        } else if (rayTarget && rayTarget.type === 'wall' && rayTarget.dist === 1 && rayTarget.feat !== 22) {
+            // Tunnelable wall / mineral vein / rubble
+            action = 'tunnel';
+            icon = '⛏️';
+            text = 'Tunnel';
+            key = 'Shift+T';
+            title = 'Tunnel / Dig Wall in Front [T]';
+            const wallName = rayTarget.feat === 16 ? 'Rubble Pile' : (rayTarget.feat === 17 || rayTarget.feat === 19 ? 'Magma Vein' : (rayTarget.feat === 18 || rayTarget.feat === 20 ? 'Quartz Vein' : 'Granite Wall'));
+            cueText = `Tunnel ${wallName}`;
+            showCard = false;
+            cName = wallName;
+            cTier = 'Wall';
+            cTierCls = 'badge-wall';
+            cHpPct = 100;
+            cAffinityHtml = '<span class="target-affinity-chip">⛏️ Tunnel [T]</span>';
+        } else if (rayTarget && rayTarget.type === 'monster' && rayTarget.dist > 1) {
+            // Ranged monster in line of sight
+            const m = rayTarget.data;
+            action = 'shoot';
+            icon = '🏹';
+            text = 'Shoot';
+            key = 'f';
+            title = `Shoot at ${m.name || 'Target'} [f]`;
+            cueText = `Shoot ${m.name || 'Target'} (${rayTarget.dist}sq away)`;
+            isTargeted = true;
+            showCard = true;
+            cName = `${m.name || 'Target'} ('${m.glyph || m.c || 'm'}')`;
+            cTier = m.unique ? 'Unique' : 'Monster';
+            cTierCls = m.unique ? 'badge-unique' : 'badge-monster';
+            cHpPct = m.pct !== undefined ? m.pct : (m.hp_max ? Math.round((m.hp / m.hp_max) * 100) : 100);
+            cAffinityHtml = `<span class="target-affinity-chip">🏹 ${rayTarget.dist}sq away</span>`;
         }
 
-        if (monsterInFront) {
-            this.smartAction = 'attack';
-            dpadCenter.textContent = '⚔';
-            dpadCenter.title = 'Attack Monster in Front (Space)';
-            dpadCenter.classList.add('smart-active', 'smart-attack');
-            dpadCenter.classList.remove('smart-stairs', 'smart-door');
-            return;
+        const lang = window.__langMode || 'en';
+        const isHeng = (frame.realm === 'hengband') || (window.__app && typeof window.__app.getActiveRealm === 'function' && window.__app.getActiveRealm() === 'hengband');
+        if (isHeng) {
+            const mName = (rayTarget && rayTarget.data && rayTarget.data.name) ? rayTarget.data.name : '';
+            const itemName = (itemOnTile && itemOnTile.name) ? itemOnTile.name : '';
+            if (lang === 'jp') {
+                if (action === 'attack') {
+                    text = '攻撃';
+                    cueText = mName ? `攻撃: ${mName}` : '近接攻撃';
+                    title = mName ? `前方の${mName}を攻撃 [Space]` : '攻撃 [Space]';
+                } else if (action === 'descend') {
+                    text = '降りる';
+                    cueText = depth === 0 ? 'ダンジョンに入る [>]' : '地下へ降りる [>]';
+                    title = cueText;
+                } else if (action === 'ascend') {
+                    text = '登る';
+                    cueText = depth === 1 ? '地上へ戻る [<]' : '上層へ登る [<]';
+                    title = cueText;
+                } else if (action === 'pickup') {
+                    text = '拾う';
+                    cueText = itemName ? `拾う: ${itemName}` : '拾う';
+                    title = cueText + ' [g]';
+                } else if (action === 'door') {
+                    text = '開閉';
+                    cueText = '扉を開ける';
+                    title = '扉を開ける [o]';
+                } else if (action === 'tunnel') {
+                    text = '掘削';
+                    cueText = '壁を掘る';
+                    title = '壁を掘る [T]';
+                } else if (action === 'shoot') {
+                    text = '射撃';
+                    cueText = mName ? `射撃: ${mName}` : '遠距離射撃';
+                    title = cueText + ' [f]';
+                } else if (action === 'wait') {
+                    text = '待機';
+                    cueText = '待機';
+                    title = '待機 [5]';
+                }
+            } else if (lang === 'bilingual') {
+                if (action === 'attack') {
+                    text = 'Attack (攻撃)';
+                    cueText = mName ? `Attack (攻撃): ${mName}` : 'Attack (攻撃)';
+                    title = 'Attack (攻撃) [Space]';
+                } else if (action === 'descend') {
+                    text = 'Descend (降りる)';
+                    cueText = depth === 0 ? 'Enter Dungeon (入山) [>]' : 'Descend (降りる) [>]';
+                    title = cueText;
+                } else if (action === 'ascend') {
+                    text = 'Ascend (登る)';
+                    cueText = depth === 1 ? 'Ascend to Town (帰還) [<]' : 'Ascend (登る) [<]';
+                    title = cueText;
+                } else if (action === 'pickup') {
+                    text = 'Get (拾う)';
+                    cueText = itemName ? `Get (拾う): ${itemName}` : 'Get (拾う)';
+                    title = cueText + ' [g]';
+                } else if (action === 'door') {
+                    text = 'Open (開閉)';
+                    cueText = 'Open Door (扉を開ける)';
+                    title = 'Open Door (開閉) [o]';
+                } else if (action === 'tunnel') {
+                    text = 'Tunnel (掘削)';
+                    cueText = 'Tunnel (壁を掘る)';
+                    title = 'Tunnel (掘削) [T]';
+                } else if (action === 'shoot') {
+                    text = 'Shoot (射撃)';
+                    cueText = mName ? `Shoot (射撃): ${mName}` : 'Shoot (射撃)';
+                    title = cueText + ' [f]';
+                } else if (action === 'wait') {
+                    text = 'Wait (待機)';
+                    cueText = 'Wait (待機)';
+                    title = 'Wait (待機) [5]';
+                }
+            }
         }
 
-        // Check if closed door in front
-        let frontFeat = 0;
-        if (frame.map.rows && frame.map.rows[frontY] && frame.map.rows[frontY].f) {
-            frontFeat = parseInt(frame.map.rows[frontY].f.substring(frontX * 2, frontX * 2 + 2), 16) || 0;
+        this.smartAction = action;
+
+        // Update D-Pad Center Button
+        if (dpadCenter) {
+            dpadCenter.textContent = icon;
+            dpadCenter.title = title;
+            dpadCenter.classList.toggle('smart-active', action !== 'wait');
+            dpadCenter.classList.toggle('smart-stairs', action === 'descend' || action === 'ascend');
+            dpadCenter.classList.toggle('smart-door', action === 'door');
+            dpadCenter.classList.toggle('smart-attack', action === 'attack');
         }
 
-        if (frontFeat === 3 || frontFeat === 4) { // Closed or locked door
-            this.smartAction = 'door';
-            dpadCenter.textContent = '🚪';
-            dpadCenter.title = 'Open Door in Front (o)';
-            dpadCenter.classList.add('smart-active', 'smart-door');
-            dpadCenter.classList.remove('smart-stairs', 'smart-attack');
-            return;
+        // Update Hero Context Action Button (#btn-hero-action)
+        if (btnHero) {
+            if (heroIcon) heroIcon.textContent = icon;
+            if (heroText) heroText.textContent = text;
+            if (heroKey) heroKey.textContent = key;
+            btnHero.title = title;
+            btnHero.setAttribute('data-action', action);
+            btnHero.classList.toggle('action-suggested', action !== 'wait');
         }
 
-        // Default: Wait / Rest 1 turn
-        this.smartAction = 'wait';
-        dpadCenter.textContent = '●';
-        dpadCenter.title = 'Rest / Wait 1 Turn (5)';
-        dpadCenter.classList.remove('smart-active', 'smart-stairs', 'smart-door', 'smart-attack');
+        // Update In-Play & Terminal Overlay Status
+        const inPlay = Boolean(frame && (frame.phase === 'play' || (frame.player && frame.player.name)));
+        const inTerminalOverlay = Boolean(frame && frame.ui && (frame.ui.overlay || 0) > 0) ||
+                                 Boolean(window.__app && window.__app.needsTerminal && window.__app.needsTerminal(frame)) ||
+                                 this.inTerminal;
+        const isDead = Boolean(player.dead || (player.hp !== undefined && player.hp <= 0 && player.hp_max > 0));
+
+        // Update HUD Status Bar Alert (#footer-target) - Perfectly docked outside 3D line of sight
+        const footerTarget = document.getElementById('footer-target');
+        if (footerTarget) {
+            if (action !== 'wait' && inPlay && !inTerminalOverlay && !isDead) {
+                footerTarget.style.display = 'inline-flex';
+                footerTarget.innerHTML = `<span class="target-alert-icon">${icon}</span> <span class="target-alert-text">${cueText || text}</span> <kbd class="target-alert-kbd">${key}</kbd>`;
+            } else {
+                footerTarget.style.display = 'none';
+            }
+        }
+
+        // Update Diegetic Reticle & Target Card
+
+        if (reticle) {
+            if (inPlay && !inTerminalOverlay && !isDead) {
+                reticle.style.display = 'flex';
+                reticle.classList.toggle('reticle-targeted', isTargeted);
+                reticle.classList.toggle('reticle-interactive', !isTargeted && action !== 'wait');
+            } else {
+                reticle.style.display = 'none';
+            }
+        }
+
+        // Context Action Cue & Top-Center Target Plaque: Keep strictly hidden from 3D viewport
+        // Action bar highlights, hero button, and footer status bar provide 100% of contextual cues
+        if (actionCue) {
+            actionCue.classList.add('hidden');
+            actionCue.style.display = 'none';
+        }
+        if (targetCard) {
+            targetCard.classList.add('hidden');
+            targetCard.style.display = 'none';
+        }
+
+        // Update Directional Aim Rosette (Visibility & Active Yaw Highlight)
+        if (rosette) {
+            const screenText = (frame.term && frame.term.rows)
+                ? frame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
+                : '';
+            const isTargetingPrompt = inPlay && (
+                screenText.includes('target [') ||
+                screenText.includes('target:') ||
+                screenText.includes('direction?') ||
+                screenText.includes('which direction?') ||
+                screenText.includes('select target') ||
+                screenText.includes('aim which direction?')
+            );
+
+            if (isTargetingPrompt && inPlay && !inTerminalOverlay && !isDead) {
+                rosette.classList.remove('hidden');
+            } else {
+                rosette.classList.add('hidden');
+            }
+
+            // Highlight sector corresponding to current camera yaw
+            const sectorToDir = [8, 9, 6, 3, 2, 1, 4, 7];
+            const activeDir = sectorToDir[sector] || 8;
+            const sectors = rosette.querySelectorAll('.rosette-sector');
+            sectors.forEach(sec => {
+                const sDir = parseInt(sec.dataset.dir, 10);
+                sec.classList.toggle('active-yaw', sDir === activeDir);
+            });
+        }
     }
 
     setupViewportGestures() {

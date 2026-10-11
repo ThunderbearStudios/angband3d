@@ -226,13 +226,18 @@ class ChronicleLLMBridge {
             ? ChronicleGrounder.TRADITIONS[traditionKey]
             : { name: 'The Red Book of Westmarch', style: 'heroic, grounded, mortal courage' };
 
+        const realmKey = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const realmCtx = (ChronicleGrounder && typeof ChronicleGrounder.getRealmContext === 'function')
+            ? ChronicleGrounder.getRealmContext(realmKey)
+            : { chronicler: 'The Master Chronicler', setting: 'the realm', lorekeeperName: 'Elder Lorekeeper' };
+
         const isFlowing = (event.isChapter === false);
         const depth = (player && typeof player.depth === 'number') ? player.depth : 0;
         const isTown = (depth === 0);
         const systemPrompt = isFlowing
-            ? `You are the Master Chronicler of Angband, continuing the active saga of ${player ? player.name : 'the hero'} in the literary tradition: "${tradition.name}".
+            ? `You are ${realmCtx.chronicler}, continuing the active saga of ${player ? player.name : 'the hero'} in ${realmCtx.setting}, in the literary tradition: "${tradition.name}".
 Perspective: ${tradition.style}.
-Tolkien tone: Serious, atmospheric, legendary, direct, descriptive of dungeon skirmishes and perilous exploration.
+Tone: Serious, atmospheric, legendary, direct, descriptive of perilous exploration and heroic struggle.
 Critical Story Guidelines:
 - Direct Brevity: Exactly 1 to 2 concise, punchy sentences. Cut excessive purple prose; keep the pacing swift and engaging.
 - Coalesced Combat & Blow-by-Blow: When multiple strikes or combat messages occur concurrently, weave them into one unified, cohesive exchange (e.g., "twin strikes in rapid succession", "parrying one blow only to catch a blade to the shoulder").
@@ -250,9 +255,9 @@ Output: Respond with ONLY a raw JSON object (no markdown, no code blocks):
   "prose": "1-2 sentences of direct, punchy flowing narrative continuing the active scene.",
   "dialogue": { "speaker": "Name or null", "text": "Short spoken line or null" }
 }`
-            : `You are the Master Chronicler of Angband, recording the saga of ${player ? player.name : 'the hero'} in strict accordance with the literary tradition: "${tradition.name}".
+            : `You are ${realmCtx.chronicler}, recording the saga of ${player ? player.name : 'the hero'} in ${realmCtx.setting}, in strict accordance with the literary tradition: "${tradition.name}".
 Perspective: ${tradition.style}.
-Tolkien tone: Serious, atmospheric, legendary, never modern slang, never fourth-wall breaking in chapter prose.
+Tone: Serious, atmospheric, legendary, never modern slang, never fourth-wall breaking in chapter prose.
 Critical Story Guidelines:
 - Direct Brevity: Exactly 1 to 2 concise, punchy sentences. Cut rambling prose; make every word count while retaining Tolkien gravitas.
 - Coalesced Combat & Blow-by-Blow: Synthesize concurrent strikes, counter-attacks, and lethal blows into one unified tactical exchange.
@@ -357,7 +362,11 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}. (For new instance starts a
                 ? `asleep in undisturbed slumber (${prSub} cannot converse)`
                 : `non-vocal or silent (${stateObj.observation || 'cannot speak words'})`;
 
-            const systemPrompt = `You are the Master Chronicler of Angband describing a creature encountered in the realm.
+            const realmKey = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+            const realmCtx = (ChronicleGrounder && typeof ChronicleGrounder.getRealmContext === 'function')
+                ? ChronicleGrounder.getRealmContext(realmKey)
+                : { chronicler: 'The Master Chronicler', setting: 'the realm' };
+            const systemPrompt = `You are ${realmCtx.chronicler} in ${realmCtx.setting}, describing a creature encountered in the realm.
 Creature: "${name}".
 CRITICAL VISUAL GENDER & 3D MODEL MANDATE:
 The 3D model rendered on screen is visually ${gender.toUpperCase()} (${gender === 'female' ? 'Woman / Female Model' : 'Man / Male Model'}).
@@ -416,7 +425,11 @@ CRITICAL INSTRUCTION:
 - You MUST react directly to being struck! Do NOT offer peaceful greetings or shop services!`;
         }
 
-        const systemPrompt = `You are roleplaying a creature in the classic roguelike Angband (J.R.R. Tolkien mythos).
+        const realmKey = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const realmCtx = (ChronicleGrounder && typeof ChronicleGrounder.getRealmContext === 'function')
+            ? ChronicleGrounder.getRealmContext(realmKey)
+            : { setting: 'Middle-earth in the Third Age' };
+        const systemPrompt = `You are roleplaying a creature in ${realmCtx.setting}.
 Creature: "${name}".
 CRITICAL VISUAL GENDER & 3D MODEL MANDATE:
 The 3D model rendered on screen is visually ${gender.toUpperCase()} (${gender === 'female' ? 'Woman / Female Model' : 'Man / Male Model'}).
@@ -470,8 +483,14 @@ Guidelines:
             return ChronicleGrounder.answerSurvivalQuery(query, player);
         }
 
-        const systemPrompt = `You are the ancient Lorekeeper of Angband, mentor and guide to heroes delving into the Iron Hell.
-You know the complete body of Angband 4.2.6 mechanics, keybindings (roguelike and standard keysets), survival tactics, shop mechanics, item commands, and Tolkien lore.
+        const realmKey = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const realmCtx = (ChronicleGrounder && typeof ChronicleGrounder.getRealmContext === 'function')
+            ? ChronicleGrounder.getRealmContext(realmKey)
+            : { lorekeeperName: 'Elder Lorekeeper', chronicler: 'the ancient Lorekeeper of Angband', setting: 'Middle-earth in the Third Age' };
+
+        const systemPrompt = `You are ${realmCtx.lorekeeperName}, ${realmCtx.chronicler}.
+Setting: ${realmCtx.setting}.
+You know the complete body of mechanics, keybindings (roguelike and standard keysets), survival tactics, shop mechanics, item commands, and lore for this realm.
 Rules:
 - Be diegetically wise, warm, and helpful.
 - When explaining game mechanics (keys, commands, inventory, resting, shops, terminal), cross the fourth wall gracefully (e.g. "To quaff a potion, press 'q'...").
