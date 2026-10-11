@@ -392,7 +392,15 @@ class WebTerminal {
 
         // 4. Item & Spell Prompts
         if (fullText.includes('inven:') ||
+            fullText.includes('(inventory)') ||
+            fullText.includes('(inven') ||
+            fullText.includes('inventory | equipment') ||
+            fullText.includes('inventory |') ||
+            fullText.includes('| equipment') ||
+            fullText.includes('examine which item') ||
             fullText.includes('equip:') ||
+            fullText.includes('(equipment)') ||
+            fullText.includes('(equip') ||
             fullText.includes('quiver:') ||
             fullText.includes('quiver') ||
             fullText.includes('select item:') ||
@@ -407,7 +415,13 @@ class WebTerminal {
             fullText.includes('browse which') ||
             fullText.includes('destroy which') ||
             fullText.includes('take off') ||
+            fullText.includes('remove which item') ||
             fullText.includes('wear/wield') ||
+            fullText.includes('drop which') ||
+            fullText.includes('throw which') ||
+            fullText.includes('fire which') ||
+            fullText.includes('quaff which') ||
+            fullText.includes('read which') ||
             fullText.includes('どのアイテム') ||
             fullText.includes('どの巻物') ||
             fullText.includes('どの薬') ||
@@ -415,7 +429,11 @@ class WebTerminal {
             fullText.includes('どの呪文') ||
             fullText.includes('どの本') ||
             fullText.includes('装備品') ||
-            fullText.includes('持ち物')) {
+            fullText.includes('持ち物') ||
+            fullText.includes('どれを装備') ||
+            fullText.includes('どれを外しますか') ||
+            fullText.includes('どれを落としますか') ||
+            fullText.includes('どれを投げますか')) {
             return 'item_prompt';
         }
 

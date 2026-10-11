@@ -1,5 +1,33 @@
 # Angband3D — Status & Next Steps Roadmap
 
+-22. **Cross-Realm Menu System Audit & Overhaul (Vanilla, Sil-Q, FrogComposBand, Hengband — 100% Operational)**:
+   - **Vanilla Store Multi-Transaction Persistence (`Main.cs`, `app.js`)**:
+     - Root cause: `ui.more` check preceded `ui.overlay > 0` and `ui.context in ('menu', 'birth', 'setup')` in `NeedsTerminal` / `needsTerminal`. Purchasing an item emitted an engine confirmation `-more-` prompt with `overlay = 2` or `3`, ejecting the player into 3D view instead of allowing continued transactions.
+     - Fix: Re-ordered checks so `ui.context in ('menu', 'birth', 'setup')` and `(ui.overlay || 0) > 0` take absolute precedence over `ui.more`. Inside stores, dialogue prompts, and menus, `-more-` messages cleanly stay within the terminal view until the player explicitly exits via Escape.
+   - **Sil-Q Two-Phase Inventory & Equipment Workflow (`app.js`, `terminal.js`, `input.js`)**:
+     - Modeled Sil-Q's distinct two-phase command taxonomy:
+       - Phase A Command Mode: `(Inventory) Command:` (offers `w` wear/wield, `e` view gear, `x` examine, `d` drop, `k` destroy) and `(Equipment) Command:` (offers `r` take off, `i` view pack, `x` examine, `d` drop). Note: In Sil-Q, `r` is take off gear (NOT `t`), and `t` is throw!
+       - Phase B Item Letter Prompts: `(Inven: b-c, ESC) Wear/Wield which item?` and `(Equip: a-f, ESC) Remove which item?`.
+     - Added Sil-Q contextual action buttons in `termCtxActions` for inventory commands, equipment commands, wear prompts, and remove prompts.
+     - Scoped Sil-Q key mappings in `input.js` (`m` -> `s`, `v` -> `t`, `R` -> `%`) strictly to top-level world command mode (`ui.awaiting_command && overlay === 0 && !ui.more`), preventing key mutation during menu or letter selection.
+     - Added direct `w` (Wield) and `r` (Take Off) buttons to Sil-Q 2D dungeon walking toolbar.
+   - **FrogComposBand Unified Gear UI (`app.js`, `terminal.js`)**:
+     - Identified FrogComposBand's modern tabbed interface (`gear_ui` from `obj.c`) displaying `Inventory | Equipment` on Row 0. In upstream C code, `obj_prompt()` invokes `Term_save()` without modifying `character_icky`, producing `overlay = 0` but `awaiting_command = false`.
+     - Expanded `isItemPrompt` in `app.js` and `detectMode` in `terminal.js` with `inventory | equipment` and `examine which item` patterns.
+     - Cleaned up birth sequence and startup message drainage, ensuring reliable non-blocking transitions.
+   - **Hengband Bilingual Menu Parity (`app.js`, `terminal.js`)**:
+     - Verified and hardened inventory (`i`) and equipment (`e`) prompts across both Japanese (`持ち物：`, `装備：`) and English (`Inventory:`, `Equipment:`), ensuring consistent CRT overlay handling and clean Escape exits.
+   - **Multi-Token Letter Ribbon Extraction (`app.js`)**:
+     - Upgraded letter ribbon regex extraction limit to 70 characters.
+     - Implemented slot prefix strip (`Right Hand: `, `Wielding : `) and trailing weight/price column cleaners while filtering empty `(nothing)` and `なし` slots, rendering clean, clickable item buttons.
+   - **Comprehensive Automated Verification (`tools/verify_cross_realm_menus.js`)**:
+     - Vanilla: Enters General Store, purchases item with `p` + `a` + `1`, clears confirmation `-more-`, asserts overlay remains active (`overlay = 2`), exits cleanly via `Escape` to town with `overlay = 0` — PASSED (100%).
+     - Sil-Q: Opens pack with `i`, navigates `(Inventory) Command:`, selects `w`, wields torch `b`, dismisses notice, inspects gear with `e`, triggers `r` remove gear, cancels with `Escape`, exits cleanly to 3D world — PASSED (100%).
+     - FrogComposBand: Tests `i` and `e` with `Inventory | Equipment` gear UI, verifies `needsTerminal` and `isItemPrompt`, exits cleanly to 3D world with `awaiting_command === true` — PASSED (100%).
+     - Hengband: Tests `i` and `e`, verifies `overlay === 1`, `needsTerminal`, and `isItemPrompt`, exits cleanly to 3D world with `overlay === 0` — PASSED (100%).
+     - `python tools/smoke_test.py`: 11/11 tests passed.
+     - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
+
 -21. **Hengband Multi-Language Menu Functionality, Character Creation Quarantine & Store E2E Integration (100% Operational)**:
    - **Menu Hotkey Quarantine & Scoping (`input.js`, `app.js`)**:
      - Resolved defect where review screen hotkeys (`r` reroll, `p` prev roll, `c`/`s` custom restart, `Enter`/`y` accept) erroneously trapped keystrokes and touch events during character creation choice menus (Sex, Race, Class, Personality, Realm).
