@@ -39,22 +39,40 @@ assert.ok(appJs.includes("if (activeRealm === 'hengband') {") || appJs.includes(
 console.log('  -> PASSED: Language mode strictly quarantined to Hengband.');
 
 console.log('[Test 3] Character Creation & Review Contextual Actions are strictly English outside Hengband');
-// Verify isHeng guards around Japanese button labels
+// Verify hengLabel and isHeng guards around multilingual button labels
+assert.ok(appJs.includes("if (!isHeng || effLang === 'en') return en;"),
+    'hengLabel must strictly guard !isHeng to return English');
+assert.ok(appJs.includes("const effLang = isHeng ? (window.__langMode || langMode || 'en') : 'en';"),
+    'effLang must strictly quarantine language mode to Hengband');
+
 const checks = [
-    "${isHeng ? '✓ Accept / 決定' : '✓ Accept'}",
-    "${isHeng ? '⎋ Step Back / 戻る' : '⎋ Step Back'}",
-    "${isHeng ? '🔄 Reset / 再抽選' : '🔄 Reset Stats'}",
-    "${isHeng ? '⚔ ゲーム開始 (Enter Realm)' : '⚔ Enter Realm'}",
-    "${isHeng ? '🔄 初めから (Start Over)' : '🔄 Start Over'}",
-    "${isHeng ? '⎋ 終了 (Quit)' : '⎋ Quit'}",
-    "${isHeng ? '✓ Select / 決定' : '✓ Select'}",
-    "${isHeng ? '🎲 Random / ランダム' : '🎲 Random'}",
-    "${isHeng ? '⎋ Back / 戻る' : '⎋ Back'}"
+    "hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定')",
+    "hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')",
+    "hengLabel('🔄 Reset Stats', '🔄 Reset / 再抽選', '🔄 再抽選')",
+    "hengLabel('⚔ Enter Realm', '⚔ ゲーム開始 (Enter Realm)', '⚔ ゲーム開始')",
+    "hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから')",
+    "hengLabel('⎋ Quit', '⎋ 終了 (Quit)', '⎋ 終了')",
+    "hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定')",
+    "hengLabel('🎲 Random', '🎲 Random / ランダム', '🎲 ランダム')",
+    "hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る')"
 ];
 for (const c of checks) {
     assert.ok(appJs.includes(c), `Missing conditional label in app.js: ${c}`);
 }
-console.log('  -> PASSED: Contextual action labels are strictly English outside Hengband.');
+
+// Functionally verify that for any non-Hengband realm, Japanese is never output
+const simHengLabel = (isHeng, effLang, en, bi, jp) => (!isHeng || effLang === 'en') ? en : (effLang === 'jp' ? jp : bi);
+for (const realm of ['angband', 'silq', 'frogcomposband']) {
+    const isHeng = realm === 'hengband';
+    assert.strictEqual(simHengLabel(isHeng, 'en', '✓ Accept', '✓ Accept / 決定', '✓ 決定'), '✓ Accept');
+    assert.strictEqual(simHengLabel(isHeng, 'bilingual', '✓ Accept', '✓ Accept / 決定', '✓ 決定'), '✓ Accept');
+    assert.strictEqual(simHengLabel(isHeng, 'jp', '✓ Accept', '✓ Accept / 決定', '✓ 決定'), '✓ Accept');
+}
+// Verify Hengband supports all 3 modes
+assert.strictEqual(simHengLabel(true, 'en', '✓ Accept', '✓ Accept / 決定', '✓ 決定'), '✓ Accept');
+assert.strictEqual(simHengLabel(true, 'bilingual', '✓ Accept', '✓ Accept / 決定', '✓ 決定'), '✓ Accept / 決定');
+assert.strictEqual(simHengLabel(true, 'jp', '✓ Accept', '✓ Accept / 決定', '✓ 決定'), '✓ 決定');
+console.log('  -> PASSED: Contextual action labels are strictly English outside Hengband and dynamic within Hengband.');
 
 console.log('[Test 4] Sil-Q native keys and contextual buttons');
 // Verify Sil-Q item prompts

@@ -340,12 +340,19 @@ class WebHUD {
         const baseText = rawText || trimmed;
         const isCombat = this.isCombatMessage(trimmed);
 
+        const realm = (this.lastFrame && this.lastFrame.realm) || (window.activeRealm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
+        const lang = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
+        let displayText = trimmed;
+        if (realm === 'hengband' && typeof window !== 'undefined' && typeof window.localizeGameMessage === 'function') {
+            displayText = window.localizeGameMessage(baseText, 'hengband', lang);
+        }
+
         // Only collapse non-combat, repetitive status notices (e.g. repeatedly bumping into a wall)
         const lastMsg = this.messageHistory.length > 0 ? this.messageHistory[this.messageHistory.length - 1] : null;
-        if (!isCombat && lastMsg && (lastMsg.rawText === baseText || lastMsg.text === trimmed)) {
+        if (!isCombat && lastMsg && (lastMsg.rawText === baseText || lastMsg.text === displayText || lastMsg.text === trimmed)) {
             lastMsg.repeat = (lastMsg.repeat || 1) + 1;
             if (lastMsg.el) {
-                lastMsg.el.textContent = `${lastMsg.rawText || trimmed} (x${lastMsg.repeat})`;
+                lastMsg.el.textContent = `${lastMsg.text || displayText} (x${lastMsg.repeat})`;
             }
             if (this.messageFeedScroll && !this.userScrolledUp) {
                 this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
@@ -360,7 +367,7 @@ class WebHUD {
 
         const el = document.createElement('div');
         el.className = 'feed-line latest';
-        el.textContent = trimmed;
+        el.textContent = displayText;
         if (color) el.style.color = color;
 
         if (this.messageFeedList) {
@@ -369,7 +376,7 @@ class WebHUD {
 
         const msgObj = {
             id: now + '_' + Math.random(),
-            text: trimmed,
+            text: displayText,
             rawText: baseText,
             repeat: 1,
             color,
@@ -440,7 +447,13 @@ class WebHUD {
         }
 
         if (displayMsg) {
-            textEl.textContent = displayMsg;
+            const realm = (frame && frame.realm) || (this.lastFrame && this.lastFrame.realm) || (window.activeRealm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
+            const lang = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
+            let localizedMsg = displayMsg;
+            if (realm === 'hengband' && typeof window !== 'undefined' && typeof window.localizeGameMessage === 'function') {
+                localizedMsg = window.localizeGameMessage(displayMsg, 'hengband', lang);
+            }
+            textEl.textContent = localizedMsg;
             if (isPrompt) {
                 banner.classList.add('prompt');
                 textEl.style.color = '#ffd700';
@@ -1261,6 +1274,22 @@ class WebHUD {
             if (isHeng && lang === 'jp') btnQuickHelp.textContent = '⌨ 案内 [?]';
             else if (isHeng && lang === 'bilingual') btnQuickHelp.textContent = '⌨ Controls (案内) [?]';
             else btnQuickHelp.textContent = '⌨ Controls [?]';
+        }
+
+        // 10. In-Game Message History & Top Banner Dynamic Retranslation
+        if (isHeng && typeof window !== 'undefined' && typeof window.localizeGameMessage === 'function') {
+            if (this.messageHistory && this.messageHistory.length > 0) {
+                for (const item of this.messageHistory) {
+                    if (item && item.el && item.rawText) {
+                        const trans = window.localizeGameMessage(item.rawText, 'hengband', lang);
+                        item.text = trans;
+                        item.el.textContent = (item.repeat && item.repeat > 1) ? `${trans} (x${item.repeat})` : trans;
+                    }
+                }
+            }
+            if (this.lastFrame) {
+                this.updateTopMessageBanner(this.lastFrame);
+            }
         }
     }
 

@@ -1,5 +1,24 @@
 # Angband3D — Status & Next Steps Roadmap
 
+-16. **Seamless Hengband Language Switching Across All Views, Menus & Interfaces (100% Operational Across All Platforms)**:
+   - **Unified 3-Way Language Toggle Across All Views**:
+     - Seamless toggling between `en` (English), `bilingual` (English + Kanji), and `jp` (Native Japanese) via `Alt+L`, the HUD toggle button (`#btn-toggle-lang`), or programmatic `setLanguageMode(mode)`.
+     - Instant visual re-rendering in the Classic 2D Vector Terminal (`WebTerminal` in `terminal.js`), 3D HUD banner & history (`hud.js`), and contextual mobile & desktop action bars (`app.js`).
+   - **Recursive Token Substitution & Monospace Grid Preservation**:
+     - Solved the recursive dictionary string corruption bug in `server/public/js/heng-dict.js`: implemented a two-pass token placeholder system (`\uE000${idx}\uE001`) preventing translated English text from being incorrectly matched and scrambled by subsequent dictionary rules.
+     - Extracted 100+ authentic class rank titles from Hengband binaries (`新参兵` -> `Rookie`, `見習い` -> `Novice`, `修業中` -> `Adept`, `道場主` -> `SoftMaster`, etc.) with monospace visual-width padding so adjacent dungeon map columns (columns 13+) never shift or corrupt.
+     - Added floor/town indicators (`地上` -> `Town`, `階` -> `FL`), lunar and day phases (`日中`, `夜間`, `朝`, `夕方`, `深夜`, `新月`, `満月`, `半月`, `三日月`), speed (`普通` -> `Norm`), and status bar flags.
+   - **Contextual Action Bar & Header Button Localization (`app.js`)**:
+     - Hoisted `isHeng`, `effLang`, `hengLabel`, and `hengTitle` to function scope in `updateTerminalToolbar()` so that character creation, store browsing, buy/sell/examine prompts, item selection (throw, quaff, read, fire, cast, wear, drop, quiver, equip), targeting mode, and classic dungeon view all dynamically localize.
+     - Fixed `birthConfirming` to handle `[y/n]` confirmation prompts cleanly.
+     - Added `updateTerminalToolbar(currentFrame)` invocation on view mode transitions (`Tab`, `toggleTerminalView()`) ensuring the classic toolbar title and actions refresh immediately.
+   - **Strict Variant Quarantine**:
+     - English variants (Angband 4.2.6, Sil-Q 1.5.0, FrogComposBand 7.1) remain strictly quarantined and 100% in English.
+   - **Verification**:
+     - `node tools/test_heng_cdp_automation.js`: Headless Chrome CDP E2E verification passes all 3 phases (Birth Review, 3D Play, Classic View) across `en`, `bilingual`, and `jp`.
+     - `node tools/test_japanese_isolation_and_security.js`: All 6 test suites pass 100%.
+     - `python tools/smoke_test.py`: 11/11 tests pass.
+
 -15. **Sil-Q Container Parity, Standalone Packaging & Global Cloud Deployment (100% Operational Across All Platforms)**:
    - **Sil-Q Linux Container Execution Parity**:
      - Diagnosed child process termination of Sil-Q on Linux container: `Bad semantics in '-ds=/app/variants/silq/lib/save'`.
