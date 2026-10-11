@@ -28,10 +28,8 @@ function redactSecret(val, secret = '') {
 
 class ChronicleLLMBridge {
     constructor() {
-        this.provider = 'offline'; // 'offline' | 'gemini' | 'openai' | 'anthropic' | 'custom'
-        this.apiKey = '';
+        this.provider = 'gemini';
         this.model = '';
-        this.endpoint = '';
 
         // Free Tier Cost Protection & Sliding Window Rate Limiter
         this.modelTimestamps = new Map(); // model -> [timestamps]
@@ -57,10 +55,9 @@ class ChronicleLLMBridge {
                 const d = await r.json();
                 if (d && (d.hasKey || d.hasServerKey)) {
                     this.hasServerKey = true;
-                    this.provider = 'gemini';
                     this.model = d.defaultModel || 'gemini-3.8-flash';
                     // Clean up any stale client-side key from localStorage since server key is active
-                    if (window.localStorage && !this.apiKey) {
+                    if (window.localStorage) {
                         try {
                             localStorage.removeItem('angband_llm_api_key');
                         } catch (_) {}
@@ -85,12 +82,6 @@ class ChronicleLLMBridge {
     loadSettings() {
         if (typeof window === 'undefined' || !window.localStorage) return;
         try {
-            const savedProvider = localStorage.getItem('angband_llm_provider');
-            if (savedProvider) this.provider = savedProvider;
-
-            const savedKey = localStorage.getItem('angband_llm_api_key');
-            if (savedKey) this.apiKey = savedKey;
-
             const savedEnforce = localStorage.getItem('angband_llm_enforce_free');
             if (savedEnforce !== null) this.enforceFreeTier = (savedEnforce === 'true');
 
@@ -104,30 +95,17 @@ class ChronicleLLMBridge {
                     this.model = savedModel;
                 }
             }
-
-            const savedEndpoint = localStorage.getItem('angband_llm_endpoint');
-            if (savedEndpoint) this.endpoint = savedEndpoint;
         } catch (_) {}
     }
 
     saveSettings(settings = {}) {
-        if (settings.provider !== undefined) this.provider = settings.provider;
-        if (settings.apiKey !== undefined) this.apiKey = settings.apiKey.trim();
         if (settings.model !== undefined) this.model = settings.model.trim();
-        if (settings.endpoint !== undefined) this.endpoint = settings.endpoint.trim();
         // Rate limiting is permanently enforced (never optional)
         this.enforceFreeTier = true;
 
         if (typeof window !== 'undefined' && window.localStorage) {
             try {
-                localStorage.setItem('angband_llm_provider', this.provider);
-                if (this.apiKey) {
-                    localStorage.setItem('angband_llm_api_key', this.apiKey);
-                } else {
-                    localStorage.removeItem('angband_llm_api_key');
-                }
                 localStorage.setItem('angband_llm_model', this.model);
-                localStorage.setItem('angband_llm_endpoint', this.endpoint);
                 localStorage.setItem('angband_llm_enforce_free', 'true');
             } catch (_) {}
         }
@@ -141,13 +119,7 @@ class ChronicleLLMBridge {
             }
             return this.model;
         }
-        switch (this.provider) {
-            case 'gemini': return 'gemini-3.8-flash';
-            case 'openai': return 'gpt-4o-mini';
-            case 'anthropic': return 'claude-3-5-haiku-20241022';
-            case 'custom': return 'llama3';
-            default: return 'offline-procedural';
-        }
+        return 'gemini-3.8-flash';
     }
 
     notifyStatus(msg, isWarning = false) {
@@ -207,10 +179,7 @@ class ChronicleLLMBridge {
     }
 
     isConfigured() {
-        if (this.provider === 'offline') return false;
-        if (this.provider === 'custom') return !!this.endpoint;
-        if (this.provider === 'gemini' && this.hasServerKey) return true;
-        return !!this.apiKey;
+        return this.hasServerKey;
     }
 
     /**
@@ -218,7 +187,7 @@ class ChronicleLLMBridge {
      * or smoothly falls back to ChronicleGrounder procedural generation.
      */
     async generateChapter(event, player, traditionKey = 'westmarch', grounder = null) {
-        if (!this.isConfigured() || this.provider === 'offline') {
+        if (!this.isConfigured()) {
             return (grounder || ChronicleGrounder).generateProceduralChapter(event, player, traditionKey);
         }
 
@@ -345,7 +314,7 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}. (For new instance starts a
         const prPoss = isF ? 'her' : 'his';
         const prObj = isF ? 'her' : 'him';
 
-        if (!this.isConfigured() || this.provider === 'offline') {
+        if (!this.isConfigured()) {
             return groundTruth;
         }
 
@@ -479,7 +448,7 @@ Guidelines:
      * while maintaining an authentic Lorekeeper persona.
      */
     async consultLorekeeper(query, player = null) {
-        if (!this.isConfigured() || this.provider === 'offline') {
+        if (!this.isConfigured()) {
             return ChronicleGrounder.answerSurvivalQuery(query, player);
         }
 
@@ -552,18 +521,7 @@ Rules:
         const timeoutId = controller ? setTimeout(() => controller.abort(), 10000) : null;
 
         try {
-            switch (this.provider) {
-                case 'gemini':
-                    return await this.callGemini(systemPrompt, userPrompt, signal);
-                case 'openai':
-                    return await this.callOpenAI(systemPrompt, userPrompt, signal);
-                case 'anthropic':
-                    return await this.callAnthropic(systemPrompt, userPrompt, signal);
-                case 'custom':
-                    return await this.callCustom(systemPrompt, userPrompt, signal);
-                default:
-                    throw new Error(`Unsupported provider: ${this.provider}`);
-            }
+            return await this.callGemini(systemPrompt, userPrompt, signal);
         } finally {
             if (timeoutId) clearTimeout(timeoutId);
         }
@@ -597,32 +555,14 @@ Rules:
         };
 
         let res;
-        // Zero API Key Exposure: If server has key configured in .env or client has no direct key,
-        // route request securely through local server backend proxy.
-        if (this.hasServerKey || !this.apiKey) {
-            const headers = { 'Content-Type': 'application/json' };
-            if (this.apiKey) {
-                headers['x-goog-api-key'] = this.apiKey;
-            }
-            res = await fetch('/api/llm/generate', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({ model, payload }),
-                signal
-            });
-        } else {
-            // Standalone client with explicit client-side key
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-            res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-goog-api-key': this.apiKey
-                },
-                body: JSON.stringify(payload),
-                signal
-            });
-        }
+        // Route request securely through local server backend proxy.
+        const headers = { 'Content-Type': 'application/json' };
+        res = await fetch('/api/llm/generate', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ model, payload }),
+            signal
+        });
 
         if (!res.ok) {
             const errJson = await res.json().catch(() => ({}));
@@ -649,12 +589,11 @@ Rules:
 
             // Authentication / Authorization / Bad Request errors (400, 401, 403) must NOT cascade across models
             if (res.status === 400 || res.status === 401 || res.status === 403) {
-                const safeMsg = redactSecret(errMsg, this.apiKey);
-                this.notifyStatus(`⚠️ Gemini Authentication/Request error (${res.status}): ${safeMsg}`, true);
-                throw new Error(`Gemini Authentication/Request error (${res.status}): ${safeMsg}`);
+                this.notifyStatus(`⚠️ Gemini Authentication/Request error (${res.status}): ${errMsg}`, true);
+                throw new Error(`Gemini Authentication/Request error (${res.status}): ${errMsg}`);
             }
 
-            throw new Error(`Gemini API error ${res.status}: ${redactSecret(errMsg, this.apiKey)}`);
+            throw new Error(`Gemini API error ${res.status}: ${errMsg}`);
         }
 
         const data = await res.json();
@@ -672,151 +611,26 @@ Rules:
         return answerPart.text;
     }
 
-    async callOpenAI(systemPrompt, userPrompt, signal) {
-        const model = this.getActiveModel();
-        const url = 'https://api.openai.com/v1/chat/completions';
 
-        const payload = {
-            model,
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 350
-        };
-
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify(payload),
-            signal
-        });
-
-        if (!res.ok) {
-            const errJson = await res.json().catch(() => ({}));
-            throw new Error(`OpenAI API error ${res.status}: ${errJson.error ? errJson.error.message : res.statusText}`);
-        }
-
-        const data = await res.json();
-        const msg = data.choices && data.choices[0] && data.choices[0].message;
-        if (!msg || !msg.content) {
-            throw new Error('OpenAI returned empty response');
-        }
-        return msg.content;
-    }
-
-    async callAnthropic(systemPrompt, userPrompt, signal) {
-        const model = this.getActiveModel();
-        const url = 'https://api.anthropic.com/v1/messages';
-
-        const payload = {
-            model,
-            system: systemPrompt,
-            messages: [
-                { role: 'user', content: userPrompt }
-            ],
-            max_tokens: 350,
-            temperature: 0.7
-        };
-
-        const headers = {
-            'Content-Type': 'application/json',
-            'x-api-key': this.apiKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
-        };
-
-        const res = await fetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload),
-            signal
-        });
-
-        if (!res.ok) {
-            const errJson = await res.json().catch(() => ({}));
-            throw new Error(`Anthropic API error ${res.status}: ${errJson.error ? errJson.error.message : res.statusText}`);
-        }
-
-        const data = await res.json();
-        const block = data.content && data.content[0];
-        if (!block || !block.text) {
-            throw new Error('Anthropic returned empty response');
-        }
-        return block.text;
-    }
-
-    async callCustom(systemPrompt, userPrompt, signal) {
-        const endpoint = this.endpoint || 'http://localhost:11434/v1/chat/completions';
-        const model = this.getActiveModel();
-
-        const payload = {
-            model,
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 350
-        };
-
-        const headers = { 'Content-Type': 'application/json' };
-        if (this.apiKey) {
-            headers['Authorization'] = `Bearer ${this.apiKey}`;
-        }
-
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload),
-            signal
-        });
-
-        if (!res.ok) {
-            const errJson = await res.json().catch(() => ({}));
-            throw new Error(`Endpoint error ${res.status}: ${errJson.error ? (errJson.error.message || errJson.error) : res.statusText}`);
-        }
-
-        const data = await res.json();
-        const msg = data.choices && data.choices[0] && data.choices[0].message;
-        if (!msg || !msg.content) {
-            throw new Error('Custom LLM endpoint returned empty response');
-        }
-        return msg.content;
-    }
 
     /**
      * Verifies API Key and model with a quick ping
      */
-    async testConnection(provider, apiKey, model, endpoint) {
-        const original = { provider: this.provider, apiKey: this.apiKey, model: this.model, endpoint: this.endpoint };
+    async testConnection(model) {
+        const original = { model: this.model };
         try {
-            this.provider = provider;
-            this.apiKey = apiKey;
             this.model = model;
-            this.endpoint = endpoint;
-
-            if (provider === 'offline') {
-                return { ok: true, message: 'Built-in offline procedural engine is always ready (0ms latency, zero cost).' };
-            }
 
             const reply = await this.callLLM('You are a test probe.', 'Respond with the single word: READY');
             if (reply && reply.toLowerCase().includes('ready')) {
-                const note = (provider === 'gemini' && !apiKey && this.hasServerKey) ? ' (Protected Server Key)' : '';
+                const note = (this.hasServerKey) ? ' (Protected Server Key)' : '';
                 return { ok: true, message: `Connected to ${this.getActiveModel()} successfully!${note}` };
             }
             return { ok: true, message: `Connected! Response: "${reply.slice(0, 30)}..."` };
         } catch (err) {
             return { ok: false, error: err.message };
         } finally {
-            this.provider = original.provider;
-            this.apiKey = original.apiKey;
             this.model = original.model;
-            this.endpoint = original.endpoint;
         }
     }
 }
