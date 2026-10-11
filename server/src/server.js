@@ -1009,7 +1009,7 @@ const server = http.createServer((req, res) => {
         } catch (err) {
             console.error('[API] /api/saves error:', err);
             res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: err.message, saves: [] }));
+            res.end(JSON.stringify({ error: 'Internal error', saves: [] }));
             return;
         }
     }
@@ -1449,8 +1449,9 @@ const server = http.createServer((req, res) => {
                     .then(buffer => sendEdgeMp3(buffer, false))
                     .catch(err => {
                         if (!res.headersSent) {
+                            console.error('[TTS] Edge TTS fetch error:', err);
                             res.writeHead(502, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ error: err.message }));
+                            res.end(JSON.stringify({ error: 'Internal error' }));
                         }
                     });
                 return;
@@ -1497,8 +1498,9 @@ const server = http.createServer((req, res) => {
                 .then(buffer => sendEdgeMp3(buffer, false))
                 .catch(err => {
                     if (!res.headersSent) {
+                        console.error('[TTS] Edge TTS error:', err);
                         res.writeHead(500, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ error: err.message }));
+                        res.end(JSON.stringify({ error: 'Internal error' }));
                     }
                 });
         }
@@ -1805,8 +1807,9 @@ const server = http.createServer((req, res) => {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ status: 'deleted', filename: saveName, realm: queryRealm }));
             } catch (err) {
+                console.error('[API] /api/saves/delete error:', err);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: err.message }));
+                res.end(JSON.stringify({ error: 'Internal error' }));
             }
         } else {
             res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -2061,9 +2064,7 @@ const server = http.createServer((req, res) => {
     <p>Authoritative Cloud Game Server & WebSocket Bridge.</p>
     <div class="card">
         <h3>Server Status: Online</h3>
-        <p>Engine Binary: <code>${ENGINE_EXE}</code></p>
         <p>WebSocket Endpoint: <code>ws://${req.headers.host || 'localhost:' + PORT}/ws</code></p>
-        <p>Save Directory: <code>${SAVE_DIR}</code></p>
     </div>
     <a href="/download/angband3d-standalone.zip" class="btn">Download Standalone Game (.zip)</a>
 </body>
