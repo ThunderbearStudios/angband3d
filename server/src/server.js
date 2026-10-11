@@ -843,7 +843,7 @@ const server = http.createServer((req, res) => {
     // Modern Content Security Policy (permits WebGL Three.js, local shaders, Web Audio, Cloudflare Insights, and Google Fonts)
     const cspDirectives = [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://static.cloudflareinsights.com",
+        "script-src 'self' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https://angband3d.com https://fonts.gstatic.com",
