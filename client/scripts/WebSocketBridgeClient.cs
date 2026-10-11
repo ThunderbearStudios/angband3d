@@ -25,6 +25,8 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
     [Signal]
     public delegate void DisconnectedEventHandler(string reason);
 
+    public event Action<string> HelloTokenReceived;
+
     /// <summary>Current authoritative game state frame from the cloud engine.</summary>
     public JsonElement? Frame { get; private set; }
 
@@ -77,7 +79,7 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
     /// <param name="wsUrl">Full WebSocket URL e.g. ws://localhost:8080/ws or wss://game.example.com/ws</param>
     /// <param name="saveName">Character/save slot name to load or initialize.</param>
     /// <param name="newCharacter">Whether this connection starts a fresh character slot (passes new=1).</param>
-    public void ConnectToServer(string wsUrl, string saveName = null, bool newCharacter = false, string realm = null)
+    public void ConnectToServer(string wsUrl, string saveName = null, bool newCharacter = false, string realm = null, string ownerToken = null)
     {
         Stop();
 
@@ -90,6 +92,7 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
         if (!string.IsNullOrEmpty(saveName)) parts.Add($"save={Uri.EscapeDataString(saveName)}");
         if (newCharacter) parts.Add("new=1");
         if (!string.IsNullOrEmpty(realm)) parts.Add($"realm={Uri.EscapeDataString(realm)}");
+        if (!string.IsNullOrEmpty(ownerToken)) parts.Add($"owner={Uri.EscapeDataString(ownerToken)}");
         if (parts.Count > 0)
         {
             uriBuilder.Query = string.Join("&", parts);
@@ -211,6 +214,14 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
             {
                 case "hello":
                     Hello = msg;
+                    if (msg.TryGetProperty("token", out var tokenProp))
+                    {
+                        var token = tokenProp.GetString();
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            HelloTokenReceived?.Invoke(token);
+                        }
+                    }
                     if (msg.TryGetProperty("isFallback", out var fbProp) && fbProp.GetBoolean())
                     {
                         GD.PushError("ws-bridge: server returned fallback engine! Aborting connection.");

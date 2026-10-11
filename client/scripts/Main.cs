@@ -48,6 +48,7 @@ public partial class Main : Node
     private int _menuIndex;
     private int _autoMenuChoice;
     private readonly System.Collections.Generic.List<(string Label, Action Execute)> _menuItems = new();
+    private System.Collections.Generic.Dictionary<string, string> _ownerTokens = new();
 
     public override void _Ready()
     {
@@ -227,6 +228,9 @@ public partial class Main : Node
         AddChild(_cloudBridge);
         _cloudBridge.FrameReceived += OnFrame;
         _cloudBridge.Disconnected += OnBridgeDisconnected;
+        _cloudBridge.HelloTokenReceived += OnHelloTokenReceived;
+
+        LoadOwnerTokens();
 
         var exe = FindEngine();
         if (exe == null && !_cloudMode)
@@ -805,6 +809,10 @@ public partial class Main : Node
             var fileBytes = await System.IO.File.ReadAllBytesAsync(save.File.FullName);
             using var content = new System.Net.Http.ByteArrayContent(fileBytes);
             content.Headers.Add("X-Character-Name", save.File.Name);
+            if (_ownerTokens.TryGetValue(save.File.Name, out var token))
+            {
+                content.Headers.Add("X-Owner-Token", token);
+            }
             var response = await client.PostAsync(uploadUrl, content);
             if (response.IsSuccessStatusCode)
             {
@@ -1060,7 +1068,9 @@ public partial class Main : Node
                 _saveName = "Adventurer_" + Guid.NewGuid().ToString("N")[..4];
             }
             _bridge = _cloudBridge;
-            _cloudBridge.ConnectToServer(_cloudUrl, _saveName, newCharacter, _realm);
+            string ownerToken = null;
+            if (!string.IsNullOrEmpty(_saveName) && _ownerTokens.TryGetValue(_saveName, out var t)) ownerToken = t;
+            _cloudBridge.ConnectToServer(_cloudUrl, _saveName, newCharacter, _realm, ownerToken);
         }
         else
         {
@@ -2602,5 +2612,43 @@ public partial class Main : Node
 
         var ch = (char)key.Unicode;
         return ch >= ' ' && ch < 127 ? ch.ToString() : null;
+    }
+
+    private void OnHelloTokenReceived(string token)
+    {
+        if (string.IsNullOrEmpty(_saveName)) return;
+        _ownerTokens[_saveName] = token;
+        SaveOwnerTokens();
+    }
+
+    private void LoadOwnerTokens()
+    {
+        try
+        {
+            var path = ProjectSettings.GlobalizePath("user://owner_tokens.json");
+            if (System.IO.File.Exists(path))
+            {
+                var json = System.IO.File.ReadAllText(path);
+                _ownerTokens = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, string>>(json) ?? new System.Collections.Generic.Dictionary<string, string>();
+            }
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"Failed to load owner tokens: {ex.Message}");
+        }
+    }
+
+    private void SaveOwnerTokens()
+    {
+        try
+        {
+            var path = ProjectSettings.GlobalizePath("user://owner_tokens.json");
+            var json = System.Text.Json.JsonSerializer.Serialize(_ownerTokens);
+            System.IO.File.WriteAllText(path, json);
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"Failed to save owner tokens: {ex.Message}");
+        }
     }
 }
