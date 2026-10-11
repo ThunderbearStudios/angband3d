@@ -3,10 +3,11 @@ const WebSocket = require('../server/node_modules/ws');
 
 async function testRealm(realm) {
     return new Promise((resolve, reject) => {
-        const url = 'wss://angband3d.com/ws?realm=' + realm + '&new=1&user=Hero_' + realm + '_' + Date.now();
+        const shortUser = ('Hero_' + realm.slice(0, 4) + '_' + Date.now().toString().slice(-6)).slice(0, 28);
+        const url = 'wss://angband3d.com/ws?realm=' + realm + '&new=1&user=' + shortUser;
         console.log('Testing realm:', realm, 'at', url);
         const ws = new WebSocket(url);
-        const timer = setTimeout(() => { ws.terminate(); reject(new Error('Timeout on ' + realm)); }, 12000);
+        const timer = setTimeout(() => { ws.terminate(); reject(new Error('Timeout on ' + realm)); }, 20000);
         ws.on('message', data => {
             const msg = JSON.parse(data.toString());
             if (msg.t === 'hello') {

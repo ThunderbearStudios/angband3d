@@ -2129,7 +2129,7 @@ function spawnGameSession(ws, request) {
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
     const rawUser = urlObj.searchParams.get('user') || urlObj.searchParams.get('char') || null;
     const rawSave = urlObj.searchParams.get('save') || null;
-    let user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+    let user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 28) : null;
     if (!user && !rawSave) {
         user = 'Adventurer';
     }
@@ -2382,7 +2382,7 @@ wss.on('connection', (ws, request) => {
     const rawRealm = urlObj.searchParams.get('realm') || 'angband';
     const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';
 
-    const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+    const user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 28) : null;
     const resolvedSave = rawSave ? resolveSavefileName(rawSave, realm) : null;
     const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
     const clientSessionId = rawSession ? rawSession.replace(/[^a-zA-Z0-9_-]/g, '') : null;
