@@ -535,6 +535,7 @@ class WebTerminal {
     }
 
     render(termData) {
+        if (!termData) termData = this.lastTermData;
         if (!termData || !termData.rows) return;
         this.lastTermData = termData;
         this.lastRows = termData.rows;
@@ -561,10 +562,24 @@ class WebTerminal {
         this.ctx.font = `${this.fontSize}px 'Fira Code', 'Meiryo', 'MS Gothic', 'Yu Gothic', 'Hiragino Sans', 'Noto Sans CJK JP', monospace`;
         this.ctx.textBaseline = 'top';
 
+        const isHeng = (typeof window !== 'undefined') &&
+            ((window.activeRealm === 'hengband') ||
+             (window.__activeRealm === 'hengband') ||
+             (window.__app && typeof window.__app.getActiveRealm === 'function' && window.__app.getActiveRealm() === 'hengband') ||
+             (termData && termData.realm === 'hengband') ||
+             (this.lastTermData && this.lastTermData.realm === 'hengband'));
+        const langMode = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
+
         for (let r = 0; r < termData.rows.length && r < this.rows; r++) {
             const rowObj = termData.rows[r];
-            const text = rowObj.g || '';
-            const attrs = rowObj.a || '';
+            let text = rowObj.g || '';
+            let attrs = rowObj.a || '';
+            const trFn = (typeof window !== 'undefined') && (window.translateTerminalRow || (window.HENG_DICT && window.HENG_DICT.translateTerminalRow));
+            if (isHeng && langMode !== 'jp' && typeof trFn === 'function') {
+                const tr = trFn(text, attrs, langMode, r);
+                text = tr.text;
+                attrs = tr.attrs;
+            }
             const y = (rowObj.y !== undefined ? rowObj.y : r) * this.charHeight;
 
             let screenCol = 0;

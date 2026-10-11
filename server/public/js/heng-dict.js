@@ -124,10 +124,671 @@
         return result;
     }
 
+    // Additional common gameplay patterns
+    const extraPatterns = [
+        { re: /^(.*?)を攻撃した。$/i, en: 'You hit $1.' },
+        { re: /^(.*?)を(.*?)で攻撃した。$/i, en: 'You hit $1 with your $2.' },
+        { re: /^ドアが開いた。$/i, en: 'The door opens.' },
+        { re: /^ドアを開けた。$/i, en: 'You open the door.' },
+        { re: /^ドアを閉めた。$/i, en: 'You close the door.' },
+        { re: /^ドアに鍵がかかっている。$/i, en: 'The door is locked.' },
+        { re: /^隠しドアを発見した。$/i, en: 'You found a secret door.' },
+        { re: /^(.*?)はがっちりと閉じられているようだ。$/i, en: 'The $1 appears to be stuck.' },
+        { re: /^(.*?)を解除した。$/i, en: 'You have disarmed the $1.' },
+        { re: /^(.*?)の解除に失敗した。$/i, en: 'You failed to disarm the $1.' }
+    ];
+    for (const ep of extraPatterns) {
+        compiledPatterns.push(ep);
+    }
+
+    // Visual width calculator (CJK = 2, ASCII = 1)
+    function visualWidth(str) {
+        if (!str) return 0;
+        let w = 0;
+        for (let i = 0; i < str.length; i++) {
+            const c = str.codePointAt(i);
+            if ((c >= 0x1100 && c <= 0x115f) || (c >= 0x2e80 && c <= 0xa4cf) || (c >= 0xac00 && c <= 0xd7a3) ||
+                (c >= 0xf900 && c <= 0xfaff) || (c >= 0xfe30 && c <= 0xfe4f) || (c >= 0xff01 && c <= 0xff60) ||
+                (c >= 0xffe0 && c <= 0xffe6) || (c >= 0x20000 && c <= 0x3fffd)) {
+                w += 2;
+                if (c > 0xffff) i++;
+            } else {
+                w += 1;
+            }
+        }
+        return w;
+    }
+
+    // Comprehensive visual-width-preserving replacements for terminal screens
+    const EXACT_ROW_TERMS = [
+        ['初期オプション((*)はスコアに影響)', 'Birth Options ((*)) affect score', 'Birth Options (初期設定)       '],
+        ['初期オプション設定', 'Options Setup     ', 'Options (初期設定)'],
+        ['初期オプション', 'Birth Options ', 'Birth Options (設定)'],
+        ['修正の合計値', 'Total Modifiers ', 'Total Modifiers(修正合計)'],
+        ['スコアに影響', 'Affects Score', 'Affects Score(スコア影響)'],
+        ['リターン:次', 'Return: Next', 'Return: Next(次へ)'],
+        ['リターンで次へ', 'Return: Next', 'Return: Next(次へ)'],
+        ['y/n:変更', 'y/n: Change', 'y/n: Change(変更)'],
+        ['y/n でセット', 'y/n: Set', 'y/n: Set(セット)'],
+        ['ESC:終了', 'ESC: Done', 'ESC: Done(終了)'],
+        ['ESC で決定', 'ESC: Done', 'ESC: Done(決定)'],
+        ['?:ヘルプ', '?: Help', '?: Help(案内)'],
+        ['基本値', 'Base  ', 'Base(基本)'],
+        ['合計値', 'Total ', 'Total(合計)'],
+        ['最大値', 'Max   ', 'Max(最大)'],
+        ['確率: 約', 'Chance: approx', 'Chance: approx(確率)'],
+        ['能力値決定', 'Stat Decision', 'Stat Decision(能力決定)'],
+        ['次の数値', 'Next Roll', 'Next Roll(次の数値)'],
+        ['前の数値', 'Prev Roll', 'Prev Roll(前の数値)'],
+        ['初めから', 'Start Over', 'Start Over(初めから)'],
+        ['決定する', 'Accept   ', 'Accept(決定)'],
+        ['ふつうのAdventurer', 'Ordinary Adventurer', 'Ordinary Adventurer(普通)'],
+        ['ふつうの', 'Ordinary ', 'Ordinary(普通) '],
+        ['しあわせものの', 'Lucky ', 'Lucky(幸運) '],
+        ['ちからじまんの', 'Strong ', 'Strong(力自慢) '],
+        ['きれものの', 'Clever ', 'Clever(切れ者) '],
+        ['すばしっこいの', 'Nimble ', 'Nimble(敏捷) '],
+        ['いのちしらずの', 'Fearless ', 'Fearless(命知らず) '],
+        ['コンバットの', 'Combat ', 'Combat(戦闘) '],
+        ['なまけものの', 'Lazy ', 'Lazy(怠け者) '],
+        ['セクシーギャルの', 'Sexy ', 'Sexy(魅力) '],
+        ['がまんづよいの', 'Patient ', 'Patient(我慢強い) '],
+        ['いかさまの', 'Trickster ', 'Trickster(イカサマ) '],
+        ['チャージマンの', 'Chargeman ', 'Chargeman '],
+        ['クローンの', 'Clone ', 'Clone(複製) '],
+        ['アンドロイドの', 'Android ', 'Android(人造) '],
+        ['変愚蛮怒', 'Hengband', 'Hengband(変愚蛮怒)'],
+        ['キャラクターを作成します。', 'Make your character. ', 'Make your character (作成) '],
+        ['能力値を抽選します。最低限得たい能力値を設定して下さい。', 'Set minimum stats for character generation. ', 'Set minimum stats (能力値抽選) '],
+        ['2/8で項目選択、4/6で値の増減、Enterで次へ', '2/8: Select, 4/6: Adjust, Enter: Next     ', '2/8: Select, 4/6: Adjust, Enter: Next     '],
+        ['()で囲まれた選択肢はこの種族には似合わない職業です。', 'Parenthesized choices are poorly suited for this race.   ', 'Parenthesized choices are poorly suited for this race.   '],
+        ['注意：《性別》の違いはゲーム上ほとんど影響を及ぼしません。', 'Note: Your \'sex\' has almost no effect on gameplay.       ', 'Note: Your \'sex\' has almost no effect on gameplay.       '],
+        ['注意：《種族》によってキャラクターの先天的な資質やボーナスが変化します。', 'Note: Your \'race\' determines intrinsic traits and bonuses. ', 'Note: Your \'race\' determines intrinsic traits and bonuses. '],
+        ['注意：《職業》によってキャラクターの先天的な能力やボーナスが変化します。', 'Note: Your \'class\' determines abilities, skills, and spells.', 'Note: Your \'class\' determines abilities, skills, and spells.'],
+        ['注意：《性格》によってキャラクターの能力やボーナスが変化します。', 'Note: Your \'trait\' modifies your core stats and abilities. ', 'Note: Your \'trait\' modifies your core stats and abilities. '],
+        ['性別を選んで下さい (a-b) (\'=\'初期オプション設定):', 'Choose a sex (a-b) (\'=\' for options):            ', 'Choose a sex / 性別 (a-b) (\'=\' for options):   '],
+        ['性別を選んで下さい', 'Choose character\'s sex     ', 'Choose character\'s sex / 性別 '],
+        ['種族を選んで下さい (a-L) (\'=\'初期オプション設定):', 'Choose a race (a-L) (\'=\' for options):           ', 'Choose a race / 種族 (a-L) (\'=\' for options):  '],
+        ['種族を選んで下さい', 'Choose character\'s race    ', 'Choose character\'s race / 種族'],
+        ['職業を選んで下さい (a-C) (\'=\'初期オプション設定, 灰色:勝利済):', 'Choose a class (a-C) (\'=\' for options, Grey: Won):   ', 'Choose a class / 職業 (a-C) (Grey: Won / 勝利済):'],
+        ['職業を選んで下さい', 'Choose character\'s class   ', 'Choose character\'s class / 職業'],
+        ['性格を選んで下さい (a-m) (\'=\'初期オプション設定):', 'Choose a trait (a-m) (\'=\' for options):          ', 'Choose a trait / 性格 (a-m) (\'=\' for options): '],
+        ['性格を選んで下さい', 'Choose character\'s trait   ', 'Choose character\'s trait / 性格'],
+        ['魔法領域を選んで下さい (a-j):', 'Choose magic realm (a-j):             ', 'Choose realm / 魔法領域 (a-j):        '],
+        ['魔法領域を選んで下さい', 'Choose magic realm         ', 'Choose realm / 魔法領域    '],
+        ['領域を選んで下さい', 'Choose magic realm     ', 'Choose realm / 魔法領域'],
+        ['この数値に決定しますか？', 'Accept these stats? [y/n] ', 'Accept stats / 決定? [y/n]'],
+        ['名前を入力して下さい', 'Enter character\'s name    ', 'Enter name / 名前入力   '],
+        ['生い立ちを表示します。何かキーを押して下さい。', 'Displaying character history. Press any key.     ', 'Displaying history. Press any key (生い立ち) '],
+        ['生い立ちを表示します', 'Display character history  ', 'Display history (生い立ち) '],
+        ['何かキーを押して下さい', 'Press any key to continue', 'Press any key / 何かキー '],
+        ['ゲームを開始します。よろしいですか？', 'Begin game. Are you sure? [y/n] ', 'Begin game / 開始? [y/n] '],
+        ['ゲームを開始します。', 'Begin game.              ', 'Begin game (開始)     '],
+        ['よろしいですか？[y/n]', 'Are you sure? [y/n]     ', 'Are you sure? / 確認 [y/n]'],
+        ['よろしいですか？[Y/n]', 'Are you sure? [y/n]     ', 'Are you sure? / 確認 [y/n]'],
+        ['よろしいですか？', 'Are you sure? ', 'Are you sure? / 確認 '],
+        ['本当に終了しますか？', 'Really quit? [y/n]   ', 'Really quit? / 終了? [y/n]'],
+        ['本当にセーブして終了しますか？', 'Save and quit? [y/n]          ', 'Save and quit? / 保存終了? [y/n] '],
+        ['灰色:勝利済', 'Grey: Won', 'Grey: Won(勝利)'],
+        ['人間の種族修正', 'Human Race Modifiers    ', 'Human Race Modifiers(種族修正)'],
+        ['戦士の職業修正', 'Warrior Class Modifiers  ', 'Warrior Class Modifiers(職業修正)'],
+        ['ふつうの性格修正', 'Ordinary Trait Modifiers', 'Ordinary Trait Modifiers(性格修正)'],
+        ['の種族修正', ' Race Modifiers', ' Race Mod(種族修正)'],
+        ['の職業修正', ' Class Modifiers', ' Class Mod(職業修正)'],
+        ['の性格修正', ' Trait Modifiers', ' Trait Mod(性格修正)'],
+        ['のRace修正', ' Race Modifiers', ' Race Mod(種族修正)'],
+        ['のClass修正', ' Class Modifiers', ' Class Mod(職業修正)'],
+        ['のTrait修正', ' Trait Modifiers', ' Trait Mod(性格修正)'],
+        ['腕力', 'STR '],
+        ['知能', 'INT '],
+        ['賢さ', 'WIS '],
+        ['器用', 'DEX '],
+        ['耐久', 'CON '],
+        ['魅力', 'CHR '],
+        ['打撃', 'AC  '],
+        ['射撃', 'SHT '],
+        ['防御', 'DEF '],
+        ['経験', 'EXP '],
+        ['最大', 'MAX '],
+        ['必要', 'NEED'],
+        ['レベル', 'LEVEL'],
+        ['ＨＰ', 'HP  '],
+        ['ＭＰ', 'SP  '],
+        ['所持金', 'AU    '],
+        ['日付', 'DAY '],
+        ['時刻', 'TIME'],
+        ['ターン', 'TURN '],
+        ['名前', 'Name'],
+        ['性別', 'Sex '],
+        ['種族', 'Race'],
+        ['職業', 'Class'],
+        ['性格', 'Trait'],
+        ['魔法領域', 'Realm   '],
+        ['領域', 'Realm'],
+        ['魔法', 'Magic '],
+        ['年齢', 'Age '],
+        ['才', '  '],
+        ['身長', 'Height'],
+        ['体重', 'Weight'],
+        ['社会的地位', 'Social Class'],
+        ['属性', 'Alignment '],
+        ['中立(0)', 'Neutral(0)'],
+        ['善(0)', 'Good(0)   '],
+        ['悪(0)', 'Evil(0)   '],
+        ['混沌(0)', 'Chaos(0)  '],
+        ['秩序(0)', 'Law(0)    '],
+        ['探索', 'Search '],
+        ['解除', 'Disarm '],
+        ['魔法防御', 'MagicRes'],
+        ['隠密', 'Stealth'],
+        ['赤外線視力', 'Infra   '],
+        ['打撃修正', 'MeleeMod'],
+        ['射撃修正', 'RangeMod'],
+        ['打撃回数', 'Blows/T '],
+        ['射撃回数', 'Shots/T '],
+        ['新参兵', 'Rookie    ', 'Rookie    '],
+        ['兵士', 'Soldier   ', 'Soldier   '],
+        ['傭兵', 'Mercenary ', 'Mercenary '],
+        ['古参兵', 'Veteran   ', 'Veteran   '],
+        ['剣士', 'Swordsman ', 'Swordsman '],
+        ['闘士', 'Champion  ', 'Champion  '],
+        ['英雄', 'Hero      ', 'Hero      '],
+        ['男爵', 'Baron     ', 'Baron     '],
+        ['伯爵', 'Duke      ', 'Duke      '],
+        ['練習生', 'Apprentice', 'Apprentice'],
+        ['奇術師', 'Trickster ', 'Trickster '],
+        ['幻術師', 'Illusionst', 'Illusionst'],
+        ['呪術師', 'Spellbindr', 'Spellbindr'],
+        ['召霊師', 'Evoker    ', 'Evoker    '],
+        ['召魔師', 'Conjurer  ', 'Conjurer  '],
+        ['魔道師', 'Ipsissimus', 'Ipsissimus'],
+        ['イプシシマス', 'Ipsissimus', 'Ipsissimus'],
+        ['大魔道師', 'Archmage  ', 'Archmage  '],
+        ['信者', 'Believer  ', 'Believer  '],
+        ['侍僧', 'Acolyte   ', 'Acolyte   '],
+        ['熟練僧', 'Adept     ', 'Adept     '],
+        ['聖職者', 'Curate    ', 'Curate    '],
+        ['伝道師', 'Canon     ', 'Canon     '],
+        ['牧師', 'HighPriest', 'HighPriest'],
+        ['聖人', 'Cardinal  ', 'Cardinal  '],
+        ['祭司', 'Inquisitor', 'Inquisitor'],
+        ['祭司長', 'Pope      ', 'Pope      '],
+        ['教皇', 'Pope      ', 'Pope      '],
+        ['すり', 'Cutpurse  ', 'Cutpurse  '],
+        ['追いはぎ', 'Robber    ', 'Robber    '],
+        ['夜盗', 'Burglar   ', 'Burglar   '],
+        ['こそ泥', 'Filcher   ', 'Filcher   '],
+        ['ペテン師', 'Sharper   ', 'Sharper   '],
+        ['ロウシーフ', 'Low Thief ', 'Low Thief '],
+        ['ハイシーフ', 'High Thief', 'High Thief'],
+        ['マスター', 'MasterThf ', 'MasterThf '],
+        ['アサシン', 'Assassin  ', 'Assassin  '],
+        ['頭領', 'Guildmastr', 'Guildmastr'],
+        ['使い走り', 'Runner    ', 'Runner    '],
+        ['馳夫', 'Strider   ', 'Strider   '],
+        ['斥候', 'Scout     ', 'Scout     '],
+        ['狩人', 'Courser   ', 'Courser   '],
+        ['追跡者', 'Tracker   ', 'Tracker   '],
+        ['先導者', 'Guide     ', 'Guide     '],
+        ['探険者', 'Pathfinder', 'Pathfinder'],
+        ['野伏頭', 'HighRanger', 'HighRanger'],
+        ['野伏の総領', 'RangerLord', 'RangerLord'],
+        ['野伏', 'Low Ranger', 'Low Ranger'],
+        ['勇士', 'Gallant   ', 'Gallant   '],
+        ['衛士', 'Keeper    ', 'Keeper    '],
+        ['保護者', 'Protector ', 'Protector '],
+        ['防衛者', 'Defender  ', 'Defender  '],
+        ['護衛者', 'Warder    ', 'Warder    '],
+        ['騎士', 'Knight    ', 'Knight    '],
+        ['重騎士', 'Guardian  ', 'Guardian  '],
+        ['上級聖騎士', 'HighPaladn', 'HighPaladn'],
+        ['聖騎士団長', 'PaladnLord', 'PaladnLord'],
+        ['聖騎士', 'LowPaladin', 'LowPaladin'],
+        ['見習い', 'Novice    ', 'Novice    '],
+        ['徒弟', 'Journeyman', 'Journeyman'],
+        ['一人前', 'Enchanter ', 'Enchanter '],
+        ['魔術兵士', 'Mage-Hero ', 'Mage-Hero '],
+        ['魔術闘士', 'Baron Mage', 'Baron Mage'],
+        ['魔術の英雄', 'Battlemage', 'Battlemage'],
+        ['魔男爵', 'WizardLord', 'WizardLord'],
+        ['戦闘魔術士', 'Battlemage', 'Battlemage'],
+        ['知識の守護者', 'WizardLord', 'WizardLord'],
+        ['混沌の英雄', 'Chaos Hero', 'Chaos Hero'],
+        ['混沌の男爵', 'ChaosBaron', 'ChaosBaron'],
+        ['混沌の公爵', 'Chaos Duke', 'Chaos Duke'],
+        ['混沌の王者', 'Chaos Lord', 'Chaos Lord'],
+        ['入門者', 'Initiate  ', 'Initiate  '],
+        ['弟子', 'Brother   ', 'Brother   '],
+        ['直弟子', 'Disciple  ', 'Disciple  '],
+        ['師範代', 'Immaculate', 'Immaculate'],
+        ['師範', 'Master    ', 'Master    '],
+        ['道場主', 'SoftMaster', 'SoftMaster'],
+        ['名人', 'HardMaster', 'HardMaster'],
+        ['大名人', 'FlowerMstr', 'FlowerMstr'],
+        ['拳聖', 'DragonMstr', 'DragonMstr'],
+        ['拳神', 'GrandMastr', 'GrandMastr'],
+        ['熟練士', 'Trainee   ', 'Trainee   '],
+        ['熟達士', 'Contempltr', 'Contempltr'],
+        ['黙想士', 'Mentalist ', 'Mentalist '],
+        ['心術士', 'Psychic   ', 'Psychic   '],
+        ['サイキック', 'Psionicist', 'Psionicist'],
+        ['サイオニック', 'Esper     ', 'Esper     '],
+        ['精神の支配者', 'Mindmaster', 'Mindmaster'],
+        ['プー太郎', 'Rambler   ', 'Rambler   '],
+        ['周遊旅行者', 'Sightseer ', 'Sightseer '],
+        ['遍歴者', 'Excursnist', 'Excursnist'],
+        ['旅行者', 'Peregrintr', 'Peregrintr'],
+        ['放浪者', 'Traveler  ', 'Traveler  '],
+        ['航海者', 'Journeyer ', 'Journeyer '],
+        ['探検家', 'Voyager   ', 'Voyager   '],
+        ['冒険家', 'Explorer  ', 'Explorer  '],
+        ['スペランカー', 'Spelunker ', 'Spelunker '],
+        ['これから', 'Yet       ', 'Yet       '],
+        ['いまいち', 'Lacks     ', 'Lacks     '],
+        ['まだまだ', 'Still more', 'Still more'],
+        ['ぼちぼち', 'So so     ', 'So so     '],
+        ['そこそこ', 'All right ', 'All right '],
+        ['まあまあ', 'Not bad   ', 'Not bad   '],
+        ['なかなか', 'Considerbl', 'Considerbl'],
+        ['いけいけ', 'Go go     ', 'Go go     '],
+        ['そうとう', 'Sizable   ', 'Sizable   '],
+        ['えらい', 'Great man ', 'Great man '],
+        ['イモリ使い', 'NewtMaster', 'NewtMaster'],
+        ['ヘビ使い', 'SnakMaster', 'SnakMaster'],
+        ['クモ使い', 'SpdrMaster', 'SpdrMaster'],
+        ['狼使い', 'WolfMaster', 'WolfMaster'],
+        ['トラ使い', 'TigrMaster', 'TigrMaster'],
+        ['甲虫使い', 'BetlMaster', 'BetlMaster'],
+        ['ヒドラ使い', 'HydrMaster', 'HydrMaster'],
+        ['ハウンド使い', 'HondMaster', 'HondMaster'],
+        ['ムーマク使い', 'MumkMaster', 'MumkMaster'],
+        ['ドラゴン使い', 'DrgnMaster', 'DrgnMaster'],
+        ['弩弓士', 'Bowman    ', 'Bowman    '],
+        ['領主', 'Lord      ', 'Lord      '],
+        ['無知なる者', 'Beginner  ', 'Beginner  '],
+        ['秘術師', 'Magician  ', 'Magician  '],
+        ['熟練者', 'Skilled   ', 'Skilled   '],
+        ['達人', 'Wizard    ', 'Wizard    '],
+        ['全てを知る者', 'Almighty  ', 'Almighty  '],
+        ['作曲家', 'Songsmith ', 'Songsmith '],
+        ['コンパニオン', 'Companion ', 'Companion '],
+        ['心の癒し手', 'Minstrel  ', 'Minstrel  '],
+        ['竪琴師', 'Harper    ', 'Harper    '],
+        ['伝承の紡ぎ手', 'Loreweaver', 'Loreweaver'],
+        ['詩神の申し子', 'Muse      ', 'Muse      '],
+        ['夢紡ぎ', 'Dreamweavr', 'Dreamweavr'],
+        ['剣聖', 'Swordmastr', 'Swordmastr'],
+        ['剣神', 'Sword God ', 'Sword God '],
+        ['バーサーカー', 'Berserker ', 'Berserker '],
+        ['怒りの公爵', 'RagePrince', 'RagePrince'],
+        ['怒りの王', 'Rage King ', 'Rage King '],
+        ['怒りの化身', 'God ofRage', 'God ofRage'],
+        ['銅を鍛えし者', 'CopperSmth', 'CopperSmth'],
+        ['鉄を鍛えし者', 'Iron Smith', 'Iron Smith'],
+        ['鋼を鍛えし者', 'SteelSmth ', 'SteelSmth '],
+        ['銀を鍛えし者', 'SilvrSmith', 'SilvrSmith'],
+        ['竜を鍛えし者', 'DragnSmith', 'DragnSmith'],
+        ['霊を鍛えし者', 'SpirtSmith', 'SpirtSmith'],
+        ['魔を鍛えし者', 'MagicSmith', 'MagicSmith'],
+        ['魂を鍛えし者', 'Soul Smith', 'Soul Smith'],
+        ['神を鍛えし者', 'God Smith ', 'God Smith '],
+        ['全を鍛えし者', 'AlmightySm', 'AlmightySm'],
+        ['鏡を見る人', 'MirorStarer', 'MirorStarer'],
+        ['鏡磨き', 'MirorClnr ', 'MirorClnr '],
+        ['鏡職人', 'MirorMakr ', 'MirorMakr '],
+        ['鏡術師', 'MirorMgcn ', 'MirorMgcn '],
+        ['鏡導師', 'MirrorGuru', 'MirrorGuru'],
+        ['鏡の賢者', 'MirorMage ', 'MirorMage '],
+        ['鏡の王', 'MirorKing ', 'MirorKing '],
+        ['鏡の皇帝', 'MirorEmpr ', 'MirorEmpr '],
+        ['鏡の化身', 'MirorAvtr ', 'MirorAvtr '],
+        ['ラフノール王', 'RuffnorKng', 'RuffnorKng'],
+        ['訓練生', 'Trainee   ', 'Trainee   '],
+        ['仕手', 'Myrmidon  ', 'Myrmidon  '],
+        ['熟達者', 'Knifer    ', 'Knifer    '],
+        ['短刀使い', 'Bladesman ', 'Bladesman '],
+        ['切り裂き', 'Hashishin ', 'Hashishin '],
+        ['凄腕', 'BlackDaggr', 'BlackDaggr'],
+        ['漆黒の刃', 'Shadwstrik', 'Shadwstrik'],
+        ['闇の一撃', 'Assassintr', 'Assassintr'],
+        ['暗殺者', 'Assassin  ', 'Assassin  '],
+        ['死の長き腕', 'Death Lord', 'Death Lord'],
+        ['修業中', 'Adept     ', 'Adept     '],
+        ['師匠', 'Lord      ', 'Lord      '],
+        ['超人', 'Demi      ', 'Demi      '],
+        ['伝説の', 'Legend ', 'Legend '],
+        ['地上', 'Town', 'Town(地上)'],
+        ['階', 'FL', 'FL(階)'],
+        ['普通', 'Norm', 'Norm(普通)'],
+        ['日中', 'Day ', 'Day(日中)'],
+        ['夜間', 'Nite', 'Nite(夜間)'],
+        ['朝', 'Morn', 'Morn(朝)'],
+        ['夕方', 'Eve ', 'Eve(夕方)'],
+        ['深夜', 'Mdnk', 'Mdnk(深夜)'],
+        ['新月', 'NewM', 'NewM(新月)'],
+        ['満月', 'FulM', 'FulM(満月)'],
+        ['半月', 'HafM', 'HafM(半月)'],
+        ['三日月', 'CrsM', 'CrsM(三日月)'],
+        ['＄', 'AU'],
+        ['満腹', 'Full'],
+        ['空腹', 'Hung'],
+        ['衰弱', 'Weak'],
+        ['朦朧', 'Stun'],
+        ['重傷', 'Cut '],
+        ['軽傷', 'LtCt'],
+        ['毒', 'Po'],
+        ['麻痺', 'Para'],
+        ['混乱', 'Conf'],
+        ['恐怖', 'Afra'],
+        ['盲目', 'Blnd'],
+        ['加速', 'Fast'],
+        ['減速', 'Slow'],
+        ['研究', 'Stud'],
+        ['守り', 'Prot'],
+        ['反射', 'Rflc'],
+        ['感知', 'Dtec'],
+        ['真実', 'True'],
+        ['無敵', 'Invl'],
+        ['変身', 'Poly'],
+        ['浮遊', 'Fly '],
+        ['壁抜け', 'Wrth'],
+        ['狂戦士', 'Bers'],
+        ['祝福', 'Bles'],
+        ['士気', 'Hero'],
+        ['石肌', 'Skin'],
+        ['透視', 'Tele'],
+        ['耐酸', 'Acid'],
+        ['耐電', 'Elec'],
+        ['耐火', 'Fire'],
+        ['耐冷', 'Cold'],
+        ['耐毒', 'Pois'],
+        ['耐性', 'Rest'],
+        ['探知', 'Srch'],
+        ['休養', 'Rest'],
+        ['危険', 'Dang'],
+        ['店主', 'Shopkeeper'],
+        ['買いますか', 'Buy?      '],
+        ['売りますか', 'Sell?     '],
+        ['商品を買う', 'Purchase Item'],
+        ['アイテムを売る', 'Sell Item    '],
+        ['持ち物', 'Inventory'],
+        ['装備品', 'Equipment'],
+        ['店頭の品物', 'Store Inventory '],
+        ['あなたの所持品', 'Your Inventory  '],
+        ['現在の所持金', 'Current Gold    '],
+        ['鑑定', 'Identify'],
+        ['価格', 'Price'],
+        ['重さ', 'Weight'],
+        ['質入れ', 'Pawn    '],
+        ['武器屋', 'Weaponsmith '],
+        ['防具屋', 'Armoury     '],
+        ['寺院', 'Temple      '],
+        ['錬金術の店', 'Alchemy Shop'],
+        ['魔法の店', 'Magic Shop  '],
+        ['雑貨屋', 'General Store'],
+        ['ブラック・マーケット', 'Black Market '],
+        ['我が家', 'Your Home   '],
+        ['博物館', 'Museum      '],
+        ['書店', 'Bookstore   '],
+        ['酒場', 'Tavern      '],
+        ['町役場', 'Town Hall   '],
+        ['(持ち物)', '(Inventory)'],
+        ['(装備品)', '(Equipment)'],
+        ['どのアイテムを使いますか？', 'Which item to use?    '],
+        ['どのアイテムを装備しますか？', 'Which item to wield?  '],
+        ['どのアイテムを外しますか？', 'Which item to take off?'],
+        ['どのアイテムを落としますか？', 'Which item to drop?    '],
+        ['どのアイテムを壊しますか？', 'Which item to destroy? '],
+        ['どの巻物を読みますか？', 'Which scroll to read? '],
+        ['どの薬を飲みますか？', 'Which potion to quaff?'],
+        ['どの杖を振りますか？', 'Which staff to use?   '],
+        ['どの魔法棒を使いますか？', 'Which wand to aim?    '],
+        ['どのロッドを使いますか？', 'Which rod to zap?     '],
+        ['どの呪文を唱えますか？', 'Which spell to cast?   '],
+        ['どの特技を使いますか？', 'Which power to use?    '],
+        ['どの本を読みますか？', 'Which book to browse? '],
+        ['どのアイテム', 'Which item? '],
+        ['どの巻物', 'Which scroll?'],
+        ['どの薬', 'Which potion?'],
+        ['どの魔法', 'Which spell? '],
+        ['どの呪文', 'Which prayer?'],
+        ['どの本', 'Which book?  '],
+        ['どの特技', 'Which skill? '],
+        ['どれを装備', 'Wield which? '],
+        ['どれを外す', 'Take off which?'],
+        ['どれを落とす', 'Drop which?   '],
+        ['どれを壊す', 'Destroy which? '],
+        ['どれを調べる', 'Examine which? '],
+        ['どの方向？', 'Which direction? '],
+        ['どの方向', 'Which dir? '],
+        ['対象を選択して下さい', 'Select target      '],
+        ['ターゲット:', 'Target: '],
+        ['距離:', 'Dist: '],
+        ['装備:', 'Equip:'],
+        ['矢筒:', 'Quiver:'],
+        ['呪文名', 'Spell Name   '],
+        ['成功率', 'Fail '],
+        ['MP消費', 'SP '],
+        ['特殊能力', 'Special Powers'],
+        ['突然変異', 'Mutations     '],
+        ['超能力', 'Mindcraft     '],
+        ['歌', 'Songs         '],
+        ['スペース:次ページ', 'Space: Next Page '],
+        ['スペースキーで次ページ', 'Space for next page '],
+        ['ESCで終了', 'ESC to exit'],
+        ['いらっしゃいませ。何をお探しですか？', 'Welcome. How may I serve you?       '],
+        ['いらっしゃいませ。', 'Welcome!            '],
+        ['何か買いますか？', 'Do you want to buy? '],
+        ['どれを売りますか？', 'What will you sell? '],
+        ['アイテムを調べる', 'Examine Item'],
+        ['持ち物を調べる', 'Examine Pack'],
+        ['店を出る', 'Exit Shop'],
+        ['はい', 'Yes '],
+        ['いいえ', 'No  '],
+        ['決定', 'Accept'],
+        ['取消', 'Cancel'],
+        ['戻る', 'Back'],
+        ['終了', 'Quit'],
+        ['やり直す', 'Restart '],
+        ['ヘルプ', 'Help'],
+        ['次', 'Next'],
+        ['変更', 'Change'],
+        ['-続く-', '-more-']
+    ];
+
+    const JP_TERM_TRANSLATIONS_INTERNAL = {
+        '女性': 'Female', '男性': 'Male',
+        '人間': 'Human', 'ハーフエルフ': 'Half-Elf', 'エルフ': 'Elf', 'ホビット': 'Hobbit', 'ノーム': 'Gnome',
+        'ドワーフ': 'Dwarf', 'ハーフオーク': 'Half-Orc', 'ハーフトロル': 'Half-Troll', 'ハーフトロール': 'Half-Troll',
+        'アンバライト': 'Amberite', 'ハイエルフ': 'High-Elf', '野蛮人': 'Barbarian', 'ハーフオーガ': 'Half-Ogre',
+        '半巨人': 'Half-Giant', '半タイタン': 'Half-Titan', 'サイクロプス': 'Cyclops', 'イーク': 'Yeek',
+        'クラッコン': 'Klackon', 'コボルド': 'Kobold', 'ニーベルング': 'Nibelung', 'ダークエルフ': 'Dark-Elf',
+        'ドラコニアン': 'Draconian', 'マインドフレア': 'Mindflayer', 'インプ': 'Imp', 'ゴーレム': 'Golem',
+        '骸骨': 'Skeleton', 'ゾンビ': 'Zombie', '吸血鬼': 'Vampire', '幽霊': 'Spectre', '妖精': 'Sprite',
+        '獣人': 'Beastman', 'エント': 'Ent', 'アルコン': 'Archon', 'バルログ': 'Balrog', 'ドゥナダン': 'Dúnadan',
+        '影フェアリー': 'Shadow-Fairy', 'クター': 'Kutar', 'アンドロイド': 'Android', 'マーフォーク': 'Merfolk',
+        '戦士': 'Warrior', 'メイジ': 'Mage', 'プリースト': 'Priest', '盗賊': 'Rogue', 'レンジャー': 'Ranger',
+        'パラディン': 'Paladin', '魔法戦士': 'Warrior-Mage', '混沌の戦士': 'Chaos-Warrior', '修行僧': 'Monk',
+        '超能力者': 'Mindcrafter', 'ハイ=メイジ': 'High-Mage', 'ハイメイジ': 'High-Mage', '観光客': 'Tourist',
+        'ものまね師': 'Imitator', '魔獣使い': 'Beastmaster', 'スペルマスター': 'Sorcerer', 'アーチャー': 'Archer',
+        '魔道具術師': 'Magic-Eater', '吟遊詩人': 'Bard', '赤魔道師': 'Red-Mage', '剣術家': 'Swordsman',
+        '練気術師': 'Ki-Master', '青魔道師': 'Blue-Mage', '騎兵': 'Cavalry', '狂戦士': 'Berserker',
+        '鍛冶師': 'Weaponsmith', '鏡使い': 'Mirror-Master', '忍者': 'Ninja', 'スナイパー': 'Sniper',
+        '元素使い': 'Elementalist',
+        'ふつう': 'Ordinary', 'ちからじまん': 'Strong', 'きれもの': 'Clever', 'しあわせもの': 'Lucky',
+        'すばしっこい': 'Nimble', 'いのちしらず': 'Fearless', 'コンバット': 'Combatant', 'なまけもの': 'Lazy',
+        'セクシーギャル': 'Sexy', 'がまんづよい': 'Patient', 'いかさま': 'Trickster', 'チャージマン': 'Chargeman',
+        '生命': 'Life', '仙術': 'Sorcery', '自然': 'Nature', 'カオス': 'Chaos', '暗黒': 'Death',
+        'トランプ': 'Trump', '秘術': 'Arcane', '匠': 'Craft', '悪魔': 'Daemon', '破邪': 'Crusade',
+        'ランダム': 'Random', '決定': 'Accept', 'やり直し': 'Reroll'
+    };
+
+    for (const [ja, en] of Object.entries(JP_TERM_TRANSLATIONS_INTERNAL)) {
+        const origW = visualWidth(ja);
+        const enW = visualWidth(en);
+        const padded = enW < origW ? en + ' '.repeat(origW - enW) : en;
+        const bi = (origW >= 4 && enW >= origW) ? `${en.trim()}(${ja})` : padded;
+        EXACT_ROW_TERMS.push([ja, padded, bi]);
+    }
+
+    // Sort descending by Japanese text length for greedy matching
+    EXACT_ROW_TERMS.sort((a, b) => b[0].length - a[0].length);
+
+    // Fast terminal row translation cache (LRU, max 1000 lines)
+    const termRowCache = new Map();
+    const MAX_TERM_CACHE = 1000;
+
+    function translateTerminalRow(rowText, attrs = '', mode = 'en', rowIndex = 0) {
+        if (!rowText || typeof rowText !== 'string' || mode === 'jp') {
+            return { text: rowText, attrs: attrs || '' };
+        }
+
+        // Fast check: Skip if no CJK characters are present
+        if (!/[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff01-\uff60]/.test(rowText)) {
+            return { text: rowText, attrs: attrs || '' };
+        }
+
+        const cacheKey = `${mode}:${rowText}`;
+        if (termRowCache.has(cacheKey)) {
+            const cached = termRowCache.get(cacheKey);
+            termRowCache.delete(cacheKey);
+            termRowCache.set(cacheKey, cached);
+            return cached;
+        }
+
+        const trimmed = rowText.trim();
+        let translatedText = null;
+
+        // 1. Direct engine message full-line match
+        if (DATA.engineMsgs && DATA.engineMsgs[trimmed]) {
+            const en = DATA.engineMsgs[trimmed];
+            const leadSpaces = rowText.match(/^\s*/)[0];
+            const trailSpaces = rowText.match(/\s*$/)[0];
+            if (mode === 'bilingual' && (leadSpaces.length + en.length + trimmed.length + 3 <= 78)) {
+                translatedText = leadSpaces + `${en} (${trimmed})` + trailSpaces;
+            } else {
+                translatedText = leadSpaces + en + trailSpaces;
+            }
+        } else if (DATA.monsterSpeech && DATA.monsterSpeech[trimmed]) {
+            const en = DATA.monsterSpeech[trimmed];
+            const leadSpaces = rowText.match(/^\s*/)[0];
+            const trailSpaces = rowText.match(/\s*$/)[0];
+            if (mode === 'bilingual' && (leadSpaces.length + en.length + trimmed.length + 3 <= 78)) {
+                translatedText = leadSpaces + `${en} (${trimmed})` + trailSpaces;
+            } else {
+                translatedText = leadSpaces + en + trailSpaces;
+            }
+        }
+
+        // 2. Option key-value line (e.g. "モンスターは失敗を学習する(*) : はい (smart_learn)")
+        if (!translatedText) {
+            const optMatch = rowText.match(/^(\s*)(.*?)\s*:\s*(はい|いいえ)(\s*\(.*?\))?(\s*)$/);
+            if (optMatch) {
+                const lead = optMatch[1];
+                const promptJa = optMatch[2].trim();
+                const valJa = optMatch[3];
+                const rawOptVar = optMatch[4] ? optMatch[4].trim() : '';
+                const cleanOptVar = rawOptVar.replace(/^\(|\)$/g, '');
+
+                let promptEn = (DATA.engineMsgs && DATA.engineMsgs[promptJa]) || promptJa;
+                if (promptEn === promptJa) {
+                    for (const [ja, en] of EXACT_ROW_TERMS) {
+                        if (promptEn.includes(ja)) {
+                            promptEn = promptEn.split(ja).join(en.trim());
+                        }
+                    }
+                }
+
+                let valEn = valJa === 'はい' ? 'Yes' : 'No';
+                if (mode === 'bilingual') {
+                    valEn = valJa === 'はい' ? 'Yes(はい)' : 'No(いいえ)';
+                }
+
+                let leftPart = `${lead}${promptEn}`;
+                if (leftPart.length < 47) leftPart = leftPart.padEnd(47, ' ');
+                let valPart = `: ${valEn}`;
+                if (cleanOptVar) {
+                    if (valPart.length < 9) valPart = valPart.padEnd(9, ' ');
+                    translatedText = `${leftPart} ${valPart} (${cleanOptVar})`;
+                } else {
+                    translatedText = `${leftPart} ${valPart}`;
+                }
+            }
+        }
+
+        // 3. Token-protected substring replacement for tables, sidebar stats, status flags, and prompts
+        if (!translatedText) {
+            let replaced = rowText;
+            const tokens = [];
+
+            for (const item of EXACT_ROW_TERMS) {
+                const ja = item[0];
+                if (replaced.includes(ja)) {
+                    const en = item[1];
+                    const bi = item[2] || en;
+                    tokens.push({ en, bi });
+                    replaced = replaced.split(ja).join(`\uE000${tokens.length - 1}\uE001`);
+                }
+            }
+
+            // Monsters & Items
+            if (DATA.monsters) {
+                for (const [ja, en] of Object.entries(DATA.monsters)) {
+                    if (ja.length >= 2 && replaced.includes(ja)) {
+                        tokens.push({ en, bi: mode === 'bilingual' ? `${en}(${ja})` : en });
+                        replaced = replaced.split(ja).join(`\uE000${tokens.length - 1}\uE001`);
+                    }
+                }
+            }
+            if (DATA.items) {
+                for (const [ja, en] of Object.entries(DATA.items)) {
+                    if (ja.length >= 2 && replaced.includes(ja)) {
+                        tokens.push({ en, bi: mode === 'bilingual' ? `${en}(${ja})` : en });
+                        replaced = replaced.split(ja).join(`\uE000${tokens.length - 1}\uE001`);
+                    }
+                }
+            }
+
+            // Second pass: Inject translated tokens safely with zero recursion
+            for (let i = 0; i < tokens.length; i++) {
+                const ph = `\uE000${i}\uE001`;
+                const rep = mode === 'bilingual' ? tokens[i].bi : tokens[i].en;
+                replaced = replaced.split(ph).join(rep);
+            }
+
+            translatedText = replaced;
+        }
+
+        // Color attribute synthesis for 80-column vector canvas
+        let outAttrs = attrs || '';
+        if (attrs && translatedText.length !== rowText.length) {
+            const origCols = rowText.length;
+            const newCols = translatedText.length;
+            if (origCols > 0 && attrs.length >= origCols * 2) {
+                let synth = '';
+                for (let c = 0; c < newCols; c++) {
+                    const mapCol = Math.min(c, origCols - 1);
+                    synth += attrs.substring(mapCol * 2, mapCol * 2 + 2);
+                }
+                outAttrs = synth;
+            }
+        }
+
+        const res = { text: translatedText, attrs: outAttrs };
+        if (termRowCache.size >= MAX_TERM_CACHE) {
+            const firstKey = termRowCache.keys().next().value;
+            termRowCache.delete(firstKey);
+        }
+        termRowCache.set(cacheKey, res);
+
+        return res;
+    }
+
     const HENG_DICT = {
         data: DATA,
         getLocalizedMonsterName,
-        localizeGameMessage
+        localizeGameMessage,
+        translateTerminalRow
     };
 
     if (typeof module !== 'undefined' && module.exports) {
@@ -136,5 +797,6 @@
         root.HENG_DICT = HENG_DICT;
         root.getLocalizedMonsterName = getLocalizedMonsterName;
         root.localizeGameMessage = localizeGameMessage;
+        root.translateTerminalRow = translateTerminalRow;
     }
 })(typeof window !== 'undefined' ? window : globalThis);
