@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
 Branch: fix/award-pass   Updated: 2026-10-11T15:35-04:00
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first), then docs/plan/master_completion_plan.md
-Current task: G-A (API-key history scan)   Next command: git log --all -p -S "AIza" --oneline
+Current task: WS4.3 Hardening Server CORS & LLM Request Relays
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. The line numbers were taken before the WS1 edits; after WS1.2, lines below ~2080 shift by about +19. Always re-locate with `Select-String`.
 
@@ -14,8 +14,11 @@ Current task: G-A (API-key history scan)   Next command: git log --all -p -S "AI
 - [x] WS1.1 E1 `const line` → `let line` (server/src/server.js stdout loop)
 - [x] WS1.2 Relay guard `sanitizeEngineCommand` + ENGINE_VERBS (gate: tools/test_relay_guard.js PASS)
 - [x] WS1.3+ remaining WS1 items (CI boot test etc.; see master plan)
-- [ ] G-A API-key history scan (do FIRST in WS4)
-- [ ] WS4.* security (CORS, LLM proxy, recording upload, WS maxPayload/Origin, CSP, info leaks, ownership)
+- [x] G-A API-key history scan (done in WS4)
+- [x] WS4.1 Sanitize UI Event Streams (innerHTML audit)
+- [x] WS4.2 Remove Bring-Your-Own-Key (BYOK) proxy handlers
+- [ ] WS4.3 Hardening Server CORS & LLM Request Relays
+- [ ] WS4.4 Ownership Tokens & Action Authorization
 - [ ] WS2 menus / action chooser
 - [ ] WS6 realm keys (probe first)
 - [ ] WS3 Hengband language
