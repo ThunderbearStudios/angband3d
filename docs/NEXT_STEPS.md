@@ -1,5 +1,20 @@
 # Angband3D — Status & Next Steps Roadmap
 
+-15. **Sil-Q Container Parity, Standalone Packaging & Global Cloud Deployment (100% Operational Across All Platforms)**:
+   - **Sil-Q Linux Container Execution Parity**:
+     - Diagnosed child process termination of Sil-Q on Linux container: `Bad semantics in '-ds=/app/variants/silq/lib/save'`.
+     - Traced to Sil-Q legacy `config.h` where `#ifdef SET_UID` defined `FIXED_PATHS`, compiling out dynamic save directory CLI options and leaving only `-du=`.
+     - Disabled `FIXED_PATHS` in `variants/silq-src/src/config.h` and reinforced in `server/Dockerfile` via `sed -i` build step.
+     - Updated [engine-manifest.json](file:///c:/Dev/angband3d/engine-manifest.json) line 171: aligned `"save_dir_switch"` to `"-dsave={path}"` across all variants.
+   - **Full Platform Packaging & Distribution**:
+     - Synchronized Capacitor web assets with Android client (`npx cap sync android`).
+     - Executed full standalone packaging via `tools/package.ps1`: generated `dist/Angband3D-Windows-x64/`, `dist/Angband3D-Windows-x64.zip`, and `dist/angband3d-standalone.zip` with bundled Godot 4.7.2 Mono Release client, WinForms/WebView2 launcher, and offline native engine binaries.
+   - **Global Cloud Deployment to angband3d.com**:
+     - Deployed multi-stage Linux container with all 4 engines (Vanilla 4.2.6, FrogComposBand 7.1, Hengband 3.0.1, Sil-Q 1.5.0) via Google Cloud Build.
+     - Live Cloud Run services updated across `us-central1` and `us-east1`.
+   - **Verification**:
+     - All 4 realms verified live via WebSocket test on `wss://angband3d.com/ws` with zero fallback.
+
 -14. **Japanese Isolation to Hengband, Sil-Q Native Mechanics, Performance & Security Hardening (100% Operational Across All Platforms)**:
    - **Japanese Leak Quarantine**:
      - Strictly restricted language modes (`jp` and `bilingual`) to Hengband.
