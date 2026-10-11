@@ -1,0 +1,7 @@
+{
+  "fast": ["test_relay_guard.js"],
+  "e2e": ["verify_cross_realm_menus.js"],
+  "cdp": [],
+  "cloud": [],
+  "legacy": []
+}
