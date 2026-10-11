@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
 Branch: fix/award-pass   Updated: 2026-10-11T15:35-04:00
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first), then docs/plan/master_completion_plan.md
-Current task: WS1.3   Next command: node tools/run_tests.js --tier fast
+Current task: G-A (API-key history scan)   Next command: git log --all -p -S "AIza" --oneline
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. The line numbers were taken before the WS1 edits; after WS1.2, lines below ~2080 shift by about +19. Always re-locate with `Select-String`.
 
@@ -13,7 +13,7 @@ Current task: WS1.3   Next command: node tools/run_tests.js --tier fast
 - [ ] WS0.5 Baselines (EXECUTOR §7): screenshots + current pass/fail of existing tests
 - [x] WS1.1 E1 `const line` → `let line` (server/src/server.js stdout loop)
 - [x] WS1.2 Relay guard `sanitizeEngineCommand` + ENGINE_VERBS (gate: tools/test_relay_guard.js PASS)
-- [ ] WS1.3+ remaining WS1 items (CI boot test etc.; see master plan)
+- [x] WS1.3+ remaining WS1 items (CI boot test etc.; see master plan)
 - [ ] G-A API-key history scan (do FIRST in WS4)
 - [ ] WS4.* security (CORS, LLM proxy, recording upload, WS maxPayload/Origin, CSP, info leaks, ownership)
 - [ ] WS2 menus / action chooser
@@ -36,5 +36,5 @@ Current task: WS1.3   Next command: node tools/run_tests.js --tier fast
 - not yet captured (WS0.5)
 
 ## Last gate results
-- fast tier: PASS (test_relay_guard.js) | e2e: not run | smoke: not run | dotnet: not run
-- Stale server may still be listening on :8080. Kill it before e2e (EXECUTOR L13).
+- fast tier: PASS | e2e: PASS | smoke: 11/11 | dotnet: PASS
+- Stale server killed, tests passing.
