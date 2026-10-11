@@ -740,6 +740,26 @@ function readSaveMetadata(filePath) {
 }
 
 // HTTP Server
+// --- Origin policy (WS4.3, E17/E22) ---------------------------------------
+// Same-host origins are always allowed. Capacitor/Android WebView origins are allowed by
+// default so the APK keeps working. Extra origins: ALLOWED_ORIGINS="https://a.com,https://b.com".
+// A missing Origin header (curl, same-origin navigation, native clients) is allowed; CORS is a
+// browser protection, and the money/delete endpoints get their own guards (rate limit, ownership).
+const EXTRA_ALLOWED_ORIGINS = new Set(
+    ['capacitor://localhost', 'https://localhost', 'http://localhost', 'ionic://localhost']
+        .concat((process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean))
+);
+function isAllowedOrigin(origin, host) {
+    if (!origin) return true;
+    try { if (new URL(origin).host === host) return true; } catch (_) { return false; }
+    return EXTRA_ALLOWED_ORIGINS.has(origin);
+}
+// Loopback check for dev-only endpoints (D17). Ignores X-Forwarded-For on purpose.
+function isLoopbackRequest(req) {
+    const a = (req.socket && req.socket.remoteAddress) || '';
+    return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
+}
+
 const server = http.createServer((req, res) => {
     const urlObj = new URL(req.url, `http://${req.headers.host}`);
     const pathname = urlObj.pathname;
@@ -756,10 +776,14 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // CORS headers for web client interop
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // CORS: echo the Origin only when allowed (never '*'; E17). Vary keeps caches honest.
+    const reqOrigin = req.headers.origin;
+    res.setHeader('Vary', 'Origin');
+    if (reqOrigin && isAllowedOrigin(reqOrigin, host)) {
+        res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, x-goog-api-key, X-Goog-Api-Key, x-api-key, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, X-Recording-Name, X-Owner-Token');
     res.setHeader('Access-Control-Expose-Headers', 'X-TTS-Engine, X-TTS-Cache, X-TTS-Fallback-Reason, Content-Type, Content-Length');
 
     // Industry-Standard Security Headers (Eliminates browser security warnings & MIME confusion)
@@ -1538,6 +1562,12 @@ const server = http.createServer((req, res) => {
 
     // REST: Upload Gameplay Recording
     if ((pathname === '/api/recordings/upload' || pathname === '/api/demo/upload') && req.method === 'POST') {
+        // D17: dev-only. Requires ENABLE_RECORDING_UPLOAD=1 AND a loopback client (E19).
+        if (process.env.ENABLE_RECORDING_UPLOAD !== '1' || !isLoopbackRequest(req)) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Recording upload disabled' }));
+            return;
+        }
         const headerName = req.headers['x-recording-name'] || 'raw_gameplay.webm';
         const cleanName = sanitizeFilename(headerName);
         const recExt = path.extname(cleanName).toLowerCase();
@@ -1872,11 +1902,18 @@ const server = http.createServer((req, res) => {
 </html>`);
 });
 
-// WebSocket Server attached to HTTP server
-const wss = new WebSocketServer({ noServer: true });
+// WebSocket Server attached to HTTP server.
+// maxPayload: client messages are tiny ("key left", JSON ping); 64 KB is generous (E22).
+const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 
 server.on('upgrade', (request, socket, head) => {
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
+    // Cross-site WebSocket hijacking guard (E22): browsers always send Origin on WS upgrades.
+    if (!isAllowedOrigin(request.headers.origin, request.headers.host || '')) {
+        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+        socket.destroy();
+        return;
+    }
     if (urlObj.pathname === '/ws') {
         wss.handleUpgrade(request, socket, head, ws => {
             wss.emit('connection', ws, request);
