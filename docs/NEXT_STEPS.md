@@ -11,9 +11,12 @@
      - Executed full standalone packaging via `tools/package.ps1`: generated `dist/Angband3D-Windows-x64/`, `dist/Angband3D-Windows-x64.zip`, and `dist/angband3d-standalone.zip` with bundled Godot 4.7.2 Mono Release client, WinForms/WebView2 launcher, and offline native engine binaries.
    - **Global Cloud Deployment to angband3d.com**:
      - Deployed multi-stage Linux container with all 4 engines (Vanilla 4.2.6, FrogComposBand 7.1, Hengband 3.0.1, Sil-Q 1.5.0) via Google Cloud Build.
-     - Live Cloud Run services updated across `us-central1` and `us-east1`.
+     - Live Cloud Run services updated across `us-central1` (`angband3d-cloud`, `angband3d-web`) and `us-east1` (`angband3d-cloud`).
+     - Hardened server `user` parameter with defensive 28-character truncation to prevent engine player name buffer overflows (`char player_name[32]`) in upstream C code.
    - **Verification**:
-     - All 4 realms verified live via WebSocket test on `wss://angband3d.com/ws` with zero fallback.
+     - All 4 realms (`angband`, `silq`, `frogcomposband`, `hengband`) verified live end-to-end via WebSocket test on `wss://angband3d.com/ws` with zero fallback (`isFallback: false`) and instant initial frame generation.
+     - HTTPS endpoints verified live on `https://angband3d.com/api/status` (online, v3.0.0) and standalone downloads verified live via HTTP 200 on `https://angband3d.com/download/Angband3D-Windows-x64.zip` (748MB) and `https://angband3d.com/download/Angband3D-Android.apk` (312MB).
+     - Smoke tests (11/11) and Godot C# client build pass with zero warnings/errors.
 
 -14. **Japanese Isolation to Hengband, Sil-Q Native Mechanics, Performance & Security Hardening (100% Operational Across All Platforms)**:
    - **Japanese Leak Quarantine**:
