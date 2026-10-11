@@ -16,7 +16,22 @@ const { WebSocketServer } = require('ws');
 const zlib = require('zlib');
 const crypto = require('crypto');
 const { guardMutation } = require('./http-guard');
+const { createLimiter, clientIp } = require('./rate-limit');
 if (!globalThis.crypto) globalThis.crypto = crypto;
+
+const llmLimiter = createLimiter({ perMinute: +process.env.LLM_RPM || 20, perDay: +process.env.LLM_RPD || 500 });
+const ttsLimiter = createLimiter({ perMinute: +process.env.TTS_RPM || 30, perDay: +process.env.TTS_RPD || 500 });
+
+const ALLOWED_MODELS = [
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite'
+];
 
 let MsEdgeTTS, OUTPUT_FORMAT;
 try {
@@ -666,6 +681,33 @@ function resolveSavefileName(requestedSave, realmId = 'angband') {
     return clean;
 }
 
+// --- Ownership Token System ---
+const sha = t => crypto.createHash('sha256').update(String(t)).digest('hex');
+function getOwnerTokenPath(savePath) {
+    return savePath + '.owner.json';
+}
+
+function verifyOwnerToken(savePath, requestToken) {
+    const ownerPath = getOwnerTokenPath(savePath);
+    if (!fs.existsSync(ownerPath)) return true; // Legacy save: trust on first use
+    try {
+        const data = JSON.parse(fs.readFileSync(ownerPath, 'utf8'));
+        if (!data || !data.hash) return true;
+        return data.hash === sha(requestToken || '');
+    } catch (e) {
+        return false;
+    }
+}
+
+function createOwnerToken(savePath) {
+    const token = crypto.randomBytes(16).toString('hex');
+    fs.writeFileSync(getOwnerTokenPath(savePath), JSON.stringify({
+        hash: sha(token),
+        createdAt: Date.now()
+    }), 'utf8');
+    return token;
+}
+
 /**
  * Parses Angband 4.2.6 SaveVNLA header from binary save file.
  * Structure:
@@ -1026,6 +1068,7 @@ const server = http.createServer((req, res) => {
             hasKey: !!apiKey,
             hasServerKey: !!apiKey,
             defaultModel: 'gemini-3.8-flash',
+            models: ALLOWED_MODELS,
             provider: apiKey ? 'gemini' : 'offline'
         }));
         return;
@@ -1033,10 +1076,21 @@ const server = http.createServer((req, res) => {
 
     // REST: Protected LLM Generator Proxy (Protects API key entirely on backend; zero client leakage)
     if (pathname === '/api/llm/generate' && req.method === 'POST') {
+        const wait = llmLimiter(clientIp(req));
+        if (wait > 0) {
+            res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
+            res.end(JSON.stringify({ error: { message: 'Rate limit' } }));
+            return;
+        }
+
         let rawBody = '';
         req.on('data', chunk => {
             rawBody += chunk;
-            if (rawBody.length > 1000000) {
+            if (rawBody.length > 65536) {
+                if (!res.headersSent) {
+                    res.writeHead(413, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: { message: 'Payload too large' } }));
+                }
                 req.destroy();
             }
         });
@@ -1052,24 +1106,44 @@ const server = http.createServer((req, res) => {
             }
 
             const model = parsed.model || 'gemini-3.8-flash';
-            let payload = parsed.payload;
-            if (!payload) {
-                const systemPrompt = parsed.systemPrompt || '';
-                const userPrompt = parsed.userPrompt || '';
-                const generationConfig = parsed.generationConfig || { maxOutputTokens: 350 };
-                const isGemini3 = model.includes('gemini-3') || model.includes('3.8') || model.includes('3.7') || model.includes('3.6') || model.includes('3.5') || model.includes('3.1');
-                if (isGemini3 && !generationConfig.thinkingConfig) {
-                    generationConfig.thinkingConfig = { thinkingLevel: 'LOW' };
-                }
-                payload = {
-                    systemInstruction: { parts: [{ text: systemPrompt }] },
-                    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-                    generationConfig
-                };
+            if (!ALLOWED_MODELS.includes(model)) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: { message: 'Disallowed model' } }));
+                return;
             }
+
+            let systemPrompt = '';
+            let userPrompt = '';
+            if (parsed.payload) {
+                try {
+                    systemPrompt = parsed.payload.systemInstruction.parts[0].text || '';
+                    userPrompt = parsed.payload.contents[0].parts[0].text || '';
+                } catch(e) {}
+            } else {
+                systemPrompt = parsed.systemPrompt || '';
+                userPrompt = parsed.userPrompt || '';
+            }
+
+            if (systemPrompt.length > 4000) systemPrompt = systemPrompt.substring(0, 4000);
+            if (userPrompt.length > 8000) userPrompt = userPrompt.substring(0, 8000);
+
+            const generationConfig = { maxOutputTokens: 350 };
+            const isGemini3 = model.includes('gemini-3');
+            if (isGemini3) {
+                generationConfig.thinkingConfig = { thinkingLevel: 'LOW' };
+            } else {
+                generationConfig.temperature = 0.7;
+            }
+
+            const payload = {
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+                generationConfig
+            };
 
             // Key resolution: client header override allowed, else server environment
             const apiKey = req.headers['x-goog-api-key'] || req.headers['x-api-key'] || process.env.GEMINI_API_KEY || '';
+
             if (!apiKey) {
                 res.writeHead(401, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: { message: 'No Gemini API key configured on server or request.' } }));
@@ -1096,7 +1170,17 @@ const server = http.createServer((req, res) => {
                         'Content-Type': 'application/json',
                         'Cache-Control': 'no-cache, no-store, must-revalidate'
                     });
-                    res.end(redactSecret(respBody, apiKey));
+                    if (upstreamRes.statusCode === 200) {
+                        try {
+                            const rb = JSON.parse(respBody);
+                            const text = rb.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                            res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }));
+                        } catch(e) {
+                            res.end(JSON.stringify({ error: { message: 'Upstream error parsing response' } }));
+                        }
+                    } else {
+                        res.end(JSON.stringify({ error: { message: `Upstream error ${upstreamRes.statusCode}` } }));
+                    }
                 });
             });
 
@@ -1123,6 +1207,13 @@ const server = http.createServer((req, res) => {
 
     // REST: Dual-Engine Neural Text-To-Speech (/api/tts?text=...&role=...&engine=edge|gemini&emotion=...)
     if (pathname === '/api/tts' && (req.method === 'GET' || req.method === 'HEAD')) {
+        const wait = ttsLimiter(clientIp(req));
+        if (wait > 0) {
+            res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
+            res.end(JSON.stringify({ error: { message: 'Rate limit' } }));
+            return;
+        }
+
         if (req.method === 'HEAD') {
             res.writeHead(200, { 'Content-Type': 'audio/mpeg' });
             res.end();
@@ -1170,6 +1261,24 @@ const server = http.createServer((req, res) => {
         const reqGender = (urlObj.searchParams.get('gender') || '').toLowerCase().trim();
         const reqPitch = (urlObj.searchParams.get('pitch') || '').trim();
         const reqRate = (urlObj.searchParams.get('rate') || '').trim();
+
+        if (reqPitch && !/^[+-]?\d{1,3}(%|Hz)?$/.test(reqPitch)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' }); res.end('{"error":"Invalid pitch"}'); return;
+        }
+        if (reqRate && !/^[+-]?\d{1,3}(%|Hz)?$/.test(reqRate)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' }); res.end('{"error":"Invalid rate"}'); return;
+        }
+
+        const tagRegex = /^[\p{L}\p{N} ,.'-]{0,120}$/u;
+        if (emotion && !tagRegex.test(emotion)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' }); res.end('{"error":"Invalid emotion"}'); return;
+        }
+        if (geminiTag && !tagRegex.test(geminiTag)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' }); res.end('{"error":"Invalid gemini_tag"}'); return;
+        }
+        if (directorNote && !tagRegex.test(directorNote)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' }); res.end('{"error":"Invalid director_note"}'); return;
+        }
 
         // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO ---
         if (requestedEngine === 'gemini') {
@@ -1230,7 +1339,7 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            console.log(`[TTS] Gemini Native Request: voice=${geminiVoice}, role=${role}, emotion=${emotion || 'calm'}, text="${text.substring(0, 50)}..."`);
+            console.log(`[TTS] Gemini Native Request: voice=${geminiVoice}, role=${role}, emotion=${emotion || 'calm'}`);
             const synthPromise = synthesizeGeminiTTS({
                 text,
                 voice: geminiVoice,
@@ -1550,6 +1659,16 @@ const server = http.createServer((req, res) => {
             }
 
             const destPath = path.join(SAVE_DIR, targetName);
+            if (fs.existsSync(destPath)) {
+                const reqToken = req.headers['x-owner-token'] || '';
+                if (!verifyOwnerToken(destPath, reqToken)) {
+                    fs.unlinkSync(tempFile);
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Forbidden: invalid owner token for existing character' }));
+                    return;
+                }
+            }
+
             fs.renameSync(tempFile, destPath);
             invalidateSavesCache();
 
@@ -1634,8 +1753,16 @@ const server = http.createServer((req, res) => {
             }
         }
         if (savePath) {
+            const reqToken = req.headers['x-owner-token'] || '';
+            if (!verifyOwnerToken(savePath, reqToken)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Forbidden: invalid owner token for existing character' }));
+                return;
+            }
             try {
                 fs.unlinkSync(savePath);
+                const ownerPath = getOwnerTokenPath(savePath);
+                if (fs.existsSync(ownerPath)) fs.unlinkSync(ownerPath);
                 invalidateSavesCache();
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ status: 'deleted', filename: saveName, realm: queryRealm }));
@@ -2219,6 +2346,28 @@ function spawnGameSession(ws, request) {
     const resolvedSave = rawSave ? resolveSavefileName(rawSave, realm) : null;
     const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
 
+    const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
+    const targetSlot = save || user || 'Adventurer';
+    const savePath = path.join(engineInfo.saveDir || SAVE_DIR, targetSlot);
+
+    let ownerToken = undefined;
+    const reqToken = urlObj.searchParams.get('owner') || '';
+
+    // If we're creating a new character over an existing one, check ownership
+    if (isNew && fs.existsSync(savePath)) {
+        if (!verifyOwnerToken(savePath, reqToken)) {
+            ws.send(JSON.stringify({ t: 'error', message: 'Forbidden: invalid owner token for existing character' }));
+            ws.send(JSON.stringify({ t: 'bye', detail: 'Invalid owner token' }));
+            ws.close();
+            return;
+        }
+    }
+
+    // Generate token if it's a new character, or if it's a legacy save we are claiming (TOFU)
+    if (isNew || !fs.existsSync(getOwnerTokenPath(savePath))) {
+        ownerToken = createOwnerToken(savePath);
+    }
+
     const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
     ws.send(JSON.stringify({
         t: 'hello',
@@ -2226,10 +2375,9 @@ function spawnGameSession(ws, request) {
         version: '1.0.0',
         realm,
         engineName: engineInfo.name || engineInfo.targetName,
-        isFallback: false
+        isFallback: false,
+        ownerToken: ownerToken
     }));
-
-    const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
 
     const frontendSwitch = engineInfo.cli?.frontend_switch || '-mbridge';
     const args = [frontendSwitch];
@@ -2253,7 +2401,6 @@ function spawnGameSession(ws, request) {
 
     // If starting a fresh character, purge any stale panic save files so the engine starts cleanly without prompts
     if (isNew) {
-        const targetSlot = save || user || 'Adventurer';
         const panicDirs = [
             path.join(engineInfo.saveDir || SAVE_DIR, 'panic'),
             path.join(engineDir, 'lib/user/panic'),

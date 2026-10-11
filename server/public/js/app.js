@@ -1510,11 +1510,13 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             if (statusEl) statusEl.textContent = 'Uploading to realm...';
+            const ownerToken = localStorage.getItem(`angband3d_owner_${cleanName}`) || '';
             const res = await fetch('/api/saves/upload', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/octet-stream',
-                    'X-Character-Name': cleanName
+                    'X-Character-Name': cleanName,
+                    'X-Owner-Token': ownerToken
                 },
                 body: buf
             });
@@ -1624,9 +1626,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
         try {
             const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
-            const res = await fetch(`/api/saves/${encodeURIComponent(target.filename)}?realm=${encodeURIComponent(realmParam)}`, { method: 'DELETE' });
+            const ownerToken = localStorage.getItem(`angband3d_owner_${target.filename}`) || '';
+            const res = await fetch(`/api/saves/${encodeURIComponent(target.filename)}?realm=${encodeURIComponent(realmParam)}`, { 
+                method: 'DELETE',
+                headers: {
+                    'X-Owner-Token': ownerToken
+                }
+            });
             if (res.ok) {
                 if (audio) audio.playMenuNav();
+                // Also clean up local token
+                localStorage.removeItem(`angband3d_owner_${target.filename}`);
                 await fetchAndRenderSaves();
                 checkSaves();
             } else {

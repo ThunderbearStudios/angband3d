@@ -123,6 +123,7 @@ ENV SAVE_DIR=/data/save
 ENV DIST_DIR=/app/dist
 ENV WEB_DIR=/app/public
 ENV NODE_ENV=production
+ENV TRUST_PROXY=1
 
 EXPOSE 8080
 

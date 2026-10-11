@@ -276,3 +276,7 @@ The cloud daemon also exposes REST endpoints alongside the WebSocket gateway:
 
 New fields may be added to any object within protocol version 1. Clients must
 ignore unknown fields. Removing or repurposing a field requires a version bump.
+
+ # #   S e r v e r   E n v i r o n m e n t   V a r i a b l e s 
+ -   " T R U S T _ P R O X Y " :   s e t   t o   ' 1 '   w h e n   d e p l o y i n g   b e h i n d   a   t r u s t e d   r e v e r s e   p r o x y   ( l i k e   G o o g l e   C l o u d   R u n )   t o   c o r r e c t l y   p a r s e   " x - f o r w a r d e d - f o r "   h e a d e r s   f o r   r a t e   l i m i t i n g .  
+ 

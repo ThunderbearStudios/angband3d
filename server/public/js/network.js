@@ -112,6 +112,15 @@ class GameNetwork {
                 wsUrl += `&lang=${encodeURIComponent(langMode)}`;
             }
         }
+
+        try {
+            const targetSlot = saveFile || charName || 'Adventurer';
+            const ownerToken = localStorage.getItem(`angband3d_owner_${targetSlot}`);
+            if (ownerToken) {
+                wsUrl += `&owner=${encodeURIComponent(ownerToken)}`;
+            }
+        } catch (_) {}
+
         if (this.sessionId && !isNew) {
             wsUrl += `&session=${encodeURIComponent(this.sessionId)}`;
         }
@@ -175,6 +184,12 @@ class GameNetwork {
                             if (this.currentSave) {
                                 localStorage.setItem('angband3d_session_save', this.currentSave);
                             }
+                        } catch (_) {}
+                    }
+                    if (msg.ownerToken) {
+                        try {
+                            const targetSlot = this.currentSave || this.currentChar || 'Adventurer';
+                            localStorage.setItem(`angband3d_owner_${targetSlot}`, msg.ownerToken);
                         } catch (_) {}
                     }
                     // CRITICAL: Once the engine session is initialized, subsequent reconnects must NOT send &new=1!
