@@ -11,7 +11,7 @@ let WebSocket;
 try { WebSocket = require('ws'); } catch (_) { WebSocket = require('../server/node_modules/ws'); }
 const assert = require('assert');
 
-const SERVER_URL = 'ws://localhost:8080/ws';
+const SERVER_URL = 'ws://127.0.0.1:8080/ws';
 
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
