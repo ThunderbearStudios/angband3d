@@ -2079,6 +2079,23 @@ function attachWebSocketToSession(session, ws) {
     let cmdWindowStart = Date.now();
     const MAX_CMDS_PER_SEC = 60; // Max 60 inputs/sec (burst tolerance, guards against spam bots and buffer bloat)
 
+    // Relay guard (WS1.2). Exactly one bridge command per WS message, bounded, allowlisted.
+    // Verbs derived from client senders (network.js sendKey/sendCommand, app.js, input.js,
+    // local_bridge.js) AND bridge dispatchers: key <spec> | keys <seq> | frame | map | save | ping.
+    // 'quit' stays out on purpose: the JSON {t:'quit'} path saves gracefully first.
+    // LESSON L1: never shrink this list without grepping every sender ('save' was nearly dropped once).
+    const ENGINE_VERBS = new Set(['key', 'keys', 'frame', 'map', 'save', 'ping']);
+    const sanitizeEngineCommand = (raw) => {
+        if (typeof raw !== 'string') return null;
+        const cmd = raw.trim();
+        if (!cmd || cmd.length > 64 || /[\r\n\0]/.test(cmd)) return null;
+        const sp = cmd.indexOf(' ');
+        const verb = sp === -1 ? cmd : cmd.slice(0, sp);
+        if (!ENGINE_VERBS.has(verb)) return null;
+        if (verb === 'keys' && cmd.length > 5 + 16) return null; // client only sends "keys .<dir>"
+        return cmd;
+    };
+
     ws.on('message', message => {
         session.lastActivityTime = Date.now();
         const str = message.toString();
@@ -2112,8 +2129,10 @@ function attachWebSocketToSession(session, ws) {
         }
 
         // Client sends command line e.g. "key left" or "frame"
+        const safe = sanitizeEngineCommand(str);
+        if (!safe) return; // silently drop: never forward unknown, JSON, or multi-line input to engine stdin
         if (session.child && session.child.stdin && session.child.stdin.writable) {
-            session.child.stdin.write(str.trim() + '\n');
+            session.child.stdin.write(safe + '\n');
         }
     });
 
@@ -2281,7 +2300,7 @@ function spawnGameSession(ws, request) {
         lineBuffer += stdoutDecoder.decode(chunk, { stream: true });
         let newlineIdx;
         while ((newlineIdx = lineBuffer.indexOf('\n')) !== -1) {
-            const line = lineBuffer.substring(0, newlineIdx).trim();
+            let line = lineBuffer.substring(0, newlineIdx).trim(); // let: realm tag is spliced in below (E1 fix)
             lineBuffer = lineBuffer.substring(newlineIdx + 1);
             if (line.length > 0) {
                 if (line.startsWith('{"t":"frame"')) {

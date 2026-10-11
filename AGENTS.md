@@ -3,7 +3,7 @@
 ## 1. Zero-Turn Orientation Protocol (Crash Recovery & Context Resumption)
 If starting a new session or recovering from a crash/disconnect:
 1. Run `git status` to see unstaged work and active branch.
-2. Check `docs/NEXT_STEPS.md` for the current priority queue and in-flight tasks.
+2. Read `docs/STATE.md` FIRST. It is the live checklist for the active award pass (branch `fix/award-pass`). Then read `docs/plan/EXECUTOR_START_HERE.md` (rules, lessons, success criteria) and only the section of `docs/plan/master_completion_plan.md` for the current task. `docs/NEXT_STEPS.md` is history only. Changed anything under `server/public`? Bump the asset version (`?v=` in index.html + `CACHE_NAME` in sw.js; later `node tools/bump_version.js`). Fast gate: `node tools/run_tests.js --tier fast`.
 3. Check `docs/LLM_CONTEXT.md` for architectural invariants and file paths.
 4. Consult `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md` for deep historical lessons, edge cases, and design rationale.
 5. Verify workspace health:
