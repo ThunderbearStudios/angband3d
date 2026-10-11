@@ -4060,7 +4060,14 @@ window.addEventListener('DOMContentLoaded', () => {
         const isItemPrompt = inPlay && !isTargeting && (
             screenText.includes('select item:') ||
             screenText.includes('inven:') ||
+            screenText.includes('(inven') ||
+            screenText.includes('(inventory)') ||
+            screenText.includes('inventory | equipment') ||
+            screenText.includes('inventory |') ||
+            screenText.includes('| equipment') ||
             screenText.includes('equip:') ||
+            screenText.includes('(equip') ||
+            screenText.includes('(equipment)') ||
             screenText.includes('quiver:') ||
             screenText.includes('quiver') ||
             screenText.includes('which item?') ||
@@ -4071,15 +4078,21 @@ window.addEventListener('DOMContentLoaded', () => {
             screenText.includes('which book?') ||
             screenText.includes('wear/wield') ||
             screenText.includes('take off') ||
+            screenText.includes('remove which item') ||
             screenText.includes('drop which') ||
             screenText.includes('throw which') ||
             screenText.includes('fire which') ||
             screenText.includes('quaff which') ||
             screenText.includes('read which') ||
             screenText.includes('destroy which') ||
+            (!hasStoreText && screenText.includes('examine which item')) ||
             (isHeng && !hasStoreText && (
                 screenText.includes('持ち物：') ||
-                screenText.includes('装備：')
+                screenText.includes('装備：') ||
+                screenText.includes('どれを装備') ||
+                screenText.includes('どれを外しますか') ||
+                screenText.includes('どれを落としますか') ||
+                screenText.includes('どれを投げますか')
             ))
         );
 
@@ -4150,9 +4163,9 @@ window.addEventListener('DOMContentLoaded', () => {
             } else if (rows) {
                 // Unified option tag extraction across all variants (Angband 4.2.6, Hengband 3.0.1, Sil-Q, FrogComposBand)
                 const regexes = [
-                    /(?:^|\s+)\(([a-zA-Z0-9*@?])\)\s*([^\s\(\)\[\]]{1,20})?/g,
-                    /(?:^|\s+)\[([a-zA-Z0-9*@?])\]\s*([^\s\(\)\[\]]{1,20})?/g,
-                    /(?:^|\s+)([a-zA-Z0-9*@?])[\)\.\:\-]\s*([^\s\(\)\[\]]{1,20})?/g,
+                    /(?:^|\s+)\(([a-zA-Z0-9*@?])\)\s+([^\n\r]{1,70})/g,
+                    /(?:^|\s+)\[([a-zA-Z0-9*@?])\]\s+([^\n\r]{1,70})/g,
+                    /(?:^|\s+)([a-zA-Z0-9*@?])[\)\.\:\-]\s+([^\n\r]{1,70})/g,
                     /(?:^|\s+)(\*)\s*(ランダム|random|Random)/gi
                 ];
                 const isHengCur = isHeng;
@@ -4169,7 +4182,19 @@ window.addEventListener('DOMContentLoaded', () => {
                         while ((m = re.exec(line)) !== null) {
                             const key = m[1];
                             let label = (m[2] || '').trim();
-                            label = label.replace(/^[\(\[\{]/, '').replace(/[\)\]\}]$/, '');
+                            // If equipment slot prefix present (e.g. "Wielding : ", "Left ring : ", "武器 : "), strip it to get the item
+                            label = label.replace(/^[^:]{1,20}:\s*/, '');
+                            // Stop at multi-space gap before weight/price/turn columns
+                            label = label.replace(/\s{2,}.*$/, '');
+                            // Strip trailing weight specs (e.g. 2.5 lb, 4.0 lb)
+                            label = label.replace(/\s+\d+(\.\d+)?\s*(lb|kg|g)$/i, '');
+                            // Clean up unclosed parentheses or brackets at end
+                            label = label.replace(/[(\[\{]+$/, '').trim();
+
+                            // Skip empty slots like "(nothing)" or "なし"
+                            if (!label || label === '(nothing)' || label.includes('(nothing)') || label === 'なし') {
+                                continue;
+                            }
 
                             if (key && !seenKeys.has(key)) {
                                 seenKeys.add(key);
@@ -4710,45 +4735,92 @@ window.addEventListener('DOMContentLoaded', () => {
                 `;
             }
         } else if (isItemPrompt) {
-            // Item selection / inventory / equipment prompts
-            if (screenText.includes('throw which item?') || screenText.includes('どれを投げますか')) {
+            // Item selection / inventory / equipment prompts across all realms
+            const isSilq = activeRealm === 'silq';
+            const isSilqInvenCmd = isSilq && (screenText.includes('(inventory) command:') || screenText.includes('(inven) command:'));
+            const isSilqEquipCmd = isSilq && (screenText.includes('(equipment) command:') || screenText.includes('(equip) command:'));
+            const isSilqWear = isSilq && (screenText.includes('wear/wield which item') || screenText.includes('wear/wield'));
+            const isSilqRemove = isSilq && (screenText.includes('remove which item') || screenText.includes('remove which'));
+            const isSilqExamine = isSilq && screenText.includes('examine which item');
+            const isSilqDrop = isSilq && (screenText.includes('drop which item') || screenText.includes('drop which'));
+            const isSilqThrow = isSilq && (screenText.includes('throw which item') || screenText.includes('throw which'));
+            const isSilqFire = isSilq && (screenText.includes('fire which item') || screenText.includes('fire which'));
+
+            const isEquipView = screenText.includes('equip') || screenText.includes('装備品') || screenText.includes('装備：') || screenText.includes('装備:');
+            const isQuiverView = screenText.includes('quiver:') || screenText.includes('quiver') || screenText.includes('矢筒:');
+
+            if (isSilqInvenCmd) {
+                terminalTitle.textContent = '🎒 INVENTORY PACK (Choose action)';
+            } else if (isSilqEquipCmd) {
+                terminalTitle.textContent = '🛡 EQUIPPED GEAR (Choose action)';
+            } else if (isSilqWear || screenText.includes('wear') || screenText.includes('wield') || screenText.includes('どれを装備')) {
+                terminalTitle.textContent = isHeng ? hengTitle('⚔ WEAR / WIELD ITEM', '⚔ WEAR/WIELD / 装備', '⚔ アイテムを装備') : '⚔ WEAR / WIELD ITEM';
+            } else if (isSilqRemove || screenText.includes('take off') || screenText.includes('どれを外しますか')) {
+                terminalTitle.textContent = isHeng ? hengTitle('🔄 TAKE OFF GEAR', '🔄 TAKE OFF / 装備を外す', '🔄 装備を外す') : (isSilq ? '🔄 REMOVE GEAR' : '🔄 TAKE OFF GEAR');
+            } else if (isSilqThrow || screenText.includes('throw which item?') || screenText.includes('どれを投げますか')) {
                 terminalTitle.textContent = isHeng ? hengTitle('🎯 THROW ITEM', '🎯 THROW ITEM / 投擲', '🎯 アイテムを投げる') : '🎯 THROW ITEM';
+            } else if (isSilqFire || screenText.includes('fire which item?') || screenText.includes('fire') || screenText.includes('shoot') || screenText.includes('どのアイテムを発射')) {
+                terminalTitle.textContent = isHeng ? hengTitle('🏹 FIRE / SHOOT', '🏹 FIRE / 射撃', '🏹 射撃') : '🏹 FIRE / SHOOT';
+            } else if (isSilqExamine || screenText.includes('examine which item') || screenText.includes('どれを調べますか')) {
+                terminalTitle.textContent = isHeng ? hengTitle('🔍 EXAMINE ITEM', '🔍 EXAMINE / 調査', '🔍 アイテムを調べる') : '🔍 EXAMINE ITEM';
+            } else if (isSilqDrop || screenText.includes('drop which') || screenText.includes('どれを落としますか')) {
+                terminalTitle.textContent = isHeng ? hengTitle('📦 DROP ITEM', '📦 DROP / アイテムを落とす', '📦 アイテムを落とす') : '📦 DROP ITEM';
             } else if (screenText.includes('quaff which potion?') || screenText.includes('quaff') || screenText.includes('どの薬を飲みますか')) {
                 terminalTitle.textContent = isHeng ? hengTitle('🧪 QUAFF POTION', '🧪 QUAFF POTION / 飲む', '🧪 薬を飲む') : '🧪 QUAFF POTION';
             } else if (screenText.includes('read which scroll?') || screenText.includes('read') || screenText.includes('どの巻物を読みますか')) {
                 terminalTitle.textContent = isHeng ? hengTitle('📜 READ SCROLL', '📜 READ SCROLL / 読む', '📜 巻物を読む') : '📜 READ SCROLL';
-            } else if (screenText.includes('fire which item?') || screenText.includes('fire') || screenText.includes('shoot') || screenText.includes('どのアイテムを発射')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🏹 FIRE / SHOOT', '🏹 FIRE / 射撃', '🏹 射撃') : '🏹 FIRE / SHOOT';
             } else if (screenText.includes('which spell?') || screenText.includes('which prayer?') || screenText.includes('which book?') || screenText.includes('どの呪文') || screenText.includes('どの本')) {
                 terminalTitle.textContent = isHeng ? hengTitle('✨ CAST SPELL / PRAYER', '✨ CAST SPELL / 呪文詠唱', '✨ 呪文詠唱') : '✨ CAST SPELL / PRAYER';
-            } else if (screenText.includes('wear') || screenText.includes('wield') || screenText.includes('どれを装備')) {
-                terminalTitle.textContent = isHeng ? hengTitle('⚔ WEAR / WIELD ITEM', '⚔ WEAR/WIELD / 装備', '⚔ アイテムを装備') : '⚔ WEAR / WIELD ITEM';
-            } else if (screenText.includes('take off') || screenText.includes('どれを外しますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🔄 TAKE OFF GEAR', '🔄 TAKE OFF / 装備を外す', '🔄 装備を外す') : '🔄 TAKE OFF GEAR';
-            } else if (screenText.includes('drop which') || screenText.includes('どれを落としますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('📦 DROP ITEM', '📦 DROP / アイテムを落とす', '📦 アイテムを落とす') : '📦 DROP ITEM';
-            } else if (screenText.includes('quiver:') || screenText.includes('quiver') || screenText.includes('矢筒:')) {
+            } else if (isQuiverView) {
                 terminalTitle.textContent = isHeng ? hengTitle('🏹 QUIVER MISSILES', '🏹 QUIVER / 矢筒', '🏹 矢筒') : '🏹 QUIVER MISSILES';
-            } else if (screenText.includes('equip:') || screenText.includes('equipment') || screenText.includes('装備品') || screenText.includes('装備：') || screenText.includes('装備:')) {
+            } else if (isEquipView) {
                 terminalTitle.textContent = isHeng ? hengTitle('🛡 EQUIPPED GEAR', '🛡 EQUIPPED GEAR / 装備品一覧', '🛡 装備品一覧') : '🛡 EQUIPPED GEAR';
             } else {
                 terminalTitle.textContent = isHeng ? hengTitle('🎒 INVENTORY PACK', '🎒 INVENTORY / 所持品一覧', '🎒 所持品一覧') : '🎒 INVENTORY PACK';
             }
 
-            const isEquipView = screenText.includes('equip') || screenText.includes('装備品') || screenText.includes('装備：') || screenText.includes('装備:');
-            const isQuiverView = screenText.includes('quiver:') || screenText.includes('quiver') || screenText.includes('矢筒:');
-
             if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling and selecting items
 
             if (termCtxActions) {
-                if (activeRealm === 'silq') {
+                if (isSilqInvenCmd) {
+                    // Sil-Q Inventory Main Command Prompt: (Inventory) Command:
                     termCtxActions.innerHTML = `
                         <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
-                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> ${isEquipView ? '🎒 View Pack' : '🛡 View Gear'}</button>
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="w"><span>[w]</span> ⚔ Wear/Wield</button>
+                        <button type="button" class="term-ctx-btn" data-key="e"><span>[e]</span> 🛡 View Gear</button>
                         <button type="button" class="term-ctx-btn" data-key="x"><span>[x]</span> 🔍 Examine</button>
-                        <button type="button" class="term-ctx-btn" data-key="w"><span>[w]</span> ⚔ Wield/Wear</button>
-                        <button type="button" class="term-ctx-btn" data-key="t"><span>[t]</span> 🎯 Throw</button>
                         <button type="button" class="term-ctx-btn" data-key="d"><span>[d]</span> 📦 Drop</button>
+                        <button type="button" class="term-ctx-btn" data-key="k"><span>[k]</span> 🗑 Destroy</button>
+                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                    `;
+                } else if (isSilqEquipCmd) {
+                    // Sil-Q Equipment Main Command Prompt: (Equipment) Command:
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="r"><span>[r]</span> 🔄 Take Off</button>
+                        <button type="button" class="term-ctx-btn" data-key="i"><span>[i]</span> 🎒 View Pack</button>
+                        <button type="button" class="term-ctx-btn" data-key="x"><span>[x]</span> 🔍 Examine</button>
+                        <button type="button" class="term-ctx-btn" data-key="d"><span>[d]</span> 📦 Drop</button>
+                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
+                    `;
+                } else if (isSilqWear) {
+                    // Sil-Q Wield Prompt: Wear/Wield which item?
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
+                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> 🛡 Switch to Gear</button>
+                        <button type="button" class="term-ctx-btn" data-key="-"><span>[-]</span> 📍 Floor</button>
+                    `;
+                } else if (isSilqRemove) {
+                    // Sil-Q Remove Prompt: Remove which item?
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
+                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> 🎒 Switch to Pack</button>
+                    `;
+                } else if (isSilq) {
+                    // Other Sil-Q item selection prompts (drop, throw, examine)
+                    termCtxActions.innerHTML = `
+                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
+                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> Switch Inven/Gear</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
                     `;
                 } else if (isHeng) {
@@ -4802,9 +4874,12 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="e"><span>[e]</span> 🛡 Gear</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="w"><span>[w]</span> ⚔ Wield</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="r"><span>[r]</span> 🔄 Take Off</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="t"><span>[t]</span> 🎯 Throw</button>
+                        <button type="button" class="term-ctx-btn term-action-key" data-key="f"><span>[f]</span> 🏹 Fire</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="\t"><span>[Tab]</span> 📜 Skills</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="s"><span>[s]</span> 🎵 Song</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="t"><span>[t]</span> 🎯 Throw</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="%"><span>[%]</span> ⏳ Rest</button>
                     `;
                 } else if (activeRealm === 'frogcomposband') {
@@ -4873,9 +4948,8 @@ window.addEventListener('DOMContentLoaded', () => {
         const ui = frame.ui;
         if (!ui) return false;
 
-        // In-dungeon messages and -more- prompts must strictly remain in 3D view
-        if (ui.more) return false;
-
+        // Overlays and menus take precedence over more prompts:
+        // Inside stores, inventory, equipment, or menus, any -more- prompt belongs to that overlay and must stay in terminal view
         if (ui.context && (ui.context === 'menu' || ui.context === 'birth' || ui.context === 'setup')) return true;
         if ((ui.overlay || 0) > 0) {
             const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
@@ -4886,6 +4960,9 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             return true;
         }
+
+        // In-dungeon messages and -more- prompts must strictly remain in 3D view
+        if (ui.more) return false;
 
         // In active play exploration with map:
         // If awaiting_command is false and more is false, route to terminal UNLESS it is a directional

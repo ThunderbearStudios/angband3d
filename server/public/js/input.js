@@ -1292,7 +1292,10 @@ class InputController {
             e.preventDefault();
             const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
             let keyToSend = e.key;
-            if (realm === 'silq') {
+            const isTopLevelWorldCmd = Boolean(
+                ui && ui.awaiting_command && (ui.overlay || 0) === 0 && !ui.more
+            );
+            if (realm === 'silq' && isTopLevelWorldCmd) {
                 if (keyToSend === 'm') keyToSend = 's'; // Sil-Q: Songs of Power instead of main menu
                 else if (keyToSend === 'v') keyToSend = 't'; // Sil-Q: Throw
                 else if (keyToSend === 'R') keyToSend = '%'; // Sil-Q: Rest

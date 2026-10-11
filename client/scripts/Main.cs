@@ -1231,11 +1231,8 @@ public partial class Main : Node
         {
             return false;
         }
-        // In-dungeon messages and -more- prompts must strictly remain in 3D view
-        if (ui.TryGetProperty("more", out var moreProp) && moreProp.GetBoolean())
-        {
-            return false;
-        }
+        // Overlays and menus take precedence over more prompts:
+        // Inside stores, inventory, equipment, or menus, any -more- prompt belongs to that overlay and must stay in terminal view
         if (ui.TryGetProperty("context", out var ctx))
         {
             var ctxStr = ctx.GetString();
@@ -1252,6 +1249,12 @@ public partial class Main : Node
                 return false;
             }
             return true;
+        }
+
+        // In-dungeon messages and -more- prompts must strictly remain in 3D view
+        if (ui.TryGetProperty("more", out var moreProp) && moreProp.GetBoolean())
+        {
+            return false;
         }
 
         // If not awaiting command and not more, route to terminal UNLESS it is a directional targeting prompt
