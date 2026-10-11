@@ -48,6 +48,9 @@ jobs:
       - name: Bridge acceptance tests
         run: python3 tools/smoke_test.py
 
+      - name: Server boot test
+        run: npm --prefix server ci && node tools/test_server_boot.js
+
       - name: Upload failure artefacts
         if: failure()
         uses: actions/upload-artifact@v4
