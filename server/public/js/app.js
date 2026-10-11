@@ -129,6 +129,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let network = (engineMode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
     const dungeon = new Dungeon3D('viewport-canvas');
+    dungeon.realm = activeRealm;
     window.dungeon = dungeon;
     window.__dungeon = dungeon;
     const hud = new WebHUD('minimap-canvas');
@@ -678,6 +679,44 @@ window.addEventListener('DOMContentLoaded', () => {
             const key = btn.dataset.key;
             if (!key) return;
 
+            // Letter Ribbon option buttons (e.g. [a], [b], [*]) must strictly pass their key directly
+            if (btn.classList.contains('term-letter-btn')) {
+                network.sendKey(key);
+                return;
+            }
+
+            const inPlay = Boolean(lastFrame && lastFrame.phase === 'play');
+            const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
+                ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
+                : '';
+            const isChoiceMenu = !inPlay && (
+                screenText.includes("性別") || screenText.includes("種族") ||
+                screenText.includes("職業") || screenText.includes("性格") ||
+                screenText.includes("魔法領域") || screenText.includes("領域を選んで") ||
+                screenText.includes("choose sex") || screenText.includes("choose your sex") ||
+                screenText.includes("sex affects stats") || screenText.includes("choose character sex") ||
+                screenText.includes("choose a race") || screenText.includes("choose race") ||
+                screenText.includes("race affects stats") || screenText.includes("choose character race") ||
+                screenText.includes("choose a class") || screenText.includes("choose class") ||
+                screenText.includes("class affects stats") || screenText.includes("choose character class") ||
+                screenText.includes("choose a personality") || screenText.includes("choose personality") ||
+                screenText.includes("personality affects stats") ||
+                screenText.includes("choose realm") || screenText.includes("choose a realm") ||
+                screenText.includes("choose first realm") || screenText.includes("choose second realm") ||
+                screenText.includes("first realm") || screenText.includes("second realm") ||
+                screenText.includes("choose a house") || screenText.includes("choose house") ||
+                screenText.includes("choose character background") || screenText.includes("choose background") ||
+                screenText.includes("choose subrace") || screenText.includes("choose a subrace") ||
+                screenText.includes("*でランダム") || screenText.includes("* for random") ||
+                screenText.includes("escで戻る") || screenText.includes("esc to return") ||
+                screenText.includes("esc to step back") || screenText.includes("esc:戻る") ||
+                screenText.includes("escで前へ")
+            );
+            const isNamePrompt = !inPlay && (
+                screenText.includes("名前を入力") || screenText.includes("character's name") ||
+                screenText.includes("enter a name") || screenText.includes("choose your name")
+            );
+
             if (key === 'tab') {
                 // Return from Classic Mode to 3D View
                 forceTerminal = false;
@@ -695,12 +734,9 @@ window.addEventListener('DOMContentLoaded', () => {
             } else if (key === 'escape') {
                 cancelQuickBirth();
                 network.sendKey('escape');
-            } else if (key === 'enter' && birthReviewActive) {
+            } else if (key === 'enter' && birthReviewActive && !isChoiceMenu && !isNamePrompt) {
                 confirmHeroBirth();
-            } else if ((key === 'r' || key === 'R') && (!lastFrame || lastFrame.phase !== 'play')) {
-                const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
-                    ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
-                    : '';
+            } else if ((key === 'r' || key === 'R') && !inPlay && !isChoiceMenu && !isNamePrompt) {
                 const isReviewScreen = screenText.includes("to start over") || screenText.includes("any other key to continue") ||
                                        screenText.includes("use as is") || screenText.includes("r to reroll") ||
                                        screenText.includes("'s' to start") || birthReviewActive;
@@ -709,9 +745,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 } else {
                     network.sendKey(key);
                 }
-            } else if ((key === 's' || key === 'S' || key === 'c' || key === 'C') && birthReviewActive) {
+            } else if ((key === 's' || key === 'S' || key === 'c' || key === 'C') && birthReviewActive && !isChoiceMenu && !isNamePrompt) {
                 startCustomHeroCreation();
-            } else if (key === 's' && (!lastFrame || lastFrame.phase !== 'play')) {
+            } else if (key === 's' && !inPlay && !isChoiceMenu && !isNamePrompt) {
                 cancelQuickBirth();
                 network.sendKey('s');
             } else {
@@ -3003,6 +3039,7 @@ window.addEventListener('DOMContentLoaded', () => {
         window.activeRealm = realmKey;
         window.__activeRealm = realmKey;
         window.__langMode = (activeRealm === 'hengband') ? langMode : 'en';
+        if (dungeon) dungeon.realm = realmKey;
         try {
             localStorage.setItem('angband3d_active_realm', realmKey);
         } catch (_) {}
@@ -3118,6 +3155,24 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if (terminal && terminal.render && terminal.lastTermData) {
             terminal.render(terminal.lastTermData);
             updateTerminalToolbar();
+        }
+
+        // Refresh 3D dungeon creature overhead nameplates and item caption labels immediately
+        if (dungeon) {
+            if (typeof dungeon.refreshMonsterNameplates === 'function') {
+                dungeon.refreshMonsterNameplates();
+            }
+            if (typeof dungeon.refreshItemCaptions === 'function') {
+                dungeon.refreshItemCaptions();
+            }
+        }
+        if (typeof window !== 'undefined' && window.__dungeon && window.__dungeon !== dungeon) {
+            if (typeof window.__dungeon.refreshMonsterNameplates === 'function') {
+                window.__dungeon.refreshMonsterNameplates();
+            }
+            if (typeof window.__dungeon.refreshItemCaptions === 'function') {
+                window.__dungeon.refreshItemCaptions();
+            }
         }
     }
 
@@ -3970,14 +4025,28 @@ window.addEventListener('DOMContentLoaded', () => {
                 playerFeat = parseInt(effFrame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16) || 0;
             }
         }
-        const isStoreFeat = playerFeat >= 7 && playerFeat <= 14;
+        const isStoreFeat = (playerFeat >= 7 && playerFeat <= 14) ||
+                            (playerFeat >= 0x20 && playerFeat <= 0x28) ||
+                            (isHeng && playerFeat === 4);
         const inOverlay = Boolean(effFrame && effFrame.ui && (effFrame.ui.overlay || 0) > 0);
         const hasStoreText = screenText.includes('store inventory') ||
                              screenText.includes('home inventory') ||
                              screenText.includes('gold remaining') ||
                              screenText.includes('purchase which item') ||
                              screenText.includes('sell which item') ||
-                             screenText.includes('examine which item');
+                             screenText.includes('examine which item') ||
+                             screenText.includes('商品の一覧') ||
+                             screenText.includes('雑貨屋') ||
+                             screenText.includes('万屋') ||
+                             screenText.includes('防具屋') ||
+                             screenText.includes('武器屋') ||
+                             screenText.includes('寺院') ||
+                             screenText.includes('錬金術の店') ||
+                             screenText.includes('魔術師の店') ||
+                             screenText.includes('ブラック・マーケット') ||
+                             screenText.includes('我が家') ||
+                             screenText.includes('博物館') ||
+                             (screenText.includes('重さ') && screenText.includes('価格'));
         const isTargeting = inPlay && (
             screenText.includes('target [') ||
             screenText.includes('target:') ||
@@ -4007,7 +4076,11 @@ window.addEventListener('DOMContentLoaded', () => {
             screenText.includes('fire which') ||
             screenText.includes('quaff which') ||
             screenText.includes('read which') ||
-            screenText.includes('destroy which')
+            screenText.includes('destroy which') ||
+            (isHeng && !hasStoreText && (
+                screenText.includes('持ち物：') ||
+                screenText.includes('装備：')
+            ))
         );
 
         const isStore = !isItemPrompt && (hasStoreText || (isStoreFeat && inOverlay));
@@ -4217,7 +4290,31 @@ window.addEventListener('DOMContentLoaded', () => {
                                   screenText.includes("start over, or enter to continue") ||
                                   screenText.includes("['q'uit, 's'tart over, or enter to continue]");
 
-            const isReviewScreen = !isNamePrompt && !isHistoryPrompt && !isStatRoller && !isBackgroundEdit && !isReadyPrompt &&
+            const isChoiceMenu = isHengSex || isHengRace || isHengClass || isHengPersonality || isHengRealm ||
+                                 screenText.includes('choose a race') || screenText.includes('choose race') ||
+                                 screenText.includes('choose a class') || screenText.includes('choose class') ||
+                                 screenText.includes('race affects stats') || screenText.includes('class affects stats') ||
+                                 screenText.includes('sex affects stats') || screenText.includes('choose sex') ||
+                                 screenText.includes('choose your sex') || screenText.includes('choose character sex') ||
+                                 screenText.includes('choose character race') || screenText.includes('choose character class') ||
+                                 screenText.includes('choose a personality') || screenText.includes('choose personality') ||
+                                 screenText.includes('personality affects stats') ||
+                                 screenText.includes('choose realm') || screenText.includes('choose a realm') ||
+                                 screenText.includes('choose first realm') || screenText.includes('choose second realm') ||
+                                 screenText.includes('first realm') || screenText.includes('second realm') ||
+                                 screenText.includes('choose a house') || screenText.includes('choose house') ||
+                                 screenText.includes('choose character background') || screenText.includes('choose background') ||
+                                 screenText.includes('choose subrace') || screenText.includes('choose a subrace') ||
+                                 screenText.includes('*でランダム') || screenText.includes('* for random') ||
+                                 screenText.includes('escで戻る') || screenText.includes('esc to return') ||
+                                 screenText.includes('esc to step back') || screenText.includes('esc:戻る') ||
+                                 screenText.includes('escで前へ');
+
+            if (isChoiceMenu || isNamePrompt) {
+                birthReviewActive = false;
+            }
+
+            const isReviewScreen = !isChoiceMenu && !isNamePrompt && !isHistoryPrompt && !isStatRoller && !isBackgroundEdit && !isReadyPrompt &&
                                    !screenText.includes('character traits') &&
                                    !screenText.includes('affects stats') &&
                                    (screenText.includes("to start over") ||
@@ -4475,11 +4572,24 @@ window.addEventListener('DOMContentLoaded', () => {
             if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
             let storeName = 'STORE';
             if (frame.term && frame.term.rows) {
-                for (let r = 0; r < Math.min(4, frame.term.rows.length); r++) {
+                for (let r = 0; r < Math.min(5, frame.term.rows.length); r++) {
                     const line = (frame.term.rows[r].g || '').trim();
-                    const sm = line.match(/(General Store|Armoury|Armory|Weaponsmith|Weapon Smith|Temple|Alchemy Shop|Alchemist|Magic Shop|Magic User's|Black Market|Your Home)/i);
+                    const sm = line.match(/(General Store|Armoury|Armory|Weaponsmith|Weapon Smith|Temple|Alchemy Shop|Alchemist|Magic Shop|Magic User's|Black Market|Your Home|雑貨屋|万屋|防具屋|武器屋|寺院|錬金術の店|魔術師の店|ブラック・マーケット|我が家|博物館)/i);
                     if (sm) {
-                        storeName = sm[1].trim();
+                        const matched = sm[1].trim();
+                        const jpToEn = {
+                            '雑貨屋': 'General Store',
+                            '万屋': 'General Store',
+                            '防具屋': 'Armoury',
+                            '武器屋': 'Weaponsmith',
+                            '寺院': 'Temple',
+                            '錬金術の店': 'Alchemy Shop',
+                            '魔術師の店': 'Magic Shop',
+                            'ブラック・マーケット': 'Black Market',
+                            '我が家': 'Your Home',
+                            '博物館': 'Museum'
+                        };
+                        storeName = jpToEn[matched] || matched;
                         break;
                     }
                 }
@@ -4495,15 +4605,15 @@ window.addEventListener('DOMContentLoaded', () => {
             const hasMore = Boolean(frame.ui && frame.ui.more) || screenText.includes('-more-');
             const isStoreContextMenu = screenText.includes('command for ') ||
                                        (screenText.includes('(enter to select') && screenText.includes('examine')) ||
-                                       (isHeng && screenText.includes('コマンド'));
+                                       (isHeng && screenText.includes('に対するコマンド'));
             const isStoreBuy = screenText.includes('purchase which item') ||
                                screenText.includes('which item to buy') ||
-                               (isHeng && (screenText.includes('何か買いますか') || screenText.includes('どのアイテムを買いますか') || screenText.includes('何を買いますか')));
+                               (isHeng && (screenText.includes('何か買いますか') || screenText.includes('どのアイテムを買いますか') || screenText.includes('何を買いますか') || screenText.includes('買いますか')));
             const isStoreSell = screenText.includes('sell which item') ||
                                 screenText.includes('which item to sell') ||
-                                (isHeng && (screenText.includes('どれを売りますか') || screenText.includes('どのアイテムを売りますか')));
+                                (isHeng && (screenText.includes('どれを売りますか') || screenText.includes('どのアイテムを売りますか') || screenText.includes('何を売りますか') || screenText.includes('売りますか')));
             const isStoreExamine = screenText.includes('examine which item') ||
-                                   (isHeng && (screenText.includes('どれを調べますか') || screenText.includes('どのアイテムを調べますか')));
+                                   (isHeng && (screenText.includes('どれを調べますか') || screenText.includes('どのアイテムを調べますか') || screenText.includes('調べますか')));
 
             if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling and navigating store inventory
 
@@ -4511,12 +4621,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 terminalTitle.textContent = isHeng
                     ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択')
                     : '⚔ CHOOSE ACTION FOR ITEM';
+                const examineKey = isHeng ? 'x' : 'l';
                 if (termCtxActions) {
                     termCtxActions.innerHTML = `
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
                         <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> ${hengLabel('💰 Buy All', '💰 Buy All / 全て購入', '💰 全て購入')}</button>
                         <button type="button" class="term-ctx-btn" data-key="o"><span>[o]</span> ${hengLabel('🛒 Buy One', '🛒 Buy One / 1つ購入', '🛒 1つ購入')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="l"><span>[l]</span> ${hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる')}</button>
+                        <button type="button" class="term-ctx-btn" data-key="${examineKey}"><span>[${examineKey}]</span> ${hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る')}</button>
                     `;
                 }
@@ -4560,21 +4671,22 @@ window.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Top-Level Store Browsing View
                 const jpStoreNames = {
-                    'GENERAL STORE': '万屋', 'ARMOURY': '防具屋', 'ARMORY': '防具屋',
+                    'GENERAL STORE': '雑貨屋', 'ARMOURY': '防具屋', 'ARMORY': '防具屋',
                     'WEAPONSMITH': '武器屋', 'TEMPLE': '寺院', 'ALCHEMY SHOP': '錬金術の店',
                     'MAGIC SHOP': '魔術師の店', 'BLACK MARKET': 'ブラック・マーケット',
-                    'YOUR HOME': '我が家', 'STORE': '店舗'
+                    'YOUR HOME': '我が家', 'MUSEUM': '博物館', 'STORE': '店舗'
                 };
                 const jpName = jpStoreNames[storeName.toUpperCase()] || storeName;
                 terminalTitle.textContent = isHeng
                     ? hengTitle(`⚔ ${storeName.toUpperCase()} — BROWSE INVENTORY`, `⚔ ${storeName.toUpperCase()} (${jpName}) — INVENTORY`, `⚔ ${jpName} — 店頭の品物`)
                     : '⚔ ' + storeName.toUpperCase() + ' — BROWSE INVENTORY';
+                const examineKey = isHeng ? 'x' : 'l';
                 if (termCtxActions) {
                     termCtxActions.innerHTML = `
                         ${hasMore ? `<button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ${hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)')}</button>` : ''}
                         <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> ${hengLabel('💰 Buy', '💰 Buy / 購入', '💰 購入')}</button>
                         <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> ${hengLabel('🏷 Sell', '🏷 Sell / 売却', '🏷 売却')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="l"><span>[l]</span> ${hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる')}</button>
+                        <button type="button" class="term-ctx-btn" data-key="${examineKey}"><span>[${examineKey}]</span> ${hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる')}</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('🚪 Exit Store', '🚪 Exit Store / 店を出る', '🚪 店を出る')}</button>
                     `;
@@ -4617,13 +4729,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 terminalTitle.textContent = isHeng ? hengTitle('📦 DROP ITEM', '📦 DROP / アイテムを落とす', '📦 アイテムを落とす') : '📦 DROP ITEM';
             } else if (screenText.includes('quiver:') || screenText.includes('quiver') || screenText.includes('矢筒:')) {
                 terminalTitle.textContent = isHeng ? hengTitle('🏹 QUIVER MISSILES', '🏹 QUIVER / 矢筒', '🏹 矢筒') : '🏹 QUIVER MISSILES';
-            } else if (screenText.includes('equip:') || screenText.includes('equipment') || screenText.includes('装備品')) {
+            } else if (screenText.includes('equip:') || screenText.includes('equipment') || screenText.includes('装備品') || screenText.includes('装備：') || screenText.includes('装備:')) {
                 terminalTitle.textContent = isHeng ? hengTitle('🛡 EQUIPPED GEAR', '🛡 EQUIPPED GEAR / 装備品一覧', '🛡 装備品一覧') : '🛡 EQUIPPED GEAR';
             } else {
                 terminalTitle.textContent = isHeng ? hengTitle('🎒 INVENTORY PACK', '🎒 INVENTORY / 所持品一覧', '🎒 所持品一覧') : '🎒 INVENTORY PACK';
             }
 
-            const isEquipView = screenText.includes('equip') || screenText.includes('装備品');
+            const isEquipView = screenText.includes('equip') || screenText.includes('装備品') || screenText.includes('装備：') || screenText.includes('装備:');
             const isQuiverView = screenText.includes('quiver:') || screenText.includes('quiver') || screenText.includes('矢筒:');
 
             if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling and selecting items

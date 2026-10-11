@@ -4669,6 +4669,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     cursor: grab;
     user-select: none;
     -webkit-user-select: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .terminal-viewport:active,

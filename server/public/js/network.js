@@ -192,6 +192,7 @@ class GameNetwork {
                         if (this.onPing) this.onPing(this.pingMs);
                     }
                 } else if (msg.t === 'frame') {
+                    msg.realm = msg.realm || this.currentRealm || this.requestedRealm || 'angband';
                     // Strict Invariant: Reject frames if they belong to a different realm than requested
                     if (this.requestedRealm && msg.realm && msg.realm !== this.requestedRealm) {
                         console.error(`[Network] Frame received for wrong realm "${msg.realm}" (expected "${this.requestedRealm}"). Aborting.`);

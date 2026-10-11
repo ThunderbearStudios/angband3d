@@ -426,16 +426,19 @@ class WebTerminal {
     resize() {
         // High-DPI logical font metrics maintaining standard 80x24 aspect ratio
         const baseCellWidth = 14;
-        const baseCellHeight = Math.floor(baseCellWidth * 1.75); // 24.5px
+        const baseCellHeight = 28; // 28px gives 2:1 cell aspect (14x28), making 2-cell CJK characters a perfect 28x28 square
         const logicalWidth = this.cols * baseCellWidth; // 1120px
-        const logicalHeight = this.rows * baseCellHeight; // 588px
+        const logicalHeight = this.rows * baseCellHeight; // 672px
 
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        this.canvas.width = logicalWidth * dpr;
-        this.canvas.height = logicalHeight * dpr;
+        this.dpr = dpr;
         this.charWidth = baseCellWidth;
         this.charHeight = baseCellHeight;
-        this.fontSize = Math.floor(this.charHeight * 0.82);
+        this.fontSize = Math.floor(this.charHeight * 0.72); // ~20px for ASCII
+        this.cjkFontSize = Math.floor(this.charHeight * 0.89); // ~25px for CJK
+
+        this.asciiFont = `bold ${this.fontSize}px 'Fira Code', 'BIZ UDGothic', 'MS Gothic', 'Yu Gothic', monospace`;
+        this.cjkFont = `bold ${this.cjkFontSize}px 'BIZ UDGothic', 'MS Gothic', 'Noto Sans CJK JP', 'Meiryo', 'Yu Gothic', sans-serif`;
 
         const mode = this.detectMode(this.lastTermData);
         this.currentMode = mode;
@@ -460,23 +463,32 @@ class WebTerminal {
             const scaleToFitColumns = availW / activeContentWidth;
             baseScale = Math.max(0.60, Math.min(scaleToFitColumns, 1.45));
         } else {
-            // Fit full 80x24 terminal screen
-            baseScale = Math.min(availW / logicalWidth, availH / logicalHeight, 1.0);
+            // Fit full 80x24 terminal screen smoothly on desktop (up to 2.5x)
+            baseScale = Math.min(availW / logicalWidth, availH / logicalHeight, 2.5);
         }
 
         const effectiveScale = baseScale * this.zoomLevel;
+        this.effectiveScale = effectiveScale;
         const cssW = Math.floor(logicalWidth * effectiveScale);
         const cssH = Math.floor(logicalHeight * effectiveScale);
+
+        // Size backing canvas buffer to exact device pixels for native retina crispness
+        this.canvas.width = Math.round(cssW * dpr);
+        this.canvas.height = Math.round(cssH * dpr);
 
         this.canvas.style.width = `${cssW}px`;
         this.canvas.style.height = `${cssH}px`;
         this.canvas.style.maxWidth = 'none'; // Allow viewport horizontal scrolling
         this.canvas.style.flexShrink = '0';
         this.canvas.style.objectFit = 'contain';
-        // When canvas is wider than viewport, align flush left (0 margin) so user can drag to see all columns
-        this.canvas.style.margin = cssW > availW ? '0' : '0 auto';
 
-        this.ctx.scale(dpr, dpr);
+        const needsScrollX = cssW > availW;
+        const needsScrollY = cssH > availH;
+        if (viewport) {
+            viewport.style.justifyContent = needsScrollX ? 'flex-start' : 'center';
+            viewport.style.alignItems = needsScrollY ? 'flex-start' : 'center';
+        }
+        this.canvas.style.margin = (needsScrollX || needsScrollY) ? '0' : 'auto';
 
         if (this.lastTermData) {
             this.render(this.lastTermData);
@@ -547,6 +559,9 @@ class WebTerminal {
             return; // resize re-invokes render with updated scale metrics
         }
 
+        const scaleFactor = (this.effectiveScale || 1.0) * (this.dpr || 1.0);
+        this.ctx.setTransform(scaleFactor, 0, 0, scaleFactor, 0, 0);
+
         const w = this.cols * this.charWidth;
         const h = this.rows * this.charHeight;
 
@@ -559,7 +574,6 @@ class WebTerminal {
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(1, 1, w - 2, h - 2);
 
-        this.ctx.font = `${this.fontSize}px 'Fira Code', 'Meiryo', 'MS Gothic', 'Yu Gothic', 'Hiragino Sans', 'Noto Sans CJK JP', monospace`;
         this.ctx.textBaseline = 'top';
 
         const isHeng = (typeof window !== 'undefined') &&
@@ -575,7 +589,7 @@ class WebTerminal {
             let text = rowObj.g || '';
             let attrs = rowObj.a || '';
             const trFn = (typeof window !== 'undefined') && (window.translateTerminalRow || (window.HENG_DICT && window.HENG_DICT.translateTerminalRow));
-            if (isHeng && langMode !== 'jp' && typeof trFn === 'function') {
+            if (isHeng && typeof trFn === 'function') {
                 const tr = trFn(text, attrs, langMode, r);
                 text = tr.text;
                 attrs = tr.attrs;
@@ -603,7 +617,11 @@ class WebTerminal {
                     const kanji = String.fromCodePoint(code);
                     const colorIdx = this.parseAttr(attrs, screenCol);
                     this.ctx.fillStyle = this.palette[colorIdx] || '#ffffff';
-                    this.ctx.fillText(kanji, screenCol * this.charWidth + 1, y + 2, this.charWidth * 2);
+                    this.ctx.font = this.cjkFont || `bold 25px 'BIZ UDGothic', 'MS Gothic', 'Noto Sans CJK JP', 'Meiryo', sans-serif`;
+                    // Center the CJK character horizontally in its 2-cell slot (28px) and vertically in the row (28px)
+                    const kx = screenCol * this.charWidth + Math.max(0, Math.floor((this.charWidth * 2 - (this.cjkFontSize || 25)) / 2));
+                    const ky = y + Math.max(0, Math.floor((this.charHeight - (this.cjkFontSize || 25)) / 2));
+                    this.ctx.fillText(kanji, kx, ky);
                     screenCol += 2;
                     if (isSurrogate) c++;
                     continue;
@@ -613,7 +631,11 @@ class WebTerminal {
                 if (ch !== ' ' && ch !== '\0') {
                     const colorIdx = this.parseAttr(attrs, screenCol);
                     this.ctx.fillStyle = this.palette[colorIdx] || '#ffffff';
-                    this.ctx.fillText(ch, screenCol * this.charWidth + 1, y + 2);
+                    this.ctx.font = this.asciiFont || `bold 20px 'Fira Code', 'BIZ UDGothic', monospace`;
+                    // Center ASCII character horizontally in its 1-cell slot (14px) and vertically in the row (28px)
+                    const ax = screenCol * this.charWidth + 1;
+                    const ay = y + Math.max(0, Math.floor((this.charHeight - (this.fontSize || 20)) / 2));
+                    this.ctx.fillText(ch, ax, ay);
                 }
                 screenCol += 1;
             }
