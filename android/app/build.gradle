@@ -18,11 +18,19 @@ android {
     }
     signingConfigs {
         release {
-            if (file('release.keystore').exists()) {
-                storeFile file('release.keystore')
-                storePassword 'angband3d'
-                keyAlias 'angband3d'
-                keyPassword 'angband3d'
+            // WS10.2 (E25): credentials never live in the repo. Source order:
+            //   1) android/keystore.properties (gitignored): storeFile, storePassword, keyAlias, keyPassword
+            //   2) env: ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+            // If neither is present, release is left unsigned (debug builds unaffected).
+            def ksProps = new Properties()
+            def ksPropsFile = rootProject.file('keystore.properties')
+            if (ksPropsFile.exists()) { ksPropsFile.withInputStream { ksProps.load(it) } }
+            def ksPath = ksProps['storeFile'] ?: System.getenv('ANDROID_KEYSTORE_PATH')
+            if (ksPath && file(ksPath).exists()) {
+                storeFile file(ksPath)
+                storePassword ksProps['storePassword'] ?: System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias ksProps['keyAlias'] ?: (System.getenv('ANDROID_KEY_ALIAS') ?: 'angband3d')
+                keyPassword ksProps['keyPassword'] ?: System.getenv('ANDROID_KEY_PASSWORD')
                 v1SigningEnabled true
                 v2SigningEnabled true
             }
