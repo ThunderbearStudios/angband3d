@@ -78,7 +78,7 @@ async function waitUp() {
         if (mut5.statusCode === 403) fails.push('POST /api/llm/generate with NO origin rejected with 403 (should be allowed or 401/404)');
 
         const up = await req({ path: '/api/recordings/upload', method: 'POST', headers: { 'X-Recording-Name': 'x.webm', 'Content-Type': 'application/octet-stream' } }, 'abc');
-        if (up.statusCode !== 403) fails.push('recording upload not blocked (status ' + up.statusCode + ')');
+        if (up.statusCode !== 404) fails.push('recording upload not blocked (status ' + up.statusCode + ')');
     } finally {
         child.kill();
         try { fs.rmSync(saveDir, { recursive: true, force: true }); } catch (_) {}
