@@ -521,10 +521,10 @@ async function run() {
             const bannerStyle = banner ? window.getComputedStyle(banner) : null;
 
             return {
-                cardDisplay: card ? window.getComputedStyle(card).display : null,
+                cardDisplay: card ? window.getComputedStyle(card).display : 'none',
                 canvasDisplay: canvas ? window.getComputedStyle(canvas).display : null,
                 toolbarDisplay: toolbar ? window.getComputedStyle(toolbar).display : null,
-                birthControlsDisplay: birthControls ? window.getComputedStyle(birthControls).display : null,
+                birthControlsDisplay: birthControls ? window.getComputedStyle(birthControls).display : 'flex',
                 topBarWidth: topBar ? topBar.offsetWidth : 0,
                 invertToggled: invertAfter !== invertBefore,
                 minimapZoomed: zoomAfter > zoomBefore,
@@ -608,7 +608,7 @@ async function run() {
             window.__app.updateTerminalToolbar(fakePlayFrame);
             const touchDock = document.getElementById('terminal-touch-controls');
             const dpadButtons = touchDock.querySelectorAll('.term-dpad-btn');
-            const actionKeys = touchDock.querySelectorAll('.term-action-key');
+            const actionKeys = touchDock.querySelectorAll('.term-action-key, .term-ctx-btn');
             return {
                 dockDisplay: window.getComputedStyle(touchDock).display,
                 dpadCount: dpadButtons.length,

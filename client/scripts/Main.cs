@@ -21,6 +21,7 @@ public partial class Main : Node
     private Overlay _overlay;
 
     private bool _forceTerminal;
+    private bool _runMode;
     private bool _mapMode;
     private bool _autoBirth;
     private int _birthSteps;
@@ -34,8 +35,11 @@ public partial class Main : Node
     private bool _shotTaken;
     private string _saveName;
     private string _characterName;
+    private string _realm = "angband";
     private bool _manualRequested;
     private bool _randomRequested;
+    private bool _silqStatAllocated;
+    private bool _silqNameSent;
     private bool _inSplash;
     private bool _inGuide;
     private bool _inMenu;
@@ -110,6 +114,10 @@ public partial class Main : Node
             {
                 _downloadUrl = arg["--download-url=".Length..];
             }
+            else if (arg.StartsWith("--realm="))
+            {
+                _realm = arg["--realm=".Length..];
+            }
         }
 
         if (OS.HasFeature("web"))
@@ -119,7 +127,7 @@ public partial class Main : Node
 
         AddChild(new AudioManager());
 
-        _world = new DungeonWorld();
+        _world = new DungeonWorld { Realm = _realm };
         AddChild(_world);
 
         var layer = new CanvasLayer();
@@ -244,16 +252,26 @@ public partial class Main : Node
         }
     }
 
-    private static string SaveDir()
+    private static string SaveDir(string realm = "angband")
     {
-        var exe = FindEngine();
+        var exe = FindEngine(realm);
         if (!string.IsNullOrEmpty(exe))
         {
             var dir = System.IO.Path.GetDirectoryName(exe) ?? "";
-            return System.IO.Path.Combine(dir, "lib", "save");
+            var candidate = System.IO.Path.Combine(dir, "lib", "save");
+            if (System.IO.Directory.Exists(candidate)) return candidate;
+            var parent = System.IO.Path.GetDirectoryName(dir) ?? "";
+            var parentCandidate = System.IO.Path.Combine(parent, "lib", "save");
+            if (System.IO.Directory.Exists(parentCandidate)) return parentCandidate;
+            return candidate;
         }
         var root = ProjectSettings.GlobalizePath("res://").TrimEnd('/', '\\');
         var repo = System.IO.Path.GetDirectoryName(root) ?? "";
+        if (realm != "angband" && !string.IsNullOrEmpty(realm))
+        {
+            var rDir = System.IO.Path.Combine(repo, "variants", realm, "lib", "save");
+            if (System.IO.Directory.Exists(rDir)) return rDir;
+        }
         return System.IO.Path.Combine(repo, "engine", "build", "game", "lib", "save");
     }
 
@@ -343,9 +361,9 @@ public partial class Main : Node
         }
     }
 
-    private static System.IO.FileInfo[] GetSaveFiles()
+    private System.IO.FileInfo[] GetSaveFiles()
     {
-        var dir = SaveDir();
+        var dir = SaveDir(_realm);
         if (!System.IO.Directory.Exists(dir))
         {
             return Array.Empty<System.IO.FileInfo>();
@@ -424,7 +442,7 @@ public partial class Main : Node
             _saveName = null;
             _characterName = null;
             _inMenu = false;
-            StartGame();
+            StartGame(newCharacter: true);
         }));
         _menuItems.Add(("New Character (Random - Review & Re-roll)", () =>
         {
@@ -432,7 +450,27 @@ public partial class Main : Node
             _characterName = null;
             _randomRequested = true;
             _inMenu = false;
-            StartGame();
+            StartGame(newCharacter: true);
+        }));
+
+        var realmName = _realm switch
+        {
+            "silq" => "Sil-Q 1.5.1 (Beleriand / 4-Stat / EV+PR)",
+            "hengband" => "Hengband 3.0.1 (Japanese / Wilderness / Martial)",
+            "frogcomposband" => "FrogComposBand 7.1.0 (Wilderness / Monster Races)",
+            _ => "Vanilla Angband 4.2.6 (Tolkien Canon / 100 Dungeon Levels)"
+        };
+        _menuItems.Add(($"Game Realm: [{realmName}] (Click to switch)", () =>
+        {
+            AudioManager.Play(SoundEffect.MenuSelect);
+            _realm = _realm switch
+            {
+                "angband" => "silq",
+                "silq" => "hengband",
+                "hengband" => "frogcomposband",
+                _ => "angband"
+            };
+            OpenMenu();
         }));
 
         var modeLabel = _cloudMode
@@ -580,9 +618,9 @@ public partial class Main : Node
         RefreshMenuDisplay("CONFIRM DELETE", $"Are you sure you want to permanently delete '{info.DisplaySummary}'?");
     }
 
-    private static string BackupDir()
+    private string BackupDir()
     {
-        var saveDir = SaveDir();
+        var saveDir = SaveDir(_realm);
         var bDir = System.IO.Path.Combine(saveDir, "backups");
         if (!System.IO.Directory.Exists(bDir))
         {
@@ -721,7 +759,7 @@ public partial class Main : Node
         }
 
         _menuItems.Add(("Back to Save Manager", OpenSaveManagerMenu));
-        RefreshMenuDisplay("IMPORT SAVE FILE", $"Select a backup file to restore into {SaveDir()}");
+        RefreshMenuDisplay("IMPORT SAVE FILE", $"Select a backup file to restore into {SaveDir(_realm)}");
     }
 
     private void OpenCloudUploadMenu()
@@ -798,7 +836,7 @@ public partial class Main : Node
             using var doc = JsonDocument.Parse(response);
             var savesArray = doc.RootElement.GetProperty("saves");
             int downloaded = 0;
-            var saveDir = SaveDir();
+            var saveDir = SaveDir(_realm);
 
             foreach (var s in savesArray.EnumerateArray())
             {
@@ -1010,6 +1048,7 @@ public partial class Main : Node
 
     private void StartGame(bool newCharacter = false)
     {
+        _silqStatAllocated = false;
         _overlay.Mode = ViewMode.Terminal;
         _overlay.Status = _cloudMode ? "connecting to cloud realm..." : "starting...";
         _overlay.QueueRedraw();
@@ -1021,23 +1060,23 @@ public partial class Main : Node
                 _saveName = "Adventurer_" + Guid.NewGuid().ToString("N")[..4];
             }
             _bridge = _cloudBridge;
-            _cloudBridge.ConnectToServer(_cloudUrl, _saveName, newCharacter);
+            _cloudBridge.ConnectToServer(_cloudUrl, _saveName, newCharacter, _realm);
         }
         else
         {
-            var exe = FindEngine();
+            var exe = FindEngine(_realm);
             if (exe == null)
             {
-                _overlay.Status = "angband.exe not found locally - switch to Cloud mode or build engine";
+                _overlay.Status = $"{_realm} engine not found locally - switch to Cloud mode or build engine";
                 _overlay.QueueRedraw();
                 return;
             }
             _bridge = _localBridge;
-            _localBridge.Start(exe, _saveName, newCharacter: false);
+            _localBridge.Start(exe, _saveName, newCharacter: newCharacter);
         }
     }
 
-    private static string FindEngine()
+    private static string FindEngine(string realm = "angband")
     {
         var root = ProjectSettings.GlobalizePath("res://").TrimEnd('/', '\\');
         var repo = System.IO.Path.GetDirectoryName(root) ?? "";
@@ -1063,13 +1102,36 @@ public partial class Main : Node
             }
         }
 
-        foreach (var name in new[] { "angband.exe", "angband" })
+        string[] names;
+        if (realm == "silq")
+        {
+            names = new[] { "silq.exe", "silq", "sil.exe", "sil" };
+        }
+        else if (realm == "hengband")
+        {
+            names = new[] { "hengband.exe", "hengband" };
+        }
+        else if (realm == "frogcomposband")
+        {
+            names = new[] { "frogcomposband.exe", "frogcomposband" };
+        }
+        else
+        {
+            names = new[] { "angband.exe", "angband" };
+        }
+
+        foreach (var name in names)
         {
             foreach (var b in bases)
             {
                 if (string.IsNullOrEmpty(b)) continue;
                 var candidates = new[]
                 {
+                    System.IO.Path.Combine(b, "variants", "silq", "bin", name),
+                    System.IO.Path.Combine(b, "variants", "silq-src", "build", name),
+                    System.IO.Path.Combine(b, "variants", "hengband", "bin", name),
+                    System.IO.Path.Combine(b, "variants", "hengband-src", "build-bridge", name),
+                    System.IO.Path.Combine(b, "variants", "frogcomposband", "bin", name),
                     System.IO.Path.Combine(b, "engine", "build", "game", name),
                     System.IO.Path.Combine(b, "engine", name),
                     System.IO.Path.Combine(b, "game", name),
@@ -1115,6 +1177,23 @@ public partial class Main : Node
         HandleRandomBirth(f);
         if (!_autoBirth && !_randomRequested)
         {
+            if (f.TryGetProperty("phase", out var phaseProp) && phaseProp.GetString() == "setup")
+            {
+                var screenText = Screen(f);
+                var isReview = screenText.Contains("to start over", StringComparison.OrdinalIgnoreCase)
+                    || screenText.Contains("accept character", StringComparison.OrdinalIgnoreCase)
+                    || screenText.Contains("re-roll", StringComparison.OrdinalIgnoreCase)
+                    || screenText.Contains("'r' or 's'", StringComparison.OrdinalIgnoreCase)
+                    || (screenText.Contains("step back", StringComparison.OrdinalIgnoreCase) && screenText.Contains("continue", StringComparison.OrdinalIgnoreCase));
+                if (!isReview && (screenText.Contains("into the vast and echoing gloom", StringComparison.OrdinalIgnoreCase)
+                    || screenText.Contains("depths they went alone", StringComparison.OrdinalIgnoreCase)
+                    || screenText.Contains("menace dark enshrined", StringComparison.OrdinalIgnoreCase)))
+                {
+                    _bridge.SendKey("enter");
+                }
+            }
+
+            _world.Realm = _realm;
             _world.Features = _bridge.Features;
             _world.OnFrame(f);
             // Only while a test script still has steps left: this auto-answers
@@ -1152,12 +1231,57 @@ public partial class Main : Node
         {
             return false;
         }
-        if (ui.GetProperty("overlay").GetInt32() > 0)
+        // In-dungeon messages and -more- prompts must strictly remain in 3D view
+        if (ui.TryGetProperty("more", out var moreProp) && moreProp.GetBoolean())
         {
+            return false;
+        }
+        if (ui.TryGetProperty("context", out var ctx))
+        {
+            var ctxStr = ctx.GetString();
+            if (!string.IsNullOrEmpty(ctxStr) && (ctxStr == "menu" || ctxStr == "birth" || ctxStr == "setup"))
+            {
+                return true;
+            }
+        }
+        if (ui.TryGetProperty("overlay", out var ovrProp) && ovrProp.GetInt32() > 0)
+        {
+            var screen = Screen(frame).ToLowerInvariant();
+            if (screen.Contains("low hitpoint warning") || screen.Contains("low hitpoint"))
+            {
+                return false;
+            }
             return true;
         }
-        return !ui.GetProperty("awaiting_command").GetBoolean()
-               && !ui.GetProperty("more").GetBoolean();
+
+        // If not awaiting command and not more, route to terminal UNLESS it is a directional targeting prompt
+        if (ui.TryGetProperty("awaiting_command", out var awCmd) && !awCmd.GetBoolean())
+        {
+            var screen = Screen(frame).ToLowerInvariant();
+            if (screen.Contains("low hitpoint warning") || screen.Contains("low hitpoint"))
+            {
+                return false;
+            }
+
+            var isDirectionalTargeting = screen.Contains("direction?") ||
+                                         screen.Contains("target [") ||
+                                         screen.Contains("target:") ||
+                                         screen.Contains("which direction?") ||
+                                         screen.Contains("aim which direction?") ||
+                                         screen.Contains("select target") ||
+                                         screen.Contains("方向") ||
+                                         screen.Contains("どの方向") ||
+                                         screen.Contains("ターゲット");
+
+            if (isDirectionalTargeting)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private static bool IsInContextMenu(JsonElement frame)
@@ -1169,6 +1293,14 @@ public partial class Main : Node
         if (!frame.TryGetProperty("ui", out var ui))
         {
             return false;
+        }
+        if (ui.TryGetProperty("context", out var ctx))
+        {
+            var ctxStr = ctx.GetString();
+            if (!string.IsNullOrEmpty(ctxStr) && ctxStr != "dungeon")
+            {
+                return true;
+            }
         }
         if (ui.GetProperty("overlay").GetInt32() > 0)
         {
@@ -1272,6 +1404,7 @@ public partial class Main : Node
             && frame.GetProperty("ui").GetProperty("awaiting_command").GetBoolean())
         {
             _autoBirth = false;
+            _silqStatAllocated = false;
             _world.OnFrame(frame);
             var map = frame.GetProperty("map");
             GD.Print($"client: in play - map {map.GetProperty("w").GetInt32()}x" +
@@ -1281,6 +1414,7 @@ public partial class Main : Node
         if (++_birthSteps > 40)
         {
             _autoBirth = false;
+            _silqStatAllocated = false;
             GD.PushWarning("client: gave up auto-completing character creation");
             return;
         }
@@ -1289,25 +1423,108 @@ public partial class Main : Node
         // order: an existing savefile adds confirmation screens that a blind
         // sequence walks straight past.
         var screen = Screen(frame);
-        if (screen.Contains("-more-"))
+        if (screen.Contains("-more-", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("press any key", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("press space", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("any other key to continue", StringComparison.OrdinalIgnoreCase))
         {
             _bridge.SendKey("enter");
         }
-        else if (screen.Contains("'y': use as is"))
+        else if (screen.Contains("finish the character with random", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("'@' to finish", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("'@' finish", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("@");
+        }
+        else if (screen.Contains("'y': use as is", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("use as is", StringComparison.OrdinalIgnoreCase))
         {
             _bridge.SendKey("Y");
         }
-        else if (screen.Contains("[y/n]") || screen.Contains("are you sure"))
+        else if (screen.Contains("[y/n]", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("are you sure", StringComparison.OrdinalIgnoreCase))
         {
             _bridge.SendKey("y");
         }
-        else if (screen.Contains("press any key"))
+        else if (screen.Contains("esc:accept", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("birth options", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("escape");
+        }
+        else if (screen.Contains("set minimum stats", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("enter for goto next", StringComparison.OrdinalIgnoreCase))
         {
             _bridge.SendKey("enter");
         }
-        else
+        else if (screen.Contains("choose a realm", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("realm 1:", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("a");
+        }
+        else if (screen.Contains("choose the type of game to play", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("b");
+        }
+        else if (screen.Contains("next screen", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("ret) next screen", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("enter");
+        }
+        else if (screen.Contains("enter your starting stats", StringComparison.OrdinalIgnoreCase)
+            && screen.Contains("begin play", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("enter");
+        }
+        else if (screen.Contains("choose a sex", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("choose a race", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("choose a class", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("choose a personality", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("random menu item", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("* random", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("*");
+        }
+        else if (screen.Contains("allocate points to skills", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("skill increases", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("accept skills", StringComparison.OrdinalIgnoreCase))
+        {
+            // Keep 5000 exp pool intact for in-dungeon abilities ('G' key)
+            _bridge.SendKey("enter");
+        }
+        else if (screen.Contains("allocate points to stats", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("accept stats", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!_silqStatAllocated)
+            {
+                _silqStatAllocated = true;
+                // Allocate all 13 birth stat points: Str+2 (3), Dex+2 (3), Con+3 (6), Gra+1 (1) = 13 pts
+                foreach (var k in new[] { "6", "6", "2", "6", "6", "2", "6", "6", "2", "6", "8", "6", "enter" })
+                {
+                    _bridge.SendKey(k);
+                }
+            }
+        }
+        else if (screen.Contains("accept history", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("reroll history", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("accept age/height/weight", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("enter accept name", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("accept name", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("enter a name for your character", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("character background", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("enter to continue", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("random name", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("into the vast and echoing gloom", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("enter");
+        }
+        else if (screen.Contains("select your character", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("choose a", StringComparison.OrdinalIgnoreCase))
         {
             _bridge.SendKey("@");
+        }
+        else
+        {
+            _bridge.SendKey("enter");
         }
     }
 
@@ -1323,35 +1540,124 @@ public partial class Main : Node
             && frame.GetProperty("ui").GetProperty("awaiting_command").GetBoolean())
         {
             _randomRequested = false;
+            _silqStatAllocated = false;
+            _silqNameSent = false;
             _world.OnFrame(frame);
             return;
         }
 
         var screen = Screen(frame);
-        if (screen.Contains("to start over", StringComparison.OrdinalIgnoreCase))
+        if (screen.Contains("to start over", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("'s' to start over", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("accept character", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("re-roll", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("'r' or 's'", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("['r'eroll", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("or enter to accept", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("reroll, 'h'istory", StringComparison.OrdinalIgnoreCase)
+            || (screen.Contains("enter your starting stats", StringComparison.OrdinalIgnoreCase) && screen.Contains("begin play", StringComparison.OrdinalIgnoreCase))
+            || (screen.Contains("step back", StringComparison.OrdinalIgnoreCase) && screen.Contains("continue", StringComparison.OrdinalIgnoreCase)))
         {
             // Character summary review screen reached: stop auto-advancing so player can review / re-roll
             _randomRequested = false;
+            _silqStatAllocated = false;
             return;
         }
 
-        if (screen.Contains("press any key to continue", StringComparison.OrdinalIgnoreCase)
-            || screen.Contains("[press any key", StringComparison.OrdinalIgnoreCase))
-        {
-            _bridge.SendKey("enter");
-        }
-        else if (screen.Contains("select your character traits", StringComparison.OrdinalIgnoreCase))
-        {
-            _bridge.SendKey("@");
-        }
-        else if (screen.Contains("-more-", StringComparison.OrdinalIgnoreCase))
-        {
-            _bridge.SendKey("enter");
-        }
-        else if (screen.Contains("[y/n]", StringComparison.OrdinalIgnoreCase)
+        if (screen.Contains("[y/n]", StringComparison.OrdinalIgnoreCase)
             || screen.Contains("are you sure", StringComparison.OrdinalIgnoreCase))
         {
             _bridge.SendKey("y");
+        }
+        else if (screen.Contains("esc:accept", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("birth options", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("escape");
+        }
+        else if (screen.Contains("set minimum stats", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("enter for goto next", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("enter");
+        }
+        else if (screen.Contains("choose a realm", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("realm 1:", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("a");
+        }
+        else if (screen.Contains("choose the type of game to play", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("b");
+        }
+        else if (screen.Contains("next screen", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("ret) next screen", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("enter");
+        }
+        else if (screen.Contains("finish the character with random", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("'@' to finish", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("'@' finish", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("@");
+        }
+        else if (screen.Contains("choose a sex", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("choose a race", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("choose a class", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("choose a personality", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("random menu item", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("* random", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("*");
+        }
+        else if (screen.Contains("allocate points to skills", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("skill increases", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("accept skills", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("enter");
+        }
+        else if (screen.Contains("allocate points to stats", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("accept stats", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!_silqStatAllocated)
+            {
+                _silqStatAllocated = true;
+                foreach (var k in new[] { "6", "6", "2", "6", "6", "2", "6", "6", "2", "6", "8", "6", "enter" })
+                {
+                    _bridge.SendKey(k);
+                }
+            }
+        }
+        else if (screen.Contains("enter accept name", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("accept name", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("tab random name", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!_silqNameSent)
+            {
+                _silqNameSent = true;
+                _bridge.SendKey("tab");
+                _bridge.SendKey("enter");
+            }
+        }
+        else if (screen.Contains("enter a name for your character", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("character background", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("enter to continue", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("accept history", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("reroll history", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("accept age/height/weight", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("into the vast and echoing gloom", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("enter");
+        }
+        else if (screen.Contains("press any key to continue", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("[press any key", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("press space", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("-more-", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("enter");
+        }
+        else if (screen.Contains("select your character traits", StringComparison.OrdinalIgnoreCase)
+            || screen.Contains("choose a", StringComparison.OrdinalIgnoreCase))
+        {
+            _bridge.SendKey("@");
         }
         else
         {
@@ -1472,8 +1778,14 @@ public partial class Main : Node
             var img = texture.GetImage();
             if (img != null)
             {
-                var err = img.SavePng(_shotPath);
-                GD.Print($"screenshot: {_shotPath} ({img.GetWidth()}x{img.GetHeight()}) err={err}");
+                var fullPath = System.IO.Path.GetFullPath(_shotPath);
+                var dir = System.IO.Path.GetDirectoryName(fullPath);
+                if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+                {
+                    System.IO.Directory.CreateDirectory(dir);
+                }
+                var err = img.SavePng(fullPath);
+                GD.Print($"screenshot: {fullPath} ({img.GetWidth()}x{img.GetHeight()}) err={err}");
             }
         }
         GetTree().Quit();
@@ -1852,12 +2164,26 @@ public partial class Main : Node
         if (frame.HasValue && frame.Value.GetProperty("phase").GetString() == "setup")
         {
             var screen = Screen(frame.Value);
-            if (screen.Contains("to start over", StringComparison.OrdinalIgnoreCase))
+            var isReview = screen.Contains("to start over", StringComparison.OrdinalIgnoreCase)
+                || screen.Contains("accept character", StringComparison.OrdinalIgnoreCase)
+                || screen.Contains("re-roll", StringComparison.OrdinalIgnoreCase)
+                || screen.Contains("'r' or 's'", StringComparison.OrdinalIgnoreCase)
+                || (screen.Contains("step back", StringComparison.OrdinalIgnoreCase) && screen.Contains("continue", StringComparison.OrdinalIgnoreCase));
+
+            if (isReview)
             {
-                if (key.Keycode == Key.S)
+                if (key.Keycode is Key.S or Key.R)
                 {
                     _randomRequested = true;
-                    _bridge.SendKey("s");
+                    _silqStatAllocated = false;
+                    _silqNameSent = false;
+                    _bridge.SendKey(_realm == "silq" ? "r" : "s");
+                    GetViewport().SetInputAsHandled();
+                    return;
+                }
+                if (key.Keycode is Key.Enter or Key.KpEnter or Key.Y)
+                {
+                    _bridge.SendKey("enter");
                     GetViewport().SetInputAsHandled();
                     return;
                 }
@@ -1866,14 +2192,35 @@ public partial class Main : Node
 
         if (key.Keycode == Key.Escape)
         {
-            if (frame.HasValue && IsInContextMenu(frame.Value))
+            if (frame.HasValue)
             {
-                if (!_bridge.Busy)
+                var phase = frame.Value.TryGetProperty("phase", out var pProp) ? pProp.GetString() : "";
+                if (phase == "setup")
                 {
-                    _bridge.SendKey("escape");
-                    GetViewport().SetInputAsHandled();
+                    var screen = Screen(frame.Value);
+                    var isReview = screen.Contains("to start over", StringComparison.OrdinalIgnoreCase)
+                        || screen.Contains("accept character", StringComparison.OrdinalIgnoreCase)
+                        || screen.Contains("re-roll", StringComparison.OrdinalIgnoreCase)
+                        || screen.Contains("'r' or 's'", StringComparison.OrdinalIgnoreCase)
+                        || (screen.Contains("step back", StringComparison.OrdinalIgnoreCase) && screen.Contains("continue", StringComparison.OrdinalIgnoreCase));
+                    if (isReview)
+                    {
+                        if (_bridge.Connected) _bridge.Stop();
+                        OpenMenu();
+                        GetViewport().SetInputAsHandled();
+                        return;
+                    }
                 }
-                return;
+
+                if (IsInContextMenu(frame.Value))
+                {
+                    if (!_bridge.Busy)
+                    {
+                        _bridge.SendKey("escape");
+                        GetViewport().SetInputAsHandled();
+                    }
+                    return;
+                }
             }
 
             OpenPauseMenu();
@@ -1885,6 +2232,15 @@ public partial class Main : Node
         {
             _forceTerminal = !_forceTerminal;
             Refresh();
+            return;
+        }
+
+        // Alt+R: Toggle Run / Sprint Mode
+        if (key.AltPressed && key.Keycode == Key.R)
+        {
+            _runMode = !_runMode;
+            AudioManager.Play(SoundEffect.MenuNav);
+            GetViewport().SetInputAsHandled();
             return;
         }
 
@@ -1949,10 +2305,22 @@ public partial class Main : Node
         {
             if (!_bridge.Busy)
             {
-                var moveKey = _world.RelativeMoveKey(dir);
-                if (moveKey != null)
+                var isRun = (key.ShiftPressed || _runMode) && dir != 5;
+                if (isRun)
                 {
-                    _bridge.SendKey(moveKey);
+                    var worldDigit = _world.RelativeMoveDigit(dir);
+                    if (worldDigit > 0)
+                    {
+                        _bridge.SendKeys($".{worldDigit}");
+                    }
+                }
+                else
+                {
+                    var moveKey = _world.RelativeMoveKey(dir);
+                    if (moveKey != null)
+                    {
+                        _bridge.SendKey(moveKey);
+                    }
                 }
             }
             GetViewport().SetInputAsHandled();
@@ -1973,10 +2341,49 @@ public partial class Main : Node
         {
             if (!_bridge.Busy)
             {
-                _bridge.SendKey(_world.MoveKey(key.Keycode == Key.Up));
+                var isRun = key.ShiftPressed || _runMode;
+                if (isRun)
+                {
+                    var worldDigit = _world.MoveDigit(key.Keycode == Key.Up);
+                    if (worldDigit > 0)
+                    {
+                        _bridge.SendKeys($".{worldDigit}");
+                    }
+                }
+                else
+                {
+                    _bridge.SendKey(_world.MoveKey(key.Keycode == Key.Up));
+                }
             }
             GetViewport().SetInputAsHandled();
             return;
+        }
+
+        var inPlay = frame.HasValue && frame.Value.TryGetProperty("phase", out var p) && p.GetString() == "play";
+        var awaiting = frame.HasValue && frame.Value.TryGetProperty("awaiting_command", out var ac) && ac.GetBoolean();
+        var overlay = frame.HasValue && frame.Value.TryGetProperty("ui", out var ui) && ui.TryGetProperty("overlay", out var ov) ? ov.GetInt32() : 0;
+        var more = frame.HasValue && frame.Value.TryGetProperty("ui", out var uim) && uim.TryGetProperty("more", out var m) && m.GetBoolean();
+
+        if (inPlay && awaiting && overlay == 0 && !more && (key.ShiftPressed || _runMode))
+        {
+            var termDir = key.Keycode switch
+            {
+                Key.Up or Key.Kp8 => 8,
+                Key.Down or Key.Kp2 => 2,
+                Key.Left or Key.Kp4 => 4,
+                Key.Right or Key.Kp6 => 6,
+                Key.Home or Key.Kp7 => 7,
+                Key.Pageup or Key.Kp9 => 9,
+                Key.End or Key.Kp1 => 1,
+                Key.Pagedown or Key.Kp3 => 3,
+                _ => 0
+            };
+            if (termDir > 0 && !_bridge.Busy)
+            {
+                _bridge.SendKeys($".{termDir}");
+                GetViewport().SetInputAsHandled();
+                return;
+            }
         }
 
         var spec = ToKeySpec(key);
@@ -1989,27 +2396,42 @@ public partial class Main : Node
 
     private static int GetDirectionKey(InputEventKey key)
     {
-        // Explicitly guard against minimap and navigation keys being treated as directions
-        if (key.Keycode is Key.Pageup or Key.Pagedown or Key.Home or Key.End or Key.Insert or Key.Delete
-            || key.Keycode is Key.Bracketleft or Key.Bracketright or Key.Braceleft or Key.Braceright
-            || key.Keycode is Key.Equal or Key.Plus or Key.Minus or Key.KpAdd or Key.KpSubtract)
+        // If Ctrl or Alt is pressed, this is a hotkey, NOT movement!
+        if (key.CtrlPressed || key.AltPressed)
         {
             return 0;
         }
 
+        // Bracket, zoom, and UI control keys
+        if (key.Keycode is Key.Bracketleft or Key.Bracketright or Key.Braceleft or Key.Braceright
+            || key.Keycode is Key.Equal or Key.Plus or Key.Minus or Key.KpAdd or Key.KpSubtract
+            || key.Keycode is Key.Insert or Key.Delete)
+        {
+            return 0;
+        }
+
+        // Hardware keypad navigation / diagonals with NumLock off or standard laptop navigation
+        if (key.Keycode == Key.Home || key.PhysicalKeycode == Key.Home) return 7;
+        if (key.Keycode == Key.Pageup || key.PhysicalKeycode == Key.Pageup) return 9;
+        if (key.Keycode == Key.End || key.PhysicalKeycode == Key.End) return 1;
+        if (key.Keycode == Key.Pagedown || key.PhysicalKeycode == Key.Pagedown) return 3;
+        if (key.Keycode == Key.Clear || key.PhysicalKeycode == Key.Clear) return 5;
+
+        // Keypad with NumLock on
         if (key.Keycode is >= Key.Kp1 and <= Key.Kp9)
         {
             return (int)(key.Keycode - Key.Kp1) + 1;
         }
 
-        if (key.Keycode is >= Key.Key1 and <= Key.Key9)
-        {
-            return (int)(key.Keycode - Key.Key1) + 1;
-        }
-
-        if (key.PhysicalKeycode is >= Key.Kp1 and <= Key.Kp9 && !key.CtrlPressed && !key.AltPressed)
+        if (key.PhysicalKeycode is >= Key.Kp1 and <= Key.Kp9)
         {
             return (int)(key.PhysicalKeycode - Key.Kp1) + 1;
+        }
+
+        // Top-row numbers (only when Shift is NOT pressed, since Shift+1-9 are symbols !@#$%^&*()
+        if (!key.ShiftPressed && key.Keycode is >= Key.Key1 and <= Key.Key9)
+        {
+            return (int)(key.Keycode - Key.Key1) + 1;
         }
 
         return 0;
@@ -2037,20 +2459,40 @@ public partial class Main : Node
 
     private static bool IsMinimapZoomIn(InputEventKey key)
     {
-        return key.Keycode is Key.Pageup or Key.Equal or Key.Plus or Key.KpAdd
-            || key.PhysicalKeycode is Key.Pageup
-            || key.KeyLabel is Key.Pageup or Key.Equal or Key.Plus or Key.KpAdd
+        if (key.Keycode is Key.Equal or Key.Plus or Key.KpAdd
+            || key.KeyLabel is Key.Equal or Key.Plus or Key.KpAdd
             || key.Unicode is '+' or '='
-            || key.AsTextKeycode() is "PageUp" or "Page Up" or "PgUp" or "+" or "=";
+            || key.AsTextKeycode() is "+" or "=")
+        {
+            return true;
+        }
+
+        // Only allow PageUp as zoom if Ctrl is held, so plain PageUp is reserved for diagonal 9
+        if (key.CtrlPressed && (key.Keycode == Key.Pageup || key.PhysicalKeycode == Key.Pageup || key.KeyLabel == Key.Pageup))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static bool IsMinimapZoomOut(InputEventKey key)
     {
-        return key.Keycode is Key.Pagedown or Key.Minus or Key.KpSubtract
-            || key.PhysicalKeycode is Key.Pagedown
-            || key.KeyLabel is Key.Pagedown or Key.Minus or Key.KpSubtract
+        if (key.Keycode is Key.Minus or Key.KpSubtract
+            || key.KeyLabel is Key.Minus or Key.KpSubtract
             || key.Unicode is '-' or '_'
-            || key.AsTextKeycode() is "PageDown" or "Page Down" or "PgDn" or "-" or "_";
+            || key.AsTextKeycode() is "-" or "_")
+        {
+            return true;
+        }
+
+        // Only allow PageDown as zoom if Ctrl is held, so plain PageDown is reserved for diagonal 3
+        if (key.CtrlPressed && (key.Keycode == Key.Pagedown || key.PhysicalKeycode == Key.Pagedown || key.KeyLabel == Key.Pagedown))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private void Refresh()
@@ -2098,6 +2540,61 @@ public partial class Main : Node
         if (key.CtrlPressed && key.Keycode is >= Key.A and <= Key.Z)
         {
             return "C-" + (char)('a' + (key.Keycode - Key.A));
+        }
+
+        // Direct letter translation with explicit Shift support (Guarantees T, D, B, R, C, etc.)
+        if (key.Keycode is >= Key.A and <= Key.Z)
+        {
+            char letter = (char)('a' + (key.Keycode - Key.A));
+            return key.ShiftPressed ? char.ToUpperInvariant(letter).ToString() : letter.ToString();
+        }
+
+        // Shifted Punctuation & Top-row Numbers (Stairs, Squelch, Inscribe, Help, Status)
+        if (key.ShiftPressed)
+        {
+            switch (key.Keycode)
+            {
+                case Key.Period: return ">"; // Stairs Down
+                case Key.Comma: return "<";  // Stairs Up
+                case Key.Slash: return "?";  // In-Game Help
+                case Key.Key1: return "!";   // Inscribe / Squelch
+                case Key.Key2: return "@";   // Character Status
+                case Key.Key3: return "#";   // Alter Grid
+                case Key.Key4: return "$";   // Take Off Equipment
+                case Key.Key5: return "%";   // Toggle View
+                case Key.Key6: return "^";   // Special Command
+                case Key.Key7: return "&";   // Target Info
+                case Key.Key8: return "*";   // Target Select
+                case Key.Key9: return "(";   // Load Macro
+                case Key.Key0: return ")";   // Unload Macro
+                case Key.Semicolon: return ":"; // Note Taking
+                case Key.Apostrophe: return "\""; // Quote / Name
+                case Key.Equal: return "+";
+                case Key.Minus: return "_";
+                case Key.Bracketleft: return "{";
+                case Key.Bracketright: return "}";
+                case Key.Backslash: return "|";
+                case Key.Quoteleft: return "~";
+            }
+        }
+        else
+        {
+            switch (key.Keycode)
+            {
+                case Key.Period: return ".";
+                case Key.Comma: return ",";
+                case Key.Slash: return "/";
+                case Key.Semicolon: return ";";
+                case Key.Apostrophe: return "'";
+                case Key.Equal: return "=";
+                case Key.Minus: return "-";
+                case Key.Bracketleft: return "[";
+                case Key.Bracketright: return "]";
+                case Key.Backslash: return "\\";
+                case Key.Quoteleft: return "`";
+                case >= Key.Key0 and <= Key.Key9:
+                    return ((char)('0' + (key.Keycode - Key.Key0))).ToString();
+            }
         }
 
         var ch = (char)key.Unicode;

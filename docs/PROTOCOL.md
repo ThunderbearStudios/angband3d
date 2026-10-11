@@ -125,6 +125,52 @@ freeze.
 | `f` | `2w` chars | Terrain feature index per cell, two hex digits. |
 | `l` | `w` chars | Flags per cell, one hex digit. |
 
+Terrain Feature (`f`) Taxonomy:
+
+| Index | Name | Glyph | In-Universe Lore & 3D Visual Rendering |
+|---|---|---|---|
+| `00` | None / Void | ` ` | Unexplored abyss / unmapped void. |
+| `01` | Floor | `.` | Flagstone masonry corridor or cobblestone street pavers. |
+| `02` | Door Closed | `+` | Heavy forged-iron strapped oak door leaf. |
+| `03` | Door Open | `'` | Wooden door swung open 70° ajar. |
+| `04` | Door Broken | `'` | Shattered wood planks and iron splinter debris. |
+| `05` | Up Staircase | `<` | 3D carved stone steps ascending. |
+| `06` | Down Staircase | `>` | 3D carved stone steps descending into darkness. |
+| `07`..`0E`| Stores 1-8 | `1`-`8` | Half-timbered shop facade with heraldic bronze emblem and gold numeral plaque. |
+| `0F` | Secret Door | `#` | Camouflaged masonry blending seamlessly with surrounding walls. |
+| `10` | Rubble | `:` | Collapsed boulders, jagged talus and stone rubble heap. |
+| `11` | Magma Vein | `%` | Dark basalt volcanic rock with pulsating red/orange molten fissures. |
+| `12` | Quartz Vein | `%` | Pale stone matrix embedded with crystalline mineral streaks. |
+| `13` | Magma (Gold) | `%`/`*` | Volcanic basalt studded with glittering native gold ore nuggets. |
+| `14` | Quartz (Gems)| `%`/`*` | Crystalline stone embedded with faceted, sparkling emeralds, rubies, and sapphires. |
+| `15` | Granite Wall | `#` | Heavy chiseled granite stone block masonry. |
+| `16` | Permanent Wall | `#` | Cyclopean subterranean bedrock and impenetrable fortress ramparts. |
+| `17` | Lava | `~` | Molten bubbling incandescent lava pool. |
+| `18` | Passable Rubble | `.` | Scattered small pebbles and loose gravel. |
+| `19` | Tree (Forest) | `T`/`*` | 3D stylized bark trunk with tiered foliage canopy, grass beneath, and open celestial sky (strictly NO ceiling). |
+| `1A` | Grass | `.` | Lush verdant outdoor meadow. |
+| `1B` | Dirt Road | `:` | Packed earthen loam trail and cart paths. |
+| `1C` | Shallow Water| `~` | Sparkling translucent rippling water. |
+| `1D` | Deep Water | `~` | Deep oceanic blue water. |
+| `1E` | Mountain | `^` | Towering alpine crag and rocky massif. |
+| `1F` | Swamp | `~` | Wetland marsh, mire, and bog. |
+| `20` (32) | Guild / Castle | `B`/`1` | Mayor's Office / Guildhall / Castle / Bounty Office with fortified portcullis. |
+| `21` (33) | Tavern / Inn | `0`/`I` | Half-timbered tavern with swinging painted ale-mug signboard. |
+| `22` (34) | Healer | `4`/`H` | Sanctified hospice / hospital portal with luminous caduceus insignia. |
+| `23` (35) | Museum | `M` | Classical marble-columned repository of relics with velvet cordons. |
+| `24` (36) | Casino | `7`/`C` | Gilded gaming hall & gladiator arena with roulette crest. |
+| `25` (37) | Forge | `0`/`_` | Subterranean smithing forge with basalt hearth, physical 3D anvil, and pulsing coals. |
+| `26` (38) | Pagoda | `T`/`S` | Eastern shrine/pagoda with upturned ceramic roof eaves and Noren Kanji curtains. |
+| `27` (39) | Bookstore | `9`/`B` | Carved mahogany facade with suspended open grimoire signboard. |
+| `28` (40) | Monster Stable | `8`/`s` | Split-rail cedar corral gate with straw bedding and feed troughs. |
+| `29` (41) | Abyssal Chasm | ` ` | Subterranean floor fracture with depth void gradient shader and vapor mist. |
+| `2A` (42) | Bush / Brake | `:` | Dense leafy bramble/brake cluster with mossy green foliage and swaying wind physics. Disambiguated from Rubble by green color attributes. |
+
+Aquatic & Liquid Mechanics:
+- Shallow Water (`1C` / 28): -0.08m camera immersion wading offset, dynamic splash/slosh footstep synthesis.
+- Deep Water (`1D` / 29): -0.22m camera immersion wading offset, buoyancy oscillation, liquid plunge audio; triggers real engine drowning damage (`DAMAGE_NOESCAPE`) and blocks running in FrogComposBand and Hengband without levitation or water-walking abilities.
+- Swamp (`1F` / 31): -0.10m camera immersion wading offset, viscous liquid footstep synthesis.
+
 Flag bits:
 
 | bit | meaning |
@@ -208,7 +254,7 @@ key C-s          # save
 
 The bridge protocol can be carried over WebSockets (`ws://` or `wss://`) through the cloud server relay (`server/`):
 
-- **Endpoint**: `/ws` (supports query params `?user=<id>&save=<slot>`).
+- **Endpoint**: `/ws` (supports query params `?user=<id>&save=<slot>&realm=<angband|silq|hengband|frogcomposband>&lang=<en|ja>`).
 - **Framing**: Each WebSocket text frame corresponds to one line of the standard Bridge Protocol.
   - Client sends command frames (e.g. `key left`, `frame`, `quit`).
   - Server emits JSON text frames (`{"t":"hello",...}`, `{"t":"frame",...}`, `{"t":"bye",...}`).
@@ -218,7 +264,8 @@ The bridge protocol can be carried over WebSockets (`ws://` or `wss://`) through
 The cloud daemon also exposes REST endpoints alongside the WebSocket gateway:
 - `GET /health` — Service uptime and engine health status.
 - `GET /download/angband3d-standalone.zip` — Download pre-packaged standalone client & engine zip.
-- `GET /api/saves` — List saved characters with metadata (`name`, `file`, `size`, `mtime`).
+- `GET /download/Angband3D-Android.apk` — Download mobile release APK package.
+- `GET /api/saves` (optional `?realm=<realm>`) — List saved characters with metadata (`name`, `file`, `size`, `mtime`).
 - `GET /api/saves/:filename` — Download a binary `.sav` file (`application/octet-stream`, `Content-Disposition: attachment`).
 - `POST /api/saves/upload` — Upload a validated binary save file (supports raw binary body with `?name=<slot>` query param or `multipart/form-data`). Must begin with the 8-byte magic header `SaveVNLA` (ASCII `0x53 0x61 0x76 0x65 0x56 0x4E 0x4C 0x41`).
 - `GET /api/config/llm` — Protected LLM configuration provider. Strictly returns `{ hasKey: bool, hasServerKey: bool, defaultModel: string, provider: string }` without ever exposing secret tokens.

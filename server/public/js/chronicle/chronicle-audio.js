@@ -11,7 +11,7 @@ class ChronicleAudioRouter {
         this.voiceVolume = 1.0; // Dedicated Tome / Lore voice volume (0.0 to 1.0)
         this.speed = 1.0;     // 0.75x, 0.85x, 1.0x, 1.25x, 1.5x
         this.flowMode = 'interrupt'; // Default to interrupt: latest developments take priority, story flows cleanly
-        this.narratorVoice = 'en-GB-RyanNeural'; // Dramatic theatrical British bard / older English storyteller
+        this.narratorVoice = 'Enceladus'; // Sole Master Chronicler voice (Google Gemini Native Audio)
         this.ttsEngine = 'gemini'; // High-fidelity Google Gemini Native Audio primary default
         this.isSpeaking = false;
         this.isPaused = false;
@@ -654,12 +654,14 @@ class ChronicleAudioRouter {
      * Guaranteed zero-alloc on cache hits and safe abort support.
      */
     async fetchOrGetAudioBuffer(text, role = 'narrator', customVoice = null, options = {}, signal = null) {
-        const engine = options.engine || this.ttsEngine || 'gemini';
+        // STRICT USER REQUIREMENT: Narrator must ALWAYS use Gemini Native Audio Enceladus
+        const isNarrator = (role === 'narrator');
+        const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
         if (this.isMuted()) {
             return { audioBuffer: null, engine, cached: false, muted: true };
         }
-        let voice = customVoice || (role === 'narrator' ? (engine === 'gemini' ? 'Enceladus' : this.narratorVoice) : '');
-        if (engine === 'gemini' && options.geminiVoice) {
+        let voice = isNarrator ? 'Enceladus' : (customVoice || this.narratorVoice || '');
+        if (engine === 'gemini' && options.geminiVoice && !isNarrator) {
             voice = options.geminiVoice;
         }
         const cacheKey = this.getAudioCacheKey(text, role, customVoice, options);
@@ -720,27 +722,42 @@ class ChronicleAudioRouter {
         if (apiKey) fetchHeaders['x-goog-api-key'] = apiKey;
 
         const url = `/api/tts?${q.toString()}`;
-        const res = await fetch(url, { headers: fetchHeaders, signal: signal || undefined });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        let lastErr = null;
+        const maxAttempts = isNarrator ? 3 : 1;
 
-        const usedEngine = res.headers.get('x-tts-engine') || engine;
-        const fallbackReason = res.headers.get('x-tts-fallback-reason');
-        const arrayBuffer = await res.arrayBuffer();
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                const res = await fetch(url, { headers: fetchHeaders, signal: signal || undefined });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        let audioBuffer = ChronicleAudioRouter.decodePcmWav(arrayBuffer, this.ctx);
-        if (!audioBuffer && this.ctx) {
-            audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
-        }
+                const usedEngine = res.headers.get('x-tts-engine') || engine;
+                const fallbackReason = res.headers.get('x-tts-fallback-reason');
+                const arrayBuffer = await res.arrayBuffer();
 
-        if (audioBuffer) {
-            if (this.audioBufferCache.size >= this.MAX_AUDIO_BUFFER_CACHE) {
-                const oldest = this.audioBufferCache.keys().next().value;
-                this.audioBufferCache.delete(oldest);
+                let audioBuffer = ChronicleAudioRouter.decodePcmWav(arrayBuffer, this.ctx);
+                if (!audioBuffer && this.ctx) {
+                    audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+                }
+
+                if (audioBuffer) {
+                    if (this.audioBufferCache.size >= this.MAX_AUDIO_BUFFER_CACHE) {
+                        const oldest = this.audioBufferCache.keys().next().value;
+                        this.audioBufferCache.delete(oldest);
+                    }
+                    this.audioBufferCache.set(cacheKey, audioBuffer);
+                }
+
+                return { audioBuffer, engine: usedEngine, fallbackReason, cached: false };
+            } catch (err) {
+                lastErr = err;
+                if (signal && signal.aborted) break;
+                if (attempt < maxAttempts) {
+                    console.info(`[ChronicleAudio] Narrator buffering attempt ${attempt} waiting: ${err.message}. Retrying...`);
+                    await new Promise(r => setTimeout(r, 600 * attempt));
+                }
             }
-            this.audioBufferCache.set(cacheKey, audioBuffer);
         }
-
-        return { audioBuffer, engine: usedEngine, fallbackReason, cached: false };
+        throw lastErr || new Error('TTS buffer fetch failed');
     }
 
     /**
@@ -874,15 +891,15 @@ class ChronicleAudioRouter {
 
         let prep = null;
         try {
-            this._setLoading(true, 'Staging voice in background...');
-            this._emitVocalState('loading', { details: 'Staging next beat...', text: cleanText, role: options.role || 'narrator' });
+            this._setLoading(true, 'Buffering narrator voice...');
+            this._emitVocalState('loading', { details: 'Buffering narrator voice...', text: cleanText, role: options.role || 'narrator' });
             prep = await this.fetchOrGetAudioBuffer(s1, 'narrator', null, options, abortCtrl.signal);
         } catch (fetchErr) {
             if (staging.aborted || abortCtrl.signal.aborted || this._activeStaging !== staging) {
                 this._setLoading(false);
                 return { aborted: true };
             }
-            console.info('[ChronicleAudio] Seamless buffer fetch bypassed, falling back to local speech:', fetchErr.message);
+            console.warn('[ChronicleAudio] Narrator buffer fetch encountered error:', fetchErr.message);
         } finally {
             this._setLoading(false);
         }
@@ -928,7 +945,9 @@ class ChronicleAudioRouter {
                     if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId || this._activeVoiceToken !== currentVoiceToken) return { stopped: true };
                 }
             } else {
-                r1 = await this.speakSpeechSynthesis(cleanText, 'narrator', '');
+                // STRICT USER REQUIREMENT: Narrator must NEVER fall back to local speech synthesis or wrong backup voice!
+                // "I'd rather wait for buffering than hear the wrong voice."
+                console.info('[ChronicleAudio] Narrator voice buffer unavailable; suppressing backup voice playback.');
             }
 
             if (r1 && (r1.aborted || r1.interrupted || r1.superseded)) return { aborted: true };
@@ -1209,11 +1228,16 @@ class ChronicleAudioRouter {
                 if (err.name === 'AbortError' || this._activeVoiceToken !== voiceToken || this.isMuted()) {
                     return { aborted: true };
                 }
-                // Server neural TTS offline or failed; smoothly fall back to browser Web Speech API
-                console.info('[ChronicleAudio] Server neural TTS bypassed, using local speech synthesis:', err.message);
+                console.info('[ChronicleAudio] Server neural TTS bypassed:', err.message);
             }
 
             if (this.isMuted() || this.isPaused || this._activeVoiceToken !== voiceToken) return { stopped: true };
+
+            // STRICT USER REQUIREMENT: Narrator must NEVER fall back to local speech synthesis or wrong backup voice!
+            if (role === 'narrator') {
+                console.info('[ChronicleAudio] Narrator speech synthesis fallback blocked per strict single-voice policy.');
+                return { skipped: true, error: 'Narrator fallback suppressed per single-voice policy' };
+            }
             const res = await this.speakSpeechSynthesis(cleanText, role, speakerName);
             return res || { finished: true };
         } finally {
@@ -1298,9 +1322,10 @@ class ChronicleAudioRouter {
 
             try {
                 this.isSpeaking = true;
-                const engine = options.engine || this.ttsEngine || 'gemini';
-                let voice = customVoice || (role === 'narrator' ? (engine === 'gemini' ? 'Enceladus' : this.narratorVoice) : '');
-                if (engine === 'gemini' && options.geminiVoice) {
+                const isNarrator = (role === 'narrator');
+                const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
+                let voice = isNarrator ? 'Enceladus' : (customVoice || this.narratorVoice || '');
+                if (engine === 'gemini' && options.geminiVoice && !isNarrator) {
                     voice = options.geminiVoice;
                 }
 
@@ -1783,9 +1808,10 @@ class ChronicleAudioRouter {
      */
     getAudioCacheKey(text, role, customVoice, options = {}) {
         const cleanText = text.replace(/<[^>]*>/g, '').trim();
-        const engine = options.engine || this.ttsEngine || 'gemini';
-        let voice = customVoice || (role === 'narrator' ? (engine === 'gemini' ? 'Enceladus' : this.narratorVoice) : '');
-        if (engine === 'gemini' && options.geminiVoice) voice = options.geminiVoice;
+        const isNarrator = (role === 'narrator');
+        const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
+        let voice = isNarrator ? 'Enceladus' : (customVoice || this.narratorVoice || '');
+        if (engine === 'gemini' && options.geminiVoice && !isNarrator) voice = options.geminiVoice;
 
         const emotion = options.emotion || '';
         const geminiTag = options.geminiTag || '';
@@ -1826,9 +1852,10 @@ class ChronicleAudioRouter {
 
         const prewarmPromise = (async () => {
             try {
-                const engine = options.engine || this.ttsEngine || 'gemini';
-                let voice = customVoice || (role === 'narrator' ? (engine === 'gemini' ? 'Enceladus' : this.narratorVoice) : '');
-                if (engine === 'gemini' && options.geminiVoice) voice = options.geminiVoice;
+                const isNarrator = (role === 'narrator');
+                const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
+                let voice = isNarrator ? 'Enceladus' : (customVoice || this.narratorVoice || '');
+                if (engine === 'gemini' && options.geminiVoice && !isNarrator) voice = options.geminiVoice;
 
                 const emotion = options.emotion || '';
                 const geminiTag = options.geminiTag || '';

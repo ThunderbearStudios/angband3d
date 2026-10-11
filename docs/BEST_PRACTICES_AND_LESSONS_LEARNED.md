@@ -39,6 +39,8 @@
 31. [DOM Target Hierarchy Invariants & Fullscreen Dual-Engine Resolution](#31-dom-target-hierarchy-invariants--fullscreen-dual-engine-resolution)
 32. [Award Submission Strategy, Technical Storytelling & Cultural Preservation](#32-award-submission-strategy-technical-storytelling--cultural-preservation)
 33. [Death Screen Save Reload Architecture, Permadeath Mechanics vs. Living Save Protection & Zombie Process Elimination](#33-death-screen-save-reload-architecture-permadeath-mechanics-vs-living-save-protection--zombie-process-elimination)
+34. [Multi-Realm Architecture, Character Creation Review Protocol, and Environmental Lore Invariants](#34-multi-realm-architecture-character-creation-review-protocol-and-environmental-lore-invariants-v2265)
+35. [Realm Sunlight Feature Isolation & Narrator Single-Voice Invariant](#35-realm-sunlight-feature-isolation--narrator-single-voice-invariant-v2266)
 
 ---
 
@@ -1729,4 +1731,254 @@ Once `this.isDeadInPlay` became `true`, subsequent living frames (`isDead: false
 4. Match the character's last active savefile.
 5. Invoke `startGame({ charName, saveFile, isNew: false, autoBirth: false })` to reboot directly into 3D play.
 6. The server's `wss.on('connection')` inspects `candidate.isDead`. If true, it rejects re-attachment (`isDeadHijack`), reaps the dead process, and launches the living savefile in a fresh engine process.
+---
 
+## 34. Multi-Realm Architecture, Character Creation Review Protocol, and Environmental Lore Invariants (v2.26.5)
+
+### 34.1 FrogComposBand 2-Screen Quick-Birth Review & Smooth Reroll Protocol
+In FrogComposBand, random character generation operates over two distinct screens:
+- **Screen 1 (`'r'`, `'c'`, `'p'`)**: Race, class, and personality selection submenus.
+- **Screen 2 (`Enter Your Starting Stats`)**: Point-buy stat allocation, displaying rolled stats, stat adjustments, hit dice, and prompts: `RET) Begin Play`, `ESC) Prev Screen`.
+
+**The Premature Play Progression Hazard**:
+If intermediate submenu frames emitted during quick-birth trigger generic fallback `enter` keystrokes in `app.js`, queued `enter` keys immediately hit Screen 2 upon arrival and activate `RET) Begin Play`. This bypasses user inspection of rolled stats entirely.
+
+**The Architectural Fix**:
+1. In `app.js`, set `fcbRandomized = true` when initiating random generation. Suppress intermediate fallback enter keys on submenu frames until Screen 2 (`Enter Your Starting Stats`) is detected.
+2. Once on Screen 2, set `birthReviewActive = true`, display `[🎲 Reroll Hero (R)]` and `[⚔ Accept & Play (Enter)]`.
+3. Clicking/pressing Reroll dispatches `'escape'` to step cleanly back to Screen 1, resets `fcbRandomized = false`, triggers `@` (Quick Start / Randomize), and allows Screen 2 to pause again cleanly for review.
+
+### 34.2 Hengband Folklore & Amberite Lore Grounding and Death Telemetry Preservation
+1. **Folklore & Amberite Names**:
+   Generic placeholders (`Hero_XXXX`, `Adventurer`) break immersion. In Hengband, names are drawn from historical Sengoku folklore (Miyamoto, Hattori, Nobunaga, Goemon, Yasuke, Yukimura, Tomoe, Masamune) and Zelazny Amberite royalty (Corwin, Benedict, Eric, Random, Bleys, Gerard, Julian, Brand, Fiona, Llewella, Flora, Deirdre).
+2. **Death Telemetry Invariant**:
+   In `variants/hengband-src/src/main-bridge.cpp`, `bridge_in_play()` previously checked `p_ptr->playing && !p_ptr->is_dead`. When the player died, `bridge_in_play()` returned false, halting frame emission and stripping `player.dead: true`, `player.died_from`, and `player.max_depth`. Removing `&& !p_ptr->is_dead` ensures the final death frame reaches the client, enabling the atmospheric death modal with accurate obituary, killer identity, and reload/reroll actions.
+
+### 34.3 Hengband Town Doors & Shop Entrance Feature Translation Order
+In Hengband, building entrances and shops (`STORE`, `BLDG`, `Pagoda`, `Casino`, `Museum`, `Healer`, `Guild`, `Inn`) and dungeon doors (`+`, `'`) share internal flags with permanent walls (`PERMANENT`).
+- **The Solid Stone Trap**: If `bridge_translate_feat()` evaluated `FEAT_PERM` before door/store checks, all shop doors were serialized as solid granite walls (`feat 22`), completely blocking the player from entering stores.
+- **The Invariant**: Always evaluate doors (`FEAT_DOOR_HEAD`..`FEAT_DOOR_TAIL`) and buildings (`FEAT_SHOP_HEAD`..`FEAT_SHOP_TAIL`) before generic wall flags.
+
+### 34.4 Sil-Q Sunlight Tiles vs. Subterranean Grass Blobs
+In Sil-Q, `feat 25` corresponds to `FEAT_SUNLIGHT` (a subterranean shaft of golden sunlight piercing the darkness of Angband at 50ft).
+- In Vanilla Angband, `feat 25` is `FEAT_TREE` and `feat 26` is `FEAT_GRASS`. Translating `feat 25` into grass/trees placed green lawn blobs on subterranean stone floors.
+- **The Fix**: Guard `feat 25` under `realm === 'silq'`. Render it as warm sunlit flagstone floor (`_sunlightFloorColor = (1.30, 1.25, 0.90)`) with an open ceiling fissure.
+
+### 34.5 Living Chronicle Realm Attunement: Multi-Tradition Mentors & Badges
+The Living Chronicle narrator dynamically attunes to the active realm:
+- **Sil-Q**: Tradition `beleriand`, Lorekeeper **Pengolodh of Gondolin**, Badge `First Age Skald`.
+- **Hengband**: Tradition `easternmythos`, Lorekeeper **Dworkin Barimen**, Badge `Eastern Mystic`.
+- **FrogComposBand**: Tradition `mythicbard`, Lorekeeper **Grand Archivist**, Badge `Multiverse Chronicler`.
+- **Vanilla Angband**: Tradition `westmarch`, Lorekeeper **Elder Lorekeeper**, Badge `Keeper of the Red Book`.
+
+---
+
+## 35. Realm Sunlight Feature Isolation & Narrator Single-Voice Invariant (v2.26.6)
+
+### 35.1 Realm Isolation of Sunlight Feats & Elimination of Plastic Light Columns
+In early prototypes, sunlight tiles were conflated across variants, and represented with a vertical `CylinderGeometry` light column mesh (`sunbeamMesh`):
+1. **The Vanilla Angband Feat 24 Defect**:
+   - In Vanilla Angband 4.2.6, `feat 24` is `FEAT_PASS_RUBBLE` (`Passable rubble / gravel`).
+   - Conflating `feat 24` as sunlight caused rubble tiles across town streets and dungeon floors to trigger sunlight rendering, spawning glowing vertical columns throughout town.
+   - Sunlight tiles are **strictly exclusive to Sil / Sil-Q** (`FEAT_SUNLIGHT`, feat 25 at 50ft). Vanilla Angband, Hengband, and FrogComposBand have no such environmental mechanic.
+2. **Elimination of Artificial Hollow Cylinder Meshes**:
+   - Hollow `CylinderGeometry` light shafts appeared as glowing plastic pipes or tubes standing artificially in the middle of rooms and streets.
+   - Both Godot (`DungeonWorld.cs`) and Three.js (`dungeon3d.js`) now render sunlight purely as atmospheric natural lighting: warm illuminated flagstone floor tiles (`_sunlightFloorColor`) with open ceiling fissures overhead, completely removing the `sunbeamMesh` cylinder geometry.
+
+### 35.2 Narrator Single-Voice Invariant (Google Gemini Enceladus)
+1. **Zero Backup Voice Policy**:
+   - The Living Chronicle narrator must **always and only** use the authoritative main voice: **Google Gemini Native Audio (`Enceladus`)**.
+   - Under no circumstances will narrator speech fall back to browser robotic voices (`window.speechSynthesis`) or secondary neural voices (such as Edge Neural `en-GB-RyanNeural`).
+   - Architectural Principle: *"I'd rather wait for buffering than hear the wrong voice."*
+2. **Buffering & Transient Network Resilience**:
+   - When fetching audio for the narrator, transient network delays are handled by an automated 3-attempt retry loop with exponential backoff (600ms, 1200ms) while displaying `"Buffering narrator voice..."` in the UI.
+   - If audio generation fails or is genuinely unavailable after retries, vocalization is suppressed cleanly without playing any backup voice, preserving vocal continuity and world immersion.
+3. **Infinite Recursion Guard in `synthesizeGeminiTTS`**:
+   - Single-word or short utterances (e.g., `"Verification"`) can cause Gemini TTS prompt filtering to fail if directorial tags (`[Narrator in Tolkien tone]`) are present.
+   - When retrying short utterances without prompt tags, the handler must set `isRetry: true` and avoid re-defaulting empty roles back to `'narrator'`, which previously re-attached prompt brackets and created an infinite recursive retry loop.
+
+---
+
+## 36. Chamfered Wall Geometry & Diagonal Sightline Aperture Invariants (v3.0.0 Major Release)
+
+### 36.1 The 45-Degree Diagonal Occlusion Defect
+- **The Defect**:
+  In a 2D discrete roguelike grid, two diagonally adjacent open floor tiles $(x, y)$ and $(x+1, y+1)$ allow diagonal movement and direct line-of-sight between them, even if $(x+1, y)$ and $(x, y+1)$ are solid walls.
+  When solid axis-aligned box geometries (`BoxGeometry` / `BoxMesh` of dimensions $1.0\text{m} \times H \times 1.0\text{m}$) are rendered at $(x+1, y)$ and $(x, y+1)$, their corner vertices meet at the exact point $(x+0.5, y+0.5)$.
+  In 3D perspective projection, this infinitesimally closed corner completely occludes the 45-degree sightline. The player cannot see through the diagonal corridor and appears to be moving blind through solid rock.
+- **The Invariant**:
+  All standard dungeon and building walls (`feats 15, 17, 18, 19, 20, 21, 22`) must be constructed using **45-degree chamfered geometry**:
+  - `chamfer = 0.40m`: The four vertical corners of each $1.0\text{m} \times 1.0\text{m}$ column are cut back by $0.40\text{m}$ along each axis.
+  - This creates an 8-sided regular octagon prism with a corner bevel of $\approx 0.566\text{m}$.
+  - Between diagonally touching wall blocks, this leaves a wide, crystal-clear aperture of **$0.57\text{m}$** (over half a meter), allowing unobstructed line-of-sight, monster visibility, spell projectile paths, and natural diagonal navigation.
+
+### 36.2 Exact Chamfer Vertex Specification & 1:1 Engine Parity
+The chamfered wall prism has 8 sides + top + bottom = 10 faces (28 triangles, 84 vertices):
+```
+Top-down cross-section of wall column:
+      p0 ------------ p1
+     /                  \
+   p7                    p2
+   |      (wx, wz)        |
+   p6                    p3
+     \                  /
+      p5 ------------ p4
+```
+Coordinates for unit cell centered at $(0, 0)$ from $-0.5$ to $+0.5$:
+- `p0 = (-0.5 + chamfer, +0.5)`
+- `p1 = (+0.5 - chamfer, +0.5)`
+- `p2 = (+0.5, +0.5 - chamfer)`
+- `p3 = (+0.5, -0.5 + chamfer)`
+- `p4 = (+0.5 - chamfer, -0.5)`
+- `p5 = (-0.5 + chamfer, -0.5)`
+- `p6 = (-0.5, -0.5 + chamfer)`
+- `p7 = (-0.5, +0.5 - chamfer)`
+
+This exact specification is mirrored with 1:1 mathematical parity in:
+- Web Three.js: `server/public/js/dungeon3d.js` (`createChamferedWallGeometry`)
+- Godot C#: `client/scripts/DungeonWorld.cs` (`BuildChamferedWallMesh`)
+
+### 36.3 Subterranean Watertight Void Sealing Invariant
+- **The Void Leak Trap**:
+  When wall column corners are cut back by $0.40\text{m}$, the floor and ceiling space formerly concealed under the $1.0\text{m} \times 1.0\text{m}$ square footprint becomes visible through the diagonal aperture.
+  If the renderer only generates floor quads for walkable open floor tiles (`feat 1` or `feat 2`), the bevel aperture exposes raw unrendered black void space (skybox/background color), creating visual tearing and broken immersion.
+- **The Invariant**:
+  Floor quads at $(wx, -0.05, wz)$ and ceiling quads at $(wx, wallHeight + 0.05, wz)$ (when subterranean) **must be generated for all exposed wall tiles** (`feats 15, 17, 18, 19, 20, 21, 22`).
+  Offsetting floor by $-0.05\text{m}$ and ceiling by $+0.05\text{m}$ guarantees a watertight seal beneath and above the chamfered wall prism with zero Z-fighting.
+
+---
+
+## 37. Navigation Key Separation & Zero-Modifier Diagonal Movement Invariant
+
+### 37.1 Elimination of Key Interception for Camera Pitch
+- **The Defect**:
+  In early builds, `PageUp`, `PageDown`, and `Home` were bound to camera tilt (head up, head down, look level).
+  This hijacked standard keyboard navigation keys, making it impossible to perform Angband diagonal movement (`Home` = NW / 7, `PageUp` = NE / 9, `End` = SW / 1, `PageDown` = SE / 3) on keyboards without an explicit numeric keypad (laptops, 60%/75% compact keyboards).
+- **The Invariant**:
+  - Camera vertical pitch/tilt is **strictly scoped to `Ctrl+` modifiers**:
+    - `Ctrl+PageUp`: Pitch camera upward.
+    - `Ctrl+PageDown`: Pitch camera downward.
+    - `Ctrl+Home`: Reset pitch to level horizon ($0.0\text{ rad}$).
+  - Standalone navigation keys are dedicated **exclusively to diagonal movement**:
+    - `Home` / `Numpad7` / Top-row `7`: Move North-West (Angband key `7` / `home`).
+    - `PageUp` / `Numpad9` / Top-row `9`: Move North-East (Angband key `9` / `pageup`).
+    - `End` / `Numpad1` / Top-row `1`: Move South-West (Angband key `1` / `end`).
+    - `PageDown` / `Numpad3` / Top-row `3`: Move South-East (Angband key `3` / `pagedown`).
+  - Shift-Run support: Holding `Shift` sends Angband fast-run command (prefixed with `.` in protocol).
+
+### 37.2 Full 8-Way Directional Rosette UX Parity
+The on-screen directional rosette (`#touch-dpad-rosette`, `#dpad-nw`, `#dpad-ne`, `#dpad-sw`, `#dpad-se`) provides complete touch and mouse parity:
+- Diagonal buttons are fully accessible on touchscreens, mobile viewports, and mouse-driven desktop sessions.
+- Camera-relative direction mapping dynamically translates screen buttons into world directions based on the player's facing yaw (`0 = N`, `1 = E`, `2 = S`, `3 = W`).
+
+---
+
+## 38. Zero-Exposure Security Enclave & Cloudflare Proxy CSP Invariants
+
+### 38.1 Credential Encapsulation
+- Master API keys (`GEMINI_API_KEY`) reside exclusively in backend environment variables.
+- `GET /api/config/llm` strictly returns boolean capability flags (`{ hasKey: true, hasServerKey: true, defaultModel: 'gemini-3.8-flash' }`) with zero key leakage.
+- All LLM narrative generations and TTS requests route through server-side POST relays with strict input validation, length caps, and sanitization.
+
+### 38.2 Cloudflare Proxy Content Security Policy
+- Production domains (`https://angband3d.com`) proxied through Cloudflare auto-inject analytics beacons (`https://static.cloudflareinsights.com/beacon.min.js`).
+- The CSP `script-src` directive in `server.js` explicitly includes `https://static.cloudflareinsights.com` and `connect-src https://cloudflareinsights.com`, eliminating all CSP evaluation blocks and console errors across both direct Cloud Run and proxied domain traffic.
+
+---
+
+## 39. Content Security Policy Blob Workers, Video Asset Canonical Aliasing & Multi-Client Diagonal Navigation Parity
+
+### 39.1 Content Security Policy connect-src for WebGL Blob Workers
+- **The Defect**:
+  When Three.js `FileLoader` or WebGL background workers load local `blob:` URLs (e.g. for worker scripts, texture blobs, or audio decoding), the browser executes an internal `fetch('blob:...')`. If `connect-src` only specifies `'self'`, the browser blocks the connection with a Content Security Policy violation.
+- **The Invariant**:
+  `connect-src` in `server.js` MUST include both `blob:` and `data:` alongside `'self'`, `ws:`, `wss:`, and allowed external API domains:
+  ```javascript
+  "connect-src 'self' blob: data: ws: wss: https://generativelanguage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com"
+  ```
+  This completely eliminates CSP console errors across all WebGL model loaders and Web Workers.
+
+### 39.2 Canonical Master Video Asset Routing & Server Aliasing
+- **The Invariant**:
+  Walkthrough demo videos are maintained under canonical master asset filenames: `/assets/video/angband3d_demo.mp4` and `/assets/video/angband3d_demo.webm`.
+  To ensure permanent backward and forward compatibility with cached client HTML, PWA offline caches, and external bookmarks, the server implements automatic URL aliasing in `server.js`:
+  ```javascript
+  if (safePath.includes('angband3d_demo_') && safePath.endsWith('.mp4')) {
+      safePath = '/assets/video/angband3d_demo.mp4';
+  } else if (safePath.includes('angband3d_demo_') && safePath.endsWith('.webm')) {
+      safePath = '/assets/video/angband3d_demo.webm';
+  }
+  ```
+  Any request for versioned video paths (e.g. `angband3d_demo_v884.mp4` or `angband3d_demo_v860.mp4`) seamlessly resolves to the master video without 404s or extra storage overhead.
+
+### 39.3 Multi-Client Diagonal Movement & Minimap Zoom Decoupling
+- **The Invariant**:
+  In desktop and native clients (Godot C# `Main.cs`), `PageUp` and `PageDown` without modifiers must never be hijacked by minimap zoom functions.
+  Minimap zoom is mapped to `+` / `=` and `-` / `_` (or `Ctrl+PageUp` / `Ctrl+PageDown`).
+  This guarantees that standard laptop and compact keyboard navigation keys (`PageUp` = NE / 9, `PageDown` = SE / 3, `Home` = NW / 7, `End` = SW / 1) function with 100% fidelity as diagonal movement keys across all platforms.
+
+---
+
+## 40. Multi-Realm Container Compilation, Session Isolation, Rubble vs. Bush Disambiguation & Aquatic Mechanics
+
+### 40.1 The Fallback to Vanilla Town Trap on Cloud Run
+- **The Defect**:
+  When players selected a variant realm (e.g. Sil-Q, FrogComposBand, or Hengband) on `https://angband3d.com`, the web client attuned to the variant visual theme, but upon starting the crawl, the player was dumped into the Vanilla Angband town.
+- **The Root Cause**:
+  `server/Dockerfile` previously omitted build stages for the variant C/C++ source trees, and `.gcloudignore` was ignoring `variants/`. On Cloud Run, `fs.existsSync(variantExe)` returned `false`, causing `resolveRealmEngine` to set `isFallback: true` and attune to the fallback Vanilla Angband 4.2.6 engine.
+- **The Multi-Stage Container Architecture**:
+  `server/Dockerfile` now utilizes an `engine-builder` stage that compiles all 4 native engines under Linux:
+  1. Vanilla Angband 4.2.6 (`cmake --build build`)
+  2. FrogComposBand (`cmake .. && make`)
+  3. Sil-Q (`cmake .. && make silq`)
+  4. Hengband headless bridge (`variants/hengband-src/src/Makefile.am` target `hengband-bridge` via autotools `./bootstrap && ./configure && make`)
+  The runtime container stage copies all binaries and lib assets into `/app/variants/`, creating the necessary symlinks (`hengband-en` / `hengband-jp`).
+  `.gcloudignore` whitelists `!variants/**` so variant sources and lib trees are included in cloud container builds.
+
+### 40.2 Authoritative Multi-Realm Session Isolation & Augmented Hello Handshake
+- **The Cross-Realm Hijacking Trap**:
+  If a player switches realms on the splash screen or character creation, a reconnecting WebSocket might match an existing live session by session ID or generic username (`Adventurer`), attaching to a running engine from a completely different realm.
+- **The Invariant**:
+  `server/src/server.js` strictly enforces `candRealm === reqRealm` in both session ID lookup (Priority Check 1) and username/savefile matching (Priority Check 2). Any candidate from a mismatched realm is unconditionally rejected, cleanly spawning a native engine in the requested realm.
+  Furthermore, `hello` packets sent to the client (both immediate greeting and engine-forwarded) are augmented with `sessionId`, `realm`, `engineName`, and `isFallback`. If fallback mode is ever active, the client alerts the player with a non-intrusive status notice.
+
+### 40.3 Rubble (`:`) vs. Green Bush (`:`) Disambiguation (`FEAT_BUSH = 42`)
+- **The Collision**:
+  In Angband and variants, both stone rubble (talus heaps) and outdoor bushes share the ASCII glyph `:`. Naively checking `glyph === ':'` caused all dungeon rubble in underground levels to render as 3D leafy bramble bushes.
+- **The Disambiguation Invariant**:
+  1. In the C++ bridge (`variants/hengband-src/src/main-bridge.cpp`), terrain matching evaluates `TerrainTag::RUBBLE` and Japanese terms (`がれき`, `瓦礫`) returning Feat 16. Bushes check `TerrainTag::BRAKE`, Japanese terms (`茂み`, `藪`), and verify `color == TERM_GREEN || color == TERM_L_GREEN || terrain.has(TerrainCharacteristics::PLANT)` before returning Feat 42 (`FEAT_BUSH`).
+  2. In client renderers (`dungeon3d.js` and `DungeonWorld.cs`), glyph `:` inspects the tile color attribute: attributes `3`, `5`, `11`, `13` (shades of green) render as 3D foliage bushes, while all other colors (slate, grey, white) render as collapsed stone rubble.
+
+### 40.4 Global Aquatic Presentation, Camera Immersion & Engine Hazards
+- **Engine Mechanics Grounding**:
+  Native drowning damage and movement impediments in FrogComposBand (`dungeon.c:1450`) and Hengband (`hp-mp-processor.cpp:209`) are respected bit-for-bit: deep water inflicts unescapable drowning damage (`DAMAGE_NOESCAPE, randint1(p_ptr->lev)`) and blocks fast-running unless the character possesses levitation, flying, or water-walking abilities.
+- **Sensory Immersion Parity**:
+  Both Web Three.js and Godot C# implement smooth camera immersion wading offsets with buoyant liquid bobbing:
+  - Shallow Water (`feat 28` / `0x1C`): `-0.08m`
+  - Deep Water (`feat 29` / `0x1D`): `-0.22m`
+  - Swamp (`feat 31` / `0x1F`): `-0.10m`
+  Liquid footsteps dynamically modulate Web Audio and Godot audio buses with sub-120Hz liquid plunge displacement, 950Hz resonant spray/bubble modulation, and fluid slosh decay tails.
+
+---
+
+## 41. Strict Zero-Fallback Multi-Realm Invariant & Loading Watchdog Protocol
+
+### 41.1 Absolute Rule: NEVER Load Wrong Realm as Fallback
+- **The Core Invariant**:
+  Under no circumstances should the system silently fall back to Vanilla Angband (or any other realm) when a specific realm is requested by the player.
+  If the requested realm executable is uninstalled, invalid, or fails to spawn:
+  1. The server must explicitly reject the connection at the WebSocket entrypoint with `{ t: 'error', message: '...' }` and `{ t: 'bye', detail: '...' }`, and close the socket.
+  2. The server must never enqueue or re-attach the client to an existing session from a mismatched realm.
+  3. The client must never accept a fallback realm or mismatched realm:
+     - On `hello`: If `msg.isFallback == true` or `msg.realm != requestedRealm`, the client immediately aborts the connection, closes the WebSocket, halts reconnect loops, shows an error toast, and returns to the main menu.
+     - On `frame`: If `frame.realm != requestedRealm`, the client aborts immediately.
+     - Godot C# (`WebSocketBridgeClient.cs`) enforces this exact parity, raising `Disconnected` with explicit error reasons.
+     - Offline WebAssembly mode (`local_bridge.js`, `engine-worker.js`) explicitly rejects non-Vanilla realm requests instead of running Vanilla offline.
+
+### 41.2 Loading Overlay Hang & Watchdog Protocol
+- **The Defect**:
+  When a backend connection dropped during engine startup, the browser client previously kept the loading overlay (`CONNECTING TO CLOUD REALM & SPAWNING ENGINE...`) spinning indefinitely, while `network.js` scheduled continuous reconnection attempts every 1-3 seconds.
+- **The Solution**:
+  1. **Startup Watchdog**: A 10-second watchdog timer in `app.js` (`startGame`) automatically dismisses the loading overlay, issues a descriptive timeout toast, and returns to the main menu if the engine fails to emit a frame or complete a handshake.
+  2. **Error & Bye Dismissal**: Any arrival of `error`, `bye`, or clean rejection clears the watchdog timer and immediately hides the loading overlay.
+  3. **Auto-Reconnect Suppression**: `manualDisconnect = true` is set on server rejection (`error` / `bye`), stopping background reconnect loops from trapping the user in an infinite loading cycle.

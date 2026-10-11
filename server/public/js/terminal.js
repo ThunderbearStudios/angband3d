@@ -34,6 +34,7 @@ class WebTerminal {
         ];
 
         this.lastRows = [];
+        this.tdSjis = (typeof TextDecoder !== 'undefined') ? new TextDecoder('shift-jis') : null;
         this.zoomLevel = 1.0;
         this.minZoom = 0.45;
         this.maxZoom = 3.2;
@@ -122,7 +123,7 @@ class WebTerminal {
     }
 
     updateZoomUI() {
-        const btnReset = document.getElementById('btn-term-zoom-reset');
+        const btnReset = document.getElementById('btn-term-zoom-reset') || document.getElementById('term-zoom-label');
         if (btnReset) {
             btnReset.textContent = `${Math.round(this.zoomLevel * 100)}%`;
             btnReset.title = `Current Zoom: ${Math.round(this.zoomLevel * 100)}% (Click to reset to Fit)`;
@@ -132,7 +133,7 @@ class WebTerminal {
     setupZoomControls() {
         const btnZoomIn = document.getElementById('btn-term-zoom-in');
         const btnZoomOut = document.getElementById('btn-term-zoom-out');
-        const btnZoomReset = document.getElementById('btn-term-zoom-reset');
+        const btnZoomReset = document.getElementById('btn-term-zoom-reset') || document.getElementById('term-zoom-label');
 
         if (btnZoomIn) {
             btnZoomIn.addEventListener('click', (e) => {
@@ -147,6 +148,7 @@ class WebTerminal {
             });
         }
         if (btnZoomReset) {
+            btnZoomReset.style.cursor = 'pointer';
             btnZoomReset.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.resetZoom();
@@ -280,9 +282,38 @@ class WebTerminal {
         viewport.addEventListener('touchcancel', endTouch, { passive: true });
     }
 
+    decodeText(gStr) {
+        if (!gStr) return '';
+        let result = '';
+        const len = gStr.length;
+        for (let c = 0; c < len; c++) {
+            const b1 = gStr.charCodeAt(c) & 0xff;
+            if (this.tdSjis && ((b1 >= 0x81 && b1 <= 0x9f) || (b1 >= 0xe0 && b1 <= 0xfc)) && c + 1 < len) {
+                const b2 = gStr.charCodeAt(c + 1) & 0xff;
+                try {
+                    result += this.tdSjis.decode(new Uint8Array([b1, b2]));
+                } catch (_) {
+                    result += String.fromCharCode((b1 << 8) | b2);
+                }
+                c++;
+            } else if (this.tdSjis && b1 >= 0xa1 && b1 <= 0xdf) {
+                try {
+                    result += this.tdSjis.decode(new Uint8Array([b1]));
+                } catch (_) {
+                    result += String.fromCharCode(b1);
+                }
+            } else {
+                result += String.fromCharCode(b1);
+            }
+        }
+        return result;
+    }
+
     detectMode(termData) {
         if (!termData || !termData.rows) return 'classic_play';
-        const fullText = termData.rows.map(r => r.g || '').join(' ').toLowerCase();
+        const rawText = termData.rows.map(r => r.g || '').join(' ').toLowerCase();
+        const decodedText = termData.rows.map(r => this.decodeText(r.g || '')).join(' ').toLowerCase();
+        const fullText = rawText + ' ' + decodedText;
 
         // 1. Birth / Character Setup / Death
         if (fullText.includes('choose a race') ||
@@ -311,7 +342,21 @@ class WebTerminal {
             fullText.includes('enter name') ||
             fullText.includes('accept character history') ||
             fullText.includes('any other key to continue') ||
-            fullText.includes('enter character')) {
+            fullText.includes('enter character') ||
+            // Japanese Hengband Birth Screens
+            fullText.includes('初期オプション') ||
+            fullText.includes('smart_learn') ||
+            fullText.includes('キャラクターを作成') ||
+            fullText.includes('性別を選んで') ||
+            fullText.includes('種族を選んで') ||
+            fullText.includes('職業を選んで') ||
+            fullText.includes('性格を選んで') ||
+            fullText.includes('魔法領域') ||
+            fullText.includes('能力値を抽選') ||
+            fullText.includes('この数値に決定') ||
+            fullText.includes('生い立ち') ||
+            fullText.includes('ゲーム開始') ||
+            fullText.includes('冒険に出ますか')) {
             return 'birth';
         }
 
@@ -323,7 +368,12 @@ class WebTerminal {
             fullText.includes('storekeeper') ||
             fullText.includes('purchase which item') ||
             fullText.includes('sell which item') ||
-            fullText.includes('examine which item')) {
+            fullText.includes('examine which item') ||
+            fullText.includes('所持金') ||
+            fullText.includes('店主') ||
+            fullText.includes('いらっしゃいませ') ||
+            fullText.includes('買いますか') ||
+            fullText.includes('売りますか')) {
             return 'store';
         }
 
@@ -333,7 +383,10 @@ class WebTerminal {
             fullText.includes('target:') ||
             fullText.includes('select target') ||
             fullText.includes('target mode') ||
-            fullText.includes('choose target')) {
+            fullText.includes('choose target') ||
+            fullText.includes('どの方向') ||
+            fullText.includes('対象:') ||
+            fullText.includes('照準')) {
             return 'targeting';
         }
 
@@ -354,7 +407,15 @@ class WebTerminal {
             fullText.includes('browse which') ||
             fullText.includes('destroy which') ||
             fullText.includes('take off') ||
-            fullText.includes('wear/wield')) {
+            fullText.includes('wear/wield') ||
+            fullText.includes('どのアイテム') ||
+            fullText.includes('どの巻物') ||
+            fullText.includes('どの薬') ||
+            fullText.includes('どの魔法') ||
+            fullText.includes('どの呪文') ||
+            fullText.includes('どの本') ||
+            fullText.includes('装備品') ||
+            fullText.includes('持ち物')) {
             return 'item_prompt';
         }
 
@@ -455,6 +516,24 @@ class WebTerminal {
         return val & 0x0f; // Low 4 bits is palette index 0-15
     }
 
+    decodeText(str) {
+        if (!str) return '';
+        if (/[\u3000-\u9faf\uff01-\uff60]/.test(str)) return str;
+        if (this.tdSjis) {
+            try {
+                const bytes = new Uint8Array(str.length);
+                let hasSjisLead = false;
+                for (let i = 0; i < str.length; i++) {
+                    const b = str.charCodeAt(i) & 0xff;
+                    bytes[i] = b;
+                    if ((b >= 0x81 && b <= 0x9f) || (b >= 0xe0 && b <= 0xfc)) hasSjisLead = true;
+                }
+                if (hasSjisLead) return this.tdSjis.decode(bytes);
+            } catch (_) {}
+        }
+        return str;
+    }
+
     render(termData) {
         if (!termData || !termData.rows) return;
         this.lastTermData = termData;
@@ -479,7 +558,7 @@ class WebTerminal {
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(1, 1, w - 2, h - 2);
 
-        this.ctx.font = `${this.fontSize}px 'Fira Code', 'Courier New', monospace`;
+        this.ctx.font = `${this.fontSize}px 'Fira Code', 'Meiryo', 'MS Gothic', 'Yu Gothic', 'Hiragino Sans', 'Noto Sans CJK JP', monospace`;
         this.ctx.textBaseline = 'top';
 
         for (let r = 0; r < termData.rows.length && r < this.rows; r++) {
@@ -488,13 +567,40 @@ class WebTerminal {
             const attrs = rowObj.a || '';
             const y = (rowObj.y !== undefined ? rowObj.y : r) * this.charHeight;
 
-            for (let c = 0; c < text.length && c < this.cols; c++) {
-                const ch = text[c];
-                if (ch === ' ' || ch === '\0') continue;
+            let screenCol = 0;
+            for (let c = 0; c < text.length && screenCol < this.cols; c++) {
+                const code = text.codePointAt(c);
+                const isSurrogate = (code > 0xffff);
 
-                const colorIdx = this.parseAttr(attrs, c);
-                this.ctx.fillStyle = this.palette[colorIdx] || '#ffffff';
-                this.ctx.fillText(ch, c * this.charWidth + 1, y + 2);
+                // Full-width CJK characters occupy 2 monospace grid columns
+                const isFullWidthCJK = (
+                    (code >= 0x1100 && code <= 0x115f) ||
+                    (code >= 0x2e80 && code <= 0xa4cf) ||
+                    (code >= 0xac00 && code <= 0xd7a3) ||
+                    (code >= 0xf900 && code <= 0xfaff) ||
+                    (code >= 0xfe30 && code <= 0xfe4f) ||
+                    (code >= 0xff01 && code <= 0xff60) ||
+                    (code >= 0xffe0 && code <= 0xffe6) ||
+                    (code >= 0x20000 && code <= 0x3fffd)
+                );
+
+                if (isFullWidthCJK) {
+                    const kanji = String.fromCodePoint(code);
+                    const colorIdx = this.parseAttr(attrs, screenCol);
+                    this.ctx.fillStyle = this.palette[colorIdx] || '#ffffff';
+                    this.ctx.fillText(kanji, screenCol * this.charWidth + 1, y + 2, this.charWidth * 2);
+                    screenCol += 2;
+                    if (isSurrogate) c++;
+                    continue;
+                }
+
+                const ch = text[c];
+                if (ch !== ' ' && ch !== '\0') {
+                    const colorIdx = this.parseAttr(attrs, screenCol);
+                    this.ctx.fillStyle = this.palette[colorIdx] || '#ffffff';
+                    this.ctx.fillText(ch, screenCol * this.charWidth + 1, y + 2);
+                }
+                screenCol += 1;
             }
         }
 

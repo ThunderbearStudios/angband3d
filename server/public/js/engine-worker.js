@@ -27,6 +27,11 @@ self.onmessage = async (e) => {
 
     switch (data.type) {
         case 'init':
+            if (data.realm && data.realm !== 'angband') {
+                self.postMessage({ type: 'error', message: `Realm "${data.realm}" is not supported in offline WebAssembly mode. Fallbacks are strictly disabled.` });
+                self.postMessage({ type: 'bye', detail: `Realm "${data.realm}" is not supported offline.` });
+                return;
+            }
             currentChar = data.username || 'Adventurer';
             await startEngine(currentChar, !!data.isNew, data.saveFile);
             break;

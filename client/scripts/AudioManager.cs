@@ -8,6 +8,7 @@ public enum SoundEffect
 {
     Footstep,
     FootstepOutdoor,
+    FootstepWater,
     MeleeSwing,
     MeleeHit,
     MeleeCrit,
@@ -81,8 +82,10 @@ public partial class AudioManager : Node
     private readonly Dictionary<SoundEffect, AudioStreamWav> _sfxLibrary = new();
     private readonly AudioStreamWav[] _stoneFootsteps = new AudioStreamWav[4];
     private readonly AudioStreamWav[] _outdoorFootsteps = new AudioStreamWav[4];
+    private readonly AudioStreamWav[] _waterFootsteps = new AudioStreamWav[4];
     private int _stoneStepIdx = 0;
     private int _outdoorStepIdx = 0;
+    private int _waterStepIdx = 0;
 
     private readonly List<AudioStreamPlayer> _2dPlayers = new();
     private readonly List<AudioStreamPlayer3D> _3dPlayers = new();
@@ -190,6 +193,11 @@ public partial class AudioManager : Node
             var idx = _outdoorStepIdx++ % _outdoorFootsteps.Length;
             return _outdoorFootsteps[idx] ?? (_sfxLibrary.TryGetValue(effect, out var s) ? s : null);
         }
+        if (effect == SoundEffect.FootstepWater)
+        {
+            var idx = _waterStepIdx++ % _waterFootsteps.Length;
+            return _waterFootsteps[idx] ?? (_sfxLibrary.TryGetValue(effect, out var s) ? s : null);
+        }
         return _sfxLibrary.TryGetValue(effect, out var stream) ? stream : null;
     }
 
@@ -264,9 +272,14 @@ public partial class AudioManager : Node
         {
             _outdoorFootsteps[i] = SynthFootstepVariation(stone: false, i);
         }
+        for (var i = 0; i < _waterFootsteps.Length; i++)
+        {
+            _waterFootsteps[i] = SynthWaterFootstepVariation(i);
+        }
 
         _sfxLibrary[SoundEffect.Footstep] = _stoneFootsteps[0];
         _sfxLibrary[SoundEffect.FootstepOutdoor] = _outdoorFootsteps[0];
+        _sfxLibrary[SoundEffect.FootstepWater] = _waterFootsteps[0];
         _sfxLibrary[SoundEffect.MeleeSwing] = SynthWhoosh();
         _sfxLibrary[SoundEffect.MeleeHit] = SynthHit();
         _sfxLibrary[SoundEffect.MeleeCrit] = SynthCrit();
@@ -398,6 +411,54 @@ public partial class AudioManager : Node
             var friction = (lpNoise2 * 0.4f + bpState2 * 0.6f) * frictionEnv * (stone ? 0.28f : 0.38f);
 
             samples[i] = (heelPunch + toePunch + friction) * 0.52f;
+        }
+
+        return CreateWav(samples);
+    }
+
+    private static AudioStreamWav SynthWaterFootstepVariation(int variation)
+    {
+        var duration = 0.16f;
+        var totalSamples = (int)(SampleRate * duration);
+        var samples = new float[totalSamples];
+        var rng = new Random(3033 + variation * 51);
+
+        var fPlunge = 80f + variation * 8f;
+        var splashDelay = (int)(SampleRate * 0.012f);
+
+        var lpFluid = 0f;
+        var bpSpray = 0f;
+
+        for (var i = 0; i < totalSamples; i++)
+        {
+            var t = i / (float)SampleRate;
+
+            // Stage 1: Liquid displacement thump / pop (sub-120Hz)
+            var envPlunge = Mathf.Exp(-t * 36f);
+            var plunge = Mathf.Sin(2f * Mathf.Pi * fPlunge * t) * envPlunge * 0.42f;
+
+            // Stage 2: Wet splash / spray droplet bandpass noise
+            var spray = 0f;
+            if (i >= splashDelay)
+            {
+                var tSpray = (i - splashDelay) / (float)SampleRate;
+                var envSpray = Mathf.Exp(-tSpray * 28f);
+                var rawNoise = (float)rng.NextDouble() * 2f - 1f;
+                // Resonant bandpass around 950Hz
+                bpSpray += 0.22f * (rawNoise - bpSpray);
+                // Bubble micro-modulation
+                var bubble = 1.0f + 0.35f * Mathf.Sin(2f * Mathf.Pi * 440f * tSpray);
+                spray = bpSpray * envSpray * bubble * 0.38f;
+            }
+
+            // Stage 3: Low slosh tail
+            var rawFluid = (float)rng.NextDouble() * 2f - 1f;
+            lpFluid += 0.08f * (rawFluid - lpFluid);
+            var slosh = lpFluid * Mathf.Exp(-t * 22f) * 0.25f;
+
+            var sample = plunge + spray + slosh;
+            sample = (float)Math.Tanh(sample * 1.2f) * 0.85f;
+            samples[i] = sample;
         }
 
         return CreateWav(samples);

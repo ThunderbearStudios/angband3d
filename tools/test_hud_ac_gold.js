@@ -93,6 +93,7 @@ const elements = {
 
 global.document = {
     getElementById: (id) => elements[id] || new ElementMock('div', id),
+    querySelector: () => new ElementMock('span'),
     querySelectorAll: () => [],
     createElement: (tag) => new ElementMock(tag)
 };

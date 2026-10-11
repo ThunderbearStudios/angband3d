@@ -155,11 +155,21 @@ class LocalGameBridge {
         this._pendingImportResolvers = [];
     }
 
-    connect(charName = 'Adventurer', isNew = false, saveFile = null) {
+    connect(charName = 'Adventurer', isNew = false, saveFile = null, realm = 'angband') {
         this.currentChar = charName;
         this.currentIsNew = isNew;
         this.currentSave = saveFile;
+        this.currentRealm = realm || 'angband';
         this.isInQueue = false;
+
+        if (this.currentRealm && this.currentRealm !== 'angband') {
+            const err = `Realm "${this.currentRealm}" is not supported in offline WebAssembly mode. Fallbacks are disabled.`;
+            console.error('[LocalBridge]', err);
+            if (this.onStatus) this.onStatus(err);
+            if (this.onError) this.onError(err);
+            if (this.onBye) this.onBye(err);
+            return;
+        }
 
         if (this.worker) {
             this.disconnect();

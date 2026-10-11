@@ -17,8 +17,10 @@ class SoundEngine {
         this.buffers = {};
         this.stoneFootsteps = [];
         this.outdoorFootsteps = [];
+        this.waterFootsteps = [];
         this.stoneStepIdx = 0;
         this.outdoorStepIdx = 0;
+        this.waterStepIdx = 0;
 
         // Master Limiter / Compressor Stage & SFX Bus
         this.masterCompressor = null;
@@ -54,18 +56,14 @@ class SoundEngine {
             } catch (_) {}
         }
 
-        // Pre-initialize audio graph and synthesize library
-        try {
-            this.init();
-        } catch (_) {}
-
-        // Global user interaction listener to guarantee instant audio unlocking on first gesture
+        // Seamlessly initialize audio graph on the first trusted user gesture (click/key/touch),
+        // preventing modern browser autoplay policy warnings on initial page load.
         if (typeof window !== 'undefined') {
             const unlockHandler = () => {
-                this.unlock();
+                this.unlock(true);
             };
             ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(evt => {
-                window.addEventListener(evt, unlockHandler, { passive: true });
+                window.addEventListener(evt, unlockHandler, { passive: true, once: true });
             });
         }
     }
@@ -169,9 +167,16 @@ class SoundEngine {
         this.generateSfxLibrary();
     }
 
-    unlock() {
+    unlock(forceFromGesture = false) {
         if (!this.ctx) {
             this.init();
+        }
+        if (!this.unlocked && !forceFromGesture) {
+            const hasUserGesture = (typeof navigator !== 'undefined' && navigator.userActivation && navigator.userActivation.hasBeenActive);
+            if (!hasUserGesture) {
+                // Defer audio context resumption until genuine user gesture, preventing browser autoplay warnings
+                return;
+            }
         }
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume().then(() => {
@@ -196,9 +201,9 @@ class SoundEngine {
     }
 
     playBuffer(buffer, pitchScale = 1.0, volumeScale = 1.0, pan = 0.0) {
-        if (!this.enabled || !this.ctx || !buffer) return;
+        if (!this.enabled || !this.ctx || !buffer || !this.unlocked) return;
         if (this.ctx.state === 'suspended') {
-            this.ctx.resume();
+            return;
         }
 
         const now = this.ctx.currentTime;
@@ -235,12 +240,14 @@ class SoundEngine {
     generateSfxLibrary() {
         if (!this.ctx) return;
 
-        // 1. Footstep variations (stone & outdoor dirt)
+        // 1. Footstep variations (stone, outdoor dirt, and aquatic water splash)
         this.stoneFootsteps = [];
         this.outdoorFootsteps = [];
+        this.waterFootsteps = [];
         for (let i = 0; i < 4; i++) {
             this.stoneFootsteps.push(this.synthFootstep(true, i));
             this.outdoorFootsteps.push(this.synthFootstep(false, i));
+            this.waterFootsteps.push(this.synthWaterFootstep(i));
         }
 
         // 2. Combat & Action sounds
@@ -362,6 +369,51 @@ class SoundEngine {
 
             samples[i] = (heelPunch + toePunch + friction) * 0.38;
         }
+        return this.createBuffer(samples);
+    }
+
+    // Aquatic Wading / Liquid Splash Footstep (Physical acoustic displacement + droplet spray)
+    synthWaterFootstep(variation) {
+        const duration = 0.16;
+        const totalSamples = Math.floor(this.sampleRate * duration);
+        const samples = new Float32Array(totalSamples);
+
+        const fPlunge = 80 + variation * 8;
+        const splashDelay = Math.floor(this.sampleRate * 0.012);
+
+        let lpFluid = 0;
+        let bpSpray = 0;
+
+        for (let i = 0; i < totalSamples; i++) {
+            const t = i / this.sampleRate;
+
+            // Stage 1: Liquid displacement thump / pop (sub-120Hz)
+            const envPlunge = Math.exp(-t * 36);
+            const plunge = Math.sin(2 * Math.PI * fPlunge * t) * envPlunge * 0.42;
+
+            // Stage 2: Wet splash / spray droplet bandpass noise
+            let spray = 0;
+            if (i >= splashDelay) {
+                const tSpray = (i - splashDelay) / this.sampleRate;
+                const envSpray = Math.exp(-tSpray * 28);
+                const rawNoise = Math.random() * 2 - 1;
+                // Resonant bandpass around 950Hz (water slosh / splash)
+                bpSpray += 0.22 * (rawNoise - bpSpray);
+                // Bubble micro-modulation
+                const bubble = 1.0 + 0.35 * Math.sin(2 * Math.PI * 440 * tSpray);
+                spray = bpSpray * envSpray * bubble * 0.38;
+            }
+
+            // Stage 3: Low slosh tail
+            const rawFluid = Math.random() * 2 - 1;
+            lpFluid += 0.08 * (rawFluid - lpFluid);
+            const slosh = lpFluid * Math.exp(-t * 22) * 0.25;
+
+            let sample = plunge + spray + slosh;
+            sample = Math.tanh(sample * 1.2) * 0.85;
+            samples[i] = sample;
+        }
+
         return this.createBuffer(samples);
     }
 
@@ -1231,17 +1283,28 @@ class SoundEngine {
     /* -------------------------------------------------------------
      * Public Playback API
      * ------------------------------------------------------------- */
-    playFootstep(outdoors = false, heightRatio = 1.0) {
+    playFootstep(outdoors = false, heightRatio = 1.0, surface = null) {
         if (!this.enabled) return;
         this.unlock();
-        const list = outdoors ? this.outdoorFootsteps : this.stoneFootsteps;
+        let list;
+        if (surface === 'water' || surface === 'deep_water' || surface === 'swamp') {
+            list = this.waterFootsteps;
+        } else {
+            list = outdoors ? this.outdoorFootsteps : this.stoneFootsteps;
+        }
         if (!list || list.length === 0) return;
 
-        const idx = outdoors ? (this.outdoorStepIdx++ % list.length) : (this.stoneStepIdx++ % list.length);
+        let idx;
+        if (surface === 'water' || surface === 'deep_water' || surface === 'swamp') {
+            if (!this.waterStepIdx) this.waterStepIdx = 0;
+            idx = this.waterStepIdx++ % list.length;
+        } else {
+            idx = outdoors ? (this.outdoorStepIdx++ % list.length) : (this.stoneStepIdx++ % list.length);
+        }
         const buffer = list[idx];
         const pitchScale = Math.max(0.85, Math.min(1.20, 1.0 / Math.pow(heightRatio || 1.0, 0.35)));
-        // Subtle, gentle foley volume (-8dB to -10dB)
-        this.playBuffer(buffer, pitchScale, 0.30);
+        const vol = (surface === 'water' || surface === 'deep_water') ? 0.38 : (surface === 'swamp' ? 0.34 : 0.30);
+        this.playBuffer(buffer, pitchScale, vol);
     }
 
     playWhoosh() {

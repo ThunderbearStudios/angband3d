@@ -18,6 +18,7 @@ class GameNetwork {
         this.onFrame = null;
         this.onHello = null;
         this.onBye = null;
+        this.onError = null;
         this.onPing = null;
         this.onStatus = null;
         this.onQueue = null;
@@ -29,13 +30,15 @@ class GameNetwork {
             if (savedChar) this.currentChar = savedChar;
             const savedSave = localStorage.getItem('angband3d_session_save');
             if (savedSave) this.currentSave = savedSave;
+            const savedRealm = localStorage.getItem('angband3d_session_realm');
+            if (savedRealm) this.currentRealm = savedRealm;
         } catch (_) {}
 
         if (typeof document !== 'undefined' && typeof window !== 'undefined') {
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible' && !this.manualDisconnect) {
                     if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
-                        this.connect(this.currentChar, false, this.currentSave);
+                        this.connect(this.currentChar, false, this.currentSave, this.currentRealm);
                     } else if (this.ws.readyState === WebSocket.OPEN) {
                         this.lastPingSent = performance.now();
                         try { this.ws.send(JSON.stringify({ t: 'ping', time: Date.now() })); } catch (_) {}
@@ -44,13 +47,13 @@ class GameNetwork {
             });
             window.addEventListener('online', () => {
                 if (!this.manualDisconnect && (!this.ws || this.ws.readyState !== WebSocket.OPEN)) {
-                    this.connect(this.currentChar, false, this.currentSave);
+                    this.connect(this.currentChar, false, this.currentSave, this.currentRealm);
                 }
             });
         }
     }
 
-    connect(charName = 'Adventurer', isNew = false, saveFile = null) {
+    connect(charName = 'Adventurer', isNew = false, saveFile = null, realm = 'angband') {
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
@@ -61,29 +64,35 @@ class GameNetwork {
         this.currentChar = charName;
         this.currentIsNew = isNew;
         this.currentSave = saveFile;
+        this.requestedRealm = realm || 'angband';
+        this.currentRealm = realm || 'angband';
 
-        // Invariant: Verify if the requested character or savefile matches what is stored in localStorage.
-        // If the player starts a new game, switches saves, or switches characters, discard any stale sessionId!
+        // Invariant: Verify if the requested character, savefile, or realm matches what is stored in localStorage.
+        // If the player starts a new game, switches saves, switches characters, or switches realms, discard any stale sessionId!
         const reqSaveNorm = saveFile ? saveFile.toLowerCase().replace(/\.sav$/i, '').trim() : null;
         let storedSaveNorm = null;
         let storedCharNorm = null;
+        let storedRealm = null;
         try {
             const storedSave = localStorage.getItem('angband3d_session_save');
             if (storedSave) storedSaveNorm = storedSave.toLowerCase().replace(/\.sav$/i, '').trim();
             const storedChar = localStorage.getItem('angband3d_session_char');
             if (storedChar) storedCharNorm = storedChar.toLowerCase().trim();
+            storedRealm = localStorage.getItem('angband3d_session_realm');
         } catch (_) {}
 
         const reqCharNorm = (charName && charName !== 'Adventurer') ? charName.toLowerCase().trim() : null;
         const saveChanged = reqSaveNorm && storedSaveNorm && reqSaveNorm !== storedSaveNorm;
         const charChanged = reqCharNorm && storedCharNorm && storedCharNorm !== 'adventurer' && reqCharNorm !== storedCharNorm;
+        const realmChanged = storedRealm && storedRealm !== this.currentRealm;
 
-        // If explicitly starting fresh, or switching save/character, or loading a save without matching stored save, drop stale session ID!
-        if (isNew || saveChanged || charChanged || (saveFile && !storedSaveNorm)) {
+        // If explicitly starting fresh, switching realm, switching save/character, or loading a save without matching stored save, drop stale session ID!
+        if (isNew || realmChanged || saveChanged || charChanged || (saveFile && !storedSaveNorm)) {
             this.sessionId = null;
             try {
                 localStorage.removeItem('angband3d_session_id');
                 localStorage.removeItem('angband3d_session_save');
+                localStorage.setItem('angband3d_session_realm', this.currentRealm);
             } catch (_) {}
         }
 
@@ -96,11 +105,18 @@ class GameNetwork {
         if (saveFile) {
             wsUrl += `&save=${encodeURIComponent(saveFile)}`;
         }
+        if (realm) {
+            wsUrl += `&realm=${encodeURIComponent(realm)}`;
+            if (realm === 'hengband') {
+                const langMode = window.__langMode || (typeof localStorage !== 'undefined' ? localStorage.getItem('angband3d_lang_mode') : null) || 'en';
+                wsUrl += `&lang=${encodeURIComponent(langMode)}`;
+            }
+        }
         if (this.sessionId && !isNew) {
             wsUrl += `&session=${encodeURIComponent(this.sessionId)}`;
         }
 
-        if (this.onStatus) this.onStatus('Connecting to Cloud Realm...');
+        if (this.onStatus) this.onStatus(`Connecting to ${realm ? (realm.charAt(0).toUpperCase() + realm.slice(1)) : 'Cloud'} Realm...`);
 
         try {
             if (this.ws) {
@@ -131,11 +147,31 @@ class GameNetwork {
                 if (msg.t === 'hello') {
                     this.isInQueue = false;
                     this.reconnectAttempts = 0;
+
+                    // Strict Invariant: Never allow the wrong realm or a fallback realm to be accepted
+                    const wrongRealm = Boolean(this.requestedRealm && msg.realm && msg.realm !== this.requestedRealm);
+                    if (msg.isFallback || wrongRealm) {
+                        console.error(`[Network] Wrong realm or fallback rejected! Requested: "${this.requestedRealm}", received: "${msg.realm}", isFallback: ${msg.isFallback}. Aborting.`);
+                        this.manualDisconnect = true;
+                        if (this.reconnectTimer) {
+                            clearTimeout(this.reconnectTimer);
+                            this.reconnectTimer = null;
+                        }
+                        try { this.ws.close(); } catch (_) {}
+                        const err = msg.fallbackNotice || `Requested realm "${this.requestedRealm}" could not be loaded (server sent "${msg.realm || 'fallback'}"). Fallback is strictly disabled.`;
+                        if (this.onError) this.onError(err);
+                        return;
+                    }
+
+                    if (msg.realm) {
+                        this.currentRealm = msg.realm;
+                    }
                     if (msg.sessionId) {
                         this.sessionId = msg.sessionId;
                         try {
                             localStorage.setItem('angband3d_session_id', msg.sessionId);
                             localStorage.setItem('angband3d_session_char', this.currentChar || '');
+                            localStorage.setItem('angband3d_session_realm', this.currentRealm || 'angband');
                             if (this.currentSave) {
                                 localStorage.setItem('angband3d_session_save', this.currentSave);
                             }
@@ -156,6 +192,19 @@ class GameNetwork {
                         if (this.onPing) this.onPing(this.pingMs);
                     }
                 } else if (msg.t === 'frame') {
+                    // Strict Invariant: Reject frames if they belong to a different realm than requested
+                    if (this.requestedRealm && msg.realm && msg.realm !== this.requestedRealm) {
+                        console.error(`[Network] Frame received for wrong realm "${msg.realm}" (expected "${this.requestedRealm}"). Aborting.`);
+                        this.manualDisconnect = true;
+                        if (this.reconnectTimer) {
+                            clearTimeout(this.reconnectTimer);
+                            this.reconnectTimer = null;
+                        }
+                        try { this.ws.close(); } catch (_) {}
+                        if (this.onError) this.onError(`Wrong realm "${msg.realm}" received from engine (expected "${this.requestedRealm}"). Fallbacks are disabled.`);
+                        return;
+                    }
+
                     this.currentIsNew = false;
                     if (msg.player) {
                         if (msg.player.name && msg.player.name !== 'PLAYER') {
@@ -169,6 +218,14 @@ class GameNetwork {
                         }
                     }
                     if (this.onFrame) this.onFrame(msg);
+                } else if (msg.t === 'error') {
+                    console.error('[Engine Error]', msg.message);
+                    this.manualDisconnect = true;
+                    if (this.reconnectTimer) {
+                        clearTimeout(this.reconnectTimer);
+                        this.reconnectTimer = null;
+                    }
+                    if (this.onError) this.onError(msg.message || 'Game engine error');
                 } else if (msg.t === 'bye') {
                     this.sessionId = null;
                     try {
@@ -176,8 +233,11 @@ class GameNetwork {
                         localStorage.removeItem('angband3d_session_char');
                         localStorage.removeItem('angband3d_session_save');
                     } catch (_) {}
-                    if (msg.detail && msg.detail.toLowerCase().includes('idle')) {
-                        this.manualDisconnect = true;
+                    // If the server explicitly terminated or rejected the session, DO NOT auto-reconnect in a loop!
+                    this.manualDisconnect = true;
+                    if (this.reconnectTimer) {
+                        clearTimeout(this.reconnectTimer);
+                        this.reconnectTimer = null;
                     }
                     if (this.onBye) this.onBye(msg.detail || 'Game session terminated');
                 }
@@ -189,6 +249,7 @@ class GameNetwork {
         this.ws.onerror = (err) => {
             console.error('[WebSocket Error]', err);
             if (this.onStatus) this.onStatus('Network connection error');
+            if (this.onError) this.onError('WebSocket connection error');
         };
 
         this.ws.onclose = () => {
@@ -199,14 +260,21 @@ class GameNetwork {
                 return;
             }
             // Unexpected disconnection (lag, socket reset, cell network blip).
-            // Reconnect smoothly to existing running session!
+            // Reconnect smoothly to existing running session up to max attempts
+            if (this.reconnectAttempts >= 6) {
+                console.warn('[WebSocket] Maximum reconnection attempts (6) exceeded. Aborting.');
+                this.manualDisconnect = true;
+                if (this.onStatus) this.onStatus('Disconnected');
+                if (this.onError) this.onError(`Unable to establish connection to realm "${this.requestedRealm || 'angband'}". Server unreachable.`);
+                return;
+            }
             if (this.onStatus) this.onStatus('Connection interrupted. Reconnecting...');
             const delay = Math.min(3000, 1000 + (this.reconnectAttempts * 500));
             this.reconnectAttempts++;
             if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
             this.reconnectTimer = setTimeout(() => {
                 if (!this.manualDisconnect) {
-                    this.connect(this.currentChar, false, this.currentSave);
+                    this.connect(this.currentChar, false, this.currentSave, this.currentRealm);
                 }
             }, delay);
         };
@@ -292,6 +360,8 @@ class GameNetwork {
 
     sendKey(spec) {
         if (!this.connected || this.ws.readyState !== WebSocket.OPEN) return;
+        this.lastSentKey = spec;
+        this.sentKeyCount = (this.sentKeyCount || 0) + 1;
         this.ws.send(`key ${spec}`);
     }
 
