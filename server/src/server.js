@@ -1686,12 +1686,12 @@ const server = http.createServer((req, res) => {
     if ((pathname === '/api/recordings/upload' || pathname === '/api/demo/upload') && req.method === 'POST') {
         // D17: dev-only. Requires ENABLE_RECORDING_UPLOAD=1 AND a loopback client (E19).
         if (process.env.ENABLE_RECORDING_UPLOAD !== '1' || !isLoopbackRequest(req)) {
-            res.writeHead(403, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Recording upload disabled' }));
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Not found' }));
             return;
         }
-        const headerName = req.headers['x-recording-name'] || 'raw_gameplay.webm';
-        const cleanName = sanitizeFilename(headerName);
+        let headerName = req.headers['x-recording-name'] || 'raw_gameplay.webm';
+        let cleanName = sanitizeFilename(headerName);
         const recExt = path.extname(cleanName).toLowerCase();
         if (recExt !== '.webm' && recExt !== '.mp4') {
             res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1702,10 +1702,15 @@ const server = http.createServer((req, res) => {
         if (!fs.existsSync(videoDir)) {
             try { fs.mkdirSync(videoDir, { recursive: true }); } catch (_) {}
         }
-        const destPath = path.join(videoDir, cleanName);
+        let destPath = path.join(videoDir, cleanName);
+        if (fs.existsSync(destPath)) {
+            const baseName = path.basename(cleanName, recExt);
+            cleanName = `${baseName}-${Date.now()}${recExt}`;
+            destPath = path.join(videoDir, cleanName);
+        }
         const writeStream = fs.createWriteStream(destPath);
         let totalSize = 0;
-        const maxLimit = 1024 * 1024 * 1024; // 1 GB limit for raw 5-minute video capture
+        const maxLimit = 300 * 1024 * 1024; // 300 MB limit
 
         req.on('data', chunk => {
             totalSize += chunk.length;

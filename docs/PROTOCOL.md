@@ -271,6 +271,7 @@ The cloud daemon also exposes REST endpoints alongside the WebSocket gateway:
 - `GET /api/config/llm` — Protected LLM configuration provider. Strictly returns `{ hasKey: bool, hasServerKey: bool, defaultModel: string, provider: string }` without ever exposing secret tokens.
 - `POST /api/llm/generate` — Protected server-side proxy for Gemini Generative AI text and chronicle generation. Shields backend API keys completely from the client browser.
 - `GET /api/tts` (or `POST /api/tts`) — Dual-engine audio synthesis relay. Generates streaming audio via Gemini Native Audio or Edge Neural TTS, with warm connection pooling, subterranean Web Audio DSP, and in-memory audio caching.
+- `POST /api/recordings/upload` and `POST /api/demo/upload` — Dev-only tools to upload video recordings of gameplay. These endpoints are completely disabled in production and return 404 unless `ENABLE_RECORDING_UPLOAD=1` is set in the server environment AND the client connection is from a local loopback address (e.g., `127.0.0.1`).
 
 ## Compatibility
 
