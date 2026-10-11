@@ -59,3 +59,9 @@ node_modules/
 .env.local
 .chrome-debug-profile*/
 tools/temp_chamfer_profile_*/
+
+# WS10.2: signing material never tracked
+*.keystore
+*.jks
+keystore.properties
+
