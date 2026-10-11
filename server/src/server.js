@@ -15,6 +15,7 @@ const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 const zlib = require('zlib');
 const crypto = require('crypto');
+const { guardMutation } = require('./http-guard');
 if (!globalThis.crypto) globalThis.crypto = crypto;
 
 let MsEdgeTTS, OUTPUT_FORMAT;
@@ -781,10 +782,12 @@ const server = http.createServer((req, res) => {
     res.setHeader('Vary', 'Origin');
     if (reqOrigin && isAllowedOrigin(reqOrigin, host)) {
         res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, X-Recording-Name, X-Owner-Token');
+        res.setHeader('Access-Control-Expose-Headers', 'X-TTS-Engine, X-TTS-Cache, X-TTS-Fallback-Reason, Content-Type, Content-Length');
     }
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, X-Recording-Name, X-Owner-Token');
-    res.setHeader('Access-Control-Expose-Headers', 'X-TTS-Engine, X-TTS-Cache, X-TTS-Fallback-Reason, Content-Type, Content-Length');
+    
+    if (guardMutation(req, res, isAllowedOrigin, host)) return;
 
     // Industry-Standard Security Headers (Eliminates browser security warnings & MIME confusion)
     res.setHeader('X-Content-Type-Options', 'nosniff');

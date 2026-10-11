@@ -60,6 +60,23 @@ async function waitUp() {
         if (await wsUpgrade('https://evil.example') === 101) fails.push('WS upgrade accepted from foreign Origin');
         const okWs = await wsUpgrade(self);
         if (okWs !== 101) fails.push('WS upgrade refused for same-host Origin (status ' + okWs + ')');
+        
+        // WS4.3 Mutation / Cross-site tests
+        const mut1 = await req({ path: '/api/saves/x', method: 'DELETE', headers: { Origin: 'https://evil.example' } });
+        if (mut1.statusCode !== 403) fails.push('DELETE /api/saves/x from evil origin not 403 (got ' + mut1.statusCode + ')');
+        
+        const mut2 = await req({ path: '/api/llm/generate', method: 'POST', headers: { Origin: 'https://evil.example' } }, '{}');
+        if (mut2.statusCode !== 403) fails.push('POST /api/llm/generate from evil origin not 403 (got ' + mut2.statusCode + ')');
+        
+        const mut3 = await req({ path: '/api/tts?text=hi', method: 'GET', headers: { Origin: 'https://evil.example' } });
+        if (mut3.statusCode !== 403) fails.push('GET /api/tts from evil origin not 403 (got ' + mut3.statusCode + ')');
+        
+        const mut4 = await req({ path: '/api/llm/generate', method: 'POST', headers: { 'Sec-Fetch-Site': 'cross-site' } }, '{}');
+        if (mut4.statusCode !== 403) fails.push('POST /api/llm/generate with cross-site fetch metadata not 403 (got ' + mut4.statusCode + ')');
+        
+        const mut5 = await req({ path: '/api/llm/generate', method: 'POST' }, '{}');
+        if (mut5.statusCode === 403) fails.push('POST /api/llm/generate with NO origin rejected with 403 (should be allowed or 401/404)');
+
         const up = await req({ path: '/api/recordings/upload', method: 'POST', headers: { 'X-Recording-Name': 'x.webm', 'Content-Type': 'application/octet-stream' } }, 'abc');
         if (up.statusCode !== 403) fails.push('recording upload not blocked (status ' + up.statusCode + ')');
     } finally {
