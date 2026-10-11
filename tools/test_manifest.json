@@ -1,5 +1,5 @@
 {
-  "fast": ["test_relay_guard.js"],
+  "fast": ["test_relay_guard.js", "test_http_guard.js"],
   "e2e": ["verify_cross_realm_menus.js"],
   "cdp": [],
   "cloud": [],
