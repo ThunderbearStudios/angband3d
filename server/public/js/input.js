@@ -2200,7 +2200,7 @@ class InputController {
         if (footerTarget) {
             if (action !== 'wait' && inPlay && !inTerminalOverlay && !isDead) {
                 footerTarget.style.display = 'inline-flex';
-                footerTarget.innerHTML = `<span class="target-alert-icon">${icon}</span> <span class="target-alert-text">${cueText || text}</span> <kbd class="target-alert-kbd">${key}</kbd>`;
+                footerTarget.innerHTML = `<span class="target-alert-icon">${escapeHtml(icon)}</span> <span class="target-alert-text">${escapeHtml(cueText || text)}</span> <kbd class="target-alert-kbd">${escapeHtml(key)}</kbd>`;
             } else {
                 footerTarget.style.display = 'none';
             }

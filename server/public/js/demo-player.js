@@ -1143,8 +1143,8 @@
                                          (currentSub.speaker === 'Snerk the Snaga') ? 'speaker-goblin' : 'speaker-npc';
                     this.captionsEl.innerHTML = `
                         <div class="demo-caption-bubble">
-                            <span class="demo-caption-speaker ${speakerClass}">${currentSub.speaker}:</span>
-                            <span class="demo-caption-text">${currentSub.text}</span>
+                            <span class="demo-caption-speaker ${speakerClass}">${escapeHtml(currentSub.speaker)}:</span>
+                            <span class="demo-caption-text">${escapeHtml(currentSub.text)}</span>
                         </div>
                     `;
                     this.captionsEl.classList.add('visible');
