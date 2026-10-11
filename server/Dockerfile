@@ -46,7 +46,8 @@ RUN mkdir -p build && cd build && \
 # 3. Build Sil-Q
 COPY variants/silq-src /src/variants/silq-src
 WORKDIR /src/variants/silq-src
-RUN mkdir -p build && cd build && \
+RUN sed -i 's/#define FIXED_PATHS/\/* #define FIXED_PATHS *\//g' src/config.h && \
+    mkdir -p build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release \
              -DSUPPORT_X11_FRONTEND=OFF \
              -DSUPPORT_GCU_FRONTEND=ON && \

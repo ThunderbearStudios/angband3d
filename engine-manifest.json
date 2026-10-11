@@ -168,7 +168,7 @@
       "cli": {
         "frontend_switch": "-mbridge",
         "save_token_format": "-u{name}",
-        "save_dir_switch": "-ds={path}",
+        "save_dir_switch": "-dsave={path}",
         "panic_dir_switch": null,
         "new_char_switch": "-n",
         "env_vars": {
