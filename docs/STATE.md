@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
 Branch: fix/award-pass   Updated: 2026-10-11T15:35-04:00
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first), then docs/plan/master_completion_plan.md
-Current task: WS4.3 Hardening Server CORS & LLM Request Relays
+Current task: WS4.4 Ownership Tokens & Action Authorization
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. The line numbers were taken before the WS1 edits; after WS1.2, lines below ~2080 shift by about +19. Always re-locate with `Select-String`.
 
@@ -17,7 +17,7 @@ Current task: WS4.3 Hardening Server CORS & LLM Request Relays
 - [x] G-A API-key history scan (done in WS4)
 - [x] WS4.1 Sanitize UI Event Streams (innerHTML audit)
 - [x] WS4.2 Remove Bring-Your-Own-Key (BYOK) proxy handlers
-- [ ] WS4.3 Hardening Server CORS & LLM Request Relays
+- [x] WS4.3 Hardening Server CORS & LLM Request Relays
 - [ ] WS4.4 Ownership Tokens & Action Authorization
 - [ ] WS2 menus / action chooser
 - [ ] WS6 realm keys (probe first)
