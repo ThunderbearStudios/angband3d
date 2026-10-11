@@ -1451,7 +1451,7 @@ class WebHUD {
             if (titleEl) {
                 const lang = window.__langMode || 'en';
                 const prefix = (realm === 'hengband' && lang === 'jp') ? '地図' : ((realm === 'hengband' && lang === 'bilingual') ? 'MINIMAP (地図)' : 'MINIMAP');
-                titleEl.innerHTML = `${prefix} (${player.x},${player.y}) <span style="color:#ffd700;">[${arrowChar} ${facingName}]</span>`;
+                titleEl.innerHTML = `${escapeHtml(prefix)} (${player.x},${player.y}) <span style="color:#ffd700;">[${escapeHtml(arrowChar)} ${escapeHtml(facingName)}]</span>`;
             }
         }
 
@@ -2197,7 +2197,7 @@ class WebHUD {
                         const li = document.createElement('li');
                         li.className = 'death-list-item';
                         const prefix = item.mention || item.slot_name || '';
-                        li.innerHTML = `<span class="item-slot">${prefix}</span><span class="item-name">${item.name || ''}</span><span class="item-weight">${item.weight ? (item.weight / 10).toFixed(1) + ' lbs' : ''}</span>`;
+                        li.innerHTML = `<span class="item-slot">${escapeHtml(prefix)}</span><span class="item-name">${escapeHtml(item.name || '')}</span><span class="item-weight">${item.weight ? (item.weight / 10).toFixed(1) + ' lbs' : ''}</span>`;
                         list.appendChild(li);
                     });
                 }
@@ -2215,7 +2215,7 @@ class WebHUD {
                         const li = document.createElement('li');
                         li.className = 'death-list-item';
                         const letter = String.fromCharCode(97 + idx); // a, b, c...
-                        li.innerHTML = `<span class="item-slot">${letter})</span><span class="item-name">${item.name || ''}</span><span class="item-weight">${item.weight ? (item.weight / 10).toFixed(1) + ' lbs' : ''}</span>`;
+                        li.innerHTML = `<span class="item-slot">${escapeHtml(letter)})</span><span class="item-name">${escapeHtml(item.name || '')}</span><span class="item-weight">${item.weight ? (item.weight / 10).toFixed(1) + ' lbs' : ''}</span>`;
                         list.appendChild(li);
                     });
                 }
@@ -2232,7 +2232,7 @@ class WebHUD {
                     quiv.forEach((item, idx) => {
                         const li = document.createElement('li');
                         li.className = 'death-list-item';
-                        li.innerHTML = `<span class="item-slot">${idx})</span><span class="item-name">${item.name || ''}</span><span class="item-weight">${item.weight ? (item.weight / 10).toFixed(1) + ' lbs' : ''}</span>`;
+                        li.innerHTML = `<span class="item-slot">${idx})</span><span class="item-name">${escapeHtml(item.name || '')}</span><span class="item-weight">${item.weight ? (item.weight / 10).toFixed(1) + ' lbs' : ''}</span>`;
                         list.appendChild(li);
                     });
                 }

@@ -1952,7 +1952,7 @@ class ChronicleManager {
         if (this.statusTextEl) {
             if (this.isVoiceLoading) {
                 this.statusTextEl.classList.add('voice-loading-pulse');
-                this.statusTextEl.innerHTML = `<span class="voice-pulse-dot"></span> ${details || 'Voicing chronicle with Gemini...'}`;
+                this.statusTextEl.innerHTML = `<span class="voice-pulse-dot"></span> ${escapeHtml(details) || 'Voicing chronicle with Gemini...'}`;
             } else {
                 this.statusTextEl.classList.remove('voice-loading-pulse');
             }
@@ -2136,13 +2136,13 @@ class ChronicleManager {
         if (this.targetPill && this.targetLabel) {
             this.targetPill.classList.remove('hidden');
             if (stateObj.state === 'sleeping') {
-                this.targetLabel.innerHTML = `😴 Target: <b>${monster.name}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Asleep)</span>`;
+                this.targetLabel.innerHTML = `😴 Target: <b>${escapeHtml(monster.name)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Asleep)</span>`;
             } else if (stateObj.state === 'begging') {
-                this.targetLabel.innerHTML = `🤲 Target: <b>${monster.name}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Pleading)</span>`;
+                this.targetLabel.innerHTML = `🤲 Target: <b>${escapeHtml(monster.name)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Pleading)</span>`;
             } else if (!stateObj.canSpeak) {
-                this.targetLabel.innerHTML = `🐾 Target: <b>${monster.name}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Non-vocal)</span>`;
+                this.targetLabel.innerHTML = `🐾 Target: <b>${escapeHtml(monster.name)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Non-vocal)</span>`;
             } else {
-                this.targetLabel.innerHTML = `🗣️ Target: <b>${monster.name}</b>`;
+                this.targetLabel.innerHTML = `🗣️ Target: <b>${escapeHtml(monster.name)}</b>`;
             }
         }
         if (this.inputQuery) {
@@ -2173,27 +2173,27 @@ class ChronicleManager {
 
             let bodyHtml = '';
             if (res.prose) {
-                bodyHtml += `<p class="chapter-prose" style="margin-bottom: 6px;">${res.prose}</p>`;
+                bodyHtml += `<p class="chapter-prose" style="margin-bottom: 6px;">${escapeHtml(res.prose)}</p>`;
             }
             if (res.isDialogue && res.text) {
                 bodyHtml += `
                     <div class="chapter-dialogue" style="margin-top: 4px;">
-                        <span class="dialogue-speaker">${monster.name}</span>
-                        <span>"${res.text}"</span>
+                        <span class="dialogue-speaker">${escapeHtml(monster.name)}</span>
+                        <span>"${escapeHtml(res.text)}"</span>
                     </div>
                 `;
             } else if (!res.isDialogue && res.text) {
                 bodyHtml += `
                     <div class="chapter-dialogue creature-sound-box" style="margin-top: 4px;">
-                        <span class="dialogue-speaker">${monster.name}</span>
-                        <span class="dialogue-sound-noise">${res.text}</span>
+                        <span class="dialogue-speaker">${escapeHtml(monster.name)}</span>
+                        <span class="dialogue-sound-noise">${escapeHtml(res.text)}</span>
                     </div>
                 `;
             }
 
             const headingLabel = (stateObj.state === 'sleeping')
-                ? `Observation: ${monster.name} (Asleep)`
-                : (stateObj.state === 'begging' ? `Alms: ${monster.name}` : `Encounter: ${monster.name}`);
+                ? `Observation: ${escapeHtml(monster.name)} (Asleep)`
+                : (stateObj.state === 'begging' ? `Alms: ${escapeHtml(monster.name)}` : `Encounter: ${escapeHtml(monster.name)}`);
 
             card.innerHTML = `
                 <div class="chapter-header-row">

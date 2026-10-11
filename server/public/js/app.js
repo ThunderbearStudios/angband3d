@@ -3016,7 +3016,7 @@ window.addEventListener('DOMContentLoaded', () => {
             toast.className = 'realm-toast';
             document.body.appendChild(toast);
         }
-        toast.innerHTML = `<span style="font-size: 20px;">🌌</span><span>${message}</span>`;
+        toast.innerHTML = `<span style="font-size: 20px;">🌌</span><span>${escapeHtml(message)}</span>`;
         toast.classList.add('show');
         if (realmToastTimeout) clearTimeout(realmToastTimeout);
         realmToastTimeout = setTimeout(() => {
@@ -3286,7 +3286,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const btnReturn = document.getElementById('btn-realm-modal-return');
         if (btnReturn) {
-            btnReturn.innerHTML = `[Esc / Enter] Return with <strong>${realm.name}</strong> Attuned`;
+            btnReturn.innerHTML = `[Esc / Enter] Return with <strong>${escapeHtml(realm.name)}</strong> Attuned`;
         }
 
         const cards = document.querySelectorAll('.realm-card');
@@ -4242,7 +4242,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (options.length > 0) {
                 termLetterRibbon.style.display = 'flex';
                 termLetterRibbon.innerHTML = options.map(opt =>
-                    `<button type="button" class="term-letter-btn" data-key="${opt.key}">${opt.display}</button>`
+                    `<button type="button" class="term-letter-btn" data-key="${escapeHtml(opt.key)}">${escapeHtml(opt.display)}</button>`
                 ).join('');
             } else {
                 termLetterRibbon.style.display = 'none';
