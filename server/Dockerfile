@@ -55,8 +55,10 @@ RUN mkdir -p build && cd build && \
 # 4. Build Hengband
 COPY variants/hengband-src /src/variants/hengband-src
 WORKDIR /src/variants/hengband-src
-RUN chmod +x ./bootstrap && \
+RUN sed -i 's/\r$//' ./bootstrap && \
+    chmod +x ./bootstrap && \
     ./bootstrap && \
+    sed -i 's/\r$//' ./configure && \
     chmod +x ./configure && \
     ./configure --disable-x11 --enable-gcu --disable-net && \
     make -j$(nproc)
