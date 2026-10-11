@@ -66,11 +66,23 @@ for (const line of fcbLines) {
 }
 if (cur.name) fcbMonsters.push(cur);
 
+function isMonsterCovered(name, glyph) {
+    const res = d3d.resolveMonsterAtlasEntry(name, glyph);
+    if (res && res.uv) return { covered: true, type: '2D Atlas' };
+    const lower = (name || '').toLowerCase();
+    const isEquine = (/\b(horse|pony|steed|unicorn|pegasus|mare|stallion|mount)\b/i.test(lower) ||
+                     lower.includes('馬') || lower.includes('ポニー') || lower.includes('ユニコーン') || lower.includes('ペガサス') ||
+                     lower.includes('スレイプニル') || lower.includes('黒王号') || lower.includes('明の明星')) &&
+                     !lower.includes('uvatha');
+    if (isEquine) return { covered: true, type: '3D Procedural Equine' };
+    return { covered: false };
+}
+
 let fcbResolved = 0;
 let fcbUnresolved = [];
 for (const m of fcbMonsters) {
-    const res = d3d.resolveMonsterAtlasEntry(m.name, m.glyph);
-    if (res && res.uv) fcbResolved++;
+    const cov = isMonsterCovered(m.name, m.glyph);
+    if (cov.covered) fcbResolved++;
     else fcbUnresolved.push(m);
 }
 console.log(`FrogComposBand: ${fcbResolved}/${fcbMonsters.length} (${(fcbResolved/fcbMonsters.length*100).toFixed(1)}%)`);
@@ -104,8 +116,8 @@ try {
 let hengResolved = 0;
 let hengUnresolved = [];
 for (const m of hengMonsters) {
-    const res = d3d.resolveMonsterAtlasEntry(m.name, m.glyph);
-    if (res && res.uv) hengResolved++;
+    const cov = isMonsterCovered(m.name, m.glyph);
+    if (cov.covered) hengResolved++;
     else hengUnresolved.push(m);
 }
 console.log(`Hengband: ${hengResolved}/${hengMonsters.length} (${(hengResolved/hengMonsters.length*100).toFixed(1)}%)`);

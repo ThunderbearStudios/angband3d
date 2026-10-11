@@ -71,3 +71,31 @@ if (unresolved.length > 0) {
 }
 assert.strictEqual(unresolved.length, 0, 'All Sil-Q monsters must resolve to 2D billboard sprites!');
 console.log('PASS: 100% 2D Billboard Coverage Verified!');
+
+// 5. Test Equine vs Nazgul & Archetype Disambiguation
+console.log('\n--- Testing Equine & Archetype Disambiguation ---');
+const horseRes = d3d.resolveMonsterAtlasEntry('Horse', 'q');
+assert.strictEqual(horseRes, null, 'Horse must NOT resolve to an atlas billboard (must route to 3D procedural horse)');
+console.log('  ✓ Horse [q] -> null (3D procedural horse)');
+
+const ridingHorseRes = d3d.resolveMonsterAtlasEntry('Riding horse', 'q');
+assert.strictEqual(ridingHorseRes, null, 'Riding horse must NOT resolve to an atlas billboard');
+console.log('  ✓ Riding horse [q] -> null (3D procedural horse)');
+
+const jpHorseRes = d3d.resolveMonsterAtlasEntry('馬', 'q');
+assert.strictEqual(jpHorseRes, null, 'Japanese Horse (馬) must NOT resolve to an atlas billboard');
+console.log('  ✓ 馬 [q] -> null (3D procedural horse)');
+
+const uvathaRes = d3d.resolveMonsterAtlasEntry('Uvatha the Horseman', 'W');
+assert.ok(uvathaRes && uvathaRes.uv, 'Uvatha the Horseman must still resolve to Nazgul sprite');
+console.log('  ✓ Uvatha the Horseman [W] -> Nazgul billboard');
+
+const guardRes = d3d.resolveMonsterAtlasEntry('Guard', 'p');
+assert.ok(guardRes && guardRes.uv, 'Guard must resolve to Novice warrior (not Guardian naga)');
+console.log('  ✓ Guard [p] -> Novice warrior');
+
+const soldierRes = d3d.resolveMonsterAtlasEntry('Soldier', 'p');
+assert.ok(soldierRes && soldierRes.uv, 'Soldier must resolve to Novice warrior (not Soldier ant)');
+console.log('  ✓ Soldier [p] -> Novice warrior');
+
+console.log('PASS: Equine & Archetype Disambiguation Verified!');

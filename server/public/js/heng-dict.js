@@ -17,15 +17,93 @@
     const msgTranslationCache = new Map();
     const MAX_MSG_CACHE = 500;
 
+    // Fast case-insensitive index for monsters EN -> JA
+    const lowerMonstersEnToJa = new Map();
+    if (DATA.monstersEnToJa) {
+        for (const [k, v] of Object.entries(DATA.monstersEnToJa)) {
+            lowerMonstersEnToJa.set(k.toLowerCase(), { en: k, ja: v });
+        }
+    }
+
+    // Fast indexes for items JA <-> EN
+    const jaToEnItems = new Map();
+    const lowerEnToJaItems = new Map();
+
+    if (DATA.items) {
+        for (const [ja, enRaw] of Object.entries(DATA.items)) {
+            const enClean = enRaw.replace(/[&~]/g, '').trim();
+            jaToEnItems.set(ja, enClean);
+            lowerEnToJaItems.set(enClean.toLowerCase(), { en: enClean, ja: ja });
+        }
+    }
+
+    if (DATA.itemsEnToJa) {
+        for (const [enRaw, ja] of Object.entries(DATA.itemsEnToJa)) {
+            const enClean = enRaw.replace(/[&~]/g, '').trim();
+            if (!jaToEnItems.has(ja)) jaToEnItems.set(ja, enClean);
+            if (!lowerEnToJaItems.has(enClean.toLowerCase())) {
+                lowerEnToJaItems.set(enClean.toLowerCase(), { en: enClean, ja: ja });
+            }
+        }
+    }
+
+    // Explicit synonyms & light sources
+    jaToEnItems.set('たいまつ', 'Wooden Torch');
+    jaToEnItems.set('松明', 'Wooden Torch');
+    if (!lowerEnToJaItems.has('wooden torch')) {
+        lowerEnToJaItems.set('wooden torch', { en: 'Wooden Torch', ja: 'たいまつ' });
+    }
+
+    // Precomputed, length-descending sorted arrays for fast, greedy token replacement
+    const SORTED_ITEMS = [];
+    if (DATA.items) {
+        for (const [ja, enRaw] of Object.entries(DATA.items)) {
+            const enClean = enRaw.replace(/[&~]/g, '').trim();
+            if (ja && ja.length >= 2 && enClean) {
+                SORTED_ITEMS.push([ja, enClean]);
+            }
+        }
+        SORTED_ITEMS.push(['たいまつ', 'Wooden Torch']);
+        SORTED_ITEMS.sort((a, b) => b[0].length - a[0].length);
+    }
+
+    const SORTED_MONSTERS = [];
+    if (DATA.monsters) {
+        for (const [ja, enRaw] of Object.entries(DATA.monsters)) {
+            const enClean = enRaw.replace(/[&~]/g, '').trim();
+            if (ja && ja.length >= 2 && enClean) {
+                SORTED_MONSTERS.push([ja, enClean]);
+            }
+        }
+        SORTED_MONSTERS.sort((a, b) => b[0].length - a[0].length);
+    }
+
     function getLocalizedMonsterName(name, realm, langMode) {
         if (!name) return '';
         if (realm !== 'hengband') return name;
         const mode = langMode || (typeof window !== 'undefined' && window.__langMode) || 'en';
         
-        let en = DATA.monsters[name];
-        let ja = DATA.monstersEnToJa[name];
+        let en = DATA.monsters ? DATA.monsters[name] : null;
+        let ja = DATA.monstersEnToJa ? DATA.monstersEnToJa[name] : null;
         
         if (!en && !ja) {
+            const clean = name.replace(/^(a|an|the)\s+/i, '').trim();
+            if (DATA.monsters && DATA.monsters[clean]) {
+                en = DATA.monsters[clean];
+                ja = clean;
+            } else if (DATA.monstersEnToJa && DATA.monstersEnToJa[clean]) {
+                ja = DATA.monstersEnToJa[clean];
+                en = clean;
+            } else {
+                const found = lowerMonstersEnToJa.get(clean.toLowerCase());
+                if (found) {
+                    en = found.en;
+                    ja = found.ja;
+                }
+            }
+        }
+
+        if (!en && !ja && DATA.monsters) {
             // Check prefix or suffixes like "乗用馬 'h'"
             for (const [jKey, eVal] of Object.entries(DATA.monsters)) {
                 if (name.startsWith(jKey)) {
@@ -42,15 +120,449 @@
             ja = name;
         }
 
-        if (!en) return name; // Unknown, return as-is
+        if (!en && !ja) return name; // Unknown, return as-is
 
         if (mode === 'jp') {
             return ja || name;
         } else if (mode === 'bilingual') {
-            return (ja && ja !== en) ? `${en} (${ja})` : en;
+            return (ja && en && ja !== en) ? `${en} (${ja})` : (en || ja || name);
         } else {
-            return en;
+            return en || name;
         }
+    }
+
+    function getLocalizedItemName(name, realm, langMode) {
+        if (!name) return '';
+        if (realm !== 'hengband') return name;
+        const mode = langMode || (typeof window !== 'undefined' && window.__langMode) || 'en';
+        const text = name.trim();
+
+        // 1. Coins & Currency
+        const goldMatchEn = text.match(/^(\d+)\s+gold pieces?$/i);
+        if (goldMatchEn) {
+            const n = goldMatchEn[1];
+            if (mode === 'jp') return `${n}枚の 金貨`;
+            if (mode === 'bilingual') return `${n} gold pieces (${n}枚の 金貨)`;
+            return `${n} gold pieces`;
+        }
+        const goldMatchJa = text.match(/^(?:金貨\s*(\d+)枚|(\d+)枚の\s*金貨)$/);
+        if (goldMatchJa) {
+            const n = goldMatchJa[1] || goldMatchJa[2];
+            if (mode === 'jp') return `${n}枚の 金貨`;
+            if (mode === 'bilingual') return `${n} gold pieces (${n}枚の 金貨)`;
+            return `${n} gold pieces`;
+        }
+
+        let en = null;
+        let ja = null;
+        let qty = '';
+
+        // Check if input has Japanese CJK or kana
+        const hasJp = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(text);
+
+        if (hasJp) {
+            // Japanese input: parse quantity prefix like '3本の ', '2服の ', '5個の '
+            const qtyMatch = text.match(/^(\d+)[^\s]*の\s*(.+)$/);
+            qty = qtyMatch ? qtyMatch[1] : '';
+            let base = qtyMatch ? qtyMatch[2] : text;
+
+            // Extract trailing modifiers/stats: e.g. (2d6) (+0,+0), [1,+0], {cursed}, (x2)
+            let modSuffixJa = '';
+            let modSuffixEn = '';
+            const modMatch = base.match(/^(.+?)\s+(\([^)]+\).*|\{[^}]+\}.*|\[[^\]]+\].*)$/);
+            if (modMatch) {
+                base = modMatch[1].trim();
+                modSuffixJa = ' ' + modMatch[2].trim();
+                modSuffixEn = modSuffixJa
+                    .replace(/(\d+)ターンの寿命/g, '$1 turns of light')
+                    .replace(/(\d+)%引き/g, '$1% off')
+                    .replace(/充填中/g, 'charging')
+                    .replace(/鑑定済/g, 'identified')
+                    .replace(/セール品/g, 'on sale')
+                    .replace(/呪われている/g, 'cursed')
+                    .replace(/壊れている/g, 'broken')
+                    .replace(/空/g, 'empty')
+                    .replace(/未鑑定/g, 'unidentified');
+            }
+
+            // Check for monster remains: Xの死体, Xの死骸, Xの骨, Xの頭, Xの像, Xの人形
+            const corpseMatch = base.match(/^(.+?)の(死体|死骸)$/);
+            const skelMatch = !corpseMatch ? base.match(/^(.+?)の骨$/) : null;
+            const headMatch = (!corpseMatch && !skelMatch) ? base.match(/^(.+?)の頭$/) : null;
+            const statueMatch = (!corpseMatch && !skelMatch && !headMatch) ? base.match(/^(.+?)の像$/) : null;
+            const figMatch = (!corpseMatch && !skelMatch && !headMatch && !statueMatch) ? base.match(/^(.+?)の人形$/) : null;
+
+            if (corpseMatch) {
+                const monJa = corpseMatch[1];
+                const monEn = getLocalizedMonsterName(monJa, 'hengband', 'en') || monJa;
+                ja = `${monJa}の${corpseMatch[2]}`;
+                en = `Corpse of ${monEn}`;
+            } else if (skelMatch) {
+                const monJa = skelMatch[1];
+                const monEn = getLocalizedMonsterName(monJa, 'hengband', 'en') || monJa;
+                ja = `${monJa}の骨`;
+                en = `Skeleton of ${monEn}`;
+            } else if (headMatch) {
+                const monJa = headMatch[1];
+                const monEn = getLocalizedMonsterName(monJa, 'hengband', 'en') || monJa;
+                ja = `${monJa}の頭`;
+                en = `Head of ${monEn}`;
+            } else if (statueMatch) {
+                const monJa = statueMatch[1];
+                const monEn = getLocalizedMonsterName(monJa, 'hengband', 'en') || monJa;
+                ja = `${monJa}の像`;
+                en = `Statue of ${monEn}`;
+            } else if (figMatch) {
+                const monJa = figMatch[1];
+                const monEn = getLocalizedMonsterName(monJa, 'hengband', 'en') || monJa;
+                ja = `${monJa}の人形`;
+                en = `Figurine of ${monEn}`;
+            } else {
+                ja = base;
+                en = jaToEnItems.get(base);
+
+                if (!en) {
+                    const pot = base.match(/^(.+)の薬$/);
+                    if (pot) {
+                        const sub = jaToEnItems.get(pot[1]);
+                        if (sub) en = 'Potion of ' + sub;
+                    }
+                    const scr = base.match(/^(.+)の巻物$/);
+                    if (scr) {
+                        const sub = jaToEnItems.get(scr[1]);
+                        if (sub) en = 'Scroll of ' + sub;
+                    }
+                    const stf = base.match(/^(.+)の杖$/);
+                    if (stf) {
+                        const sub = jaToEnItems.get(stf[1]);
+                        if (sub) en = 'Staff of ' + sub;
+                    }
+                    const wnd = base.match(/^(.+)の魔法棒$/);
+                    if (wnd) {
+                        const sub = jaToEnItems.get(wnd[1]);
+                        if (sub) en = 'Wand of ' + sub;
+                    }
+                    const ring = base.match(/^(.+)の指輪$/);
+                    if (ring) {
+                        const sub = jaToEnItems.get(ring[1]);
+                        if (sub) en = 'Ring of ' + sub;
+                    }
+                    const amu = base.match(/^(.+)のアミュレット$/);
+                    if (amu) {
+                        const sub = jaToEnItems.get(amu[1]);
+                        if (sub) en = 'Amulet of ' + sub;
+                    }
+                }
+            }
+
+            if (modSuffixJa) {
+                if (ja) ja += modSuffixJa;
+                if (en) en += modSuffixEn;
+            }
+        } else {
+            // English input: parse article or quantity
+            let clean = text;
+            const qMatch = text.match(/^(\d+)\s+(.+)$/);
+            if (qMatch) {
+                qty = qMatch[1];
+                clean = qMatch[2];
+            } else {
+                clean = text.replace(/^(a|an|the)\s+/i, '');
+            }
+
+            // Extract trailing modifiers/stats
+            let modSuffixEn = '';
+            let modSuffixJa = '';
+            const modMatch = clean.match(/^(.+?)\s+(\([^)]+\).*|\{[^}]+\}.*|\[[^\]]+\].*)$/);
+            if (modMatch) {
+                clean = modMatch[1].trim();
+                modSuffixEn = ' ' + modMatch[2].trim();
+                modSuffixJa = modSuffixEn;
+            }
+
+            // Check for monster remains: Corpse of X, Skeleton of X, Head of X, Statue of X, Figurine of X
+            const corpseMatch = clean.match(/^(?:a\s+|an\s+|the\s+)?Corpse(?:s)? of (.+)$/i);
+            const skelMatch = !corpseMatch ? clean.match(/^(?:a\s+|an\s+|the\s+)?Skeleton(?:s)? of (.+)$/i) : null;
+            const headMatch = (!corpseMatch && !skelMatch) ? clean.match(/^(?:a\s+|an\s+|the\s+)?Head(?:s)? of (.+)$/i) : null;
+            const statueMatch = (!corpseMatch && !skelMatch && !headMatch) ? clean.match(/^(?:a\s+|an\s+|the\s+)?Statue(?:s)? of (.+)$/i) : null;
+            const figMatch = (!corpseMatch && !skelMatch && !headMatch && !statueMatch) ? clean.match(/^(?:a\s+|an\s+|the\s+)?Figurine(?:s)? of (.+)$/i) : null;
+
+            if (corpseMatch) {
+                const monEn = corpseMatch[1];
+                const monJa = getLocalizedMonsterName(monEn, 'hengband', 'jp') || monEn;
+                en = `Corpse of ${monEn}`;
+                ja = `${monJa}の死体`;
+            } else if (skelMatch) {
+                const monEn = skelMatch[1];
+                const monJa = getLocalizedMonsterName(monEn, 'hengband', 'jp') || monEn;
+                en = `Skeleton of ${monEn}`;
+                ja = `${monJa}の骨`;
+            } else if (headMatch) {
+                const monEn = headMatch[1];
+                const monJa = getLocalizedMonsterName(monEn, 'hengband', 'jp') || monEn;
+                en = `Head of ${monEn}`;
+                ja = `${monJa}の頭`;
+            } else if (statueMatch) {
+                const monEn = statueMatch[1];
+                const monJa = getLocalizedMonsterName(monEn, 'hengband', 'jp') || monEn;
+                en = `Statue of ${monEn}`;
+                ja = `${monJa}の像`;
+            } else if (figMatch) {
+                const monEn = figMatch[1];
+                const monJa = getLocalizedMonsterName(monEn, 'hengband', 'jp') || monEn;
+                en = `Figurine of ${monEn}`;
+                ja = `${monJa}の人形`;
+            } else {
+                const exact = lowerEnToJaItems.get(clean.toLowerCase());
+                if (exact) {
+                    en = exact.en;
+                    ja = exact.ja;
+                } else {
+                    const pot = clean.match(/^Potion(?:s)? of (.+)$/i);
+                    if (pot) {
+                        const sub = lowerEnToJaItems.get(pot[1].toLowerCase());
+                        if (sub) {
+                            en = 'Potion of ' + sub.en;
+                            ja = sub.ja + 'の薬';
+                        }
+                    }
+                    const scr = clean.match(/^Scroll(?:s)? of (.+)$/i);
+                    if (scr) {
+                        const sub = lowerEnToJaItems.get(scr[1].toLowerCase());
+                        if (sub) {
+                            en = 'Scroll of ' + sub.en;
+                            ja = sub.ja + 'の巻物';
+                        }
+                    }
+                    const stf = clean.match(/^Staff(?:s)? of (.+)$/i);
+                    if (stf) {
+                        const sub = lowerEnToJaItems.get(stf[1].toLowerCase());
+                        if (sub) {
+                            en = 'Staff of ' + sub.en;
+                            ja = sub.ja + 'の杖';
+                        }
+                    }
+                    const wnd = clean.match(/^Wand(?:s)? of (.+)$/i);
+                    if (wnd) {
+                        const sub = lowerEnToJaItems.get(wnd[1].toLowerCase());
+                        if (sub) {
+                            en = 'Wand of ' + sub.en;
+                            ja = sub.ja + 'の魔法棒';
+                        }
+                    }
+                    const ring = clean.match(/^Ring(?:s)? of (.+)$/i);
+                    if (ring) {
+                        const sub = lowerEnToJaItems.get(ring[1].toLowerCase());
+                        if (sub) {
+                            en = 'Ring of ' + sub.en;
+                            ja = sub.ja + 'の指輪';
+                        }
+                    }
+                    const amu = clean.match(/^Amulet(?:s)? of (.+)$/i);
+                    if (amu) {
+                        const sub = lowerEnToJaItems.get(amu[1].toLowerCase());
+                        if (sub) {
+                            en = 'Amulet of ' + sub.en;
+                            ja = sub.ja + 'のアミュレット';
+                        }
+                    }
+                    if (!ja && clean.endsWith('s')) {
+                        const singular = lowerEnToJaItems.get(clean.slice(0, -1).toLowerCase());
+                        if (singular) {
+                            en = singular.en;
+                            ja = singular.ja;
+                        }
+                    }
+                }
+            }
+
+            if (modSuffixEn) {
+                if (en) en += modSuffixEn;
+                if (ja) ja += modSuffixJa;
+            }
+        }
+
+        if (!en && !ja) return name;
+
+        const finalEn = en ? (qty ? `${qty} ${en}` : en) : name;
+        const finalJa = ja ? (qty ? `${qty}個の ${ja}` : ja) : name;
+
+        if (mode === 'jp') {
+            return finalJa;
+        } else if (mode === 'bilingual') {
+            return (finalJa && finalEn && finalJa !== finalEn) ? `${finalEn} (${finalJa})` : finalEn;
+        } else {
+            return finalEn;
+        }
+    }
+
+    // High-priority gameplay and combat patterns (checked before generic patterns)
+    const extraCompiledPatterns = [
+        // Slayings & Kills
+        { re: /^(?:せっかくだから)?(.*?)を葬り去った。?$/i, en: 'You have slain $1.' },
+        { re: /^(?:せっかくだから)?(.*?)を倒した。?$/i, en: 'You have destroyed $1.' },
+        { re: /^(?:せっかくだから)?(.*?)を殺した。?$/i, en: 'You have killed $1.' },
+        { re: /^(.*?)を打ち倒した。?$/i, en: 'You strike down $1.' },
+        { re: /^(.*?)は死んだ。?$/i, en: '$1 dies.' },
+        { re: /^(.*?)は消滅した。?$/i, en: '$1 disappears.' },
+        { re: /^(.*?)は破壊された。?$/i, en: '$1 is destroyed.' },
+
+        // Player attacks & hits
+        { re: /^(.*?)を(.*?)で攻撃した。?$/i, en: 'You hit $1 with your $2.' },
+        { re: /^(.*?)を攻撃した。?$/i, en: 'You hit $1.' },
+        { re: /^(.*?)に金的膝蹴りをくらわした！?$/i, en: 'You hit $1 in the groin with your knee!' },
+        { re: /^(.*?)に膝蹴りをくらわした。?$/i, en: 'You hit $1 with your knee.' },
+        { re: /^(.*?)に肘打ちをくらわした。?$/i, en: 'You hit $1 with your elbow.' },
+        { re: /^(.*?)に鉄拳撃をくらわした。?$/i, en: 'You hit $1 with an Iron Fist.' },
+        { re: /^(.*?)に回し蹴りをくらわした。?$/i, en: 'You hit $1 with a circle kick.' },
+        { re: /^(?:ミス！\s*)?(.*?)にかわされた。?$/i, en: 'You miss $1.' },
+        { re: /^何もない空中を攻撃した。?$/i, en: 'You attack the empty air.' },
+        { re: /^刃が(.*?)の急所を貫いた！?$/i, en: 'You hit $1 on a fatal spot!' },
+        { re: /^(.*?)の急所を突き刺した！?$/i, en: 'You hit $1 on a fatal spot!' },
+        { re: /^(\d+)のダメージを与えた。(.*)$/i, en: 'You do $1 damage.$2' },
+
+        // Monster attacks on player
+        { re: /^(.*?)によだれをたらされた。?$/i, en: '$1 drools on you.' },
+        { re: /^(.*?)に殴られた。?$/i, en: '$1 hits you.' },
+        { re: /^(.*?)に触られた。?$/i, en: '$1 touches you.' },
+        { re: /^(.*?)にパンチされた。?$/i, en: '$1 punches you.' },
+        { re: /^(.*?)に蹴られた。?$/i, en: '$1 kicks you.' },
+        { re: /^(.*?)にひっかかれた。?$/i, en: '$1 claws you.' },
+        { re: /^(.*?)に噛まれた。?$/i, en: '$1 bites you.' },
+        { re: /^(.*?)に刺された。?$/i, en: '$1 stings you.' },
+        { re: /^(.*?)に斬られた。?$/i, en: '$1 slashes you.' },
+        { re: /^(.*?)に角で突かれた。?$/i, en: '$1 butts you.' },
+        { re: /^(.*?)に押し[潰つ]された。?$/i, en: '$1 crushes you.' },
+        { re: /^(.*?)に飲み込まれた。?$/i, en: '$1 engulfs you.' },
+        { re: /^(.*?)には?請求書をよこした。?$/i, en: '$1 charges you.' },
+        { re: /^(.*?)が体の上を這い回った。?$/i, en: '$1 crawls on you.' },
+        { re: /^(.*?)に唾を吐かれた。?$/i, en: '$1 spits on you.' },
+        { re: /^(.*?)は爆発した。?$/i, en: '$1 explodes.' },
+        { re: /^(.*?)に[に睨]らまれた。?$/i, en: '$1 gazes at you.' },
+        { re: /^(.*?)に泣き叫ばれた。?$/i, en: '$1 wails at you.' },
+        { re: /^(.*?)に胞子を飛ばされた。?$/i, en: '$1 releases spores at you.' },
+        { re: /^(.*?)に金をせがまれた。?$/i, en: '$1 begs you for money.' },
+        { re: /^(.*?)の攻撃をかわした。?$/i, en: 'You dodge $1\'s attack.' },
+        { re: /^(.*?)の攻撃を避けた。?$/i, en: 'You avoid $1\'s attack.' },
+        { re: /^(.*?)の攻撃を防いだ。?$/i, en: 'You block $1\'s attack.' },
+
+        // Resistances & Status
+        { re: /^(.*?)には耐性がある。?$/i, en: '$1 resists.' },
+        { re: /^(.*?)は抵抗した。?$/i, en: '$1 resists.' },
+        { re: /^(.*?)は眠ってしまった！?$/i, en: '$1 falls asleep!' },
+        { re: /^(.*?)は恐怖して逃げ出した！?$/i, en: '$1 runs away in fear!' },
+        { re: /^(.*?)は混乱したようだ。?$/i, en: '$1 appears confused.' },
+
+        // Floor items & corpses
+        { re: /^(.*?)の死体がある。(.*)$/i, en: 'There is a corpse of $1.$2' },
+        { re: /^(.*?)の骨がある。(.*)$/i, en: 'There is a skeleton of $1.$2' },
+        { re: /^(.*?)の死体がある。?$/i, en: 'There is a corpse of $1.' },
+        { re: /^(.*?)の骨がある。?$/i, en: 'There is a skeleton of $1.' },
+        { re: /^床上には、まだ\s*(.*?)がある。?$/i, en: 'There is still $1 on the floor.' },
+        { re: /^(.*?)がある。(.*)$/i, en: 'You see $1.$2' },
+        { re: /^(.*?)がある。?$/i, en: 'You see $1.' },
+        { re: /^(\d+)\s*個のアイテムの山がある。?$/i, en: 'You see a pile of $1 items.' },
+
+        // Doors & traps
+        { re: /^ドアが開いた。?$/i, en: 'The door opens.' },
+        { re: /^ドアを開けた。?$/i, en: 'You open the door.' },
+        { re: /^ドアを閉めた。?$/i, en: 'You close the door.' },
+        { re: /^ドアに鍵がかかっている。?$/i, en: 'The door is locked.' },
+        { re: /^隠しドアを発見した。?$/i, en: 'You found a secret door.' },
+        { re: /^(.*?)はがっちりと閉じられているようだ。?$/i, en: 'The $1 appears to be stuck.' },
+        { re: /^(.*?)を解除した。?$/i, en: 'You have disarmed the $1.' },
+        { re: /^(.*?)の解除に失敗した。?$/i, en: 'You failed to disarm the $1.' },
+        { re: /^テレポート・トラップにひっかかった！?$/i, en: 'You hit a teleport trap!' },
+        { re: /^落とし穴に落ちた！?$/i, en: 'You fell into a pit!' },
+
+        // Navigation
+        { re: /^何もない。?$/i, en: 'There is nothing there.' },
+        { re: /^そこには行けない。?$/i, en: 'You cannot go there.' },
+        { re: /^階段を下りた。?$/i, en: 'You go down the stairs.' },
+        { re: /^階段を上った。?$/i, en: 'You go up the stairs.' }
+    ];
+
+    function translateSingleSentence(text, realm, mode) {
+        if (!text) return '';
+        const trimmed = text.trim();
+        if (!trimmed) return '';
+
+        // 1. Direct engine message match
+        if (DATA.engineMsgs && DATA.engineMsgs[trimmed]) {
+            return DATA.engineMsgs[trimmed];
+        } else if (DATA.monsterSpeech && DATA.monsterSpeech[trimmed]) {
+            return DATA.monsterSpeech[trimmed];
+        }
+
+        // 2. High-priority extraCompiledPatterns
+        for (const pat of extraCompiledPatterns) {
+            const m = trimmed.match(pat.re);
+            if (m) {
+                const p1 = m[1] || '';
+                const p2 = m[2] || '';
+                const p3 = m[3] || '';
+                let tP1 = p1 ? (getLocalizedMonsterName(p1, 'hengband', 'en') || p1) : '';
+                if (tP1 === p1 && (DATA.items && DATA.items[p1] || jaToEnItems.has(p1))) {
+                    tP1 = getLocalizedItemName(p1, 'hengband', 'en');
+                }
+                let out = pat.en.split('$1').join(tP1);
+                if (p2) {
+                    let tP2 = p2.trim();
+                    if (tP2.startsWith('(') && tP2.endsWith(')')) {
+                        out = out.split('$2').join(' ' + tP2);
+                    } else {
+                        let locP2 = getLocalizedItemName(tP2, 'hengband', 'en') || tP2;
+                        out = out.split('$2').join(' ' + locP2);
+                    }
+                } else {
+                    out = out.split('$2').join('');
+                }
+                if (p3) out = out.split('$3').join(p3);
+                else out = out.split('$3').join('');
+                return out.trim();
+            }
+        }
+
+        // 3. Compiled patterns from DATA
+        for (const pat of compiledPatterns) {
+            if (pat.re.test(trimmed)) {
+                return trimmed.replace(pat.re, (match, p1, p2, p3) => {
+                    let tP1 = p1 ? (getLocalizedMonsterName(p1, 'hengband', 'en') || p1) : '';
+                    if (tP1 === p1 && (DATA.items && DATA.items[p1] || jaToEnItems.has(p1))) {
+                        tP1 = getLocalizedItemName(p1, 'hengband', 'en');
+                    }
+                    let out = pat.en.split('$1').join(tP1);
+                    if (p2) {
+                        let tP2 = p2.trim();
+                        if (tP2.startsWith('(') && tP2.endsWith(')')) {
+                            out = out.split('$2').join(' ' + tP2);
+                        } else {
+                            let locP2 = getLocalizedItemName(tP2, 'hengband', 'en') || tP2;
+                            out = out.split('$2').join(' ' + locP2);
+                        }
+                    } else {
+                        out = out.split('$2').join('');
+                    }
+                    if (p3) out = out.split('$3').join(p3);
+                    else out = out.split('$3').join('');
+                    return out.trim();
+                });
+            }
+        }
+
+        // 4. Substring monster/item replacement if not fully matched using pre-sorted entries
+        let replaced = trimmed;
+        for (let i = 0; i < sortedMonsterEntries.length; i++) {
+            const [ja, en] = sortedMonsterEntries[i];
+            if (replaced.includes(ja)) {
+                replaced = replaced.split(ja).join(en);
+            }
+        }
+        if (replaced !== trimmed) {
+            return replaced;
+        }
+
+        return trimmed;
     }
 
     function localizeGameMessage(msg, realm, langMode) {
@@ -72,47 +584,28 @@
 
         let translated = null;
 
-        // 1. Direct engine message match
-        if (DATA.engineMsgs && DATA.engineMsgs[text]) {
-            translated = DATA.engineMsgs[text];
-        } else if (DATA.monsterSpeech && DATA.monsterSpeech[text]) {
-            translated = DATA.monsterSpeech[text];
-        }
-
-        // 2. Regex pattern templates
-        if (!translated) {
-            for (const pat of compiledPatterns) {
-                if (pat.re.test(text)) {
-                    translated = text.replace(pat.re, (match, p1, p2, p3) => {
-                        let tP1 = p1 ? getLocalizedMonsterName(p1, 'hengband', 'en') : '';
-                        if (tP1 === p1 && DATA.items && DATA.items[p1]) tP1 = DATA.items[p1];
-                        let out = pat.en.replace('$1', tP1);
-                        if (p2) out = out.replace('$2', p2);
-                        if (p3) out = out.replace('$3', p3);
-                        return out;
-                    });
-                    break;
-                }
+        // Split chained sentences on Japanese ideographic period (。) followed by at least 2 characters
+        const sentenceSplitRe = /。(?=\s*[\w\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]{2,})/;
+        if (sentenceSplitRe.test(text)) {
+            const parts = text.split(sentenceSplitRe).map(p => p.trim()).filter(Boolean);
+            if (parts.length > 1) {
+                const translatedParts = parts.map(part => {
+                    const fullSentence = part.endsWith('。') ? part : part + '。';
+                    return translateSingleSentence(fullSentence, realm, mode);
+                });
+                translated = translatedParts.join(' ');
             }
         }
 
-        // 3. Substring monster/item replacement if not fully matched using pre-sorted entries
         if (!translated) {
-            let replaced = text;
-            for (let i = 0; i < sortedMonsterEntries.length; i++) {
-                const [ja, en] = sortedMonsterEntries[i];
-                if (replaced.includes(ja)) {
-                    replaced = replaced.split(ja).join(en);
-                }
-            }
-            if (replaced !== text) {
-                translated = replaced;
-            }
+            translated = translateSingleSentence(text, realm, mode);
         }
 
         let result = msg;
-        if (translated) {
+        if (translated && translated !== text) {
             result = (mode === 'bilingual') ? `${translated} (${text})` : translated;
+        } else if (translated) {
+            result = translated;
         }
 
         if (msgTranslationCache.size >= MAX_MSG_CACHE) {
@@ -122,23 +615,6 @@
         msgTranslationCache.set(cacheKey, result);
 
         return result;
-    }
-
-    // Additional common gameplay patterns
-    const extraPatterns = [
-        { re: /^(.*?)を攻撃した。$/i, en: 'You hit $1.' },
-        { re: /^(.*?)を(.*?)で攻撃した。$/i, en: 'You hit $1 with your $2.' },
-        { re: /^ドアが開いた。$/i, en: 'The door opens.' },
-        { re: /^ドアを開けた。$/i, en: 'You open the door.' },
-        { re: /^ドアを閉めた。$/i, en: 'You close the door.' },
-        { re: /^ドアに鍵がかかっている。$/i, en: 'The door is locked.' },
-        { re: /^隠しドアを発見した。$/i, en: 'You found a secret door.' },
-        { re: /^(.*?)はがっちりと閉じられているようだ。$/i, en: 'The $1 appears to be stuck.' },
-        { re: /^(.*?)を解除した。$/i, en: 'You have disarmed the $1.' },
-        { re: /^(.*?)の解除に失敗した。$/i, en: 'You failed to disarm the $1.' }
-    ];
-    for (const ep of extraPatterns) {
-        compiledPatterns.push(ep);
     }
 
     // Visual width calculator (CJK = 2, ASCII = 1)
@@ -572,7 +1048,7 @@
         ['特殊能力', 'Special Powers'],
         ['突然変異', 'Mutations     '],
         ['超能力', 'Mindcraft     '],
-        ['歌', 'Songs         '],
+        ['歌', 'Song '],
         ['スペース:次ページ', 'Space: Next Page '],
         ['スペースキーで次ページ', 'Space for next page '],
         ['ESCで終了', 'ESC to exit'],
@@ -593,7 +1069,239 @@
         ['ヘルプ', 'Help'],
         ['次', 'Next'],
         ['変更', 'Change'],
-        ['-続く-', '-more-']
+        ['-続く-', '-more-'],
+
+        // Shop & Building UI
+        ['商品の一覧', 'Item List   ', 'Item List (一覧) '],
+        ['(1ページ)', '(Page 1)  ', '(Page 1/1頁)'],
+        ['(2ページ)', '(Page 2)  ', '(Page 2/2頁)'],
+        ['(3ページ)', '(Page 3)  ', '(Page 3/3頁)'],
+        ['(4ページ)', '(Page 4)  ', '(Page 4/4頁)'],
+        ['(5ページ)', '(Page 5)  ', '(Page 5/5頁)'],
+        ['ESC) 建物から出る', 'ESC) Exit Shop     ', 'ESC) Exit (出る)   '],
+        ['ESC) 建物を出る', 'ESC) Exit Building ', 'ESC) Exit (出る)   '],
+        ['-) 前ページ', '-) Prev Page', '-) Prev (前頁) '],
+        ['スペース) Nextページ', 'Space) Next Page    ', 'Space) Next (次頁)  '],
+        ['x) 商品を調べる', 'x) Examine Item ', 'x) Examine (調べる)'],
+        ['i/e) Inventory/装備の', 'i/e) Inven/Equip     ', 'i/e) Inven/装備      '],
+        ['w/t) 装備する/はずす', 'w/t) Equip/Take off  ', 'w/t) 装備/外す       '],
+        ['手持ちのお金：', 'Gold:         ', 'Gold (所持金):'],
+        ['手持ちのお金', 'Gold        ', 'Gold(所持金) '],
+        ['所持金：', 'Gold:   ', 'Gold(金):'],
+        ['所持金', 'Gold  ', 'Gold(金)'],
+        ['25%引き', '25% off', '25% off(引)'],
+        ['50%引き', '50% off', '50% off(引)'],
+        ['10%引き', '10% off', '10% off(引)'],
+
+        // Hunter & Bounty Office
+        ['ハンター事務所', "Hunter's Office", "Bounty Office (賞金首)"],
+        ['日替わり賞金首', 'Daily Bounty   ', 'Daily Bounty (日替賞金)'],
+        ['賞金首リスト', 'Wanted List    ', 'Wanted List (賞金首)   '],
+        ['スペシャル・ターゲット', 'Special Targets', 'Special (特別標的)     '],
+        ['報酬を受け取る', 'Collect Reward ', 'Reward (報酬受取)      '],
+
+        // Special Powers & Spells Prompt
+        ["(Special Powers a-a, '*'で一覧, '/'で閲覧, ESCで中断) どの能力を使いますか？", "(Powers a-a, '*' list, '/' view, ESC cancel) Which power?", "(Powers a-a, '*'一覧, '/'閲覧, ESC中断) Which power?(能力)"],
+        ["どの能力を使いますか？", 'Which power to use?   ', 'Which power? (能力選択)'],
+        ["'*'で一覧", "'*' to list", "'*' list (一覧)"],
+        ["'/'で閲覧", "'/' to view", "'/' view (閲覧)"],
+        ["ESCで中断", 'ESC to cancel', 'ESC cancel (中断)'],
+        ['失率', 'Fail', 'Fail(失)'],
+        ['効果', 'Effect', 'Effect(効)'],
+        ['MP回復', 'Regen MP', 'Regen(MP)'],
+
+        // Spellbooks & Realms
+        ['呪術の魔法書', 'Hex Spellbook   ', 'Hex Book (呪術) '],
+        ['悪魔の魔法書', 'Daemon Spellbook', 'Daemon Book (悪魔)'],
+        ['生命の魔法書', 'Life Spellbook  ', 'Life Book (生命)'],
+        ['仙術の魔法書', 'Sorcery Spellbook', 'Sorcery Book(仙術)'],
+        ['自然の魔法書', 'Nature Spellbook', 'Nature Book (自然)'],
+        ['カオスの魔法書', 'Chaos Spellbook ', 'Chaos Book (混沌)'],
+        ['暗黒の魔法書', 'Death Spellbook ', 'Death Book (暗黒)'],
+        ['トランプの魔法書', 'Trump Spellbook ', 'Trump Book (札) '],
+        ['秘術の魔法書', 'Arcane Spellbook', 'Arcane Book (秘術)'],
+        ['匠の魔法書', 'Craft Spellbook ', 'Craft Book (匠) '],
+        ['破邪の魔法書', 'Crusade Spellbook', 'Crusade Book(破邪)'],
+        ['歌集', 'Songbook', 'Songbook (歌)'],
+        ['武芸の書', 'Book of Kendo', 'Kendo Book (武芸)'],
+        ['マインドクラフトの書', 'Mindcraft Tome', 'Mind Tome (心)'],
+        ['魔法書', 'Spellbook', 'Spellbook (本)'],
+
+        // Canonical Spellbook Titles
+        ['[呪術入門]', '[Handbook of Hex]', '[Handbook of Hex](呪術入門)'],
+        ['[上級呪法]', '[High Curse]', '[High Curse](上級呪法)'],
+        ['[黒魔術の秘儀]', '[Black Sorcery]', '[Black Sorcery](黒魔術)'],
+        ['[忌まわしき呪詛]', '[Abhorrent Hexes]', '[Abhorrent Hexes](呪詛)'],
+        ['[闇夜の呪い]', '[Dark Incantations]', '[Dark Incantations](闇夜)'],
+        ['[不朽の儀式]', '[Immortal Rituals]', '[Immortal Rituals](不朽)'],
+        ['[悪魔の契約]', '[Demonic Pact]', '[Demonic Pact](悪魔契約)'],
+        ['[地獄の門]', '[Gates of Hell]', '[Gates of Hell](地獄門)'],
+        ['[初心者教本]', '[Cantrips for Beginners]', '[Cantrips](初心者教本)'],
+        ['[初等秘術]', '[Minor Arcana]', '[Minor Arcana](初等秘術)'],
+        ['[大秘術]', '[Major Arcana]', '[Major Arcana](大秘術)'],
+        ['[秘術大全]', '[Tome of Arcana]', '[Tome of Arcana](秘術大全)'],
+        ['[新弟子用教本]', '[Apprentice Guide]', '[Apprentice Guide](新弟子)'],
+        ['[初等工匠術]', '[Basic Craftsmanship]', '[Basic Craft](初等工匠)'],
+        ['[中等工匠術]', '[Advanced Craftsmanship]', '[Adv Craft](中等工匠)'],
+        ['[秘伝工匠術]', '[Master Craftsmanship]', '[Master Craft](秘伝)'],
+        ['[召喚と奇術]', '[Summoning & Trickery]', '[Summoning](召喚と奇術)'],
+        ['[万物のデッキ]', '[Deck of Many Things]', '[Deck of Many](万物)'],
+        ['[トランプの達人]', '[Trump Mastery]', '[Trump Mastery](達人)'],
+        ['[最後の切り札]', '[Final Trump]', '[Final Trump](切り札)'],
+        ['[共通祈祷書]', '[Book of Common Prayer]', '[Common Prayer](祈祷書)'],
+        ['[神聖なる詠唱]', '[High Holy Book]', '[High Holy Book](神聖)'],
+        ['[天界の福音]', '[Celestial Gospel]', '[Celestial Gospel](福音)'],
+        ['[神の御手]', '[Hand of God]', '[Hand of God](神の御手)'],
+        ['[初等仙術]', "[Beginner's Handbook]", "[Beginner's](初等仙術)"],
+        ['[気功術]', '[Words of Wisdom]', '[Words of Wisdom](気功)'],
+        ['[仙道]', '[Way of the Sage]', '[Way of Sage](仙道)'],
+        ['[天地創造]', '[Creation]', '[Creation](天地創造)'],
+        ['[自然の恵み]', "[Nature's Lore]", "[Nature's Lore](恵み)"],
+        ['[自然の力]', '[Power of Nature]', '[Power of Nature](力)'],
+        ['[大地の声]', '[Voice of the Earth]', '[Voice of Earth](声)'],
+        ['[母なる大自然]', '[Mother Nature]', '[Mother Nature](大自然)'],
+        ['[混沌の兆し]', '[Sign of Chaos]', '[Sign of Chaos](兆し)'],
+        ['[カオス・マスター]', '[Chaos Mastery]', '[Chaos Mastery](支配)'],
+        ['[混沌の力]', '[Power of Chaos]', '[Power of Chaos](混沌力)'],
+        ['[カオス大全]', '[Tome of Chaos]', '[Tome of Chaos](混沌大全)'],
+        ['[黒魔術入門]', '[Black Prayers]', '[Black Prayers](黒魔術)'],
+        ['[死霊術]', '[Necromancy]', '[Necromancy](死霊術)'],
+        ['[死の呪い]', '[Curse of Death]', '[Curse of Death](死の呪い)'],
+        ['[死者の書]', '[Book of the Dead]', '[Book of the Dead](死者)'],
+        ['[正義の教え]', "[Virtue's Way]", "[Virtue's Way](正義)"],
+        ['[光の福音]', '[Gospel of Light]', '[Gospel of Light](光福音)'],
+        ['[審判の時]', '[Hour of Judgement]', '[Hour of Judgement](審判)'],
+        ['[破邪顕正]', '[Wrath of Righteous]', '[Wrath Righteous](破邪)'],
+        ['[讃歌]', '[Hymns]', '[Hymns](讃歌)'],
+        ['[叙事詩]', '[Epics]', '[Epics](叙事詩)'],
+        ['[究極の歌]', '[Ultimate Song]', '[Ultimate Song](究極歌)'],
+
+        // Canonical Spellbook Titles (without brackets)
+        ['新弟子用教本', 'Apprentice Guide', 'Apprentice Guide(新弟子)'],
+        ['初心者教本', 'Cantrips for Beginners', 'Cantrips(初心者教本)'],
+        ['初等秘術', 'Minor Arcana', 'Minor Arcana(初等秘術)'],
+        ['大秘術', 'Major Arcana', 'Major Arcana(大秘術)'],
+        ['秘術大全', 'Tome of Arcana', 'Tome of Arcana(秘術大全)'],
+        ['初等仙術', "Beginner's Handbook", "Beginner's(初等仙術)"],
+        ['気功術', 'Words of Wisdom', 'Words of Wisdom(気功)'],
+        ['仙道', 'Way of the Sage', 'Way of Sage(仙道)'],
+        ['天地創造', 'Creation', 'Creation(天地創造)'],
+        ['自然の恵み', "Nature's Lore", "Nature's Lore(恵み)"],
+        ['自然の力', 'Power of Nature', 'Power of Nature(力)'],
+        ['大地の声', 'Voice of the Earth', 'Voice of Earth(声)'],
+        ['母なる大自然', 'Mother Nature', 'Mother Nature(大自然)'],
+        ['混沌の兆し', 'Sign of Chaos', 'Sign of Chaos(兆し)'],
+        ['カオス・マスター', 'Chaos Mastery', 'Chaos Mastery(支配)'],
+        ['混沌の力', 'Power of Chaos', 'Power of Chaos(混沌力)'],
+        ['カオス大全', 'Tome of Chaos', 'Tome of Chaos(混沌大全)'],
+        ['黒魔術入門', 'Black Prayers', 'Black Prayers(黒魔術)'],
+        ['死霊術', 'Necromancy', 'Necromancy(死霊術)'],
+        ['死の呪い', 'Curse of Death', 'Curse of Death(死の呪い)'],
+        ['死者の書', 'Book of the Dead', 'Book of the Dead(死者)'],
+        ['正義の教え', "Virtue's Way", "Virtue's Way(正義)"],
+        ['光の福音', 'Gospel of Light', 'Gospel of Light(光福音)'],
+        ['審判の時', 'Hour of Judgement', 'Hour of Judgement(審判)'],
+        ['破邪顕正', 'Wrath of Righteous', 'Wrath Righteous(破邪)'],
+        ['呪術入門', 'Handbook of Hex', 'Handbook of Hex(呪術入門)'],
+        ['上級呪法', 'High Curse', 'High Curse(上級呪法)'],
+        ['黒魔術の秘儀', 'Black Sorcery', 'Black Sorcery(黒魔術)'],
+        ['忌まわしき呪詛', 'Abhorrent Hexes', 'Abhorrent Hexes(呪詛)'],
+        ['闇夜の呪い', 'Dark Incantations', 'Dark Incantations(闇夜)'],
+        ['不朽の儀式', 'Immortal Rituals', 'Immortal Rituals(不朽)'],
+        ['悪魔の契約', 'Demonic Pact', 'Demonic Pact(悪魔契約)'],
+        ['地獄の門', 'Gates of Hell', 'Gates of Hell(地獄門)'],
+        ['地獄の炎', 'Hellfire', 'Hellfire(地獄炎)'],
+        ['悪魔召喚', 'Devil Summoning', 'Devil Summoning(悪魔召喚)'],
+        ['初等工匠術', 'Basic Craftsmanship', 'Basic Craft(初等工匠)'],
+        ['中等工匠術', 'Advanced Craftsmanship', 'Adv Craft(中等工匠)'],
+        ['秘伝工匠術', 'Master Craftsmanship', 'Master Craft(秘伝)'],
+        ['神技工匠術', 'Phenomenal Craftsmanship', 'God Craft(神技)'],
+        ['召喚と奇術', 'Summoning & Trickery', 'Summoning(召喚と奇術)'],
+        ['万物のデッキ', 'Deck of Many Things', 'Deck of Many(万物)'],
+        ['トランプの達人', 'Trump Mastery', 'Trump Mastery(達人)'],
+        ['最後の切り札', 'Final Trump', 'Final Trump(切り札)'],
+        ['共通祈祷書', 'Book of Common Prayer', 'Common Prayer(祈祷書)'],
+        ['神聖なる詠唱', 'High Holy Book', 'High Holy Book(神聖)'],
+        ['天界の福音', 'Celestial Gospel', 'Celestial Gospel(福音)'],
+        ['神の御手', 'Hand of God', 'Hand of God(神の御手)'],
+        ['讃歌', 'Hymns', 'Hymns(讃歌)'],
+        ['叙事詩', 'Epics', 'Epics(叙事詩)'],
+        ['エレジー', 'Elegies', 'Elegies(哀歌)'],
+        ['究極の歌', 'Ultimate Song', 'Ultimate Song(究極歌)'],
+        ['武芸の書', 'Book of Kendo', 'Kendo Book(武芸)'],
+        ['マインドクラフトの書', 'Mindcraft Tome', 'Mind Tome(心)'],
+        ['歌集', 'Songbook', 'Songbook(歌集)'],
+        ['歌 集', 'Songbook', 'Songbook(歌集)'],
+
+        // Store Action Prompts & Controls
+        ['(ESC) 建物から出る', '(ESC) Exit Building', '(ESC) Exit(出る)'],
+        ['(ESC)建物から出る', '(ESC) Exit Building', '(ESC) Exit(出る)'],
+        ['ESC) 建物から出る', 'ESC) Exit Building', 'ESC) Exit(出る)'],
+        ['建物から出る', 'Exit Building', 'Exit(出る)'],
+        ['(p) 買う', '(p) Purchase', '(p) Buy(買う)'],
+        ['(p)買う', '(p) Purchase', '(p) Buy(買う)'],
+        ['p) 買う', 'p) Purchase', 'p) Buy(買う)'],
+        ['(s) 売る', '(s) Sell', '(s) Sell(売る)'],
+        ['(s)売る', '(s) Sell', '(s) Sell(売る)'],
+        ['s) 売る', 's) Sell', 's) Sell(売る)'],
+        ['(x) 調べる', '(x) Examine', '(x) Examine(調べる)'],
+        ['(x)調べる', '(x) Examine', '(x) Examine(調べる)'],
+        ['x) 調べる', 'x) Examine', 'x) Examine(調べる)'],
+        ['(-) 前ページ', '(-) Prev page', '(-) Prev page(前)'],
+        ['(-)前ページ', '(-) Prev page', '(-) Prev page(前)'],
+        ['-) 前ページ', '-) Prev page', '-) Prev page(前)'],
+        ['前ページ', 'Prev page', 'Prev page(前)'],
+        ['(スペース) 次ページ', '(Space) Next page', '(Space) Next page(次)'],
+        ['(スペース)次ページ', '(Space) Next page', '(Space) Next page(次)'],
+        ['スペース) 次ページ', 'Space) Next page', 'Space) Next page(次)'],
+        ['(Space) 次ページ', '(Space) Next page', '(Space) Next page(次)'],
+        ['次ページ', 'Next page', 'Next page(次)'],
+        ['(w) 装備品を着ける', '(w) Wear/Wield', '(w) Wear(装備)'],
+        ['(t) 装備品を外す', '(t) Take off', '(t) Take off(外す)'],
+        ['(k) 装備品を外す', '(k) Take off', '(k) Take off(外す)'],
+        ['装備品を着ける', 'Wear/Wield', 'Wear(装備)'],
+        ['装備品を外す', 'Take off', 'Take off(外す)'],
+        ['({) 銘を刻む', '({) Inscribe', '({) Inscribe(刻む)'],
+        ['(}) 銘を消す', '(}) Uninscribe', '(}) Uninscribe(消す)'],
+        ['銘を刻む', 'Inscribe', 'Inscribe(刻む)'],
+        ['銘を消す', 'Uninscribe', 'Uninscribe(消す)'],
+        ['いらっしゃいませ。何をお求めですか？', 'Welcome. What would you like to buy?', 'Welcome(いらっしゃいませ)'],
+        ['いらっしゃいませ', 'Welcome', 'Welcome(いらっしゃい)'],
+        ['何をお求めですか？', 'What would you like to buy?', 'What to buy?'],
+        ['持ち金:', 'Gold:', 'Gold(金):'],
+        ['持ち金', 'Gold', 'Gold(金)'],
+        ['現在の持ち金', 'Current Gold', 'Gold(所持金)'],
+
+        // Light Sources & Ammunition
+        ['たいまつ', 'Wooden Torch', 'Wooden Torch(松明)'],
+        ['松明', 'Wooden Torch', 'Wooden Torch(松明)'],
+        ['真鍮のランタン', 'Brass Lantern', 'Brass Lantern(ランタン)'],
+        ['油つぼ', 'Flask of oil', 'Flask of oil(油)'],
+        ['ターンの寿命', ' turns of light', ' turns(寿命)'],
+        ['ターンの 寿命', ' turns of light', ' turns(寿命)'],
+        ['TURN の 寿命', ' turns of light', ' turns(寿命)'],
+        ['TURNの寿命', ' turns of light', ' turns(寿命)'],
+        ['TURN の寿命', ' turns of light', ' turns(寿命)'],
+        ['本の 矢', 'Black Arrows', 'Black Arrows(矢)'],
+        ['本の矢', 'Black Arrows', 'Black Arrows(矢)'],
+        [' 矢 (', ' Black Arrow (', ' Black Arrow(矢) ('],
+        [' 矢 ', ' Black Arrow ', ' Black Arrow(矢) '],
+        ['鉄弾 (', 'Iron Shots (', 'Iron Shots(鉄弾) ('],
+        ['本の 鉄弾', 'Iron Shots', 'Iron Shots(鉄弾)'],
+
+        // Common Item Counters & Indicators
+        ['合計', 'Total', 'Total(合計)'],
+        ['限界の', 'Cap:', 'Cap(限):'],
+        ['コマンド:', 'Command: ', 'Cmd(コマンド):'],
+        ['Speedの 薬', 'Potion of Speed', 'Potion of Speed(加速)'],
+        ['Speedの薬', 'Potion of Speed', 'Potion of Speed(加速)'],
+        ['Lifeの Magic 書', 'Life Spellbook', 'Life Book(生命)'],
+        ['LifeのMagic 書', 'Life Spellbook', 'Life Book(生命)'],
+        ['冊の', 'x ', 'x(冊) '],
+        ['つの', 'x ', 'x(個) '],
+        ['本の', 'x ', 'x(本) '],
+        ['個の', 'x ', 'x(個) '],
+        ['枚の', 'x ', 'x(枚) ']
     ];
 
     const JP_TERM_TRANSLATIONS_INTERNAL = {
@@ -634,17 +1342,94 @@
     // Sort descending by Japanese text length for greedy matching
     EXACT_ROW_TERMS.sort((a, b) => b[0].length - a[0].length);
 
+    // Build reverse table for English-to-Japanese terminal translation with word boundaries
+    const EN_TO_JA_ROW_TERMS = [];
+    for (const [ja, en, bi] of EXACT_ROW_TERMS) {
+        const enTrim = en.trim();
+        if (enTrim.length >= 2 && !/^\d+$/.test(enTrim)) {
+            const escaped = enTrim.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const prefix = /^\w/.test(enTrim) ? '\\b' : '';
+            const suffix = /\w$/.test(enTrim) ? '\\b' : '';
+            const re = new RegExp(`${prefix}${escaped}${suffix}`, 'g');
+            EN_TO_JA_ROW_TERMS.push({
+                re,
+                en: enTrim,
+                ja: ja.trim(),
+                bi: bi ? bi.trim() : `${enTrim}(${ja.trim()})`,
+                len: enTrim.length
+            });
+        }
+    }
+    EN_TO_JA_ROW_TERMS.sort((a, b) => b.len - a.len);
+
     // Fast terminal row translation cache (LRU, max 1000 lines)
     const termRowCache = new Map();
     const MAX_TERM_CACHE = 1000;
 
-    function translateTerminalRow(rowText, attrs = '', mode = 'en', rowIndex = 0) {
-        if (!rowText || typeof rowText !== 'string' || mode === 'jp') {
-            return { text: rowText, attrs: attrs || '' };
+    // Intelligent whitespace gap compressor for multi-column terminal rows
+    // Ensures translated rows (store items with prices/weights, character stats, menus)
+    // NEVER exceed 80 columns and never push right-aligned columns off the screen.
+    function compressLineGaps(translated, orig) {
+        if (!translated || typeof translated !== 'string') return translated;
+        const origW = visualWidth(orig);
+        let transW = visualWidth(translated);
+        let delta = transW - Math.min(80, Math.max(origW, 78));
+        if (delta <= 0) return translated;
+
+        // Pass 1: Reduce large whitespace gaps (>= 2 spaces) starting with the largest gap
+        let res = translated;
+        while (delta > 0) {
+            const gaps = [];
+            const re = /\x20{2,}/g;
+            let m;
+            while ((m = re.exec(res)) !== null) {
+                gaps.push({ index: m.index, length: m[0].length });
+            }
+            if (gaps.length === 0) break;
+            gaps.sort((a, b) => b.length - a.length);
+            const largest = gaps[0];
+            if (largest.length <= 1) break;
+            const canCut = Math.min(delta, largest.length - 1);
+            res = res.substring(0, largest.index) + ' '.repeat(largest.length - canCut) + res.substring(largest.index + largest.length);
+            delta -= canCut;
         }
 
-        // Fast check: Skip if no CJK characters are present
-        if (!/[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff01-\uff60]/.test(rowText)) {
+        // Pass 2: If line still exceeds 80 columns (e.g. very long item title with parenthetical),
+        // gently trim text before the rightmost numeric column block so columns stay strictly <= 80
+        const finalW = visualWidth(res);
+        if (finalW > 80) {
+            const excess = finalW - 80;
+            const rightMatch = res.match(/\s+([0-9].*)$/);
+            if (rightMatch) {
+                const rightPart = rightMatch[0];
+                const leftPart = res.substring(0, res.length - rightPart.length);
+                let cutLeft = leftPart;
+                const targetLeftW = Math.max(10, visualWidth(cutLeft) - excess);
+                while (visualWidth(cutLeft) > targetLeftW && cutLeft.length > 5) {
+                    cutLeft = cutLeft.slice(0, -1);
+                }
+                res = cutLeft + rightPart;
+            } else {
+                while (visualWidth(res) > 80 && res.length > 5) {
+                    res = res.slice(0, -1);
+                }
+            }
+        }
+
+        return res;
+    }
+
+    function translateTerminalRow(rowText, attrs = '', mode = 'en', rowIndex = 0) {
+        if (!rowText || typeof rowText !== 'string') {
+            return { text: rowText || '', attrs: attrs || '' };
+        }
+
+        const hasCJK = /[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff01-\uff60]/.test(rowText);
+
+        if (hasCJK && mode === 'jp') {
+            return { text: rowText, attrs: attrs || '' };
+        }
+        if (!hasCJK && mode === 'en') {
             return { text: rowText, attrs: attrs || '' };
         }
 
@@ -654,6 +1439,28 @@
             termRowCache.delete(cacheKey);
             termRowCache.set(cacheKey, cached);
             return cached;
+        }
+
+        // Branch 1: Pure English row -> Japanese / Bilingual
+        if (!hasCJK) {
+            let replaced = rowText;
+            for (const term of EN_TO_JA_ROW_TERMS) {
+                if (term.re.test(replaced)) {
+                    const rep = mode === 'bilingual' ? term.bi : term.ja;
+                    replaced = replaced.replace(term.re, rep);
+                }
+            }
+            if (replaced) {
+                replaced = compressLineGaps(replaced, rowText);
+            }
+            let outAttrs = attrs || '';
+            const res = { text: replaced, attrs: outAttrs };
+            if (termRowCache.size >= MAX_TERM_CACHE) {
+                const firstKey = termRowCache.keys().next().value;
+                termRowCache.delete(firstKey);
+            }
+            termRowCache.set(cacheKey, res);
+            return res;
         }
 
         const trimmed = rowText.trim();
@@ -716,6 +1523,32 @@
             }
         }
 
+        // 2.5 Study notice lines: e.g. "あと 3 つの祈りを学べる。" / "あと 1 つの呪文を学べる。"
+        if (!translatedText) {
+            const studyMatch = rowText.match(/^(\s*)あと\s*(\d+)\s*つの\s*(祈り|呪文|歌|特技|法力|精神術|忍術)を学べる。(.*)$/);
+            if (studyMatch) {
+                const lead = studyMatch[1];
+                const count = studyMatch[2];
+                const kind = studyMatch[3];
+                const tail = studyMatch[4] || '';
+                const kindMapEn = {
+                    '祈り': count === '1' ? 'prayer' : 'prayers',
+                    '呪文': count === '1' ? 'spell' : 'spells',
+                    '歌': count === '1' ? 'song' : 'songs',
+                    '特技': count === '1' ? 'skill' : 'skills',
+                    '法力': count === '1' ? 'prayer' : 'prayers',
+                    '精神術': count === '1' ? 'power' : 'powers',
+                    '忍術': count === '1' ? 'ninjutsu' : 'ninjutsu'
+                };
+                const termEn = kindMapEn[kind] || 'spells';
+                if (mode === 'en') {
+                    translatedText = `${lead}You can learn ${count} more ${termEn}.${tail}`;
+                } else if (mode === 'bilingual') {
+                    translatedText = `${lead}You can learn ${count} more ${termEn} (あと${count}つの${kind}を学べる)${tail}`;
+                }
+            }
+        }
+
         // 3. Token-protected substring replacement for tables, sidebar stats, status flags, and prompts
         if (!translatedText) {
             let replaced = rowText;
@@ -731,17 +1564,17 @@
                 }
             }
 
-            // Monsters & Items
-            if (DATA.monsters) {
-                for (const [ja, en] of Object.entries(DATA.monsters)) {
+            // Monsters & Items (using precomputed length-descending sorted arrays)
+            if (typeof SORTED_MONSTERS !== 'undefined' && SORTED_MONSTERS.length > 0) {
+                for (const [ja, en] of SORTED_MONSTERS) {
                     if (ja.length >= 2 && replaced.includes(ja)) {
                         tokens.push({ en, bi: mode === 'bilingual' ? `${en}(${ja})` : en });
                         replaced = replaced.split(ja).join(`\uE000${tokens.length - 1}\uE001`);
                     }
                 }
             }
-            if (DATA.items) {
-                for (const [ja, en] of Object.entries(DATA.items)) {
+            if (typeof SORTED_ITEMS !== 'undefined' && SORTED_ITEMS.length > 0) {
+                for (const [ja, en] of SORTED_ITEMS) {
                     if (ja.length >= 2 && replaced.includes(ja)) {
                         tokens.push({ en, bi: mode === 'bilingual' ? `${en}(${ja})` : en });
                         replaced = replaced.split(ja).join(`\uE000${tokens.length - 1}\uE001`);
@@ -756,7 +1589,13 @@
                 replaced = replaced.split(ph).join(rep);
             }
 
+            // Clean any leftover & or ~ formatting characters from raw item templates
+            replaced = replaced.replace(/[&~]/g, '');
             translatedText = replaced;
+        }
+
+        if (translatedText) {
+            translatedText = compressLineGaps(translatedText, rowText);
         }
 
         // Color attribute synthesis for 80-column vector canvas
@@ -787,15 +1626,18 @@
     const HENG_DICT = {
         data: DATA,
         getLocalizedMonsterName,
+        getLocalizedItemName,
         localizeGameMessage,
         translateTerminalRow
     };
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = HENG_DICT;
-    } else {
+    }
+    if (typeof root !== 'undefined') {
         root.HENG_DICT = HENG_DICT;
         root.getLocalizedMonsterName = getLocalizedMonsterName;
+        root.getLocalizedItemName = getLocalizedItemName;
         root.localizeGameMessage = localizeGameMessage;
         root.translateTerminalRow = translateTerminalRow;
     }

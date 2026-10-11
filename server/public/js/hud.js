@@ -406,7 +406,7 @@ class WebHUD {
         if (lastMsg && (lastMsg.rawText === rawText || lastMsg.text === rawText || lastMsg.text.startsWith(rawText))) {
             lastMsg.repeat = count;
             if (lastMsg.el) {
-                lastMsg.el.textContent = `${lastMsg.rawText || rawText} (x${count})`;
+                lastMsg.el.textContent = `${lastMsg.text || lastMsg.rawText || rawText} (x${count})`;
             }
             if (this.messageFeedScroll && !this.userScrolledUp) {
                 this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
@@ -1308,7 +1308,7 @@ class WebHUD {
         const ui = frame.ui || {};
 
         // Realm and Game System Differentiation
-        const realm = (player.realm) || (frame.realm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
+        const realm = (frame && frame.realm) || (window.__activeRealm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
         const isSilQ = realm === 'silq' || (player.stats && player.stats.gra !== undefined);
         this.updateHengbandLanguageUI(realm, window.__langMode || 'en');
 
@@ -1687,8 +1687,14 @@ class WebHUD {
         // Target tracking
         if (this.footerTarget) {
             if (player.target && player.target.name) {
+                let tName = player.target.name;
+                const lang = window.__langMode || 'en';
+                if (realm === 'hengband' && typeof window.getLocalizedMonsterName === 'function') {
+                    tName = window.getLocalizedMonsterName(tName, 'hengband', lang);
+                }
+                const tPrefix = (realm === 'hengband' && lang === 'jp') ? '標的' : ((realm === 'hengband' && lang === 'bilingual') ? 'Target (標的)' : 'Target');
                 this.footerTarget.style.display = 'inline-flex';
-                this.footerTarget.textContent = `⚔ Target: ${player.target.name} (${player.target.pct || 100}%)`;
+                this.footerTarget.textContent = `⚔ ${tPrefix}: ${tName} (${player.target.pct || 100}%)`;
             } else {
                 this.footerTarget.style.display = 'none';
             }
@@ -1767,11 +1773,23 @@ class WebHUD {
 
         // Gear summary on status bar
         if (this.footerGear) {
-            const weap = player.weapon_item || 'Bare Hands';
-            const bow = player.bow_item;
+            const rawWeap = player.weapon_item;
+            const rawBow = player.bow_item;
+            const rawShield = player.shield_item;
+            const lang = window.__langMode || 'en';
+            const locItem = (name) => {
+                if (!name) return name;
+                if (realm === 'hengband' && typeof window.getLocalizedItemName === 'function') {
+                    return window.getLocalizedItemName(name, 'hengband', lang);
+                }
+                return name;
+            };
+            const weap = rawWeap ? locItem(rawWeap) : ((realm === 'hengband' && lang === 'jp') ? '素手' : 'Bare Hands');
+            const bow = rawBow ? locItem(rawBow) : null;
+            const shield = rawShield ? locItem(rawShield) : ((realm === 'hengband' && lang === 'jp') ? 'なし' : 'None');
             this.footerGear.style.display = 'inline-flex';
             this.footerGear.textContent = bow ? `⚔ ${weap} • 🏹 ${bow}` : `⚔ ${weap}`;
-            this.footerGear.title = `Wielding: ${weap} • Shield: ${player.shield_item || 'None'} • Ranged: ${player.bow_item || 'None'}`;
+            this.footerGear.title = `Wielding: ${weap} • Shield: ${shield} • Ranged: ${bow || 'None'}`;
         }
 
         // Turn number tracking

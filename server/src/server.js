@@ -532,14 +532,16 @@ function resolveRealmEngine(realmId = 'angband', lang = 'en') {
     const realmDef = engineManifest.realms[realmId];
     let binRelPath = IS_WIN ? realmDef.binary?.win_x64 : realmDef.binary?.linux_x64;
 
-    // Multilingual variant binary resolution: Hengband supports both pure English (hengband-en) and native Kanji/Japanese (hengband)
+    // Multilingual variant binary resolution:
+    // Hengband native binary (hengband.exe / hengband) provides full native Japanese strings,
+    // enabling seamless real-time client-side toggling between English, Bilingual, and Japanese across all views.
+    // We prefer the native binary if present, falling back to pure English (hengband-en) only if the native binary is absent.
     if (realmId === 'hengband') {
-        const isJp = (lang === 'jp' || lang === 'kanji' || lang === 'ja' || lang === 'bilingual');
         const enBin = IS_WIN ? 'variants/hengband/bin/hengband-en.exe' : 'variants/hengband/bin/hengband-en';
         const jpBin = IS_WIN ? 'variants/hengband/bin/hengband.exe' : 'variants/hengband/bin/hengband';
-        if (isJp && fs.existsSync(path.resolve(__dirname, '../../', jpBin))) {
+        if (fs.existsSync(path.resolve(__dirname, '../../', jpBin))) {
             binRelPath = jpBin;
-        } else if (!isJp && fs.existsSync(path.resolve(__dirname, '../../', enBin))) {
+        } else if (fs.existsSync(path.resolve(__dirname, '../../', enBin))) {
             binRelPath = enBin;
         }
     }
@@ -2282,10 +2284,15 @@ function spawnGameSession(ws, request) {
             const line = lineBuffer.substring(0, newlineIdx).trim();
             lineBuffer = lineBuffer.substring(newlineIdx + 1);
             if (line.length > 0) {
-                if (line.startsWith('{"t":"frame"') || line.startsWith('{"t":"hello"')) {
-                    session.lastFrame = line;
-                }
                 if (line.startsWith('{"t":"frame"')) {
+                    if (session.realm) {
+                        if (line.startsWith('{"t":"frame",')) {
+                            line = '{"t":"frame","realm":"' + session.realm + '",' + line.substring('{"t":"frame",'.length);
+                        } else if (line.startsWith('{"t":"frame"}')) {
+                            line = '{"t":"frame","realm":"' + session.realm + '"}';
+                        }
+                    }
+                    session.lastFrame = line;
                     try {
                         const parsed = JSON.parse(line);
                         if (parsed.phase) session.phase = parsed.phase;

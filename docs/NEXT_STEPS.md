@@ -1,5 +1,122 @@
 # Angband3D — Status & Next Steps Roadmap
 
+-21. **Hengband Multi-Language Menu Functionality, Character Creation Quarantine & Store E2E Integration (100% Operational)**:
+   - **Menu Hotkey Quarantine & Scoping (`input.js`, `app.js`)**:
+     - Resolved defect where review screen hotkeys (`r` reroll, `p` prev roll, `c`/`s` custom restart, `Enter`/`y` accept) erroneously trapped keystrokes and touch events during character creation choice menus (Sex, Race, Class, Personality, Realm).
+     - Guarded `isReviewScreen` with `!isChoiceMenu && !isNamePrompt && !inPlay && (isReviewActive || ...)`, ensuring letters `a-z`, `*`, `Esc`, and `Enter` pass cleanly to choice menus without false reroll/restart triggers.
+     - Synchronized `birthReviewActive = false` whenever entering choice menus or name prompts.
+     - Scoped `executeTouchAction`: guarded review buttons with `!isChoiceMenu && !isNamePrompt`.
+     - Added dynamic store examine key: `const examineKey = isHeng ? 'x' : 'l'` (Hengband stores use `x` 調べる, Angband uses `l`).
+   - **Translation & Dictionary Overhaul (`heng-dict.js`)**:
+     - Precomputed `SORTED_ITEMS` and `SORTED_MONSTERS` sorted descending by length, eliminating sub-word token collisions (`弟子` -> `Brother` inside `新弟子用教本`).
+     - Added canonical translations for all 44 unbracketed spellbook titles, light sources (`たいまつ`, `松明`, `5000ターンの寿命`), store prompts, and study notices.
+     - Added trailing regex cleanup removing leftover `[&~]` formatting tokens.
+   - **In-Game Store & Equipment Menu Integration (`app.js`)**:
+     - Enhanced store detection for Hengband native Japanese strings (`雑貨屋`, `万屋`, `防具屋`, `武器屋`, `寺院`, `錬金術の店`, `魔術師の店`, `ブラック・マーケット`, `我が家`, `博物館`, `商品の一覧`).
+     - Added support for Hengband shop door feature IDs (`playerFeat === 4` or glyphs `'1'`-`'9'`).
+     - Handled Hengband store sub-prompts cleanly (`isStoreBuy`, `isStoreSell`, `isStoreExamine` on `買いますか`, `売りますか`, `調べますか`).
+     - Added Japanese `装備：` / `装備:` detection for Equipment screen title (`🛡 EQUIPPED GEAR` / `🛡 装備品一覧`) and gear/pack toggle button (`[/]`).
+   - **Comprehensive Automated E2E Verification (`test_heng_cdp_automation.js`, `test_3d_labels_and_terminal_language.js`)**:
+     - Test A: Review Stats Language Switching (`en`, `bilingual`, `jp`, `en`) — PASSED.
+     - Test B: Custom Hero Creation & Choice Menus (`Sex`, `Race`, `Class`, `Personality`, `Realm`, Random `*`, `Esc`, `Enter`, Letter Ribbon) — PASSED.
+     - Test C: Character acceptance (`btn-term-advance`) and 3D play entry (`inPlay === true`, `phase === 'play'`) — PASSED.
+     - Test D: Classic 2D view toggle and live language mode switching across all 3 modes — PASSED.
+     - Test E: 3D creature overhead nameplates and 3D item captions bidirectional translation and sprite generation — PASSED.
+     - Test F.1: In-game Inventory `[i]` in 3D town (`overlay > 0`, `持ち物：...`, exits cleanly via `[Esc]` to 3D `overlay === 0`) — PASSED.
+     - Test F.2: In-game Equipment `[e]` in 3D town (`overlay > 0`, `装備：...`, title `🛡 EQUIPPED GEAR`, exits cleanly via `[Esc]` to 3D `overlay === 0`) — PASSED.
+     - Test F.3: Store navigation & interaction (BFS pathfinds to `雑貨屋`, walks 14 steps into store, detects `⚔ GENERAL STORE — BROWSE INVENTORY`, validates buttons `p Buy`, `s Sell`, `x Examine`, `Esc Exit`, clicks `[x]` Examine, cancels via `[Esc]`, exits store to town with `overlay === 0`) — PASSED.
+   - **Verification**:
+     - `node tools/test_heng_cdp_automation.js`: 100% passed (Tests A through F.3).
+     - `node tools/test_3d_labels_and_terminal_language.js`: 6/6 test suites passed.
+     - `python tools/smoke_test.py`: 11/11 tests passed.
+     - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
+
+-20. **Hengband English Mode Combat Messages, Multi-Sentence Splitting & Item Modifiers (100% Operational)**:
+   - **Multi-Sentence Compound Line Splitting (`heng-dict.js`)**:
+     - Diagnosed Frankenstein message strings (`Blubbering idiotを攻撃した。Blubbering idiotを葬り去った。`) caused by multiple Japanese sentences chained on a single turn line bypassing anchored regex templates and falling back to partial monster name replacements.
+     - Implemented sentence splitting on Japanese ideographic period (`。(?=\s*[\w\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]{2,})`), localizing each clause independently and recombining with clean spacing, eliminating compound Frankenstein sentences.
+   - **High-Priority Combat, Monster Attack & Floor Corpse Templates (`heng-dict.js`)**:
+     - Added `extraCompiledPatterns` checking upstream Hengband C++ source phrases directly:
+       - Monster attacks: `(.*?)によだれをたらされた。` -> `$1 drools on you.`, bites, hits, claws, charges, wails, spores, and gazes.
+       - Slayings: `(.*?)を葬り去った。` -> `You have slain $1.`, `(.*?)を倒した。` -> `You have destroyed $1.`, `(.*?)を殺した。` -> `You have killed $1.`, `せっかくだから` variants.
+       - Corpses: `(.*?)の死体がある。(.*)$` -> `There is a corpse of $1.$2`, supporting stack counts (`(x2)`) cleanly without text clipping.
+     - Replaced string `.replace('$1', ...)` with literal `.split('$1').join(...)` to prevent JavaScript replacement string `$` pattern corruption.
+   - **Monster Remains & Item Modifier Suffix Extraction (`heng-dict.js`)**:
+     - Handled monster remains (`Xの死体`, `Xの死骸`, `Xの骨`, `Xの頭`, `Xの像`, `Xの人形` <-> `Corpse of X`, `Skeleton of X`, etc.) in `getLocalizedItemName`, ensuring 3D ground billboards render pure English (`Corpse of Blubbering idiot`).
+     - Extracted trailing weapon/armor modifiers (` (2d6) (+0,+0)`, ` [1,+0]`, `{cursed}`, `(5000 turns of light)`) before dictionary lookup, resolving weapon status pills like `⚔ Broad Axe (2d6) (+0,+0)`.
+   - **HUD & Input Context Action Cues (`hud.js`, `input.js`)**:
+     - Wrapped `player.weapon_item`, `player.bow_item`, `player.shield_item`, and `player.target.name` in `hud.js` with `getLocalizedItemName` and `getLocalizedMonsterName`.
+     - Updated `input.js` smart action cues, title tooltips, and target cards to localize monster and item names in English mode (`Attack Blubbering idiot [Space]`, `Pick Up Corpse of Blubbering idiot [g]`).
+   - **Verification**:
+     - `node tools/test_3d_labels_and_terminal_language.js`: All 5 test suites pass (20/20 assertions).
+     - `python tools/smoke_test.py`: 11/11 tests pass.
+     - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
+
+-19. **Hengband Classic Terminal Readability, Typographical Kerning & Responsive Scaling (100% Operational)**:
+   - **Japanese Typographical Kerning & CJK Cell Geometry (`terminal.js`)**:
+     - Diagnosed and fixed the 9-pixel unnatural gap between Japanese Kanji and Kana characters (`こ う ぺ い`, `日 替 わ り 賞 金 首`).
+     - Established exact 2:1 cell aspect ratio (`baseCellWidth = 14`, `baseCellHeight = 28`), making full-width 2-cell CJK characters an exact 28x28 square.
+     - Separated ASCII and CJK font rasterization:
+       - CJK: `bold 25px 'BIZ UDGothic', 'MS Gothic', 'Noto Sans CJK JP', 'Meiryo', sans-serif`, centered horizontally and vertically at `kx = screenCol * 14 + 1` and `ky = y + 1`, reducing adjacent letter spacing from 9px down to a crisp, natural 3px kerning.
+       - ASCII: `bold 20px 'Fira Code', 'BIZ UDGothic', monospace`, centered at `ax = screenCol * 14 + 1` and `ay = y + 4` for baseline alignment with Japanese text.
+   - **Store & Menu 80-Column Dynamic Gap Compression (`heng-dict.js`)**:
+     - Solved column shifting where expanded English/Bilingual titles pushed `Weight` and `Price` columns off-screen or caused price truncation (`1.`).
+     - Implemented `compressLineGaps(translated, orig)`: detects wide whitespace gaps in multi-column store and menu lines, absorbing width difference $\Delta W$ so `Weight` (col 64) and `Price` (col 74) remain locked at their exact columns, strictly preserving 80-column boundary limits.
+   - **Canonical Realm Spellbooks & Store Action Translations (`heng-dict.js`)**:
+     - Added comprehensive translations to `EXACT_ROW_TERMS` for all 11 magic realms and all 44 canonical spellbook titles, eliminating Frankenstein strings (`Lv1 呪術のMagic 書[Handbook of Hex]`, `Songs 集`, `[Novice 教本 ]`, `[新 Brother 用教本]`, `[大 Arcane]`, `[Arcane大 全]`).
+     - Added Hunter Bounty Office actions (`ハンター事務所`, `日替わり賞金首`, `賞金首リスト`, `スペシャル・ターゲット`, `報酬を受け取る`), store prompts (`ESC) 建物から出る`, `-) 前ページ`, `スペース) Nextページ`, `x) 商品を調べる`), item quantities (`8冊の`, `6つの`), and HUD indicators.
+   - **Responsive Viewport Scaling & Native Retina DPI Sharpness (`terminal.js`, `dungeon.css`)**:
+     - Removed the artificial `1.0` upper bound from `baseScale = Math.min(availW / logicalWidth, availH / logicalHeight, 2.5)`, allowing desktop monitors (1080p, 1440p, 4K) to scale up smoothly to fill available screen space.
+     - Backing canvas buffer sized to `Math.round(cssW * dpr)` by `Math.round(cssH * dpr)` with `this.ctx.setTransform(scaleFactor, 0, 0, scaleFactor, 0, 0)`, achieving native retina rendering crispness at all zoom levels without browser bitmap interpolation.
+     - Dynamic viewport centering: `.terminal-viewport` uses flexbox centering when the canvas fits within the viewport, and automatically switches to `flex-start` when zoomed in or on mobile to prevent top/left clipping.
+   - **Verification**:
+     - `node tools/test_3d_labels_and_terminal_language.js`: All 4 test suites pass 100%.
+     - `node tools/test_heng_cdp_automation.js`: Full headless Chrome CDP E2E test suite passes across all modes (`en`, `bilingual`, `jp`).
+     - `node tools/test_monster_resolution.js`: Bestiary coverage & disambiguation 100% verified.
+     - `python tools/smoke_test.py`: 11/11 tests pass.
+     - `dotnet build client/angband3d.csproj`: Godot C# builds with 0 warnings, 0 errors.
+
+-18. **Equine & Mount 3D Procedural Modeling and Atlas Reverse Substring Disambiguation (100% Operational)**:
+   - **Root Cause & Reverse Substring Matching Guard (`dungeon3d.js`)**:
+     - Resolved defect where `Horse` (`glyph 'q'`) erroneously resolved to `Uvatha the Horseman` (a Nazgul Ringwraith).
+     - Fixed `resolveMonsterAtlasEntry` in `dungeon3d.js` by removing `k.includes(lower)` from `this._monsterAtlasLowerMap` search loop. Reverse substring searches (`"uvatha the horseman".includes("horse")`) caused broad archetypes like `horse`, `guard`, and `soldier` to match unrelated specific monsters (`Guardian naga`, `Soldier ant`, `Uvatha the Horseman`).
+     - Removed hardcoded fallback returning `monsters['Uvatha the Horseman']` on `horse` match.
+     - Added an explicit equine/mount guard routing horses, steeds, ponies, unicorns, pegasi, mares, stallions, mounts, and Japanese equine variants (`馬`, `乗用馬`, `野生馬`, `ポニー`) directly to procedural 3D creatures (`null` atlas entry) unless the name explicitly contains `uvatha`.
+   - **High-Fidelity Procedural 3D Equine Model (`dungeon3d.js`)**:
+     - Upgraded `createProceduralCreatureMesh` for horses/mounts:
+       - Realistic coat colors (bay/chestnut, obsidian black for dark steeds/Kokuo, silvery-white for unicorns/pegasi).
+       - Saddle on the withers with girth strap and stirrup irons.
+       - Sculpted equine anatomy: arched neck, flowing mane crest, tapered head & muzzle, gentle dark eyes, pointed ears, flowing tail, and 4 articulated legs with dark hooves.
+       - Pearlescent spiral horn for unicorns; spreading feathered wings for pegasi.
+     - Set `modelHeight = 1.15` in `createMonsterMesh` for `q` and equine names so overhead nameplate sits at 1.50m.
+   - **Verification**:
+     - `node tools/test_monster_resolution.js`: Verified Horse, Riding horse, and 馬 route to 3D procedural horse (`null`), while Uvatha the Horseman correctly resolves to the Nazgul billboard, and Guard/Soldier resolve to Novice warrior.
+     - `node tools/audit_variant_monsters.js`: 100.0% coverage across Sil-Q (153/153), FrogComposBand (1395/1395), and Hengband (1420/1420).
+     - `node tools/audit_atlas_models.js`: Master lore & model audit 100% passed (0 errors, 0 defects).
+     - `python tools/smoke_test.py`: 11/11 tests pass.
+     - `dotnet build client/angband3d.csproj`: Build succeeded with 0 warnings, 0 errors.
+
+-17. **Dynamic 3D Creature Nameplates, Item Captions & Seamless Terminal Language Switching (100% Operational Across All Platforms)**:
+   - **3D Creature Overhead Nameplate Real-Time Retranslation (`dungeon3d.js`, `heng-dict.js`)**:
+     - Reinforced `refreshMonsterNameplates()` on `DungeonWorld` (`dungeon3d.js`) to support both `entity.monsterData` and `entity.nameplate.monsterData`.
+     - Added `isHengband()` robust realm check to `Dungeon3D` checking `this.realm`, `window.__activeRealm`, and `window.__app.getActiveRealm()`.
+     - Enhanced `getLocalizedMonsterName` in `heng-dict.js` with case-insensitive and article-stripped (`a `, `an `, `the `) bidirectional resolution between Japanese and English monster names.
+   - **3D Item Overhead Caption Real-Time Retranslation (`dungeon3d.js`, `heng-dict.js`)**:
+     - Implemented `getLocalizedItemName(name, realm, langMode)` in `heng-dict.js` supporting bidirectional translation (Japanese -> English/Bilingual and English -> Japanese/Bilingual) for base weapons, armor, potions (`Xの薬` <-> `Potion of X`), scrolls (`Xの巻物` <-> `Scroll of X`), staves, wands, quantities (`3本の 矢` <-> `3 Black Arrow`), and currencies (`金貨 100枚` <-> `100 gold pieces`).
+     - Added `createItemCaptionSprite(it)` to `Dungeon3D` in `dungeon3d.js` utilizing `getLocalizedItemName`, font fallbacks (`"Fira Code", "Noto Sans JP", "Yu Gothic", monospace, sans-serif`), and dynamic font sizing.
+     - Implemented `refreshItemCaptions()` on `Dungeon3D` and ensured `entity.itemData = it;` is retained on all item instances.
+   - **Instantaneous 3D Label Updating on Language Toggle (`app.js`)**:
+     - Hooked `dungeon.refreshMonsterNameplates()` and `dungeon.refreshItemCaptions()` directly into `setLanguageMode(mode)` in `app.js`. Toggling language via `Alt+L`, the HUD toggle button (`#btn-toggle-lang`), or menu actions immediately updates all visible 3D creature nameplates and item labels.
+   - **Bidirectional Classic 2D Vector Terminal Translation (`terminal.js`, `heng-dict.js`)**:
+     - Removed `langMode !== 'jp'` restriction in `terminal.js` so `trFn` is executed for all language modes.
+     - Built `EN_TO_JA_ROW_TERMS` with word-boundary regexes in `heng-dict.js` so terminal screens from English binaries or prompts translate cleanly to Japanese/Bilingual without character corruption.
+   - **Verification**:
+     - `node tools/test_3d_labels_and_terminal_language.js`: All 4 test suites pass (Monster Localization, Item Localization, Classic Terminal Row Translation, Strict Isolation Quarantine).
+     - `node tools/test_heng_cdp_automation.js`: Headless Chrome CDP E2E verification passes all 4 test suites (Birth Review, 3D Play, Classic View, 3D Monster Nameplates & Item Captions) across `en`, `bilingual`, and `jp`.
+     - `node tools/test_japanese_isolation_and_security.js`: All 6 test suites pass 100%.
+     - `python tools/smoke_test.py`: 11/11 tests pass.
+     - `dotnet build client/angband3d.csproj`: Godot C# builds with 0 warnings/errors.
+
 -16. **Seamless Hengband Language Switching Across All Views, Menus & Interfaces (100% Operational Across All Platforms)**:
    - **Unified 3-Way Language Toggle Across All Views**:
      - Seamless toggling between `en` (English), `bilingual` (English + Kanji), and `jp` (Native Japanese) via `Alt+L`, the HUD toggle button (`#btn-toggle-lang`), or programmatic `setLanguageMode(mode)`.

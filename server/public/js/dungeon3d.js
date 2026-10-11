@@ -5736,6 +5736,15 @@ class Dungeon3D {
         }
     }
 
+    isHengband() {
+        if (this.realm === 'hengband') return true;
+        if (typeof window !== 'undefined') {
+            if (window.__activeRealm === 'hengband') return true;
+            if (window.__app && typeof window.__app.getActiveRealm === 'function' && window.__app.getActiveRealm() === 'hengband') return true;
+        }
+        return false;
+    }
+
     createNameplateSprite(m, isTargeted, isSensedParam) {
         const canvas = document.createElement('canvas');
         canvas.width = 384;
@@ -5743,8 +5752,10 @@ class Dungeon3D {
         const ctx = canvas.getContext('2d');
 
         const rawRace = m.race || m.name || 'creature';
-        const race = (window.getLocalizedMonsterName && (this.realm === 'hengband' || (window.__app && window.__app.activeRealm === 'hengband')))
-            ? window.getLocalizedMonsterName(rawRace, 'hengband', window.__langMode)
+        const isHeng = this.isHengband();
+        const langMode = (typeof window !== 'undefined' && window.__langMode) || 'en';
+        const race = (window.getLocalizedMonsterName && isHeng)
+            ? window.getLocalizedMonsterName(rawRace, 'hengband', langMode)
             : rawRace;
         const glyph = m.glyph || '?';
         const colorHex = getAngbandColorString(m.attr);
@@ -5936,7 +5947,18 @@ class Dungeon3D {
             return monsters[rawName];
         }
 
-        // 2. Case-insensitive & partial lookup
+        // 2. Equines / Mounts (horses, steeds, ponies, unicorns, pegasi, rideable mounts)
+        // These are distinct 3D procedural quadrupeds and must NEVER resolve to
+        // Uvatha the Horseman (a Nazgul) or glyph 'q' (which in vanilla atlas is a wolf).
+        const isEquine = (/\b(horse|pony|steed|unicorn|pegasus|mare|stallion|mount)\b/i.test(lower) ||
+                         lower.includes('馬') || lower.includes('ポニー') || lower.includes('ユニコーン') || lower.includes('ペガサス') ||
+                         lower.includes('スレイプニル') || lower.includes('黒王号') || lower.includes('明の明星')) &&
+                         !lower.includes('uvatha');
+        if (isEquine) {
+            return null; // Route directly to procedural 3D equine mesh
+        }
+
+        // 3. Case-insensitive & partial lookup
         if (monsters) {
             if (!this._monsterAtlasLowerMap) {
                 this._monsterAtlasLowerMap = new Map();
@@ -5949,13 +5971,13 @@ class Dungeon3D {
             }
 
             for (const [k, v] of this._monsterAtlasLowerMap.entries()) {
-                if (lower.includes(k) || k.includes(lower)) {
+                if (k.length >= 4 && lower.includes(k)) {
                     return v;
                 }
             }
         }
 
-        // 3. Variant creature taxonomy & archetypes (Hengband, FrogComposBand, Sil-Q, OAngband)
+        // 4. Variant creature taxonomy & archetypes (Hengband, FrogComposBand, Sil-Q, OAngband)
         if (monsters) {
             // Specific Eastern & Variant archetypes
             if (lower.includes('samurai') || lower.includes('ninja') || lower.includes('ronin') || lower.includes('warrior') || lower.includes('guard')) {
@@ -6032,9 +6054,8 @@ class Dungeon3D {
                 if (monsters['Cave orc']) return monsters['Cave orc'];
             }
             // Equine & Mounts (Hengband / FrogComposBand / Variants)
-            if (lower.includes('horse') || lower.includes('pony') || lower.includes('steed') || lower.includes('unicorn') || lower.includes('pegasus') || lower.includes('馬') || lower.includes('乗用馬') || lower.includes('野生馬') || lower.includes('ポニー')) {
-                if (monsters['Uvatha the Horseman']) return monsters['Uvatha the Horseman'];
-                if (glyphs && glyphs['q']) return glyphs['q'];
+            if (isEquine) {
+                return null; // Route to procedural 3D equine mesh
             }
             if (lower.includes('wolf') || lower.includes('warg') || lower.includes('hound')) {
                 if (monsters['Wolf']) return monsters['Wolf'];
@@ -7071,48 +7092,86 @@ class Dungeon3D {
             eyeR.position.x = 0.10;
             group.add(eyeL); group.add(eyeR);
 
-        } else if (glyph === 'q') {
-            const isEquine = lower.includes('horse') || lower.includes('pony') || lower.includes('steed') || lower.includes('unicorn') || lower.includes('pegasus') || lower.includes('馬') || lower.includes('乗用馬') || lower.includes('野生馬') || lower.includes('ポニー');
+        } else if (glyph === 'q' || glyph === 'Q' || /\b(horse|pony|steed|unicorn|pegasus|mare|stallion|mount)\b/i.test(lower) || lower.includes('馬')) {
+            const isEquine = /\b(horse|pony|steed|unicorn|pegasus|mare|stallion|mount)\b/i.test(lower) ||
+                             lower.includes('馬') || lower.includes('ポニー') || lower.includes('ユニコーン') || lower.includes('ペガサス') ||
+                             lower.includes('スレイプニル') || lower.includes('黒王号') || lower.includes('明の明星');
             if (isEquine) {
                 // Equine / Horse / Mount: Slender athletic body, arched neck, head, pointed ears, mane, tail & hooves
                 const isUnicorn = lower.includes('unicorn') || lower.includes('一角獣');
-                const horseMat = new THREE.MeshStandardMaterial({ color: isUnicorn ? 0xf5f7fa : mainColor, roughness: 0.75 });
-                const maneMat = new THREE.MeshStandardMaterial({ color: isUnicorn ? 0xddffff : 0x221c18, roughness: 0.85 });
-                const hoofMat = new THREE.MeshStandardMaterial({ color: 0x1a1512, roughness: 0.5, metalness: 0.4 });
+                const isPegasus = lower.includes('pegasus') || lower.includes('天馬');
+
+                let coatColor = new THREE.Color(0x6e4526); // warm chestnut / bay fur
+                let maneColor = new THREE.Color(0x241a14); // dark mane & tail
+                if (isUnicorn || isPegasus) {
+                    coatColor = new THREE.Color(0xf6f8fc); // gleaming silver-white
+                    maneColor = new THREE.Color(0xe8f0f8);
+                } else if (lower.includes('black') || lower.includes('黒王号') || lower.includes('dark')) {
+                    coatColor = new THREE.Color(0x1a1816); // jet black war steed
+                    maneColor = new THREE.Color(0x100e0d);
+                } else if (colorHex && colorHex !== '#000000' && colorHex !== '#ffffff') {
+                    coatColor.lerp(mainColor, 0.40);
+                } else if (colorHex === '#ffffff') {
+                    coatColor = new THREE.Color(0xdcdad4); // dappled light grey
+                }
+
+                const horseMat = new THREE.MeshStandardMaterial({ color: coatColor, roughness: 0.70 });
+                const maneMat = new THREE.MeshStandardMaterial({ color: maneColor, roughness: 0.85 });
+                const hoofMat = new THREE.MeshStandardMaterial({ color: 0x1a1512, roughness: 0.45, metalness: 0.3 });
+                const muzzleMat = new THREE.MeshStandardMaterial({ color: 0x221812, roughness: 0.85 });
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
                 // Athletic barrel torso
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.38, 0.72), horseMat);
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.40, 0.74), horseMat);
                 body.position.y = 0.52;
                 group.add(body);
 
+                // Leather riding saddle on withers
+                const saddleMat = new THREE.MeshStandardMaterial({ color: 0x3d2212, roughness: 0.65 });
+                const saddle = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.08, 0.30), saddleMat);
+                saddle.position.set(0, 0.73, 0.02);
+                group.add(saddle);
+
                 // Arched neck (tilted forward)
-                const neck = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.34, 0.20), horseMat);
+                const neck = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.36, 0.22), horseMat);
                 neck.position.set(0, 0.74, 0.28);
                 neck.rotation.x = -0.35;
                 group.add(neck);
 
                 // Mane crest along neck
-                const mane = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.36, 0.12), maneMat);
-                mane.position.set(0, 0.76, 0.20);
+                const mane = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.38, 0.14), maneMat);
+                mane.position.set(0, 0.77, 0.20);
                 mane.rotation.x = -0.35;
                 group.add(mane);
 
-                // Tapered equine head & muzzle
-                const head = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.28), horseMat);
+                // Tapered equine head
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.30), horseMat);
                 head.position.set(0, 0.88, 0.42);
                 group.add(head);
 
-                // Pointed ears
-                const earGeo = new THREE.ConeGeometry(0.035, 0.08, 4);
+                // Muzzle / nostrils at front of head
+                const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.13, 0.12), muzzleMat);
+                muzzle.position.set(0, 0.84, 0.58);
+                group.add(muzzle);
+
+                // Equine eyes (gentle dark eyes on sides)
+                const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 6), eyeMat);
+                eyeL.position.set(-0.092, 0.90, 0.44);
+                const eyeR = eyeL.clone();
+                eyeR.position.x = 0.092;
+                group.add(eyeL); group.add(eyeR);
+
+                // Pointed perked ears
+                const earGeo = new THREE.ConeGeometry(0.035, 0.10, 4);
                 const earL = new THREE.Mesh(earGeo, horseMat);
-                earL.position.set(-0.06, 0.98, 0.36);
+                earL.position.set(-0.06, 1.00, 0.36);
                 const earR = new THREE.Mesh(earGeo, horseMat);
-                earR.position.set(0.06, 0.98, 0.36);
+                earR.position.set(0.06, 1.00, 0.36);
                 group.add(earL); group.add(earR);
 
                 // Unicorn Horn
                 if (isUnicorn) {
-                    const hornGeo = new THREE.ConeGeometry(0.03, 0.24, 6);
+                    const hornGeo = new THREE.ConeGeometry(0.025, 0.26, 6);
                     const hornMat = new THREE.MeshStandardMaterial({
                         color: 0xffffea,
                         emissive: 0x66bbff,
@@ -7121,14 +7180,27 @@ class Dungeon3D {
                         metalness: 0.8
                     });
                     const horn = new THREE.Mesh(hornGeo, hornMat);
-                    horn.position.set(0, 1.02, 0.46);
+                    horn.position.set(0, 1.04, 0.48);
                     horn.rotation.x = -0.45;
                     group.add(horn);
                 }
 
+                // Pegasus Wings
+                if (isPegasus) {
+                    const wingMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75, side: THREE.DoubleSide });
+                    const wingL = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.50), wingMat);
+                    wingL.position.set(-0.35, 0.78, 0.05);
+                    wingL.rotation.set(0, Math.PI / 4, Math.PI / 6);
+                    const wingR = wingL.clone();
+                    wingR.position.x = 0.35;
+                    wingR.rotation.set(0, -Math.PI / 4, -Math.PI / 6);
+                    group.add(wingL);
+                    group.add(wingR);
+                }
+
                 // Flowing tail
-                const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.02, 0.35, 6), maneMat);
-                tail.position.set(0, 0.42, -0.42);
+                const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.02, 0.38, 6), maneMat);
+                tail.position.set(0, 0.42, -0.44);
                 tail.rotation.x = 0.30;
                 group.add(tail);
 
@@ -7825,6 +7897,8 @@ class Dungeon3D {
                 modelHeight = 1.65;
             } else if (glyph === 'S' || glyph === 'f' || glyph === 'C' || glyph === 'Z' || glyph === 'R') {
                 modelHeight = 0.75;
+            } else if (glyph === 'q' || glyph === 'Q' || race.includes('horse') || race.includes('steed') || race.includes('pony') || race.includes('unicorn') || race.includes('pegasus') || race.includes('馬')) {
+                modelHeight = 1.15;
             }
         }
 
@@ -8089,14 +8163,17 @@ class Dungeon3D {
     refreshMonsterNameplates() {
         if (!this.monsters) return;
         for (const [id, entity] of this.monsters.entries()) {
-            if (entity.nameplate && entity.monsterData) {
-                const m = entity.monsterData;
+            if (entity && (entity.monsterData || (entity.nameplate && entity.nameplate.monsterData))) {
+                const m = entity.monsterData || entity.nameplate.monsterData;
                 const isTargeted = Boolean(this.currentTarget && this.currentTarget.key === id);
                 const isSensed = !!(m.invisible || (m.detected && m.unlit));
-                entity.remove(entity.nameplate);
+                if (entity.nameplate) {
+                    entity.remove(entity.nameplate);
+                }
                 entity.nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
                 entity.nameplate.position.set(0, Math.min(2.65, (entity.modelHeight || 1.6) + 0.35), 0);
                 entity.nameplate.monsterData = m;
+                entity.monsterData = m;
                 entity.add(entity.nameplate);
             }
         }
@@ -8539,48 +8616,87 @@ class Dungeon3D {
         group.glyph = g;
         group.itemName = it.name;
         group.colorHex = colorHex;
+        group.itemData = it;
 
         // Overhead Item Caption Sprite with Material Pooling
         if (it.name) {
-            const captionKey = `${it.name}_${colorHex}`;
-            let spriteMat = this.captionMaterialCache ? this.captionMaterialCache.get(captionKey) : null;
-            if (!spriteMat) {
-                const canvas = document.createElement('canvas');
-                canvas.width = 384;
-                canvas.height = 64;
-                const ctx = canvas.getContext('2d');
-
-                ctx.fillStyle = 'rgba(6, 8, 12, 0.88)';
-                ctx.strokeStyle = colorHex;
-                ctx.lineWidth = 2;
-                if (ctx.roundRect) ctx.roundRect(12, 8, 360, 48, 8);
-                else ctx.rect(12, 8, 360, 48);
-                ctx.fill();
-                ctx.stroke();
-
-                ctx.font = '600 22px "Fira Code", monospace';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#f0f4f8';
-                const shortName = it.name.length > 22 ? it.name.substring(0, 21) + '…' : it.name;
-                ctx.fillText(shortName, 192, 32);
-
-                const tex = new THREE.CanvasTexture(canvas);
-                tex.minFilter = THREE.LinearFilter;
-                spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false });
-                if (this.captionMaterialCache) {
-                    this.captionMaterialCache.set(captionKey, spriteMat);
-                }
+            const sprite = this.createItemCaptionSprite(it);
+            if (sprite) {
+                group.add(sprite);
+                group.caption = sprite;
             }
-
-            const sprite = new THREE.Sprite(spriteMat);
-            sprite.scale.set(1.2, 0.20, 1.0);
-            sprite.position.y = 0.48;
-            group.add(sprite);
-            group.caption = sprite;
         }
 
         return group;
+    }
+
+    createItemCaptionSprite(it) {
+        if (!it || !it.name) return null;
+        const colorHex = getAngbandColorString(it.attr) || '#ffffff';
+        const isHeng = this.isHengband();
+        const langMode = (typeof window !== 'undefined' && window.__langMode) || 'en';
+
+        const localizedName = (isHeng && typeof window.getLocalizedItemName === 'function')
+            ? window.getLocalizedItemName(it.name, 'hengband', langMode)
+            : it.name;
+
+        const captionKey = `${localizedName}_${colorHex}_${langMode}`;
+        let spriteMat = this.captionMaterialCache ? this.captionMaterialCache.get(captionKey) : null;
+        if (!spriteMat) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 384;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = 'rgba(6, 8, 12, 0.88)';
+            ctx.strokeStyle = colorHex;
+            ctx.lineWidth = 2;
+            if (ctx.roundRect) ctx.roundRect(12, 8, 360, 48, 8);
+            else ctx.rect(12, 8, 360, 48);
+            ctx.fill();
+            ctx.stroke();
+
+            let fontSize = 22;
+            if (localizedName.length > 26) fontSize = 16;
+            else if (localizedName.length > 18) fontSize = 19;
+
+            ctx.font = `600 ${fontSize}px "Fira Code", "Noto Sans JP", "Yu Gothic", monospace, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#f0f4f8';
+            const shortName = localizedName.length > 28 ? localizedName.substring(0, 27) + '…' : localizedName;
+            ctx.fillText(shortName, 192, 32);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.minFilter = THREE.LinearFilter;
+            spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false });
+            if (this.captionMaterialCache) {
+                this.captionMaterialCache.set(captionKey, spriteMat);
+            }
+        }
+
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.scale.set(1.2, 0.20, 1.0);
+        sprite.position.y = 0.48;
+        return sprite;
+    }
+
+    refreshItemCaptions() {
+        if (!this.items) return;
+        for (const [id, entity] of this.items.entries()) {
+            if (entity && (entity.itemData || entity.itemName)) {
+                const it = entity.itemData || { name: entity.itemName, attr: 1 };
+                if (entity.caption) {
+                    entity.remove(entity.caption);
+                    entity.caption = null;
+                }
+                const newCaption = this.createItemCaptionSprite(it);
+                if (newCaption) {
+                    entity.add(newCaption);
+                    entity.caption = newCaption;
+                }
+            }
+        }
     }
 
     updateItems(items, player) {
@@ -8604,6 +8720,7 @@ class Dungeon3D {
                 this.scene.add(entity);
                 this.items.set(id, entity);
             } else {
+                entity.itemData = it;
                 // Auto-upgrade fallback 3D/procedural item to Shockbolt PBR billboard once item_atlas.json has loaded!
                 if (entity.isItemBillboardFallback && this.itemAtlasData && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.itemRenderer !== 'classic')) {
                     const atlasEntry = this.resolveItemAtlasEntry(entity.itemName, entity.glyph);
