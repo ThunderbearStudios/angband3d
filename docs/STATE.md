@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
 Branch: fix/award-pass   Updated: 2026-10-11T15:35-04:00
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first), then docs/plan/master_completion_plan.md
-Current task: WS4.4 Ownership Tokens & Action Authorization
+Current task: WS5.1 Lazy Hengband language data
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. The line numbers were taken before the WS1 edits; after WS1.2, lines below ~2080 shift by about +19. Always re-locate with `Select-String`.
 
