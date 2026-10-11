@@ -55,10 +55,9 @@ RUN mkdir -p build && cd build && \
 # 4. Build Hengband
 COPY variants/hengband-src /src/variants/hengband-src
 WORKDIR /src/variants/hengband-src
-RUN sed -i 's/\r$//' ./bootstrap && \
+RUN find . -type f \( -name "*.ac" -o -name "*.am" -o -name "*.m4" -o -name "*.sh" -o -name "bootstrap" -o -name "configure" \) -exec sed -i 's/\r$//' {} + && \
     chmod +x ./bootstrap && \
     ./bootstrap && \
-    sed -i 's/\r$//' ./configure && \
     chmod +x ./configure && \
     ./configure --disable-x11 --enable-gcu --disable-net && \
     make -j$(nproc)
