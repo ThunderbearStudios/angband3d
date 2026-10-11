@@ -942,6 +942,11 @@ const server = http.createServer((req, res) => {
     // REST: List saves
     if (pathname === '/api/saves' && req.method === 'GET') {
         const queryRealm = urlObj.searchParams.get('realm') || 'angband';
+        if (!['angband', 'silq', 'frogcomposband', 'hengband'].includes(queryRealm)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid realm' }));
+            return;
+        }
         const now = Date.now();
         const cached = savesCacheMap.get(queryRealm);
         if (cached && (now - cached.time < SAVES_CACHE_TTL_MS)) {
@@ -1590,6 +1595,11 @@ const server = http.createServer((req, res) => {
             return;
         }
         const queryRealm = urlObj.searchParams.get('realm') || 'angband';
+        if (!['angband', 'silq', 'frogcomposband', 'hengband'].includes(queryRealm)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid realm' }));
+            return;
+        }
         const saveDirs = getSaveDirsForRealm(queryRealm);
         let targetPath = null;
 
@@ -1634,12 +1644,24 @@ const server = http.createServer((req, res) => {
 
         req.on('end', () => {
             const buf = Buffer.concat(chunks);
-            if (buf.length < 36 || buf.toString('ascii', 0, 8) !== 'SaveVNLA') {
+            if (buf.length < 36) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid savefile: missing SaveVNLA magic header' }));
+                res.end(JSON.stringify({ error: 'Invalid savefile: too short' }));
+                return;
+            }
+            const magic = buf.toString('ascii', 0, 8);
+            let detectedRealm = 'angband';
+            if (magic === 'SaveVNLA') detectedRealm = 'angband';
+            else if (magic === 'SaveSILQ') detectedRealm = 'silq';
+            else if (magic === 'SaveFROX') detectedRealm = 'frogcomposband';
+            else if (magic === 'SaveHENG') detectedRealm = 'hengband';
+            else {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid savefile: missing or unknown magic header' }));
                 return;
             }
 
+            const targetDir = getSaveDirsForRealm(detectedRealm)[0] || SAVE_DIR;
             const headerName = req.headers['x-character-name'];
             let cleanHeaderName = headerName ? sanitizeFilename(headerName) : null;
             if (cleanHeaderName && isReservedFilename(cleanHeaderName)) {
@@ -1647,37 +1669,43 @@ const server = http.createServer((req, res) => {
             }
             let targetName = cleanHeaderName || ('upload_' + Date.now());
 
-            // Extract character name from description if available
-            const tempFile = path.join(SAVE_DIR, '.tmp_' + Date.now());
-            fs.writeFileSync(tempFile, buf);
-            const meta = readSaveMetadata(tempFile);
-            if (meta && meta.characterName && !cleanHeaderName) {
-                const cleanMetaName = sanitizeFilename(meta.characterName);
-                if (cleanMetaName && !isReservedFilename(cleanMetaName)) {
-                    targetName = cleanMetaName;
+            const tempFile = path.join(targetDir, '.tmp_' + Date.now());
+            try {
+                fs.writeFileSync(tempFile, buf);
+                const meta = readSaveMetadata(tempFile);
+                if (meta && meta.characterName && !cleanHeaderName) {
+                    const cleanMetaName = sanitizeFilename(meta.characterName);
+                    if (cleanMetaName && !isReservedFilename(cleanMetaName)) {
+                        targetName = cleanMetaName;
+                    }
                 }
-            }
 
-            const destPath = path.join(SAVE_DIR, targetName);
-            if (fs.existsSync(destPath)) {
-                const reqToken = req.headers['x-owner-token'] || '';
-                if (!verifyOwnerToken(destPath, reqToken)) {
-                    fs.unlinkSync(tempFile);
-                    res.writeHead(403, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Forbidden: invalid owner token for existing character' }));
-                    return;
+                let finalName = targetName;
+                let destPath = path.join(targetDir, finalName);
+                if (fs.existsSync(destPath)) {
+                    const reqToken = req.headers['x-owner-token'] || '';
+                    if (!verifyOwnerToken(destPath, reqToken)) {
+                        let n = 1;
+                        while (fs.existsSync(path.join(targetDir, `${targetName}_${n}`))) {
+                            n++;
+                        }
+                        finalName = `${targetName}_${n}`;
+                        destPath = path.join(targetDir, finalName);
+                    }
                 }
+
+                fs.renameSync(tempFile, destPath);
+                invalidateSavesCache();
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    status: 'saved',
+                    filename: finalName,
+                    metadata: readSaveMetadata(destPath)
+                }));
+            } finally {
+                if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
             }
-
-            fs.renameSync(tempFile, destPath);
-            invalidateSavesCache();
-
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-                status: 'saved',
-                filename: targetName,
-                metadata: readSaveMetadata(destPath)
-            }));
         });
         return;
     }
@@ -1748,6 +1776,11 @@ const server = http.createServer((req, res) => {
             return;
         }
         const queryRealm = urlObj.searchParams.get('realm') || 'angband';
+        if (!['angband', 'silq', 'frogcomposband', 'hengband'].includes(queryRealm)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid realm' }));
+            return;
+        }
         const saveDirs = getSaveDirsForRealm(queryRealm);
         let savePath = null;
         for (const sDir of saveDirs) {

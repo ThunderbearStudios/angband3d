@@ -18,7 +18,10 @@ Current task: WS4.4 Ownership Tokens & Action Authorization
 - [x] WS4.1 Sanitize UI Event Streams (innerHTML audit)
 - [x] WS4.2 Remove Bring-Your-Own-Key (BYOK) proxy handlers
 - [x] WS4.3 Hardening Server CORS & LLM Request Relays
-- [ ] WS4.4 Ownership Tokens & Action Authorization
+- [x] WS4.4 Ownership Tokens & Action Authorization
+- [x] WS4.5 Recording upload hygiene
+- [x] WS4.6 Save upload and delete hygiene
+- [x] WS4.9 Ownership tokens (light scope)
 - [ ] WS2 menus / action chooser
 - [ ] WS6 realm keys (probe first)
 - [ ] WS3 Hengband language
