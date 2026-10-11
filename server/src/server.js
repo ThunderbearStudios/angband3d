@@ -803,7 +803,7 @@ const server = http.createServer((req, res) => {
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https://angband3d.com https://fonts.gstatic.com",
         "media-src 'self' data: blob: https://angband3d.com",
-        "connect-src 'self' blob: data: ws: wss: https://generativelanguage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com",
+        "connect-src 'self' blob: data: ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com",
         "worker-src 'self' blob:",
         "manifest-src 'self'",
         "object-src 'none'",

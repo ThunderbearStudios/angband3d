@@ -709,25 +709,13 @@ class ChronicleAudioRouter {
             gender
         });
 
-        let apiKey = '';
-        if (typeof window !== 'undefined') {
-            if (window.chronicleManager?.inputApiKey?.value) {
-                apiKey = window.chronicleManager.inputApiKey.value.trim();
-            }
-            if (!apiKey && window.chronicleManager?.llm?.apiKey) {
-                apiKey = window.chronicleManager.llm.apiKey;
-            }
-        }
-        const fetchHeaders = {};
-        if (apiKey) fetchHeaders['x-goog-api-key'] = apiKey;
-
         const url = `/api/tts?${q.toString()}`;
         let lastErr = null;
         const maxAttempts = isNarrator ? 3 : 1;
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                const res = await fetch(url, { headers: fetchHeaders, signal: signal || undefined });
+                const res = await fetch(url, { signal: signal || undefined });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
                 const usedEngine = res.headers.get('x-tts-engine') || engine;
@@ -1435,22 +1423,6 @@ class ChronicleAudioRouter {
                     rate: rateParam,
                     gender
                 });
-                // Zero Key Leakage: Server handles API key via backend .env; only send header if custom user key entered in UI
-                let apiKey = '';
-                if (typeof window !== 'undefined') {
-                    if (window.chronicleManager?.inputApiKey?.value) {
-                        apiKey = window.chronicleManager.inputApiKey.value.trim();
-                    }
-                    if (!apiKey && window.chronicleManager?.llm?.apiKey) {
-                        apiKey = window.chronicleManager.llm.apiKey;
-                    }
-                }
-                const fetchHeaders = {};
-                if (apiKey) {
-                    // Passed strictly in HTTP header, NEVER in URL query string
-                    fetchHeaders['x-goog-api-key'] = apiKey;
-                }
-
                 const url = `/api/tts?${q.toString()}`;
 
                 // --- TIER 1: WEB AUDIO DECODING WITH SUBTERRANEAN REVERB & RIBBON FILTER ---
@@ -1886,20 +1858,10 @@ class ChronicleAudioRouter {
                     gender
                 });
 
-                let apiKey = '';
-                if (window.chronicleManager?.inputApiKey?.value) {
-                    apiKey = window.chronicleManager.inputApiKey.value.trim();
-                }
-                if (!apiKey && window.chronicleManager?.llm?.apiKey) {
-                    apiKey = window.chronicleManager.llm.apiKey;
-                }
-                const fetchHeaders = {};
-                if (apiKey) fetchHeaders['x-goog-api-key'] = apiKey;
-
                 if (this.isMuted()) return null; // Abort prewarm if Tome audio is muted
 
                 const url = `/api/tts?${q.toString()}`;
-                const res = await fetch(url, { headers: fetchHeaders });
+                const res = await fetch(url);
                 if (!res.ok) return null;
                 const arrayBuffer = await res.arrayBuffer();
                 if (!this.ctx) return null;
