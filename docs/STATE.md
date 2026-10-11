@@ -21,6 +21,8 @@ Current task: WS4.4 Ownership Tokens & Action Authorization
 - [x] WS4.4 Ownership Tokens & Action Authorization
 - [x] WS4.5 Recording upload hygiene
 - [x] WS4.6 Save upload and delete hygiene
+- [x] WS4.7 CSP tightening
+- [x] WS4.8 Info leaks
 - [x] WS4.9 Ownership tokens (light scope)
 - [ ] WS2 menus / action chooser
 - [ ] WS6 realm keys (probe first)
