@@ -634,7 +634,7 @@
                             <span class="splash-chip">Quest Citadels</span>
                             <span class="splash-chip">EN / 日本語</span>
                         </div>
-                        <div class="splash-lang-select-wrap" onclick="event.stopPropagation();">
+                        <div class="splash-lang-select-wrap">
                             <label for="splash-hengband-lang-select">Language:</label>
                             <select id="splash-hengband-lang-select" title="Toggle Hengband Language">
                                 <option value="en">English (hengband-en)</option>
@@ -1467,12 +1467,6 @@
     <script src="/js/chronicle/chronicle-llm.js?v=9.1.0"></script>
     <script src="/js/chronicle/chronicle-manager.js?v=9.1.0"></script>
     <script src="/js/app.js?v=9.1.0"></script>
-    <script>
-        if (window.location.search && window.location.search.includes('record_walkthrough=1')) {
-            const s = document.createElement('script');
-            s.src = '/js/demo-recorder.js?v=' + Date.now();
-            document.body.appendChild(s);
-        }
-    </script>
+    <script src="/js/boot.js?v=9.1.0"></script>
 </body>
 </html>
