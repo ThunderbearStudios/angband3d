@@ -787,14 +787,35 @@ function readSaveMetadata(filePath) {
 // Same-host origins are always allowed. Capacitor/Android WebView origins are allowed by
 // default so the APK keeps working. Extra origins: ALLOWED_ORIGINS="https://a.com,https://b.com".
 // A missing Origin header (curl, same-origin navigation, native clients) is allowed; CORS is a
-// browser protection, and the money/delete endpoints get their own guards (rate limit, ownership).
 const EXTRA_ALLOWED_ORIGINS = new Set(
-    ['capacitor://localhost', 'https://localhost', 'http://localhost', 'ionic://localhost']
-        .concat((process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean))
+    [
+        'capacitor://localhost',
+        'https://localhost',
+        'http://localhost',
+        'ionic://localhost',
+        'https://angband3d.com',
+        'http://angband3d.com',
+        'https://www.angband3d.com',
+        'http://www.angband3d.com'
+    ].concat((process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean))
 );
-function isAllowedOrigin(origin, host) {
+function isAllowedOrigin(origin, host, req) {
     if (!origin) return true;
-    try { if (new URL(origin).host === host) return true; } catch (_) { return false; }
+    try {
+        const originHost = new URL(origin).host;
+        if (host && (originHost === host || originHost === host.split(':')[0])) return true;
+        if (req && req.headers) {
+            const fwdHost = req.headers['x-forwarded-host'];
+            if (fwdHost) {
+                const firstFwd = fwdHost.split(',')[0].trim();
+                if (originHost === firstFwd || originHost === firstFwd.split(':')[0]) return true;
+            }
+            const reqHost = req.headers.host;
+            if (reqHost && (originHost === reqHost || originHost === reqHost.split(':')[0])) return true;
+        }
+    } catch (_) {
+        return false;
+    }
     return EXTRA_ALLOWED_ORIGINS.has(origin);
 }
 // Loopback check for dev-only endpoints (D17). Ignores X-Forwarded-For on purpose.
@@ -809,7 +830,8 @@ const server = http.createServer((req, res) => {
 
     // HTTPS Redirection behind SSL Proxies (Cloud Run / Load Balancers)
     const proto = req.headers['x-forwarded-proto'];
-    const host = req.headers.host || '';
+    const fwdHost = req.headers['x-forwarded-host'] ? req.headers['x-forwarded-host'].split(',')[0].trim() : '';
+    const host = fwdHost || req.headers.host || '';
     if (proto === 'http' && host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
         res.writeHead(301, {
             'Location': `https://${host}${req.url}`,
@@ -822,7 +844,7 @@ const server = http.createServer((req, res) => {
     // CORS: echo the Origin only when allowed (never '*'; E17). Vary keeps caches honest.
     const reqOrigin = req.headers.origin;
     res.setHeader('Vary', 'Origin');
-    if (reqOrigin && isAllowedOrigin(reqOrigin, host)) {
+    if (reqOrigin && isAllowedOrigin(reqOrigin, host, req)) {
         res.setHeader('Access-Control-Allow-Origin', reqOrigin);
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, X-Recording-Name, X-Owner-Token');
@@ -2083,9 +2105,11 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 
 server.on('upgrade', (request, socket, head) => {
-    const urlObj = new URL(request.url, `http://${request.headers.host}`);
+    const fwdHost = request.headers['x-forwarded-host'] ? request.headers['x-forwarded-host'].split(',')[0].trim() : '';
+    const host = fwdHost || request.headers.host || '';
+    const urlObj = new URL(request.url, `http://${host || 'localhost'}`);
     // Cross-site WebSocket hijacking guard (E22): browsers always send Origin on WS upgrades.
-    if (!isAllowedOrigin(request.headers.origin, request.headers.host || '')) {
+    if (!isAllowedOrigin(request.headers.origin, host, request)) {
         socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
         socket.destroy();
         return;

@@ -9,7 +9,8 @@
  * @returns {boolean} true if the request was rejected (handled), false otherwise.
  */
 function guardMutation(req, res, isAllowedOrigin, host) {
-    const urlObj = new URL(req.url, `http://${host || 'localhost'}`);
+    const effectiveHost = (req.headers && req.headers['x-forwarded-host'] ? req.headers['x-forwarded-host'].split(',')[0].trim() : '') || host || 'localhost';
+    const urlObj = new URL(req.url, `http://${effectiveHost}`);
     const pathname = urlObj.pathname;
 
     if (!pathname.startsWith('/api/')) return false;
@@ -26,7 +27,7 @@ function guardMutation(req, res, isAllowedOrigin, host) {
     }
 
     const reqOrigin = req.headers.origin;
-    if (reqOrigin && !isAllowedOrigin(reqOrigin, host)) {
+    if (reqOrigin && !isAllowedOrigin(reqOrigin, effectiveHost, req)) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Origin not allowed' }));
         return true;
