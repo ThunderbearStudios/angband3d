@@ -62,8 +62,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=9.4.6">
-    <link rel="stylesheet" href="/css/chronicle.css?v=9.4.6">
+    <link rel="stylesheet" href="/css/dungeon.css?v=9.4.7">
+    <link rel="stylesheet" href="/css/chronicle.css?v=9.4.7">
 </head>
 <body>
     <div id="app-container">
@@ -275,6 +275,7 @@
             <div id="chronicle-hud-toast" class="chronicle-hud-toast" style="display: none;"></div>
             <button id="btn-hud-realm" class="icon-btn in-game-only realm-hud-pill" title="Active Realm: Angband 4.2.6 (Locked during active gameplay. Return to Main Menu to switch)."><span class="realm-icon">🌌</span> <span id="hud-realm-label">Angband 4.2.6</span> <span id="ping-badge" class="badge">Cloud [Connecting...]</span></button>
             <button id="btn-toggle-lang" class="icon-btn in-game-only lang-toggle-pill" style="display: none;" title="Toggle Language: English / Kanji / 日本語 [Alt+L]"><span class="lang-icon">🌐</span> <span id="hud-lang-label">EN / 漢</span></button>
+            <button id="btn-toggle-chronicle" class="icon-btn in-game-only" title="Toggle The Living Chronicle Window [Alt+C]"><span class="chronicle-icon">📖</span> <span class="chronicle-label">Tome</span></button>
             <button id="btn-toggle-msg-feed" class="icon-btn in-game-only" title="Toggle Message Log Feed"><span class="msg-icon">📜</span> <span class="msg-label">Log</span></button>
             <button id="btn-toggle-minimap" class="icon-btn in-game-only" title="Toggle Minimap Radar"><span class="map-icon">🗺</span> <span class="map-label">Map</span></button>
             <div id="sound-control-group" class="sound-control-group" title="Global Audio Volume &amp; Mute [Ctrl-M]">
@@ -822,7 +823,7 @@
 
                 <div class="pause-section-header">Display &amp; Controls</div>
                 <div class="pause-display-controls-toolbar">
-                    <button id="btn-toggle-chronicle" class="icon-btn in-game-only" title="Toggle The Living Chronicle Window [Alt+C]"><span class="chronicle-icon">📖</span> <span class="chronicle-label">Tome</span></button>
+                    <button id="btn-pause-chronicle" class="icon-btn in-game-only" title="Toggle The Living Chronicle Window [Alt+C]"><span class="chronicle-icon">📖</span> <span class="chronicle-label">Tome</span></button>
                     <button id="btn-toggle-dpad" class="icon-btn in-game-only" title="Toggle On-Screen D-Pad"><span class="dpad-icon">🕹</span> <span class="dpad-label">D-Pad</span></button>
                     <button id="btn-toggle-invert" class="icon-btn in-game-only" title="Toggle Invert Drag Look (Current: Normal)"><span class="invert-icon">🔄</span> <span class="invert-label">Invert</span></button>
                     <button id="btn-controls" class="icon-btn" title="View Complete Controls &amp; Commands Guide [?]"><span class="ctrl-icon">⌨</span> <span class="ctrl-label">Controls (?)</span></button>
@@ -1452,28 +1453,28 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/safe-html.js?v=9.4.6"></script>
-    <script src="/js/screen-context.js?v=9.4.6"></script>
-    <script src="/js/menu-router.js?v=9.4.6"></script>
-    <script src="/js/device.js?v=9.4.6"></script>
-    <script src="/js/realm-keys.js?v=9.4.6"></script>
-    <script src="/js/mobile-overlay.js?v=9.4.6"></script>
-    <script src="/js/audio.js?v=9.4.6"></script>
-    <script src="/js/terminal.js?v=9.4.6"></script>
-    <script src="/js/dungeon3d.js?v=9.4.6"></script>
-    <script src="/js/hud.js?v=9.4.6"></script>
-    <script src="/js/network.js?v=9.4.6"></script>
-    <script src="/js/local_bridge.js?v=9.4.6"></script>
-    <script src="/js/input.js?v=9.4.6"></script>
-    <script src="/js/demo-player.js?v=9.4.6"></script>
+    <script src="/js/safe-html.js?v=9.4.7"></script>
+    <script src="/js/screen-context.js?v=9.4.7"></script>
+    <script src="/js/menu-router.js?v=9.4.7"></script>
+    <script src="/js/device.js?v=9.4.7"></script>
+    <script src="/js/realm-keys.js?v=9.4.7"></script>
+    <script src="/js/mobile-overlay.js?v=9.4.7"></script>
+    <script src="/js/audio.js?v=9.4.7"></script>
+    <script src="/js/terminal.js?v=9.4.7"></script>
+    <script src="/js/dungeon3d.js?v=9.4.7"></script>
+    <script src="/js/hud.js?v=9.4.7"></script>
+    <script src="/js/network.js?v=9.4.7"></script>
+    <script src="/js/local_bridge.js?v=9.4.7"></script>
+    <script src="/js/input.js?v=9.4.7"></script>
+    <script src="/js/demo-player.js?v=9.4.7"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=9.4.6"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=9.4.6"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=9.4.6"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=9.4.6"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=9.4.6"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=9.4.6"></script>
-    <script src="/js/app.js?v=9.4.6"></script>
-    <script src="/js/boot.js?v=9.4.6"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=9.4.7"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=9.4.7"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=9.4.7"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=9.4.7"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=9.4.7"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=9.4.7"></script>
+    <script src="/js/app.js?v=9.4.7"></script>
+    <script src="/js/boot.js?v=9.4.7"></script>
 </body>
 </html>

@@ -606,6 +606,8 @@ html, body {
     }
 }
 
+#btn-toggle-chronicle,
+#btn-pause-chronicle,
 #btn-toggle-msg-feed,
 #btn-toggle-minimap,
 #btn-toggle-dpad,
@@ -4025,6 +4027,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #top-right-bar .volume-slider-wrap {
         display: none !important;
     }
+    #top-right-bar .chronicle-label,
     #top-right-bar .msg-label,
     #top-right-bar .map-label,
     #top-right-bar .dpad-label,
@@ -4036,6 +4039,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #top-right-bar .invert-label {
         display: none !important;
     }
+    #top-right-bar #btn-toggle-chronicle,
     #top-right-bar #btn-toggle-msg-feed,
     #top-right-bar #btn-toggle-minimap,
     #top-right-bar #btn-toggle-dpad,
@@ -4059,12 +4063,14 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         backdrop-filter: blur(8px) !important;
         -webkit-backdrop-filter: blur(8px) !important;
     }
+    #top-right-bar #btn-toggle-chronicle[style*="display: none"],
     #top-right-bar #btn-toggle-msg-feed[style*="display: none"],
     #top-right-bar #btn-toggle-minimap[style*="display: none"],
     #top-right-bar #btn-toggle-dpad[style*="display: none"],
     #top-right-bar #btn-toggle-invert[style*="display: none"] {
         display: none !important;
     }
+    #top-right-bar #btn-toggle-chronicle.active,
     #top-right-bar #btn-toggle-msg-feed.active,
     #top-right-bar #btn-toggle-minimap.active,
     #top-right-bar #btn-toggle-dpad.active,

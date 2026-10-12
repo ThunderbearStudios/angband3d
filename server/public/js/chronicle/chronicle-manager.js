@@ -58,6 +58,7 @@ class ChronicleManager {
         this.scrollEl = null;
         this.listEl = null;
         this.navBtn = null;
+        this.pauseNavBtn = null;
         this.vocalPillEl = null;
         this.hudToastEl = null;
         this._toastTimeout = null;
@@ -159,6 +160,8 @@ class ChronicleManager {
             if (win) win.style.display = 'none';
             const nav = document.getElementById('btn-toggle-chronicle');
             if (nav) nav.style.display = 'none';
+            const pauseNav = document.getElementById('btn-pause-chronicle');
+            if (pauseNav) pauseNav.style.display = 'none';
             return;
         }
 
@@ -171,6 +174,7 @@ class ChronicleManager {
         this.scrollEl = document.getElementById('chronicle-scroll');
         this.listEl = document.getElementById('chronicle-list');
         this.navBtn = document.getElementById('btn-toggle-chronicle');
+        this.pauseNavBtn = document.getElementById('btn-pause-chronicle');
         this.vocalPillEl = document.getElementById('chronicle-vocal-pill');
         this.hudToastEl = document.getElementById('chronicle-hud-toast');
 
@@ -292,6 +296,12 @@ class ChronicleManager {
         // Navbar Toggle Button
         if (this.navBtn) {
             this.navBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleWindow();
+            });
+        }
+        if (this.pauseNavBtn) {
+            this.pauseNavBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.toggleWindow();
             });
@@ -779,6 +789,7 @@ class ChronicleManager {
             this.windowEl.classList.add('active');
             this.visible = true;
             if (this.navBtn) this.navBtn.classList.add('active');
+            if (this.pauseNavBtn) this.pauseNavBtn.classList.add('active');
             this.renderAllChapters();
             this.buildStoryPlaylist();
             if (this.storyPlaylist.length > 0 && typeof this.prewarmBeat === 'function') {
@@ -792,6 +803,7 @@ class ChronicleManager {
             this.windowEl.classList.remove('active');
             this.visible = false;
             if (this.navBtn) this.navBtn.classList.remove('active');
+            if (this.pauseNavBtn) this.pauseNavBtn.classList.remove('active');
         }
     }
 
@@ -2067,13 +2079,14 @@ class ChronicleManager {
         }
 
         // Update Top Bar Tome Button Visual Flare
-        if (this.navBtn) {
-            this.navBtn.classList.toggle('is-loading-voice', state === 'loading');
-            this.navBtn.classList.toggle('is-voicing', state === 'speaking');
+        const navButtons = [this.navBtn, this.pauseNavBtn].filter(Boolean);
+        for (const btn of navButtons) {
+            btn.classList.toggle('is-loading-voice', state === 'loading');
+            btn.classList.toggle('is-voicing', state === 'speaking');
             if (state === 'interrupted') {
-                this.navBtn.classList.add('is-interrupted-voice');
+                btn.classList.add('is-interrupted-voice');
                 setTimeout(() => {
-                    if (this.navBtn) this.navBtn.classList.remove('is-interrupted-voice');
+                    if (btn) btn.classList.remove('is-interrupted-voice');
                 }, 2200);
             }
         }

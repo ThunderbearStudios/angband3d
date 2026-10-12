@@ -23,11 +23,13 @@ assert(/id="sound-control-group"/.test(topBarContent), 'Contract 1 Fail: sound-c
 assert(/id="btn-menu"/.test(topBarContent), 'Contract 1 Fail: btn-menu must be in top-right-bar');
 assert(/id="btn-toggle-lang"/.test(topBarContent), 'Contract 1 Fail: btn-toggle-lang must be in top-right-bar');
 
-const movedIds = ['btn-toggle-chronicle', 'btn-toggle-dpad', 'btn-toggle-invert', 'btn-controls', 'btn-fullscreen'];
+assert(/id="btn-toggle-chronicle"/.test(topBarContent), 'Contract 1 Fail: btn-toggle-chronicle (Tome) must be in top-right-bar on web client');
+
+const movedIds = ['btn-toggle-dpad', 'btn-toggle-invert', 'btn-controls', 'btn-fullscreen'];
 for (const id of movedIds) {
     assert(!new RegExp(`id=["']${id}["']`).test(topBarContent), `Contract 1 Fail: ${id} should no longer be in top-right-bar`);
 }
-console.log('✓ Contract 1 PASS: Top-right bar consolidated to 6 clean controls (no clutter)');
+console.log('✓ Contract 1 PASS: Top-right bar provides clean controls with Tome button on web client');
 
 // Contract 2: Display & Controls section in Pause Modal / Menu Drawer
 const pauseModalMatch = html.match(/<div id="pause-modal"[^>]*>([\s\S]*?)<\/div>\s*<!-- Game Guide/);
@@ -35,6 +37,7 @@ assert(pauseModalMatch, 'Contract 2 Fail: #pause-modal container not found in in
 const pauseModalContent = pauseModalMatch[1];
 
 assert(/Display &amp; Controls|Display & Controls/.test(pauseModalContent), 'Contract 2 Fail: Display & Controls section missing in pause-modal');
+assert(/id="btn-pause-chronicle"/.test(pauseModalContent), 'Contract 2 Fail: btn-pause-chronicle must be in pause-modal');
 for (const id of movedIds) {
     assert(new RegExp(`id=["']${id}["']`).test(pauseModalContent), `Contract 2 Fail: ${id} must be moved into pause-modal`);
 }
