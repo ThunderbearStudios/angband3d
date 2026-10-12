@@ -34,4 +34,18 @@ if (fs.existsSync(swJsPath)) {
 fs.writeFileSync(versionJsonPath, JSON.stringify({ v: newVersion }, null, 2) + '\n', 'utf8');
 console.log(`Updated ${versionJsonPath} -> { v: "${newVersion}" }`);
 
+// 4. Update android/app/build.gradle if present
+const gradlePath = path.join(rootDir, 'android/app/build.gradle');
+if (fs.existsSync(gradlePath)) {
+    let gradle = fs.readFileSync(gradlePath, 'utf8');
+    gradle = gradle.replace(/versionName\s+["'][^"']+["']/, `versionName "${newVersion}"`);
+    const parts = newVersion.split('.').map(Number);
+    if (parts.length === 3 && !parts.some(isNaN)) {
+        const code = parts[0] * 10000 + parts[1] * 100 + parts[2];
+        gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${code}`);
+    }
+    fs.writeFileSync(gradlePath, gradle, 'utf8');
+    console.log(`Updated ${gradlePath} -> versionName "${newVersion}"`);
+}
+
 console.log(`Version bump to ${newVersion} complete.`);
