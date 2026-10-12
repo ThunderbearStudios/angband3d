@@ -820,9 +820,9 @@ class InputController {
 
                 const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
                 const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && (lastFrame.map || (lastFrame.player && lastFrame.player.name)));
-                const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
-                    ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
-                    : '';
+                const screenText = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function')
+                    ? window.ScreenContext.screenTextOf(lastFrame)
+                    : (lastFrame && lastFrame.term && lastFrame.term.rows ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase() : '');
                 const isReviewActive = Boolean(window.__app && typeof window.__app.isBirthReviewActive === 'function' && window.__app.isBirthReviewActive());
                 const isReviewScreen = (window.ScreenContext && typeof window.ScreenContext.inputEscapeReview === 'function')
                     ? window.ScreenContext.inputEscapeReview(screenText, inPlay, isReviewActive)
@@ -879,9 +879,9 @@ class InputController {
             ? window.__app.getLastFrame()
             : (window.__app ? window.__app.lastFrame : null);
         const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && lastFrame.map);
-        const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
-            ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
-            : '';
+        const screenText = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function')
+            ? window.ScreenContext.screenTextOf(lastFrame)
+            : (lastFrame && lastFrame.term && lastFrame.term.rows ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase() : '');
         const isReviewActive = Boolean(window.__app && typeof window.__app.isBirthReviewActive === 'function' && window.__app.isBirthReviewActive());
         const { isChoiceMenu, isNamePrompt, isReviewScreen } = (window.ScreenContext && typeof window.ScreenContext.inputTerminalKeyFlags === 'function')
             ? window.ScreenContext.inputTerminalKeyFlags(screenText, inPlay, isReviewActive)
@@ -2359,9 +2359,9 @@ class InputController {
 
         // Update Directional Aim Rosette (Visibility & Active Yaw Highlight)
         if (rosette) {
-            const screenText = (frame.term && frame.term.rows)
-                ? frame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
-                : '';
+            const screenText = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function')
+                ? window.ScreenContext.screenTextOf(frame)
+                : (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n').toLowerCase() : '');
             const isTargetingPrompt = (window.ScreenContext && typeof window.ScreenContext.inputTargetingPrompt === 'function')
                 ? window.ScreenContext.inputTargetingPrompt(screenText, inPlay)
                 : false;
