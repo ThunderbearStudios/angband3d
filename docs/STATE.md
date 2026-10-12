@@ -55,13 +55,11 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 - K5: e2e test suite leaves multiple engine sessions alive in grace period; restart server before CDP test runs.
 
 ## In-flight (uncommitted) files
-- `tools/probe_realm_keys.js` (WS6.1 automated probe across all 4 realms for candidate command keys)
-- `tools/fixtures/realm_keys/angband.json` (captured vanilla prompt map)
-- `tools/fixtures/realm_keys/silq.json` (captured silq prompt map)
-- `tools/fixtures/realm_keys/frogcomposband.json` (captured FCB prompt map)
-- `tools/fixtures/realm_keys/hengband.json` (captured hengband prompt map)
+- `tools/test_manifest.json` (registered test_realm_keys.js in fast tier)
+- `tools/test_realm_keys.js` (red-first test suite for RealmKeys API, contracts, fixture backing, and label application)
 
 ## Last gate results
+- WS6.2-test red (2026-10-11 21:55): fast 4/5 (test_realm_keys red as expected: realm-keys.js not yet present)
 - WS6.1 (2026-10-11 21:53): fast 4/4 PASS | e2e 2/2 PASS (verify_cross_realm_menus 11.0s, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (114.2s, 74.6s; 4/4 realms reach 3D play) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - WS2.5 (2026-10-11 21:35): fast 4/4 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router) | e2e 2/2 PASS (verify_cross_realm_menus: all 4 realms in 9.7s with torch state assertion + remove routing, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (72.2s, 69.9s; 4/4 realms + real-browser Action Chooser DOM test in Sil-Q) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - WS2.4 (2026-10-11 21:25): fast 4/4 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router) | e2e 2/2 PASS (verify_cross_realm_menus: all 4 realms in 10.2s, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (67.0s, 67.9s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
