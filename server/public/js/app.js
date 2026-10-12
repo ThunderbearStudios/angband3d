@@ -11,8 +11,38 @@ window.addEventListener('DOMContentLoaded', () => {
     const loadingOverlay = document.getElementById('loading-overlay');
     const terminalContainer = document.getElementById('terminal-container');
 
+    // =========================================================================
+    // Service Worker & PWA Update UX (WS10.1 / G-E)
+    // =========================================================================
+    function showUpdateToast() {
+        let toast = document.getElementById('sw-update-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'sw-update-toast';
+            toast.className = 'realm-toast sw-update-toast';
+            toast.style.cursor = 'pointer';
+            toast.style.pointerEvents = 'auto';
+            toast.style.zIndex = '100000';
+            toast.addEventListener('click', () => {
+                window.location.reload();
+            });
+            document.body.appendChild(toast);
+        }
+        // G-E rule: textContent used, never auto-reload mid-game
+        toast.textContent = '✨ New version available! Tap here to reload.';
+        toast.classList.add('show');
+    }
+
     // Register PWA Service Worker for home-screen installation & offline shell caching
     if ('serviceWorker' in navigator) {
+        let hasController = Boolean(navigator.serviceWorker.controller);
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!hasController) {
+                hasController = true;
+                return;
+            }
+            showUpdateToast();
+        });
         navigator.serviceWorker.register('/sw.js').catch((err) => {
             console.warn('[SW] Registration failed:', err);
         });
@@ -4806,7 +4836,8 @@ window.addEventListener('DOMContentLoaded', () => {
             getAppState: () => appState,
             getLastFrame: () => lastFrame,
             getActiveRealm,
-            showToast: showRealmToast
+            showToast: showRealmToast,
+            showUpdateToast
         });
     }
 
