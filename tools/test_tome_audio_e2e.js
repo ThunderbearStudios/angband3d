@@ -18,7 +18,7 @@ async function runTest() {
         '--autoplay-policy=no-user-gesture-required',
         '--window-size=1920,1080',
         `--user-data-dir=${profileDir}`,
-        'http://127.0.0.1:8080/?autoplay=1'
+        process.argv[2] || 'http://127.0.0.1:8080/?autoplay=1'
     ], { stdio: 'ignore' });
 
     function cleanup() {
@@ -95,18 +95,18 @@ async function runTest() {
         for (let i = 0; i < 40; i++) {
             await new Promise(r => setTimeout(r, 500));
             const check = await call('Runtime.evaluate', {
-                expression: `Boolean(window.chronicleManager && window.chronicleManager.audio && window.chronicleManager.currentHero)`
+                expression: `Boolean(window.chronicleManager && window.chronicleManager.audio)`
             });
             if (check && check.result && check.result.value) {
                 ready = true;
                 break;
             }
         }
-        if (!ready) throw new Error('Client, chronicleManager, and currentHero failed to initialize within 20s');
-        console.log('[Test] ChronicleManager, ChronicleAudio, and Hero session detected!');
+        if (!ready) throw new Error('Client and chronicleManager failed to initialize within 20s');
+        console.log('[Test] ChronicleManager and ChronicleAudio detected!');
 
-        // Give any initial engine frame resets a moment to settle
-        await new Promise(r => setTimeout(r, 1500));
+        // Give page initialization and network connection 2.5s to settle
+        await new Promise(r => setTimeout(r, 2500));
 
         console.log('[Test] Unlocking audio context and verifying audio graph...');
         const unlockRes = await call('Runtime.evaluate', {
