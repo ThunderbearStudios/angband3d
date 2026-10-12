@@ -63,9 +63,16 @@
      * identity when omitted. Matches app.js updateTerminalToolbar lines 3978-3982.
      */
     function screenTextOf(frame, decode) {
+        if (!decode && frame && frame._screenTextLower !== undefined) {
+            return frame._screenTextLower;
+        }
         const raw = rawScreenText(frame);
         const decoded = typeof decode === 'function' ? decode(raw) : raw;
-        return (raw + '\n' + decoded).toLowerCase();
+        const res = (raw + '\n' + decoded).toLowerCase();
+        if (!decode && frame && typeof frame === 'object') {
+            frame._screenTextLower = res;
+        }
+        return res;
     }
 
     /**
@@ -626,6 +633,7 @@
 
     let lastSeq = null;
     let lastRealm = null;
+    let lastFrameObj = null;
     let cachedClassify = null;
 
     /**
@@ -692,7 +700,9 @@
         const isHeng = realm === 'hengband';
         const decode = opts && opts.decode;
 
-        if (frame && frame.seq !== undefined && frame.seq === lastSeq && realm === lastRealm && cachedClassify && !(opts && opts.forceRefresh)) {
+        const isMatch = frame && cachedClassify && !(opts && opts.forceRefresh) && realm === lastRealm &&
+            (frame.seq !== undefined ? (lastSeq !== null && frame.seq === lastSeq) : (frame === lastFrameObj));
+        if (isMatch) {
             return cachedClassify;
         }
 
@@ -826,8 +836,9 @@
             isItemActions
         };
 
-        if (frame && frame.seq !== undefined) {
-            lastSeq = frame.seq;
+        if (frame) {
+            lastSeq = frame.seq !== undefined ? frame.seq : null;
+            lastFrameObj = frame;
             lastRealm = realm;
             cachedClassify = result;
         }
