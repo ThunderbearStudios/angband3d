@@ -1982,3 +1982,56 @@ The on-screen directional rosette (`#touch-dpad-rosette`, `#dpad-nw`, `#dpad-ne`
   1. **Startup Watchdog**: A 10-second watchdog timer in `app.js` (`startGame`) automatically dismisses the loading overlay, issues a descriptive timeout toast, and returns to the main menu if the engine fails to emit a frame or complete a handshake.
   2. **Error & Bye Dismissal**: Any arrival of `error`, `bye`, or clean rejection clears the watchdog timer and immediately hides the loading overlay.
   3. **Auto-Reconnect Suppression**: `manualDisconnect = true` is set on server rejection (`error` / `bye`), stopping background reconnect loops from trapping the user in an infinite loading cycle.
+
+---
+
+## 42. Award Pass Lessons Learned & Hardened Architectural Invariants (WS8 / L1–L22)
+
+### 42.1 The Sil-Q/Hengband `Command:` Invariant (L4, Axiom 1)
+In Sil-Q and Hengband, the `(Inventory) Command:` and `(Equipment) Command:` screens are not item pickers; they are top-level command prompts that take verb letters (such as `w` for wear/wield, `r` for take off gear, `x` for examine, or `d` for drop). Selecting an item letter (`a-z`) on these screens does NOT equip or drop the item; it fires whichever engine verb corresponds to that key. All item interactions must therefore route through `ScreenContext.classify(frame)`: outside of an explicit item-selection prompt, letters must never be treated as inventory indices, and the client UI must display contextual verb buttons instead of raw item selectors.
+
+### 42.2 Client-Facing Parity & CDP Browser Gates (L20, Axiom 2)
+WebSocket-only headless test scripts (`test_server_ws_realms.js`) interact directly with the JSON stream and completely bypass the browser's DOM, CSS rendering engine, and client-side JavaScript execution environment. A bug that throws an unhandled exception inside a client event listener or hides a critical button behind an overlay will pass a WebSocket test 100% of the time while leaving human players with a blank screen. All critical client-side features must be paired with automated Chrome DevTools Protocol (CDP) tests (`test_boot_flow.js`) that verify real DOM nodes, touch targets, and absence of console errors.
+
+### 42.3 Runtime Errors & CI Server Boot Verification (L9, Axiom 3)
+JavaScript syntax checks (`node --check`) catch parse errors but cannot catch runtime faults such as `TypeError: Assignment to constant variable` or missing object exports until that specific code path executes. A single runtime error in a per-frame coordinator like `needsTerminal` will kill every frame and black out the display. Consequently, continuous integration (`.github/workflows/ci.yml`) and local fast gates must always boot the server, execute the test suite, and verify end-to-end communication before declaring health.
+
+### 42.4 String Sanitization & Untrusted Engine/LLM Content (L8, L11, Axiom 4)
+Text received from upstream game engines, character savefiles, AI models, and text-to-speech generators must be treated as completely untrusted user input. Inscriptions, character names, and lore blurbs can contain arbitrary formatting codes or HTML-like characters. Never inject raw engine text or LLM responses into `innerHTML`. All DOM rendering must strictly utilize `textContent` or run through a centralized `escapeHtml()` sanitizer. Server errors returned to clients must remain generic (`'Internal error'`), confining stack traces and sensitive server paths to secure internal logs.
+
+### 42.5 Upstream-Driven Translation & Atomic Line Replacement (L6, L7, Axiom 5)
+Translations for complex multi-lingual engines like Hengband must be generated deterministically from upstream translation catalogs (e.g. `_("ja", "en")` message catalogs and `lib/edit/` data files) rather than hand-typed ad-hoc tables. When localizing terminal rows, translations must be applied atomically at the whole-sentence or whole-line level: a line must either be 100% localized or remain untouched native Japanese. Intermingling translated and untranslated tokens on the same row leads to unreadable "Japanglish" Frankenstein strings and breaks column alignment. Furthermore, character attribute arrays (`attrs`) must match the visual display width byte-for-byte to prevent visual artifacting.
+
+### 42.6 Single Source of Truth for State, Keymaps, and Versions (L3, Axiom 6)
+Redundant parallel definitions inevitably drift and cause subtle cross-realm regressions. Input keybindings must reside exclusively in `server/public/js/realm-keys.js` (`RealmKeys`), screen classification in `server/public/js/screen-context.js` (`ScreenContext`), and canonical build versions in `version.json`. When components need realm-specific keys or classification rules, they must query these single authoritative modules rather than implementing private remaps or hard-coded assumptions.
+
+### 42.7 Bidirectional Derivation of Relay Allowlists (L1, Axiom 7)
+Security allowlists for WebSocket bridges and command dispatchers must never be designed by inspecting only one side of the connection. An allowlist constructed solely from engine dispatchers will overlook legitimate client-sent control commands (such as the near-miss with client `save`), while an allowlist derived solely from the client will omit valid engine macros. Allowlists must be systematically cross-referenced against both client call sites (`sendCommand`, `sendKey`) and engine bridge dispatchers (`main-bridge.c`).
+
+### 42.8 Endpoint Security & Origin Isolation (L10, Axiom 8)
+Wildcard Cross-Origin Resource Sharing (`Access-Control-Allow-Origin: *`) must never be permitted on API endpoints that incur monetary costs (LLM/TTS services), execute game commands, or mutate state (save uploads and deletions). Money-spending proxies must enforce strict same-origin verification (with optional `ALLOWED_ORIGINS` configuration for trusted deployments), strict per-IP rate limiting, body size caps, and strict model allowlists. Character saves must be secured by cryptographically random ownership tokens (`X-Owner-Token`), rejecting unauthorized overwrites or deletions.
+
+### 42.9 Non-Negotiable Engineering Rules & System Invariants (L1–L22 Summary)
+- **L1 (Allowlists)**: Derive command allowlists from both client senders and engine receivers.
+- **L2 (Input Keys)**: Never send raw digits for movement or holding; digits represent repeat counts in Angband. Use arrow keys for motion and `,` for rest.
+- **L3 (Realm Keymaps)**: Roguelike variant keybindings differ fundamentally. Query `RealmKeys` dynamically.
+- **L4 (Menu Selections)**: Route letter keystrokes through `ScreenContext.classify()`. Inside menus, letters are selections; in dungeon play, they are action commands.
+- **L5 (Memoized Classification)**: Compute screen classification once per frame keyed by `frame.seq` to prevent contradictory multi-handler evaluations.
+- **L6 (Atomic Localization)**: Match on raw Japanese text and translate atomically per line. Preserve terminal column alignment.
+- **L7 (Automated Dictionaries)**: Generate dictionaries from upstream sources; maintain manual overrides in a decoupled layer.
+- **L8 (Console Encoding)**: Windows console mojibake does not imply file corruption. Source files are strictly UTF-8.
+- **L9 (Hot-Path Verification)**: Run syntax checks and boot tests after any server modification.
+- **L10 (Protected APIs)**: Same-origin isolation, rate limits, and model allowlists on all generative AI endpoints.
+- **L11 (Generic Client Errors)**: Return opaque error messages to clients; retain debugging telemetry in server logs.
+- **L12 (Aggressive Cache Invalidation)**: Every asset update requires a synchronized version bump across `version.json`, `index.html`, `sw.js`, and `build.gradle`.
+- **L13 (Process Hygiene)**: Ensure previous server instances are cleanly terminated before initiating test runs.
+- **L14 (Zero Polling in Terminal)**: Employ one-shot deterministic test scripts that exit with standard status codes.
+- **L15 (Temp Profile Hygiene)**: Automated CDP test runners must clean up temporary browser profile directories upon exit.
+- **L16 (View Routing Invariant)**: In `NeedsTerminal(frame)`, `-more-` prompts remain in first-person 3D with a message banner; menus, dialogues, and setups route to the CRT terminal.
+- **L17 (Safe Engine Queries)**: Never call `slot_by_name()` on optional equipment slots (which triggers an engine assertion); use `bridge_get_equipped_by_type()`. Guard coordinate lookups with `bridge_in_play()`.
+- **L18 (Preserve Exceptions)**: Catch only expected format errors (such as `SyntaxError` on malformed packets); never swallow unexpected runtime exceptions.
+- **L19 (Contract Test Enforcement)**: Write contract tests that assert module interfaces, exported functions, and caller expectations.
+- **L20 (Real-Browser Gates)**: Pair WebSocket test suites with end-to-end browser execution gates.
+- **L21 (Atomic Commit & Gate Tracking)**: Verify gates before marking tasks complete. Commit one task at a time.
+- **L22 (Single Workstream Focus)**: Work strictly on one workstream at a time to prevent cross-cutting branch destabilization.
+

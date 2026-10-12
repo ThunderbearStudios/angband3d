@@ -50,6 +50,15 @@ Rather than rewriting Angband rules in C#, Angband runs as a headless child proc
 - **Automated Client Test**: `godot --path client -- --save=test --keys=... --screenshot=out.png --shot-after=180`
 
 ## Key Files Reference
+- `docs/STATE.md`: Live authoritative checklist, active task pointer, and gate run logs.
+- `tools/run_tests.js`: Consolidated tiered test runner (`fast`, `e2e`, `cdp`, `all`).
+- `server/public/js/screen-context.js`: Pure UMD screen classification module (`ScreenContext.classify(frame)`).
+- `server/public/js/menu-router.js`: Contextual action and menu verb router across all 4 realms.
+- `server/public/js/realm-keys.js`: Authoritative single source of truth for realm-specific keymappings.
+- `server/public/js/heng/heng-translate.js`: Upstream-driven atomic bilingual Japanese/English translator for Hengband.
+- `server/public/js/heng/heng-dict.js`: Runtime translation dictionary with lazy-loading loader.
+- `server/src/http-guard.js`: Protected HTTP request sanitizer, CORS origin validator, and body size limiter.
+- `server/src/rate-limit.js`: Sliding-window per-IP rate limiter with automatic TTL pruning.
 - `engine/src/main-bridge.c`: The C bridge emitting JSON frames and receiving key commands.
 - `client/scripts/BridgeClient.cs`: Handles child process stdio via `System.Diagnostics.Process` (avoid Godot's `OS.ExecuteWithPipe`).
 - `client/scripts/Main.cs`: Main loop, input routing, start/pause menus, script test runner.
