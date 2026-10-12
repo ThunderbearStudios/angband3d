@@ -201,7 +201,12 @@ class WebHUD {
                     this.messageFeedWindow.classList.toggle('expanded');
                     const isExpanded = this.messageFeedWindow.classList.contains('expanded');
                     btnToggleSize.textContent = isExpanded ? '▼ Compact' : '▲ Expand';
-                    btnToggleSize.title = isExpanded ? 'Collapse Message Log to 2 lines' : 'Expand Message Log to show full history';
+                    btnToggleSize.title = isExpanded ? 'Collapse Message Log to 4 lines' : 'Expand Message Log to show full history';
+                    if (isExpanded) {
+                        this.messageFeedWindow.classList.remove('is-idle');
+                    } else {
+                        this.resetMessageFeedIdleTimer();
+                    }
                     if (this.messageFeedScroll) {
                         this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
                     }
@@ -219,6 +224,12 @@ class WebHUD {
             });
         }
 
+        if (this.messageFeedWindow) {
+            this.messageFeedWindow.addEventListener('mouseenter', () => {
+                this.resetMessageFeedIdleTimer();
+            });
+        }
+
         if (this.messageFeedScroll) {
             this.messageFeedScroll.addEventListener('scroll', () => {
                 const maxScroll = this.messageFeedScroll.scrollHeight - this.messageFeedScroll.clientHeight;
@@ -232,6 +243,24 @@ class WebHUD {
                 }
             });
         }
+    }
+
+    resetMessageFeedIdleTimer() {
+        if (!this.messageFeedWindow) {
+            this.messageFeedWindow = document.getElementById('message-feed-window');
+        }
+        if (this.messageFeedWindow) {
+            this.messageFeedWindow.classList.remove('is-idle');
+        }
+        if (this._msgFeedIdleTimer) {
+            clearTimeout(this._msgFeedIdleTimer);
+            this._msgFeedIdleTimer = null;
+        }
+        this._msgFeedIdleTimer = setTimeout(() => {
+            if (this.messageFeedWindow && !this.messageFeedWindow.classList.contains('expanded')) {
+                this.messageFeedWindow.classList.add('is-idle');
+            }
+        }, 6000);
     }
 
     resetMessages(welcomeText = null) {
@@ -357,6 +386,7 @@ class WebHUD {
             if (this.messageFeedScroll && !this.userScrolledUp) {
                 this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
             }
+            this.resetMessageFeedIdleTimer();
             return;
         }
 
@@ -398,6 +428,7 @@ class WebHUD {
         if (this.messageFeedScroll && !this.userScrolledUp) {
             this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
         }
+        this.resetMessageFeedIdleTimer();
     }
 
     updateLastMessageCount(rawText, count) {
@@ -411,6 +442,7 @@ class WebHUD {
             if (this.messageFeedScroll && !this.userScrolledUp) {
                 this.messageFeedScroll.scrollTop = this.messageFeedScroll.scrollHeight;
             }
+            this.resetMessageFeedIdleTimer();
         }
     }
 
@@ -459,6 +491,7 @@ class WebHUD {
                 }
             }
             textEl.textContent = localizedMsg;
+            textEl.title = localizedMsg;
             if (isPrompt) {
                 banner.classList.add('prompt');
                 textEl.style.color = '#ffd700';
@@ -466,6 +499,8 @@ class WebHUD {
                 banner.classList.remove('prompt');
                 textEl.style.color = this.getMessageColor(displayMsg);
             }
+        } else {
+            textEl.title = '';
         }
     }
 
@@ -1784,8 +1819,13 @@ class WebHUD {
             const lang = window.__langMode || 'en';
             const locItem = (name) => {
                 if (!name) return name;
-                if (realm === 'hengband' && typeof window.getLocalizedItemName === 'function') {
-                    return window.getLocalizedItemName(name, 'hengband', lang);
+                if (realm === 'hengband') {
+                    if (window.HengTranslate && window.__hengTranslatorV2 !== false) {
+                        return window.HengTranslate.translateName(name, 1, lang);
+                    }
+                    if (typeof window.getLocalizedItemName === 'function') {
+                        return window.getLocalizedItemName(name, 'hengband', lang);
+                    }
                 }
                 return name;
             };
