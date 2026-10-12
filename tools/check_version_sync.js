@@ -49,5 +49,15 @@ while ((match = vRegex.exec(htmlContent)) !== null) {
 assert(matchCount > 0, 'index.html must contain versioned asset queries');
 console.log(`  index.html asset references match: ${matchCount} tags verified at ?v=${canonical}`);
 
+// 4. Check android/app/build.gradle versionName
+const gradlePath = path.join(rootDir, 'android/app/build.gradle');
+if (fs.existsSync(gradlePath)) {
+    const gradleContent = fs.readFileSync(gradlePath, 'utf8');
+    const gradleMatch = gradleContent.match(/versionName\s+["']([^"']+)["']/);
+    assert(gradleMatch, 'android/app/build.gradle must declare versionName');
+    assert.strictEqual(gradleMatch[1], canonical, `build.gradle versionName (${gradleMatch[1]}) must match canonical (${canonical})`);
+    console.log(`  android/app/build.gradle matches: versionName "${canonical}"`);
+}
+
 console.log('✓ All asset versions are in sync!');
 process.exit(0);
