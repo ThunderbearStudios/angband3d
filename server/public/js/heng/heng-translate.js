@@ -858,6 +858,11 @@
     ["あなたは坑夫のドワーフの一粒種です。あなたは一家のお荷物で", "You are the only child of a Dwarven miner. You are the family"],
     ["す。あなたは深いブラウンの瞳となめらかな黒髪、そして 30cm", "burden. You have deep brown eyes, straight black hair, and a 30cm"],
     ["ほどのヒゲを持ち、黒い肌をしています。", "beard, and dark skin."],
+    ["あなたは捕虜の影フェアリーの第二子です。あなたはグリーンの", "You are the second child of a captive Shadow Fairy. You have green"],
+    ["瞳とわずかに肩にかかるくらいのなめらかなグレーの髪を持ち、", "eyes, straight grey hair that barely reaches your shoulders, and"],
+    ["真珠色の肌をしています。", "pearlescent skin."],
+    ["ません。ただしその場合でも隠密行動能力が下がり、また、自分自身の性格に", "monsters. Even then, their stealth is reduced, and it has no effect if"],
+    ["よって反感をかっている場合には効果がありません。", "aggravation is caused by their own personality."],
     ["あなたの父はオークでしたが、それは秘密にされています。あな", "Your father was an Orc, but it is unacknowledged. You are the "],
     ["たは町人の養子です。あなたは家族に大切にされています。あな", "adopted child of a townsman. You are a well liked child. You  "],
     ["たはブラウンの瞳となめらかな黒髪を持ち、透き通るような白い", "have brown eyes, straight black hair, and a very fair "],
@@ -905,6 +910,34 @@
     ["あなたの父親はクラウド・ジャイアントでした。あなたは自作農", "Your father was a Cloud Giant. You are the adopted child "],
     ["の養子です。あなたは一家の誇りです。あなたはブラウンの瞳と", "of a Yeoman. You are a credit to the family. You have brown "],
     ["なめらかな赤い髪を持ち、普通の肌色をしています。", "eyes, straight red hair, and an average complexion. "],
+    ["秘術の魔法書", "Arcane Spellbook"],
+    ["生命の魔法書", "Life Spellbook"],
+    ["仙術の魔法書", "Sorcery Spellbook"],
+    ["自然の魔法書", "Nature Spellbook"],
+    ["カオスの魔法書", "Chaos Spellbook"],
+    ["暗黒の魔法書", "Death Spellbook"],
+    ["トランプの魔法書", "Trump Spellbook"],
+    ["匠の魔法書", "Craft Spellbook"],
+    ["悪魔の魔法書", "Daemon Spellbook"],
+    ["破邪の魔法書", "Crusade Spellbook"],
+    ["歌集", "Songbook"],
+    ["(キャラクターの生い立ち - 編集済み)", "(Character Background - Edited)"],
+    ["(キャラクターの生い立ち - 編集モード)", "(Character Background - Edit Mode)"],
+    ["[ 'Q' 中断, 'S' 初めから, Enter ゲーム開始 ]", "[ 'Q' Abort, 'S' Restart, Enter Start Game ]"],
+    ["[ カーソルキーで移動、Enterで終了、Ctrl-Aでファイル読み込み ]", "[ Cursor: Move, Enter: Done, Ctrl-A: Load File ]"],
+    ["領域を選んで下さい(a-i) ('='初期オプション設定):", "Choose magic realm (a-i) ('=' for options):"],
+    ["領域を選んで下さい(a-j) ('='初期オプション設定):", "Choose magic realm (a-j) ('=' for options):"],
+    ["注意：魔法の領域の選択によりあなたが習得する呪文のタイプが決まります。", "Note: Your magic realm determines the spells you will learn."],
+    ["何かキーを押してください", "Press any key to continue"],
+    ["あなたは坑夫のドワーフの一粒種です。あなたは一家のお荷物で", "You are the only child of a Dwarven miner. You are the family"],
+    ["す。あなたは深いブラウンの瞳となめらかな黒髪、そして 30cm", "burden. You have deep brown eyes, straight black hair, and a 30cm"],
+    ["ほどのヒゲを持ち、黒い肌をしています。", "beard, and dark skin."],
+    ["あなたはカバラの秘術によって木から作り出されました。", "You were shaped from wood by Cabbalistic magic."],
+    ["あなたは職人の幾人かの子供のうちの一人です。あなたは一家の", "You are one of several children of a Craftsman. You are the"],
+    ["誇りです。あなたはブルーグレイの瞳となめらかな茶髪を持ち、", "pride of the family. You have blue-gray eyes, straight brown hair,"],
+    ["普通の肌色をしています。", "and an average complexion."],
+    ["あなたはウラノスの子供です。あなたは褐色の瞳、波打った茶色", "You are the child of Uranus. You have hazel eyes, wavy brown"],
+    ["い髪、そして平均的な肌の色をしています。", "hair, and an average complexion."],
   ];
 
   // Pre-sort by descending Japanese phrase length to avoid substring collisions
@@ -1408,6 +1441,17 @@
       for (const [ja, en] of DEFAULT_ROW_TERMS) {
         if (leftSide.includes(ja)) {
           leftSide = leftSide.split(ja).join(en);
+        }
+      }
+      if (CJK.test(leftSide)) {
+        const leadWordMatch = leftSide.match(/^(\S+)(\s+)(.*)$/);
+        if (leadWordMatch) {
+          const transWord = translateLine(leadWordMatch[1], mode);
+          if (transWord !== leadWordMatch[1] && !CJK.test(transWord)) {
+            const wDiff = visualWidth(leadWordMatch[1]) - visualWidth(transWord);
+            const spaces = Math.max(1, leadWordMatch[2].length + wDiff);
+            leftSide = `${transWord}${' '.repeat(spaces)}${leadWordMatch[3]}`;
+          }
         }
       }
 

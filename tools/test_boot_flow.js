@@ -71,8 +71,11 @@ async function runRealm(realm) {
                 const term = document.getElementById('terminal-container');
                 if (!f || f.phase !== 'play' || !term || term.classList.contains('hidden')) return false;
                 const txt = (f.term && f.term.rows ? f.term.rows.map(r => r.g || '').join('\\n') : '');
-                if (txt.includes('-more-')) { a.network.sendKey('space'); return true; } return false; })()`);
-            if (pressedMore) notes.push('pressed Space on terminal -more- in play (K1)');
+                if (txt.includes('-more-')) { a.network.sendKey('space'); return true; }
+                if (txt.includes('Gain which power?') || txt.includes('Gain which spell?')) { a.network.sendKey('a'); return 'power'; }
+                return false; })()`);
+            if (pressedMore === true) notes.push('pressed Space on terminal -more- in play (K1)');
+            if (pressedMore === 'power') notes.push('selected initial power prompt (a)');
         }
         if (result.pass && realm === 'silq') {
             // Real-browser Action Chooser test in Sil-Q

@@ -1,4 +1,8 @@
 {
+  "歌集": [
+    "Songbook",
+    "Songbooks"
+  ],
   "#のミスリル像": [
     "Mithril Statue of #",
     "Mithril Statues of #"
@@ -258,6 +262,10 @@
   "[初心者教本]": [
     "[Cantrips for Beginners]",
     "[Cantrips for Beginners]"
+  ],
+  "[見習い教本]": [
+    "[Apprentice Handbook]",
+    "[Apprentice Handbook]"
   ],
   "[力の魔道書]": [
     "[Grimoire of Power]",

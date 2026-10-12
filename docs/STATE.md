@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
-Branch: fix/award-pass   Updated: 2026-10-12T10:05-04:00 (Audit & Course Correction after WS9)
+Branch: fix/award-pass   Updated: 2026-10-12T10:15-04:00 (WS5 triage & commit staging complete)
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first, incl. NEW lessons L18–L22), then the plan section for the current task.
-Current task: **WS5.1 & WS5.4** (Lazy Hengband loading & single version source - committed). Next: **WS5.5 & WS3 Polish**.
+Current task: **WS5.3** (Action-bar deduplication in app.js).
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. Always re-locate lines with `Select-String`.
 
@@ -45,7 +45,7 @@ An uncommitted WS2/WS3/WS5 attempt broke localhost ("empty sky of stars"). Verif
 - [x] **WS5.2** Per-frame classify memoization (`screen-context.js` caches by frame.seq/identity, `screenTextOf` memoized, `input.js` adopts `screenTextOf`; 141 tests PASS)
 - [ ] **WS5.3** Action-bar deduplication (`setCtxActions` and data-driven CTX_BUTTONS, target `updateTerminalToolbar` <= 400 lines)
 - [x] **WS5.4** Single version source (`version.json` v9.4.1, `tools/bump_version.js`, `check_version_sync.js` fast gate, server `/health` reads `version.json`)
-- [x] **WS5.5** Dead-code sweep report (`tools/report_dead_code.js` runs clean, `tools/reports/dead_code.md` generated with 2 app.js candidates) — in working tree
+- [x] **WS5.5** Dead-code sweep report (`tools/report_dead_code.js` runs clean, `tools/reports/dead_code.md` generated with 2 app.js candidates: extractActiveMenuChoices, previousStatRoll)
 - [ ] **WS5.6** Temp profile hygiene (shared `tools/lib/cdp.js` helper cleanup; reclaim 24 GB gitignored `temp_chrome_*` profiles per D16)
 - [ ] WS10 Android/PWA/offline
 - [ ] WS7 test consolidation
@@ -68,12 +68,10 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 - K5: e2e test suite leaves multiple engine sessions alive in grace period; restart server before CDP test runs.
 
 ## In-flight (uncommitted) files inventory
-1. `tools/report_dead_code.js` & `tools/reports/dead_code.md`: dead-code scanner and audit report (WS5.5)
-2. `server/public/js/heng/heng-translate.js` & `server/public/js/heng/heng-names.json`: character background & spellbook translations (WS3 polish)
-3. `tools/fixtures/heng/lines_raw.json` & `tools/reports/heng_untranslated.json` & `tools/heng_lang_coverage.js`: updated test coverage fixtures
-4. `tools/test_boot_flow.js`: added handling for character power/spell prompt during boot flow
+None
 
 ## Last gate results
+- WS5.5 & WS3 Polish (2026-10-12 10:15): fast 10/10 PASS | smoke 11/11 PASS | dotnet 0 warn / 0 err | dead-code sweep complete (2 candidates in app.js: extractActiveMenuChoices, previousStatRoll) | HengTranslate T1-T12 contract PASS.
 - WS5.1 & WS5.4 (2026-10-12 10:10): fast 10/10 PASS (check_version_sync PASS) | cdp test_boot_flow 4/4 realms PASS | single version source 9.4.1 synchronized, Hengband assets lazy loaded.
 - WS5.2 (2026-10-12 10:05): fast 10/10 PASS (screen_context 141 tests PASS) | per-frame classify and screenTextOf memoized by seq/identity.
 - Audit Gate (2026-10-12 10:00): fast 10/10 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys, test_heng_translate 12 tests, test_heng_wiring 4 tests, test_top_bar_consolidation 6 tests, test_hud_message_pass 4 tests, check_version_sync) | e2e 2/2 PASS (verify_cross_realm_menus 11.0s, test_server_boot 0.9s) | cdp test_boot_flow PASS (angband, silq [Action Chooser real DOM verified], frogcomposband [K1 note], hengband all reach 3D play) | smoke 11/11 PASS | dotnet 0 warn / 0 err | canonical version 9.4.1 in sync.
