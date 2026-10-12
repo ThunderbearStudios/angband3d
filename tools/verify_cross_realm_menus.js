@@ -16,6 +16,9 @@ const crypto = require('crypto');
 // The REAL browser classifier (UMD). Before WS2 this file held private mirrors that had drifted
 // from app.js (no isDead/decode/JP targeting); now e2e asserts exactly what the client computes.
 const SC = require('../server/public/js/screen-context.js');
+const MenuRouter = require('../server/public/js/menu-router.js');
+global.ScreenContext = SC;
+global.MenuRouter = MenuRouter;
 let SJIS_TD = null;
 try { SJIS_TD = new TextDecoder('shift_jis'); } catch (_) { /* small-ICU Node: decode is identity */ }
 const decode = (s) => SC.decodeSjis(s, SJIS_TD);
@@ -406,12 +409,31 @@ async function testSilQMenuAndEquipmentFlow() {
         console.log('PASS: Sil-Q Inventory opened correctly in classic view and recognized as item menu!');
         snap('silq', 'inventory_command', frame, { needsTerminal: true, isItemPrompt: true });
 
-        // Step 2: From (Inventory) Command:, send 'w' to initiate Wear/Wield
-        console.log("Step 2: Sending 'w' from inventory command menu...");
-        sendKey('w');
+        // Step 2: From (Inventory) Command:, test MenuRouter item-first flow
+        console.log("Step 2: Testing MenuRouter item-first flow on Sil-Q inventory...");
+        const items = SC.classify(frame, 'silq').items;
+        assert(items && items.length > 0, 'Inventory must contain starting items');
+        const torch = items.find(i => i.label.toLowerCase().includes('torch')) || items[0];
+        console.log(`Found item: ${torch.key}) ${torch.label}`);
+
+        let silqSentKeys = [];
+        MenuRouter.setSendKey((k) => {
+            silqSentKeys.push(k);
+            sendKey(k);
+        });
+
+        const intercepted = MenuRouter.route(torch.key, frame, 'silq');
+        assert.strictEqual(intercepted, true, 'MenuRouter must intercept item selection in Sil-Q inventory');
+        assert.strictEqual(MenuRouter.getPending().step, 'chooser', "MenuRouter state must be 'chooser'");
+        assert.strictEqual(silqSentKeys.length, 0, 'No keys sent while chooser is open');
+
+        console.log("Step 2b: Choosing verb 'w' (Wear/Wield) via MenuRouter...");
+        MenuRouter.chooseVerb('w');
+        assert.strictEqual(silqSentKeys.length, 1, "Verb 'w' should be dispatched to engine");
+        assert.strictEqual(silqSentKeys[0], 'w');
+
         await delay(200);
         frame = lastFrame();
-
         const wearPromptRow = frame.term.rows[0] ? frame.term.rows[0].g.trim() : '';
         console.log(`Wear Prompt Row: "${wearPromptRow}"`);
         assert(wearPromptRow.includes('Wear/Wield which item?'), 'Must transition to Wear/Wield which item? prompt');
@@ -419,9 +441,11 @@ async function testSilQMenuAndEquipmentFlow() {
         console.log('PASS: Wear/Wield prompt successfully reached.');
         snap('silq', 'wear_prompt', frame, { isItemPrompt: true });
 
-        // Step 3: Wield item 'b' (Torches in starting pack)
-        console.log("Step 3: Sending 'b' to wield torches...");
-        sendKey('b');
+        console.log("Step 3: Advancing MenuRouter with wear prompt frame...");
+        MenuRouter.onFrame(frame, 'silq');
+        assert.strictEqual(silqSentKeys.length, 2, "MenuRouter should have sent matching item key");
+        assert.strictEqual(silqSentKeys[1], torch.key, `Sent item key must match torch key '${torch.key}'`);
+        assert.strictEqual(MenuRouter.getPending(), null, "MenuRouter state must be cleared after prompt resolution");
         await delay(200);
         frame = lastFrame();
 
@@ -431,8 +455,6 @@ async function testSilQMenuAndEquipmentFlow() {
             sendKey('space');
             await delay(200);
         }
-        // In Sil-Q, a post-action message (e.g. torch equipped or monster notice) sits on line 0 without -more-.
-        // Sending space clears this line so the subsequent 'e' command is not consumed as message dismissal.
         if (lastFrame().term && lastFrame().term.rows && lastFrame().term.rows[0] && lastFrame().term.rows[0].g.trim()) {
             console.log(`Clearing message line: "${lastFrame().term.rows[0].g.trim()}". Sending space...`);
             sendKey('space');
@@ -450,12 +472,27 @@ async function testSilQMenuAndEquipmentFlow() {
         console.log(`Equip Row: "${equipPromptRow}"`);
         assert(equipPromptRow.includes('(Equipment) Command:'), 'Top row must prompt (Equipment) Command:');
         assert.strictEqual(evalIsItemPrompt(frame, 'silq'), true, 'Sil-Q (Equipment) Command: MUST evaluate as isItemPrompt === true');
-        console.log('PASS: Sil-Q Equipment opened correctly and recognized as item prompt!');
+        
+        // Assert equipped state
+        const equipText = frame.term.rows.map(r => r.g || '').join('\n');
+        assert(equipText.toLowerCase().includes('torch'), 'State assertion: Torch must be equipped on character');
+        console.log('PASS: Sil-Q Equipment opened and verified equipped torch!');
         snap('silq', 'equipment_command', frame, { isItemPrompt: true });
 
-        // Step 5: From (Equipment) Command:, send 'r' (Remove in Sil-Q)
-        console.log("Step 5: Sending 'r' (Remove) from equipment command menu...");
-        sendKey('r');
+        // Step 5: Test Remove with MenuRouter from (Equipment) Command:
+        console.log("Step 5: Testing MenuRouter item-first Remove from equipment...");
+        const equipItems = SC.classify(frame, 'silq').items;
+        const equipTorch = equipItems.find(i => i.label.toLowerCase().includes('torch')) || equipItems[0];
+        assert(equipTorch, "Equipment must contain the equipped torch");
+
+        silqSentKeys = [];
+        const equipIntercepted = MenuRouter.route(equipTorch.key, frame, 'silq');
+        assert.strictEqual(equipIntercepted, true, 'MenuRouter must intercept item selection in equipment');
+
+        MenuRouter.chooseVerb('r'); // Remove in Sil-Q
+        assert.strictEqual(silqSentKeys.length, 1);
+        assert.strictEqual(silqSentKeys[0], 'r');
+
         await delay(200);
         frame = lastFrame();
 
@@ -465,6 +502,12 @@ async function testSilQMenuAndEquipmentFlow() {
         assert.strictEqual(evalIsItemPrompt(frame, 'silq'), true, 'Remove prompt must be recognized as item prompt');
         console.log('PASS: Sil-Q Remove command correctly routed.');
         snap('silq', 'remove_prompt', frame, { isItemPrompt: true });
+
+        MenuRouter.onFrame(frame, 'silq');
+        assert.strictEqual(silqSentKeys.length, 2);
+        assert.strictEqual(silqSentKeys[1], equipTorch.key);
+        assert.strictEqual(MenuRouter.getPending(), null);
+        await delay(200);
 
         // Step 6: Cancel remove prompt with escape and close equipment
         console.log("Step 6: Sending 'escape' to cancel prompt...");
@@ -566,6 +609,21 @@ async function testHengbandMenuParity() {
         assert.strictEqual(evalNeedsTerminal(frame), true, 'Hengband inventory must evaluate needsTerminal === true');
         assert.strictEqual(evalIsItemPrompt(frame, 'hengband'), true, 'Hengband inventory must evaluate isItemPrompt === true');
         snap('hengband', 'inventory', frame, { needsTerminal: true, isItemPrompt: true });
+
+        // Test MenuRouter item interception in Hengband inventory
+        const hengItems = SC.classify(frame, 'hengband').items;
+        if (hengItems && hengItems.length > 0) {
+            const item = hengItems[0];
+            MenuRouter.setSendKey((k) => sendKey(k));
+            const intercepted = MenuRouter.route(item.key, frame, 'hengband');
+            assert.strictEqual(intercepted, true, 'MenuRouter must intercept item selection in Hengband');
+            assert.strictEqual(MenuRouter.getPending().step, 'chooser');
+            // Client-side Escape cancellation
+            const escHandled = MenuRouter.route('Escape', frame, 'hengband');
+            assert.strictEqual(escHandled, true, 'Escape must dismiss chooser client-side');
+            assert.strictEqual(MenuRouter.getPending(), null);
+            console.log('PASS: Hengband MenuRouter item interception & client-side escape verified!');
+        }
 
         sendKey('escape');
         await delay(250);
