@@ -10,8 +10,44 @@
 let WebSocket;
 try { WebSocket = require('ws'); } catch (_) { WebSocket = require('../server/node_modules/ws'); }
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+// The REAL browser classifier (UMD). Before WS2 this file held private mirrors that had drifted
+// from app.js (no isDead/decode/JP targeting); now e2e asserts exactly what the client computes.
+const SC = require('../server/public/js/screen-context.js');
+let SJIS_TD = null;
+try { SJIS_TD = new TextDecoder('shift_jis'); } catch (_) { /* small-ICU Node: decode is identity */ }
+const decode = (s) => SC.decodeSjis(s, SJIS_TD);
 
 const SERVER_URL = 'ws://127.0.0.1:8080/ws';
+
+// --- Golden fixture capture (WS2 Phase 2a) -----------------------------------------------
+// FIXTURE_DIR=tools/fixtures/menus node tools/verify_cross_realm_menus.js
+// Writes {realm,name,expect,frame} per labeled state. `expect` holds ONLY facts this test
+// asserts against live engine output; tools/test_screen_context.js replays them offline.
+// Map rows other than the player's are blanked (classifier reads only the player tile).
+const FIXTURE_DIR = process.env.FIXTURE_DIR ? path.resolve(process.env.FIXTURE_DIR) : null;
+const birthSeen = {};
+function snap(realm, name, frame, expect) {
+    if (!FIXTURE_DIR || !frame) return;
+    const f = JSON.parse(JSON.stringify(frame));
+    if (f.map && Array.isArray(f.map.rows) && f.player) {
+        f.map.rows = f.map.rows.map((r, y) => (y === f.player.y ? r : {}));
+    }
+    const dir = path.join(FIXTURE_DIR, realm);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, `${name}.json`), JSON.stringify({ realm, name, expect: expect || {}, frame: f }, null, 1) + '\n', 'utf8');
+}
+function snapBirth(realm, frame) {
+    if (!FIXTURE_DIR) return;
+    const text = SC.rawScreenText(frame);
+    const h = crypto.createHash('sha1').update(text).digest('hex').slice(0, 8);
+    const seen = birthSeen[realm] || (birthSeen[realm] = new Set());
+    if (seen.has(h) || seen.size >= 12) return;
+    seen.add(h);
+    snap(realm, `birth_${String(seen.size).padStart(2, '0')}`, frame, { needsTerminal: true });
+}
 
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -87,6 +123,7 @@ function runSession(realm, sessionName, timeoutMs = 25000) {
 
                     // If still in birth setup, auto-advance
                     if (msg.phase !== 'play') {
+                        snapBirth(realm, msg);
                         const rawScreen = (msg.term && msg.term.rows ? msg.term.rows.map(r => r.g || '').join('\n') : '');
                         const screenText = rawScreen.toLowerCase();
 
@@ -186,98 +223,14 @@ function runSession(realm, sessionName, timeoutMs = 25000) {
     });
 }
 
-// Client-side needsTerminal simulation mirroring app.js / Main.cs logic
+// needsTerminal exactly as the browser computes it (app.js passes forceTerminal=false by default).
 function evalNeedsTerminal(frame) {
-    if (!frame.player) return true;
-    if (frame.phase && frame.phase !== 'play') return true;
-    const ui = frame.ui;
-    if (!ui) return false;
-
-    // Overlays and menus take precedence over more prompts!
-    if (ui.context && (ui.context === 'menu' || ui.context === 'birth' || ui.context === 'setup')) return true;
-    if ((ui.overlay || 0) > 0) {
-        const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
-        const fullText = rawScreenText.toLowerCase();
-        if (fullText.includes('low hitpoint warning') || fullText.includes('low hitpoint')) {
-            return false;
-        }
-        return true;
-    }
-
-    if (ui.more) return false;
-
-    if (!ui.awaiting_command && !ui.more) {
-        const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
-        const screen = rawScreenText.toLowerCase();
-        const isDirectionalTargeting = screen.includes('direction?') ||
-                                     screen.includes('target [') ||
-                                     screen.includes('target:') ||
-                                     screen.includes('which direction?') ||
-                                     screen.includes('aim which direction?') ||
-                                     screen.includes('select target');
-        if (isDirectionalTargeting) return false;
-        return true;
-    }
-    return false;
+    return SC.needsTerminal(frame, { forceTerminal: false, decode });
 }
 
-// Client-side isItemPrompt simulation
+// isItemPrompt exactly as updateTerminalToolbar computes it.
 function evalIsItemPrompt(frame, realm) {
-    const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
-    const screenText = rawScreenText.toLowerCase();
-    const inPlay = frame.phase === 'play';
-    const isTargeting = inPlay && (
-        screenText.includes('target [') ||
-        screenText.includes('target:') ||
-        screenText.includes('direction?') ||
-        screenText.includes('which direction?') ||
-        screenText.includes('select target') ||
-        screenText.includes('aim which direction?')
-    );
-    const hasStoreText = screenText.includes('store inventory') ||
-                         screenText.includes('home inventory') ||
-                         screenText.includes('gold remaining') ||
-                         screenText.includes('purchase which item') ||
-                         screenText.includes('sell which item');
-
-    return inPlay && !isTargeting && (
-        screenText.includes('select item:') ||
-        screenText.includes('inven:') ||
-        screenText.includes('(inven') ||
-        screenText.includes('(inventory)') ||
-        screenText.includes('inventory | equipment') ||
-        screenText.includes('inventory |') ||
-        screenText.includes('| equipment') ||
-        screenText.includes('equip:') ||
-        screenText.includes('(equip') ||
-        screenText.includes('(equipment)') ||
-        screenText.includes('quiver:') ||
-        screenText.includes('quiver') ||
-        screenText.includes('which item?') ||
-        screenText.includes('which potion?') ||
-        screenText.includes('which scroll?') ||
-        screenText.includes('which spell?') ||
-        screenText.includes('which prayer?') ||
-        screenText.includes('which book?') ||
-        screenText.includes('wear/wield') ||
-        screenText.includes('take off') ||
-        screenText.includes('remove which item') ||
-        screenText.includes('drop which') ||
-        screenText.includes('throw which') ||
-        screenText.includes('fire which') ||
-        screenText.includes('quaff which') ||
-        screenText.includes('read which') ||
-        screenText.includes('destroy which') ||
-        (!hasStoreText && screenText.includes('examine which item')) ||
-        (realm === 'hengband' && !hasStoreText && (
-            screenText.includes('持ち物：') ||
-            screenText.includes('装備：') ||
-            screenText.includes('どれを装備') ||
-            screenText.includes('どれを外しますか') ||
-            screenText.includes('どれを落としますか') ||
-            screenText.includes('どれを投げますか')
-        ))
-    );
+    return SC.toolbarFlags(frame, SC.screenTextOf(frame, decode), realm === 'hengband').isItemPrompt;
 }
 
 async function testVanillaStoreFlow() {
@@ -355,6 +308,7 @@ async function testVanillaStoreFlow() {
         assert(frame.ui.overlay > 0, 'Player must be inside store with ui.overlay > 0');
         assert.strictEqual(evalNeedsTerminal(frame), true, 'Store view must evaluate needsTerminal === true');
         console.log('PASS: Successfully entered store in classic terminal view.');
+        snap('angband', 'store', frame, { needsTerminal: true });
 
         // Step 2: Initiate purchase with 'p'
         console.log("Sending 'p' (Purchase)...");
@@ -364,6 +318,7 @@ async function testVanillaStoreFlow() {
         const pScreen = frame.term.rows.map(r => r.g || '').join('\n').toLowerCase();
         console.log("Purchase prompt screen snippet:", pScreen.split('\n')[0]);
         assert(pScreen.includes('purchase which item') || pScreen.includes('which item to buy'), 'Must display purchase item prompt');
+        snap('angband', 'store_purchase_prompt', frame, { needsTerminal: true });
 
         // Step 3: Choose item 'a'
         console.log("Sending 'a' (Select item a)...");
@@ -390,6 +345,7 @@ async function testVanillaStoreFlow() {
         const termRequirement = evalNeedsTerminal(frame);
         console.log(`evalNeedsTerminal(frame) = ${termRequirement}`);
         assert.strictEqual(termRequirement, true, 'CRITICAL FIX VERIFIED: needsTerminal MUST return TRUE during store purchase -more- message!');
+        snap('angband', 'store_post_purchase', frame, { needsTerminal: true });
 
         // Step 5: Advance acceptance prompt and purchase message with space
         console.log("Sending space to accept purchase / clear message...");
@@ -407,6 +363,7 @@ async function testVanillaStoreFlow() {
         assert(frame.ui.overlay > 0, 'Player must STILL be in the store after dismissing message');
         assert.strictEqual(evalNeedsTerminal(frame), true, 'Store must remain open in terminal view to allow continued transactions');
         console.log('PASS: Player smoothly remains in store for continued transactions!');
+        snap('angband', 'store_after_dismiss', frame, { needsTerminal: true });
 
         // Step 6: Exit store with Escape
         console.log("Sending 'escape' to exit store...");
@@ -415,6 +372,7 @@ async function testVanillaStoreFlow() {
         frame = lastFrame();
         assert.strictEqual(frame.ui.overlay, 0, 'Overlay must return to 0 upon exiting store');
         console.log('PASS: Exited store back to town safely.');
+        snap('angband', 'town_after_store', frame, {});
 
         cleanup();
         console.log('>>> VANILLA STORE PURCHASE PERSISTENCE TEST PASSED 100%! <<<\n');
@@ -446,6 +404,7 @@ async function testSilQMenuAndEquipmentFlow() {
         assert.strictEqual(evalIsItemPrompt(frame, 'silq'), true, 'Sil-Q (Inventory) Command: MUST evaluate as isItemPrompt === true');
         assert.strictEqual(evalNeedsTerminal(frame), true, 'Sil-Q inventory must evaluate needsTerminal === true');
         console.log('PASS: Sil-Q Inventory opened correctly in classic view and recognized as item menu!');
+        snap('silq', 'inventory_command', frame, { needsTerminal: true, isItemPrompt: true });
 
         // Step 2: From (Inventory) Command:, send 'w' to initiate Wear/Wield
         console.log("Step 2: Sending 'w' from inventory command menu...");
@@ -458,6 +417,7 @@ async function testSilQMenuAndEquipmentFlow() {
         assert(wearPromptRow.includes('Wear/Wield which item?'), 'Must transition to Wear/Wield which item? prompt');
         assert.strictEqual(evalIsItemPrompt(frame, 'silq'), true, 'Wear/wield prompt must be recognized as item prompt');
         console.log('PASS: Wear/Wield prompt successfully reached.');
+        snap('silq', 'wear_prompt', frame, { isItemPrompt: true });
 
         // Step 3: Wield item 'b' (Torches in starting pack)
         console.log("Step 3: Sending 'b' to wield torches...");
@@ -465,17 +425,23 @@ async function testSilQMenuAndEquipmentFlow() {
         await delay(200);
         frame = lastFrame();
 
-        // If -more- prompt appears, dismiss it with space
-        if (frame.ui && frame.ui.more) {
-            console.log(`Message prompt detected: "${frame.term.rows[0].g.trim()}". Sending space...`);
+        // Clear any -more- prompts
+        while (lastFrame().ui && (lastFrame().ui.more || (lastFrame().term && lastFrame().term.rows && lastFrame().term.rows.some(r => (r.g || '').includes('-more-'))))) {
+            console.log(`Message prompt detected: "${lastFrame().term.rows[0].g.trim()}". Sending space...`);
             sendKey('space');
             await delay(200);
-            frame = lastFrame();
+        }
+        // In Sil-Q, a post-action message (e.g. torch equipped or monster notice) sits on line 0 without -more-.
+        // Sending space clears this line so the subsequent 'e' command is not consumed as message dismissal.
+        if (lastFrame().term && lastFrame().term.rows && lastFrame().term.rows[0] && lastFrame().term.rows[0].g.trim()) {
+            console.log(`Clearing message line: "${lastFrame().term.rows[0].g.trim()}". Sending space...`);
+            sendKey('space');
+            await delay(200);
         }
 
         // Open Equipment view with 'e'
         console.log("Step 4: Sending 'e' to open Sil-Q equipment...");
-        await waitForNextFrame(f => f.awaiting_command, 2000).catch(() => {}); // Wait for main prompt before opening equipment
+        await waitForNextFrame(f => f.ui && f.ui.awaiting_command, 2000).catch(() => {});
         sendKey('e');
         await delay(500); // Give it a bit more time to process menu rendering
         frame = lastFrame();
@@ -485,6 +451,7 @@ async function testSilQMenuAndEquipmentFlow() {
         assert(equipPromptRow.includes('(Equipment) Command:'), 'Top row must prompt (Equipment) Command:');
         assert.strictEqual(evalIsItemPrompt(frame, 'silq'), true, 'Sil-Q (Equipment) Command: MUST evaluate as isItemPrompt === true');
         console.log('PASS: Sil-Q Equipment opened correctly and recognized as item prompt!');
+        snap('silq', 'equipment_command', frame, { isItemPrompt: true });
 
         // Step 5: From (Equipment) Command:, send 'r' (Remove in Sil-Q)
         console.log("Step 5: Sending 'r' (Remove) from equipment command menu...");
@@ -497,6 +464,7 @@ async function testSilQMenuAndEquipmentFlow() {
         assert(removePromptRow.includes('Remove which item?'), 'Must display Remove which item? prompt in Sil-Q');
         assert.strictEqual(evalIsItemPrompt(frame, 'silq'), true, 'Remove prompt must be recognized as item prompt');
         console.log('PASS: Sil-Q Remove command correctly routed.');
+        snap('silq', 'remove_prompt', frame, { isItemPrompt: true });
 
         // Step 6: Cancel remove prompt with escape and close equipment
         console.log("Step 6: Sending 'escape' to cancel prompt...");
@@ -514,6 +482,7 @@ async function testSilQMenuAndEquipmentFlow() {
         console.log(`Returned to 3D world: overlay=${frame.ui ? frame.ui.overlay : 0}, awaiting=${frame.ui ? frame.ui.awaiting_command : false}`);
         assert.strictEqual(frame.ui.overlay, 0, 'Must cleanly return to 3D world with overlay === 0');
         console.log('PASS: Successfully closed equipment and returned to active 3D play.');
+        snap('silq', 'world_after_equipment', frame, {});
 
         cleanup();
         console.log('>>> SIL-Q INVENTORY & EQUIPMENT FLOW TEST PASSED 100%! <<<\n');
@@ -543,12 +512,14 @@ async function testFrogComposBandMenuParity() {
         console.log(`FrogComposBand after 'i': awaiting=${frame.ui ? frame.ui.awaiting_command : null}, overlay=${frame.ui ? frame.ui.overlay : null}, needsTerminal=${evalNeedsTerminal(frame)}, isItemPrompt=${evalIsItemPrompt(frame, 'frogcomposband')}`);
         assert.strictEqual(evalNeedsTerminal(frame), true, 'FrogComposBand inventory must evaluate needsTerminal === true');
         assert.strictEqual(evalIsItemPrompt(frame, 'frogcomposband'), true, 'FrogComposBand inventory must evaluate isItemPrompt === true');
+        snap('frogcomposband', 'inventory', frame, { needsTerminal: true, isItemPrompt: true });
 
         sendKey('escape');
         await delay(250);
         frame = lastFrame();
         assert.strictEqual(frame.ui.awaiting_command, true, 'Must return to awaiting_command in world');
         assert.strictEqual(evalNeedsTerminal(frame), false, 'Must return to 3D world view');
+        snap('frogcomposband', 'world', frame, { needsTerminal: false });
 
         console.log("Sending 'e' in FrogComposBand...");
         sendKey('e');
@@ -557,6 +528,7 @@ async function testFrogComposBandMenuParity() {
         console.log(`FrogComposBand after 'e': awaiting=${frame.ui ? frame.ui.awaiting_command : null}, overlay=${frame.ui ? frame.ui.overlay : null}, needsTerminal=${evalNeedsTerminal(frame)}, isItemPrompt=${evalIsItemPrompt(frame, 'frogcomposband')}`);
         assert.strictEqual(evalNeedsTerminal(frame), true, 'FrogComposBand equipment must evaluate needsTerminal === true');
         assert.strictEqual(evalIsItemPrompt(frame, 'frogcomposband'), true, 'FrogComposBand equipment must evaluate isItemPrompt === true');
+        snap('frogcomposband', 'equipment', frame, { needsTerminal: true, isItemPrompt: true });
 
         sendKey('escape');
         await delay(250);
@@ -593,12 +565,14 @@ async function testHengbandMenuParity() {
         assert(frame.ui.overlay > 0, 'Hengband inventory must set overlay > 0');
         assert.strictEqual(evalNeedsTerminal(frame), true, 'Hengband inventory must evaluate needsTerminal === true');
         assert.strictEqual(evalIsItemPrompt(frame, 'hengband'), true, 'Hengband inventory must evaluate isItemPrompt === true');
+        snap('hengband', 'inventory', frame, { needsTerminal: true, isItemPrompt: true });
 
         sendKey('escape');
         await delay(250);
         frame = lastFrame();
         assert.strictEqual(frame.ui.overlay, 0, 'Must return to overlay 0');
         assert.strictEqual(evalNeedsTerminal(frame), false, 'Must return to 3D world view');
+        snap('hengband', 'world', frame, { needsTerminal: false });
 
         console.log("Sending 'e' in Hengband...");
         sendKey('e');
@@ -608,6 +582,7 @@ async function testHengbandMenuParity() {
         assert(frame.ui.overlay > 0, 'Hengband equipment must set overlay > 0');
         assert.strictEqual(evalNeedsTerminal(frame), true, 'Hengband equipment must evaluate needsTerminal === true');
         assert.strictEqual(evalIsItemPrompt(frame, 'hengband'), true, 'Hengband equipment must evaluate isItemPrompt === true');
+        snap('hengband', 'equipment', frame, { needsTerminal: true, isItemPrompt: true });
 
         sendKey('escape');
         await delay(250);
