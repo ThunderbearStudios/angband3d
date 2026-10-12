@@ -38,7 +38,8 @@ claimed WS2/WS5 done with no commit.
 - [x] **WS3.4** Wire in behind flag & fix L2, L8, L9
 - [x] **WS3.5** Cleanup legacy heng-dict implementation
 - [x] **WS9.1** Layout Overlap & Touch Targets (CDP test across 6 viewports & 4 realms, 0 overlaps, all buttons >= 40x40)
-- [ ] WS9.2–WS9.5 GUI consolidation & realm action bar
+- [x] **WS9.2** Top-bar HUD Consolidation (merged ping badge into realm pill, moved chronicle/dpad/invert/controls/fullscreen into Pause Menu Display & Controls, removed redundant btn-quick-help, unit tested with test_top_bar_consolidation.js)
+- [ ] WS9.3–WS9.5 GUI consolidation & realm action bar
 - [ ] WS5 perf/bloat (NOT done: lazy heng-dict, version source, profile hygiene must be redone and committed)
 - [ ] WS10 Android/PWA/offline
 - [ ] WS7 test consolidation
@@ -64,6 +65,7 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 None
 
 ## Last gate results
+- WS9.2 (2026-10-12 08:08): fast 8/8 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys, test_heng_translate 12 tests, test_heng_wiring 4 tests, test_top_bar_consolidation 6 tests) | e2e 2/2 PASS (verify_cross_realm_menus 11.2s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (58.0s, 58.0s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err | asset version bumped to 9.3.17.
 - WS9.1 (2026-10-12 07:46): fast 7/7 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys, test_heng_translate 12 tests, test_heng_wiring 4 tests) | e2e 2/2 PASS (verify_cross_realm_menus 10.6s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (60.0s, 60.0s; 4/4 realms reach 3D play, FCB NOTE K1) | cdp test_ui_layout PASS (4/4 realms: angband, silq, hengband, poschengband across all 6 viewports: 1920x1080, 1366x768, 1264x625, 1024x768, 844x390, 390x844 with 0 bounding rect overlaps and all touch buttons >= 40x40 under coarse pointer) | smoke 11/11 PASS | dotnet 0 warn / 0 err | asset version bumped to 9.3.13.
 - WS3.5 (2026-10-12 01:15): fast 7/7 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys, test_heng_translate 12 tests, test_heng_wiring 4 tests) | e2e 2/2 PASS (verify_cross_realm_menus 10.8s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (60.0s, 60.0s; 4/4 realms reach 3D play, FCB NOTE K1) | test_heng_language_switch PASS | smoke 11/11 PASS | dotnet 0 warn / 0 err | live coverage 98.24% (170 unique raw JP lines, 3 untranslated, 0 mixed lines) | payload reduced from 950 KB to 5 KB, legacy archived to tools/archive/heng-dict.legacy.js.
 - WS3.4 (2026-10-12 01:05): fast 7/7 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys, test_heng_translate 12 tests, test_heng_wiring 4 tests) | e2e 2/2 PASS (verify_cross_realm_menus 10.9s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (60.0s, 62.0s; 4/4 realms reach 3D play, FCB NOTE K1) | test_heng_language_switch PASS (live EN -> JP -> bilingual -> EN in-place) | smoke 11/11 PASS | dotnet 0 warn / 0 err | live coverage 98.34% (181 unique raw JP lines, 3 untranslated, 0 mixed lines).

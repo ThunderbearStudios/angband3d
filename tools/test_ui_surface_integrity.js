@@ -48,8 +48,6 @@ const EXPECTED_BUTTON_IDS = [
     'btn-attack', 'btn-throw', 'btn-fire', 'btn-cast', 'btn-quaff', 'btn-read', 'btn-door',
     'btn-pickup', 'btn-rest', 'btn-inventory', 'btn-equipment', 'btn-stair', 'btn-terminal',
     'btn-guide-hud', 'btn-action-more',
-    // Footer & Alerts
-    'btn-quick-help',
     // Death Modal
     'btn-death-reload', 'btn-death-reroll', 'btn-death-menu',
     // Splash Screen

@@ -444,6 +444,14 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // 8b. FrogComposBand Split Personality Selection (choose 2 or more, ENTER to accept)
+        if (screenText.includes('toggle personalities') || screenText.includes('choose 2 or more')) {
+            network.sendKey('a');
+            network.sendKey('b');
+            network.sendKey('enter');
+            return;
+        }
+
         // 9. Sil-Q Skills & Stats Allocation
         if (screenText.includes('allocate points to skills') || screenText.includes('skill increases') || screenText.includes('accept skills')) {
             network.sendKey('enter');
