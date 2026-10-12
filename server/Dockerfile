@@ -117,6 +117,10 @@ RUN mkdir -p /data/save /app/dist /app/public \
 
 VOLUME /data/save
 
+# Production environment configuration (per G-D / WS8):
+# - TRUST_PROXY=1: Enables parsing of X-Forwarded-For headers behind Cloud Run GFE for accurate rate-limiting
+# - ALLOWED_ORIGINS: Comma-separated allowed origins (defaults to same-origin if unset)
+# - ENABLE_RECORDING_UPLOAD: Must NEVER be enabled in production (default 0 / disabled)
 ENV PORT=8080
 ENV ENGINE_EXE=/app/engine/angband
 ENV SAVE_DIR=/data/save
