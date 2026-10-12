@@ -139,8 +139,9 @@ HengTranslate.load({ names, templates, kinds, manifest });
 
 // T10: Generator determinism
 {
-  assert.ok(manifest.sourceHash !== undefined, 'T10 manifest has sourceHash');
-  assert.ok(manifest.counts !== undefined, 'T10 manifest has counts');
+  assert.ok(manifest.templatesCount > 0, 'T10 manifest has templatesCount');
+  assert.ok(manifest.namesCount > 0, 'T10 manifest has namesCount');
+  assert.ok(manifest.generatedAt !== undefined, 'T10 manifest has generatedAt');
   console.log('  ✓ T10: Generator manifest & determinism');
 }
 
