@@ -72,7 +72,7 @@ function classify(frame, realm) {
 test('exports', () => {
     for (const fn of ['rawScreenText', 'screenTextOf', 'playerFeatOf', 'needsTerminal', 'toolbarFlags',
         'birthFlags', 'promptFlags', 'storeFlags', 'itemFlags', 'inputEscapeReview', 'inputTerminalKeyFlags',
-        'inputTargetingPrompt', 'terminalDetectMode', 'decodeSjis']) {
+        'inputTargetingPrompt', 'terminalDetectMode', 'extractItems', 'classify', 'classifyScreen', 'decodeSjis']) {
         assert.strictEqual(typeof SC[fn], 'function', `missing export ${fn}`);
     }
 });
@@ -84,7 +84,8 @@ const contractCalls = {
     promptFlags: [(f, t) => SC.promptFlags(t)],
     storeFlags: [(f, t) => SC.storeFlags(f, t, false)],
     itemFlags: [(f, t) => SC.itemFlags(t, 'silq')],
-    inputTerminalKeyFlags: [(f, t) => SC.inputTerminalKeyFlags(t, false, false)]
+    inputTerminalKeyFlags: [(f, t) => SC.inputTerminalKeyFlags(t, false, false)],
+    classify: [(f) => SC.classify(f, 'angband', { decode })]
 };
 for (const [name, [call]] of Object.entries(contractCalls)) {
     test(`contract ${name} (null input)`, () => {
@@ -95,7 +96,14 @@ for (const [name, [call]] of Object.entries(contractCalls)) {
         assert.deepStrictEqual(sortedKeys(r), [...SC.KEYS[name]].sort());
         for (const [k, v] of Object.entries(r)) {
             if (k === 'playerFeat') assert.strictEqual(typeof v, 'number', k);
-            else assert.strictEqual(typeof v, 'boolean', `${name}.${k} must be boolean, got ${typeof v}`);
+            else if (k === 'mode' || k === 'screenText') assert.strictEqual(typeof v, 'string', k);
+            else if (k === 'listKind' || k === 'promptKind' || k === 'verbPrompt') {
+                assert(v === null || typeof v === 'string', `${name}.${k} must be string or null, got ${typeof v}`);
+            } else if (k === 'items') {
+                assert(Array.isArray(v), `${name}.${k} must be array`);
+            } else {
+                assert.strictEqual(typeof v, 'boolean', `${name}.${k} must be boolean, got ${typeof v}`);
+            }
         }
     });
 }
@@ -256,6 +264,84 @@ test('terminalDetectMode: classifies terminal screens for font sizing', () => {
     assert.strictEqual(SC.terminalDetectMode({ rows: [{ g: 'Which potion?' }] }), 'item_prompt');
     assert.strictEqual(SC.terminalDetectMode({ rows: [{ g: 'Normal game play' }] }), 'classic_play');
     assert.strictEqual(SC.terminalDetectMode(null), 'classic_play');
+});
+
+test('classify: promptKind command vs select across realms', () => {
+    // Sil-Q command prompt: inventory & equipment
+    const silqInven = SC.classify(mkFrame('(inventory) command:'), 'silq');
+    assert.strictEqual(silqInven.mode, 'item-list');
+    assert.strictEqual(silqInven.listKind, 'inven');
+    assert.strictEqual(silqInven.promptKind, 'command');
+
+    const silqEquip = SC.classify(mkFrame('(equipment) command:'), 'silq');
+    assert.strictEqual(silqEquip.mode, 'item-list');
+    assert.strictEqual(silqEquip.listKind, 'equip');
+    assert.strictEqual(silqEquip.promptKind, 'command');
+
+    // Hengband command prompt: inventory & equipment with コマンド:
+    const hengInven = SC.classify(mkFrame(['持ち物： 5 種類', 'コマンド: ']), 'hengband', { decode });
+    assert.strictEqual(hengInven.mode, 'item-list');
+    assert.strictEqual(hengInven.listKind, 'inven');
+    assert.strictEqual(hengInven.promptKind, 'command');
+
+    const hengEquip = SC.classify(mkFrame(['装備： 5 種類', 'コマンド: ']), 'hengband', { decode });
+    assert.strictEqual(hengEquip.mode, 'item-list');
+    assert.strictEqual(hengEquip.listKind, 'equip');
+    assert.strictEqual(hengEquip.promptKind, 'command');
+
+    // FrogComposBand gear UI: inventory | equipment
+    const fcbGear = SC.classify(mkFrame('inventory | equipment'), 'frogcomposband');
+    assert.strictEqual(fcbGear.mode, 'item-list');
+    assert.strictEqual(fcbGear.promptKind, 'command');
+
+    // Vanilla Angband item selection prompts: select promptKind + verbPrompt
+    const vWear = SC.classify(mkFrame('Wear/wield which item?'), 'angband');
+    assert.strictEqual(vWear.mode, 'item-list');
+    assert.strictEqual(vWear.promptKind, 'select');
+    assert.strictEqual(vWear.verbPrompt, 'wear');
+
+    const vDrop = SC.classify(mkFrame('Drop which item?'), 'angband');
+    assert.strictEqual(vDrop.mode, 'item-list');
+    assert.strictEqual(vDrop.promptKind, 'select');
+    assert.strictEqual(vDrop.verbPrompt, 'drop');
+});
+
+test('classify: mode press-any-key (EN and JP)', () => {
+    const en1 = SC.classify(mkFrame('[Press any key to continue]'), 'angband');
+    assert.strictEqual(en1.mode, 'press-any-key');
+    assert.strictEqual(en1.isPressAnyKey, true);
+
+    const en2 = SC.classify(mkFrame('press any key to continue'), 'silq');
+    assert.strictEqual(en2.mode, 'press-any-key');
+    assert.strictEqual(en2.isPressAnyKey, true);
+
+    const jp1 = SC.classify(mkFrame('何かキーを押してください'), 'hengband', { decode });
+    assert.strictEqual(jp1.mode, 'press-any-key');
+    assert.strictEqual(jp1.isPressAnyKey, true);
+});
+
+test('classify: mode item-actions (Vanilla and Hengband)', () => {
+    const vAct = SC.classify(mkFrame(['Command for Phial of Galadriel:', '(Enter to select, Esc to exit, ? for help)']), 'angband');
+    assert.strictEqual(vAct.mode, 'item-actions');
+    assert.strictEqual(vAct.isItemActions, true);
+
+    const hAct = SC.classify(mkFrame(['つるはし に対するコマンド:']), 'hengband', { decode });
+    assert.strictEqual(hAct.mode, 'item-actions');
+    assert.strictEqual(hAct.isItemActions, true);
+});
+
+test('extractItems: parses keys, labels, glyphs, and strips noise', () => {
+    const rows = [
+        { g: '  a) ) a Long Sword (2d5) (+3,+4)                2.5 lb' },
+        { g: '  b) 3 Rations of Food                              1.5 lb' },
+        { g: '  c) (nothing)' },
+        { g: '  * Random' }
+    ];
+    const items = SC.extractItems(rows, false);
+    assert.strictEqual(items.length, 3);
+    assert.deepStrictEqual(items[0], { key: 'a', label: 'a Long Sword (2d5) (+3,+4)', glyph: ')', display: '[a]' });
+    assert.deepStrictEqual(items[1], { key: 'b', label: '3 Rations of Food', glyph: null, display: '[b]' });
+    assert.deepStrictEqual(items[2], { key: '*', label: 'Random', glyph: null, display: '[*]' });
 });
 
 // ---------------------------------------------------------------------------
