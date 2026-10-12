@@ -258,32 +258,104 @@ key C-s          # save
 
 ## Cloud WebSocket Transport (v1-ws)
 
-The bridge protocol can be carried over WebSockets (`ws://` or `wss://`) through the cloud server relay (`server/`):
+The bridge protocol is carried over WebSockets (`ws://` or `wss://`) through the cloud server relay (`server/src/server.js`):
 
-- **Endpoint**: `/ws` (supports query params `?user=<id>&save=<slot>&realm=<angband|silq|hengband|frogcomposband>&lang=<en|ja>`).
-- **Framing**: Each WebSocket text frame corresponds to one line of the standard Bridge Protocol.
-  - Client sends command frames (e.g. `key left`, `frame`, `quit`).
-  - Server emits JSON text frames (`{"t":"hello",...}`, `{"t":"frame",...}`, `{"t":"bye",...}`).
-- **Keep-alive**: Ping/pong heartbeat frames measure roundtrip network latency (displayed on the client HUD).
+- **Endpoint**: `/ws?user=<user>&save=<save>&realm=<realm>&lang=<lang>&new=<0|1>&owner=<token>`
+- **Frame Limits (`maxPayload`)**: WebSocket text frames are hard-capped at 64 KB (65,536 bytes). Oversized frames are dropped immediately to protect server memory.
+- **Relay Command Allowlist**:
+  Only validated commands are forwarded by the server to the native engine bridge:
+  - `key <spec>` (standard keys, `C-<letter>`, arrows, whitespace, or single literal character)
+  - `keys <text>` (up to 256 characters)
+  - `map on` / `map off`
+  - `frame` (re-emit current state)
+  - `save` (triggers safe engine save persistence)
+  - `ping` / `pong` (heartbeat and latency measurement)
+  - `quit` (immediate disconnect)
+  - `# ...` (developer comments)
+  Any command outside this allowlist is rejected and logged.
+- **Origin & CORS Verification**:
+  WebSocket connections check the `Origin` header against same-origin or configured `ALLOWED_ORIGINS`. Cross-origin connections from unauthorized domains are rejected with HTTP 403.
+- **Session Lifecycle & Handshake**:
+  1. On connection, server greets client with `{"t":"hello", "sessionId": "...", "version": "...", "realm": "...", "ownerToken": "..."}`.
+  2. The native engine automatically sends its initial `{"t":"frame", "seq": 1, ...}` as soon as it initializes.
+  3. Ping/pong heartbeat frames measure roundtrip latency.
+  4. On termination or rejection, server emits `{"t":"bye", "detail": "..."}` and closes the socket.
 
-### REST Endpoints & Save Portability
-The cloud daemon also exposes REST endpoints alongside the WebSocket gateway:
-- `GET /health` — Service uptime and engine health status.
-- `GET /download/angband3d-standalone.zip` — Download pre-packaged standalone client & engine zip.
-- `GET /download/Angband3D-Android.apk` — Download mobile release APK package.
-- `GET /api/saves` (optional `?realm=<realm>`) — List saved characters with metadata (`name`, `file`, `size`, `mtime`).
-- `GET /api/saves/:filename` — Download a binary `.sav` file (`application/octet-stream`, `Content-Disposition: attachment`).
-- `POST /api/saves/upload` — Upload a validated binary save file (supports raw binary body with `?name=<slot>` query param or `multipart/form-data`). Must begin with the 8-byte magic header `SaveVNLA` (ASCII `0x53 0x61 0x76 0x65 0x56 0x4E 0x4C 0x41`).
-- `GET /api/config/llm` — Protected LLM configuration provider. Strictly returns `{ hasKey: bool, hasServerKey: bool, defaultModel: string, provider: string }` without ever exposing secret tokens.
-- `POST /api/llm/generate` — Protected server-side proxy for Gemini Generative AI text and chronicle generation. Shields backend API keys completely from the client browser.
-- `GET /api/tts` (or `POST /api/tts`) — Dual-engine audio synthesis relay. Generates streaming audio via Gemini Native Audio or Edge Neural TTS, with warm connection pooling, subterranean Web Audio DSP, and in-memory audio caching.
-- `POST /api/recordings/upload` and `POST /api/demo/upload` — Dev-only tools to upload video recordings of gameplay. These endpoints are completely disabled in production and return 404 unless `ENABLE_RECORDING_UPLOAD=1` is set in the server environment AND the client connection is from a local loopback address (e.g., `127.0.0.1`).
+---
+
+## Character Ownership & Security Token Protocol
+
+To protect player savefiles against griefing, overwriting, or unauthorized deletion on public cloud servers, an ownership token protocol is enforced:
+
+1. **Token Generation (TOFU - Trust On First Use)**:
+   - When a player creates a new character (`&new=1`) or accesses a legacy savefile without an owner token, the server generates a cryptographically secure 32-byte hex token.
+   - The token hash is stored server-side in `<savedir>/<slot>.owner.json`.
+   - The token is transmitted to the client in the `hello` message (`ownerToken` property) or via `{ t: 'owner', token: '...' }`.
+   - The client securely stores this token in localStorage under `angband3d_owner_<realm>_<slot>`.
+2. **Re-Rolling & Overwriting (`&new=1`)**:
+   - If a client requests `&new=1` or `&reroll=1` for an existing character slot, the connection must include `&owner=<token>`.
+   - If the token does not match `<slot>.owner.json`, the server rejects the connection:
+     - Emits `{"t":"error", "message":"Forbidden: invalid owner token for existing character"}`.
+     - Emits `{"t":"bye", "detail":"Invalid owner token"}`.
+     - Closes the WebSocket with custom application code `4403` (Forbidden).
+3. **REST Save Operations**:
+   - `DELETE /api/saves/:filename`: Requires header `X-Owner-Token: <token>`. Returns `403 Forbidden` if invalid or missing.
+   - `POST /api/saves/upload`: Requires header `X-Owner-Token: <token>` if replacing an existing character save.
+
+---
+
+## REST Endpoints & Generative AI Proxy
+
+The cloud server exposes secured REST endpoints:
+
+- `GET /health` — Health check endpoint returning `{ status: 'ok', uptime: number, engine: 'ready', version: string, activeSessions: number }`. Config secrets and environment variables are strictly excluded.
+- `GET /api/saves` (optional `?realm=<realm>`) — Lists saves for the specified realm with `{ saves: [{ name, file, size, mtime, hasOwner }] }`.
+- `GET /api/saves/:filename` — Download character savefile (`application/octet-stream`). Path traversal is blocked (`path.basename` enforcement).
+- `POST /api/saves/upload` — Upload savefile. Validates magic bytes per realm (`SaveVNLA`, `SaveSILQ`, `SaveFROX`, `SaveHENG`), validates size cap (10 MB), and validates `X-Owner-Token`.
+- `DELETE /api/saves/:filename` — Delete savefile. Enforces `X-Owner-Token` validation.
+- `GET /api/config/llm` — Returns `{ hasKey: bool, hasServerKey: bool, defaultModel: string, provider: 'gemini' }` without leaking keys.
+- `POST /api/llm/generate` — Protected server-side proxy for Gemini chronicle and lore generation:
+  - **Request Body**:
+    ```json
+    {
+      "prompt": "string (required, max 10000 chars)",
+      "systemInstruction": "string (optional, max 4000 chars)",
+      "model": "gemini-2.5-flash | gemini-1.5-flash (allowlist enforced)",
+      "temperature": 0.7,
+      "maxOutputTokens": 1024
+    }
+    ```
+  - **Response Body**:
+    ```json
+    {
+      "text": "Generated narrative text...",
+      "model": "gemini-2.5-flash",
+      "cached": false
+    }
+    ```
+  - **Rate Limits**: Governed by `rate-limit.js` using sliding window per IP. Exceeding limit returns `429 Too Many Requests` with `Retry-After`.
+- `GET /api/tts` (or `POST /api/tts`) — Streaming voice synthesis relay with rate limiting, warm connection pooling, and in-memory LRU caching.
+- `POST /api/recordings/upload` — Development-only screen recording upload. Disabled by default (returns `404 Not Found`). Only enabled when `ENABLE_RECORDING_UPLOAD=1` and caller IP is `127.0.0.1` / `::1`.
+
+---
+
+## Server Environment Variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `8080` | Port for the HTTP and WebSocket server. |
+| `TRUST_PROXY` | `0` | Set to `1` when running behind a reverse proxy (e.g. Google Cloud Run, Nginx) to inspect `x-forwarded-for` for client rate limiting. |
+| `ALLOWED_ORIGINS` | *(empty)* | Comma-separated list of allowed HTTP/WS origins. When empty, same-origin enforcement is applied. |
+| `LLM_RPM` | `10` | Maximum requests per minute for `/api/llm/generate` per client IP. |
+| `LLM_RPD` | `500` | Maximum requests per day for `/api/llm/generate` per client IP. |
+| `TTS_RPM` | `30` | Maximum requests per minute for `/api/tts` per client IP. |
+| `TTS_RPD` | `1000` | Maximum requests per day for `/api/tts` per client IP. |
+| `ENABLE_RECORDING_UPLOAD`| `0` | Set to `1` to enable local recording upload endpoints during automated browser tests. |
+| `GEMINI_API_KEY` | *(empty)* | Google AI Studio API key used by the server-side proxy for chronicle narrative and TTS voice generation. Never sent to clients or logged. |
+
+---
 
 ## Compatibility
 
 New fields may be added to any object within protocol version 1. Clients must
 ignore unknown fields. Removing or repurposing a field requires a version bump.
-
- # #   S e r v e r   E n v i r o n m e n t   V a r i a b l e s 
- -   " T R U S T _ P R O X Y " :   s e t   t o   ' 1 '   w h e n   d e p l o y i n g   b e h i n d   a   t r u s t e d   r e v e r s e   p r o x y   ( l i k e   G o o g l e   C l o u d   R u n )   t o   c o r r e c t l y   p a r s e   " x - f o r w a r d e d - f o r "   h e a d e r s   f o r   r a t e   l i m i t i n g .  
- 

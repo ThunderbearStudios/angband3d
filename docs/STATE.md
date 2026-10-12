@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
-Branch: fix/award-pass   Updated: 2026-10-12T11:03-04:00 (WS7 Test Suite Consolidation & Runner Cleanup Complete)
+Branch: fix/award-pass   Updated: 2026-10-12T11:07-04:00 (WS8 Documentation & Lessons Learned Complete)
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first, incl. NEW lessons L18–L22), then the plan section for the current task.
-Current task: **WS8** (Documentation consolidation, lessons learned, and context sync).
+Current task: **G-B..G-K** (EXECUTOR §3 Review Gaps & Final Verification).
 Localhost server: **Running** on http://localhost:8080 (pid active, version 9.4.4).
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. Always re-locate lines with `Select-String`.
@@ -53,7 +53,7 @@ An uncommitted WS2/WS3/WS5 attempt broke localhost ("empty sky of stars"). Verif
 - [x] **WS10.3** Offline / local bridge & WASM verification (isAllowedEngineCommand shared in ScreenContext, LocalGameBridge command validation, VERBS.angband & route interception on item-list select, real offline inventory fixture & snapshot, version 9.4.4 / 90404 synced across web & Android)
 - [x] **WS10.4–WS10.6** Platforms (desktop WebView2 .NET 8 build verified 0 err, Godot C# client D10 build verified 0 err, PWA version sync verified across 24 tags + CACHE_NAME + build.gradle in check_version_sync.js, bump_version.js automates gradle sync)
 - [x] **WS7** Test suite consolidation & runner cleanup (`test_manifest.json` consolidated into fast [11], e2e [4], and cdp tiers; CI runs fast gate; `test_proxy_limits.js` isolated port 8089; `test_server_ws_realms.js` shortened high-entropy usernames to prevent 28-char savefile collisions; fast 11/11 PASS, e2e 4/4 PASS)
-- [ ] WS8 docs + lessons merged into BEST_PRACTICES
+- [x] **WS8** Master documentation, lessons learned & context sync (archived NEXT_STEPS and MULTI_REALM_MASTER_PLAN older milestones to docs/archive/ per D4, appended Section 42 with L1-L22 to BEST_PRACTICES, updated LLM_CONTEXT module index, expanded PROTOCOL.md with WS limits, relay allowlist, ownership tokens, REST proxy shapes, and env vars)
 - [ ] G-B..G-K (EXECUTOR §3)
 
 ## Mandatory gate (every task, run TWICE for cdp, paste the summary lines here)
@@ -75,6 +75,7 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 None
 
 ## Last gate results
+- WS8 (2026-10-12 11:07): fast 11/11 PASS | e2e 4/4 PASS | smoke 11/11 PASS | dotnet 0 warn / 0 err | Localhost server active on 8080.
 - WS7 (2026-10-12 11:03): fast 11/11 PASS | e2e 4/4 PASS (verify_cross_realm_menus 10.9s, test_server_boot 0.9s, test_proxy_limits 6.7s, test_server_ws_realms 4/4 realms in 1.0s) | smoke 11/11 PASS | dotnet 0 warn / 0 err | Localhost server active on 8080.
 - WS10.4–WS10.6 (2026-10-12 10:54): fast 11/11 PASS (check_android_sync 501/501 SHA-1 matched, check_version_sync verifies index.html 24 tags, sw.js, and build.gradle) | smoke 11/11 PASS | dotnet Godot 0 warn / 0 err | dotnet WebView2 desktop 0 warn / 0 err | Localhost server active on 8080.
 - WS10.3 (2026-10-12 10:51): fast 11/11 PASS (check_android_sync 501/501 SHA-1 matched, check_version_sync PASS) | e2e 2/2 PASS (verify_cross_realm_menus 4/4 realms in 12s) | smoke 11/11 PASS | dotnet 0 warn / 0 err | canonical version 9.4.4 / 90404 in sync | Localhost server active on 8080.
