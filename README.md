@@ -44,7 +44,7 @@ We believe that classic game preservation thrives through open code, transparent
   *(Cloud Run Mirror: [https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app))*  
   Runs directly in Chrome, Safari, Edge, or Firefox across PC, Mac, iPad, iPhone, and Android with zero installation. Features full mouse/keyboard look, responsive touch D-pad, and the **exclusive Adventure Tome / Living Chronicle**.
 * **Standalone Windows PC Desktop**: Download **[Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** for 144+ FPS, zero-latency offline native play powered by Godot 4 .NET C#.
-* **Standalone Android App (.APK)**: Download **[Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** for phones and tablets (Target SDK 34, Android 14+).
+* **Standalone Android App (.APK)**: Download **[Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** for phones and tablets (Target SDK 34, Android 14+). *(Note: This build is signed with a new key. Export your saves, uninstall the old app, install this one, then import your saves.)*
 
 > ⚠️ **Server Concurrency & Offline Play**:  
 > The live web instance at `angband3d.com` is hosted on a modest, self-funded Google Cloud Run instance with an automated 50-player concurrency cap. If a traffic wave hits, we warmly encourage downloading the **Standalone Windows PC** or **Android APK** releases! Standalone packages offload 100% of compute to your local device, run completely offline, and require zero cloud connectivity.

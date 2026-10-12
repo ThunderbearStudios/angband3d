@@ -4,6 +4,13 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v9.4.3] — 2026-10-12
+
+### Android Signing Key Rotation & Save Migration (WS10.2 / D14 / G-F)
+- **Key Rotation**: Rotated release signing configuration out of the repository; hard-coded credentials removed from `build.gradle` in favor of environment variables (`ANDROID_KEYSTORE_PATH`) or local gitignored `keystore.properties`.
+- **Save Portability Notice**: Because the Android APK is distributed standalone (outside Google Play), rotating the signing certificate prevents in-place APK upgrades. Existing players must export their saves (`Esc` -> `Export Save`), uninstall the older build, install the new APK, then import their saves.
+- **Android Version Bump**: Updated `versionCode` to 90403 and `versionName` to `9.4.3` to match canonical versioning.
+
 ## [v2.0.0] — 2026-10-01
 
 ### 👑 Production Major Release: Modern Windows Desktop Standalone, Multi-Platform Parity & ThunderbearStudios Organization Home
