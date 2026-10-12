@@ -1,5 +1,7 @@
 # Angband3D — Status & Next Steps Roadmap
 
+-23. **R0 Recovery (2026-10-11, Opus)**: An uncommitted WS2/WS3/WS5 attempt crashed every frame (`MenuRouter.getPending` missing, error swallowed by `network.js`). Restored to `0ae16a2`; preserved the attempt on branch `wip/snapshot-pre-triage` and in `tools/archive/wip-snapshot-2026-10-11/`. Added `tools/test_boot_flow.js` (real-browser gate, cdp tier). `network.js` now logs handler errors. Entries that attempt added ("Menu Router Bugfixes and Hengband Language Decoding", "Action Chooser UI Implementation") were never committed and were removed; the committed entries below are unaffected. See docs/STATE.md.
+
 -22. **Cross-Realm Menu System Audit & Overhaul (Vanilla, Sil-Q, FrogComposBand, Hengband — 100% Operational)**:
    - **Vanilla Store Multi-Transaction Persistence (`Main.cs`, `app.js`)**:
      - Root cause: `ui.more` check preceded `ui.overlay > 0` and `ui.context in ('menu', 'birth', 'setup')` in `NeedsTerminal` / `needsTerminal`. Purchasing an item emitted an engine confirmation `-more-` prompt with `overlay = 2` or `3`, ejecting the player into 3D view instead of allowing continued transactions.

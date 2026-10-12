@@ -1,7 +1,7 @@
 {
   "fast": ["test_relay_guard.js", "test_http_guard.js"],
   "e2e": ["verify_cross_realm_menus.js", "test_server_boot.js"],
-  "cdp": [],
+  "cdp": ["test_boot_flow.js"],
   "cloud": [],
   "legacy": []
 }

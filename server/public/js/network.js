@@ -258,7 +258,12 @@ class GameNetwork {
                     if (this.onBye) this.onBye(msg.detail || 'Game session terminated');
                 }
             } catch (err) {
-                // Ignore raw non-JSON text frames
+                // Raw non-JSON text frames are ignored. Any OTHER exception came from an
+                // app handler (onFrame/onHello/...) and MUST be visible: swallowing it here
+                // once hid a per-frame crash that left players in an empty 3D skybox.
+                if (!(err instanceof SyntaxError)) {
+                    console.error('[Network] Handler error:', err && err.stack ? err.stack : err);
+                }
             }
         };
 

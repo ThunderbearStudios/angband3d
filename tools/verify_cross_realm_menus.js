@@ -473,10 +473,11 @@ async function testSilQMenuAndEquipmentFlow() {
             frame = lastFrame();
         }
 
-        // Step 4: Open Equipment view with 'e'
+        // Open Equipment view with 'e'
         console.log("Step 4: Sending 'e' to open Sil-Q equipment...");
+        await waitForNextFrame(f => f.awaiting_command, 2000).catch(() => {}); // Wait for main prompt before opening equipment
         sendKey('e');
-        await delay(200);
+        await delay(500); // Give it a bit more time to process menu rendering
         frame = lastFrame();
 
         const equipPromptRow = frame.term.rows[0] ? frame.term.rows[0].g.trim() : '';

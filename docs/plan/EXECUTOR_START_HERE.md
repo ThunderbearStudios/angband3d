@@ -45,6 +45,11 @@ This page is the **entry point** for any human or LLM implementing the plan. Rea
 | L15 | **CDP tools must clean up their Chrome profiles** (`tools/lib/cdp.js`). | 24 GB of temp profiles (E11). |
 | L16 | **View routing invariant:** `NeedsTerminal(frame)` (Godot) and the web equivalent: `-more-` stays in 3D with a banner; menus and overlays go to the terminal. | Flicker and lost prompts. |
 | L17 | **`slot_by_name()` on optional slots asserts.** Use `bridge_get_equipped_by_type`. Guard every coordinate query with `bridge_in_play()`. | Engine crash during level gen. |
+| L18 | **Never swallow handler exceptions.** `network.js` once caught *everything* in `onmessage` as "non-JSON"; a per-frame `TypeError` became invisible. Catch only `SyntaxError` from `JSON.parse`; log everything else. | Silent total outage ("empty sky of stars"). |
+| L19 | **Contract tests, not just unit tests.** When a module is extracted, the test must assert every property and function that callers use (`classify()` keys, `MenuRouter.getPending`). Green unit tests proved nothing while the app crashed. | Module and callers drift apart. |
+| L20 | **A browser gate is mandatory for client changes.** `tools/test_boot_flow.js` (cdp tier) loads the real page per realm and fails on any uncaught or handler error. WS-only tests cannot see DOM/JS wiring. | False greens. |
+| L21 | **Checkbox = commit.** Never tick STATE.md for uncommitted work, and never write "100% Operational" in NEXT_STEPS without the pasted gate output. Re-run gates yourself; do not trust a previous agent's PASS claim. | Phantom progress; the next agent builds on sand. |
+| L22 | **One workstream at a time.** Don't mix WS2 + WS3 + WS5 edits in one uncommitted tree. If a change belongs to another WS (e.g. Hengband lang→binary policy), note it in STATE and leave it. | Untangleable regressions. |
 
 ## 3. Gaps Found in Final Review (now closed: implement these too)
 | ID | Gap | Action (where) |
