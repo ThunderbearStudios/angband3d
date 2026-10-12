@@ -42,7 +42,12 @@
         storeFlags: ['hasMore', 'isStoreContextMenu', 'isStoreBuy', 'isStoreSell', 'isStoreExamine'],
         itemFlags: ['isSilq', 'isSilqInvenCmd', 'isSilqEquipCmd', 'isSilqWear', 'isSilqRemove', 'isSilqExamine',
             'isSilqDrop', 'isSilqThrow', 'isSilqFire', 'isEquipView', 'isQuiverView'],
-        inputTerminalKeyFlags: ['isChoiceMenu', 'isNamePrompt', 'isReviewScreen']
+        inputTerminalKeyFlags: ['isChoiceMenu', 'isNamePrompt', 'isReviewScreen'],
+        classify: ['mode', 'listKind', 'promptKind', 'verbPrompt', 'items', 'inPlay',
+            'needsTerminal', 'screenText', 'isItemPrompt', 'isStore', 'isTargeting',
+            'isTargetingPrompt', 'isYesNoPrompt', 'isQuantityPrompt', 'isChoiceMenu',
+            'isNamePrompt', 'isReviewScreen', 'isMenuOrInteractive', 'isSplashPoem',
+            'isPressAnyKey', 'isItemActions']
     });
 
     /** Raw terminal text: rows' glyph strings joined by '\n' (no decoding, original case). */
@@ -619,6 +624,217 @@
         return 'classic_play';
     }
 
+    let lastSeq = null;
+    let lastRealm = null;
+    let cachedClassify = null;
+
+    /**
+     * Extract menu/list options (key, label, glyph, display) from terminal rows.
+     * Pure function, no DOM. Reuses ribbon cleaner and regexes.
+     */
+    function extractItems(rows, isHeng, decode) {
+        if (!rows || !Array.isArray(rows)) return [];
+        const regexes = [
+            /(?:^|\s+)\(([a-zA-Z0-9*@?])\)\s+([^\n\r]{1,70})/g,
+            /(?:^|\s+)\[([a-zA-Z0-9*@?])\]\s+([^\n\r]{1,70})/g,
+            /(?:^|\s+)([a-zA-Z0-9*@?])[\)\.\:\-]\s+([^\n\r]{1,70})/g,
+            /(?:^|\s+)(\*)\s*(ランダム|random|Random)/gi
+        ];
+        const seenKeys = new Set();
+        const items = [];
+
+        for (let r = 0; r < rows.length; r++) {
+            const rawLine = rows[r].g || '';
+            const line = isHeng && typeof decode === 'function' ? decode(rawLine) : rawLine;
+            if (isHeng && (line.includes('選んで下さい') || line.includes('初期オプション設定') || line.includes('注意：'))) continue;
+
+            for (const re of regexes) {
+                re.lastIndex = 0;
+                let m;
+                while ((m = re.exec(line)) !== null) {
+                    const key = m[1];
+                    let label = (m[2] || '').trim();
+                    let glyph = null;
+                    const glyphMatch = label.match(/^([)\]}>~!=?,_/\-\\])\s+(.+)$/);
+                    if (glyphMatch) {
+                        glyph = glyphMatch[1];
+                        label = glyphMatch[2];
+                    }
+                    label = label.replace(/^[^:]{1,20}:\s*/, '');
+                    label = label.replace(/\s{2,}.*$/, '');
+                    label = label.replace(/\s+\d+(\.\d+)?\s*(lb|kg|g)$/i, '');
+                    label = label.replace(/[(\[\{]+$/, '').trim();
+
+                    if (!label || label === '(nothing)' || label.includes('(nothing)') || label === 'なし') {
+                        continue;
+                    }
+
+                    if (key && !seenKeys.has(key)) {
+                        seenKeys.add(key);
+                        items.push({ key, label, glyph, display: `[${key}]` });
+                    }
+                }
+            }
+        }
+        return items;
+    }
+
+    /**
+     * Unified, stable screen classifier (WS2 Phase 3, target architecture §3.1).
+     * Returns full key set defined in KEYS.classify. Memoized by frame.seq and realm.
+     *
+     * @param {object} frame Wire protocol frame
+     * @param {string} [realm='angband'] Realm name
+     * @param {object} [opts] Options (decode, forceRefresh, forceTerminal)
+     */
+    function classify(frame, realm, opts) {
+        realm = realm || (frame && frame.realm) || 'angband';
+        const isHeng = realm === 'hengband';
+        const decode = opts && opts.decode;
+
+        if (frame && frame.seq !== undefined && frame.seq === lastSeq && realm === lastRealm && cachedClassify && !(opts && opts.forceRefresh)) {
+            return cachedClassify;
+        }
+
+        const screenText = screenTextOf(frame, decode);
+        const inPlay = Boolean(frame && frame.phase === 'play' && (frame.map || (frame.player && frame.player.name)));
+        const nTerm = needsTerminal(frame, opts);
+
+        const tb = toolbarFlags(frame, screenText, isHeng);
+        const bf = birthFlags(screenText, isHeng);
+        const pf = promptFlags(screenText);
+
+        const isTargetingPrompt = inputTargetingPrompt(screenText, inPlay);
+        const isPressAnyKey = screenText.includes('press any key') ||
+                              screenText.includes('[press any key to continue]') ||
+                              screenText.includes('何かキーを押して');
+        const isItemActions = screenText.includes('command for ') ||
+                              (screenText.includes('(enter to select') && screenText.includes('examine')) ||
+                              (isHeng && screenText.includes('に対するコマンド'));
+        const isSplashPoem = Boolean(screenText.includes('into the vast and echoing gloom') ||
+                                     screenText.includes('depths they went alone') ||
+                                     screenText.includes('menace dark enshrined') ||
+                                     screenText.includes('when the world is old and the days of wonder') ||
+                                     screenText.includes('rephial.org') ||
+                                     screenText.includes('last battle be gathered'));
+
+        // Mode determination
+        let mode = 'terminal';
+        if (isPressAnyKey) {
+            mode = 'press-any-key';
+        } else if (tb.isTargeting) {
+            mode = 'targeting';
+        } else if (isItemActions) {
+            mode = 'item-actions';
+        } else if (tb.isStore) {
+            mode = 'store';
+        } else if (tb.isItemPrompt || (realm === 'frogcomposband' && (screenText.includes('inventory | equipment') || screenText.includes('inventory |') || screenText.includes('| equipment')))) {
+            mode = 'item-list';
+        } else if (pf.isYesNoPrompt) {
+            mode = 'yesno';
+        } else if (pf.isQuantityPrompt) {
+            mode = 'quantity';
+        } else if (!inPlay) {
+            if (bf.isReviewScreen) mode = 'review';
+            else if (bf.isNamePrompt) mode = 'name';
+            else mode = 'birth';
+        } else if (inPlay && !nTerm) {
+            mode = 'world';
+        } else {
+            mode = 'terminal';
+        }
+
+        // listKind determination
+        let listKind = null;
+        if (mode === 'item-list') {
+            if (screenText.includes('(inventory)') || screenText.includes('inven:') || screenText.includes('inventory |') || (isHeng && screenText.includes('持ち物：'))) {
+                listKind = 'inven';
+            } else if (screenText.includes('(equipment)') || screenText.includes('equip:') || screenText.includes('| equipment') || (isHeng && screenText.includes('装備：'))) {
+                listKind = 'equip';
+            } else if (screenText.includes('quiver:') || screenText.includes('quiver')) {
+                listKind = 'quiver';
+            }
+        }
+
+        // promptKind determination (Phase 3 items 1 & 4)
+        let promptKind = null;
+        if (mode === 'item-list') {
+            if (realm === 'silq' && (screenText.includes('(inventory) command:') || screenText.includes('(equipment) command:'))) {
+                promptKind = 'command';
+            } else if (isHeng && (screenText.includes('持ち物：') || screenText.includes('装備：')) && screenText.includes('コマンド:')) {
+                promptKind = 'command';
+            } else if (realm === 'frogcomposband' && (screenText.includes('inventory | equipment') || screenText.includes('inventory |') || screenText.includes('| equipment'))) {
+                promptKind = 'command';
+            } else {
+                promptKind = 'select';
+            }
+        }
+
+        // verbPrompt determination
+        let verbPrompt = null;
+        if (mode === 'item-list' && promptKind === 'select') {
+            if (screenText.includes('wear/wield') || screenText.includes('wear which') || screenText.includes('wield which') || screenText.includes('どれを装備')) {
+                verbPrompt = 'wear';
+            } else if (screenText.includes('remove which') || screenText.includes('take off') || screenText.includes('どれを外しますか')) {
+                verbPrompt = 'remove';
+            } else if (screenText.includes('drop which') || screenText.includes('どれを落としますか')) {
+                verbPrompt = 'drop';
+            } else if (screenText.includes('throw which') || screenText.includes('どれを投げますか')) {
+                verbPrompt = 'throw';
+            } else if (screenText.includes('fire which')) {
+                verbPrompt = 'fire';
+            } else if (screenText.includes('quaff which') || screenText.includes('どの薬')) {
+                verbPrompt = 'quaff';
+            } else if (screenText.includes('read which') || screenText.includes('どの巻物')) {
+                verbPrompt = 'read';
+            } else if (screenText.includes('examine which') || screenText.includes('どれを調べますか')) {
+                verbPrompt = 'examine';
+            } else if (screenText.includes('destroy which')) {
+                verbPrompt = 'destroy';
+            }
+        }
+
+        const items = (mode === 'item-list' || mode === 'item-actions' || mode === 'store' || mode === 'birth' || mode === 'review')
+            ? extractItems(frame && frame.term ? frame.term.rows : [], isHeng, decode)
+            : [];
+
+        const isMenuOrInteractive = Boolean(mode === 'item-list' || mode === 'item-actions' || mode === 'store' ||
+            mode === 'birth' || mode === 'review' || mode === 'name' || mode === 'yesno' ||
+            mode === 'quantity' || mode === 'press-any-key');
+
+        const result = {
+            mode,
+            listKind,
+            promptKind,
+            verbPrompt,
+            items,
+            inPlay,
+            needsTerminal: nTerm,
+            screenText,
+            isItemPrompt: tb.isItemPrompt,
+            isStore: tb.isStore,
+            isTargeting: tb.isTargeting,
+            isTargetingPrompt,
+            isYesNoPrompt: pf.isYesNoPrompt,
+            isQuantityPrompt: pf.isQuantityPrompt,
+            isChoiceMenu: bf.isChoiceMenu,
+            isNamePrompt: bf.isNamePrompt,
+            isReviewScreen: bf.isReviewScreen,
+            isMenuOrInteractive,
+            isSplashPoem,
+            isPressAnyKey,
+            isItemActions
+        };
+
+        if (frame && frame.seq !== undefined) {
+            lastSeq = frame.seq;
+            lastRealm = realm;
+            cachedClassify = result;
+        }
+
+        return result;
+    }
+
     return {
         KEYS,
         rawScreenText,
@@ -634,6 +850,9 @@
         inputTerminalKeyFlags,
         inputTargetingPrompt,
         terminalDetectMode,
+        extractItems,
+        classify,
+        classifyScreen: classify,
         decodeSjis
     };
 });

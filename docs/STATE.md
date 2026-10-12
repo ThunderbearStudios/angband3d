@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
-Branch: fix/award-pass   Updated: 2026-10-11T20:58-04:00 (WS2 Phase 2 pass)
+Branch: fix/award-pass   Updated: 2026-10-11T21:12-04:00 (WS2 Phase 3 pass)
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first, incl. NEW lessons L18–L22), then the plan section for the current task.
-Current task: **WS2 Phase 3** (additive classifications: promptKind: 'command', mode: 'press-any-key', mode: 'item-actions', FCB gear UI).
+Current task: **WS2 Phase 4** (`menu-router.js` and Action Chooser in `#term-contextual-actions`).
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. Always re-locate lines with `Select-String`.
 
@@ -25,7 +25,7 @@ claimed WS2/WS5 done with no commit.
 - [x] WS4.1–WS4.10 security (committed through `0ae16a2`)
 - [x] R0 Recovery: baseline restored + `tools/test_boot_flow.js` real-browser gate + network.js no longer swallows handler errors (this commit)
 - [x] **WS2.2** Extract `screen-context.js` pure module + 47 realm fixtures + delegate `app.js`, `input.js`, `terminal.js` (zero behavior change)
-- [ ] **WS2.3** Additive classifications (`promptKind: 'command'`, `mode: 'press-any-key'`, `mode: 'item-actions'`, FCB gear UI)
+- [x] **WS2.3** Additive classifications (`promptKind: 'command'`, `mode: 'press-any-key'`, `mode: 'item-actions'`, FCB gear UI)
 - [ ] **WS2.4** `menu-router.js` and Action Chooser in `#term-contextual-actions`
 - [ ] **WS2.5** End-to-end polish and cleanup
 - [ ] WS6 realm keys (probe first)
@@ -53,17 +53,13 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 - K5: e2e test suite leaves multiple engine sessions alive in grace period; restart server before CDP test runs.
 
 ## In-flight (uncommitted) files
-- `server/public/js/screen-context.js` (pure module with app, input, and terminal screen context helpers)
-- `server/public/js/app.js` (delegated to ScreenContext)
-- `server/public/js/input.js` (delegated to ScreenContext)
-- `server/public/js/terminal.js` (delegated to ScreenContext)
-- `server/public/index.html` (script tag + version 9.1.4)
-- `server/public/sw.js` (version 9.1.4)
-- `tools/fixtures/menus/` (47 fixture JSONs + `snapshot.json`)
-- `tools/test_manifest.json` (registered `test_screen_context.js` in fast tier)
-- `tools/test_screen_context.js` (135 tests, contract/rules/fixtures)
-- `tools/verify_cross_realm_menus.js` (ScreenContext e2e evaluator + fixture capture + message clear fix)
+- `server/public/js/screen-context.js` (additive classifications: promptKind: 'command', mode: 'press-any-key', mode: 'item-actions', extractItems)
+- `server/public/js/app.js` (setCtxActions DOM caching + toolbar wiring for isPressAnyKey / isItemActions)
+- `server/public/index.html` (bumped to 9.1.5)
+- `server/public/sw.js` (bumped to 9.1.5)
+- `tools/test_screen_context.js` (141 tests, contract/rules/fixtures/Phase 3 additive tests)
 
 ## Last gate results
+- WS2.3 (2026-10-11 21:11): fast 3/3 PASS (relay guard, http guard, screen_context 141/141 tests) | e2e 2/2 PASS (verify_cross_realm_menus: all 4 realms in 10.6s, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (61.6s, 78.8s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - WS2.2 (2026-10-11 20:57): fast 3/3 PASS (relay guard, http guard, screen_context 135/135 tests) | e2e 2/2 PASS (verify_cross_realm_menus: all 4 realms, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (60.7s, 61.5s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - R0 (2026-10-11 20:00): fast 2/2 PASS | e2e 2/2 PASS (verify_cross_realm_menus: all 4 realms) | cdp test_boot_flow PASS ×2 consecutive (64s, 68s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 | dotnet 0 warn / 0 err.

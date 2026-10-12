@@ -3962,6 +3962,15 @@ window.addEventListener('DOMContentLoaded', () => {
         return activeChoices;
     }
 
+    let lastCtxActionsHtml = '';
+    function setCtxActions(html) {
+        const termCtxActions = document.getElementById('term-contextual-actions');
+        if (!termCtxActions) return;
+        if (lastCtxActionsHtml === html && termCtxActions.innerHTML === html) return;
+        lastCtxActionsHtml = html;
+        termCtxActions.innerHTML = html;
+    }
+
     function updateTerminalToolbar(frame) {
         const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
         const termFacingBadge = document.getElementById('term-facing-badge');
@@ -4224,10 +4233,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Accept Options', '⎋ 終了 (Accept Options)', '⎋ 終了')}</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `;
+                    `);
                 }
             } else if (isHengStatDecide) {
                 terminalTitle.textContent = hengTitle(
@@ -4239,14 +4248,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('✓ Accept Stats', '✓ 決定 (Accept Stats)', '✓ 決定')}</button>
                         <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> ${hengLabel('🔄 Next Roll', '🔄 次の数値 (Next Roll)', '🔄 次の数値')}</button>
                         <button type="button" class="term-ctx-btn" data-key="p"><span>[p]</span> ${hengLabel('⏪ Previous Roll', '⏪ 前の数値 (Previous Roll)', '⏪ 前の数値')}</button>
                         <button type="button" class="term-ctx-btn" data-key="S"><span>[S]</span> ${hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Back', '⎋ 戻る (Back)', '⎋ 戻る')}</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `;
+                    `);
                 }
             } else if (isTitleScreen) {
                 terminalTitle.textContent = '⚔ WELCOME TO ANGBAND';
@@ -4254,10 +4263,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> Continue (Enter)</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
-                    `;
+                    `);
                 }
             } else if (isNamePrompt) {
                 terminalTitle.textContent = isHeng
@@ -4277,10 +4286,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')}</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `;
+                    `);
                 }
             } else if (isHistoryPrompt) {
                 terminalTitle.textContent = isHeng
@@ -4290,11 +4299,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')}</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `;
+                    `);
                 }
             } else if (isStatRoller) {
                 terminalTitle.textContent = isHeng
@@ -4304,12 +4313,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定')}</button>
                         <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> ${hengLabel('🔄 Reset Stats', '🔄 Reset / 再抽選', '🔄 再抽選')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')}</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `;
+                    `);
                 }
             } else if (isBackgroundEdit) {
                 terminalTitle.textContent = isHeng
@@ -4319,11 +4328,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Continue (Enter)', 'Continue / 決定 (Enter)', '決定 (Enter)')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')}</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `;
+                    `);
                 }
             } else if (isReadyPrompt) {
                 terminalTitle.textContent = isHeng
@@ -4333,11 +4342,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('⚔ Enter Realm', '⚔ ゲーム開始 (Enter Realm)', '⚔ ゲーム開始')}</button>
                         <button type="button" class="term-ctx-btn" data-key="S"><span>[S]</span> ${hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから')}</button>
                         <button type="button" class="term-ctx-btn" data-key="Q"><span>[Q]</span> ${hengLabel('⎋ Quit', '⎋ 終了 (Quit)', '⎋ 終了')}</button>
-                    `;
+                    `);
                 }
             } else if (isReviewScreen) {
                 const hasPrevRoll = screenText.includes("previous roll") || screenText.includes("前の数値") || screenText.includes("for previous");
@@ -4350,14 +4359,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('⚔ Accept & Play', '⚔ Accept & Play (決定)', '⚔ 決定して開始')}</button>
                         <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> ${hengLabel('🎲 Reroll Hero', '🎲 Reroll (再生成)', '🎲 英雄再生成')}</button>
                         ${hasPrevRoll ? `<button type="button" class="term-ctx-btn" data-key="p"><span>[p]</span> ${hengLabel('⏪ Previous Roll', '⏪ Previous Roll (前の数値)', '⏪ 前の数値')}</button>` : ''}
                         <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> ${hengLabel('🛠 Custom Create', '🛠 Custom (作成)', '🛠 英雄作成')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')}</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `;
+                    `);
                 }
             } else {
                 // Choice menu (Sex, Race, Class, Personality, Realm, Traits)
@@ -4401,12 +4410,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (termDpad) termDpad.style.display = 'grid'; // D-pad Up/Down navigates highlight, Enter selects
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定')}</button>
                         <button type="button" class="term-ctx-btn" data-key="*"><span>[*]</span> ${hengLabel('🎲 Random', '🎲 Random / ランダム', '🎲 ランダム')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る')}</button>
                         <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `;
+                    `);
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             }
@@ -4421,29 +4430,63 @@ window.addEventListener('DOMContentLoaded', () => {
         // Check for universal Yes/No prompts or Quantity prompts in active play or stores (screen-context.js promptFlags)
         const { isYesNoPrompt, isQuantityPrompt } = SC.promptFlags(screenText);
 
-        if (isYesNoPrompt) {
+        const isPressAnyKey = screenText.includes('press any key') ||
+
+                              screenText.includes('[press any key to continue]') ||
+
+                              screenText.includes('何かキーを押して');
+
+        const isItemActions = screenText.includes('command for ') ||
+
+                              (screenText.includes('(enter to select') && screenText.includes('examine')) ||
+
+                              (isHeng && screenText.includes('に対するコマンド'));
+
+        
+
+        if (isPressAnyKey) {
+
+            terminalTitle.textContent = isHeng
+
+                ? hengTitle('📜 MESSAGE / PROMPT', '📜 MESSAGE / メッセージ', '📜 メッセージ')
+
+                : '📜 MESSAGE / PROMPT';
+
+            if (termDpad) termDpad.style.display = 'none';
+
+            setCtxActions(`
+
+                <button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ${hengLabel('Continue', 'Continue / 続ける', '続ける')}</button>
+
+                <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる')}</button>
+
+            `);
+
+            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+
+        } else if (isYesNoPrompt) {
             terminalTitle.textContent = isHeng
                 ? hengTitle('🎴 CONFIRM ACTION [y/n]', '🎴 CONFIRM ACTION / 確認 [y/n]', '🎴 確認 [y/n]')
                 : '⚔ CONFIRM ACTION [y/n]';
             if (termDpad) termDpad.style.display = 'none';
             if (termCtxActions) {
-                termCtxActions.innerHTML = `
+                setCtxActions(`
                     <button type="button" class="term-ctx-btn btn-gold" data-key="y"><span>[y]</span> ${hengLabel('✓ Yes', '✓ Yes / はい', '✓ はい')}</button>
                     <button type="button" class="term-ctx-btn btn-gold-outline" data-key="n"><span>[n]</span> ${hengLabel('✕ No', '✕ No / いいえ', '✕ いいえ')}</button>
                     <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Cancel', '⎋ Cancel / 取消', '⎋ 取消')}</button>
-                `;
+                `);
             }
             populateLetterRibbon(null, ['y', 'n']);
         } else if (isQuantityPrompt) {
             terminalTitle.textContent = '📦 ENTER QUANTITY';
             if (termDpad) termDpad.style.display = 'grid';
             if (termCtxActions) {
-                termCtxActions.innerHTML = `
+                setCtxActions(`
                     <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> All (Default)</button>
                     <button type="button" class="term-ctx-btn" data-key="1"><span>[1]</span> Just 1</button>
                     <button type="button" class="term-ctx-btn" data-key="5"><span>[5]</span> 5</button>
                     <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
-                `;
+                `);
             }
             populateLetterRibbon(null, ['1', '2', '3', '5', '10', 'enter']);
         } else if (isStore) {
@@ -4492,13 +4535,13 @@ window.addEventListener('DOMContentLoaded', () => {
                     : '⚔ CHOOSE ACTION FOR ITEM';
                 const examineKey = isHeng ? 'x' : 'l';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
                         <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> ${hengLabel('💰 Buy All', '💰 Buy All / 全て購入', '💰 全て購入')}</button>
                         <button type="button" class="term-ctx-btn" data-key="o"><span>[o]</span> ${hengLabel('🛒 Buy One', '🛒 Buy One / 1つ購入', '🛒 1つ購入')}</button>
                         <button type="button" class="term-ctx-btn" data-key="${examineKey}"><span>[${examineKey}]</span> ${hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る')}</button>
-                    `;
+                    `);
                 }
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
             } else if (isStoreBuy) {
@@ -4506,11 +4549,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     ? hengTitle('💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)', '💰 BUY WHICH ITEM? / 購入 (Tap letter or Enter)', '💰 何を買いますか？ (文字か方向キー+Enter)')
                     : '💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Cancel Buy', '⎋ Cancel / 取消', '⎋ 取消')}</button>
-                    `;
+                    `);
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             } else if (isStoreSell) {
@@ -4518,11 +4561,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     ? hengTitle('🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)', '🏷 SELL WHICH ITEM? / 売却 (Tap letter or Enter)', '🏷 どれを売りますか？ (文字か方向キー+Enter)')
                     : '🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Cancel Sell', '⎋ Cancel / 取消', '⎋ 取消')}</button>
-                    `;
+                    `);
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             } else if (isStoreExamine) {
@@ -4530,11 +4573,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     ? hengTitle('🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)', '🔍 EXAMINE WHICH ITEM? / 調査 (Tap letter or Enter)', '🔍 どれを調べますか？ (文字か方向キー+Enter)')
                     : '🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Cancel Examine', '⎋ Cancel / 取消', '⎋ 取消')}</button>
-                    `;
+                    `);
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             } else {
@@ -4551,17 +4594,27 @@ window.addEventListener('DOMContentLoaded', () => {
                     : '⚔ ' + storeName.toUpperCase() + ' — BROWSE INVENTORY';
                 const examineKey = isHeng ? 'x' : 'l';
                 if (termCtxActions) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         ${hasMore ? `<button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ${hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)')}</button>` : ''}
                         <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> ${hengLabel('💰 Buy', '💰 Buy / 購入', '💰 購入')}</button>
                         <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> ${hengLabel('🏷 Sell', '🏷 Sell / 売却', '🏷 売却')}</button>
                         <button type="button" class="term-ctx-btn" data-key="${examineKey}"><span>[${examineKey}]</span> ${hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる')}</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('🚪 Exit Store', '🚪 Exit Store / 店を出る', '🚪 店を出る')}</button>
-                    `;
+                    `);
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             }
+        } else if (isItemActions) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択')
+                : '⚔ CHOOSE ACTION FOR ITEM';
+            if (termDpad) termDpad.style.display = 'grid';
+            setCtxActions(`
+                <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
+                <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Back', '⎋ Back / 戻る', '戻る')}</button>
+            `);
+            populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
         } else if (isTargeting) {
             // Target / Direction Aiming Mode
             terminalTitle.textContent = isHeng
@@ -4571,12 +4624,12 @@ window.addEventListener('DOMContentLoaded', () => {
             if (termLetterRibbon) termLetterRibbon.style.display = 'none';
 
             if (termCtxActions) {
-                termCtxActions.innerHTML = `
+                setCtxActions(`
                     <button type="button" class="term-ctx-btn btn-gold" data-key="5"><span>[5/⏎]</span> ${hengLabel('🎯 Fire / Select', '🎯 Fire / 発射・選択', '🎯 発射・選択')}</button>
                     <button type="button" class="term-ctx-btn" data-key="*"><span>[*]</span> ${hengLabel('🔍 Next Target', '🔍 Next Target / 次の対象', '🔍 次の対象')}</button>
                     <button type="button" class="term-ctx-btn" data-key="t"><span>[t]</span> ${hengLabel('📍 Nearest', '📍 Nearest / 最寄りの対象', '📍 最寄りの対象')}</button>
                     <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Cancel Aiming', '⎋ Cancel / 取消', '⎋ 取消')}</button>
-                `;
+                `);
             }
         } else if (isItemPrompt) {
             // Item selection / inventory / equipment prompts across all realms
@@ -4621,7 +4674,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (termCtxActions) {
                 if (isSilqInvenCmd) {
                     // Sil-Q Inventory Main Command Prompt: (Inventory) Command:
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
                         <button type="button" class="term-ctx-btn btn-gold" data-key="w"><span>[w]</span> ⚔ Wear/Wield</button>
                         <button type="button" class="term-ctx-btn" data-key="e"><span>[e]</span> 🛡 View Gear</button>
@@ -4629,37 +4682,37 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn" data-key="d"><span>[d]</span> 📦 Drop</button>
                         <button type="button" class="term-ctx-btn" data-key="k"><span>[k]</span> 🗑 Destroy</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                    `;
+                    `);
                 } else if (isSilqEquipCmd) {
                     // Sil-Q Equipment Main Command Prompt: (Equipment) Command:
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
                         <button type="button" class="term-ctx-btn btn-gold" data-key="r"><span>[r]</span> 🔄 Take Off</button>
                         <button type="button" class="term-ctx-btn" data-key="i"><span>[i]</span> 🎒 View Pack</button>
                         <button type="button" class="term-ctx-btn" data-key="x"><span>[x]</span> 🔍 Examine</button>
                         <button type="button" class="term-ctx-btn" data-key="d"><span>[d]</span> 📦 Drop</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                    `;
+                    `);
                 } else if (isSilqWear) {
                     // Sil-Q Wield Prompt: Wear/Wield which item?
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
                         <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> 🛡 Switch to Gear</button>
                         <button type="button" class="term-ctx-btn" data-key="-"><span>[-]</span> 📍 Floor</button>
-                    `;
+                    `);
                 } else if (isSilqRemove) {
                     // Sil-Q Remove Prompt: Remove which item?
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
                         <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> 🎒 Switch to Pack</button>
-                    `;
+                    `);
                 } else if (isSilq) {
                     // Other Sil-Q item selection prompts (drop, throw, examine)
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
                         <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> Switch Inven/Gear</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                    `;
+                    `);
                 } else if (isHeng) {
                     const packLabel = isEquipView
                         ? hengLabel('🎒 View Pack', '🎒 View Pack / 所持品', '🎒 所持品')
@@ -4667,19 +4720,19 @@ window.addEventListener('DOMContentLoaded', () => {
                     const quiverLabel = isQuiverView
                         ? hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品')
                         : hengLabel('🏹 Quiver', '🏹 Quiver / 矢筒', '🏹 矢筒');
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる')}</button>
                         <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> ${packLabel}</button>
                         <button type="button" class="term-ctx-btn" data-key="|"><span>[|]</span> ${quiverLabel}</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
-                    `;
+                    `);
                 } else {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
                         <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> ${isEquipView ? '🎒 View Pack' : '🛡 View Gear'}</button>
                         <button type="button" class="term-ctx-btn" data-key="|"><span>[|]</span> ${isQuiverView ? '🎒 Pack' : '🏹 Quiver'}</button>
                         <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                    `;
+                    `);
                 }
             }
             populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
@@ -4701,12 +4754,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (termCtxActions) {
                 if (hasMore) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ${hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Dismiss', '⎋ Dismiss / 閉じる', '⎋ 閉じる')}</button>
-                    `;
+                    `);
                 } else if (activeRealm === 'silq') {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
@@ -4718,9 +4771,9 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn term-action-key" data-key="\t"><span>[Tab]</span> 📜 Skills</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="s"><span>[s]</span> 🎵 Song</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="%"><span>[%]</span> ⏳ Rest</button>
-                    `;
+                    `);
                 } else if (activeRealm === 'frogcomposband') {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
@@ -4730,9 +4783,9 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn term-action-key" data-key="Q"><span>[Q]</span> 📜 Quests</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="m"><span>[m]</span> ✨ Cast</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="R"><span>[R]</span> ⏳ Rest</button>
-                    `;
+                    `);
                 } else if (activeRealm === 'hengband' || isHeng) {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> ${hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)')}</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー')}</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> ${hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品')}</button>
@@ -4741,16 +4794,16 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn term-action-key" data-key="Q"><span>[Q]</span> ${hengLabel('📜 Quests', '📜 Quests / クエスト', '📜 クエスト')}</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="m"><span>[m]</span> ${hengLabel('✨ Cast', '✨ Cast / 呪文', '✨ 呪文')}</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="R"><span>[R]</span> ${hengLabel('⏳ Rest', '⏳ Rest / 休息', '⏳ 休息')}</button>
-                    `;
+                    `);
                 } else {
-                    termCtxActions.innerHTML = `
+                    setCtxActions(`
                         <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="e"><span>[e]</span> 🛡 Gear</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="m"><span>[m]</span> ✨ Cast</button>
                         <button type="button" class="term-ctx-btn term-action-key" data-key="R"><span>[R]</span> ⏳ Rest</button>
-                    `;
+                    `);
                 }
             }
         }
