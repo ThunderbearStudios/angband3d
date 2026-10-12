@@ -99,6 +99,21 @@
             d: { icon: '📦', label: 'Drop' },
             I: { icon: '🔍', label: 'Examine' },
             k: { icon: '🗑', label: 'Destroy' }
+        },
+        angband: {
+            w: { icon: '⚔', label: 'Wear/Wield', glyphs: '|/\\}()=["~{' },
+            t: { icon: '🛡', label: 'Take off', listOnly: 'equip' },
+            E: { icon: '🍖', label: 'Eat', glyphs: ',' },
+            q: { icon: '🧪', label: 'Quaff', glyphs: '!' },
+            r: { icon: '📜', label: 'Read', glyphs: '?' },
+            u: { icon: '🪄', label: 'Use staff', glyphs: '_' },
+            a: { icon: '⚡', label: 'Aim wand', glyphs: '-' },
+            z: { icon: '💥', label: 'Zap rod', glyphs: '-' },
+            A: { icon: '🔮', label: 'Activate', listOnly: 'equip' },
+            v: { icon: '🎯', label: 'Throw' },
+            d: { icon: '📦', label: 'Drop' },
+            I: { icon: '🔍', label: 'Examine' },
+            k: { icon: '🗑', label: 'Destroy' }
         }
     };
 
@@ -286,11 +301,12 @@
             return true;
         }
 
-        // Case B: In item-list with command prompt (Sil-Q or Hengband) OR FCB Gear UI
+        // Case B: In item-list with command prompt (Sil-Q or Hengband), FCB Gear UI, or Angband item select
         const isCommandPrompt = (classifier.mode === 'item-list' && classifier.promptKind === 'command');
         const isFcbGear = (realm === 'frogcomposband' && classifier.mode === 'item-list' && classifier.listKind);
+        const isAngbandSelect = (realm === 'angband' && classifier.mode === 'item-list' && !classifier.verbPrompt);
 
-        if (isCommandPrompt || isFcbGear) {
+        if (isCommandPrompt || isFcbGear || isAngbandSelect) {
             if (isEscape) {
                 clearPending();
                 return false; // Pass escape through to engine to close inventory/equipment

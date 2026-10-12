@@ -38,6 +38,7 @@ function runTests() {
     assert.ok(MenuRouter.VERBS.silq, "VERBS must have silq table");
     assert.ok(MenuRouter.VERBS.hengband, "VERBS must have hengband table");
     assert.ok(MenuRouter.VERBS.frogcomposband, "VERBS must have frogcomposband table");
+    assert.ok(MenuRouter.VERBS.angband, "VERBS must have angband table");
 
     // Test 1: Sil-Q Item List intercepted (e.g. inventory)
     sentKeys = [];
@@ -166,6 +167,67 @@ function runTests() {
     assert.ok(html.includes('data-verb="w"'), "HTML must include wear verb button");
     assert.ok(html.includes('data-verb="Escape"'), "HTML must include escape button");
     assert.ok(html.includes('is-suggested'), "HTML should highlight a suggested action for torch");
+
+    // Test 7: Offline / Vanilla Angband Real Inventory Fixture Routing (WS10.3)
+    sentKeys = [];
+    toasts = [];
+    MenuRouter.clearPending();
+
+    const fs = require('fs');
+    const angbandFixturePath = path.join(__dirname, 'fixtures', 'menus', 'angband', 'inventory.json');
+    assert.ok(fs.existsSync(angbandFixturePath), "angband inventory fixture must exist");
+    const angbandInvenFixture = JSON.parse(fs.readFileSync(angbandFixturePath, 'utf8'));
+    const angbandInvenFrame = angbandInvenFixture.frame;
+
+    // Route 'e' (Wooden Torch in fixture)
+    const routedOfflineTorch = MenuRouter.route('e', angbandInvenFrame, 'angband');
+    assert.strictEqual(routedOfflineTorch, true, "MenuRouter should intercept 'e' in Vanilla Angband / offline mode");
+    assert.strictEqual(sentKeys.length, 0, "No keys should be sent yet when opening chooser");
+
+    const offlinePending = MenuRouter.getPending();
+    assert.ok(offlinePending, "Pending state must exist after interception");
+    assert.strictEqual(offlinePending.item.key, 'e', "Pending item key should be 'e'");
+    assert.strictEqual(offlinePending.step, 'chooser', "Pending step should be 'chooser'");
+
+    // Render HTML for angband chooser
+    const angbandHtml = MenuRouter.renderChooserHtml(offlinePending, 'angband');
+    assert.ok(angbandHtml.includes('data-verb="w"'), "Angband chooser HTML must include wear button");
+    assert.ok(angbandHtml.includes('is-suggested'), "Torch should have suggested action highlighted");
+
+    // Choose verb 'w'
+    MenuRouter.chooseVerb('w');
+    assert.strictEqual(sentKeys.length, 1, "Verb 'w' should be sent");
+    assert.strictEqual(sentKeys[0], 'w');
+
+    // Next frame: Wear/Wield prompt arrives
+    sentKeys = [];
+    const angbandWearPromptFrame = {
+        phase: 'play',
+        realm: 'angband',
+        map: angbandInvenFrame.map,
+        term: {
+            rows: [
+                { g: "  e) a Wooden Torch (5000 turns)                     2.2 lb" },
+                { g: "Wear/Wield which item?" }
+            ]
+        }
+    };
+    MenuRouter.onFrame(angbandWearPromptFrame, 'angband');
+    assert.strictEqual(sentKeys.length, 1, "Matching item key 'e' should be dispatched");
+    assert.strictEqual(sentKeys[0], 'e');
+    assert.strictEqual(MenuRouter.getPending(), null, "Pending state must be cleared after dispatch");
+
+    // Test 8: LocalGameBridge command validation (WS10.3 / relay guard parity)
+    const { LocalGameBridge } = require('../server/public/js/local_bridge.js');
+    const localBridge = new LocalGameBridge();
+    assert.strictEqual(typeof localBridge._validateCommand, 'function', "LocalGameBridge must implement _validateCommand");
+    assert.strictEqual(localBridge._validateCommand('key a'), true, "'key a' should be allowed");
+    assert.strictEqual(localBridge._validateCommand('key Escape'), true, "'key Escape' should be allowed");
+    assert.strictEqual(localBridge._validateCommand('save'), true, "'save' should be allowed");
+    assert.strictEqual(localBridge._validateCommand('frame'), true, "'frame' should be allowed");
+    assert.strictEqual(localBridge._validateCommand('rm -rf'), false, "'rm -rf' must be blocked");
+    assert.strictEqual(localBridge._validateCommand('key a\nevil'), false, "Multiline injection must be blocked");
+    assert.strictEqual(localBridge._validateCommand(''), false, "Empty command must be blocked");
 
     console.log("All MenuRouter unit tests passed successfully!");
 }
