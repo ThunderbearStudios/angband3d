@@ -22,7 +22,7 @@ An uncommitted WS2/WS3/WS5 attempt broke localhost ("empty sky of stars"). Verif
 
 ## Checklist
 - [x] WS0.1–WS0.4 STATE, AGENTS pointer, probes reverted, test runner
-- [ ] WS0.5 Baselines (screenshots: `tools/boot_<realm>.png` from `test_boot_flow.js` are captured)
+- [x] WS0.5 Baselines (screenshots: `tools/boot_<realm>.png` for 4/4 variants captured and verified)
 - [x] WS1 relay guard / crash fix / WS limits
 - [x] WS4.1–WS4.10 security (committed through `0ae16a2`)
 - [x] R0 Recovery: baseline restored + `tools/test_boot_flow.js` real-browser gate + network.js no longer swallows handler errors
