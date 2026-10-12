@@ -54,7 +54,7 @@ assert.ok(rowRes.text.includes('Ration of Food') || rowRes.text.includes('Ration
 
 // 1.5 Rollback flag (__hengTranslatorV2 = false restores legacy path)
 global.__hengTranslatorV2 = false;
-assert.strictEqual(typeof HENG_DICT.isV2Active, 'function' && HENG_DICT.isV2Active(), false, 'Contract 1.5 failed: isV2Active must be false when __hengTranslatorV2 = false');
+assert.strictEqual(typeof HENG_DICT.isV2Active === 'function' && HENG_DICT.isV2Active(), false, 'Contract 1.5 failed: isV2Active must be false when __hengTranslatorV2 = false');
 global.__hengTranslatorV2 = true;
 console.log('  ✓ Contract 1: heng-dict.js delegation and rollback verified\n');
 

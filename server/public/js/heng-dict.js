@@ -112,10 +112,35 @@
         SORTED_MONSTERS.sort((a, b) => b[0].length - a[0].length);
     }
 
+    function isV2Active() {
+        const flag = typeof window !== 'undefined' ? window.__hengTranslatorV2 : (typeof global !== 'undefined' ? global.__hengTranslatorV2 : undefined);
+        if (flag === false) return false;
+        try {
+            if (typeof localStorage !== 'undefined' && localStorage.getItem('angband3d_heng_v2') === '0') {
+                return false;
+            }
+        } catch (e) {}
+        const ht = (typeof HengTranslate !== 'undefined' ? HengTranslate : (typeof window !== 'undefined' ? window.HengTranslate : (typeof global !== 'undefined' ? global.HengTranslate : null)));
+        return Boolean(ht);
+    }
+
+    if (typeof window !== 'undefined' && typeof window.loadHengLang === 'function') {
+        window.loadHengLang();
+    }
+
     function getLocalizedMonsterName(name, realm, langMode) {
         if (!name) return '';
         if (realm !== 'hengband') return name;
         const mode = langMode || (typeof window !== 'undefined' && window.__langMode) || 'en';
+        if (mode === 'jp') return name;
+
+        if (isV2Active()) {
+            const ht = (typeof HengTranslate !== 'undefined' ? HengTranslate : (typeof window !== 'undefined' ? window.HengTranslate : (typeof global !== 'undefined' ? global.HengTranslate : null)));
+            if (ht) {
+                const res = ht.translateName(name, 1, mode);
+                if (res && res !== name) return res;
+            }
+        }
         
         let en = DATA.monsters ? DATA.monsters[name] : null;
         let ja = DATA.monstersEnToJa ? DATA.monstersEnToJa[name] : null;
@@ -169,6 +194,15 @@
         if (!name) return '';
         if (realm !== 'hengband') return name;
         const mode = langMode || (typeof window !== 'undefined' && window.__langMode) || 'en';
+        if (mode === 'jp') return name;
+
+        if (isV2Active()) {
+            const ht = (typeof HengTranslate !== 'undefined' ? HengTranslate : (typeof window !== 'undefined' ? window.HengTranslate : (typeof global !== 'undefined' ? global.HengTranslate : null)));
+            if (ht) {
+                const res = ht.translateName(name, 1, mode);
+                if (res && res !== name) return res;
+            }
+        }
         const text = name.trim();
 
         // 1. Coins & Currency
@@ -605,6 +639,17 @@
         if (realm !== 'hengband') return msg;
         const mode = langMode || (typeof window !== 'undefined' && window.__langMode) || 'en';
         if (mode === 'jp') return msg; // Keep native Japanese
+
+        if (isV2Active()) {
+            const ht = (typeof HengTranslate !== 'undefined' ? HengTranslate : (typeof window !== 'undefined' ? window.HengTranslate : (typeof global !== 'undefined' ? global.HengTranslate : null)));
+            if (ht) {
+                const res = ht.translateLine(msg, mode);
+                if (res && res !== msg) {
+                    recordUntranslated(res, mode);
+                    return res;
+                }
+            }
+        }
         
         const text = msg.trim();
         if (!text) return msg;
@@ -1471,6 +1516,17 @@
             return { text: rowText, attrs: attrs || '' };
         }
 
+        if (isV2Active() && hasCJK) {
+            const ht = (typeof HengTranslate !== 'undefined' ? HengTranslate : (typeof window !== 'undefined' ? window.HengTranslate : (typeof global !== 'undefined' ? global.HengTranslate : null)));
+            if (ht) {
+                const res = ht.translateRow(rowText, attrs, mode, rowIndex);
+                if (res) {
+                    recordUntranslated(res.text, mode);
+                    return res;
+                }
+            }
+        }
+
         const cacheKey = `${mode}:${rowText}`;
         if (termRowCache.has(cacheKey)) {
             const cached = termRowCache.get(cacheKey);
@@ -1665,6 +1721,7 @@
 
     const HENG_DICT = {
         data: DATA,
+        isV2Active,
         getLocalizedMonsterName,
         getLocalizedItemName,
         localizeGameMessage,
@@ -1678,6 +1735,7 @@
     }
     if (typeof root !== 'undefined') {
         root.HENG_DICT = HENG_DICT;
+        root.isV2Active = isV2Active;
         root.getLocalizedMonsterName = getLocalizedMonsterName;
         root.getLocalizedItemName = getLocalizedItemName;
         root.localizeGameMessage = localizeGameMessage;

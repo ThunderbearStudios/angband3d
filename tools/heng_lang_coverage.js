@@ -40,6 +40,8 @@ async function measureCoverage() {
         // 1. Enable dev audit in localStorage and reload page to capture entire lifecycle
         await evaluate(`localStorage.setItem('angband3d_dev_lang_audit', '1')`);
         await send('Page.reload', { ignoreCache: true });
+        await sleep(1000);
+        await evaluate(`window.loadHengLang ? window.loadHengLang() : null`);
 
         // Helper to collect raw lines from frame and dev probe
         async function sampleLines() {
