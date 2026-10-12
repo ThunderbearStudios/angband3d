@@ -55,11 +55,10 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 - K5: e2e test suite leaves multiple engine sessions alive in grace period; restart server before CDP test runs.
 
 ## In-flight (uncommitted) files
-- `server/public/js/realm-keys.js` (WS6.2 UMD module with canonical REALM_KEYS, REALM_TEXT, realmKey, fromVanilla, applyLabels)
-- `server/public/index.html` (added script tag for realm-keys.js, bumped to 9.1.7)
-- `server/public/sw.js` (bumped CACHE_NAME to 9.1.7, added realm-keys.js to SHELL_ASSETS)
+- `tools/test_realm_keys.js` (added WS6.3 assertions for sender migration, zero raw digits, and applyLabels)
 
 ## Last gate results
+- WS6.3-test red (2026-10-11 22:06): fast 4/5 (test_realm_keys red as expected: sendKey('5') present in input.js, senders not yet switched to RealmKeys)
 - WS6.2 (2026-10-11 22:01): fast 5/5 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys) | e2e 2/2 PASS (verify_cross_realm_menus 10.6s, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (71.3s, 105.3s; 4/4 realms) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - WS6.2-test red (2026-10-11 21:55): fast 4/5 (test_realm_keys red as expected: realm-keys.js not yet present)
 - WS6.1 (2026-10-11 21:53): fast 4/4 PASS | e2e 2/2 PASS (verify_cross_realm_menus 11.0s, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (114.2s, 74.6s; 4/4 realms reach 3D play) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
