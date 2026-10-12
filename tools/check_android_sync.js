@@ -50,12 +50,37 @@ function walkDir(dir, baseDir = dir) {
     return files;
 }
 
+// WS12: Bloat elimination for mobile APK packaging:
+// Web-marketing demo video frames (107.7MB) and demo.html are desktop/web showcases
+// and must NOT be packaged inside the mobile APK.
+const EXCLUDED_ANDROID_PREFIXES = [
+    'assets/video',
+    'demo.html'
+];
+
+function isExcludedFromAndroid(relPath) {
+    const norm = relPath.replace(/\\/g, '/');
+    return EXCLUDED_ANDROID_PREFIXES.some(prefix => norm === prefix || norm.startsWith(prefix + '/'));
+}
+
 const webFiles = walkDir(webDir);
 let mismatches = 0;
 let missingInAndroid = 0;
+let prunedBloatCount = 0;
+let bloatViolations = 0;
 
 for (const relPath of webFiles) {
     const androidFile = path.join(androidDir, relPath);
+    if (isExcludedFromAndroid(relPath)) {
+        if (fs.existsSync(androidFile)) {
+            console.error(`  BLOAT DETECTED in Android assets: ${relPath} should not be packaged in APK!`);
+            bloatViolations++;
+        } else {
+            prunedBloatCount++;
+        }
+        continue;
+    }
+
     if (!fs.existsSync(androidFile)) {
         console.error(`  MISSING in Android: ${relPath}`);
         missingInAndroid++;
@@ -73,14 +98,15 @@ for (const relPath of webFiles) {
 }
 
 console.log(`\nChecked ${webFiles.length} files:`);
-console.log(`  - Mismatches: ${mismatches}`);
-console.log(`  - Missing:    ${missingInAndroid}`);
+console.log(`  - Mismatches:     ${mismatches}`);
+console.log(`  - Missing:        ${missingInAndroid}`);
+console.log(`  - Pruned Bloat:   ${prunedBloatCount} files (>107MB saved)`);
+console.log(`  - Bloat Leaks:    ${bloatViolations}`);
 
-if (mismatches > 0 || missingInAndroid > 0) {
-    console.error('\n❌ Android assets are out of sync with server/public!');
-    console.error('Run "npx cap sync android" to update Android assets.');
+if (mismatches > 0 || missingInAndroid > 0 || bloatViolations > 0) {
+    console.error('\n❌ Android assets validation failed!');
     process.exit(1);
 }
 
-console.log('\n✓ All Android assets match server/public exactly!');
+console.log('\n✓ All Android game assets match server/public exactly, and bloat is cleanly pruned!');
 process.exit(0);
