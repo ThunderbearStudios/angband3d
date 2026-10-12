@@ -22,7 +22,8 @@ const REALMS = process.argv.slice(2).length ? process.argv.slice(2) : ['angband'
 const TIMEOUT_MS = 45000;
 
 async function runRealm(realm) {
-    const url = `${BASE}/?play=1&new=1&realm=${encodeURIComponent(realm)}&lang=en`;
+    const testChar = `Boot_${realm.slice(0, 3)}_${Date.now().toString(36).slice(-4)}${Math.floor(10 + Math.random() * 90)}`;
+    const url = `${BASE}/?play=1&new=1&realm=${encodeURIComponent(realm)}&lang=en&char=${encodeURIComponent(testChar)}`;
     const errors = [];
     const notes = [];
     let result = { realm, pass: false, reason: 'timeout' };

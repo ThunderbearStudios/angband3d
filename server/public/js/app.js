@@ -214,7 +214,9 @@ window.addEventListener('DOMContentLoaded', () => {
     let birthConfirming = false;
     let silqStatAllocated = false;
     let silqNameSent = false;
-    let fcbRandomized = false;
+    let fcbRaceDone = false;
+    let fcbClassDone = false;
+    let fcbPersDone = false;
 
     const cancelQuickBirth = () => {
         quickBirthActive = false;
@@ -222,7 +224,9 @@ window.addEventListener('DOMContentLoaded', () => {
         birthConfirming = false;
         silqStatAllocated = false;
         silqNameSent = false;
-        fcbRandomized = false;
+        fcbRaceDone = false;
+        fcbClassDone = false;
+        fcbPersDone = false;
     };
 
     const confirmHeroBirth = () => {
@@ -388,14 +392,30 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         if (activeRealm === 'frogcomposband') {
             if (screenText.includes('change race') && screenText.includes('change class')) {
-                if (!fcbRandomized) {
-                    fcbRandomized = true;
-                    ['r', '*', '*', 'c', '*', '*', 'p', '*', '*', 'enter'].forEach(k => network.sendKey(k));
+                if (!fcbRaceDone) {
+                    fcbRaceDone = true;
+                    network.sendKey('r');
+                    return;
                 }
+                if (!fcbClassDone) {
+                    fcbClassDone = true;
+                    network.sendKey('c');
+                    return;
+                }
+                if (!fcbPersDone) {
+                    fcbPersDone = true;
+                    network.sendKey('p');
+                    return;
+                }
+                network.sendKey('enter');
                 return;
             }
-            if (fcbRandomized) {
-                // Randomizing keys already sent in burst; wait cleanly for Screen 2 review pause without spurious inputs
+            if (screenText.includes('choose patron') || screenText.includes('choose a patron') || screenText.includes('*) random')) {
+                network.sendKey('*');
+                return;
+            }
+            if (screenText.includes('choose a realm') || screenText.includes('choose realm') || screenText.includes('realm 1:')) {
+                network.sendKey('a');
                 return;
             }
         }
@@ -505,7 +525,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (currentRealm === 'silq') {
             network.sendKey('r');
         } else if (currentRealm === 'frogcomposband') {
-            fcbRandomized = false;
             network.sendKey('escape');
         } else if (currentRealm === 'hengband') {
             network.sendKey('r');

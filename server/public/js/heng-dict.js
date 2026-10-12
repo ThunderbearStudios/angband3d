@@ -17,6 +17,40 @@
     const msgTranslationCache = new Map();
     const MAX_MSG_CACHE = 500;
 
+    // Dev probe (WS3.0): untranslated line recording under local audit flag
+    const untranslatedMap = new Map();
+    const rawLinesSet = new Set();
+    const MAX_UNTRANSLATED = 500;
+    const RE_CJK_AUDIT = /[\u3040-\u30ff\u4e00-\u9fff]/;
+
+    function isAuditActive() {
+        try {
+            return typeof localStorage !== 'undefined' && localStorage.getItem('angband3d_dev_lang_audit') === '1';
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function recordUntranslated(text, mode) {
+        if (mode !== 'en' || !isAuditActive() || !text || typeof text !== 'string') return;
+        if (RE_CJK_AUDIT.test(text)) {
+            const trimmed = text.trim();
+            if (!trimmed) return;
+            const count = (untranslatedMap.get(trimmed) || 0) + 1;
+            if (untranslatedMap.size < MAX_UNTRANSLATED || untranslatedMap.has(trimmed)) {
+                untranslatedMap.set(trimmed, count);
+            }
+        }
+    }
+
+    function recordRawLine(text) {
+        if (!isAuditActive() || !text || typeof text !== 'string') return;
+        if (RE_CJK_AUDIT.test(text)) {
+            const trimmed = text.trim();
+            if (trimmed) rawLinesSet.add(trimmed);
+        }
+    }
+
     // Fast case-insensitive index for monsters EN -> JA
     const lowerMonstersEnToJa = new Map();
     if (DATA.monstersEnToJa) {
@@ -567,6 +601,7 @@
 
     function localizeGameMessage(msg, realm, langMode) {
         if (!msg || typeof msg !== 'string') return msg;
+        recordRawLine(msg);
         if (realm !== 'hengband') return msg;
         const mode = langMode || (typeof window !== 'undefined' && window.__langMode) || 'en';
         if (mode === 'jp') return msg; // Keep native Japanese
@@ -579,6 +614,7 @@
             const cached = msgTranslationCache.get(cacheKey);
             msgTranslationCache.delete(cacheKey);
             msgTranslationCache.set(cacheKey, cached);
+            recordUntranslated(cached, mode);
             return cached;
         }
 
@@ -613,6 +649,7 @@
             msgTranslationCache.delete(firstKey);
         }
         msgTranslationCache.set(cacheKey, result);
+        recordUntranslated(result, mode);
 
         return result;
     }
@@ -1423,6 +1460,7 @@
         if (!rowText || typeof rowText !== 'string') {
             return { text: rowText || '', attrs: attrs || '' };
         }
+        recordRawLine(rowText);
 
         const hasCJK = /[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff01-\uff60]/.test(rowText);
 
@@ -1438,6 +1476,7 @@
             const cached = termRowCache.get(cacheKey);
             termRowCache.delete(cacheKey);
             termRowCache.set(cacheKey, cached);
+            recordUntranslated(cached.text, mode);
             return cached;
         }
 
@@ -1619,6 +1658,7 @@
             termRowCache.delete(firstKey);
         }
         termRowCache.set(cacheKey, res);
+        recordUntranslated(res.text, mode);
 
         return res;
     }
@@ -1628,7 +1668,9 @@
         getLocalizedMonsterName,
         getLocalizedItemName,
         localizeGameMessage,
-        translateTerminalRow
+        translateTerminalRow,
+        __untranslatedMap: untranslatedMap,
+        __rawLinesSet: rawLinesSet
     };
 
     if (typeof module !== 'undefined' && module.exports) {
@@ -1640,5 +1682,7 @@
         root.getLocalizedItemName = getLocalizedItemName;
         root.localizeGameMessage = localizeGameMessage;
         root.translateTerminalRow = translateTerminalRow;
+        root.__hengUntranslated = () => [...untranslatedMap].sort((a, b) => b[1] - a[1]);
+        root.__hengRawLines = () => [...rawLinesSet];
     }
 })(typeof window !== 'undefined' ? window : globalThis);
