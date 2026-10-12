@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
 Branch: fix/award-pass   Updated: 2026-10-11T23:04-04:00 (WS3.0 baseline coverage pass)
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first, incl. NEW lessons L18–L22), then the plan section for the current task.
-Current task: **WS3.1** (`tools/gen_heng_dict.js` generator for upstream translations).
+Current task: **WS3.3-test** (Red contract tests T1–T12 for HengTranslate).
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. Always re-locate lines with `Select-String`.
 
@@ -32,7 +32,7 @@ claimed WS2/WS5 done with no commit.
 - [x] **WS6.2** `server/public/js/realm-keys.js` UMD module + unit tests `tools/test_realm_keys.js`
 - [x] **WS6.3** Switch senders over, applyLabels, no raw digits
 - [x] **WS3.0** Baseline coverage and untranslated corpus (uniqueLines: 171, untranslated: 58, coveragePct: 66.08%)
-- [ ] WS3.1 Generator for upstream Hengband translations (`tools/gen_heng_dict.js`)
+- [x] **WS3.1** Generator for upstream Hengband translations (`tools/gen_heng_dict.js`)
 - [ ] WS3.2 HengTranslate pure UMD module (`server/public/js/heng/heng-translate.js`)
 - [ ] WS3.3 Contract unit tests (`tools/test_heng_translate.js`, T1–T12)
 - [ ] WS3.4 Wire in behind flag & fix L2, L8, L9
@@ -63,6 +63,7 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 None
 
 ## Last gate results
+- WS3.1 (2026-10-11 23:13): fast 5/5 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys) | e2e 2/2 PASS (verify_cross_realm_menus 10.0s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (60.0s, 62.0s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err | generator deterministic, output 1204.1 KB raw / 273.3 KB gzip.
 - WS3.0 (2026-10-11 23:04): fast 5/5 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys) | e2e 2/2 PASS (verify_cross_realm_menus 10.7s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (61.0s, 62.0s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err | baseline coverage 66.08% (171 unique raw JP lines, 58 untranslated).
 - WS6.3 (2026-10-11 22:30): fast 5/5 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys 11 tests) | e2e 2/2 PASS (verify_cross_realm_menus 9.9s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (64.9s, 65.8s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - WS6.3-test red (2026-10-11 22:06): fast 4/5 (test_realm_keys red as expected: sendKey('5') present in input.js, senders not yet switched to RealmKeys)

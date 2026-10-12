@@ -1,0 +1,6449 @@
+[
+  {
+    "pattern": "^変身します。よろしいですか？$",
+    "variants": [
+      {
+        "en": "You will polymorph your self. Are you sure? ",
+        "count": 1
+      },
+      {
+        "en": "You will polymorph yourself. Are you sure? ",
+        "count": 1
+      }
+    ],
+    "files": [
+      "action/mutation-execution.cpp",
+      "realm/realm-chaos.cpp"
+    ]
+  },
+  {
+    "pattern": "^アイテム$",
+    "variants": [
+      {
+        "en": "items",
+        "count": 2
+      },
+      {
+        "en": " object",
+        "count": 1
+      },
+      {
+        "en": "item",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-describer.cpp",
+      "autopick/autopick-keys-table.cpp",
+      "view/display-lore-drops.cpp"
+    ]
+  },
+  {
+    "pattern": "^この行は後で削除されます。$",
+    "variants": [
+      {
+        "en": "This line will be deleted later.",
+        "count": 1
+      },
+      {
+        "en": "  This line will be deleted later.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-drawer.cpp"
+    ]
+  },
+  {
+    "pattern": "^この行は現在は無効な状態です。$",
+    "variants": [
+      {
+        "en": "This line is bypassed currently.",
+        "count": 1
+      },
+      {
+        "en": "  This line is bypassed currently.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-drawer.cpp"
+    ]
+  },
+  {
+    "pattern": "^以上の$",
+    "variants": [
+      {
+        "en": "dice",
+        "count": 1
+      },
+      {
+        "en": "",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-keys-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^武器$",
+    "variants": [
+      {
+        "en": "weapons",
+        "count": 1
+      },
+      {
+        "en": "Weapons",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-keys-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^光源$",
+    "variants": [
+      {
+        "en": "lights",
+        "count": 1
+      },
+      {
+        "en": "Lanterns",
+        "count": 1
+      },
+      {
+        "en": "Light Sources",
+        "count": 2
+      },
+      {
+        "en": "Lite",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-keys-table.cpp",
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^がらくた$",
+    "variants": [
+      {
+        "en": "junk",
+        "count": 1
+      },
+      {
+        "en": "Junk",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-keys-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔法書$",
+    "variants": [
+      {
+        "en": "spellbooks",
+        "count": 1
+      },
+      {
+        "en": "Spellbooks",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-keys-table.cpp",
+      "knowledge/item-group-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^鈍器$",
+    "variants": [
+      {
+        "en": "hafted weapons",
+        "count": 1
+      },
+      {
+        "en": "Blunt Weapons",
+        "count": 1
+      },
+      {
+        "en": "Hafted Weapons",
+        "count": 1
+      },
+      {
+        "en": "Hafted Weapon",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-keys-table.cpp",
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^指輪$",
+    "variants": [
+      {
+        "en": "rings",
+        "count": 1
+      },
+      {
+        "en": "Rings",
+        "count": 3
+      },
+      {
+        "en": "Ring",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-keys-table.cpp",
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^アミュレット$",
+    "variants": [
+      {
+        "en": "amulets",
+        "count": 1
+      },
+      {
+        "en": "Amulets",
+        "count": 3
+      },
+      {
+        "en": "Amulet",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-keys-table.cpp",
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^クローク$",
+    "variants": [
+      {
+        "en": "cloaks",
+        "count": 1
+      },
+      {
+        "en": "Cloaks",
+        "count": 2
+      },
+      {
+        "en": "Cloak",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick-keys-table.cpp",
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^籠手$",
+    "variants": [
+      {
+        "en": "gloves",
+        "count": 1
+      },
+      {
+        "en": "Gloves",
+        "count": 3
+      }
+    ],
+    "files": [
+      "autopick/autopick-keys-table.cpp",
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^ザックには(.+?)を入れる隙間がない。$",
+    "variants": [
+      {
+        "en": "You have no room for %s.",
+        "count": 1
+      },
+      {
+        "en": "You have no room for {}.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "autopick/autopick.cpp",
+      "inventory/player-inventory.cpp"
+    ]
+  },
+  {
+    "pattern": "^年齢$",
+    "variants": [
+      {
+        "en": "age",
+        "count": 1
+      },
+      {
+        "en": "Age",
+        "count": 1
+      }
+    ],
+    "files": [
+      "birth/auto-roller.cpp",
+      "view/display-util.cpp"
+    ]
+  },
+  {
+    "pattern": "^社会的地位$",
+    "variants": [
+      {
+        "en": "social class",
+        "count": 1
+      },
+      {
+        "en": "Social Class",
+        "count": 1
+      }
+    ],
+    "files": [
+      "birth/auto-roller.cpp",
+      "view/display-util.cpp"
+    ]
+  },
+  {
+    "pattern": "^ランダム$",
+    "variants": [
+      {
+        "en": "Random",
+        "count": 7
+      },
+      {
+        "en": "random",
+        "count": 1
+      }
+    ],
+    "files": [
+      "birth/birth-select-class.cpp",
+      "birth/birth-select-personality.cpp",
+      "birth/birth-select-race.cpp",
+      "birth/birth-select-realm.cpp",
+      "birth/birth-wizard.cpp",
+      "cmd-action/cmd-spell.cpp",
+      "mind/mind-elementalist.cpp"
+    ]
+  },
+  {
+    "pattern": "^隠密$",
+    "variants": [
+      {
+        "en": "Stealth",
+        "count": 6
+      },
+      {
+        "en": " to stealth",
+        "count": 1
+      },
+      {
+        "en": "stealth",
+        "count": 2
+      }
+    ],
+    "files": [
+      "birth/birth-select-class.cpp",
+      "birth/birth-select-personality.cpp",
+      "birth/birth-select-race.cpp",
+      "birth/birth-wizard.cpp",
+      "flavor/flavor-describer.cpp",
+      "smith/smith-tables.cpp",
+      "view/status-bars-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^赤外線視力$",
+    "variants": [
+      {
+        "en": "Infra",
+        "count": 2
+      },
+      {
+        "en": " to infravision",
+        "count": 1
+      },
+      {
+        "en": "infravision",
+        "count": 2
+      },
+      {
+        "en": "Infravision",
+        "count": 1
+      }
+    ],
+    "files": [
+      "birth/birth-select-race.cpp",
+      "birth/birth-wizard.cpp",
+      "flavor/flavor-describer.cpp",
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)を引き戻した。$",
+    "variants": [
+      {
+        "en": "You command %s to return.",
+        "count": 2
+      },
+      {
+        "en": "You pull back {}.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-caster.cpp",
+      "cmd-action/cmd-mane.cpp",
+      "spell-kind/spells-fetcher.cpp"
+    ]
+  },
+  {
+    "pattern": "^何も現れなかった。$",
+    "variants": [
+      {
+        "en": "No one appeared.",
+        "count": 1
+      },
+      {
+        "en": "Nothing happens.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-caster.cpp",
+      "mind/mind-force-trainer.cpp"
+    ]
+  },
+  {
+    "pattern": "^援軍を召喚した。$",
+    "variants": [
+      {
+        "en": "You summon one of your kin.",
+        "count": 1
+      },
+      {
+        "en": "You summon minions.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "cmd-action/cmd-mane.cpp"
+    ]
+  },
+  {
+    "pattern": "^サイバーデーモンを召喚した！$",
+    "variants": [
+      {
+        "en": "You summon a Cyberdemon!",
+        "count": 1
+      },
+      {
+        "en": "You summon Cyberdemons!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "cmd-action/cmd-mane.cpp"
+    ]
+  },
+  {
+    "pattern": "^召喚されたサイバーデーモンは怒っている！$",
+    "variants": [
+      {
+        "en": "The summoned Cyberdemon is angry!",
+        "count": 1
+      },
+      {
+        "en": "The summoned Cyberdemon gets angry!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "realm/realm-trump.cpp"
+    ]
+  },
+  {
+    "pattern": "^召喚されたモンスターは怒っている！$",
+    "variants": [
+      {
+        "en": "The summoned monster is angry!",
+        "count": 1
+      },
+      {
+        "en": "The summoned monsters are angry!",
+        "count": 1
+      },
+      {
+        "en": "The summoned creatures get angry!",
+        "count": 2
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "realm/realm-trump.cpp"
+    ]
+  },
+  {
+    "pattern": "^召喚された蜘蛛は怒っている！$",
+    "variants": [
+      {
+        "en": "The summoned spiders are angry!",
+        "count": 1
+      },
+      {
+        "en": "The summoned spiders get angry!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "realm/realm-trump.cpp"
+    ]
+  },
+  {
+    "pattern": "^召喚されたハウンドは怒っている！$",
+    "variants": [
+      {
+        "en": "The summoned hounds are angry!",
+        "count": 1
+      },
+      {
+        "en": "The summoned hounds get angry!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "realm/realm-trump.cpp"
+    ]
+  },
+  {
+    "pattern": "^ヒドラを召喚した。$",
+    "variants": [
+      {
+        "en": "You summon a hydras.",
+        "count": 1
+      },
+      {
+        "en": "You summon hydras.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "cmd-action/cmd-mane.cpp"
+    ]
+  },
+  {
+    "pattern": "^召喚されたデーモンは怒っている！$",
+    "variants": [
+      {
+        "en": "The summoned demon is angry!",
+        "count": 1
+      },
+      {
+        "en": "The summoned demon gets angry!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "realm/realm-trump.cpp"
+    ]
+  },
+  {
+    "pattern": "^召喚されたアンデッドは怒っている！$",
+    "variants": [
+      {
+        "en": "The summoned undead is angry!",
+        "count": 1
+      },
+      {
+        "en": "The summoned undead creature gets angry!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "realm/realm-trump.cpp"
+    ]
+  },
+  {
+    "pattern": "^召喚されたドラゴンは怒っている！$",
+    "variants": [
+      {
+        "en": "The summoned dragon is angry!",
+        "count": 1
+      },
+      {
+        "en": "The summoned dragon gets angry!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "realm/realm-trump.cpp"
+    ]
+  },
+  {
+    "pattern": "^強力なアンデッドを召喚した！$",
+    "variants": [
+      {
+        "en": "You summon a greater undead!",
+        "count": 1
+      },
+      {
+        "en": "You summon greater undead!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "cmd-action/cmd-mane.cpp"
+    ]
+  },
+  {
+    "pattern": "^召喚された上級アンデッドは怒っている！$",
+    "variants": [
+      {
+        "en": "The summoned greater undead is angry!",
+        "count": 2
+      },
+      {
+        "en": "The summoned greater undead creature gets angry!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "realm/realm-trump.cpp"
+    ]
+  },
+  {
+    "pattern": "^古代ドラゴンを召喚した！$",
+    "variants": [
+      {
+        "en": "You summon an ancient dragon!",
+        "count": 1
+      },
+      {
+        "en": "You summon ancient dragons!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "cmd-action/cmd-mane.cpp"
+    ]
+  },
+  {
+    "pattern": "^召喚された古代ドラゴンは怒っている！$",
+    "variants": [
+      {
+        "en": "The summoned ancient dragon is angry!",
+        "count": 1
+      },
+      {
+        "en": "The summoned ancient dragon gets angry!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "realm/realm-trump.cpp"
+    ]
+  },
+  {
+    "pattern": "^アンバーの王族を召喚した！$",
+    "variants": [
+      {
+        "en": "You summon a Lord of Amber!",
+        "count": 1
+      },
+      {
+        "en": "You summon Lords of Amber!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "cmd-action/cmd-mane.cpp"
+    ]
+  },
+  {
+    "pattern": "^特別な強敵を召喚した！$",
+    "variants": [
+      {
+        "en": "You summon a special opponent!",
+        "count": 1
+      },
+      {
+        "en": "You summon special opponents!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/blue-magic-summon.cpp",
+      "cmd-action/cmd-mane.cpp"
+    ]
+  },
+  {
+    "pattern": "^どの種類の魔法を使いますか？$",
+    "variants": [
+      {
+        "en": "use which type of magic? ",
+        "count": 1
+      },
+      {
+        "en": "Which type of magic do you use?",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/learnt-power-getter.cpp",
+      "cmd-item/cmd-magiceat.cpp"
+    ]
+  },
+  {
+    "pattern": "^その種類の魔法は覚えていない！$",
+    "variants": [
+      {
+        "en": "You don't know any spell of this type.",
+        "count": 1
+      },
+      {
+        "en": "You don't have that type of magic!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "blue-magic/learnt-power-getter.cpp",
+      "cmd-item/cmd-magiceat.cpp"
+    ]
+  },
+  {
+    "pattern": "^不明$",
+    "variants": [
+      {
+        "en": "Oops. No info",
+        "count": 1
+      },
+      {
+        "en": "unknown",
+        "count": 1
+      },
+      {
+        "en": "Unknown",
+        "count": 5
+      }
+    ],
+    "files": [
+      "bot/bot-json-output.cpp",
+      "knowledge/knowledge-monsters.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player/player-skill.cpp",
+      "smith/object-smith.cpp"
+    ]
+  },
+  {
+    "pattern": "^必殺剣$",
+    "variants": [
+      {
+        "en": "special attack",
+        "count": 1
+      },
+      {
+        "en": "hissatsu",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-action/cmd-hissatsu.cpp",
+      "io/input-key-processor.cpp"
+    ]
+  },
+  {
+    "pattern": "^能力$",
+    "variants": [
+      {
+        "en": "power",
+        "count": 1
+      },
+      {
+        "en": "Stat",
+        "count": 1
+      },
+      {
+        "en": "Ability",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-action/cmd-mane.cpp",
+      "view/display-player-stat-info.cpp",
+      "wizard/artifact-analyzer.cpp"
+    ]
+  },
+  {
+    "pattern": "^鏡魔法$",
+    "variants": [
+      {
+        "en": "skill",
+        "count": 1
+      },
+      {
+        "en": "mirror magic",
+        "count": 1
+      },
+      {
+        "en": "magic",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-action/cmd-mind.cpp",
+      "io/input-key-processor.cpp",
+      "mind/mind-power-getter.cpp"
+    ]
+  },
+  {
+    "pattern": "^超能力$",
+    "variants": [
+      {
+        "en": "skill",
+        "count": 1
+      },
+      {
+        "en": "psionic powers",
+        "count": 1
+      },
+      {
+        "en": "mindcraft",
+        "count": 2
+      }
+    ],
+    "files": [
+      "cmd-action/cmd-mind.cpp",
+      "io/input-key-processor.cpp",
+      "mind/mind-power-getter.cpp"
+    ]
+  },
+  {
+    "pattern": "^落とし戸に落ちた$",
+    "variants": [
+      {
+        "en": "fell through a trap door",
+        "count": 1
+      },
+      {
+        "en": "fell through a trap door!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-action/cmd-move.cpp",
+      "grid/trap.cpp"
+    ]
+  },
+  {
+    "pattern": "^効力:$",
+    "variants": [
+      {
+        "en": "power ",
+        "count": 1
+      },
+      {
+        "en": "pow ",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-action/cmd-spell.cpp",
+      "mind/mind-elementalist.cpp"
+    ]
+  },
+  {
+    "pattern": "^お金が足りません！$",
+    "variants": [
+      {
+        "en": "You do not have the gold!",
+        "count": 1
+      },
+      {
+        "en": "You don't have enough money!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-building/cmd-building.cpp",
+      "market/building-craft-weapon.cpp"
+    ]
+  },
+  {
+    "pattern": "^コマンド:$",
+    "variants": [
+      {
+        "en": "Command: ",
+        "count": 3
+      },
+      {
+        "en": "You may: ",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-io/cmd-diary.cpp",
+      "cmd-io/cmd-knowledge.cpp",
+      "store/cmd-store.cpp",
+      "wizard/wizard-spoiler.cpp"
+    ]
+  },
+  {
+    "pattern": "^名前:(.+?)にマッチ$",
+    "variants": [
+      {
+        "en": "Monsters' names with \"{}\"",
+        "count": 1
+      },
+      {
+        "en": "Monsters' names with \"%s\"",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-io/cmd-lore.cpp",
+      "market/building-monster.cpp"
+    ]
+  },
+  {
+    "pattern": "^マクロを追加しました。$",
+    "variants": [
+      {
+        "en": "Appended macros.",
+        "count": 1
+      },
+      {
+        "en": "Added a macro.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-io/cmd-macro.cpp"
+    ]
+  },
+  {
+    "pattern": "^キー配置を追加しました。$",
+    "variants": [
+      {
+        "en": "Appended keymaps.",
+        "count": 1
+      },
+      {
+        "en": "Added a keymap.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-io/cmd-macro.cpp"
+    ]
+  },
+  {
+    "pattern": "^その他$",
+    "variants": [
+      {
+        "en": "Other commands",
+        "count": 1
+      },
+      {
+        "en": "Misc",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-io/cmd-menu-content-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^ファイル (.+?) を開けませんでした。$",
+    "variants": [
+      {
+        "en": "Failed to open file %s.",
+        "count": 2
+      },
+      {
+        "en": "Failed to open file {}.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-io/cmd-process-screen.cpp",
+      "wizard/wizard-special-process.cpp"
+    ]
+  },
+  {
+    "pattern": "^----ゲーム中断----$",
+    "variants": [
+      {
+        "en": "--- Saved and Exited Game ---",
+        "count": 1
+      },
+      {
+        "en": "---- Save and Exit Game ----",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-io/cmd-save.cpp",
+      "main-win.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔法棒$",
+    "variants": [
+      {
+        "en": "wand",
+        "count": 1
+      },
+      {
+        "en": "Wands",
+        "count": 2
+      },
+      {
+        "en": "Wand",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-item/cmd-eat.cpp",
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^悪意に満ちた黒いオーラが(.+?)をとりまいた\\.\\.\\.$",
+    "variants": [
+      {
+        "en": "There is a malignant black aura surrounding your %s...",
+        "count": 4
+      },
+      {
+        "en": "There is a malignant black aura surrounding %s...",
+        "count": 1
+      }
+    ],
+    "files": [
+      "cmd-item/cmd-equipment.cpp",
+      "inventory/inventory-curse.cpp",
+      "object-enchant/object-curse.cpp"
+    ]
+  },
+  {
+    "pattern": "^初期値  色 / 文字 = ([-+]?\\d[\\d,]*) / ([-+]?\\d[\\d,]*)$",
+    "variants": [
+      {
+        "en": "Default attr/char = %3u / %3u",
+        "count": 1
+      },
+      {
+        "en": "Default attr/char = %3d / %3d",
+        "count": 2
+      }
+    ],
+    "files": [
+      "cmd-visual/cmd-visuals.cpp"
+    ]
+  },
+  {
+    "pattern": "^現在値  色 / 文字 = ([-+]?\\d[\\d,]*) / ([-+]?\\d[\\d,]*)$",
+    "variants": [
+      {
+        "en": "Current attr/char = %3u / %3u",
+        "count": 1
+      },
+      {
+        "en": "Current attr/char = %3d / %3d",
+        "count": 2
+      }
+    ],
+    "files": [
+      "cmd-visual/cmd-visuals.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)を殴った。$",
+    "variants": [
+      {
+        "en": "You punch %s.",
+        "count": 1
+      },
+      {
+        "en": "hits %s.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "combat/martial-arts-table.cpp",
+      "melee/melee-switcher.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)を蹴った。$",
+    "variants": [
+      {
+        "en": "You kick %s.",
+        "count": 2
+      },
+      {
+        "en": "kicks %s.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "combat/martial-arts-table.cpp",
+      "melee/melee-switcher.cpp"
+    ]
+  },
+  {
+    "pattern": "^セーブファイルが壊れています$",
+    "variants": [
+      {
+        "en": "broken savefile",
+        "count": 1
+      },
+      {
+        "en": "Broken savefile",
+        "count": 1
+      }
+    ],
+    "files": [
+      "core/game-play.cpp",
+      "load/load.cpp"
+    ]
+  },
+  {
+    "pattern": "^強制終了$",
+    "variants": [
+      {
+        "en": "Interrupting",
+        "count": 1
+      },
+      {
+        "en": "Abortion",
+        "count": 1
+      },
+      {
+        "en": "interrupt",
+        "count": 2
+      }
+    ],
+    "files": [
+      "core/scores.cpp",
+      "io/signal-handlers.cpp"
+    ]
+  },
+  {
+    "pattern": "^には効果がなかった。$",
+    "variants": [
+      {
+        "en": " is unaffected.",
+        "count": 32
+      },
+      {
+        "en": " is unaffected!",
+        "count": 2
+      }
+    ],
+    "files": [
+      "effect/effect-monster-charm.cpp",
+      "effect/effect-monster-curse.cpp",
+      "effect/effect-monster-evil.cpp",
+      "effect/effect-monster-oldies.cpp",
+      "effect/effect-monster-psi.cpp",
+      "effect/effect-monster-resist-hurt.cpp",
+      "effect/effect-monster-spirit.cpp",
+      "effect/effect-monster-switcher.cpp",
+      "effect/effect-monster.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)には効果がなかった。$",
+    "variants": [
+      {
+        "en": "%s is unaffected.",
+        "count": 2
+      },
+      {
+        "en": "%s^ is unaffected.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "effect/effect-monster-charm.cpp",
+      "effect/effect-monster-spirit.cpp",
+      "mind/mind-elementalist.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔力$",
+    "variants": [
+      {
+        "en": "mana",
+        "count": 3
+      },
+      {
+        "en": "Mana",
+        "count": 2
+      }
+    ],
+    "files": [
+      "effect/effect-monster-psi.cpp",
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/racial-draconian.cpp"
+    ]
+  },
+  {
+    "pattern": "^モンスター消滅$",
+    "variants": [
+      {
+        "en": "Genocide One",
+        "count": 2
+      },
+      {
+        "en": "Annihilation",
+        "count": 1
+      }
+    ],
+    "files": [
+      "effect/effect-monster-switcher.cpp",
+      "mind/mind-elementalist.cpp"
+    ]
+  },
+  {
+    "pattern": "^それ$",
+    "variants": [
+      {
+        "en": "It",
+        "count": 3
+      },
+      {
+        "en": "it",
+        "count": 2
+      }
+    ],
+    "files": [
+      "effect/effect-processor.cpp",
+      "lore/lore-util.cpp",
+      "monster-floor/monster-move.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)\\^に振り落とされた！$",
+    "variants": [
+      {
+        "en": "%s^ has thrown you off!",
+        "count": 1
+      },
+      {
+        "en": "You have been thrown off from %s!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "effect/spells-effect-util.cpp",
+      "melee/melee-postprocess.cpp"
+    ]
+  },
+  {
+    "pattern": "^恐ろしい$",
+    "variants": [
+      {
+        "en": "terrible",
+        "count": 1
+      },
+      {
+        "en": "dreadful",
+        "count": 1
+      }
+    ],
+    "files": [
+      "flavor/flag-inscriptions-table.cpp",
+      "monster/horror-descriptions.cpp"
+    ]
+  },
+  {
+    "pattern": "^加速$",
+    "variants": [
+      {
+        "en": " to speed",
+        "count": 1
+      },
+      {
+        "en": "haste-self",
+        "count": 1
+      },
+      {
+        "en": "haste",
+        "count": 1
+      },
+      {
+        "en": "Speed",
+        "count": 2
+      },
+      {
+        "en": "Fast",
+        "count": 1
+      }
+    ],
+    "files": [
+      "flavor/flavor-describer.cpp",
+      "lore/magic-types-setter.cpp",
+      "monster/monster-timed-effects.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/display-util.cpp",
+      "window/main-window-stat-poster.cpp"
+    ]
+  },
+  {
+    "pattern": "^探索$",
+    "variants": [
+      {
+        "en": " to searching",
+        "count": 1
+      },
+      {
+        "en": "searching",
+        "count": 2
+      },
+      {
+        "en": "Sear",
+        "count": 1
+      },
+      {
+        "en": "Searching",
+        "count": 1
+      }
+    ],
+    "files": [
+      "flavor/flavor-describer.cpp",
+      "smith/smith-tables.cpp",
+      "window/main-window-stat-poster.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^\\(なし\\)$",
+    "variants": [
+      {
+        "en": "(Nothing)",
+        "count": 1
+      },
+      {
+        "en": "(nothing)",
+        "count": 1
+      },
+      {
+        "en": "do nothing special.",
+        "count": 1
+      },
+      {
+        "en": "nothing special.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "flavor/tval-description-switcher.cpp",
+      "spell-realm/spells-craft.cpp"
+    ]
+  },
+  {
+    "pattern": "^クエスト$",
+    "variants": [
+      {
+        "en": "Quest",
+        "count": 1
+      },
+      {
+        "en": "in a quest",
+        "count": 1
+      }
+    ],
+    "files": [
+      "floor/floor-util.cpp",
+      "player/player-damage.cpp"
+    ]
+  },
+  {
+    "pattern": "^地上$",
+    "variants": [
+      {
+        "en": "Surface",
+        "count": 1
+      },
+      {
+        "en": "the surface",
+        "count": 4
+      },
+      {
+        "en": "on the surface",
+        "count": 1
+      },
+      {
+        "en": "Surf.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "floor/floor-util.cpp",
+      "io/write-diary.cpp",
+      "player/player-damage.cpp",
+      "window/main-window-left-frame.cpp",
+      "wizard/wizard-special-process.cpp"
+    ]
+  },
+  {
+    "pattern": "^アリーナ$",
+    "variants": [
+      {
+        "en": "Arena",
+        "count": 1
+      },
+      {
+        "en": "in the Arena",
+        "count": 1
+      }
+    ],
+    "files": [
+      "floor/floor-util.cpp",
+      "player/player-damage.cpp"
+    ]
+  },
+  {
+    "pattern": "^([-+]?\\d[\\d,]*)\\.([-+]?\\d[\\d,]*) kg$",
+    "variants": [
+      {
+        "en": "%3d.%1d lb",
+        "count": 4
+      },
+      {
+        "en": "%3d.%d lb",
+        "count": 2
+      }
+    ],
+    "files": [
+      "floor/object-scanner.cpp",
+      "view/display-inventory.cpp",
+      "view/display-store.cpp",
+      "window/display-sub-windows.cpp",
+      "window/main-window-equipments.cpp"
+    ]
+  },
+  {
+    "pattern": "^致命傷$",
+    "variants": [
+      {
+        "en": "a mortal wound",
+        "count": 1
+      },
+      {
+        "en": "cause critical wounds",
+        "count": 1
+      },
+      {
+        "en": "Cause Critical Wound",
+        "count": 1
+      }
+    ],
+    "files": [
+      "hpmp/hp-mp-processor.cpp",
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^本当に$",
+    "variants": [
+      {
+        "en": "Try",
+        "count": 1
+      },
+      {
+        "en": "Really try",
+        "count": 1
+      }
+    ],
+    "files": [
+      "inventory/floor-item-getter.cpp",
+      "inventory/inventory-util.cpp"
+    ]
+  },
+  {
+    "pattern": "^を装備からはずした$",
+    "variants": [
+      {
+        "en": "You were wielding",
+        "count": 1
+      },
+      {
+        "en": "You were holding",
+        "count": 1
+      },
+      {
+        "en": "You were wearing",
+        "count": 1
+      }
+    ],
+    "files": [
+      "inventory/inventory-object.cpp"
+    ]
+  },
+  {
+    "pattern": "^緊急セーブ失敗！$",
+    "variants": [
+      {
+        "en": "panic save failed!",
+        "count": 1
+      },
+      {
+        "en": "Panic save failed!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "io/exit-panic.cpp",
+      "io/signal-handlers.cpp"
+    ]
+  },
+  {
+    "pattern": "^緊急セーブ成功！$",
+    "variants": [
+      {
+        "en": "panic save succeeded!",
+        "count": 1
+      },
+      {
+        "en": "Panic save succeeded!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "io/exit-panic.cpp",
+      "io/signal-handlers.cpp"
+    ]
+  },
+  {
+    "pattern": "^元素魔法$",
+    "variants": [
+      {
+        "en": "magic",
+        "count": 1
+      },
+      {
+        "en": "power",
+        "count": 1
+      }
+    ],
+    "files": [
+      "io/input-key-processor.cpp",
+      "mind/mind-elementalist.cpp"
+    ]
+  },
+  {
+    "pattern": "^油つぼ$",
+    "variants": [
+      {
+        "en": "Flasks",
+        "count": 1
+      },
+      {
+        "en": "Flask",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/item-group-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^巻物$",
+    "variants": [
+      {
+        "en": "Scrolls",
+        "count": 2
+      },
+      {
+        "en": "Scroll",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^ロッド$",
+    "variants": [
+      {
+        "en": "Rods",
+        "count": 2
+      },
+      {
+        "en": "Rod",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^モンスター・ボール$",
+    "variants": [
+      {
+        "en": "Capture Balls",
+        "count": 1
+      },
+      {
+        "en": "Capture Ball",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/item-group-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^羊皮紙$",
+    "variants": [
+      {
+        "en": "Parchments",
+        "count": 1
+      },
+      {
+        "en": "Parchment",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/item-group-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^人形$",
+    "variants": [
+      {
+        "en": "Figurines",
+        "count": 1
+      },
+      {
+        "en": "Magical Figurines",
+        "count": 1
+      },
+      {
+        "en": "Magical Figurine",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^死体$",
+    "variants": [
+      {
+        "en": "Corpses",
+        "count": 2
+      },
+      {
+        "en": "Corpse",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/item-group-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^財宝$",
+    "variants": [
+      {
+        "en": "Treasure",
+        "count": 1
+      },
+      {
+        "en": " treasure",
+        "count": 1
+      },
+      {
+        "en": "treasure",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/item-group-table.cpp",
+      "view/display-lore-drops.cpp"
+    ]
+  },
+  {
+    "pattern": "^何か$",
+    "variants": [
+      {
+        "en": "Something",
+        "count": 3
+      },
+      {
+        "en": "it",
+        "count": 3
+      },
+      {
+        "en": "something",
+        "count": 5
+      },
+      {
+        "en": "arrows",
+        "count": 1
+      },
+      {
+        "en": "missile",
+        "count": 1
+      },
+      {
+        "en": "missiles",
+        "count": 1
+      },
+      {
+        "en": "Arrows",
+        "count": 1
+      },
+      {
+        "en": "Missile",
+        "count": 1
+      },
+      {
+        "en": "Missiles",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/item-group-table.cpp",
+      "monster/monster-describer.cpp",
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "player/player-damage.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)の魔法書\n$",
+    "variants": [
+      {
+        "en": "%s Spellbook\n",
+        "count": 1
+      },
+      {
+        "en": "\n%s Spellbook\n",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/knowledge-experiences.cpp"
+    ]
+  },
+  {
+    "pattern": "^突然変異$",
+    "variants": [
+      {
+        "en": "Mutations",
+        "count": 1
+      },
+      {
+        "en": "Get mutation",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/knowledge-mutations.cpp",
+      "wizard/wizard-player-modifier.cpp"
+    ]
+  },
+  {
+    "pattern": "^ユニーク$",
+    "variants": [
+      {
+        "en": "Uniques",
+        "count": 1
+      },
+      {
+        "en": "Unique monsters",
+        "count": 1
+      },
+      {
+        "en": "unique",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^アンバーの王族$",
+    "variants": [
+      {
+        "en": "Amberite",
+        "count": 1
+      },
+      {
+        "en": "Lords of Amber",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^ドラゴン$",
+    "variants": [
+      {
+        "en": "Dragon",
+        "count": 3
+      },
+      {
+        "en": "dragon",
+        "count": 1
+      },
+      {
+        "en": " dragon",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "room/rooms-pit.cpp",
+      "view/display-lore.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^ゼリー$",
+    "variants": [
+      {
+        "en": "Jelly",
+        "count": 1
+      },
+      {
+        "en": "jelly",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "room/rooms-nest.cpp"
+    ]
+  },
+  {
+    "pattern": "^オーク$",
+    "variants": [
+      {
+        "en": "Orc",
+        "count": 2
+      },
+      {
+        "en": "orc",
+        "count": 1
+      },
+      {
+        "en": " orc",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "room/rooms-pit.cpp",
+      "view/display-lore.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^人間$",
+    "variants": [
+      {
+        "en": "Person/Townsman",
+        "count": 1
+      },
+      {
+        "en": " human",
+        "count": 1
+      },
+      {
+        "en": "Human",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "view/display-lore.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^デーモン$",
+    "variants": [
+      {
+        "en": "Demon",
+        "count": 1
+      },
+      {
+        "en": "demon",
+        "count": 1
+      },
+      {
+        "en": " demon",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "room/rooms-pit.cpp",
+      "view/display-lore.cpp"
+    ]
+  },
+  {
+    "pattern": "^天使$",
+    "variants": [
+      {
+        "en": "Angel",
+        "count": 2
+      },
+      {
+        "en": " angel",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/display-lore.cpp"
+    ]
+  },
+  {
+    "pattern": "^トロル$",
+    "variants": [
+      {
+        "en": "Troll",
+        "count": 2
+      },
+      {
+        "en": "troll",
+        "count": 1
+      },
+      {
+        "en": " troll",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "room/rooms-pit.cpp",
+      "view/display-lore.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^ハウンド$",
+    "variants": [
+      {
+        "en": "Zephyr Hound",
+        "count": 1
+      },
+      {
+        "en": "Hounds",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^ミミック$",
+    "variants": [
+      {
+        "en": "Mimic",
+        "count": 1
+      },
+      {
+        "en": "mimic",
+        "count": 1
+      }
+    ],
+    "files": [
+      "knowledge/monster-group-table.cpp",
+      "room/rooms-nest.cpp"
+    ]
+  },
+  {
+    "pattern": "^彼女$",
+    "variants": [
+      {
+        "en": "she",
+        "count": 2
+      },
+      {
+        "en": "her",
+        "count": 2
+      }
+    ],
+    "files": [
+      "lore/lore-util.cpp",
+      "monster/monster-describer.cpp"
+    ]
+  },
+  {
+    "pattern": "^それら$",
+    "variants": [
+      {
+        "en": "they",
+        "count": 1
+      },
+      {
+        "en": "them",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/lore-util.cpp"
+    ]
+  },
+  {
+    "pattern": "^彼ら$",
+    "variants": [
+      {
+        "en": "they",
+        "count": 1
+      },
+      {
+        "en": "them",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/lore-util.cpp"
+    ]
+  },
+  {
+    "pattern": "^彼女ら$",
+    "variants": [
+      {
+        "en": "they",
+        "count": 1
+      },
+      {
+        "en": "them",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/lore-util.cpp"
+    ]
+  },
+  {
+    "pattern": "^かなり$",
+    "variants": [
+      {
+        "en": " fairly",
+        "count": 2
+      },
+      {
+        "en": " extremely",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/lore-util.cpp"
+    ]
+  },
+  {
+    "pattern": "^恐怖$",
+    "variants": [
+      {
+        "en": "terrify",
+        "count": 1
+      },
+      {
+        "en": "scare",
+        "count": 1
+      },
+      {
+        "en": "Afraid",
+        "count": 1
+      },
+      {
+        "en": "Fear",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "monster/monster-timed-effects.cpp",
+      "view/status-bars-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^混乱$",
+    "variants": [
+      {
+        "en": "confuse",
+        "count": 2
+      },
+      {
+        "en": "Confusion",
+        "count": 3
+      },
+      {
+        "en": "confusion",
+        "count": 6
+      },
+      {
+        "en": "Confuse",
+        "count": 1
+      },
+      {
+        "en": "Confused",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "mind/mind-elementalist.cpp",
+      "monster/monster-timed-effects.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/racial-draconian.cpp",
+      "view/status-bars-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^減速$",
+    "variants": [
+      {
+        "en": "slow",
+        "count": 2
+      },
+      {
+        "en": "Slow",
+        "count": 2
+      },
+      {
+        "en": "Inertia",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "monster/monster-timed-effects.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/display-lore-attacks.cpp",
+      "window/main-window-stat-poster.cpp"
+    ]
+  },
+  {
+    "pattern": "^麻痺$",
+    "variants": [
+      {
+        "en": "paralyze",
+        "count": 1
+      },
+      {
+        "en": "Paralyzed",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔力消去$",
+    "variants": [
+      {
+        "en": "dispel-magic",
+        "count": 2
+      },
+      {
+        "en": "Dispel Magic",
+        "count": 1
+      },
+      {
+        "en": "Dispel-magic",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "mspell/monster-power-table.cpp",
+      "object-enchant/activation-info-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^ショートテレポート$",
+    "variants": [
+      {
+        "en": "blink-self",
+        "count": 1
+      },
+      {
+        "en": "Blink",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^テレポート$",
+    "variants": [
+      {
+        "en": "teleport-self",
+        "count": 2
+      },
+      {
+        "en": "teleport",
+        "count": 4
+      },
+      {
+        "en": "Teleport",
+        "count": 2
+      },
+      {
+        "en": "teleportation",
+        "count": 1
+      },
+      {
+        "en": "Teleport self",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "mspell/monster-power-table.cpp",
+      "object-enchant/activation-info-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/mutation-racial-selector.cpp",
+      "smith/smith-tables.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/cmd-wizard.cpp"
+    ]
+  },
+  {
+    "pattern": "^時を止める$",
+    "variants": [
+      {
+        "en": "stop time",
+        "count": 1
+      },
+      {
+        "en": "The world",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^テレポートアウェイ$",
+    "variants": [
+      {
+        "en": "teleport away",
+        "count": 1
+      },
+      {
+        "en": "Teleport away",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^暗闇$",
+    "variants": [
+      {
+        "en": "create darkness",
+        "count": 2
+      },
+      {
+        "en": "Create darkness",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^閃光$",
+    "variants": [
+      {
+        "en": "create light",
+        "count": 1
+      },
+      {
+        "en": "Flash Light",
+        "count": 1
+      },
+      {
+        "en": "light",
+        "count": 3
+      },
+      {
+        "en": "Light",
+        "count": 3
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "mind/mind-explanations-table.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^死者復活$",
+    "variants": [
+      {
+        "en": "raise dead",
+        "count": 2
+      },
+      {
+        "en": "animate dead",
+        "count": 1
+      },
+      {
+        "en": "Raise dead",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "mspell/monster-power-table.cpp",
+      "object-enchant/activation-info-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^ハウンド召喚$",
+    "variants": [
+      {
+        "en": "summon hounds",
+        "count": 1
+      },
+      {
+        "en": "summon hound",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/magic-types-setter.cpp",
+      "object-enchant/activation-info-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)\\^は$",
+    "variants": [
+      {
+        "en": "%s^ ",
+        "count": 3
+      },
+      {
+        "en": "%s^ may carry",
+        "count": 1
+      },
+      {
+        "en": "%s^",
+        "count": 5
+      },
+      {
+        "en": "%s^ is",
+        "count": 1
+      }
+    ],
+    "files": [
+      "lore/monster-lore.cpp",
+      "view/display-lore-drops.cpp",
+      "view/display-lore-magics.cpp",
+      "view/display-lore-status.cpp",
+      "view/display-lore.cpp"
+    ]
+  },
+  {
+    "pattern": "^改良に失敗した。$",
+    "variants": [
+      {
+        "en": "The improvement failed.",
+        "count": 1
+      },
+      {
+        "en": "You failed to enchant.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "market/building-enchanter.cpp",
+      "mind/mind-weaponsmith.cpp"
+    ]
+  },
+  {
+    "pattern": "^この魔法棒はもう充分に充填されています。$",
+    "variants": [
+      {
+        "en": "These wands are already fully charged.",
+        "count": 1
+      },
+      {
+        "en": "This wand is already fully charged.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "market/building-recharger.cpp"
+    ]
+  },
+  {
+    "pattern": "^この杖はもう充分に充填されています。$",
+    "variants": [
+      {
+        "en": "These staffs are already fully charged.",
+        "count": 1
+      },
+      {
+        "en": "This staff is already fully charged.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "market/building-recharger.cpp"
+    ]
+  },
+  {
+    "pattern": "^賭け金？$",
+    "variants": [
+      {
+        "en": "Your wager? ",
+        "count": 1
+      },
+      {
+        "en": "Your wager ?",
+        "count": 1
+      }
+    ],
+    "files": [
+      "market/melee-arena.cpp",
+      "market/play-gamble.cpp"
+    ]
+  },
+  {
+    "pattern": "^その方向にはモンスターはいません。$",
+    "variants": [
+      {
+        "en": "There is no monster.",
+        "count": 15
+      },
+      {
+        "en": "You don't see any monster in this direction",
+        "count": 3
+      }
+    ],
+    "files": [
+      "mind/mind-berserker.cpp",
+      "mind/mind-warrior.cpp",
+      "mind/monk-attack.cpp",
+      "realm/realm-hissatsu.cpp"
+    ]
+  },
+  {
+    "pattern": "^火炎$",
+    "variants": [
+      {
+        "en": "Fire",
+        "count": 8
+      },
+      {
+        "en": "fire",
+        "count": 3
+      },
+      {
+        "en": "burn with fire!",
+        "count": 1
+      },
+      {
+        "en": "fire!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/racial-balrog.cpp",
+      "spell-realm/spells-craft.cpp",
+      "wizard/artifact-bias-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^プラズマ$",
+    "variants": [
+      {
+        "en": "Plasma",
+        "count": 3
+      },
+      {
+        "en": "plasma",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/display-lore-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^冷気$",
+    "variants": [
+      {
+        "en": "Ice",
+        "count": 1
+      },
+      {
+        "en": "frost",
+        "count": 1
+      },
+      {
+        "en": "cold",
+        "count": 4
+      },
+      {
+        "en": "Cold",
+        "count": 5
+      },
+      {
+        "en": "Frost",
+        "count": 2
+      },
+      {
+        "en": "chill to the bone!",
+        "count": 1
+      },
+      {
+        "en": "cold!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/racial-draconian.cpp",
+      "spell-realm/spells-craft.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/artifact-bias-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^遅鈍$",
+    "variants": [
+      {
+        "en": "Inertia",
+        "count": 2
+      },
+      {
+        "en": "inertia",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/display-lore-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^時間逆転$",
+    "variants": [
+      {
+        "en": "Time Stream",
+        "count": 1
+      },
+      {
+        "en": "time",
+        "count": 2
+      },
+      {
+        "en": "Time",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^電撃$",
+    "variants": [
+      {
+        "en": "Lightning",
+        "count": 7
+      },
+      {
+        "en": "lightning",
+        "count": 1
+      },
+      {
+        "en": "elec. brand",
+        "count": 1
+      },
+      {
+        "en": "electric brand",
+        "count": 1
+      },
+      {
+        "en": "shock your foes!",
+        "count": 1
+      },
+      {
+        "en": "electricity!",
+        "count": 1
+      },
+      {
+        "en": "Elec",
+        "count": 1
+      },
+      {
+        "en": "Lightning Brand",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "smith/smith-tables.cpp",
+      "spell-realm/spells-craft.cpp",
+      "wizard/artifact-bias-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^分解$",
+    "variants": [
+      {
+        "en": "Disintegration",
+        "count": 2
+      },
+      {
+        "en": "disintegration",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^暗黒$",
+    "variants": [
+      {
+        "en": "Darkness",
+        "count": 1
+      },
+      {
+        "en": "darkness",
+        "count": 2
+      },
+      {
+        "en": "dark",
+        "count": 2
+      },
+      {
+        "en": "Dark",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/racial-draconian.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^地獄$",
+    "variants": [
+      {
+        "en": "Nether",
+        "count": 3
+      },
+      {
+        "en": "nether",
+        "count": 4
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/racial-balrog.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^虚無$",
+    "variants": [
+      {
+        "en": "void",
+        "count": 2
+      },
+      {
+        "en": "Void",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^混沌$",
+    "variants": [
+      {
+        "en": "Chaos",
+        "count": 2
+      },
+      {
+        "en": "Mark of Chaos",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "wizard/artifact-bias-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^カオス$",
+    "variants": [
+      {
+        "en": "Chaos",
+        "count": 3
+      },
+      {
+        "en": "chaos",
+        "count": 4
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/racial-draconian.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^因果混乱$",
+    "variants": [
+      {
+        "en": "Nexus",
+        "count": 3
+      },
+      {
+        "en": "nexus",
+        "count": 3
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^破片$",
+    "variants": [
+      {
+        "en": "Shards",
+        "count": 3
+      },
+      {
+        "en": "shards",
+        "count": 4
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/racial-draconian.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^フォース$",
+    "variants": [
+      {
+        "en": "Force",
+        "count": 2
+      },
+      {
+        "en": "force",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/display-lore-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^隕石$",
+    "variants": [
+      {
+        "en": "Meteor",
+        "count": 1
+      },
+      {
+        "en": "meteor",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "view/display-lore-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^吸血$",
+    "variants": [
+      {
+        "en": "Drain Life",
+        "count": 1
+      },
+      {
+        "en": "Vampiric Drain",
+        "count": 3
+      },
+      {
+        "en": "Vampiric",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "racial/mutation-racial-selector.cpp",
+      "racial/race-racial-command-setter.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^劣化$",
+    "variants": [
+      {
+        "en": "Disenchantment",
+        "count": 3
+      },
+      {
+        "en": "disenchantment",
+        "count": 4
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/racial-draconian.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔力充填$",
+    "variants": [
+      {
+        "en": "Recharging",
+        "count": 1
+      },
+      {
+        "en": "recharging",
+        "count": 1
+      },
+      {
+        "en": "recharge item",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "object-enchant/activation-info-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^岩石溶解$",
+    "variants": [
+      {
+        "en": "Stone to mud",
+        "count": 1
+      },
+      {
+        "en": "stone to mud",
+        "count": 2
+      },
+      {
+        "en": "Stone to Mud",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "object-enchant/activation-info-table.cpp",
+      "racial/race-racial-command-setter.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^現実変容$",
+    "variants": [
+      {
+        "en": "Alter reality",
+        "count": 1
+      },
+      {
+        "en": "Alter",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^地震$",
+    "variants": [
+      {
+        "en": "Earthquake",
+        "count": 2
+      },
+      {
+        "en": "Quake",
+        "count": 1
+      },
+      {
+        "en": "earthquake",
+        "count": 1
+      },
+      {
+        "en": "quake",
+        "count": 2
+      },
+      {
+        "en": "an earthquake",
+        "count": 1
+      },
+      {
+        "en": "+Shatter",
+        "count": 1
+      },
+      {
+        "en": "Earthquake impact on hit",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "mind/mind-explanations-table.cpp",
+      "object-enchant/activation-info-table.cpp",
+      "racial/mutation-racial-selector.cpp",
+      "smith/smith-tables.cpp",
+      "spell-kind/earthquake.cpp",
+      "view/display-lore-attacks.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^増殖阻止$",
+    "variants": [
+      {
+        "en": "Sterilization",
+        "count": 1
+      },
+      {
+        "en": "Sterilize",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-elementalist.cpp",
+      "racial/mutation-racial-selector.cpp"
+    ]
+  },
+  {
+    "pattern": "^光の剣$",
+    "variants": [
+      {
+        "en": "Psycho-Spear",
+        "count": 1
+      },
+      {
+        "en": "psycho-spear",
+        "count": 1
+      },
+      {
+        "en": "Psycho-spear",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-explanations-table.cpp",
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^幻霊召喚$",
+    "variants": [
+      {
+        "en": "Summon Ghost",
+        "count": 1
+      },
+      {
+        "en": "summon phantasmal servant",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-explanations-table.cpp",
+      "object-enchant/activation-info-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^幻惑の光$",
+    "variants": [
+      {
+        "en": "Illusion Light",
+        "count": 1
+      },
+      {
+        "en": "Confusing Light",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-explanations-table.cpp",
+      "racial/class-racial-switcher.cpp"
+    ]
+  },
+  {
+    "pattern": "^分身$",
+    "variants": [
+      {
+        "en": "Bunshin",
+        "count": 1
+      },
+      {
+        "en": "MltShdw",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-explanations-table.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^全ての攻撃が、1/2の確率で無効になる。$",
+    "variants": [
+      {
+        "en": "Completely protects you from any attacks at one in two chance.",
+        "count": 1
+      },
+      {
+        "en": "Creates shadows of yourself which gives you the ability to completely evade any attacks at one in two chance for a while.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-explanations-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔法への耐性がついた。$",
+    "variants": [
+      {
+        "en": "You have been protected from magic!",
+        "count": 1
+      },
+      {
+        "en": "You become resistant to magic.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-magic-resistance.cpp",
+      "mutation/mutation-roll-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔法に弱くなった。$",
+    "variants": [
+      {
+        "en": "You are no longer protected from magic.",
+        "count": 1
+      },
+      {
+        "en": "You become susceptible to magic again.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-magic-resistance.cpp",
+      "mutation/mutation-roll-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^失敗！$",
+    "variants": [
+      {
+        "en": "Failed!",
+        "count": 2
+      },
+      {
+        "en": "You cannot move to that place!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mind/mind-ninja.cpp",
+      "realm/realm-hissatsu.cpp",
+      "spell-kind/spells-teleport.cpp"
+    ]
+  },
+  {
+    "pattern": "^何かの$",
+    "variants": [
+      {
+        "en": "its",
+        "count": 1
+      },
+      {
+        "en": "something's",
+        "count": 1
+      }
+    ],
+    "files": [
+      "monster/monster-describer.cpp"
+    ]
+  },
+  {
+    "pattern": "^は痛みでうなった。$",
+    "variants": [
+      {
+        "en": " grunts with pain.",
+        "count": 2
+      },
+      {
+        "en": " snarls with pain.",
+        "count": 2
+      }
+    ],
+    "files": [
+      "monster/monster-pain-describer.cpp"
+    ]
+  },
+  {
+    "pattern": "^は痛みで叫んだ。$",
+    "variants": [
+      {
+        "en": " cries out in pain.",
+        "count": 1
+      },
+      {
+        "en": " squeals in pain.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "monster/monster-pain-describer.cpp"
+    ]
+  },
+  {
+    "pattern": "^は痛みで絶叫した。$",
+    "variants": [
+      {
+        "en": " screams in pain.",
+        "count": 1
+      },
+      {
+        "en": " shrieks in pain.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "monster/monster-pain-describer.cpp"
+    ]
+  },
+  {
+    "pattern": "^は苦痛のあまり絶叫した。$",
+    "variants": [
+      {
+        "en": " screams in agony.",
+        "count": 1
+      },
+      {
+        "en": " shrieks in agony.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "monster/monster-pain-describer.cpp"
+    ]
+  },
+  {
+    "pattern": "^はうめいた。$",
+    "variants": [
+      {
+        "en": " grunts.",
+        "count": 1
+      },
+      {
+        "en": " groans.",
+        "count": 1
+      },
+      {
+        "en": " moans.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "monster/monster-pain-describer.cpp"
+    ]
+  },
+  {
+    "pattern": "^は吠えた。$",
+    "variants": [
+      {
+        "en": " roars.",
+        "count": 1
+      },
+      {
+        "en": " howls.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "monster/monster-pain-describer.cpp"
+    ]
+  },
+  {
+    "pattern": "^は痛みでシーッと鳴いた。$",
+    "variants": [
+      {
+        "en": " hisses with pain.",
+        "count": 1
+      },
+      {
+        "en": " hisses in pain.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "monster/monster-pain-describer.cpp"
+    ]
+  },
+  {
+    "pattern": "^はよろめいた。$",
+    "variants": [
+      {
+        "en": " stumbles.",
+        "count": 1
+      },
+      {
+        "en": " staggers.",
+        "count": 2
+      }
+    ],
+    "files": [
+      "monster/monster-pain-describer.cpp"
+    ]
+  },
+  {
+    "pattern": "^睡眠$",
+    "variants": [
+      {
+        "en": "sleep",
+        "count": 1
+      },
+      {
+        "en": "Sleep",
+        "count": 1
+      }
+    ],
+    "files": [
+      "monster/monster-timed-effects.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^朦朧$",
+    "variants": [
+      {
+        "en": "stun",
+        "count": 1
+      },
+      {
+        "en": "Stun",
+        "count": 1
+      }
+    ],
+    "files": [
+      "monster/monster-timed-effects.cpp",
+      "view/display-lore-attacks.cpp"
+    ]
+  },
+  {
+    "pattern": "^無敵$",
+    "variants": [
+      {
+        "en": "invulnerable",
+        "count": 1
+      },
+      {
+        "en": "Invuln",
+        "count": 1
+      }
+    ],
+    "files": [
+      "monster/monster-timed-effects.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^叫ぶ$",
+    "variants": [
+      {
+        "en": "shriek",
+        "count": 1
+      },
+      {
+        "en": "Shriek",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^ロケット$",
+    "variants": [
+      {
+        "en": "rocket",
+        "count": 1
+      },
+      {
+        "en": "Rocket",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/race-racial-command-setter.cpp"
+    ]
+  },
+  {
+    "pattern": "^射撃$",
+    "variants": [
+      {
+        "en": "arrow",
+        "count": 1
+      },
+      {
+        "en": "Arrow",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^炎のブレス$",
+    "variants": [
+      {
+        "en": "breathe fire",
+        "count": 1
+      },
+      {
+        "en": "Fire Breath",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "racial/mutation-racial-selector.cpp"
+    ]
+  },
+  {
+    "pattern": "^放射能球$",
+    "variants": [
+      {
+        "en": "nuke ball",
+        "count": 1
+      },
+      {
+        "en": "Nuke",
+        "count": 1
+      },
+      {
+        "en": "ball of nuke",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^純ログルス$",
+    "variants": [
+      {
+        "en": "raw Logrus",
+        "count": 1
+      },
+      {
+        "en": "Logrus",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^アシッド・ボール$",
+    "variants": [
+      {
+        "en": "acid ball",
+        "count": 1
+      },
+      {
+        "en": "ball of acid",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^サンダー・ボール$",
+    "variants": [
+      {
+        "en": "lightning ball",
+        "count": 1
+      },
+      {
+        "en": "ball of lightning",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^ファイア・ボール$",
+    "variants": [
+      {
+        "en": "fire ball",
+        "count": 1
+      },
+      {
+        "en": "Fire Ball",
+        "count": 1
+      },
+      {
+        "en": "ball of fire",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "racial/race-racial-command-setter.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^アイス・ボール$",
+    "variants": [
+      {
+        "en": "frost ball",
+        "count": 1
+      },
+      {
+        "en": "ball of cold",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^悪臭雲$",
+    "variants": [
+      {
+        "en": "stinking cloud",
+        "count": 1
+      },
+      {
+        "en": "Stinking Cloud",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^地獄球$",
+    "variants": [
+      {
+        "en": "nether ball",
+        "count": 1
+      },
+      {
+        "en": "Nether",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔力の嵐$",
+    "variants": [
+      {
+        "en": "mana storm",
+        "count": 1
+      },
+      {
+        "en": "Mana storm",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^暗黒の嵐$",
+    "variants": [
+      {
+        "en": "darkness storm",
+        "count": 1
+      },
+      {
+        "en": "Darkness storm",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔力吸収$",
+    "variants": [
+      {
+        "en": "drain mana",
+        "count": 1
+      },
+      {
+        "en": "Drain mana",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^精神攻撃$",
+    "variants": [
+      {
+        "en": "mind blast",
+        "count": 1
+      },
+      {
+        "en": "Mind blast",
+        "count": 1
+      },
+      {
+        "en": "Mind Blast",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/mutation-racial-selector.cpp",
+      "racial/race-racial-command-setter.cpp"
+    ]
+  },
+  {
+    "pattern": "^脳攻撃$",
+    "variants": [
+      {
+        "en": "brain smash",
+        "count": 1
+      },
+      {
+        "en": "Brain smash",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^軽傷$",
+    "variants": [
+      {
+        "en": "cause light wounds",
+        "count": 1
+      },
+      {
+        "en": "Cause Light Wound",
+        "count": 1
+      },
+      {
+        "en": "somewhat wounded",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "system/monster-entity.cpp"
+    ]
+  },
+  {
+    "pattern": "^重傷$",
+    "variants": [
+      {
+        "en": "cause serious wounds",
+        "count": 1
+      },
+      {
+        "en": "Cause Serious Wound",
+        "count": 1
+      },
+      {
+        "en": "badly wounded",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "system/monster-entity.cpp"
+    ]
+  },
+  {
+    "pattern": "^秘孔を突く$",
+    "variants": [
+      {
+        "en": "cause mortal wounds",
+        "count": 1
+      },
+      {
+        "en": "Cause Mortal Wound",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^ファイア・ボルト$",
+    "variants": [
+      {
+        "en": "fire bolt",
+        "count": 1
+      },
+      {
+        "en": "Fire Bolt",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "racial/race-racial-command-setter.cpp"
+    ]
+  },
+  {
+    "pattern": "^地獄の矢$",
+    "variants": [
+      {
+        "en": "nether bolt",
+        "count": 1
+      },
+      {
+        "en": "Nether",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔力の矢$",
+    "variants": [
+      {
+        "en": "mana bolt",
+        "count": 1
+      },
+      {
+        "en": "Mana",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^マジック・ミサイル$",
+    "variants": [
+      {
+        "en": "magic missile",
+        "count": 1
+      },
+      {
+        "en": "Magic Missile",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "racial/race-racial-command-setter.cpp"
+    ]
+  },
+  {
+    "pattern": "^恐慌$",
+    "variants": [
+      {
+        "en": "scare",
+        "count": 1
+      },
+      {
+        "en": "terror",
+        "count": 1
+      },
+      {
+        "en": "Scare",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "object-enchant/activation-info-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^盲目$",
+    "variants": [
+      {
+        "en": "blind",
+        "count": 1
+      },
+      {
+        "en": "Blind",
+        "count": 2
+      },
+      {
+        "en": "Blindness",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/status-bars-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^パニック・モンスター$",
+    "variants": [
+      {
+        "en": "confuse",
+        "count": 1
+      },
+      {
+        "en": "confuse monster",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "object-enchant/activation-info-table.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^スピード$",
+    "variants": [
+      {
+        "en": "speed",
+        "count": 4
+      },
+      {
+        "en": "Speed",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^破滅の手$",
+    "variants": [
+      {
+        "en": "the Hand of Doom",
+        "count": 1
+      },
+      {
+        "en": "Hand of doom",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^体力回復$",
+    "variants": [
+      {
+        "en": "heal-self",
+        "count": 1
+      },
+      {
+        "en": "Heal-self",
+        "count": 1
+      },
+      {
+        "en": "heal",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^無傷の球$",
+    "variants": [
+      {
+        "en": "make invulnerable",
+        "count": 1
+      },
+      {
+        "en": "Invulnerable",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^ショート・テレポート$",
+    "variants": [
+      {
+        "en": "blink-self",
+        "count": 1
+      },
+      {
+        "en": "blink",
+        "count": 2
+      },
+      {
+        "en": "Blink",
+        "count": 2
+      },
+      {
+        "en": "Phase door",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "object-enchant/activation-info-table.cpp",
+      "racial/mutation-racial-selector.cpp",
+      "racial/race-racial-command-setter.cpp",
+      "smith/smith-tables.cpp",
+      "wizard/cmd-wizard.cpp"
+    ]
+  },
+  {
+    "pattern": "^引きよせる$",
+    "variants": [
+      {
+        "en": "teleport to",
+        "count": 1
+      },
+      {
+        "en": "Teleport to",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^トラップ創造$",
+    "variants": [
+      {
+        "en": "create traps",
+        "count": 1
+      },
+      {
+        "en": "Create traps",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^記憶喪失$",
+    "variants": [
+      {
+        "en": "cause amnesia",
+        "count": 1
+      },
+      {
+        "en": "Amnesia",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/monster-power-table.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^轟音$",
+    "variants": [
+      {
+        "en": "sound",
+        "count": 5
+      },
+      {
+        "en": "Sound",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "object-enchant/dragon-breaths-table.cpp",
+      "player-info/bluemage-data.cpp",
+      "racial/racial-draconian.cpp",
+      "view/display-lore-status.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^重力$",
+    "variants": [
+      {
+        "en": "gravity",
+        "count": 2
+      },
+      {
+        "en": "Gravity",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player-info/bluemage-data.cpp",
+      "view/display-lore-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^放射性廃棄物$",
+    "variants": [
+      {
+        "en": "toxic waste",
+        "count": 1
+      },
+      {
+        "en": "Nuke",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^深淵$",
+    "variants": [
+      {
+        "en": "abyss",
+        "count": 1
+      },
+      {
+        "en": "Abyss",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mspell/mspell-attack/mspell-breath.cpp",
+      "player-info/bluemage-data.cpp"
+    ]
+  },
+  {
+    "pattern": "^手の輝きがなくなった。$",
+    "variants": [
+      {
+        "en": "Your hands stop glowing.",
+        "count": 2
+      },
+      {
+        "en": "Your hands no longer glow.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/mspell-dispel.cpp",
+      "player-attack/attack-chaos-effect.cpp",
+      "realm/realm-hex.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)\\^には効果がなかった。$",
+    "variants": [
+      {
+        "en": "%s^ is unaffected!",
+        "count": 4
+      },
+      {
+        "en": "%s^ is unaffected.",
+        "count": 14
+      }
+    ],
+    "files": [
+      "mspell/mspell-floor.cpp",
+      "mspell/mspell-status.cpp",
+      "player-attack/attack-chaos-effect.cpp",
+      "spell-kind/spells-genocide.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)\\^が恐ろしげな幻覚を作り出した。$",
+    "variants": [
+      {
+        "en": "%s^ casts a fearful illusion.",
+        "count": 1
+      },
+      {
+        "en": "%s^ casts a fearful illusion in front of %s.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/mspell-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)は呪文を唱えて(.+?)の目を焼き付かせた。$",
+    "variants": [
+      {
+        "en": "%s^ casts a spell, burning %ss eyes.",
+        "count": 1
+      },
+      {
+        "en": "%s^ casts a spell, burning %s's eyes.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/mspell-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)\\^は混乱したようだ。$",
+    "variants": [
+      {
+        "en": "%s^ seems confused.",
+        "count": 1
+      },
+      {
+        "en": "%s^ appears confused.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/mspell-status.cpp",
+      "player-attack/attack-chaos-effect.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)が(.+?)の筋肉から力を吸いとった。$",
+    "variants": [
+      {
+        "en": "%s^ drains power from %ss muscles.",
+        "count": 1
+      },
+      {
+        "en": "%s^ drains power from %s's muscles.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mspell/mspell-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)\\^は体力を回復したようだ。$",
+    "variants": [
+      {
+        "en": "%s^ sounds healthier.",
+        "count": 2
+      },
+      {
+        "en": "%s^ looks healthier.",
+        "count": 2
+      }
+    ],
+    "files": [
+      "mspell/mspell-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^肉体が腐乱しなくなった。$",
+    "variants": [
+      {
+        "en": "Your flesh rots no longer.",
+        "count": 1
+      },
+      {
+        "en": "Your flesh stops rotting.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mutation/mutation-investor-remover.cpp"
+    ]
+  },
+  {
+    "pattern": "^あなたの体は炎につつまれている。$",
+    "variants": [
+      {
+        "en": "Your body is enveloped in flames!",
+        "count": 1
+      },
+      {
+        "en": "Your body is enveloped in flames.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "mutation/mutation-roll-table.cpp",
+      "player-info/mutation-info.cpp"
+    ]
+  },
+  {
+    "pattern": "^(.+?)が青白く光った．．．$",
+    "variants": [
+      {
+        "en": "The {} becomes pale...",
+        "count": 1
+      },
+      {
+        "en": "The {} glows palely...",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-activation/activation-bolt-ball.cpp",
+      "object-activation/activation-switcher.cpp"
+    ]
+  },
+  {
+    "pattern": "^白く明るく輝いている\\.\\.\\.$",
+    "variants": [
+      {
+        "en": "It glows bright white...",
+        "count": 1
+      },
+      {
+        "en": "It glows a bright white...",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-activation/activation-others.cpp",
+      "object-activation/activation-switcher.cpp"
+    ]
+  },
+  {
+    "pattern": "^邪悪消滅$",
+    "variants": [
+      {
+        "en": "banish evil",
+        "count": 1
+      },
+      {
+        "en": "Banish Evil",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "racial/mutation-racial-selector.cpp"
+    ]
+  },
+  {
+    "pattern": "^抹殺$",
+    "variants": [
+      {
+        "en": "genocide",
+        "count": 1
+      },
+      {
+        "en": "Genocide",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "spell-kind/spells-genocide.cpp"
+    ]
+  },
+  {
+    "pattern": "^周辺抹殺$",
+    "variants": [
+      {
+        "en": "mass genocide",
+        "count": 1
+      },
+      {
+        "en": "Mass Genocide",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "spell-kind/spells-genocide.cpp"
+    ]
+  },
+  {
+    "pattern": "^モンスター恐慌$",
+    "variants": [
+      {
+        "en": "frighten monsters",
+        "count": 1
+      },
+      {
+        "en": "Scare Monster",
+        "count": 2
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "racial/race-racial-command-setter.cpp"
+    ]
+  },
+  {
+    "pattern": "^経験値復活$",
+    "variants": [
+      {
+        "en": "restore experience",
+        "count": 2
+      },
+      {
+        "en": "Restore Experience",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "racial/race-racial-command-setter.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^イルミネーション$",
+    "variants": [
+      {
+        "en": "light area (dam 2d15)",
+        "count": 1
+      },
+      {
+        "en": "light area",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔法の地図と光$",
+    "variants": [
+      {
+        "en": "light (dam 2d15) & map area",
+        "count": 1
+      },
+      {
+        "en": "light & map area",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^全感知$",
+    "variants": [
+      {
+        "en": "detection",
+        "count": 2
+      },
+      {
+        "en": "Detection all",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "smith/smith-tables.cpp",
+      "wizard/cmd-wizard.cpp"
+    ]
+  },
+  {
+    "pattern": "^\\*鑑定\\*$",
+    "variants": [
+      {
+        "en": "identify true",
+        "count": 1
+      },
+      {
+        "en": "*Idenfity*",
+        "count": 2
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "wizard/cmd-wizard.cpp",
+      "wizard/wizard-item-modifier.cpp"
+    ]
+  },
+  {
+    "pattern": "^鑑定$",
+    "variants": [
+      {
+        "en": "identify spell",
+        "count": 1
+      },
+      {
+        "en": "Idenfity",
+        "count": 2
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "wizard/cmd-wizard.cpp",
+      "wizard/wizard-item-modifier.cpp"
+    ]
+  },
+  {
+    "pattern": "^爆発のルーン$",
+    "variants": [
+      {
+        "en": "explosive rune",
+        "count": 1
+      },
+      {
+        "en": "Explosive Rune",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "racial/race-racial-command-setter.cpp"
+    ]
+  },
+  {
+    "pattern": "^次元の扉$",
+    "variants": [
+      {
+        "en": "dimension door",
+        "count": 1
+      },
+      {
+        "en": "Dimension door",
+        "count": 1
+      }
+    ],
+    "files": [
+      "object-enchant/activation-info-table.cpp",
+      "wizard/cmd-wizard.cpp"
+    ]
+  },
+  {
+    "pattern": "^\\)を授ける。$",
+    "variants": [
+      {
+        "en": ") when fueled.",
+        "count": 1
+      },
+      {
+        "en": ") forever.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "perception/identification.cpp"
+    ]
+  },
+  {
+    "pattern": "^中立$",
+    "variants": [
+      {
+        "en": "Neutral",
+        "count": 1
+      },
+      {
+        "en": "neutral",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/alignment.cpp",
+      "spell-kind/spells-sight.cpp"
+    ]
+  },
+  {
+    "pattern": "^モンスター$",
+    "variants": [
+      {
+        "en": "A monster",
+        "count": 1
+      },
+      {
+        "en": " creature",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/bluemage-data.cpp",
+      "view/display-lore.cpp"
+    ]
+  },
+  {
+    "pattern": "^悪魔$",
+    "variants": [
+      {
+        "en": "Daemon",
+        "count": 1
+      },
+      {
+        "en": "Demon",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/bluemage-data.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^アンデッド$",
+    "variants": [
+      {
+        "en": "Undead",
+        "count": 2
+      },
+      {
+        "en": "undead",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/bluemage-data.cpp",
+      "room/rooms-nest.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^なし$",
+    "variants": [
+      {
+        "en": "None",
+        "count": 4
+      },
+      {
+        "en": "nothing",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/bluemage-data.cpp",
+      "smith/smith-tables.cpp",
+      "system/item/item-entity.cpp",
+      "wizard/artifact-bias-table.cpp",
+      "wizard/wizard-spoiler.cpp"
+    ]
+  },
+  {
+    "pattern": "^練習生$",
+    "variants": [
+      {
+        "en": "Apprentice",
+        "count": 5
+      },
+      {
+        "en": "Trainee",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/class-info.cpp"
+    ]
+  },
+  {
+    "pattern": "^奇術師$",
+    "variants": [
+      {
+        "en": "Trickster",
+        "count": 5
+      },
+      {
+        "en": "Jagguler",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/class-info.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔道師$",
+    "variants": [
+      {
+        "en": "Sorcerer",
+        "count": 5
+      },
+      {
+        "en": "Wizard",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/class-info.cpp"
+    ]
+  },
+  {
+    "pattern": "^マスター$",
+    "variants": [
+      {
+        "en": "Master Thief",
+        "count": 1
+      },
+      {
+        "en": "Master Harper",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/class-info.cpp"
+    ]
+  },
+  {
+    "pattern": "^見習い$",
+    "variants": [
+      {
+        "en": "Novice",
+        "count": 2
+      },
+      {
+        "en": "Acolyte",
+        "count": 1
+      },
+      {
+        "en": "Apprentice",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/class-info.cpp"
+    ]
+  },
+  {
+    "pattern": "^入門者$",
+    "variants": [
+      {
+        "en": "Initiate",
+        "count": 3
+      },
+      {
+        "en": "Beginner",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/class-info.cpp"
+    ]
+  },
+  {
+    "pattern": "^秘術師$",
+    "variants": [
+      {
+        "en": "Skilled",
+        "count": 1
+      },
+      {
+        "en": "Conjurer",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player-info/class-info.cpp"
+    ]
+  },
+  {
+    "pattern": "^変異した。$",
+    "variants": [
+      {
+        "en": "mutation",
+        "count": 1
+      },
+      {
+        "en": "polymorphing",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player/patron.cpp"
+    ]
+  },
+  {
+    "pattern": "^上質なアイテムを手に入れた。$",
+    "variants": [
+      {
+        "en": "a good item",
+        "count": 1
+      },
+      {
+        "en": "good items",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player/patron.cpp"
+    ]
+  },
+  {
+    "pattern": "^高級品のアイテムを手に入れた。$",
+    "variants": [
+      {
+        "en": "an excellent item",
+        "count": 1
+      },
+      {
+        "en": "excellent items",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player/patron.cpp"
+    ]
+  },
+  {
+    "pattern": "^モンスターを召喚された。$",
+    "variants": [
+      {
+        "en": "summoning hostile monsters",
+        "count": 2
+      },
+      {
+        "en": "summoning many hostile monsters",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player/patron.cpp"
+    ]
+  },
+  {
+    "pattern": "^モンスターが抹殺された。$",
+    "variants": [
+      {
+        "en": "genociding monsters",
+        "count": 1
+      },
+      {
+        "en": "genociding nearby monsters",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player/patron.cpp"
+    ]
+  },
+  {
+    "pattern": "^切腹$",
+    "variants": [
+      {
+        "en": "Seppuku",
+        "count": 1
+      },
+      {
+        "en": "committed seppuku",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player/player-damage.cpp",
+      "view/display-player.cpp"
+    ]
+  },
+  {
+    "pattern": "^二刀流$",
+    "variants": [
+      {
+        "en": "Dual Wielding",
+        "count": 1
+      },
+      {
+        "en": "two weapons",
+        "count": 1
+      }
+    ],
+    "files": [
+      "player/player-skill.cpp",
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^乗馬$",
+    "variants": [
+      {
+        "en": "Riding",
+        "count": 1
+      },
+      {
+        "en": "Ride",
+        "count": 2
+      }
+    ],
+    "files": [
+      "player/player-skill.cpp",
+      "window/main-window-stat-poster.cpp"
+    ]
+  },
+  {
+    "pattern": "^ヒット＆アウェイ$",
+    "variants": [
+      {
+        "en": "Hit and Away",
+        "count": 1
+      },
+      {
+        "en": "Panic Hit",
+        "count": 1
+      }
+    ],
+    "files": [
+      "racial/class-racial-switcher.cpp",
+      "racial/mutation-racial-selector.cpp"
+    ]
+  },
+  {
+    "pattern": "^酸のボールを放つ$",
+    "variants": [
+      {
+        "en": "Fires a boll of acid.",
+        "count": 1
+      },
+      {
+        "en": "Fires a ball of acid.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "racial/mutation-racial-selector.cpp",
+      "racial/race-racial-command-setter.cpp"
+    ]
+  },
+  {
+    "pattern": "^モンスター1体に精神攻撃を行う。$",
+    "variants": [
+      {
+        "en": "Deals a PSI damage to a monster.",
+        "count": 1
+      },
+      {
+        "en": "Deals PSI damage to a monster.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "racial/mutation-racial-selector.cpp",
+      "racial/race-racial-command-setter.cpp"
+    ]
+  },
+  {
+    "pattern": "^隣接したモンスター1体から生命力を吸い取る。吸い取った生命力によって満腹度があがる。$",
+    "variants": [
+      {
+        "en": "Drains and transfers HP from a monster near by you. You will also gain nutritional sustenance from this.",
+        "count": 1
+      },
+      {
+        "en": "Drains and transfers HP from an adjacent monster. You will also gain nutritional sustenance from this.",
+        "count": 2
+      }
+    ],
+    "files": [
+      "racial/mutation-racial-selector.cpp",
+      "racial/race-racial-command-setter.cpp"
+    ]
+  },
+  {
+    "pattern": "^狂戦士化$",
+    "variants": [
+      {
+        "en": "Berserk",
+        "count": 3
+      },
+      {
+        "en": "Berserk Rage",
+        "count": 1
+      }
+    ],
+    "files": [
+      "racial/mutation-racial-selector.cpp",
+      "racial/race-racial-command-setter.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^変身$",
+    "variants": [
+      {
+        "en": "Polymorph",
+        "count": 1
+      },
+      {
+        "en": "CHAMELEON",
+        "count": 1
+      }
+    ],
+    "files": [
+      "racial/mutation-racial-selector.cpp",
+      "view/display-lore-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^気分が良くなってくる。$",
+    "variants": [
+      {
+        "en": "You feel a little better.",
+        "count": 1
+      },
+      {
+        "en": "You feel better.",
+        "count": 1
+      },
+      {
+        "en": "You feel much better.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "realm/realm-hex.cpp"
+    ]
+  },
+  {
+    "pattern": "^どれを呪いますか？$",
+    "variants": [
+      {
+        "en": "Which weapon do you curse?",
+        "count": 1
+      },
+      {
+        "en": "Which piece of armour do you curse?",
+        "count": 1
+      }
+    ],
+    "files": [
+      "realm/realm-hex.cpp"
+    ]
+  },
+  {
+    "pattern": "^呪いを全て吸い取った。$",
+    "variants": [
+      {
+        "en": "A heavy curse vanished.",
+        "count": 1
+      },
+      {
+        "en": "A curse vanished.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "realm/realm-hex.cpp"
+    ]
+  },
+  {
+    "pattern": "^歌を通して体に活気が戻ってきた．．．$",
+    "variants": [
+      {
+        "en": "Life flows through you as you sing a song of healing...",
+        "count": 1
+      },
+      {
+        "en": "Life flows through you as you sing the song...",
+        "count": 1
+      }
+    ],
+    "files": [
+      "realm/realm-song.cpp"
+    ]
+  },
+  {
+    "pattern": "^電撃への耐性が薄れた気がする。$",
+    "variants": [
+      {
+        "en": "You feel less resistant to elec.",
+        "count": 1
+      },
+      {
+        "en": "You feel less resistant to electricity.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "realm/realm-song.cpp",
+      "status/element-resistance.cpp"
+    ]
+  },
+  {
+    "pattern": "^毒への耐性が薄れた気がする。$",
+    "variants": [
+      {
+        "en": "You feel less resistant to pois.",
+        "count": 1
+      },
+      {
+        "en": "You feel less resistant to poison.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "realm/realm-song.cpp",
+      "status/element-resistance.cpp"
+    ]
+  },
+  {
+    "pattern": "^狂気$",
+    "variants": [
+      {
+        "en": "lovecraftian",
+        "count": 2
+      },
+      {
+        "en": "ELDRITCH_HORROR",
+        "count": 1
+      }
+    ],
+    "files": [
+      "room/rooms-nest.cpp",
+      "room/rooms-pit.cpp",
+      "view/display-lore-status.cpp"
+    ]
+  },
+  {
+    "pattern": "^巨人$",
+    "variants": [
+      {
+        "en": "giant",
+        "count": 1
+      },
+      {
+        "en": " giant",
+        "count": 1
+      },
+      {
+        "en": "Giant",
+        "count": 1
+      }
+    ],
+    "files": [
+      "room/rooms-pit.cpp",
+      "view/display-lore.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^噂定義ファイルの読み込みに失敗しました: (.+?)$",
+    "variants": [
+      {
+        "en": "Failed to open the file of rumor definitions: {}",
+        "count": 1
+      },
+      {
+        "en": "Failed to read the file of rumor definitions: {}",
+        "count": 1
+      }
+    ],
+    "files": [
+      "rumor/rumor-list.cpp"
+    ]
+  },
+  {
+    "pattern": "^腕力$",
+    "variants": [
+      {
+        "en": "strength",
+        "count": 2
+      },
+      {
+        "en": "STR",
+        "count": 4
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/artifact-bias-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/wizard-spoiler.cpp"
+    ]
+  },
+  {
+    "pattern": "^知能$",
+    "variants": [
+      {
+        "en": "intelligen.",
+        "count": 1
+      },
+      {
+        "en": "intelligence",
+        "count": 1
+      },
+      {
+        "en": "INT",
+        "count": 3
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/wizard-spoiler.cpp"
+    ]
+  },
+  {
+    "pattern": "^賢さ$",
+    "variants": [
+      {
+        "en": "wisdom",
+        "count": 2
+      },
+      {
+        "en": "WIS",
+        "count": 4
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/artifact-bias-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/wizard-spoiler.cpp"
+    ]
+  },
+  {
+    "pattern": "^器用さ$",
+    "variants": [
+      {
+        "en": "dexterity",
+        "count": 2
+      },
+      {
+        "en": "DEX",
+        "count": 4
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/artifact-bias-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/wizard-spoiler.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐久力$",
+    "variants": [
+      {
+        "en": "constitut.",
+        "count": 1
+      },
+      {
+        "en": "constitution",
+        "count": 1
+      },
+      {
+        "en": "CON",
+        "count": 3
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/wizard-spoiler.cpp"
+    ]
+  },
+  {
+    "pattern": "^魅力$",
+    "variants": [
+      {
+        "en": "charisma",
+        "count": 2
+      },
+      {
+        "en": "CHA",
+        "count": 1
+      },
+      {
+        "en": "CHR",
+        "count": 3
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/artifact-bias-table.cpp",
+      "wizard/spoiler-table.cpp",
+      "wizard/wizard-spoiler.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔力支配$",
+    "variants": [
+      {
+        "en": "magic mast.",
+        "count": 1
+      },
+      {
+        "en": "magic mastery",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^採掘$",
+    "variants": [
+      {
+        "en": "digging",
+        "count": 2
+      },
+      {
+        "en": "Tunneling",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^追加攻撃$",
+    "variants": [
+      {
+        "en": "extra atk",
+        "count": 1
+      },
+      {
+        "en": "extra attack",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^吸血攻撃$",
+    "variants": [
+      {
+        "en": "vampiric",
+        "count": 1
+      },
+      {
+        "en": "vampiric brand",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^毒殺$",
+    "variants": [
+      {
+        "en": "pois. brand",
+        "count": 1
+      },
+      {
+        "en": "poison brand",
+        "count": 1
+      },
+      {
+        "en": "Poisoned",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^溶解$",
+    "variants": [
+      {
+        "en": "acid brand",
+        "count": 2
+      },
+      {
+        "en": "Acid Brand",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^焼棄$",
+    "variants": [
+      {
+        "en": "fire brand",
+        "count": 2
+      },
+      {
+        "en": "Flame Tongue",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^凍結$",
+    "variants": [
+      {
+        "en": "cold brand",
+        "count": 2
+      },
+      {
+        "en": "Frost Brand",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^魔術$",
+    "variants": [
+      {
+        "en": "magic brand",
+        "count": 1
+      },
+      {
+        "en": "Magical Brand",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^反射$",
+    "variants": [
+      {
+        "en": "reflection",
+        "count": 2
+      },
+      {
+        "en": "Reflect",
+        "count": 1
+      },
+      {
+        "en": "Reflection",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "view/status-bars-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐酸$",
+    "variants": [
+      {
+        "en": "res. acid",
+        "count": 1
+      },
+      {
+        "en": "resistance to acid",
+        "count": 1
+      },
+      {
+        "en": "Acid",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐電撃$",
+    "variants": [
+      {
+        "en": "res. elec.",
+        "count": 1
+      },
+      {
+        "en": "resistance to electric",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐火炎$",
+    "variants": [
+      {
+        "en": "res. fire",
+        "count": 1
+      },
+      {
+        "en": "resistance to fire",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐冷気$",
+    "variants": [
+      {
+        "en": "res. cold",
+        "count": 1
+      },
+      {
+        "en": "resistance to cold",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐毒$",
+    "variants": [
+      {
+        "en": "res. poison",
+        "count": 1
+      },
+      {
+        "en": "resistance to poison",
+        "count": 1
+      },
+      {
+        "en": "Pois",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐恐怖$",
+    "variants": [
+      {
+        "en": "res. fear",
+        "count": 1
+      },
+      {
+        "en": "resistance to fear",
+        "count": 1
+      },
+      {
+        "en": "RFea",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐閃光$",
+    "variants": [
+      {
+        "en": "res. light",
+        "count": 1
+      },
+      {
+        "en": "resistance to light",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐暗黒$",
+    "variants": [
+      {
+        "en": "res. dark",
+        "count": 1
+      },
+      {
+        "en": "resistance to dark",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐盲目$",
+    "variants": [
+      {
+        "en": "res. blind",
+        "count": 1
+      },
+      {
+        "en": "resistance to blind",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐混乱$",
+    "variants": [
+      {
+        "en": "res.confuse",
+        "count": 1
+      },
+      {
+        "en": "resistance to confusion",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐轟音$",
+    "variants": [
+      {
+        "en": "res. sound",
+        "count": 1
+      },
+      {
+        "en": "resistance to sound",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐破片$",
+    "variants": [
+      {
+        "en": "res. shard",
+        "count": 1
+      },
+      {
+        "en": "resistance to shard",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐地獄$",
+    "variants": [
+      {
+        "en": "res. nether",
+        "count": 1
+      },
+      {
+        "en": "resistance to nether",
+        "count": 1
+      },
+      {
+        "en": "Nthr",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐因果混乱$",
+    "variants": [
+      {
+        "en": "res. nexus",
+        "count": 1
+      },
+      {
+        "en": "resistance to nexus",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐カオス$",
+    "variants": [
+      {
+        "en": "res. chaos",
+        "count": 1
+      },
+      {
+        "en": "resistance to chaos",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐劣化$",
+    "variants": [
+      {
+        "en": "res. disen.",
+        "count": 1
+      },
+      {
+        "en": "resistance to disenchantment",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐水$",
+    "variants": [
+      {
+        "en": "res. water",
+        "count": 1
+      },
+      {
+        "en": "resistance to water",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐時間逆転$",
+    "variants": [
+      {
+        "en": "res. time",
+        "count": 1
+      },
+      {
+        "en": "resistance to time",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^耐呪力$",
+    "variants": [
+      {
+        "en": "res. curse",
+        "count": 1
+      },
+      {
+        "en": "resistance to curse",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^経験値維持$",
+    "variants": [
+      {
+        "en": "hold exp",
+        "count": 1
+      },
+      {
+        "en": "hold experience",
+        "count": 1
+      },
+      {
+        "en": "Hold Experience",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^麻痺知らず$",
+    "variants": [
+      {
+        "en": "free action",
+        "count": 2
+      },
+      {
+        "en": "Free Action",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^警告$",
+    "variants": [
+      {
+        "en": "warning",
+        "count": 2
+      },
+      {
+        "en": "Warning",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^浮遊$",
+    "variants": [
+      {
+        "en": "levitation",
+        "count": 2
+      },
+      {
+        "en": "Levit",
+        "count": 1
+      },
+      {
+        "en": "Levitation",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "view/status-bars-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^可視透明$",
+    "variants": [
+      {
+        "en": "see invis.",
+        "count": 1
+      },
+      {
+        "en": "see invisible",
+        "count": 1
+      },
+      {
+        "en": "See Invisible",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^テレパシー$",
+    "variants": [
+      {
+        "en": "telepathy",
+        "count": 2
+      },
+      {
+        "en": "ESP",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^遅消化$",
+    "variants": [
+      {
+        "en": "slow dige.",
+        "count": 1
+      },
+      {
+        "en": "slow digestion",
+        "count": 1
+      },
+      {
+        "en": "Slow Digestion",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^急速回復$",
+    "variants": [
+      {
+        "en": "regen.",
+        "count": 1
+      },
+      {
+        "en": "regeneration",
+        "count": 1
+      },
+      {
+        "en": "Regeneration",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^反魔法$",
+    "variants": [
+      {
+        "en": "anti magic",
+        "count": 2
+      },
+      {
+        "en": "AntiMagic",
+        "count": 1
+      },
+      {
+        "en": "Anti-Magic",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "view/status-bars-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^永久光源$",
+    "variants": [
+      {
+        "en": "perm. light",
+        "count": 1
+      },
+      {
+        "en": "permanent light",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^反テレポ$",
+    "variants": [
+      {
+        "en": "no teleport",
+        "count": 1
+      },
+      {
+        "en": "AntiTele",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^攻撃$",
+    "variants": [
+      {
+        "en": "weapon enc.",
+        "count": 1
+      },
+      {
+        "en": "weapon enchant",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^防御$",
+    "variants": [
+      {
+        "en": "armor enc.",
+        "count": 1
+      },
+      {
+        "en": "armor enchant",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp"
+    ]
+  },
+  {
+    "pattern": "^切れ味$",
+    "variants": [
+      {
+        "en": "sharpness",
+        "count": 1
+      },
+      {
+        "en": "Very sharp",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^酸免疫$",
+    "variants": [
+      {
+        "en": "acid immunity",
+        "count": 1
+      },
+      {
+        "en": "ImmAcid",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^反テレポート$",
+    "variants": [
+      {
+        "en": "prevent teleportation",
+        "count": 1
+      },
+      {
+        "en": "Prevent Teleportation",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^火炎オーラ$",
+    "variants": [
+      {
+        "en": "fiery sheath",
+        "count": 1
+      },
+      {
+        "en": "Fiery Aura",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^電撃オーラ$",
+    "variants": [
+      {
+        "en": "electric sheath",
+        "count": 1
+      },
+      {
+        "en": "Electric Aura",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^冷気オーラ$",
+    "variants": [
+      {
+        "en": "sheath of coldness",
+        "count": 1
+      },
+      {
+        "en": "Coldly Aura",
+        "count": 1
+      }
+    ],
+    "files": [
+      "smith/smith-tables.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^経験値が体から吸い取られた気がする！$",
+    "variants": [
+      {
+        "en": "You feel your experience draining away...",
+        "count": 2
+      },
+      {
+        "en": "You feel your experience draining away!",
+        "count": 1
+      }
+    ],
+    "files": [
+      "spell-kind/blood-curse.cpp",
+      "spell-kind/spells-random.cpp",
+      "status/experience.cpp"
+    ]
+  },
+  {
+    "pattern": "^邪悪$",
+    "variants": [
+      {
+        "en": "evil",
+        "count": 1
+      },
+      {
+        "en": "Evil",
+        "count": 1
+      }
+    ],
+    "files": [
+      "spell-kind/spells-sight.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^善良$",
+    "variants": [
+      {
+        "en": "good",
+        "count": 1
+      },
+      {
+        "en": "Good",
+        "count": 1
+      }
+    ],
+    "files": [
+      "spell-kind/spells-sight.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^これで全部です。$",
+    "variants": [
+      {
+        "en": "That's all.",
+        "count": 1
+      },
+      {
+        "en": "Entire inventory is shown.",
+        "count": 2
+      }
+    ],
+    "files": [
+      "spell-kind/spells-sight.cpp",
+      "store/store-key-processor.cpp"
+    ]
+  },
+  {
+    "pattern": "^失敗した。$",
+    "variants": [
+      {
+        "en": "Failed to swap.",
+        "count": 1
+      },
+      {
+        "en": "Failed.",
+        "count": 1
+      }
+    ],
+    "files": [
+      "spell-kind/spells-teleport.cpp",
+      "spell-realm/spells-craft.cpp"
+    ]
+  },
+  {
+    "pattern": "^強く$",
+    "variants": [
+      {
+        "en": "stronger",
+        "count": 1
+      },
+      {
+        "en": "strong",
+        "count": 1
+      }
+    ],
+    "files": [
+      "status/base-status.cpp",
+      "system/player-type-definition.cpp"
+    ]
+  },
+  {
+    "pattern": "^美しく$",
+    "variants": [
+      {
+        "en": "cuter",
+        "count": 1
+      },
+      {
+        "en": "beautiful",
+        "count": 1
+      }
+    ],
+    "files": [
+      "status/base-status.cpp",
+      "system/player-type-definition.cpp"
+    ]
+  },
+  {
+    "pattern": "^我が家$",
+    "variants": [
+      {
+        "en": "Your home",
+        "count": 1
+      },
+      {
+        "en": "Your Home",
+        "count": 1
+      }
+    ],
+    "files": [
+      "store/store-owners.cpp",
+      "view/display-store.cpp"
+    ]
+  },
+  {
+    "pattern": "^発見済みのアイテム一覧$",
+    "variants": [
+      {
+        "en": "Display found items",
+        "count": 1
+      },
+      {
+        "en": "Found items",
+        "count": 1
+      }
+    ],
+    "files": [
+      "term/gameterm.cpp",
+      "window/display-sub-windows.cpp"
+    ]
+  },
+  {
+    "pattern": "^壁抜け$",
+    "variants": [
+      {
+        "en": "PASS_WALL",
+        "count": 1
+      },
+      {
+        "en": "PassWall",
+        "count": 1
+      }
+    ],
+    "files": [
+      "view/display-lore-status.cpp",
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^次レベル$",
+    "variants": [
+      {
+        "en": "Exp to Adv",
+        "count": 1
+      },
+      {
+        "en": "Const to Adv",
+        "count": 1
+      }
+    ],
+    "files": [
+      "view/display-util.cpp"
+    ]
+  },
+  {
+    "pattern": "^祝福$",
+    "variants": [
+      {
+        "en": "Bless",
+        "count": 1
+      },
+      {
+        "en": "Blessed Blade",
+        "count": 1
+      }
+    ],
+    "files": [
+      "view/status-bars-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^回復$",
+    "variants": [
+      {
+        "en": "Regen",
+        "count": 1
+      },
+      {
+        "en": "Cure",
+        "count": 1
+      }
+    ],
+    "files": [
+      "view/status-bars-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^邪悪感知$",
+    "variants": [
+      {
+        "en": "EvilTele",
+        "count": 1
+      },
+      {
+        "en": "Sense Evil",
+        "count": 1
+      }
+    ],
+    "files": [
+      "view/status-bars-table.cpp",
+      "wizard/spoiler-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^学習$",
+    "variants": [
+      {
+        "en": "lear",
+        "count": 1
+      },
+      {
+        "en": "Stud",
+        "count": 1
+      }
+    ],
+    "files": [
+      "window/main-window-stat-poster.cpp"
+    ]
+  },
+  {
+    "pattern": "^歌集$",
+    "variants": [
+      {
+        "en": "Song Books",
+        "count": 1
+      },
+      {
+        "en": "Music Spellbook",
+        "count": 1
+      }
+    ],
+    "files": [
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^武芸の書$",
+    "variants": [
+      {
+        "en": "Books (Kendo)",
+        "count": 1
+      },
+      {
+        "en": "Book of Kendo",
+        "count": 1
+      }
+    ],
+    "files": [
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^刀剣$",
+    "variants": [
+      {
+        "en": "Edged Weapons",
+        "count": 1
+      },
+      {
+        "en": "Sword",
+        "count": 1
+      }
+    ],
+    "files": [
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  },
+  {
+    "pattern": "^シャベル/つるはし$",
+    "variants": [
+      {
+        "en": "Shovels/Picks",
+        "count": 1
+      },
+      {
+        "en": "Digger",
+        "count": 1
+      }
+    ],
+    "files": [
+      "wizard/spoiler-table.cpp",
+      "wizard/tval-descriptions-table.cpp"
+    ]
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "sourceFilesCount": 2026,
+  "rawPairsCount": 9639,
+  "skippedNonLiteral": 274,
+  "templatesCount": 7487,
+  "bucketsCount": 2375,
+  "namesCount": 2788,
+  "conflictsCount": 343,
+  "generatedAt": "2026-10-11T00:00:00Z"
+}
