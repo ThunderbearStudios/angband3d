@@ -4211,7 +4211,7 @@ void fragment() {
     {
         if (numpadDir == 5)
         {
-            return "5";
+            return Realm == "silq" ? "," : ".";
         }
         int localIndex = numpadDir switch
         {
@@ -4246,7 +4246,7 @@ void fragment() {
     /// </summary>
     public int RelativeMoveDigit(int numpadDir)
     {
-        if (numpadDir == 5) return 5;
+        if (numpadDir == 5) return 0;
         int localIndex = numpadDir switch
         {
             8 => 0,
