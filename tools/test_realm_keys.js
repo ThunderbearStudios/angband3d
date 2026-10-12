@@ -169,4 +169,30 @@ test('applyLabels sets button labels, kbd hints, and visibility', () => {
     assert.strictEqual(buttons['btn-skills'].hidden, true);
 });
 
+test('WS6.3: input.js does not send raw digit 5 for hold / wait', () => {
+    const inputJs = fs.readFileSync(path.join(__dirname, '../server/public/js/input.js'), 'utf8');
+    const sendKey5Matches = inputJs.match(/sendKey\(['"]5['"]\)/g);
+    assert.strictEqual(sendKey5Matches, null, `input.js must never send raw digit '5'; found: ${sendKey5Matches}`);
+});
+
+test('WS6.3: input.js delegates top-level keys to RealmKeys.fromVanilla', () => {
+    const inputJs = fs.readFileSync(path.join(__dirname, '../server/public/js/input.js'), 'utf8');
+    assert(inputJs.includes('RealmKeys.fromVanilla'), 'input.js must call RealmKeys.fromVanilla');
+});
+
+test('WS6.3: input.js binds action buttons by canonical verb', () => {
+    const inputJs = fs.readFileSync(path.join(__dirname, '../server/public/js/input.js'), 'utf8');
+    assert(inputJs.includes("bind('btn-throw', 'throw')"), "input.js must bind btn-throw to 'throw'");
+    assert(inputJs.includes("bind('btn-cast', 'cast')"), "input.js must bind btn-cast to 'cast'");
+    assert(inputJs.includes("bind('btn-rest', 'rest')"), "input.js must bind btn-rest to 'rest'");
+    assert(inputJs.includes("bind('btn-pickup', 'pickup')"), "input.js must bind btn-pickup to 'pickup'");
+    assert(inputJs.includes("bind('btn-read', 'read')"), "input.js must bind btn-read to 'read'");
+    assert(inputJs.includes("bind('btn-quaff', 'quaff')"), "input.js must bind btn-quaff to 'quaff'");
+});
+
+test('WS6.3: app.js runs RealmKeys.applyLabels on realm select', () => {
+    const appJs = fs.readFileSync(path.join(__dirname, '../server/public/js/app.js'), 'utf8');
+    assert(appJs.includes('RealmKeys.applyLabels'), 'app.js must call RealmKeys.applyLabels on realm selection');
+});
+
 console.log('All realm key unit tests passed!');
