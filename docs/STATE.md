@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
-Branch: fix/award-pass   Updated: 2026-10-12T11:07-04:00 (WS8 Documentation & Lessons Learned Complete)
+Branch: fix/award-pass   Updated: 2026-10-12T11:14-04:00 (Award Pass & All Review Gaps Complete)
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first, incl. NEW lessons L18–L22), then the plan section for the current task.
-Current task: **G-B..G-K** (EXECUTOR §3 Review Gaps & Final Verification).
+Current task: **Award Pass Complete** (All workstreams WS0–WS10, WS7, WS8, and §3 G-A..G-K verified).
 Localhost server: **Running** on http://localhost:8080 (pid active, version 9.4.4).
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. Always re-locate lines with `Select-String`.
@@ -54,7 +54,7 @@ An uncommitted WS2/WS3/WS5 attempt broke localhost ("empty sky of stars"). Verif
 - [x] **WS10.4–WS10.6** Platforms (desktop WebView2 .NET 8 build verified 0 err, Godot C# client D10 build verified 0 err, PWA version sync verified across 24 tags + CACHE_NAME + build.gradle in check_version_sync.js, bump_version.js automates gradle sync)
 - [x] **WS7** Test suite consolidation & runner cleanup (`test_manifest.json` consolidated into fast [11], e2e [4], and cdp tiers; CI runs fast gate; `test_proxy_limits.js` isolated port 8089; `test_server_ws_realms.js` shortened high-entropy usernames to prevent 28-char savefile collisions; fast 11/11 PASS, e2e 4/4 PASS)
 - [x] **WS8** Master documentation, lessons learned & context sync (archived NEXT_STEPS and MULTI_REALM_MASTER_PLAN older milestones to docs/archive/ per D4, appended Section 42 with L1-L22 to BEST_PRACTICES, updated LLM_CONTEXT module index, expanded PROTOCOL.md with WS limits, relay allowlist, ownership tokens, REST proxy shapes, and env vars)
-- [ ] G-B..G-K (EXECUTOR §3)
+- [x] **G-B..G-K** (EXECUTOR §3 Review Gaps & Final Verification: G-A history scrub clean, G-B zero secrets logged, G-C rate-limit TTL expiry verified, G-D Docker/Cloud Run env config & docs updated, G-E PWA update toast verified, G-F 1-click save export/import verified, G-G 0 scratch files in tools, G-H Godot client compiles 0 err, G-I ws-tags registered, G-J 4-realm save magic upload validation verified, G-K WebSocket message validation verified)
 
 ## Mandatory gate (every task, run TWICE for cdp, paste the summary lines here)
 Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }` then `cd server; node src/server.js`.
@@ -75,6 +75,7 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 None
 
 ## Last gate results
+- Award Pass Final Gate (2026-10-12 11:14): fast 11/11 PASS | e2e 4/4 PASS (verify_cross_realm_menus 12.3s, test_server_boot 0.8s, test_proxy_limits 7.3s, test_server_ws_realms 1.0s) | cdp test_boot_flow PASS ×2 consecutive (4/4 realms reach 3D play: angband, silq [Action Chooser real DOM verified], frogcomposband [K1 note], hengband) | smoke 11/11 PASS | dotnet 0 warn / 0 err | check_version_sync PASS (9.4.4) | check_android_sync 501/501 SHA-1 matched | Localhost server active on 8080.
 - WS8 (2026-10-12 11:07): fast 11/11 PASS | e2e 4/4 PASS | smoke 11/11 PASS | dotnet 0 warn / 0 err | Localhost server active on 8080.
 - WS7 (2026-10-12 11:03): fast 11/11 PASS | e2e 4/4 PASS (verify_cross_realm_menus 10.9s, test_server_boot 0.9s, test_proxy_limits 6.7s, test_server_ws_realms 4/4 realms in 1.0s) | smoke 11/11 PASS | dotnet 0 warn / 0 err | Localhost server active on 8080.
 - WS10.4–WS10.6 (2026-10-12 10:54): fast 11/11 PASS (check_android_sync 501/501 SHA-1 matched, check_version_sync verifies index.html 24 tags, sw.js, and build.gradle) | smoke 11/11 PASS | dotnet Godot 0 warn / 0 err | dotnet WebView2 desktop 0 warn / 0 err | Localhost server active on 8080.
