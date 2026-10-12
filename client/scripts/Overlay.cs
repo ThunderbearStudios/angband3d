@@ -1688,8 +1688,14 @@ public partial class Overlay : Control
 
         // Row 1: Keybindings & contextual stairs hint
         var row1Y = View.Y - barH + _font.GetAscent(_fontSize) + 2;
+        var keyHints = isSilQ
+            ? "arrows/numpad: move/turn   Shift-M: map   Tab: skills   F11: fs   [ ]: size   +/-: zoom   i: inv   e: equip   s: sing   q: quaff   a: use   %: rest   Esc: menu"
+            : (realm == "hengband"
+                ? "arrows/numpad: move/turn   Shift-M: map   Tab: term   F11: fs   [ ]: size   +/-: zoom   i: inv   e: equip   m: cast   U: power   G: study   q: quaff   Esc: menu"
+                : (realm == "frogcomposband"
+                    ? "arrows/numpad: move/turn   Shift-M: map   Tab: term   F11: fs   [ ]: size   +/-: zoom   i: inv   e: equip   m: cast   U: power   q: quaff   r: read   Esc: menu"
+                    : "arrows/numpad: move/turn   Shift-M: map   Tab: term   F11: fs   [ ]: size   +/-: zoom   i: inv   e: equip   m: cast   q: quaff   r: read   R: rest   Esc: menu"));
         var hintPrefix = StairsHint != null ? StairsHint + "   |   " : "";
-        var keyHints = "arrows/numpad: move/turn   Shift-M: map   Tab: term   F11: fullscreen   [ ]: size   +/-: zoom   i: inv   e: equip   m: cast   q: quaff   r: read   ^S: save   Esc: menu";
         if (StairsHint != null)
         {
             DrawString(_font, new Vector2(6, row1Y), hintPrefix, HorizontalAlignment.Left, -1, _fontSize, new Color(1.0f, 0.88f, 0.45f));

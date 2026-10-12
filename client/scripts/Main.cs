@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using Godot;
 
@@ -274,7 +275,11 @@ public partial class Main : Node
         if (realm != "angband" && !string.IsNullOrEmpty(realm))
         {
             var rDir = System.IO.Path.Combine(repo, "variants", realm, "lib", "save");
-            if (System.IO.Directory.Exists(rDir)) return rDir;
+            if (!System.IO.Directory.Exists(rDir))
+            {
+                try { System.IO.Directory.CreateDirectory(rDir); } catch { }
+            }
+            return rDir;
         }
         return System.IO.Path.Combine(repo, "engine", "build", "game", "lib", "save");
     }
@@ -328,10 +333,21 @@ public partial class Main : Node
                 return null;
             }
 
-            // Check magic "SaveVNLA"
-            if (header[0] != 0x53 || header[1] != 0x61 || header[2] != 0x76 || header[3] != 0x65 ||
-                header[4] != 0x56 || header[5] != 0x4E || header[6] != 0x4C || header[7] != 0x41)
+            // Check magic "Save****" (SaveVNLA: Angband, SaveSILQ: Sil-Q, SaveFROX: FrogComposBand, SaveHENG: Hengband)
+            if (header[0] != 0x53 || header[1] != 0x61 || header[2] != 0x76 || header[3] != 0x65)
             {
+                var sidecar = filePath + ".realm.json";
+                if (System.IO.File.Exists(sidecar))
+                {
+                    try
+                    {
+                        var json = System.IO.File.ReadAllText(sidecar);
+                        using var doc = JsonDocument.Parse(json);
+                        if (doc.RootElement.TryGetProperty("description", out var dProp) && !string.IsNullOrEmpty(dProp.GetString()))
+                            return dProp.GetString();
+                    }
+                    catch { }
+                }
                 return null;
             }
 
@@ -421,8 +437,15 @@ public partial class Main : Node
         _menuIndex = 0;
         _menuItems.Clear();
 
+        if (_world != null) _world.Realm = _realm;
+
         var saves = GetSaveFiles();
-        if (saves.Length > 0)
+        if (_cloudMode)
+        {
+            _menuItems.Add(("Load Saved Game (Cloud)...", OpenLoadMenu));
+            _menuItems.Add(("Save Game Manager (Cloud Sync / Backup)", OpenSaveManagerMenu));
+        }
+        else if (saves.Length > 0)
         {
             var topSave = GetSaveInfo(saves[0]);
             _menuItems.Add(($"Continue Last Played ({topSave.DisplayName})", () =>
@@ -474,6 +497,7 @@ public partial class Main : Node
                 "hengband" => "frogcomposband",
                 _ => "angband"
             };
+            if (_world != null) _world.Realm = _realm;
             OpenMenu();
         }));
 
@@ -523,6 +547,12 @@ public partial class Main : Node
 
     private void OpenLoadMenu()
     {
+        if (_cloudMode)
+        {
+            OpenCloudLoadMenu();
+            return;
+        }
+
         _inMenu = true;
         _menuIndex = 0;
         _menuItems.Clear();
@@ -555,8 +585,92 @@ public partial class Main : Node
         RefreshMenuDisplay("LOAD GAME", "Select a character to load");
     }
 
+    private async void OpenCloudLoadMenu()
+    {
+        _inMenu = true;
+        _menuIndex = 0;
+        _menuItems.Clear();
+        _overlay.Status = $"fetching {_realm} cloud saves...";
+        _overlay.QueueRedraw();
+
+        try
+        {
+            using var client = new System.Net.Http.HttpClient();
+            var httpBase = _cloudUrl.Replace("ws://", "http://").Replace("wss://", "https://");
+            var uri = new Uri(httpBase);
+            var listUrl = $"{uri.Scheme}://{uri.Authority}/api/saves?realm={Uri.EscapeDataString(_realm)}";
+
+            var response = await client.GetStringAsync(listUrl);
+            using var doc = JsonDocument.Parse(response);
+            var savesArray = doc.RootElement.GetProperty("saves");
+            var cloudSaves = new List<(string Filename, string CharacterName, string Description, string DateStr)>();
+
+            foreach (var s in savesArray.EnumerateArray())
+            {
+                var fname = s.TryGetProperty("filename", out var fnProp) ? fnProp.GetString() : null;
+                var charName = s.TryGetProperty("characterName", out var cnProp) ? cnProp.GetString() : fname;
+                var desc = s.TryGetProperty("description", out var dProp) ? dProp.GetString() : charName;
+                string dateStr = "";
+                if (s.TryGetProperty("updatedAt", out var uProp) && uProp.TryGetInt64(out var ts))
+                {
+                    dateStr = DateTimeOffset.FromUnixTimeMilliseconds(ts).LocalDateTime.ToString("yyyy-MM-dd HH:mm");
+                }
+                if (!string.IsNullOrEmpty(fname))
+                {
+                    cloudSaves.Add((fname, charName, desc, dateStr));
+                }
+            }
+
+            _menuItems.Clear();
+            foreach (var cs in cloudSaves)
+            {
+                var targetSave = cs;
+                var summary = !string.IsNullOrEmpty(targetSave.Description) ? targetSave.Description : targetSave.CharacterName;
+                var label = !string.IsNullOrEmpty(targetSave.DateStr)
+                    ? $"{summary}  ({targetSave.DateStr})"
+                    : summary;
+
+                _menuItems.Add((label, () =>
+                {
+                    _saveName = targetSave.Filename;
+                    _characterName = targetSave.CharacterName;
+                    _inMenu = false;
+                    _inPauseMenu = false;
+                    if (_bridge.Connected) _bridge.Stop();
+                    StartGame();
+                }));
+            }
+
+            if (cloudSaves.Count > 0)
+            {
+                _menuItems.Add(("Delete a Cloud Save...", OpenCloudDeleteMenu));
+            }
+            else
+            {
+                _menuItems.Add(($"No saved games found on cloud for [{_realm}]", () => { }));
+            }
+            _menuItems.Add(("Refresh Cloud Saves", OpenCloudLoadMenu));
+            _menuItems.Add(("Back", _inPauseMenu ? OpenPauseMenu : OpenMenu));
+            RefreshMenuDisplay("CLOUD LOAD GAME", $"Select a {_realm} character from cloud server");
+        }
+        catch (Exception ex)
+        {
+            _menuItems.Clear();
+            _menuItems.Add(($"Error contacting cloud: {ex.Message}", () => { }));
+            _menuItems.Add(("Retry", OpenCloudLoadMenu));
+            _menuItems.Add(("Back", _inPauseMenu ? OpenPauseMenu : OpenMenu));
+            RefreshMenuDisplay("CLOUD LOAD ERROR", ex.Message);
+        }
+    }
+
     private void OpenDeleteMenu()
     {
+        if (_cloudMode)
+        {
+            OpenCloudDeleteMenu();
+            return;
+        }
+
         _inMenu = true;
         _menuIndex = 0;
         _menuItems.Clear();
@@ -578,7 +692,82 @@ public partial class Main : Node
         }
 
         _menuItems.Add(("Back", _inPauseMenu ? OpenPauseMenu : OpenMenu));
-        RefreshMenuDisplay("DELETE SAVE", "Select a saved game to delete");
+        RefreshMenuDisplay("DELETE SAVE", "Select a character to permanently delete");
+    }
+
+    private async void OpenCloudDeleteMenu()
+    {
+        _inMenu = true;
+        _menuIndex = 0;
+        _menuItems.Clear();
+        _overlay.Status = $"fetching {_realm} cloud saves...";
+        _overlay.QueueRedraw();
+
+        try
+        {
+            using var client = new System.Net.Http.HttpClient();
+            var httpBase = _cloudUrl.Replace("ws://", "http://").Replace("wss://", "https://");
+            var uri = new Uri(httpBase);
+            var listUrl = $"{uri.Scheme}://{uri.Authority}/api/saves?realm={Uri.EscapeDataString(_realm)}";
+
+            var response = await client.GetStringAsync(listUrl);
+            using var doc = JsonDocument.Parse(response);
+            var savesArray = doc.RootElement.GetProperty("saves");
+            var cloudSaves = new List<(string Filename, string CharacterName, string Description)>();
+
+            foreach (var s in savesArray.EnumerateArray())
+            {
+                var fname = s.TryGetProperty("filename", out var fnProp) ? fnProp.GetString() : null;
+                var charName = s.TryGetProperty("characterName", out var cnProp) ? cnProp.GetString() : fname;
+                var desc = s.TryGetProperty("description", out var dProp) ? dProp.GetString() : charName;
+                if (!string.IsNullOrEmpty(fname)) cloudSaves.Add((fname, charName, desc));
+            }
+
+            _menuItems.Clear();
+            if (cloudSaves.Count == 0)
+            {
+                _menuItems.Add(("Back", OpenCloudLoadMenu));
+                RefreshMenuDisplay("DELETE CLOUD SAVE", $"No cloud saves found for realm [{_realm}]");
+                return;
+            }
+
+            foreach (var cs in cloudSaves)
+            {
+                var targetSave = cs;
+                var label = $"Delete: {targetSave.CharacterName} ({targetSave.Filename})";
+                _menuItems.Add((label, async () =>
+                {
+                    try
+                    {
+                        using var delClient = new System.Net.Http.HttpClient();
+                        var delUrl = $"{uri.Scheme}://{uri.Authority}/api/saves/{Uri.EscapeDataString(targetSave.Filename)}?realm={Uri.EscapeDataString(_realm)}";
+                        var delRes = await delClient.DeleteAsync(delUrl);
+                        if (delRes.IsSuccessStatusCode)
+                        {
+                            AudioManager.Play(SoundEffect.MenuSelect);
+                            OpenCloudLoadMenu();
+                        }
+                        else
+                        {
+                            RefreshMenuDisplay("DELETE FAILED", $"HTTP {delRes.StatusCode}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        RefreshMenuDisplay("DELETE ERROR", ex.Message);
+                    }
+                }));
+            }
+            _menuItems.Add(("Back", OpenCloudLoadMenu));
+            RefreshMenuDisplay("DELETE CLOUD SAVE", "Select a save to delete permanently from cloud");
+        }
+        catch (Exception ex)
+        {
+            _menuItems.Clear();
+            _menuItems.Add(($"Error: {ex.Message}", () => { }));
+            _menuItems.Add(("Back", OpenCloudLoadMenu));
+            RefreshMenuDisplay("DELETE ERROR", ex.Message);
+        }
     }
 
     private void ConfirmDeleteMenu(System.IO.FileInfo file, SaveFileInfo info)
@@ -743,7 +932,7 @@ public partial class Main : Node
                 {
                     try
                     {
-                        var destDir = SaveDir();
+                        var destDir = SaveDir(_realm);
                         var targetName = bFile.Name;
                         if (targetName.EndsWith(".sav"))
                         {
@@ -804,7 +993,7 @@ public partial class Main : Node
             using var client = new System.Net.Http.HttpClient();
             var httpBase = _cloudUrl.Replace("ws://", "http://").Replace("wss://", "https://");
             var uri = new Uri(httpBase);
-            var uploadUrl = $"{uri.Scheme}://{uri.Authority}/api/saves/upload";
+            var uploadUrl = $"{uri.Scheme}://{uri.Authority}/api/saves/upload?realm={Uri.EscapeDataString(_realm)}";
 
             var fileBytes = await System.IO.File.ReadAllBytesAsync(save.File.FullName);
             using var content = new System.Net.Http.ByteArrayContent(fileBytes);
@@ -816,7 +1005,7 @@ public partial class Main : Node
             var response = await client.PostAsync(uploadUrl, content);
             if (response.IsSuccessStatusCode)
             {
-                RefreshMenuDisplay("UPLOAD SUCCESSFUL", $"Save '{save.DisplayName}' uploaded to cloud realm.");
+                RefreshMenuDisplay("UPLOAD SUCCESSFUL", $"Save '{save.DisplayName}' uploaded to cloud realm [{_realm}].");
             }
             else
             {
@@ -833,12 +1022,12 @@ public partial class Main : Node
     {
         try
         {
-            _overlay.Status = "fetching cloud saves...";
+            _overlay.Status = $"fetching {_realm} cloud saves...";
             _overlay.QueueRedraw();
             using var client = new System.Net.Http.HttpClient();
             var httpBase = _cloudUrl.Replace("ws://", "http://").Replace("wss://", "https://");
             var uri = new Uri(httpBase);
-            var listUrl = $"{uri.Scheme}://{uri.Authority}/api/saves";
+            var listUrl = $"{uri.Scheme}://{uri.Authority}/api/saves?realm={Uri.EscapeDataString(_realm)}";
 
             var response = await client.GetStringAsync(listUrl);
             using var doc = JsonDocument.Parse(response);
@@ -851,7 +1040,7 @@ public partial class Main : Node
                 var fname = s.GetProperty("filename").GetString();
                 if (!string.IsNullOrEmpty(fname))
                 {
-                    var fileUrl = $"{uri.Scheme}://{uri.Authority}/api/saves/{Uri.EscapeDataString(fname)}";
+                    var fileUrl = $"{uri.Scheme}://{uri.Authority}/api/saves/{Uri.EscapeDataString(fname)}?realm={Uri.EscapeDataString(_realm)}";
                     var data = await client.GetByteArrayAsync(fileUrl);
                     var dest = System.IO.Path.Combine(saveDir, fname);
                     await System.IO.File.WriteAllBytesAsync(dest, data);
@@ -859,7 +1048,7 @@ public partial class Main : Node
                 }
             }
 
-            RefreshMenuDisplay("CLOUD SYNC COMPLETE", $"Downloaded {downloaded} save file(s) from cloud realm.");
+            RefreshMenuDisplay("CLOUD SYNC COMPLETE", $"Downloaded {downloaded} save file(s) for realm [{_realm}].");
         }
         catch (Exception ex)
         {
@@ -2402,6 +2591,10 @@ public partial class Main : Node
         var spec = ToKeySpec(key);
         if (spec != null && !_bridge.Busy)
         {
+            if (inPlay && awaiting && overlay == 0 && !more)
+            {
+                spec = RealmKeys.FromVanilla(spec, _realm);
+            }
             _bridge.SendKey(spec);
             GetViewport().SetInputAsHandled();
         }
