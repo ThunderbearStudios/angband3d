@@ -17,10 +17,24 @@
     --font-fantasy: 'Cinzel', serif, -apple-system;
     --font-terminal: 'Fira Code', 'Courier New', monospace;
     --font-ui: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Cinzel', serif;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
     --safe-right: env(safe-area-inset-right, 0px);
+
+    /* WS9 GUI Design Tokens (§9.1) */
+    --hud-gap: 12px;
+    --hud-radius: 12px;
+    --hud-glass: rgba(10, 12, 18, 0.72);
+    --hud-border: rgba(212, 175, 55, 0.35);
+    --hud-gold: #d4af37;
+    --hud-text: #e8e3d3;
+    --hud-dim: #9a937f;
+    --tap: 44px;
+    --dpad-w: 200px;
+    --charpanel-w: 320px;
+    --minimap-w: 260px;
 }
 
 * {
@@ -993,20 +1007,22 @@ html, body {
 #hud-overlay {
     position: absolute;
     bottom: 16px;
-    left: 18px;
-    right: 18px;
+    left: var(--hud-gap);
+    right: calc(var(--dpad-w) + 32px);
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
     pointer-events: none;
     z-index: 5;
+    gap: var(--hud-gap);
 }
 
 .hud-panel {
     background: var(--glass-bg);
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border: 1px solid var(--glass-border);
-    border-radius: 8px;
+    border-radius: var(--hud-radius);
     padding: 12px 18px;
     pointer-events: auto;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8);
@@ -1014,7 +1030,10 @@ html, body {
 
 /* Character & Health Panel */
 #char-panel {
-    min-width: 310px;
+    width: var(--charpanel-w);
+    min-width: var(--charpanel-w);
+    max-width: var(--charpanel-w);
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -1111,18 +1130,54 @@ html, body {
     align-items: center;
     gap: 6px;
     flex: 1;
-    max-width: 860px;
-    margin: 0 12px;
+    max-width: calc(100vw - var(--dpad-w) - var(--charpanel-w) - 4 * var(--hud-gap));
+    margin-inline: auto;
     pointer-events: auto;
+    min-width: 0;
 }
 
 /* Quick Action Bar */
 #action-bar {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 6px;
     margin-bottom: 2px;
+    max-width: 100%;
+}
+
+/* Action More Overflow Popover (§9.1) */
+#action-more-popover {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    background: var(--hud-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--hud-border);
+    border-radius: var(--hud-radius);
+    padding: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    max-width: 440px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85);
+    z-index: 100;
+    pointer-events: auto;
+}
+
+#action-more-popover.is-open {
+    display: flex;
+}
+
+#btn-action-more {
+    display: none;
+}
+
+#btn-action-more.is-needed {
+    display: inline-flex !important;
 }
 
 .action-btn {
@@ -4425,7 +4480,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     }
 
     .dpad-turn-btn {
-        height: 28px !important;
+        height: 40px !important;
+        min-height: 40px !important;
         font-size: 11px !important;
     }
 
@@ -4444,7 +4500,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     .dpad-btn {
         width: 100% !important;
         height: 100% !important;
-        min-height: 36px !important;
+        min-height: 40px !important;
+        min-width: 40px !important;
         font-size: 15px !important;
         border-radius: 6px !important;
     }
@@ -5185,14 +5242,13 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         left: max(4px, var(--safe-left)) !important;
         right: auto !important;
         top: auto !important;
-        transform: scale(0.78) !important;
-        transform-origin: bottom left !important;
+        transform: none !important;
         margin: 0 !important;
         z-index: 35 !important;
         display: block !important;
     }
 
-    /* Bottom Right: Tactical 2-Column Action Cluster (Scaled & Thumb-Optimized) */
+    /* Bottom Right: Tactical 2-Column Action Cluster (Thumb-Optimized) */
     #action-bar:not(.drawer-open) {
         position: fixed !important;
         right: max(4px, var(--safe-right)) !important;
@@ -5203,8 +5259,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         display: grid !important;
         grid-template-columns: 1fr 1fr !important;
         gap: 3px !important;
-        transform: scale(0.80) !important;
-        transform-origin: bottom right !important;
+        transform: none !important;
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
@@ -5216,8 +5271,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 
     #action-bar:not(.drawer-open) .action-btn {
         display: none !important;
-        height: 36px !important;
-        min-height: 36px !important;
+        height: 40px !important;
+        min-height: 40px !important;
         width: 100% !important;
         padding: 2px 4px !important;
         font-size: 11px !important;
@@ -5260,7 +5315,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #hud-footer {
         position: fixed !important;
         bottom: calc(2px + var(--safe-bottom)) !important;
-        left: max(160px, calc(150px + var(--safe-left))) !important;
+        left: max(196px, calc(192px + var(--safe-left))) !important;
         right: max(160px, calc(150px + var(--safe-right))) !important;
         width: auto !important;
         height: 28px !important;
@@ -7133,6 +7188,46 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     background: rgba(56, 189, 248, 0.1) !important;
     color: #38bdf8 !important;
     font-weight: 600 !important;
+}
+
+/* WS9.1 Touch Target Minimums (min 40x40px for coarse pointer) */
+@media (pointer: coarse) {
+    .dpad-turn-btn,
+    .dpad-run-toggle {
+        min-height: 40px !important;
+        height: 40px !important;
+    }
+
+    .dpad-btn {
+        min-width: 40px !important;
+        min-height: 40px !important;
+    }
+
+    .action-btn {
+        min-width: 40px !important;
+        min-height: 40px !important;
+    }
+
+    #touch-controls,
+    #action-bar {
+        transform: none !important;
+    }
+}
+
+/* WS9.1 Action More Popover (Mobile / Drawer / Bottom Sheet) */
+@media (max-width: 900px), (pointer: coarse) {
+    #action-more-popover {
+        position: fixed !important;
+        bottom: calc(34px + var(--safe-bottom)) !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        width: min(540px, calc(100vw - 20px)) !important;
+        max-height: calc(100vh - 70px) !important;
+        overflow-y: auto !important;
+        z-index: 70 !important;
+        padding: 10px !important;
+    }
 }
 
 
