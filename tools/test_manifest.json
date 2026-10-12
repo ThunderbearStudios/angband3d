@@ -1,7 +1,28 @@
 {
-  "fast": ["test_relay_guard.js", "test_http_guard.js", "test_screen_context.js", "test_menu_router.js", "test_realm_keys.js", "test_heng_translate.js", "test_heng_wiring.js", "test_top_bar_consolidation.js", "test_hud_message_pass.js", "check_version_sync.js", "check_android_sync.js"],
-  "e2e": ["verify_cross_realm_menus.js", "test_server_boot.js"],
-  "cdp": ["test_boot_flow.js"],
+  "fast": [
+    "test_relay_guard.js",
+    "test_http_guard.js",
+    "test_screen_context.js",
+    "test_menu_router.js",
+    "test_realm_keys.js",
+    "test_heng_translate.js",
+    "test_heng_wiring.js",
+    "test_top_bar_consolidation.js",
+    "test_hud_message_pass.js",
+    "check_version_sync.js",
+    "check_android_sync.js"
+  ],
+  "e2e": [
+    "verify_cross_realm_menus.js",
+    "test_server_boot.js",
+    "test_proxy_limits.js",
+    "test_server_ws_realms.js"
+  ],
+  "cdp": [
+    "test_boot_flow.js",
+    "test_heng_language_switch.js",
+    "test_ui_layout.js"
+  ],
   "cloud": [],
   "legacy": []
 }
