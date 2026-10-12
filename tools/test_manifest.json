@@ -9,6 +9,7 @@
     "test_heng_wiring.js",
     "test_top_bar_consolidation.js",
     "test_hud_message_pass.js",
+    "test_realm_chronicles_and_inspection.js",
     "check_version_sync.js",
     "check_android_sync.js"
   ],

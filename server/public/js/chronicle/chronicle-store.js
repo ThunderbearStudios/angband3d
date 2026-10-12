@@ -8,17 +8,42 @@ class ChronicleStore {
     static STORAGE_KEY = 'angband3d_active_chronicle';
     static MAX_EXPANDED_CHAPTERS = 25; // Keep 25 recent passages expanded, compress older into epochs
 
-    static createNewChronicle(hero) {
+    static getStorageKey(realmKey = 'angband') {
+        const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase().trim();
+        return `angband3d_active_chronicle_${rk}`;
+    }
+
+    static createNewChronicle(hero, realmKey = 'angband') {
         const name = (hero && hero.name) ? hero.name : 'Adventurer';
         const race = (hero && hero.race) ? hero.race : 'Human';
         const heroClass = (hero && hero.class) ? hero.class : 'Warrior';
+        const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+
+        let title = `The Chronicles of ${name}`;
+        let rolling = '';
+
+        if (rk === 'silq') {
+            title = `The Lay of ${name}`;
+            rolling = `${name}, a ${race} ${heroClass}, crossed into the gates of Angband in the First Age of Beleriand, seeking to wrest a Silmaril from Morgoth's Iron Crown.`;
+        } else if (rk === 'frogcomposband') {
+            title = `The Amber Chronicles of ${name}`;
+            rolling = `${name}, an intrepid ${race} ${heroClass}, stepped forth from the Outpost crossroads to walk the Shadows of the boundless Multiverse.`;
+        } else if (rk === 'hengband') {
+            title = `The Legend of ${name}`;
+            rolling = `${name}, a disciplined ${race} ${heroClass}, embarked upon the path of Bushido and Eastern Mythos, seeking honor and vanquishing yokai beneath the earth.`;
+        } else {
+            title = `The Chronicles of ${name}`;
+            const backstory = (typeof ChronicleGrounder !== 'undefined' && ChronicleGrounder.formatBackstorySummary) ? ChronicleGrounder.formatBackstorySummary(hero) : '';
+            rolling = backstory ? `${name}, a ${race} ${heroClass} (${backstory}), arrived at the frontier town above Angband to begin their descent.` : `${name}, a ${race} ${heroClass}, arrived in the frontier town above Angband to begin their descent into the Iron Hell.`;
+        }
 
         return {
             version: '1.0',
-            id: 'chronicle_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+            realm: rk,
+            id: 'chronicle_' + rk + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
             created_at: Date.now(),
             last_updated: Date.now(),
-            title: `The Chronicles of ${name}`,
+            title: title,
             protagonists: [{
                 name: name,
                 race: race,
@@ -28,10 +53,7 @@ class ChronicleStore {
                 start_time: Date.now()
             }],
             current_protagonist_idx: 0,
-            rolling_summary: (() => {
-                const backstory = (typeof ChronicleGrounder !== 'undefined' && ChronicleGrounder.formatBackstorySummary) ? ChronicleGrounder.formatBackstorySummary(hero) : '';
-                return backstory ? `${name}, a ${race} ${heroClass} (${backstory}), arrived at the frontier town above Angband to begin their descent.` : `${name}, a ${race} ${heroClass}, arrived in the frontier town above Angband to begin their descent.`;
-            })(),
+            rolling_summary: rolling,
             isManuallyImported: false,
             chapters: [],
             epochs: [] // Compressed summaries of ancient chapters
@@ -42,9 +64,15 @@ class ChronicleStore {
         return this.checkCompatibility(chronicle, activeHero).compatible;
     }
 
-    static loadActive() {
+    static loadActive(realmKey = null) {
+        const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
         try {
-            const raw = localStorage.getItem(this.STORAGE_KEY);
+            const specificKey = this.getStorageKey(rk);
+            let raw = localStorage.getItem(specificKey);
+            if (!raw && rk === 'angband') {
+                // Fallback to legacy single key for backwards compatibility
+                raw = localStorage.getItem(this.STORAGE_KEY);
+            }
             if (!raw) return null;
             return JSON.parse(raw);
         } catch (err) {
@@ -53,12 +81,18 @@ class ChronicleStore {
         }
     }
 
-    static saveActive(chronicle) {
+    static saveActive(chronicle, realmKey = null) {
         if (!chronicle) return false;
         try {
             chronicle.last_updated = Date.now();
             this.enforceStorageLimits(chronicle);
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(chronicle));
+            const rk = (realmKey || chronicle.realm || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+            chronicle.realm = rk;
+            const specificKey = this.getStorageKey(rk);
+            localStorage.setItem(specificKey, JSON.stringify(chronicle));
+            if (rk === 'angband') {
+                try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(chronicle)); } catch (_) {}
+            }
             return true;
         } catch (err) {
             console.error('[ChronicleStore] Storage quota hit / write failure:', err);
@@ -294,3 +328,7 @@ hr { border: 0; border-top: 1px solid rgba(212, 175, 55, 0.2); margin: 30px 0; }
 if (typeof window !== 'undefined') {
     window.ChronicleStore = ChronicleStore;
 }
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ChronicleStore;
+}
+

@@ -9210,6 +9210,68 @@ class Dungeon3D {
 
         return closestMonster;
     }
+
+    /**
+     * Raycasts mouse/touch screen coordinates against active 3D floor items/objects.
+     * Used for afar click-to-inspect object examination & Lorekeeper appraisal.
+     */
+    getItemAtScreenCoords(clientX, clientY) {
+        if (!this.camera || !this.renderer || !this.items || this.items.size === 0) return null;
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+
+        if (!this._mouseVec) this._mouseVec = new THREE.Vector2();
+        if (!this._raycaster) this._raycaster = new THREE.Raycaster();
+        if (!this._tempVec3) this._tempVec3 = new THREE.Vector3();
+
+        this._mouseVec.set(
+            ((clientX - rect.left) / rect.width) * 2 - 1,
+            -((clientY - rect.top) / rect.height) * 2 + 1
+        );
+
+        this._raycaster.setFromCamera(this._mouseVec, this.camera);
+
+        // 1. Direct mesh intersection
+        const candidates = [];
+        for (const entity of this.items.values()) {
+            if (entity.visible) candidates.push(entity);
+        }
+
+        if (candidates.length > 0) {
+            const intersects = this._raycaster.intersectObjects(candidates, true);
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj && !obj.itemData && !obj.itemName && obj.parent) {
+                    obj = obj.parent;
+                }
+                if (obj && (obj.itemData || obj.itemName)) {
+                    return obj.itemData || { name: obj.itemName, glyph: obj.glyph, attr: obj.attr };
+                }
+            }
+        }
+
+        // 2. Proximity check along ray (ensures responsive clicking for small floor items like rings, potions, coins)
+        let closestItem = null;
+        let minRayDist = Infinity;
+        const ray = this._raycaster.ray;
+
+        for (const entity of this.items.values()) {
+            if (!entity.visible || (!entity.itemData && !entity.itemName)) continue;
+            this._tempVec3.copy(entity.position);
+            this._tempVec3.y += 0.25; // center of floor item hover/billboard
+            const distToRay = ray.distanceToPoint(this._tempVec3);
+            if (distToRay < 0.85) { // Within item interaction sphere
+                const distAlongRay = ray.origin.distanceTo(this._tempVec3);
+                if (distAlongRay < minRayDist) {
+                    minRayDist = distAlongRay;
+                    closestItem = entity.itemData || { name: entity.itemName, glyph: entity.glyph, attr: entity.attr };
+                }
+            }
+        }
+
+        return closestItem;
+    }
 }
 
 window.Dungeon3D = Dungeon3D;
+
