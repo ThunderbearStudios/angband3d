@@ -27,7 +27,8 @@ const TIMEOUT_MS = 60000;
 const RE_CJK = /[\u3040-\u30ff\u4e00-\u9fff]/;
 
 async function measureCoverage() {
-    const targetUrl = `${BASE}/?play=1&new=1&realm=hengband&lang=en`;
+    const testChar = `Cov_hen_${Date.now().toString(36).slice(-4)}${Math.floor(10 + Math.random() * 90)}`;
+    const targetUrl = `${BASE}/?play=1&new=1&realm=hengband&lang=en&char=${encodeURIComponent(testChar)}`;
     const seenRawJp = new Set();
     let reportData = null;
 
@@ -120,10 +121,14 @@ async function measureCoverage() {
                 };
             })()`);
 
-            if (playState && playState.phase === 'play' && playState.hasMap && playState.hasPlayer && playState.termHidden) {
-                console.log('[Heng Coverage] Reached 3D play!');
-                inPlay = true;
-                break;
+            if (playState && playState.phase === 'play' && playState.hasMap && playState.hasPlayer) {
+                if (playState.termHidden) {
+                    console.log('[Heng Coverage] Reached 3D play!');
+                    inPlay = true;
+                    break;
+                } else {
+                    await evaluate(`(() => { if (window.__app && window.__app.network) window.__app.network.sendKey('space'); })()`);
+                }
             }
         }
 
