@@ -1590,29 +1590,149 @@ class InputController {
             bindReliableAction(stairBtn, fireStair);
         }
 
-        // Mobile / Tablet Action Drawer Toggle
+        // Action Bar Overflow & Mobile Drawer (§9.1 / WS9.1)
         const actionMoreBtn = document.getElementById('btn-action-more');
         const actionBar = document.getElementById('action-bar');
+        const actionPopover = document.getElementById('action-more-popover');
+
+        const ACTION_PRIORITY = [
+            'btn-hero-action',
+            'btn-attack',
+            'btn-cast',
+            'btn-fire',
+            'btn-throw',
+            'btn-quaff',
+            'btn-read',
+            'btn-pickup',
+            'btn-rest',
+            'btn-inventory',
+            'btn-equipment',
+            'btn-door',
+            'btn-power',
+            'btn-browse',
+            'btn-study',
+            'btn-skills',
+            'btn-quests',
+            'btn-overland',
+            'btn-stair',
+            'btn-run-toggle',
+            'btn-terminal',
+            'btn-guide-hud',
+            'btn-command-palette'
+        ];
+
         if (actionMoreBtn && actionBar) {
             let lastMoreTime = 0;
+
+            const updateActionBarOverflow = () => {
+                const isSmallOrCoarse = window.innerWidth <= 900 || window.matchMedia('(pointer: coarse)').matches;
+                const allButtons = ACTION_PRIORITY.map(id => document.getElementById(id)).filter(Boolean);
+
+                if (isSmallOrCoarse) {
+                    // Mobile / coarse pointer: collapse to 6 primary buttons plus More
+                    let kept = 0;
+                    for (const btn of allButtons) {
+                        const isHiddenByRule = btn.dataset.realmHidden === '1' || (btn.style.display === 'none' && !btn.dataset.overflowHidden);
+                        if (isHiddenByRule) continue;
+
+                        if (kept < 6) {
+                            if (btn.parentElement !== actionBar) {
+                                actionBar.insertBefore(btn, actionMoreBtn);
+                            }
+                            btn.removeAttribute('data-overflow-hidden');
+                            kept++;
+                        } else {
+                            if (actionPopover && btn.parentElement !== actionPopover) {
+                                actionPopover.appendChild(btn);
+                            }
+                            btn.setAttribute('data-overflow-hidden', '1');
+                        }
+                    }
+                    actionMoreBtn.classList.add('is-needed');
+                    actionMoreBtn.style.display = 'inline-flex';
+                } else {
+                    // Desktop fine pointer: restore all buttons into actionBar before actionMoreBtn
+                    for (const btn of allButtons) {
+                        if (btn.parentElement !== actionBar) {
+                            actionBar.insertBefore(btn, actionMoreBtn);
+                        }
+                        btn.removeAttribute('data-overflow-hidden');
+                    }
+
+                    // Check row count (2 rows max)
+                    const firstBtn = actionBar.querySelector('.action-btn:not(#btn-action-more)');
+                    const btnHeight = firstBtn ? firstBtn.offsetHeight : 34;
+                    const maxTwoRowHeight = btnHeight * 2 + 10;
+
+                    if (actionBar.scrollHeight > maxTwoRowHeight) {
+                        actionMoreBtn.classList.add('is-needed');
+                        actionMoreBtn.style.display = 'inline-flex';
+
+                        // Move trailing buttons by reverse priority into actionPopover until scrollHeight <= 2 rows
+                        for (let i = allButtons.length - 1; i >= 0; i--) {
+                            const btn = allButtons[i];
+                            if (btn.parentElement === actionBar) {
+                                if (actionPopover) actionPopover.insertBefore(btn, actionPopover.firstChild);
+                                btn.setAttribute('data-overflow-hidden', '1');
+                                if (actionBar.scrollHeight <= maxTwoRowHeight) {
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        if (!actionPopover || actionPopover.children.length === 0) {
+                            actionMoreBtn.classList.remove('is-needed');
+                            actionMoreBtn.style.display = 'none';
+                            if (actionPopover) actionPopover.classList.remove('is-open');
+                        }
+                    }
+                }
+            };
+
             const toggleDrawer = (ev) => {
                 const now = Date.now();
                 if (now - lastMoreTime < 100) return;
                 lastMoreTime = now;
                 if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
                 if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
-                actionBar.classList.toggle('drawer-open');
-                actionMoreBtn.textContent = actionBar.classList.contains('drawer-open') ? '✕ Close' : '⋯ More';
+
+                const isOpen = actionPopover ? actionPopover.classList.toggle('is-open') : actionBar.classList.toggle('drawer-open');
+                actionBar.classList.toggle('drawer-open', isOpen);
+                actionMoreBtn.textContent = isOpen ? '✕ Close' : '⋯ More';
             };
             bindReliableAction(actionMoreBtn, toggleDrawer);
 
-            actionBar.addEventListener('click', (ev) => {
-                const target = ev.target ? ev.target.closest('.action-btn') : null;
-                if (target && target.id !== 'btn-action-more') {
-                    actionBar.classList.remove('drawer-open');
-                    actionMoreBtn.textContent = '⋯ More';
+            const closeDrawer = () => {
+                if (actionPopover) actionPopover.classList.remove('is-open');
+                actionBar.classList.remove('drawer-open');
+                actionMoreBtn.textContent = '⋯ More';
+            };
+
+            if (actionPopover) {
+                actionPopover.addEventListener('click', (ev) => {
+                    const target = ev.target ? ev.target.closest('.action-btn') : null;
+                    if (target) closeDrawer();
+                });
+            }
+
+            document.addEventListener('click', (ev) => {
+                if (!actionBar.contains(ev.target) && (!actionPopover || !actionPopover.contains(ev.target))) {
+                    closeDrawer();
                 }
             });
+
+            if (typeof ResizeObserver !== 'undefined') {
+                let roTimer = null;
+                const ro = new ResizeObserver(() => {
+                    if (roTimer) cancelAnimationFrame(roTimer);
+                    roTimer = requestAnimationFrame(updateActionBarOverflow);
+                });
+                ro.observe(actionBar);
+                if (actionBar.parentElement) ro.observe(actionBar.parentElement);
+            }
+            window.addEventListener('resize', updateActionBarOverflow);
+            window.__updateActionBarOverflow = updateActionBarOverflow;
+            setTimeout(updateActionBarOverflow, 100);
         }
 
         // HUD Help / Controls Sheet Buttons

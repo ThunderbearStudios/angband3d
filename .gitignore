@@ -49,6 +49,7 @@ server/public/assets/video/test_*.png
 tools/test_*.png
 tools/snap_*.png
 tools/*.png
+tools/reports/ui/*.png
 tools/test_*.webm
 tools/temp_chrome_*/
 scratch/
