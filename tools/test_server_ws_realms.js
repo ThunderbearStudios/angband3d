@@ -45,7 +45,8 @@ function testRealm(realmName) {
         console.log(`TESTING REALM: ${realmName}`);
         console.log(`========================================`);
 
-        const ws = new WebSocket(`ws://localhost:8080/ws?user=TestHero_${realmName}&realm=${realmName}&new=1`);
+        const user = `TH_${realmName.slice(0, 4)}_${Math.random().toString(36).slice(2, 8)}`;
+        const ws = new WebSocket(`ws://localhost:8080/ws?user=${user}&realm=${realmName}&new=1`);
         let step = 0;
         let enteredPlay = false;
         let silqStatAllocated = false;

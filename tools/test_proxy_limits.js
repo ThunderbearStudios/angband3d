@@ -1,9 +1,11 @@
 const http = require('http');
 const { spawn } = require('child_process');
 
+const TEST_PORT = process.env.TEST_PORT || 8089;
+
 async function fetchAPI(path, method, body, headers = {}) {
     return new Promise((resolve, reject) => {
-        const req = http.request(`http://127.0.0.1:8080${path}`, {
+        const req = http.request(`http://127.0.0.1:${TEST_PORT}${path}`, {
             method,
             headers: { 'Content-Type': 'application/json', ...headers }
         }, res => {
@@ -20,9 +22,10 @@ async function fetchAPI(path, method, body, headers = {}) {
 }
 
 async function runTest() {
-    console.log('Starting server for proxy limits test...');
+    console.log(`Starting server on port ${TEST_PORT} for proxy limits test...`);
     const env = Object.assign({}, process.env);
     Object.keys(env).forEach(k => { if (k.toUpperCase() === 'GEMINI_API_KEY') delete env[k]; });
+    env.PORT = String(TEST_PORT);
     env.LLM_RPM = '3';
     env.TTS_RPM = '3';
 
