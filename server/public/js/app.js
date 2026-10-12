@@ -4024,14 +4024,23 @@ window.addEventListener('DOMContentLoaded', () => {
                                 seenKeys.add(key);
                                 let display = `[${key}]`;
                                 if (label) {
-                                    const enTrans = isHengCur ? (JP_TERM_TRANSLATIONS[label] || (window.HENG_DICT && window.HENG_DICT.DATA && window.HENG_DICT.DATA.items && window.HENG_DICT.DATA.items[label])) : null;
-                                    if (enTrans) {
-                                        if (effLang === 'en') {
-                                            display = `[${key}] ${enTrans}`;
-                                        } else if (effLang === 'jp') {
-                                            display = `[${key}] ${label}`;
+                                    if (isHengCur) {
+                                        if (window.__hengTranslatorV2 !== false && window.HengTranslate) {
+                                            const trans = window.HengTranslate.translateName(label, 1, effLang);
+                                            display = `[${key}] ${trans || label}`;
                                         } else {
-                                            display = `[${key}] ${label} (${enTrans})`;
+                                            const enTrans = JP_TERM_TRANSLATIONS[label] || (window.getLocalizedItemName ? window.getLocalizedItemName(label, 'hengband', 'en') : null);
+                                            if (enTrans && enTrans !== label) {
+                                                if (effLang === 'en') {
+                                                    display = `[${key}] ${enTrans}`;
+                                                } else if (effLang === 'jp') {
+                                                    display = `[${key}] ${label}`;
+                                                } else {
+                                                    display = `[${key}] ${label} (${enTrans})`;
+                                                }
+                                            } else {
+                                                display = `[${key}] ${label}`;
+                                            }
                                         }
                                     } else {
                                         display = `[${key}] ${label}`;

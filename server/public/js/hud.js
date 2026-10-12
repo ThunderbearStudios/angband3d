@@ -429,7 +429,8 @@ class WebHUD {
         let displayMsg = '';
         if (frame.term && frame.term.rows && frame.term.rows[0] && frame.term.rows[0].g) {
             let row0 = frame.term.rows[0].g.trim();
-            if (row0.length > 0 && !row0.startsWith('===') && !row0.startsWith('---')) {
+            if (row0.length > 0 && !row0.startsWith('===') && !row0.startsWith('---') &&
+                !row0.includes('名前を入力') && !row0.includes('キャラ')) {
                 displayMsg = row0;
             }
         }
@@ -450,8 +451,12 @@ class WebHUD {
             const realm = (frame && frame.realm) || (this.lastFrame && this.lastFrame.realm) || (window.activeRealm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
             const lang = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
             let localizedMsg = displayMsg;
-            if (realm === 'hengband' && typeof window !== 'undefined' && typeof window.localizeGameMessage === 'function') {
-                localizedMsg = window.localizeGameMessage(displayMsg, 'hengband', lang);
+            if (realm === 'hengband' && typeof window !== 'undefined') {
+                if (window.HengTranslate && window.__hengTranslatorV2 !== false) {
+                    localizedMsg = window.HengTranslate.translateLine(displayMsg, lang);
+                } else if (typeof window.localizeGameMessage === 'function') {
+                    localizedMsg = window.localizeGameMessage(displayMsg, 'hengband', lang);
+                }
             }
             textEl.textContent = localizedMsg;
             if (isPrompt) {
@@ -1836,27 +1841,43 @@ class WebHUD {
         if (inPlay && (!this.wasInPlay || !this.messageHistory || this.messageHistory.length === 0)) {
             const depth = player.depth !== undefined ? player.depth : 0;
             this.lastDepth = depth;
-            const welcomeMsg = depth === 0
-                ? "Welcome to the Town of Angband! Visit the General Store and Armory to equip your journey."
-                : `You descend into Dungeon Level ${depth} (${depth * 50}ft).`;
+            const rKeys = typeof RealmKeys !== 'undefined' ? RealmKeys : (typeof window !== 'undefined' ? window.RealmKeys : null);
+            const realm = (frame && frame.realm) || (this.lastFrame && this.lastFrame.realm) || (window.activeRealm) || 'angband';
+            const realmText = (rKeys && rKeys.REALM_TEXT && rKeys.REALM_TEXT[realm]) || { town: 'the Town', depthUnit: 'ft', feetPerLevel: 50 };
+            const feetPerLvl = realmText.feetPerLevel || 50;
+            const depthUnit = realmText.depthUnit || 'ft';
+
+            let welcomeMsg;
+            if (depth === 0) {
+                welcomeMsg = realmText.town
+                    ? `Welcome to ${realmText.town}! Visit the General Store and Armory to equip your journey.`
+                    : "Welcome! Prepare to begin your journey.";
+            } else {
+                welcomeMsg = `You descend into Dungeon Level ${depth} (${depth * feetPerLvl}${depthUnit}).`;
+            }
+
             this.resetMessages(welcomeMsg);
             this.lastSeenMessages = (frame.messages && Array.isArray(frame.messages))
                 ? frame.messages.filter(m => m && m.text && m.text.trim().length > 0 &&
                     !m.text.trim().startsWith('===') && !m.text.trim().startsWith('---')).map(m => ({ text: m.text, count: m.count, attr: m.attr }))
                 : [];
-            this.lastTermRow0 = (frame.term && frame.term.rows && frame.term.rows[0] && frame.term.rows[0].g)
-                ? frame.term.rows[0].g.trim()
-                : null;
+            this.lastTermRow0 = '';
         }
 
         // Track staircase floor transitions (Town <-> Dungeon depths)
         if (inPlay && player.depth !== undefined && this.lastDepth !== undefined && player.depth !== this.lastDepth) {
+            const rKeys = typeof RealmKeys !== 'undefined' ? RealmKeys : (typeof window !== 'undefined' ? window.RealmKeys : null);
+            const realm = (frame && frame.realm) || (this.lastFrame && this.lastFrame.realm) || (window.activeRealm) || 'angband';
+            const realmText = (rKeys && rKeys.REALM_TEXT && rKeys.REALM_TEXT[realm]) || { town: 'the Town', depthUnit: 'ft', feetPerLevel: 50 };
+            const feetPerLvl = realmText.feetPerLevel || 50;
+            const depthUnit = realmText.depthUnit || 'ft';
+
             if (player.depth > this.lastDepth) {
-                this.addMessage(`You descend into Dungeon Level ${player.depth} (${player.depth * 50}ft).`, '#ffd700');
+                this.addMessage(`You descend into Dungeon Level ${player.depth} (${player.depth * feetPerLvl}${depthUnit}).`, '#ffd700');
             } else if (player.depth < this.lastDepth) {
                 const ascendMsg = player.depth === 0
-                    ? "You return to the surface of the Town of Angband."
-                    : `You ascend to Dungeon Level ${player.depth} (${player.depth * 50}ft).`;
+                    ? (realmText.town ? `You return to the surface of ${realmText.town}.` : "You return to the surface.")
+                    : `You ascend to Dungeon Level ${player.depth} (${player.depth * feetPerLvl}${depthUnit}).`;
                 this.addMessage(ascendMsg, '#ffd700');
             }
             this.lastDepth = player.depth;

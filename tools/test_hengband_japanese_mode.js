@@ -315,8 +315,8 @@ console.log('  -> Per-frame Pure Japanese telemetry validated.\n');
 console.log('Test 5: Hengband Binary Resolution in server.js');
 const serverSrc = fs.readFileSync(path.join(__dirname, '../server/src/server.js'), 'utf8');
 assert.ok(
-    serverSrc.includes("lang === 'bilingual'"),
-    'server.js must resolve bilingual mode to the Shift-JIS / Japanese Hengband engine binary'
+    serverSrc.includes("jpBin =") && serverSrc.includes("binRelPath = jpBin"),
+    'server.js must resolve to the native Japanese Hengband engine binary when present'
 );
 console.log('  -> Server bilingual binary selection verified.\n');
 
