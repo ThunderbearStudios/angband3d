@@ -3900,6 +3900,21 @@ window.addEventListener('DOMContentLoaded', () => {
         termCtxActions.innerHTML = html;
     }
 
+    /**
+     * WS5.3 Action-bar deduplication: renders structured contextual action buttons.
+     * @param {Array<{key: string, badge?: string, label: string, gold?: boolean, outline?: boolean, extraCls?: string}>} buttons
+     * @returns {string} HTML markup
+     */
+    function renderCtxButtons(buttons) {
+        if (!Array.isArray(buttons)) return '';
+        return buttons.map(b => {
+            const goldCls = b.gold ? ' btn-gold' : (b.outline ? ' btn-gold-outline' : '');
+            const extra = b.extraCls ? ' ' + b.extraCls : '';
+            const badge = b.badge !== undefined ? b.badge : `[${b.key}]`;
+            return `<button type="button" class="term-ctx-btn${goldCls}${extra}" data-key="${b.key}"><span>${badge}</span> ${b.label}</button>`;
+        }).join('\n');
+    }
+
     function updateTerminalToolbar(frame) {
         const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
         const termFacingBadge = document.getElementById('term-facing-badge');
@@ -4171,10 +4186,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Accept Options', '⎋ 終了 (Accept Options)', '⎋ 終了')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Accept Options', '⎋ 終了 (Accept Options)', '⎋ 終了'), gold: true },
+                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    ]));
                 }
             } else if (isHengStatDecide) {
                 terminalTitle.textContent = hengTitle(
@@ -4186,14 +4201,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('✓ Accept Stats', '✓ 決定 (Accept Stats)', '✓ 決定')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> ${hengLabel('🔄 Next Roll', '🔄 次の数値 (Next Roll)', '🔄 次の数値')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="p"><span>[p]</span> ${hengLabel('⏪ Previous Roll', '⏪ 前の数値 (Previous Roll)', '⏪ 前の数値')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="S"><span>[S]</span> ${hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Back', '⎋ 戻る (Back)', '⎋ 戻る')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept Stats', '✓ 決定 (Accept Stats)', '✓ 決定'), gold: true },
+                        { key: 'r', badge: '[r]', label: hengLabel('🔄 Next Roll', '🔄 次の数値 (Next Roll)', '🔄 次の数値') },
+                        { key: 'p', badge: '[p]', label: hengLabel('⏪ Previous Roll', '⏪ 前の数値 (Previous Roll)', '⏪ 前の数値') },
+                        { key: 'S', badge: '[S]', label: hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから') },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ 戻る (Back)', '⎋ 戻る') },
+                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    ]));
                 }
             } else if (isTitleScreen) {
                 terminalTitle.textContent = '⚔ WELCOME TO ANGBAND';
@@ -4201,10 +4216,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> Continue (Enter)</button>
-                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> Main Menu</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: 'Continue (Enter)', gold: true },
+                        { key: 'mainmenu', badge: '🏠', label: 'Main Menu' }
+                    ]));
                 }
             } else if (isNamePrompt) {
                 terminalTitle.textContent = isHeng
@@ -4224,10 +4239,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
+                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    ]));
                 }
             } else if (isHistoryPrompt) {
                 terminalTitle.textContent = isHeng
@@ -4237,11 +4252,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
+                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    ]));
                 }
             } else if (isStatRoller) {
                 terminalTitle.textContent = isHeng
@@ -4251,12 +4266,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> ${hengLabel('🔄 Reset Stats', '🔄 Reset / 再抽選', '🔄 再抽選')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true },
+                        { key: 'r', badge: '[r]', label: hengLabel('🔄 Reset Stats', '🔄 Reset / 再抽選', '🔄 再抽選') },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
+                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    ]));
                 }
             } else if (isBackgroundEdit) {
                 terminalTitle.textContent = isHeng
@@ -4266,11 +4281,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Continue (Enter)', 'Continue / 決定 (Enter)', '決定 (Enter)')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: hengLabel('Continue (Enter)', 'Continue / 決定 (Enter)', '決定 (Enter)'), gold: true },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
+                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    ]));
                 }
             } else if (isReadyPrompt) {
                 terminalTitle.textContent = isHeng
@@ -4280,11 +4295,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('⚔ Enter Realm', '⚔ ゲーム開始 (Enter Realm)', '⚔ ゲーム開始')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="S"><span>[S]</span> ${hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="Q"><span>[Q]</span> ${hengLabel('⎋ Quit', '⎋ 終了 (Quit)', '⎋ 終了')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: hengLabel('⚔ Enter Realm', '⚔ ゲーム開始 (Enter Realm)', '⚔ ゲーム開始'), gold: true },
+                        { key: 'S', badge: '[S]', label: hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから') },
+                        { key: 'Q', badge: '[Q]', label: hengLabel('⎋ Quit', '⎋ 終了 (Quit)', '⎋ 終了') }
+                    ]));
                 }
             } else if (isReviewScreen) {
                 const hasPrevRoll = screenText.includes("previous roll") || screenText.includes("前の数値") || screenText.includes("for previous");
@@ -4297,14 +4312,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('⚔ Accept & Play', '⚔ Accept & Play (決定)', '⚔ 決定して開始')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="r"><span>[r]</span> ${hengLabel('🎲 Reroll Hero', '🎲 Reroll (再生成)', '🎲 英雄再生成')}</button>
-                        ${hasPrevRoll ? `<button type="button" class="term-ctx-btn" data-key="p"><span>[p]</span> ${hengLabel('⏪ Previous Roll', '⏪ Previous Roll (前の数値)', '⏪ 前の数値')}</button>` : ''}
-                        <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> ${hengLabel('🛠 Custom Create', '🛠 Custom (作成)', '🛠 英雄作成')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `);
+                    const reviewBtns = [
+                        { key: 'enter', badge: '⏎', label: hengLabel('⚔ Accept & Play', '⚔ Accept & Play (決定)', '⚔ 決定して開始'), gold: true },
+                        { key: 'r', badge: '[r]', label: hengLabel('🎲 Reroll Hero', '🎲 Reroll (再生成)', '🎲 英雄再生成') }
+                    ];
+                    if (hasPrevRoll) {
+                        reviewBtns.push({ key: 'p', badge: '[p]', label: hengLabel('⏪ Previous Roll', '⏪ Previous Roll (前の数値)', '⏪ 前の数値') });
+                    }
+                    reviewBtns.push(
+                        { key: 's', badge: '[s]', label: hengLabel('🛠 Custom Create', '🛠 Custom (作成)', '🛠 英雄作成') },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
+                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    );
+                    setCtxActions(renderCtxButtons(reviewBtns));
                 }
             } else {
                 // Choice menu (Sex, Race, Class, Personality, Realm, Traits)
@@ -4348,12 +4368,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (termDpad) termDpad.style.display = 'grid'; // D-pad Up/Down navigates highlight, Enter selects
                 if (birthNameBar) birthNameBar.style.display = 'none';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="*"><span>[*]</span> ${hengLabel('🎲 Random', '🎲 Random / ランダム', '🎲 ランダム')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="mainmenu"><span>🏠</span> ${hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定'), gold: true },
+                        { key: '*', badge: '[*]', label: hengLabel('🎲 Random', '🎲 Random / ランダム', '🎲 ランダム') },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') },
+                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    ]));
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             }
@@ -4400,48 +4420,38 @@ window.addEventListener('DOMContentLoaded', () => {
         
 
         if (isPressAnyKey) {
-
             terminalTitle.textContent = isHeng
-
                 ? hengTitle('📜 MESSAGE / PROMPT', '📜 MESSAGE / メッセージ', '📜 メッセージ')
-
                 : '📜 MESSAGE / PROMPT';
-
             if (termDpad) termDpad.style.display = 'none';
-
-            setCtxActions(`
-
-                <button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ${hengLabel('Continue', 'Continue / 続ける', '続ける')}</button>
-
-                <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる')}</button>
-
-            `);
-
+            setCtxActions(renderCtxButtons([
+                { key: 'space', badge: '[␣]', label: hengLabel('Continue', 'Continue / 続ける', '続ける'), gold: true },
+                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる') }
+            ]));
             if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-
         } else if (isYesNoPrompt) {
             terminalTitle.textContent = isHeng
                 ? hengTitle('🎴 CONFIRM ACTION [y/n]', '🎴 CONFIRM ACTION / 確認 [y/n]', '🎴 確認 [y/n]')
                 : '⚔ CONFIRM ACTION [y/n]';
             if (termDpad) termDpad.style.display = 'none';
             if (termCtxActions) {
-                setCtxActions(`
-                    <button type="button" class="term-ctx-btn btn-gold" data-key="y"><span>[y]</span> ${hengLabel('✓ Yes', '✓ Yes / はい', '✓ はい')}</button>
-                    <button type="button" class="term-ctx-btn btn-gold-outline" data-key="n"><span>[n]</span> ${hengLabel('✕ No', '✕ No / いいえ', '✕ いいえ')}</button>
-                    <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Cancel', '⎋ Cancel / 取消', '⎋ 取消')}</button>
-                `);
+                setCtxActions(renderCtxButtons([
+                    { key: 'y', badge: '[y]', label: hengLabel('✓ Yes', '✓ Yes / はい', '✓ はい'), gold: true },
+                    { key: 'n', badge: '[n]', label: hengLabel('✕ No', '✕ No / いいえ', '✕ いいえ'), outline: true },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 取消', '⎋ 取消') }
+                ]));
             }
             populateLetterRibbon(null, ['y', 'n']);
         } else if (isQuantityPrompt) {
             terminalTitle.textContent = '📦 ENTER QUANTITY';
             if (termDpad) termDpad.style.display = 'grid';
             if (termCtxActions) {
-                setCtxActions(`
-                    <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> All (Default)</button>
-                    <button type="button" class="term-ctx-btn" data-key="1"><span>[1]</span> Just 1</button>
-                    <button type="button" class="term-ctx-btn" data-key="5"><span>[5]</span> 5</button>
-                    <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
-                `);
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: 'All (Default)', gold: true },
+                    { key: '1', badge: '[1]', label: 'Just 1' },
+                    { key: '5', badge: '[5]', label: '5' },
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Cancel' }
+                ]));
             }
             populateLetterRibbon(null, ['1', '2', '3', '5', '10', 'enter']);
         } else if (isStore) {
@@ -4490,13 +4500,13 @@ window.addEventListener('DOMContentLoaded', () => {
                     : '⚔ CHOOSE ACTION FOR ITEM';
                 const examineKey = isHeng ? 'x' : 'l';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> ${hengLabel('💰 Buy All', '💰 Buy All / 全て購入', '💰 全て購入')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="o"><span>[o]</span> ${hengLabel('🛒 Buy One', '🛒 Buy One / 1つ購入', '🛒 1つ購入')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="${examineKey}"><span>[${examineKey}]</span> ${hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                        { key: 'p', badge: '[p]', label: hengLabel('💰 Buy All', '💰 Buy All / 全て購入', '💰 全て購入'), gold: true },
+                        { key: 'o', badge: '[o]', label: hengLabel('🛒 Buy One', '🛒 Buy One / 1つ購入', '🛒 1つ購入') },
+                        { key: examineKey, badge: `[${examineKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') }
+                    ]));
                 }
                 if (termLetterRibbon) termLetterRibbon.style.display = 'none';
             } else if (isStoreBuy) {
@@ -4504,11 +4514,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     ? hengTitle('💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)', '💰 BUY WHICH ITEM? / 購入 (Tap letter or Enter)', '💰 何を買いますか？ (文字か方向キー+Enter)')
                     : '💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Cancel Buy', '⎋ Cancel / 取消', '⎋ 取消')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                        { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Buy', '⎋ Cancel / 取消', '⎋ 取消') }
+                    ]));
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             } else if (isStoreSell) {
@@ -4516,11 +4526,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     ? hengTitle('🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)', '🏷 SELL WHICH ITEM? / 売却 (Tap letter or Enter)', '🏷 どれを売りますか？ (文字か方向キー+Enter)')
                     : '🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Cancel Sell', '⎋ Cancel / 取消', '⎋ 取消')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                        { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Sell', '⎋ Cancel / 取消', '⎋ 取消') }
+                    ]));
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             } else if (isStoreExamine) {
@@ -4528,11 +4538,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     ? hengTitle('🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)', '🔍 EXAMINE WHICH ITEM? / 調査 (Tap letter or Enter)', '🔍 どれを調べますか？ (文字か方向キー+Enter)')
                     : '🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Cancel Examine', '⎋ Cancel / 取消', '⎋ 取消')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                        { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Examine', '⎋ Cancel / 取消', '⎋ 取消') }
+                    ]));
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             } else {
@@ -4549,14 +4559,18 @@ window.addEventListener('DOMContentLoaded', () => {
                     : '⚔ ' + storeName.toUpperCase() + ' — BROWSE INVENTORY';
                 const examineKey = isHeng ? 'x' : 'l';
                 if (termCtxActions) {
-                    setCtxActions(`
-                        ${hasMore ? `<button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ${hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)')}</button>` : ''}
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="p"><span>[p]</span> ${hengLabel('💰 Buy', '💰 Buy / 購入', '💰 購入')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="s"><span>[s]</span> ${hengLabel('🏷 Sell', '🏷 Sell / 売却', '🏷 売却')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="${examineKey}"><span>[${examineKey}]</span> ${hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('🚪 Exit Store', '🚪 Exit Store / 店を出る', '🚪 店を出る')}</button>
-                    `);
+                    const storeBtns = [];
+                    if (hasMore) {
+                        storeBtns.push({ key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true });
+                    }
+                    storeBtns.push(
+                        { key: 'p', badge: '[p]', label: hengLabel('💰 Buy', '💰 Buy / 購入', '💰 購入'), gold: true },
+                        { key: 's', badge: '[s]', label: hengLabel('🏷 Sell', '🏷 Sell / 売却', '🏷 売却') },
+                        { key: examineKey, badge: `[${examineKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
+                        { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('🚪 Exit Store', '🚪 Exit Store / 店を出る', '🚪 店を出る') }
+                    );
+                    setCtxActions(renderCtxButtons(storeBtns));
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
             }
@@ -4565,10 +4579,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択')
                 : '⚔ CHOOSE ACTION FOR ITEM';
             if (termDpad) termDpad.style.display = 'grid';
-            setCtxActions(`
-                <button type="button" class="term-ctx-btn btn-gold" data-key="enter"><span>⏎</span> ${hengLabel('Select', 'Select / 決定', '決定')}</button>
-                <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Back', '⎋ Back / 戻る', '戻る')}</button>
-            `);
+            setCtxActions(renderCtxButtons([
+                { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '戻る') }
+            ]));
             populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
         } else if (isTargeting) {
             // Target / Direction Aiming Mode
@@ -4579,12 +4593,12 @@ window.addEventListener('DOMContentLoaded', () => {
             if (termLetterRibbon) termLetterRibbon.style.display = 'none';
 
             if (termCtxActions) {
-                setCtxActions(`
-                    <button type="button" class="term-ctx-btn btn-gold" data-key="5"><span>[5/⏎]</span> ${hengLabel('🎯 Fire / Select', '🎯 Fire / 発射・選択', '🎯 発射・選択')}</button>
-                    <button type="button" class="term-ctx-btn" data-key="*"><span>[*]</span> ${hengLabel('🔍 Next Target', '🔍 Next Target / 次の対象', '🔍 次の対象')}</button>
-                    <button type="button" class="term-ctx-btn" data-key="t"><span>[t]</span> ${hengLabel('📍 Nearest', '📍 Nearest / 最寄りの対象', '📍 最寄りの対象')}</button>
-                    <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Cancel Aiming', '⎋ Cancel / 取消', '⎋ 取消')}</button>
-                `);
+                setCtxActions(renderCtxButtons([
+                    { key: '5', badge: '[5/⏎]', label: hengLabel('🎯 Fire / Select', '🎯 Fire / 発射・選択', '🎯 発射・選択'), gold: true },
+                    { key: '*', badge: '[*]', label: hengLabel('🔍 Next Target', '🔍 Next Target / 次の対象', '🔍 次の対象') },
+                    { key: 't', badge: '[t]', label: hengLabel('📍 Nearest', '📍 Nearest / 最寄りの対象', '📍 最寄りの対象') },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Aiming', '⎋ Cancel / 取消', '⎋ 取消') }
+                ]));
             }
         } else if (isItemPrompt) {
             // Item selection / inventory / equipment prompts across all realms
@@ -4629,45 +4643,45 @@ window.addEventListener('DOMContentLoaded', () => {
             if (termCtxActions) {
                 if (isSilqInvenCmd) {
                     // Sil-Q Inventory Main Command Prompt: (Inventory) Command:
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="w"><span>[w]</span> ⚔ Wear/Wield</button>
-                        <button type="button" class="term-ctx-btn" data-key="e"><span>[e]</span> 🛡 View Gear</button>
-                        <button type="button" class="term-ctx-btn" data-key="x"><span>[x]</span> 🔍 Examine</button>
-                        <button type="button" class="term-ctx-btn" data-key="d"><span>[d]</span> 📦 Drop</button>
-                        <button type="button" class="term-ctx-btn" data-key="k"><span>[k]</span> 🗑 Destroy</button>
-                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
+                        { key: 'w', badge: '[w]', label: '⚔ Wear/Wield', gold: true },
+                        { key: 'e', badge: '[e]', label: '🛡 View Gear' },
+                        { key: 'x', badge: '[x]', label: '🔍 Examine' },
+                        { key: 'd', badge: '[d]', label: '📦 Drop' },
+                        { key: 'k', badge: '[k]', label: '🗑 Destroy' },
+                        { key: 'space', badge: '[␣]', label: 'Next Page' }
+                    ]));
                 } else if (isSilqEquipCmd) {
                     // Sil-Q Equipment Main Command Prompt: (Equipment) Command:
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="r"><span>[r]</span> 🔄 Take Off</button>
-                        <button type="button" class="term-ctx-btn" data-key="i"><span>[i]</span> 🎒 View Pack</button>
-                        <button type="button" class="term-ctx-btn" data-key="x"><span>[x]</span> 🔍 Examine</button>
-                        <button type="button" class="term-ctx-btn" data-key="d"><span>[d]</span> 📦 Drop</button>
-                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
+                        { key: 'r', badge: '[r]', label: '🔄 Take Off', gold: true },
+                        { key: 'i', badge: '[i]', label: '🎒 View Pack' },
+                        { key: 'x', badge: '[x]', label: '🔍 Examine' },
+                        { key: 'd', badge: '[d]', label: '📦 Drop' },
+                        { key: 'space', badge: '[␣]', label: 'Next Page' }
+                    ]));
                 } else if (isSilqWear) {
                     // Sil-Q Wield Prompt: Wear/Wield which item?
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
-                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> 🛡 Switch to Gear</button>
-                        <button type="button" class="term-ctx-btn" data-key="-"><span>[-]</span> 📍 Floor</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
+                        { key: '/', badge: '[/]', label: '🛡 Switch to Gear' },
+                        { key: '-', badge: '[-]', label: '📍 Floor' }
+                    ]));
                 } else if (isSilqRemove) {
                     // Sil-Q Remove Prompt: Remove which item?
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
-                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> 🎒 Switch to Pack</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
+                        { key: '/', badge: '[/]', label: '🎒 Switch to Pack' }
+                    ]));
                 } else if (isSilq) {
                     // Other Sil-Q item selection prompts (drop, throw, examine)
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Cancel</button>
-                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> Switch Inven/Gear</button>
-                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
+                        { key: '/', badge: '[/]', label: 'Switch Inven/Gear' },
+                        { key: 'space', badge: '[␣]', label: 'Next Page' }
+                    ]));
                 } else if (isHeng) {
                     const packLabel = isEquipView
                         ? hengLabel('🎒 View Pack', '🎒 View Pack / 所持品', '🎒 所持品')
@@ -4675,19 +4689,19 @@ window.addEventListener('DOMContentLoaded', () => {
                     const quiverLabel = isQuiverView
                         ? hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品')
                         : hengLabel('🏹 Quiver', '🏹 Quiver / 矢筒', '🏹 矢筒');
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> ${packLabel}</button>
-                        <button type="button" class="term-ctx-btn" data-key="|"><span>[|]</span> ${quiverLabel}</button>
-                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> ${hengLabel('Next Page', 'Next Page / 次頁', '次ページ')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる'), gold: true },
+                        { key: '/', badge: '[/]', label: packLabel },
+                        { key: '|', badge: '[|]', label: quiverLabel },
+                        { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') }
+                    ]));
                 } else {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="escape"><span>[Esc]</span> ⎋ Close</button>
-                        <button type="button" class="term-ctx-btn" data-key="/"><span>[/]</span> ${isEquipView ? '🎒 View Pack' : '🛡 View Gear'}</button>
-                        <button type="button" class="term-ctx-btn" data-key="|"><span>[|]</span> ${isQuiverView ? '🎒 Pack' : '🏹 Quiver'}</button>
-                        <button type="button" class="term-ctx-btn" data-key="space"><span>[␣]</span> Next Page</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
+                        { key: '/', badge: '[/]', label: isEquipView ? '🎒 View Pack' : '🛡 View Gear' },
+                        { key: '|', badge: '[|]', label: isQuiverView ? '🎒 Pack' : '🏹 Quiver' },
+                        { key: 'space', badge: '[␣]', label: 'Next Page' }
+                    ]));
                 }
             }
             populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
@@ -4709,10 +4723,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (termCtxActions) {
                 if (hasMore) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ${hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)')}</button>
-                        <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Dismiss', '⎋ Dismiss / 閉じる', '⎋ 閉じる')}</button>
-                    `);
+                    setCtxActions(renderCtxButtons([
+                        { key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Dismiss', '⎋ Dismiss / 閉じる', '⎋ 閉じる') }
+                    ]));
                 } else {
                     const effRealm = activeRealm || 'angband';
                     const keyFor = (v) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
@@ -4720,59 +4734,59 @@ window.addEventListener('DOMContentLoaded', () => {
                         : null;
 
                     const btns = [
-                        `<button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> ${hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)')}</button>`,
-                        `<button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー')}</button>`
+                        { key: 'tab', badge: '⛶', label: hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)'), gold: true, extraCls: 'term-action-key' },
+                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー'), extraCls: 'term-action-key' }
                     ];
 
                     const packKey = keyFor('inven') || 'i';
-                    btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${packKey}"><span>[${packKey}]</span> ${hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品')}</button>`);
+                    btns.push({ key: packKey, label: hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品'), extraCls: 'term-action-key' });
 
                     const equipKey = keyFor('equip') || 'e';
-                    btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${equipKey}"><span>[${equipKey}]</span> ${hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備')}</button>`);
+                    btns.push({ key: equipKey, label: hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備'), extraCls: 'term-action-key' });
 
                     if (effRealm === 'silq') {
-                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="w"><span>[w]</span> ⚔ Wield</button>`);
-                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="r"><span>[r]</span> 🔄 Take Off</button>`);
+                        btns.push({ key: 'w', label: '⚔ Wield', extraCls: 'term-action-key' });
+                        btns.push({ key: 'r', label: '🔄 Take Off', extraCls: 'term-action-key' });
                         const throwKey = keyFor('throw');
-                        if (throwKey) btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${throwKey}"><span>[${throwKey}]</span> 🎯 Throw</button>`);
+                        if (throwKey) btns.push({ key: throwKey, label: '🎯 Throw', extraCls: 'term-action-key' });
                         const fireKey = keyFor('fire');
-                        if (fireKey) btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${fireKey}"><span>[${fireKey}]</span> 🏹 Fire</button>`);
+                        if (fireKey) btns.push({ key: fireKey, label: '🏹 Fire', extraCls: 'term-action-key' });
                     }
 
                     const powerKey = keyFor('power');
                     if (powerKey) {
-                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${powerKey}"><span>[${powerKey}]</span> ${hengLabel('🔮 Power', '🔮 Power / 特殊能力', '🔮 特殊能力')}</button>`);
+                        btns.push({ key: powerKey, label: hengLabel('🔮 Power', '🔮 Power / 特殊能力', '🔮 特殊能力'), extraCls: 'term-action-key' });
                     }
 
                     const overlandKey = keyFor('overland');
                     if (overlandKey) {
-                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${overlandKey}"><span>[${overlandKey}]</span> ${hengLabel('🗺️ Map', '🗺️ Map / 広域', '🗺️ 広域')}</button>`);
+                        btns.push({ key: overlandKey, label: hengLabel('🗺️ Map', '🗺️ Map / 広域', '🗺️ 広域'), extraCls: 'term-action-key' });
                     }
 
                     const questsKey = keyFor('quests');
                     if (questsKey) {
-                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${questsKey}"><span>[${questsKey}]</span> ${hengLabel('📜 Quests', '📜 Quests / クエスト', '📜 クエスト')}</button>`);
+                        btns.push({ key: questsKey, label: hengLabel('📜 Quests', '📜 Quests / クエスト', '📜 クエスト'), extraCls: 'term-action-key' });
                     }
 
                     const skillsKey = keyFor('skills');
                     if (skillsKey) {
                         const skillsDisplay = (skillsKey === 'tab') ? 'Tab' : skillsKey;
                         const dataKeyVal = (skillsKey === 'tab') ? '\t' : skillsKey;
-                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${dataKeyVal}"><span>[${skillsDisplay}]</span> 🌳 Skills</button>`);
+                        btns.push({ key: dataKeyVal, badge: `[${skillsDisplay}]`, label: '🌳 Skills', extraCls: 'term-action-key' });
                     }
 
                     const castKey = keyFor('cast');
                     if (castKey) {
                         const castName = (effRealm === 'silq') ? '🎵 Song' : hengLabel('✨ Cast', '✨ Cast / 呪文', '✨ 呪文');
-                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${castKey}"><span>[${castKey}]</span> ${castName}</button>`);
+                        btns.push({ key: castKey, label: castName, extraCls: 'term-action-key' });
                     }
 
                     const restKey = keyFor('rest');
                     if (restKey) {
-                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${restKey}"><span>[${restKey}]</span> ${hengLabel('⏳ Rest', '⏳ Rest / 休息', '⏳ 休息')}</button>`);
+                        btns.push({ key: restKey, label: hengLabel('⏳ Rest', '⏳ Rest / 休息', '⏳ 休息'), extraCls: 'term-action-key' });
                     }
 
-                    setCtxActions(btns.join('\n'));
+                    setCtxActions(renderCtxButtons(btns));
                 }
             }
         }

@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
-Branch: fix/award-pass   Updated: 2026-10-12T10:15-04:00 (WS5 triage & commit staging complete)
+Branch: fix/award-pass   Updated: 2026-10-12T10:20-04:00 (WS5.3 & WS5.6 complete)
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first, incl. NEW lessons L18–L22), then the plan section for the current task.
-Current task: **WS5.3** (Action-bar deduplication in app.js).
+Current task: **WS10.1** (PWA / service-worker update UX).
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. Always re-locate lines with `Select-String`.
 
@@ -43,10 +43,10 @@ An uncommitted WS2/WS3/WS5 attempt broke localhost ("empty sky of stars"). Verif
 - [x] **WS9.3–WS9.5** HUD Message Log, Topline Polish & Action Ribbon (4-line landscape default, 3-line mobile drawer, 6s idle fade 0.35, size toggle button, message banner click-to-expand, full title tooltip, WCAG AA contrast, unit tested with test_hud_message_pass.js)
 - [x] **WS5.1** Lazy Hengband language data (removed script tag from index.html, loadHengLang in app.js on realm select/start; real-browser tested)
 - [x] **WS5.2** Per-frame classify memoization (`screen-context.js` caches by frame.seq/identity, `screenTextOf` memoized, `input.js` adopts `screenTextOf`; 141 tests PASS)
-- [ ] **WS5.3** Action-bar deduplication (`setCtxActions` and data-driven CTX_BUTTONS, target `updateTerminalToolbar` <= 400 lines)
-- [x] **WS5.4** Single version source (`version.json` v9.4.1, `tools/bump_version.js`, `check_version_sync.js` fast gate, server `/health` reads `version.json`)
+- [x] **WS5.3** Action-bar deduplication (`setCtxActions` and data-driven `renderCtxButtons` across all menus, prompts, store, items, and dungeon view in `app.js`)
+- [x] **WS5.4** Single version source (`version.json` v9.4.2, `tools/bump_version.js`, `check_version_sync.js` fast gate, server `/health` reads `version.json`)
 - [x] **WS5.5** Dead-code sweep report (`tools/report_dead_code.js` runs clean, `tools/reports/dead_code.md` generated with 2 app.js candidates: extractActiveMenuChoices, previousStatRoll)
-- [ ] **WS5.6** Temp profile hygiene (shared `tools/lib/cdp.js` helper cleanup; reclaim 24 GB gitignored `temp_chrome_*` profiles per D16)
+- [x] **WS5.6** Temp profile hygiene (`tools/lib/cdp.js` runs in `os.tmpdir()` with exponential backoff cleanup, verified 0 orphan profiles, 24 GB reclaimed per D16)
 - [ ] WS10 Android/PWA/offline
 - [ ] WS7 test consolidation
 - [ ] WS8 docs + lessons merged into BEST_PRACTICES
@@ -71,6 +71,7 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 None
 
 ## Last gate results
+- WS5.3 & WS5.6 (2026-10-12 10:20): fast 10/10 PASS | e2e 2/2 PASS (verify_cross_realm_menus 11.2s, test_server_boot 0.8s) | cdp test_boot_flow 4/4 realms PASS (angband, silq [Action Chooser real DOM verified], frogcomposband [K1 note], hengband all reach 3D play) with temp profile cleanup verified | smoke 11/11 PASS | dotnet 0 warn / 0 err | canonical version 9.4.2 in sync.
 - WS5.5 & WS3 Polish (2026-10-12 10:15): fast 10/10 PASS | smoke 11/11 PASS | dotnet 0 warn / 0 err | dead-code sweep complete (2 candidates in app.js: extractActiveMenuChoices, previousStatRoll) | HengTranslate T1-T12 contract PASS.
 - WS5.1 & WS5.4 (2026-10-12 10:10): fast 10/10 PASS (check_version_sync PASS) | cdp test_boot_flow 4/4 realms PASS | single version source 9.4.1 synchronized, Hengband assets lazy loaded.
 - WS5.2 (2026-10-12 10:05): fast 10/10 PASS (screen_context 141 tests PASS) | per-frame classify and screenTextOf memoized by seq/identity.
