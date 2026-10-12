@@ -3818,6 +3818,59 @@ html, body {
     color: #ff7b72;
 }
 
+.pause-section-header {
+    font-family: var(--font-fantasy);
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffd700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 10px 0 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pause-section-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(212, 175, 55, 0.4), transparent);
+}
+
+.pause-display-controls-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(18, 24, 36, 0.7);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: 6px;
+    margin-bottom: 14px;
+}
+
+.pause-display-controls-toolbar .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(14, 18, 28, 0.85);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 4px;
+    color: #e2e8f0;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.pause-display-controls-toolbar .icon-btn:hover {
+    background: rgba(30, 40, 60, 0.95);
+    border-color: #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
 .pause-volume-wrap,
 .pause-audio-toolbar .volume-slider-wrap {
     display: flex;
@@ -7188,6 +7241,20 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     background: rgba(56, 189, 248, 0.1) !important;
     color: #38bdf8 !important;
     font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.realm-hud-pill #ping-badge {
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    line-height: 1.4;
+    white-space: nowrap;
 }
 
 /* WS9.1 Touch Target Minimums (min 40x40px for coarse pointer) */

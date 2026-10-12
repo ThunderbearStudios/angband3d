@@ -1661,10 +1661,10 @@ class InputController {
 
                     // Check row count (2 rows max)
                     const firstBtn = actionBar.querySelector('.action-btn:not(#btn-action-more)');
-                    const btnHeight = firstBtn ? firstBtn.offsetHeight : 34;
+                    const btnHeight = (firstBtn && firstBtn.offsetHeight > 0) ? firstBtn.offsetHeight : 34;
                     const maxTwoRowHeight = btnHeight * 2 + 10;
 
-                    if (actionBar.scrollHeight > maxTwoRowHeight) {
+                    if (actionBar.offsetHeight > 0 && actionBar.scrollHeight > maxTwoRowHeight) {
                         actionMoreBtn.classList.add('is-needed');
                         actionMoreBtn.style.display = 'inline-flex';
 
@@ -1680,11 +1680,9 @@ class InputController {
                             }
                         }
                     } else {
-                        if (!actionPopover || actionPopover.children.length === 0) {
-                            actionMoreBtn.classList.remove('is-needed');
-                            actionMoreBtn.style.display = 'none';
-                            if (actionPopover) actionPopover.classList.remove('is-open');
-                        }
+                        actionMoreBtn.classList.remove('is-needed');
+                        actionMoreBtn.style.display = 'none';
+                        if (actionPopover) actionPopover.classList.remove('is-open');
                     }
                 }
             };
