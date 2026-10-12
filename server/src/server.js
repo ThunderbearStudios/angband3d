@@ -164,9 +164,18 @@ const TTS_VOICE_MAP = {
     default: 'en-GB-RyanNeural'
 };
 
+// Realm-Contextual Casting Map for Lorekeeper Narrators (Google Gemini High-Quality Audio)
+const GEMINI_REALM_NARRATOR_MAP = {
+    angband: 'Zephyr',        // Noble, wise, scholarly Tolkien chronicler (Master Elrond)
+    silq: 'Charon',           // Solemn, grave, deep First-Age mythic bard (Daeron of Doriath)
+    frogcomposband: 'Fenrir', // Bold, sharp, cynical Amber fencing wit (Corwin of Amber)
+    hengband: 'Gacrux',       // Disciplined, weathered Eastern Bushido master (Miyamoto Musashi)
+    default: 'Zephyr'
+};
+
 // Curated 30 Character Archetype Casting Matrix for Gemini Native Audio (Free Tier Preview)
 const GEMINI_VOICE_MAP = {
-    narrator: 'Enceladus',       // Expressive, older British storyteller (RESTORED)
+    narrator: 'Zephyr',          // Expressive, scholarly storyteller
     mentor: 'Gacrux',           // Mature, raspy, ancient scholar
     idiot: 'Puck',              // Upbeat, blubbering, eccentric babbler
     female_townsperson: 'Aoede', // Breezy, lyrical, gentle townsfolk
@@ -189,7 +198,7 @@ const GEMINI_VOICE_MAP = {
     beggar: 'Puck',
     beast: 'Fenrir',            // Bestial snarl
     creature: 'Fenrir',
-    default: 'Enceladus'
+    default: 'Zephyr'
 };
 
 // Canonical Character Accent Directorial Map for Immersion (Enforces Zero Southern Accents)
@@ -1293,12 +1302,13 @@ const server = http.createServer((req, res) => {
                              '';
 
         const reqEngineParam = urlObj.searchParams.get('engine');
-        // STRICT USER REQUIREMENT: Narrator must ALWAYS use Gemini Native Audio Enceladus, never Edge Neural
+        // Lorekeeper narrator uses high quality Gemini Native Audio
         const requestedEngine = isNarrator ? 'gemini' : (reqEngineParam ? reqEngineParam.toLowerCase() : 'gemini');
         const emotion = (urlObj.searchParams.get('emotion') || '').toLowerCase().trim();
         const geminiTag = (urlObj.searchParams.get('gemini_tag') || '').trim();
         const directorNote = (urlObj.searchParams.get('director_note') || '').trim();
-        const reqVoice = isNarrator ? 'Enceladus' : (urlObj.searchParams.get('voice') || '').trim();
+        const reqVoice = (urlObj.searchParams.get('voice') || '').trim();
+        const reqRealm = (urlObj.searchParams.get('realm') || 'angband').toLowerCase().trim();
         const reqGender = (urlObj.searchParams.get('gender') || '').toLowerCase().trim();
         const reqPitch = (urlObj.searchParams.get('pitch') || '').trim();
         const reqRate = (urlObj.searchParams.get('rate') || '').trim();
@@ -1335,8 +1345,8 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            // Resolve Gemini voice from official 30-voice matrix
-            let geminiVoice = GEMINI_VOICE_MAP.default;
+            // Resolve Gemini voice from official 30-voice matrix or realm-contextual narrator defaults
+            let geminiVoice = isNarrator ? (GEMINI_REALM_NARRATOR_MAP[reqRealm] || GEMINI_REALM_NARRATOR_MAP.default) : GEMINI_VOICE_MAP.default;
             const validGeminiVoices = [
                 'Sulafat', 'Aoede', 'Algenib', 'Kore', 'Orus', 'Despina', 'Fenrir', 'Puck',
                 'Gacrux', 'Sadaltager', 'Achernar', 'Zephyrus', 'Zephyr', 'Chort', 'Leda',
@@ -1346,6 +1356,10 @@ const server = http.createServer((req, res) => {
             ];
             if (reqVoice && validGeminiVoices.map(v => v.toLowerCase()).includes(reqVoice.toLowerCase())) {
                 geminiVoice = validGeminiVoices.find(v => v.toLowerCase() === reqVoice.toLowerCase());
+            } else if (isNarrator) {
+                geminiVoice = (reqGender === 'female')
+                    ? (reqRealm === 'silq' ? 'Despina' : (reqRealm === 'hengband' ? 'Sulafat' : (reqRealm === 'frogcomposband' ? 'Kore' : 'Aoede')))
+                    : (GEMINI_REALM_NARRATOR_MAP[reqRealm] || GEMINI_REALM_NARRATOR_MAP.default);
             } else if (reqGender === 'female' && GEMINI_VOICE_MAP[`female_${role}`]) {
                 geminiVoice = GEMINI_VOICE_MAP[`female_${role}`];
             } else if (reqGender === 'male' && GEMINI_VOICE_MAP[`male_${role}`]) {

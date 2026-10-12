@@ -11,7 +11,8 @@ class ChronicleAudioRouter {
         this.voiceVolume = 1.0; // Dedicated Tome / Lore voice volume (0.0 to 1.0)
         this.speed = 1.0;     // 0.75x, 0.85x, 1.0x, 1.25x, 1.5x
         this.flowMode = 'interrupt'; // Default to interrupt: latest developments take priority, story flows cleanly
-        this.narratorVoice = 'Enceladus'; // Sole Master Chronicler voice (Google Gemini Native Audio)
+        this.activeRealm = 'angband';
+        this.narratorVoice = 'Zephyr'; // Realm-Contextual Master Chronicler voice (Google Gemini Native Audio)
         this.ttsEngine = 'gemini'; // High-fidelity Google Gemini Native Audio primary default
         this.isSpeaking = false;
         this.isPaused = false;
@@ -24,7 +25,7 @@ class ChronicleAudioRouter {
         // Restore persisted audio preferences
         if (typeof window !== 'undefined' && window.localStorage) {
             try {
-                // Purge legacy manual engine/voice configs so Gemini-only and Enceladus remain pristine
+                // Purge legacy manual engine/voice configs so Gemini-only remains pristine
                 localStorage.removeItem('angband_chronicle_engine');
                 localStorage.removeItem('angband_chronicle_voice');
                 localStorage.removeItem('angband_chronicle_tradition');
@@ -41,7 +42,7 @@ class ChronicleAudioRouter {
                 }
                 const savedFlow = localStorage.getItem('angband_chronicle_flow');
                 if (savedFlow) this.flowMode = savedFlow;
-                this.narratorVoice = 'Enceladus';
+                this.narratorVoice = 'Zephyr';
                 this.ttsEngine = 'gemini';
 
                 const savedReverb = parseFloat(localStorage.getItem('angband_chronicle_reverb'));
@@ -50,7 +51,7 @@ class ChronicleAudioRouter {
             } catch (_) {}
         } else {
             this.ttsEngine = 'gemini';
-            this.narratorVoice = 'Enceladus';
+            this.narratorVoice = 'Zephyr';
             this.reverbWet = 0.10; // Default 10% reverb per user request
         }
 
@@ -109,6 +110,16 @@ class ChronicleAudioRouter {
                     this.availableVoices = window.speechSynthesis.getVoices() || [];
                 };
             } catch (_) {}
+        }
+    }
+
+    setRealm(realmKey) {
+        this.activeRealm = (realmKey || 'angband').toLowerCase();
+        if (typeof ChronicleGrounder !== 'undefined' && typeof ChronicleGrounder.getLorekeeperVoice === 'function') {
+            this.narratorVoice = ChronicleGrounder.getLorekeeperVoice(this.activeRealm);
+        } else {
+            const defaults = { angband: 'Zephyr', silq: 'Charon', frogcomposband: 'Fenrir', hengband: 'Gacrux' };
+            this.narratorVoice = defaults[this.activeRealm] || 'Zephyr';
         }
     }
 
@@ -705,13 +716,13 @@ class ChronicleAudioRouter {
      * Guaranteed zero-alloc on cache hits and safe abort support.
      */
     async fetchOrGetAudioBuffer(text, role = 'narrator', customVoice = null, options = {}, signal = null) {
-        // STRICT USER REQUIREMENT: Narrator must ALWAYS use Gemini Native Audio Enceladus
+        // Narrator uses high quality Gemini Native Audio
         const isNarrator = (role === 'narrator');
         const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
         if (this.isMuted()) {
             return { audioBuffer: null, engine, cached: false, muted: true };
         }
-        let voice = isNarrator ? 'Enceladus' : (customVoice || this.narratorVoice || '');
+        let voice = isNarrator ? (options.voice || this.narratorVoice || 'Zephyr') : (customVoice || this.narratorVoice || '');
         if (engine === 'gemini' && options.geminiVoice && !isNarrator) {
             voice = options.geminiVoice;
         }
@@ -752,6 +763,7 @@ class ChronicleAudioRouter {
             role,
             engine,
             voice: voice || '',
+            realm: this.activeRealm || 'angband',
             emotion,
             gemini_tag: geminiTag,
             director_note: directorNote,
@@ -1375,10 +1387,9 @@ class ChronicleAudioRouter {
                 this.isSpeaking = true;
                 const isNarrator = (role === 'narrator');
                 const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
-                let voice = isNarrator ? 'Enceladus' : (customVoice || this.narratorVoice || '');
-                if (engine === 'gemini' && options.geminiVoice && !isNarrator) {
-                    voice = options.geminiVoice;
-                }
+                let voice = (engine === 'gemini' && options.geminiVoice)
+                    ? options.geminiVoice
+                    : (customVoice || this.narratorVoice || (isNarrator ? 'Zephyr' : ''));
 
                 const emotion = options.emotion || '';
                 const geminiTag = options.geminiTag || '';
@@ -1482,6 +1493,7 @@ class ChronicleAudioRouter {
                     role,
                     engine,
                     voice: voice || '',
+                    realm: this.activeRealm || 'angband',
                     emotion,
                     gemini_tag: geminiTag,
                     director_note: directorNote,
@@ -1849,7 +1861,7 @@ class ChronicleAudioRouter {
         const cleanText = text.replace(/<[^>]*>/g, '').trim();
         const isNarrator = (role === 'narrator');
         const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
-        let voice = isNarrator ? 'Enceladus' : (customVoice || this.narratorVoice || '');
+        let voice = isNarrator ? (options.voice || this.narratorVoice || 'Zephyr') : (customVoice || this.narratorVoice || '');
         if (engine === 'gemini' && options.geminiVoice && !isNarrator) voice = options.geminiVoice;
 
         const emotion = options.emotion || '';
@@ -1857,6 +1869,7 @@ class ChronicleAudioRouter {
         const directorNote = options.directorNote || '';
         const pitch = options.pitch || '';
         const gender = options.gender || '';
+        const realm = this.activeRealm || 'angband';
 
         const currentSpeed = Math.max(0.5, Math.min(2.5, this.speed || 1.0));
         const speedRatePercent = Math.round((currentSpeed - 1.0) * 100);
@@ -1868,7 +1881,7 @@ class ChronicleAudioRouter {
         const combinedRateNum = Math.max(-50, Math.min(100, baseRateNum + speedRatePercent));
         const rateParam = `${combinedRateNum >= 0 ? '+' : ''}${combinedRateNum}%`;
 
-        return `${engine}:${role}:${voice}:${gender}:${pitch}:${rateParam}:${emotion}:${geminiTag}:${directorNote}:${cleanText}`;
+        return `${engine}:${realm}:${role}:${voice}:${gender}:${pitch}:${rateParam}:${emotion}:${geminiTag}:${directorNote}:${cleanText}`;
     }
 
     /**
@@ -1893,7 +1906,7 @@ class ChronicleAudioRouter {
             try {
                 const isNarrator = (role === 'narrator');
                 const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
-                let voice = isNarrator ? 'Enceladus' : (customVoice || this.narratorVoice || '');
+                let voice = isNarrator ? (options.voice || this.narratorVoice || 'Zephyr') : (customVoice || this.narratorVoice || '');
                 if (engine === 'gemini' && options.geminiVoice && !isNarrator) voice = options.geminiVoice;
 
                 const emotion = options.emotion || '';
@@ -1917,6 +1930,7 @@ class ChronicleAudioRouter {
                     role,
                     engine,
                     voice: voice || '',
+                    realm: this.activeRealm || 'angband',
                     emotion,
                     gemini_tag: geminiTag,
                     director_note: directorNote,
