@@ -267,7 +267,9 @@ class ChronicleManager {
         if (this.audio) {
             this.audio.setEngine('gemini');
             this.audio.setReverbVolume(0.10);
-            this.audio.narratorVoice = 'Enceladus';
+            if (typeof this.audio.setRealm === 'function') {
+                this.audio.setRealm(realm);
+            }
         }
         if (this.llm) {
             this.llm.saveSettings({
@@ -447,17 +449,22 @@ class ChronicleManager {
                         this.audio.setMuted(false);
                         this.updateAudioControlsUI();
                     }
+                    const currentRealm = this.getActiveRealm();
+                    const sampleVoice = (this.grounder && typeof this.grounder.getLorekeeperVoice === 'function')
+                        ? this.grounder.getLorekeeperVoice(currentRealm, 'male')
+                        : (this.audio && this.audio.narratorVoice ? this.audio.narratorVoice : 'Zephyr');
                     if (this.testStatus) {
                         this.testStatus.style.color = '#ffd700';
-                        this.testStatus.textContent = '✨ Auditioning Master Chronicler (Enceladus)...';
+                        this.testStatus.textContent = `✨ Auditioning Master Chronicler (${sampleVoice})...`;
                     }
                     try {
                         const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'exploration', this.tradition) : null;
-                        await this.audio.speakUtterance(sampleText, 'narrator', '', 'Enceladus', {
+                        const vName = (narrProfile && narrProfile.geminiVoice) || sampleVoice;
+                        await this.audio.speakUtterance(sampleText, 'narrator', '', vName, {
                             engine: 'gemini',
-                            geminiVoice: (narrProfile && narrProfile.geminiVoice) || 'Enceladus',
+                            geminiVoice: vName,
                             geminiTag: (narrProfile && narrProfile.geminiTag) || '[expressive, older British storyteller]',
-                            directorNote: (narrProfile && narrProfile.directorNote) || 'An expressive, slightly British older fireside storyteller',
+                            directorNote: (narrProfile && narrProfile.directorNote) || 'An expressive, resonant fireside chronicler',
                             emotion: 'solemn'
                         });
                         if (this.testStatus) {

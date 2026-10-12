@@ -43,6 +43,21 @@ test('Each realm has its specific, canonical Lorekeeper name and title', () => {
     assert.strictEqual(ChronicleGrounder.getLorekeeperTitle('hengband'), 'Kensei of the Two Heavens & Chronicler of Bushido');
 });
 
+// 1b. Realm-Appropriate Gemini Voice Selection for Lorekeeper
+test('Each realm has its contextually appropriate standard Gemini voice', () => {
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('angband', 'male'), 'Zephyr');
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('angband', 'female'), 'Aoede');
+
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('silq', 'male'), 'Charon');
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('silq', 'female'), 'Despina');
+
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('frogcomposband', 'male'), 'Fenrir');
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('frogcomposband', 'female'), 'Kore');
+
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('hengband', 'male'), 'Gacrux');
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('hengband', 'female'), 'Sulafat');
+});
+
 // 2. Realm Contexts and Traditions
 test('Each realm defines distinct literary traditions and narrative contexts', () => {
     for (const realm of REALMS) {

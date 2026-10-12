@@ -3202,6 +3202,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (window.chronicleManager.audio && typeof window.chronicleManager.audio.setTradition === 'function') {
                     window.chronicleManager.audio.setTradition(tradition);
                 }
+                if (window.chronicleManager.audio && typeof window.chronicleManager.audio.setRealm === 'function') {
+                    window.chronicleManager.audio.setRealm(realmKey);
+                }
                 if (typeof window.chronicleManager.updateTraditionBadge === 'function') {
                     window.chronicleManager.updateTraditionBadge();
                 }

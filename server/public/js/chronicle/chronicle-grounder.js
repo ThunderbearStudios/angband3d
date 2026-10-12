@@ -91,6 +91,21 @@ class ChronicleGrounder {
         }
     }
 
+    static getLorekeeperVoice(realmKey = 'angband', gender = 'male') {
+        const isFemale = (gender === 'female');
+        switch ((realmKey || 'angband').toLowerCase()) {
+            case 'silq':
+                return isFemale ? 'Despina' : 'Charon';
+            case 'hengband':
+                return isFemale ? 'Sulafat' : 'Gacrux';
+            case 'frogcomposband':
+                return isFemale ? 'Kore' : 'Fenrir';
+            case 'angband':
+            default:
+                return isFemale ? 'Aoede' : 'Zephyr';
+        }
+    }
+
     static getRealmContext(realmKey = 'angband') {
         switch ((realmKey || 'angband').toLowerCase()) {
             case 'silq':
@@ -103,7 +118,8 @@ class ChronicleGrounder {
                     traditionKey: 'beleriand',
                     style: 'Solemn First Age epic, songs of stealth and woven spells, shadows beneath Thangorodrim, and the desperate quest for Morgoth\'s Iron Crown',
                     voice: 'en-GB-RyanNeural',
-                    recommendedVoice: 'en-GB-RyanNeural'
+                    recommendedVoice: 'en-GB-RyanNeural',
+                    geminiVoice: 'Charon'
                 };
             case 'hengband':
                 return {
@@ -115,7 +131,8 @@ class ChronicleGrounder {
                     traditionKey: 'easternmythos',
                     style: 'Zen tranquility, Bushido valor, celestial court judgments, mythical deities, and the lethal grace of the sword',
                     voice: 'en-US-BrianNeural',
-                    recommendedVoice: 'en-US-BrianNeural'
+                    recommendedVoice: 'en-US-BrianNeural',
+                    geminiVoice: 'Gacrux'
                 };
             case 'frogcomposband':
                 return {
@@ -127,7 +144,8 @@ class ChronicleGrounder {
                     traditionKey: 'amber',
                     style: 'Lively, cynical fencing wit, epic of overland wilderness, myriad monster folk, shadow-walking, and the eternal clash between the Pattern and Chaos',
                     voice: 'en-US-ChristopherNeural',
-                    recommendedVoice: 'en-US-ChristopherNeural'
+                    recommendedVoice: 'en-US-ChristopherNeural',
+                    geminiVoice: 'Fenrir'
                 };
             case 'angband':
             default:
@@ -140,7 +158,8 @@ class ChronicleGrounder {
                     traditionKey: 'westmarch',
                     style: 'Direct, courageous, humble steadfastness, songs of forgotten valor, stubborn endurance against darkness',
                     voice: 'en-GB-ThomasNeural',
-                    recommendedVoice: 'en-GB-ThomasNeural'
+                    recommendedVoice: 'en-GB-ThomasNeural',
+                    geminiVoice: 'Zephyr'
                 };
         }
     }
@@ -714,9 +733,11 @@ class ChronicleGrounder {
                 edgeVoice = pool.edge[hash % pool.edge.length];
                 geminiVoice = pool.gemini[hash % pool.gemini.length];
             } else {
-                // Master Chronicler / Narrator attunement: Expressive slightly British older storyteller
-                edgeVoice = 'en-GB-RyanNeural';   // Dramatic theatrical British bard / older English storyteller
-                geminiVoice = 'Enceladus';        // Expressive, breathy older British storyteller (RESTORED)
+                // Master Chronicler / Narrator attunement: Realm-contextual standard high quality Gemini voice
+                const rk = (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
+                const realmCtx = this.getRealmContext(rk);
+                edgeVoice = (realmCtx && realmCtx.recommendedVoice) || 'en-GB-RyanNeural';
+                geminiVoice = this.getLorekeeperVoice(rk, 'male');
                 gender = 'male';
                 isF = false;
                 raceArchetype = 'chronicler';
@@ -751,10 +772,11 @@ class ChronicleGrounder {
         let rate = heroRate || '+0%';
 
         if (!entityOrMonster && !isHero) {
-            // Master Narrator is ALWAYS an expressive, slightly British older fireside storyteller,
-            // dynamically responding to situational context (peril, stealth, town, boss)
-            geminiVoice = 'Enceladus';
-            edgeVoice = 'en-GB-RyanNeural';
+            // Master Narrator is tuned to the realm and dynamically responds to situational context (peril, stealth, town, boss)
+            const rk = (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
+            geminiVoice = this.getLorekeeperVoice(rk, 'male');
+            const realmCtx = this.getRealmContext(rk);
+            edgeVoice = (realmCtx && realmCtx.recommendedVoice) || 'en-GB-RyanNeural';
 
             if (eventType === 'HERO_DEATH') {
                 emotion = 'mournful';
