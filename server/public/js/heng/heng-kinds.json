@@ -1,0 +1,67 @@
+[
+  {
+    "jaSuffix": "の薬",
+    "en": "Potion~ of %s",
+    "tval": "POTION"
+  },
+  {
+    "jaSuffix": "の巻物",
+    "en": "Scroll~ of %s",
+    "tval": "SCROLL"
+  },
+  {
+    "jaSuffix": "の杖",
+    "en": "Staff~ of %s",
+    "tval": "STAFF"
+  },
+  {
+    "jaSuffix": "の魔法棒",
+    "en": "Wand~ of %s",
+    "tval": "WAND"
+  },
+  {
+    "jaSuffix": "のロッド",
+    "en": "Rod~ of %s",
+    "tval": "ROD"
+  },
+  {
+    "jaSuffix": "の指輪",
+    "en": "Ring~ of %s",
+    "tval": "RING"
+  },
+  {
+    "jaSuffix": "のアミュレット",
+    "en": "Amulet~ of %s",
+    "tval": "AMULET"
+  },
+  {
+    "jaSuffix": "のキノコ",
+    "en": "Mushroom~ of %s",
+    "tval": "FOOD"
+  },
+  {
+    "jaSuffix": "の人形",
+    "en": "Magical Figurine~ of %s",
+    "tval": "FIGURINE"
+  },
+  {
+    "jaSuffix": "の像",
+    "en": "Statue~ of %s",
+    "tval": "STATUE"
+  },
+  {
+    "jaSuffix": "の死体",
+    "en": "Corpse~ of %s",
+    "tval": "CORPSE"
+  },
+  {
+    "jaSuffix": "の骨",
+    "en": "Skeleton~ of %s",
+    "tval": "SKELETON"
+  },
+  {
+    "jaSuffix": "の魔法書",
+    "en": "%s Spellbook~",
+    "tval": "BOOK"
+  }
+]

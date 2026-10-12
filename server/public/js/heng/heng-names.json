@@ -1,0 +1,11154 @@
+{
+  "#のミスリル像": [
+    "Mithril Statue of #",
+    "Mithril Statues of #"
+  ],
+  "#の人形": [
+    "Magical Figurine of #",
+    "Magical Figurines of #"
+  ],
+  "#の写真": [
+    "Photograph of #",
+    "Photographs of #"
+  ],
+  "#の木の像": [
+    "Wooden Statue of #",
+    "Wooden Statues of #"
+  ],
+  "#の石像": [
+    "Stone Statue of #",
+    "Stone Statues of #"
+  ],
+  "#の粘土像": [
+    "Clay Statue of #",
+    "Clay Statues of #"
+  ],
+  "#の装飾された像": [
+    "Ornate Statue of #",
+    "Ornate Statues of #"
+  ],
+  "#の象牙の像": [
+    "Ivory Statue of #",
+    "Ivory Statues of #"
+  ],
+  "#の金の像": [
+    "Golden Statue of #",
+    "Golden Statues of #"
+  ],
+  "#の鉄の像": [
+    "Iron Statue of #",
+    "Iron Statues of #"
+  ],
+  "#の銀の像": [
+    "Silver Statue of #",
+    "Silver Statues of #"
+  ],
+  "#の銅像": [
+    "Copper Statue of #",
+    "Copper Statues of #"
+  ],
+  "(トランプ)": [
+    "(Trump Weapon)",
+    "(Trump Weapon)"
+  ],
+  "(パターン)": [
+    "(Pattern Weapon)",
+    "(Pattern Weapon)"
+  ],
+  "(不良品)": [
+    "(Shattered)",
+    "(Shattered)"
+  ],
+  "(吸血)": [
+    "(Vampiric)",
+    "(Vampiric)"
+  ],
+  "(妖刀)": [
+    "(Weird Weapon)",
+    "(Weird Weapon)"
+  ],
+  "(復讐者)": [
+    "(Dark Revenger)",
+    "(Dark Revenger)"
+  ],
+  "(悪魔)": [
+    "(Demonic)",
+    "(Demonic)"
+  ],
+  "(混沌)": [
+    "(Chaotic)",
+    "(Chaotic)"
+  ],
+  "(祝福)": [
+    "(Blessed)",
+    "(Blessed)"
+  ],
+  "(粗悪品)": [
+    "(Blasted)",
+    "(Blasted)"
+  ],
+  "(聖戦者)": [
+    "(Holy Avenger)",
+    "(Holy Avenger)"
+  ],
+  "(貪食)": [
+    "(Omnivorous)",
+    "(Omnivorous)"
+  ],
+  "(防衛者)": [
+    "(Defender)",
+    "(Defender)"
+  ],
+  "*体力回復*": [
+    "Healing True",
+    "Healing True"
+  ],
+  "*啓蒙*": [
+    "*Enlightenment*",
+    "*Enlightenment*"
+  ],
+  "*武器強化*": [
+    "*Enchant Weapon*",
+    "*Enchant Weapon*"
+  ],
+  "*獲得*": [
+    "*Acquirement*",
+    "*Acquirement*"
+  ],
+  "*破壊*": [
+    "*Destruction*",
+    "*Destruction*"
+  ],
+  "*耐冷*の": [
+    "and *Resist* Cold",
+    "and *Resist* Cold"
+  ],
+  "*耐火*の": [
+    "and *Resist* Fire",
+    "and *Resist* Fire"
+  ],
+  "*耐酸*の": [
+    "and *Resist* Acid",
+    "and *Resist* Acid"
+  ],
+  "*耐電*の": [
+    "and *Resist* Lightning",
+    "and *Resist* Lightning"
+  ],
+  "*解呪*": [
+    "Dispel Curse",
+    "Dispel Curse"
+  ],
+  "*誰得*": [
+    "*Amusement*",
+    "*Amusement*"
+  ],
+  "*鑑定*": [
+    "*Identify*",
+    "*Identify*"
+  ],
+  "*防具強化*": [
+    "*Enchant Armor*",
+    "*Enchant Armor*"
+  ],
+  "<コーン>のジャガーノート": [
+    "Juggernaut of Khorne",
+    "Juggernaut of Khorne"
+  ],
+  "<コーン>の渇血悪魔": [
+    "Bloodthirster",
+    "Bloodthirster"
+  ],
+  "<コーン>の腐肉犬": [
+    "Fleshhound of Khorne",
+    "Fleshhound of Khorne"
+  ],
+  "<コーン>の血戮悪魔": [
+    "Bloodletter of Khorne",
+    "Bloodletter of Khorne"
+  ],
+  "<スラーネッシュ>の女悪魔": [
+    "Daemonette of Slaanesh",
+    "Daemonette of Slaanesh"
+  ],
+  "<スラーネッシュ>の蠍悪魔": [
+    "Fiend of Slaanesh",
+    "Fiend of Slaanesh"
+  ],
+  "<ティーンチ>の火炎悪魔": [
+    "Flamer of Tzeentch",
+    "Flamer of Tzeentch"
+  ],
+  "<ナーグル>の妖獣": [
+    "Beast of Nurgle",
+    "Beast of Nurgle"
+  ],
+  "<ナーグル>の疫病人間": [
+    "Plaguebearer of Nurgle",
+    "Plaguebearer of Nurgle"
+  ],
+  "[カオスの徴]": [
+    "[Sign of Chaos]",
+    "[Sign of Chaos]"
+  ],
+  "[カオス秘術]": [
+    "[Chaos Mastery]",
+    "[Chaos Mastery]"
+  ],
+  "[カオス魔導]": [
+    "[Chaos Channels]",
+    "[Chaos Channels]"
+  ],
+  "[ネクロノミコン]": [
+    "[Necronomicon]",
+    "[Necronomicon]"
+  ],
+  "[ハルマゲドン大全]": [
+    "[Armageddon Tome]",
+    "[Armageddon Tome]"
+  ],
+  "[ファイブ・エース]": [
+    "[Five Aces]",
+    "[Five Aces]"
+  ],
+  "[ベレリアンドの詩]": [
+    "[Lays of Beleriand]",
+    "[Lays of Beleriand]"
+  ],
+  "[リヴェンデルの竪琴]": [
+    "[Harps of Rivendell]",
+    "[Harps of Rivendell]"
+  ],
+  "[一般祈祷]": [
+    "[Book of Common Prayer]",
+    "[Book of Common Prayer]"
+  ],
+  "[一角獣の書]": [
+    "[Book of the Unicorn]",
+    "[Book of the Unicorn]"
+  ],
+  "[万物のデッキ]": [
+    "[Deck of Many Things]",
+    "[Deck of Many Things]"
+  ],
+  "[上級呪法]": [
+    "[High Curse]",
+    "[High Curse]"
+  ],
+  "[上級祈祷]": [
+    "[High Mass]",
+    "[High Mass]"
+  ],
+  "[不朽の儀式]": [
+    "[Immortal Rituals]",
+    "[Immortal Rituals]"
+  ],
+  "[五輪書]": [
+    "[Gorinnosho]",
+    "[Gorinnosho]"
+  ],
+  "[仙人の書]": [
+    "[Master Sorcerer's Handbook]",
+    "[Master Sorcerer's Handbook]"
+  ],
+  "[入門書]": [
+    "[Beginner's Handbook]",
+    "[Beginner's Handbook]"
+  ],
+  "[初心者教本]": [
+    "[Cantrips for Beginners]",
+    "[Cantrips for Beginners]"
+  ],
+  "[力の魔道書]": [
+    "[Grimoire of Power]",
+    "[Grimoire of Power]"
+  ],
+  "[劫火の魔書]": [
+    "[Hellfire Tome]",
+    "[Hellfire Tome]"
+  ],
+  "[北辰一刀流皆伝]": [
+    "[Hokusin Ittouryuu Kaiden]",
+    "[Hokusin Ittouryuu Kaiden]"
+  ],
+  "[召喚と奇術]": [
+    "[Conjurings & Tricks]",
+    "[Conjurings & Tricks]"
+  ],
+  "[呪術入門]": [
+    "[Handbook of Hex]",
+    "[Handbook of Hex]"
+  ],
+  "[大秘術]": [
+    "[Major Arcana]",
+    "[Major Arcana]"
+  ],
+  "[天神怒罰]": [
+    "[Wrath of God]",
+    "[Wrath of God]"
+  ],
+  "[小秘術]": [
+    "[Minor Arcana]",
+    "[Minor Arcana]"
+  ],
+  "[師範代の書]": [
+    "[Note of Acting Master]",
+    "[Note of Acting Master]"
+  ],
+  "[徒弟読本]": [
+    "[Rites of Initiation]",
+    "[Rites of Initiation]"
+  ],
+  "[怨恨呪縛]": [
+    "[Curse and Spelling]",
+    "[Curse and Spelling]"
+  ],
+  "[悟りの書]": [
+    "[Spiritual Enlightenment]",
+    "[Spiritual Enlightenment]"
+  ],
+  "[悪魔の叡知]": [
+    "[Demonthoughts]",
+    "[Demonthoughts]"
+  ],
+  "[戦術指南]": [
+    "[Ways of War]",
+    "[Ways of War]"
+  ],
+  "[新弟子用教本]": [
+    "[Handbook for Pupils]",
+    "[Handbook for Pupils]"
+  ],
+  "[暗黒大成]": [
+    "[Black Mass]",
+    "[Black Mass]"
+  ],
+  "[暗黒祈祷]": [
+    "[Black Prayers]",
+    "[Black Prayers]"
+  ],
+  "[暗黒魔導]": [
+    "[Black Channels]",
+    "[Black Channels]"
+  ],
+  "[有段者への道]": [
+    "[Grade Holder's Book]",
+    "[Grade Holder's Book]"
+  ],
+  "[柳生武芸帳]": [
+    "[Yagyuu Bugeichou]",
+    "[Yagyuu Bugeichou]"
+  ],
+  "[武芸諸譜]": [
+    "[Bugei Shofu]",
+    "[Bugei Shofu]"
+  ],
+  "[禁呪法大全]": [
+    "[Forbidden Cursebook]",
+    "[Forbidden Cursebook]"
+  ],
+  "[秘術大全]": [
+    "[Manual of Mastery]",
+    "[Manual of Mastery]"
+  ],
+  "[紋様仙術]": [
+    "[Pattern Sorcery]",
+    "[Pattern Sorcery]"
+  ],
+  "[聖杯の加護]": [
+    "[Blessings of the Grail]",
+    "[Blessings of the Grail]"
+  ],
+  "[自然の恵み]": [
+    "[Nature's Gifts]",
+    "[Nature's Gifts]"
+  ],
+  "[自然の秘術]": [
+    "[Nature Mastery]",
+    "[Nature Mastery]"
+  ],
+  "[自然の脅威]": [
+    "[Nature's Wrath]",
+    "[Nature's Wrath]"
+  ],
+  "[見習い教本]": [
+    "[Apprentice Handbook]",
+    "[Apprentice Handbook]"
+  ],
+  "[詩人楽曲集]": [
+    "[Minstrel's Music]",
+    "[Minstrel's Music]"
+  ],
+  "[退魔払邪]": [
+    "[Exorcism and Dispelling]",
+    "[Exorcism and Dispelling]"
+  ],
+  "[運命の切札]": [
+    "[Trumps of Doom]",
+    "[Trumps of Doom]"
+  ],
+  "[野性の召喚]": [
+    "[Call of the Wild]",
+    "[Call of the Wild]"
+  ],
+  "[闇夜の呪い]": [
+    "[Dark Incantations]",
+    "[Dark Incantations]"
+  ],
+  "★シヴァの化身の軟革ブーツ (+5,+5) [4,16] (+4加速) {+速器r因;麻浮(器}": [
+    "The Pair of Soft Leather Boots of Shiva's Avatar (+5,+5) [4,+16] (+4 to speed) {SpDx;Nx;FaLv(Dx}",
+    "The Pair of Soft Leather Boots of Shiva's Avatar (+5,+5) [4,+16] (+4 to speed) {SpDx;Nx;FaLv(Dx}"
+  ],
+  "《アホヤ》という": [
+    "of Cower (Darnya)",
+    "of Cower (Darnya)"
+  ],
+  "《ナルヤ》という": [
+    "of Power (Narya)",
+    "of Power (Narya)"
+  ],
+  "《ネンヤ》という": [
+    "of Power (Nenya)",
+    "of Power (Nenya)"
+  ],
+  "《フラキア》という": [
+    "'Frakir'",
+    "'Frakir'"
+  ],
+  "《ヴィルヤ》という": [
+    "of Power (Vilya)",
+    "of Power (Vilya)"
+  ],
+  "《一つの指輪》という": [
+    "of Power (The One Ring)",
+    "of Power (The One Ring)"
+  ],
+  "『GHB を倒したけどこんな嫌なＴシャツしか手に入らなかったよ！』": [
+    "'I killed the GHB and all I got was this lousy t-shirt!'",
+    "'I killed the GHB and all I got was this lousy t-shirt!'"
+  ],
+  "『That @$^%& Black Bat』": [
+    "That @$^%& Black Bat",
+    "That @$^%& Black Bat"
+  ],
+  "『いなずま・あらし』": [
+    "Thunder and Storm",
+    "Thunder and Storm"
+  ],
+  "『すばやき刺』": [
+    "'Quickthorn'",
+    "'Quickthorn'"
+  ],
+  "『つらぬき丸』": [
+    "'Sting'",
+    "'Sting'"
+  ],
+  "『らいおんはーと』": [
+    "Lion Heart",
+    "Lion Heart"
+  ],
+  "『アイグロス』": [
+    "'Aeglos'",
+    "'Aeglos'"
+  ],
+  "『アイシングデス』": [
+    "'Icingdeath'",
+    "'Icingdeath'"
+  ],
+  "『アグララング』": [
+    "'Aglarang'",
+    "'Aglarang'"
+  ],
+  "『アラララング』": [
+    "'Alalarang'",
+    "'Alalarang'"
+  ],
+  "『アランルース』": [
+    "'Aranruth'",
+    "'Aranruth'"
+  ],
+  "『アングマールの魔王』": [
+    "The Witch-King of Angmar",
+    "The Witch-King of Angmar"
+  ],
+  "『アンドゥリル』": [
+    "'Anduril'",
+    "'Anduril'"
+  ],
+  "『アヴァビア』": [
+    "'Avavir'",
+    "'Avavir'"
+  ],
+  "『イェンダーの魔法使い』": [
+    "Wizard of Yendor",
+    "Wizard of Yendor"
+  ],
+  "『イージス・ファング』": [
+    "'Aegis Fang'",
+    "'Aegis Fang'"
+  ],
+  "『ウィザッパー』": [
+    "'Wiizapper'",
+    "'Wiizapper'"
+  ],
+  "『ウィンブロウズ』": [
+    "'Winblows'",
+    "'Winblows'"
+  ],
+  "『ウォーパルブレード』": [
+    "'Worpal Blade'",
+    "'Worpal Blade'"
+  ],
+  "『ウートガルザ・ロキ』": [
+    "Utgard-Loke",
+    "Utgard-Loke"
+  ],
+  "『エクスカリバー』": [
+    "'Excalibur'",
+    "'Excalibur'"
+  ],
+  "『エクスカリバー・ジュニア』": [
+    "'Excalibur Jr.'",
+    "'Excalibur Jr.'"
+  ],
+  "『エクスカリパー』": [
+    "'Excalipur'",
+    "'Excalipur'"
+  ],
+  "『エリリル』": [
+    "'Eriril'",
+    "'Eriril'"
+  ],
+  "『エンペラー・クイルスルグ』": [
+    "The Emperor Quylthulg",
+    "The Emperor Quylthulg"
+  ],
+  "『オソンディア』": [
+    "'Osondir'",
+    "'Osondir'"
+  ],
+  "『オルクリスト』": [
+    "'Orcrist'",
+    "'Orcrist'"
+  ],
+  "『カリブディス』": [
+    "Charybdis",
+    "Charybdis"
+  ],
+  "『カルバノグの殺人兎』": [
+    "The Killer Rabbit of Caerbannog",
+    "The Killer Rabbit of Caerbannog"
+  ],
+  "『カルリス』": [
+    "'Calris'",
+    "'Calris'"
+  ],
+  "『カレス・アスドリアグ』": [
+    "'Careth Asdriag'",
+    "'Careth Asdriag'"
+  ],
+  "『カンベレグ』": [
+    "'Cambeleg'",
+    "'Cambeleg'"
+  ],
+  "『カンミスリム』": [
+    "'Cammithrim'",
+    "'Cammithrim'"
+  ],
+  "『ガエボルグ』": [
+    "'GaeBolg'",
+    "'GaeBolg'"
+  ],
+  "『ガタノソア』": [
+    "Ghatanothoa",
+    "Ghatanothoa"
+  ],
+  "『ガチャピン』": [
+    "Gachapin",
+    "Gachapin"
+  ],
+  "『クッパ大王』": [
+    "King Koopa",
+    "King Koopa"
+  ],
+  "『クリスドゥリアン』": [
+    "'Crisdurian'",
+    "'Crisdurian'"
+  ],
+  "『クリムゾン』": [
+    "'Crimson'",
+    "'Crimson'"
+  ],
+  "『グアサング』": [
+    "'Gurthang'",
+    "'Gurthang'"
+  ],
+  "『グラムドリング』": [
+    "'Glamdring'",
+    "'Glamdring'"
+  ],
+  "『グラーキ』": [
+    "Glaaki",
+    "Glaaki"
+  ],
+  "『グリムトゥース』": [
+    "'Grimtooth'",
+    "'Grimtooth'"
+  ],
+  "『グレイスワンダー』": [
+    "'Grayswandir'",
+    "'Grayswandir'"
+  ],
+  "『グレンデル』": [
+    "Grendel",
+    "Grendel"
+  ],
+  "『グレーター・ヘル=ビースト』": [
+    "Greater Hell-Beast",
+    "Greater Hell-Beast"
+  ],
+  "『グレーター地獄魔法おばけキノコ=クイルスルグ人間』": [
+    "The Greater Hell Magic Mushroom Were-Quylthulg",
+    "The Greater Hell Magic Mushroom Were-Quylthulg"
+  ],
+  "『グロンド』": [
+    "'Grond'",
+    "'Grond'"
+  ],
+  "『グングニル』": [
+    "'Runespear'",
+    "'Runespear'"
+  ],
+  "『コカトリス』": [
+    "Cockatrice",
+    "Cockatrice"
+  ],
+  "『コランノン』": [
+    "'Colannon'",
+    "'Colannon'"
+  ],
+  "『コルイン』": [
+    "'Colluin'",
+    "'Colluin'"
+  ],
+  "『ゴヂラ』": [
+    "Godzilla",
+    "Godzilla"
+  ],
+  "『ゴルン・ノヴァ』": [
+    "'Goln Nova'",
+    "'Goln Nova'"
+  ],
+  "『ゴンドリカム』": [
+    "'Gondricam'",
+    "'Gondricam'"
+  ],
+  "『ゴールデンハンマー』": [
+    "'Golden Hammer'",
+    "'Golden Hammer'"
+  ],
+  "『サウロンのロ』": [
+    "The Ro of Sauron",
+    "The Ro of Sauron"
+  ],
+  "『サウロンの口』": [
+    "The Mouth of Sauron",
+    "The Mouth of Sauron"
+  ],
+  "『サルケットス』": [
+    "'Thalkettoth'",
+    "'Thalkettoth'"
+  ],
+  "『サンタクロース』": [
+    "Santa Claus",
+    "Santa Claus"
+  ],
+  "『サンブレード』": [
+    "'Sun Blade'",
+    "'Sun Blade'"
+  ],
+  "『ザルクスラ』": [
+    "'Zarcuthra'",
+    "'Zarcuthra'"
+  ],
+  "『シアエガ』": [
+    "Cyaegha",
+    "Cyaegha"
+  ],
+  "『シュマ=ゴラス』": [
+    "Shuma-Gorath",
+    "Shuma-Gorath"
+  ],
+  "『シルバーチャリオッツ』": [
+    "'Silver Chariot'",
+    "'Silver Chariot'"
+  ],
+  "『ジャイアント・キリング』": [
+    "'Giant-killing'",
+    "'Giant-killing'"
+  ],
+  "『ジュラルの魔王』": [
+    "The Witch-King of Jural",
+    "The Witch-King of Jural"
+  ],
+  "『ジョーズ』": [
+    "Jaws",
+    "Jaws"
+  ],
+  "『スキュラ』": [
+    "Scylla",
+    "Scylla"
+  ],
+  "『ストリガルドワー』": [
+    "Strygalldwir",
+    "Strygalldwir"
+  ],
+  "『ストームブリンガー』": [
+    "The Stormbringer",
+    "The Stormbringer"
+  ],
+  "『スメアゴル』": [
+    "Smeagol",
+    "Smeagol"
+  ],
+  "『スレイヤー』": [
+    "'Slayer'",
+    "'Slayer'"
+  ],
+  "『スーパー・グレート・シルバー・ゼリー』": [
+    "The Super Great Silver Jelly",
+    "The Super Great Silver Jelly"
+  ],
+  "『ソウルクラッシュ』": [
+    "'Soulcrusher'",
+    "'Soulcrusher'"
+  ],
+  "『ソウルソード』": [
+    "'Soulsword'",
+    "'Soulsword'"
+  ],
+  "『ゾス=オムモグ』": [
+    "Zoth-Ommog",
+    "Zoth-Ommog"
+  ],
+  "『タラスク』": [
+    "The Tarrasque",
+    "The Tarrasque"
+  ],
+  "『タラトル』": [
+    "'Taratol'",
+    "'Taratol'"
+  ],
+  "『ダイアナの長弓』": [
+    "of Diana",
+    "of Diana"
+  ],
+  "『チェンソー』": [
+    "'Chainsword'",
+    "'Chainsword'"
+  ],
+  "『チョコラータ』": [
+    "Cioccolata",
+    "Cioccolata"
+  ],
+  "『ティル=イ=アルク』": [
+    "'Til-i-arc'",
+    "'Til-i-arc'"
+  ],
+  "『ディアボロ』": [
+    "Diavolo",
+    "Diavolo"
+  ],
+  "『ディオ・ブランドー』": [
+    "Dio Brando",
+    "Dio Brando"
+  ],
+  "『ディファイラー』": [
+    "The Defiler",
+    "The Defiler"
+  ],
+  "『デサンク』": [
+    "'Dethanc'",
+    "'Dethanc'"
+  ],
+  "『デモゴルゴン』": [
+    "The Demogorgon",
+    "The Demogorgon"
+  ],
+  "『デモニカスーツ』": [
+    "'Demonica Suit'",
+    "'Demonica Suit'"
+  ],
+  "『デーモンベーン』": [
+    "'Demonbane'",
+    "'Demonbane'"
+  ],
+  "『トゥアミル』": [
+    "'Turmil'",
+    "'Turmil'"
+  ],
+  "『トゥインクル』": [
+    "'Twinkle'",
+    "'Twinkle'"
+  ],
+  "『トティラ』": [
+    "'Totila'",
+    "'Totila'"
+  ],
+  "『トラのホッブス』": [
+    "Hobbes the Tiger",
+    "Hobbes the Tiger"
+  ],
+  "『トロルズベーン』": [
+    "of Trollsbane",
+    "of Trollsbane"
+  ],
+  "『ドラゴンころし』": [
+    "'Dragon slayer'",
+    "'Dragon slayer'"
+  ],
+  "『ドラゴン・クロス』": [
+    "'Dragon Cloth'",
+    "'Dragon Cloth'"
+  ],
+  "『ドルアーガ』": [
+    "Druaga",
+    "Druaga"
+  ],
+  "『ナル=イ=バギル』": [
+    "'Nar-i-vagil'",
+    "'Nar-i-vagil'"
+  ],
+  "『ナルサンク』": [
+    "'Narthanc'",
+    "'Narthanc'"
+  ],
+  "『ナルシル』": [
+    "'Narsil'",
+    "'Narsil'"
+  ],
+  "『ニムサンク』": [
+    "'Nimthanc'",
+    "'Nimthanc'"
+  ],
+  "『ノーサ』": [
+    "The Norsa",
+    "The Norsa"
+  ],
+  "『ノートゥング』": [
+    "'Nothung'",
+    "'Nothung'"
+  ],
+  "『バテレン鎧』": [
+    "of The Padre",
+    "of The Padre"
+  ],
+  "『バルクケレド』": [
+    "'Barukkheled'",
+    "'Barukkheled'"
+  ],
+  "『バーノール=ルパート』": [
+    "Banor=Rupart",
+    "Banor=Rupart"
+  ],
+  "『パウアニンメン』": [
+    "'Paurnimmen'",
+    "'Paurnimmen'"
+  ],
+  "『パウアネン』": [
+    "'Paurnen'",
+    "'Paurnen'"
+  ],
+  "『パウアハッハ』": [
+    "'Paurhach'",
+    "'Paurhach'"
+  ],
+  "『パウラエゲン』": [
+    "'Pauraegen'",
+    "'Pauraegen'"
+  ],
+  "『パクマン』": [
+    "Pakuman",
+    "Pakuman"
+  ],
+  "『ヒスロミア』": [
+    "'Hithlomir'",
+    "'Hithlomir'"
+  ],
+  "『ビッグキューちゃん』": [
+    "Raphael, the Big Raven",
+    "Raphael, the Big Raven"
+  ],
+  "『フォラスギル』": [
+    "'Forasgil'",
+    "'Forasgil'"
+  ],
+  "『フスベルタ』": [
+    "'Fusberta'",
+    "'Fusberta'"
+  ],
+  "『フランテング』": [
+    "'Hrunting'",
+    "'Hrunting'"
+  ],
+  "『ブラッディ・ムーン』": [
+    "'Bloody Moon'",
+    "'Bloody Moon'"
+  ],
+  "『プラグ』": [
+    "'Plag'",
+    "'Plag'"
+  ],
+  "『プロフェッサー・オオツキ』": [
+    "Professor Ootsuki",
+    "Professor Ootsuki"
+  ],
+  "『ヘルファイア』": [
+    "of 'Hellfire'",
+    "of 'Hellfire'"
+  ],
+  "『ベルスロンディング』": [
+    "'Belthronding'",
+    "'Belthronding'"
+  ],
+  "『ペットショップ』": [
+    "Petshop",
+    "Petshop"
+  ],
+  "『ホルコルレス』": [
+    "'Holcolleth'",
+    "'Holcolleth'"
+  ],
+  "『ホルヘンネス』": [
+    "'Holhenneth'",
+    "'Holhenneth'"
+  ],
+  "『ボクラグ』": [
+    "Bokrug",
+    "Bokrug"
+  ],
+  "『ボルガ博士』": [
+    "Dr.Volga",
+    "Dr.Volga"
+  ],
+  "『ボレル公爵』": [
+    "Lord Borel of Hendrake",
+    "Lord Borel of Hendrake"
+  ],
+  "『ボーシン』": [
+    "The Borshin",
+    "The Borshin"
+  ],
+  "『マジックベーン』": [
+    "'Magicbane'",
+    "'Magicbane'"
+  ],
+  "『マダム・デビ』": [
+    "Madame Debby",
+    "Madame Debby"
+  ],
+  "『マニマニのあくま』": [
+    "Evil Mani-Mani",
+    "Evil Mani-Mani"
+  ],
+  "『ミュルニール』": [
+    "'Mjollnir'",
+    "'Mjollnir'"
+  ],
+  "『メガ・フレイム・ドラゴン』": [
+    "Great Fire Dragon",
+    "Great Fire Dragon"
+  ],
+  "『モルサンク』": [
+    "'Morthanc'",
+    "'Morthanc'"
+  ],
+  "『ラムフォリンクス』": [
+    "BabyWyrm",
+    "BabyWyrm"
+  ],
+  "『ラーン=テゴス』": [
+    "Rhan-Tegoth",
+    "Rhan-Tegoth"
+  ],
+  "『リュキアのキマイラ』": [
+    "The Lycian Chimaera",
+    "The Lycian Chimaera"
+  ],
+  "『リンギル』": [
+    "'Ringil'",
+    "'Ringil'"
+  ],
+  "『ルパート将軍』": [
+    "Rupart the General",
+    "Rupart the General"
+  ],
+  "『レイトウメカジキ』": [
+    "Frozen Swordfish",
+    "Frozen Swordfish"
+  ],
+  "『レルニアン・ヒドラ』": [
+    "The Lernean Hydra",
+    "The Lernean Hydra"
+  ],
+  "『ロサラング』": [
+    "'Lotharang'",
+    "'Lotharang'"
+  ],
+  "『ロストリンギル大佐』": [
+    "The Colonel Lostringil",
+    "The Colonel Lostringil"
+  ],
+  "『ロボ・ガンダルフ』": [
+    "Robo-Gandalf",
+    "Robo-Gandalf"
+  ],
+  "『ロレント』": [
+    "Rolento",
+    "Rolento"
+  ],
+  "『ロンギヌス』": [
+    "of Destiny",
+    "of Destiny"
+  ],
+  "『ワーウィンドル』": [
+    "'Werewindle'",
+    "'Werewindle'"
+  ],
+  "『ヰ=ゴロゥナク』": [
+    "Y'golonac",
+    "Y'golonac"
+  ],
+  "『ヴァンパイア・キラー』": [
+    "'Vampire Killer'",
+    "'Vampire Killer'"
+  ],
+  "『ヴィネガー・ドッピオ』": [
+    "Vinegar Doppio",
+    "Vinegar Doppio"
+  ],
+  "『ヴォーパルブレード』": [
+    "'Vorpal Blade'",
+    "'Vorpal Blade'"
+  ],
+  "『与一の弓』": [
+    "of Yoichi",
+    "of Yoichi"
+  ],
+  "『偉大なるクトゥルフ』": [
+    "Great Cthulhu",
+    "Great Cthulhu"
+  ],
+  "『八岐大蛇』": [
+    "The Yamata-no-Orochi",
+    "The Yamata-no-Orochi"
+  ],
+  "『刀返し』": [
+    "'Bladeturner'",
+    "'Bladeturner'"
+  ],
+  "『剣竜の鎧』": [
+    "'Razorback'",
+    "'Razorback'"
+  ],
+  "『助さん』": [
+    "Suke-san, the Mitsukuni's Warder",
+    "Suke-san, the Mitsukuni's Warder"
+  ],
+  "『化粧回し』": [
+    "'Sumo wrestler's loincloth'",
+    "'Sumo wrestler's loincloth'"
+  ],
+  "『噛尾刀』": [
+    "'Tailbiter'",
+    "'Tailbiter'"
+  ],
+  "『天の沼矛』": [
+    "'Ama-no-NumaHoko'",
+    "'Ama-no-NumaHoko'"
+  ],
+  "『天女の羽衣』": [
+    "of the Heavenly Maiden",
+    "of the Heavenly Maiden"
+  ],
+  "『天鹿児弓』": [
+    "'Ama no kago yumi'",
+    "'Ama no kago yumi'"
+  ],
+  "『太郎太刀』": [
+    "'Taro Dachi'",
+    "'Taro Dachi'"
+  ],
+  "『女王アリ』": [
+    "The Queen Ant",
+    "The Queen Ant"
+  ],
+  "『女王ベトベト』": [
+    "The Icky Queen",
+    "The Icky Queen"
+  ],
+  "『如意金葹棒重一万三千五百斤』": [
+    "'Nyoi-bou'",
+    "'Nyoi-bou'"
+  ],
+  "『小さき刺』": [
+    "'Littlethorn'",
+    "'Littlethorn'"
+  ],
+  "『巨人ファゾルト』": [
+    "Fasolt the Giant",
+    "Fasolt the Giant"
+  ],
+  "『影のジャック』": [
+    "Jack of Shadows",
+    "Jack of Shadows"
+  ],
+  "『恐怖の仮面』": [
+    "'Terror Mask'",
+    "'Terror Mask'"
+  ],
+  "『恐竜バーニーちゃん』": [
+    "Barney the Dinosaur",
+    "Barney the Dinosaur"
+  ],
+  "『手負いの熊』": [
+    "The Wounded Bear",
+    "The Wounded Bear"
+  ],
+  "『拍子木』": [
+    "'Hyousi-gi'",
+    "'Hyousi-gi'"
+  ],
+  "『摂政バーノール公』": [
+    "Banor the Prince Regent",
+    "Banor the Prince Regent"
+  ],
+  "『斬鉄剣』": [
+    "'Zantetsuken'",
+    "'Zantetsuken'"
+  ],
+  "『暁の剣』": [
+    "of the Dawn",
+    "of the Dawn"
+  ],
+  "『村正』": [
+    "'Muramasa'",
+    "'Muramasa'"
+  ],
+  "『柳じじい』": [
+    "Old Man Willow",
+    "Old Man Willow"
+  ],
+  "『格さん』": [
+    "Kaku-san, the Mitsukuni's Warder",
+    "Kaku-san, the Mitsukuni's Warder"
+  ],
+  "『森トロル』": [
+    "Mori Troll",
+    "Mori Troll"
+  ],
+  "『死の復讐者』": [
+    "'Deathwreaker'",
+    "'Deathwreaker'"
+  ],
+  "『死神ももえ』 ": [
+    "Momoe Shinigami",
+    "Momoe Shinigami"
+  ],
+  "『混沌のサーペント』": [
+    "The Serpent of Chaos",
+    "The Serpent of Chaos"
+  ],
+  "『火の鳥』": [
+    "The Phoenix",
+    "The Phoenix"
+  ],
+  "『火蜂』": [
+    "Hibachi",
+    "Hibachi"
+  ],
+  "『災いを招く者』": [
+    "'Doomcaller'",
+    "'Doomcaller'"
+  ],
+  "『炎の鉄ゲタ』": [
+    "'Tetsu-geta of Flame'",
+    "'Tetsu-geta of Flame'"
+  ],
+  "『焔の星』": [
+    "'Firestar'",
+    "'Firestar'"
+  ],
+  "『獅子殺し』": [
+    "'Lion Slayer'",
+    "'Lion Slayer'"
+  ],
+  "『真魔剛竜剣』": [
+    "'Dragonic Sword'",
+    "'Dragonic Sword'"
+  ],
+  "『石仮面』": [
+    "'Stone Mask'",
+    "'Stone Mask'"
+  ],
+  "『石川五右衛門』": [
+    "Ishikawa Goemon",
+    "Ishikawa Goemon"
+  ],
+  "『破壊スル者』": [
+    "The Destroyer",
+    "The Destroyer"
+  ],
+  "『神々の黄昏』": [
+    "'Twilight'",
+    "'Twilight'"
+  ],
+  "『神罰の鉄球』": [
+    "'Iron ball'",
+    "'Iron ball'"
+  ],
+  "『秩序のユニコーン』": [
+    "The Unicorn of Order",
+    "The Unicorn of Order"
+  ],
+  "『稲妻の拳』": [
+    "'Thunderfist'",
+    "'Thunderfist'"
+  ],
+  "『究極ダンジョン=クリーナー』": [
+    "The Ultimate Dungeon Cleaner",
+    "The Ultimate Dungeon Cleaner"
+  ],
+  "『空飛ぶスパゲッティ・モンスター』": [
+    "Flying Spaghetti Monster",
+    "Flying Spaghetti Monster"
+  ],
+  "『紅蓮姫』": [
+    "'Gurenki'",
+    "'Gurenki'"
+  ],
+  "『纏』": [
+    "'Matoi'",
+    "'Matoi'"
+  ],
+  "『草薙之剣』": [
+    "'Kusanagi-no-tsurugi'",
+    "'Kusanagi-no-tsurugi'"
+  ],
+  "『薔薇棘鞭刃』": [
+    "Rose",
+    "Rose"
+  ],
+  "『虎殺七丁念仏』": [
+    "'Toragoroshi-Nanacho-Nenbutsu'",
+    "'Toragoroshi-Nanacho-Nenbutsu'"
+  ],
+  "『蜻蛉切』": [
+    "'Tonbo giri'",
+    "'Tonbo giri'"
+  ],
+  "『血流の刺』": [
+    "'Bloodspike'",
+    "'Bloodspike'"
+  ],
+  "『見えざるピンクのユニコーン』": [
+    "Invisible Pink Unicorn",
+    "Invisible Pink Unicorn"
+  ],
+  "『迷宮のミノタウロス』": [
+    "The Minotaur of the Labyrinth",
+    "The Minotaur of the Labyrinth"
+  ],
+  "『金のスニッチ』": [
+    "Golden Snitch",
+    "Golden Snitch"
+  ],
+  "『鈴木土下座ェ門』": [
+    "SUZUKI Dogezaemon",
+    "SUZUKI Dogezaemon"
+  ],
+  "『降妖宝杖』": [
+    "of Sha Wujing",
+    "of Sha Wujing"
+  ],
+  "『隠者の紫』": [
+    "'hermit's purple'",
+    "'hermit's purple'"
+  ],
+  "『青龍の霊鱗』": [
+    "'Elemental of Ching-Rong'",
+    "'Elemental of Ching-Rong'"
+  ],
+  "『魂の守り手』": [
+    "'Soulkeeper'",
+    "'Soulkeeper'"
+  ],
+  "『黄衣の王』": [
+    "The King in Yellow",
+    "The King in Yellow"
+  ],
+  "『龍争虎鬪』": [
+    "of Xiaolong",
+    "of Xiaolong"
+  ],
+  "あつくもえるてき": [
+    "Soul Consuming Flame",
+    "Soul Consuming Flame"
+  ],
+  "あてどなくふらつく商人": [
+    "Aimless looking merchant",
+    "Aimless looking merchant"
+  ],
+  "あばかれた箱": [
+    "Ruined chest",
+    "Ruined chests"
+  ],
+  "あばれ馬": [
+    "Unruly horse",
+    "Unruly horse"
+  ],
+  "あやしい影": [
+    "Shadower",
+    "Shadower"
+  ],
+  "ありうべからざるもの『ニョグタ』": [
+    "Nyogtha, the Thing that Should not Be",
+    "Nyogtha, the Thing that Should not Be"
+  ],
+  "いいかげんな": [
+    "of irresponsibility",
+    "of irresponsibility"
+  ],
+  "いじめられの": [
+    "of Vulnerability",
+    "of Vulnerability"
+  ],
+  "いたずら者『ロキ』": [
+    "Loki the Trickster",
+    "Loki the Trickster"
+  ],
+  "いらつきの": [
+    "of Irritation",
+    "of Irritation"
+  ],
+  "おじゃまぷよ": [
+    "Hindrance puyo",
+    "Hindrance puyo"
+  ],
+  "おたずねものムシ": [
+    "Criminal Caterpillar",
+    "Criminal Caterpillar"
+  ],
+  "おどろしきバンダースナッチ": [
+    "Frumious bandersnatch",
+    "Frumious bandersnatch"
+  ],
+  "おもちゃのカンヅメ": [
+    "Can of Toys",
+    "Cans of Toys"
+  ],
+  "きこり": [
+    "Woodsman",
+    "Woodsman"
+  ],
+  "くさびが打たれたガラスのドア": [
+    "jammed glass door",
+    "jammed glass door"
+  ],
+  "くさびが打たれたドア": [
+    "jammed door",
+    "jammed door"
+  ],
+  "ごまかしの名手『ブレイズ』": [
+    "Bleys, Master of Manipulation",
+    "Bleys, Master of Manipulation"
+  ],
+  "さまようもの": [
+    "Wandering one",
+    "Wandering one"
+  ],
+  "すずめ": [
+    "Sparrow",
+    "Sparrow"
+  ],
+  "せっかくだから『コンバット越前』": [
+    "Combat-Echizen \"Because it's time\"",
+    "Combat-Echizen \"Because it's time\""
+  ],
+  "それ": [
+    "It",
+    "It"
+  ],
+  "たこぶえ": [
+    "Takobue",
+    "Takobue"
+  ],
+  "たぬき": [
+    "Tanuki",
+    "Tanuki"
+  ],
+  "つばめ": [
+    "Swallow",
+    "Swallow"
+  ],
+  "つよしスペシャル": [
+    "Tsuyoshi Special",
+    "Tsuyoshi Special"
+  ],
+  "つるはし": [
+    "Pick",
+    "Picks"
+  ],
+  "のろま": [
+    "Slowness",
+    "Slowness"
+  ],
+  "のろまの": [
+    "of Slowness",
+    "of Slowness"
+  ],
+  "の死体": [
+    "Corpse",
+    "Corpses"
+  ],
+  "の骨": [
+    "Skeleton",
+    "Skeletons"
+  ],
+  "はぐれメタル": [
+    "Metal Babble",
+    "Metal Babble"
+  ],
+  "ひげおやじ『マリオ』": [
+    "Mario",
+    "Mario"
+  ],
+  "まわるポリゴン": [
+    "Polygon Spin",
+    "Polygon Spin"
+  ],
+  "みすぼらしい子犬": [
+    "Scruffy little dog",
+    "Scruffy little dog"
+  ],
+  "みね打ち": [
+    "Strike to Stun",
+    "Strike to Stun"
+  ],
+  "もう一つの世界": [
+    "Ambarkanta",
+    "Ambarkanta"
+  ],
+  "ものまねの始祖ゴゴの": [
+    "of Gogo",
+    "of Gogo"
+  ],
+  "やせこけた猫": [
+    "Scrawny cat",
+    "Scrawny cat"
+  ],
+  "やせこけた馬": [
+    "Scrawny horse",
+    "Scrawny horse"
+  ],
+  "やや大きな泡": [
+    "Medium aqua illusion",
+    "Medium aqua illusion"
+  ],
+  "やる気のない": [
+    "of idler",
+    "of idler"
+  ],
+  "よろめき歩く塊": [
+    "Shambling mound",
+    "Shambling mound"
+  ],
+  "わめくキチガイ": [
+    "Raving lunatic",
+    "Raving lunatic"
+  ],
+  "アイの暴君『オマラックス』": [
+    "Omarax the Eye Tyrant",
+    "Omarax the Eye Tyrant"
+  ],
+  "アイアン・リッチ": [
+    "Iron lich",
+    "Iron lich"
+  ],
+  "アイス・コボルド": [
+    "Ice kobold",
+    "Ice kobold"
+  ],
+  "アイス・スケルトン": [
+    "Ice skeleton",
+    "Ice skeleton"
+  ],
+  "アイス・ボルト": [
+    "Frost Bolt",
+    "Frost Bolt"
+  ],
+  "アイス・ボール": [
+    "Cold Balls",
+    "Cold Balls"
+  ],
+  "アイス・ワイアーム": [
+    "Great Ice Wyrm",
+    "Great Ice Wyrm"
+  ],
+  "アイテム感知": [
+    "Detect Objects",
+    "Detect Objects"
+  ],
+  "アイル・オブ・ディープ": [
+    "Isle of the Deep",
+    "Isle of the Deep"
+  ],
+  "アイ・ホーン": [
+    "Eye phorn",
+    "Eye phorn"
+  ],
+  "アウルベア": [
+    "Owlbear",
+    "Owlbear"
+  ],
+  "アクラシュ": [
+    "Aklash",
+    "Aklash"
+  ],
+  "アシッド・コボルド": [
+    "Acid kobold",
+    "Acid kobold"
+  ],
+  "アシッド・ボルト": [
+    "Acid Bolts",
+    "Acid Bolts"
+  ],
+  "アシッド・ボール": [
+    "Acid Balls",
+    "Acid Balls"
+  ],
+  "アスクレピオスの": [
+    "of Asclepius",
+    "of Asclepius"
+  ],
+  "アゾグの息子『ボルグ』": [
+    "Bolg, Son of Azog",
+    "Bolg, Son of Azog"
+  ],
+  "アダマンタイト": [
+    "adamantite",
+    "adamantite"
+  ],
+  "アダマンタイトのクリーピングコイン": [
+    "Creeping adamantite coins",
+    "Creeping adamantite coins"
+  ],
+  "アダマンタイト製プレート・メイル": [
+    "Adamantite Plate Mail",
+    "Adamantite Plate Mails"
+  ],
+  "アナリオンの": [
+    "of Anarion",
+    "of Anarion"
+  ],
+  "アニマルキラーの": [
+    "of Hurt Animal",
+    "of Hurt Animal"
+  ],
+  "アニマルスレイヤーの": [
+    "of Slay Animal",
+    "of Slay Animal"
+  ],
+  "アヌビス神の": [
+    "of Anubis",
+    "of Anubis"
+  ],
+  "アビス・ボルテックス": [
+    "Abyss vortex",
+    "Abyss vortex"
+  ],
+  "アポトキシン・コボルド": [
+    "Apotoxin kobold",
+    "Apotoxin kobold"
+  ],
+  "アミュレット": [
+    "Amulet",
+    "Amulets"
+  ],
+  "アラクノトロン": [
+    "Arachnotron",
+    "Arachnotron"
+  ],
+  "アルグロス": [
+    "Algroth",
+    "Algroth"
+  ],
+  "アルコン": [
+    "Archon",
+    "Archon"
+  ],
+  "アルチャウ": [
+    "Alchau",
+    "Alchau"
+  ],
+  "アルドゥインの尖兵『ミルムルニル』": [
+    "Mirmulnir, the vanguard of Alduin",
+    "Mirmulnir, the vanguard of Alduin"
+  ],
+  "アルビノの": [
+    "and Albino",
+    "and Albino"
+  ],
+  "アルベリヒの息子『ハーゲン』": [
+    "Hagen, Son of Alberich",
+    "Hagen, Son of Alberich"
+  ],
+  "アルヴェドゥイ王の": [
+    "of Arvedui",
+    "of Arvedui"
+  ],
+  "アングウィル": [
+    "Angwil",
+    "Angwil"
+  ],
+  "アンデッドのカード": [
+    "Trump Undead",
+    "Trump Undead"
+  ],
+  "アンデッドスレイヤーの": [
+    "of Slay Undead",
+    "of Slay Undead"
+  ],
+  "アンデッド・チョウチンアンコウ": [
+    "Undead devilfish",
+    "Undead devilfish"
+  ],
+  "アンデッド・ビホルダー": [
+    "Undead beholder",
+    "Undead beholder"
+  ],
+  "アンデッド従属": [
+    "Enslave Undead",
+    "Enslave Undead"
+  ],
+  "アンデッド消滅": [
+    "Annihilate Undead",
+    "Annihilate Undead"
+  ],
+  "アンデッド退散": [
+    "Dispel Undead",
+    "Dispel Undead"
+  ],
+  "アンバーの強者『ジェラード』": [
+    "Gerard, Strongman of Amber",
+    "Gerard, Strongman of Amber"
+  ],
+  "アンバーの狂気の夢想家『ブランド』": [
+    "Brand, Mad Visionary of Amber",
+    "Brand, Mad Visionary of Amber"
+  ],
+  "アンバーの王『オベロン』": [
+    "Oberon, King of Amber",
+    "Oberon, King of Amber"
+  ],
+  "アンバーの王女フローラの": [
+    "of Flora",
+    "of Flora"
+  ],
+  "アンバーハルク": [
+    "Umber hulk",
+    "Umber hulk"
+  ],
+  "アヴァロンの主『コーウィン』": [
+    "Corwin, Lord of Avalon",
+    "Corwin, Lord of Avalon"
+  ],
+  "アヴァロンの主コーウィンの": [
+    "of Corwin",
+    "of Corwin"
+  ],
+  "アース・ハウンド": [
+    "Earth hound",
+    "Earth hound"
+  ],
+  "アーチ=ヴァイル": [
+    "Arch-vile",
+    "Arch-vile"
+  ],
+  "アーチプリースト": [
+    "Archpriest",
+    "Archpriest"
+  ],
+  "アーチリッチ": [
+    "Archlich",
+    "Archlich"
+  ],
+  "アーティファクトの伝承　第1巻　武器編": [
+    "Artifact Lore, Vol. I \"Ancient Weapons\"",
+    "Artifact Lore, Vol. I \"Ancient Weapons\""
+  ],
+  "アーティファクトの伝承　第2巻　防具編": [
+    "Artifact Lore, Vol. II, \"Ancient Armor\"",
+    "Artifact Lore, Vol. II, \"Ancient Armor\""
+  ],
+  "アーティファクトの伝承　第3巻　アクセサリ編": [
+    "Artifact Lore, Vol. III, \"Ancient Magical Tools\"",
+    "Artifact Lore, Vol. III, \"Ancient Magical Tools\""
+  ],
+  "アーティファクト生成": [
+    "Artifact Creation",
+    "Artifact Creation"
+  ],
+  "アーデンの森の主『ジュリアン』": [
+    "Julian, Master of Arden Forest",
+    "Julian, Master of Arden Forest"
+  ],
+  "アーデンの森の主ジュリアンの": [
+    "of Julian",
+    "of Julian"
+  ],
+  "イウォーク": [
+    "Ewok",
+    "Ewok"
+  ],
+  "イエティ": [
+    "Yeti",
+    "Yeti"
+  ],
+  "イエロー・ゼリー": [
+    "Yellow jelly",
+    "Yellow jelly"
+  ],
+  "イエロー・モルド": [
+    "Yellow mold",
+    "Yellow mold"
+  ],
+  "イクシツザチトル": [
+    "Ixitxachitl",
+    "Ixitxachitl"
+  ],
+  "イクシツザチトル・プリースト": [
+    "Ixitxachitl priest",
+    "Ixitxachitl priest"
+  ],
+  "イシルドゥアの": [
+    "of Isildur",
+    "of Isildur"
+  ],
+  "イヌワシ": [
+    "Golden eagle",
+    "Golden eagle"
+  ],
+  "イフリート": [
+    "Efreeti",
+    "Efreeti"
+  ],
+  "イプシシマス": [
+    "Ipsissimus",
+    "Ipsissimus"
+  ],
+  "イモリ": [
+    "Newt",
+    "Newt"
+  ],
+  "イルミネーション": [
+    "Illumination",
+    "Illumination"
+  ],
+  "イルミネーションの": [
+    "of Illumination",
+    "of Illumination"
+  ],
+  "インカヌスの": [
+    "of Incanus",
+    "of Incanus"
+  ],
+  "インターネット・エクスプローダー": [
+    "Internet Exploder",
+    "Internet Exploder"
+  ],
+  "インドラの": [
+    "of Indra",
+    "of Indra"
+  ],
+  "インパクト・ハウンド": [
+    "Impact hound",
+    "Impact hound"
+  ],
+  "インプ": [
+    "Imp",
+    "Imp"
+  ],
+  "イークのひったくり": [
+    "Snatcher yeek",
+    "Snatcher yeek"
+  ],
+  "イークのスリ": [
+    "Pickpocketor yeek",
+    "Pickpocketor yeek"
+  ],
+  "イークの兵卒": [
+    "Private yeek",
+    "Private yeek"
+  ],
+  "イークの大王『ボルドール』": [
+    "Boldor, King of the Yeeks",
+    "Boldor, King of the Yeeks"
+  ],
+  "イークの大統領『ノボータ・ケシータ』": [
+    "Noborta Kesyta, the Yeek President",
+    "Noborta Kesyta, the Yeek President"
+  ],
+  "イークの洞穴": [
+    "Yeek cave",
+    "Yeek cave"
+  ],
+  "イークの観光客": [
+    "Yeek tourist",
+    "Yeek tourist"
+  ],
+  "イーク・アーチャー": [
+    "Yeek archer",
+    "Yeek archer"
+  ],
+  "イーク・キャプテン": [
+    "Yeek captain",
+    "Yeek captain"
+  ],
+  "イーク・ハイメイジ": [
+    "High mage yeek",
+    "High mage yeek"
+  ],
+  "イーク・メイジ": [
+    "Mage yeek",
+    "Mage yeek"
+  ],
+  "ウィル・オー・ウィスプ": [
+    "Will o' the wisp",
+    "Will o' the wisp"
+  ],
+  "ウェンディゴ": [
+    "Wendigo",
+    "Wendigo"
+  ],
+  "ウォウズの犬王『ドワール』": [
+    "Dwar, Dog Lord of Waw",
+    "Dwar, Dog Lord of Waw"
+  ],
+  "ウォーター・ハウンド": [
+    "Water hound",
+    "Water hound"
+  ],
+  "ウォーター・ボルテックス": [
+    "Water vortex",
+    "Water vortex"
+  ],
+  "ウォー・ハンマー": [
+    "War Hammer",
+    "War Hammers"
+  ],
+  "ウサウサストライカー": [
+    "Bunbun Striker",
+    "Bunbun Striker"
+  ],
+  "ウボ=サスラの落とし子": [
+    "Spawn of Ubbo-Sathla",
+    "Spawn of Ubbo-Sathla"
+  ],
+  "ウルク": [
+    "Uruk",
+    "Uruk"
+  ],
+  "ウルク=ハイの大王『アゾグ』": [
+    "Azog, King of the Uruk-Hai",
+    "Azog, King of the Uruk-Hai"
+  ],
+  "ウルク『ウグルク』": [
+    "Ugluk, the Uruk",
+    "Ugluk, the Uruk"
+  ],
+  "ウルク『ルグドゥシュ』": [
+    "Lugdush, the Uruk",
+    "Lugdush, the Uruk"
+  ],
+  "ウルクの": [
+    "of Uruk-hai",
+    "of Uruk-hai"
+  ],
+  "ウルファングの息子『ウルファスト』": [
+    "Ulfast, Son of Ulfang",
+    "Ulfast, Son of Ulfang"
+  ],
+  "ウルファングの息子『ウルワルス』": [
+    "Ulwarth, Son of Ulfang",
+    "Ulwarth, Son of Ulfang"
+  ],
+  "ウンバールの『アンガマイテ』": [
+    "Angamaite of Umbar",
+    "Angamaite of Umbar"
+  ],
+  "ウンバールの『サンガハイアンド』": [
+    "Sangahyando of Umbar",
+    "Sangahyando of Umbar"
+  ],
+  "エア・ハウンド": [
+    "Air hound",
+    "Air hound"
+  ],
+  "エオウィン姫の": [
+    "of Eowyn",
+    "of Eowyn"
+  ],
+  "エオグ・ゴーレム": [
+    "Eog golem",
+    "Eog golem"
+  ],
+  "エオル家の": [
+    "of Eorlingas",
+    "of Eorlingas"
+  ],
+  "エキサイト・モンスター": [
+    "Aggravate Monster",
+    "Aggravate Monster"
+  ],
+  "エキドナの長子『オルトロス』": [
+    "Orthus, Firstborn of Echidna",
+    "Orthus, Firstborn of Echidna"
+  ],
+  "エクスプレスカード": [
+    "Card",
+    "Card"
+  ],
+  "エスパドン": [
+    "Espadon",
+    "Espadons"
+  ],
+  "エッヂ": [
+    "Chronium edge",
+    "Chronium edge"
+  ],
+  "エティン": [
+    "Ettin",
+    "Ettin"
+  ],
+  "エナジー・ハウンド": [
+    "Energy hound",
+    "Energy hound"
+  ],
+  "エナジー・ボルテックス": [
+    "Energy vortex",
+    "Energy vortex"
+  ],
+  "エメラルド": [
+    "emeralds",
+    "emeralds"
+  ],
+  "エメラルド・ゴーレム": [
+    "Emerald golem",
+    "Emerald golem"
+  ],
+  "エルダー・バンパイア": [
+    "Elder vampire",
+    "Elder vampire"
+  ],
+  "エルドラク": [
+    "Eldrak",
+    "Eldrak"
+  ],
+  "エルフの": [
+    "of Elvenkind",
+    "of Elvenkind"
+  ],
+  "エルフのクローク": [
+    "Elven Cloak",
+    "Elven Cloaks"
+  ],
+  "エルフの行糧": [
+    "Piece of Elvish Waybread",
+    "Pieces of Elvish Waybread"
+  ],
+  "エルフの骨": [
+    "Elf Skeleton",
+    "Elf Skeletons"
+  ],
+  "エルフ・ロード": [
+    "Elf lord",
+    "Elf lord"
+  ],
+  "エルベレスの聖歌": [
+    "Elbereth's Chant",
+    "Elbereth's Chant"
+  ],
+  "エレメンタル召喚": [
+    "Conjure Elemental",
+    "Conjure Elemental"
+  ],
+  "エンチャントレス": [
+    "Enchantress",
+    "Enchantress"
+  ],
+  "エント": [
+    "Ent",
+    "Ent"
+  ],
+  "エントロピーの球": [
+    "Orb of Entropy",
+    "Orb of Entropy"
+  ],
+  "エンペラー・リッチ『ベクナ』": [
+    "Vecna, the Emperor Lich",
+    "Vecna, the Emperor Lich"
+  ],
+  "エンペラー・ワイト": [
+    "Emperor wight",
+    "Emperor wight"
+  ],
+  "エーテル・ハウンド": [
+    "Aether hound",
+    "Aether hound"
+  ],
+  "エーテル・ボルテックス": [
+    "Aether vortex",
+    "Aether vortex"
+  ],
+  "オウル・パイク": [
+    "Awl-Pike",
+    "Awl-Pikes"
+  ],
+  "オグリロン": [
+    "Ogrillon",
+    "Ogrillon"
+  ],
+  "オパール": [
+    "opals",
+    "opals"
+  ],
+  "オブシディアン・ゴーレム": [
+    "Obsidian golem",
+    "Obsidian golem"
+  ],
+  "オログ": [
+    "Olog",
+    "Olog"
+  ],
+  "オログの": [
+    "of Olog-hai",
+    "of Olog-hai"
+  ],
+  "オーカー・ゼリー": [
+    "Ochre jelly",
+    "Ochre jelly"
+  ],
+  "オーガ": [
+    "Ogre",
+    "Ogre"
+  ],
+  "オーガ・シャーマン": [
+    "Ogre shaman",
+    "Ogre shaman"
+  ],
+  "オーガ・メイジ": [
+    "Ogre mage",
+    "Ogre mage"
+  ],
+  "オーガ戦士": [
+    "Ogre warrior",
+    "Ogre warrior"
+  ],
+  "オークのつるはし": [
+    "Orcish Pick",
+    "Orcish Picks"
+  ],
+  "オークの弩弓隊": [
+    "Orcish Artillery",
+    "Orcish Artillery"
+  ],
+  "オークの洞窟": [
+    "Orc cave",
+    "Orc cave"
+  ],
+  "オークの隊長『ゴルバグ』": [
+    "Gorbag, the Orc Captain",
+    "Gorbag, the Orc Captain"
+  ],
+  "オークの隊長『シャグラト』": [
+    "Shagrat, the Orc Captain",
+    "Shagrat, the Orc Captain"
+  ],
+  "オークの隊長『マウフル』": [
+    "Mauhur, the Orc Captain",
+    "Mauhur, the Orc Captain"
+  ],
+  "オークスレイヤーの": [
+    "of Slay Orc",
+    "of Slay Orc"
+  ],
+  "オーク・キャプテン": [
+    "Orc captain",
+    "Orc captain"
+  ],
+  "オーク・シャーマン": [
+    "Orc shaman",
+    "Orc shaman"
+  ],
+  "オーディンの乗馬『スレイプニル』": [
+    "Sleipnir, Odin's Steed",
+    "Sleipnir, Odin's Steed"
+  ],
+  "オート・ローラー": [
+    "Auto-roller",
+    "Auto-roller"
+  ],
+  "オーブ": [
+    "Orb",
+    "Orbs"
+  ],
+  "オーラントの公使": [
+    "Fat official of Allant",
+    "Fat official of Allant"
+  ],
+  "カァウ": [
+    "Caaws",
+    "Caaws"
+  ],
+  "カウンター": [
+    "Counter",
+    "Counter"
+  ],
+  "カオスドラゴン・スケイルメイル": [
+    "Chaos Dragon Scale Mail",
+    "Chaos Dragon Scale Mails"
+  ],
+  "カオス・シェイプチェンジャー": [
+    "Chaos shapechanger",
+    "Chaos shapechanger"
+  ],
+  "カオス・タイル": [
+    "Chaos tile",
+    "Chaos tile"
+  ],
+  "カオス・ドレイク": [
+    "Chaos drake",
+    "Chaos drake"
+  ],
+  "カオス・ハウンド": [
+    "Chaos hound",
+    "Chaos hound"
+  ],
+  "カオス・ブレード": [
+    "Blade of Chaos",
+    "Blades of Chaos"
+  ],
+  "カオス・ボルテックス": [
+    "Chaos vortex",
+    "Chaos vortex"
+  ],
+  "カオス・ボルト": [
+    "Chaos Bolt",
+    "Chaos Bolt"
+  ],
+  "カオス・ワイアーム": [
+    "Great Wyrm of Chaos",
+    "Great Wyrm of Chaos"
+  ],
+  "カコデーモン": [
+    "Cacodemon",
+    "Cacodemon"
+  ],
+  "カスパニオンの": [
+    "of Caspanion",
+    "of Caspanion"
+  ],
+  "カタナ": [
+    "Katana",
+    "Katanas"
+  ],
+  "カットラス": [
+    "Cutlass",
+    "Cutlasses"
+  ],
+  "カツオノエボシ": [
+    "Portuguese man-o-war",
+    "Portuguese man-o-war"
+  ],
+  "カトブレパス": [
+    "Catoblepas",
+    "Catoblepas"
+  ],
+  "カマイタチ": [
+    "Whirlwind",
+    "Whirlwind"
+  ],
+  "カミカゼのカード": [
+    "Trump Kamikaze",
+    "Trump Kamikaze"
+  ],
+  "カミカゼ・イーク": [
+    "Kamikaze yeek",
+    "Kamikaze yeek"
+  ],
+  "カミカゼ・ハウンド": [
+    "Kamikaze hound",
+    "Kamikaze hound"
+  ],
+  "カメレオン": [
+    "Chameleon",
+    "Chameleon"
+  ],
+  "カメレオンの王": [
+    "Chameleon Lord",
+    "Chameleon Lord"
+  ],
+  "カメレオン洞": [
+    "Chameleon cave",
+    "Chameleon cave"
+  ],
+  "カラス": [
+    "Crow",
+    "Crow"
+  ],
+  "カルボラン・コボルド": [
+    "Carborane kobold",
+    "Carborane kobold"
+  ],
+  "カルランマスの": [
+    "of Carlammas",
+    "of Carlammas"
+  ],
+  "カルヴァリン": [
+    "Culverin",
+    "Culverin"
+  ],
+  "カーテン": [
+    "curtain",
+    "curtain"
+  ],
+  "ガキ大将『ジャイアン』": [
+    "Jaian, the Boss of the Kids",
+    "Jaian, the Boss of the Kids"
+  ],
+  "ガグ": [
+    "Gug",
+    "Gug"
+  ],
+  "ガス・スポア": [
+    "Gas spore",
+    "Gas spore"
+  ],
+  "ガス・トラップ": [
+    "gas trap",
+    "gas trap"
+  ],
+  "ガラガラヘビ": [
+    "Rattlesnake",
+    "Rattlesnake"
+  ],
+  "ガラスのドア": [
+    "glass door",
+    "glass door"
+  ],
+  "ガラスの城": [
+    "Glass castle",
+    "Glass castle"
+  ],
+  "ガラスの壁": [
+    "glass wall",
+    "glass wall"
+  ],
+  "ガラスの床": [
+    "glass floor",
+    "glass floor"
+  ],
+  "ガラスの靴": [
+    "Pair of Glass Slippers",
+    "Pair of Glass Slippers"
+  ],
+  "ガラドリエルの": [
+    "of Galadriel",
+    "of Galadriel"
+  ],
+  "ガントレット": [
+    "Set of Gauntlets",
+    "Sets of Gauntlets"
+  ],
+  "ガーゴイル": [
+    "Gargoyle",
+    "Gargoyle"
+  ],
+  "ガースト": [
+    "Ghast",
+    "Ghast"
+  ],
+  "ガーディアン・ナーガ": [
+    "Guardian naga",
+    "Guardian naga"
+  ],
+  "ガーネット": [
+    "garnets",
+    "garnets"
+  ],
+  "キメラ": [
+    "Chimera",
+    "Chimera"
+  ],
+  "キャリオン": [
+    "Carrion",
+    "Carrion"
+  ],
+  "キャリオン・クローラー": [
+    "Carrion crawler",
+    "Carrion crawler"
+  ],
+  "キューちゃん": [
+    "Raven",
+    "Raven"
+  ],
+  "キラー・クリムゾンビートル": [
+    "Killer crimson beetle",
+    "Killer crimson beetle"
+  ],
+  "キラー・スライス・ビートル": [
+    "Killer slicer beetle",
+    "Killer slicer beetle"
+  ],
+  "キリス・ウンゴルの『ウフサク』": [
+    "Ufthak of Cirith Ungol",
+    "Ufthak of Cirith Ungol"
+  ],
+  "キリス・ウンゴルの番人": [
+    "Silent watcher",
+    "Silent watcher"
+  ],
+  "キング・コブラ": [
+    "King cobra",
+    "King cobra"
+  ],
+  "ギザルム": [
+    "Guisarme",
+    "Guisarmes"
+  ],
+  "ギンザメ": [
+    "Chimaera",
+    "Chimaera"
+  ],
+  "クアシト": [
+    "Quasit",
+    "Quasit"
+  ],
+  "クイックシルバー・ドラゴン": [
+    "Mature quicksilver dragon",
+    "Mature quicksilver dragon"
+  ],
+  "クイルスルグ": [
+    "Quylthulg",
+    "Quylthulg"
+  ],
+  "クエスト上がり階段": [
+    "quest up level",
+    "quest up level"
+  ],
+  "クエスト下り階段": [
+    "quest down level",
+    "quest down level"
+  ],
+  "クエスト入口": [
+    "quest entrance",
+    "quest entrance"
+  ],
+  "クエスト出口": [
+    "quest exit",
+    "quest exit"
+  ],
+  "クォータースタッフ": [
+    "Quarterstaff",
+    "Quarterstaffs"
+  ],
+  "クター": [
+    "Kutar",
+    "Kutar"
+  ],
+  "クトゥルフの落とし子": [
+    "Star-spawn of Cthulhu",
+    "Star-spawn of Cthulhu"
+  ],
+  "クトーニアン": [
+    "Chthonian",
+    "Chthonian"
+  ],
+  "クラウド・ジャイアント": [
+    "Cloud giant",
+    "Cloud giant"
+  ],
+  "クラーケンの子": [
+    "Small kraken",
+    "Small kraken"
+  ],
+  "クリア・ハウンド": [
+    "Clear hound",
+    "Clear hound"
+  ],
+  "クリスタル・キューブ": [
+    "Crystal cube",
+    "Crystal cube"
+  ],
+  "クリスタル・ドレイク": [
+    "Crystal drake",
+    "Crystal drake"
+  ],
+  "クリボー": [
+    "Goomba",
+    "Goomba"
+  ],
+  "クリーピング・エメラルド": [
+    "Creeping emeralds",
+    "Creeping emeralds"
+  ],
+  "クリーピング・オパール": [
+    "Creeping opals",
+    "Creeping opals"
+  ],
+  "クリーピング・オブシディアン": [
+    "Creeping obsidians",
+    "Creeping obsidians"
+  ],
+  "クリーピング・ガーネット": [
+    "Creeping garnets",
+    "Creeping garnets"
+  ],
+  "クリーピング・サファイア": [
+    "Creeping saphires",
+    "Creeping saphires"
+  ],
+  "クリーピング・ダイヤモンド": [
+    "Creeping diamonds",
+    "Creeping diamonds"
+  ],
+  "クリーピング・ルビー": [
+    "Creeping rubies",
+    "Creeping rubies"
+  ],
+  "クレイモア": [
+    "Claymore",
+    "Claymores"
+  ],
+  "クロスボウの矢": [
+    "Bolt",
+    "Bolts"
+  ],
+  "クローカー": [
+    "Cloaker",
+    "Cloaker"
+  ],
+  "クローク": [
+    "Cloak",
+    "Cloaks"
+  ],
+  "クローン・モンスター": [
+    "Clone Monster",
+    "Clone Monster"
+  ],
+  "グウィンの黒騎士": [
+    "Black knight of Gwyn",
+    "Black knight of Gwyn"
+  ],
+  "グノフ＝ケー": [
+    "Gnoph-Keh",
+    "Gnoph-Keh"
+  ],
+  "グラーキの奴隷": [
+    "Servant of Glaaki",
+    "Servant of Glaaki"
+  ],
+  "グリズリー": [
+    "Grizzly bear",
+    "Grizzly bear"
+  ],
+  "グリッドバグ": [
+    "Grid bug",
+    "Grid bug"
+  ],
+  "グリフォン": [
+    "Griffon",
+    "Griffon"
+  ],
+  "グリーンドラゴン・スケイルメイル": [
+    "Green Dragon Scale Mail",
+    "Green Dragon Scale Mails"
+  ],
+  "グリーン・ウーズ": [
+    "Green ooze",
+    "Green ooze"
+  ],
+  "グリーン・ゼリー": [
+    "Green jelly",
+    "Green jelly"
+  ],
+  "グリーン・ドラゴン": [
+    "Mature green dragon",
+    "Mature green dragon"
+  ],
+  "グリーン・ナーガ": [
+    "Green naga",
+    "Green naga"
+  ],
+  "グリーン・モルド": [
+    "Green mold",
+    "Green mold"
+  ],
+  "グレイブ": [
+    "Glaive",
+    "Glaives"
+  ],
+  "グレイ・ベトベト": [
+    "Grey icky thing",
+    "Grey icky thing"
+  ],
+  "グレイ・モルド": [
+    "Grey mold",
+    "Grey mold"
+  ],
+  "グレイ・レイス": [
+    "Grey wraith",
+    "Grey wraith"
+  ],
+  "グレムリン": [
+    "Gremlin",
+    "Gremlin"
+  ],
+  "グレーターデーモン召喚": [
+    "Summon Greater Demon",
+    "Summon Greater Demon"
+  ],
+  "グレーター・クイルスルグ": [
+    "Greater quylthulg",
+    "Greater quylthulg"
+  ],
+  "グレーター・クラーケン": [
+    "Greater kraken",
+    "Greater kraken"
+  ],
+  "グレーター・タイタン": [
+    "Greater titan",
+    "Greater titan"
+  ],
+  "グレーター・ドラゴン・クイルスルグ": [
+    "Greater draconic quylthulg",
+    "Greater draconic quylthulg"
+  ],
+  "グレーター・バルログ": [
+    "Greater Balrog",
+    "Greater Balrog"
+  ],
+  "グレーター・ファルメル・ウォーモンガー": [
+    "Greater falmer warmonger",
+    "Greater falmer warmonger"
+  ],
+  "グレーター・ファルメル・グルームルーカー": [
+    "Greater falmer gloomlurker",
+    "Greater falmer gloomlurker"
+  ],
+  "グレーター・ファルメル・シャドウマスター": [
+    "Greater falmer shadowmaster",
+    "Greater falmer shadowmaster"
+  ],
+  "グレーター・ファルメル・スクルカー": [
+    "Greater falmer skulker",
+    "Greater falmer skulker"
+  ],
+  "グレーター・ファルメル・ナイトプロウラー": [
+    "Greater falmer nightprowler",
+    "Greater falmer nightprowler"
+  ],
+  "グレート・アイス・ワイアーム": [
+    "Great Ice Wyrm",
+    "Great Ice Wyrm"
+  ],
+  "グレート・アックス": [
+    "Great Axe",
+    "Great Axes"
+  ],
+  "グレート・イクリプス・ドレイク": [
+    "Great Eclipse Drake",
+    "Great Eclipse Drake"
+  ],
+  "グレート・インフェルノ・ドレイク": [
+    "Great Inferno Drake",
+    "Great Inferno Drake"
+  ],
+  "グレート・クリスタル・ドレイク": [
+    "Great Crystal Drake",
+    "Great Crystal Drake"
+  ],
+  "グレート・ストーム・ワイアーム": [
+    "Great Storm Wyrm",
+    "Great Storm Wyrm"
+  ],
+  "グレート・ソード": [
+    "Two-Handed Sword",
+    "Two-Handed Swords"
+  ],
+  "グレート・ドラコリスク": [
+    "Greater Dracolisk",
+    "Greater Dracolisk"
+  ],
+  "グレート・ドラコリッチ": [
+    "Greater Dracolich",
+    "Greater Dracolich"
+  ],
+  "グレート・ハンマー": [
+    "Great Hammer",
+    "Great Hammers"
+  ],
+  "グレート・バイル・ワイアーム": [
+    "Great Bile Wyrm",
+    "Great Bile Wyrm"
+  ],
+  "グレート・ヘル・ワイアーム": [
+    "Great Hell Wyrm",
+    "Great Hell Wyrm"
+  ],
+  "グレート・ロア・ドレイク": [
+    "Great Roar Drake",
+    "Great Roar Drake"
+  ],
+  "グレート・ヴェノム・ワイアーム": [
+    "Great Venom Wyrm",
+    "Great Venom Wyrm"
+  ],
+  "グレート・万色ワイアーム": [
+    "Great Wyrm of Many Colours",
+    "Great Wyrm of Many Colours"
+  ],
+  "グレープ・ゼリー": [
+    "Grape jelly",
+    "Grape jelly"
+  ],
+  "ケット・シー": [
+    "Cait Sith",
+    "Cait Sith"
+  ],
+  "ゲイザー": [
+    "Gazer",
+    "Gazer"
+  ],
+  "ゲイツの宿敵『スティーヴン・ジョーブツ』": [
+    "Steven Jobz, the rival of Gates",
+    "Steven Jobz, the rival of Gates"
+  ],
+  "コアトル": [
+    "Coatl",
+    "Coatl"
+  ],
+  "コウコ": [
+    "Kouko",
+    "Kouko"
+  ],
+  "コティングリーの妖精": [
+    "Cottingley Fairy",
+    "Cottingley Fairy"
+  ],
+  "コペシュ": [
+    "Khopesh",
+    "Khopeshes"
+  ],
+  "コボルド": [
+    "Kobold",
+    "Kobold"
+  ],
+  "コボルド・ロード『ムガッシュ』": [
+    "Mughash the Kobold Lord",
+    "Mughash the Kobold Lord"
+  ],
+  "コルブラン": [
+    "Colbran",
+    "Colbran"
+  ],
+  "コンパクトルーン": [
+    "compact rune",
+    "compact rune"
+  ],
+  "コーウィンの銃士": [
+    "Gunner of Corwin",
+    "Gunner of Corwin"
+  ],
+  "コープサー": [
+    "Corpser",
+    "Corpser"
+  ],
+  "コールド・ハウンド": [
+    "Cold hound",
+    "Cold hound"
+  ],
+  "コールド・ボルテックス": [
+    "Cold vortex",
+    "Cold vortex"
+  ],
+  "ゴルゴロスの蝙蝠": [
+    "Bat of Gorgoroth",
+    "Bat of Gorgoroth"
+  ],
+  "ゴンドリンを裏切りし『マイグリン』": [
+    "Maeglin, Betrayer of Gondolin",
+    "Maeglin, Betrayer of Gondolin"
+  ],
+  "ゴーゴン": [
+    "Gorgon",
+    "Gorgon"
+  ],
+  "ゴーゴンキメラ": [
+    "Gorgimera",
+    "Gorgimera"
+  ],
+  "ゴースト": [
+    "Ghost",
+    "Ghost"
+  ],
+  "ゴースト『Ｑ』": [
+    "The Ghost 'Q'",
+    "The Ghost 'Q'"
+  ],
+  "ゴースト・イーク": [
+    "Ghost yeek",
+    "Ghost yeek"
+  ],
+  "ゴールドドラゴン・スケイルメイル": [
+    "Gold Dragon Scale Mail",
+    "Gold Dragon Scale Mails"
+  ],
+  "ゴールド・ドラゴン": [
+    "Mature gold dragon",
+    "Mature gold dragon"
+  ],
+  "ゴーレム製造": [
+    "Create Golem",
+    "Create Golem"
+  ],
+  "サイクロプス": [
+    "Cyclops",
+    "Cyclops"
+  ],
+  "サイバー『レムス』": [
+    "Lems the Cyborg",
+    "Lems the Cyborg"
+  ],
+  "サイバーデーモン": [
+    "Cyberdemon",
+    "Cyberdemon"
+  ],
+  "サイバーデーモンのカード": [
+    "Trump Cyberdemon",
+    "Trump Cyberdemon"
+  ],
+  "サイバーデーモンの王『Oremorj』": [
+    "Oremorj the Cyberdemon Lord",
+    "Oremorj the Cyberdemon Lord"
+  ],
+  "サイヤ人『ナッパ』": [
+    "Nappa the Saiyan",
+    "Nappa the Saiyan"
+  ],
+  "サイ皮よろい": [
+    "Rhino Hide Armour",
+    "Rhino Hide Armours"
+  ],
+  "サウロンの魔術": [
+    "Wizardry of Sauron",
+    "Wizardry of Sauron"
+  ],
+  "サキュバスの接吻": [
+    "Succubus's Kiss",
+    "Succubus's Kiss"
+  ],
+  "サスカッチ": [
+    "Sasquatch",
+    "Sasquatch"
+  ],
+  "サノスの": [
+    "of Thanos",
+    "of Thanos"
+  ],
+  "サファイア": [
+    "sapphires",
+    "sapphires"
+  ],
+  "サファイア・ゴーレム": [
+    "Sapphire golem",
+    "Sapphire golem"
+  ],
+  "サムライ": [
+    "Samurai",
+    "Samurai"
+  ],
+  "サモン・アンデッド": [
+    "Summon Undead",
+    "Summon Undead"
+  ],
+  "サモン・モンスター": [
+    "Summon Monster",
+    "Summon Monster"
+  ],
+  "サラマンダー": [
+    "Salamander",
+    "Salamander"
+  ],
+  "サルマンの甘言": [
+    "The Voice of Saruman",
+    "The Voice of Saruman"
+  ],
+  "サルマンの間者『ヘビの舌』": [
+    "Wormtongue, Agent of Saruman",
+    "Wormtongue, Agent of Saruman"
+  ],
+  "サンダーバード": [
+    "Thunder bird",
+    "Thunder bird"
+  ],
+  "サンダー・コボルド": [
+    "Electric kobold",
+    "Electric kobold"
+  ],
+  "サンダー・ボルト": [
+    "Lightning Bolts",
+    "Lightning Bolts"
+  ],
+  "サンダー・ボール": [
+    "Lightning Balls",
+    "Lightning Balls"
+  ],
+  "サーベル": [
+    "Sabre",
+    "Sabres"
+  ],
+  "サーベル・タイガー": [
+    "Sabre-tooth tiger",
+    "Sabre-tooth tiger"
+  ],
+  "サーペンツタン": [
+    "Serpent's Tongue",
+    "Serpent's Tongue"
+  ],
+  "サーペント・ゾンビ": [
+    "Zombified Serpent of Chaos",
+    "Zombified Serpent of Chaos"
+  ],
+  "ザイクロトル族": [
+    "Xiclotlan",
+    "Xiclotlan"
+  ],
+  "ザレン": [
+    "Xaren",
+    "Xaren"
+  ],
+  "シミター": [
+    "Scimitar",
+    "Scimitars"
+  ],
+  "シャウラス": [
+    "Chaurus",
+    "Chaurus"
+  ],
+  "シャウラス・ハンター": [
+    "Chaurus hunter",
+    "Chaurus hunter"
+  ],
+  "シャウラス・ハンターの幼体": [
+    "Chaurus hunter fledgling",
+    "Chaurus hunter fledgling"
+  ],
+  "シャウラス・リーパー": [
+    "Chaurus reaper",
+    "Chaurus reaper"
+  ],
+  "シャチ": [
+    "Killer whale",
+    "Killer whale"
+  ],
+  "シャッフル": [
+    "Shuffle",
+    "Shuffle"
+  ],
+  "シャドウ・デーモン": [
+    "Shadow demon",
+    "Shadow demon"
+  ],
+  "シャドウ・ドレイク": [
+    "Shadow drake",
+    "Shadow drake"
+  ],
+  "シャドウ・ハウンド": [
+    "Shadow hound",
+    "Shadow hound"
+  ],
+  "シャドウ・ボルテックス": [
+    "Shadow vortex",
+    "Shadow vortex"
+  ],
+  "シャドウ・ロード": [
+    "Shadowlord",
+    "Shadowlord"
+  ],
+  "シャベル": [
+    "Shovel",
+    "Shovels"
+  ],
+  "シャン": [
+    "Shan",
+    "Shan"
+  ],
+  "シャンタク鳥": [
+    "Shantak",
+    "Shantak"
+  ],
+  "シャンブラー": [
+    "Shambler",
+    "Shambler"
+  ],
+  "シュブ=ニグラスの黒い仔山羊": [
+    "Dark young of Shub-Niggurath",
+    "Dark young of Shub-Niggurath"
+  ],
+  "シュモクザメ": [
+    "Hammerhead",
+    "Hammerhead"
+  ],
+  "ショゴス": [
+    "Shoggoth",
+    "Shoggoth"
+  ],
+  "ショート・ソード": [
+    "Short Sword",
+    "Short Swords"
+  ],
+  "ショート・テレポート": [
+    "Blink",
+    "Blink"
+  ],
+  "ショート・ボウ": [
+    "Short Bow",
+    "Short Bows"
+  ],
+  "シルバー・ゼリー": [
+    "Silver jelly",
+    "Silver jelly"
+  ],
+  "シヴァの化身の": [
+    "of Shiva's Avatar",
+    "of Shiva's Avatar"
+  ],
+  "ジャイアンの腰巾着『スネヲ』": [
+    "Suneo, the Follower of Jaian",
+    "Suneo, the Follower of Jaian"
+  ],
+  "ジャイアントスレイヤーの": [
+    "of Slay Giant",
+    "of Slay Giant"
+  ],
+  "ジャイアント・サラマンダー": [
+    "Giant salamander",
+    "Giant salamander"
+  ],
+  "ジャイアント・スケルトン・トロル": [
+    "Giant skeleton troll",
+    "Giant skeleton troll"
+  ],
+  "ジャイアント・ピラニア": [
+    "Giant piranha",
+    "Giant piranha"
+  ],
+  "ジャッカル": [
+    "Jackal",
+    "Jackal"
+  ],
+  "ジャバーウォック": [
+    "Jabberwock",
+    "Jabberwock"
+  ],
+  "ジュラル星人": [
+    "Juralian",
+    "Juralian"
+  ],
+  "ジュリアンのヘルハウンド": [
+    "Hell hound of Julian",
+    "Hell hound of Julian"
+  ],
+  "ジュリアンの乗馬『明の明星』": [
+    "Morgenstern, Julian's Steed",
+    "Morgenstern, Julian's Steed"
+  ],
+  "ジュリアンの猟鷹": [
+    "Hunting hawk of Julian",
+    "Hunting hawk of Julian"
+  ],
+  "ジョーンズ博士の": [
+    "of Dr. Jones",
+    "of Dr. Jones"
+  ],
+  "スカイ・ゴーレム": [
+    "Sky golem",
+    "Sky golem"
+  ],
+  "スカイ・ドレイク": [
+    "Sky Drake",
+    "Sky Drake"
+  ],
+  "スケイヴン": [
+    "Skaven",
+    "Skaven"
+  ],
+  "スケイヴン・ウォーリア": [
+    "Skaven warrior",
+    "Skaven warrior"
+  ],
+  "スケイヴン・シャーマン": [
+    "Skaven shaman",
+    "Skaven shaman"
+  ],
+  "スケルトン": [
+    "Skeleton human",
+    "Skeleton human"
+  ],
+  "スケルトン・オーク": [
+    "Skeleton orc",
+    "Skeleton orc"
+  ],
+  "スケルトン・コボルド": [
+    "Skeleton kobold",
+    "Skeleton kobold"
+  ],
+  "スケルトン・トロル": [
+    "Skeleton troll",
+    "Skeleton troll"
+  ],
+  "スタンウォール": [
+    "Stunwall",
+    "Stunwall"
+  ],
+  "スターライト": [
+    "Starlight",
+    "Starlight"
+  ],
+  "ストームトロル": [
+    "Storm troll",
+    "Storm troll"
+  ],
+  "ストーム・ジャイアント": [
+    "Storm giant",
+    "Storm giant"
+  ],
+  "ストーム・ワイアーム": [
+    "Storm Wyrm",
+    "Storm Wyrm"
+  ],
+  "ストーン・ジャイアント": [
+    "Stone giant",
+    "Stone giant"
+  ],
+  "ストーン・リッチ": [
+    "Stone lich",
+    "Stone lich"
+  ],
+  "スナガ": [
+    "Snaga",
+    "Snaga"
+  ],
+  "スナガ『ムズガッシュ』": [
+    "Muzgash, the Snaga",
+    "Muzgash, the Snaga"
+  ],
+  "スナガ『ラグドゥフ』": [
+    "Lagduf, the Snaga",
+    "Lagduf, the Snaga"
+  ],
+  "スネッコ": [
+    "Snecko",
+    "Snecko"
+  ],
+  "スパイダー・ボム": [
+    "Spider bomb",
+    "Spider bomb"
+  ],
+  "スピア": [
+    "Spear",
+    "Spears"
+  ],
+  "スピリット・トロル": [
+    "Spirit troll",
+    "Spirit troll"
+  ],
+  "スピリット・ナーガ": [
+    "Spirit naga",
+    "Spirit naga"
+  ],
+  "スピード": [
+    "Haste Self",
+    "Haste Self"
+  ],
+  "スピードの": [
+    "of Speed",
+    "of Speed"
+  ],
+  "スピード・モンスター": [
+    "Haste Monster",
+    "Haste Monster"
+  ],
+  "スフィンクス": [
+    "Sphinx",
+    "Sphinx"
+  ],
+  "スプリント・メイル": [
+    "Splint Mail",
+    "Splint Mails"
+  ],
+  "スペクター": [
+    "Spectre",
+    "Spectre"
+  ],
+  "スペクテイター": [
+    "Spectator",
+    "Spectator"
+  ],
+  "スペース・モンスター": [
+    "Space monster",
+    "Space monster"
+  ],
+  "スモール・コボルド": [
+    "Small kobold",
+    "Small kobold"
+  ],
+  "スモール・ソード": [
+    "Small Sword",
+    "Small Swords"
+  ],
+  "スライムモルド": [
+    "Slime Mold",
+    "Slime Mold"
+  ],
+  "スライムモルドジュース": [
+    "Slime Mold Juice",
+    "Slime Mold Juice"
+  ],
+  "スランドゥイル王の": [
+    "of Thranduil",
+    "of Thranduil"
+  ],
+  "スリング": [
+    "Sling",
+    "Slings"
+  ],
+  "スリング・ハーフリング": [
+    "Halfling slinger",
+    "Halfling slinger"
+  ],
+  "スリープ・モンスター": [
+    "Sleep Monster",
+    "Sleep Monster"
+  ],
+  "スロウ・モンスター": [
+    "Slow Monster",
+    "Slow Monster"
+  ],
+  "スロール王の": [
+    "of Thror",
+    "of Thror"
+  ],
+  "スーパーモンキー『孫悟空』": [
+    "Sun Wukong, the Punkiest Monkey",
+    "Sun Wukong, the Punkiest Monkey"
+  ],
+  "ズアオアトリ": [
+    "Chaffinch",
+    "Chaffinch"
+  ],
+  "ズル": [
+    "Zul",
+    "Zul"
+  ],
+  "セイレーン": [
+    "Siren",
+    "Siren"
+  ],
+  "セスタス": [
+    "Set of Cesti",
+    "Sets of Cesti"
+  ],
+  "セラの天使": [
+    "Serra angel",
+    "Serra angel"
+  ],
+  "センギアの吸血鬼": [
+    "Sengir vampire",
+    "Sengir vampire"
+  ],
+  "センゲル王の": [
+    "of Thengel",
+    "of Thengel"
+  ],
+  "セーヌの狼王『コートード』": [
+    "Courtaud, the king wolf of Seine",
+    "Courtaud, the king wolf of Seine"
+  ],
+  "ゼファーロード": [
+    "Zephyr Lord",
+    "Zephyr Lord"
+  ],
+  "ゼラチナス・キューブ": [
+    "Gelatinous cube",
+    "Gelatinous cube"
+  ],
+  "ソニック・ブーム": [
+    "Sonic Boom",
+    "Sonic Boom"
+  ],
+  "ソフトウェア・バグ": [
+    "Software bug",
+    "Software bug"
+  ],
+  "ソーサラー": [
+    "Sorcerer",
+    "Sorcerer"
+  ],
+  "ソーシャルディスタンスの王者『リー・ナス』": [
+    "Lee Qiezi, the King of Social Distance and Fucking Fucker who Fucks",
+    "Lee Qiezi, the King of Social Distance and Fucking Fucker who Fucks"
+  ],
+  "ソードマスター『ヤマト』": [
+    "Yamato, the Sword Master",
+    "Yamato, the Sword Master"
+  ],
+  "ソードマン": [
+    "Swordsman",
+    "Swordsman"
+  ],
+  "ソーラー": [
+    "Solar",
+    "Solar"
+  ],
+  "ゾッグ": [
+    "Zog",
+    "Zog"
+  ],
+  "ゾンビ": [
+    "Zombified human",
+    "Zombified human"
+  ],
+  "ゾンビ・イーク": [
+    "Zombie yeek",
+    "Zombie yeek"
+  ],
+  "ゾンビ・オーク": [
+    "Zombified orc",
+    "Zombified orc"
+  ],
+  "ゾンビ・コボルド": [
+    "Zombified kobold",
+    "Zombified kobold"
+  ],
+  "ゾーン": [
+    "Xorn",
+    "Xorn"
+  ],
+  "タイタンの『アトラス』": [
+    "Atlas, the Titan",
+    "Atlas, the Titan"
+  ],
+  "タイタン・ゾンビ": [
+    "Fallen titan",
+    "Fallen titan"
+  ],
+  "タイタン族の王『クロノス』": [
+    "Kronos, Lord of the Titans",
+    "Kronos, Lord of the Titans"
+  ],
+  "タイム・エレメンタル": [
+    "Time elemental",
+    "Time elemental"
+  ],
+  "タイム・ハウンド": [
+    "Time hound",
+    "Time hound"
+  ],
+  "タイム・ボルテックス": [
+    "Time vortex",
+    "Time vortex"
+  ],
+  "タカ": [
+    "Hawk",
+    "Hawk"
+  ],
+  "タツノオトシゴ": [
+    "Seahorse",
+    "Seahorse"
+  ],
+  "タルワール": [
+    "Tulwar",
+    "Tulwars"
+  ],
+  "ダ": [
+    "'Dasai'",
+    "'Dasai'"
+  ],
+  "ダイヤモンド": [
+    "diamonds",
+    "diamonds"
+  ],
+  "ダイヤモンド・エッジ": [
+    "Diamond Edge",
+    "Diamond Edges"
+  ],
+  "ダイヤモンド・ゴーレム": [
+    "Diamond golem",
+    "Diamond golem"
+  ],
+  "ダオ": [
+    "Dao",
+    "Dao"
+  ],
+  "ダガシ": [
+    "Dagashi",
+    "Dagashi"
+  ],
+  "ダガー": [
+    "Dagger",
+    "Daggers"
+  ],
+  "ダメージ": [
+    "Damage",
+    "Damage"
+  ],
+  "ダメージの": [
+    "and Damage",
+    "and Damage"
+  ],
+  "ダンジョンへの入口": [
+    "entrance to dungeon",
+    "entrance to dungeon"
+  ],
+  "ダークエルフ": [
+    "Dark elf",
+    "Dark elf"
+  ],
+  "ダークエルフの鍛冶師『エオル』": [
+    "Eol, the Dark Elven Smith",
+    "Eol, the Dark Elven Smith"
+  ],
+  "ダークエルフ・ソーサラー": [
+    "Dark elven sorcerer",
+    "Dark elven sorcerer"
+  ],
+  "ダークエルフ・ドルイド僧": [
+    "Dark elven druid",
+    "Dark elven druid"
+  ],
+  "ダークエルフ・プリースト": [
+    "Dark elven priest",
+    "Dark elven priest"
+  ],
+  "ダークエルフ・メイジ": [
+    "Dark elven mage",
+    "Dark elven mage"
+  ],
+  "ダークエルフ・ロード": [
+    "Dark elven lord",
+    "Dark elven lord"
+  ],
+  "ダークエルフ・ワーロック": [
+    "Dark elven warlock",
+    "Dark elven warlock"
+  ],
+  "ダークエルフ戦士": [
+    "Dark elven warrior",
+    "Dark elven warrior"
+  ],
+  "ダーク・ナーガ": [
+    "Dark naga",
+    "Dark naga"
+  ],
+  "ダーツ・トラップ": [
+    "dart trap",
+    "dart trap"
+  ],
+  "チェンジ・モンスター": [
+    "Polymorph",
+    "Polymorph"
+  ],
+  "チォコヴォ": [
+    "Chiokovo",
+    "Chiokovo"
+  ],
+  "チャージマン『研』": [
+    "Ken, the Charge Man",
+    "Ken, the Charge Man"
+  ],
+  "チャーム・モンスター": [
+    "Charm Monster",
+    "Charm Monster"
+  ],
+  "チョウチンアンコウ": [
+    "Devilfish",
+    "Devilfish"
+  ],
+  "チロン・ローカスト": [
+    "Locust of Chiron",
+    "Locust of Chiron"
+  ],
+  "チンピラウサギ": [
+    "Thug rabbit",
+    "Thug rabbit"
+  ],
+  "チーターマン『アポロ』": [
+    "Apollo, the eldest cheetahmen",
+    "Apollo, the eldest cheetahmen"
+  ],
+  "チーターマン『アリエス』 ": [
+    "Aries, the youngest cheetahmen",
+    "Aries, the youngest cheetahmen"
+  ],
+  "チーターマン『ヘラクレス』": [
+    "Hercules, the second eldest cheetahmen",
+    "Hercules, the second eldest cheetahmen"
+  ],
+  "ツァトゥグァの落とし子": [
+    "Formless spawn of Tsathoggua",
+    "Formless spawn of Tsathoggua"
+  ],
+  "ツチノコ": [
+    "Tsuchinoko",
+    "Tsuchinoko"
+  ],
+  "ツヴァイハンダー": [
+    "Zweihander",
+    "Zweihanders"
+  ],
+  "ティラノサウルス": [
+    "Tyrannosaurus",
+    "Tyrannosaurus"
+  ],
+  "ティンダロスの猟犬": [
+    "Hound of Tindalos",
+    "Hound of Tindalos"
+  ],
+  "ティーパーティーの魔女『聖園ミカ』": [
+    "Mika Misono, the witch of Tea Party",
+    "Mika Misono, the witch of Tea Party"
+  ],
+  "テポドン": [
+    "TaepoDong",
+    "TaepoDong"
+  ],
+  "テルモラ": [
+    "Telmora",
+    "Telmora"
+  ],
+  "テレサ": [
+    "Boo",
+    "Boo"
+  ],
+  "テレサの親玉『キングテレサ』": [
+    "King Boo",
+    "King Boo"
+  ],
+  "テレパシー": [
+    "Telepathy",
+    "Telepathy"
+  ],
+  "テレパシーの": [
+    "of Telepathy",
+    "of Telepathy"
+  ],
+  "テレポート": [
+    "Teleport",
+    "Teleport"
+  ],
+  "テレポートの": [
+    "of Teleportation",
+    "of Teleportation"
+  ],
+  "テレポート・アウェイ": [
+    "Teleport Other",
+    "Teleport Other"
+  ],
+  "テレポート・モンスター": [
+    "Teleport Away",
+    "Teleport Away"
+  ],
+  "テレポート・レベル": [
+    "Teleport Level",
+    "Teleport Level"
+  ],
+  "テング": [
+    "Tengu",
+    "Tengu"
+  ],
+  "ディアの『ホアルムラス』": [
+    "Hoarmurath of Dir",
+    "Hoarmurath of Dir"
+  ],
+  "ディジニ": [
+    "Djinni",
+    "Djinni"
+  ],
+  "ディスプレイサー・ビースト": [
+    "Displacer beast",
+    "Displacer beast"
+  ],
+  "デイドラ・グリーン・ドラゴン": [
+    "Daedra Green Dragon",
+    "Daedra Green Dragon"
+  ],
+  "デイドラ・ブラック・ドラゴン": [
+    "Daedra Black Dragon",
+    "Daedra Black Dragon"
+  ],
+  "デイドラ・ブルー・ドラゴン": [
+    "Daedra Blue Dragon",
+    "Daedra Blue Dragon"
+  ],
+  "デイドラ・ホワイト・ドラゴン": [
+    "Daedra White Dragon",
+    "Daedra White Dragon"
+  ],
+  "デイドラ・レッド・ドラゴン": [
+    "Daedra Red Dragon",
+    "Daedra Red Dragon"
+  ],
+  "デカアゴムシ": [
+    "jaw worm",
+    "jaw worm"
+  ],
+  "デスソード": [
+    "Death sword",
+    "Death sword"
+  ],
+  "デス・クアシト": [
+    "Death quasit",
+    "Death quasit"
+  ],
+  "デス・ドレイク": [
+    "Death drake",
+    "Death drake"
+  ],
+  "デス・モルド": [
+    "Death mold",
+    "Death mold"
+  ],
+  "デミリッチ": [
+    "Demilich",
+    "Demilich"
+  ],
+  "デュラハン": [
+    "Durahan",
+    "Durahan"
+  ],
+  "デヴチォコヴォ": [
+    "Devu Chiokovo",
+    "Devu Chiokovo"
+  ],
+  "デーモンのカード": [
+    "Trump Demon",
+    "Trump Demon"
+  ],
+  "デーモンスレイヤーの": [
+    "of Slay Demon",
+    "of Slay Demon"
+  ],
+  "デーモン・クイルスルグ": [
+    "Demonic quylthulg",
+    "Demonic quylthulg"
+  ],
+  "デーモン召喚": [
+    "Summon Demon",
+    "Summon Demon"
+  ],
+  "トゥオルの": [
+    "of Tuor",
+    "of Tuor"
+  ],
+  "トゲトゲバット『エスカリボルグ』": [
+    "'Excaliborg, the *thorny* bat'",
+    "'Excaliborg, the *thorny* bat'"
+  ],
+  "トラ": [
+    "Tiger",
+    "Tiger"
+  ],
+  "トライデント": [
+    "Trident",
+    "Tridents"
+  ],
+  "トラッパー": [
+    "Trapper",
+    "Trapper"
+  ],
+  "トラップ/ドア破壊": [
+    "Trap / Door Destruction",
+    "Trap / Door Destruction"
+  ],
+  "トラップマスター": [
+    "Trap master",
+    "Trap master"
+  ],
+  "トラップ・ドア": [
+    "trap door",
+    "trap door"
+  ],
+  "トラップ創造": [
+    "Trap Creation",
+    "Trap Creation"
+  ],
+  "トラップ感知": [
+    "Trap Location",
+    "Trap Location"
+  ],
+  "トラップ解除": [
+    "Disarming",
+    "Disarming"
+  ],
+  "トランプの刃": [
+    "Trump Branding",
+    "Trump Branding"
+  ],
+  "トリクロプス": [
+    "Triclops",
+    "Triclops"
+  ],
+  "トロルの『ウリク』": [
+    "Ulik the Troll",
+    "Ulik the Troll"
+  ],
+  "トロルの王": [
+    "Troll king",
+    "Troll king"
+  ],
+  "トロルスレイヤーの": [
+    "of Slay Troll",
+    "of Slay Troll"
+  ],
+  "トロル・プリースト": [
+    "Troll priest",
+    "Troll priest"
+  ],
+  "トーテムモアイ": [
+    "Totem Moai",
+    "Totem Moai"
+  ],
+  "トーリン王の": [
+    "of Thorin",
+    "of Thorin"
+  ],
+  "ドア": [
+    "door",
+    "door"
+  ],
+  "ドア/階段感知": [
+    "Door/Stair Location",
+    "Door/Stair Location"
+  ],
+  "ドゥームバット": [
+    "Doombat",
+    "Doombat"
+  ],
+  "ドゥーム・ドレイク": [
+    "Doom drake",
+    "Doom drake"
+  ],
+  "ドラウグル": [
+    "Draugr",
+    "Draugr"
+  ],
+  "ドラウグル・ウォーカー": [
+    "Draugr walker",
+    "Draugr walker"
+  ],
+  "ドラウグル・スカージ": [
+    "Draugr scourge",
+    "Draugr scourge"
+  ],
+  "ドラウグル・デスロード": [
+    "Draugr deathlord",
+    "Draugr deathlord"
+  ],
+  "ドラウグル・デス・オーバーロード": [
+    "Draugr death overlord",
+    "Draugr death overlord"
+  ],
+  "ドラウグル・ワイト": [
+    "Draugr wight",
+    "Draugr wight"
+  ],
+  "ドラコリスク": [
+    "Dracolisk",
+    "Dracolisk"
+  ],
+  "ドラコリッチ": [
+    "Dracolich",
+    "Dracolich"
+  ],
+  "ドラゴンのカード": [
+    "Trump Dragon",
+    "Trump Dragon"
+  ],
+  "ドラゴンの冷気": [
+    "Dragon's Frost",
+    "Dragon's Frost"
+  ],
+  "ドラゴンの冷気の": [
+    "and Dragon's Frost",
+    "and Dragon's Frost"
+  ],
+  "ドラゴンの火炎": [
+    "Dragon's Flame",
+    "Dragon's Flame"
+  ],
+  "ドラゴンの火炎の": [
+    "and Dragon's Flame",
+    "and Dragon's Flame"
+  ],
+  "ドラゴンキラーの": [
+    "of Hurt Dragon",
+    "of Hurt Dragon"
+  ],
+  "ドラゴンスレイヤーの": [
+    "of Slay Dragon",
+    "of Slay Dragon"
+  ],
+  "ドラゴンモドキ・スケイルメイル": [
+    "Pseudo Dragon Scale Mail",
+    "Pseudo Dragon Scale Mails"
+  ],
+  "ドラゴン・クイルスルグ": [
+    "Draconic quylthulg",
+    "Draconic quylthulg"
+  ],
+  "ドラゴン・グローブ": [
+    "Set of Dragon Gloves",
+    "Sets of Dragon Gloves"
+  ],
+  "ドラゴン・シールド": [
+    "Dragon Shield",
+    "Dragon Shields"
+  ],
+  "ドラゴン・ブレス": [
+    "Dragon's Breath",
+    "Dragon's Breath"
+  ],
+  "ドラゴン・ブーツ": [
+    "Pair of Dragon Boots",
+    "Pairs of Dragon Boots"
+  ],
+  "ドラゴン・ヘルム": [
+    "Dragon Helm",
+    "Dragon Helms"
+  ],
+  "ドラゴン族の祖『グラウルング』": [
+    "Glaurung, Father of the Dragons",
+    "Glaurung, Father of the Dragons"
+  ],
+  "ドリダー": [
+    "Drider",
+    "Drider"
+  ],
+  "ドリード": [
+    "Dread",
+    "Dread"
+  ],
+  "ドリードマスター": [
+    "Dreadmaster",
+    "Dreadmaster"
+  ],
+  "ドリードロード『ツエラクス』": [
+    "Tselakus, the Dreadlord",
+    "Tselakus, the Dreadlord"
+  ],
+  "ドル=ローミンの": [
+    "of Dor-Lomin",
+    "of Dor-Lomin"
+  ],
+  "ドルイドの": [
+    "of Druid",
+    "of Druid"
+  ],
+  "ドルイド僧": [
+    "Druid",
+    "Druid"
+  ],
+  "ドローレム": [
+    "Drolem",
+    "Drolem"
+  ],
+  "ドワーフ『ナル』": [
+    "Nar, the Dwarf",
+    "Nar, the Dwarf"
+  ],
+  "ドワーフの": [
+    "of the Dwarves",
+    "of the Dwarves"
+  ],
+  "ドワーフのつるはし": [
+    "Dwarven Pick",
+    "Dwarven Picks"
+  ],
+  "ドワーフのシャベル": [
+    "Dwarven Shovel",
+    "Dwarven Shovels"
+  ],
+  "ドワーフの骨": [
+    "Dwarf Skeleton",
+    "Dwarf Skeletons"
+  ],
+  "ドワーフ王アザガルの": [
+    "of Azaghal",
+    "of Azaghal"
+  ],
+  "ドン・キホーテの": [
+    "of Don Quixote",
+    "of Don Quixote"
+  ],
+  "ドール": [
+    "Dhole",
+    "Dhole"
+  ],
+  "ナイアルラトホテップの化身『アフトゥ』": [
+    "Ahtu, Avatar of Nyarlathotep",
+    "Ahtu, Avatar of Nyarlathotep"
+  ],
+  "ナイトウィング": [
+    "Nightwing",
+    "Nightwing"
+  ],
+  "ナイトウォーカー": [
+    "Nightwalker",
+    "Nightwalker"
+  ],
+  "ナイトクローラー": [
+    "Nightcrawler",
+    "Nightcrawler"
+  ],
+  "ナイトストーカー": [
+    "Night stalker",
+    "Night stalker"
+  ],
+  "ナイトブレード": [
+    "Nightblade",
+    "Nightblade"
+  ],
+  "ナイトメア": [
+    "Night mare",
+    "Night mare"
+  ],
+  "ナイト・アーチャー": [
+    "Knight archer",
+    "Knight archer"
+  ],
+  "ナイト・シールド": [
+    "Knight's Shield",
+    "Knight's Shields"
+  ],
+  "ナインの": [
+    "of Nain",
+    "of Nain"
+  ],
+  "ナズグル": [
+    "Nazgul",
+    "Nazgul"
+  ],
+  "ナマチャウ": [
+    "Beerchau",
+    "Beerchau"
+  ],
+  "ナーグリング": [
+    "Nurgling",
+    "Nurgling"
+  ],
+  "ニカデーモン": [
+    "Nycadaemon",
+    "Nycadaemon"
+  ],
+  "ニクシー": [
+    "Nixie",
+    "Nixie"
+  ],
+  "ニセドラゴン": [
+    "Pseudo dragon",
+    "Pseudo dragon"
+  ],
+  "ニンジャ": [
+    "Ninja",
+    "Ninja"
+  ],
+  "ニーベルング": [
+    "Nibelung",
+    "Nibelung"
+  ],
+  "ニーベルング族の『ミーメ』": [
+    "Mime, the Nibelung",
+    "Mime, the Nibelung"
+  ],
+  "ニーベルング族の王『アルベリヒ』": [
+    "Alberich the Nibelung King",
+    "Alberich the Nibelung King"
+  ],
+  "ヌメノールの": [
+    "of Numenor",
+    "of Numenor"
+  ],
+  "ヌンチャク": [
+    "Nunchaku",
+    "Nunchakus"
+  ],
+  "ネオ・つよしスペシャル": [
+    "Neo-Tsuyoshi Special",
+    "Neo-Tsuyoshi Special"
+  ],
+  "ネクサス・クイルスルグ": [
+    "Nexus quylthulg",
+    "Nexus quylthulg"
+  ],
+  "ネクサス・ハウンド": [
+    "Nexus hound",
+    "Nexus hound"
+  ],
+  "ネクサス・ボルテックス": [
+    "Nexus vortex",
+    "Nexus vortex"
+  ],
+  "ネズミの骨": [
+    "Rodent Skeleton",
+    "Rodent Skeletons"
+  ],
+  "ネズミ怪物": [
+    "Rat-thing",
+    "Rat-thing"
+  ],
+  "ネプト竜": [
+    "Nepto dragon",
+    "Nepto dragon"
+  ],
+  "ノーブル・ワイト": [
+    "Noble wight",
+    "Noble wight"
+  ],
+  "ノームのシャベル": [
+    "Gnomish Shovel",
+    "Gnomish Shovels"
+  ],
+  "ノームの骨": [
+    "Gnome Skeleton",
+    "Gnome Skeletons"
+  ],
+  "ノーム・メイジ": [
+    "Gnome mage",
+    "Gnome mage"
+  ],
+  "ハイ=エルフ・レンジャー": [
+    "High-elven ranger",
+    "High-elven ranger"
+  ],
+  "ハイ・プリースト": [
+    "High priest",
+    "High priest"
+  ],
+  "ハウンドのカード": [
+    "Trump Hounds",
+    "Trump Hounds"
+  ],
+  "ハチェット": [
+    "Hatchet",
+    "Hatchets"
+  ],
+  "ハマーホーン": [
+    "Hummerhorn",
+    "Hummerhorn"
+  ],
+  "ハヤブサ": [
+    "Ki-43 'Oscar'",
+    "Ki-43 'Oscar'"
+  ],
+  "ハラドの": [
+    "of Harad",
+    "of Harad"
+  ],
+  "ハリモグラ": [
+    "Echidna",
+    "Echidna"
+  ],
+  "ハルベルト": [
+    "Halberd",
+    "Halberds"
+  ],
+  "ハルマゲドン": [
+    "Armageddon",
+    "Armageddon"
+  ],
+  "ハルマゲドン・トラップ": [
+    "Armageddon trap",
+    "Armageddon trap"
+  ],
+  "ハンマーブロス": [
+    "Hammer brother",
+    "Hammer brother"
+  ],
+  "ハーゲンの": [
+    "of Hagen",
+    "of Hagen"
+  ],
+  "ハーフオーガ": [
+    "Half-ogre",
+    "Half-ogre"
+  ],
+  "ハーフオーク": [
+    "Half-orc",
+    "Half-orc"
+  ],
+  "ハーフジャイアント": [
+    "Half-giant",
+    "Half-giant"
+  ],
+  "ハーフタイタン": [
+    "Half-titan",
+    "Half-titan"
+  ],
+  "ハーフトロル": [
+    "Half-troll",
+    "Half-troll"
+  ],
+  "ハーフ・イーク": [
+    "Half yeek",
+    "Half yeek"
+  ],
+  "ハープ": [
+    "Harp",
+    "Harps"
+  ],
+  "バイアクヘー": [
+    "Byakhee",
+    "Byakhee"
+  ],
+  "バイクロプス": [
+    "Biclops",
+    "Biclops"
+  ],
+  "バイブレーション・ハウンド": [
+    "Vibration hound",
+    "Vibration hound"
+  ],
+  "バイル・ワイアーム": [
+    "Bile Wyrm",
+    "Bile Wyrm"
+  ],
+  "バグピエロ『カフモ』": [
+    "Kaufmo, the abstracted clown",
+    "Kaufmo, the abstracted clown"
+  ],
+  "バシリスク": [
+    "Basilisk",
+    "Basilisk"
+  ],
+  "バジリスクの": [
+    "of Basilisk",
+    "of Basilisk"
+  ],
+  "バスタード・ソード": [
+    "Bastard Sword",
+    "Bastard Swords"
+  ],
+  "バズーカ": [
+    "Bazooker",
+    "Bazooker"
+  ],
+  "バゼラード": [
+    "Basillard",
+    "Basillards"
+  ],
+  "バック郷の": [
+    "of Buckland",
+    "of Buckland"
+  ],
+  "バトル・アックス": [
+    "Battle Axe",
+    "Battle Axes"
+  ],
+  "バファロー": [
+    "Buffalo",
+    "Buffalo"
+  ],
+  "バラクーダ": [
+    "Barracuda",
+    "Barracuda"
+  ],
+  "バラヒアを裏切りし『ゴルリム』": [
+    "Gorlim, Betrayer of Barahir",
+    "Gorlim, Betrayer of Barahir"
+  ],
+  "バランスドラゴン・スケイルメイル": [
+    "Balance Dragon Scale Mail",
+    "Balance Dragon Scale Mails"
+  ],
+  "バランス・ドレイク": [
+    "Balance drake",
+    "Balance drake"
+  ],
+  "バランス・ワイアーム": [
+    "Great Wyrm of Balance",
+    "Great Wyrm of Balance"
+  ],
+  "バルログの長『ゴスモグ』": [
+    "Gothmog, the High Captain of Balrogs",
+    "Gothmog, the High Captain of Balrogs"
+  ],
+  "バルログの長ゴスモグの": [
+    "of Gothmog",
+    "of Gothmog"
+  ],
+  "バンシー": [
+    "Banshee",
+    "Banshee"
+  ],
+  "バンパイア": [
+    "Vampire",
+    "Vampire"
+  ],
+  "バンパイア・バット": [
+    "Vampire bat",
+    "Vampire bat"
+  ],
+  "バンパイア・ロード": [
+    "Vampire lord",
+    "Vampire lord"
+  ],
+  "バーゲスト": [
+    "Barghest",
+    "Barghest"
+  ],
+  "バーサーカー": [
+    "Berserker",
+    "Berserker"
+  ],
+  "パイク": [
+    "Pike",
+    "Pikes"
+  ],
+  "パターンの一部": [
+    "section of the Pattern",
+    "section of the Pattern"
+  ],
+  "パターンの一部(discharged)": [
+    "section of the Pattern (discharged)",
+    "section of the Pattern (discharged)"
+  ],
+  "パターン・ゴースト": [
+    "Pattern ghost",
+    "Pattern ghost"
+  ],
+  "パターン出口": [
+    "Pattern exit",
+    "Pattern exit"
+  ],
+  "パターン出発点": [
+    "Pattern startpoint",
+    "Pattern startpoint"
+  ],
+  "パックンフラワー": [
+    "Piranha Plant",
+    "Piranha Plant"
+  ],
+  "パニック・アンデッド": [
+    "Turn Undead",
+    "Turn Undead"
+  ],
+  "パニック・モンスター": [
+    "Confuse Monster",
+    "Confuse Monster"
+  ],
+  "パラディン": [
+    "Paladin",
+    "Paladin"
+  ],
+  "パランティアの石": [
+    "Palantir of Westernesse",
+    "Palantir of Westernesse"
+  ],
+  "パワードラゴン・スケイルメイル": [
+    "Power Dragon Scale Mail",
+    "Power Dragon Scale Mails"
+  ],
+  "パワー・ワイアーム": [
+    "Great Wyrm of Power",
+    "Great Wyrm of Power"
+  ],
+  "パーシャル・プレート・メイル": [
+    "Partial Plate Armour",
+    "Partial Plate Armours"
+  ],
+  "ヒッポカンポス": [
+    "Hippocampus",
+    "Hippocampus"
+  ],
+  "ヒバゴン": [
+    "Hibagon",
+    "Hibagon"
+  ],
+  "ヒポグリフ": [
+    "Hippogriff",
+    "Hippogriff"
+  ],
+  "ヒムリングの": [
+    "of Himring",
+    "of Himring"
+  ],
+  "ヒーロー": [
+    "Heroism",
+    "Heroism"
+  ],
+  "ビジョン": [
+    "Vision",
+    "Vision"
+  ],
+  "ビスケット": [
+    "Hard Biscuit",
+    "Hard Biscuits"
+  ],
+  "ビッグ・ビホルダー": [
+    "Big beholder",
+    "Big beholder"
+  ],
+  "ビハインダー": [
+    "Behinder",
+    "Behinder"
+  ],
+  "ビホルダー": [
+    "Beholder",
+    "Beholder"
+  ],
+  "ビルダー帝国帝王『ボ帝ビル』": [
+    "Botei-Building, the Emperor",
+    "Botei-Building, the Emperor"
+  ],
+  "ビークド・アックス": [
+    "Beaked Axe",
+    "Beaked Axes"
+  ],
+  "ピカチャウ": [
+    "Pikachau",
+    "Pikachau"
+  ],
+  "ピカチャウ (ルルイエのすがた)": [
+    "Pikachau (R'lyehian Form)",
+    "Pikachau (R'lyehian Form)"
+  ],
+  "ピチャウ": [
+    "Pichau",
+    "Pichau"
+  ],
+  "ピラニア": [
+    "Piranha",
+    "Piranha"
+  ],
+  "ピラニア・トラップ": [
+    "Piranha trap",
+    "Piranha trap"
+  ],
+  "ピンク・ホラー": [
+    "Pink horror",
+    "Pink horror"
+  ],
+  "ファイア・コボルド": [
+    "Fire kobold",
+    "Fire kobold"
+  ],
+  "ファイア・トロル": [
+    "Fire troll",
+    "Fire troll"
+  ],
+  "ファイア・ドレイク『イタンガスト』": [
+    "Itangast the Fire Drake",
+    "Itangast the Fire Drake"
+  ],
+  "ファイア・ハウンド": [
+    "Fire hound",
+    "Fire hound"
+  ],
+  "ファイア・ボルテックス": [
+    "Fire vortex",
+    "Fire vortex"
+  ],
+  "ファイア・ボルト": [
+    "Fire Bolt",
+    "Fire Bolt"
+  ],
+  "ファイア・ボール": [
+    "Fire Ball",
+    "Fire Ball"
+  ],
+  "ファイアー・ジャイアント": [
+    "Fire giant",
+    "Fire giant"
+  ],
+  "ファイター": [
+    "Fighter",
+    "Fighter"
+  ],
+  "ファスティトカロン": [
+    "Fastitocalon",
+    "Fastitocalon"
+  ],
+  "ファラミアの": [
+    "of Faramir",
+    "of Faramir"
+  ],
+  "ファルメル": [
+    "Falmer",
+    "Falmer"
+  ],
+  "ファルメル・ウォーモンガー": [
+    "Falmer warmonger",
+    "Falmer warmonger"
+  ],
+  "ファルメル・グルームルーカー": [
+    "Falmer gloomlurker",
+    "Falmer gloomlurker"
+  ],
+  "ファルメル・シャドウマスター": [
+    "Falmer shadowmaster",
+    "Falmer shadowmaster"
+  ],
+  "ファルメル・スクルカー": [
+    "Falmer skulker",
+    "Falmer skulker"
+  ],
+  "ファルメル・ナイトプロウラー": [
+    "Falmer nightprowler",
+    "Falmer nightprowler"
+  ],
+  "フィオナの影の怪物": [
+    "Shadow Creature of Fiona",
+    "Shadow Creature of Fiona"
+  ],
+  "フィリエルの歌": [
+    "Firiel's Song",
+    "Firiel's Song"
+  ],
+  "フィンゴルフィンの挑戦": [
+    "Fingolfin's Challenge",
+    "Fingolfin's Challenge"
+  ],
+  "フィンロドの護り": [
+    "Finrod's Resistance",
+    "Finrod's Resistance"
+  ],
+  "フェアノールのランプ": [
+    "Feanorian Lamp",
+    "Feanorian Lamps"
+  ],
+  "フェアノール王の": [
+    "of Feanor",
+    "of Feanor"
+  ],
+  "フェイズ・スパイダー": [
+    "Phase spider",
+    "Phase spider"
+  ],
+  "フォシャール": [
+    "Fauchard",
+    "Fauchards"
+  ],
+  "フオルン": [
+    "Huorn",
+    "Huorn"
+  ],
+  "フグ": [
+    "Globefish",
+    "Globefish"
+  ],
+  "フランベルジュ": [
+    "Flamberge",
+    "Flamberges"
+  ],
+  "フルゥ": [
+    "Hru",
+    "Hru"
+  ],
+  "フルゥの行進曲": [
+    "Hru's March",
+    "Hru's March"
+  ],
+  "フル・プレート・メイル": [
+    "Full Plate Armour",
+    "Full Plate Armours"
+  ],
+  "フルーツ・コウモリ": [
+    "Fruit bat",
+    "Fruit bat"
+  ],
+  "フレイム・コボルド": [
+    "Flame kobold",
+    "Flame kobold"
+  ],
+  "フレイル": [
+    "Flail",
+    "Flails"
+  ],
+  "フロア・リセット": [
+    "Reset Recall",
+    "Reset Recall"
+  ],
+  "フロスト・ジャイアント": [
+    "Frost giant",
+    "Frost giant"
+  ],
+  "フローティング・アイ": [
+    "Floating eye",
+    "Floating eye"
+  ],
+  "フローラのアイリッシュ犬": [
+    "Irish wolfhound of Flora",
+    "Irish wolfhound of Flora"
+  ],
+  "フーリン王の": [
+    "of Hurin",
+    "of Hurin"
+  ],
+  "ブラウン・イーク": [
+    "Brown yeek",
+    "Brown yeek"
+  ],
+  "ブラウン・キラービートル": [
+    "Killer brown beetle",
+    "Killer brown beetle"
+  ],
+  "ブラウン・モルド": [
+    "Brown mold",
+    "Brown mold"
+  ],
+  "ブラックドラゴン・スケイルメイル": [
+    "Black Dragon Scale Mail",
+    "Black Dragon Scale Mails"
+  ],
+  "ブラックマーケットのエージェント": [
+    "Agent of black market",
+    "Agent of black market"
+  ],
+  "ブラックマーケットの上級エージェント": [
+    "Master agent of black market",
+    "Master agent of black market"
+  ],
+  "ブラックマーケットの中級エージェント": [
+    "Mature agent of black market",
+    "Mature agent of black market"
+  ],
+  "ブラック・ウーズ": [
+    "Black ooze",
+    "Black ooze"
+  ],
+  "ブラック・オーガ": [
+    "Black ogre",
+    "Black ogre"
+  ],
+  "ブラック・オーク": [
+    "Black orc",
+    "Black orc"
+  ],
+  "ブラック・トロル『ログログ』": [
+    "Rogrog the Black Troll",
+    "Rogrog the Black Troll"
+  ],
+  "ブラック・ドラゴン": [
+    "Mature black dragon",
+    "Mature black dragon"
+  ],
+  "ブラック・ナーガ": [
+    "Black naga",
+    "Black naga"
+  ],
+  "ブラック・ハーピー": [
+    "Black harpy",
+    "Black harpy"
+  ],
+  "ブラック・プリン": [
+    "Black pudding",
+    "Black pudding"
+  ],
+  "ブラック・マンバ": [
+    "Black mamba",
+    "Black mamba"
+  ],
+  "ブラック・マーケット": [
+    "Black Market",
+    "Black Market"
+  ],
+  "ブラック・レイス": [
+    "Black wraith",
+    "Black wraith"
+  ],
+  "ブラッジャー": [
+    "Bludger",
+    "Bludger"
+  ],
+  "ブランドの息子『リナルド』": [
+    "Rinaldo, Son of Brand",
+    "Rinaldo, Son of Brand"
+  ],
+  "ブランドの情婦『ジャスラ』": [
+    "Jasra, Brand's Mistress",
+    "Jasra, Brand's Mistress"
+  ],
+  "ブリザード": [
+    "Blizzard",
+    "Blizzard"
+  ],
+  "ブリザードの": [
+    "and Blizzard",
+    "and Blizzard"
+  ],
+  "ブリザード・コボルド": [
+    "Blizzard kobold",
+    "Blizzard kobold"
+  ],
+  "ブリンク・ドッグ": [
+    "Blink dog",
+    "Blink dog"
+  ],
+  "ブルードラゴン・スケイルメイル": [
+    "Blue Dragon Scale Mail",
+    "Blue Dragon Scale Mails"
+  ],
+  "ブルー・イーク": [
+    "Blue yeek",
+    "Blue yeek"
+  ],
+  "ブルー・ウーズ": [
+    "Blue ooze",
+    "Blue ooze"
+  ],
+  "ブルー・ゼリー": [
+    "Blue jelly",
+    "Blue jelly"
+  ],
+  "ブルー・ドラゴン": [
+    "Mature blue dragon",
+    "Mature blue dragon"
+  ],
+  "ブルー・ドラゴンバット": [
+    "Blue dragon bat",
+    "Blue dragon bat"
+  ],
+  "ブルー・ホラー": [
+    "Blue horror",
+    "Blue horror"
+  ],
+  "ブロンズドラゴン・スケイルメイル": [
+    "Bronze Dragon Scale Mail",
+    "Bronze Dragon Scale Mails"
+  ],
+  "ブロンズ・ドラゴン": [
+    "Mature bronze dragon",
+    "Mature bronze dragon"
+  ],
+  "ブロンズ・リッチ": [
+    "Bronze lich",
+    "Bronze lich"
+  ],
+  "ブロード・アックス": [
+    "Broad Axe",
+    "Broad Axes"
+  ],
+  "ブロード・スピア": [
+    "Broad Spear",
+    "Broad Spears"
+  ],
+  "ブロード・ソード": [
+    "Broad Sword",
+    "Broad Swords"
+  ],
+  "ブーメラン": [
+    "Boomerang",
+    "Boomerang"
+  ],
+  "プチモアイ": [
+    "Small Moai",
+    "Small Moai"
+  ],
+  "プラズマ・ハウンド": [
+    "Plasma hound",
+    "Plasma hound"
+  ],
+  "プラズマ・ボルテックス": [
+    "Plasma vortex",
+    "Plasma vortex"
+  ],
+  "プラズマ・ボルト": [
+    "Plasma bolt",
+    "Plasma bolt"
+  ],
+  "プラズマ球": [
+    "Plasma Ball",
+    "Plasma Ball"
+  ],
+  "プラチナイェンダー印エクスプレスカード": [
+    "Platinum Yendorian Express Card",
+    "Platinum Yendorian Express Card"
+  ],
+  "プラネター": [
+    "Planetar",
+    "Planetar"
+  ],
+  "プリースト": [
+    "Priest",
+    "Priest"
+  ],
+  "プレイヤー": [
+    "Player",
+    "Player"
+  ],
+  "プーケル人": [
+    "Pukelman",
+    "Pukelman"
+  ],
+  "ヘルキャット": [
+    "Hellcat",
+    "Hellcat"
+  ],
+  "ヘルドレイク『ニーズホッグ』": [
+    "Nidhogg the Hel-Drake",
+    "Nidhogg the Hel-Drake"
+  ],
+  "ヘルブレード": [
+    "Hellblade",
+    "Hellblade"
+  ],
+  "ヘル・ワイアーム": [
+    "Great Hell Wyrm",
+    "Great Hell Wyrm"
+  ],
+  "ヘヴィ・クロスボウ": [
+    "Heavy Crossbow",
+    "Heavy Crossbows"
+  ],
+  "ヘヴィ・フレイル": [
+    "Two-Handed Flail",
+    "Two-Handed Flails"
+  ],
+  "ヘヴィ・ランス": [
+    "Heavy Lance",
+    "Heavy Lances"
+  ],
+  "ベネディクトの手下": [
+    "Agent of Benedict",
+    "Agent of Benedict"
+  ],
+  "ベヒーモス": [
+    "Behemoth",
+    "Behemoth"
+  ],
+  "ベビーサタン": [
+    "Demonite",
+    "Demonite"
+  ],
+  "ベビー・グリーン・ドラゴン": [
+    "Baby green dragon",
+    "Baby green dragon"
+  ],
+  "ベビー・ブラック・ドラゴン": [
+    "Baby black dragon",
+    "Baby black dragon"
+  ],
+  "ベビー・ブルー・ドラゴン": [
+    "Baby blue dragon",
+    "Baby blue dragon"
+  ],
+  "ベビー・ホワイト・ドラゴン": [
+    "Baby white dragon",
+    "Baby white dragon"
+  ],
+  "ベビー・レッド・ドラゴン": [
+    "Baby red dragon",
+    "Baby red dragon"
+  ],
+  "ベビー万色ドラゴン": [
+    "Baby multi-hued dragon",
+    "Baby multi-hued dragon"
+  ],
+  "ベルシエル王妃の": [
+    "of Beruthiel",
+    "of Beruthiel"
+  ],
+  "ベルゼバブの四天王『サイアーク』": [
+    "Saiaak, the Weakest Big Four of Beelzebub",
+    "Saiaak, the Weakest Big Four of Beelzebub"
+  ],
+  "ペガサス": [
+    "Pegasus",
+    "Pegasus"
+  ],
+  "ペット召喚": [
+    "Summon Pet",
+    "Summon Pet"
+  ],
+  "ペット爆破": [
+    "Explode Pets",
+    "Explode Pets"
+  ],
+  "ペルセウスの": [
+    "of Perseus",
+    "of Perseus"
+  ],
+  "ペロロミニオン": [
+    "Perorominion",
+    "Perorominion"
+  ],
+  "ペンダント": [
+    "Pendant",
+    "Pendants"
+  ],
+  "ホビット『牛うなり』": [
+    "Bullroarer the Hobbit",
+    "Bullroarer the Hobbit"
+  ],
+  "ホビットのメロディ": [
+    "Hobbit Melodies",
+    "Hobbit Melodies"
+  ],
+  "ホムンクルス": [
+    "Homonculous",
+    "Homonculous"
+  ],
+  "ホワイトドラゴン・スケイルメイル": [
+    "White Dragon Scale Mail",
+    "White Dragon Scale Mails"
+  ],
+  "ホワイト・キラービートル": [
+    "Killer white beetle",
+    "Killer white beetle"
+  ],
+  "ホワイト・ゼリー": [
+    "White jelly",
+    "White jelly"
+  ],
+  "ホワイト・ドラゴン": [
+    "Mature white dragon",
+    "Mature white dragon"
+  ],
+  "ホワイト・ハーピー": [
+    "White harpy",
+    "White harpy"
+  ],
+  "ホワイト・レイス": [
+    "White wraith",
+    "White wraith"
+  ],
+  "ボダック": [
+    "Bodak",
+    "Bodak"
+  ],
+  "ボリショイの": [
+    "of Bolshoi",
+    "of Bolshoi"
+  ],
+  "ボルドールの息子『オルファックス』": [
+    "Orfax, Son of Boldor",
+    "Orfax, Son of Boldor"
+  ],
+  "ボロミアの": [
+    "of Boromir",
+    "of Boromir"
+  ],
+  "ボーダイル": [
+    "Boadile",
+    "Boadile"
+  ],
+  "ポイズン・コボルド": [
+    "Poison kobold",
+    "Poison kobold"
+  ],
+  "ポルターガイスト": [
+    "Poltergeist",
+    "Poltergeist"
+  ],
+  "ポンチャウ": [
+    "Dependenchau",
+    "Dependenchau"
+  ],
+  "マインドワーム": [
+    "Mind Worm",
+    "Mind Worm"
+  ],
+  "マインド・フレイヤー": [
+    "Mind flayer",
+    "Mind flayer"
+  ],
+  "マウロタウロス": [
+    "Maulotaur",
+    "Maulotaur"
+  ],
+  "マグマのエレメンタル": [
+    "Magma elemental",
+    "Magma elemental"
+  ],
+  "マジック・ミサイル": [
+    "Magic Missile",
+    "Magic Missile"
+  ],
+  "マジック・ロケット": [
+    "Magic Rocket",
+    "Magic Rocket"
+  ],
+  "マスターリッチ": [
+    "Master lich",
+    "Master lich"
+  ],
+  "マスター・イーク": [
+    "Master yeek",
+    "Master yeek"
+  ],
+  "マスター・クイルスルグ": [
+    "Master quylthulg",
+    "Master quylthulg"
+  ],
+  "マスター・バンパイア": [
+    "Master vampire",
+    "Master vampire"
+  ],
+  "マムシ": [
+    "Copperhead snake",
+    "Copperhead snake"
+  ],
+  "マリード": [
+    "Marid",
+    "Marid"
+  ],
+  "マンキュバス": [
+    "Mancubus",
+    "Mancubus"
+  ],
+  "マンティコア": [
+    "Manticore",
+    "Manticore"
+  ],
+  "マン・ゴーシュ": [
+    "Main Gauche",
+    "Main Gauches"
+  ],
+  "ミ=ゴウ": [
+    "Mi-Go",
+    "Mi-Go"
+  ],
+  "ミイラ": [
+    "Mummified human",
+    "Mummified human"
+  ],
+  "ミイラ・オーク": [
+    "Mummified orc",
+    "Mummified orc"
+  ],
+  "ミイラ・トロル": [
+    "Mummified troll",
+    "Mummified troll"
+  ],
+  "ミスリル": [
+    "mithril",
+    "mithril"
+  ],
+  "ミスリルのクリーピングコイン": [
+    "Creeping mithril coins",
+    "Creeping mithril coins"
+  ],
+  "ミスリルの弾": [
+    "Mithril Shot",
+    "Mithril Shots"
+  ],
+  "ミスリル・ゴーレム": [
+    "Mithril golem",
+    "Mithril golem"
+  ],
+  "ミスリル製プレート・メイル": [
+    "Mithril Plate Mail",
+    "Mithril Plate Mails"
+  ],
+  "ミスリル製鎖かたびら": [
+    "Mithril Chain Mail",
+    "Mithril Chain Mails"
+  ],
+  "ミッド・タイタン": [
+    "Middle titan",
+    "Middle titan"
+  ],
+  "ミドガルドの大蛇『ヨルムンガンド』": [
+    "Jormungand the Midgard Serpent",
+    "Jormungand the Midgard Serpent"
+  ],
+  "ミノタウロス": [
+    "Minotaur",
+    "Minotaur"
+  ],
+  "ミノタウロスの王『バフォメット』": [
+    "Baphomet the Minotaur Lord",
+    "Baphomet the Minotaur Lord"
+  ],
+  "ミミック(ドア)": [
+    "Door mimic",
+    "Door mimic"
+  ],
+  "ミミック(ミミック(ミミック(ミミック(ミミック(ミミック(ミミック(ミミック(ミミック(ミミック(ミミック(箱)の像)の像)の像)の像)の像)の像)の像)の像)の像)の像)": [
+    "Statue of Chest mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic",
+    "Statue of Chest mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic mimic"
+  ],
+  "ミミック(ミミック(ミミック(ミミック(箱)の像)の像)の像)": [
+    "Statue of Chest mimic mimic mimic mimic mimic",
+    "Statue of Chest mimic mimic mimic mimic mimic"
+  ],
+  "ミミック(ミミック(ミミック(箱)の像)の像)": [
+    "Statue of Chest mimic mimic mimic",
+    "Statue of Chest mimic mimic mimic"
+  ],
+  "ミミック(ミミック(箱)の像)": [
+    "Statue of Chest mimic mimic",
+    "Statue of Chest mimic mimic"
+  ],
+  "ミミック(巻物)": [
+    "Scroll mimic",
+    "Scroll mimic"
+  ],
+  "ミミック(指輪)": [
+    "Ring mimic",
+    "Ring mimic"
+  ],
+  "ミミック(箱)": [
+    "Chest mimic",
+    "Chest mimic"
+  ],
+  "ミミック(薬)": [
+    "Potion mimic",
+    "Potion mimic"
+  ],
+  "ミラークの信者": [
+    "Follower of Miraak",
+    "Follower of Miraak"
+  ],
+  "ミラー・シールド": [
+    "Mirror Shield",
+    "Mirror Shields"
+  ],
+  "ムチ": [
+    "Whip",
+    "Whips"
+  ],
+  "ムーマク": [
+    "Mumak",
+    "Mumak"
+  ],
+  "メイジ": [
+    "Mage",
+    "Mage"
+  ],
+  "メイス": [
+    "Mace",
+    "Maces"
+  ],
+  "メカジキ": [
+    "Swordfish",
+    "Swordfish"
+  ],
+  "メッツォデーモン": [
+    "Mezzodaemon",
+    "Mezzodaemon"
+  ],
+  "メット": [
+    "Buzzy beetle",
+    "Buzzy beetle"
+  ],
+  "メメクラゲ": [
+    "Jellyfish",
+    "Jellyfish"
+  ],
+  "メンデスの山羊": [
+    "Goat of Mendes",
+    "Goat of Mendes"
+  ],
+  "モアイ": [
+    "Moai",
+    "Moai"
+  ],
+  "モアイの総大将『ヴァイフ』": [
+    "Vaif, the general of Moais",
+    "Vaif, the general of Moais"
+  ],
+  "モリバント": [
+    "Morivant",
+    "Morivant"
+  ],
+  "モルグルの": [
+    "of Morgul",
+    "of Morgul"
+  ],
+  "モルデンカイネン著『洞察の魔法大全』第1巻": [
+    "Mordekainen's Magical Compendium of Deep Thought Vol 1.",
+    "Mordekainen's Magical Compendium of Deep Thought Vol 1."
+  ],
+  "モルデンカイネン著『洞察の魔法大全』第2巻": [
+    "Mordekainen's Magical Compendium of Deep Thought Vol 2.",
+    "Mordekainen's Magical Compendium of Deep Thought Vol 2."
+  ],
+  "モルデンカイネン著『洞察の魔法大全』第3巻": [
+    "Mordekainen's Magical Compendium of Deep Thought Vol 3.",
+    "Mordekainen's Magical Compendium of Deep Thought Vol 3."
+  ],
+  "モングバット": [
+    "Mongbat",
+    "Mongbat"
+  ],
+  "モンスターのカード": [
+    "Trump Monsters",
+    "Trump Monsters"
+  ],
+  "モンスター・ボール#": [
+    "Capture Ball#",
+    "Capture Ball#"
+  ],
+  "モンスター感知": [
+    "Detect Monsters",
+    "Detect Monsters"
+  ],
+  "モンスター消滅": [
+    "Genocide One",
+    "Genocide One"
+  ],
+  "モーニング・スター": [
+    "Morning Star",
+    "Morning Stars"
+  ],
+  "モーロックの高僧の": [
+    "of The High Priest of Moloch",
+    "of The High Priest of Moloch"
+  ],
+  "ヤング・クイックシルバー・ドラゴン": [
+    "Young quicksilver dragon",
+    "Young quicksilver dragon"
+  ],
+  "ヤング・グリーン・ドラゴン": [
+    "Young green dragon",
+    "Young green dragon"
+  ],
+  "ヤング・ゴールド・ドラゴン": [
+    "Young gold dragon",
+    "Young gold dragon"
+  ],
+  "ヤング・ブラック・ドラゴン": [
+    "Young black dragon",
+    "Young black dragon"
+  ],
+  "ヤング・ブルー・ドラゴン": [
+    "Young blue dragon",
+    "Young blue dragon"
+  ],
+  "ヤング・ブロンズ・ドラゴン": [
+    "Young bronze dragon",
+    "Young bronze dragon"
+  ],
+  "ヤング・ホワイト・ドラゴン": [
+    "Young white dragon",
+    "Young white dragon"
+  ],
+  "ヤング・レッド・ドラゴン": [
+    "Young red dragon",
+    "Young red dragon"
+  ],
+  "ヤング万色ドラゴン": [
+    "Young multi-hued dragon",
+    "Young multi-hued dragon"
+  ],
+  "ヤヴァンナの助け": [
+    "Relief of Yavanna",
+    "Relief of Yavanna"
+  ],
+  "ユニコーン": [
+    "Unicorn",
+    "Unicorn"
+  ],
+  "ヨグ=ソトートの落とし子": [
+    "Spawn of Yog-Sothoth",
+    "Spawn of Yog-Sothoth"
+  ],
+  "ラアルの破壊集大成": [
+    "Raal's Tome of Destruction",
+    "Raal's Tome of Destruction"
+  ],
+  "ライオン": [
+    "Lion",
+    "Lion"
+  ],
+  "ライター": [
+    "Lighter",
+    "Lighters"
+  ],
+  "ライトニング・コボルド": [
+    "Lightning kobold",
+    "Lightning kobold"
+  ],
+  "ライト・エリア": [
+    "Light Area",
+    "Light Area"
+  ],
+  "ライト・クロスボウ": [
+    "Light Crossbow",
+    "Light Crossbows"
+  ],
+  "ライト・ハウンド": [
+    "Light hound",
+    "Light hound"
+  ],
+  "ライト・ボルテックス": [
+    "Light vortex",
+    "Light vortex"
+  ],
+  "ラオウの愛馬『黒王号』": [
+    "Kokuo, Raou's Steed",
+    "Kokuo, Raou's Steed"
+  ],
+  "ラジャタン": [
+    "Lajatang",
+    "Lajatangs"
+  ],
+  "ラット・オウガ": [
+    "Rat ogre",
+    "Rat ogre"
+  ],
+  "ラフィーII": [
+    "Laffey II",
+    "Laffey II"
+  ],
+  "ランゴスタ": [
+    "Vespoid",
+    "Vespoid"
+  ],
+  "ランス": [
+    "Lance",
+    "Lances"
+  ],
+  "ラーカー": [
+    "Lurker",
+    "Lurker"
+  ],
+  "ラージ・コボルド": [
+    "Large kobold",
+    "Large kobold"
+  ],
+  "リザードキング": [
+    "Lizard king",
+    "Lizard king"
+  ],
+  "リザードマン": [
+    "Lizardman",
+    "Lizardman"
+  ],
+  "リッチ": [
+    "Lich",
+    "Lich"
+  ],
+  "リッチの上級修行僧": [
+    "High monastic lich",
+    "High monastic lich"
+  ],
+  "リッチの修行僧": [
+    "Monastic lich",
+    "Monastic lich"
+  ],
+  "リッチの破戒僧": [
+    "Depraved monk lich",
+    "Depraved monk lich"
+  ],
+  "リビングアーマー": [
+    "Living armor",
+    "Living armor"
+  ],
+  "リリアの": [
+    "of Rilia",
+    "of Rilia"
+  ],
+  "リング・メイル": [
+    "Ring Mail",
+    "Ring Mails"
+  ],
+  "リンゴジュース": [
+    "Apple Juice",
+    "Apple Juice"
+  ],
+  "リンゴ嫌い『ブル・ゲイツ』": [
+    "Bull Gates, the applephobe",
+    "Bull Gates, the applephobe"
+  ],
+  "リヴァイアサン": [
+    "Leviathan",
+    "Leviathan"
+  ],
+  "ルシエン王女の": [
+    "of Luthien",
+    "of Luthien"
+  ],
+  "ルツェルン・ハンマー": [
+    "Lucerne Hammer",
+    "Lucerne Hammers"
+  ],
+  "ルビー": [
+    "rubies",
+    "rubies"
+  ],
+  "ルビー・ゴーレム": [
+    "Ruby golem",
+    "Ruby golem"
+  ],
+  "ルルイエ": [
+    "R'lyeh",
+    "R'lyeh"
+  ],
+  "レアおたずねものムシ": [
+    "Master Criminal Worm",
+    "Master Criminal Worm"
+  ],
+  "レイピア": [
+    "Rapier",
+    "Rapiers"
+  ],
+  "レッサー・ウォールモンスター": [
+    "Lesser wall monster",
+    "Lesser wall monster"
+  ],
+  "レッサー・クラーケン": [
+    "Lesser kraken",
+    "Lesser kraken"
+  ],
+  "レッサー・タイタン": [
+    "Lesser titan",
+    "Lesser titan"
+  ],
+  "レッサー・バルログ": [
+    "Lesser Balrog",
+    "Lesser Balrog"
+  ],
+  "レッサー・ヘル=ビースト": [
+    "Lesser hell-beast",
+    "Lesser hell-beast"
+  ],
+  "レッドドラゴン・スケイルメイル": [
+    "Red Dragon Scale Mail",
+    "Red Dragon Scale Mails"
+  ],
+  "レッド・イーク": [
+    "Red yeek",
+    "Red yeek"
+  ],
+  "レッド・キラービートル": [
+    "Killer red beetle",
+    "Killer red beetle"
+  ],
+  "レッド・ゼリー": [
+    "Red jelly",
+    "Red jelly"
+  ],
+  "レッド・ドラゴン": [
+    "Mature red dragon",
+    "Mature red dragon"
+  ],
+  "レッド・ドラゴンバット": [
+    "Red dragon bat",
+    "Red dragon bat"
+  ],
+  "レッド・ナーガ": [
+    "Red naga",
+    "Red naga"
+  ],
+  "レッド・モルド": [
+    "Red mold",
+    "Red mold"
+  ],
+  "レブマの女王『モイア』": [
+    "Moire, Queen of Rebma",
+    "Moire, Queen of Rebma"
+  ],
+  "レムレース": [
+    "Lemure",
+    "Lemure"
+  ],
+  "レンの蜘蛛": [
+    "Leng spider",
+    "Leng spider"
+  ],
+  "レンジャー": [
+    "Ranger",
+    "Ranger"
+  ],
+  "レヴナント": [
+    "Revenant",
+    "Revenant"
+  ],
+  "ロイガー": [
+    "Lloigor",
+    "Lloigor"
+  ],
+  "ロゥフ": [
+    "Lourph",
+    "Lourph"
+  ],
+  "ログルス": [
+    "Logrus",
+    "Logrus"
+  ],
+  "ログルスのブレス": [
+    "Breathe Logrus",
+    "Breathe Logrus"
+  ],
+  "ログルスの達人『マンドール』": [
+    "Mandor, Master of the Logrus",
+    "Mandor, Master of the Logrus"
+  ],
+  "ログルス・ゴースト": [
+    "Logrus ghost",
+    "Logrus ghost"
+  ],
+  "ログルス使い": [
+    "Logrus master",
+    "Logrus master"
+  ],
+  "ログルス発動": [
+    "Invoke Logrus",
+    "Invoke Logrus"
+  ],
+  "ロケット": [
+    "Rockets",
+    "Rockets"
+  ],
+  "ロッホアーバー・アックス": [
+    "Lochaber Axe",
+    "Lochaber Axes"
+  ],
+  "ロヒアリムの": [
+    "of the Rohirrim",
+    "of the Rohirrim"
+  ],
+  "ロング・ソード": [
+    "Long Sword",
+    "Long Swords"
+  ],
+  "ロング・ボウ": [
+    "Long Bow",
+    "Long Bows"
+  ],
+  "ロードラゴン・スケイルメイル": [
+    "Law Dragon Scale Mail",
+    "Law Dragon Scale Mails"
+  ],
+  "ローパー": [
+    "Roper",
+    "Roper"
+  ],
+  "ローブ": [
+    "Robe",
+    "Robes"
+  ],
+  "ロー・ドレイク": [
+    "Law drake",
+    "Law drake"
+  ],
+  "ロー・ワイアーム": [
+    "Great Wyrm of Law",
+    "Great Wyrm of Law"
+  ],
+  "ワイバーン": [
+    "Wyvern",
+    "Wyvern"
+  ],
+  "ワタリガラス": [
+    "Raven",
+    "Raven"
+  ],
+  "ワンダー": [
+    "Wonder",
+    "Wonder"
+  ],
+  "ワーウルフ": [
+    "Werewolf",
+    "Werewolf"
+  ],
+  "ワーグ": [
+    "Warg",
+    "Warg"
+  ],
+  "ワープ・デーモン": [
+    "Warp demon",
+    "Warp demon"
+  ],
+  "ワーラット": [
+    "Wererat",
+    "Wererat"
+  ],
+  "ヱヅソンの": [
+    "of Yeduson",
+    "of Yeduson"
+  ],
+  "ン・カイに眠るもの『ツァトゥグァ』": [
+    "Tsathoggua, the Sleeper of N'kai",
+    "Tsathoggua, the Sleeper of N'kai"
+  ],
+  "ヴァリノールの猟犬『フアン』": [
+    "Huan, the Hound of Valinor",
+    "Huan, the Hound of Valinor"
+  ],
+  "ヴェノム・ワイアーム": [
+    "Venom Wyrm",
+    "Venom Wyrm"
+  ],
+  "ヴェールを与えるもの『ダオロス』": [
+    "Daoloth, the Render of the Veils",
+    "Daoloth, the Render of the Veils"
+  ],
+  "ヴォア": [
+    "Vore",
+    "Vore"
+  ],
+  "ヴォイド・ボルテックス": [
+    "Void vortex",
+    "Void vortex"
+  ],
+  "ヴォルキハル城の主『ハルコン』": [
+    "Harkon, the patriarch of Volkihar castle",
+    "Harkon, the patriarch of Volkihar castle"
+  ],
+  "ヴォーパル・バニー": [
+    "Vorpal bunny",
+    "Vorpal bunny"
+  ],
+  "ヴラスタ": [
+    "Vlasta",
+    "Vlasta"
+  ],
+  "七首ヒドラ": [
+    "7-headed hydra",
+    "7-headed hydra"
+  ],
+  "万色の『サルマン』": [
+    "Saruman of Many Colours",
+    "Saruman of Many Colours"
+  ],
+  "万色デイドラ・ドラゴン": [
+    "Daedra Dragon of Many Colours",
+    "Daedra Dragon of Many Colours"
+  ],
+  "万色ドラゴン": [
+    "Mature multi-hued dragon",
+    "Mature multi-hued dragon"
+  ],
+  "万色ドラゴン・スケイルメイル": [
+    "Multi-Hued Dragon Scale Mail",
+    "Multi-Hued Dragon Scale Mails"
+  ],
+  "万色ハウンド": [
+    "Multi-hued hound",
+    "Multi-hued hound"
+  ],
+  "万色ワイアーム": [
+    "Wyrm of Many Colours",
+    "Wyrm of Many Colours"
+  ],
+  "丈高きエレンディルの": [
+    "of Elendil",
+    "of Elendil"
+  ],
+  "丈高きマエズロスの": [
+    "of Maedhros",
+    "of Maedhros"
+  ],
+  "三上山の『大ムカデ』": [
+    "Great Centipede of Mt. Mikamisan",
+    "Great Centipede of Mt. Mikamisan"
+  ],
+  "三叉槍": [
+    "Trifurcate Spear",
+    "Trifurcate Spears"
+  ],
+  "三節棍": [
+    "Three Piece Rod",
+    "Three Piece Rods"
+  ],
+  "三途の川の渡し守『カロン』": [
+    "Charon, Boatman of the Styx",
+    "Charon, Boatman of the Styx"
+  ],
+  "上り坑道": [
+    "shaft up",
+    "shaft up"
+  ],
+  "上り階段": [
+    "up staircase",
+    "up staircase"
+  ],
+  "上級修験者": [
+    "High mystic",
+    "High mystic"
+  ],
+  "上級王イングウェの": [
+    "of Ingwe",
+    "of Ingwe"
+  ],
+  "上級王ギル=ガラドの": [
+    "of Gil-Galad",
+    "of Gil-Galad"
+  ],
+  "上級王フィンゴルフィンの": [
+    "of Fingolfin",
+    "of Fingolfin"
+  ],
+  "下り坑道": [
+    "shaft down",
+    "shaft down"
+  ],
+  "下り階段": [
+    "down staircase",
+    "down staircase"
+  ],
+  "不可解な煙霧": [
+    "Weird fume",
+    "Weird fume"
+  ],
+  "不器用": [
+    "Clumsiness",
+    "Clumsiness"
+  ],
+  "不器用の": [
+    "of Clumsiness",
+    "of Clumsiness"
+  ],
+  "不安定の": [
+    "and Random Teleportation",
+    "and Random Teleportation"
+  ],
+  "不安定イモムシの大群": [
+    "Unstable worm mass",
+    "Unstable worm mass"
+  ],
+  "不朽の眼の": [
+    "of Immortal Eye",
+    "of Immortal Eye"
+  ],
+  "不死なる『カシェイ』": [
+    "Kaschei the Immortal",
+    "Kaschei the Immortal"
+  ],
+  "不死ドゥリンの": [
+    "of Durin",
+    "of Durin"
+  ],
+  "不毛化": [
+    "Sterilization",
+    "Sterilization"
+  ],
+  "不浄の源『アブホース』": [
+    "Abhoth, Source of Uncleanness",
+    "Abhoth, Source of Uncleanness"
+  ],
+  "不滅の肉体": [
+    "Immortal Body",
+    "Immortal Body"
+  ],
+  "不潔な病人": [
+    "Mangy looking leper",
+    "Mangy looking leper"
+  ],
+  "世界を喰らうもの『アルドゥイン』": [
+    "Alduin, the World Eater",
+    "Alduin, the World Eater"
+  ],
+  "世紀末覇者『ラオウ』": [
+    "Raou the Conqueror",
+    "Raou the Conqueror"
+  ],
+  "丘からの恐怖『チャウグナール・ファウグン』": [
+    "Chaugnar Faugn, Horror from the Hills",
+    "Chaugnar Faugn, Horror from the Hills"
+  ],
+  "丘オーク": [
+    "Hill orc",
+    "Hill orc"
+  ],
+  "丘オーク『グリシュナッハ』": [
+    "Grishnakh, the Hill Orc",
+    "Grishnakh, the Hill Orc"
+  ],
+  "丘オークの隊長『ゴルフィンブール』": [
+    "Golfimbul, the Hill Orc Chief",
+    "Golfimbul, the Hill Orc Chief"
+  ],
+  "丘ジャイアント": [
+    "Hill giant",
+    "Hill giant"
+  ],
+  "中級修験者": [
+    "Medium mystic",
+    "Medium mystic"
+  ],
+  "丸い小石": [
+    "Rounded Pebble",
+    "Rounded Pebbles"
+  ],
+  "九尾の狐": [
+    "Nine-tailed fox",
+    "Nine-tailed fox"
+  ],
+  "九首ヒドラ": [
+    "9-headed hydra",
+    "9-headed hydra"
+  ],
+  "乱れ雪月花": [
+    "Midare-Setsugekka",
+    "Midare-Setsugekka"
+  ],
+  "乾し肉": [
+    "Strip of Venison",
+    "Strips of Venison"
+  ],
+  "予見のカード": [
+    "Trump Divination",
+    "Trump Divination"
+  ],
+  "二周目のやや大きな泡": [
+    "Medium aqua illusion in 2nd lap",
+    "Medium aqua illusion in 2nd lap"
+  ],
+  "二周目の大きな泡": [
+    "Large aqua illusion in 2nd lap",
+    "Large aqua illusion in 2nd lap"
+  ],
+  "二周目の小さな泡": [
+    "Small aqua illusion in 2nd lap",
+    "Small aqua illusion in 2nd lap"
+  ],
+  "二周目の特大の泡": [
+    "Extra large aqua illusion in 2nd lap",
+    "Extra large aqua illusion in 2nd lap"
+  ],
+  "二天一流開祖宮本武蔵の": [
+    "of Musashi",
+    "of Musashi"
+  ],
+  "二子峠の魔王『赤カブト』": [
+    "Red Helm, the King of Bear",
+    "Red Helm, the King of Bear"
+  ],
+  "二段加速の": [
+    "and Haste",
+    "and Haste"
+  ],
+  "二重の剣撃": [
+    "Twin Slash",
+    "Twin Slash"
+  ],
+  "二重リングメイル": [
+    "Double Ring Mail",
+    "Double Ring Mails"
+  ],
+  "二重鎖かたびら": [
+    "Double Chain Mail",
+    "Double Chain Mails"
+  ],
+  "五月雨斬り": [
+    "3-Way Attack",
+    "3-Way Attack"
+  ],
+  "五首ヒドラ": [
+    "5-headed hydra",
+    "5-headed hydra"
+  ],
+  "亡霊『はらへりじじい』": [
+    "Hungry old man, the ghost",
+    "Hungry old man, the ghost"
+  ],
+  "人々を爆死させてきた左手『シアーハートアタック』": [
+    "Sheer Heart Attack, the Bomb Hand",
+    "Sheer Heart Attack, the Bomb Hand"
+  ],
+  "人喰いの": [
+    "of Slay Human",
+    "of Slay Human"
+  ],
+  "人間の骨": [
+    "Human Skeleton",
+    "Human Skeletons"
+  ],
+  "人間トランプ": [
+    "Living Trump",
+    "Living Trump"
+  ],
+  "人間トランプ『ジャート』": [
+    "Jurt the Living Trump",
+    "Jurt the Living Trump"
+  ],
+  "他者変容": [
+    "Polymorph Other",
+    "Polymorph Other"
+  ],
+  "位置交換のカード": [
+    "Swap Position",
+    "Swap Position"
+  ],
+  "低温帯": [
+    "cold zone",
+    "cold zone"
+  ],
+  "体力回復": [
+    "Healing",
+    "Healing"
+  ],
+  "俊敏の": [
+    "of Agility",
+    "of Agility"
+  ],
+  "修験道免許皆伝者": [
+    "Grand master mystic",
+    "Grand master mystic"
+  ],
+  "修験道師範代": [
+    "Acting master mystic",
+    "Acting master mystic"
+  ],
+  "偉大なる不浄": [
+    "Great unclean one",
+    "Great unclean one"
+  ],
+  "偉大なる祖国の『ライカ』": [
+    "Laika, the greatest beast of USSR",
+    "Laika, the greatest beast of USSR"
+  ],
+  "停滞の歌": [
+    "Stationary Shriek",
+    "Stationary Shriek"
+  ],
+  "傷と毒治療": [
+    "Cure Wounds & Poison",
+    "Cure Wounds & Poison"
+  ],
+  "元素の球": [
+    "Elemental Ball",
+    "Elemental Ball"
+  ],
+  "充血アイ": [
+    "Bloodshot eye",
+    "Bloodshot eye"
+  ],
+  "充血ベトベト": [
+    "Bloodshot icky thing",
+    "Bloodshot icky thing"
+  ],
+  "光": [
+    "Light",
+    "Light"
+  ],
+  "光と影の": [
+    "of Night and Day",
+    "of Night and Day"
+  ],
+  "光なき闇の大蜘蛛『ウンゴリアント』": [
+    "Ungoliant, the Unlight",
+    "Ungoliant, the Unlight"
+  ],
+  "光の": [
+    "of Light",
+    "of Light"
+  ],
+  "光のしずく": [
+    "Drip of Light",
+    "Drip of Light"
+  ],
+  "光の召喚": [
+    "Call Light",
+    "Call Light"
+  ],
+  "光の堕天使『エミリオ・ミハイロフ』": [
+    "Emilio Michaelov, Fallen Angel of Light",
+    "Emilio Michaelov, Fallen Angel of Light"
+  ],
+  "光明の": [
+    "of Extra Light",
+    "of Extra Light"
+  ],
+  "入口": [
+    "Portal",
+    "Portal"
+  ],
+  "入場門": [
+    "gate of arena",
+    "gate of arena"
+  ],
+  "入身": [
+    "Rush Attack",
+    "Rush Attack"
+  ],
+  "全てにして一つのもの『ヨグ=ソトート』": [
+    "Yog-Sothoth, the All-in-One",
+    "Yog-Sothoth, the All-in-One"
+  ],
+  "全復活": [
+    "Restoration",
+    "Restoration"
+  ],
+  "全感知": [
+    "Detection",
+    "Detection"
+  ],
+  "全耐性": [
+    "Resistance",
+    "Resistance"
+  ],
+  "全耐性の": [
+    "of Resistance",
+    "of Resistance"
+  ],
+  "全開装甲『カバード・コア』": [
+    "Opened core, the uncovered fortress",
+    "Opened core, the uncovered fortress"
+  ],
+  "八咫": [
+    "'Yata-no-Kagami'",
+    "'Yata-no-Kagami'"
+  ],
+  "八尺": [
+    "'Yasaka-no-Magatama'",
+    "'Yasaka-no-Magatama'"
+  ],
+  "六尺棒": [
+    "Bo Staff",
+    "Bo Staffs"
+  ],
+  "兵隊アリ": [
+    "Soldier ant",
+    "Soldier ant"
+  ],
+  "再生の": [
+    "of Regeneration",
+    "of Regeneration"
+  ],
+  "再生の歌": [
+    "Goddess's rebirth",
+    "Goddess's rebirth"
+  ],
+  "冒険者のための中つ国ガイド": [
+    "Adventurer's guide to Middle Earth",
+    "Adventurer's guide to Middle Earth"
+  ],
+  "冥王『モルゴス』": [
+    "Morgoth, Lord of Darkness",
+    "Morgoth, Lord of Darkness"
+  ],
+  "冥界の大鉄杖": [
+    "Mighty Hammer",
+    "Mighty Hammers"
+  ],
+  "冥界の支配者『ダーネヴィール』": [
+    "Durnehviir, the governor of Soul Cairn",
+    "Durnehviir, the governor of Soul Cairn"
+  ],
+  "冥界の裁判長『閻魔大王』": [
+    "Yama, the Judge of the afterlife",
+    "Yama, the Judge of the afterlife"
+  ],
+  "冥界イモムシの大群": [
+    "Nether worm mass",
+    "Nether worm mass"
+  ],
+  "冥界オーガ": [
+    "Styx ogre",
+    "Styx ogre"
+  ],
+  "冥界ハウンド": [
+    "Nether hound",
+    "Nether hound"
+  ],
+  "冥界レイス": [
+    "Nether wraith",
+    "Nether wraith"
+  ],
+  "冷気の": [
+    "of Frost",
+    "of Frost"
+  ],
+  "冷気の矢の": [
+    "and Frost bolt",
+    "and Frost bolt"
+  ],
+  "凍った球体": [
+    "Freezing sphere",
+    "Freezing sphere"
+  ],
+  "凍結の": [
+    "of Freezing",
+    "of Freezing"
+  ],
+  "凡庸": [
+    "Mundanity",
+    "Mundanity"
+  ],
+  "凪の刻": [
+    "Day of the Dove",
+    "Day of the Dove"
+  ],
+  "凶熊": [
+    "Mad bear",
+    "Mad bear"
+  ],
+  "刀匠の目利き": [
+    "Judge",
+    "Judge"
+  ],
+  "分解": [
+    "Disintegrate",
+    "Disintegrate"
+  ],
+  "分解ボルテックス": [
+    "Disintegration vortex",
+    "Disintegration vortex"
+  ],
+  "切り裂きの大鎌": [
+    "Scythe of Slicing",
+    "Scythes of Slicing"
+  ],
+  "切れ味の": [
+    "of Sharpness",
+    "of Sharpness"
+  ],
+  "切腹": [
+    "Harakiri",
+    "Harakiri"
+  ],
+  "初級修験者": [
+    "Elementary mystic",
+    "Elementary mystic"
+  ],
+  "力": [
+    "Power",
+    "Power"
+  ],
+  "力の": [
+    "of Might",
+    "of Might"
+  ],
+  "力の亡者『カリス』": [
+    "Kharis the Powerslave",
+    "Kharis the Powerslave"
+  ],
+  "力の拳": [
+    "Fist of Force",
+    "Fist of Force"
+  ],
+  "力の指輪": [
+    "Ring",
+    "Rings"
+  ],
+  "劣化アイ": [
+    "Disenchanter eye",
+    "Disenchanter eye"
+  ],
+  "劣化イモムシの大群": [
+    "Disenchanter worm mass",
+    "Disenchanter worm mass"
+  ],
+  "劣化ビースト": [
+    "Disenchanter beast",
+    "Disenchanter beast"
+  ],
+  "劣化モルド": [
+    "Disenchanter mold",
+    "Disenchanter mold"
+  ],
+  "勇気の": [
+    "and Heroism",
+    "and Heroism"
+  ],
+  "勇猛なるトゥルカスの": [
+    "of Tulkas",
+    "of Tulkas"
+  ],
+  "勇者『イケタ』": [
+    "Iketa, the Brave",
+    "Iketa, the Brave"
+  ],
+  "動く岩": [
+    "Livingstone",
+    "Livingstone"
+  ],
+  "動物のカード": [
+    "Trump Animals",
+    "Trump Animals"
+  ],
+  "動物友和": [
+    "Animal Friendship",
+    "Animal Friendship"
+  ],
+  "動物召喚": [
+    "Summon Animal",
+    "Summon Animal"
+  ],
+  "動物習し": [
+    "Animal Taming",
+    "Animal Taming"
+  ],
+  "勾玉": [
+    "Bead",
+    "Beads"
+  ],
+  "北斗神拳の使い手『ケンシロウ』": [
+    "Kenshirou the Fist of the North Star",
+    "Kenshirou the Fist of the North Star"
+  ],
+  "北極の聖獣ムックの": [
+    "of Mook",
+    "of Mook"
+  ],
+  "十一首ヒドラ": [
+    "11-headed hydra",
+    "11-headed hydra"
+  ],
+  "千里眼": [
+    "Clairvoyance",
+    "Clairvoyance"
+  ],
+  "半魔のオーク": [
+    "Half-demon orc",
+    "Half-demon orc"
+  ],
+  "南蛮の酋長『木鹿大王』": [
+    "King Mulu, the Chief of the Southerners",
+    "King Mulu, the Chief of the Southerners"
+  ],
+  "南蛮人『帯来洞主』": [
+    "Dailai Dongzhu, the Captain of the Southerners",
+    "Dailai Dongzhu, the Captain of the Southerners"
+  ],
+  "南蛮王『孟獲』": [
+    "Meng Huo, the King of the Southerners",
+    "Meng Huo, the King of the Southerners"
+  ],
+  "単龍虫": [
+    "Dragon insect",
+    "Dragon insect"
+  ],
+  "博物館": [
+    "Museum",
+    "Museum"
+  ],
+  "印籠": [
+    "Inro",
+    "Inros"
+  ],
+  "危ない水着": [
+    "Sexy Swimsuit",
+    "Sexy Swimsuit"
+  ],
+  "厄介者の": [
+    "of Annoyance",
+    "of Annoyance"
+  ],
+  "厚布よろい": [
+    "Padded Armour",
+    "Padded Armours"
+  ],
+  "原初への裏切り『オダハヴィーング』": [
+    "Odahviing, the betrayer of Alduin",
+    "Odahviing, the betrayer of Alduin"
+  ],
+  "原子分解": [
+    "Disintegrate",
+    "Disintegrate"
+  ],
+  "双子のひわいなるもの『ツァール』": [
+    "Zhar the Twin Obscenity",
+    "Zhar the Twin Obscenity"
+  ],
+  "双頭ヒドラ": [
+    "2-headed hydra",
+    "2-headed hydra"
+  ],
+  "反テレポート": [
+    "Anti-Teleportation",
+    "Anti-Teleportation"
+  ],
+  "反テレポート結界": [
+    "Anti teleport barrier",
+    "Anti teleport barrier"
+  ],
+  "反増殖結界": [
+    "Anti multiply barrier",
+    "Anti multiply barrier"
+  ],
+  "反射": [
+    "Reflection",
+    "Reflection"
+  ],
+  "反射の": [
+    "of Reflection",
+    "of Reflection"
+  ],
+  "反感": [
+    "Aggravate Monster",
+    "Aggravate Monster"
+  ],
+  "反感の": [
+    "and Aggravate",
+    "and Aggravate"
+  ],
+  "反攻撃の洞窟": [
+    "Anti-melee cave",
+    "Anti-melee cave"
+  ],
+  "反逆パラディン": [
+    "Anti-paladin",
+    "Anti-paladin"
+  ],
+  "反魂の術": [
+    "Animate dead",
+    "Animate dead"
+  ],
+  "反魔法": [
+    "Anti-Magic",
+    "Anti-Magic"
+  ],
+  "反魔法の洞窟": [
+    "Anti-magic cave",
+    "Anti-magic cave"
+  ],
+  "反魔法結界": [
+    "Anti magic barrier",
+    "Anti magic barrier"
+  ],
+  "古のもの": [
+    "Elder thing",
+    "Elder thing"
+  ],
+  "古代の死霊": [
+    "Manes",
+    "Manes"
+  ],
+  "古代の死霊召喚": [
+    "Summon Manes",
+    "Summon Manes"
+  ],
+  "古代クイックシルバー・ドラゴン": [
+    "Ancient quicksilver dragon",
+    "Ancient quicksilver dragon"
+  ],
+  "古代クリスタル・ドラゴン": [
+    "Ancient Crystal Dragon",
+    "Ancient Crystal Dragon"
+  ],
+  "古代グリーン・ドラゴン": [
+    "Ancient green dragon",
+    "Ancient green dragon"
+  ],
+  "古代ゴールド・ドラゴン": [
+    "Ancient gold dragon",
+    "Ancient gold dragon"
+  ],
+  "古代ドラゴンのカード": [
+    "Trump Ancient Dragon",
+    "Trump Ancient Dragon"
+  ],
+  "古代ブラック・ドラゴン": [
+    "Ancient black dragon",
+    "Ancient black dragon"
+  ],
+  "古代ブルー・ドラゴン": [
+    "Ancient blue dragon",
+    "Ancient blue dragon"
+  ],
+  "古代ブロンズ・ドラゴン": [
+    "Ancient bronze dragon",
+    "Ancient bronze dragon"
+  ],
+  "古代ホワイト・ドラゴン": [
+    "Ancient white dragon",
+    "Ancient white dragon"
+  ],
+  "古代レッド・ドラゴン": [
+    "Ancient red dragon",
+    "Ancient red dragon"
+  ],
+  "古代万色ドラゴン": [
+    "Ancient multi-hued dragon",
+    "Ancient multi-hued dragon"
+  ],
+  "召喚": [
+    "Summoning",
+    "Summoning"
+  ],
+  "可燃性ガス": [
+    "Flammable gas",
+    "Flammable gas"
+  ],
+  "可視透明の": [
+    "and See Invisible",
+    "and See Invisible"
+  ],
+  "号泣ベトベト": [
+    "Blubbering icky thing",
+    "Blubbering icky thing"
+  ],
+  "名射手ウィリアム・テルの": [
+    "of Wilhelm Tell",
+    "of Wilhelm Tell"
+  ],
+  "名状しがたきもの『ハスター』": [
+    "Hastur the Unspeakable",
+    "Hastur the Unspeakable"
+  ],
+  "吸血の刃": [
+    "Swords to vampires",
+    "Swords to vampires"
+  ],
+  "吸血の矢": [
+    "Vampiric Bolt",
+    "Vampiric Bolt"
+  ],
+  "吸血の連矢": [
+    "Vampiric Bolts",
+    "Vampiric Bolts"
+  ],
+  "吸血イクシツザチトル": [
+    "Vampiric ixitxachitl",
+    "Vampiric ixitxachitl"
+  ],
+  "吸血霧": [
+    "Vampiric mist",
+    "Vampiric mist"
+  ],
+  "吸血鬼の使者『スリングウェシル』": [
+    "Thuringwethil, the Vampire Messenger",
+    "Thuringwethil, the Vampire Messenger"
+  ],
+  "吸血鬼の牙": [
+    "Vampire's Fang",
+    "Vampire's Fang"
+  ],
+  "吸血鬼変化": [
+    "Polymorph Vampire",
+    "Polymorph Vampire"
+  ],
+  "吸魂鬼": [
+    "Dementor",
+    "Dementor"
+  ],
+  "告知者『ラファエル』": [
+    "Raphael, the Messenger",
+    "Raphael, the Messenger"
+  ],
+  "周辺スリープ": [
+    "Mass Sleep",
+    "Mass Sleep"
+  ],
+  "周辺感知": [
+    "Sense Surroundings",
+    "Sense Surroundings"
+  ],
+  "周辺抹殺": [
+    "Mass Genocide",
+    "Mass Genocide"
+  ],
+  "呪い粉砕": [
+    "Remove All Curse",
+    "Remove All Curse"
+  ],
+  "呪い退散": [
+    "Dispel Curse",
+    "Dispel Curse"
+  ],
+  "呪われし『マレキス』": [
+    "Malekith the Accursed",
+    "Malekith the Accursed"
+  ],
+  "呪力吸収": [
+    "Drain curse power",
+    "Drain curse power"
+  ],
+  "呪力封入": [
+    "Recharging",
+    "Recharging"
+  ],
+  "呪文": [
+    "Spell",
+    "Spell"
+  ],
+  "呪殺弾": [
+    "Malediction",
+    "Malediction"
+  ],
+  "哀れな身なりの乞食": [
+    "Pitiful looking beggar",
+    "Pitiful looking beggar"
+  ],
+  "唸るスピリット": [
+    "Moaning spirit",
+    "Moaning spirit"
+  ],
+  "啓明": [
+    "Revelation",
+    "Revelation"
+  ],
+  "啓蒙": [
+    "Enlightenment",
+    "Enlightenment"
+  ],
+  "喉を絞める手": [
+    "Disembodied hand that strangled people",
+    "Disembodied hand that strangled people"
+  ],
+  "噂": [
+    "Rumour",
+    "Rumour"
+  ],
+  "器用さ": [
+    "Dexterity",
+    "Dexterity"
+  ],
+  "器用さ復活": [
+    "Restore Dexterity",
+    "Restore Dexterity"
+  ],
+  "器用さ維持": [
+    "Sustain Dexterity",
+    "Sustain Dexterity"
+  ],
+  "四首ヒドラ": [
+    "4-headed hydra",
+    "4-headed hydra"
+  ],
+  "回復モンスター": [
+    "Heal Monster",
+    "Heal Monster"
+  ],
+  "回復力強化": [
+    "Regeneration",
+    "Regeneration"
+  ],
+  "土の鬼": [
+    "Earth ogre",
+    "Earth ogre"
+  ],
+  "土ゴーレム": [
+    "Clay golem",
+    "Clay golem"
+  ],
+  "土ヘビ": [
+    "Large brown snake",
+    "Large brown snake"
+  ],
+  "地のエレメンタル": [
+    "Earth elemental",
+    "Earth elemental"
+  ],
+  "地のスピリット": [
+    "Earth spirit",
+    "Earth spirit"
+  ],
+  "地味な脇役『ルイージ』": [
+    "Luigi",
+    "Luigi"
+  ],
+  "地底を掘り進むもの『シュド=メル』": [
+    "Shudde M'ell, The Burrowers Beneath",
+    "Shudde M'ell, The Burrowers Beneath"
+  ],
+  "地獄": [
+    "Hell",
+    "Hell"
+  ],
+  "地獄の": [
+    "of Hell",
+    "of Hell"
+  ],
+  "地獄のカード": [
+    "Trump Greater Undead",
+    "Trump Greater Undead"
+  ],
+  "地獄の公爵": [
+    "Duke of hell",
+    "Duke of hell"
+  ],
+  "地獄の出店": [
+    "Hell's market stall",
+    "Hell's market stall"
+  ],
+  "地獄の劫火": [
+    "Hellfire",
+    "Hellfire"
+  ],
+  "地獄の波動": [
+    "Nether Wave",
+    "Nether Wave"
+  ],
+  "地獄の王『メフィストフェレス』": [
+    "Mephistopheles, Lord of Hell",
+    "Mephistopheles, Lord of Hell"
+  ],
+  "地獄の男爵": [
+    "Baron of hell",
+    "Baron of hell"
+  ],
+  "地獄の番犬『ガルム』": [
+    "Garm, Guardian of Hel",
+    "Garm, Guardian of Hel"
+  ],
+  "地獄の番犬『ケルベロス』": [
+    "Cerberus, Guardian of Hades",
+    "Cerberus, Guardian of Hades"
+  ],
+  "地獄の矢": [
+    "Nether Bolt",
+    "Nether Bolt"
+  ],
+  "地獄の論客『カイム』": [
+    "Caim, the disputant of hell",
+    "Caim, the disputant of hell"
+  ],
+  "地獄の鉄槌": [
+    "Hammer of hell",
+    "Hammer of hell"
+  ],
+  "地獄の騎士": [
+    "Hell knight",
+    "Hell knight"
+  ],
+  "地獄への階段": [
+    "Stairway to hell",
+    "Stairway to hell"
+  ],
+  "地獄嵐": [
+    "Nether Storm",
+    "Nether Storm"
+  ],
+  "地獄球": [
+    "Nether Ball",
+    "Nether Ball"
+  ],
+  "地獄界ドラゴン『ティアマット』": [
+    "Tiamat, Celestial Dragon of Evil",
+    "Tiamat, Celestial Dragon of Evil"
+  ],
+  "地蔵尊の蛸": [
+    "Octopus of Kshitigarbha",
+    "Octopus of Kshitigarbha"
+  ],
+  "地走り": [
+    "Crack",
+    "Crack"
+  ],
+  "地雷": [
+    "Landmine",
+    "Landmine"
+  ],
+  "地雷犬": [
+    "Mine-dog",
+    "Mine-dog"
+  ],
+  "地震": [
+    "Earthquake",
+    "Earthquake"
+  ],
+  "地震の": [
+    "of Earthquakes",
+    "of Earthquakes"
+  ],
+  "城": [
+    "Castle",
+    "Castle"
+  ],
+  "堂々たる鉄冠": [
+    "Massive Iron Crown",
+    "Massive Iron Crowns"
+  ],
+  "堕天使": [
+    "Fallen angel",
+    "Fallen angel"
+  ],
+  "堕落": [
+    "Corrupt",
+    "Corrupt"
+  ],
+  "塚ワイト": [
+    "Barrow wight",
+    "Barrow wight"
+  ],
+  "塩水": [
+    "Salt Water",
+    "Salt Water"
+  ],
+  "塵の中を歩くもの『クァチル・ウタウス』": [
+    "Quachil Uttaus, Treader of the Dust",
+    "Quachil Uttaus, Treader of the Dust"
+  ],
+  "塹壕ワーム": [
+    "Trench Wurm",
+    "Trench Wurm"
+  ],
+  "墓ワイト": [
+    "Grave wight",
+    "Grave wight"
+  ],
+  "墓地": [
+    "Graveyard",
+    "Graveyard"
+  ],
+  "増強": [
+    "Augmentation",
+    "Augmentation"
+  ],
+  "壁抜け": [
+    "Walk through Wall",
+    "Walk through Wall"
+  ],
+  "壊れたガラスのドア": [
+    "broken glass door",
+    "broken glass door"
+  ],
+  "壊れたドア": [
+    "broken door",
+    "broken door"
+  ],
+  "壊れたパターンの一部": [
+    "corrupted section of the Pattern",
+    "corrupted section of the Pattern"
+  ],
+  "壊滅": [
+    "Havoc",
+    "Havoc"
+  ],
+  "士気高揚": [
+    "Heroism",
+    "Heroism"
+  ],
+  "声の道に仇なすもの『デルフィン』": [
+    "Delphine, the mortal enemy for the way of the voice",
+    "Delphine, the mortal enemy for the way of the voice"
+  ],
+  "声の道を導きしもの『パーサーナックス』": [
+    "Paarthurnax, the guru of the way of the voice",
+    "Paarthurnax, the guru of the way of the voice"
+  ],
+  "変幻の魔公": [
+    "Lord of Change",
+    "Lord of Change"
+  ],
+  "多首の『カブラックス』": [
+    "Kavlax, the Many-Headed",
+    "Kavlax, the Many-Headed"
+  ],
+  "夜鬼": [
+    "Nightgaunt",
+    "Nightgaunt"
+  ],
+  "大": [
+    "of High Rank",
+    "of High Rank"
+  ],
+  "大いなる深淵の主『ノーデンス』": [
+    "Nodens, Lord of the Great Abyss",
+    "Nodens, Lord of the Great Abyss"
+  ],
+  "大きな木の箱": [
+    "Large wooden chest",
+    "Large wooden chests"
+  ],
+  "大きな泡": [
+    "Large aqua illusion",
+    "Large aqua illusion"
+  ],
+  "大きな鉄の箱": [
+    "Large iron chest",
+    "Large iron chests"
+  ],
+  "大きな鋼鉄の箱": [
+    "Large steel chest",
+    "Large steel chests"
+  ],
+  "大バシリスク": [
+    "Large basilisk",
+    "Large basilisk"
+  ],
+  "大地の主『クェイカー』": [
+    "Quaker, Master of Earth",
+    "Quaker, Master of Earth"
+  ],
+  "大天使": [
+    "Archangel",
+    "Archangel"
+  ],
+  "大将ソロンギルの": [
+    "of Thorongil",
+    "of Thorongil"
+  ],
+  "大江山の鬼の王『酒呑童子』": [
+    "Shuten-douji, the King Ogre of Ooe-Mountain",
+    "Shuten-douji, the King Ogre of Ooe-Mountain"
+  ],
+  "大泥棒": [
+    "Master thief",
+    "Master thief"
+  ],
+  "大灰色ヘビ": [
+    "Large grey snake",
+    "Large grey snake"
+  ],
+  "大白ヘビ": [
+    "Large white snake",
+    "Large white snake"
+  ],
+  "大白鮫": [
+    "Great white shark",
+    "Great white shark"
+  ],
+  "大盗賊": [
+    "Master rogue",
+    "Master rogue"
+  ],
+  "大蜘蛛": [
+    "Giant spider",
+    "Giant spider"
+  ],
+  "大鎌": [
+    "Scythe",
+    "Scythes"
+  ],
+  "大鎧": [
+    "O-yoroi",
+    "O-yorois"
+  ],
+  "大長虫": [
+    "Wereworm",
+    "Wereworm"
+  ],
+  "大防御の": [
+    "(Extra Armor)",
+    "(Extra Armor)"
+  ],
+  "大鷲": [
+    "Great eagle",
+    "Great eagle"
+  ],
+  "大鷲王『ソロンドール』": [
+    "Thorondor",
+    "Thorondor"
+  ],
+  "大黄色ヘビ": [
+    "Large yellow snake",
+    "Large yellow snake"
+  ],
+  "天上のクローク": [
+    "Ethereal Cloak",
+    "Ethereal Cloaks"
+  ],
+  "天上界ドラゴン": [
+    "Ethereal dragon",
+    "Ethereal dragon"
+  ],
+  "天上界ドレイク": [
+    "Ethereal drake",
+    "Ethereal drake"
+  ],
+  "天使": [
+    "Angel",
+    "Angel"
+  ],
+  "天使・クイルスルグ": [
+    "Angel quylthulg",
+    "Angel quylthulg"
+  ],
+  "天使召喚": [
+    "Summon Angel",
+    "Summon Angel"
+  ],
+  "天性寺聖地蔵尊の六環": [
+    "of The Bronze Octopus",
+    "of The Bronze Octopus"
+  ],
+  "天恵": [
+    "Blessing",
+    "Blessing"
+  ],
+  "天界": [
+    "Heaven",
+    "Heaven"
+  ],
+  "天翔龍閃": [
+    "Dragonic Flash",
+    "Dragonic Flash"
+  ],
+  "太公望の": [
+    "of Taikobo",
+    "of Taikobo"
+  ],
+  "太古の大神官『イムホテップ』": [
+    "Imhotep, the great ancient priest",
+    "Imhotep, the great ancient priest"
+  ],
+  "太古の忌まわしい": [
+    "of Ancient Curse",
+    "of Ancient Curse"
+  ],
+  "太陽の槍": [
+    "Sunlance",
+    "Sunlance"
+  ],
+  "太陽の歌": [
+    "Song of the Sun",
+    "Song of the Sun"
+  ],
+  "太陽光線": [
+    "Ray of Sunlight",
+    "Ray of Sunlight"
+  ],
+  "太陽降下": [
+    "Sunfall",
+    "Sunfall"
+  ],
+  "奇妙なルーン": [
+    "strange rune",
+    "strange rune"
+  ],
+  "奇怪な原子核の混沌『アザトート』": [
+    "Azathoth, Seething Nuclear Chaos",
+    "Azathoth, Seething Nuclear Chaos"
+  ],
+  "女王虫『クイーンランゴスタ』": [
+    "Vespoid Queen",
+    "Vespoid Queen"
+  ],
+  "女魔術師『フィオナ』": [
+    "Fiona the Sorceress",
+    "Fiona the Sorceress"
+  ],
+  "女魔術師フィオナの": [
+    "of Fiona",
+    "of Fiona"
+  ],
+  "好まざる猫『フリージア』": [
+    "Freesia",
+    "Freesia"
+  ],
+  "妖精の": [
+    "of Fairy",
+    "of Fairy"
+  ],
+  "妖術師『サウロン』": [
+    "Sauron, the Sorcerer",
+    "Sauron, the Sorcerer"
+  ],
+  "孟獲の弟『孟優』": [
+    "Meng You, the Brother of Meng Huo",
+    "Meng You, the Brother of Meng Huo"
+  ],
+  "守り": [
+    "Protection",
+    "Protection"
+  ],
+  "守りの": [
+    "and Protection",
+    "and Protection"
+  ],
+  "守りのルーン": [
+    "rune of protection",
+    "rune of protection"
+  ],
+  "完全なる知識": [
+    "Knowledge True",
+    "Knowledge True"
+  ],
+  "完全モンスター感知の": [
+    "and *Detect* Monster",
+    "and *Detect* Monster"
+  ],
+  "宙に浮かぶ宝珠": [
+    "Floating orb",
+    "Floating orb"
+  ],
+  "宝の地図": [
+    "Treasure map",
+    "Treasure map"
+  ],
+  "宝冠": [
+    "Jewel Encrusted Crown",
+    "Jewel Encrusted Crowns"
+  ],
+  "宝石": [
+    "Jewel",
+    "Jewels"
+  ],
+  "害虫駆除": [
+    "Pesticide",
+    "Pesticide"
+  ],
+  "宵闇の": [
+    "of The Twilight",
+    "of The Twilight"
+  ],
+  "審判の": [
+    "of Judgement",
+    "of Judgement"
+  ],
+  "寺院": [
+    "Temple",
+    "Temple"
+  ],
+  "対邪悪結界": [
+    "Protection from Evil",
+    "Protection from Evil"
+  ],
+  "射手バルド王の": [
+    "of Bard",
+    "of Bard"
+  ],
+  "射手バルド王の黒い": [
+    "of Bard",
+    "of Bard"
+  ],
+  "尊厳の": [
+    "of Lordliness",
+    "of Lordliness"
+  ],
+  "小さな木の箱": [
+    "Small wooden chest",
+    "Small wooden chests"
+  ],
+  "小さな泡": [
+    "Small aqua illusion",
+    "Small aqua illusion"
+  ],
+  "小さな鉄の箱": [
+    "Small iron chest",
+    "Small iron chests"
+  ],
+  "小さな鋼鉄の箱": [
+    "Small steel chest",
+    "Small steel chests"
+  ],
+  "小汚いスナガ": [
+    "Snotling",
+    "Snotling"
+  ],
+  "屏風の虎": [
+    "Tiger in folding screen",
+    "Tiger in folding screen"
+  ],
+  "属性への免疫": [
+    "Immunity",
+    "Immunity"
+  ],
+  "山": [
+    "Mountain",
+    "Mountain"
+  ],
+  "山猫": [
+    "Wild cat",
+    "Wild cat"
+  ],
+  "山脈": [
+    "mountain chain",
+    "mountain chain"
+  ],
+  "山脈(壁)": [
+    "mountain chain (wall)",
+    "mountain chain (wall)"
+  ],
+  "岩もぐら": [
+    "Rock mole",
+    "Rock mole"
+  ],
+  "岩トカゲ": [
+    "Rock lizard",
+    "Rock lizard"
+  ],
+  "岩トロル": [
+    "Stone troll",
+    "Stone troll"
+  ],
+  "岩トロル『トム』": [
+    "Tom the Stone Troll",
+    "Tom the Stone Troll"
+  ],
+  "岩トロル『バート』": [
+    "Bert the Stone Troll",
+    "Bert the Stone Troll"
+  ],
+  "岩トロル『ビル』": [
+    "Bill the Stone Troll",
+    "Bill the Stone Troll"
+  ],
+  "岩石": [
+    "pile of rubble",
+    "pile of rubble"
+  ],
+  "岩石溶解": [
+    "Stone to Mud",
+    "Stone to Mud"
+  ],
+  "崩壊の音色": [
+    "Wrecking Note",
+    "Wrecking Note"
+  ],
+  "嵐の音色": [
+    "Song of the Tempest",
+    "Song of the Tempest"
+  ],
+  "巨人夸父の": [
+    "of Kuafu",
+    "of Kuafu"
+  ],
+  "巨像": [
+    "Colossus",
+    "Colossus"
+  ],
+  "巨大アマガエル": [
+    "Giant green frog",
+    "Giant green frog"
+  ],
+  "巨大イカ": [
+    "Giant squid",
+    "Giant squid"
+  ],
+  "巨大ゴキブリ": [
+    "Giant cockroach",
+    "Giant cockroach"
+  ],
+  "巨大ゴールド・トンボ": [
+    "Giant gold dragon fly",
+    "Giant gold dragon fly"
+  ],
+  "巨大サイバーワイアーム天使悪魔リッチ": [
+    "Greater Cyber Wyrm Angel Daemon Lich",
+    "Greater Cyber Wyrm Angel Daemon Lich"
+  ],
+  "巨大シロアリ": [
+    "Giant white ant",
+    "Giant white ant"
+  ],
+  "巨大タコ": [
+    "Giant octopus",
+    "Giant octopus"
+  ],
+  "巨大タランチュラ": [
+    "Giant tarantula",
+    "Giant tarantula"
+  ],
+  "巨大ドブネズミ": [
+    "Giant grey rat",
+    "Giant grey rat"
+  ],
+  "巨大ナメクジ": [
+    "Giant slug",
+    "Giant slug"
+  ],
+  "巨大ノミ": [
+    "Giant flea",
+    "Giant flea"
+  ],
+  "巨大ハツカネズミ": [
+    "Giant white mouse",
+    "Giant white mouse"
+  ],
+  "巨大バシリスク": [
+    "Greater basilisk",
+    "Greater basilisk"
+  ],
+  "巨大ヒル": [
+    "Giant leech",
+    "Giant leech"
+  ],
+  "巨大ピンク・ガエル": [
+    "Giant pink frog",
+    "Giant pink frog"
+  ],
+  "巨大フルーツ・バエ": [
+    "Giant fruit fly",
+    "Giant fruit fly"
+  ],
+  "巨大ブロンズ・トンボ": [
+    "Giant bronze dragon fly",
+    "Giant bronze dragon fly"
+  ],
+  "巨大戦艦『グレート・シング』": [
+    "GREAT THING, the Huge Battle Ship",
+    "GREAT THING, the Huge Battle Ship"
+  ],
+  "巨大火アリ": [
+    "Giant fire ant",
+    "Giant fire ant"
+  ],
+  "巨大灰色アリ": [
+    "Giant grey ant",
+    "Giant grey ant"
+  ],
+  "巨大灰色サソリ": [
+    "Giant grey scorpion",
+    "Giant grey scorpion"
+  ],
+  "巨大白シラミ": [
+    "Giant white louse",
+    "Giant white louse"
+  ],
+  "巨大白シラミの王『lousy』": [
+    "Lousy, the King of Lice",
+    "Lousy, the King of Lice"
+  ],
+  "巨大白ダニ": [
+    "Giant white tick",
+    "Giant white tick"
+  ],
+  "巨大白トンボ": [
+    "Giant white dragon fly",
+    "Giant white dragon fly"
+  ],
+  "巨大白ネズミ": [
+    "Giant white rat",
+    "Giant white rat"
+  ],
+  "巨大白ムカデ": [
+    "Giant white centipede",
+    "Giant white centipede"
+  ],
+  "巨大紫イモムシ": [
+    "Giant purple worm",
+    "Giant purple worm"
+  ],
+  "巨大緑トンボ": [
+    "Giant green dragon fly",
+    "Giant green dragon fly"
+  ],
+  "巨大茶コウモリ": [
+    "Giant brown bat",
+    "Giant brown bat"
+  ],
+  "巨大赤アリ": [
+    "Giant red ant",
+    "Giant red ant"
+  ],
+  "巨大赤サソリ": [
+    "Giant red scorpion",
+    "Giant red scorpion"
+  ],
+  "巨大赤ダニ": [
+    "Giant red tick",
+    "Giant red tick"
+  ],
+  "巨大軍隊アリ": [
+    "Giant army ant",
+    "Giant army ant"
+  ],
+  "巨大透明ムカデ": [
+    "Giant clear centipede",
+    "Giant clear centipede"
+  ],
+  "巨大青アリ": [
+    "Giant blue ant",
+    "Giant blue ant"
+  ],
+  "巨大首なし": [
+    "Giant headless",
+    "Giant headless"
+  ],
+  "巨大黄サソリ": [
+    "Giant yellow scorpion",
+    "Giant yellow scorpion"
+  ],
+  "巨大黒アリ": [
+    "Giant black ant",
+    "Giant black ant"
+  ],
+  "巨大黒トンボ": [
+    "Giant black dragon fly",
+    "Giant black dragon fly"
+  ],
+  "巨狼の帝王『ドラウグルイン』": [
+    "Draugluin, Sire of All Werewolves",
+    "Draugluin, Sire of All Werewolves"
+  ],
+  "巨獣『ヅガッダグドマネング』": [
+    "The Zguddagdmanaing Gigantic-Beast",
+    "The Zguddagdmanaing Gigantic-Beast"
+  ],
+  "巨龍『ベルフレイム』": [
+    "Belflame, the queen dragon",
+    "Belflame, the queen dragon"
+  ],
+  "巴流『葦名弦一郎』": [
+    "Way of Tomoe, Genichiro Ashina",
+    "Way of Tomoe, Genichiro Ashina"
+  ],
+  "帯電帯": [
+    "electrical zone",
+    "electrical zone"
+  ],
+  "帯魔力ペンダント": [
+    "Charmed Pendant",
+    "Charmed Pendant"
+  ],
+  "帰還": [
+    "Recall",
+    "Recall"
+  ],
+  "帰還の呪文": [
+    "Word of Recall",
+    "Word of Recall"
+  ],
+  "帰還の詔": [
+    "Word of Recall",
+    "Word of Recall"
+  ],
+  "年経たマグマのエレメンタル": [
+    "Elder magma elemental",
+    "Elder magma elemental"
+  ],
+  "年経た氷のエレメンタル": [
+    "Elder ice elemental",
+    "Elder ice elemental"
+  ],
+  "年経た汚物エレメンタル": [
+    "Elder ooze elemental",
+    "Elder ooze elemental"
+  ],
+  "年経た火のエレメンタル": [
+    "Elder fire elemental",
+    "Elder fire elemental"
+  ],
+  "年経た風のエレメンタル": [
+    "Elder air elemental",
+    "Elder air elemental"
+  ],
+  "幻の鯨『イッカク』": [
+    "Narwhal",
+    "Narwhal"
+  ],
+  "幻影の旋律": [
+    "Illusion Pattern",
+    "Illusion Pattern"
+  ],
+  "幻影の狩人『サーロクニル』": [
+    "Sahloknir, the hunter of illusion",
+    "Sahloknir, the hunter of illusion"
+  ],
+  "幻惑": [
+    "Moon Dazzling",
+    "Moon Dazzling"
+  ],
+  "幻術師": [
+    "Illusionist",
+    "Illusionist"
+  ],
+  "幻覚": [
+    "Hallucination",
+    "Hallucination"
+  ],
+  "幻霊召喚": [
+    "Phantasmal Servant",
+    "Phantasmal Servant"
+  ],
+  "幽体グレーター・クラーケン": [
+    "Spectral Greater kraken",
+    "Spectral Greater kraken"
+  ],
+  "幽体ティラノサウルス": [
+    "Spectral tyrannosaurus",
+    "Spectral tyrannosaurus"
+  ],
+  "幽体ドラゴン・スケイルメイル": [
+    "Spectral Dragon Scale Mail",
+    "Spectral Dragon Scale Mail"
+  ],
+  "幽体ワイアーム": [
+    "Spectral Wyrm",
+    "Spectral Wyrm"
+  ],
+  "幽体化": [
+    "Wraithform",
+    "Wraithform"
+  ],
+  "幽体戦士": [
+    "Phantom warrior",
+    "Phantom warrior"
+  ],
+  "幽体獣": [
+    "Phantom beast",
+    "Phantom beast"
+  ],
+  "幽鬼の": [
+    "of Nazgul",
+    "of Nazgul"
+  ],
+  "床": [
+    "open floor",
+    "open floor"
+  ],
+  "建物": [
+    "Building",
+    "Building"
+  ],
+  "弓": [
+    "Yumi",
+    "Yumis"
+  ],
+  "強力射の": [
+    "of Extra Might",
+    "of Extra Might"
+  ],
+  "強力投擲の": [
+    "and Power Throwing",
+    "and Power Throwing"
+  ],
+  "強化プレート・アーマー": [
+    "Ribbed Plate Armour",
+    "Ribbed Plate Armours"
+  ],
+  "強化鎖かたびら": [
+    "Bar Chain Mail",
+    "Bar Chain Mails"
+  ],
+  "強撃の": [
+    "of Impact",
+    "of Impact"
+  ],
+  "強速射の": [
+    "of Extra Shots",
+    "of Extra Shots"
+  ],
+  "当世具足": [
+    "Do-maru",
+    "Do-marus"
+  ],
+  "影のクローク": [
+    "Cloak of shadow",
+    "Cloak of shadow"
+  ],
+  "影のジャックの": [
+    "of Jack of Shadows",
+    "of Jack of Shadows"
+  ],
+  "影移動": [
+    "Moving into shadow",
+    "Moving into shadow"
+  ],
+  "復讐の宣告": [
+    "Revenge sentence",
+    "Revenge sentence"
+  ],
+  "徴税官": [
+    "Tax collector",
+    "Tax collector"
+  ],
+  "忌まわしき狩人": [
+    "Hunting horror",
+    "Hunting horror"
+  ],
+  "忍びの": [
+    "and Stealth",
+    "and Stealth"
+  ],
+  "忍び寄る人形『メリー』": [
+    "Mary, the creeping doll",
+    "Mary, the creeping doll"
+  ],
+  "忍者刀": [
+    "Ninjato",
+    "Ninjatos"
+  ],
+  "忍耐強きもの『イブ=ツトゥル』": [
+    "Yibb-Tstll the Patient One",
+    "Yibb-Tstll the Patient One"
+  ],
+  "念動力": [
+    "Telekinesis",
+    "Telekinesis"
+  ],
+  "怒りの魔王『炎のバイケタル』": [
+    "Biketal of Fire",
+    "Biketal of Fire"
+  ],
+  "急所突き": [
+    "Spot Aiming",
+    "Spot Aiming"
+  ],
+  "怨念の": [
+    "and Ancient Foul Curse",
+    "and Ancient Foul Curse"
+  ],
+  "怪力サムソンの": [
+    "of Samson",
+    "of Samson"
+  ],
+  "怪奇苔男": [
+    "Swamp thing",
+    "Swamp thing"
+  ],
+  "怪物の太母『エキドナ』": [
+    "Echidna, Great mother of monsters",
+    "Echidna, Great mother of monsters"
+  ],
+  "怪物追放": [
+    "Banish",
+    "Banish"
+  ],
+  "怪物飛ばしの": [
+    "and Teleport Other",
+    "and Teleport Other"
+  ],
+  "恐いもの知らず": [
+    "Boldness",
+    "Boldness"
+  ],
+  "恐れ知らず": [
+    "Fear Resistance",
+    "Fear Resistance"
+  ],
+  "恐怖": [
+    "Paranoia",
+    "Paranoia"
+  ],
+  "恐怖の歌": [
+    "Song of Fear",
+    "Song of Fear"
+  ],
+  "恐怖除去": [
+    "Cure Paranoia",
+    "Cure Paranoia"
+  ],
+  "恐慌": [
+    "Horrify",
+    "Horrify"
+  ],
+  "恐慌モンスター": [
+    "Scare Monster",
+    "Scare Monster"
+  ],
+  "悪の魔術師『クリングゾール』": [
+    "Klingsor, Evil Master of Magic",
+    "Klingsor, Evil Master of Magic"
+  ],
+  "悪意の具現『ヘルハウンド』": [
+    "Hellhound, the Beast",
+    "Hellhound, the Beast"
+  ],
+  "悪臭雲": [
+    "Stinking Cloud",
+    "Stinking Cloud"
+  ],
+  "悪臭霧": [
+    "Stinking mist",
+    "Stinking mist"
+  ],
+  "悪霊召喚": [
+    "Invoke Spirits",
+    "Invoke Spirits"
+  ],
+  "悪鬼の血脈『ティボルト』": [
+    "Tibalt, the Fiend-Blooded",
+    "Tibalt, the Fiend-Blooded"
+  ],
+  "悪魔の": [
+    "of Demon",
+    "of Demon"
+  ],
+  "悪魔のオーラ": [
+    "Demonic aura",
+    "Demonic aura"
+  ],
+  "悪魔のクローク": [
+    "Devil Cloak",
+    "Devil Cloak"
+  ],
+  "悪魔の目": [
+    "Devilish Eye",
+    "Devilish Eye"
+  ],
+  "悪魔召喚": [
+    "Summon Demon",
+    "Summon Demon"
+  ],
+  "悪魔変化": [
+    "Polymorph Demon",
+    "Polymorph Demon"
+  ],
+  "悪魔崇拝司祭": [
+    "High demonologist",
+    "High demonologist"
+  ],
+  "悪魔崇拝者": [
+    "Demonologist",
+    "Demonologist"
+  ],
+  "悪魔祓い": [
+    "Exorcism",
+    "Exorcism"
+  ],
+  "惑星生命体『ソラリス』": [
+    "Solaris, the planet life",
+    "Solaris, the planet life"
+  ],
+  "愚者の": [
+    "and Naivety",
+    "and Naivety"
+  ],
+  "愚鈍": [
+    "Naivety",
+    "Naivety"
+  ],
+  "感知の": [
+    "and Detection",
+    "and Detection"
+  ],
+  "感知のカード": [
+    "Trump Spying",
+    "Trump Spying"
+  ],
+  "慶雲鬼忍剣": [
+    "Keiun-Kininken",
+    "Keiun-Kininken"
+  ],
+  "憤怒の": [
+    "of Wrath",
+    "of Wrath"
+  ],
+  "懐柔": [
+    "Tame Monster",
+    "Tame Monster"
+  ],
+  "懲罰": [
+    "Punishment",
+    "Punishment"
+  ],
+  "我が家": [
+    "Home",
+    "Home"
+  ],
+  "我慢": [
+    "Patience",
+    "Patience"
+  ],
+  "戦いの歌": [
+    "Heroic Ballad",
+    "Heroic Ballad"
+  ],
+  "戦乙女ミリムの": [
+    "of Milim the Valkyrie",
+    "of Milim the Valkyrie"
+  ],
+  "戦傷兵士": [
+    "Battle scarred veteran",
+    "Battle scarred veteran"
+  ],
+  "戦闘用つるはし": [
+    "Mattock",
+    "Mattocks"
+  ],
+  "手のドルジ": [
+    "Hand druj",
+    "Hand druj"
+  ],
+  "手品師の": [
+    "of a Magician",
+    "of a Magician"
+  ],
+  "手榴弾": [
+    "Hand grenade",
+    "Hand grenade"
+  ],
+  "払い抜け": [
+    "Harainuke",
+    "Harainuke"
+  ],
+  "折れたダガー": [
+    "Broken Dagger",
+    "Broken Daggers"
+  ],
+  "折れたデスソード": [
+    "Broken death sword",
+    "Broken death sword"
+  ],
+  "折れた剣": [
+    "Broken Sword",
+    "Broken Swords"
+  ],
+  "折れた棒": [
+    "Broken Stick",
+    "Broken Sticks"
+  ],
+  "抜け忍カムイの": [
+    "of Kamui the Escapee",
+    "of Kamui the Escapee"
+  ],
+  "抜け雀": [
+    "Passing sparrow",
+    "Passing sparrow"
+  ],
+  "抹殺": [
+    "Genocide",
+    "Genocide"
+  ],
+  "招き猫": [
+    "Beckoning cat",
+    "Beckoning cat"
+  ],
+  "拡散の尖兵": [
+    "Vanguard of diffusion",
+    "Vanguard of diffusion"
+  ],
+  "指輪": [
+    "Ring",
+    "Rings"
+  ],
+  "捨て身": [
+    "Desperate Attack",
+    "Desperate Attack"
+  ],
+  "探索": [
+    "Searching",
+    "Searching"
+  ],
+  "援軍": [
+    "Summon Kin",
+    "Summon Kin"
+  ],
+  "撲殺の天使": [
+    "Dokuro, the Bludgeoning Angel",
+    "Dokuro, the Bludgeoning Angel"
+  ],
+  "撲殺の悪魔": [
+    "Clubber demon",
+    "Clubber demon"
+  ],
+  "放浪者『グルー』": [
+    "Groo the Wanderer",
+    "Groo the Wanderer"
+  ],
+  "放火魔『雄一』": [
+    "Yu'uichi, the Arsonist",
+    "Yu'uichi, the Arsonist"
+  ],
+  "斑点おばけキノコ": [
+    "Spotted mushroom patch",
+    "Spotted mushroom patch"
+  ],
+  "斑点ゼリー": [
+    "Spotted jelly",
+    "Spotted jelly"
+  ],
+  "斬魔剣弐の太刀": [
+    "Zammaken",
+    "Zammaken"
+  ],
+  "新生": [
+    "New Life",
+    "New Life"
+  ],
+  "旅の仲間": [
+    "Fellowship Chant",
+    "Fellowship Chant"
+  ],
+  "旗手エオンウェの": [
+    "of Eonwe",
+    "of Eonwe"
+  ],
+  "日の光": [
+    "Daylight",
+    "Daylight"
+  ],
+  "日光猿": [
+    "Monkey of Nikko",
+    "Monkey of Nikko"
+  ],
+  "星": [
+    "Star",
+    "Stars"
+  ],
+  "星の精": [
+    "Star vampire",
+    "Star vampire"
+  ],
+  "星兜": [
+    "Kabuto",
+    "Kabutos"
+  ],
+  "時を統べる者『リチャード・ウォン』": [
+    "Richard Wong, Master of Time",
+    "Richard Wong, Master of Time"
+  ],
+  "時空ワイアーム": [
+    "Great Wyrm of Space-Time",
+    "Great Wyrm of Space-Time"
+  ],
+  "時限爆弾": [
+    "Time bomb",
+    "Time bomb"
+  ],
+  "智天使": [
+    "Cherub",
+    "Cherub"
+  ],
+  "暁の戦士": [
+    "Warrior of the Dawn",
+    "Warrior of the Dawn"
+  ],
+  "暗い穴": [
+    "dark pit",
+    "dark pit"
+  ],
+  "暗殺者荊軻の": [
+    "of Jing Ke",
+    "of Jing Ke"
+  ],
+  "暗視の": [
+    "and Infravision",
+    "and Infravision"
+  ],
+  "暗闇": [
+    "Darkness",
+    "Darkness"
+  ],
+  "暗闇の": [
+    "of Darkness",
+    "of Darkness"
+  ],
+  "暗闇の洞窟": [
+    "Dark cave",
+    "Dark cave"
+  ],
+  "暗黒の島マーモの皇帝『ベルド』": [
+    "Beld, Ruler of Marmo",
+    "Beld, Ruler of Marmo"
+  ],
+  "暗黒の嵐": [
+    "Darkness Storm",
+    "Darkness Storm"
+  ],
+  "暗黒の矢": [
+    "Dark Bolt",
+    "Dark Bolt"
+  ],
+  "暗黒トカゲ": [
+    "Night lizard",
+    "Night lizard"
+  ],
+  "暗黒城の魔術師『アンサロム』": [
+    "Ansalom, the Dark Wizard",
+    "Ansalom, the Dark Wizard"
+  ],
+  "更正せるセオデン王の": [
+    "of Theoden",
+    "of Theoden"
+  ],
+  "書店": [
+    "Bookstore",
+    "Bookstore"
+  ],
+  "月の怪物": [
+    "Moon beast",
+    "Moon beast"
+  ],
+  "月光蝶": [
+    "Moonlight butterfly",
+    "Moonlight butterfly"
+  ],
+  "有毒ガス": [
+    "Noxious fume",
+    "Noxious fume"
+  ],
+  "有翼のサンダル『タラリア』": [
+    "Winged sandals 'Talaria'",
+    "Winged sandals 'Talaria'"
+  ],
+  "服": [
+    "Clothes",
+    "Clotheses"
+  ],
+  "朦朧の旋律": [
+    "Stun Pattern",
+    "Stun Pattern"
+  ],
+  "朦朧の言葉": [
+    "Word of stun",
+    "Word of stun"
+  ],
+  "木": [
+    "tree",
+    "tree"
+  ],
+  "木の鬚『ファンゴルン』": [
+    "Fangorn",
+    "Fangorn"
+  ],
+  "未知の地形": [
+    "unknown grid",
+    "unknown grid"
+  ],
+  "未知の地形 (未感知)": [
+    "unknown grid (not detected)",
+    "unknown grid (not detected)"
+  ],
+  "杖": [
+    "Staff",
+    "Staffs"
+  ],
+  "束矢": [
+    "Sheaf Arrow",
+    "Sheaf Arrows"
+  ],
+  "束縛の": [
+    "of Enveloping",
+    "of Enveloping"
+  ],
+  "東夷『カムル』": [
+    "Khamul the Easterling",
+    "Khamul the Easterling"
+  ],
+  "東夷『ブロッダ』": [
+    "Brodda, the Easterling",
+    "Brodda, the Easterling"
+  ],
+  "東洋の吸血鬼": [
+    "Oriental vampire",
+    "Oriental vampire"
+  ],
+  "松明": [
+    "Wooden Torch",
+    "Wooden Torches"
+  ],
+  "格闘家イーク": [
+    "Fighter yeek",
+    "Fighter yeek"
+  ],
+  "棍棒": [
+    "Club",
+    "Clubs"
+  ],
+  "棒": [
+    "Stick",
+    "Sticks"
+  ],
+  "森": [
+    "Forest",
+    "Forest"
+  ],
+  "森の狩人ロビンフッドの": [
+    "of Robin Hood",
+    "of Robin Hood"
+  ],
+  "森の黒山羊『シュブ=ニグラス』": [
+    "Shub-Niggurath, Black Goat of the Woods",
+    "Shub-Niggurath, Black Goat of the Woods"
+  ],
+  "森トロル": [
+    "Forest troll",
+    "Forest troll"
+  ],
+  "森林創造": [
+    "Forest Creation",
+    "Forest Creation"
+  ],
+  "森蜘蛛": [
+    "Wood spider",
+    "Wood spider"
+  ],
+  "極低温帯": [
+    "heavy cold zone",
+    "heavy cold zone"
+  ],
+  "極寒の": [
+    "of Freezing",
+    "of Freezing"
+  ],
+  "極楽界ドラゴン『バハムート』": [
+    "Bahamut, Celestial Dragon of Good",
+    "Bahamut, Celestial Dragon of Good"
+  ],
+  "槌手王の": [
+    "of Hammerhand",
+    "of Hammerhand"
+  ],
+  "次元の": [
+    "and Dimension Door",
+    "and Dimension Door"
+  ],
+  "次元の扉": [
+    "Dimension Door",
+    "Dimension Door"
+  ],
+  "歌を口ずさむ幸せな酔っぱらい": [
+    "Singing, happy drunk",
+    "Singing, happy drunk"
+  ],
+  "止め処無い奇談の図書館『ペロロジラ』": [
+    "Perorodzilla, the Library of Lore",
+    "Perorodzilla, the Library of Lore"
+  ],
+  "武器ダメージ増加": [
+    "Enchant Weapon To-Dam",
+    "Enchant Weapon To-Dam"
+  ],
+  "武器呪縛": [
+    "Curse weapon",
+    "Curse weapon"
+  ],
+  "武器命中率上昇": [
+    "Enchant Weapon To-Hit",
+    "Enchant Weapon To-Hit"
+  ],
+  "武器専門店": [
+    "Weaponsmith's Shop",
+    "Weaponsmith's Shop"
+  ],
+  "武器属性付与": [
+    "Brand Weapon",
+    "Brand Weapon"
+  ],
+  "武器強化": [
+    "Enchant Weapon",
+    "Enchant Weapon"
+  ],
+  "武蔵坊弁慶の": [
+    "of Benkei",
+    "of Benkei"
+  ],
+  "歪んだ世界": [
+    "World Contortion",
+    "World Contortion"
+  ],
+  "死": [
+    "Death",
+    "Death"
+  ],
+  "死の『バルマー卿』": [
+    "Lord Ballmer, the undead",
+    "Lord Ballmer, the undead"
+  ],
+  "死のレプラコーン": [
+    "Death leprechaun",
+    "Death leprechaun"
+  ],
+  "死の光線": [
+    "Death Ray",
+    "Death Ray"
+  ],
+  "死の大鎌": [
+    "Death Scythe",
+    "Death Scythes"
+  ],
+  "死の女王『ヘラ』": [
+    "Hela, Queen of the Dead",
+    "Hela, Queen of the Dead"
+  ],
+  "死の言魂": [
+    "Nether Wave",
+    "Nether Wave"
+  ],
+  "死の騎士": [
+    "Death knight",
+    "Death knight"
+  ],
+  "死人返し": [
+    "Animate Dead",
+    "Animate Dead"
+  ],
+  "死体の塊": [
+    "Undead mass",
+    "Undead mass"
+  ],
+  "死天使『アズリエル』": [
+    "Azriel, Angel of Death",
+    "Azriel, Angel of Death"
+  ],
+  "死番虫": [
+    "Death watch beetle",
+    "Death watch beetle"
+  ],
+  "死者の秘伝": [
+    "Secrets of the Dead",
+    "Secrets of the Dead"
+  ],
+  "死者召喚": [
+    "Raise the Dead",
+    "Raise the Dead"
+  ],
+  "死者復活": [
+    "Animate Dead",
+    "Animate Dead"
+  ],
+  "殺人イタチ": [
+    "Killer weasel",
+    "Killer weasel"
+  ],
+  "殺人クワガタ": [
+    "Killer stag beetle",
+    "Killer stag beetle"
+  ],
+  "殺人スカラベ": [
+    "Killer scarab",
+    "Killer scarab"
+  ],
+  "殺人タマムシ": [
+    "Killer iridescent beetle",
+    "Killer iridescent beetle"
+  ],
+  "殺人蜂": [
+    "Killer bee",
+    "Killer bee"
+  ],
+  "殺人鬼エルミの": [
+    "of Elmi the Murderer",
+    "of Elmi the Murderer"
+  ],
+  "殺傷の": [
+    "of Wounding",
+    "of Wounding"
+  ],
+  "殺戮": [
+    "Slaying",
+    "Slaying"
+  ],
+  "殺戮の": [
+    "and Slaying",
+    "and Slaying"
+  ],
+  "殺戮の暴君": [
+    "Carnage Tyrant",
+    "Carnage Tyrant"
+  ],
+  "殺戮雲": [
+    "Cloud kill",
+    "Cloud kill"
+  ],
+  "殺気感知": [
+    "Detect Ferocity",
+    "Detect Ferocity"
+  ],
+  "母なる『ハイドラ』": [
+    "Mother Hydra",
+    "Mother Hydra"
+  ],
+  "毒": [
+    "Poison",
+    "Poison"
+  ],
+  "毒の刃": [
+    "Poison Branding",
+    "Poison Branding"
+  ],
+  "毒チワワ": [
+    "Poison Chihuahua",
+    "Poison Chihuahua"
+  ],
+  "毒殺の": [
+    "of Venom",
+    "of Venom"
+  ],
+  "毒消し": [
+    "Cure Poison",
+    "Cure Poison"
+  ],
+  "毒針": [
+    "Poison Needle",
+    "Poison Needles"
+  ],
+  "毛むくじゃらモルド": [
+    "Hairy mold",
+    "Hairy mold"
+  ],
+  "毛皮のクローク": [
+    "Fur Cloak",
+    "Fur Cloaks"
+  ],
+  "気狂いピエロ『ロネルド・マクドネルド』": [
+    "Roneld McDoneld, the Mad Pierrot",
+    "Roneld McDoneld, the Mad Pierrot"
+  ],
+  "気迫の雄叫び": [
+    "War Cry",
+    "War Cry"
+  ],
+  "水": [
+    "Water",
+    "Water"
+  ],
+  "水のエレメンタル": [
+    "Water elemental",
+    "Water elemental"
+  ],
+  "水のスピリット": [
+    "Water spirit",
+    "Water spirit"
+  ],
+  "水の王ウルモの": [
+    "of Ulmo",
+    "of Ulmo"
+  ],
+  "水の鬼": [
+    "Water ogre",
+    "Water ogre"
+  ],
+  "水トロル": [
+    "Water troll",
+    "Water troll"
+  ],
+  "水戸黄門の": [
+    "of Mito Koumon",
+    "of Mito Koumon"
+  ],
+  "水棲ゴーレム": [
+    "Aquatic golem",
+    "Aquatic golem"
+  ],
+  "水棲ナーガ": [
+    "Aquatic naga",
+    "Aquatic naga"
+  ],
+  "水没した遺跡": [
+    "Numenor",
+    "Numenor"
+  ],
+  "水竜『エイブラ』": [
+    "Eibra the Water Dragon",
+    "Eibra the Water Dragon"
+  ],
+  "氷": [
+    "Ice",
+    "Ice"
+  ],
+  "氷のエレメンタル": [
+    "Ice elemental",
+    "Ice elemental"
+  ],
+  "氷の巨人『イミル』": [
+    "Ymir the Ice Giant",
+    "Ymir the Ice Giant"
+  ],
+  "氷の鎧": [
+    "Armor of ice",
+    "Armor of ice"
+  ],
+  "氷竜『ブラムド』": [
+    "Bramd the Ice Dragon",
+    "Bramd the Ice Dragon"
+  ],
+  "永久ガラスの壁": [
+    "permanent glass wall",
+    "permanent glass wall"
+  ],
+  "永久岩の壁": [
+    "permanent wall",
+    "permanent wall"
+  ],
+  "永続の": [
+    "of Permanence",
+    "of Permanence"
+  ],
+  "汗血馬": [
+    "Ferghana horse",
+    "Ferghana horse"
+  ],
+  "汚いイタズラ小僧": [
+    "Filthy street urchin",
+    "Filthy street urchin"
+  ],
+  "汚れたボロ服": [
+    "Filthy Rag",
+    "Filthy Rags"
+  ],
+  "汚物エレメンタル": [
+    "Ooze elemental",
+    "Ooze elemental"
+  ],
+  "河童": [
+    "Kappa",
+    "Kappa"
+  ],
+  "油つぼ": [
+    "Flask of oil",
+    "Flasks of oil"
+  ],
+  "沼地": [
+    "swamp",
+    "swamp"
+  ],
+  "泣きじゃくる白痴": [
+    "Blubbering idiot",
+    "Blubbering idiot"
+  ],
+  "洞窟オーガ": [
+    "Cave ogre",
+    "Cave ogre"
+  ],
+  "洞窟オーク": [
+    "Cave orc",
+    "Cave orc"
+  ],
+  "洞窟トカゲ": [
+    "Cave lizard",
+    "Cave lizard"
+  ],
+  "洞窟トロル": [
+    "Cave troll",
+    "Cave troll"
+  ],
+  "洞窟蜘蛛": [
+    "Cave spider",
+    "Cave spider"
+  ],
+  "活力の": [
+    "and Regeneration",
+    "and Regeneration"
+  ],
+  "活発な機雷": [
+    "Bouncing mine",
+    "Bouncing mine"
+  ],
+  "流星群": [
+    "Meteor Swarm",
+    "Meteor Swarm"
+  ],
+  "浅い毒の沼": [
+    "shallow poisonous puddle",
+    "shallow poisonous puddle"
+  ],
+  "浅い水たまり": [
+    "Shallow puddle",
+    "Shallow puddle"
+  ],
+  "浅い水の流れ": [
+    "shallow water",
+    "shallow water"
+  ],
+  "浅い溶岩の流れ": [
+    "shallow lava",
+    "shallow lava"
+  ],
+  "浅い酸の沼": [
+    "shallow acid puddle",
+    "shallow acid puddle"
+  ],
+  "浮遊": [
+    "Levitation",
+    "Levitation"
+  ],
+  "浮遊の": [
+    "and Levitation",
+    "and Levitation"
+  ],
+  "浮遊霊": [
+    "Lost soul",
+    "Lost soul"
+  ],
+  "浮遊髑髏": [
+    "Flying skull",
+    "Flying skull"
+  ],
+  "海トロル": [
+    "Sea troll",
+    "Sea troll"
+  ],
+  "海坊主": [
+    "Umibozu",
+    "Umibozu"
+  ],
+  "消滅": [
+    "Annihilation",
+    "Annihilation"
+  ],
+  "消費魔力減少": [
+    "Mana",
+    "Mana"
+  ],
+  "深い毒の沼": [
+    "deep poisonous puddle",
+    "deep poisonous puddle"
+  ],
+  "深い水": [
+    "deep water",
+    "deep water"
+  ],
+  "深い水たまり": [
+    "Deep puddle",
+    "Deep puddle"
+  ],
+  "深い溶岩溜り": [
+    "deep lava",
+    "deep lava"
+  ],
+  "深い酸の沼": [
+    "deep acid puddle",
+    "deep acid puddle"
+  ],
+  "深き者": [
+    "Deep one",
+    "Deep one"
+  ],
+  "深淵イモムシの大群": [
+    "Abyss worm mass",
+    "Abyss worm mass"
+  ],
+  "深淵招来": [
+    "Call the Abyss",
+    "Call the Abyss"
+  ],
+  "混乱": [
+    "Confusion",
+    "Confusion"
+  ],
+  "混乱の手": [
+    "Touch of confusion",
+    "Touch of confusion"
+  ],
+  "混乱脱出": [
+    "Cure Confusion",
+    "Cure Confusion"
+  ],
+  "混沌": [
+    "Unmaker",
+    "Unmaker"
+  ],
+  "混沌おばけキノコ": [
+    "Chaos mushroom",
+    "Chaos mushroom"
+  ],
+  "混沌の": [
+    "of Chaos",
+    "of Chaos"
+  ],
+  "混沌のサマ師『ディオニソス』": [
+    "Dionysus, the Munchkin of Chaos",
+    "Dionysus, the Munchkin of Chaos"
+  ],
+  "混沌の刃": [
+    "Chaos Branding",
+    "Chaos Branding"
+  ],
+  "混沌の獣人": [
+    "Chaos beastman",
+    "Chaos beastman"
+  ],
+  "混沌の王子マーリンの": [
+    "of Merlin",
+    "of Merlin"
+  ],
+  "混沌の王族": [
+    "Lord of Chaos",
+    "Lord of Chaos"
+  ],
+  "混沌の落とし子": [
+    "Chaos spawn",
+    "Chaos spawn"
+  ],
+  "混沌の覇者『はぶ』": [
+    "Habu the Champion of Chaos",
+    "Habu the Champion of Chaos"
+  ],
+  "混沌召来": [
+    "Call Chaos",
+    "Call Chaos"
+  ],
+  "減毒": [
+    "Slow Poison",
+    "Slow Poison"
+  ],
+  "渦潮": [
+    "Whirlpool",
+    "Whirlpool"
+  ],
+  "源氏の": [
+    "of Genji",
+    "of Genji"
+  ],
+  "源義経の": [
+    "of Yositsune",
+    "of Yositsune"
+  ],
+  "溶岩の壁": [
+    "Magma intrusion",
+    "Magma intrusion"
+  ],
+  "溶岩の怪物『ヨガン』": [
+    "Magman, Lava monster",
+    "Magman, Lava monster"
+  ],
+  "溶岩の鉱脈": [
+    "magma vein",
+    "magma vein"
+  ],
+  "溶岩の鉱脈(隠された財宝を含有)": [
+    "magma vein with hidden treasure",
+    "magma vein with hidden treasure"
+  ],
+  "溶岩ゴーレム": [
+    "Lava golem",
+    "Lava golem"
+  ],
+  "溶岩流": [
+    "Lava Flow",
+    "Lava Flow"
+  ],
+  "溶解の": [
+    "of Melting",
+    "of Melting"
+  ],
+  "滅善の": [
+    "of Slay Good",
+    "of Slay Good"
+  ],
+  "滅邪の": [
+    "of Slay Evil",
+    "of Slay Evil"
+  ],
+  "激震撃": [
+    "Earthquake Blow",
+    "Earthquake Blow"
+  ],
+  "濃尾無双『岩本虎眼』": [
+    "Kogan Iwamoto, the peerless swordsman of Nobi",
+    "Kogan Iwamoto, the peerless swordsman of Nobi"
+  ],
+  "火のエレメンタル": [
+    "Fire elemental",
+    "Fire elemental"
+  ],
+  "火のスピリット": [
+    "Fire spirit",
+    "Fire spirit"
+  ],
+  "火の巨人『スルト』": [
+    "Surtur the Giant Fire Demon",
+    "Surtur the Giant Fire Demon"
+  ],
+  "火の神『祝融』": [
+    "Lady Zhurong, Avatar of the Flame Spirit",
+    "Lady Zhurong, Avatar of the Flame Spirit"
+  ],
+  "火山": [
+    "Volcano",
+    "Volcano"
+  ],
+  "火消しライター": [
+    "Deluminator",
+    "Deluminator"
+  ],
+  "火炎": [
+    "Flames",
+    "Flames"
+  ],
+  "火炎の": [
+    "of Flame",
+    "of Flame"
+  ],
+  "火炎の矢の": [
+    "and Fire bolt",
+    "and Fire bolt"
+  ],
+  "火炎破": [
+    "Fireblast",
+    "Fireblast"
+  ],
+  "火球の": [
+    "and Fire ball",
+    "and Fire ball"
+  ],
+  "火竜山の魔竜『シューティングスター』": [
+    "Shooting Star the Red Dragon",
+    "Shooting Star the Red Dragon"
+  ],
+  "灰色の『ガンダルフ』": [
+    "Gandalf the Grey",
+    "Gandalf the Grey"
+  ],
+  "灰色の掠奪者": [
+    "Lesser black reaver",
+    "Lesser black reaver"
+  ],
+  "灰色マント王シンゴルの": [
+    "of Thingol",
+    "of Thingol"
+  ],
+  "灼熱の": [
+    "of Immolation",
+    "of Immolation"
+  ],
+  "災厄を呼ぶ": [
+    "of Disaster",
+    "of Disaster"
+  ],
+  "炎": [
+    "Fire",
+    "Fire"
+  ],
+  "炎の使者": [
+    "Fire angel",
+    "Fire angel"
+  ],
+  "炎の刃": [
+    "Fire Branding",
+    "Fire Branding"
+  ],
+  "炎の天使『ウリエル』": [
+    "Uriel, Angel of Fire",
+    "Uriel, Angel of Fire"
+  ],
+  "炎の嵐": [
+    "Fire Storm",
+    "Fire Storm"
+  ],
+  "炎の精": [
+    "Fire vampire",
+    "Fire vampire"
+  ],
+  "炎の精『ローゲ』": [
+    "Loge, Spirit of Fire",
+    "Loge, Spirit of Fire"
+  ],
+  "点『P』": [
+    "Point P",
+    "Point P"
+  ],
+  "点滅する点": [
+    "Blinking dot",
+    "Blinking dot"
+  ],
+  "点滅する点Lv99": [
+    "Lv.99 Blinking dot",
+    "Lv.99 Blinking dot"
+  ],
+  "烏戈国王『兀突骨』": [
+    "Wutugu, the Chief of the Southerners",
+    "Wutugu, the Chief of the Southerners"
+  ],
+  "焔の一撃": [
+    "Flame Strike",
+    "Flame Strike"
+  ],
+  "焔霊": [
+    "Burning Strike",
+    "Burning Strike"
+  ],
+  "無傷の球": [
+    "Globe of Invulnerability",
+    "Globe of Invulnerability"
+  ],
+  "無双三段": [
+    "Musou-Sandan",
+    "Musou-Sandan"
+  ],
+  "無敵": [
+    "Invulnerability",
+    "Invulnerability"
+  ],
+  "無敵の恐れ知らずの官能的なる不可思議なる魅惑の頑健なる勤勉なる圧倒的なる華麗なる情熱の恐るべき美しき強力なる灰色の王子『強靭なるゾート』": [
+    "TOUGH ZOTE, the INVINCIBLE FEARLESS SENSUAL MYSTERIOUS ENCHANTING VIGOROUS DILIGENT OVERWHELMING GORGEOUS PASSIONATE TERRIFYING BEAUTIFUL POWERFUL GREY PRINCE",
+    "TOUGH ZOTE, the INVINCIBLE FEARLESS SENSUAL MYSTERIOUS ENCHANTING VIGOROUS DILIGENT OVERWHELMING GORGEOUS PASSIONATE TERRIFYING BEAUTIFUL POWERFUL GREY PRINCE"
+  ],
+  "無法者『ロビン・フッド』": [
+    "Robin Hood, the Outlaw",
+    "Robin Hood, the Outlaw"
+  ],
+  "無生命感知": [
+    "Detect Unlife",
+    "Detect Unlife"
+  ],
+  "無知": [
+    "Stupidity",
+    "Stupidity"
+  ],
+  "無知の": [
+    "and Stupidity",
+    "and Stupidity"
+  ],
+  "焦げた場所": [
+    "discolored spot",
+    "discolored spot"
+  ],
+  "焼棄の": [
+    "of Burning",
+    "of Burning"
+  ],
+  "煙のエレメンタル": [
+    "Smoke elemental",
+    "Smoke elemental"
+  ],
+  "熟練戦士": [
+    "Hardened warrior",
+    "Hardened warrior"
+  ],
+  "熾天使": [
+    "Seraph",
+    "Seraph"
+  ],
+  "熾天使の抱擁": [
+    "Seraph's Embrace",
+    "Seraph's Embrace"
+  ],
+  "燃素": [
+    "Phlogiston",
+    "Phlogiston"
+  ],
+  "爆弾をとりつけられた蚊": [
+    "Bomb mosquito",
+    "Bomb mosquito"
+  ],
+  "爆発": [
+    "Detonations",
+    "Detonations"
+  ],
+  "爆発のルーン": [
+    "Explosive Rune",
+    "Explosive Rune"
+  ],
+  "爆発ルーン": [
+    "rune of explosion",
+    "rune of explosion"
+  ],
+  "爆裂スナガ": [
+    "Snaga sapper",
+    "Snaga sapper"
+  ],
+  "爬虫類のカード": [
+    "Trump Reptile",
+    "Trump Reptile"
+  ],
+  "父なる『ダゴン』": [
+    "Father Dagon",
+    "Father Dagon"
+  ],
+  "物体と財宝感知": [
+    "Detect items and Treasure",
+    "Detect items and Treasure"
+  ],
+  "特大の泡": [
+    "Extra large aqua illusion",
+    "Extra large aqua illusion"
+  ],
+  "犬の骨": [
+    "Canine Skeleton",
+    "Canine Skeletons"
+  ],
+  "狂乱戦士": [
+    "Battle Frenzy",
+    "Battle Frenzy"
+  ],
+  "狂戦士『バストラル』": [
+    "Bastral, the berserker",
+    "Bastral, the berserker"
+  ],
+  "狂戦士の": [
+    "of Berserker",
+    "of Berserker"
+  ],
+  "狂戦士化": [
+    "Berserk",
+    "Berserk"
+  ],
+  "狂気の円環": [
+    "Insanity Circle",
+    "Insanity Circle"
+  ],
+  "狂気の夢想家ブランドの": [
+    "of Brand",
+    "of Brand"
+  ],
+  "狂気を紡ぎしもの『アブドゥル・アルハザード』": [
+    "Abdul Alhazred, the Mad Arab",
+    "Abdul Alhazred, the Mad Arab"
+  ],
+  "狩人の": [
+    "of Hunter",
+    "of Hunter"
+  ],
+  "狼": [
+    "Wolf",
+    "Wolf"
+  ],
+  "狼<ウィア>人": [
+    "Weir",
+    "Weir"
+  ],
+  "狼『フェンリル』": [
+    "Fenris Wolf",
+    "Fenris Wolf"
+  ],
+  "狼『血塗られし牙』": [
+    "Bloodfang the Wolf",
+    "Bloodfang the Wolf"
+  ],
+  "狼の族長": [
+    "Wolf Chieftain",
+    "Wolf Chieftain"
+  ],
+  "猫の女神『バスト』": [
+    "Bast, Goddess of Cats",
+    "Bast, Goddess of Cats"
+  ],
+  "猫又": [
+    "Nekomata",
+    "Nekomata"
+  ],
+  "獲得": [
+    "Acquirement",
+    "Acquirement"
+  ],
+  "王のミイラ": [
+    "Greater mummy",
+    "Greater mummy"
+  ],
+  "王位簒奪者『エリック』": [
+    "Eric the Usurper",
+    "Eric the Usurper"
+  ],
+  "王者の加護": [
+    "Lordly Protection",
+    "Lordly Protection"
+  ],
+  "王蟲": [
+    "Ohmu",
+    "Ohmu"
+  ],
+  "玻璃瓶": [
+    "Phial",
+    "Phials"
+  ],
+  "現実変容": [
+    "Alter Reality",
+    "Alter Reality"
+  ],
+  "理力の": [
+    "of Force",
+    "of Force"
+  ],
+  "理想の戦士『ベネディクト』": [
+    "Benedict, the Ideal Warrior",
+    "Benedict, the Ideal Warrior"
+  ],
+  "環境への耐性": [
+    "Resist Environment",
+    "Resist Environment"
+  ],
+  "生きたポール・アックス": [
+    "Pole axe of animated attack",
+    "Pole axe of animated attack"
+  ],
+  "生ける炎『クトゥグァ』": [
+    "Cthugha, the Living Flame",
+    "Cthugha, the Living Flame"
+  ],
+  "生ける虚無『ヌル』": [
+    "Null the Living Void",
+    "Null the Living Void"
+  ],
+  "生命": [
+    "Life",
+    "Life"
+  ],
+  "生命の流れ": [
+    "Flow of Life",
+    "Flow of Life"
+  ],
+  "甲鱗のワーム": [
+    "Scaled wurm",
+    "Scaled wurm"
+  ],
+  "畠山重忠の赤糸威": [
+    "of the Bando Musha",
+    "of the Bando Musha"
+  ],
+  "異世界からの勇者『ピップ』": [
+    "Pip, the Adventurer from Another World",
+    "Pip, the Adventurer from Another World"
+  ],
+  "異常アイテム": [
+    "Invalid item",
+    "Invalid item"
+  ],
+  "異次元の色彩": [
+    "Colour out of space",
+    "Colour out of space"
+  ],
+  "疾病": [
+    "Disease",
+    "Disease"
+  ],
+  "疾病の": [
+    "of Sickliness",
+    "of Sickliness"
+  ],
+  "疾翼『メネルドール』": [
+    "Meneldor the Swift",
+    "Meneldor the Swift"
+  ],
+  "病弱": [
+    "Unhealth",
+    "Unhealth"
+  ],
+  "病気": [
+    "Sickliness",
+    "Sickliness"
+  ],
+  "癒し": [
+    "Cure",
+    "Cure"
+  ],
+  "発光アイ": [
+    "Radiation eye",
+    "Radiation eye"
+  ],
+  "発光カヴー": [
+    "Radiant Kavu",
+    "Radiant Kavu"
+  ],
+  "発光ボルテックス": [
+    "Shimmering vortex",
+    "Shimmering vortex"
+  ],
+  "白き悪魔『ノロイ』": [
+    "Norowi, the White Devil",
+    "Norowi, the White Devil"
+  ],
+  "白イモムシの大群": [
+    "White worm mass",
+    "White worm mass"
+  ],
+  "白ベトベト": [
+    "White icky thing",
+    "White icky thing"
+  ],
+  "白ライネル": [
+    "White lynel",
+    "White lynel"
+  ],
+  "白ワニ": [
+    "White crocodile",
+    "White crocodile"
+  ],
+  "白炎のバルログ『ルンゴルシン』": [
+    "Lungorthin, the Balrog of White Fire",
+    "Lungorthin, the Balrog of White Fire"
+  ],
+  "白熱灯": [
+    "Incandescent Light",
+    "Incandescent Lights"
+  ],
+  "白狼": [
+    "White wolf",
+    "White wolf"
+  ],
+  "白衣の修行僧": [
+    "Ivory monk",
+    "Ivory monk"
+  ],
+  "白衣の高位修行僧": [
+    "High ivory monk",
+    "High ivory monk"
+  ],
+  "白騎士": [
+    "White knight",
+    "White knight"
+  ],
+  "白鮫": [
+    "White shark",
+    "White shark"
+  ],
+  "百人斬り": [
+    "Hundred Slaughter",
+    "Hundred Slaughter"
+  ],
+  "百目口": [
+    "Gibbering mouther",
+    "Gibbering mouther"
+  ],
+  "百足龍虫": [
+    "Dragon centipede",
+    "Dragon centipede"
+  ],
+  "皇帝『レイザーク』": [
+    "Layzark, the Emperor",
+    "Layzark, the Emperor"
+  ],
+  "皮ジャケット": [
+    "Leather Jacket",
+    "Leather Jackets"
+  ],
+  "皮石よろい": [
+    "Stone and Hide Armour",
+    "Stone and Hide Armours"
+  ],
+  "盗賊『プアー』": [
+    "Poor, the Thief",
+    "Poor, the Thief"
+  ],
+  "盗賊『リッチ』": [
+    "Rich, the Thief",
+    "Rich, the Thief"
+  ],
+  "盗賊『鼠小僧』": [
+    "Nezumi-Kozou, the Thief",
+    "Nezumi-Kozou, the Thief"
+  ],
+  "盗賊の頭領": [
+    "Grand master thief",
+    "Grand master thief"
+  ],
+  "目には目を": [
+    "Eye for an eye",
+    "Eye for an eye"
+  ],
+  "目のドルジ": [
+    "Eye druj",
+    "Eye druj"
+  ],
+  "盲目": [
+    "Blindness",
+    "Blindness"
+  ],
+  "盲目のもの": [
+    "Flying polyp",
+    "Flying polyp"
+  ],
+  "盲目治癒": [
+    "Cure Blindness",
+    "Cure Blindness"
+  ],
+  "盾磨き": [
+    "Polish Shield",
+    "Polish Shield"
+  ],
+  "真・感知": [
+    "Detection True",
+    "Detection True"
+  ],
+  "真・結界": [
+    "Warding True",
+    "Warding True"
+  ],
+  "真・耐性": [
+    "Resistance True",
+    "Resistance True"
+  ],
+  "真・鑑定": [
+    "Identify True",
+    "Identify True"
+  ],
+  "真世界アンバーの": [
+    "of Amber",
+    "of Amber"
+  ],
+  "真実の祭壇": [
+    "Alter Reality",
+    "Alter Reality"
+  ],
+  "真鍮のランタン": [
+    "Brass Lantern",
+    "Brass Lanterns"
+  ],
+  "眠り": [
+    "Sleep",
+    "Sleep"
+  ],
+  "眠りの主『ヒュプノス』": [
+    "Hypnos, Lord of Sleep",
+    "Hypnos, Lord of Sleep"
+  ],
+  "矢": [
+    "Black Arrow",
+    "Black Arrows"
+  ],
+  "矢筒スロット": [
+    "Quiver slot",
+    "Quiver slot"
+  ],
+  "知性": [
+    "Brilliance",
+    "Brilliance"
+  ],
+  "知性の": [
+    "of Brilliance",
+    "of Brilliance"
+  ],
+  "知能": [
+    "Intelligence",
+    "Intelligence"
+  ],
+  "知能復活": [
+    "Restore Intelligence",
+    "Restore Intelligence"
+  ],
+  "知能維持": [
+    "Sustain Intelligence",
+    "Sustain Intelligence"
+  ],
+  "知識の": [
+    "and Lore",
+    "and Lore"
+  ],
+  "知識のカード": [
+    "Trump Lore",
+    "Trump Lore"
+  ],
+  "知識の歌": [
+    "Song of Lore",
+    "Song of Lore"
+  ],
+  "短刀": [
+    "Tanto",
+    "Tantos"
+  ],
+  "石": [
+    "Levitation Stone",
+    "Levitation Stones"
+  ],
+  "石の壁": [
+    "Wall of Stone",
+    "Wall of Stone"
+  ],
+  "石の宝箱": [
+    "Stone loot box mimic",
+    "Stone loot box mimic"
+  ],
+  "石の手バリの": [
+    "of Balli Stonehand",
+    "of Balli Stonehand"
+  ],
+  "石ゴーレム": [
+    "Stone golem",
+    "Stone golem"
+  ],
+  "石ドラゴン": [
+    "Stone dragon",
+    "Stone dragon"
+  ],
+  "石英の鉱脈": [
+    "quartz vein",
+    "quartz vein"
+  ],
+  "石英の鉱脈(隠された財宝を含有)": [
+    "quartz vein hidden treasure",
+    "quartz vein hidden treasure"
+  ],
+  "砂に棲むもの": [
+    "Sand-dweller",
+    "Sand-dweller"
+  ],
+  "砂地": [
+    "dirt",
+    "dirt"
+  ],
+  "破壊": [
+    "Destruction",
+    "Destruction"
+  ],
+  "破壊と憎悪の化身『サルーイン』": [
+    "Saruin, The avatar of destruction and hatred",
+    "Saruin, The avatar of destruction and hatred"
+  ],
+  "破壊の": [
+    "of Destruction",
+    "of Destruction"
+  ],
+  "破壊の怨念『久遠』": [
+    "Kuwon, the dream exchanger",
+    "Kuwon, the dream exchanger"
+  ],
+  "破壊の旋律": [
+    "Wrecking Pattern",
+    "Wrecking Pattern"
+  ],
+  "破壊の言葉": [
+    "Word of Destruction",
+    "Word of Destruction"
+  ],
+  "破壊神シヴァの三叉槍『トリシューラ』": [
+    "Trifurcate Spear of Shiva 'Trishula'",
+    "Trifurcate Spear of Shiva 'Trishula'"
+  ],
+  "破岩斬": [
+    "Rock Smash",
+    "Rock Smash"
+  ],
+  "破滅": [
+    "Ruination",
+    "Ruination"
+  ],
+  "破滅の叫び": [
+    "Doomcall",
+    "Doomcall"
+  ],
+  "破滅の手": [
+    "Doom Hand",
+    "Doom Hand"
+  ],
+  "破滅の矢": [
+    "Doom Bolt",
+    "Doom Bolt"
+  ],
+  "破片ボルテックス": [
+    "Shard vortex",
+    "Shard vortex"
+  ],
+  "破邪の": [
+    "of Hurt Evil",
+    "of Hurt Evil"
+  ],
+  "硬革よろい": [
+    "Hard Leather Armour",
+    "Hard Leather Armours"
+  ],
+  "硬革ブーツ": [
+    "Pair of Hard Leather Boots",
+    "Pairs of Hard Leather Boots"
+  ],
+  "硬革帽子": [
+    "Hard Leather Cap",
+    "Hard Leather Caps"
+  ],
+  "祝福": [
+    "Bless",
+    "Bless"
+  ],
+  "祝福の歌": [
+    "Song of Blessing",
+    "Song of Blessing"
+  ],
+  "神の怒り": [
+    "Wrath of the God",
+    "Wrath of the God"
+  ],
+  "神威": [
+    "Divine Intervention",
+    "Divine Intervention"
+  ],
+  "神性変異": [
+    "Divine Transformation",
+    "Divine Transformation"
+  ],
+  "神雷": [
+    "Divine Thunder",
+    "Divine Thunder"
+  ],
+  "禁断の護り手": [
+    "Keeper of Secrets",
+    "Keeper of Secrets"
+  ],
+  "禿竜洞主『朶思大王』": [
+    "King Duosi, the Chief of the Southerners",
+    "King Duosi, the Chief of the Southerners"
+  ],
+  "秩序": [
+    "Law",
+    "Law"
+  ],
+  "移動のカード": [
+    "Trump Reach",
+    "Trump Reach"
+  ],
+  "稲妻": [
+    "Lightning",
+    "Lightning"
+  ],
+  "稲妻嵐": [
+    "Lightning Storm",
+    "Lightning Storm"
+  ],
+  "穴掘りの": [
+    "of Digging",
+    "of Digging"
+  ],
+  "究極の耐性": [
+    "Ultimate Resistance",
+    "Ultimate Resistance"
+  ],
+  "究極ビホルダー": [
+    "Ultimate beholder",
+    "Ultimate beholder"
+  ],
+  "究極無敵銀河最強の": [
+    "of the Mightiest in the Galaxy",
+    "of the Mightiest in the Galaxy"
+  ],
+  "空のビン": [
+    "Empty Bottle",
+    "Empty Bottles"
+  ],
+  "空腹充足": [
+    "Satisfy Hunger",
+    "Satisfy Hunger"
+  ],
+  "空飛ぶ人喰い猿": [
+    "Carnivorous flying monkey",
+    "Carnivorous flying monkey"
+  ],
+  "空飛ぶ鯨": [
+    "Sky whale",
+    "Sky whale"
+  ],
+  "空鬼": [
+    "Dimensional shambler",
+    "Dimensional shambler"
+  ],
+  "突撃狂信レプラコーン": [
+    "Leprechaun fanatic",
+    "Leprechaun fanatic"
+  ],
+  "突然変異": [
+    "Polymorph",
+    "Polymorph"
+  ],
+  "窖に潜むもの": [
+    "Crypt Creep",
+    "Crypt Creep"
+  ],
+  "窖の怪物": [
+    "Crypt thing",
+    "Crypt thing"
+  ],
+  "竜の『ファフナー』": [
+    "Fafner the Dragon",
+    "Fafner the Dragon"
+  ],
+  "竜の住みか": [
+    "Dragon's lair",
+    "Dragon's lair"
+  ],
+  "竜殺しの始祖『ミラーク』": [
+    "Miraak, the first Dragon-soul Taker",
+    "Miraak, the first Dragon-soul Taker"
+  ],
+  "竪琴師ロビントンの": [
+    "of Robinton, the masterharper",
+    "of Robinton, the masterharper"
+  ],
+  "第一の乗り手『ペスティレンス』": [
+    "Pestilence, the first rider",
+    "Pestilence, the first rider"
+  ],
+  "第三の乗り手『フェミン』": [
+    "Famine, the third rider",
+    "Famine, the third rider"
+  ],
+  "第四の乗り手『デス』": [
+    "Death, the fourth rider",
+    "Death, the fourth rider"
+  ],
+  "管子の": [
+    "of Guan Zhong",
+    "of Guan Zhong"
+  ],
+  "粉砕のメイス": [
+    "Mace of Disruption",
+    "Maces of Disruption"
+  ],
+  "精度": [
+    "Accuracy",
+    "Accuracy"
+  ],
+  "精度の": [
+    "and Accuracy",
+    "and Accuracy"
+  ],
+  "精神感知": [
+    "Sense Minds",
+    "Sense Minds"
+  ],
+  "精霊の刃": [
+    "Elemental Branding",
+    "Elemental Branding"
+  ],
+  "精霊牛": [
+    "Spirit cow",
+    "Spirit cow"
+  ],
+  "精霊馬": [
+    "Spirit horse",
+    "Spirit horse"
+  ],
+  "紅衣の修行僧": [
+    "Crimson monk",
+    "Crimson monk"
+  ],
+  "紅衣の高位修行僧": [
+    "High crimson monk",
+    "High crimson monk"
+  ],
+  "紙甲": [
+    "Paper Armour",
+    "Paper Armours"
+  ],
+  "紫おばけキノコ": [
+    "Purple mushroom patch",
+    "Purple mushroom patch"
+  ],
+  "紫ぷよ": [
+    "Purple puyo",
+    "Purple puyo"
+  ],
+  "細矢": [
+    "Flight Arrow",
+    "Flight Arrows"
+  ],
+  "経験": [
+    "Experience",
+    "Experience"
+  ],
+  "経験値保持の": [
+    "and Hold Experience",
+    "and Hold Experience"
+  ],
+  "経験値吸収の": [
+    "and Experience Drain",
+    "and Experience Drain"
+  ],
+  "経験値復活": [
+    "Restore Life",
+    "Restore Life"
+  ],
+  "結界の紋章": [
+    "Rune of Protection",
+    "Rune of Protection"
+  ],
+  "絶叫おばけキノコ": [
+    "Shrieker mushroom patch",
+    "Shrieker mushroom patch"
+  ],
+  "緑の食いしん坊ゴースト": [
+    "Green glutton ghost",
+    "Green glutton ghost"
+  ],
+  "緑ぷよ": [
+    "Green puyo",
+    "Green puyo"
+  ],
+  "緑イモムシの大群": [
+    "Green worm mass",
+    "Green worm mass"
+  ],
+  "緑ベトベト": [
+    "Green icky thing",
+    "Green icky thing"
+  ],
+  "緑色の火焔『トゥールスチャ』": [
+    "Tulzscha, the Green Flame",
+    "Tulzscha, the Green Flame"
+  ],
+  "緑衣の修行僧": [
+    "Jade monk",
+    "Jade monk"
+  ],
+  "緑衣の高位修行僧": [
+    "High jade monk",
+    "High jade monk"
+  ],
+  "緑鬼": [
+    "Green ogre",
+    "Green ogre"
+  ],
+  "線の巨匠『ドワーキン』": [
+    "Dworkin Barimen",
+    "Dworkin Barimen"
+  ],
+  "罠 & 隠し扉感知": [
+    "Detect Doors & Traps",
+    "Detect Doors & Traps"
+  ],
+  "罠と扉 感知": [
+    "Detect Doors & Traps",
+    "Detect Doors & Traps"
+  ],
+  "罠と扉 破壊": [
+    "Trap & Door Destruction",
+    "Trap & Door Destruction"
+  ],
+  "罠と扉感知": [
+    "Detect Doors and Traps",
+    "Detect Doors and Traps"
+  ],
+  "羅生門の鬼": [
+    "Ogre in Rajoumon",
+    "Ogre in Rajoumon"
+  ],
+  "美髯公関羽の": [
+    "of Guan Yu",
+    "of Guan Yu"
+  ],
+  "老ソーサラー": [
+    "Old sorcerer",
+    "Old sorcerer"
+  ],
+  "耐カオス": [
+    "Chaos Resistance",
+    "Chaos Resistance"
+  ],
+  "耐久力": [
+    "Constitution",
+    "Constitution"
+  ],
+  "耐久力復活": [
+    "Restore Constitution",
+    "Restore Constitution"
+  ],
+  "耐久力維持": [
+    "Sustain Constitution",
+    "Sustain Constitution"
+  ],
+  "耐光の": [
+    "and Resist Light",
+    "and Resist Light"
+  ],
+  "耐光耐暗": [
+    "Resist Lite and Dark",
+    "Resist Lite and Dark"
+  ],
+  "耐冷": [
+    "Resist Cold",
+    "Resist Cold"
+  ],
+  "耐冷の": [
+    "and Resist Cold",
+    "and Resist Cold"
+  ],
+  "耐冷気": [
+    "Resist Cold",
+    "Resist Cold"
+  ],
+  "耐劣化": [
+    "Disenchantment Resistance",
+    "Disenchantment Resistance"
+  ],
+  "耐因果混乱": [
+    "Nexus Resistance",
+    "Nexus Resistance"
+  ],
+  "耐地獄": [
+    "Resist Nether",
+    "Resist Nether"
+  ],
+  "耐性": [
+    "Resistance",
+    "Resistance"
+  ],
+  "耐時間逆転の": [
+    "and Resist Time",
+    "and Resist Time"
+  ],
+  "耐暗の": [
+    "and Resist Darkness",
+    "and Resist Darkness"
+  ],
+  "耐毒": [
+    "Resist Poison",
+    "Resist Poison"
+  ],
+  "耐混乱": [
+    "Confusion Resistance",
+    "Confusion Resistance"
+  ],
+  "耐火": [
+    "Resist Fire",
+    "Resist Fire"
+  ],
+  "耐火の": [
+    "and Resist Fire",
+    "and Resist Fire"
+  ],
+  "耐火炎": [
+    "Resist Fire",
+    "Resist Fire"
+  ],
+  "耐熱耐寒": [
+    "Resist Heat and Cold",
+    "Resist Heat and Cold"
+  ],
+  "耐盲目": [
+    "Blindness Resistance",
+    "Blindness Resistance"
+  ],
+  "耐破片": [
+    "Shard Resistance",
+    "Shard Resistance"
+  ],
+  "耐轟音": [
+    "Sound Resistance",
+    "Sound Resistance"
+  ],
+  "耐酸": [
+    "Resist Acid",
+    "Resist Acid"
+  ],
+  "耐酸の": [
+    "and Resist Acid",
+    "and Resist Acid"
+  ],
+  "耐電": [
+    "Resist Lightning",
+    "Resist Lightning"
+  ],
+  "耐電の": [
+    "and Resist Lightning",
+    "and Resist Lightning"
+  ],
+  "耐電撃": [
+    "Resist Lightning",
+    "Resist Lightning"
+  ],
+  "聖なる": [
+    "of Holy Might",
+    "of Holy Might"
+  ],
+  "聖なるオーラ": [
+    "Holy Aura",
+    "Holy Aura"
+  ],
+  "聖なるビジョン": [
+    "Holy Vision",
+    "Holy Vision"
+  ],
+  "聖なる光球": [
+    "Holy Orb",
+    "Holy Orb"
+  ],
+  "聖なる刃": [
+    "Holy Blade",
+    "Holy Blade"
+  ],
+  "聖なる御言葉": [
+    "Holy Word",
+    "Holy Word"
+  ],
+  "聖唱歌": [
+    "Holy Chant",
+    "Holy Chant"
+  ],
+  "聖堂騎士": [
+    "Knight templar",
+    "Knight templar"
+  ],
+  "聖浄": [
+    "Holiness",
+    "Holiness"
+  ],
+  "聖祈言": [
+    "Holy Prayer",
+    "Holy Prayer"
+  ],
+  "聖騎士の": [
+    "of Sacred Knights",
+    "of Sacred Knights"
+  ],
+  "肉ゴーレム": [
+    "Flesh golem",
+    "Flesh golem"
+  ],
+  "肉体強化": [
+    "Building up",
+    "Building up"
+  ],
+  "肉塊の帝王『クルズククルズップ』": [
+    "Qlzqqlzuup, the Lord of Flesh",
+    "Qlzqqlzuup, the Lord of Flesh"
+  ],
+  "肌石化": [
+    "Stone Skin",
+    "Stone Skin"
+  ],
+  "胴丸": [
+    "Haramakido",
+    "Haramakidos"
+  ],
+  "能力維持": [
+    "Sustaining",
+    "Sustaining"
+  ],
+  "脆弱": [
+    "Weakness",
+    "Weakness"
+  ],
+  "脆弱の": [
+    "of Weakness",
+    "of Weakness"
+  ],
+  "脇差し": [
+    "Wakizashi",
+    "Wakizashis"
+  ],
+  "腐った死体": [
+    "Rotting corpse",
+    "Rotting corpse"
+  ],
+  "腐れの指輪": [
+    "Ring",
+    "Rings"
+  ],
+  "腐乱クイルスルグ": [
+    "Rotting quylthulg",
+    "Rotting quylthulg"
+  ],
+  "腐乱グレーター・クイルスルグ": [
+    "Greater rotting quylthulg",
+    "Greater rotting quylthulg"
+  ],
+  "腐敗ビホルダー": [
+    "Rotten beholder",
+    "Rotten beholder"
+  ],
+  "腐食防止": [
+    "Protect from Corrosion",
+    "Protect from Corrosion"
+  ],
+  "腕力": [
+    "Strength",
+    "Strength"
+  ],
+  "腕力の": [
+    "of Power",
+    "of Power"
+  ],
+  "腕力強化": [
+    "Extra might",
+    "Extra might"
+  ],
+  "腕力復活": [
+    "Restore Strength",
+    "Restore Strength"
+  ],
+  "腕力維持": [
+    "Sustain Strength",
+    "Sustain Strength"
+  ],
+  "自存する源『ウボ=サスラ』": [
+    "Ubbo-Sathla, the Unbegotten Source",
+    "Ubbo-Sathla, the Unbegotten Source"
+  ],
+  "自己分析": [
+    "Self Knowledge",
+    "Self Knowledge"
+  ],
+  "自己変容": [
+    "Polymorph Self",
+    "Polymorph Self"
+  ],
+  "自然の脅威": [
+    "Nature's Wrath",
+    "Nature's Wrath"
+  ],
+  "自然の覚醒": [
+    "Nature Awareness",
+    "Nature Awareness"
+  ],
+  "自縛霊": [
+    "Jibaku ghost",
+    "Jibaku ghost"
+  ],
+  "至福の地アマンの": [
+    "of Aman",
+    "of Aman"
+  ],
+  "至高神ファリスの": [
+    "of Falis",
+    "of Falis"
+  ],
+  "致命傷": [
+    "Cause Critical Wounds",
+    "Cause Critical Wounds"
+  ],
+  "致命傷の治癒": [
+    "Cure critical wounds",
+    "Cure critical wounds"
+  ],
+  "航海士『ナミ』": [
+    "Nami, the Mate",
+    "Nami, the Mate"
+  ],
+  "航海者エアレンディルの": [
+    "of Earendil",
+    "of Earendil"
+  ],
+  "船幽霊": [
+    "Funayurei",
+    "Funayurei"
+  ],
+  "花": [
+    "flower",
+    "flower"
+  ],
+  "花崗岩の壁": [
+    "granite wall",
+    "granite wall"
+  ],
+  "苦悩": [
+    "Woe",
+    "Woe"
+  ],
+  "苦痛の": [
+    "of Pain",
+    "of Pain"
+  ],
+  "苦痛を魔力に": [
+    "Pain to mana",
+    "Pain to mana"
+  ],
+  "英雄の詩": [
+    "The Hero's Poem",
+    "The Hero's Poem"
+  ],
+  "草むら": [
+    "brake",
+    "brake"
+  ],
+  "草地": [
+    "patch of grass",
+    "patch of grass"
+  ],
+  "荒野": [
+    "Wilderness",
+    "Wilderness"
+  ],
+  "落とし穴": [
+    "pit",
+    "pit"
+  ],
+  "薙刀": [
+    "Naginata",
+    "Naginatas"
+  ],
+  "薬品吸入": [
+    "Inhale potion",
+    "Inhale potion"
+  ],
+  "薬草治療": [
+    "Herbal Healing",
+    "Herbal Healing"
+  ],
+  "虎伏絶刀勢": [
+    "Kofuku-Zettousei",
+    "Kofuku-Zettousei"
+  ],
+  "虚弱なイーク": [
+    "Frail yeek",
+    "Frail yeek"
+  ],
+  "虚無召来": [
+    "Call the Void",
+    "Call the Void"
+  ],
+  "虚界の魔獣『ジェノサイバー』": [
+    "Genocyber, the Vajura Beast",
+    "Genocyber, the Vajura Beast"
+  ],
+  "虹色の": [
+    "of Prism",
+    "of Prism"
+  ],
+  "虹色の宝箱": [
+    "Legendary loot box mimic",
+    "Legendary loot box mimic"
+  ],
+  "虹色の蝶人": [
+    "Chaos butterfly",
+    "Chaos butterfly"
+  ],
+  "蛇たちの父『イグ』": [
+    "Yig, Father of Serpents",
+    "Yig, Father of Serpents"
+  ],
+  "蛇人間": [
+    "Serpent man",
+    "Serpent man"
+  ],
+  "蜘蛛のカード": [
+    "Trump Spiders",
+    "Trump Spiders"
+  ],
+  "蜘蛛の神『アトラク・ナクア』": [
+    "Atlach-Nacha, the Spider God",
+    "Atlach-Nacha, the Spider God"
+  ],
+  "蜘蛛地獄『ゴライアス』": [
+    "Goliath, the king of ant-lion",
+    "Goliath, the king of ant-lion"
+  ],
+  "蝙蝠の": [
+    "of the Bat",
+    "of the Bat"
+  ],
+  "蟲の大群": [
+    "Insect swarm",
+    "Insect swarm"
+  ],
+  "街": [
+    "Town",
+    "Town"
+  ],
+  "街の出口": [
+    "town exit",
+    "town exit"
+  ],
+  "街移動": [
+    "Teleport to town",
+    "Teleport to town"
+  ],
+  "衝撃": [
+    "Striking",
+    "Striking"
+  ],
+  "衝撃のクローク": [
+    "Cloak of shock",
+    "Cloak of shock"
+  ],
+  "衰弱": [
+    "Hypodynamia",
+    "Hypodynamia"
+  ],
+  "衰弱の霧": [
+    "Hypodynamic mist",
+    "Hypodynamic mist"
+  ],
+  "裁きの雷": [
+    "Judgment Thunder",
+    "Judgment Thunder"
+  ],
+  "裂風剣": [
+    "Wind Blast",
+    "Wind Blast"
+  ],
+  "装備無力化": [
+    "Remove Enchantment",
+    "Remove Enchantment"
+  ],
+  "装飾": [
+    "Adornment",
+    "Adornment"
+  ],
+  "西方国の": [
+    "of Westernesse",
+    "of Westernesse"
+  ],
+  "見習アーチャー": [
+    "Novice archer",
+    "Novice archer"
+  ],
+  "見習パラディン": [
+    "Novice paladin",
+    "Novice paladin"
+  ],
+  "見習プリースト": [
+    "Novice priest",
+    "Novice priest"
+  ],
+  "見習メイジ": [
+    "Novice mage",
+    "Novice mage"
+  ],
+  "見習レンジャー": [
+    "Novice ranger",
+    "Novice ranger"
+  ],
+  "見習戦士": [
+    "Novice warrior",
+    "Novice warrior"
+  ],
+  "見習盗賊": [
+    "Novice rogue",
+    "Novice rogue"
+  ],
+  "見習超能力者": [
+    "Novice mindcrafter",
+    "Novice mindcrafter"
+  ],
+  "解呪": [
+    "Remove Curse",
+    "Remove Curse"
+  ],
+  "解毒": [
+    "Cure Poison",
+    "Cure Poison"
+  ],
+  "記憶喪失": [
+    "Lose Memories",
+    "Lose Memories"
+  ],
+  "記憶苔": [
+    "Memory moss",
+    "Memory moss"
+  ],
+  "試金石": [
+    "Stone Tell",
+    "Stone Tell"
+  ],
+  "誰得": [
+    "Amusement",
+    "Amusement"
+  ],
+  "調査": [
+    "Probing",
+    "Probing"
+  ],
+  "謎": [
+    "Wonder",
+    "Wonder"
+  ],
+  "警告": [
+    "Warning",
+    "Warning"
+  ],
+  "警報装置": [
+    "alarm",
+    "alarm"
+  ],
+  "豪雨の死神『ドラウナー』": [
+    "Drowner, the reaper of heavy rains",
+    "Drowner, the reaper of heavy rains"
+  ],
+  "財宝を含有した溶岩の鉱脈": [
+    "magma vein with treasure",
+    "magma vein with treasure"
+  ],
+  "財宝を含有した石英の鉱脈": [
+    "quartz vein with treasure",
+    "quartz vein with treasure"
+  ],
+  "財宝感知": [
+    "Detect Treasure",
+    "Detect Treasure"
+  ],
+  "貧しげな傭兵": [
+    "Mean looking mercenary",
+    "Mean looking mercenary"
+  ],
+  "貧弱ホビット": [
+    "Scruffy looking hobbit",
+    "Scruffy looking hobbit"
+  ],
+  "賢さ": [
+    "Wisdom",
+    "Wisdom"
+  ],
+  "賢さ復活": [
+    "Restore Wisdom",
+    "Restore Wisdom"
+  ],
+  "賢さ維持": [
+    "Sustain Wisdom",
+    "Sustain Wisdom"
+  ],
+  "賢者": [
+    "the Magi",
+    "the Magi"
+  ],
+  "賢者の": [
+    "of the Magi",
+    "of the Magi"
+  ],
+  "賢者ガンダルフの": [
+    "of Gandalf",
+    "of Gandalf"
+  ],
+  "賢者マーリンの魔法の": [
+    "of the Wizard, Merlin",
+    "of the Wizard, Merlin"
+  ],
+  "赤ぷよ": [
+    "Red puyo",
+    "Red puyo"
+  ],
+  "赤イモムシの大群": [
+    "Red worm mass",
+    "Red worm mass"
+  ],
+  "赤オクタロック": [
+    "Red Octorok",
+    "Red Octorok"
+  ],
+  "赤チォコヴォ": [
+    "Red Chiokovo",
+    "Red Chiokovo"
+  ],
+  "赤チォコヴォLv99": [
+    "Lv.99 Red Chiokovo",
+    "Lv.99 Red Chiokovo"
+  ],
+  "赤ライネル": [
+    "Red lynel",
+    "Red lynel"
+  ],
+  "赤外線視力": [
+    "Infravision",
+    "Infravision"
+  ],
+  "赤外線視力の": [
+    "of Infravision",
+    "of Infravision"
+  ],
+  "赤流渦": [
+    "Bloody Maelstrom",
+    "Bloody Maelstrom"
+  ],
+  "赤顎狼『カルハロス』": [
+    "Carcharoth, the Jaws of Thirst",
+    "Carcharoth, the Jaws of Thirst"
+  ],
+  "赤鬼": [
+    "Red ogre",
+    "Red ogre"
+  ],
+  "超エリート・パラディン": [
+    "Ultra-elite paladin",
+    "Ultra-elite paladin"
+  ],
+  "超人『ロック』": [
+    "Locke, the Superman",
+    "Locke, the Superman"
+  ],
+  "超人ロックのクローン": [
+    "Clone of Locke the Superman",
+    "Clone of Locke the Superman"
+  ],
+  "超大なる『ギガント』": [
+    "Giganto the Gargantuan",
+    "Giganto the Gargantuan"
+  ],
+  "超能力者": [
+    "Mindcrafter",
+    "Mindcrafter"
+  ],
+  "足かせ": [
+    "Entangle",
+    "Entangle"
+  ],
+  "足なんて飾り『サンダーズ大佐』": [
+    "Colonel Thunders, the Legless Fryer",
+    "Colonel Thunders, the Legless Fryer"
+  ],
+  "跳ねる火の玉": [
+    "Jumping fireball",
+    "Jumping fireball"
+  ],
+  "跳躍の": [
+    "and Jumping",
+    "and Jumping"
+  ],
+  "踊る道化師『ペニーワイズ』": [
+    "Pennywise, the dancing clown",
+    "Pennywise, the dancing clown"
+  ],
+  "身代りシンシアの": [
+    "of Eliza the hero's scapegoat",
+    "of Eliza the hero's scapegoat"
+  ],
+  "身体浄化": [
+    "Purify",
+    "Purify"
+  ],
+  "軟革よろい": [
+    "Soft Leather Armour",
+    "Soft Leather Armours"
+  ],
+  "軟革ブーツ": [
+    "Pair of Soft Leather Boots",
+    "Pairs of Soft Leather Boots"
+  ],
+  "転移の": [
+    "at Will",
+    "at Will"
+  ],
+  "軽傷": [
+    "Cause Light Wounds",
+    "Cause Light Wounds"
+  ],
+  "軽傷の治癒": [
+    "Cure light wounds",
+    "Cure light wounds"
+  ],
+  "輝きの": [
+    "and Light",
+    "and Light"
+  ],
+  "農夫『マゴット』": [
+    "Farmer Maggot",
+    "Farmer Maggot"
+  ],
+  "農夫ジャイルズの": [
+    "of Giles",
+    "of Giles"
+  ],
+  "農夫マゴットの": [
+    "of Maggot",
+    "of Maggot"
+  ],
+  "農夫マゴットの飼犬『おおかみ』": [
+    "Wolf, Farmer Maggot's dog",
+    "Wolf, Farmer Maggot's dog"
+  ],
+  "農夫マゴットの飼犬『きば』": [
+    "Fang, Farmer Maggot's dog",
+    "Fang, Farmer Maggot's dog"
+  ],
+  "農夫マゴットの飼犬『くいつき』": [
+    "Grip, Farmer Maggot's dog",
+    "Grip, Farmer Maggot's dog"
+  ],
+  "辺境の地": [
+    "Outpost",
+    "Outpost"
+  ],
+  "迷宮": [
+    "Labyrinth",
+    "Labyrinth"
+  ],
+  "迷路の神『アイホート』": [
+    "Eihort, the Thing in the Labyrinth",
+    "Eihort, the Thing in the Labyrinth"
+  ],
+  "追い剥ぎ": [
+    "Bandit",
+    "Bandit"
+  ],
+  "追加射撃": [
+    "Extra Shots",
+    "Extra Shots"
+  ],
+  "追加攻撃": [
+    "Extra Attacks",
+    "Extra Attacks"
+  ],
+  "追加攻撃の": [
+    "of Extra Attacks",
+    "of Extra Attacks"
+  ],
+  "追尾の矢": [
+    "Seeker Arrow",
+    "Seeker Arrows"
+  ],
+  "追尾クロスボウの矢": [
+    "Seeker Bolt",
+    "Seeker Bolts"
+  ],
+  "退散の歌": [
+    "Dispelling Chant",
+    "Dispelling Chant"
+  ],
+  "透明おばけキノコ": [
+    "Clear mushroom patch",
+    "Clear mushroom patch"
+  ],
+  "透明イモムシの大群": [
+    "Clear worm mass",
+    "Clear worm mass"
+  ],
+  "透明ベトベト": [
+    "Clear icky thing",
+    "Clear icky thing"
+  ],
+  "透明体感知": [
+    "Detect Invisibility",
+    "Detect Invisibility"
+  ],
+  "透明物体感知": [
+    "Detect Invisible",
+    "Detect Invisible"
+  ],
+  "透明視認": [
+    "See Invisibility",
+    "See Invisibility"
+  ],
+  "透視術者": [
+    "Clairvoyant",
+    "Clairvoyant"
+  ],
+  "這いうねる混沌『ナイアルラトホテップ』": [
+    "Nyarlathotep, the Crawling Chaos",
+    "Nyarlathotep, the Crawling Chaos"
+  ],
+  "這いずる粘体": [
+    "Creeping Ooze",
+    "Creeping Ooze"
+  ],
+  "連鎖稲妻": [
+    "Chain Lightning",
+    "Chain Lightning"
+  ],
+  "進化する銃": [
+    "Gun",
+    "Guns"
+  ],
+  "遅消化": [
+    "Slow Digestion",
+    "Slow Digestion"
+  ],
+  "遅消化の": [
+    "and Slow Digestion",
+    "and Slow Digestion"
+  ],
+  "遅鈍の歌": [
+    "Song of Holding",
+    "Song of Holding"
+  ],
+  "遅鈍ハウンド": [
+    "Inertia hound",
+    "Inertia hound"
+  ],
+  "運命のオーブ": [
+    "The Orb of Fate",
+    "The Orb of Fate"
+  ],
+  "運命の魔女": [
+    "Wyrd sister",
+    "Wyrd sister"
+  ],
+  "遍在する意識『岩倉玲音』": [
+    "lain, the Master of Wired",
+    "lain, the Master of Wired"
+  ],
+  "道化師の": [
+    "of Fool",
+    "of Fool"
+  ],
+  "達人超能力者": [
+    "Master mindcrafter",
+    "Master mindcrafter"
+  ],
+  "適当な": [
+    "of halfheart",
+    "of halfheart"
+  ],
+  "邪なる祝福": [
+    "Evily blessing",
+    "Evily blessing"
+  ],
+  "邪悪なルーン": [
+    "evil rune",
+    "evil rune"
+  ],
+  "邪悪存在感知": [
+    "Detect Evil",
+    "Detect Evil"
+  ],
+  "邪悪存在退散": [
+    "Dispel Evil",
+    "Dispel Evil"
+  ],
+  "邪悪感知": [
+    "Evil detection",
+    "Evil detection"
+  ],
+  "邪悪追放": [
+    "Banish Evil",
+    "Banish Evil"
+  ],
+  "邪悪飛ばし": [
+    "Scatter Evil",
+    "Scatter Evil"
+  ],
+  "邪竜『ナース』": [
+    "Narse the Black Dragon",
+    "Narse the Black Dragon"
+  ],
+  "邪舞邪舞鳥": [
+    "Jubjub bird",
+    "Jubjub bird"
+  ],
+  "酒呑童子の": [
+    "of Shuten-douji",
+    "of Shuten-douji"
+  ],
+  "酔っ払い": [
+    "Booze",
+    "Booze"
+  ],
+  "酸": [
+    "Acid",
+    "Acid"
+  ],
+  "酸の球の": [
+    "and Acid ball",
+    "and Acid ball"
+  ],
+  "酸の矢の": [
+    "and Acid bolt",
+    "and Acid bolt"
+  ],
+  "酸性細胞": [
+    "Acidic cytoplasm",
+    "Acidic cytoplasm"
+  ],
+  "醜い浮浪者": [
+    "Hobo",
+    "Hobo"
+  ],
+  "醜悪": [
+    "Ugliness",
+    "Ugliness"
+  ],
+  "重傷": [
+    "Cause Medium Wounds",
+    "Cause Medium Wounds"
+  ],
+  "重傷の治癒": [
+    "Cure serious wounds",
+    "Cure serious wounds"
+  ],
+  "重力ハウンド": [
+    "Gravity hound",
+    "Gravity hound"
+  ],
+  "重力光線": [
+    "Beam of Gravity",
+    "Beam of Gravity"
+  ],
+  "重鎖かたびら": [
+    "Augmented Chain Mail",
+    "Augmented Chain Mails"
+  ],
+  "野うさぎ": [
+    "Wild rabbit",
+    "Wild rabbit"
+  ],
+  "野太刀": [
+    "No-dachi",
+    "No-dachis"
+  ],
+  "量子ドット": [
+    "Quantum dot",
+    "Quantum dot"
+  ],
+  "金のエンゼル": [
+    "Golden Angel",
+    "Golden Angel"
+  ],
+  "金のクリーピングコイン": [
+    "Creeping gold coins",
+    "Creeping gold coins"
+  ],
+  "金の冠": [
+    "Golden Crown",
+    "Golden Crowns"
+  ],
+  "金の首飾り": [
+    "Torque",
+    "Torques"
+  ],
+  "金塊": [
+    "gold",
+    "gold"
+  ],
+  "金属帽子": [
+    "Metal Cap",
+    "Metal Caps"
+  ],
+  "金属製スケイル・メイル": [
+    "Metal Scale Mail",
+    "Metal Scale Mails"
+  ],
+  "金属製スモール・シールド": [
+    "Small Metal Shield",
+    "Small Metal Shields"
+  ],
+  "金属製ブリガンダイン・アーマー": [
+    "Metal Brigandine Armour",
+    "Metal Brigandine Armours"
+  ],
+  "金属製ラメラー・アーマー": [
+    "Metal Lamellar Armour",
+    "Metal Lamellar Armours"
+  ],
+  "金属製ラージ・シールド": [
+    "Large Metal Shield",
+    "Large Metal Shields"
+  ],
+  "金無垢の指輪": [
+    "a Plain Gold Ring",
+    "a Plain Gold Ring"
+  ],
+  "金色の宝箱": [
+    "Golden loot box mimic",
+    "Golden loot box mimic"
+  ],
+  "金色の怪人『ワッハマン』": [
+    "Wahha-Man the Golden",
+    "Wahha-Man the Golden"
+  ],
+  "金鉱": [
+    "Mine",
+    "Mine"
+  ],
+  "金銀パールプレゼントの鬼": [
+    "Ogre gifting gold, silver and pearl",
+    "Ogre gifting gold, silver and pearl"
+  ],
+  "金髪のケレゴルムの": [
+    "of Celegorm",
+    "of Celegorm"
+  ],
+  "金鱗の竜王『マイセン』": [
+    "Mycen the Gold Dragon",
+    "Mycen the Gold Dragon"
+  ],
+  "針": [
+    "Needle",
+    "Needle"
+  ],
+  "釣り竿": [
+    "Fishingpole",
+    "Fishingpoles"
+  ],
+  "鉄のくさび": [
+    "Iron Spike",
+    "Iron Spikes"
+  ],
+  "鉄ゴーレム": [
+    "Iron golem",
+    "Iron golem"
+  ],
+  "鉄ヘルメット": [
+    "Iron Helm",
+    "Iron Helms"
+  ],
+  "鉄冠": [
+    "Iron Crown",
+    "Iron Crowns"
+  ],
+  "鉄弾": [
+    "Iron Shot",
+    "Iron Shots"
+  ],
+  "鉄棒": [
+    "Tetsubo",
+    "Tetsubos"
+  ],
+  "鉄獄": [
+    "Angband",
+    "Angband"
+  ],
+  "鉄鋲底の靴": [
+    "Pair of Metal Shod Boots",
+    "Pairs of Metal Shod Boots"
+  ],
+  "鉛詰めメイス": [
+    "Lead-Filled Mace",
+    "Lead-Filled Maces"
+  ],
+  "銀のエンゼル": [
+    "Silver Angel",
+    "Silver Angel"
+  ],
+  "銀のクリーピングコイン": [
+    "Creeping silver coins",
+    "Creeping silver coins"
+  ],
+  "銀ライネル": [
+    "Silver lynel",
+    "Silver lynel"
+  ],
+  "銀塊": [
+    "silver",
+    "silver"
+  ],
+  "銀河皇帝『カル・ダームIII世』": [
+    "Caldarm the Third",
+    "Caldarm the Third"
+  ],
+  "銀緑ムカデ": [
+    "Metallic green centipede",
+    "Metallic green centipede"
+  ],
+  "銀赤ムカデ": [
+    "Metallic red centipede",
+    "Metallic red centipede"
+  ],
+  "銀青ムカデ": [
+    "Metallic blue centipede",
+    "Metallic blue centipede"
+  ],
+  "銅のクリーピングコイン": [
+    "Creeping copper coins",
+    "Creeping copper coins"
+  ],
+  "銅塊": [
+    "copper",
+    "copper"
+  ],
+  "鋭敏の": [
+    "of Seeing",
+    "of Seeing"
+  ],
+  "鋲付硬革よろい": [
+    "Hard Studded Leather",
+    "Hard Studded Leathers"
+  ],
+  "鋲付軟革よろい": [
+    "Soft Studded Leather",
+    "Soft Studded Leathers"
+  ],
+  "鋼鉄のクロスボウの矢": [
+    "Steel Bolt",
+    "Steel Bolts"
+  ],
+  "鋼鉄ドラゴン": [
+    "Steel dragon",
+    "Steel dragon"
+  ],
+  "鋼鉄ヘルメット": [
+    "Steel Helm",
+    "Steel Helms"
+  ],
+  "錆の怪物": [
+    "Rust monster",
+    "Rust monster"
+  ],
+  "錆びた鎖かたびら": [
+    "Rusty Chain Mail",
+    "Rusty Chain Mails"
+  ],
+  "錫杖": [
+    "Jo Staff",
+    "Jo Staffs"
+  ],
+  "錬金術": [
+    "Alchemy",
+    "Alchemy"
+  ],
+  "錬金術の店": [
+    "Alchemy Shop",
+    "Alchemy Shop"
+  ],
+  "鍛冶の司アウレの": [
+    "of Aule",
+    "of Aule"
+  ],
+  "鍵のかかったガラスのドア": [
+    "locked glass door",
+    "locked glass door"
+  ],
+  "鍵のかかったドア": [
+    "locked door",
+    "locked door"
+  ],
+  "鎌": [
+    "Sickle",
+    "Sickles"
+  ],
+  "鎖かたびら": [
+    "Chain Mail",
+    "Chain Mails"
+  ],
+  "鎖つき鉄球": [
+    "Ball-and-Chain",
+    "Ball-and-Chains"
+  ],
+  "鏡": [
+    "mirror",
+    "mirror"
+  ],
+  "鑑定": [
+    "Identify",
+    "Identify"
+  ],
+  "鑑識": [
+    "Perception",
+    "Perception"
+  ],
+  "長持ちの": [
+    "of Duration",
+    "of Duration"
+  ],
+  "長老岩": [
+    "Greater wall monster",
+    "Greater wall monster"
+  ],
+  "長虫『スカサ』": [
+    "Scatha the Worm",
+    "Scatha the Worm"
+  ],
+  "閃光": [
+    "Ray of Light",
+    "Ray of Light"
+  ],
+  "開いたカーテン": [
+    "open curtain",
+    "open curtain"
+  ],
+  "開いたガラスのドア": [
+    "open glass door",
+    "open glass door"
+  ],
+  "開いたドア": [
+    "open door",
+    "open door"
+  ],
+  "開かれた道": [
+    "Unbarring Ways",
+    "Unbarring Ways"
+  ],
+  "開門スイッチ": [
+    "wall opening trap",
+    "wall opening trap"
+  ],
+  "閾に棲む者": [
+    "Dweller on the threshold",
+    "Dweller on the threshold"
+  ],
+  "闇の": [
+    "of Darkness",
+    "of Darkness"
+  ],
+  "闇のエルフの影": [
+    "Dark elven shade",
+    "Dark elven shade"
+  ],
+  "闇の審判『デス』": [
+    "Judge Death",
+    "Judge Death"
+  ],
+  "闇の審判『ファイア』": [
+    "Judge Fire",
+    "Judge Fire"
+  ],
+  "闇の審判『フィアー』": [
+    "Judge Fear",
+    "Judge Fear"
+  ],
+  "闇の審判『モーティス』": [
+    "Judge Mortis",
+    "Judge Mortis"
+  ],
+  "闇の帝王『ヴォルデモート』": [
+    "Voldemort, the Dark Lord",
+    "Voldemort, the Dark Lord"
+  ],
+  "闇の格闘王『ベガ』": [
+    "M. Bison",
+    "M. Bison"
+  ],
+  "闇の森蜘蛛": [
+    "Mirkwood spider",
+    "Mirkwood spider"
+  ],
+  "闇の蜘蛛『シェロブ』": [
+    "Shelob, Spider of Darkness",
+    "Shelob, Spider of Darkness"
+  ],
+  "闇貴公子『ヴラド』": [
+    "Vlad Dracula, Prince of Darkness",
+    "Vlad Dracula, Prince of Darkness"
+  ],
+  "闘トロル": [
+    "War troll",
+    "War troll"
+  ],
+  "闘熊": [
+    "War bear",
+    "War bear"
+  ],
+  "防具呪縛": [
+    "Curse armor",
+    "Curse armor"
+  ],
+  "防具屋": [
+    "Armoury",
+    "Armoury"
+  ],
+  "防具強化": [
+    "Enchant Armor",
+    "Enchant Armor"
+  ],
+  "防護服": [
+    "Cord Armour",
+    "Cord Armours"
+  ],
+  "陣笠": [
+    "Jingasa",
+    "Jingasas"
+  ],
+  "陰口の": [
+    "of Backbiting",
+    "of Backbiting"
+  ],
+  "陰気なレプラコーン": [
+    "Malicious leprechaun",
+    "Malicious leprechaun"
+  ],
+  "陰謀家『ケイン』": [
+    "Caine, the Conspirator",
+    "Caine, the Conspirator"
+  ],
+  "陰謀家ケインの": [
+    "of Caine",
+    "of Caine"
+  ],
+  "陶器のかけら": [
+    "Shard of Pottery",
+    "Shards of Pottery"
+  ],
+  "陽光召喚": [
+    "Call Sunlight",
+    "Call Sunlight"
+  ],
+  "陽気なレプラコーン": [
+    "Cheerful leprechaun",
+    "Cheerful leprechaun"
+  ],
+  "階段生成": [
+    "Stair Building",
+    "Stair Building"
+  ],
+  "隕石のカード": [
+    "Trump Meteor",
+    "Trump Meteor"
+  ],
+  "隠しドア": [
+    "secret door",
+    "secret door"
+  ],
+  "隠れたトラップ": [
+    "invisible trap",
+    "invisible trap"
+  ],
+  "隠遁の歌": [
+    "Hiding Tune",
+    "Hiding Tune"
+  ],
+  "隼の剣": [
+    "Falcon Sword",
+    "Falcon Swords"
+  ],
+  "雑貨屋": [
+    "General Store",
+    "General Store"
+  ],
+  "雪トロル": [
+    "Ice troll",
+    "Ice troll"
+  ],
+  "雪女": [
+    "Yukionna",
+    "Yukionna"
+  ],
+  "雲ゴーレム": [
+    "Cloud golem",
+    "Cloud golem"
+  ],
+  "雷撃鷲爪斬": [
+    "Lightning Eagle",
+    "Lightning Eagle"
+  ],
+  "雷球の": [
+    "and Ball Lightning",
+    "and Ball Lightning"
+  ],
+  "電撃": [
+    "Zap",
+    "Zap"
+  ],
+  "電撃の": [
+    "of Shocking",
+    "of Shocking"
+  ],
+  "電撃の矢の": [
+    "and Lightning bolt",
+    "and Lightning bolt"
+  ],
+  "電気の球体": [
+    "Ball lightning",
+    "Ball lightning"
+  ],
+  "電気ウナギ": [
+    "Electric eel",
+    "Electric eel"
+  ],
+  "霊的知覚": [
+    "Clairaudience",
+    "Clairaudience"
+  ],
+  "霧の巨人": [
+    "Mist giant",
+    "Mist giant"
+  ],
+  "青き衣の『フンディン』": [
+    "Fundin Bluecloak",
+    "Fundin Bluecloak"
+  ],
+  "青き衣のフンディンの": [
+    "of Fundin Bluecloak",
+    "of Fundin Bluecloak"
+  ],
+  "青ぷよ": [
+    "Blue puyo",
+    "Blue puyo"
+  ],
+  "青イモムシの大群": [
+    "Blue worm mass",
+    "Blue worm mass"
+  ],
+  "青オクタロック": [
+    "Blue Octorok",
+    "Blue Octorok"
+  ],
+  "青ベトベト": [
+    "Blue icky thing",
+    "Blue icky thing"
+  ],
+  "青ライネル": [
+    "Blue lynel",
+    "Blue lynel"
+  ],
+  "青鬼": [
+    "Blue ogre",
+    "Blue ogre"
+  ],
+  "青龍刀": [
+    "Falchion",
+    "Falchions"
+  ],
+  "静の魔王『氷のジシスル』": [
+    "Jisisl of Ice",
+    "Jisisl of Ice"
+  ],
+  "非暴力の": [
+    "of Pacifist",
+    "of Pacifist"
+  ],
+  "革グローブ": [
+    "Set of Leather Gloves",
+    "Sets of Leather Gloves"
+  ],
+  "革製スケイル・メイル": [
+    "Leather Scale Mail",
+    "Leather Scale Mails"
+  ],
+  "革製スモール・シールド": [
+    "Small Leather Shield",
+    "Small Leather Shields"
+  ],
+  "革製ラージ・シールド": [
+    "Large Leather Shield",
+    "Large Leather Shields"
+  ],
+  "頭蓋のドルジ": [
+    "Skull druj",
+    "Skull druj"
+  ],
+  "頭蓋骨の破片": [
+    "Broken Skull",
+    "Broken Skulls"
+  ],
+  "頸飾り": [
+    "Necklace",
+    "Necklaces"
+  ],
+  "顕聖二郎真君の": [
+    "of Arryu-Chien-Kun",
+    "of Arryu-Chien-Kun"
+  ],
+  "風に乗りて歩むもの『イタカ』": [
+    "Ithaqua the Windwalker",
+    "Ithaqua the Windwalker"
+  ],
+  "風のエレメンタル": [
+    "Air elemental",
+    "Air elemental"
+  ],
+  "風のスピリット": [
+    "Air spirit",
+    "Air spirit"
+  ],
+  "風の女王『アリエル』": [
+    "Ariel, Queen of Air",
+    "Ariel, Queen of Air"
+  ],
+  "風の帝王『パズズ』": [
+    "Pazuzu, Lord of Air",
+    "Pazuzu, Lord of Air"
+  ],
+  "風早彦『グワイヒア』": [
+    "Gwaihir the Windlord",
+    "Gwaihir the Windlord"
+  ],
+  "飛行": [
+    "of Laputa",
+    "of Laputa"
+  ],
+  "飛飯綱": [
+    "Tobi-Izuna",
+    "Tobi-Izuna"
+  ],
+  "食屍鬼": [
+    "Ghoul",
+    "Ghoul"
+  ],
+  "食屍鬼の王": [
+    "Ghoulking",
+    "Ghoulking"
+  ],
+  "食料": [
+    "Ration of Food",
+    "Rations of Food"
+  ],
+  "食糧生成": [
+    "Produce Food",
+    "Produce Food"
+  ],
+  "首なし": [
+    "Headless",
+    "Headless"
+  ],
+  "首なし幽霊": [
+    "Headless ghost",
+    "Headless ghost"
+  ],
+  "首なし鬼": [
+    "Headless ogre",
+    "Headless ogre"
+  ],
+  "首切りソード": [
+    "Executioner's Sword",
+    "Executioner's Swords"
+  ],
+  "首輪": [
+    "Collar Harness",
+    "Collar Harnesses"
+  ],
+  "首飾り": [
+    "Amulet",
+    "Amulets"
+  ],
+  "馬": [
+    "Horse",
+    "Horse"
+  ],
+  "騎士ローエングリンの": [
+    "of Lohengrin",
+    "of Lohengrin"
+  ],
+  "騒音の": [
+    "of Noise",
+    "of Noise"
+  ],
+  "骨の破片": [
+    "Broken Bone",
+    "Broken Bones"
+  ],
+  "骸骨の帝王『カントラス』": [
+    "Cantoras, the Skeletal Lord",
+    "Cantoras, the Skeletal Lord"
+  ],
+  "骸骨イーク": [
+    "Skeleton yeek",
+    "Skeleton yeek"
+  ],
+  "骸骨ティラノサウルス": [
+    "Skeletal tyrannosaurus",
+    "Skeletal tyrannosaurus"
+  ],
+  "骸骨ドラゴン": [
+    "Bone dragon",
+    "Bone dragon"
+  ],
+  "高圧帯電帯": [
+    "heavy electrical zone",
+    "heavy electrical zone"
+  ],
+  "高精度の": [
+    "of Accuracy",
+    "of Accuracy"
+  ],
+  "高級エール": [
+    "Pint of Fine Ale",
+    "Pints of Fine Ale"
+  ],
+  "高級ワイン": [
+    "Pint of Fine Wine",
+    "Pints of Fine Wine"
+  ],
+  "高速度の": [
+    "of Velocity",
+    "of Velocity"
+  ],
+  "鬼殺隊の『先輩』": [
+    "Senior, the nameless member of Demon Slayer Corps",
+    "Senior, the nameless member of Demon Slayer Corps"
+  ],
+  "鬼殺隊の隊士": [
+    "Member of Demon Slayer Corps",
+    "Member of Demon Slayer Corps"
+  ],
+  "魂の歌": [
+    "Soul Shriek",
+    "Soul Shriek"
+  ],
+  "魅了の視線": [
+    "Charm monsters",
+    "Charm monsters"
+  ],
+  "魅力": [
+    "Charisma",
+    "Charisma"
+  ],
+  "魅力復活": [
+    "Restore Charisma",
+    "Restore Charisma"
+  ],
+  "魅力維持": [
+    "Sustain Charisma",
+    "Sustain Charisma"
+  ],
+  "魅惑の": [
+    "and Monster Turning",
+    "and Monster Turning"
+  ],
+  "魔人『ウォーケン』": [
+    "Walken",
+    "Walken"
+  ],
+  "魔剣化": [
+    "Swords to runeswords",
+    "Swords to runeswords"
+  ],
+  "魔力の嵐": [
+    "Mana Storm",
+    "Mana Storm"
+  ],
+  "魔力の嵐の": [
+    "and Mana Storm",
+    "and Mana Storm"
+  ],
+  "魔力の矢の": [
+    "and Mana bolt",
+    "and Mana bolt"
+  ],
+  "魔力ハウンド": [
+    "Mana hound",
+    "Mana hound"
+  ],
+  "魔力充填": [
+    "Recharging",
+    "Recharging"
+  ],
+  "魔力封入": [
+    "Arcane Binding",
+    "Arcane Binding"
+  ],
+  "魔力復活": [
+    "Restore Mana",
+    "Restore Mana"
+  ],
+  "魔力支配の": [
+    "of Magic Mastery",
+    "of Magic Mastery"
+  ],
+  "魔力消去": [
+    "Dispel Magic",
+    "Dispel Magic"
+  ],
+  "魔力炸裂": [
+    "Mana Burst",
+    "Mana Burst"
+  ],
+  "魔法 感知": [
+    "Detect Enchantment",
+    "Detect Enchantment"
+  ],
+  "魔法おばけキノコ": [
+    "Magic mushroom patch",
+    "Magic mushroom patch"
+  ],
+  "魔法の地図": [
+    "Magic Mapping",
+    "Magic Mapping"
+  ],
+  "魔法の店": [
+    "Magic Shop",
+    "Magic Shop"
+  ],
+  "魔法の施錠": [
+    "Wizard Lock",
+    "Wizard Lock"
+  ],
+  "魔法の矢の": [
+    "and Magic Missile",
+    "and Magic Missile"
+  ],
+  "魔法の笛": [
+    "Magic Whistle",
+    "Magic Whistles"
+  ],
+  "魔法の鎧": [
+    "Magical armor",
+    "Magical armor"
+  ],
+  "魔法を防ぐクローク": [
+    "Cloak of Magic Resistance",
+    "Cloaks of Magic Resistance"
+  ],
+  "魔法剣": [
+    "Mana Branding",
+    "Mana Branding"
+  ],
+  "魔法道具支配": [
+    "Magic Device Mastery",
+    "Magic Device Mastery"
+  ],
+  "魔王の使い": [
+    "Demon at arms",
+    "Demon at arms"
+  ],
+  "魔王変化": [
+    "Polymorph Demonlord",
+    "Polymorph Demonlord"
+  ],
+  "魔界の一匹狼『クラウス・ローゼンバーグ』": [
+    "Claus Rosenberg, the maverick of demon's world",
+    "Claus Rosenberg, the maverick of demon's world"
+  ],
+  "魔神斬り": [
+    "Majingiri",
+    "Majingiri"
+  ],
+  "魔術師の杖": [
+    "Wizardstaff",
+    "Wizardstaffs"
+  ],
+  "魔道師の": [
+    "and Wizardry",
+    "and Wizardry"
+  ],
+  "鯨": [
+    "Whale",
+    "Whale"
+  ],
+  "鳩『ポッポ』": [
+    "Hato Poppo",
+    "Hato Poppo"
+  ],
+  "鳳凰": [
+    "Fenghuang",
+    "Fenghuang"
+  ],
+  "鵺": [
+    "Nue",
+    "Nue"
+  ],
+  "鷲": [
+    "Eagle",
+    "Eagle"
+  ],
+  "麒麟": [
+    "Kirin",
+    "Kirin"
+  ],
+  "麦畑の魔物": [
+    "Beast in wheat fields",
+    "Beast in wheat fields"
+  ],
+  "麻痺": [
+    "Paralysis",
+    "Paralysis"
+  ],
+  "麻痺知らず": [
+    "Free Action",
+    "Free Action"
+  ],
+  "麻痺知らずの": [
+    "of Free Action",
+    "of Free Action"
+  ],
+  "黄おばけキノコ": [
+    "Yellow mushroom patch",
+    "Yellow mushroom patch"
+  ],
+  "黄ぷよ": [
+    "Yellow puyo",
+    "Yellow puyo"
+  ],
+  "黄イモムシの大群": [
+    "Yellow worm mass",
+    "Yellow worm mass"
+  ],
+  "黄色い光": [
+    "Yellow light",
+    "Yellow light"
+  ],
+  "黄衣の修行僧": [
+    "Topaz monk",
+    "Topaz monk"
+  ],
+  "黄衣の高位修行僧": [
+    "High topaz monk",
+    "High topaz monk"
+  ],
+  "黄金王『アル=ファラゾン』": [
+    "Ar-Pharazon the Golden",
+    "Ar-Pharazon the Golden"
+  ],
+  "黄金竜『スマウグ』": [
+    "Smaug the Golden",
+    "Smaug the Golden"
+  ],
+  "黒": [
+    "Black",
+    "Black"
+  ],
+  "黒い眠り": [
+    "Black Sleep",
+    "Black Sleep"
+  ],
+  "黒き掠奪者": [
+    "Black reaver",
+    "Black reaver"
+  ],
+  "黒のガラドリエル": [
+    "The Black Armour of Elven Queen Galadriel",
+    "The Black Armour of Elven Queen Galadriel"
+  ],
+  "黒の防御円": [
+    "Circle of Protection Black",
+    "Circle of Protection Black"
+  ],
+  "黒チォコヴォ": [
+    "Black Chiokovo",
+    "Black Chiokovo"
+  ],
+  "黒曜石": [
+    "obsidians",
+    "obsidians"
+  ],
+  "黒竜『アンカラゴン』": [
+    "Ancalagon the Black",
+    "Ancalagon the Black"
+  ],
+  "黒色王『ウルファング』": [
+    "Ulfang the Black",
+    "Ulfang the Black"
+  ],
+  "黒衣の修行僧": [
+    "Ebony monk",
+    "Ebony monk"
+  ],
+  "黒衣の騎士『アシュラム』": [
+    "Ashram, the Ebony Knight",
+    "Ashram, the Ebony Knight"
+  ],
+  "黒衣の高位修行僧": [
+    "High ebony monk",
+    "High ebony monk"
+  ],
+  "黒装束": [
+    "Black Clothes",
+    "Black Clothes"
+  ],
+  "黒豹": [
+    "Panther",
+    "Panther"
+  ],
+  "黒騎士": [
+    "Black knight",
+    "Black knight"
+  ],
+  "鼠小僧の": [
+    "of Nezumi-Kozou",
+    "of Nezumi-Kozou"
+  ],
+  "龍虫": [
+    "Dragon worm",
+    "Dragon worm"
+  ],
+  "Ｔシャツ": [
+    "T-shirt",
+    "T-shirts"
+  ]
+}
