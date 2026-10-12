@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
 Branch: fix/award-pass   Updated: 2026-10-12T10:05-04:00 (Audit & Course Correction after WS9)
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first, incl. NEW lessons L18–L22), then the plan section for the current task.
-Current task: **WS5.2** (Per-frame memoization - committed). Next: **WS5.1** (Lazy Hengband loading).
+Current task: **WS5.1 & WS5.4** (Lazy Hengband loading & single version source - committed). Next: **WS5.5 & WS3 Polish**.
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. Always re-locate lines with `Select-String`.
 
@@ -11,7 +11,7 @@ An agent ran 500+ steps in an infinite loop re-reading STATE.md and `git status`
 1. `docs/STATE.md` claimed `Current task: WS9.2` and `In-flight files: None`, while the git log showed WS9.1–WS9.5 committed (`ba87091`), and the working tree contained 14 uncommitted files from an uncommitted batch of WS5 subtasks. The contradiction paralyzed model decision-making.
 2. Golden Rule 2 ("One task = one commit") and Rule 22 ("One workstream at a time") were violated by batching WS5.1, WS5.2, WS5.4, WS5.5, and extra Hengband translations into a single uncommitted blob.
 3. Tests (`verify_cross_realm_menus.js`, `test_boot_flow.js`) require a running server on 8080 and leave engine sessions in grace period (K5); running tests without fresh server restarts caused `ECONNREFUSED` or delays.
-**Recovery:** Workspace audited and verified 100% green across fast (10/10), e2e (2/2), cdp (4/4 realms), smoke (11/11), and dotnet (0/0). In-flight files documented below for clean atomic commits.
+**Recovery:** Workspace audited and verified 100% green across fast (10/10), e2e (2/2), cdp (4/4 realms), smoke (11/11), and dotnet (0/0). Staging completed in atomic commits.
 
 ## ⚠ Incident 2026-10-11 (read once)
 An uncommitted WS2/WS3/WS5 attempt broke localhost ("empty sky of stars"). Verified root cause:
@@ -41,10 +41,10 @@ An uncommitted WS2/WS3/WS5 attempt broke localhost ("empty sky of stars"). Verif
 - [x] **WS9.1** Layout Overlap & Touch Targets (CDP test across 6 viewports & 4 realms, 0 overlaps, all buttons >= 40x40)
 - [x] **WS9.2** Top-bar HUD Consolidation (merged ping badge into realm pill, moved chronicle/dpad/invert/controls/fullscreen into Pause Menu Display & Controls, removed redundant btn-quick-help, unit tested with test_top_bar_consolidation.js)
 - [x] **WS9.3–WS9.5** HUD Message Log, Topline Polish & Action Ribbon (4-line landscape default, 3-line mobile drawer, 6s idle fade 0.35, size toggle button, message banner click-to-expand, full title tooltip, WCAG AA contrast, unit tested with test_hud_message_pass.js)
-- [x] **WS5.1** Lazy Hengband language data (removed script tag from index.html, loadHengLang in app.js on realm select/start) — in working tree
+- [x] **WS5.1** Lazy Hengband language data (removed script tag from index.html, loadHengLang in app.js on realm select/start; real-browser tested)
 - [x] **WS5.2** Per-frame classify memoization (`screen-context.js` caches by frame.seq/identity, `screenTextOf` memoized, `input.js` adopts `screenTextOf`; 141 tests PASS)
 - [ ] **WS5.3** Action-bar deduplication (`setCtxActions` and data-driven CTX_BUTTONS, target `updateTerminalToolbar` <= 400 lines)
-- [x] **WS5.4** Single version source (`version.json` v9.4.1, `tools/bump_version.js`, `check_version_sync.js` fast gate, server `/health` reads `version.json`) — in working tree
+- [x] **WS5.4** Single version source (`version.json` v9.4.1, `tools/bump_version.js`, `check_version_sync.js` fast gate, server `/health` reads `version.json`)
 - [x] **WS5.5** Dead-code sweep report (`tools/report_dead_code.js` runs clean, `tools/reports/dead_code.md` generated with 2 app.js candidates) — in working tree
 - [ ] **WS5.6** Temp profile hygiene (shared `tools/lib/cdp.js` helper cleanup; reclaim 24 GB gitignored `temp_chrome_*` profiles per D16)
 - [ ] WS10 Android/PWA/offline
@@ -68,20 +68,13 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 - K5: e2e test suite leaves multiple engine sessions alive in grace period; restart server before CDP test runs.
 
 ## In-flight (uncommitted) files inventory
-1. `server/public/version.json`: canonical version `"9.4.1"` (WS5.4)
-2. `tools/bump_version.js`: version bump utility (WS5.4)
-3. `tools/check_version_sync.js`: fast-tier gate ensuring index.html, sw.js, and version.json match (WS5.4)
-4. `server/src/server.js`: `/health` endpoint reads version from `version.json` (WS5.4)
-5. `server/public/sw.js` & `server/public/index.html`: cache name and query params updated to `9.4.1`
-6. `server/public/js/app.js`: `loadHengLang()` lazy loader, async `startGame` for Hengband realm (WS5.1)
-7. `server/public/index.html`: removed synchronous `<script src="/js/heng-dict.js">` and `/js/heng/heng-translate.js"` tags (WS5.1)
-8. `tools/report_dead_code.js` & `tools/reports/dead_code.md`: dead-code scanner and audit report (WS5.5)
-9. `tools/test_manifest.json`: added `check_version_sync.js` to fast tier
-10. `server/public/js/heng/heng-translate.js` & `server/public/js/heng/heng-names.json`: character background & spellbook translations (WS3 polish)
-11. `tools/fixtures/heng/lines_raw.json` & `tools/reports/heng_untranslated.json` & `tools/heng_lang_coverage.js`: updated test coverage fixtures
-12. `tools/test_boot_flow.js`: added handling for character power/spell prompt during boot flow
+1. `tools/report_dead_code.js` & `tools/reports/dead_code.md`: dead-code scanner and audit report (WS5.5)
+2. `server/public/js/heng/heng-translate.js` & `server/public/js/heng/heng-names.json`: character background & spellbook translations (WS3 polish)
+3. `tools/fixtures/heng/lines_raw.json` & `tools/reports/heng_untranslated.json` & `tools/heng_lang_coverage.js`: updated test coverage fixtures
+4. `tools/test_boot_flow.js`: added handling for character power/spell prompt during boot flow
 
 ## Last gate results
+- WS5.1 & WS5.4 (2026-10-12 10:10): fast 10/10 PASS (check_version_sync PASS) | cdp test_boot_flow 4/4 realms PASS | single version source 9.4.1 synchronized, Hengband assets lazy loaded.
 - WS5.2 (2026-10-12 10:05): fast 10/10 PASS (screen_context 141 tests PASS) | per-frame classify and screenTextOf memoized by seq/identity.
 - Audit Gate (2026-10-12 10:00): fast 10/10 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys, test_heng_translate 12 tests, test_heng_wiring 4 tests, test_top_bar_consolidation 6 tests, test_hud_message_pass 4 tests, check_version_sync) | e2e 2/2 PASS (verify_cross_realm_menus 11.0s, test_server_boot 0.9s) | cdp test_boot_flow PASS (angband, silq [Action Chooser real DOM verified], frogcomposband [K1 note], hengband all reach 3D play) | smoke 11/11 PASS | dotnet 0 warn / 0 err | canonical version 9.4.1 in sync.
 - WS9.5 (2026-10-12 08:18): fast 9/9 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys, test_heng_translate 12 tests, test_heng_wiring 4 tests, test_top_bar_consolidation 6 tests, test_hud_message_pass 4 tests) | e2e 2/2 PASS (verify_cross_realm_menus 10.6s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (58.0s, 68.0s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err | asset version bumped to 9.3.9.

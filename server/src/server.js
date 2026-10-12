@@ -865,6 +865,13 @@ const server = http.createServer((req, res) => {
 
     // Health & Liveness Probes (/health and /healthz for Cloud Run / Kubernetes)
     if ((pathname === '/health' || pathname === '/healthz') && req.method === 'GET') {
+        let appVersion = '9.4.0';
+        try {
+            const vFile = path.join(__dirname, '..', 'public', 'version.json');
+            if (fs.existsSync(vFile)) {
+                appVersion = JSON.parse(fs.readFileSync(vFile, 'utf8')).v || appVersion;
+            }
+        } catch (_) {}
         res.writeHead(200, {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -874,7 +881,7 @@ const server = http.createServer((req, res) => {
             uptime: Math.floor(process.uptime()),
             activeSessions: activeSessions.size,
             engine: fs.existsSync(ENGINE_EXE) ? 'ready' : 'missing',
-            version: '3.0.0',
+            version: appVersion,
             timestamp: Date.now()
         }));
         return;
