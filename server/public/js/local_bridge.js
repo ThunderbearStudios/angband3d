@@ -312,16 +312,38 @@ class LocalGameBridge {
         this.isInQueue = false;
     }
 
+    _validateCommand(cmd) {
+        let sc = null;
+        if (typeof ScreenContext !== 'undefined') sc = ScreenContext;
+        else if (typeof window !== 'undefined' && window.ScreenContext) sc = window.ScreenContext;
+        else if (typeof require === 'function') {
+            try { sc = require('./screen-context.js'); } catch (_) {}
+        }
+        if (sc && typeof sc.isAllowedEngineCommand === 'function') {
+            return sc.isAllowedEngineCommand(cmd);
+        }
+        return true;
+    }
+
     sendKey(spec) {
         if (!this.worker) return;
+        const cmd = `key ${spec}`;
+        if (!this._validateCommand(cmd)) {
+            console.warn('[LocalBridge] Disallowed command blocked:', cmd);
+            return;
+        }
         this.worker.postMessage({
             type: 'command',
-            cmd: `key ${spec}`
+            cmd: cmd
         });
     }
 
     sendCommand(cmd) {
         if (!this.worker) return;
+        if (!this._validateCommand(cmd)) {
+            console.warn('[LocalBridge] Disallowed command blocked:', cmd);
+            return;
+        }
         this.worker.postMessage({
             type: 'command',
             cmd: cmd
@@ -366,5 +388,10 @@ class LocalGameBridge {
     }
 }
 
-window.LocalSaveManager = LocalSaveManager;
-window.LocalGameBridge = LocalGameBridge;
+if (typeof window !== 'undefined') {
+    window.LocalSaveManager = LocalSaveManager;
+    window.LocalGameBridge = LocalGameBridge;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { LocalSaveManager, LocalGameBridge };
+}

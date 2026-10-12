@@ -846,6 +846,26 @@
         return result;
     }
 
+    // Engine verbs allowlist (WS1.2 / WS10.3)
+    const ENGINE_VERBS = new Set(['key', 'keys', 'frame', 'map', 'save', 'ping']);
+
+    /**
+     * Engine command allowlist guard (shared between server relay and local_bridge).
+     * Bounded, allowlisted, single command per call.
+     * @param {string} raw
+     * @returns {boolean}
+     */
+    function isAllowedEngineCommand(raw) {
+        if (typeof raw !== 'string') return false;
+        const cmd = raw.trim();
+        if (!cmd || cmd.length > 64 || /[\r\n\0]/.test(cmd)) return false;
+        const sp = cmd.indexOf(' ');
+        const verb = sp === -1 ? cmd : cmd.slice(0, sp);
+        if (!ENGINE_VERBS.has(verb)) return false;
+        if (verb === 'keys' && cmd.length > 5 + 16) return false;
+        return true;
+    }
+
     return {
         KEYS,
         rawScreenText,
@@ -864,6 +884,8 @@
         extractItems,
         classify,
         classifyScreen: classify,
-        decodeSjis
+        decodeSjis,
+        ENGINE_VERBS,
+        isAllowedEngineCommand
     };
 });

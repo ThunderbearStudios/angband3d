@@ -72,9 +72,36 @@ function classify(frame, realm) {
 test('exports', () => {
     for (const fn of ['rawScreenText', 'screenTextOf', 'playerFeatOf', 'needsTerminal', 'toolbarFlags',
         'birthFlags', 'promptFlags', 'storeFlags', 'itemFlags', 'inputEscapeReview', 'inputTerminalKeyFlags',
-        'inputTargetingPrompt', 'terminalDetectMode', 'extractItems', 'classify', 'classifyScreen', 'decodeSjis']) {
+        'inputTargetingPrompt', 'terminalDetectMode', 'extractItems', 'classify', 'classifyScreen', 'decodeSjis',
+        'isAllowedEngineCommand']) {
         assert.strictEqual(typeof SC[fn], 'function', `missing export ${fn}`);
     }
+});
+
+test('isAllowedEngineCommand validation', () => {
+    assert.strictEqual(SC.isAllowedEngineCommand('key a'), true);
+    assert.strictEqual(SC.isAllowedEngineCommand('key Escape'), true);
+    assert.strictEqual(SC.isAllowedEngineCommand('keys .2'), true);
+    assert.strictEqual(SC.isAllowedEngineCommand('frame'), true);
+    assert.strictEqual(SC.isAllowedEngineCommand('map'), true);
+    assert.strictEqual(SC.isAllowedEngineCommand('save'), true);
+    assert.strictEqual(SC.isAllowedEngineCommand('ping'), true);
+
+    // Disallowed verbs and attacks
+    assert.strictEqual(SC.isAllowedEngineCommand('quit'), false);
+    assert.strictEqual(SC.isAllowedEngineCommand('rm -rf'), false);
+    assert.strictEqual(SC.isAllowedEngineCommand('bash'), false);
+    assert.strictEqual(SC.isAllowedEngineCommand('eval'), false);
+    assert.strictEqual(SC.isAllowedEngineCommand(''), false);
+    assert.strictEqual(SC.isAllowedEngineCommand(null), false);
+    assert.strictEqual(SC.isAllowedEngineCommand(undefined), false);
+    assert.strictEqual(SC.isAllowedEngineCommand(123), false);
+
+    // Bounds and control characters
+    assert.strictEqual(SC.isAllowedEngineCommand('key ' + 'a'.repeat(70)), false);
+    assert.strictEqual(SC.isAllowedEngineCommand('keys ' + 'a'.repeat(25)), false);
+    assert.strictEqual(SC.isAllowedEngineCommand('key a\nkey b'), false);
+    assert.strictEqual(SC.isAllowedEngineCommand('key a\0evil'), false);
 });
 
 const sample = mkFrame(['(Inventory) Command:', 'a) a Torch']);
