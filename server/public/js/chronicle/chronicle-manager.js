@@ -356,7 +356,10 @@ class ChronicleManager {
 
         // Window & Audio Playback Button Controls
         if (this.btnPlayStory) {
-            this.btnPlayStory.addEventListener('click', () => this.toggleStoryPlayback());
+            this.btnPlayStory.addEventListener('click', () => {
+                if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
+                this.toggleStoryPlayback();
+            });
         }
         if (this.btnStopStory) {
             this.btnStopStory.addEventListener('click', () => this.stopStoryPlayback());
@@ -383,6 +386,7 @@ class ChronicleManager {
 
         if (this.btnMute) {
             this.btnMute.addEventListener('click', () => {
+                if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
                 const nowMuted = this.audio.enabled; // Toggle
                 this.audio.setMuted(nowMuted);
                 this.updateAudioControlsUI();
@@ -435,6 +439,7 @@ class ChronicleManager {
         // Audition Voice Button in Settings Modal: Auditions the Master Chronicler Enceladus
         if (this.btnTestVoice) {
             this.btnTestVoice.addEventListener('click', async () => {
+                if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
                 const sampleText = "Deep in the subterranean vaults of Angband, iron doors groan upon rusted hinges. Steel your courage, mortal, for the shadows stir.";
                 if (this.audio) {
                     const wasMuted = !this.audio.enabled;
@@ -1421,6 +1426,7 @@ class ChronicleManager {
         if (playBtn) {
             playBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
                 const idxAttr = playBtn.getAttribute('data-beat-index');
                 const targetIdx = (idxAttr !== null && idxAttr !== undefined) ? parseInt(idxAttr, 10) : playlistIndex;
                 this.toggleBeatPlayback(targetIdx);
@@ -1434,6 +1440,7 @@ class ChronicleManager {
         });
         block.addEventListener('dblclick', (e) => {
             if (e.target.closest('button')) return;
+            if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
             const idxAttr = block.getAttribute('data-beat-index');
             const targetIdx = (idxAttr !== null && idxAttr !== undefined) ? parseInt(idxAttr, 10) : playlistIndex;
             this.playStoryFrom(targetIdx);
@@ -1518,6 +1525,7 @@ class ChronicleManager {
     }
 
     toggleBeatPlayback(targetIdx) {
+        if (this.audio && typeof this.audio.unlock === 'function') this.audio.unlock();
         if (!this.storyPlaylist || this.storyPlaylist.length === 0) {
             this.buildStoryPlaylist();
         }
@@ -1606,14 +1614,20 @@ class ChronicleManager {
 
     async playStoryFrom(beatIndex = null) {
         if (!this.audio) return;
+        if (typeof this.audio.unlock === 'function') {
+            this.audio.unlock();
+        }
         if (!this.storyPlaylist || this.storyPlaylist.length === 0) {
             this.buildStoryPlaylist();
         }
         if (this.storyPlaylist.length === 0) return;
 
         // Auto-unmute for playback since player explicitly invoked Play
-        if (!this.audio.enabled) {
+        if (this._isAudioMuted() || !this.audio.enabled) {
             this.audio.setMuted(false);
+            if (typeof this.audio.voiceVolume === 'number' && this.audio.voiceVolume <= 0) {
+                this.audio.setVoiceVolume(1.0);
+            }
             this.updateAudioControlsUI();
         }
 
@@ -1856,6 +1870,9 @@ class ChronicleManager {
     }
 
     toggleStoryPlayback() {
+        if (this.audio && typeof this.audio.unlock === 'function') {
+            this.audio.unlock();
+        }
         if (this.isVoiceLoading) {
             console.log('[ChronicleManager] Voice is currently generating/loading, ignoring impatient play click.');
             return;

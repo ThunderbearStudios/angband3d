@@ -116,9 +116,60 @@ class ChronicleAudioRouter {
         return Boolean(this._activeStaging && !this._activeStaging.aborted);
     }
 
+    getFetchHeaders() {
+        const headers = {};
+        const clientKey = (typeof window !== 'undefined' && window.localStorage)
+            ? (localStorage.getItem('angband_chronicle_apikey') || '')
+            : '';
+        if (clientKey) {
+            headers['x-goog-api-key'] = clientKey;
+        }
+        return headers;
+    }
+
+    ensureAudioGraph() {
+        if (this.ctx && this.voiceMasterGain) return true;
+        if (this.soundEngine) {
+            if (!this.soundEngine.ctx && typeof this.soundEngine.init === 'function') {
+                try { this.soundEngine.init(); } catch (_) {}
+            }
+            if (this.soundEngine.ctx) {
+                this.init(this.soundEngine);
+                if (this.ctx && this.voiceMasterGain) return true;
+            }
+        }
+        if (!this.ctx && typeof window !== 'undefined') {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                try {
+                    this.ctx = new AudioCtx();
+                    this.init(this.soundEngine);
+                } catch (e) {
+                    console.warn('[ChronicleAudio] Failed to instantiate fallback AudioContext:', e);
+                }
+            }
+        }
+        return Boolean(this.ctx && this.voiceMasterGain);
+    }
+
+    async unlock() {
+        this.ensureAudioGraph();
+        if (this.ctx && this.ctx.state === 'suspended') {
+            try {
+                await this.ctx.resume();
+            } catch (e) {
+                console.warn('[ChronicleAudio] Failed to resume AudioContext:', e);
+            }
+        }
+        if (this.soundEngine && typeof this.soundEngine.unlock === 'function') {
+            try { this.soundEngine.unlock(true); } catch (_) {}
+        }
+    }
+
     init(soundEngine) {
         if (soundEngine) this.soundEngine = soundEngine;
         if (!this.soundEngine || !this.soundEngine.ctx) return;
+        if (this.ctx === this.soundEngine.ctx && this.voiceMasterGain) return;
         this.ctx = this.soundEngine.ctx;
 
         try {
@@ -715,13 +766,15 @@ class ChronicleAudioRouter {
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                const res = await fetch(url, { signal: signal || undefined });
+                const fetchHeaders = this.getFetchHeaders();
+                const res = await fetch(url, { headers: fetchHeaders, signal: signal || undefined });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
                 const usedEngine = res.headers.get('x-tts-engine') || engine;
                 const fallbackReason = res.headers.get('x-tts-fallback-reason');
                 const arrayBuffer = await res.arrayBuffer();
 
+                this.ensureAudioGraph();
                 let audioBuffer = ChronicleAudioRouter.decodePcmWav(arrayBuffer, this.ctx);
                 if (!audioBuffer && this.ctx) {
                     audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
@@ -1155,6 +1208,7 @@ class ChronicleAudioRouter {
      */
     async speakUtterance(text, role = 'narrator', speakerName = '', customVoice = null, options = {}) {
         if (this.isMuted()) return { aborted: true, muted: true };
+        this.ensureAudioGraph();
         const cleanText = text.replace(/<[^>]*>/g, '').trim();
         if (!cleanText) return { finished: true };
 
@@ -1280,12 +1334,21 @@ class ChronicleAudioRouter {
             if (numSamples <= 0) return null;
 
             const audioBuffer = ctx.createBuffer(channels, numSamples, sampleRate);
-            const int16View = new Int16Array(arrayBuffer, dataOffset, numSamples * channels);
-
-            for (let c = 0; c < channels; c++) {
-                const channelData = audioBuffer.getChannelData(c);
-                for (let i = 0; i < numSamples; i++) {
-                    channelData[i] = int16View[i * channels + c] / 32768.0;
+            if (dataOffset % 2 === 0) {
+                const int16View = new Int16Array(arrayBuffer, dataOffset, numSamples * channels);
+                for (let c = 0; c < channels; c++) {
+                    const channelData = audioBuffer.getChannelData(c);
+                    for (let i = 0; i < numSamples; i++) {
+                        channelData[i] = int16View[i * channels + c] / 32768.0;
+                    }
+                }
+            } else {
+                for (let c = 0; c < channels; c++) {
+                    const channelData = audioBuffer.getChannelData(c);
+                    for (let i = 0; i < numSamples; i++) {
+                        const sampleByteOffset = dataOffset + (i * channels + c) * 2;
+                        channelData[i] = dv.getInt16(sampleByteOffset, true) / 32768.0;
+                    }
                 }
             }
             return audioBuffer;
@@ -1335,6 +1398,9 @@ class ChronicleAudioRouter {
                 const rateParam = `${combinedRateNum >= 0 ? '+' : ''}${combinedRateNum}%`;
 
                 const cacheKey = this.getAudioCacheKey(text, role, customVoice, options);
+
+                // Ensure Web Audio context and routing graph are ready
+                this.ensureAudioGraph();
 
                 // Resume suspended AudioContext if browser blocked autoplay before interaction
                 if (this.ctx && this.ctx.state === 'suspended') {
@@ -1440,6 +1506,7 @@ class ChronicleAudioRouter {
 
                         if (!audioBuffer) {
                             this._setLoading(true, 'Voicing lore...');
+                            const fetchHeaders = this.getFetchHeaders();
                             const res = await fetch(url, { headers: fetchHeaders, signal: abortCtrl.signal });
                             if (this._playSessionId !== sessionId || this._activePlayToken !== playToken || !this.enabled) {
                                 this.isSpeaking = false;
@@ -1861,9 +1928,11 @@ class ChronicleAudioRouter {
                 if (this.isMuted()) return null; // Abort prewarm if Tome audio is muted
 
                 const url = `/api/tts?${q.toString()}`;
-                const res = await fetch(url);
+                const fetchHeaders = this.getFetchHeaders();
+                const res = await fetch(url, { headers: fetchHeaders });
                 if (!res.ok) return null;
                 const arrayBuffer = await res.arrayBuffer();
+                this.ensureAudioGraph();
                 if (!this.ctx) return null;
                 let audioBuffer = ChronicleAudioRouter.decodePcmWav(arrayBuffer, this.ctx);
                 if (!audioBuffer) {

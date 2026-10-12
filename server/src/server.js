@@ -309,7 +309,14 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                         }
                     }
                 }
-            }
+            },
+            safetySettings: [
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' }
+            ]
         });
 
         const req = https.request('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent', {
@@ -1317,6 +1324,11 @@ const server = http.createServer((req, res) => {
         // --- ENGINE B: GEMINI NATIVE CONTROLLABLE AUDIO ---
         if (requestedEngine === 'gemini') {
             if (!geminiApiKey) {
+                if (!isNarrator) {
+                    console.info('[TTS] No Gemini API key for non-narrator role, falling back to Edge Neural');
+                    handleEdgeTTS('No Gemini API key configured');
+                    return;
+                }
                 console.warn('[TTS] Gemini Native Audio requested, but no Gemini API key found (headers, query, or env).');
                 res.writeHead(401, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'No Gemini API key configured for Gemini Native Audio' }));
@@ -1365,6 +1377,11 @@ const server = http.createServer((req, res) => {
                     .then(wavBuffer => sendWav(wavBuffer, false))
                     .catch(geminiErr => {
                         console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
+                        if (!isNarrator) {
+                            console.info('[TTS] Non-narrator role falling back to Edge Neural:', geminiErr.message);
+                            handleEdgeTTS(geminiErr.message);
+                            return;
+                        }
                         if (!res.headersSent) {
                             res.writeHead(502, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({ error: redactSecret(geminiErr.message, geminiApiKey) }));
@@ -1401,6 +1418,11 @@ const server = http.createServer((req, res) => {
                 sendWav(wavBuffer, false);
             }).catch(geminiErr => {
                 console.warn(`[TTS] Gemini Native Audio error: ${redactSecret(geminiErr.message, geminiApiKey)}`);
+                if (!isNarrator) {
+                    console.info('[TTS] Non-narrator role falling back to Edge Neural:', geminiErr.message);
+                    handleEdgeTTS(geminiErr.message);
+                    return;
+                }
                 if (!res.headersSent) {
                     res.writeHead(502, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: redactSecret(geminiErr.message, geminiApiKey) }));
@@ -1412,7 +1434,7 @@ const server = http.createServer((req, res) => {
         // --- ENGINE A: EXPRESSIVE EDGE NEURAL (ACCESSIBLE ONLY ON EXPLICIT REQUEST) ---
         handleEdgeTTS();
 
-        function handleEdgeTTS() {
+        function handleEdgeTTS(fallbackReason = null) {
             let voice = TTS_VOICE_MAP.default;
             if (reqGender === 'female' && TTS_VOICE_MAP[`female_${role}`]) {
                 voice = TTS_VOICE_MAP[`female_${role}`];
@@ -1458,13 +1480,17 @@ const server = http.createServer((req, res) => {
 
             function sendEdgeMp3(buffer, isHit = false) {
                 if (res.headersSent) return;
-                res.writeHead(200, {
+                const headers = {
                     'Content-Type': 'audio/mpeg',
                     'Content-Length': buffer.length,
                     'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
                     'X-TTS-Engine': 'edge',
                     'X-TTS-Cache': isHit ? 'HIT' : 'MISS'
-                });
+                };
+                if (fallbackReason) {
+                    headers['X-TTS-Fallback-Reason'] = String(fallbackReason).slice(0, 100);
+                }
+                res.writeHead(200, headers);
                 res.end(buffer);
             }
 
