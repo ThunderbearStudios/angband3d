@@ -30,7 +30,7 @@ claimed WS2/WS5 done with no commit.
 - [x] **WS2.5** End-to-end polish and cleanup
 - [x] **WS6.1** Probe realm keys (`tools/probe_realm_keys.js` + 4 fixtures in `tools/fixtures/realm_keys/`)
 - [x] **WS6.2** `server/public/js/realm-keys.js` UMD module + unit tests `tools/test_realm_keys.js`
-- [ ] **WS6.3** Switch senders over, applyLabels, no raw digits
+- [x] **WS6.3** Switch senders over, applyLabels, no raw digits
 - [ ] WS3 Hengband language (decides lang→binary policy; see K2)
 - [ ] WS9 GUI
 - [ ] WS5 perf/bloat (NOT done: lazy heng-dict, version source, profile hygiene must be redone and committed)
@@ -55,9 +55,10 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 - K5: e2e test suite leaves multiple engine sessions alive in grace period; restart server before CDP test runs.
 
 ## In-flight (uncommitted) files
-- `tools/test_realm_keys.js` (added WS6.3 assertions for sender migration, zero raw digits, and applyLabels)
+None
 
 ## Last gate results
+- WS6.3 (2026-10-11 22:30): fast 5/5 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys 11 tests) | e2e 2/2 PASS (verify_cross_realm_menus 9.9s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (64.9s, 65.8s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - WS6.3-test red (2026-10-11 22:06): fast 4/5 (test_realm_keys red as expected: sendKey('5') present in input.js, senders not yet switched to RealmKeys)
 - WS6.2 (2026-10-11 22:01): fast 5/5 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys) | e2e 2/2 PASS (verify_cross_realm_menus 10.6s, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (71.3s, 105.3s; 4/4 realms) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - WS6.2-test red (2026-10-11 21:55): fast 4/5 (test_realm_keys red as expected: realm-keys.js not yet present)
