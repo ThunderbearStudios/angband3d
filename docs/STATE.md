@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
-Branch: fix/award-pass   Updated: 2026-10-11T21:26-04:00 (WS2 Phase 4 pass)
+Branch: fix/award-pass   Updated: 2026-10-11T21:36-04:00 (WS2 Phase 5 pass)
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first, incl. NEW lessons L18–L22), then the plan section for the current task.
-Current task: **WS2 Phase 5** (End-to-end polish and cleanup).
+Current task: **WS6** (Realm keys: probe first per EXECUTOR §8 / language_gui_platform_spec.md).
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. Always re-locate lines with `Select-String`.
 
@@ -27,7 +27,7 @@ claimed WS2/WS5 done with no commit.
 - [x] **WS2.2** Extract `screen-context.js` pure module + 47 realm fixtures + delegate `app.js`, `input.js`, `terminal.js` (zero behavior change)
 - [x] **WS2.3** Additive classifications (`promptKind: 'command'`, `mode: 'press-any-key'`, `mode: 'item-actions'`, FCB gear UI)
 - [x] **WS2.4** `menu-router.js` and Action Chooser in `#term-contextual-actions`
-- [ ] **WS2.5** End-to-end polish and cleanup
+- [x] **WS2.5** End-to-end polish and cleanup
 - [ ] WS6 realm keys (probe first)
 - [ ] WS3 Hengband language (decides lang→binary policy; see K2)
 - [ ] WS9 GUI
@@ -53,15 +53,11 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 - K5: e2e test suite leaves multiple engine sessions alive in grace period; restart server before CDP test runs.
 
 ## In-flight (uncommitted) files
-- `server/public/js/menu-router.js` (two-phase menu dispatch and action chooser UMD module, VERBS with verified upstream citations)
-- `server/public/js/app.js` (wired MenuRouter.route for ribbon, data-verb handler, Action Chooser in updateTerminalToolbar, onFrame advancement, needsTerminal guard)
-- `server/public/js/input.js` (wired MenuRouter.route before terminal sendKey)
-- `server/public/index.html` (script tag added for menu-router.js, bumped to 9.1.6)
-- `server/public/sw.js` (CACHE_NAME bumped to 9.1.6)
-- `tools/test_manifest.json` (registered test_menu_router.js in fast tier)
-- `tools/test_menu_router.js` (unit tests for contract, Sil-Q dispatch, Hengband dispatch, ineligible fallback, pass-through, renderChooserHtml)
+- `tools/verify_cross_realm_menus.js` (extended with MenuRouter item selection, state assertions for equipped torch, Remove routing, Hengband item interception and client-side Escape cancellation)
+- `tools/test_boot_flow.js` (added real-DOM Action Chooser test in Sil-Q: clicks ribbon letter, asserts chooser header + verbs + escape, tests Escape dismissal)
 
 ## Last gate results
+- WS2.5 (2026-10-11 21:35): fast 4/4 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router) | e2e 2/2 PASS (verify_cross_realm_menus: all 4 realms in 9.7s with torch state assertion + remove routing, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (72.2s, 69.9s; 4/4 realms + real-browser Action Chooser DOM test in Sil-Q) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - WS2.4 (2026-10-11 21:25): fast 4/4 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router) | e2e 2/2 PASS (verify_cross_realm_menus: all 4 realms in 10.2s, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (67.0s, 67.9s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - WS2.3 (2026-10-11 21:11): fast 3/3 PASS (relay guard, http guard, screen_context 141/141 tests) | e2e 2/2 PASS (verify_cross_realm_menus: all 4 realms in 10.6s, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (61.6s, 78.8s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err.
 - WS2.2 (2026-10-11 20:57): fast 3/3 PASS (relay guard, http guard, screen_context 135/135 tests) | e2e 2/2 PASS (verify_cross_realm_menus: all 4 realms, test_server_boot) | cdp test_boot_flow PASS ×2 consecutive (60.7s, 61.5s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err.

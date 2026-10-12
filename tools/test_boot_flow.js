@@ -73,6 +73,33 @@ async function runRealm(realm) {
                 if (txt.includes('-more-')) { a.network.sendKey('space'); return true; } return false; })()`);
             if (pressedMore) notes.push('pressed Space on terminal -more- in play (K1)');
         }
+        if (result.pass && realm === 'silq') {
+            // Real-browser Action Chooser test in Sil-Q
+            await evaluate(`(() => { const a = window.__app; if (a && a.network) a.network.sendKey('i'); })()`);
+            await sleep(600);
+
+            const chooserCheck = await evaluate(`(() => {
+                const ribbonBtn = document.querySelector('.term-letter-btn');
+                if (!ribbonBtn) return { ok: false, reason: 'No ribbon button found' };
+                ribbonBtn.click();
+                const header = document.querySelector('.term-chooser-header');
+                const verbBtn = document.querySelector('.term-ctx-btn[data-verb="w"]');
+                const escBtn = document.querySelector('.term-ctx-btn[data-verb="Escape"]');
+                const hasChooser = !!(header && verbBtn && escBtn);
+                const headerText = header ? header.textContent : '';
+                if (escBtn) escBtn.click();
+                if (window.__app && window.__app.network) window.__app.network.sendKey('escape');
+                return { ok: hasChooser, headerText };
+            })()`);
+
+            if (chooserCheck && chooserCheck.ok) {
+                notes.push(`Action Chooser verified in real DOM (${chooserCheck.headerText})`);
+            } else {
+                errors.push(`Action Chooser DOM test failed: ${JSON.stringify(chooserCheck)}`);
+            }
+            await sleep(400);
+        }
+
         await takeScreenshot(path.join(__dirname, `boot_${realm}.png`));
         if (!result.pass) result.reason = `timeout; last=${JSON.stringify(last)}`;
     });
