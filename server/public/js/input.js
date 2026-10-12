@@ -1008,6 +1008,17 @@ class InputController {
 
         if (keySpec) {
             e.preventDefault();
+            const realm = (window.__app && typeof window.__app.getActiveRealm === 'function')
+                ? window.__app.getActiveRealm()
+                : ((window.__app && window.__app.currentRealm) || (lastFrame && lastFrame.realm) || 'angband');
+            if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
+                if (window.MenuRouter.route(keySpec, lastFrame, realm)) {
+                    if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') {
+                        window.__app.updateTerminalToolbar(lastFrame);
+                    }
+                    return;
+                }
+            }
             this.network.sendKey(keySpec);
         }
     }

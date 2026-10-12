@@ -681,10 +681,33 @@ window.addEventListener('DOMContentLoaded', () => {
                 window.DeviceProfile.triggerHaptic('light');
             }
             const key = btn.dataset.key;
-            if (!key) return;
+            const verb = btn.dataset.verb;
+            if (!key && !verb) return;
+
+            if (verb) {
+                if (verb === 'Escape' || verb === 'escape') {
+                    if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
+                        window.MenuRouter.clearPending();
+                        updateTerminalToolbar(lastFrame);
+                        return;
+                    }
+                }
+                if (window.MenuRouter && typeof window.MenuRouter.chooseVerb === 'function') {
+                    window.MenuRouter.chooseVerb(verb);
+                    updateTerminalToolbar(lastFrame);
+                    return;
+                }
+            }
 
             // Letter Ribbon option buttons (e.g. [a], [b], [*]) must strictly pass their key directly
             if (btn.classList.contains('term-letter-btn')) {
+                const realm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
+                if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
+                    if (window.MenuRouter.route(key, lastFrame, realm)) {
+                        updateTerminalToolbar(lastFrame);
+                        return;
+                    }
+                }
                 network.sendKey(key);
                 return;
             }
@@ -783,7 +806,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 touchStartX = touch.clientX;
                 touchStartY = touch.clientY;
                 touchMoved = false;
-                touchStartBtn = ev.target.closest('[data-key]');
+                touchStartBtn = ev.target.closest('[data-key], [data-verb]');
             }
         }, { passive: true });
 
@@ -819,7 +842,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 // Ignore synthetic emulated click from mobile touch
                 return;
             }
-            const btn = ev.target.closest('[data-key]');
+            const btn = ev.target.closest('[data-key], [data-verb]');
             if (btn) {
                 executeTouchAction(btn, ev);
             }
@@ -1233,6 +1256,9 @@ window.addEventListener('DOMContentLoaded', () => {
         if (banner) banner.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuOpen();
+        if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
+            window.MenuRouter.clearPending();
+        }
         updateEngineModeUI();
         checkSaves();
         updateMenuSelectionUI();
@@ -4427,6 +4453,23 @@ window.addEventListener('DOMContentLoaded', () => {
         if (termRerollBtn) termRerollBtn.style.display = 'none';
         if (birthNameBar) birthNameBar.style.display = 'none';
 
+        // Check for Action Chooser (MenuRouter pending selection)
+        const pendingState = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
+            ? window.MenuRouter.getPending()
+            : null;
+
+        if (pendingState && pendingState.step === 'chooser' && pendingState.item) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle(`🎒 ${pendingState.item.key}) ${pendingState.item.label}`, `🎒 ${pendingState.item.key}) ${pendingState.item.label}`, `🎒 ${pendingState.item.key}) ${pendingState.item.label}`)
+                : `🎒 ${pendingState.item.key}) ${pendingState.item.label}`;
+            if (termDpad) termDpad.style.display = 'none';
+            const chooserRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (effFrame && effFrame.realm) || 'angband';
+            if (window.MenuRouter && typeof window.MenuRouter.renderChooserHtml === 'function') {
+                setCtxActions(window.MenuRouter.renderChooserHtml(pendingState, chooserRealm));
+            }
+            return;
+        }
+
         // Check for universal Yes/No prompts or Quantity prompts in active play or stores (screen-context.js promptFlags)
         const { isYesNoPrompt, isQuantityPrompt } = SC.promptFlags(screenText);
 
@@ -4821,13 +4864,18 @@ window.addEventListener('DOMContentLoaded', () => {
             cancelQuickBirth,
             isBirthReviewActive: () => birthReviewActive,
             getAppState: () => appState,
-            getLastFrame: () => lastFrame
+            getLastFrame: () => lastFrame,
+            getActiveRealm,
+            showToast: showRealmToast
         });
     }
 
     // View routing (AGENTS.md §3.3). Logic lives in screen-context.js needsTerminal (verbatim move, WS2);
     // app state is passed explicitly so the classifier stays pure and testable in Node.
     function needsTerminal(frame) {
+        if (window.MenuRouter && typeof window.MenuRouter.getPending === 'function' && window.MenuRouter.getPending()) {
+            return true;
+        }
         return SC.needsTerminal(frame, { forceTerminal, decode: decodeHengbandText });
     }
 
@@ -5266,6 +5314,16 @@ window.addEventListener('DOMContentLoaded', () => {
             } else if (frame.player && frame.player.hp !== undefined && frame.player.hp_max) {
                 if (frame.player.hp / frame.player.hp_max <= 0.25) {
                     if (audio) audio.playLowHpWarning();
+                }
+            }
+
+            // MenuRouter advances pending two-phase dispatch before view mode is evaluated
+            if (window.MenuRouter && typeof window.MenuRouter.onFrame === 'function') {
+                try {
+                    const realmForRouter = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (frame && frame.realm) || 'angband';
+                    window.MenuRouter.onFrame(frame, realmForRouter);
+                } catch (err) {
+                    console.error('[MenuRouter Error]', err);
                 }
             }
 
