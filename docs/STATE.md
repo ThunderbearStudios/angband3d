@@ -63,6 +63,7 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 None
 
 ## Last gate results
+- WS3.4-test red (2026-10-11 23:35): fast 6/7 (test_heng_wiring red as expected: HengTranslate not yet wired into heng-dict.js, L2/L8/L9 not yet implemented)
 - WS3.2 (2026-10-11 23:25): fast 6/6 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys, test_heng_translate 12 tests) | e2e 2/2 PASS (verify_cross_realm_menus 10.0s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (59.0s, 60.0s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err | T1-T12 contract green, translation 1ms for 10x corpus.
 - WS3.3-test red (2026-10-11 23:16): fast 5/6 (test_heng_translate red as expected: heng-translate.js not yet present)
 - WS3.1 (2026-10-11 23:13): fast 5/5 PASS (relay guard, http guard, screen_context 141 tests, test_menu_router, test_realm_keys) | e2e 2/2 PASS (verify_cross_realm_menus 10.0s, test_server_boot 0.8s) | cdp test_boot_flow PASS ×2 consecutive (60.0s, 62.0s; 4/4 realms reach 3D play, FCB NOTE K1) | smoke 11/11 PASS | dotnet 0 warn / 0 err | generator deterministic, output 1204.1 KB raw / 273.3 KB gzip.
