@@ -1,0 +1,9 @@
+{
+  "v": "Throw which item? (Inven: a-c, / for Equip, ESC)",
+  "t": "Take off or unwield which item? (Equip: a-g, ESC)",
+  "r": "Read which scroll?  (Inven: b-b, ESC)",
+  "i": "Select Item: (Inven: a-c, / for Equip, ESC)",
+  "e": "Select Item: (Equip: a-p, / for Inven, ESC)",
+  "U": "Use which item?  (Inven: a-b, ESC)",
+  "E": "Eat which food?  (Inven: a-a, ESC)"
+}
