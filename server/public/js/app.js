@@ -1325,6 +1325,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (queueModal) queueModal.classList.add('hidden');
         stopQueueTipRotation();
         if (terminalContainer) terminalContainer.classList.add('hidden');
+        const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
+        if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuNav();
     }
@@ -1346,6 +1348,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (terminalContainer) terminalContainer.classList.add('hidden');
         const banner = document.getElementById('top-message-banner');
         if (banner) banner.style.display = 'none';
+        const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
+        if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuOpen();
         if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
@@ -2246,9 +2250,12 @@ window.addEventListener('DOMContentLoaded', () => {
         if (hud && typeof hud.resetMessages === 'function') {
             hud.resetMessages();
         }
-        if (window.chronicleManager && typeof window.chronicleManager.stopStoryPlayback === 'function') {
-            window.chronicleManager.stopStoryPlayback();
+        if (window.chronicleManager) {
+            if (typeof window.chronicleManager.stopStoryPlayback === 'function') window.chronicleManager.stopStoryPlayback();
+            if (typeof window.chronicleManager.hideWindow === 'function') window.chronicleManager.hideWindow();
         }
+        const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
+        if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
         if (window.__startWatchdog) {
             clearTimeout(window.__startWatchdog);
             window.__startWatchdog = null;
@@ -4870,6 +4877,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const btnToggleMsg = document.getElementById('btn-toggle-msg-feed');
         const btnToggleMap = document.getElementById('btn-toggle-minimap');
         const btnToggleDpad = document.getElementById('btn-toggle-dpad');
+        const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
 
         if (needsTerm) {
             terminalContainer.classList.remove('hidden');
@@ -4883,6 +4891,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (btnToggleMsg) btnToggleMsg.style.display = 'none';
             if (btnToggleMap) btnToggleMap.style.display = 'none';
             if (btnToggleDpad) btnToggleDpad.style.display = 'none';
+            if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
 
             input.setTerminalMode(true);
             terminal.resize();
@@ -4963,6 +4972,11 @@ window.addEventListener('DOMContentLoaded', () => {
             if (btnToggleDpad) {
                 btnToggleDpad.style.display = 'inline-flex';
                 btnToggleDpad.classList.toggle('active', Boolean(showTouch));
+            }
+            if (btnToggleChronicle && !isApk && !document.body.classList.contains('is-standalone')) {
+                btnToggleChronicle.style.display = 'inline-flex';
+                const isChronicleOpen = window.chronicleManager && window.chronicleManager.visible;
+                btnToggleChronicle.classList.toggle('active', Boolean(isChronicleOpen));
             }
 
             input.setTerminalMode(false);
