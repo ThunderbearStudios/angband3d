@@ -131,6 +131,39 @@ window.addEventListener('DOMContentLoaded', () => {
     window.activeRealm = activeRealm;
     window.__activeRealm = activeRealm;
 
+    // WS5.1: Lazy Hengband language data loading
+    let hengLangPromise = null;
+    function loadHengLang() {
+        if (hengLangPromise) return hengLangPromise;
+        const v = (typeof window !== 'undefined' && window.__ASSET_V)
+            ? window.__ASSET_V
+            : (document.querySelector('script[src*="app.js"]')?.src.match(/\?v=([^&]+)/)?.[1] || '');
+        const addScript = (src) => new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src + (v ? '?v=' + v : '');
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+        hengLangPromise = addScript('/js/heng-dict.js')
+            .then(() => addScript('/js/heng/heng-translate.js'))
+            .then(() => {
+                if (window.HengTranslate && typeof window.HengTranslate.loadAssets === 'function') {
+                    return window.HengTranslate.loadAssets();
+                }
+            })
+            .catch((err) => {
+                console.warn('[heng] language assets failed; JP passthrough', err);
+            });
+        return hengLangPromise;
+    }
+    if (typeof window !== 'undefined') {
+        window.loadHengLang = loadHengLang;
+    }
+    if (activeRealm === 'hengband') {
+        loadHengLang();
+    }
+
     let network = (engineMode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
     const dungeon = new Dungeon3D('viewport-canvas');
     dungeon.realm = activeRealm;
@@ -2041,7 +2074,7 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function startGame(options) {
+    async function startGame(options) {
         appState = 'game';
         if (splashOverlay) splashOverlay.classList.add('hidden');
         if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
@@ -2079,6 +2112,13 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         const chosenRealm = options.realm || activeRealm || 'angband';
+        if (chosenRealm === 'hengband') {
+            try {
+                await loadHengLang();
+            } catch (err) {
+                console.warn('[Angband3D] Failed to load Hengband language data prior to connect:', err);
+            }
+        }
         network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm);
     }
 
@@ -3149,6 +3189,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         if (!REALM_DATA[realmKey]) return;
         setActiveRealm(realmKey);
+        if (realmKey === 'hengband') {
+            loadHengLang();
+        }
 
         // Invariant: Changing realm immediately invalidates any stale saves and session ID from the previous realm
         latestSave = null;
