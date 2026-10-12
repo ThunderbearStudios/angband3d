@@ -824,13 +824,9 @@ class InputController {
                     ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
                     : '';
                 const isReviewActive = Boolean(window.__app && typeof window.__app.isBirthReviewActive === 'function' && window.__app.isBirthReviewActive());
-                const isReviewScreen = isReviewActive || (!inPlay && (screenText.includes("use as is") || screenText.includes("'y': use") ||
-                                       screenText.includes("to start over") || screenText.includes("r to reroll") ||
-                                       screenText.includes("reroll") || screenText.includes("'s' to start") ||
-                                       screenText.includes("accept character") ||
-                                       (screenText.includes("enter your starting stats") && screenText.includes("begin play")) ||
-                                       screenText.includes("能力値の決定") ||
-                                       screenText.includes("step back") || screenText.includes("any other key to continue")));
+                const isReviewScreen = (window.ScreenContext && typeof window.ScreenContext.inputEscapeReview === 'function')
+                    ? window.ScreenContext.inputEscapeReview(screenText, inPlay, isReviewActive)
+                    : isReviewActive;
 
                 if (!inPlay) {
                     if (isReviewScreen) {
@@ -886,44 +882,10 @@ class InputController {
         const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
             ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
             : '';
-        const isChoiceMenu = !inPlay && (
-            screenText.includes("性別") || screenText.includes("種族") ||
-            screenText.includes("職業") || screenText.includes("性格") ||
-            screenText.includes("魔法領域") || screenText.includes("領域を選んで") ||
-            screenText.includes("choose sex") || screenText.includes("choose your sex") ||
-            screenText.includes("sex affects stats") || screenText.includes("choose character sex") ||
-            screenText.includes("choose a race") || screenText.includes("choose race") ||
-            screenText.includes("race affects stats") || screenText.includes("choose character race") ||
-            screenText.includes("choose a class") || screenText.includes("choose class") ||
-            screenText.includes("class affects stats") || screenText.includes("choose character class") ||
-            screenText.includes("choose a personality") || screenText.includes("choose personality") ||
-            screenText.includes("personality affects stats") ||
-            screenText.includes("choose realm") || screenText.includes("choose a realm") ||
-            screenText.includes("choose first realm") || screenText.includes("choose second realm") ||
-            screenText.includes("first realm") || screenText.includes("second realm") ||
-            screenText.includes("choose a house") || screenText.includes("choose house") ||
-            screenText.includes("choose character background") || screenText.includes("choose background") ||
-            screenText.includes("choose subrace") || screenText.includes("choose a subrace") ||
-            screenText.includes("*でランダム") || screenText.includes("* for random") ||
-            screenText.includes("escで戻る") || screenText.includes("esc to return") ||
-            screenText.includes("esc to step back") || screenText.includes("esc:戻る") ||
-            screenText.includes("escで前へ")
-        );
-        const isNamePrompt = !inPlay && (
-            screenText.includes("名前を入力") || screenText.includes("character's name") ||
-            screenText.includes("enter a name") || screenText.includes("choose your name")
-        );
         const isReviewActive = Boolean(window.__app && typeof window.__app.isBirthReviewActive === 'function' && window.__app.isBirthReviewActive());
-        const isReviewScreen = !isChoiceMenu && !isNamePrompt && !inPlay && (
-            isReviewActive ||
-            screenText.includes("use as is") || screenText.includes("'y': use") ||
-            screenText.includes("to start over") || screenText.includes("r to reroll") ||
-            screenText.includes("reroll") || screenText.includes("'s' to start") ||
-            screenText.includes("accept character") ||
-            (screenText.includes("enter your starting stats") && screenText.includes("begin play")) ||
-            screenText.includes("能力値決定") || screenText.includes("次の数値") ||
-            screenText.includes("この数値に決定")
-        );
+        const { isChoiceMenu, isNamePrompt, isReviewScreen } = (window.ScreenContext && typeof window.ScreenContext.inputTerminalKeyFlags === 'function')
+            ? window.ScreenContext.inputTerminalKeyFlags(screenText, inPlay, isReviewActive)
+            : { isChoiceMenu: false, isNamePrompt: false, isReviewScreen: false };
 
         // Reroll hotkey on review screen ('R') -> Re-randomize
         if (isReviewScreen && (e.key === 'r' || e.key === 'R')) {
@@ -2234,14 +2196,9 @@ class InputController {
             const screenText = (frame.term && frame.term.rows)
                 ? frame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
                 : '';
-            const isTargetingPrompt = inPlay && (
-                screenText.includes('target [') ||
-                screenText.includes('target:') ||
-                screenText.includes('direction?') ||
-                screenText.includes('which direction?') ||
-                screenText.includes('select target') ||
-                screenText.includes('aim which direction?')
-            );
+            const isTargetingPrompt = (window.ScreenContext && typeof window.ScreenContext.inputTargetingPrompt === 'function')
+                ? window.ScreenContext.inputTargetingPrompt(screenText, inPlay)
+                : false;
 
             if (isTargetingPrompt && inPlay && !inTerminalOverlay && !isDead) {
                 rosette.classList.remove('hidden');

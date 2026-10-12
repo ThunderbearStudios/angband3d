@@ -4,6 +4,10 @@
  */
 
 window.addEventListener('DOMContentLoaded', () => {
+    // Pure screen classifier (js/screen-context.js, WS2). Loaded before app.js in index.html.
+    // Fail loudly if missing: a silent fallback would reintroduce divergent heuristic copies.
+    const SC = window.ScreenContext;
+    if (!SC) console.error('[App] ScreenContext missing: js/screen-context.js failed to load');
     const loadingOverlay = document.getElementById('loading-overlay');
     const terminalContainer = document.getElementById('terminal-container');
 
@@ -4026,87 +4030,10 @@ window.addEventListener('DOMContentLoaded', () => {
         // Inform classic terminal canvas of 3D camera facing
         terminal.setCameraFacing(cameraYaw);
 
-        // 2. Identify Current Mode & Screen
-        let playerFeat = 0;
-        if (effFrame && effFrame.map && effFrame.map.rows && effFrame.player) {
-            const py = effFrame.player.y;
-            const px = effFrame.player.x;
-            if (effFrame.map.rows[py] && effFrame.map.rows[py].f) {
-                playerFeat = parseInt(effFrame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16) || 0;
-            }
-        }
-        const isStoreFeat = (playerFeat >= 7 && playerFeat <= 14) ||
-                            (playerFeat >= 0x20 && playerFeat <= 0x28) ||
-                            (isHeng && playerFeat === 4);
-        const inOverlay = Boolean(effFrame && effFrame.ui && (effFrame.ui.overlay || 0) > 0);
-        const hasStoreText = screenText.includes('store inventory') ||
-                             screenText.includes('home inventory') ||
-                             screenText.includes('gold remaining') ||
-                             screenText.includes('purchase which item') ||
-                             screenText.includes('sell which item') ||
-                             screenText.includes('examine which item') ||
-                             screenText.includes('商品の一覧') ||
-                             screenText.includes('雑貨屋') ||
-                             screenText.includes('万屋') ||
-                             screenText.includes('防具屋') ||
-                             screenText.includes('武器屋') ||
-                             screenText.includes('寺院') ||
-                             screenText.includes('錬金術の店') ||
-                             screenText.includes('魔術師の店') ||
-                             screenText.includes('ブラック・マーケット') ||
-                             screenText.includes('我が家') ||
-                             screenText.includes('博物館') ||
-                             (screenText.includes('重さ') && screenText.includes('価格'));
-        const isTargeting = inPlay && (
-            screenText.includes('target [') ||
-            screenText.includes('target:') ||
-            screenText.includes('direction?') ||
-            screenText.includes('which direction?') ||
-            screenText.includes('select target') ||
-            screenText.includes('aim which direction?')
-        );
+        // 2. Identify Current Mode & Screen (classification lives in screen-context.js toolbarFlags)
+        const { playerFeat, isStoreFeat, inOverlay, hasStoreText, isTargeting, isItemPrompt, isStore } =
+            SC.toolbarFlags(effFrame, screenText, isHeng);
         terminal.setTargetingMode(isTargeting);
-
-        const isItemPrompt = inPlay && !isTargeting && (
-            screenText.includes('select item:') ||
-            screenText.includes('inven:') ||
-            screenText.includes('(inven') ||
-            screenText.includes('(inventory)') ||
-            screenText.includes('inventory | equipment') ||
-            screenText.includes('inventory |') ||
-            screenText.includes('| equipment') ||
-            screenText.includes('equip:') ||
-            screenText.includes('(equip') ||
-            screenText.includes('(equipment)') ||
-            screenText.includes('quiver:') ||
-            screenText.includes('quiver') ||
-            screenText.includes('which item?') ||
-            screenText.includes('which potion?') ||
-            screenText.includes('which scroll?') ||
-            screenText.includes('which spell?') ||
-            screenText.includes('which prayer?') ||
-            screenText.includes('which book?') ||
-            screenText.includes('wear/wield') ||
-            screenText.includes('take off') ||
-            screenText.includes('remove which item') ||
-            screenText.includes('drop which') ||
-            screenText.includes('throw which') ||
-            screenText.includes('fire which') ||
-            screenText.includes('quaff which') ||
-            screenText.includes('read which') ||
-            screenText.includes('destroy which') ||
-            (!hasStoreText && screenText.includes('examine which item')) ||
-            (isHeng && !hasStoreText && (
-                screenText.includes('持ち物：') ||
-                screenText.includes('装備：') ||
-                screenText.includes('どれを装備') ||
-                screenText.includes('どれを外しますか') ||
-                screenText.includes('どれを落としますか') ||
-                screenText.includes('どれを投げますか')
-            ))
-        );
-
-        const isStore = !isItemPrompt && (hasStoreText || (isStoreFeat && inOverlay));
 
         // Update Facing Badge & D-Pad Highlight
         if (termFacingBadge) {
@@ -4274,98 +4201,18 @@ window.addEventListener('DOMContentLoaded', () => {
             if (termRerollBtn) termRerollBtn.style.display = 'none';
             termEscapeBtn.textContent = isHeng ? hengLabel('Back (Esc)', 'Back / 戻る (Esc)', '戻る (Esc)') : 'Back (Esc)';
 
-            const isTitleScreen = (screenText.includes('when the world is old') ||
-                                   screenText.includes('press any key to continue') ||
-                                   screenText.includes('rephial.org') ||
-                                   screenText.includes('last battle be gathered')) &&
-                                  !screenText.includes('character traits') &&
-                                  !screenText.includes('affects stats');
-
-
-
-            const isHengInitialOpt = isHeng && (((screenText.includes('smart_learn') && screenText.includes('初期オプション')) ||
-                                     (screenText.includes('esc:終了') && screenText.includes('初期オプション'))));
-            const isHengSex = isHeng && screenText.includes('性別を選んで');
-            const isHengRace = isHeng && screenText.includes('種族を選んで');
-            const isHengClass = isHeng && screenText.includes('職業を選んで');
-            const isHengPersonality = isHeng && screenText.includes('性格を選んで');
-            const isHengRealm = isHeng && (screenText.includes('魔法領域') || screenText.includes('領域を選んで'));
-            const isHengStatRoller = isHeng && (screenText.includes('能力値を抽選') || screenText.includes('最低限得たい能力値'));
-            const isHengStatDecide = isHeng && (screenText.includes('この数値に決定') || screenText.includes('次の数値'));
-            const isHengName = isHeng && (screenText.includes('名前を入力') || screenText.includes('キャラクターの名前を入力'));
-            const isHengHistory = isHeng && (screenText.includes('キャラクターの生い立ち') || screenText.includes('生い立ちを表示'));
-            const isHengEmbark = isHeng && (screenText.includes('ゲーム開始') || screenText.includes('冒険に出ますか'));
-
-            const isNamePrompt = isHengName ||
-                                 screenText.includes("enter a name for your character") ||
-                                 screenText.includes("enter a name") ||
-                                 screenText.includes("enter character's name") ||
-                                 screenText.includes("enter your player's name") ||
-                                 screenText.includes("choose your name");
-
-            const isHistoryPrompt = isHengHistory ||
-                                    screenText.includes("accept character history") ||
-                                    (screenText.includes("[y/n]") && !screenText.includes("use as is") && !screenText.includes("to start over"));
-
-            const isStatRoller = isHengStatRoller ||
-                                 screenText.includes("left/right to modify") ||
-                                 screenText.includes("to modify") ||
-                                 screenText.includes("total cost:") ||
-                                 screenText.includes("point-based") ||
-                                 screenText.includes("standard roller") ||
-                                 screenText.includes("set minimum stats") ||
-                                 screenText.includes("enter for goto next") ||
-                                 screenText.includes("roller");
-
-            const isBackgroundEdit = isHengHistory ||
-                                     screenText.includes("character background") ||
-                                     screenText.includes("cursor key for move, enter for end");
-
-            const isReadyPrompt = isHengEmbark ||
-                                  screenText.includes("start over, or enter to continue") ||
-                                  screenText.includes("['q'uit, 's'tart over, or enter to continue]");
-
-            const isChoiceMenu = isHengSex || isHengRace || isHengClass || isHengPersonality || isHengRealm ||
-                                 screenText.includes('choose a race') || screenText.includes('choose race') ||
-                                 screenText.includes('choose a class') || screenText.includes('choose class') ||
-                                 screenText.includes('race affects stats') || screenText.includes('class affects stats') ||
-                                 screenText.includes('sex affects stats') || screenText.includes('choose sex') ||
-                                 screenText.includes('choose your sex') || screenText.includes('choose character sex') ||
-                                 screenText.includes('choose character race') || screenText.includes('choose character class') ||
-                                 screenText.includes('choose a personality') || screenText.includes('choose personality') ||
-                                 screenText.includes('personality affects stats') ||
-                                 screenText.includes('choose realm') || screenText.includes('choose a realm') ||
-                                 screenText.includes('choose first realm') || screenText.includes('choose second realm') ||
-                                 screenText.includes('first realm') || screenText.includes('second realm') ||
-                                 screenText.includes('choose a house') || screenText.includes('choose house') ||
-                                 screenText.includes('choose character background') || screenText.includes('choose background') ||
-                                 screenText.includes('choose subrace') || screenText.includes('choose a subrace') ||
-                                 screenText.includes('*でランダム') || screenText.includes('* for random') ||
-                                 screenText.includes('escで戻る') || screenText.includes('esc to return') ||
-                                 screenText.includes('esc to step back') || screenText.includes('esc:戻る') ||
-                                 screenText.includes('escで前へ');
+            // Birth/setup classification lives in screen-context.js birthFlags (verbatim move, WS2).
+            const {
+                isTitleScreen, isHengInitialOpt, isHengSex, isHengRace, isHengClass, isHengPersonality,
+                isHengRealm, isHengStatRoller, isHengStatDecide, isHengName, isHengHistory, isHengEmbark,
+                isNamePrompt, isHistoryPrompt, isStatRoller, isBackgroundEdit, isReadyPrompt, isChoiceMenu,
+                isReviewScreen
+            } = SC.birthFlags(screenText, isHeng);
 
             if (isChoiceMenu || isNamePrompt) {
                 birthReviewActive = false;
             }
 
-            const isReviewScreen = !isChoiceMenu && !isNamePrompt && !isHistoryPrompt && !isStatRoller && !isBackgroundEdit && !isReadyPrompt &&
-                                   !screenText.includes('character traits') &&
-                                   !screenText.includes('affects stats') &&
-                                   (screenText.includes("to start over") ||
-                                    screenText.includes("any other key to continue") ||
-                                    screenText.includes("use as is") ||
-                                    screenText.includes("accept character") ||
-                                    screenText.includes("re-roll") ||
-                                    screenText.includes("r to reroll") ||
-                                    screenText.includes("'s' to start") ||
-                                    screenText.includes("['r'eroll") ||
-                                    screenText.includes("or enter to accept") ||
-                                    screenText.includes("reroll, 'h'istory") ||
-                                    screenText.includes("enter to begin play") ||
-                                    screenText.includes("能力値決定") ||
-                                    screenText.includes("次の数値") ||
-                                    (screenText.includes("best") && screenText.includes("cur exp")));
 
             if (isHengInitialOpt) {
                 terminalTitle.textContent = hengTitle(
@@ -4571,11 +4418,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (termRerollBtn) termRerollBtn.style.display = 'none';
         if (birthNameBar) birthNameBar.style.display = 'none';
 
-        // Check for universal Yes/No prompts or Quantity prompts in active play or stores
-        const isYesNoPrompt = screenText.includes('[y/n]') || screenText.includes('(y/n)') ||
-                              screenText.includes('are you sure') || screenText.includes('really drop') ||
-                              screenText.includes('really destroy');
-        const isQuantityPrompt = screenText.includes('how many') || screenText.includes('quantity') || screenText.includes('how much');
+        // Check for universal Yes/No prompts or Quantity prompts in active play or stores (screen-context.js promptFlags)
+        const { isYesNoPrompt, isQuantityPrompt } = SC.promptFlags(screenText);
 
         if (isYesNoPrompt) {
             terminalTitle.textContent = isHeng
@@ -4637,18 +4481,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (storeNames[playerFeat]) storeName = storeNames[playerFeat];
             }
 
-            const hasMore = Boolean(frame.ui && frame.ui.more) || screenText.includes('-more-');
-            const isStoreContextMenu = screenText.includes('command for ') ||
-                                       (screenText.includes('(enter to select') && screenText.includes('examine')) ||
-                                       (isHeng && screenText.includes('に対するコマンド'));
-            const isStoreBuy = screenText.includes('purchase which item') ||
-                               screenText.includes('which item to buy') ||
-                               (isHeng && (screenText.includes('何か買いますか') || screenText.includes('どのアイテムを買いますか') || screenText.includes('何を買いますか') || screenText.includes('買いますか')));
-            const isStoreSell = screenText.includes('sell which item') ||
-                                screenText.includes('which item to sell') ||
-                                (isHeng && (screenText.includes('どれを売りますか') || screenText.includes('どのアイテムを売りますか') || screenText.includes('何を売りますか') || screenText.includes('売りますか')));
-            const isStoreExamine = screenText.includes('examine which item') ||
-                                   (isHeng && (screenText.includes('どれを調べますか') || screenText.includes('どのアイテムを調べますか') || screenText.includes('調べますか')));
+            // Store sub-state classification (screen-context.js storeFlags)
+            const { hasMore, isStoreContextMenu, isStoreBuy, isStoreSell, isStoreExamine } = SC.storeFlags(frame, screenText, isHeng);
 
             if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling and navigating store inventory
 
@@ -4746,18 +4580,11 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         } else if (isItemPrompt) {
             // Item selection / inventory / equipment prompts across all realms
-            const isSilq = activeRealm === 'silq';
-            const isSilqInvenCmd = isSilq && (screenText.includes('(inventory) command:') || screenText.includes('(inven) command:'));
-            const isSilqEquipCmd = isSilq && (screenText.includes('(equipment) command:') || screenText.includes('(equip) command:'));
-            const isSilqWear = isSilq && (screenText.includes('wear/wield which item') || screenText.includes('wear/wield'));
-            const isSilqRemove = isSilq && (screenText.includes('remove which item') || screenText.includes('remove which'));
-            const isSilqExamine = isSilq && screenText.includes('examine which item');
-            const isSilqDrop = isSilq && (screenText.includes('drop which item') || screenText.includes('drop which'));
-            const isSilqThrow = isSilq && (screenText.includes('throw which item') || screenText.includes('throw which'));
-            const isSilqFire = isSilq && (screenText.includes('fire which item') || screenText.includes('fire which'));
-
-            const isEquipView = screenText.includes('equip') || screenText.includes('装備品') || screenText.includes('装備：') || screenText.includes('装備:');
-            const isQuiverView = screenText.includes('quiver:') || screenText.includes('quiver') || screenText.includes('矢筒:');
+            // Item sub-state classification (screen-context.js itemFlags)
+            const {
+                isSilq, isSilqInvenCmd, isSilqEquipCmd, isSilqWear, isSilqRemove, isSilqExamine,
+                isSilqDrop, isSilqThrow, isSilqFire, isEquipView, isQuiverView
+            } = SC.itemFlags(screenText, activeRealm);
 
             if (isSilqInvenCmd) {
                 terminalTitle.textContent = '🎒 INVENTORY PACK (Choose action)';
@@ -4945,68 +4772,12 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // View routing (AGENTS.md §3.3). Logic lives in screen-context.js needsTerminal (verbatim move, WS2);
+    // app state is passed explicitly so the classifier stays pure and testable in Node.
     function needsTerminal(frame) {
-        if (!frame) return true;
-        // If player does not exist yet, we are in birth / character setup
-        if (!frame.player) return true;
-        // Non-play phases (panic save prompts, etc.) route to terminal
-        if (frame.phase && frame.phase !== 'play') return true;
-        // During active play, if the player is dead, the atmospheric death modal handles death presentation
-        const isDead = Boolean(frame.player.dead || (frame.player.hp !== undefined && frame.player.hp <= 0 && frame.player.hp_max > 0));
-        if (isDead) return false;
-        if (forceTerminal) return true;
-        const ui = frame.ui;
-        if (!ui) return false;
-
-        // Overlays and menus take precedence over more prompts:
-        // Inside stores, inventory, equipment, or menus, any -more- prompt belongs to that overlay and must stay in terminal view
-        if (ui.context && (ui.context === 'menu' || ui.context === 'birth' || ui.context === 'setup')) return true;
-        if ((ui.overlay || 0) > 0) {
-            const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
-            const decoded = decodeHengbandText(rawScreenText);
-            const fullText = (rawScreenText + '\n' + decoded).toLowerCase();
-            if (fullText.includes('low hitpoint warning') || fullText.includes('low hitpoint')) {
-                return false;
-            }
-            return true;
-        }
-
-        // In-dungeon messages and -more- prompts must strictly remain in 3D view
-        if (ui.more) return false;
-
-        // In active play exploration with map:
-        // If awaiting_command is false and more is false, route to terminal UNLESS it is a directional
-        // targeting prompt (e.g. aiming a spell or bow in 3D using the rosette or target cursor).
-        // This ensures 100% of menus (inventory, equipment, shops, character sheet, spellbooks, options)
-        // cleanly open in the classic CRT terminal modal across all variants and languages!
-        if (!ui.awaiting_command && !ui.more) {
-            const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
-            const decoded = decodeHengbandText(rawScreenText);
-            const fullText = (rawScreenText + '\n' + decoded).toLowerCase();
-
-            // Low hitpoint warnings must never engage terminal mode or interrupt 3D exploration
-            if (fullText.includes('low hitpoint warning') || fullText.includes('low hitpoint')) {
-                return false;
-            }
-
-            const isDirectionalTargeting = fullText.includes('direction?') ||
-                                          fullText.includes('target [') ||
-                                          fullText.includes('target:') ||
-                                          fullText.includes('which direction?') ||
-                                          fullText.includes('aim which direction?') ||
-                                          fullText.includes('select target') ||
-                                          fullText.includes('方向') ||
-                                          fullText.includes('どの方向') ||
-                                          fullText.includes('ターゲット');
-
-            if (isDirectionalTargeting) {
-                return false; // Stay in 3D view for rosette / crosshair aiming
-            }
-
-            return true;
-        }
-        return false;
+        return SC.needsTerminal(frame, { forceTerminal, decode: decodeHengbandText });
     }
+
 
     function updateViewMode(frame) {
         if (appState !== 'game') {
