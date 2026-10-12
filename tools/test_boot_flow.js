@@ -71,11 +71,13 @@ async function runRealm(realm) {
                 const term = document.getElementById('terminal-container');
                 if (!f || f.phase !== 'play' || !term || term.classList.contains('hidden')) return false;
                 const txt = (f.term && f.term.rows ? f.term.rows.map(r => r.g || '').join('\\n') : '');
-                if (txt.includes('-more-')) { a.network.sendKey('space'); return true; }
+                if (txt.includes('-more-') || txt.includes('-続く-') || txt.includes('続く')) { a.network.sendKey('space'); return true; }
                 if (txt.includes('Gain which power?') || txt.includes('Gain which spell?')) { a.network.sendKey('a'); return 'power'; }
+                if (txt.includes('Special Action') || txt.includes('Ninjutsu') || txt.includes('Choose an action')) { a.network.sendKey('escape'); return 'action_menu'; }
                 return false; })()`);
-            if (pressedMore === true) notes.push('pressed Space on terminal -more- in play (K1)');
+            if (pressedMore === true) notes.push('pressed Space on terminal -more-/-続く- in play');
             if (pressedMore === 'power') notes.push('selected initial power prompt (a)');
+            if (pressedMore === 'action_menu') notes.push('dismissed initial class action menu (escape)');
         }
         if (result.pass && realm === 'silq') {
             // Real-browser Action Chooser test in Sil-Q
