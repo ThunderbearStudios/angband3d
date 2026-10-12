@@ -835,7 +835,7 @@ const server = http.createServer((req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(), payment=()');
     if (proto === 'https' || req.socket.encrypted) {
         res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     }
@@ -848,7 +848,7 @@ const server = http.createServer((req, res) => {
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https://angband3d.com https://fonts.gstatic.com",
         "media-src 'self' data: blob: https://angband3d.com",
-        "connect-src 'self' blob: data: ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com",
+        "connect-src 'self' blob: data: ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com https://generativelanguage.googleapis.com",
         "worker-src 'self' blob:",
         "manifest-src 'self'",
         "object-src 'none'",
@@ -865,9 +865,9 @@ const server = http.createServer((req, res) => {
 
     // Health & Liveness Probes (/health and /healthz for Cloud Run / Kubernetes)
     if ((pathname === '/health' || pathname === '/healthz') && req.method === 'GET') {
-        let appVersion = '9.4.0';
+        let appVersion = '9.4.5';
         try {
-            const vFile = path.join(__dirname, '..', 'public', 'version.json');
+            const vFile = path.join(WEB_DIR, 'version.json');
             if (fs.existsSync(vFile)) {
                 appVersion = JSON.parse(fs.readFileSync(vFile, 'utf8')).v || appVersion;
             }
