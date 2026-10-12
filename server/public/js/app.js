@@ -410,12 +410,14 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 8. Sil-Q / Hengband / FrogComposBand Random Option Menu (Sex, Race, Class, Personality, House)
+        // 8. Sil-Q / Hengband / FrogComposBand Random Option Menu (Sex, Race, Class, Personality, House, Patron)
         if (screenText.includes('choose a sex') || screenText.includes('choose a race') ||
             screenText.includes('choose a class') || screenText.includes('choose a personality') ||
+            screenText.includes('choose patron') || screenText.includes('choose a patron') ||
             screenText.includes('性別を選んで') || screenText.includes('種族を選んで') ||
             screenText.includes('職業を選んで') || screenText.includes('性格を選んで') ||
-            screenText.includes('random menu item') || screenText.includes('* random') || screenText.includes('*)ランダム') ||
+            screenText.includes('random menu item') || screenText.includes('* random') ||
+            screenText.includes('*) random') || screenText.includes('*)ランダム') ||
             screenText.includes('choose your race') || screenText.includes('choose your class') ||
             screenText.includes('choose house') || screenText.includes('choose a house')) {
             network.sendKey('*');
@@ -3361,197 +3363,14 @@ window.addEventListener('DOMContentLoaded', () => {
             } catch (_) {}
         }
 
-        // 4. Action Bar Synchronization (Variant actions & bilingual labels)
-        const btnSkills = document.getElementById('btn-skills');
-        const btnPower = document.getElementById('btn-power');
-        const btnOverland = document.getElementById('btn-overland');
-        const btnQuests = document.getElementById('btn-quests');
-        const btnBrowse = document.getElementById('btn-browse');
-        const btnStudy = document.getElementById('btn-study');
-        const btnCast = document.getElementById('btn-cast');
-        const btnQuaff = document.getElementById('btn-quaff');
-        const btnRead = document.getElementById('btn-read');
-        const btnInventory = document.getElementById('btn-inventory');
-        const btnEquipment = document.getElementById('btn-equipment');
-        const btnAttack = document.getElementById('btn-attack');
-        const btnThrow = document.getElementById('btn-throw');
-        const btnFire = document.getElementById('btn-fire');
-        const btnDoor = document.getElementById('btn-door');
-        const btnPickup = document.getElementById('btn-pickup');
-        const btnRest = document.getElementById('btn-rest');
-        const btnTerminal = document.getElementById('btn-terminal');
-        const btnGuideHud = document.getElementById('btn-guide-hud');
-
-        if (activeRealm === 'silq') {
-            if (btnSkills) {
-                btnSkills.style.display = 'flex';
-                btnSkills.innerHTML = '🌳 Skills <kbd>Tab</kbd>';
-                btnSkills.title = 'Open Ability & Skill Tree [Tab]';
+        // 4. Action Bar Synchronization (Variant actions & bilingual labels via RealmKeys)
+        if (typeof RealmKeys !== 'undefined') {
+            if (typeof RealmKeys.setActiveRealm === 'function') {
+                RealmKeys.setActiveRealm(activeRealm);
             }
-            if (btnPower) btnPower.style.display = 'none';
-            if (btnOverland) btnOverland.style.display = 'none';
-            if (btnQuests) btnQuests.style.display = 'none';
-            if (btnBrowse) btnBrowse.style.display = 'none';
-            if (btnStudy) btnStudy.style.display = 'none';
-            if (btnCast) {
-                btnCast.innerHTML = '🎵 Song <kbd>s</kbd>';
-                btnCast.title = 'Sing Song of Power (Elbereth, Slaying, Lorien, Freedom, Staying, Sharpness) [s]';
+            if (typeof RealmKeys.applyLabels === 'function') {
+                RealmKeys.applyLabels(document, activeRealm, langMode);
             }
-            if (btnThrow) {
-                btnThrow.innerHTML = '🎯 Throw <kbd>t</kbd>';
-                btnThrow.title = 'Throw weapon or flask towards aimed direction [t]';
-            }
-            if (btnRest) {
-                btnRest.innerHTML = '⏳ Rest <kbd>%</kbd>';
-                btnRest.title = 'Rest until Voice & Health are recovered [%]';
-            }
-            if (btnQuaff) {
-                btnQuaff.innerHTML = '🧪 Draught <kbd>q</kbd>';
-                btnQuaff.title = 'Drink / quaff draught [q]';
-            }
-            if (btnRead) {
-                btnRead.innerHTML = '📜 Scroll <kbd>r</kbd>';
-                btnRead.title = 'Read magical scroll [r]';
-            }
-        } else if (activeRealm === 'frogcomposband') {
-            if (btnSkills) btnSkills.style.display = 'none';
-            if (btnPower) {
-                btnPower.style.display = 'flex';
-                btnPower.innerHTML = '🔮 Power <kbd>U</kbd>';
-                btnPower.title = 'Use Racial, Class, or Mutation Power [U]';
-            }
-            if (btnOverland) {
-                btnOverland.style.display = 'flex';
-                btnOverland.innerHTML = '🗺️ Map <kbd>O</kbd>';
-                btnOverland.title = 'Overland Wilderness Map [O]';
-            }
-            if (btnQuests) {
-                btnQuests.style.display = 'flex';
-                btnQuests.innerHTML = '📜 Quests <kbd>Q</kbd>';
-                btnQuests.title = 'Active Quests & Monster Bounties [Q]';
-            }
-            if (btnBrowse) btnBrowse.style.display = 'none';
-            if (btnStudy) btnStudy.style.display = 'none';
-            if (btnCast) {
-                btnCast.innerHTML = '✨ Cast <kbd>m</kbd>';
-                btnCast.title = 'Cast spell or prayer from chosen realms [m]';
-            }
-            if (btnQuaff) {
-                btnQuaff.innerHTML = '🧪 Potion <kbd>q</kbd>';
-                btnQuaff.title = 'Drink / quaff potion [q]';
-            }
-        } else if (activeRealm === 'hengband') {
-            if (btnSkills) btnSkills.style.display = 'none';
-            if (btnBrowse) btnBrowse.style.display = 'none';
-            if (btnStudy) btnStudy.style.display = 'none';
-            const isJp = (langMode === 'jp');
-            if (btnPower) {
-                btnPower.style.display = 'flex';
-                btnPower.innerHTML = isJp ? '🔮 特殊能力 <kbd>U</kbd>' : '🔮 Power <kbd>U</kbd>';
-                btnPower.title = isJp ? '特殊能力を使用 [U]' : 'Use Racial/Class Power or Mutation [U]';
-            }
-            if (btnOverland) {
-                btnOverland.style.display = 'flex';
-                btnOverland.innerHTML = isJp ? '🗺️ 広域 <kbd>O</kbd>' : '🗺️ Map <kbd>O</kbd>';
-                btnOverland.title = isJp ? '広域マップ表示 [O]' : 'Overland Wilderness Map [O]';
-            }
-            if (btnQuests) {
-                btnQuests.style.display = 'flex';
-                btnQuests.innerHTML = isJp ? '📜 任務 <kbd>Q</kbd>' : '📜 Quests <kbd>Q</kbd>';
-                btnQuests.title = isJp ? 'クエスト情報確認 [Q]' : 'Quest Information & Status [Q]';
-            }
-            if (btnCast) {
-                btnCast.innerHTML = isJp ? '✨ 詠唱 <kbd>m</kbd>' : '✨ Cast <kbd>m</kbd>';
-                btnCast.title = isJp ? '呪文詠唱 [m]' : 'Cast spell or prayer [m]';
-            }
-            if (btnQuaff) {
-                btnQuaff.innerHTML = isJp ? '🧪 薬 <kbd>q</kbd>' : '🧪 Potion <kbd>q</kbd>';
-                btnQuaff.title = isJp ? '薬を飲む [q]' : 'Drink / quaff potion [q]';
-            }
-            if (btnRead) {
-                btnRead.innerHTML = isJp ? '📜 巻物 <kbd>r</kbd>' : '📜 Scroll <kbd>r</kbd>';
-                btnRead.title = isJp ? '巻物を読む [r]' : 'Read magical scroll [r]';
-            }
-            if (btnInventory) {
-                btnInventory.innerHTML = isJp ? '🎒 持ち物 <kbd>i</kbd>' : '🎒 Pack <kbd>i</kbd>';
-                btnInventory.title = isJp ? '所持品一覧 [i]' : 'Open inventory pack [i]';
-            }
-            if (btnEquipment) {
-                btnEquipment.innerHTML = isJp ? '🛡 装備 <kbd>e</kbd>' : '🛡 Gear <kbd>e</kbd>';
-                btnEquipment.title = isJp ? '装備品一覧 [e]' : 'Inspect worn equipment [e]';
-            }
-            if (btnAttack) {
-                btnAttack.innerHTML = isJp ? '⚔ 攻撃 <kbd>Space</kbd>' : '⚔ Attack <kbd>Space</kbd>';
-                btnAttack.title = isJp ? '正面の敵を攻撃 [Space]' : 'Attack adjacent monster [Space]';
-            }
-            if (btnThrow) {
-                btnThrow.innerHTML = isJp ? '🎯 投げる <kbd>v</kbd>' : '🎯 Throw <kbd>v</kbd>';
-            }
-            if (btnFire) {
-                btnFire.innerHTML = isJp ? '🏹 射撃 <kbd>f</kbd>' : '🏹 Shoot <kbd>f</kbd>';
-            }
-            if (btnDoor) {
-                btnDoor.innerHTML = isJp ? '🚪 扉 <kbd>o</kbd>' : '🚪 Door <kbd>o</kbd>';
-            }
-            if (btnPickup) {
-                btnPickup.innerHTML = isJp ? '💎 拾う <kbd>g</kbd>' : '💎 Get <kbd>g</kbd>';
-            }
-            if (btnRest) {
-                btnRest.innerHTML = isJp ? '⏳ 休憩 <kbd>R</kbd>' : '⏳ Rest <kbd>R</kbd>';
-            }
-            if (btnTerminal) {
-                btnTerminal.innerHTML = isJp ? '📜 端末 <kbd>Tab</kbd>' : '📜 Classic <kbd>Tab</kbd>';
-            }
-            if (btnGuideHud) {
-                btnGuideHud.innerHTML = isJp ? '❓ ヘルプ <kbd>?</kbd>' : '❓ Help <kbd>?</kbd>';
-            }
-        } else {
-            // Vanilla Angband
-            if (btnSkills) btnSkills.style.display = 'none';
-            if (btnPower) btnPower.style.display = 'none';
-            if (btnOverland) btnOverland.style.display = 'none';
-            if (btnQuests) btnQuests.style.display = 'none';
-            if (btnBrowse) {
-                btnBrowse.style.display = 'flex';
-                btnBrowse.innerHTML = '📖 Browse <kbd>b</kbd>';
-                btnBrowse.title = 'Browse Spellbook [b]';
-            }
-            if (btnStudy) {
-                btnStudy.style.display = 'flex';
-                btnStudy.innerHTML = '✨ Study <kbd>G</kbd>';
-                btnStudy.title = 'Study / Gain New Spells [G]';
-            }
-            if (btnCast) {
-                btnCast.innerHTML = '✨ Cast <kbd>m</kbd>';
-                btnCast.title = 'Cast spell or prayer [m]';
-            }
-            if (btnQuaff) {
-                btnQuaff.innerHTML = '🧪 Potion <kbd>q</kbd>';
-                btnQuaff.title = 'Drink / quaff potion [q]';
-            }
-            if (btnRead) {
-                btnRead.innerHTML = '📜 Scroll <kbd>r</kbd>';
-                btnRead.title = 'Read magical scroll [r]';
-            }
-            if (btnInventory) {
-                btnInventory.innerHTML = '🎒 Pack <kbd>i</kbd>';
-                btnInventory.title = 'Open inventory pack [i]';
-            }
-            if (btnEquipment) {
-                btnEquipment.innerHTML = '🛡 Gear <kbd>e</kbd>';
-                btnEquipment.title = 'Inspect worn equipment [e]';
-            }
-            if (btnAttack) {
-                btnAttack.innerHTML = '⚔ Attack <kbd>Space</kbd>';
-                btnAttack.title = 'Attack adjacent monster in front [Space]';
-            }
-            if (btnThrow) btnThrow.innerHTML = '🎯 Throw <kbd>v</kbd>';
-            if (btnFire) btnFire.innerHTML = '🏹 Shoot <kbd>f</kbd>';
-            if (btnDoor) btnDoor.innerHTML = '🚪 Door <kbd>o</kbd>';
-            if (btnPickup) btnPickup.innerHTML = '💎 Get <kbd>g</kbd>';
-            if (btnRest) btnRest.innerHTML = '⏳ Rest <kbd>R</kbd>';
-            if (btnTerminal) btnTerminal.innerHTML = '📜 Classic <kbd>Tab</kbd>';
-            if (btnGuideHud) btnGuideHud.innerHTML = '❓ Help <kbd>?</kbd>';
         }
     }
 
@@ -3709,7 +3528,21 @@ window.addEventListener('DOMContentLoaded', () => {
             ];
         }
 
-        return [...realmCmds, ...base];
+        let allCmds = [...realmCmds, ...base];
+        if (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) {
+            allCmds = allCmds.filter(cmd => {
+                if (cmd.id) {
+                    const k = RealmKeys.realmKey(cmd.id, r);
+                    if (k === null) return false;
+                    if (k) {
+                        cmd.key = k;
+                        cmd.keyDisplay = (k === 'tab') ? 'Tab' : k;
+                    }
+                }
+                return true;
+            });
+        }
+        return allCmds;
     }
 
     let activeCmdCategory = 'all';
@@ -4801,52 +4634,66 @@ window.addEventListener('DOMContentLoaded', () => {
                         <button type="button" class="term-ctx-btn btn-gold" data-key="space"><span>[␣]</span> ${hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)')}</button>
                         <button type="button" class="term-ctx-btn" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Dismiss', '⎋ Dismiss / 閉じる', '⎋ 閉じる')}</button>
                     `);
-                } else if (activeRealm === 'silq') {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="e"><span>[e]</span> 🛡 Gear</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="w"><span>[w]</span> ⚔ Wield</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="r"><span>[r]</span> 🔄 Take Off</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="t"><span>[t]</span> 🎯 Throw</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="f"><span>[f]</span> 🏹 Fire</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="\t"><span>[Tab]</span> 📜 Skills</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="s"><span>[s]</span> 🎵 Song</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="%"><span>[%]</span> ⏳ Rest</button>
-                    `);
-                } else if (activeRealm === 'frogcomposband') {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="e"><span>[e]</span> 🛡 Gear</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="U"><span>[U]</span> 🔮 Power</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="O"><span>[O]</span> 🗺️ Map</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="Q"><span>[Q]</span> 📜 Quests</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="m"><span>[m]</span> ✨ Cast</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="R"><span>[R]</span> ⏳ Rest</button>
-                    `);
-                } else if (activeRealm === 'hengband' || isHeng) {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> ${hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)')}</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー')}</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> ${hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品')}</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="e"><span>[e]</span> ${hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備')}</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="U"><span>[U]</span> ${hengLabel('🔮 Power', '🔮 Power / 特殊能力', '🔮 特殊能力')}</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="Q"><span>[Q]</span> ${hengLabel('📜 Quests', '📜 Quests / クエスト', '📜 クエスト')}</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="m"><span>[m]</span> ${hengLabel('✨ Cast', '✨ Cast / 呪文', '✨ 呪文')}</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="R"><span>[R]</span> ${hengLabel('⏳ Rest', '⏳ Rest / 休息', '⏳ 休息')}</button>
-                    `);
                 } else {
-                    setCtxActions(`
-                        <button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> 3D View (Tab)</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ⎋ Menu</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="i"><span>[i]</span> 🎒 Pack</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="e"><span>[e]</span> 🛡 Gear</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="m"><span>[m]</span> ✨ Cast</button>
-                        <button type="button" class="term-ctx-btn term-action-key" data-key="R"><span>[R]</span> ⏳ Rest</button>
-                    `);
+                    const effRealm = activeRealm || 'angband';
+                    const keyFor = (v) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                        ? RealmKeys.realmKey(v, effRealm)
+                        : null;
+
+                    const btns = [
+                        `<button type="button" class="term-ctx-btn term-action-key btn-gold" data-key="tab"><span>⛶</span> ${hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)')}</button>`,
+                        `<button type="button" class="term-ctx-btn term-action-key" data-key="escape"><span>[Esc]</span> ${hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー')}</button>`
+                    ];
+
+                    const packKey = keyFor('inven') || 'i';
+                    btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${packKey}"><span>[${packKey}]</span> ${hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品')}</button>`);
+
+                    const equipKey = keyFor('equip') || 'e';
+                    btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${equipKey}"><span>[${equipKey}]</span> ${hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備')}</button>`);
+
+                    if (effRealm === 'silq') {
+                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="w"><span>[w]</span> ⚔ Wield</button>`);
+                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="r"><span>[r]</span> 🔄 Take Off</button>`);
+                        const throwKey = keyFor('throw');
+                        if (throwKey) btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${throwKey}"><span>[${throwKey}]</span> 🎯 Throw</button>`);
+                        const fireKey = keyFor('fire');
+                        if (fireKey) btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${fireKey}"><span>[${fireKey}]</span> 🏹 Fire</button>`);
+                    }
+
+                    const powerKey = keyFor('power');
+                    if (powerKey) {
+                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${powerKey}"><span>[${powerKey}]</span> ${hengLabel('🔮 Power', '🔮 Power / 特殊能力', '🔮 特殊能力')}</button>`);
+                    }
+
+                    const overlandKey = keyFor('overland');
+                    if (overlandKey) {
+                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${overlandKey}"><span>[${overlandKey}]</span> ${hengLabel('🗺️ Map', '🗺️ Map / 広域', '🗺️ 広域')}</button>`);
+                    }
+
+                    const questsKey = keyFor('quests');
+                    if (questsKey) {
+                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${questsKey}"><span>[${questsKey}]</span> ${hengLabel('📜 Quests', '📜 Quests / クエスト', '📜 クエスト')}</button>`);
+                    }
+
+                    const skillsKey = keyFor('skills');
+                    if (skillsKey) {
+                        const skillsDisplay = (skillsKey === 'tab') ? 'Tab' : skillsKey;
+                        const dataKeyVal = (skillsKey === 'tab') ? '\t' : skillsKey;
+                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${dataKeyVal}"><span>[${skillsDisplay}]</span> 🌳 Skills</button>`);
+                    }
+
+                    const castKey = keyFor('cast');
+                    if (castKey) {
+                        const castName = (effRealm === 'silq') ? '🎵 Song' : hengLabel('✨ Cast', '✨ Cast / 呪文', '✨ 呪文');
+                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${castKey}"><span>[${castKey}]</span> ${castName}</button>`);
+                    }
+
+                    const restKey = keyFor('rest');
+                    if (restKey) {
+                        btns.push(`<button type="button" class="term-ctx-btn term-action-key" data-key="${restKey}"><span>[${restKey}]</span> ${hengLabel('⏳ Rest', '⏳ Rest / 休息', '⏳ 休息')}</button>`);
+                    }
+
+                    setCtxActions(btns.join('\n'));
                 }
             }
         }

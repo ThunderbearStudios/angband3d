@@ -1156,7 +1156,11 @@ class InputController {
                 e.preventDefault();
                 const dir = dirKey;
                 if (dir === 5) {
-                    this.network.sendKey('5');
+                    const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                    const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                        ? (RealmKeys.realmKey('hold', realm) || ',')
+                        : ',';
+                    this.network.sendKey(holdKey);
                     return;
                 }
                 if (this.isRunningActive(e)) {
@@ -1222,13 +1226,21 @@ class InputController {
 
         if (e.key === '.' && !e.shiftKey) {
             e.preventDefault();
-            this.network.sendKey('5'); // Rest 1 turn
+            const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+            const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                ? (RealmKeys.realmKey('hold', realm) || ',')
+                : ',';
+            this.network.sendKey(holdKey);
             return;
         }
 
         if (e.key === ',') {
             e.preventDefault();
-            this.network.sendKey('5'); // Rest 1 turn (Roguelike standard comma rest)
+            const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+            const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                ? (RealmKeys.realmKey('hold', realm) || ',')
+                : ',';
+            this.network.sendKey(holdKey);
             return;
         }
 
@@ -1268,10 +1280,14 @@ class InputController {
             const isTopLevelWorldCmd = Boolean(
                 ui && ui.awaiting_command && (ui.overlay || 0) === 0 && !ui.more
             );
-            if (realm === 'silq' && isTopLevelWorldCmd) {
-                if (keyToSend === 'm') keyToSend = 's'; // Sil-Q: Songs of Power instead of main menu
-                else if (keyToSend === 'v') keyToSend = 't'; // Sil-Q: Throw
-                else if (keyToSend === 'R') keyToSend = '%'; // Sil-Q: Rest
+            if (isTopLevelWorldCmd && typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) {
+                const mapped = RealmKeys.fromVanilla(e.key, realm);
+                if (mapped === null) {
+                    return; // Verb does not exist in active realm (e.g. read in Sil-Q)
+                }
+                if (mapped !== undefined) {
+                    keyToSend = mapped;
+                }
             }
             if (this.audio) {
                 const k = keyToSend;
@@ -1385,7 +1401,7 @@ class InputController {
             });
         };
 
-        const bind = (id, key) => {
+        const bind = (id, verb) => {
             const btn = document.getElementById(id);
             if (btn) {
                 let lastTriggerTime = 0;
@@ -1399,18 +1415,11 @@ class InputController {
                     if (this.audio) this.audio.unlock();
 
                     const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
-                    let effKey = key;
-                    if (realm === 'silq') {
-                        if (id === 'btn-throw') effKey = 't';
-                        else if (id === 'btn-cast') effKey = 's';
-                        else if (id === 'btn-skills') effKey = 'tab';
-                        else if (id === 'btn-rest') effKey = '%';
-                    }
 
-                    if (key === 'toggle-run') {
+                    if (verb === 'toggle-run') {
                         this.toggleDpadRunMode();
                         return;
-                    } else if (key === 'attack') {
+                    } else if (verb === 'attack') {
                         const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
                         if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
                             this.network.sendKey('space');
@@ -1420,39 +1429,51 @@ class InputController {
                         if (this.audio) this.audio.playWhoosh();
                         const fwdKey = this.getRelativeDirectionKey(8) || 'up';
                         this.network.sendKey(fwdKey);
-                    } else if (id === 'btn-rest') {
-                        if (realm === 'silq') {
-                            if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
-                            this.network.sendKey('%');
-                        } else {
-                            // In Angband, 'R' prompts for rest duration defaulting to '&' (rest until healed)
-                            if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
-                            this.network.sendKey('R');
+                        return;
+                    } else if (verb === 'terminal') {
+                        if (this.toggleTerminalView) this.toggleTerminalView();
+                        return;
+                    }
+
+                    const effKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                        ? RealmKeys.realmKey(verb, realm)
+                        : null;
+
+                    if (!effKey) {
+                        // Verb does not exist in active realm (e.g. read in Sil-Q)
+                        return;
+                    }
+
+                    if (verb === 'rest') {
+                        if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
+                        this.network.sendKey(effKey);
+                        // If the realm's rest key is 'R', follow with enter (prompting for duration)
+                        if (effKey === 'R') {
                             setTimeout(() => {
                                 this.network.sendKey('enter');
                             }, 80);
                         }
-                    } else if (key === 'o') {
+                        return;
+                    } else if (verb === 'open') {
                         // Open door in front of camera facing
                         if (this.audio) this.audio.playDoor();
                         const fwdKey = this.getRelativeDirectionKey(8) || 'up';
-                        this.network.sendKey('o');
+                        this.network.sendKey(effKey);
                         setTimeout(() => {
                             this.network.sendKey(fwdKey);
                         }, 80);
-                    } else if (id === 'btn-terminal') {
-                        if (this.toggleTerminalView) this.toggleTerminalView();
-                    } else {
-                        if (this.audio) {
-                            if (effKey === 'm' || effKey === 's') this.audio.playSpell();
-                            else if (effKey === 'i' || effKey === 'e' || effKey === 'v' || effKey === 't' || effKey === 'N' || effKey === 'tab' || effKey === 'U' || effKey === 'O' || effKey === 'Q' || effKey === 'b' || effKey === 'G') this.audio.playMenuOpen();
-                            else if (effKey === 'g') this.audio.playItemPickup();
-                            else if (effKey === 'q') this.audio.playMenuOpen();
-                            else if (effKey === 'r') this.audio.playMenuOpen();
-                            else if (effKey === 'f') this.audio.playWhoosh();
-                        }
-                        this.network.sendKey(effKey);
+                        return;
                     }
+
+                    if (this.audio) {
+                        if (effKey === 'm' || effKey === 's') this.audio.playSpell();
+                        else if (effKey === 'i' || effKey === 'e' || effKey === 'v' || effKey === 't' || effKey === 'N' || effKey === 'tab' || effKey === 'U' || effKey === 'O' || effKey === 'Q' || effKey === 'b' || effKey === 'G') this.audio.playMenuOpen();
+                        else if (effKey === 'g') this.audio.playItemPickup();
+                        else if (effKey === 'q') (typeof this.audio.playQuaff === 'function') ? this.audio.playQuaff() : this.audio.playMenuOpen();
+                        else if (effKey === 'r') (typeof this.audio.playScroll === 'function') ? this.audio.playScroll() : this.audio.playMenuOpen();
+                        else if (effKey === 'f') (typeof this.audio.playBowShoot === 'function') ? this.audio.playBowShoot() : this.audio.playWhoosh();
+                    }
+                    this.network.sendKey(effKey);
                 };
 
                 bindReliableAction(btn, fire);
@@ -1460,23 +1481,23 @@ class InputController {
         };
 
         bind('btn-attack', 'attack');
-        bind('btn-throw', 'v');
-        bind('btn-fire', 'f');
-        bind('btn-cast', 'm');
-        bind('btn-skills', 'N');
-        bind('btn-power', 'U');
-        bind('btn-overland', 'O');
-        bind('btn-quests', 'Q');
-        bind('btn-browse', 'b');
-        bind('btn-study', 'G');
-        bind('btn-quaff', 'q');
-        bind('btn-read', 'r');
-        bind('btn-door', 'o');
-        bind('btn-pickup', 'g');
-        bind('btn-rest', 'R');
-        bind('btn-inventory', 'i');
-        bind('btn-equipment', 'e');
-        bind('btn-terminal', 'tab');
+        bind('btn-throw', 'throw');
+        bind('btn-fire', 'fire');
+        bind('btn-cast', 'cast');
+        bind('btn-skills', 'skills');
+        bind('btn-power', 'power');
+        bind('btn-overland', 'overland');
+        bind('btn-quests', 'quests');
+        bind('btn-browse', 'browse');
+        bind('btn-study', 'study');
+        bind('btn-quaff', 'quaff');
+        bind('btn-read', 'read');
+        bind('btn-door', 'open');
+        bind('btn-pickup', 'pickup');
+        bind('btn-rest', 'rest');
+        bind('btn-inventory', 'inven');
+        bind('btn-equipment', 'equip');
+        bind('btn-terminal', 'terminal');
         bind('btn-run-toggle', 'toggle-run');
 
         // Dynamic Hero Context Action Button (#btn-hero-action)
@@ -1491,7 +1512,11 @@ class InputController {
                 if (this.smartAction) {
                     this.executeSmartAction(this.smartAction);
                 } else {
-                    this.network.sendKey('5');
+                    const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                    const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                        ? (RealmKeys.realmKey('hold', realm) || ',')
+                        : ',';
+                    this.network.sendKey(holdKey);
                 }
             });
         }
@@ -1508,7 +1533,11 @@ class InputController {
                 if (this.smartAction) {
                     this.executeSmartAction(this.smartAction);
                 } else {
-                    this.network.sendKey('5');
+                    const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                    const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                        ? (RealmKeys.realmKey('hold', realm) || ',')
+                        : ',';
+                    this.network.sendKey(holdKey);
                 }
             });
         }
@@ -1530,7 +1559,11 @@ class InputController {
                 bindReliableAction(sec, () => {
                     const dir = parseInt(sec.dataset.dir, 10);
                     if (dir === 5) {
-                        this.network.sendKey('5');
+                        const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                        const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                            ? (RealmKeys.realmKey('hold', realm) || ',')
+                            : ',';
+                        this.network.sendKey(holdKey);
                     } else if (!isNaN(dir)) {
                         const moveKey = this.getRelativeDirectionKey(dir);
                         if (moveKey) this.network.sendKey(moveKey);
@@ -1860,7 +1893,11 @@ class InputController {
             this.network.sendKey(fwdKey);
         } else {
             // Wait / Rest 1 Turn
-            this.network.sendKey('5');
+            const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+            const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                ? (RealmKeys.realmKey('hold', realm) || ',')
+                : ',';
+            this.network.sendKey(holdKey);
         }
     }
 
