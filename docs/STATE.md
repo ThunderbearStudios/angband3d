@@ -1,7 +1,7 @@
 # STATE (live, authoritative). Update after EVERY gate.
-Branch: fix/award-pass   Updated: 2026-10-12T10:30-04:00 (WS10.1 Android asset drift & SW update UX complete)
+Branch: fix/award-pass   Updated: 2026-10-12T10:45-04:00 (WS10.2 Android keystore untrack & save parity complete)
 Plan: docs/plan/EXECUTOR_START_HERE.md (read first, incl. NEW lessons L18–L22), then the plan section for the current task.
-Current task: **WS10.2** (Release keystore & save export/import verification per D14 & G-F).
+Current task: **WS10.3** (Offline / local bridge & WASM verification).
 Localhost server: **Running** on http://localhost:8080 (pid active, version 9.4.3).
 
 > PATH NOTE: the plan says "server.js:NNNN". The real file is **server/src/server.js**. Always re-locate lines with `Select-String`.
@@ -49,7 +49,7 @@ An uncommitted WS2/WS3/WS5 attempt broke localhost ("empty sky of stars"). Verif
 - [x] **WS5.5** Dead-code sweep report (`tools/report_dead_code.js` runs clean, `tools/reports/dead_code.md` generated with 2 app.js candidates: extractActiveMenuChoices, previousStatRoll)
 - [x] **WS5.6** Temp profile hygiene (`tools/lib/cdp.js` runs in `os.tmpdir()` with exponential backoff cleanup, verified 0 orphan profiles, 24 GB reclaimed per D16)
 - [x] **WS10.1** Android asset drift & SW update UX (`tools/check_android_sync.js` verifies SHA-1 across 501 files; `app.js` listens to `controllerchange` to show update toast on version bump per G-E; version 9.4.3 synced)
-- [ ] **WS10.2** Release keystore & save export/import (D14 / G-F)
+- [x] **WS10.2** Release keystore & save export/import (D14 / G-F: build.gradle signing decoupled to env/keystore.properties, android/.gitignore protects keystore assets, version 9.4.3 / versionCode 90403 synced, README & CHANGELOG migration notes documented, 1-click save export/import verified)
 - [ ] WS10.3–WS10.6 Platforms (offline wasm, webview2, Godot)
 - [ ] WS7 test consolidation
 - [ ] WS8 docs + lessons merged into BEST_PRACTICES
@@ -74,6 +74,7 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 None
 
 ## Last gate results
+- WS10.2 (2026-10-12 10:44): fast 11/11 PASS (check_android_sync 501/501 SHA-1 matched, check_version_sync PASS) | smoke 11/11 PASS | dotnet 0 warn / 0 err | build.gradle signing decoupled & version 9.4.3 / 90403 synced | Localhost server active on 8080.
 - WS10.1 (2026-10-12 10:25): fast 11/11 PASS (check_android_sync 501/501 SHA-1 matched in 3.1s, check_version_sync PASS) | e2e 2/2 PASS (verify_cross_realm_menus 10.5s, test_server_boot 0.8s) | cdp test_boot_flow 4/4 realms PASS (angband, silq, frogcomposband, hengband) | smoke 11/11 PASS | dotnet 0 warn / 0 err | canonical version 9.4.3 in sync | Localhost server active on 8080.
 - WS5.3 & WS5.6 (2026-10-12 10:20): fast 10/10 PASS | e2e 2/2 PASS (verify_cross_realm_menus 11.2s, test_server_boot 0.8s) | cdp test_boot_flow 4/4 realms PASS (angband, silq [Action Chooser real DOM verified], frogcomposband [K1 note], hengband all reach 3D play) with temp profile cleanup verified | smoke 11/11 PASS | dotnet 0 warn / 0 err | canonical version 9.4.2 in sync.
 - WS5.5 & WS3 Polish (2026-10-12 10:15): fast 10/10 PASS | smoke 11/11 PASS | dotnet 0 warn / 0 err | dead-code sweep complete (2 candidates in app.js: extractActiveMenuChoices, previousStatRoll) | HengTranslate T1-T12 contract PASS.
