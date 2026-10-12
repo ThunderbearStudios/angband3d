@@ -2444,11 +2444,16 @@ class InputController {
                     this.dungeon.turn(turnDir);
                 }
             } else if (elapsed < 380 && Math.abs(totalDx) < 18 && Math.abs(totalDy) < 18) {
-                // Single Click / Tap in 3D: Raycast against creatures for voice interaction
+                // Single Click / Tap in 3D: Raycast against creatures for voice interaction or items for afar inspection
                 if (this.dungeon && typeof this.dungeon.getMonsterAtScreenCoords === 'function') {
                     const monster = this.dungeon.getMonsterAtScreenCoords(finalX, finalY);
                     if (monster && window.chronicleManager) {
                         window.chronicleManager.interactWithCreature(monster);
+                    } else if (typeof this.dungeon.getItemAtScreenCoords === 'function') {
+                        const item = this.dungeon.getItemAtScreenCoords(finalX, finalY);
+                        if (item && window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') {
+                            window.chronicleManager.inspectObject(item);
+                        }
                     }
                 }
             }

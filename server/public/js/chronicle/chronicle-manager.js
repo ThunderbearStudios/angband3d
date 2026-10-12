@@ -46,6 +46,7 @@ class ChronicleManager {
         this.visible = false;
         this.dungeon = null;
         this.targetedCreature = null;
+        this.targetedObject = null;
         this.currentCharacterSignature = null;
         this.characterDied = false;
         this.lastSeenMessages = [];
@@ -247,8 +248,9 @@ class ChronicleManager {
         // Bind Event Listeners
         this.bindEvents();
 
+        const realm = this.getActiveRealm();
         // Restore active story from localStorage only if explicitly imported
-        this.activeChronicle = this.store ? this.store.loadActive() : null;
+        this.activeChronicle = this.store ? this.store.loadActive(realm) : null;
         if (this.activeChronicle && this.activeChronicle.isManuallyImported) {
             this.renderAllChapters();
         } else {
@@ -735,8 +737,25 @@ class ChronicleManager {
         this.updatePlayButtonUI();
     }
 
+    getActiveRealm() {
+        if (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function') {
+            return window.__app.getActiveRealm();
+        }
+        if (this.activeChronicle && this.activeChronicle.realm) {
+            return this.activeChronicle.realm;
+        }
+        return 'angband';
+    }
+
+    getLorekeeperTitle() {
+        const realm = this.getActiveRealm();
+        return (this.grounder && typeof this.grounder.getLorekeeperTitle === 'function')
+            ? this.grounder.getLorekeeperTitle(realm)
+            : 'Lorekeeper';
+    }
+
     getLorekeeperName() {
-        const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const realm = this.getActiveRealm();
         return (this.grounder && typeof this.grounder.getLorekeeperName === 'function')
             ? this.grounder.getLorekeeperName(realm)
             : 'Elder Lorekeeper';
@@ -836,11 +855,12 @@ class ChronicleManager {
         if (this.statusTextEl) this.statusTextEl.textContent = 'Chronicle Active';
 
         // 6. Initialize pristine chronicle for this character instance
+        const realm = this.getActiveRealm();
         this.currentHero = hero;
-        this.activeChronicle = this.store ? this.store.createNewChronicle(hero) : null;
+        this.activeChronicle = this.store ? this.store.createNewChronicle(hero, realm) : null;
         if (this.activeChronicle) {
             this.activeChronicle.isManuallyImported = false;
-            if (this.store) this.store.saveActive(this.activeChronicle);
+            if (this.store) this.store.saveActive(this.activeChronicle, realm);
         }
 
         if (hero && hero.race) {
@@ -2112,6 +2132,7 @@ class ChronicleManager {
      */
     async interactWithCreature(monster) {
         if (!monster) return;
+        this.targetedObject = null;
         this.targetedCreature = monster;
         monster._interactTurn = (monster._interactTurn || 0) + 1;
         if (this.dungeon && this.dungeon.monsters) {
@@ -2236,8 +2257,95 @@ class ChronicleManager {
         }
     }
 
+    /**
+     * Inspects a 3D floor item or object clicked from afar:
+     * Focuses the target pill, generates Lorekeeper appraisal, posts an appraisal card to Chronicle, and voices it aloud.
+     */
+    async inspectObject(item) {
+        if (!item) return;
+        this.targetedCreature = null;
+        this.targetedObject = item;
+
+        // Ensure Chronicle window is visible and unminimized
+        this.showWindow();
+        if (this.windowEl && this.windowEl.classList.contains('minimized')) {
+            this.windowEl.classList.remove('minimized');
+            if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+        }
+
+        const itemName = item.name || 'Unknown Artifact';
+        const depth = (this.currentHero && typeof this.currentHero.depth === 'number') ? this.currentHero.depth : 0;
+        const realm = this.getActiveRealm();
+
+        // Show Contextual Object Target Pill
+        if (this.targetPill && this.targetLabel) {
+            this.targetPill.classList.remove('hidden');
+            this.targetLabel.innerHTML = `🔍 Target: <b>${escapeHtml(itemName)}</b> <span style="font-size: 0.8rem; opacity: 0.8;">(Appraising)</span>`;
+        }
+        if (this.inputQuery) {
+            this.inputQuery.placeholder = `Ask ${this.getLorekeeperName()} about ${itemName}...`;
+            this.inputQuery.focus();
+        }
+
+        // Generate Lorekeeper Appraisal
+        const appraisal = (this.grounder && typeof this.grounder.resolveObjectInspection === 'function')
+            ? this.grounder.resolveObjectInspection(item, this.currentHero, depth, realm)
+            : {
+                title: `Appraisal: ${itemName}`,
+                prose: `Glancing across the flagstones, the adventurer studies ${itemName} resting in the gloom.`,
+                dialogue: `Take care, traveler. Even the humble trinkets in these deeps may hold strange power.`,
+                lore: 'An artifact of the dungeon.',
+                appraisal: 'Utility unknown.'
+            };
+
+        // Render Appraisal Card in Chronicle
+        if (this.listEl && appraisal) {
+            const card = document.createElement('div');
+            card.className = 'chapter-card object-appraisal-card';
+
+            const mentorName = this.getLorekeeperName();
+            const mentorTitle = this.getLorekeeperTitle();
+
+            card.innerHTML = `
+                <div class="chapter-header-row">
+                    <span class="chapter-heading object-chat-speaker">🔍 ${escapeHtml(appraisal.title)}</span>
+                    <button class="chapter-replay-btn" title="Listen to appraisal">▶ Play</button>
+                </div>
+                <p class="chapter-prose" style="margin-bottom: 6px;">${escapeHtml(appraisal.prose)}</p>
+                <div class="chapter-dialogue" style="margin-top: 4px; border-left: 3px solid #60a5fa; padding-left: 8px;">
+                    <span class="dialogue-speaker" style="color: #93c5fd; font-weight: 600;">${escapeHtml(mentorName)} (${escapeHtml(mentorTitle)})</span>
+                    <span style="font-style: italic;">"${escapeHtml(appraisal.dialogue)}"</span>
+                </div>
+                ${appraisal.appraisal ? `<p class="chapter-insight" style="margin-top: 6px; font-size: 0.85rem; color: #a7f3d0; opacity: 0.95;"><b>Appraisal Note:</b> ${escapeHtml(appraisal.appraisal)}</p>` : ''}
+            `;
+
+            const replayBtn = card.querySelector('.chapter-replay-btn');
+            if (replayBtn) {
+                replayBtn.addEventListener('click', () => {
+                    if (this.audio) {
+                        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+                        const fullText = `${appraisal.prose}\n\n${mentorName} speaks: "${appraisal.dialogue}"`;
+                        this.audio.speakUtterance(fullText, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+                    }
+                });
+            }
+
+            this.listEl.appendChild(card);
+            if (this.scrollEl) this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
+        }
+
+        // Voiced Audio Playback
+        if (this.audio && !this._isAudioMuted() && appraisal) {
+            const mentorName = this.getLorekeeperName();
+            const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+            const fullText = `${appraisal.prose}\n\n${mentorName} speaks: "${appraisal.dialogue}"`;
+            this.audio.speakUtterance(fullText, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+        }
+    }
+
     clearTargetCreature() {
         this.targetedCreature = null;
+        this.targetedObject = null;
         if (this.targetPill) this.targetPill.classList.add('hidden');
         if (this.inputQuery) {
             this.inputQuery.placeholder = 'Ask the Lorekeeper about keys, items, or tactics...';
@@ -2317,18 +2425,43 @@ class ChronicleManager {
                     }
                 }
             }
+        } else if (this.targetedObject) {
+            // Player asking Lorekeeper specifically about the targeted floor object
+            const item = this.targetedObject;
+            const depth = (this.currentHero && typeof this.currentHero.depth === 'number') ? this.currentHero.depth : 0;
+            const realm = this.getActiveRealm();
+            let reply = '';
+            try {
+                if (this.llm && this.llm.isConfigured() && typeof this.llm.chatWithObject === 'function') {
+                    reply = await this.llm.chatWithObject(item, text, this.currentHero, depth);
+                } else if (this.grounder && typeof this.grounder.answerObjectQuery === 'function') {
+                    reply = this.grounder.answerObjectQuery(item, text, this.currentHero, depth, realm);
+                }
+            } catch (err) {
+                console.warn('[ChronicleManager] Object query error, falling back:', err);
+                if (this.grounder && typeof this.grounder.answerObjectQuery === 'function') {
+                    reply = this.grounder.answerObjectQuery(item, text, this.currentHero, depth, realm);
+                }
+            }
+
+            if (!reply) {
+                reply = `The Lorekeeper ponders ${item.name || 'the relic'}, yet its deepest purpose remains veiled in dungeon dust.`;
+            }
+
+            this.weaveObjectCounsel(item, text, reply, this.currentHero);
         } else {
             // Player asking Lorekeeper for survival / mechanics counsel
+            const realm = this.getActiveRealm();
             let answer = '';
             try {
                 if (this.llm && this.llm.isConfigured()) {
                     answer = await this.llm.consultLorekeeper(text, this.currentHero);
                 } else {
-                    answer = this.grounder.answerSurvivalQuery(text, this.currentHero);
+                    answer = this.grounder.answerSurvivalQuery(text, this.currentHero, realm);
                 }
             } catch (err) {
                 console.warn('[ChronicleManager] Lorekeeper consult error, falling back:', err);
-                answer = this.grounder.answerSurvivalQuery(text, this.currentHero);
+                answer = this.grounder.answerSurvivalQuery(text, this.currentHero, realm);
             }
 
             if (!answer) {
@@ -2440,6 +2573,49 @@ class ChronicleManager {
         if (this.audio && this.audio.enabled) {
             this.audio.speakUtterance(entry.prose, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
 
+            this._highlightActiveCard(entry);
+        }
+    }
+
+    weaveObjectCounsel(item, queryText, answer, player) {
+        const pName = (player && player.name) ? player.name : 'The hero';
+        const itemName = (item && item.name) ? item.name : 'the relic';
+        const mentorName = this.getLorekeeperName();
+        const depth = (player && typeof player.depth === 'number') ? player.depth : 0;
+
+        const intro = `Pondering the virtues and hazards of ${itemName}, ${pName} consults ${mentorName} regarding "${queryText}":`;
+        const prose = `${intro}\n\n"${answer}"`;
+
+        const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, player, 'counsel', this.tradition) : null;
+        if (mentorProfile) {
+            mentorProfile.geminiTag = '[reverently, examining an ancient relic]';
+            mentorProfile.directorNote = 'An ancient scholar appraising a dungeon artifact';
+        }
+
+        const entry = {
+            title: `Appraisal: ${itemName}`,
+            depth: depth,
+            prose: prose,
+            dialogue: null,
+            insight: answer,
+            isLorekeeper: true,
+            timestamp: Date.now()
+        };
+
+        if (!this.activeChronicle || !this.activeChronicle.chapters || this.activeChronicle.chapters.length === 0) {
+            this.store.appendChapter(this.activeChronicle, entry);
+            entry.pIndex = 0;
+            this.renderChapterCard(entry, true);
+        } else {
+            this.store.appendParagraph(this.activeChronicle, entry);
+            const currentChapter = this.activeChronicle.chapters[this.activeChronicle.chapters.length - 1];
+            entry.chapter_num = currentChapter.chapter_num;
+            entry.pIndex = currentChapter.paragraphs ? currentChapter.paragraphs.length - 1 : 0;
+            this.renderFlowingParagraph(entry, true);
+        }
+
+        if (this.audio && this.audio.enabled && !this._isAudioMuted()) {
+            this.audio.speakUtterance(entry.prose, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
             this._highlightActiveCard(entry);
         }
     }

@@ -32,6 +32,12 @@ class ChronicleGrounder {
             badge: 'Dwarven Annals',
             style: 'Deep, solemn, stone-hewn, measured rhythmic prose, ancient foundations, delve-depth, forged steel, and oaths.'
         },
+        amber: {
+            id: 'amber',
+            name: 'The Amber Chronicles & Multiverse Codex',
+            badge: 'Amberite Scion',
+            style: 'Lively, cynical fencing wit, epic of overland wilderness, myriad monster folk, shadow-walking, and the eternal clash between the Pattern and Chaos.'
+        },
         mythicbard: {
             id: 'mythicbard',
             name: 'The Wilderland Saga',
@@ -40,21 +46,21 @@ class ChronicleGrounder {
         },
         easternmythos: {
             id: 'easternmythos',
-            name: 'The Eastern Mythos & Amberite Scrolls',
-            badge: 'Eastern Mystic',
-            style: 'Zen tranquility, Bushido valor, celestial court judgments, mythical deities, and the shadow patterns of infinite Amber.'
+            name: 'The Scrolls of Bushido & Eastern Mythos',
+            badge: 'Eastern Kensei',
+            style: 'Zen tranquility, Bushido valor, celestial court judgments, mythical deities, and the lethal grace of the sword.'
         },
         beleriand: {
             id: 'beleriand',
             name: 'The Lay of Leithian & Beleriand Songs',
-            badge: 'First Age Skald',
+            badge: 'First Age Minstrel',
             style: 'Solemn First Age epic, songs of stealth and woven spells, shadows beneath Thangorodrim, and the desperate quest for Morgoth\'s Iron Crown.'
         }
     };
 
     static getTraditionForRealm(realmKey, race = '') {
         switch ((realmKey || 'angband').toLowerCase()) {
-            case 'frogcomposband': return 'mythicbard';
+            case 'frogcomposband': return 'amber';
             case 'hengband': return 'easternmythos';
             case 'silq': return 'beleriand';
             case 'angband':
@@ -65,12 +71,23 @@ class ChronicleGrounder {
 
     static getLorekeeperName(realmKey = 'angband') {
         switch ((realmKey || 'angband').toLowerCase()) {
-            case 'silq': return 'Pengolodh of Gondolin';
-            case 'hengband': return 'Dworkin Barimen';
-            case 'frogcomposband': return 'Grand Archivist';
+            case 'silq': return 'Daeron of Doriath';
+            case 'hengband': return 'Miyamoto Musashi';
+            case 'frogcomposband': return 'Corwin of Amber';
             case 'angband':
             default:
-                return 'Elder Lorekeeper';
+                return 'Master Elrond';
+        }
+    }
+
+    static getLorekeeperTitle(realmKey = 'angband') {
+        switch ((realmKey || 'angband').toLowerCase()) {
+            case 'silq': return 'Chief Minstrel of King Thingol & Maker of the Runes';
+            case 'hengband': return 'Kensei of the Two Heavens & Chronicler of Bushido';
+            case 'frogcomposband': return 'Prince of Amber & Master of the Pattern';
+            case 'angband':
+            default:
+                return 'Master of Rivendell & Chronicler of the Elder Days';
         }
     }
 
@@ -79,51 +96,98 @@ class ChronicleGrounder {
             case 'silq':
                 return {
                     realm: 'silq',
-                    chronicler: 'Pengolodh of Gondolin, master lorekeeper and chronicler of the First Age',
-                    lorekeeperName: 'Pengolodh of Gondolin',
-                    setting: 'Beleriand in the First Age of the Sun, under the shadow of Morgoth Bauglir and the iron peaks of Thangorodrim',
+                    chronicler: 'Daeron of Doriath, Chief Minstrel of King Thingol and Master of the Cirth',
+                    lorekeeperName: 'Daeron of Doriath',
+                    lorekeeperTitle: 'Chief Minstrel of King Thingol & Maker of the Runes',
+                    setting: 'Beleriand in the First Age of the Sun, under the gloom of Thangorodrim. The quest to cut a sacred Silmaril from Morgoth\'s Iron Crown with the Knife Angrist',
                     traditionKey: 'beleriand',
-                    style: 'Solemn First Age epic, songs of stealth and woven spells, shadows beneath Thangorodrim, and the desperate quest for Morgoth\'s Iron Crown'
+                    style: 'Solemn First Age epic, songs of stealth and woven spells, shadows beneath Thangorodrim, and the desperate quest for Morgoth\'s Iron Crown',
+                    voice: 'en-GB-RyanNeural',
+                    recommendedVoice: 'en-GB-RyanNeural'
                 };
             case 'hengband':
                 return {
                     realm: 'hengband',
-                    chronicler: 'Dworkin Barimen, master of the Trumps of Doom, Pattern of Amber, and cosmic mystic of the Eastern Realm',
-                    lorekeeperName: 'Dworkin Barimen',
-                    setting: 'The multiverse confluence of the Realm of Amber and the Eastern Sengoku cosmos, ruled by celestial spirits, ancient clans, and shadow paths',
+                    chronicler: 'Miyamoto Musashi, Kensei of the Two Heavens and Chronicler of Bushido',
+                    lorekeeperName: 'Miyamoto Musashi',
+                    lorekeeperTitle: 'Kensei of the Two Heavens & Chronicler of Bushido',
+                    setting: 'The Sengoku Realm and Eastern Mythos, where ancient Angband dungeons are entwined with feudal Japan, Shinto kami, Buddhist sutras, samurai honor, and perilous yokai',
                     traditionKey: 'easternmythos',
-                    style: 'Zen tranquility, Bushido valor, celestial court judgments, mythical deities, and the shadow patterns of infinite Amber'
+                    style: 'Zen tranquility, Bushido valor, celestial court judgments, mythical deities, and the lethal grace of the sword',
+                    voice: 'en-US-BrianNeural',
+                    recommendedVoice: 'en-US-BrianNeural'
                 };
             case 'frogcomposband':
                 return {
                     realm: 'frogcomposband',
-                    chronicler: 'The Grand Archivist of the Boundless Multiverse',
-                    lorekeeperName: 'Grand Archivist',
-                    setting: 'The Wilderland Crossroads of the Infinite Multiverse, uniting high fantasy realms, sentient monster champions, and myriad wandering adventurers',
-                    traditionKey: 'mythicbard',
-                    style: 'Lively, grand epic of overland wilderness, myriad monster folk, wondrous enchantments, and legendary feats across boundless realms'
+                    chronicler: 'Corwin of Amber, Prince of Amber and Chronicler of the Pattern',
+                    lorekeeperName: 'Corwin of Amber',
+                    lorekeeperTitle: 'Prince of Amber & Master of the Pattern',
+                    setting: 'The Boundless Multiverse and the Realm of Amber, where all worlds are but Shadows of the One True City, bounded by the Pattern and the Logrus',
+                    traditionKey: 'amber',
+                    style: 'Lively, cynical fencing wit, epic of overland wilderness, myriad monster folk, shadow-walking, and the eternal clash between the Pattern and Chaos',
+                    voice: 'en-US-ChristopherNeural',
+                    recommendedVoice: 'en-US-ChristopherNeural'
                 };
             case 'angband':
             default:
                 return {
                     realm: 'angband',
-                    chronicler: 'The Elder Lorekeeper of Westmarch',
-                    lorekeeperName: 'Elder Lorekeeper',
-                    setting: 'Middle-earth in the Third Age, beneath the dread Fortress of Angband in the Iron Hell',
+                    chronicler: 'Master Elrond of Rivendell, Lorekeeper of the Elder Days',
+                    lorekeeperName: 'Master Elrond',
+                    lorekeeperTitle: 'Master of Rivendell & Chronicler of the Elder Days',
+                    setting: 'Middle-earth in the Third Age of the Sun, beneath the dread Fortress of Angband in the Iron Hell',
                     traditionKey: 'westmarch',
-                    style: 'Direct, courageous, humble steadfastness, songs of forgotten valor, stubborn endurance against darkness'
+                    style: 'Direct, courageous, humble steadfastness, songs of forgotten valor, stubborn endurance against darkness',
+                    voice: 'en-GB-ThomasNeural',
+                    recommendedVoice: 'en-GB-ThomasNeural'
                 };
         }
     }
 
     static CANON_ARTIFACT_LORE = {
+        // --- Third Age & Middle-earth (Angband) ---
         "Phial of Galadriel": "It shines with the trapped light of Eärendil's Star, distilled from the Silmaril. In places where all other lights go out, its silver ray pierces the deepest dark of Morgoth.",
         "Glamdring": "The Foe-hammer, forged in hidden Gondolin for King Turgon himself. The goblins of the Misty Mountains trembled before its cold, white gleam, naming it 'Beater'.",
         "Ring of Barahir": "A ring of twin serpents with eyes of green emerald, crowned by golden flowers. Worn by Beren in the dread quest for the Silmaril; an eternal token of kinship between Elves and Men.",
         "Arkenstone": "A great white gem, cut by the Dwarves of Erebor, that gathered the light of all fires into a thousand shining facets. The Heart of the Mountain.",
         "Narsil": "The blade forged by Telchar of Nogrod, which shore the One Ring from Sauron's hand before the Black Gate.",
         "Sting": "An elven dagger forged in Gondolin that glows with cold blue light when Orcs or Goblins draw near.",
-        "Amulet of Carlammas": "A talisman of ancient craft offering ward against fire and terror, steeped in the blessing of the Valar."
+        "Amulet of Carlammas": "A talisman of ancient craft offering ward against fire and terror, steeped in the blessing of the Valar.",
+        "Palantír": "A Seeing Stone of Westernesse, showing visions of far distances and forgotten times through the dark.",
+        "Grond": "The Hammer of the Underworld, forged in the deep fires of Angband, wielded by Morgoth himself in his duel against High King Fingolfin.",
+        "Ring of Thrór": "One of the Seven Rings of the Dwarf-lords, deepening the wealth and endurance of the Dwarves of Erebor.",
+
+        // --- First Age of Beleriand (Sil-Q) ---
+        "Knife Angrist": "The iron-cleaving knife forged by Telchar of Nogrod, carried by Curufin and wrested by Beren to cut a sacred Silmaril from the Iron Crown of Morgoth.",
+        "Angrist": "The iron-cleaving knife forged by Telchar of Nogrod, carried by Curufin and wrested by Beren to cut a sacred Silmaril from the Iron Crown of Morgoth.",
+        "Nauglamír": "The Necklace of the Dwarves, fashioned of gold and adorned with unnumbered gems of Valinor, wrought for Finrod Felagund by the craftsmen of Nogrod.",
+        "Dragon-helm of Dor-lómin": "The towering crest of Hador, crested with the image of Glaurung the Golden, struck with fear into the hearts of all thralls of Angband.",
+        "Ring of Felagund": "The green-gemmed signet of twin serpents given to Barahir upon the fen of Serech in token of eternal aid.",
+        "Silmaril": "One of the three holy jewels fashioned by Fëanor from the living light of the Two Trees of Valinor, set into the crushing iron circlet of Morgoth.",
+        "Mail of Eärendil": "Mithril mail woven without seam in Gondolin, impenetrable to the venomous darts and jagged scimitars of the Orcs.",
+        "Helm of Hador": "The sacred heirloom of the House of Hador, impenetrable against cold steel and dragon-fire.",
+        "Spear of Gil-galad": "Aeglos, the icicle of snow and silver, whose gleaming point pierced the shadows before the gates of doom.",
+
+        // --- Amber & Multiverse (FrogComposBand) ---
+        "Grayswandir": "The silver blade of Corwin of Amber, etched with a portion of the Pattern. It strikes across dimensions and cleaves apparitions, chaos beasts, and shadow-spawn as though they were mortal flesh.",
+        "Werewindle": "Brand's golden sword, twin to Grayswandir, blazing with an amber luster that pierces shadows across the multiverse.",
+        "Jewel of Judgment": "The great ruby talisman worn by Oberon, King of Amber, containing the higher Pattern within its fiery depths, granting dominion over weather, probability, and shadow.",
+        "Spikard of Doom": "One of the primordial rings of power from the Courts of Chaos, drawing raw magical energy from the distant font of creation.",
+        "Trump Deck of Amber": "Cards etched by Dworkin Barimen depicting the Princes and Princesses of Amber and the sacred places of the cosmos, allowing instantaneous telepathic communion and shadow transit.",
+        "Necronomicon": "The forbidden grimoire of Abdul Alhazred, bound in sinister leather and pulsing with elder multiversal entities.",
+        "Vorpal Blade": "A snicker-snack blade that decapitates foes with mathematical precision, ignoring thick scales and armor.",
+
+        // --- Eastern Mythos & Sengoku (Hengband) ---
+        "Kusanagi-no-Tsurugi": "The legendary Grass-Cutting Sword drawn from the tail of the eight-headed dragon Yamata-no-Orochi by Susanoo. It commands the mountain winds and banishes foul spirits.",
+        "Kusanagi": "The legendary Grass-Cutting Sword drawn from the tail of the eight-headed dragon Yamata-no-Orochi by Susanoo. It commands the mountain winds and banishes foul spirits.",
+        "Muramasa": "The demonic katana forged by the legendary smith Muramasa. Thirsting insatiably for blood, it strikes with lethal sharpness but hungers to draw the wielder into madness.",
+        "Masamune": "The sacred, tranquil katana crafted by Master Masamune. In contrast to Muramasa's bloodthirst, this blade cuts only with justice and wards off curses and evil intents.",
+        "Yata-no-Kagami": "The sacred eight-hand bronze mirror representing cosmic wisdom, reflecting the truth of all spirits and casting blinding heavenly light upon demonic shadows.",
+        "Yasakani-no-Magatama": "The curved jewel of green jade belonging to the Imperial Regalia, carrying the divine protection of the sun goddess Amaterasu.",
+        "Tonbogiri": "The legendary spear of Honda Tadakatsu, so exquisitely sharp that a dragonfly landing on its tip was sliced in two by its own weight.",
+        "Katana of Musashi": "The paired steel of Miyamoto Musashi, Master of the Niten Ichi-ryū. Balanced with sublime perfection, they cut with the serenity of the void and the lethal speed of lightning.",
+        "Musashi": "The paired steel of Miyamoto Musashi, Master of the Niten Ichi-ryū. Balanced with sublime perfection, they cut with the serenity of the void and the lethal speed of lightning."
     };
 
     /**
@@ -1703,9 +1767,10 @@ class ChronicleGrounder {
      * Integrates creature state, player context (race/class/depth/HP), turn memory, and diegetic user queries.
      * Consumes strictly ZERO engine turns.
      */
-    static resolveCreatureEncounter(monster, hero, recentMessages = [], interactionTurn = 1, userQuery = '') {
+    static resolveCreatureEncounter(monster, hero, recentMessages = [], interactionTurn = 1, userQuery = '', realmKey = null) {
         if (!monster) return { prose: 'A shadow lingers in the gloom.', text: null, isDialogue: false, speaker: 'Creature', recommendedVoice: null };
 
+        const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
         const name = monster.name || monster.race || 'creature';
         const profile = this.classifyCreature(monster);
         const stateObj = this.resolveCreatureState(monster, recentMessages);
@@ -1994,34 +2059,122 @@ class ChronicleGrounder {
                     ], Math.floor(Math.random() * 1000));
             } else if (profile.category === 'orc') {
                 prose = `Dark black blood spatters the stones as the ${name} snarls in bloodthirsty fury, hacking violently at your guard!`;
-                text = (hpPercent <= 0.35)
-                    ? ChronicleGrounder.pickNonRepeatingBark('orc_combat_low', [
-                        'Curse your blade! The Eye of the Deeps will tear your soul to shreds!',
-                        'Black blood in my eyes... but my scimitar will taste your throat!',
-                        'The master\'s lash was worse than your steel! Die, surface scum!',
-                        'You bleed too, dog! We die together on the cold rock!'
-                    ], Math.floor(Math.random() * 1000))
-                    : ChronicleGrounder.pickNonRepeatingBark('orc_combat_high', [
-                        'Fresh meat bleeds! Hack the surface scum to ribbons!',
-                        'I will gnaw the marrow from your bones, worm!',
-                        'What is this? A soft-skinned intruder to feed to the drakes! Slay!',
-                        'Chop the legs off! Make the pink-skin crawl in the dirt!',
-                        'Iron and ash! Your skull will hang from the warren gate!'
-                    ], Math.floor(Math.random() * 1000));
+                if (rk === 'silq') {
+                    text = (hpPercent <= 0.35)
+                        ? ChronicleGrounder.pickNonRepeatingBark('orc_silq_low', [
+                            'By the Iron Crown, Morgoth Bauglir shall break your bones upon Thangorodrim!',
+                            'Black blood in my eyes... but Boldog\'s wrath will consume your soul!',
+                            'The Great Darkness will blot out your star, Noldor scum!',
+                            'You bleed on the stones of Angband! None escape the Iron Hell!'
+                        ], Math.floor(Math.random() * 1000))
+                        : ChronicleGrounder.pickNonRepeatingBark('orc_silq_high', [
+                            'Thralls of Angband, slay the intruder!',
+                            'Morgoth Bauglir holds the Silmarils—none escape his darkness!',
+                            'Die in the shadow of the Iron Mountains!',
+                            'Curse your elven steel! Slice the pink flesh!',
+                            'Iron and ash! Your skull will pave the Throne of Thangorodrim!'
+                        ], Math.floor(Math.random() * 1000));
+                } else if (rk === 'frogcomposband') {
+                    text = (hpPercent <= 0.35)
+                        ? ChronicleGrounder.pickNonRepeatingBark('orc_fcb_low', [
+                            'The Pattern will not save you, shadow-walker!',
+                            'Curse your blade! Blood for the Logrus!',
+                            'The Courts of Chaos will devour your reality!',
+                            'Bleeding out... but the multiverse will swallow you whole!'
+                        ], Math.floor(Math.random() * 1000))
+                        : ChronicleGrounder.pickNonRepeatingBark('orc_fcb_high', [
+                            'The multiverse belongs to the strong! Die, Outpost dog!',
+                            'No Trump can pull you from my grasp!',
+                            'Your shadow ends in this gutter!',
+                            'Feel the raw chaotic power of the wilderness!',
+                            'We butcher knights and evolving beasts alike!'
+                        ], Math.floor(Math.random() * 1000));
+                } else if (rk === 'hengband') {
+                    text = (hpPercent <= 0.35)
+                        ? ChronicleGrounder.pickNonRepeatingBark('orc_heng_low', [
+                            'Idaten-hashiri! My blade still thirsts for your heart!',
+                            'By the demon blade of Muramasa, we die together in the blood mud!',
+                            'No warrior flinches before death! A warrior\'s spirit is eternal!',
+                            'You have pierced my armor, but the demons of Sengoku will avenge me!'
+                        ], Math.floor(Math.random() * 1000))
+                        : ChronicleGrounder.pickNonRepeatingBark('orc_heng_high', [
+                            'Ippon! Face the fury of the Sengoku lords!',
+                            'The Kagura shrine will sing no prayers for you!',
+                            'Oni and Tengu feast upon intruders!',
+                            'Taste the edge of dishonor and steel!',
+                            'By the fallen cherry blossoms, draw your last breath!'
+                        ], Math.floor(Math.random() * 1000));
+                } else {
+                    text = (hpPercent <= 0.35)
+                        ? ChronicleGrounder.pickNonRepeatingBark('orc_combat_low', [
+                            'Curse your blade! The Eye of the Deeps will tear your soul to shreds!',
+                            'Black blood in my eyes... but my scimitar will taste your throat!',
+                            'The master\'s lash was worse than your steel! Die, surface scum!',
+                            'You bleed too, dog! We die together on the cold rock!'
+                        ], Math.floor(Math.random() * 1000))
+                        : ChronicleGrounder.pickNonRepeatingBark('orc_combat_high', [
+                            'Fresh meat bleeds! Hack the surface scum to ribbons!',
+                            'I will gnaw the marrow from your bones, worm!',
+                            'What is this? A soft-skinned intruder to feed to the drakes! Slay!',
+                            'Chop the legs off! Make the pink-skin crawl in the dirt!',
+                            'Iron and ash! Your skull will hang from the warren gate!'
+                        ], Math.floor(Math.random() * 1000));
+                }
             } else if (profile.category === 'spellcaster') {
                 prose = `Dark sorcerous fire crackles across the robes of the ${name} as he recoils from your steel, hissing ancient incantations in fury!`;
-                text = (hpPercent <= 0.35)
-                    ? ChronicleGrounder.pickNonRepeatingBark('caster_combat_low', [
-                        'The Dark Masters will avenge my blood! The Shadow never ends!',
-                        'My flesh perishes... but the Nether will consume your soul!',
-                        'Curse your iron! Even in death, the dark runes shall wither you!'
-                    ], Math.floor(Math.random() * 1000))
-                    : ChronicleGrounder.pickNonRepeatingBark('caster_combat_high', [
-                        'Feel the freezing hand of the Void! Burn in dark fire!',
-                        'Mortal clay, dissolve before the black flame!',
-                        'Your feeble armor cannot turn the wrath of the ancient arts!',
-                        'The deeps hunger for your soul—wither into ashes!'
-                    ], Math.floor(Math.random() * 1000));
+                if (rk === 'silq') {
+                    text = (hpPercent <= 0.35)
+                        ? ChronicleGrounder.pickNonRepeatingBark('caster_silq_low', [
+                            'The Iron Hell never yields! Morgoth\'s shadow covers all Beleriand!',
+                            'My song falters... but the doom of Mandos claims your soul!',
+                            'Curse your song! Even in death, the black frost shall wither you!'
+                        ], Math.floor(Math.random() * 1000))
+                        : ChronicleGrounder.pickNonRepeatingBark('caster_silq_high', [
+                            'Tremble before the will of the Iron Crown!',
+                            'No song of Elbereth can kindle light in this abyss!',
+                            'Dissolve in the subterranean black flame of Udûn!',
+                            'The Will of the Great Enemy crushes mortal clay!'
+                        ], Math.floor(Math.random() * 1000));
+                } else if (rk === 'frogcomposband') {
+                    text = (hpPercent <= 0.35)
+                        ? ChronicleGrounder.pickNonRepeatingBark('caster_fcb_low', [
+                            'My body unravels into shadow... but the Logrus will claim you!',
+                            'The Trump of Doom was already drawn for your fate!',
+                            'Curse your steel! Chaos dissolves all boundaries!'
+                        ], Math.floor(Math.random() * 1000))
+                        : ChronicleGrounder.pickNonRepeatingBark('caster_fcb_high', [
+                            'I twist the probabilities of the Pattern against you!',
+                            'Burn in the cold chaos of the Abyss!',
+                            'Reality warps at my command—witness true sorcery!',
+                            'Your existence is but a flickering shadow!'
+                        ], Math.floor(Math.random() * 1000));
+                } else if (rk === 'hengband') {
+                    text = (hpPercent <= 0.35)
+                        ? ChronicleGrounder.pickNonRepeatingBark('caster_heng_low', [
+                            'Nine cuts of Kuji-kiri... my spirit ascends to the Kami!',
+                            'The Buddhist wheel of retribution will crush you in your next reincarnation!',
+                            'The curse of the Fox Spirit shall cling to your shadow!'
+                        ], Math.floor(Math.random() * 1000))
+                        : ChronicleGrounder.pickNonRepeatingBark('caster_heng_high', [
+                            'Rin, Pyo, Toh, Sha, Kai, Jin, Retsu, Zai, Zen! Banish the intruder!',
+                            'Demonic flame of Mount Hiei, reduce this fool to cinders!',
+                            'Gate gate paragate parasamgate—taste karmic annihilation!',
+                            'The Shinto spirits reject your corrupted presence!'
+                        ], Math.floor(Math.random() * 1000));
+                } else {
+                    text = (hpPercent <= 0.35)
+                        ? ChronicleGrounder.pickNonRepeatingBark('caster_combat_low', [
+                            'The Dark Masters will avenge my blood! The Shadow never ends!',
+                            'My flesh perishes... but the Nether will consume your soul!',
+                            'Curse your iron! Even in death, the dark runes shall wither you!'
+                        ], Math.floor(Math.random() * 1000))
+                        : ChronicleGrounder.pickNonRepeatingBark('caster_combat_high', [
+                            'Feel the freezing hand of the Void! Burn in dark fire!',
+                            'Mortal clay, dissolve before the black flame!',
+                            'Your feeble armor cannot turn the wrath of the ancient arts!',
+                            'The deeps hunger for your soul—wither into ashes!'
+                        ], Math.floor(Math.random() * 1000));
+                }
             } else {
                 prose = `Gravely engaged in combat, the ${name} trades savage blows with ${pName}, blades clashing in the dark!`;
                 text = (hpPercent <= 0.35)
@@ -2199,13 +2352,39 @@ class ChronicleGrounder {
                 }
             }
         } else if (profile.category === 'orc') {
-            prose = `The ${name} hefts a notched scimitar, yellow fangs bared in a wicked sneer as he stomps against the flagstones.`;
-            text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient', [
-                'What is this? A tender morsel walking straight into the jaws! Slay the surface scum!',
-                'Your skull will make a fine cup for the captain\'s ale! Stand still and die!',
-                'Sniff the air... soft-skin smells of fear and town bread! Get him!',
-                'No one leaves the warrens alive! Hack the stranger down!'
-            ], Math.floor(Math.random() * 1000));
+            if (rk === 'silq') {
+                prose = `The ${name} hefts a notched scimitar, yellow fangs bared in a cruel sneer beneath the black smoke of Thangorodrim.`;
+                text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_silq', [
+                    'Thralls of Morgoth, seize the elf-friend! Slay him upon the gate!',
+                    'You dare enter Angband unchained? Bauglir will break your spirit!',
+                    'The Iron Crown holds all! Flesh for the pits of Thangorodrim!',
+                    'Smell that? An unbranded trespasser! Boldog will feast on your marrow!'
+                ], Math.floor(Math.random() * 1000));
+            } else if (rk === 'frogcomposband') {
+                prose = `The ${name} snarls with wild chaotic frenzy, eye twitching as he stalks across the multiversal dust.`;
+                text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_fcb', [
+                    'A traveler wandering off the Pattern road! Hack the shadow-walker down!',
+                    'The Courts of Chaos await fresh meat! Blood for the Logrus!',
+                    'No Trump card will save you out here in the wilderness!',
+                    'Look what crawled out of the Outpost! Strip his gold and boots!'
+                ], Math.floor(Math.random() * 1000));
+            } else if (rk === 'hengband') {
+                prose = `The ${name} bares fangs beneath a jagged mempo mask, clutching a rusty naginata with demonic ferocity.`;
+                text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_heng', [
+                    'Gaijin intruder! You step uninvited into the lands of the Sengoku lords!',
+                    'The Kagura shrine bells toll for your demise! Taste cold iron!',
+                    'Oni blood stirs in these veins! Draw your katana or die like a dog!',
+                    'No ronin or ashigaru leaves this mountain alive!'
+                ], Math.floor(Math.random() * 1000));
+            } else {
+                prose = `The ${name} hefts a notched scimitar, yellow fangs bared in a wicked sneer as he stomps against the flagstones.`;
+                text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient', [
+                    'What is this? A tender morsel walking straight into the jaws! Slay the surface scum!',
+                    'Your skull will make a fine cup for the captain\'s ale! Stand still and die!',
+                    'Sniff the air... soft-skin smells of fear and town bread! Get him!',
+                    'No one leaves the warrens alive! Hack the stranger down!'
+                ], Math.floor(Math.random() * 1000));
+            }
         } else if (profile.category === 'dragon') {
             prose = `The ancient wyrm regards ${pName} with smoldering golden eyes, sulfurous smoke drifting lazily from slit nostrils.`;
             text = ChronicleGrounder.pickNonRepeatingBark('dragon_ambient', [
@@ -2289,32 +2468,48 @@ class ChronicleGrounder {
     /**
      * Alias for answerGuideQuery to ensure complete compatibility across manager and LLM bridge
      */
-    static answerSurvivalQuery(query = '', player = null) {
-        return this.answerGuideQuery(query, player);
+    static answerSurvivalQuery(query = '', player = null, realmKey = null) {
+        return this.answerGuideQuery(query, player, realmKey);
     }
 
     /**
      * The 4th-Wall Aware Guide Engine: Answers gameplay and menu questions
-     * with authentic, diegetic reverent wit grounded in Tolkien lore and Angband mechanics.
+     * with authentic, diegetic reverent wit grounded in specific realm lore and mechanics.
      */
-    static answerGuideQuery(query = '', player = null) {
+    static answerGuideQuery(query = '', player = null, realmKey = null) {
         const q = (query || '').toLowerCase().trim();
+        const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
         const heroClass = (player && player.class) ? player.class.toLowerCase() : 'warrior';
         const pName = (player && player.name) ? player.name : 'Hero';
         const pRace = (player && player.race) ? player.race.toLowerCase() : 'mortal';
 
         // 1. POTIONS & HEALING
         if (q.includes('potion') || q.includes('quaff') || q.includes('heal') || q.includes('drink') || q.includes('cure')) {
+            if (rk === 'silq') {
+                return `In Sil-Q, potions of healing soothe mortal wounds—quaff them with 'q'. But heed this: there are NO potions of mana in Beleriand, for the Eldar and Edain wield Will and innate Song, not alchemical mana! Guard your flasks against dragon breath and icy frost.`;
+            }
             return `To quaff that draught, mortal hands must strike 'q' upon your keys (or touch the potion vial on your glass scrying screen). Then select the flask's rune from your pack. Quaffing consumes but a single heartbeat—never wait until death's shadow falls across your neck. In town, visit Alchemy Shop '5' to hoard Potions of Cure Critical Wounds!`;
         }
 
         // 2. RESTING & SAFE SLEEP
         if (q.includes('rest') || q.includes('sleep') || q.includes('recover') || q.includes('mana')) {
+            if (rk === 'silq') {
+                return `In Sil-Q, resting is invoked with '%' upon your keys (or 'R' in standard keyset). Sil-Q measures recovery in stealth and quiet turns—never rest within sight or scent of Morgoth's thralls! Retreat into quiet dead ends and listen for approaching footsteps.`;
+            }
             return `Never rest in an open hall where horrors wander! Retreat to a dead-end corridor, shut the door ('c'), and invoke the resting rite: press 'R', then '*' to sleep until your Hit Points and Mana are made whole. If danger approaches, your senses will shock you awake.`;
         }
 
         // 3. SPELLS & MAGIC CONSTRAINTS
-        if (q.includes('spell') || q.includes('magic') || q.includes('cast') || q.includes('pray') || q.includes('book')) {
+        if (q.includes('spell') || q.includes('magic') || q.includes('cast') || q.includes('pray') || q.includes('book') || q.includes('song')) {
+            if (rk === 'silq') {
+                return `In Sil-Q, there are NO spellbooks or mana bars! Magic lives as sacred Songs: strike 'S' to sing! Weave the Song of Slaying, Song of Elbereth, Song of Staying, or Song of Lorien with your Will! Each verse drains your voice until silence returns.`;
+            }
+            if (rk === 'frogcomposband') {
+                return `Magic in FrogComposBand spans diverse disciplines: Sorcery, Chaos, Nature, Death, Trump, Arcane, and Craft. Press 'm' to browse your realm's arts, or evoke Trump cards to cross the multiverse. Mind your encumbrance and avoid heavy iron gauntlets!`;
+            }
+            if (rk === 'hengband') {
+                return `Hengband features Shinto prayers, Buddhist chants, Ninjutsu techniques, and Bushido stances. Strike 'm' to invoke your chosen school of Eastern enlightenment or ninjutsu art!`;
+            }
             if (heroClass === 'warrior') {
                 return `Alas, friend, you are a Warrior of iron muscle—you possess no spellbooks or mana. Rely on your honed steel, or trigger enchanted wands and scrolls!`;
             }
@@ -2328,12 +2523,15 @@ class ChronicleGrounder {
 
         // 5. FOOD & STARVATION
         if (q.includes('food') || q.includes('starve') || q.includes('eat') || q.includes('ration') || q.includes('hunger')) {
+            if (rk === 'silq') {
+                return `A warrior without sustenance falters quickly in the gloom. In Sil-Q, keep iron rations or bread of the Eldar in your satchel, and strike 'E' to eat when hunger gnaws at your strength.`;
+            }
             return `A warrior without sustenance is already dead. In the town above, visit Building '1' (The General Store) by stepping on its entrance. Press 'p' to purchase iron rations. In the deep, press 'E' to eat when hunger gnaws at your strength.`;
         }
 
         // 6. LIGHT, TORCHES & LANTERNS
         if (q.includes('light') || q.includes('torch') || q.includes('lantern') || q.includes('oil') || q.includes('dark')) {
-            return `The deeps of Angband are pitch black. Unlit tiles conceal lethal breath ambushes and prevent long-range targeting. Always carry spare torches or a brass lantern. When your lantern dims, strike 'F' to fuel it with a flask of oil from your satchel!`;
+            return `The subterranean deeps are pitch black. Unlit tiles conceal lethal breath ambushes and prevent long-range targeting. Always carry spare torches or a brass lantern. When your lantern dims, strike 'F' to fuel it with a flask of oil from your satchel!`;
         }
 
         // 7. SPEED & HASTE
@@ -2343,27 +2541,42 @@ class ChronicleGrounder {
 
         // 8. SHOPS & TOWN SERVICES
         if (q.includes('shop') || q.includes('store') || q.includes('town') || q.includes('buy') || q.includes('sell')) {
+            if (rk === 'silq') {
+                return `There are NO shops or surface towns in Sil-Q! You stand directly within the gates of Angband at -250ft. To forge new blades or armor, seek out the ancient Forges in the deep vaults where your Smithing skill shapes steel!`;
+            }
+            if (rk === 'frogcomposband') {
+                return `The Outpost crossroads connects myriad wilderness paths, guild halls, and strange shops. Step onto the border of the town and press '<' or '>' to emerge into the overland wilderness map!`;
+            }
+            if (rk === 'hengband') {
+                return `Feudal Japan features the sacred Kagura Shrine for prayers and daily bounties, pawn shops, martial dojos, and armorers. Step upon their doors to enter and trade!`;
+            }
             return `The frontier town features 8 establishments: General Store '1' (provisions & torches), Armory '2', Weapon Smith '3', Temple '4', Alchemy '5' (potions of cure & restoration), Magic Shop '6', the shadowy Black Market '7', and your personal Home '8' to store surplus relics. Step upon their doors to enter!`;
         }
 
         // 9. ESCAPES & PHASE DOOR
         if (q.includes('escape') || q.includes('run') || q.includes('phase door') || q.includes('teleport') || q.includes('recall')) {
+            if (rk === 'silq') {
+                return `In Sil-Q, survival requires constant retreat! Use your Stealth skill to slip past dreadful foes unnoticed. There is no Word of Recall in Beleriand—you must forge your own path back to the upper halls on your own two feet!`;
+            }
             return `Retreating at 25% Health is the mark of a veteran, not cowardice! Keep at least 5 Scrolls of Phase Door ('r') in your pack to blink away from surrounding packs, and Scrolls of Teleportation for desperate flights. Remember: Scrolls of Word of Recall take 15 to 25 turns to activate!`;
         }
 
         // 10. WIELDING & GEAR
         if (q.includes('wield') || q.includes('equip') || q.includes('wear') || q.includes('armor') || q.includes('weapon') || q.includes('gear')) {
+            if (rk === 'silq') {
+                return `To wield a blade or armor in Sil-Q, strike 'w'. But to TAKE OFF or shed gear, strike 'r' (remove)! Do not confuse 'r' with reading, as Sil-Q separates equipping ('w') and removing ('r') gear!`;
+            }
             return `To brandish a blade or don armor, press 'w' on your keys, then select the item from your pack. To inspect the gear currently protecting your body, press 'e' to open your equipment sheet. To take off an item, press 't'.`;
         }
 
         // 11. INNOCENTS, BEGGARS, AND TOWN VIOLENCE
         if (q.includes('beggar') || q.includes('kill') || q.includes('murder') || q.includes('cat') || q.includes('idiot') || q.includes('townsfolk') || q.includes('crime')) {
-            return `Strike not the helpless wretches of the frontier town! Slaying beggars, alley cats, or the simple-minded Novice idiot brings neither glory nor spoils—only the stain of senseless cruelty and the wary gaze of the Town Watch. Save your drawn steel for the Orcs and ancient terrors lurking beneath the stairs.`;
+            return `Strike not the helpless wretches of the frontier town! Slaying beggars, alley cats, or simple-minded wanderers brings neither glory nor spoils—only senseless cruelty and the wary gaze of the Town Watch. Save your drawn steel for the monsters lurking beneath the earth.`;
         }
 
         // 12. CORRIDOR FUNNELING & COMBAT TACTICS
         if (q.includes('corridor') || q.includes('funnel') || q.includes('tactic') || q.includes('surround') || q.includes('room')) {
-            return `The Golden Rule of Angband is the 1-tile corridor bottleneck! In open rooms, up to eight horrors can surround and butcher you in a single round. Step backward into a 1-tile corridor or doorway: there, only one monster can face your steel at a time, turning a deadly ambush into an orderly duel.`;
+            return `The Golden Rule of roguelikes is the 1-tile corridor bottleneck! In open rooms, multiple horrors can surround and butcher you in a single round. Step backward into a 1-tile corridor or doorway: there, only one monster can face your steel at a time, turning a deadly ambush into an orderly duel.`;
         }
 
         // 13. THROWING & MISSILES
@@ -2378,24 +2591,186 @@ class ChronicleGrounder {
 
         // 15. ATTRIBUTES & STAT DRAINING
         if (q.includes('stat') || q.includes('strength') || q.includes('dexterity') || q.includes('constitution') || q.includes('drain')) {
+            if (rk === 'silq') {
+                return `Sil-Q attributes govern your prowess: Melee, Archery, Stealth, Perception, Will, Smithing, and Song! Increase them through experience points gained from foes, discoveries, and ancient depths.`;
+            }
             return `Strength increases damage and pack carrying capacity. Dexterity improves Armor Class and dodge rate. Constitution dictates your lifeblood. Beware the cold touch of the Undead (wights and wraiths), which permanently drains your attributes! Purchase Potions of Restore Strength and Life Levels from Alchemy Shop '5'.`;
         }
 
-        // 16. LEVEL FEELINGS
-        if (q.includes('feeling') || q.includes('danger') || q.includes('depth') || q.includes('level')) {
-            return `Upon descending to a new tier, your sixth sense whispers a feeling from 1 to 9. A feeling above 5 portends legendary artifact vaults or dread unique terrors. If your healing flasks are empty and the air feels ominous, retreat up the stairs ('<') without shame!`;
+        // 16. OBJECTIVES & DEFEAT
+        if (q.includes('morgoth') || q.includes('goal') || q.includes('objective') || q.includes('win') || q.includes('boss')) {
+            if (rk === 'silq') {
+                return `In Sil-Q, descend 20 levels (-250ft to -1000ft) beneath Thangorodrim. You do not seek to slay Morgoth—no mortal can! Your quest is to wrest a burning Silmaril from his Iron Crown with the Knife Angrist and escape into the starlight of Beleriand!`;
+            }
+            if (rk === 'frogcomposband') {
+                return `In FrogComposBand, brave the endless wilderness, evolve your chosen monster race or master your class, conquer unique multiversal lords, and plunge to the final depth to challenge the dread sovereign!`;
+            }
+            if (rk === 'hengband') {
+                return `In Hengband, master Bushido or the arcane arts, fulfill daily bounties at the Kagura shrine, defeat the legendary warlords and yokai of the realm, and banish the ultimate shadow beneath Angband!`;
+            }
+            return `Descend 100 deep levels beneath the Iron Mountains. Slay Sauron the Sorcerer on Level 99, then vanquish the Dark Vala Morgoth Bauglir on Level 100 to claim victory for Middle-earth!`;
         }
 
         // General in-character survival counsel attuned to realm
-        const activeRealm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
-        if (activeRealm === 'silq') {
-            return `Pengolodh speaks, ${pName}. In the shadowed halls beneath Thangorodrim, subtlety is your greatest shield. Master the songs of weaving, husband your light, forge arms at the secret anvils, and remember that combat here is measured in wound thresholds rather than vast pools of health.`;
-        } else if (activeRealm === 'hengband') {
-            return `Dworkin counsels you, ${pName}. In this cosmic confluence of Amber and the Eastern realm, keep your blade keen and your soul guarded against chaotic mutations. Study the paths of magic carefully, harness your trump powers, and never underestimate the unique lords of legend!`;
-        } else if (activeRealm === 'frogcomposband') {
-            return `The Grand Archivist observes your journey, ${pName}. In the boundless multiverse, whether you wander as an Elven knight or a sentient monster, leverage your racial gifts, explore the wild overworld with caution, and let no forgotten relic escape your grasp!`;
+        if (rk === 'silq') {
+            return `Daeron of Doriath speaks, ${pName}. In the shadowed halls beneath Thangorodrim, subtlety is your greatest shield. Master the songs of weaving, husband your light, forge arms at the secret anvils, and remember that combat here is measured in wound thresholds rather than vast pools of health.`;
+        } else if (rk === 'hengband') {
+            return `Miyamoto Musashi counsels you, ${pName}. In this realm of Bushido and Eastern Mythos, keep your blade keen, your spirit tranquil, and let your Ki flow into every decisive strike. Never let your guard slip before the demons of the dark!`;
+        } else if (rk === 'frogcomposband') {
+            return `Corwin of Amber observes your journey, ${pName}. In the boundless multiverse of Amber and Chaos, whether you wander as an Elven knight or an evolving monster, leverage your unique gifts, explore the wild overworld with caution, and trust only your steel and the Pattern!`;
         }
-        return `The Elder Lorekeeper hears your question, ${pName}. In the deeps of Angband, your survival hinges on discipline: inspect your pack with 'i', keep your back to the stone, funnel multiple foes into narrow 1-tile corridors, and never venture downward without food, torches, and scrolls of escape.`;
+        return `Master Elrond counsels you, ${pName}. In the deeps of Angband, your survival hinges on discipline: inspect your pack with 'i', keep your back to the stone, funnel multiple foes into narrow 1-tile corridors, and never venture downward without food, torches, and scrolls of escape.`;
+    }
+
+    /**
+     * Resolves rich diegetic lorekeeper appraisal and historical context for non-creature objects.
+     * Integrates canonical artifact lore, realm-specific tradition, item category, and tactical usage.
+     * Consumes strictly ZERO engine turns.
+     */
+    static resolveObjectInspection(item, hero = null, depth = 0, realmKey = 'angband') {
+        const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const realmCtx = this.getRealmContext(rk);
+        const itemName = (item && (item.name || item.itemName)) ? (item.name || item.itemName) : 'Unidentified Object';
+        const glyph = (item && item.glyph) ? item.glyph : '?';
+        const hName = (hero && hero.name) ? hero.name : 'the adventurer';
+        const lower = itemName.toLowerCase();
+
+        // 1. Check canonical artifact lore across realms
+        let matchedArtifactLore = null;
+        let matchedArtifactName = null;
+        for (const [artName, artDesc] of Object.entries(this.CANON_ARTIFACT_LORE)) {
+            if (lower.includes(artName.toLowerCase())) {
+                matchedArtifactLore = artDesc;
+                matchedArtifactName = artName;
+                break;
+            }
+        }
+
+        if (matchedArtifactLore) {
+            const dialogueLine = `${matchedArtifactLore} Take it up with reverence, for relics of such craft turn the tides of doom!`;
+            return {
+                title: `Relic of Legend: ${matchedArtifactName}`,
+                prose: `Gazing down through the subterranean gloom, ${hName} beholds ${matchedArtifactName} resting upon the stones—a legendary relic of the realm, shimmering with ancient power.`,
+                appraisal: dialogueLine,
+                dialogue: dialogueLine,
+                lorekeeperName: realmCtx.lorekeeperName,
+                recommendedVoice: realmCtx.voice,
+                isArtifact: true,
+                realm: rk
+            };
+        }
+
+        // 2. Generic / standard item categories
+        let appraisal = '';
+        let prose = '';
+
+        if (glyph === '!' || lower.includes('potion') || lower.includes('draught') || lower.includes('flask of')) {
+            if (rk === 'silq') {
+                appraisal = `A glass phial filled with distilled draughts. Quaff it with 'q' to mend flesh or bolster your will against the cold dread of Morgoth. Guard it well against freezing breaths!`;
+            } else {
+                appraisal = `A glass flask sealed with enchanted wax. Quaff it with 'q' to mend mortal wounds or cure pestilence. In the town above, hoard draughts of Cure Critical Wounds before descending deeper!`;
+            }
+            prose = `${hName} kneels to examine the sealed glass vial gleaming softly upon the flagstones.`;
+        } else if (glyph === '?' || lower.includes('scroll') || lower.includes('parchment')) {
+            if (rk === 'silq') {
+                appraisal = `Ancient parchment inscribed with Elven or Dwarven runes. In Sil-Q, read with 'r' to reveal unseen corridors or ward against shadow, but remember that taking off armor also uses 'r'!`;
+            } else {
+                appraisal = `A rolled parchment bearing sacred sigils of power. Strike 'r' to read the runes and invoke phase doors, teleports, or magical identification!`;
+            }
+            prose = `${hName} leans down to inspect the weathered scroll tied with a braided cord among the gravel.`;
+        } else if (glyph === '=' || lower.includes('ring')) {
+            appraisal = `A band of precious metal imbued with persistent enchantment. Slip it onto your finger with 'w'. Rings of Speed, Resist Fire, and Free Action are worth their weight in mithril!`;
+            prose = `A polished band of metal catches the torchlight from a crevice between the stones.`;
+        } else if (glyph === '"' || lower.includes('amulet') || lower.includes('necklace') || lower.includes('pendant')) {
+            appraisal = `A talisman hung upon a delicate chain. Don it about your throat with 'w' to ward off insidious curses, telepathy drain, or life-force withering.`;
+            prose = `An amulet of intricate smithing gleams in the dark dust of the passage.`;
+        } else if (glyph === '-' || glyph === '_' || lower.includes('wand') || lower.includes('rod') || lower.includes('staff')) {
+            if (rk === 'silq') {
+                appraisal = `An instrument fashioned from elder wood and copper. Such devices channel focused rays of light or blast icy stone without straining your singing voice.`;
+            } else {
+                appraisal = `A magical device of focused sorcery. Aim wands with 'a', discharge rods with 'z', or strike staves with 'u'. Keep them charged for moments when spells fail!`;
+            }
+            prose = `An intricately carved length of wood and chased silver lies upon the floor.`;
+        } else if (glyph === ')' || lower.includes('sword') || lower.includes('blade') || lower.includes('dagger') || lower.includes('katana') || lower.includes('axe') || lower.includes('mace') || lower.includes('spear')) {
+            if (rk === 'silq') {
+                appraisal = `A weapon forged for the wars of Beleriand. Wield it with 'w'. If you discover an ancient Forge in the deeps, your Smithing skill can reforge and sharpen its steel!`;
+            } else if (rk === 'hengband') {
+                appraisal = `Honed steel fashioned in the Eastern tradition. Wield it with 'w'. When wielded by a disciplined master, its balance unlocks lethal Bushido stances and decisive critical strikes!`;
+            } else {
+                appraisal = `Tempered steel balanced for lethal combat. Wield it with 'w' and inspect your blows. Check its weight against your strength so your attacks land swift and true!`;
+            }
+            prose = `${hName} studies the cold, sharpened edge of the weapon resting quietly in the shadows.`;
+        } else if (glyph === '(' || lower.includes('bow') || lower.includes('sling') || lower.includes('crossbow') || lower.includes('arrow') || lower.includes('bolt') || lower.includes('shot')) {
+            appraisal = `Ranged armaments for striking across open vaults. Wield the bow or launcher with 'w' and loose missiles with 'f'. Whittle down charging horrors before they reach your steel!`;
+            prose = `Missile craft fashioned for distance warfare lies propped against the masonry.`;
+        } else if (glyph === '[' || glyph === ']' || lower.includes('armor') || lower.includes('mail') || lower.includes('shield') || lower.includes('helm') || lower.includes('cloak') || lower.includes('boots') || lower.includes('gloves')) {
+            if (rk === 'silq') {
+                appraisal = `Stout armor wrought to turn the claws of wolves and orcish scimitars. Wield with 'w', and remember to strike 'r' to remove if your stealth requires lighter step.`;
+            } else {
+                appraisal = `Protective gear to shield vital flesh from crushing blows and elemental breaths. Don it with 'w'. Prioritize protections against Acid, Fire, and Paralysis!`;
+            }
+            prose = `Sturdy protective gear lies sprawled upon the stones, bearing marks of ancient smithcraft.`;
+        } else if (glyph === '~' || lower.includes('torch') || lower.includes('lantern') || lower.includes('oil') || lower.includes('light')) {
+            appraisal = `A source of precious subterranean luminescence. Equip it in your light slot with 'w'. Unlit corridors leave you blind to breath ambushes; replenish brass lanterns with 'F'!`;
+            prose = `A light source rests in the dark, awaiting fuel or spark to pierce the gloom.`;
+        } else if (glyph === ',' || lower.includes('ration') || lower.includes('food') || lower.includes('mushroom') || lower.includes('bread') || lower.includes('meat')) {
+            appraisal = `Provisions for the body. Consume with 'E' when hunger gnaws. Beware strange subterranean mushrooms—some purge toxins, while others induce delirium or blinding hallucination!`;
+            prose = `Subterranean provisions lie wrapped in damp cloth upon the dungeon floor.`;
+        } else if (glyph === '$' || lower.includes('gold') || lower.includes('silver') || lower.includes('copper') || lower.includes('gems') || lower.includes('coins')) {
+            if (rk === 'silq') {
+                appraisal = `Gleaming ore from the deep veins beneath Thangorodrim. While gold buys no goods where there are no shops, fine gems hold historical lore and smithing virtues.`;
+            } else {
+                appraisal = `Glittering coin of the realm. Step upon it to sweep it into your purse! Gold finances your provisions, restorations, and enchantments in the town shops above.`;
+            }
+            prose = `Glittering coins and cut gems sparkle enticingly in the crevices of the flagstones.`;
+        } else if (glyph === '&' || lower.includes('chest')) {
+            appraisal = `A heavy iron-banded chest. Beware! Such containers are frequently rigged with gas darts, acid vents, or explosive runes. Search with 's' and disarm with 'D' before lifting the lid!`;
+            prose = `A heavy, iron-bound chest sits locked in the recess of the corridor.`;
+        } else {
+            appraisal = `An object of mysterious origin in this deep tier. Handle with care, test with identification before trusting your life to it, and remain watchful of concealed malice!`;
+            prose = `${hName} pauses to scrutinize the unusual object resting upon the stones.`;
+        }
+
+        return {
+            title: `Appraisal: ${itemName}`,
+            prose: prose,
+            appraisal: appraisal,
+            dialogue: appraisal,
+            lorekeeperName: realmCtx.lorekeeperName,
+            recommendedVoice: realmCtx.voice,
+            isArtifact: false,
+            realm: rk
+        };
+    }
+
+    /**
+     * Answers specific follow-up inquiries regarding an inspected object.
+     */
+    static answerObjectQuery(item, query = '', hero = null, depth = 0, realmKey = 'angband') {
+        const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const realmCtx = this.getRealmContext(rk);
+        const itemName = (item && (item.name || item.itemName)) ? (item.name || item.itemName) : 'Object';
+        const q = (query || '').toLowerCase().trim();
+
+        if (q.includes('drink') || q.includes('quaff') || q.includes('heal') || q.includes('potion') || q.includes('draught')) {
+            return `Quaff potions with 'q'. Keep Cure Critical Wounds at the ready whenever health falls below half, and never wait until bleeding or confusion sets in before drinking!`;
+        }
+        if (q.includes('read') || q.includes('scroll') || q.includes('parchment')) {
+            return `Read sacred scrolls with 'r'. Scrolls of Phase Door, Teleportation, and Word of Recall are your ultimate lifelines when cornered by lethal foes!`;
+        }
+        if (q.includes('curse') || q.includes('bad') || q.includes('safe') || q.includes('trap') || q.includes('danger')) {
+            return `Beware! Unknown equipment found in the deeps may carry sticky curses of misery or vulnerability. Use a Scroll of Identify before donning suspicious gear, or keep Scrolls of Remove Curse at hand!`;
+        }
+        if (q.includes('use') || q.includes('key') || q.includes('how') || q.includes('equip') || q.includes('wield') || q.includes('wear')) {
+            if (rk === 'silq') {
+                return `To equip this item in Sil-Q, press 'w'. If you ever need to take it off, remember to press 'r' (remove). Quaff draughts with 'q' and consume provisions with 'E'.`;
+            }
+            return `To wield or wear this gear, strike 'w' on your keys. To take it off, strike 't'. Potions are quaffed with 'q', scrolls read with 'r', and wands aimed with 'a'.`;
+        }
+        if (q.includes('keep') || q.includes('worth') || q.includes('good') || q.includes('pick') || q.includes('take') || q.includes('sell') || q.includes('shop') || q.includes('gold')) {
+            return `If your pack space allows, take it up! Even mundane items can be sold in the town shops above, or carried as emergency backups against acid breaths and corrosion.`;
+        }
+        return `${realmCtx.lorekeeperName} observes: "${itemName}" holds a place in the history of ${realmCtx.realm}. Examine its runes closely, tread with care, and let wisdom guide your hand.`;
     }
 
     /**

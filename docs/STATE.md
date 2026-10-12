@@ -75,6 +75,7 @@ Server must be fresh (L13): `Get-NetTCPConnection -LocalPort 8080 -State Listen 
 None
 
 ## Last gate results
+- WS-Chronicle (2026-10-12 11:48): fast 12/12 PASS (test_realm_chronicles_and_inspection PASS, check_version_sync PASS 9.4.5, check_android_sync 501/501 SHA-1 matched) | e2e 4/4 PASS (verify_cross_realm_menus 10.9s, test_server_boot 0.8s, test_proxy_limits 6.8s, test_server_ws_realms 2.0s) | cdp test_boot_flow PASS (4/4 realms reach 3D play: angband, silq [Action Chooser real DOM verified], frogcomposband [K1 note], hengband) | smoke 11/11 PASS | dotnet 0 warn / 0 err | canonical version 9.4.5 in sync | Localhost server active on 8080.
 - Award Pass Final Gate (2026-10-12 11:14): fast 11/11 PASS | e2e 4/4 PASS (verify_cross_realm_menus 12.3s, test_server_boot 0.8s, test_proxy_limits 7.3s, test_server_ws_realms 1.0s) | cdp test_boot_flow PASS ×2 consecutive (4/4 realms reach 3D play: angband, silq [Action Chooser real DOM verified], frogcomposband [K1 note], hengband) | smoke 11/11 PASS | dotnet 0 warn / 0 err | check_version_sync PASS (9.4.4) | check_android_sync 501/501 SHA-1 matched | Localhost server active on 8080.
 - WS8 (2026-10-12 11:07): fast 11/11 PASS | e2e 4/4 PASS | smoke 11/11 PASS | dotnet 0 warn / 0 err | Localhost server active on 8080.
 - WS7 (2026-10-12 11:03): fast 11/11 PASS | e2e 4/4 PASS (verify_cross_realm_menus 10.9s, test_server_boot 0.9s, test_proxy_limits 6.7s, test_server_ws_realms 4/4 realms in 1.0s) | smoke 11/11 PASS | dotnet 0 warn / 0 err | Localhost server active on 8080.

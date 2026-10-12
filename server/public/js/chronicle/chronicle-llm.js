@@ -448,11 +448,13 @@ Guidelines:
      * while maintaining an authentic Lorekeeper persona.
      */
     async consultLorekeeper(query, player = null) {
-        if (!this.isConfigured()) {
-            return ChronicleGrounder.answerSurvivalQuery(query, player);
-        }
+        const realmKey = (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function')
+            ? window.__app.getActiveRealm()
+            : 'angband';
 
-        const realmKey = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        if (!this.isConfigured()) {
+            return ChronicleGrounder.answerSurvivalQuery(query, player, realmKey);
+        }
         const realmCtx = (ChronicleGrounder && typeof ChronicleGrounder.getRealmContext === 'function')
             ? ChronicleGrounder.getRealmContext(realmKey)
             : { lorekeeperName: 'Elder Lorekeeper', chronicler: 'the ancient Lorekeeper of Angband', setting: 'Middle-earth in the Third Age' };
@@ -476,7 +478,62 @@ Rules:
             console.warn('[ChronicleLLM] Lorekeeper query failed, using procedural fallback:', err.message);
         }
 
-        return ChronicleGrounder.answerSurvivalQuery(query, player);
+        return ChronicleGrounder.answerSurvivalQuery(query, player, realmKey);
+    }
+
+    /**
+     * Answers player questions or generates deep lorekeeper appraisal for inspected floor objects.
+     */
+    async chatWithObject(item, userQuery = '', hero = null, depth = 0) {
+        if (!item) return null;
+        const realmKey = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const realmCtx = (ChronicleGrounder && typeof ChronicleGrounder.getRealmContext === 'function')
+            ? ChronicleGrounder.getRealmContext(realmKey)
+            : { lorekeeperName: 'Master Elrond', chronicler: 'the ancient Lorekeeper', setting: 'Middle-earth in the Third Age', voice: 'en-GB-ThomasNeural' };
+
+        const itemName = item.name || item.itemName || 'Mysterious Object';
+
+        if (!this.isConfigured()) {
+            return userQuery
+                ? ChronicleGrounder.answerObjectQuery(item, userQuery, hero, depth, realmKey)
+                : ChronicleGrounder.resolveObjectInspection(item, hero, depth, realmKey);
+        }
+
+        const systemPrompt = `You are ${realmCtx.lorekeeperName}, ${realmCtx.chronicler}.
+Setting: ${realmCtx.setting}.
+The hero is inspecting an object lying in the dungeon: "${itemName}" at depth ${depth}ft.
+Rules:
+- Be diegetically wise, eloquent, and helpful.
+- When explaining game mechanics (wielding, quaffing, identifying, curses, keybindings), speak directly to the hero with graceful fourth-wall awareness.
+- Keep answers concise and direct: 2 to 3 sentences maximum!`;
+
+        const userPrompt = userQuery
+            ? `The hero asks: "${userQuery}". Appraise this ${itemName}.`
+            : `Provide a diegetic lorekeeper appraisal and practical advice for this ${itemName}.`;
+
+        try {
+            const answer = await this.callLLM(systemPrompt, userPrompt);
+            if (answer && answer.trim()) {
+                const cleaned = answer.trim();
+                this.recordUtterance(cleaned);
+                return {
+                    title: `Appraisal: ${itemName}`,
+                    prose: `Gazing upon ${itemName}, ${hero ? hero.name : 'the hero'} consults ${realmCtx.lorekeeperName}.`,
+                    appraisal: cleaned,
+                    text: cleaned,
+                    lorekeeperName: realmCtx.lorekeeperName,
+                    recommendedVoice: realmCtx.voice,
+                    isArtifact: false,
+                    realm: realmKey
+                };
+            }
+        } catch (err) {
+            console.warn('[ChronicleLLM] Object inspection query failed, using procedural fallback:', err.message);
+        }
+
+        return userQuery
+            ? ChronicleGrounder.answerObjectQuery(item, userQuery, hero, depth, realmKey)
+            : ChronicleGrounder.resolveObjectInspection(item, hero, depth, realmKey);
     }
 
     /**
