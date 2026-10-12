@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+'use strict';
+
+/**
+ * WS10.1: Android asset drift verification.
+ * Compares SHA-1 hashes of all files in server/public with android/app/src/main/assets/public.
+ * Exits 0 on match, 1 on any mismatch or missing file.
+ */
+
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const assert = require('assert');
+
+const rootDir = path.join(__dirname, '..');
+const webDir = path.join(rootDir, 'server', 'public');
+const androidDir = path.join(rootDir, 'android', 'app', 'src', 'main', 'assets', 'public');
+
+console.log('Testing Android asset sync (WS10.1)...');
+console.log(`  Web assets source:    ${webDir}`);
+console.log(`  Android asset target: ${androidDir}`);
+
+if (!fs.existsSync(webDir)) {
+    console.error(`ERROR: Web dir does not exist: ${webDir}`);
+    process.exit(1);
+}
+
+if (!fs.existsSync(androidDir)) {
+    console.error(`ERROR: Android assets dir does not exist: ${androidDir}`);
+    process.exit(1);
+}
+
+function getSha1(filePath) {
+    const data = fs.readFileSync(filePath);
+    return crypto.createHash('sha1').update(data).digest('hex');
+}
+
+function walkDir(dir, baseDir = dir) {
+    let files = [];
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            files = files.concat(walkDir(fullPath, baseDir));
+        } else if (entry.isFile()) {
+            const relPath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
+            files.push(relPath);
+        }
+    }
+    return files;
+}
+
+const webFiles = walkDir(webDir);
+let mismatches = 0;
+let missingInAndroid = 0;
+
+for (const relPath of webFiles) {
+    const androidFile = path.join(androidDir, relPath);
+    if (!fs.existsSync(androidFile)) {
+        console.error(`  MISSING in Android: ${relPath}`);
+        missingInAndroid++;
+        continue;
+    }
+
+    const webFile = path.join(webDir, relPath);
+    const webHash = getSha1(webFile);
+    const androidHash = getSha1(androidFile);
+
+    if (webHash !== androidHash) {
+        console.error(`  HASH MISMATCH: ${relPath} (web: ${webHash.slice(0, 8)}, android: ${androidHash.slice(0, 8)})`);
+        mismatches++;
+    }
+}
+
+console.log(`\nChecked ${webFiles.length} files:`);
+console.log(`  - Mismatches: ${mismatches}`);
+console.log(`  - Missing:    ${missingInAndroid}`);
+
+if (mismatches > 0 || missingInAndroid > 0) {
+    console.error('\n❌ Android assets are out of sync with server/public!');
+    console.error('Run "npx cap sync android" to update Android assets.');
+    process.exit(1);
+}
+
+console.log('\n✓ All Android assets match server/public exactly!');
+process.exit(0);
