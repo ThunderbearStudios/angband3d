@@ -13,6 +13,7 @@
     "test_chronicle_voice_isolation.js",
     "test_combat_flow_governor.js",
     "test_story_prompt.js",
+    "test_chronicle_llm_realm_voices.js",
     "check_version_sync.js",
     "check_android_sync.js"
   ],

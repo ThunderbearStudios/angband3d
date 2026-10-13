@@ -1288,13 +1288,10 @@ class ChronicleAudioRouter {
 
             if (this.isMuted() || this.isPaused || this._activeVoiceToken !== voiceToken) return { stopped: true };
 
-            // STRICT USER REQUIREMENT: Narrator must NEVER fall back to local speech synthesis or wrong backup voice!
-            if (role === 'narrator') {
-                console.info('[ChronicleAudio] Narrator speech synthesis fallback blocked per strict single-voice policy.');
-                return { skipped: true, error: 'Narrator fallback suppressed per single-voice policy' };
-            }
-            const res = await this.speakSpeechSynthesis(cleanText, role, speakerName);
-            return res || { finished: true };
+            // STRICT USER REQUIREMENT: Ban robotic browser speechSynthesis across ALL game vocals.
+            // High-fidelity neural audio is required for immersion; never fall back to robotic local synthesizer.
+            console.info(`[ChronicleAudio] Neural TTS bypassed/failed for role '${role}'. SpeechSynthesis fallback blocked per studio-quality policy.`);
+            return { skipped: true, error: 'SpeechSynthesis fallback suppressed per studio-quality policy' };
         } finally {
             if (!wasSpeaking && !this._isExecutingSequence) {
                 this.isSpeaking = false;

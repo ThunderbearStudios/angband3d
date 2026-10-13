@@ -26,6 +26,10 @@ function redactSecret(val, secret = '') {
     return sanitized;
 }
 
+const getGrounder = () => (typeof ChronicleGrounder !== 'undefined')
+    ? ChronicleGrounder
+    : ((typeof require === 'function') ? require('./chronicle-grounder.js') : null);
+
 class ChronicleLLMBridge {
     constructor() {
         this.provider = 'gemini';
@@ -187,17 +191,18 @@ class ChronicleLLMBridge {
      * or smoothly falls back to ChronicleGrounder procedural generation.
      */
     async generateChapter(event, player, traditionKey = 'westmarch', grounder = null) {
+        const effectiveGrounder = grounder || getGrounder();
         if (!this.isConfigured()) {
-            return (grounder || ChronicleGrounder).generateProceduralChapter(event, player, traditionKey);
+            return effectiveGrounder ? effectiveGrounder.generateProceduralChapter(event, player, traditionKey) : null;
         }
 
-        const tradition = (ChronicleGrounder.TRADITIONS && ChronicleGrounder.TRADITIONS[traditionKey])
-            ? ChronicleGrounder.TRADITIONS[traditionKey]
+        const tradition = (effectiveGrounder && effectiveGrounder.TRADITIONS && effectiveGrounder.TRADITIONS[traditionKey])
+            ? effectiveGrounder.TRADITIONS[traditionKey]
             : { name: 'The Red Book of Westmarch', style: 'heroic, grounded, mortal courage' };
 
-        const realmKey = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
-        const realmCtx = (ChronicleGrounder && typeof ChronicleGrounder.getRealmContext === 'function')
-            ? ChronicleGrounder.getRealmContext(realmKey)
+        const realmKey = (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const realmCtx = (effectiveGrounder && typeof effectiveGrounder.getRealmContext === 'function')
+            ? effectiveGrounder.getRealmContext(realmKey)
             : { chronicler: 'The Master Chronicler', setting: 'the realm', lorekeeperName: 'Elder Lorekeeper' };
 
         const isFlowing = (event.isChapter === false);
@@ -247,7 +252,14 @@ Output: Respond with ONLY a raw JSON object (no markdown code blocks, no backtic
   "dialogue": { "speaker": "Name or null", "text": "Short spoken line or null" }
 }`;
 
-        const locationText = isTown ? 'Town of Angband (surface streets, timber eaves, cobblestones)' : `Dungeon Depth ${depth * 50}ft (subterranean vaults, Iron Hell)`;
+        let locationText = isTown ? 'Town of Angband (surface streets, timber eaves, cobblestones)' : `Dungeon Depth ${depth * 50}ft (subterranean vaults, Iron Hell)`;
+        if (realmKey === 'silq') {
+            locationText = (depth === 0) ? 'Gates of Angband beneath Thangorodrim' : `Angband Fortress Depth -${depth * 50}ft (subterranean pits of Morgoth)`;
+        } else if (realmKey === 'hengband') {
+            locationText = isTown ? 'Castle Town (cobbled avenues, pagodas, timber eaves)' : `Subterranean Caverns Depth ${depth * 50}ft`;
+        } else if (realmKey === 'frogcomposband') {
+            locationText = isTown ? 'Outpost of Amber (shifting shadows, multiversal haven)' : `Chaotic Deep Depth ${depth * 50}ft (shifting vaults, wild corridors)`;
+        }
         
         let antiRepetition = '';
         if (this.recentUtterances && this.recentUtterances.length > 0) {
@@ -395,10 +407,12 @@ CRITICAL INSTRUCTION:
 - You MUST react directly to being struck! Do NOT offer peaceful greetings or shop services!`;
         }
 
-        const realmKey = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
-        const realmCtx = (ChronicleGrounder && typeof ChronicleGrounder.getRealmContext === 'function')
-            ? ChronicleGrounder.getRealmContext(realmKey)
+        const realmKey = (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const grounder = getGrounder();
+        const realmCtx = (grounder && typeof grounder.getRealmContext === 'function')
+            ? grounder.getRealmContext(realmKey)
             : { setting: 'Middle-earth in the Third Age' };
+        const dialogueStyle = realmCtx.dialogueStyle || (realmKey === 'silq' ? 'Archaic First Age Beleriand tone' : (realmKey === 'frogcomposband' ? 'Sharp, cynical Amber courtly wit' : (realmKey === 'hengband' ? 'Disciplined feudal Bushido honor or menacing folklore cadence' : 'Vintage high fantasy cadence')));
         const systemPrompt = `You are roleplaying a creature in ${realmCtx.setting}.
 Creature: "${name}".
 CRITICAL VISUAL GENDER & 3D MODEL MANDATE:
@@ -412,7 +426,7 @@ ${combatGuidance}
 ${antiRep}
 Guidelines:
 - Scene prose must describe ${prPoss} posture and actions matching ${gender} presentation ("${prSub}", "${prPoss}").
-- Spoken dialogue: exactly 1 sentence in character. Vintage Tolkien tone. No quotes or modern slang.
+- Spoken dialogue: exactly 1 sentence in character. ${dialogueStyle}. No quotes or modern slang.
 - Return ONLY a raw JSON object (no markdown, no backticks):
 {
   "prose": "1-2 sentences of atmospheric scene prose describing the creature's posture and actions.",
@@ -672,6 +686,80 @@ Rules:
 
 
     /**
+     * Synthesizes on-demand contextual saga reflections ("Spin Tale") using LLM guidance
+     * deeply grounded in active realm lore, hero condition, depth, and immediate danger.
+     */
+    async spinTale(hero, dungeonContext = {}, recentChapters = [], realmKey = null, langMode = 'en') {
+        const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const grounder = getGrounder();
+
+        if (!this.isConfigured() || !grounder) {
+            return grounder ? grounder.generateStoryPromptBeat(hero, dungeonContext, rk, langMode) : null;
+        }
+
+        const realmCtx = grounder.getRealmContext(rk);
+        const name = (hero && hero.name) ? hero.name : 'the traveler';
+        const depth = (hero && typeof hero.depth === 'number') ? hero.depth : 0;
+        const depthFt = depth === 0 ? 'the surface' : `${depth * 50} feet`;
+        const curHp = (hero && typeof hero.hp === 'number') ? hero.hp : 1;
+        const maxHp = (hero && typeof hero.hp_max === 'number') ? hero.hp_max : 1;
+        const hpRatio = maxHp > 0 ? (curHp / maxHp) : 1.0;
+        const inPeril = hpRatio < 0.35;
+        const monsters = dungeonContext.nearbyMonsters || [];
+        const lightTurns = typeof dungeonContext.lightTurns === 'number' ? dungeonContext.lightTurns : 500;
+
+        const systemPrompt = `You are ${realmCtx.lorekeeperName || realmCtx.chronicler}, weaver of sagas in ${realmCtx.setting}.
+Tradition & Style: ${realmCtx.style}.
+Story Guidelines:
+- Compose an evocative, immersive reflection on the hero's ongoing journey and current predicament.
+- Exactly two sentences:
+  * Sentence 1 describes the hero's immediate environment, sensory atmosphere, bearing, and visible threats.
+  * Sentence 2 provides actionable, diegetically woven tactical counsel (e.g. retreating to 1-tile corridors, conserving light oil, slipping into shadows, or avoiding open swarms).
+- Adhere strictly to the lore, tone, and invariants of ${realmCtx.setting}.
+- For Sil-Q: Beleriand First Age, songs of power/stealth, iron gates of Angband, NEVER mention mana potions or surface shops.
+- For FrogComposBand: Amber & Chaos multiverse, cynical courtly wit, shifting corridors.
+- For Hengband: Sengoku Bushido discipline, feudal honor, samurai stoicism.
+- Return ONLY a raw JSON object (no markdown, no backticks):
+{
+  "title": "3-5 word poetic title",
+  "prose": "Exactly 2 atmospheric sentences.",
+  "summary": "1 short sentence summary."
+}`;
+
+        const monsterDesc = monsters.length > 0 ? ` Nearby threat: ${monsters[0].name} (${monsters[0].distance || 2} paces away).` : ' No immediate monsters in sight.';
+        const perilDesc = inPeril ? ' CRITICAL PERIL: Mortal wounds bleeding, health severely depleted!' : ` Vigor steady (${curHp}/${maxHp} HP).`;
+        const lightDesc = (depth > 0 && lightTurns < 120) ? ' WARNING: Torchlight flickering low and dim!' : '';
+        const recentEvents = (recentChapters && recentChapters.length > 0)
+            ? ` Recent events: ${recentChapters.slice(-2).map(c => c.title || c.summary || '').join('; ')}.`
+            : '';
+
+        const userPrompt = `Hero: ${name}, ${hero ? hero.race : 'Mortal'} ${hero ? hero.class : 'Adventurer'}, Depth: ${depthFt}.${perilDesc}${monsterDesc}${lightDesc}${recentEvents}
+Weave the saga reflection for this exact moment.`;
+
+        try {
+            const raw = await this.callLLM(systemPrompt, userPrompt);
+            const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim();
+            const parsed = JSON.parse(cleaned);
+            if (parsed && parsed.prose) {
+                this.recordUtterance(parsed.prose);
+                return {
+                    title: parsed.title || `🔮 Tale of ${name}`,
+                    prose: parsed.prose,
+                    dialogue: null,
+                    isStoryPrompt: true,
+                    depth: depth,
+                    recommendedVoice: grounder.getLorekeeperVoice(rk),
+                    summary: parsed.summary || parsed.prose.substring(0, 160) + '...'
+                };
+            }
+        } catch (err) {
+            console.warn('[ChronicleLLM] spinTale LLM generation failed, using procedural fallback:', err.message);
+        }
+
+        return grounder.generateStoryPromptBeat(hero, dungeonContext, rk, langMode);
+    }
+
+    /**
      * Verifies API Key and model with a quick ping
      */
     async testConnection(model) {
@@ -695,4 +783,7 @@ Rules:
 
 if (typeof window !== 'undefined') {
     window.ChronicleLLMBridge = ChronicleLLMBridge;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ChronicleLLMBridge;
 }
