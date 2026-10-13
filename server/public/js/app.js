@@ -1188,8 +1188,6 @@ window.addEventListener('DOMContentLoaded', () => {
         // Standalone clients: Tome is strictly disabled
         const tomeBtn = document.getElementById('btn-toggle-chronicle');
         if (tomeBtn) tomeBtn.style.display = 'none';
-        const storyPromptBtn = document.getElementById('btn-story-prompt');
-        if (storyPromptBtn) storyPromptBtn.style.display = 'none';
         const tomeWin = document.getElementById('chronicle-window');
         if (tomeWin) tomeWin.style.display = 'none';
     }
@@ -1329,8 +1327,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (terminalContainer) terminalContainer.classList.add('hidden');
         const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
         if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
-        const btnStoryPromptSub = document.getElementById('btn-story-prompt');
-        if (btnStoryPromptSub) btnStoryPromptSub.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuNav();
     }
@@ -1354,8 +1350,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (banner) banner.style.display = 'none';
         const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
         if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
-        const btnStoryPromptMain = document.getElementById('btn-story-prompt');
-        if (btnStoryPromptMain) btnStoryPromptMain.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuOpen();
         if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
@@ -2262,8 +2256,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
         if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
-        const btnStoryPromptReset = document.getElementById('btn-story-prompt');
-        if (btnStoryPromptReset) btnStoryPromptReset.style.display = 'none';
         if (window.__startWatchdog) {
             clearTimeout(window.__startWatchdog);
             window.__startWatchdog = null;
@@ -4889,7 +4881,6 @@ window.addEventListener('DOMContentLoaded', () => {
         const btnToggleMap = document.getElementById('btn-toggle-minimap');
         const btnToggleDpad = document.getElementById('btn-toggle-dpad');
         const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
-        const btnStoryPrompt = document.getElementById('btn-story-prompt');
 
         if (needsTerm) {
             terminalContainer.classList.remove('hidden');
@@ -4904,7 +4895,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (btnToggleMap) btnToggleMap.style.display = 'none';
             if (btnToggleDpad) btnToggleDpad.style.display = 'none';
             if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
-            if (btnStoryPrompt) btnStoryPrompt.style.display = 'none';
 
             input.setTerminalMode(true);
             terminal.resize();
@@ -4990,9 +4980,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 btnToggleChronicle.style.display = 'inline-flex';
                 const isChronicleOpen = window.chronicleManager && window.chronicleManager.visible;
                 btnToggleChronicle.classList.toggle('active', Boolean(isChronicleOpen));
-            }
-            if (btnStoryPrompt && !isApk && !document.body.classList.contains('is-standalone')) {
-                btnStoryPrompt.style.display = 'inline-flex';
             }
 
             input.setTerminalMode(false);

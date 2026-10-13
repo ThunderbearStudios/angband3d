@@ -102,7 +102,7 @@ class ChronicleGrounder {
                 return isFemale ? 'Kore' : 'Fenrir';
             case 'angband':
             default:
-                return isFemale ? 'Aoede' : 'Zephyr';
+                return isFemale ? 'Zephyr' : 'Enceladus';
         }
     }
 
@@ -159,7 +159,7 @@ class ChronicleGrounder {
                     style: 'Direct, courageous, humble steadfastness, songs of forgotten valor, stubborn endurance against darkness',
                     voice: 'en-GB-ThomasNeural',
                     recommendedVoice: 'en-GB-ThomasNeural',
-                    geminiVoice: 'Zephyr'
+                    geminiVoice: 'Enceladus'
                 };
         }
     }
