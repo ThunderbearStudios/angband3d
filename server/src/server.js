@@ -180,6 +180,7 @@ const GEMINI_VOICE_MAP = {
     idiot: 'Puck',              // Upbeat, blubbering, eccentric babbler
     female_townsperson: 'Aoede', // Breezy, lyrical, gentle townsfolk
     male_townsperson: 'Sulafat',
+    townsperson: 'Sulafat',
     female_rogue: 'Kore',       // Firm, gritty, sharp martial cadence
     male_rogue: 'Orus',         // Disciplined, raspy cutthroat
     rogue: 'Orus',
@@ -189,12 +190,30 @@ const GEMINI_VOICE_MAP = {
     veteran: 'Orus',            // Firm, commanding warrior
     female_veteran: 'Kore',     // Firm, battle-scarred swordswoman
     orc: 'Fenrir',              // Harsh, guttural snarls and aggressive combat barks
+    uruk: 'Fenrir',
+    troll: 'Fenrir',
+    kobold: 'Puck',             // Nimble, raspy, eccentric tenor
+    goblin: 'Puck',
+    imp: 'Puck',
+    snaga: 'Puck',
+    elf: 'Orus',
+    female_elf: 'Despina',
+    male_elf: 'Orus',
     giant: 'Charon',            // Cavernous, hollow booming bass (Half-Giant, Half-Titan, Half-Troll)
+    male_giant: 'Charon',
+    female_giant: 'Kore',
     dwarf: 'Algenib',           // Deep, gravelly subterranean rumble
+    male_dwarf: 'Algenib',
+    female_dwarf: 'Sadaltager',
     hobbit: 'Puck',             // Diminutive, lively tenor
     gnome: 'Puck',
     dragon: 'Algenib',          // Deep, gravelly draconic power
+    male_dragon: 'Algenib',
+    female_dragon: 'Kore',
     high_undead: 'Charon',      // Sepulchral, chilling hollow resonance
+    samurai: 'Gacrux',
+    ninja: 'Orus',
+    amber_noble: 'Fenrir',
     beggar: 'Puck',
     beast: 'Fenrir',            // Bestial snarl
     creature: 'Fenrir',
@@ -203,7 +222,7 @@ const GEMINI_VOICE_MAP = {
 
 // Canonical Character Accent Directorial Map for Immersion (Enforces Zero Southern Accents)
 const CHARACTER_ACCENT_MAP = {
-    narrator: 'expressive, older British storyteller, standard RP British accent',
+    narrator: 'expressive, older British storyteller, standard RP British accent, warm fireside gravitas',
     elf: 'regal, ethereal High-Elven RP accent, crisp consonants',
     female_elf: 'ethereal, melodic High-Elven accent',
     male_elf: 'regal, poetic High-Elven accent',
@@ -212,8 +231,13 @@ const CHARACTER_ACCENT_MAP = {
     male_dwarf: 'deep, gruff Scottish brogue',
     hobbit: 'warm, cheerful English countryside West Country accent, lively hobbit',
     gnome: 'lively, eccentric, high-spirited English accent',
-    orc: 'harsh, guttural, raspy Cockney monster growl',
-    giant: 'cavernous, slow, booming ancient bass',
+    orc: 'harsh, guttural, raspy Cockney monster growl, aggressive combat snarl, no American southern drawl',
+    uruk: 'heavy, guttural, brutal Cockney uruk growl, menacing warrior snarl',
+    kobold: 'raspy, cunning, high-pitched goblin screech, frantic and vicious',
+    goblin: 'raspy, cunning, high-pitched goblin screech, frantic and vicious',
+    imp: 'high-pitched, mocking, vicious fiendish cackle',
+    snaga: 'whining, groveling, raspy goblin wheeze',
+    giant: 'cavernous, slow, booming ancient bass, earth-shaking rumble',
     troll: 'sluggish, heavy, guttural monstrous grunt',
     samurai: 'dignified, disciplined feudal Japanese accent, measured cadence with crisp consonants',
     ninja: 'quiet, hushed, disciplined feudal Japanese whisper',
@@ -226,10 +250,11 @@ const CHARACTER_ACCENT_MAP = {
     female_rogue: 'sharp, streetwise British or Celtic cadence',
     male_rogue: 'cunning, raspy urban British cutthroat',
     female_spellcaster: 'smooth, eerie, mystical cadence with crisp enunciation',
-    male_spellcaster: 'deep, resonant, arcane scholar with formal British diction',
-    beggar: 'raspy, weather-beaten street urchin cadence',
-    high_undead: 'sepulchral, chilling, hollow ancient whisper',
-    dragon: 'resonant, cavernous, ancient draconic baritone'
+    male_spellcaster: 'deep, resonant, arcane scholar with formal British diction and mystical sibilance',
+    beggar: 'blubbering, raspy street urchin cadence, eccentric and pathetic',
+    high_undead: 'sepulchral, chilling, hollow ancient whisper, cold unholy malice',
+    dragon: 'ancient cavernous draconic rumble, haughty draconic wrath and immense resonant power',
+    beast: 'bestial, vicious feral snarl, primal predatory growl'
 };
 
 // Generates a standard 44-byte RIFF WAV header for raw 16-bit linear PCM audio
