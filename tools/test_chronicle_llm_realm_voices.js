@@ -149,5 +149,23 @@ async function testAsync(name, fn) {
         assert(fallbackBeat.prose.toLowerCase().includes('thangorodrim') || fallbackBeat.prose.toLowerCase().includes('angband') || fallbackBeat.prose.toLowerCase().includes('morgoth'), 'Sil-Q fallback must be lore-bound');
     });
 
+    // 7. Server GEMINI_VOICE_MAP covers all archetypes with Studio Gemini Native Audio
+    test('server.js GEMINI_VOICE_MAP covers all 30 creature and character archetypes', () => {
+        const serverPath = path.join(__dirname, '..', 'server', 'src', 'server.js');
+        const serverCode = fs.readFileSync(serverPath, 'utf8');
+        const archetypes = [
+            'narrator', 'mentor', 'idiot', 'female_townsperson', 'male_townsperson', 'townsperson',
+            'female_rogue', 'male_rogue', 'rogue', 'female_spellcaster', 'male_spellcaster', 'spellcaster',
+            'veteran', 'female_veteran', 'orc', 'uruk', 'troll', 'kobold', 'goblin', 'imp', 'snaga',
+            'elf', 'female_elf', 'male_elf', 'giant', 'male_giant', 'female_giant', 'dwarf', 'male_dwarf',
+            'female_dwarf', 'hobbit', 'gnome', 'dragon', 'male_dragon', 'female_dragon', 'high_undead',
+            'samurai', 'ninja', 'amber_noble', 'beggar', 'beast', 'creature'
+        ];
+        for (const arch of archetypes) {
+            const hasArch = new RegExp(`\\b${arch}:\\s*['"][A-Za-z]+['"]`).test(serverCode);
+            assert(hasArch, `server.js GEMINI_VOICE_MAP must contain archetype '${arch}'`);
+        }
+    });
+
     console.log('\nAll chronicle LLM realm & voice contract tests PASSED!');
 })();
