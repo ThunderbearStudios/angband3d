@@ -606,7 +606,17 @@ html, body {
     }
 }
 
+#btn-story-prompt.is-voicing,
+#btn-chronicle-prompt-tale.is-voicing {
+    border-color: #a78bfa !important;
+    background: rgba(139, 92, 246, 0.25) !important;
+    color: #c4b5fd !important;
+    box-shadow: 0 0 12px rgba(167, 139, 250, 0.5) !important;
+    animation: voiceLoadingPulse 1.4s infinite ease-in-out;
+}
+
 #btn-toggle-chronicle,
+#btn-story-prompt,
 #btn-pause-chronicle,
 #btn-toggle-msg-feed,
 #btn-toggle-minimap,
@@ -4028,6 +4038,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         display: none !important;
     }
     #top-right-bar .chronicle-label,
+    #top-right-bar .story-label,
     #top-right-bar .msg-label,
     #top-right-bar .map-label,
     #top-right-bar .dpad-label,
@@ -4040,6 +4051,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         display: none !important;
     }
     #top-right-bar #btn-toggle-chronicle,
+    #top-right-bar #btn-story-prompt,
     #top-right-bar #btn-toggle-msg-feed,
     #top-right-bar #btn-toggle-minimap,
     #top-right-bar #btn-toggle-dpad,
@@ -4064,6 +4076,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         -webkit-backdrop-filter: blur(8px) !important;
     }
     #top-right-bar #btn-toggle-chronicle[style*="display: none"],
+    #top-right-bar #btn-story-prompt[style*="display: none"],
     #top-right-bar #btn-toggle-msg-feed[style*="display: none"],
     #top-right-bar #btn-toggle-minimap[style*="display: none"],
     #top-right-bar #btn-toggle-dpad[style*="display: none"],
@@ -4071,6 +4084,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         display: none !important;
     }
     #top-right-bar #btn-toggle-chronicle.active,
+    #top-right-bar #btn-story-prompt.active,
     #top-right-bar #btn-toggle-msg-feed.active,
     #top-right-bar #btn-toggle-minimap.active,
     #top-right-bar #btn-toggle-dpad.active,

@@ -5195,6 +5195,121 @@ class ChronicleGrounder {
             actionBreakdown
         };
     }
+
+    /**
+     * Generates on-demand contextual story prompt narratives ("Spin Tale").
+     * The Master Narrator weaves a tailored saga reflection incorporating:
+     * - Hero identity (name, race, class, vigor)
+     * - Realm lore & strict mechanical invariants (Tolkien vs Beleriand vs Amber vs Sengoku)
+     * - Physical environment & depth (feet)
+     * - Immediate nearby threats & visibility
+     * - Diegetic tactical advice (light, corridor funneling, potion conservation)
+     */
+    static generateStoryPromptBeat(hero = null, dungeonContext = {}, realmKey = null, langMode = 'en') {
+        const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const effLang = (rk === 'hengband') ? (langMode || (typeof window !== 'undefined' && window.__langMode ? window.__langMode : 'en')).toLowerCase() : 'en';
+
+        const name = (hero && hero.name) ? hero.name : 'the traveler';
+        const depth = (hero && typeof hero.depth === 'number') ? hero.depth : 0;
+        const depthFt = depth === 0 ? 'the surface town' : `${depth * 50} feet`;
+        const curHp = (hero && typeof hero.hp === 'number') ? hero.hp : 1;
+        const maxHp = (hero && typeof hero.hp_max === 'number') ? hero.hp_max : 1;
+        const hpRatio = maxHp > 0 ? (curHp / maxHp) : 1.0;
+        const inPeril = hpRatio < 0.35;
+
+        const monsters = dungeonContext.nearbyMonsters || [];
+        const lightTurns = typeof dungeonContext.lightTurns === 'number' ? dungeonContext.lightTurns : 500;
+        const lowLight = depth > 0 && lightTurns < 120;
+        const potions = typeof dungeonContext.potions === 'number' ? dungeonContext.potions : 1;
+
+        let title = `🔮 Tale of ${name}`;
+        if (depth === 0) title = `🔮 Tale of the Frontier Square`;
+        else if (inPeril) title = `🔮 Tale of the Razor Edge`;
+        else title = `🔮 Tale of ${depthFt}`;
+
+        let opening = '';
+        let threatClause = '';
+        let adviceClause = '';
+
+        if (rk === 'silq') {
+            title = depth === 0 ? '🔮 Tale of the Iron Gates' : `🔮 Tale of Angband: -${depth * 50} Feet`;
+            if (inPeril) {
+                opening = `Beset by the cruel malice of Morgoth's thralls deep beneath the Iron Mountains, ${name}'s breath comes ragged, mortal wounds bleeding through torn mail.`;
+                adviceClause = `Yield not to despair, child of the Eldar. The Iron Hell devours the proud; summon the quiet stealth of thy ancestors, slip into the shadowed recesses of the stone, and let thy Song of Staying mend thy battered spirit before Bauglir's hounds scent thy blood.`;
+            } else {
+                opening = `Here in the grim subterranean fortress of Angband, where the black smoke of Thangorodrim blots out all memory of the Undying Lands, ${name} moves with measured, quiet footfalls.`;
+                adviceClause = `Trust in stealth and steadfast Will, for in Beleriand there are no alchemical remedies to purchase in surface markets. Conserve thy strength, tread soft upon the cold rock, and let no hasty strike betray thy presence to the watchers of the pit.`;
+            }
+            if (monsters.length > 0) {
+                threatClause = ` The heavy tread of ${monsters[0].name} echoes through the gloom but a few paces distant, their iron spears scraping the damp stone.`;
+            }
+        } else if (rk === 'frogcomposband') {
+            title = depth === 0 ? '🔮 Tale of the Outpost' : `🔮 Tale of the Wild Depths`;
+            if (inPeril) {
+                opening = `At the turbulent nexus of the multiverse, where the shadows of Chaos gnaw at the edges of reality, ${name} falters under harrowing assault, blood staining the shifting stones.`;
+                adviceClause = `The probabilities of the Pattern fray around thee! Retreat toward the known path, invoke a Phase Door scroll if thy satchel holds one, and stand not in the open to be consumed by the wild flux of the deep.`;
+            } else {
+                opening = `Pausing amidst the shifting corridors of the deep vaults, ${name} listens to the strange, discordant humming of the ancient multiverse.`;
+                adviceClause = `Watch thy surroundings with vigilance, wanderer. In this chaotic frontier, creatures mutate and evolve beyond comprehension—lure them around solid corners and test their defenses with care.`;
+            }
+            if (monsters.length > 0) {
+                threatClause = ` A menacing ${monsters[0].name} stalks through the outer dark, its alien eyes reflecting the torchlight.`;
+            }
+        } else if (rk === 'hengband') {
+            title = depth === 0 ? '🔮 Tale of the Shrine' : `🔮 Tale of the Caverns: ${depthFt}`;
+            if (effLang === 'jp') {
+                if (inPeril) {
+                    opening = `深き地下窟にて、${name}の足取りは重く、深手を負いて刃を支えとす。死線の気配が静かに漂う。`;
+                    adviceClause = `無謀なる突撃は破滅を招く。一度間合いを取り、階段へと身を引きて傷を癒すべし。生きてこそ武士の道あり。`;
+                } else {
+                    opening = `静まり返りし地下${depthFt}の回廊にて、${name}は油断なく抜刀の構えを保ち、暗闇の奥を見据える。`;
+                    adviceClause = `闇に潜む鬼や野伏を侮るなかれ。狭き通路を背にし、一対一の戦いを挑むことこそ勝利への道なり。`;
+                }
+                if (monsters.length > 0) {
+                    threatClause = ` 前方の陰より、${monsters[0].name}が不気味に蠢き寄り迫る。`;
+                }
+            } else {
+                // English Feudal Lore
+                if (inPeril) {
+                    opening = `High in the subterranean caverns at ${depthFt}, ${name} leans heavily upon the hilt of drawn steel, wounds bleeding dark upon the cold bedrock.`;
+                    adviceClause = `No warrior finds honor in reckless doom. Step backward to the stairs, bind thy bleeding wounds, and let patience restore thy martial vigor before the mountain beasts scent thy weakness.`;
+                } else {
+                    opening = `Amidst the shadowed basalt corridors of ${depthFt}, ${name} stands vigilant, hand resting steady upon the leather-wrapped hilt.`;
+                    adviceClause = `Remember the ancient wisdom of the blade: in open chambers, beasts swarm from every flank. Draw them one by one into the narrow doorway, where thy steel alone shall decide the duel.`;
+                }
+                if (monsters.length > 0) {
+                    threatClause = ` The menacing growl of a ${monsters[0].name} breaks the silence ahead, claws scraping against the stone.`;
+                }
+            }
+        } else {
+            // Vanilla Angband
+            if (inPeril) {
+                opening = `Hard-pressed in the subterranean gloom of ${depthFt}, ${name} weathers bruising strikes as blood darkens the cold flagstones, peril looming close at hand.`;
+                adviceClause = `Thy wounds plead for respite, traveler! In these treacherous pits, pride is the precursor to a shallow grave. Retreat to the ascending stairs, quaff a healing draught from thy satchel, and renew thy guard before the darkness claims thee.`;
+            } else {
+                opening = `At a measured depth of ${depthFt}, ${name} treads through ancient vaulted chambers, the weight of the mountain pressing down like primeval iron.`;
+                adviceClause = `Heed the counsel of the deep, adventurer: open vaults invite lethal surrounding swarms, while the 1-tile corridor turns a frantic ambush into an orderly duel. Keep thy light replenished, and never delve without scrolls of escape.`;
+            }
+            if (monsters.length > 0) {
+                threatClause = ` In the flickering torchlight, a ${monsters[0].name} snarls in the adjoining passage, scenting fresh blood.`;
+            }
+            if (lowLight) {
+                adviceClause = `Thy light flickers low and frail upon the damp walls! Delve no further into the gloom without fresh oil, lest the unseen horrors of Angband strike from absolute darkness.`;
+            }
+        }
+
+        const prose = `${opening}${threatClause} ${adviceClause}`.trim();
+
+        return {
+            title: title,
+            prose: prose,
+            dialogue: null,
+            isStoryPrompt: true,
+            depth: depth,
+            recommendedVoice: this.getLorekeeperVoice(rk),
+            summary: prose.substring(0, 160) + '...'
+        };
+    }
 }
 
 ChronicleGrounder.FEMALE_3D_MODEL_KEYS = FEMALE_3D_MODEL_KEYS;

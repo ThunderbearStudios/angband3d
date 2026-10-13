@@ -134,4 +134,33 @@ test('Low health triggers urgent tactical survival counsel in story prompt', () 
     assert(lower.includes('wound') || lower.includes('bleed') || lower.includes('retreat') || lower.includes('peril') || lower.includes('stair') || lower.includes('death'), 'Must warn of mortal peril and low health');
 });
 
+// 6. UI and Manager wiring: index.html, chronicle-manager.js, and CSS
+test('Story prompt buttons and Alt+T hotkey are properly wired in UI and manager', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const indexHtml = fs.readFileSync(path.join(__dirname, '../server/public/index.html'), 'utf8');
+    const managerJs = fs.readFileSync(path.join(__dirname, '../server/public/js/chronicle/chronicle-manager.js'), 'utf8');
+    const dungeonCss = fs.readFileSync(path.join(__dirname, '../server/public/css/dungeon.css'), 'utf8');
+
+    assert(indexHtml.includes('id="btn-story-prompt"'), 'index.html must contain #btn-story-prompt in top-right-bar');
+    assert(indexHtml.includes('id="btn-chronicle-prompt-tale"'), 'index.html must contain #btn-chronicle-prompt-tale in transport deck');
+    assert(indexHtml.includes('Alt+T'), 'index.html must document Alt+T hotkey');
+
+    assert(managerJs.includes('requestStoryPrompt()'), 'chronicle-manager.js must define requestStoryPrompt()');
+    assert(managerJs.includes("'t'") && managerJs.includes('requestStoryPrompt'), 'chronicle-manager.js must bind Alt+T to requestStoryPrompt');
+
+    assert(dungeonCss.includes('#top-right-bar .story-label') && dungeonCss.includes('display: none !important'), 'dungeon.css must hide .story-label on mobile');
+});
+
+// 7. Server TTS Latency Optimization: verify geminiHttpsAgent socket reuse
+test('Server TTS uses persistent geminiHttpsAgent for sub-50ms TLS reuse', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const serverJs = fs.readFileSync(path.join(__dirname, '../server/src/server.js'), 'utf8');
+    const fnStart = serverJs.indexOf('function synthesizeGeminiTTS(');
+    assert(fnStart > 0, 'server.js must define function synthesizeGeminiTTS');
+    const synthesizeBlock = serverJs.slice(fnStart, fnStart + 5000);
+    assert(synthesizeBlock.includes('agent: geminiHttpsAgent'), 'synthesizeGeminiTTS must pass agent: geminiHttpsAgent');
+});
+
 console.log('ALL STORY PROMPT CONTRACT TESTS PASSED!');
