@@ -593,7 +593,7 @@ class ChronicleGrounder {
      * Selects optimal voices with persistent continuity per instance while ensuring
      * unique variation instance-to-instance, strictly honoring character race, age, and 3D visual sex.
      */
-    static resolveVoiceProfile(entityOrMonster = null, player = null, eventType = '', traditionKey = 'westmarch', isHeroExplicit = false) {
+    static resolveVoiceProfile(entityOrMonster = null, player = null, eventType = '', traditionKey = 'westmarch', isHeroExplicit = false, realmKey = null, langMode = 'en') {
         const isHero = isHeroExplicit || (entityOrMonster && (entityOrMonster.isHero || entityOrMonster.isPlayer || (player && entityOrMonster.name && player.name && entityOrMonster.name.toLowerCase() === player.name.toLowerCase())));
         const instanceKey = this.getInstanceKey(entityOrMonster, player, traditionKey, isHero);
         let cached = this.instanceVoiceRegistry.get(instanceKey);
@@ -734,7 +734,7 @@ class ChronicleGrounder {
                 geminiVoice = pool.gemini[hash % pool.gemini.length];
             } else {
                 // Master Chronicler / Narrator attunement: Realm-contextual standard high quality Gemini voice
-                const rk = (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
+                const rk = (realmKey) || (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
                 const realmCtx = this.getRealmContext(rk);
                 edgeVoice = (realmCtx && realmCtx.recommendedVoice) || 'en-GB-RyanNeural';
                 geminiVoice = this.getLorekeeperVoice(rk, 'male');
@@ -773,7 +773,7 @@ class ChronicleGrounder {
 
         if (!entityOrMonster && !isHero) {
             // Master Narrator is tuned to the realm and dynamically responds to situational context (peril, stealth, town, boss)
-            const rk = (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
+            const rk = (realmKey) || (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
             geminiVoice = this.getLorekeeperVoice(rk, 'male');
             const realmCtx = this.getRealmContext(rk);
             edgeVoice = (realmCtx && realmCtx.recommendedVoice) || 'en-GB-RyanNeural';
@@ -1789,10 +1789,11 @@ class ChronicleGrounder {
      * Integrates creature state, player context (race/class/depth/HP), turn memory, and diegetic user queries.
      * Consumes strictly ZERO engine turns.
      */
-    static resolveCreatureEncounter(monster, hero, recentMessages = [], interactionTurn = 1, userQuery = '', realmKey = null) {
+    static resolveCreatureEncounter(monster, hero, recentMessages = [], interactionTurn = 1, userQuery = '', realmKey = null, langMode = 'en') {
         if (!monster) return { prose: 'A shadow lingers in the gloom.', text: null, isDialogue: false, speaker: 'Creature', recommendedVoice: null };
 
         const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const effLang = ((rk === 'hengband') ? (langMode || (typeof window !== 'undefined' && window.__langMode ? window.__langMode : 'en')) : 'en').toLowerCase();
         const name = monster.name || monster.race || 'creature';
         const profile = this.classifyCreature(monster);
         const stateObj = this.resolveCreatureState(monster, recentMessages);
@@ -2112,20 +2113,37 @@ class ChronicleGrounder {
                             'We butcher knights and evolving beasts alike!'
                         ], Math.floor(Math.random() * 1000));
                 } else if (rk === 'hengband') {
-                    text = (hpPercent <= 0.35)
-                        ? ChronicleGrounder.pickNonRepeatingBark('orc_heng_low', [
-                            'Idaten-hashiri! My blade still thirsts for your heart!',
-                            'By the demon blade of Muramasa, we die together in the blood mud!',
-                            'No warrior flinches before death! A warrior\'s spirit is eternal!',
-                            'You have pierced my armor, but the demons of Sengoku will avenge me!'
-                        ], Math.floor(Math.random() * 1000))
-                        : ChronicleGrounder.pickNonRepeatingBark('orc_heng_high', [
-                            'Ippon! Face the fury of the Sengoku lords!',
-                            'The Kagura shrine will sing no prayers for you!',
-                            'Oni and Tengu feast upon intruders!',
-                            'Taste the edge of dishonor and steel!',
-                            'By the fallen cherry blossoms, draw your last breath!'
-                        ], Math.floor(Math.random() * 1000));
+                    if (effLang === 'jp') {
+                        text = (hpPercent <= 0.35)
+                            ? ChronicleGrounder.pickNonRepeatingBark('orc_heng_low_jp', [
+                                'Idaten-hashiri! My blade still thirsts for your heart!',
+                                'By the demon blade of Muramasa, we die together in the blood mud!',
+                                'No warrior flinches before death! A warrior\'s spirit is eternal!',
+                                'You have pierced my armor, but the demons of Sengoku will avenge me!'
+                            ], Math.floor(Math.random() * 1000))
+                            : ChronicleGrounder.pickNonRepeatingBark('orc_heng_high_jp', [
+                                'Ippon! Face the fury of the Sengoku lords!',
+                                'The Kagura shrine will sing no prayers for you!',
+                                'Oni and Tengu feast upon intruders!',
+                                'Taste the edge of dishonor and steel!',
+                                'By the fallen cherry blossoms, draw your last breath!'
+                            ], Math.floor(Math.random() * 1000));
+                    } else {
+                        text = (hpPercent <= 0.35)
+                            ? ChronicleGrounder.pickNonRepeatingBark('orc_heng_low_en', [
+                                'By the cold iron of our steel, we die together in the blood mud!',
+                                'No warrior flinches before death! A warrior\'s spirit is eternal!',
+                                'You have pierced my armor, but the dark lords of this realm will avenge me!',
+                                'My blade still thirsts for your heart!'
+                            ], Math.floor(Math.random() * 1000))
+                            : ChronicleGrounder.pickNonRepeatingBark('orc_heng_high_en', [
+                                'Face the fury of the mountain lords!',
+                                'The shrine bells will sing no prayers for you!',
+                                'Oni and beasts feast upon intruders!',
+                                'Taste the edge of dishonor and steel!',
+                                'By the fallen cherry blossoms, draw your last breath!'
+                            ], Math.floor(Math.random() * 1000));
+                    }
                 } else {
                     text = (hpPercent <= 0.35)
                         ? ChronicleGrounder.pickNonRepeatingBark('orc_combat_low', [
@@ -2171,18 +2189,33 @@ class ChronicleGrounder {
                             'Your existence is but a flickering shadow!'
                         ], Math.floor(Math.random() * 1000));
                 } else if (rk === 'hengband') {
-                    text = (hpPercent <= 0.35)
-                        ? ChronicleGrounder.pickNonRepeatingBark('caster_heng_low', [
-                            'Nine cuts of Kuji-kiri... my spirit ascends to the Kami!',
-                            'The Buddhist wheel of retribution will crush you in your next reincarnation!',
-                            'The curse of the Fox Spirit shall cling to your shadow!'
-                        ], Math.floor(Math.random() * 1000))
-                        : ChronicleGrounder.pickNonRepeatingBark('caster_heng_high', [
-                            'Rin, Pyo, Toh, Sha, Kai, Jin, Retsu, Zai, Zen! Banish the intruder!',
-                            'Demonic flame of Mount Hiei, reduce this fool to cinders!',
-                            'Gate gate paragate parasamgate—taste karmic annihilation!',
-                            'The Shinto spirits reject your corrupted presence!'
-                        ], Math.floor(Math.random() * 1000));
+                    if (effLang === 'jp') {
+                        text = (hpPercent <= 0.35)
+                            ? ChronicleGrounder.pickNonRepeatingBark('caster_heng_low_jp', [
+                                'Nine cuts of Kuji-kiri... my spirit ascends to the Kami!',
+                                'The Buddhist wheel of retribution will crush you in your next reincarnation!',
+                                'The curse of the Fox Spirit shall cling to your shadow!'
+                            ], Math.floor(Math.random() * 1000))
+                            : ChronicleGrounder.pickNonRepeatingBark('caster_heng_high_jp', [
+                                'Rin, Pyo, Toh, Sha, Kai, Jin, Retsu, Zai, Zen! Banish the intruder!',
+                                'Demonic flame of Mount Hiei, reduce this fool to cinders!',
+                                'Gate gate paragate parasamgate—taste karmic annihilation!',
+                                'The Shinto spirits reject your corrupted presence!'
+                            ], Math.floor(Math.random() * 1000));
+                    } else {
+                        text = (hpPercent <= 0.35)
+                            ? ChronicleGrounder.pickNonRepeatingBark('caster_heng_low_en', [
+                                'Nine secret strikes... my spirit ascends to the heavens!',
+                                'The wheel of karmic retribution will crush you in your next life!',
+                                'The curse of the fox spirit shall cling to your shadow!'
+                            ], Math.floor(Math.random() * 1000))
+                            : ChronicleGrounder.pickNonRepeatingBark('caster_heng_high_en', [
+                                'Spirits of earth and sky, banish the intruder!',
+                                'Mystic flame of the mountain, reduce this fool to cinders!',
+                                'Taste karmic annihilation!',
+                                'The ancient spirits reject your corrupted presence!'
+                            ], Math.floor(Math.random() * 1000));
+                    }
                 } else {
                     text = (hpPercent <= 0.35)
                         ? ChronicleGrounder.pickNonRepeatingBark('caster_combat_low', [
@@ -2392,12 +2425,21 @@ class ChronicleGrounder {
                 ], Math.floor(Math.random() * 1000));
             } else if (rk === 'hengband') {
                 prose = `The ${name} bares fangs beneath a jagged mempo mask, clutching a rusty naginata with demonic ferocity.`;
-                text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_heng', [
-                    'Gaijin intruder! You step uninvited into the lands of the Sengoku lords!',
-                    'The Kagura shrine bells toll for your demise! Taste cold iron!',
-                    'Oni blood stirs in these veins! Draw your katana or die like a dog!',
-                    'No ronin or ashigaru leaves this mountain alive!'
-                ], Math.floor(Math.random() * 1000));
+                if (effLang === 'jp') {
+                    text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_heng_jp', [
+                        'Gaijin intruder! You step uninvited into the lands of the Sengoku lords!',
+                        'The Kagura shrine bells toll for your demise! Taste cold iron!',
+                        'Oni blood stirs in these veins! Draw your katana or die like a dog!',
+                        'No ronin or ashigaru leaves this mountain alive!'
+                    ], Math.floor(Math.random() * 1000));
+                } else {
+                    text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_heng_en', [
+                        'Intruder! You step uninvited into the lands of the mountain lords!',
+                        'The shrine bells toll for your demise! Taste cold iron!',
+                        'Oni blood stirs in these veins! Draw your blade or die like a dog!',
+                        'No ronin or wanderer leaves this mountain alive!'
+                    ], Math.floor(Math.random() * 1000));
+                }
             } else {
                 prose = `The ${name} hefts a notched scimitar, yellow fangs bared in a wicked sneer as he stomps against the flagstones.`;
                 text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient', [
@@ -5101,8 +5143,6 @@ class ChronicleGrounder {
             clauses.push(`gathering a scattered hoard of ${treasureFound} gold pieces before turning weapons toward the next shadow.`);
         } else if (inMortalPeril) {
             clauses.push(`and bracing desperately against the cold masonry with ${weapon} raised, poised on the razor edge of life and death!`);
-        } else {
-            clauses.push(`and pressing the tactical advantage as the subterranean corridor echoes with the ring of steel.`);
         }
 
         // Assemble flowing sentence

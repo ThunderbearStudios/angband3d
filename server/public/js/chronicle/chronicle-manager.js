@@ -796,6 +796,19 @@ class ChronicleManager {
         }
     }
 
+    getActiveRealm() {
+        return (this.currentHero && this.currentHero.realm) ||
+               (typeof window !== 'undefined' && window.__activeRealm) ||
+               (typeof window !== 'undefined' && window.activeRealm) ||
+               (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband');
+    }
+
+    getLanguageMode() {
+        const rk = this.getActiveRealm();
+        if (rk !== 'hengband') return 'en';
+        return (typeof window !== 'undefined' && window.__langMode) || 'en';
+    }
+
     showWindow() {
         if (this.windowEl) {
             this.windowEl.classList.add('active');
@@ -1136,9 +1149,9 @@ class ChronicleManager {
         const curPlayer = player || this.liveHero || this.currentHero;
         if (!curPlayer) return;
 
-        // Metric extraction across unvoiced ledger
+        // Metric extraction across unvoiced ledger: routine combat strikes must NEVER be treated as kills or speech preemption
         const events = this.unvoicedEventLedger.map(item => item.event).filter(Boolean);
-        const hasKill = events.some(ev => ev.type === 'UNIQUE_SLAIN' || ev.type === 'COMBAT_EPISODE' || (ev.type === 'COMBAT_EXCHANGE' && ev.data?.kills?.length > 0) || ev.type === 'MONSTER_DIES');
+        const hasKill = events.some(ev => ev.type === 'UNIQUE_SLAIN' || ev.type === 'MONSTER_DIES' || (ev.data?.kills && ev.data.kills.length > 0));
         const hasUniqueSpotted = events.some(ev => ev.type === 'UNIQUE_SPOTTED');
         const hasPotionOrHeal = events.some(ev => ev.type === 'POTION_QUAFFED' || ev.type === 'HEALING_DRAUGHT' || (ev.data?.item && ev.data.item.toLowerCase().includes('potion')));
         const hasSpellCast = events.some(ev => ev.data?.attackMedium && (ev.data.attackMedium.type === 'spell' || ev.data.attackMedium.method === 'spell'));
@@ -1164,7 +1177,7 @@ class ChronicleManager {
             // While audio is actively speaking, ONLY urgent high-drama events may preempt the voice!
             // Routine actions buffer cleanly in the ledger and are voiced sequentially when playback ends.
             if (!isUrgent) return;
-            if (this._lastStagingTime && (now - this._lastStagingTime < 1000)) return;
+            if (this._lastStagingTime && (now - this._lastStagingTime < 2500)) return;
             this._lastStagingTime = now;
             this.triggerCatchUpBeat(curPlayer);
         } else {
@@ -2221,7 +2234,7 @@ class ChronicleManager {
         if (this.llm && this.llm.isConfigured()) {
             res = await this.llm.chatWithCreature(monster, '', this.currentHero, this.lastSeenMessages);
         } else {
-            res = this.grounder.resolveCreatureEncounter(monster, this.currentHero, this.lastSeenMessages, monster._interactTurn, '');
+            res = this.grounder.resolveCreatureEncounter(monster, this.currentHero, this.lastSeenMessages, monster._interactTurn, '', this.getActiveRealm(), this.getLanguageMode());
         }
 
         // Render Creature Card in Chronicle
@@ -2264,8 +2277,8 @@ class ChronicleManager {
             if (replayBtn) {
                 replayBtn.addEventListener('click', () => {
                     if (this.audio) {
-                        const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(monster, this.currentHero, stateObj.state, this.tradition) : null;
-                        const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, stateObj.state, this.tradition) : null;
+                        const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(monster, this.currentHero, stateObj.state, this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
+                        const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, stateObj.state, this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
                         const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
                         if (res.isDialogue && res.text) {
                             this.audio.speak(res.prose, { text: res.text, speaker: monster.name, recommendedVoice: res.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
@@ -2281,8 +2294,8 @@ class ChronicleManager {
 
         // Voice playback upon encounter: speak aloud for ALL entities with contextual casting
         if (this.audio && !this._isAudioMuted() && res) {
-            const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(monster, this.currentHero, stateObj.state, this.tradition) : null;
-            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, stateObj.state, this.tradition) : null;
+            const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(monster, this.currentHero, stateObj.state, this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
+            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, stateObj.state, this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
             const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
             if (res.isDialogue && res.text) {
                 // Awake vocal creature: speak atmospheric scene prose then creature line in character
@@ -2412,7 +2425,7 @@ class ChronicleManager {
             if (this.llm && this.llm.isConfigured()) {
                 reply = await this.llm.chatWithCreature(creature, text, this.currentHero, this.lastSeenMessages);
             } else {
-                reply = this.grounder.resolveCreatureEncounter(creature, this.currentHero, this.lastSeenMessages, creature._interactTurn, text);
+                reply = this.grounder.resolveCreatureEncounter(creature, this.currentHero, this.lastSeenMessages, creature._interactTurn, text, this.getActiveRealm(), this.getLanguageMode());
             }
 
             const userHeroName = (this.currentHero && this.currentHero.name) ? this.currentHero.name : 'The hero';
@@ -2420,8 +2433,8 @@ class ChronicleManager {
                 ? `Addressing ${creature.name}, ${userHeroName} speaks: "${text}". ${reply.prose}`
                 : `Addressing ${creature.name}, ${userHeroName} speaks: "${text}".`;
 
-            const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(creature, this.currentHero, 'dialogue', this.tradition) : null;
-            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'dialogue', this.tradition) : null;
+            const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(creature, this.currentHero, 'dialogue', this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
+            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, 'dialogue', this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
 
             const entry = {
                 title: `Encounter: ${creature.name}`,

@@ -10,6 +10,8 @@
     "test_top_bar_consolidation.js",
     "test_hud_message_pass.js",
     "test_realm_chronicles_and_inspection.js",
+    "test_chronicle_voice_isolation.js",
+    "test_combat_flow_governor.js",
     "check_version_sync.js",
     "check_android_sync.js"
   ],
