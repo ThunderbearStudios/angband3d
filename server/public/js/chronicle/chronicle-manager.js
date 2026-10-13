@@ -160,8 +160,6 @@ class ChronicleManager {
             if (win) win.style.display = 'none';
             const nav = document.getElementById('btn-toggle-chronicle');
             if (nav) nav.style.display = 'none';
-            const storyPrompt = document.getElementById('btn-story-prompt');
-            if (storyPrompt) storyPrompt.style.display = 'none';
             const pauseNav = document.getElementById('btn-pause-chronicle');
             if (pauseNav) pauseNav.style.display = 'none';
             return;
@@ -177,7 +175,6 @@ class ChronicleManager {
         this.listEl = document.getElementById('chronicle-list');
         this.navBtn = document.getElementById('btn-toggle-chronicle');
         this.pauseNavBtn = document.getElementById('btn-pause-chronicle');
-        this.btnStoryPromptTop = document.getElementById('btn-story-prompt');
         this.btnStoryPromptTome = document.getElementById('btn-chronicle-prompt-tale');
         this.vocalPillEl = document.getElementById('chronicle-vocal-pill');
         this.hudToastEl = document.getElementById('chronicle-hud-toast');
@@ -310,12 +307,6 @@ class ChronicleManager {
             this.pauseNavBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.toggleWindow();
-            });
-        }
-        if (this.btnStoryPromptTop) {
-            this.btnStoryPromptTop.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.requestStoryPrompt();
             });
         }
         if (this.btnStoryPromptTome) {
@@ -475,7 +466,7 @@ class ChronicleManager {
                     const currentRealm = this.getActiveRealm();
                     const sampleVoice = (this.grounder && typeof this.grounder.getLorekeeperVoice === 'function')
                         ? this.grounder.getLorekeeperVoice(currentRealm, 'male')
-                        : (this.audio && this.audio.narratorVoice ? this.audio.narratorVoice : 'Zephyr');
+                        : (this.audio && this.audio.narratorVoice ? this.audio.narratorVoice : 'Enceladus');
                     if (this.testStatus) {
                         this.testStatus.style.color = '#ffd700';
                         this.testStatus.textContent = `✨ Auditioning Master Chronicler (${sampleVoice})...`;
@@ -2120,9 +2111,7 @@ class ChronicleManager {
             return;
         }
 
-        const topBtn = this.btnStoryPromptTop || document.getElementById('btn-story-prompt');
         const tomeBtn = this.btnStoryPromptTome || document.getElementById('btn-chronicle-prompt-tale');
-        if (topBtn) topBtn.classList.add('is-voicing');
         if (tomeBtn) tomeBtn.classList.add('is-voicing');
 
         try {
@@ -2191,7 +2180,6 @@ class ChronicleManager {
             console.error('[ChronicleManager] Failed to request story prompt:', err);
         } finally {
             setTimeout(() => {
-                if (topBtn) topBtn.classList.remove('is-voicing');
                 if (tomeBtn) tomeBtn.classList.remove('is-voicing');
             }, 1200);
         }

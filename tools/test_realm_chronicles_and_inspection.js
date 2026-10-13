@@ -45,8 +45,8 @@ test('Each realm has its specific, canonical Lorekeeper name and title', () => {
 
 // 1b. Realm-Appropriate Gemini Voice Selection for Lorekeeper
 test('Each realm has its contextually appropriate standard Gemini voice', () => {
-    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('angband', 'male'), 'Zephyr');
-    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('angband', 'female'), 'Aoede');
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('angband', 'male'), 'Enceladus');
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('angband', 'female'), 'Zephyr');
 
     assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('silq', 'male'), 'Charon');
     assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('silq', 'female'), 'Despina');

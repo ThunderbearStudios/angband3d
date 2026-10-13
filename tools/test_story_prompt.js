@@ -134,22 +134,19 @@ test('Low health triggers urgent tactical survival counsel in story prompt', () 
     assert(lower.includes('wound') || lower.includes('bleed') || lower.includes('retreat') || lower.includes('peril') || lower.includes('stair') || lower.includes('death'), 'Must warn of mortal peril and low health');
 });
 
-// 6. UI and Manager wiring: index.html, chronicle-manager.js, and CSS
-test('Story prompt buttons and Alt+T hotkey are properly wired in UI and manager', () => {
+// 6. UI and Manager wiring: Tale button is strictly within the Tome menu (not top-right bar)
+test('Tale prompt button exists exclusively within Tome menu and Alt+T is bound', () => {
     const fs = require('fs');
     const path = require('path');
     const indexHtml = fs.readFileSync(path.join(__dirname, '../server/public/index.html'), 'utf8');
     const managerJs = fs.readFileSync(path.join(__dirname, '../server/public/js/chronicle/chronicle-manager.js'), 'utf8');
-    const dungeonCss = fs.readFileSync(path.join(__dirname, '../server/public/css/dungeon.css'), 'utf8');
 
-    assert(indexHtml.includes('id="btn-story-prompt"'), 'index.html must contain #btn-story-prompt in top-right-bar');
+    assert(!indexHtml.includes('id="btn-story-prompt"'), 'index.html must NOT contain #btn-story-prompt in top-right-bar (Tale button belongs only in Tome menu)');
     assert(indexHtml.includes('id="btn-chronicle-prompt-tale"'), 'index.html must contain #btn-chronicle-prompt-tale in transport deck');
     assert(indexHtml.includes('Alt+T'), 'index.html must document Alt+T hotkey');
 
     assert(managerJs.includes('requestStoryPrompt()'), 'chronicle-manager.js must define requestStoryPrompt()');
     assert(managerJs.includes("'t'") && managerJs.includes('requestStoryPrompt'), 'chronicle-manager.js must bind Alt+T to requestStoryPrompt');
-
-    assert(dungeonCss.includes('#top-right-bar .story-label') && dungeonCss.includes('display: none !important'), 'dungeon.css must hide .story-label on mobile');
 });
 
 // 7. Server TTS Latency Optimization: verify geminiHttpsAgent socket reuse
@@ -161,6 +158,23 @@ test('Server TTS uses persistent geminiHttpsAgent for sub-50ms TLS reuse', () =>
     assert(fnStart > 0, 'server.js must define function synthesizeGeminiTTS');
     const synthesizeBlock = serverJs.slice(fnStart, fnStart + 5000);
     assert(synthesizeBlock.includes('agent: geminiHttpsAgent'), 'synthesizeGeminiTTS must pass agent: geminiHttpsAgent');
+});
+
+// 8. Vanilla Angband Narrator Voice: Old English male voice (Enceladus) while preserving Zephyr elsewhere
+test('Vanilla Angband narrator defaults to original Old English male voice (Enceladus) with Zephyr preserved', () => {
+    const maleVoice = ChronicleGrounder.getLorekeeperVoice('angband', 'male');
+    const femaleVoice = ChronicleGrounder.getLorekeeperVoice('angband', 'female');
+    assert.strictEqual(maleVoice, 'Enceladus', `Vanilla narrator voice must be Enceladus, got "${maleVoice}"`);
+    assert.strictEqual(femaleVoice, 'Zephyr', `Vanilla female voice must be Zephyr, got "${femaleVoice}"`);
+
+    const fs = require('fs');
+    const path = require('path');
+    const audioJs = fs.readFileSync(path.join(__dirname, '../server/public/js/chronicle/chronicle-audio.js'), 'utf8');
+    assert(audioJs.includes("this.narratorVoice = 'Enceladus'"), 'chronicle-audio.js must default narratorVoice to Enceladus');
+    assert(audioJs.includes("angband: 'Enceladus'"), 'chronicle-audio.js defaults map must map angband to Enceladus');
+
+    const appJs = fs.readFileSync(path.join(__dirname, '../server/public/js/app.js'), 'utf8');
+    assert(!appJs.includes("btn-story-prompt"), 'app.js must not reference removed #btn-story-prompt');
 });
 
 console.log('ALL STORY PROMPT CONTRACT TESTS PASSED!');
