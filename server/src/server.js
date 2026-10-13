@@ -271,7 +271,7 @@ function redactSecret(val, secret = '') {
 }
 
 // Proxies text-to-speech to Gemini Native Audio (gemini-3.1-flash-tts-preview) with directorial prompting
-function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, isRetry = false }) {
+function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm = 'angband', isRetry = false }) {
     return new Promise((resolve, reject) => {
         if (!apiKey) {
             return reject(new Error('No Gemini API key provided'));
@@ -281,12 +281,25 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
         let promptText = text;
         let tag = '';
         if (!isRetry) {
+            let roleKey = role ? role.toLowerCase() : 'narrator';
+            const isHeng = (realm === 'hengband');
+            if (!isHeng) {
+                if (roleKey === 'samurai') roleKey = 'veteran';
+                else if (roleKey === 'ninja') roleKey = 'rogue';
+            }
+
             if (geminiTag) {
                 tag = geminiTag.trim();
+                if (!isHeng) {
+                    tag = tag.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
+                }
             } else if (directorNote) {
-                tag = `[${directorNote.trim()}]`;
+                let note = directorNote.trim();
+                if (!isHeng) {
+                    note = note.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
+                }
+                tag = `[${note}]`;
             } else {
-                const roleKey = role ? role.toLowerCase() : 'narrator';
                 const accent = CHARACTER_ACCENT_MAP[roleKey] || (roleKey === 'narrator' ? CHARACTER_ACCENT_MAP.narrator : 'natural, noble Classical British or Mid-Atlantic cadence');
                 tag = `[${accent}]`;
             }
@@ -1412,7 +1425,8 @@ const server = http.createServer((req, res) => {
                 geminiTag,
                 directorNote,
                 role,
-                apiKey: geminiApiKey
+                apiKey: geminiApiKey,
+                realm: reqRealm
             }).then(wavBuffer => {
                 inFlightTTS.delete(geminiCacheKey);
                 if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {

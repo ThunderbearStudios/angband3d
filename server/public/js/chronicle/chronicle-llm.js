@@ -302,8 +302,9 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}. (For new instance starts a
      * Generates rich scene prose even for sleeping/silent entities.
      */
     async chatWithCreature(monster, playerMessage, player = null, recentMessages = []) {
-        const turn = (monster && monster._interactTurn) ? monster._interactTurn : 1;
-        const groundTruth = ChronicleGrounder.resolveCreatureEncounter(monster, player, recentMessages, turn, playerMessage);
+        const activeRealm = (player && player.realm) || (typeof window !== 'undefined' && window.__activeRealm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband');
+        const langMode = (activeRealm === 'hengband') ? ((typeof window !== 'undefined' && window.__langMode) || 'en') : 'en';
+        const groundTruth = ChronicleGrounder.resolveCreatureEncounter(monster, player, recentMessages, turn, playerMessage, activeRealm, langMode);
 
         const name = monster.name || monster.race || 'creature';
         const stateObj = ChronicleGrounder.resolveCreatureState(monster, recentMessages);

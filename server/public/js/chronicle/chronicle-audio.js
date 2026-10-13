@@ -764,6 +764,7 @@ class ChronicleAudioRouter {
             engine,
             voice: voice || '',
             realm: this.activeRealm || 'angband',
+            lang: (this.activeRealm === 'hengband') ? (this.langMode || 'en') : 'en',
             emotion,
             gemini_tag: geminiTag,
             director_note: directorNote,
@@ -1707,7 +1708,9 @@ class ChronicleAudioRouter {
             this._disconnectPhysicalSources({ preserveResolve: resolve });
             this.activePlaybackResolve = resolve;
 
+            const isHengJp = (this.activeRealm === 'hengband' && this.langMode === 'jp');
             const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = isHengJp ? 'ja-JP' : 'en-US';
             this.currentUtterance = utterance;
 
             // Apply Audiobook Speed Multiplier (0.92 gives deliberate, clear audiobook pacing)
@@ -1721,19 +1724,25 @@ class ChronicleAudioRouter {
                 ? this.availableVoices
                 : (window.speechSynthesis.getVoices() || []);
 
-            // Prioritize British / Celtic / Vintage Natural storytelling voices (BBC Radio style)
-            let voice = voices.find(v => (v.name.includes('Natural') || v.name.includes('Online')) && (v.lang.includes('GB') || v.lang.includes('IE') || v.name.includes('UK')));
-            if (!voice) {
-                voice = voices.find(v => (v.name.includes('Natural') || v.name.includes('Online')) && v.lang.startsWith('en'));
-            }
-            if (!voice) {
-                voice = voices.find(v => (v.lang.includes('GB') || v.lang.includes('IE') || v.name.includes('UK') || v.name.includes('George') || v.name.includes('Hazel')));
-            }
-            if (!voice) {
-                voice = voices.find(v => v.lang.startsWith('en') && !v.name.includes('David'));
-            }
-            if (!voice && voices.length > 0) {
-                voice = voices[0];
+            let voice = null;
+            if (isHengJp) {
+                voice = voices.find(v => v.lang && (v.lang.startsWith('ja') || v.lang.includes('JP')));
+            } else {
+                const englishVoices = voices.filter(v => v.lang && v.lang.startsWith('en'));
+                // Prioritize British / Celtic / Vintage Natural storytelling voices (BBC Radio style)
+                voice = englishVoices.find(v => (v.name.includes('Natural') || v.name.includes('Online')) && (v.lang.includes('GB') || v.lang.includes('IE') || v.name.includes('UK')));
+                if (!voice) {
+                    voice = englishVoices.find(v => (v.name.includes('Natural') || v.name.includes('Online')));
+                }
+                if (!voice) {
+                    voice = englishVoices.find(v => (v.lang.includes('GB') || v.lang.includes('IE') || v.name.includes('UK') || v.name.includes('George') || v.name.includes('Hazel')));
+                }
+                if (!voice) {
+                    voice = englishVoices.find(v => !v.name.includes('David'));
+                }
+                if (!voice && englishVoices.length > 0) {
+                    voice = englishVoices[0];
+                }
             }
 
             if (voice) {
