@@ -343,6 +343,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
 
         const req = https.request('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent', {
             method: 'POST',
+            agent: geminiHttpsAgent,
             headers: {
                 'Content-Type': 'application/json',
                 'x-goog-api-key': apiKey

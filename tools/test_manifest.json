@@ -25,7 +25,8 @@
   "cdp": [
     "test_boot_flow.js",
     "test_heng_language_switch.js",
-    "test_ui_layout.js"
+    "test_ui_layout.js",
+    "test_story_prompt_cdp.js"
   ],
   "cloud": [],
   "legacy": []

@@ -160,6 +160,8 @@ class ChronicleManager {
             if (win) win.style.display = 'none';
             const nav = document.getElementById('btn-toggle-chronicle');
             if (nav) nav.style.display = 'none';
+            const storyPrompt = document.getElementById('btn-story-prompt');
+            if (storyPrompt) storyPrompt.style.display = 'none';
             const pauseNav = document.getElementById('btn-pause-chronicle');
             if (pauseNav) pauseNav.style.display = 'none';
             return;
@@ -175,6 +177,8 @@ class ChronicleManager {
         this.listEl = document.getElementById('chronicle-list');
         this.navBtn = document.getElementById('btn-toggle-chronicle');
         this.pauseNavBtn = document.getElementById('btn-pause-chronicle');
+        this.btnStoryPromptTop = document.getElementById('btn-story-prompt');
+        this.btnStoryPromptTome = document.getElementById('btn-chronicle-prompt-tale');
         this.vocalPillEl = document.getElementById('chronicle-vocal-pill');
         this.hudToastEl = document.getElementById('chronicle-hud-toast');
 
@@ -308,6 +312,18 @@ class ChronicleManager {
                 this.toggleWindow();
             });
         }
+        if (this.btnStoryPromptTop) {
+            this.btnStoryPromptTop.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.requestStoryPrompt();
+            });
+        }
+        if (this.btnStoryPromptTome) {
+            this.btnStoryPromptTome.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.requestStoryPrompt();
+            });
+        }
 
         // Safe Global Hotkeys for Chronicle Window & Audio Playback
         // NOTE: Standard movement (ArrowUp, ArrowDown, Shift+ArrowLeft, Shift+ArrowRight, k, j)
@@ -350,6 +366,13 @@ class ChronicleManager {
                     if (e.key === 's' || e.key === 'S') {
                         e.preventDefault();
                         this.stopStoryPlayback();
+                        return;
+                    }
+
+                    // Alt + T: Weave On-Demand Saga Tale
+                    if (e.key === 't' || e.key === 'T') {
+                        e.preventDefault();
+                        this.requestStoryPrompt();
                         return;
                     }
                 }
@@ -953,6 +976,8 @@ class ChronicleManager {
         // Only evaluate during active gameplay or death sequence
         if ((frame.phase !== 'play' && frame.phase !== 'death') || !frame.player) return;
 
+        this.lastFrame = frame;
+
         if (this._isProcessingFrame) return;
         this._isProcessingFrame = true;
 
@@ -1376,7 +1401,9 @@ class ChronicleManager {
 
         const isDeath = Boolean(entry.isDeath || entry.type === 'HERO_DEATH' || (entry.title && entry.title.includes('Epitaph')));
         const block = document.createElement('div');
-        block.className = isDeath ? 'flowing-paragraph-block chapter-card chapter-death' : 'flowing-paragraph-block chapter-card';
+        let cardClass = isDeath ? 'flowing-paragraph-block chapter-card chapter-death' : 'flowing-paragraph-block chapter-card';
+        if (entry.isStoryPrompt) cardClass += ' chapter-story-prompt';
+        block.className = cardClass;
         block.id = beatId;
         block.setAttribute('data-beat-id', beatId);
         block.setAttribute('data-beat-index', playlistIndex);
@@ -1388,7 +1415,9 @@ class ChronicleManager {
             : (this.currentHero ? this.currentHero.depth : 0);
         const depthLabel = depth === 0 ? 'Town' : `${depth * 50}ft`;
         let headerBadge = isDeath ? `⚰️ ${depthLabel} • Requiem` : depthLabel;
-        if (entry.isCatchUp && entry.actionBreakdown && entry.actionBreakdown.summaryText) {
+        if (entry.isStoryPrompt) {
+            headerBadge = `🔮 ${depthLabel} • Tale`;
+        } else if (entry.isCatchUp && entry.actionBreakdown && entry.actionBreakdown.summaryText) {
             headerBadge = `⚡ ${depthLabel} • Caught Up (+${entry.actionBreakdown.summaryText})`;
         } else if (entry.isCatchUp) {
             headerBadge = `⚡ ${depthLabel} • Caught Up`;
@@ -2076,6 +2105,96 @@ class ChronicleManager {
                 }, 400);
             }
         }, duration);
+    }
+
+    async requestStoryPrompt() {
+        const now = Date.now();
+        if (this._lastStoryPromptTime && (now - this._lastStoryPromptTime < 3000)) {
+            return;
+        }
+        this._lastStoryPromptTime = now;
+
+        const hero = this.currentHero || (this.lastFrame && this.lastFrame.player);
+        if (!hero) {
+            this.showHudToast('🔮 The Lorekeeper awaits your arrival in the realm...');
+            return;
+        }
+
+        const topBtn = this.btnStoryPromptTop || document.getElementById('btn-story-prompt');
+        const tomeBtn = this.btnStoryPromptTome || document.getElementById('btn-chronicle-prompt-tale');
+        if (topBtn) topBtn.classList.add('is-voicing');
+        if (tomeBtn) tomeBtn.classList.add('is-voicing');
+
+        try {
+            const realmKey = this.getActiveRealm();
+            const langMode = this.getLanguageMode();
+
+            // Extract nearby visible monsters and threat
+            const nearbyMonsters = [];
+            if (this.lastFrame && Array.isArray(this.lastFrame.monsters)) {
+                for (const m of this.lastFrame.monsters) {
+                    if (m && m.name) {
+                        const dist = (hero.x !== undefined && hero.y !== undefined && m.x !== undefined && m.y !== undefined)
+                            ? Math.hypot(m.x - hero.x, m.y - hero.y)
+                            : 99;
+                        nearbyMonsters.push({ name: m.name, dist });
+                    }
+                }
+                nearbyMonsters.sort((a, b) => a.dist - b.dist);
+            } else if (this.dungeon && this.dungeon.monsters) {
+                for (const ent of this.dungeon.monsters.values()) {
+                    if (ent.monsterData && ent.monsterData.name) {
+                        const dist = (hero.x !== undefined && hero.y !== undefined && ent.monsterData.x !== undefined && ent.monsterData.y !== undefined)
+                            ? Math.hypot(ent.monsterData.x - hero.x, ent.monsterData.y - hero.y)
+                            : 99;
+                        nearbyMonsters.push({ name: ent.monsterData.name, dist });
+                    }
+                }
+                nearbyMonsters.sort((a, b) => a.dist - b.dist);
+            }
+
+            const dungeonContext = {
+                nearbyMonsters: nearbyMonsters,
+                lightTurns: (this.lastFrame && this.lastFrame.player && typeof this.lastFrame.player.light === 'number') ? this.lastFrame.player.light : 500,
+                potions: 1
+            };
+
+            const beat = this.grounder.generateStoryPromptBeat(hero, dungeonContext, realmKey, langMode);
+            if (!beat) return;
+
+            if (!this.activeChronicle && this.store) {
+                this.startFreshChronicle(hero);
+            }
+
+            if (this.store && this.activeChronicle) {
+                this.store.appendChapter(this.activeChronicle, beat);
+            }
+            this.renderStoryEntry(beat, true);
+
+            if (this.statusTextEl) {
+                this.statusTextEl.textContent = `🔮 ${beat.title}`;
+            }
+
+            if (this.audio && !this._isAudioMuted()) {
+                const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, hero, 'story_prompt', this.tradition) : null;
+                const speakOpts = {
+                    narrator: narrProfile,
+                    engine: this.audio.ttsEngine,
+                    seamless: false
+                };
+                await this.audio.speak(beat.prose, null, null, null, 0, speakOpts);
+                this._highlightActiveCard(beat);
+            } else {
+                this.showHudToast(`🔮 Tale woven in the Living Chronicle. [Alt+C] to read.`);
+            }
+        } catch (err) {
+            console.error('[ChronicleManager] Failed to request story prompt:', err);
+        } finally {
+            setTimeout(() => {
+                if (topBtn) topBtn.classList.remove('is-voicing');
+                if (tomeBtn) tomeBtn.classList.remove('is-voicing');
+            }, 1200);
+        }
     }
 
     onVocalStateChanged(state, telemetry = {}) {

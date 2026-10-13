@@ -62,8 +62,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=9.4.10">
-    <link rel="stylesheet" href="/css/chronicle.css?v=9.4.10">
+    <link rel="stylesheet" href="/css/dungeon.css?v=9.4.11">
+    <link rel="stylesheet" href="/css/chronicle.css?v=9.4.11">
 </head>
 <body>
     <div id="app-container">
@@ -232,6 +232,7 @@
                         <button id="btn-chronicle-forward" class="chronicle-ctrl-btn" title="Skip to next paragraph [Alt+]]">⏭</button>
                     </div>
                     <div class="chronicle-audio-toggles">
+                        <button id="btn-chronicle-prompt-tale" class="chronicle-ctrl-btn" title="Weave Tale: Spin an on-demand saga tale with tactical hints [Alt+T]">🔮 Tale</button>
                         <button id="btn-chronicle-mute" class="chronicle-ctrl-btn" title="Toggle Voice Narration">🔇 Muted</button>
                         <button id="btn-chronicle-speed" class="chronicle-ctrl-btn" title="Audiobook Speed (0.75x, 0.85x, 1.0x, 1.25x, 1.5x)">⚡ 1.0x</button>
                     </div>
@@ -276,6 +277,7 @@
             <button id="btn-hud-realm" class="icon-btn in-game-only realm-hud-pill" title="Active Realm: Angband 4.2.6 (Locked during active gameplay. Return to Main Menu to switch)."><span class="realm-icon">🌌</span> <span id="hud-realm-label">Angband 4.2.6</span> <span id="ping-badge" class="badge">Cloud [Connecting...]</span></button>
             <button id="btn-toggle-lang" class="icon-btn in-game-only lang-toggle-pill" style="display: none;" title="Toggle Language: English / Kanji / 日本語 [Alt+L]"><span class="lang-icon">🌐</span> <span id="hud-lang-label">EN / 漢</span></button>
             <button id="btn-toggle-chronicle" class="icon-btn in-game-only" title="Toggle The Living Chronicle Window [Alt+C]"><span class="chronicle-icon">📖</span> <span class="chronicle-label">Tome</span></button>
+            <button id="btn-story-prompt" class="icon-btn in-game-only story-prompt-btn" title="Weave Tale: Spin an on-demand saga tale with tactical hints [Alt+T]"><span class="story-icon">🔮</span> <span class="story-label">Tale</span></button>
             <button id="btn-toggle-msg-feed" class="icon-btn in-game-only" title="Toggle Message Log Feed"><span class="msg-icon">📜</span> <span class="msg-label">Log</span></button>
             <button id="btn-toggle-minimap" class="icon-btn in-game-only" title="Toggle Minimap Radar"><span class="map-icon">🗺</span> <span class="map-label">Map</span></button>
             <div id="sound-control-group" class="sound-control-group" title="Global Audio Volume &amp; Mute [Ctrl-M]">
@@ -947,7 +949,7 @@
                         <ul class="guide-list">
                             <li>• <strong>Authoritative Headless C Engine</strong>: Game logic, monster AI, RNG, and world generation run strictly on upstream Angband 4.2.6 C code with zero gameplay divergence.</li>
                             <li>• <strong>First-Person Viewmodel Hands &amp; Weapon Rigs</strong>: Dynamic articulated hands, weapons, shields, books, and torches that naturally adapt to your character's race and physical height.</li>
-                            <li>• <strong>The Adventure Tome</strong>: An optional in-game companion chronicle that records your dungeon descent with audio narration and story export (<kbd>Alt+C</kbd>).</li>
+                            <li>• <strong>The Adventure Tome</strong>: An optional in-game companion chronicle that records your dungeon descent with audio narration and story export (<kbd>Alt+C</kbd>). Use <kbd>Alt+T</kbd> to weave an on-demand saga tale of your hero.</li>
                             <li>• <strong>Zero-Turn Camera Yaw Navigation</strong>: Looking around corners or rotating 360° is client-side and consumes 0 game turns, preserving pure tactical turn-based decisions.</li>
                             <li>• <strong>Ethereal Monster Sensing in 3D</strong>: Monsters detected through spells, telepathy, or infra-vision in pitch black corridors are depicted with a glowing misty apparition aura and sensory beacon.</li>
                             <li>• <strong>Universal Save Game Portability</strong>: 1-click downloads of your `.sav` character, drag-and-drop save uploads, in-game pause menu exports, and 100% interoperability with desktop Godot.</li>
@@ -1453,28 +1455,28 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/safe-html.js?v=9.4.10"></script>
-    <script src="/js/screen-context.js?v=9.4.10"></script>
-    <script src="/js/menu-router.js?v=9.4.10"></script>
-    <script src="/js/device.js?v=9.4.10"></script>
-    <script src="/js/realm-keys.js?v=9.4.10"></script>
-    <script src="/js/mobile-overlay.js?v=9.4.10"></script>
-    <script src="/js/audio.js?v=9.4.10"></script>
-    <script src="/js/terminal.js?v=9.4.10"></script>
-    <script src="/js/dungeon3d.js?v=9.4.10"></script>
-    <script src="/js/hud.js?v=9.4.10"></script>
-    <script src="/js/network.js?v=9.4.10"></script>
-    <script src="/js/local_bridge.js?v=9.4.10"></script>
-    <script src="/js/input.js?v=9.4.10"></script>
-    <script src="/js/demo-player.js?v=9.4.10"></script>
+    <script src="/js/safe-html.js?v=9.4.11"></script>
+    <script src="/js/screen-context.js?v=9.4.11"></script>
+    <script src="/js/menu-router.js?v=9.4.11"></script>
+    <script src="/js/device.js?v=9.4.11"></script>
+    <script src="/js/realm-keys.js?v=9.4.11"></script>
+    <script src="/js/mobile-overlay.js?v=9.4.11"></script>
+    <script src="/js/audio.js?v=9.4.11"></script>
+    <script src="/js/terminal.js?v=9.4.11"></script>
+    <script src="/js/dungeon3d.js?v=9.4.11"></script>
+    <script src="/js/hud.js?v=9.4.11"></script>
+    <script src="/js/network.js?v=9.4.11"></script>
+    <script src="/js/local_bridge.js?v=9.4.11"></script>
+    <script src="/js/input.js?v=9.4.11"></script>
+    <script src="/js/demo-player.js?v=9.4.11"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=9.4.10"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=9.4.10"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=9.4.10"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=9.4.10"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=9.4.10"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=9.4.10"></script>
-    <script src="/js/app.js?v=9.4.10"></script>
-    <script src="/js/boot.js?v=9.4.10"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=9.4.11"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=9.4.11"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=9.4.11"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=9.4.11"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=9.4.11"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=9.4.11"></script>
+    <script src="/js/app.js?v=9.4.11"></script>
+    <script src="/js/boot.js?v=9.4.11"></script>
 </body>
 </html>
