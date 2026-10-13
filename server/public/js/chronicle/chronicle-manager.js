@@ -1140,9 +1140,124 @@ class ChronicleManager {
                 }
                 this.evaluateCatchUp(frame.player);
             }
+            this._speculativePrewarmProximity(frame);
         } finally {
             this._isProcessingFrame = false;
         }
+    }
+
+    /**
+     * Proximity Speculative Pre-Warming:
+     * When a player steps or a monster moves within 3.5 tiles, speculatively synthesize & buffer
+     * the nearest creature's encounter bark/voice ahead of time into audioBufferCache.
+     * Guarantees 0ms latency when interacting or triggering proximate creature events.
+     */
+    _speculativePrewarmProximity(frame) {
+        if (!frame || !frame.player || !this.audio || this._isAudioMuted() || typeof this.audio.prewarmUtterance !== 'function' || !this.grounder) {
+            return;
+        }
+        const hero = frame.player;
+        if (hero.x === undefined || hero.y === undefined) return;
+
+        // Check if player or monsters moved since last check
+        const posSig = `${hero.x}_${hero.y}`;
+        const now = Date.now();
+        if (this._lastPrewarmPos === posSig && (now - (this._lastProximityPrewarmTime || 0) < 6000)) {
+            return;
+        }
+        this._lastPrewarmPos = posSig;
+        this._lastProximityPrewarmTime = now;
+
+        // Gather candidates within 3.5 tiles
+        let nearestMonster = null;
+        let minDist = 3.5;
+
+        if (Array.isArray(frame.monsters)) {
+            for (const m of frame.monsters) {
+                if (m && m.name && m.x !== undefined && m.y !== undefined) {
+                    const dist = Math.hypot(m.x - hero.x, m.y - hero.y);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearestMonster = m;
+                    }
+                }
+            }
+        } else if (this.dungeon && this.dungeon.monsters) {
+            for (const ent of this.dungeon.monsters.values()) {
+                const md = ent.monsterData;
+                if (md && md.name && md.x !== undefined && md.y !== undefined) {
+                    const dist = Math.hypot(md.x - hero.x, md.y - hero.y);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearestMonster = md;
+                    }
+                }
+            }
+        }
+
+        if (!nearestMonster) return;
+
+        // Throttle per-creature prewarm
+        this._prewarmedCreatureKeys = this._prewarmedCreatureKeys || new Map();
+        const creatureKey = `${nearestMonster.name}_${nearestMonster.glyph || ''}`;
+        const lastPrewarmed = this._prewarmedCreatureKeys.get(creatureKey) || 0;
+        if (now - lastPrewarmed < 45000) return; // don't re-prewarm same creature type within 45s
+        this._prewarmedCreatureKeys.set(creatureKey, now);
+
+        try {
+            const stateObj = this.grounder.resolveCreatureState(nearestMonster, this.lastSeenMessages);
+            const res = this.grounder.resolveCreatureEncounter(
+                nearestMonster,
+                hero,
+                this.lastSeenMessages,
+                nearestMonster._interactTurn || 1,
+                '',
+                this.getActiveRealm(),
+                this.getLanguageMode()
+            );
+            if (!res) return;
+
+            const cVoiceProfile = this.grounder.resolveVoiceProfile(
+                nearestMonster,
+                hero,
+                stateObj.state,
+                this.tradition,
+                false,
+                this.getActiveRealm(),
+                this.getLanguageMode()
+            );
+
+            if (res.isDialogue && res.text) {
+                const dOpts = {
+                    voice: cVoiceProfile?.edgeVoice || '',
+                    geminiVoice: cVoiceProfile?.geminiVoice || 'Fenrir',
+                    directorNote: cVoiceProfile?.directorNote || '',
+                    geminiTag: cVoiceProfile?.geminiTag || '',
+                    pitch: cVoiceProfile?.pitch || '',
+                    rate: cVoiceProfile?.rate || '',
+                    engine: this.audio.ttsEngine || 'gemini'
+                };
+                this.audio.prewarmUtterance(res.text, 'creature', nearestMonster.name, cVoiceProfile?.geminiVoice || null, dOpts).catch(() => {});
+            } else if (res.prose) {
+                const narrProfile = this.grounder.resolveVoiceProfile(
+                    null,
+                    hero,
+                    stateObj.state,
+                    this.tradition,
+                    false,
+                    this.getActiveRealm(),
+                    this.getLanguageMode()
+                );
+                const nOpts = {
+                    voice: narrProfile?.edgeVoice || '',
+                    geminiVoice: narrProfile?.geminiVoice || 'Enceladus',
+                    pitch: narrProfile?.pitch || '',
+                    rate: narrProfile?.rate || '',
+                    engine: this.audio.ttsEngine || 'gemini'
+                };
+                this.audio.prewarmUtterance(res.prose, 'narrator', '', null, nOpts).catch(() => {});
+            }
+        } catch (_) {}
     }
 
     onAudioPlaybackEnded() {
@@ -2148,7 +2263,16 @@ class ChronicleManager {
                 potions: 1
             };
 
-            const beat = this.grounder.generateStoryPromptBeat(hero, dungeonContext, realmKey, langMode);
+            const recentChapters = (this.activeChronicle && Array.isArray(this.activeChronicle.chapters))
+                ? this.activeChronicle.chapters.slice(-3)
+                : [];
+            let beat = null;
+            if (this.llm && typeof this.llm.isConfigured === 'function' && this.llm.isConfigured() && typeof this.llm.spinTale === 'function') {
+                beat = await this.llm.spinTale(hero, dungeonContext, recentChapters, realmKey, langMode);
+            }
+            if (!beat && this.grounder && typeof this.grounder.generateStoryPromptBeat === 'function') {
+                beat = this.grounder.generateStoryPromptBeat(hero, dungeonContext, realmKey, langMode);
+            }
             if (!beat) return;
 
             if (!this.activeChronicle && this.store) {

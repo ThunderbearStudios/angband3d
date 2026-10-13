@@ -93,25 +93,32 @@ async function main() {
             const btn = document.getElementById('btn-chronicle-prompt-tale');
             if (btn) btn.click();
         })()`);
-        await sleep(1500);
 
-        // 5. Verify chronicle state
-        const chronicleState = await evaluate(`(() => {
-            const mgr = window.chronicleManager;
-            if (!mgr) return { error: 'No chronicleManager' };
-            const active = mgr.activeChronicle;
-            const chapters = active ? active.chapters : [];
-            const promptChapters = chapters.filter(c => c && (c.isStoryPrompt || (c.title && c.title.includes('Tale'))));
-            const promptCards = document.querySelectorAll('.chapter-story-prompt');
-            return {
-                active: !!active,
-                totalChapters: chapters.length,
-                promptChaptersCount: promptChapters.length,
-                lastChapterTitle: chapters.length > 0 ? chapters[chapters.length - 1].title : null,
-                lastChapterProse: chapters.length > 0 ? chapters[chapters.length - 1].prose : null,
-                domPromptCardsCount: promptCards.length
-            };
-        })()`);
+        // Wait up to 10s for the tale beat to finish LLM generation or procedural fallback
+        let chronicleState = null;
+        for (let i = 0; i < 20; i++) {
+            await sleep(500);
+            chronicleState = await evaluate(`(() => {
+                const mgr = window.chronicleManager;
+                if (!mgr) return { error: 'No chronicleManager' };
+                const active = mgr.activeChronicle;
+                const chapters = active ? active.chapters : [];
+                const promptChapters = chapters.filter(c => c && (c.isStoryPrompt || (c.title && c.title.includes('Tale'))));
+                const promptCards = document.querySelectorAll('.chapter-story-prompt');
+                return {
+                    active: !!active,
+                    totalChapters: chapters.length,
+                    promptChaptersCount: promptChapters.length,
+                    lastChapterTitle: chapters.length > 0 ? chapters[chapters.length - 1].title : null,
+                    lastChapterProse: chapters.length > 0 ? chapters[chapters.length - 1].prose : null,
+                    domPromptCardsCount: promptCards.length
+                };
+            })()`);
+            if (chronicleState && chronicleState.promptChaptersCount >= 1 && chronicleState.domPromptCardsCount >= 1) {
+                console.log(`[Test] Story prompt arrived on poll iteration ${i + 1}!`);
+                break;
+            }
+        }
         console.log('[Test] Chronicle state after click:', JSON.stringify(chronicleState));
         if (chronicleState.promptChaptersCount < 1) {
             throw new Error('Expected at least 1 story prompt chapter in activeChronicle');

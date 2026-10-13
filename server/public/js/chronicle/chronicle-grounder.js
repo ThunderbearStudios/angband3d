@@ -117,6 +117,7 @@ class ChronicleGrounder {
                     setting: 'Beleriand in the First Age of the Sun, under the gloom of Thangorodrim. The quest to cut a sacred Silmaril from Morgoth\'s Iron Crown with the Knife Angrist',
                     traditionKey: 'beleriand',
                     style: 'Solemn First Age epic, songs of stealth and woven spells, shadows beneath Thangorodrim, and the desperate quest for Morgoth\'s Iron Crown',
+                    dialogueStyle: 'Archaic First Age Beleriand tone, grim pride, songs of stealth or curses of the Iron Hell, archaic high fantasy',
                     voice: 'en-GB-RyanNeural',
                     recommendedVoice: 'en-GB-RyanNeural',
                     geminiVoice: 'Charon'
@@ -130,6 +131,7 @@ class ChronicleGrounder {
                     setting: 'The Sengoku Realm and Eastern Mythos, where ancient Angband dungeons are entwined with feudal Japan, Shinto kami, Buddhist sutras, samurai honor, and perilous yokai',
                     traditionKey: 'easternmythos',
                     style: 'Zen tranquility, Bushido valor, celestial court judgments, mythical deities, and the lethal grace of the sword',
+                    dialogueStyle: 'Disciplined feudal Bushido honor or menacing Japanese folklore presence, stoic, terse, and respectful or fierce',
                     voice: 'en-US-BrianNeural',
                     recommendedVoice: 'en-US-BrianNeural',
                     geminiVoice: 'Gacrux'
@@ -143,6 +145,7 @@ class ChronicleGrounder {
                     setting: 'The Boundless Multiverse and the Realm of Amber, where all worlds are but Shadows of the One True City, bounded by the Pattern and the Logrus',
                     traditionKey: 'amber',
                     style: 'Lively, cynical fencing wit, epic of overland wilderness, myriad monster folk, shadow-walking, and the eternal clash between the Pattern and Chaos',
+                    dialogueStyle: 'Sharp, cynical Amber courtly wit, hard-boiled Zelazny fencing banter, caustic and observant',
                     voice: 'en-US-ChristopherNeural',
                     recommendedVoice: 'en-US-ChristopherNeural',
                     geminiVoice: 'Fenrir'
@@ -157,6 +160,7 @@ class ChronicleGrounder {
                     setting: 'Middle-earth in the Third Age of the Sun, beneath the dread Fortress of Angband in the Iron Hell',
                     traditionKey: 'westmarch',
                     style: 'Direct, courageous, humble steadfastness, songs of forgotten valor, stubborn endurance against darkness',
+                    dialogueStyle: 'Vintage high fantasy cadence, archaic Middle-earth gravity, resolute and atmospheric',
                     voice: 'en-GB-ThomasNeural',
                     recommendedVoice: 'en-GB-ThomasNeural',
                     geminiVoice: 'Enceladus'
@@ -438,11 +442,21 @@ class ChronicleGrounder {
         orc: {
             male: {
                 edge: ['en-US-RogerNeural', 'en-US-ChristopherNeural', 'en-US-EricNeural'],
-                gemini: ['Fenrir', 'Algenib']
+                gemini: ['Fenrir']
             },
             female: {
                 edge: ['en-US-AriaNeural', 'en-AU-NatashaNeural'],
                 gemini: ['Fenrir', 'Kore']
+            }
+        },
+        kobold: {
+            male: {
+                edge: ['en-IE-ConnorNeural', 'en-US-GuyNeural'],
+                gemini: ['Puck']
+            },
+            female: {
+                edge: ['en-IE-EmilyNeural', 'en-GB-MaisieNeural'],
+                gemini: ['Puck', 'Leda']
             }
         },
         giant: {
@@ -585,7 +599,7 @@ class ChronicleGrounder {
      */
     static pickCreatureVoice(monster, category) {
         const profile = this.resolveVoiceProfile(monster);
-        return profile ? profile.edgeVoice : 'en-US-GuyNeural';
+        return profile ? (profile.geminiVoice || profile.edgeVoice || 'Fenrir') : 'Fenrir';
     }
 
     /**
@@ -688,7 +702,9 @@ class ChronicleGrounder {
                     raceArchetype = 'dragon';
                 } else if (rLower.includes('undead') || rLower.includes('lich') || rLower.includes('ghost') || rLower.includes('spectre') || rLower.includes('wraith') || rLower.includes('vampire')) {
                     raceArchetype = 'undead';
-                } else if (rLower.includes('orc') || rLower.includes('goblin') || rLower.includes('snaga') || rLower.includes('uruk')) {
+                } else if (rLower.includes('kobold') || rLower.includes('goblin') || rLower.includes('snaga') || rLower.includes('imp')) {
+                    raceArchetype = 'kobold';
+                } else if (rLower.includes('orc') || rLower.includes('uruk')) {
                     raceArchetype = 'orc';
                 } else if (rLower.includes('hound') || rLower.includes('wolf') || rLower.includes('dog') || rLower.includes('beast') || rLower.includes('rat')) {
                     raceArchetype = 'beast';
@@ -696,7 +712,7 @@ class ChronicleGrounder {
                     raceArchetype = 'elf';
                 } else if (rLower.includes('dwarf')) {
                     raceArchetype = 'dwarf';
-                } else if (rLower.includes('hobbit') || rLower.includes('halfling') || rLower.includes('gnome') || rLower.includes('kobold')) {
+                } else if (rLower.includes('hobbit') || rLower.includes('halfling') || rLower.includes('gnome')) {
                     raceArchetype = 'hobbit';
                 } else if (nLower.includes('mage') || nLower.includes('wizard') || nLower.includes('sorcerer') || nLower.includes('priest') || nLower.includes('cleric') || nLower.includes('cultist') || nLower.includes('witch') || nLower.includes('warlock') || nLower.includes('druid') || nLower.includes('shaman') || nLower.includes('seer')) {
                     raceArchetype = 'spellcaster';
@@ -857,41 +873,91 @@ class ChronicleGrounder {
                 geminiTag = '[resolute, heroic, no American southern drawl]';
             }
         } else {
-            // Creature & NPC Dynamic Emotion (Strictly No Southern Accents)
+            // Build rich archetype-specific directorial description
+            let archetypeDesc = 'Speaking in character';
+            switch (raceArchetype) {
+                case 'orc':
+                    archetypeDesc = 'A harsh, guttural, menacing orc warrior snarling with aggressive Cockney growl';
+                    break;
+                case 'kobold':
+                    archetypeDesc = 'A raspy, cunning, high-pitched goblin or kobold screech, frantic and vicious';
+                    break;
+                case 'dragon':
+                    archetypeDesc = 'An ancient, cavernous draconic entity rumbling with haughty draconic wrath and immense resonant power';
+                    break;
+                case 'undead':
+                    archetypeDesc = 'A sepulchral, chilling, hollow ancient undead entity whispering with cold unholy malice';
+                    break;
+                case 'giant':
+                    archetypeDesc = 'A cavernous, slow, booming giant speaking with earth-shaking resonant bass';
+                    break;
+                case 'dwarf':
+                    archetypeDesc = isF ? 'A hearty, resonant Scottish dwarven shieldmaiden with stone-hewn dwarven timbre' : 'A deep, gravelly Scottish-accented dwarven metalsmith with stone-hewn dwarven timbre and hearty brogue';
+                    break;
+                case 'elf':
+                    archetypeDesc = isF ? 'An ethereal, melodic High-Elven lady speaking with crisp consonants and graceful cadence' : 'A regal, noble High-Elven lord speaking with crisp classical British diction';
+                    break;
+                case 'hobbit':
+                    archetypeDesc = isF ? 'A cheerful, spirited hobbit speaking with warm countryside cadence' : 'A diminutive, lively hobbit speaking with warm West Country countryside cadence';
+                    break;
+                case 'rogue':
+                    archetypeDesc = isF ? 'A sharp, streetwise British cutthroat speaking with cunning cadence' : 'A cunning, raspy urban British cutthroat with dangerous razor-sharp edge';
+                    break;
+                case 'spellcaster':
+                    archetypeDesc = isF ? 'A smooth, mystical sorceress with eerie sibilance and formal diction' : 'A deep, resonant arcane scholar with formal British diction';
+                    break;
+                case 'beast':
+                    archetypeDesc = 'A wild, primal beast with menacing animalistic growls';
+                    break;
+                case 'mortal':
+                default:
+                    if (ageArchetype === 'elder') {
+                        archetypeDesc = 'A weathered, venerable elder speaking with elder gravitas and subtle dry wit';
+                    } else if (ageArchetype === 'veteran') {
+                        archetypeDesc = 'A grizzled, seasoned battlefield warrior speaking with commanding discipline';
+                    } else if (ageArchetype === 'youth') {
+                        archetypeDesc = 'A lively, spirited young townsperson speaking with bright energy';
+                    } else {
+                        archetypeDesc = 'A natural, warm Classical British townsperson with earnest presence';
+                    }
+                    break;
+            }
+
+            // Creature & NPC Dynamic Emotion & Archetype Directorial Guidance
             if (isPeril) {
                 emotion = 'panicked';
-                geminiTag = '[panicked, trembling, in character, no American southern drawl]';
-                directorNote = 'Desperate mortal panic, breathless and fighting for survival, in character, no American southern drawl';
+                geminiTag = `[${archetypeDesc}, panicked, breathless and fighting for survival, no American southern drawl]`;
+                directorNote = `${archetypeDesc}, desperate mortal panic, breathless and fighting for survival, no American southern drawl`;
                 pitch = '+3Hz';
                 rate = '+8%';
             } else if (isBoss) {
                 emotion = 'serious';
-                geminiTag = '[grimly, with grave dread, in character, no American southern drawl]';
-                directorNote = 'An epic confrontation with an ancient terror of the First Age, in character, no American southern drawl';
+                geminiTag = `[${archetypeDesc}, grimly, with ancient authority and grave dread, no American southern drawl]`;
+                directorNote = `${archetypeDesc}, an epic confrontation with ancient terror, grim authority, no American southern drawl`;
                 pitch = '-3Hz';
                 rate = '-4%';
             } else if (isBleedingOrStun) {
                 emotion = 'strained';
-                geminiTag = '[groaning in pain, in character, no American southern drawl]';
-                directorNote = 'Grievously wounded, voice trembling with pain, in character, no American southern drawl';
+                geminiTag = `[${archetypeDesc}, groaning in pain, heavily wounded, no American southern drawl]`;
+                directorNote = `${archetypeDesc}, grievously wounded, voice trembling with pain, no American southern drawl`;
                 pitch = '+2Hz';
                 rate = '+4%';
             } else if (isStealth) {
                 emotion = 'whispering';
-                geminiTag = '[whispers, in character, no American southern drawl]';
-                directorNote = 'Hushed stealth in complete darkness, avoiding waking patrolling monsters, in character, no American southern drawl';
+                geminiTag = `[${archetypeDesc}, whispers softly in dark shadows, no American southern drawl]`;
+                directorNote = `${archetypeDesc}, hushed stealth in complete darkness, no American southern drawl`;
                 pitch = '-1Hz';
                 rate = '-7%';
             } else if (isTown) {
                 emotion = 'cheerful';
-                geminiTag = '[warmly, with hearty camaraderie, in character, no American southern drawl]';
-                directorNote = 'A warm fireside tavern keeper or friendly townsman, in character, no American southern drawl';
+                geminiTag = `[${archetypeDesc}, warmly, with hearty camaraderie, no American southern drawl]`;
+                directorNote = `${archetypeDesc}, in the bustling town, with hearty camaraderie, no American southern drawl`;
                 pitch = '+1Hz';
                 rate = '+3%';
             } else {
                 emotion = 'calm';
-                geminiTag = '[in character, no American southern drawl]';
-                directorNote = 'Speaking in character with authentic creature presence, no American southern drawl';
+                geminiTag = `[${archetypeDesc}, in character, no American southern drawl]`;
+                directorNote = `${archetypeDesc}, in character with authentic creature presence, no American southern drawl`;
                 pitch = '+0Hz';
                 rate = '+0%';
             }

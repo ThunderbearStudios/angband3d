@@ -166,16 +166,16 @@ const TTS_VOICE_MAP = {
 
 // Realm-Contextual Casting Map for Lorekeeper Narrators (Google Gemini High-Quality Audio)
 const GEMINI_REALM_NARRATOR_MAP = {
-    angband: 'Zephyr',        // Noble, wise, scholarly Tolkien chronicler (Master Elrond)
+    angband: 'Enceladus',     // Venerable, weathered Old English male storyteller (Master Elrond)
     silq: 'Charon',           // Solemn, grave, deep First-Age mythic bard (Daeron of Doriath)
     frogcomposband: 'Fenrir', // Bold, sharp, cynical Amber fencing wit (Corwin of Amber)
     hengband: 'Gacrux',       // Disciplined, weathered Eastern Bushido master (Miyamoto Musashi)
-    default: 'Zephyr'
+    default: 'Enceladus'
 };
 
 // Curated 30 Character Archetype Casting Matrix for Gemini Native Audio (Free Tier Preview)
 const GEMINI_VOICE_MAP = {
-    narrator: 'Zephyr',          // Expressive, scholarly storyteller
+    narrator: 'Enceladus',       // Expressive, venerable Old English male storyteller
     mentor: 'Gacrux',           // Mature, raspy, ancient scholar
     idiot: 'Puck',              // Upbeat, blubbering, eccentric babbler
     female_townsperson: 'Aoede', // Breezy, lyrical, gentle townsfolk
@@ -188,17 +188,17 @@ const GEMINI_VOICE_MAP = {
     spellcaster: 'Gacrux',
     veteran: 'Orus',            // Firm, commanding warrior
     female_veteran: 'Kore',     // Firm, battle-scarred swordswoman
-    orc: 'Fenrir',              // Excitable, guttural snarls
+    orc: 'Fenrir',              // Harsh, guttural snarls and aggressive combat barks
     giant: 'Charon',            // Cavernous, hollow booming bass (Half-Giant, Half-Titan, Half-Troll)
     dwarf: 'Algenib',           // Deep, gravelly subterranean rumble
     hobbit: 'Puck',             // Diminutive, lively tenor
     gnome: 'Puck',
     dragon: 'Algenib',          // Deep, gravelly draconic power
-    high_undead: 'Algenib',     // Sepulchral resonance
+    high_undead: 'Charon',      // Sepulchral, chilling hollow resonance
     beggar: 'Puck',
     beast: 'Fenrir',            // Bestial snarl
     creature: 'Fenrir',
-    default: 'Zephyr'
+    default: 'Enceladus'
 };
 
 // Canonical Character Accent Directorial Map for Immersion (Enforces Zero Southern Accents)
