@@ -1,201 +1,161 @@
 # Angband 3D
 
-> **A 35-year-old C codebase meets modern 3D: Preserving roguelike history through high-performance engine decoupling.**
+> **Four Legendary Roguelike Engines. One Living 3D World. Over Three Decades of Tactical History Preserved Through High-Performance Engine Decoupling.**
 
 [![Play Online in Browser](https://img.shields.io/badge/⚔_Play_Online-angband3d.com-gold?style=for-the-badge&logo=googlechrome)](https://angband3d.com)
-[![Watch 10-Act Showcase](https://img.shields.io/badge/🎬_Watch_Showcase-angband3d.com%2Fdemo-red?style=for-the-badge&logo=youtube)](https://angband3d.com/demo)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
-[![Engine: Angband 4.2.6](https://img.shields.io/badge/Engine-Angband_4.2.6-darkgreen.svg)](https://github.com/angband/angband)
-[![Web Client: Three.js WebGL](https://img.shields.io/badge/Web_Client-Three.js_WebGL-orange.svg)](server/public)
-[![Desktop Client: Godot 4.3+ .NET](https://img.shields.io/badge/Desktop_Client-Godot_4.3+_.NET_8-blueviolet.svg)](https://godotengine.org/)
-[![Tome: Web Client Only](https://img.shields.io/badge/Tome_of_Knowledge-Web_Only-gold.svg)](#-platform-feature-matrix--the-tome-feature-scope)
-[![Audit: 100% Lore Accurate](https://img.shields.io/badge/Lore_Audit-100%25_Passing_(624%2F624)-brightgreen.svg)](docs/MODEL_AND_SPRITE_LORE_AUDIT.md)
-[![Vulnerabilities: 0](https://img.shields.io/badge/Vulnerabilities-0_Reported-success.svg)](server)
-[![Smoke Tests: 11/11 Passing](https://img.shields.io/badge/Smoke_Tests-11%2F11_Passing-success.svg)](tools/smoke_test.py)
+[![Engines: 4 Authoritative Realms](https://img.shields.io/badge/Engines-Vanilla_•_Sil--Q_•_FCB_•_Hengband-darkgreen.svg)](#-four-legendary-realms-one-unified-experience)
+[![Web Client: Three.js PBR](https://img.shields.io/badge/Web_Client-Three.js_WebGL_PBR-orange.svg)](server/public)
+[![Desktop Client: Godot 4 C#](https://img.shields.io/badge/Desktop_Client-Godot_4.3+_.NET_8-blueviolet.svg)](https://godotengine.org/)
+[![Mobile: Android Standalone APK](https://img.shields.io/badge/Mobile-Android_SDK_34_APK-green.svg)](#-play-instantly-cross-platform-matrix)
+[![Tests: 18/18 Fast + 11/11 Smoke](https://img.shields.io/badge/Automated_Gates-100%25_Passing-brightgreen.svg)](tools)
 
 ---
 
-> ### 🌟 Official Live Links
-> - ⚔ **Play Now in Browser**: **[https://angband3d.com](https://angband3d.com)** *(Instant full 3D Roguelike, zero install across Desktop, iOS & Android)*
-> - 🎬 **Official 10-Act Showcase**: **[https://angband3d.com/demo](https://angband3d.com/demo)** *(YouTube-grade 1080p interactive walkthrough with chapter jump, 0-turn yaw, dual-reality CRT mode & boss dragon clash)*
+> ### 🌟 Official Live Links & Instant Play
+> - ⚔ **Play Now in Browser**: **[https://angband3d.com](https://angband3d.com)** *(Instant 60 FPS 3D roguelike, zero install across Desktop, iOS & Android)*
+> - 💻 **Standalone Windows PC**: **[Download Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** *(144+ FPS native offline play powered by Godot 4 C#)*
+> - 📱 **Standalone Android App**: **[Download Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** *(Offline mobile play with tactile split-thumb D-pad)*
+> - 📖 **GitHub Pages Documentation Portal**: **[https://thunderbearstudios.github.io/angband3d/](https://thunderbearstudios.github.io/angband3d/)**
 
 ---
 
-## 🌍 Open Source, Open Architecture, Open to All
+## ⚔️ The Vision: Playability First, 100% Uncompromised Mechanics
 
-**Angband 3D is 100% Free and Open Source Software (FOSS).**
+Classic turn-based roguelikes represent some of the most mathematically deep, tactically unforgiving, and strategically emergent game designs in computer history. Yet for decades, bringing them into 3D has almost always meant **shallow action-RPG rewrites** that discard their intricate simulation rules, RNG fairness, and legendary difficulty.
 
-We believe that classic game preservation thrives through open code, transparent architecture, and community empowerment. This repository is not merely a playable game—it is an **open blueprint** demonstrating how classic, terminal-based C roguelikes can be decoupled and transformed into immersive 3D experiences without rewriting a single rule of game mechanics or random number generation.
+**Angband 3D solves this problem permanently through architectural decoupling.** 
 
-> ### 🤝 An Open Invitation to Creators, Modders & Roguelike Devs
-> **Fork it. Mod it. Make it your own.**
-> - **Build Your Own Frontend**: Use our clean JSON wire protocol ([`docs/PROTOCOL.md`](docs/PROTOCOL.md)) to craft a client in Unreal Engine, Unity, Bevy, Raylib, or VR.
-> - **Bridge Other Classic Roguelikes**: Adapt our ~200-line C bridge architecture ([`docs/GENERIC_ENGINE_INTEGRATION.md`](docs/GENERIC_ENGINE_INTEGRATION.md)) to bring *NetHack*, *Moria*, *Dungeon Crawl Stone Soup (DCSS)*, *ADOM*, *IVAN*, or *Sil* into first-person 3D!
-> - **Add Custom 3D Art & Assets**: Follow our simple drop-in asset recipe ([`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)) to add CC0 3D models, textures, animations, or acoustic soundscapes.
-> - **Host Your Own Cloud Server**: Deploy your own private web instance with Docker or Google Cloud Run in under five minutes ([`docs/CLOUD_DEPLOYMENT.md`](docs/CLOUD_DEPLOYMENT.md)).
+Rather than rewriting the game, Angband 3D runs **four authoritative, unmodified C/C++ roguelike engines** in headless bridge mode. Every combat roll, saving throw, item generation curve, stealth check, and monster AI pathfinding decision runs bit-for-bit canonical upstream C code. Frontends—whether our responsive Three.js WebGL client, native Godot 4 C# engine, or standalone Android APK—act purely as reactive presentation layers.
+
+The result is a breathtaking first-person dungeon crawl with real-time camera look, procedural lighting, and voiced narrative sagas, built upon a foundation of absolute mathematical rigor.
 
 ---
 
-## 🎮 Play Instantly & Official Showcase (Web & Standalone Downloads)
+## 🎮 Playability Features That Redefine the Dungeon Crawl
 
-* **Official Interactive Showcase**: 👉 **[https://angband3d.com/demo](https://angband3d.com/demo)**  
-  Watch the broadcast-quality 10-act gameplay walkthrough with chapter navigation, 0-turn camera yaw demonstration, bit-for-bit Angband 4.2.6 mechanics, dual-reality [Tab] CRT terminal mode, and voiced AI Living Chronicle.
-* **Web Edition (Desktop & Mobile)**: 👉 **[https://angband3d.com](https://angband3d.com)**  
-  *(Cloud Run Mirror: [https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app))*  
-  Runs directly in Chrome, Safari, Edge, or Firefox across PC, Mac, iPad, iPhone, and Android with zero installation. Features full mouse/keyboard look, responsive touch D-pad, and the **exclusive Adventure Tome / Living Chronicle**.
-* **Standalone Windows PC Desktop**: Download **[Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** for 144+ FPS, zero-latency offline native play powered by Godot 4 .NET C#.
-* **Standalone Android App (.APK)**: Download **[Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** for phones and tablets (Target SDK 34, Android 14+). *(Note: This build is signed with a new key. Export your saves, uninstall the old app, install this one, then import your saves.)*
-
-> ⚠️ **Server Concurrency & Offline Play**:  
-> The live web instance at `angband3d.com` is hosted on a modest, self-funded Google Cloud Run instance with an automated 50-player concurrency cap. If a traffic wave hits, we warmly encourage downloading the **Standalone Windows PC** or **Android APK** releases! Standalone packages offload 100% of compute to your local device, run completely offline, and require zero cloud connectivity.
-
-> 💾 **100% Universal Save Game Portability (`SaveVNLA` Everywhere)**:  
-> Angband 3D preserves authentic binary `SaveVNLA` structure. Your character savefiles (`.sav`) are completely interoperable across all platforms:
-> - Dive during lunch in your desktop web browser.
-> - Export your savefile with 1 click from the pause menu (`Esc` -> `Export Save`).
-> - Drop it directly into your offline Windows Desktop client or continue your dungeon crawl on Android during your commute!
-> - *(Whether you embrace unforgiving ironman permadeath or back up your saves to survive Morgoth's deepest vaults, you have full freedom to play your way.)*
-
----
-
-## 📊 Platform Feature Matrix & The Tome Feature Scope
-
-To maintain absolute software purity, zero-dependency offline resilience, and optimal battery efficiency on mobile devices, features are purposefully scoped across platforms:
-
-| Feature | Web Client (`angband3d.com`) | Native Desktop (Godot 4 C#) | Android APK (Mobile) |
-|---|---|---|---|
-| **Primary Platform** | Modern Web Browsers (PC / Mac / Mobile) | Windows x64 PC | Android 14+ Phones & Tablets |
-| **Rendering Pipeline** | Three.js WebGL / PBR Shading | Godot 4.3+ .NET 8 (Vulkan / D3D12) | WebGL / Capacitor Hardware Acceleration |
-| **Target Framerate** | 60 FPS VSync | 144+ FPS Unlocked | 60 FPS Battery-Optimized |
-| **Offline Capability** | Offline via local Node / PWA | **100% Offline Standalone** | **100% Offline Standalone** |
-| **Authoritative C Engine** | Child Process Pool / WebAssembly | Local Child Process (`stdio`) | Local Process / WebAssembly |
-| **4096×4096 HD Atlases** | ✅ Included (Normal Mapped) | ✅ Included (High-DPI Bilinear) | ✅ Included (Hardware Compressed) |
-| **De-fringed Silhouettes & CAS** | ✅ Included (0.35 Alpha Cutout) | ✅ Included (Alpha Scissor) | ✅ Included (0.35 Alpha Cutout) |
-| **4-Level Biome Depth Chapters** | ✅ Included (Micro-formations) | ✅ Included (MultiMesh Materials) | ✅ Included (Micro-formations) |
-| **3D Mesh Auto-Upgrade** | ✅ Included (27 Core Meshes) | ✅ Included (Rigged Humanoids) | ✅ Included (27 Core Meshes) |
-| **Procedural DSP Audio** | ✅ Web Audio API Synthesizer | ✅ 16-bit PCM Generator | ✅ Web Audio API Synthesizer |
-| **Touch Ergonomics & D-Pad** | ✅ Responsive Split-Thumb | ➖ Mouse & Keyboard Focus | ✅ Responsive Split-Thumb |
-| **Universal Binary Saves** | ✅ Import / Export `SaveVNLA` | ✅ Native File Disk `SaveVNLA` | ✅ Export / Restore `SaveVNLA` |
-| **📖 Adventure Tome & Chronicle** | ✅ **EXCLUSIVE TO WEB CLIENT** | ❌ **Excluded** (Offline Engine Purity) | ❌ **Excluded** (Offline Engine Purity) |
-
-> 📌 **Note on The Adventure Tome**:  
-> The **Adventure Tome / Living Chronicle** and Voiced Lorekeeper (`server/public/js/chronicle/`) are **strictly available on the Web Client**. Native Godot C# desktop and mobile clients deliberately omit this web-only narrative layer to maintain 100% offline self-containment, zero external network dependencies, and lightning-fast binary execution.
-
----
-
-## 💡 The Philosophy: Preservation Over Reimplementation
-
-Classic roguelikes like *Moria* (1983) and *Angband* (1990) represent over three decades of continuous balance, complex item generation algorithms, tactical monster AI, and emergent dungeon ecology. 
-
-Most modern attempts to bring classic roguelikes into 3D make a fatal mistake: **they rewrite the game from scratch**. In doing so, they inadvertently discard 35 years of battle-tested game logic, resulting in shallow action-RPG clones that lack the mathematical depth and punishing tactical rigor of the original.
-
-**Angband 3D takes the opposite approach**:
-* The entire game engine remains the authoritative, unmodified **Angband 4.2.6 C codebase**.
-* Every monster roll, artifact curse, dungeon vault, saving throw, and pseudo-random seed runs pure upstream C logic.
-* Presentation is completely decoupled from mechanics via a high-speed, zero-allocation C JSON bridge (`-mbridge`).
-* The player experiences *Dungeon Master*-style 3D immersion, but every single tactical rule and turn-based mechanic remains 100% faithful to Angband.
-
----
-
-## 🏛️ System Architecture
-
-Angband's venerable terminal display architecture is bridged into a reactive event stream that drives two distinct frontends:
+### 1. 🌌 Four Legendary Realms, One Unified Experience
+Choose your destiny across four masterworks of the open-source roguelike genre, switchable in one click from the title screen:
 
 ```
-                        +------------------------------------+
-                        |     Upstream Angband 4.2.6 C       |
-                        |     Mechanics, RNG, DGN, Saves     |
-                        +------------------------------------+
-                                           |
-                                engine/src/main-bridge.c
-                                JSON Bridge Term (-mbridge)
-                                           |
-                      +--------------------+--------------------+
-                      |                                         |
-                stdio / IPC                               stdio / IPC
-                      |                                         |
-             client/ (Godot 4 C#)                     server/src/server.js (Node.js)
-          +-----------------------+                   +----------------------------+
-          | Native Desktop Host   |                   | Cloud Session Supervisor   |
-          | Direct Stdio Pipe     |                   | Isolated Process Pool      |
-          | Windows x64 Standalone|                   +----------------------------+
-          +-----------------------+                                 |
-                                                              WebSocket JSON
-                                                                    |
-                                                      server/public/ (Three.js WebGL)
-                                                      +----------------------------+
-                                                      | Universal Web / Mobile App |
-                                                      | Touch D-Pad, Responsive UX |
-                                                      | Exclusive Adventure Tome   |
-                                                      +----------------------------+
+                                    +-----------------------------------------+
+                                    |        ANG BAND 3D MULTI-REALM          |
+                                    +-----------------------------------------+
+                                                         |
+         +-----------------------+-----------------------+-----------------------+-----------------------+
+         |                       |                       |                       |                       |
+         v                       v                       v                       v
++-----------------+     +-----------------+     +-----------------+     +-----------------+
+| Vanilla Angband |     |      Sil-Q      |     | FrogComposBand  |     |    Hengband     |
+|     (v4.2.6)    |     |     (v1.5.0)    |     |     (v7.1.1)    |     |     (v3.0.1)    |
++-----------------+     +-----------------+     +-----------------+     +-----------------+
+| • 100 Dungeon   |     | • First Age     |     | • Sprawling     |     | • Japanese Chaos|
+|   Levels        |     |   Beleriand     |     |   Multiverse    |     |   Lore & Classes|
+| • Overthrow     |     | • Zero Mana/Shop|     | • Overworld     |     | • Live Bilingual|
+|   Morgoth       |     | • Song & Stealth|     |   Wilderness    |     |   JP ↔ EN Toggle|
+| • Vault Raiding |     | • Forge Crafting|     | • Monster Races |     | • Feudal Eastern|
+| • Artifacts     |     | • Cut Silmaril  |     | • Chasm Abysses |     |   Archetypes    |
++-----------------+     +-----------------+     +-----------------+     +-----------------+
 ```
 
-### The Dual-Stream Protocol
-On every turn or UI interaction, the C bridge emits two synchronized channels:
-1. **Structured Game State**: Strongly typed telemetry covering player vitals, dungeon depth, grid-relative FOV, visible monster entities, ground items, active light radii, and combat feedback banners.
-2. **Raw 80x24 Terminal Stream**: An authentic monospace character matrix capturing Angband's character birth sequence, town stores, inventory menus, and targeting prompts.
+* **Vanilla Angband 4.2.6 (The Classical Descent)**: The definitive Middle-earth dungeon crawl. 100 sprawling dungeon levels, hundreds of unique artifacts, deadly breath weapons, and the ultimate descent to confront and defeat Morgoth, Lord of Darkness.
+* **Sil-Q 1.5.0 (The First Age Tactical Masterpiece)**: Set in the ancient fortress of Angband during the First Age. Featuring Sil-Q's legendary Song system, 0 mana potions, 0 magic shops, positional melee combat, assassination from the shadows, masterwork smithing at subterranean forges, and the daring quest to carve a Silmaril from the Iron Crown.
+* **FrogComposBand 7.1.1 (The Sprawling Multiverse)**: An expansive sandbox featuring a massive overworld wilderness, multiple towns, deep bottomless pit chasms (`#`), and hundreds of playable races and classes—from Dragons and Ringwraiths to Time Mages and Beholder monks.
+* **Hengband 3.0.1 (Eastern Chaos & Bilingual Brilliance)**: The revered Japanese variant blending Eastern folklore with chaotic high-fantasy roguelike mechanics. Features real-time line-level Japanese ↔ English bilingual translation (`heng-translate.js`), allowing you to toggle languages on the fly without restarting.
 
 ---
 
-## 🌟 Technical Highlights & Core Architectural Patterns
+### 2. ⚡ The Camera Invariant: 0-Turn Look Meets Pure Turn-Based Tactics
+In traditional 2D roguelikes, turning your head is inseparable from taking a step. In first-person 3D, advancing game time whenever you look around makes movement unplayable, while making the entire game real-time destroys the tactical depth.
 
-### 1. Solving the 3D Turn-Based Dilemma (The Camera Invariant)
-In a 2D roguelike, looking in a direction is indistinguishable from moving. In first-person 3D, forcing a turn tick every time the camera moves feels unplayable, while making it real-time destroys the game mechanics.
-* **The Solution**: Client-side camera yaw, pitch, and mouse look are **instantaneous and cost 0 game turns**.
-* Only translational steps (`Forward`, `Backward`, `Strafe`, `Wait`, `Attack`) dispatch an input token to the C engine, consuming an authoritative Angband game turn.
-* Monsters only step or strike when you take a turn, preserving pure turn-based tactical deliberation.
+* **Angband 3D's Solution**: Camera yaw, pitch, and smooth first-person mouse look cost **exactly zero game turns**.
+* You can look down dark hallway intersections, inspect distant monsters, peek into stone alcoves, and admire vaulted gothic archways freely without advancing time.
+* The moment you execute a translational command (`Step Forward`, `Strafe`, `Attack`, `Quaff`, `Cast`, `Wait`), an authoritative turn token is dispatched to the C engine. Monsters only advance or strike when you take a turn.
 
-### 2. Master Lore Accuracy & 4096×4096 HD Atlases
-Angband 3D standardizes on the beloved, authentic 2.5D illustrated dark-fantasy visual aesthetic:
-* **100% Lore Accuracy Audit**: Validated by automated CI tests (`tools/audit_atlas_models.js`) cross-referencing all 624 monster species and 498 items against upstream canonical Shockbolt PRF tables by **Raymond "Shockbolt" Gaustadnes**.
-* **Math Floor Alignment**: Eradicated IEEE 754 banker's rounding shifts, ensuring creatures like the **Hippogriff** (`[H]`, eagle-headed winged horse) render with their authentic artwork on Row 4, Col 19 rather than shifting into Flesh Golems.
-* **4096×4096 HD Atlases**: 4× pixel density (128×128 pixel tiles) upscaled with high-quality bicubic filtering.
-* **De-fringed Silhouettes & CAS Sharpening**: Legacy baked 2D drop-shadows are stripped programmatically, edge alpha is un-premultiplied, and Contrast-Adaptive Cross-Laplacian sharpening restores razor-sharp eyes, claws, and weapon bevels.
-* **Bilateral Normal Maps & Contact Shadows**: 5×5 bilateral denoised normal maps catch dynamic torchlight glints, while real-time ground contact shadows anchor entities to stone floors.
-* **Live 3D Auto-Upgrade**: 27 core 3D polygon meshes (rats, spiders, imps, skeletons, stone pillars) automatically upgrade into full 3D when loaded, with automatic vertex normal smoothing (`computeVertexNormals()`).
+---
 
-### 3. Progressive 4-Level Biome Depth Chapters
-Rather than monotonous stone walls across 100 dungeon levels, the descent is partitioned into progressive 4-level chapters (~200 ft per chapter):
-* **Chapter 1 (50–200 ft / Lvl 1–4)**: Upper Crypts (Granite Ashlar, Cold Slate, Cool Slate Fog).
-* **Chapter 2 (250–400 ft / Lvl 5–8)**: Flooded Undercrofts (Wet Slate, Reflective Water Floors `roughness: 0.44`, Damp Aquamarine Mist).
-* **Chapter 3 (450–600 ft / Lvl 9–12)**: Deep Sepulchre (Ancient Earthen Sandstone, Deep Amber Flame, Violet Shadows).
-* **Chapter 4 (650–800 ft / Lvl 13–16)**: Overgrown Catacombs (Verdant Lichen, Fungal Spores, Emerald Haze).
-* **Chapters 5–9 (850–5000 ft / Lvl 17–100)**: Chasm Threshold, Crystal Caverns, Magma Underworld, Abyssal Nether Vaults, and Morgoth's Iron Citadel.
-* Micro-formations (lichen patches, mineral streaks, sandstone salt deposits) are procedurally mapped to tile instances.
+### 3. 🖥️ Dual-Reality Mode: Seamless 3D & Authentic CRT Canvas
+Transition seamlessly between modern 3D immersion and nostalgic terminal play with a single keystroke (`Tab`) or screen tap:
 
-### 4. Dynamic Physical Height Scaling (Perspective Mechanics)
-In Angband, rolled character race and physical height (e.g., a 36-inch Hobbit vs. a 104-inch Half-Troll) were historically numbers on an ASCII sheet.
-* In Angband 3D, **height dynamically scales the entire physical 3D world**:
-  * **Halflings & Gnomes (~36–44")**: Camera eye height drops to ~0.95m with an 86° FOV. You look up at stone archways and towering trolls, instilling subterranean dread.
-  * **Humans & Elves (~68–76")**: Standard balanced dungeon eye height (~1.68m).
-  * **Half-Trolls & High-Elves (~84–104")**: Commanding eye height (~2.15m) peering down corridors from near the ceiling rafters.
-* First-person viewmodel hands, reaching distances, weapon scaling, and footstep acoustic pitch all modulate dynamically with character stature.
+* **Instant Zero-Turn View Toggling**: Press `Tab` at any millisecond to switch between the 3D first-person perspective and an authentically emulated 80×24 CRT canvas complete with amber/green phosphorus glow, scanlines, and CRT curvature.
+* **Intelligent Auto-Routing (`needsTerminal`)**: The client automatically presents the terminal canvas during intricate multi-step interactions—such as rolling character birth attributes, inspecting your full equipment sheet (`e`), or bartering with shopkeepers in town—then drops you right back into first-person 3D the moment you return to the dungeon floor.
+* **3D Directional Targeting**: When aiming wands, staves, bows, or ball spells, Angband 3D keeps you in first-person 3D with a contextual targeting prompt. Aim with relative arrow keys, press `t` to snap to the nearest visible threat, and loose your missile with full line-of-sight clarity.
 
-### 5. Zero-Asset Procedural Audio (Mathematical Sound Synthesis)
-Instead of shipping gigabytes of bloated audio samples or risking copyrighted sound effects:
-* **100% Procedural Foley**: Audio is dynamically synthesized in real-time via the Web Audio API (`server/public/js/audio.js`) and dynamic 16-bit PCM generators in C# (`client/scripts/AudioManager.cs`).
-* **Physical Synthesizers**:
-  * *Blade Crits & Clangs*: Euler-Bernoulli bar mode transients with high-frequency ricochets.
-  * *Quaffing Potions*: Granular fluid turbulence simulation.
-  * *Reading Scrolls*: Resonant harmonic chimes modulated by fibrous friction noise.
-  * *Monster Grunts*: Vocal tract formant resonators with guttural low-frequency growls.
-* **Master Dynamics Limiter**: An inline Web Audio `DynamicsCompressorNode` (-12dB threshold, 4.5 ratio) permanently protects player ears against clipping during frantic combat bursts.
+---
 
-### 6. Seamless Classic Monospace Overlay
-Whenever complex interaction is needed (rolling stats at birth, browsing inventory `i`, or purchasing goods in the Alchemy Shop), the game seamlessly overlays an authentic 80x24 monospace terminal.
-* You never lose classic Angband interface muscle memory.
-* Terminal canvas supports mouse wheel zoom and smooth panning on desktop, and two-finger pinch-to-zoom on mobile, strictly isolated so gesture navigation never triggers accidental in-game commands.
+### 4. 🎛️ Universal Movable HUD & Ergonomic Controls
+Every adventurer plays differently. Angband 3D features a complete, zero-lag draggable HUD system where **every major interface widget can be repositioned and customized**:
 
-### 7. Robust Mobile & Tablet Touch Architecture
-* **Split-Thumb Layout**: Left thumb controls an 8-way directional D-pad; right thumb controls an adaptive action cluster (`Attack`, `Cast`, `Potion`, `Pack`, `Stairs`, `More`).
-* **Synthetic Click Suppression**: Strict timing suppression (<500ms post-touch) prevents duplicate input dispatches across mobile Safari and Chrome.
-* **Contextual Prompt Ribbon**: Character birth menus, store transactions, and Yes/No/Quantity prompts automatically map to tactile one-tap buttons.
+* **Tactile Virtual D-Pad (`#touch-controls`)**:
+  * Equipped with a dedicated top grip (`✥ MOVE PAD`) that lets phone, tablet, and desktop players drag the directional pad anywhere on screen.
+  * Three-step cycling scale button (`0.85x` compact, `1.0x` standard, `1.20x` large).
+  * One-tap minimize/collapse toggle to tuck the pad away during keyboard play while keeping quick-turn wings accessible.
+* **Hero Card & Expandable Context Drawer (`#char-panel`)**:
+  * Draggable status medallion displaying real-time HP, MP, Voice/Stamina, and AC gauges.
+  * 1-click toggle (`▾`) reveals the **Extended Character Context Drawer**: full view of all primary attributes (`STR..CHR` or Sil-Q's 4 core attributes + 8 skills), secondary stats (To-Hit, To-Dam, Speed, Burden, Turn, Depth), and active condition badges (`✨ Blessed`, `🩸 Cut`, `🧪 Poisoned`, `⚡ Hasted`, `🛡 Shielded`).
+* **Tactical Radar Minimap & Combat Feed**:
+  * Draggable 2D radar with live cell hover tooltips, click-to-inspect coordinates, and stair indicators.
+  * Draggable combat and message log with pinned height invariants, smooth 6s idle fade, and 1-click banner expansion.
+* **Cross-Device Layout Persistence (`angband3d_hud_layout_v2`)**:
+  * Widget coordinates are stored in `localStorage` as viewport percentage ratios, ensuring your custom layout translates cleanly between desktop ultrawides, laptops, tablets, and phones.
+  * Emergency **"↺ Reset HUD"** button in both the HUD footer and Pause modal restores default layout in 1 click.
 
-### 8. The Adventure Tome & Companion Chronicle (Web Client Only)
-Exclusive to the web client (`https://angband3d.com`), the optional Adventure Tome records your heroic descent in real time:
-* **Adaptive Literary Saga**: Translates player turns, combat blows, store visits, and vault discoveries into narrative prose attuned to your adventurer's heritage (Men, Elves, or Dwarves).
-* **Optional Voice Narration & Audio Deck**: Integrated speech synthesis deck with full playback controls, customizable narration speeds, and independent volume mixing.
-* **Diegetic Lorekeeper & Story Exports**: In-character gameplay tips, monster lore, and 1-click standalone HTML story exports to preserve your character's heroic journey or solemn death requiem.
+---
+
+### 5. 📖 The Living Chronicle: Voiced Lorekeepers & AI Masterwork Sketches
+*(Exclusive to the Web Client)*
+
+The dungeon comes alive with an integrated, zero-latency narrative engine powered by Google Gemini and procedural Web Audio:
+
+* **30-Archetype Neural Voice Matrix**:
+  * Features realm-specific literary Lorekeepers: **Enceladus** (Old English classical narrator for Vanilla Angband), **Zephyr**, **Charon** (grim, haunting First Age narrator for Sil-Q), **Fenrir** (chaotic mythic voice for FrogComposBand), and **Gacrux** (feudal Eastern narrator for Hengband).
+  * Distinct monster encounter voices spanning beasts, orcs, undead wights, high-tier demons, and ancient dragons.
+* **Proximity Speculative Pre-Warming**:
+  * As hostiles approach through the dark, the client speculatively pre-fetches and decodes neural vocal buffers in the background. The exact millisecond a creature enters your field of view, its vocal bark plays with **zero perceptible latency**.
+* **Intelligent Combat Flow Governor**:
+  * Automatically regulates voice queues during frantic skirmishes: routine melee strikes remain brief and punchy, while close calls, legendary artifact discoveries, and boss takedowns trigger triumphant narrative prose.
+* **On-Demand "🔮 Tale" Button**:
+  * Tap the Tale button in the HUD or Tome deck (or press `Alt+T`) to receive realm-attuned saga prose, strategic survival counsel, and lore insights tailored to your current dungeon depth, equipment, and surrounding foes.
+* **Full-Context Hero Action Sketches (`Alt+K`)**:
+  * Generates an illuminated `800×600` canvas etching and AI-rendered masterwork illustration capturing your hero's exact character race, class, physical traits, equipped weapons and armor, active wounds or blessings, and recent chronicle milestones.
+
+---
+
+### 6. 🎨 Photogrammetry Ultra-Realism & 4096×4096 HD Dark Fantasy Art
+Angband 3D combines 8K photogrammetry scans with the beloved dark-fantasy art of **Raymond "Shockbolt" Gaustadnes**:
+
+* **Photogrammetry 3D Weapons & Viewmodels**: First-person viewmodels feature CC0 8K-scanned Poly Haven models—including medieval estocs, sabers, katanas, ornate daggers, warhammers, maces, battleaxes, and kite shields—with animated weapon recoil upon attack.
+* **High-Realism 3D Bestiary**: 100% rigged 3D models for humanoids (Rangers, Peasants with distinct beard/hair variations), quadrupeds (timber wolves with realistic fur shading, sleek felines, horses), terrifying bestiary horrors (dragons, skulls, giant formics, iridescent scarab beetles, segmented centipedes, and dark-chitin cave spiders), and flora/oozes (gnarled tanglethorn brambles, bioluminescent fungal clusters, and translucent gelatinous oozes).
+* **Next-Gen Celestial Sky Dome**: When stepping onto town cobblestones or traversing wilderness plains, look up to behold a custom GLSL sky dome featuring the shimmering Milky Way galactic river, dark interstellar dust lanes, an animated boreal aurora veil, and a silver crescent moon with earthshine.
+* **4096×4096 Shockbolt HD Atlases**: Over 1,100 monster species and items mapped to 4× pixel density atlases, enhanced with bilateral normal maps, dynamic contact shadows, and contrast-adaptive sharpening.
+* **4-Level Biome Chapters**: As you delve deeper, the dungeon transitions every 200 feet through distinct architectural themes—from Upper Ashlar Crypts and Damp Flooded Undercrofts to Ancient Sandstone Sepulchres, Fungal Catacombs, and Deep Magma Pits.
+
+---
+
+### 7. 💾 Universal Save Game Portability
+Your character lives wherever you want to play:
+
+* **Universal Binary Saves (`SaveVNLA`, `SaveSILQ`, `SaveFROX`, `SaveHENG`)**:
+  * Savegames use authentic upstream binary formats.
+  * Export your save from your desktop browser with 1 click (`Esc` -> `Export Save`).
+  * Drop it into your offline Windows Desktop client or continue your dungeon crawl on your Android phone during your commute.
+  * Full freedom to back up your hero or embrace unforgiving ironman permadeath.
+
+---
+
+## 📱 Play Instantly: Cross-Platform Matrix
+
+| Feature / Client | Web Client (`angband3d.com`) | Native Desktop (Godot 4 C#) | Android Standalone APK | Desktop WebView2 (.NET 8) |
+|---|---|---|---|---|
+| **Direct Access** | **[Play in Browser](https://angband3d.com)** | **[Download .zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** | **[Download .apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** | **[Build from Source](desktop)** |
+| **Target Platform** | Any Web Browser (PC, Mac, Mobile) | Windows x64 PC | Android 14+ Phones & Tablets | Windows x64 PC |
+| **Graphics Pipeline** | Three.js WebGL / PBR Shading | Godot 4.3+ .NET 8 (Vulkan / D3D12) | WebGL / Capacitor Accelerated | Edge Chromium Engine |
+| **Target Framerate** | 60 FPS VSync | **144+ FPS Unlocked** | 60 FPS Battery-Optimized | 60 FPS VSync |
+| **Offline Playability** | Offline via PWA / Local Worker | **100% Offline Standalone** | **100% Offline Standalone** | **100% Offline Standalone** |
+| **Authoritative Engines**| 4 Realms (Vanilla, Sil-Q, FCB, Heng) | 4 Realms via local `stdio` | 4 Realms via local binaries | 4 Realms via local process |
+| **Universal Movable HUD**| ✅ Full Touch & Mouse Drag | ✅ Contextual HUD | ✅ Responsive Split-Thumb | ✅ Full Mouse Drag |
+| **Savegame Portability** | ✅ 1-Click Export/Import | ✅ Native File Disk | ✅ 1-Click Export/Import | ✅ Native File Disk |
+| **Voiced Living Chronicle**| ✅ **Full Gemini Neural Suite** | ➖ Offline Engine Purity | ➖ Offline Engine Purity | ✅ Full Gemini Neural Suite |
 
 ---
 
@@ -203,35 +163,93 @@ Exclusive to the web client (`https://angband3d.com`), the optional Adventure To
 
 | Action | Desktop Key | Mobile Touch Control |
 |---|---|---|
-| **Turn Camera 90°** | `Arrow Left` / `Right` | `Turn ↶` / `↷` Buttons |
+| **Turn Camera 90° (0-Turn)** | `Arrow Left` / `Right` | `Turn ↶` / `↷` Buttons |
 | **Move Forward / Backward** | `Arrow Up` / `Down` | D-Pad `▲` / `▼` |
 | **Strafe Left / Right** | `Numpad 4` / `6` | Strafe `⇦` / `⇨` |
 | **Diagonal Movement** | `Numpad 7 / 9 / 1 / 3` | Diagonal `↖ ↗ ↙ ↘` |
-| **Attack Adjacent / Wait** | `Space` *(or Numpad 5)* | `Attack / Wait (⚔)` |
+| **Attack Adjacent / Wait / Hold**| `Space` *(or `,` / Numpad 5)* | `Attack / Wait (⚔)` |
 | **Quaff Potion** | `q` | `Potion (🧪)` |
 | **Read Scroll** | `r` | `Scroll (📜)` |
-| **Cast Spell / Prayer** | `m` / `p` | `Cast (✨)` |
+| **Cast Spell / Sing Song** | `m` / `p` | `Cast (✨)` |
 | **Fire Ranged Weapon** | `f` | `Shoot (🏹)` |
 | **Pick Up Floor Item** | `g` | `Get (💎)` |
 | **Open Door / Chest** | `o` | `Door (🚪)` |
-| **Use Staircase** | `>` / `<` | `Descend (⬇)` / `Ascend (⬆)` |
+| **Use Staircase (Descend/Ascend)**| `>` / `<` | `Descend (⬇)` / `Ascend (⬆)` |
 | **Inventory / Equipment** | `i` / `e` | `Pack (🎒)` / `Gear (🛡)` |
 | **Rest to Full HP/Mana** | `R` | `Rest (⏳)` |
-| **Toggle Monospace Terminal**| `Tab` | `Classic (📜)` |
-| **2D Full Tactical Map** | `Shift-M` | `Map (🗺)` |
-| **Minimap Radar Zoom** | `+` / `-` | Minimap `+` / `-` |
-| **Smooth First-Person Look**| `Mouse Drag` | Touch Drag on 3D View |
-| **In-Game Menu & Saves** | `Escape` | `Menu (⚙)` |
+| **Toggle CRT Monospace View** | `Tab` | `Classic (📜)` |
+| **2D Full Tactical Map** | `Shift + M` | `Map (🗺)` |
+| **Living Chronicle / Tome** | `Alt + T` *(Tale)* / `Alt + K` *(Sketch)* | `Tome (📖)` |
+| **Smooth First-Person Look** | `Mouse Drag` | Touch Drag on 3D View |
+| **Pause Menu, Saves & Settings** | `Escape` | `Menu (⚙)` |
 
 ---
 
-## 🛠️ Replication & Developer Quick Start
+## 🌍 The Open Source Hooks & Architecture
 
-You can build, test, and run the entire Angband 3D stack locally with minimal effort.
+Angband 3D is not a walled garden. It is an **open architecture and educational reference** demonstrating how classic terminal-based software can be elevated to modern graphic standards without breaking upstream backward compatibility.
+
+```
+                        +------------------------------------+
+                        |   Authoritative C/C++ Engines      |
+                        |   Vanilla 4.2.6 • Sil-Q 1.5.0      |
+                        |   FrogComposBand • Hengband 3.0    |
+                        +------------------------------------+
+                                           |
+                              main-bridge.c / main-bridge.cpp
+                                   JSON Wire Emitter
+                                           |
+                       +-------------------+-------------------+
+                       |                                       |
+                 stdio / Pipes                           stdio / Pipes
+                       |                                       |
+              client/ (Godot 4 C#)                   server/src/server.js (Node.js)
+           +-----------------------+                 +----------------------------+
+           | Native Desktop Host   |                 | Cloud Session Multiplexer  |
+           | Direct Binary Stdio   |                 | Stdio Subprocess Pool      |
+           | Unlocked 144+ FPS     |                 +----------------------------+
+           +-----------------------+                               |
+                                                             WebSocket JSON
+                                                                   |
+                                                     server/public/ (Three.js WebGL)
+                                                     +----------------------------+
+                                                     | Universal Web / Mobile App |
+                                                     | Movable HUD • Living Tome  |
+                                                     +----------------------------+
+```
+
+### 1. The ~200-Line C Bridge Pattern
+Classic roguelikes are uniquely suited to 3D decoupling because their game loops are strictly turn-based. Inside `engine/src/main-bridge.c` and `variants/*-src/src/main-bridge.*`, the engine integration hook follows a simple, repeatable blueprint:
+1. **Intercept the Blocking Key Input Loop**: Replace `cgetc()` or `Term_inkey()` with a non-blocking `stdin` JSON line parser.
+2. **Emit the Dual-Channel Frame**: On every turn tick, serialize:
+   - **Structured Telemetry**: Player coordinates `(px, py)`, dungeon depth, HP, SP, speed, visible monsters, ground items, light radii, and combat messages.
+   - **Monospace 80×24 Character Buffer**: The exact character glyph and color matrix representing the authentic terminal.
+3. **Execute Dispatched Action Tokens**: Convert incoming JSON command tokens back into native engine keycodes without altering game logic.
+
+> 📚 **Read the Complete Engine Porting Guide**: See [`docs/GENERIC_ENGINE_INTEGRATION.md`](docs/GENERIC_ENGINE_INTEGRATION.md) for how to adapt *NetHack*, *Moria*, *Dungeon Crawl Stone Soup (DCSS)*, *ADOM*, or *IVAN* into first-person 3D using this exact bridge!
+
+### 2. The Clean JSON Wire Protocol
+All communication between authoritative engines and graphical frontends is strictly standardized and documented in [`docs/PROTOCOL.md`](docs/PROTOCOL.md). 
+
+Want to build your own Angband 3D client in **Unreal Engine 5**, **Unity**, **Bevy**, **Raylib**, or **Virtual Reality (OpenXR)**? You never need to touch C compilation or game logic—simply connect to the engine process over `stdio` or WebSockets and render incoming JSON state frames.
+
+### 3. Permissive, Fully Open Assets
+Every asset in Angband 3D adheres strictly to permissive, open-source licensing:
+* **Core Code & Engines**: GNU General Public License v2 (GPL-2.0).
+* **Photogrammetry 3D Models & PBR Textures**: CC0 1.0 Universal Public Domain Dedication (**Poly Haven**, **KayKit**, **Kenney**, **Quaternius**).
+* **Hand-Painted Creature & Item Atlases**: Master fantasy pixel art by **Raymond "Shockbolt" Gaustadnes** and the Angband Development Team (GPL-2.0).
+* **Typography**: SIL Open Font License 1.1 (*Cinzel*, *Outfit*, *Fira Code*).
+* See [`CREDITS.md`](CREDITS.md) for full licensing details and asset citations.
+
+---
+
+## 🛠️ Developer Quick Start & Self-Hosting
+
+You can compile, test, and run the entire Angband 3D stack locally in seconds.
 
 ### Prerequisites
 * **Node.js** (v18+) & **Python** (3.8+)
-* **GCC / Clang + CMake** (for compiling the C engine)
+* **GCC / Clang + CMake** (for compiling the native C engines)
 * **.NET 8 SDK & Godot 4.3+ Mono** *(Optional, only needed for compiling the native desktop client)*
 
 ### 1. Run the Web Edition Locally (30 Seconds)
@@ -240,10 +258,10 @@ You can build, test, and run the entire Angband 3D stack locally with minimal ef
 git clone https://github.com/ThunderbearStudios/angband3d.git
 cd angband3d
 
-# Build the headless C engine (Windows PowerShell)
+# Build all 4 authoritative C/C++ engines (Windows PowerShell)
 .\build.cmd
 
-# (On Linux / macOS: mkdir -p engine/build && cd engine/build && cmake .. -DSUPPORT_BRIDGE_FRONTEND=ON -DSUPPORT_GCU_FRONTEND=ON && make -j$(nproc) && cd ../..)
+# (On Linux / macOS: mkdir -p engine/build && cd engine/build && cmake .. -DSUPPORT_BRIDGE_FRONTEND=ON && make -j$(nproc) && cd ../..)
 
 # Install server dependencies and launch
 cd server
@@ -252,101 +270,81 @@ npm start
 ```
 Open **`http://localhost:8080`** in your browser to play immediately.
 
-### 2. Run the Native Desktop Godot Client
+### 2. Run the Native Godot C# Desktop Client
 ```powershell
-# From the root repository directory
-.\build.cmd
+# From the repository root
 dotnet build client/angband3d.csproj
 .\play.cmd
 ```
 
-### 3. Run Automated Validation & Verification Suites
+### 3. Run Automated Validation & Quality Gates
+Angband 3D maintains strict automated test suites across all layers:
 ```bash
-# 1. Engine JSON Bridge Verification (11/11 tests checking save/load, birth, IPC)
+# Fast Contract & Invariant Gate (18/18 test suites in < 15 seconds)
+node tools/run_tests.js --tier fast
+
+# C Engine Bridge Smoke Test (11/11 handshake, save/load & birth tests)
 python tools/smoke_test.py
 
-# 2. Master Lore Accuracy & Model Audit (624 monsters, 498 items, 27 meshes)
-node tools/audit_atlas_models.js
+# End-to-End Cross-Realm Browser Tests
+node tools/run_tests.js --tier e2e
 
-# 3. Hybrid Graphics & Biome Invariants (9/9 invariants)
-node tools/test_hybrid_graphics.js
-
-# 4. Server & Web Client Integration Tests (20/20 test suites)
-cd server && npm test
-
-# 5. Native Client Compilation Check (0 errors, 0 warnings)
-dotnet build client/angband3d.csproj
+# Real Chrome Browser CDP Test (Full 4-realm boot & 3D play verification)
+node tools/run_tests.js --tier cdp
 ```
 
----
+### 4. Deploy Your Own Cloud Server (Docker / Cloud Run)
+Angband 3D is 100% containerized and self-hostable. Deploy to Google Cloud Run in minutes:
+```bash
+# Build and submit the container
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/angband3d-cloud:latest .
 
-## 🔧 Building Your Own 3D Roguelike (Forking & Modding)
-
-Want to create your own 3D roguelike or bring another classic ASCII game into 3D? We built this codebase to be the cleanest possible starting point.
-
-### How to Adapt the C Bridge to Other Roguelikes
-1. **Read the Blueprint**: Consult [`docs/GENERIC_ENGINE_INTEGRATION.md`](docs/GENERIC_ENGINE_INTEGRATION.md) for the ~200-line minimal C bridge skeleton.
-2. **Hook the Input Loop**: Find where the source engine blocks for user input (e.g. `cgetc()`, `wgetch()`, or `Term_inkey()`).
-3. **Emit the State Frame**: Write out JSON containing:
-   - Player position, vitals, and depth.
-   - Visible map tile indices and flags.
-   - Entity list (monsters, items).
-   - Raw terminal character rows for fallback menus.
-4. **Consume Virtual Keystrokes**: Read line-delimited keypress tokens from `stdin` and feed them into the engine's event queue.
-5. **Connect the 3D Frontend**: Point either our Godot C# client or Three.js WebGL frontend to your new binary!
-
-### Adding Custom 3D Models
-Adding custom models is 100% declarative:
-* **Monster Models**: Open `client/scripts/MonsterModelResolver.cs` and add a registration rule:
-  ```csharp
-  RegisterModelRule('k', "res://assets/models/characters/Kobold.glb", scale: 0.75f, speed: 1.1f);
-  ```
-* **Item Pickups**: Open `client/scripts/ItemModelResolver.cs` and map an item glyph:
-  ```csharp
-  RegisterItemModel('/', "res://assets/models/items/Broadsword.obj", scale: 0.5f);
-  ```
-* **Web Client Meshes**: Place GLTF/GLB files in `server/public/assets/models/` and register them in `server/public/js/dungeon3d.js`.
-
-For detailed step-by-step contribution recipes, see [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
+# Deploy to Cloud Run with WebSocket support
+gcloud run deploy angband3d-cloud \
+  --image gcr.io/YOUR_PROJECT_ID/angband3d-cloud:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated
+```
+See [`docs/CLOUD_DEPLOYMENT.md`](docs/CLOUD_DEPLOYMENT.md) for full production deployment instructions.
 
 ---
 
-## 🔒 Security, Quality & Resilience Invariants
+## 🤝 An Open Invitation: Join the Fellowship
 
-To guarantee rock-solid stability and security across long-term deployments:
-1. **Zero Known Vulnerabilities**: `npm audit` in `server/` reports **0 vulnerabilities**. Dependencies are strictly pinned and minimal (`ws`, `msedge-tts`).
-2. **Path Traversal Defenses**: All savegame endpoints and static file deliveries strictly enforce `path.basename()` sanitization, reserved device name rejection (`CON`, `PRN`, `AUX`), and root directory containment checks (`filePath.startsWith(WEB_DIR)`).
-3. **Savegame Magic Verification**: Only files with authentic Angband `SaveVNLA` binary magic headers are accepted by the server.
-4. **Zero API Key Leakage**: LLM configuration endpoints never transmit raw API keys to browser clients. Authentication occurs exclusively via backend headers or client header injection (`x-goog-api-key`). Keys are never logged or formatted into URL query parameters.
-5. **Zero Memory Leak Guarantee**: WebGL geometries, textures, materials, and audio buffers implement deterministic lifecycle pooling and cleanup to prevent browser VRAM exhaustion.
+Angband 3D is a living, community-driven project dedicated to the celebration and preservation of classic roguelikes. There are countless exciting ways to contribute:
+
+* 🎨 **3D Artists & Animators**: Help expand our library of CC0 photogrammetry dungeon props, low-poly creature rigs, and medieval weaponry.
+* ⚔️ **Roguelike Devs**: Port your favorite classic roguelike (*NetHack*, *Moria*, *DCSS*, *ADOM*, *IVAN*) into 3D using our bridge architecture.
+* 🎧 **Audio Designers**: Craft new procedural Web Audio synthesis algorithms or atmospheric dungeon acoustic presets.
+* 🌐 **Frontend Hackers**: Build an alternate frontend in Unreal Engine, Unity, Bevy, or WebGPU!
+
+Check out our [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) guide and open an issue or pull request!
 
 ---
 
 ## 📖 Complete Technical Documentation Index
 
-* 📡 **[Wire Protocol Specification (PROTOCOL.md)](docs/PROTOCOL.md)**: Full specification of the JSON IPC format between engine and frontends.
-* 🏛️ **[Client Architecture (ARCHITECTURE.md)](docs/ARCHITECTURE.md)**: Godot C# scene graph and Three.js WebGL coordinate mappings.
-* 🧠 **[Best Practices & Lessons Learned (BEST_PRACTICES_AND_LESSONS_LEARNED.md)](docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md)**: Master engineering guide, edge cases, memory safeguards, and lessons learned.
-* 🎨 **[Hybrid Graphics Master Plan (HYBRID_GRAPHICS_MASTER_PLAN.md)](docs/HYBRID_GRAPHICS_MASTER_PLAN.md)**: Detailed specifications for 4096 HD atlases, normal mapping, biomes, and lore audits.
-* 🔍 **[Lore & Model Audit Report (MODEL_AND_SPRITE_LORE_AUDIT.md)](docs/MODEL_AND_SPRITE_LORE_AUDIT.md)**: Mathematical proof of row shift resolution and 6-part audit verification.
-* 🗺️ **[Generic Engine Integration Guide (GENERIC_ENGINE_INTEGRATION.md)](docs/GENERIC_ENGINE_INTEGRATION.md)**: Blueprint for porting NetHack, Moria, DCSS, or ADOM into 3D.
-* 💾 **[Save System & Cross-Play (SAVE_SYSTEM.md)](docs/SAVE_SYSTEM.md)**: Binary `SaveVNLA` state preservation and cloud persistence.
-* 🎨 **[Graphics & Shaders Handover (GRAPHICS_HANDOVER.md)](docs/GRAPHICS_HANDOVER.md)**: PBR materials, biomes, and kinetic VFX blueprints.
-* ☁️ **[Cloud Deployment Guide (CLOUD_DEPLOYMENT.md)](docs/CLOUD_DEPLOYMENT.md)**: Google Cloud Run setup, session affinity, and queue architecture.
-* 🤝 **[Contributing Guide (CONTRIBUTING.md)](docs/CONTRIBUTING.md)**: Step-by-step recipes for adding models, items, audio, and code.
+* 📡 **[Wire Protocol Specification (docs/PROTOCOL.md)](docs/PROTOCOL.md)**: Full JSON specification for the C engine dual-stream event protocol.
+* 🏛️ **[System Architecture (docs/ARCHITECTURE.md)](docs/ARCHITECTURE.md)**: Multi-realm process isolation, Godot scene graph, and Three.js coordinate mapping.
+* 🧠 **[Best Practices & Lessons Learned (docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md)](docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md)**: 34 master project invariants (`L1–L34`), GPU memory management, and anti-trap guidelines.
+* 🗺️ **[Generic Engine Integration Guide (docs/GENERIC_ENGINE_INTEGRATION.md)](docs/GENERIC_ENGINE_INTEGRATION.md)**: Step-by-step blueprint for porting classic ASCII engines into 3D.
+* 💾 **[Save System & Universal Persistence (docs/SAVE_SYSTEM.md)](docs/SAVE_SYSTEM.md)**: Binary save formats, cloud storage, and cross-platform portability.
+* 🎨 **[Hybrid Graphics Master Plan (docs/HYBRID_GRAPHICS_MASTER_PLAN.md)](docs/HYBRID_GRAPHICS_MASTER_PLAN.md)**: 4096 HD atlases, normal mapping, biomes, and lore audit proofs.
+* ☁️ **[Cloud Deployment Guide (docs/CLOUD_DEPLOYMENT.md)](docs/CLOUD_DEPLOYMENT.md)**: Production deployment on Google Cloud Run, session affinity, and process pool architecture.
+* 🤝 **[Contributing Guide (docs/CONTRIBUTING.md)](docs/CONTRIBUTING.md)**: Contribution guidelines and asset integration recipes.
 
 ---
 
 ## ⚖️ Legal Notices, Trademarks & Non-Commercial Policy
 
-**Angband 3D** is an independent, non-commercial, open-source fan tribute created out of love for classic roguelikes and fantasy literature.
+**Angband 3D** is an independent, non-commercial, open-source fan project created out of deep reverence for classic roguelikes and high fantasy literature.
 
 * **Literary Inspiration**: The setting, lore, and names draw inspiration from the literary legendarium created by **J.R.R. Tolkien**.
 * **Trademarks**: *The Lord of the Rings*, *The Hobbit*, *Middle-earth*, *Angband*, and *Moria* are trademarks or registered trademarks of **Middle-earth Enterprises, LLC** (Embracer Group AB) and/or **The Tolkien Estate**. This project is not affiliated with, endorsed by, or sponsored by Middle-earth Enterprises or The Tolkien Estate.
-* **Strict Zero-Monetization Policy**: The game is 100% free. It contains **no ads, no microtransactions, no paywalls, and accepts no donations or commercial sponsorship**.
-* **Licensing & Open-Asset Attribution**:
-  * Core engines and derivative work: **GNU General Public License, Version 2** (GPL-2.0) across **Angband 4.2.6**, **Sil-Q**, **FrogComposBand**, and **Hengband**. Complete source code is available in this repository. Full terms in [`LICENSE`](LICENSE) and [`LEGAL.md`](LEGAL.md).
-  * 2K Photogrammetry PBR Textures & 3D Art: Permissive **CC0 1.0 Universal** public domain dedications (**Poly Haven**, **KayKit**, **Kenney**, **Quaternius**).
-  * Illustrated 64×64 Creature & Item Tile Art: Master painted fantasy tileset by **Raymond "Shockbolt" Gaustadnes** and the Angband Development Team (GPL-2.0 / Angband Open Source License).
-  * Fonts: **SIL Open Font License 1.1** (Cinzel, Outfit, Fira Code).
-  * Full asset credits and citations are detailed in [`CREDITS.md`](CREDITS.md).
+* **Strict Non-Commercial Policy**: Angband 3D is 100% free software. It contains **no advertisements, no microtransactions, no paywalls, and accepts no donations or commercial sponsorship**.
+* **Open Source Licensing**:
+  * Authoritative game engines: **GNU General Public License v2** (GPL-2.0) across **Angband 4.2.6**, **Sil-Q 1.5.0**, **FrogComposBand 7.1.1**, and **Hengband 3.0.1**. Source code is included in full. Full terms in [`LICENSE`](LICENSE) and [`LEGAL.md`](LEGAL.md).
+  * 3D Models & PBR Textures: Permissive **CC0 1.0 Universal** public domain dedications (**Poly Haven**, **KayKit**, **Kenney**, **Quaternius**).
+  * Monster & Item Pixel Art: Raymond "Shockbolt" Gaustadnes and the Angband Development Team (GPL-2.0 / Angband Open Source License).
+  * Fonts: SIL Open Font License 1.1. Full credits in [`CREDITS.md`](CREDITS.md).

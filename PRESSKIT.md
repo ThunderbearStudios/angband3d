@@ -9,7 +9,6 @@
 
 * **Developer**: Thunderbear Studios
 * **Website**: [https://angband3d.com](https://angband3d.com)
-* **Showcase Walkthrough**: [https://angband3d.com/demo](https://angband3d.com/demo)
 * **Release Date**: October 2026 (Continuous Web & Standalone Release)
 * **Platforms**:
   * **Web**: Instant Play in any modern browser (Chrome, Safari, Edge, Firefox — Desktop & Mobile)
@@ -48,24 +47,6 @@ Players explore dark, atmospheric stone dungeons with first-person spatial prese
 * **🏹 Tactical Depth & Monster Ecology**: 624 lore-accurate monsters and items, featuring authentic infravision, light radii, sound propagation, phase door tactics, and unforgiving permadeath.
 * **📱 True Cross-Platform Parity**: Runs at 60 FPS in desktop and mobile web browsers with responsive split-thumb virtual controls, alongside dedicated 144+ FPS standalone Windows Desktop and Android APK binaries.
 * **🌍 100% Free, Open Source & Extensible**: Fully documented JSON wire protocol (`docs/PROTOCOL.md`) and generic engine integration blueprint (`docs/GENERIC_ENGINE_INTEGRATION.md`) inviting modders to bring *NetHack*, *Moria*, and *DCSS* into 3D.
-
----
-
-## 🎬 Official 10-Act Interactive Gameplay Showcase
-
-Watch the official broadcast-quality 10-act walkthrough directly in your browser:
-* **Interactive Cinema Showcase**: [https://angband3d.com/demo](https://angband3d.com/demo)
-* **Features**:
-  * Act 0: Insignia & Heritage
-  * Act 1: Town Square & Armory Descent
-  * Act 2: 0-Turn Camera Yaw & Spatial Radar
-  * Act 3: 80×24 CRT Terminal Dual Reality
-  * Act 4: Tactical Archery & Message Drawer
-  * Act 5: Grimoire Spellcasting & Alchemy
-  * Act 6: The Living Chronicle & Voiced Lorekeeper
-  * Act 7: Tactical Young Red Dragon Vault Clash
-  * Act 8: Universal Save File Portability
-  * Act 9: Grand Finale & Call to Adventure
 
 ---
 

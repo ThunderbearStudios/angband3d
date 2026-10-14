@@ -3,7 +3,6 @@
 > **Target Competitions**: Independent Games Festival (IGF), The Webby Awards, IndieCade, Roguelike Celebration, AbleGamers / GAconf Awards, and GitHub Innovation / FOSS Awards.  
 > **Core Premise**: *Preservation Over Reimplementation* — Modernizing a 35-year-old foundational classic without losing a single line of mathematical depth, game balance, or universal savefile compatibility.  
 > **Official Web Experience**: [https://angband3d.com](https://angband3d.com)  
-> **Interactive Cinema Showcase**: [https://angband3d.com/demo](https://angband3d.com/demo)  
 > **Open Source Repository**: [https://github.com/ThunderbearStudios/angband3d](https://github.com/ThunderbearStudios/angband3d)  
 
 ---
@@ -350,18 +349,7 @@ All media assets are hosted directly on the production infrastructure and can be
 | **Red Dragon Clash** | 3:25 | [kf_15_dragon_target_fire_clash_205s.png](https://angband3d.com/assets/video/frames/kf_15_dragon_target_fire_clash_205s.png) | High-stakes tactical spell duel against a Young Red Dragon inside an obsidian vault. |
 | **Universal Saves UI** | 3:50 | [kf_17_pause_menu_save_download_230s.png](https://angband3d.com/assets/video/frames/kf_17_pause_menu_save_download_230s.png) | Single-click binary `.sav` export dialog for cross-platform portability. |
 
-### 6.2 Official Walkthrough Video Chapters (`/demo`)
-Judges can watch or scrub through the broadcast-quality walkthrough directly at [https://angband3d.com/demo](https://angband3d.com/demo):
-- **Act 0 (0:00)**: Insignia & 35-Year Heritage
-- **Act 1 (0:15)**: Town Square & Armory Descent
-- **Act 2 (0:40)**: 0-Turn Camera Yaw & Spatial Radar
-- **Act 3 (1:10)**: 80×24 CRT Terminal Dual Reality
-- **Act 4 (1:45)**: Tactical Archery & Message Drawer
-- **Act 5 (2:05)**: Grimoire Spellcasting & Alchemy
-- **Act 6 (2:35)**: The Living Chronicle & Voiced Lorekeeper
-- **Act 7 (3:15)**: Tactical Young Red Dragon Vault Clash
-- **Act 8 (3:45)**: Universal Save File Portability
-- **Act 9 (4:10)**: Grand Finale & Call to Adventure
+---
 
 ---
 

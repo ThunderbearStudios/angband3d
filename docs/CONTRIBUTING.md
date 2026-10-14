@@ -28,16 +28,15 @@ Whether you are interested in adding 3D models, composing ambient music and soun
 
 ## Core Principles & Ground Rules
 
-1. **Preserve the engine fork's rebasability**:
-   - All bridge logic in `engine/` lives in new, isolated files (`src/main-bridge.c`, `src/bridge-json.c`, `src/bridge-json.h`, `BRIDGE_Frontend.cmake`).
-   - Only 4 upstream files are modified to register the frontend (`main.c`, `main.h`, `CMakeLists.txt`, `src/Makefile.src`).
-   - Game logic, formulas, content, and RNG are never modified in the C engine.
-2. **Standard Angband Save Compatibility**:
-   - Savefiles produced or loaded through the 3D frontend must remain 100% binary-compatible with upstream Angband 4.2.6.
+1. **Preserve engine rebasability across all 4 realms**:
+   - All bridge logic lives in dedicated bridge files (`engine/src/main-bridge.c`, `variants/silq-src/src/main-bridge.c`, `variants/frogcomposband-src/src/main-bridge.c`, `variants/hengband-src/src/main-bridge.cpp`).
+   - Core engine game logic, formulas, content, and RNG are never modified.
+2. **Universal Save Compatibility**:
+   - Savefiles produced or loaded through the 3D frontends remain 100% binary-compatible with upstream engines (`SaveVNLA`, `SaveSILQ`, `SaveFROX`, `SaveHENG`).
 3. **Protocol Stability**:
-   - The JSON IPC protocol is a versioned contract. Fields can be added freely; removing or renaming fields requires a protocol version increment in [PROTOCOL.md](PROTOCOL.md).
+   - The JSON IPC protocol is a versioned contract documented in [PROTOCOL.md](PROTOCOL.md). Fields can be added freely; removing or renaming fields requires coordination across frontends.
 4. **Permissive Asset Licensing**:
-   - All 3D models, textures, audio, and fonts committed to the repository must be CC0, Public Domain, MIT, or compatible open-source licences, with clear attribution in `client/assets/CREDITS.md`.
+   - All 3D models, textures, audio, and fonts committed to the repository must be CC0, Public Domain, MIT, or compatible open-source licenses, with clear attribution in `CREDITS.md`.
 
 ---
 
