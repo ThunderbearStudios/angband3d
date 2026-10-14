@@ -9,6 +9,8 @@ class WebTerminal {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.onSelectKey = onSelectKey || (() => {});
+        this.onKeyClick = this.onSelectKey;
+        this.hoverRow = -1;
 
         this.cols = 80;
         this.rows = 24;
@@ -57,16 +59,20 @@ class WebTerminal {
 
     setCameraFacing(yaw) {
         if (typeof yaw !== 'number' || isNaN(yaw)) return;
-        this.cameraYaw = yaw;
         const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-        this.facingSector = Math.round(normYaw / (Math.PI / 4)) % 8;
+        const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
+        if (this.facingSector === sector && Math.abs((this.cameraYaw || 0) - yaw) < 0.001) return;
+        this.cameraYaw = yaw;
+        this.facingSector = sector;
         if (this.lastTermData) {
             this.render(this.lastTermData);
         }
     }
 
     setTargetingMode(active) {
-        this.isTargetingMode = Boolean(active);
+        const nextActive = Boolean(active);
+        if (this.isTargetingMode === nextActive) return;
+        this.isTargetingMode = nextActive;
         if (this.lastTermData) {
             this.render(this.lastTermData);
         }
@@ -282,33 +288,6 @@ class WebTerminal {
         viewport.addEventListener('touchcancel', endTouch, { passive: true });
     }
 
-    decodeText(gStr) {
-        if (!gStr) return '';
-        let result = '';
-        const len = gStr.length;
-        for (let c = 0; c < len; c++) {
-            const b1 = gStr.charCodeAt(c) & 0xff;
-            if (this.tdSjis && ((b1 >= 0x81 && b1 <= 0x9f) || (b1 >= 0xe0 && b1 <= 0xfc)) && c + 1 < len) {
-                const b2 = gStr.charCodeAt(c + 1) & 0xff;
-                try {
-                    result += this.tdSjis.decode(new Uint8Array([b1, b2]));
-                } catch (_) {
-                    result += String.fromCharCode((b1 << 8) | b2);
-                }
-                c++;
-            } else if (this.tdSjis && b1 >= 0xa1 && b1 <= 0xdf) {
-                try {
-                    result += this.tdSjis.decode(new Uint8Array([b1]));
-                } catch (_) {
-                    result += String.fromCharCode(b1);
-                }
-            } else {
-                result += String.fromCharCode(b1);
-            }
-        }
-        return result;
-    }
-
     detectMode(termData) {
         if (window.ScreenContext && typeof window.ScreenContext.terminalDetectMode === 'function') {
             return window.ScreenContext.terminalDetectMode(termData, (s) => this.decodeText(s));
@@ -366,8 +345,13 @@ class WebTerminal {
         const cssH = Math.floor(logicalHeight * effectiveScale);
 
         // Size backing canvas buffer to exact device pixels for native retina crispness
-        this.canvas.width = Math.round(cssW * dpr);
-        this.canvas.height = Math.round(cssH * dpr);
+        const targetW = Math.round(cssW * dpr);
+        const targetH = Math.round(cssH * dpr);
+        const dimChanged = (this.canvas.width !== targetW || this.canvas.height !== targetH);
+        if (dimChanged) {
+            this.canvas.width = targetW;
+            this.canvas.height = targetH;
+        }
 
         this.canvas.style.width = `${cssW}px`;
         this.canvas.style.height = `${cssH}px`;
@@ -383,32 +367,81 @@ class WebTerminal {
         }
         this.canvas.style.margin = (needsScrollX || needsScrollY) ? '0' : 'auto';
 
-        if (this.lastTermData) {
+        if (dimChanged && this.lastTermData) {
             this.render(this.lastTermData);
         }
     }
 
     setupMouseEvents() {
-        // STRICT ARCHITECTURAL INVARIANT:
-        // Clicks, zooms or interactions of any kind inside a classic view or menu
-        // DO NOT interact with the menu but ONLY manage the view (panning and zooming).
-        // All classic interactions MUST be through the navigation keys provided outside of the classic view.
-        if (this.canvas) {
-            this.canvas.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            });
-            this.canvas.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-            });
-        }
+        this.hoverRow = -1;
+        if (!this.canvas) return;
+
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            if (!rect.height || !this.charHeight) return;
+            const offsetY = (e.clientY - rect.top) * ((this.rows * this.charHeight) / rect.height);
+            const row = Math.floor(offsetY / this.charHeight);
+            if (row >= 0 && row < this.rows) {
+                if (this.hoverRow !== row) {
+                    this.hoverRow = row;
+                    if (this.lastTermData) this.render(this.lastTermData);
+                }
+            } else if (this.hoverRow !== -1) {
+                this.hoverRow = -1;
+                if (this.lastTermData) this.render(this.lastTermData);
+            }
+        });
+
+        this.canvas.addEventListener('mouseleave', () => {
+            if (this.hoverRow !== -1) {
+                this.hoverRow = -1;
+                if (this.lastTermData) this.render(this.lastTermData);
+            }
+        });
+
+        this.canvas.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = this.canvas.getBoundingClientRect();
+            if (!rect.height || !this.charHeight) return;
+            const offsetY = (e.clientY - rect.top) * ((this.rows * this.charHeight) / rect.height);
+            const row = Math.floor(offsetY / this.charHeight);
+            this.handleRowClick(row);
+        });
+
+        this.canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
     }
 
-    handleRowClick(row, col) {
-        // STRICT ARCHITECTURAL INVARIANT:
-        // Clicks, zooms or interactions of any kind inside a classic view or menu
-        // DO NOT interact with the menu but ONLY manage the view (panning and zooming).
-        // All classic interactions MUST be through the navigation keys provided outside of the classic view.
+    handleRowClick(row) {
+        if (row < 0 || row >= this.rows || !this.lastRows || !this.lastRows[row]) return;
+        const rawLine = this.lastRows[row]?.g || '';
+        const line = this.decodeText(rawLine);
+        const sendKey = (key) => {
+            const btn = document.querySelector(`.term-letter-btn[data-key="${key}"]`);
+            if (btn) {
+                btn.click();
+            } else if (typeof this.onKeyClick === 'function') {
+                this.onKeyClick(key);
+            } else if (typeof this.onSelectKey === 'function') {
+                this.onSelectKey(key);
+            } else if (typeof window !== 'undefined' && typeof window.__sendTerminalKey === 'function') {
+                window.__sendTerminalKey(key);
+            } else if (typeof window !== 'undefined' && window.network && typeof window.network.sendKey === 'function') {
+                window.network.sendKey(key);
+            }
+        };
+
+        const tagMatch = line.match(/(?:^|\s+)(?:\[([a-zA-Z0-9*@?])\]|\(([a-zA-Z0-9*@?])\)|([a-zA-Z0-9*@?])[\)\.\:\-])\s+\S/);
+        if (tagMatch) {
+            const key = tagMatch[1] || tagMatch[2] || tagMatch[3];
+            if (key) sendKey(key);
+        } else if (line.includes('> ')) {
+            sendKey('enter');
+        } else if (line.includes('-more-') || line.includes('-続く-')) {
+            sendKey('space');
+        }
     }
 
     parseAttr(aStr, cellIdx) {
@@ -461,6 +494,11 @@ class WebTerminal {
         // Clear canvas with deep dark background
         this.ctx.fillStyle = '#080a0f';
         this.ctx.fillRect(0, 0, w, h);
+
+        if (this.hoverRow >= 0 && this.hoverRow < this.rows) {
+            this.ctx.fillStyle = 'rgba(212, 175, 55, 0.14)';
+            this.ctx.fillRect(2, this.hoverRow * this.charHeight, w - 4, this.charHeight);
+        }
 
         // Ornate border
         this.ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';

@@ -231,9 +231,9 @@ class ChronicleFilter {
         }
         this.lastSp = (typeof player.sp === 'number') ? player.sp : null;
 
-        const hpPercent = (typeof player.chp === 'number' && typeof player.mhp === 'number' && player.mhp > 0)
-            ? (player.chp / player.mhp)
-            : 1.0;
+        const curHp = (player.hp ?? player.chp ?? 0);
+        const maxHp = (player.hp_max ?? player.mhp ?? 1);
+        const hpPercent = (maxHp > 0) ? (curHp / maxHp) : 1.0;
         const depth = (frame.map && typeof frame.map.depth === 'number')
             ? frame.map.depth
             : (player.depth || 0);
@@ -285,7 +285,7 @@ class ChronicleFilter {
         const isDead = Boolean(
             (player && player.dead) ||
             frame.phase === 'death' ||
-            (player && typeof player.chp === 'number' && player.chp <= 0 && player.mhp > 0) ||
+            (player && typeof (player.hp ?? player.chp) === 'number' && (player.hp ?? player.chp) <= 0 && (player.hp_max ?? player.mhp) > 0) ||
             newMsgs.some(m => /\byou die\b|\byou have died\b|\bkilled by\b|\bslain by\b/i.test(m))
         );
 
@@ -954,8 +954,8 @@ class ChronicleFilter {
                     attackMedium: { ...this.lastAttackMedium },
                     hpPercent: hpPercent,
                     isPeril: hpPercent <= 0.30,
-                    chp: player.chp,
-                    mhp: player.mhp,
+                    chp: (player.hp ?? player.chp ?? 0),
+                    mhp: (player.hp_max ?? player.mhp ?? 1),
                     playerRace: player.race || 'Human',
                     playerClass: player.class || 'Warrior',
                     levelFeeling: this.currentLevelFeeling || ''

@@ -314,6 +314,7 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}. (For new instance starts a
      * Generates rich scene prose even for sleeping/silent entities.
      */
     async chatWithCreature(monster, playerMessage, player = null, recentMessages = []) {
+        const turn = (typeof gameState !== 'undefined' && gameState?.turn) || (monster && monster._interactTurn) || (player && player.turn) || 1;
         const activeRealm = (player && player.realm) || (typeof window !== 'undefined' && window.__activeRealm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband');
         const langMode = (activeRealm === 'hengband') ? ((typeof window !== 'undefined' && window.__langMode) || 'en') : 'en';
         const groundTruth = ChronicleGrounder.resolveCreatureEncounter(monster, player, recentMessages, turn, playerMessage, activeRealm, langMode);
@@ -726,7 +727,7 @@ Story Guidelines:
   "summary": "1 short sentence summary."
 }`;
 
-        const monsterDesc = monsters.length > 0 ? ` Nearby threat: ${monsters[0].name} (${monsters[0].distance || 2} paces away).` : ' No immediate monsters in sight.';
+        const monsterDesc = monsters.length > 0 ? ` Nearby threat: ${monsters[0].name} (${monsters[0].dist ?? monsters[0].distance ?? 'nearby'} paces away).` : ' No immediate monsters in sight.';
         const perilDesc = inPeril ? ' CRITICAL PERIL: Mortal wounds bleeding, health severely depleted!' : ` Vigor steady (${curHp}/${maxHp} HP).`;
         const lightDesc = (depth > 0 && lightTurns < 120) ? ' WARNING: Torchlight flickering low and dim!' : '';
         const recentEvents = (recentChapters && recentChapters.length > 0)
@@ -762,10 +763,10 @@ Weave the saga reflection for this exact moment.`;
     /**
      * Verifies API Key and model with a quick ping
      */
-    async testConnection(model) {
+    async testConnection(overrideModel = null) {
         const original = { model: this.model };
         try {
-            this.model = model;
+            if (overrideModel) this.model = overrideModel;
 
             const reply = await this.callLLM('You are a test probe.', 'Respond with the single word: READY');
             if (reply && reply.toLowerCase().includes('ready')) {

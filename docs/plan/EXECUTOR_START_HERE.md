@@ -1,15 +1,15 @@
-# EXECUTOR START HERE (angband3d award pass)
+# EXECUTOR START HERE (angband3d award pass & v2 deep-audit runbook)
 
-This page is the **entry point** for any human or LLM implementing the plan. Read it in full first (≈5 min). It sums up the rules, lessons learned and success criteria. The details live in three companion docs, all in this folder:
+This page is the **entry point** for any human or LLM implementing the plan. Read it in full first (≈5 min). It sums up the rules, lessons learned and success criteria. The details live in four companion docs, all in this folder:
 
 | Order | Doc | Contains |
 |---|---|---|
-| 1 | this file | Rules, lessons, gaps closed, success bar |
-| 2 | [master_completion_plan.md](master_completion_plan.md) | Evidence E1–E34, global order, WS0/1/4/5/7/8, risks, test matrix, DoD, decisions D1–D17 |
-| 3 | [menu_context_remediation_plan.md](menu_context_remediation_plan.md) | WS2 (menus/action chooser). Phases 0–1 are **SUPERSEDED**; skip them |
-| 4 | [language_gui_platform_spec.md](language_gui_platform_spec.md) | WS3 (Hengband JP/EN), WS6 (realm keys), WS9 (GUI), WS10 (Android/PWA/offline/Godot) |
+| 1 | this file | Rules (`L1–L34`), lessons, 8 anti-trap guardrails, success bar |
+| 2 | **[master_audit_and_execution_plan.md](master_audit_and_execution_plan.md)** | **ACTIVE Award-Pass v2 Deep Audit (48 findings) & Part VI: Gemini 3.8 Flash Turnkey Execution Runbook (Atomic Cards `1` → `2A..2D` → `3A..3B` → `4` → `5`)** |
+| 3 | [master_completion_plan.md](master_completion_plan.md) | Historical Award-Pass v1 evidence E1–E34, WS0/1/4/5/7/8, decisions D1–D17 |
+| 4 | [menu_context_remediation_plan.md](menu_context_remediation_plan.md) & [language_gui_platform_spec.md](language_gui_platform_spec.md) | Historical WS2, WS3, WS6, WS9, WS10 specs |
 
-**Order of work:** WS0 → WS1 → WS4 → WS2 → WS6 → WS3 → WS9 → WS5 → WS10 → WS7 → WS8. Do not reorder: security comes before features, and the keys (WS6) before Hengband language (WS3), because WS3 tests rely on correct keys.
+**Active Order of Work (Award-Pass v2):** Execute **Part VI** of [`master_audit_and_execution_plan.md`](master_audit_and_execution_plan.md) in card order: **Card 1 (Wave 1)** → **Cards 2A, 2B, 2C, 2D (Wave 2)** → **Cards 3A, 3B (Wave 3)** → **Card 4 (Wave 4)** → **Card 5 (Wave 5)**.
 
 ---
 
@@ -17,39 +17,74 @@ This page is the **entry point** for any human or LLM implementing the plan. Rea
 1. **Resume protocol.** Run `git status`, then read `docs/STATE.md` (created in WS0), then continue the first unchecked task. Never redo a checked task without evidence it regressed.
 2. **One task = one commit** on branch `fix/award-pass`, message `WSx.y: <what>`. Update STATE.md **in the same commit**. Crashes then cost at most one task.
 3. **Gate before checkbox.** A task is done only when its listed gate passes, and on **two consecutive runs** for flaky CDP tests. Paste the one-line gate result into STATE.md.
-4. **Engine is read-only** except `engine/src/main-bridge.c`, `bridge-json.c/.h`. Never touch mechanics or RNG. After a bridge edit, re-export the patch with `git diff 4.2.6..HEAD --output=...` (never `>`; it writes UTF-16).
+4. **Engine is read-only** except `engine/src/main-bridge.c`, `bridge-json.c/.h` (and `variants/*-src/src/main-bridge.*`). Never touch mechanics or RNG. After a bridge edit, re-export the patch with `git diff 4.2.6..HEAD --output=...` (never `>`; it writes UTF-16).
 5. **No new npm dependencies.** Use Node built-ins (`crypto`, `http`, `fs`) and the existing `ws`.
 6. **Archive, don't delete** (D4): move to `tools/archive/` or `docs/archive/`. The only exception is the gitignored Chrome profiles (D16), after confirming with `git check-ignore`.
-7. **Any change under `server/public` ⇒ version bump** via `tools/bump_version.js` (WS5.4). Until that tool exists, bump `?v=` in index.html **and** `CACHE_NAME` in sw.js by hand.
+7. **Any change under `server/public` ⇒ version bump** via `tools/bump_version.js` (WS5.4) and `npm run android:sync`.
 8. **Escape everything rendered.** Use `textContent` or the shared `escapeHtml()`. Never put engine text, item names, inscriptions or translations into `innerHTML` raw.
 9. **Surgical reads/edits.** Read 20–100 lines around a symbol, and use exact-string replacement. `grep_search` returns nothing on this repo; use `Select-String` in PowerShell.
 10. **Tests never touch real saves.** Every server-spawning test sets `SAVE_DIR` to `fs.mkdtempSync(os.tmpdir()+'/a3d-')` and a random `PORT`, and cleans up in `finally`.
 
-## 2. Consolidated Lessons Learned (why things broke before)
+## 2. Consolidated Lessons Learned (`L1–L34`: why things broke before)
 | # | Lesson | Consequence if ignored |
 |---|---|---|
 | L1 | Allowlists must be **derived from both senders and receivers** (grep client `sendCommand(` + bridge dispatch). | The old plan dropped `save` and would have broken saving. |
-| L2 | **Never send digits for movement or hold.** Digits are repeat counts in the Angband keyset. Use arrows, and `,` for hold (E27). | Mystery repeat/stall bugs. |
-| L3 | **Realm keymaps differ** (Sil-Q, Hengband, FCB, Vanilla). Keys come from one table (`realm-keys.js`), proven by the probe tool, not guessed. Delete the 4 duplicate remaps. | Buttons fire wrong commands per realm (the original bug). |
+| L2 | **Never send digits for movement or hold.** Digits are repeat counts in the Angband keyset. Use arrows, and `,` for hold (E27). Never write `sendKey('5')` in `input.js`. | Mystery repeat/stall bugs & fails `test_realm_keys.js:174`. |
+| L3 | **Realm keymaps differ** (Sil-Q, Hengband, FCB, Vanilla). Keys come from one table (`realm-keys.js`), proven by the probe tool, not guessed. Do not edit `realm-keys.js` without updating probe fixtures. | Buttons fire wrong commands per realm or fail `test_realm_keys.js`. |
 | L4 | **Item letters are selections only inside a menu.** Route through `ScreenContext.classify(frame)`; outside menus a letter is a command. | Inventory letters ran commands in Sil-Q/Hengband. |
 | L5 | **Classify once per frame** (memoize by `frame.seq`) and pass `screenText` down. | CPU waste plus contradictory decisions between handlers. |
 | L6 | **Hengband: match on raw JP, translate only for display.** Translation is atomic per line: fully translated or untouched JP, never mixed. Keep `attrs` length equal to the text width. | Broken menus after translation, misaligned columns, "Japanglish". |
 | L7 | **Translation data is generated from upstream** (`_("ja","en")` pairs and `lib/edit` JSONC names), not hand-typed. Manual overrides go in a small separate layer. | Coverage gaps and drift. |
 | L8 | **Console mojibake ≠ file corruption.** Hengband files are UTF-8; PowerShell shows garbage because of the code page. Read with `-Encoding UTF8`. | Someone "fixes" good files. |
-| L9 | **`const` reassignment and other hot-path errors kill every frame** (E1). Run `node --check server/server.js` plus the boot test after every server edit. | Total outage from a one-line change. |
+| L9 | **`const` reassignment and other hot-path errors kill every frame** (E1). Run `node --check server/src/server.js` plus the boot test after every server edit. | Total outage from a one-line change. |
 | L10 | **Money and delete endpoints are never open:** same-origin, rate-limited, body-capped, model allowlist, no client-supplied raw payload passthrough. | API-key bill abuse, data loss. |
 | L11 | **Errors to clients are generic** (`'Internal error'`); details go to the server log. Never echo paths, env names or `err.message`. | Info leaks (E24). |
-| L12 | **The PWA and APK cache aggressively.** Every asset change needs the version bump, and the APK needs `npx cap sync android` plus the hash check. | Users run stale JS and file "already fixed" bugs. |
-| L13 | **Kill stale servers before testing.** `Get-NetTCPConnection -LocalPort 8080 -State Listen \| % { Stop-Process -Id $_.OwningProcess -Force }`. One was running as PID 5068 at handoff. | Tests hit old code and give false passes or fails. |
+| L12 | **The PWA and APK cache aggressively.** Every asset change needs the version bump, and the APK needs `npm run android:sync` plus the hash check. | Users run stale JS and file "already fixed" bugs. |
+| L13 | **Kill stale servers before testing.** `Get-NetTCPConnection -LocalPort 8080 -State Listen \| % { Stop-Process -Id $_.OwningProcess -Force }`. | Tests hit old code and give false passes or fails. |
 | L14 | **No polling or sleep loops in terminals.** Use one-shot commands; tests must exit with a code. | Hung sessions burn tokens. |
 | L15 | **CDP tools must clean up their Chrome profiles** (`tools/lib/cdp.js`). | 24 GB of temp profiles (E11). |
 | L16 | **View routing invariant:** `NeedsTerminal(frame)` (Godot) and the web equivalent: `-more-` stays in 3D with a banner; menus and overlays go to the terminal. | Flicker and lost prompts. |
 | L17 | **`slot_by_name()` on optional slots asserts.** Use `bridge_get_equipped_by_type`. Guard every coordinate query with `bridge_in_play()`. | Engine crash during level gen. |
-| L18 | **Never swallow handler exceptions.** `network.js` once caught *everything* in `onmessage` as "non-JSON"; a per-frame `TypeError` became invisible. Catch only `SyntaxError` from `JSON.parse`; log everything else. | Silent total outage ("empty sky of stars"). |
-| L19 | **Contract tests, not just unit tests.** When a module is extracted, the test must assert every property and function that callers use (`classify()` keys, `MenuRouter.getPending`). Green unit tests proved nothing while the app crashed. | Module and callers drift apart. |
-| L20 | **A browser gate is mandatory for client changes.** `tools/test_boot_flow.js` (cdp tier) loads the real page per realm and fails on any uncaught or handler error. WS-only tests cannot see DOM/JS wiring. | False greens. |
-| L21 | **Checkbox = commit.** Never tick STATE.md for uncommitted work, and never write "100% Operational" in NEXT_STEPS without the pasted gate output. Re-run gates yourself; do not trust a previous agent's PASS claim. | Phantom progress; the next agent builds on sand. |
-| L22 | **One workstream at a time.** Don't mix WS2 + WS3 + WS5 edits in one uncommitted tree. If a change belongs to another WS (e.g. Hengband lang→binary policy), note it in STATE and leave it. | Untangleable regressions. |
+| L18 | **Never swallow handler exceptions.** Catch only `SyntaxError` from `JSON.parse`; log everything else. | Silent total outage ("empty sky of stars"). |
+| L19 | **Contract tests, not just unit tests.** When a module is extracted, the test must assert every property and function that callers use (`classify()` keys, `MenuRouter.getPending`). | Module and callers drift apart. |
+| L20 | **A browser gate is mandatory for client changes.** `tools/test_boot_flow.js` (cdp tier) loads the real page per realm and fails on any uncaught or handler error. | False greens. |
+| L21 | **Checkbox = commit.** Never tick STATE.md for uncommitted work, and never claim PASS without the pasted gate output. | Phantom progress; the next agent builds on sand. |
+| L22 | **One workstream / card at a time.** Don't mix unrelated card edits in one uncommitted tree. | Untangleable regressions. |
+| L23 | **No duplicate class methods.** Before adding or editing a method in `dungeon3d.js`, `hud.js`, `terminal.js`, `chronicle-*.js`, run `Select-String` for the method name. | Later method silently overwrites earlier method (`destroyEntity`, `setPing`, `decodeText`). |
+| L24 | **Verify binary save formats against C/C++ source.** Only Vanilla starts with `SaveVNLA`; Sil-Q/FCB/Hengband start with 4-byte binary version headers. Never guard WASM `.sav` alias sync with `!exists`. | Variant save uploads rejected; offline WASM saves overwritten on reload (`SEC-1`, `SEC-5`). |
+| L25 | **Zero per-frame DOM/GPU reallocation.** Gate `updateDungeon`, `Rebuild`, `terminal.render`, `updateLanguageUI`, and `#term-letter-ribbon` on state-change signatures. Never declare cache keys as local variables inside per-frame functions. | 7× terminal redraws, 150ms stalls, DOM thrashing (`PERF-4..PERF-6`). |
+| L26 | **Explicit GPU & Audio disposal.** Call `.dispose()` on removed sprites, nameplates, `CanvasTexture`s, and geometries; never embed `${depth}` in `resolveContextualTheme` `theme.id`. | 26 MB/floor VRAM leak & WebGL crashes (`PERF-2`, `PERF-3`). |
+| L27 | **Cross-bridge JSON schema parity.** All 4 C/C++ bridges must emit `player: null` and `map: null` when `!bridge_in_play()`, monster `"hp_max"`, `messages: [{text, count, attr}]`, and `player.inventory[]` / `equipment[]`. | Broken health bars, messages, and gear inspection in Hengband/Sil-Q (`ENG-7`, `ENG-8`). |
+| L28 | **State-machine self-healing on mode exit.** `MenuRouter.onFrame` and `#btn-term-escape` must clear `pending` whenever `classifier.mode !== 'item-list'`. | Player permanently trapped in Terminal View (`PLAY-4`). |
+| L29 | **3D directional targeting routing.** When `isDirectionalTargeting` keeps `"Direction?"`/`"Target:"` in 3D view, route arrows to relative directions (no yaw spin) and `5`/`.`/`t` to `sendKey('t')`. | Targeting prompts spin camera or send `,` hold (`PLAY-2`, `GODOT-4`). |
+| L30 | **Documentation single-source hierarchy.** Never let `AGENTS.md`, `LLM_CONTEXT.md`, `PROTOCOL.md`, and `BEST_PRACTICES` contradict each other. | Context poisoning across agent turns (`DOC-1..DOC-5`). |
+| L31 | **Realm voice contract parity.** Keep `getLorekeeperVoice`, `chronicle-audio.js` `setRealm` (`hengband: 'Gacrux'`), and `server.js` `GEMINI_REALM_NARRATOR_MAP` aligned; zero robotic `speechSynthesis` fallback. | Cache misses or broken `test_realm_chronicles_and_inspection.js` (`CHRON-6`). |
+| L32 | **Deterministic pre-warm & cache-key symmetry.** Always unwrap `{ narrator: profile }` via `normalizeVocalOptions(options)`, check `audioBufferCache.has(fullKey)` before splitting sentences, and never use `Math.random()` in `resolveCreatureEncounter`. | ~0% pre-warm cache hit rate and 2–4s voice delay (`CHRON-3`). |
+| L33 | **Server/client validation parity.** `/api/tts` `tagRegex` must allow `[` `]` and `<= 300` chars; never retry `HTTP 4xx` errors; filter out `.thought` parts in `/api/llm/generate`. | `HTTP 400` + 1,800ms retry sleep & LLM `JSON.parse` crashes (`CHRON-1`, `CHRON-4`). |
+| L34 | **Never set `isSpeaking = true` before playback starts.** Only route to `_executeSeamlessSpeak` when audio is physically playing, and emit `'idle'` in `finally` blocks. | False self-interruption (`⚡ Interrupted`) & stuck `"Voicing..."` pill (`CHRON-2`). |
+| L35 | **Argon Token-Frugal Execution Protocol.** Locate lines via `Select-String ... \| Select-Object -First 20`, read 30–100 line slices, batch parallel tool calls per turn, plan complete file edits before mutating, and delegate isolated tracks to `Model: 'flash'` subagents. | Context-window bloat, redundant multi-turn re-reads, and severe token waste. |
+| L36 | **Zero-Scratch & Zero-KayKit High-Realism Asset Mandate.** NEVER hand-craft 3D models from primitives (`BoxGeometry`, `SphereGeometry`, `CylinderGeometry`, `createProceduralCreatureMesh`) AND NEVER use cartoonish low-poly KayKit/OBJ models (`models/characters/*.gltf`, `models/monsters/*.obj`, `models/items/*.obj`). Use ONLY **Poly Haven CC0 8K-scanned photogrammetry glTFs/textures** (`polyhaven/models/`, `polyhaven/textures/`) and **4096×4096 Shockbolt hand-painted dark-fantasy PBR atlases** (`monster_atlas.png`, `item_atlas.png`). Never call `.toNonIndexed()` on photogrammetry meshes, and guard `_sharedGeometry` in `destroyEntity()`. | Cartoonish low-poly meshes, blocky procedural shapes, destroyed template geometries, or 110M-vertex GPU lag. |
+
+## 2.5. Argon Token-Frugal Execution Protocol (Mandatory When Argon / Autonomous Execution is Enabled)
+Token waste is strictly prohibited. When executing any plan or card under Argon (`Pro` / heavy reasoning model), obey these 8 token-economics laws without exception:
+1. **Never Stream Large Code Edits from Parent Argon Context (`Flash Subagent Delegation Mandate`)**:
+   - The parent Argon model's context window is re-billed on every turn and its output tokens are expensive and slow.
+   - For **any edit > 40 lines** or any mutation to a large file (`dungeon3d.js`, `app.js`, `server.js`, `hud.js`, `chronicle-*.js`, `DungeonWorld.cs`), the parent Argon agent MUST write the exact line-numbered spec into `docs/plan/master_audit_and_execution_plan.md` and delegate the file mutation to a **`Model: 'flash'` subagent (`invoke_subagent`)**.
+   - The `flash` subagent executes in an isolated, disposable context at ~1/10th the token cost, runs `node --check` + unit gates, and returns a concise <= 15-line summary.
+2. **Never Call `replace_file_content` in Parallel on the Same File**:
+   - Calling `replace_file_content` multiple times in the same turn on a single file is forbidden by tool rules and causes canceled/colliding streams that waste thousands of output tokens. Batch parallel tool calls ONLY across **different** files, or combine edits to one file inside a `Model: 'flash'` subagent.
+3. **Pinpoint Before Reading (`Zero Exploratory Dumps`)**:
+   - Never view >100 lines in the parent agent to "look around." Run a single `Select-String -Path <file> -Pattern "<symbol>" | Select-Object -First 20 LineNumber, Line` first, or delegate multi-section code reading to a `Model: 'flash'` subagent.
+4. **Plan First in `master_audit_and_execution_plan.md` & `STATE.md`**:
+   - Before touching code for any new user request or iteration, update `docs/plan/master_audit_and_execution_plan.md` and `docs/STATE.md` first so the plan is persistent, crash-recoverable, and ready for `flash` subagent execution.
+5. **Design Complete Single-Pass Edits**:
+   - Resolve all dependencies, material bindings, and test contracts before mutating a file—never iterate via trial-and-error edits.
+6. **Cap All Command Stdout**:
+   - Always bound PowerShell/Node output (`Select-Object -First 25`), and run targeted single-test scripts (`node tools/test_<name>.js`) during subagent execution before running full gates once at sign-off.
+7. **Consult the Canonical Pre-Verified Asset Matrix (`L36`)**:
+   - Never re-scan asset directories repeatedly across turns. Consult the **Verified Asset Catalog & Selection Matrix** in `docs/plan/master_audit_and_execution_plan.md` (Part VIII).
+8. **Zero Scratch Models & Zero Cartoon/KayKit Assets (`L36`)**:
+   - Never waste tokens or visual quality writing procedural 3D geometry generators (`BoxGeometry`/`SphereGeometry`/`CylinderGeometry` assemblies or `createProceduralCreatureMesh`) and never load cartoonish low-poly KayKit/OBJ models. Bind only **Poly Haven photogrammetry glTFs/textures** and **4096×4096 Shockbolt hand-painted dark-fantasy PBR atlases**.
 
 ## 3. Gaps Found in Final Review (now closed: implement these too)
 | ID | Gap | Action (where) |

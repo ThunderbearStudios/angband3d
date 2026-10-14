@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import{setEnabled as e,isEnabled as t,recordSample as a,drainSamples as i,startTiming as s,endTiming as d,resetForTests as o}from"./gateway-perf-core.js";describe("gateway-perf-core",()=>{beforeEach(()=>{o()}),describe("setEnabled/isEnabled",()=>{it("defaults to disabled",()=>{expect(t()).toBe(!1)}),it("reflects the value passed to setEnabled",()=>{e(!0),expect(t()).toBe(!0),e(!1),expect(t()).toBe(!1)}),it("drops any buffered-but-unflushed samples the moment it's disabled — off must mean fully inert",()=>{e(!0),a({bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated",delta:1}),e(!1),expect(i()).toEqual([])})}),describe("recordSample",()=>{it("is a no-op while disabled",()=>{a({bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated",delta:1}),expect(i()).toEqual([])}),it.each([["null",null],["a string","not-an-object"],["a number",42],["missing delta",{bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated"}],["a non-numeric delta",{bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated",delta:"fast"}],["a NaN delta",{bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated",delta:NaN}],["an Infinity delta",{bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated",delta:1/0}]])("silently drops %s instead of throwing or buffering it",(t,s)=>{e(!0),expect(()=>a(s)).not.toThrow(),expect(i()).toEqual([])}),it("buffers a sample while enabled",()=>{e(!0),a({bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated",delta:2.5}),expect(i()).toEqual([{bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated",delta:2.5}])}),it("caps the buffer, dropping the oldest sample once the cap is exceeded",()=>{e(!0);for(let e=0;e<501;e+=1)a({bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated",delta:e});const t=i();expect(t).toHaveLength(500),expect(t[0].delta).toBe(1),expect(t[499].delta).toBe(500)})}),describe("drainSamples",()=>{it("returns everything buffered and clears the buffer",()=>{e(!0),a({bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated",delta:1}),expect(i()).toHaveLength(1),expect(i()).toEqual([])})}),describe("startTiming/endTiming",()=>{it("startTiming returns undefined while disabled, without recording anything",()=>{expect(s()).toBeUndefined()}),it("endTiming no-ops when given an undefined t0 (the disabled-path token)",()=>{e(!0),d(void 0,{bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated"}),expect(i()).toEqual([])}),it("records a sample with a non-negative delta when enabled for the whole span",()=>{e(!0);const t=s(),a=i();expect(a).toEqual([]),d(t,{bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated"});const[o]=i();expect(o).toMatchObject({bus:"runtime-message",op:"op-a",decision:"PERMITTED",path:"mediated"}),expect(o.delta).toBeGreaterThanOrEqual(0)})})});

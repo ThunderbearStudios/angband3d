@@ -199,7 +199,37 @@ window.addEventListener('DOMContentLoaded', () => {
     dungeon.realm = activeRealm;
     window.dungeon = dungeon;
     window.__dungeon = dungeon;
+    window.__dungeonRenderer = dungeon;
     const hud = new WebHUD('minimap-canvas');
+
+    window.getShockboltSpriteCss = function(kind, name, glyph, sizePx = 24) {
+        const dr = window.__dungeonRenderer || window.__dungeon || window.dungeon;
+        if (!dr) return '';
+        let res = null;
+        if (kind === 'monster') {
+            if (typeof dr.getMonsterAtlasUV === 'function') {
+                res = dr.getMonsterAtlasUV(name, glyph);
+            } else if (typeof dr.resolveMonsterAtlasEntry === 'function') {
+                res = dr.resolveMonsterAtlasEntry(name, glyph);
+            }
+        } else {
+            if (typeof dr.getItemAtlasUV === 'function') {
+                res = dr.getItemAtlasUV(name, glyph);
+            } else if (typeof dr.resolveItemAtlasEntry === 'function') {
+                res = dr.resolveItemAtlasEntry(name, glyph);
+            }
+        }
+        const uv = Array.isArray(res) ? res : (res && Array.isArray(res.uv) ? res.uv : null);
+        if (!uv || uv.length < 4) return '';
+        const isMonster = kind === 'monster';
+        const cols = (res && res.cols) || Math.round(1 / Math.max(0.001, uv[2] - uv[0])) || 32;
+        const rows = (res && res.rows) || Math.round(1 / Math.max(0.001, uv[3] - uv[1])) || 32;
+        const bgSize = sizePx * cols;
+        const atlasUrl = isMonster ? '/assets/sprites/monsters/monster_atlas.png' : '/assets/sprites/items/item_atlas.png';
+        const col = (res && typeof res.col === 'number') ? res.col : Math.round(uv[0] * cols);
+        const row = (res && typeof res.row === 'number') ? res.row : Math.round((1 - uv[3]) * rows);
+        return `width: ${sizePx}px; height: ${sizePx}px; background-image: url('${atlasUrl}'); background-size: ${bgSize}px auto; background-position: -${col * sizePx}px -${row * sizePx}px;`;
+    };
 
     let forceTerminal = false;
     let currentPhase = 'setup';
@@ -208,6 +238,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (audio) audio.unlock();
         network.sendKey(key);
     });
+    window.__sendTerminalKey = (key) => network.sendKey(key);
 
     const setEngineMode = (mode) => {
         if (engineMode === mode && network) return;
@@ -275,6 +306,7 @@ window.addEventListener('DOMContentLoaded', () => {
     let quickBirthActive = false;
     let quickBirthStep = 0;
     let birthConfirming = false;
+    let lastBirthConfirmSig = '';
     let silqStatAllocated = false;
     let silqNameSent = false;
     let fcbRaceDone = false;
@@ -285,6 +317,7 @@ window.addEventListener('DOMContentLoaded', () => {
         quickBirthActive = false;
         quickBirthStep = 0;
         birthConfirming = false;
+        lastBirthConfirmSig = '';
         silqStatAllocated = false;
         silqNameSent = false;
         fcbRaceDone = false;
@@ -296,6 +329,9 @@ window.addEventListener('DOMContentLoaded', () => {
         cancelQuickBirth();
         birthReviewActive = false;
         birthConfirming = true;
+        lastBirthConfirmSig = (lastFrame && lastFrame.term && lastFrame.term.rows)
+            ? lastFrame.term.rows.map(r => r.g || '').join('\n').trim()
+            : '';
         network.sendKey('enter');
     };
 
@@ -303,6 +339,7 @@ window.addEventListener('DOMContentLoaded', () => {
         cancelQuickBirth();
         birthReviewActive = false;
         birthConfirming = false;
+        lastBirthConfirmSig = '';
         forceTerminal = false;
         window.__manualTerminalOpen = false;
         if (terminalContainer) {
@@ -734,6 +771,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
+                window.MenuRouter.clearPending();
+            }
             network.sendKey('escape');
             forceTerminal = false;
             terminalContainer.classList.add('hidden');
@@ -851,6 +891,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (audio) audio.playMenuNav();
                 returnToMainMenu();
             } else if (key === 'escape') {
+                if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
+                    window.MenuRouter.clearPending();
+                }
                 cancelQuickBirth();
                 network.sendKey('escape');
             } else if (key === 'enter' && birthReviewActive && !isChoiceMenu && !isNamePrompt) {
@@ -1103,6 +1146,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 const onTouchEnd = () => endDrag();
                 headerEl.addEventListener('touchend', onTouchEnd, { passive: true });
                 headerEl.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+                headerEl.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    winEl.style.position = '';
+                    winEl.style.left = '';
+                    winEl.style.top = '';
+                    winEl.style.right = '';
+                    winEl.style.bottom = '';
+                    winEl.style.margin = '';
+                    try {
+                        localStorage.removeItem(storageKey + '_pos');
+                    } catch (_) {}
+                });
             }
 
             // Resizing via bottom-right handle
@@ -1457,9 +1513,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 <div class="save-item-left">
                     <span class="save-bullet">►</span>
                     <div class="save-item-details">
-                        <div class="save-item-name">${save.characterName || save.filename}</div>
-                        <div class="save-item-summary">${save.description || 'Saved Adventurer'}</div>
-                        <div class="save-item-meta">Saved ${modDate} • ${sizeKb}</div>
+                        <div class="save-item-name">${escapeHtml(save.characterName || save.filename)}</div>
+                        <div class="save-item-summary">${escapeHtml(save.description || 'Saved Adventurer')}</div>
+                        <div class="save-item-meta">Saved ${escapeHtml(modDate)} • ${escapeHtml(sizeKb)}</div>
                     </div>
                 </div>
                 <div class="save-item-actions">
@@ -1506,6 +1562,41 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             loadSaveList.appendChild(card);
+        });
+        renderMainMenuSavesPanel();
+    }
+
+    function renderMainMenuSavesPanel() {
+        const listEl = document.getElementById('main-menu-saves-list');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+        if (!loadedSaves || loadedSaves.length === 0) {
+            listEl.innerHTML = '<div style="color:#94a3b8; font-size:11.5px; padding:6px 0;">No saved adventurers in this realm archive.</div>';
+            return;
+        }
+        loadedSaves.forEach((save) => {
+            const item = document.createElement('div');
+            item.className = 'main-menu-save-item';
+            item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:rgba(14,20,32,0.6); border:1px solid rgba(212,175,55,0.2); border-radius:6px; cursor:pointer; font-size:12px; margin-bottom:4px; transition:all 0.15s ease;';
+            item.innerHTML = `
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:75%;">
+                    <strong style="color:#ffd700;">${escapeHtml(save.characterName || save.filename)}</strong>
+                    <span style="color:#8892b0; font-size:11px; margin-left:6px;">${escapeHtml(save.description || '')}</span>
+                </div>
+                <button type="button" class="btn-panel-action" style="color:#38bdf8;">Load ➔</button>
+            `;
+            item.addEventListener('mouseenter', () => {
+                item.style.borderColor = '#ffd700';
+                item.style.background = 'rgba(28,38,60,0.8)';
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.borderColor = 'rgba(212,175,55,0.2)';
+                item.style.background = 'rgba(14,20,32,0.6)';
+            });
+            item.addEventListener('click', () => {
+                loadSelectedSave(save);
+            });
+            listEl.appendChild(item);
         });
     }
 
@@ -1981,6 +2072,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (label) label.textContent = `Continue (${latestSave.characterName || latestSave.filename})`;
                 if (desc) desc.textContent = `${latestSave.description || 'Saved Adventurer'}${latestSave.lastModified ? ' • Modified ' + new Date(latestSave.lastModified).toLocaleTimeString() : ''}`;
                 if (btn) btn.style.opacity = '1.0';
+                renderMainMenuSavesPanel();
                 return;
             }
         } catch (_) {}
@@ -1994,6 +2086,7 @@ window.addEventListener('DOMContentLoaded', () => {
             : 'No saved adventurer found in this realm (Choose [3] Quick Start or [4] Custom Hero)';
         const btn = document.getElementById('btn-menu-continue');
         if (btn) btn.style.opacity = '0.6';
+        renderMainMenuSavesPanel();
     }
 
     function activateMenuItem(overrideIndex = null) {
@@ -2120,22 +2213,15 @@ window.addEventListener('DOMContentLoaded', () => {
         if (queueModal) queueModal.classList.add('hidden');
         stopQueueTipRotation();
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-
-        // Watchdog: If engine fails to respond or socket hangs, dismiss loading overlay after 10s and return to menu
         if (window.__startWatchdog) clearTimeout(window.__startWatchdog);
-        window.__startWatchdog = setTimeout(() => {
-            if (loadingOverlay && !loadingOverlay.classList.contains('hidden') && !lastFrame) {
-                console.warn('[Angband3D] Game start watchdog: engine response timed out after 10s.');
-                loadingOverlay.classList.add('hidden');
-                showRealmToast(`⚠️ Connection timed out while starting realm "${chosenRealm}". Please check server.`);
-                returnToMainMenu();
-            }
-        }, 10000);
 
         quickBirthActive = !!options.autoBirth;
         quickBirthStep = 0;
         forceTerminal = false;
         lastFrame = null;
+        if (window.__dungeonRenderer) {
+            window.__dungeonRenderer.userPitchOffset = 0.0;
+        }
 
         if (hud && typeof hud.resetMessages === 'function') {
             hud.resetMessages();
@@ -2153,6 +2239,18 @@ window.addEventListener('DOMContentLoaded', () => {
                 console.warn('[Angband3D] Failed to load Hengband language data prior to connect:', err);
             }
         }
+
+        // Watchdog: If engine fails to respond or socket hangs after dictionary load, dismiss loading overlay and return to menu
+        if (window.__startWatchdog) clearTimeout(window.__startWatchdog);
+        window.__startWatchdog = setTimeout(() => {
+            if (loadingOverlay && !loadingOverlay.classList.contains('hidden') && !lastFrame) {
+                console.warn('[Angband3D] Game start watchdog: engine response timed out after 20s.');
+                loadingOverlay.classList.add('hidden');
+                showRealmToast(`⚠️ Connection timed out while starting realm "${chosenRealm}". Please check server.`);
+                returnToMainMenu();
+            }
+        }, 20000);
+
         network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm);
     }
 
@@ -2327,6 +2425,43 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnSplashStart = document.getElementById('btn-splash-start');
     if (btnSplashStart) bindFastTap(btnSplashStart, () => showMainMenu());
 
+    const btnSplashQuickStart = document.getElementById('btn-splash-quick-start');
+    if (btnSplashQuickStart) {
+        bindFastTap(btnSplashQuickStart, () => {
+            showMainMenu();
+            activateMenuItem(2); // Option [3]: Quick Start (Random Hero)
+        });
+    }
+
+    const btnSplashLoadSave = document.getElementById('btn-splash-load-save');
+    if (btnSplashLoadSave) {
+        bindFastTap(btnSplashLoadSave, () => {
+            showMainMenu();
+            const panel = document.getElementById('main-menu-saves-panel');
+            if (panel) {
+                panel.classList.remove('hidden');
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                showLoadMenu(false);
+            }
+        });
+    }
+
+    // Keyboard shortcuts for splash screen: [Q] Quick Start, [L] Saved Chronicles (when not Hengband)
+    window.addEventListener('keydown', (e) => {
+        if (appState === 'splash') {
+            if (e.key === 'q' || e.key === 'Q') {
+                e.preventDefault();
+                const btnQuick = document.getElementById('btn-splash-quick-start');
+                if (btnQuick) btnQuick.click();
+            } else if ((e.key === 'l' || e.key === 'L') && activeRealm !== 'hengband') {
+                e.preventDefault();
+                const btnLoad = document.getElementById('btn-splash-load-save');
+                if (btnLoad) btnLoad.click();
+            }
+        }
+    });
+
     const btnSplashMenu = document.getElementById('btn-splash-menu');
     if (btnSplashMenu) bindFastTap(btnSplashMenu, () => showMainMenu());
 
@@ -2429,6 +2564,82 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const btnMenuRealms = document.getElementById('btn-menu-realms');
     if (btnMenuRealms) bindFastTap(btnMenuRealms, () => showSplash());
+
+    // Inline 1-click realm switcher pills inside Main Menu
+    const menuRealmPills = document.querySelectorAll('.realm-pill-btn[data-switch-realm]');
+    menuRealmPills.forEach((pill) => {
+        const rKey = pill.dataset.switchRealm;
+        bindFastTap(pill, () => {
+            if (rKey) {
+                selectRealm(rKey, false);
+                if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
+            }
+        });
+    });
+
+    // Main Menu compatibility alias buttons & integrated saves panel controls
+    const btnMenuLoadSave = document.getElementById('btn-menu-load-save');
+    if (btnMenuLoadSave) bindFastTap(btnMenuLoadSave, () => {
+        const panel = document.getElementById('main-menu-saves-panel');
+        if (panel) {
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        } else {
+            showLoadMenu(false);
+        }
+    });
+
+    const btnMenuQuickStart = document.getElementById('btn-menu-quick-start');
+    if (btnMenuQuickStart) bindFastTap(btnMenuQuickStart, () => activateMenuItem(2));
+
+    const btnMenuNewGame = document.getElementById('btn-menu-new-game');
+    if (btnMenuNewGame) bindFastTap(btnMenuNewGame, () => activateMenuItem(3));
+
+    const btnMenuSwitchRealm = document.getElementById('btn-menu-switch-realm');
+    if (btnMenuSwitchRealm) bindFastTap(btnMenuSwitchRealm, () => showSplash());
+
+    const btnMenuHowToPlay = document.getElementById('btn-menu-how-to-play');
+    if (btnMenuHowToPlay) bindFastTap(btnMenuHowToPlay, () => showGuide(0, 'mainMenu'));
+
+    const btnMenuControls = document.getElementById('btn-menu-controls');
+    if (btnMenuControls) bindFastTap(btnMenuControls, () => showGuide(4, 'mainMenu'));
+
+    const btnMenuAudio = document.getElementById('btn-menu-audio');
+    if (btnMenuAudio) {
+        bindFastTap(btnMenuAudio, () => {
+            if (audio && typeof audio.toggleMute === 'function') {
+                audio.toggleMute();
+                syncAudioUI();
+            }
+        });
+    }
+
+    const btnMenuSavesClose = document.getElementById('btn-menu-saves-close');
+    if (btnMenuSavesClose) {
+        bindFastTap(btnMenuSavesClose, () => {
+            const panel = document.getElementById('main-menu-saves-panel');
+            if (panel) panel.classList.add('hidden');
+        });
+    }
+
+    const btnMenuSavesRefresh = document.getElementById('btn-menu-saves-refresh');
+    if (btnMenuSavesRefresh) {
+        bindFastTap(btnMenuSavesRefresh, () => {
+            checkSaves();
+            fetchAndRenderSaves();
+        });
+    }
+
+    const inputMenuUploadSave = document.getElementById('input-menu-upload-save');
+    if (inputMenuUploadSave) {
+        inputMenuUploadSave.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                uploadSave(e.target.files[0]);
+            }
+        });
+    }
 
     const btnLoadRealmSwitch = document.getElementById('btn-load-realm-switch');
     if (btnLoadRealmSwitch) bindFastTap(btnLoadRealmSwitch, () => showRealmSelector('loadMenu'));
@@ -3394,6 +3605,12 @@ window.addEventListener('DOMContentLoaded', () => {
         const splashCtaName = document.getElementById('splash-cta-realm-name');
         if (splashCtaName) splashCtaName.textContent = realm.name;
 
+        const splashLoreTitle = document.getElementById('splash-lore-title');
+        if (splashLoreTitle) splashLoreTitle.textContent = `${realm.name}:`;
+
+        const splashLoreDesc = document.getElementById('splash-lore-desc');
+        if (splashLoreDesc) splashLoreDesc.textContent = realm.desc || realm.tagline;
+
         const splashCards = document.querySelectorAll('.splash-realm-card');
         splashCards.forEach((card) => {
             const isMatch = card.dataset.realm === activeRealm;
@@ -3415,8 +3632,18 @@ window.addEventListener('DOMContentLoaded', () => {
         const menuActiveRealmName = document.getElementById('menu-active-realm-name');
         if (menuActiveRealmName) menuActiveRealmName.textContent = realm.name;
 
+        const menuSubtitle = document.getElementById('main-menu-subtitle');
+        if (menuSubtitle) menuSubtitle.textContent = `${realm.tagline} • ${realm.voiceAccent}`;
+
         const menuDesc = document.getElementById('menu-realm-desc');
         if (menuDesc) menuDesc.textContent = `Active: ${realm.name} • ${realm.tagline}`;
+
+        const menuRealmPills = document.querySelectorAll('.realm-pill-btn[data-switch-realm]');
+        menuRealmPills.forEach((pill) => {
+            const isPillMatch = pill.dataset.switchRealm === activeRealm;
+            pill.classList.toggle('active', isPillMatch);
+            pill.setAttribute('aria-selected', isPillMatch ? 'true' : 'false');
+        });
 
         // 3. Modals & HUD Synchronization
         const loadActiveRealmName = document.getElementById('load-active-realm-name');
@@ -3619,8 +3846,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 { id: 'gain', cat: 'magic', icon: '✨', name: isJp ? '新しい呪文の習得' : 'Gain Spell / 呪文習得', key: 'G', keyDisplay: 'Shift+G', badge: 'Hengband', desc: isJp ? '魔道書から新しい呪文を習得します。' : 'Study new spells from realm spellbooks.' },
                 { id: 'activate', cat: 'magic', icon: '⚡', name: isJp ? 'アーティファクトの発動' : 'Activate Artifact / 発動', key: 'A', keyDisplay: 'Shift+A', badge: 'Hengband', desc: isJp ? '装備品やアーティファクトを発動します。' : 'Trigger the power of an equipped artifact.' },
                 { id: 'staff', cat: 'magic', icon: '🦯', name: isJp ? '杖を振る' : 'Use Staff / 杖', key: 'u', keyDisplay: 'u', badge: 'Hengband', desc: isJp ? '杖を使用します。' : 'Invoke charges from a magical staff.' },
-                { id: 'wand', cat: 'magic', icon: '🪄', name: isJp ? '魔法棒を使用' : 'Aim Wand / 魔法棒', key: 'z', keyDisplay: 'z', badge: 'Hengband', desc: isJp ? '魔法棒を目標に向けて振ります。' : 'Aim a magical wand towards a target.' },
-                { id: 'rod', cat: 'magic', icon: '⚡', name: isJp ? 'ロッドを使用' : 'Zap Rod / ロッド', key: 'a', keyDisplay: 'a', badge: 'Hengband', desc: isJp ? 'ロッドの魔力を放ちます。' : 'Zap a rechargeable magical rod.' },
+                { id: 'wand', cat: 'magic', icon: '🪄', name: isJp ? '魔法棒を使用' : 'Aim Wand / 魔法棒', key: 'a', keyDisplay: 'a', badge: 'Hengband', desc: isJp ? '魔法棒を目標に向けて振ります。' : 'Aim a magical wand towards a target.' },
+                { id: 'rod', cat: 'magic', icon: '⚡', name: isJp ? 'ロッドを使用' : 'Zap Rod / ロッド', key: 'z', keyDisplay: 'z', badge: 'Hengband', desc: isJp ? 'ロッドの魔力を放ちます。' : 'Zap a rechargeable magical rod.' },
                 { id: 'knowledge', cat: 'system', icon: '📚', name: isJp ? '知識メニュー' : 'Knowledge Menu / 知識', key: '~', keyDisplay: '~', badge: 'Hengband', desc: isJp ? 'モンスター情報、アーティファクトの知識。' : 'Check monster memory, artifacts, and dungeon lore.' }
             ];
         } else {
@@ -3631,8 +3858,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 { id: 'gain', cat: 'magic', icon: '✨', name: 'Gain New Spells', key: 'G', keyDisplay: 'Shift+G', badge: 'Vanilla', desc: 'Study newly available spells or prayers.' },
                 { id: 'activate', cat: 'magic', icon: '⚡', name: 'Activate Equipment / Artifact', key: 'A', keyDisplay: 'Shift+A', badge: 'Vanilla', desc: 'Activate the magical property of worn armor, ring, or weapon.' },
                 { id: 'staff', cat: 'magic', icon: '🦯', name: 'Use Staff', key: 'u', keyDisplay: 'u', badge: 'Vanilla', desc: 'Discharge charges from a magical staff.' },
-                { id: 'wand', cat: 'magic', icon: '🪄', name: 'Aim Wand', key: 'z', keyDisplay: 'z', badge: 'Vanilla', desc: 'Aim a beam or ball wand at a target.' },
-                { id: 'rod', cat: 'magic', icon: '⚡', name: 'Zap Rod', key: 'a', keyDisplay: 'a', badge: 'Vanilla', desc: 'Discharge a rechargeable rod.' },
+                { id: 'wand', cat: 'magic', icon: '🪄', name: 'Aim Wand', key: 'a', keyDisplay: 'a', badge: 'Vanilla', desc: 'Aim a beam or ball wand at a target.' },
+                { id: 'rod', cat: 'magic', icon: '⚡', name: 'Zap Rod', key: 'z', keyDisplay: 'z', badge: 'Vanilla', desc: 'Discharge a rechargeable rod.' },
                 { id: 'knowledge', cat: 'system', icon: '📚', name: 'Check Knowledge', key: '~', keyDisplay: '~', badge: 'Vanilla', desc: 'Access monster recall, ego items, artifacts, and dungeon lore.' },
                 { id: 'quiver', cat: 'tactical', icon: '🏹', name: 'Inspect Quiver', key: '|', keyDisplay: '|', badge: 'Vanilla', desc: 'View ammunition currently carried in your quiver.' }
             ];
@@ -3687,14 +3914,14 @@ window.addEventListener('DOMContentLoaded', () => {
             row.className = `cmd-row ${idx === selectedCmdIndex ? 'selected' : ''}`;
             row.innerHTML = `
                 <div class="cmd-row-left">
-                    <span class="cmd-row-icon">${cmd.icon}</span>
+                    <span class="cmd-row-icon">${escapeHtml(cmd.icon)}</span>
                     <div class="cmd-row-text">
-                        <span class="cmd-row-name">${cmd.name} ${cmd.badge ? `<span class="cmd-badge">${cmd.badge}</span>` : ''}</span>
-                        <span class="cmd-row-desc">${cmd.desc}</span>
+                        <span class="cmd-row-name">${escapeHtml(cmd.name)} ${cmd.badge ? `<span class="cmd-badge">${escapeHtml(cmd.badge)}</span>` : ''}</span>
+                        <span class="cmd-row-desc">${escapeHtml(cmd.desc)}</span>
                     </div>
                 </div>
                 <div class="cmd-row-right">
-                    <kbd class="cmd-kbd">${cmd.keyDisplay}</kbd>
+                    <kbd class="cmd-kbd">${escapeHtml(cmd.keyDisplay)}</kbd>
                 </div>
             `;
             row.addEventListener('click', () => {
@@ -3764,7 +3991,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
                     const filter = cmdPaletteFilter.toLowerCase().trim();
-                    const items = COMMAND_REGISTRY.filter((cmd) => {
+                    const currentCommands = getRealmCommandRegistry(activeRealm, langMode);
+                    const items = currentCommands.filter((cmd) => {
                         const matchesCat = activeCmdCategory === 'all' || cmd.cat === activeCmdCategory;
                         const matchesText = !filter ||
                             cmd.name.toLowerCase().includes(filter) ||
@@ -3949,11 +4177,13 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!Array.isArray(buttons)) return '';
         return buttons.map(b => {
             const goldCls = b.gold ? ' btn-gold' : (b.outline ? ' btn-gold-outline' : '');
-            const extra = b.extraCls ? ' ' + b.extraCls : '';
-            const badge = b.badge !== undefined ? b.badge : `[${b.key}]`;
-            return `<button type="button" class="term-ctx-btn${goldCls}${extra}" data-key="${b.key}"><span>${badge}</span> ${b.label}</button>`;
+            const extra = b.extraCls ? ' ' + escapeHtml(b.extraCls) : '';
+            const badge = b.badge !== undefined ? escapeHtml(b.badge) : `[${escapeHtml(b.key)}]`;
+            return `<button type="button" class="term-ctx-btn${goldCls}${extra}" data-key="${escapeHtml(b.key)}"><span>${badge}</span> ${escapeHtml(b.label)}</button>`;
         }).join('\n');
     }
+
+    let lastPopulatedLetters = '';
 
     function updateTerminalToolbar(frame) {
         const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
@@ -4084,12 +4314,11 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         // Helper to populate letter ribbon (supports single & multi-column menus, excludes item description stats)
-        let lastPopulatedLetters = '';
         const populateLetterRibbon = (rows, explicitLetters = null) => {
             if (!termLetterRibbon) return;
             let options = [];
             if (explicitLetters && Array.isArray(explicitLetters)) {
-                options = explicitLetters.map(lt => ({ key: lt, display: `[${lt}]` }));
+                options = explicitLetters.map(lt => ({ key: lt, display: `[${lt}]`, label: null }));
             } else if (rows) {
                 // Unified option tag extraction across all variants (Angband 4.2.6, Hengband 3.0.1, Sil-Q, FrogComposBand)
                 const regexes = [
@@ -4160,19 +4389,19 @@ window.addEventListener('DOMContentLoaded', () => {
                                         display = `[*] ランダム (Random)`;
                                     }
                                 }
-                                options.push({ key, display });
+                                options.push({ key, display, label });
                             }
                         }
                     }
                 }
                 // If yes/no is present in prompt, ensure y and n are available
                 if (screenText.includes('[y/n]') || screenText.includes('(y/n)') || (isHengCur && screenText.includes('よろしいですか'))) {
-                    if (!seenKeys.has('y')) options.unshift({ key: 'y', display: '[y] ✓ Yes' });
-                    if (!seenKeys.has('n')) options.push({ key: 'n', display: '[n] ✕ No' });
+                    if (!seenKeys.has('y')) options.unshift({ key: 'y', display: '[y] ✓ Yes', label: null });
+                    if (!seenKeys.has('n')) options.push({ key: 'n', display: '[n] ✕ No', label: null });
                 }
             }
 
-            const letterKey = options.map(o => o.key + ':' + o.display).join(',');
+            const letterKey = options.map(o => o.key + ':' + o.display + ':' + (o.label || '')).join(',');
             if (letterKey === lastPopulatedLetters) {
                 return; // DOM stability: do not recreate buttons if options are unchanged
             }
@@ -4180,9 +4409,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (options.length > 0) {
                 termLetterRibbon.style.display = 'flex';
-                termLetterRibbon.innerHTML = options.map(opt =>
-                    `<button type="button" class="term-letter-btn" data-key="${escapeHtml(opt.key)}">${escapeHtml(opt.display)}</button>`
-                ).join('');
+                termLetterRibbon.innerHTML = options.map(opt => {
+                    let iconHtml = '';
+                    if (inPlay && opt.label && typeof window.getShockboltSpriteCss === 'function') {
+                        const iconStyle = window.getShockboltSpriteCss('item', opt.label, null, 22);
+                        if (iconStyle) {
+                            iconHtml = `<span class="sb-sprite-icon" style="${iconStyle}"></span> `;
+                        }
+                    }
+                    return `<button type="button" class="term-letter-btn" data-key="${escapeHtml(opt.key)}">${iconHtml}${escapeHtml(opt.display)}</button>`;
+                }).join('');
             } else {
                 termLetterRibbon.style.display = 'none';
                 termLetterRibbon.innerHTML = '';
@@ -4431,13 +4667,21 @@ window.addEventListener('DOMContentLoaded', () => {
             : null;
 
         if (pendingState && pendingState.step === 'chooser' && pendingState.item) {
+            const pending = pendingState;
             terminalTitle.textContent = isHeng
-                ? hengTitle(`🎒 ${pendingState.item.key}) ${pendingState.item.label}`, `🎒 ${pendingState.item.key}) ${pendingState.item.label}`, `🎒 ${pendingState.item.key}) ${pendingState.item.label}`)
-                : `🎒 ${pendingState.item.key}) ${pendingState.item.label}`;
+                ? hengTitle(`🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`)
+                : `🎒 ${pending.item.key}) ${pending.item.label}`;
             if (termDpad) termDpad.style.display = 'none';
             const chooserRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (effFrame && effFrame.realm) || 'angband';
             if (window.MenuRouter && typeof window.MenuRouter.renderChooserHtml === 'function') {
-                setCtxActions(window.MenuRouter.renderChooserHtml(pendingState, chooserRealm));
+                let chooserHtml = window.MenuRouter.renderChooserHtml(pending, chooserRealm);
+                if (typeof window.getShockboltSpriteCss === 'function') {
+                    const iconStyle = window.getShockboltSpriteCss('item', pending.item.label, pending.item.glyph, 32);
+                    if (iconStyle) {
+                        chooserHtml = chooserHtml.replace(/(<div class="term-chooser-header"[^>]*>)/, `$1<span class="sb-sprite-icon term-chooser-portrait" style="${iconStyle}"></span> `);
+                    }
+                }
+                setCtxActions(chooserHtml);
             }
             return;
         }
@@ -4494,6 +4738,22 @@ window.addEventListener('DOMContentLoaded', () => {
                 ]));
             }
             populateLetterRibbon(null, ['1', '2', '3', '5', '10', 'enter']);
+        } else if (SC.isPopupCommandMenu && SC.isPopupCommandMenu(screenText)) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('📜 COMMAND MENU', '📜 COMMAND MENU / コマンド', '📜 コマンドメニュー')
+                : '📜 COMMAND MENU';
+            if (termDpad) termDpad.style.display = 'none';
+            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+            if (termCtxActions) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'up', badge: '[▲]', label: '▲ Up' },
+                    { key: 'down', badge: '[▼]', label: '▼ Down' },
+                    { key: 'left', badge: '[◀]', label: '◀ Left' },
+                    { key: 'right', badge: '[▶]', label: '▶ Right' },
+                    { key: 'enter', badge: '[⏎]', label: '✓ Select (Enter)', gold: true },
+                    { key: 'escape', badge: '[Esc]', label: '✕ Close (Esc)', gold: true }
+                ]));
+            }
         } else if (isStore) {
             // Player is inside a classic store
             if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
@@ -4743,6 +5003,58 @@ window.addEventListener('DOMContentLoaded', () => {
                         { key: 'space', badge: '[␣]', label: 'Next Page' }
                     ]));
                 }
+            }
+            populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
+        } else if (SC && SC.isCharacterSheet && SC.isCharacterSheet(screenText)) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('📜 CHARACTER SHEET — Hero Status', '📜 CHARACTER SHEET / キャラクター情報', '📜 キャラクター情報')
+                : '📜 CHARACTER SHEET — Hero Status & Attributes';
+            if (termDpad) termDpad.style.display = 'none';
+            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+            if (termCtxActions) {
+                const charBtns = [
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Return to 3D', '⎋ Return / 戻る', '⎋ 戻る'), gold: true },
+                    { key: 'h', badge: '[h]', label: hengLabel('📖 History / Mode', '📖 History / 履歴切替', '📖 履歴 / 画面切替'), gold: true },
+                    { key: 'f', badge: '[f]', label: hengLabel('💾 Dump Char File', '💾 Dump / ファイル出力', '💾 ファイル出力') },
+                    { key: activeRealm === 'silq' ? 'n' : 'c', badge: activeRealm === 'silq' ? '[n]' : '[c]', label: hengLabel('✎ Change Name', '✎ Name / 名前変更', '✎ 名前変更') }
+                ];
+                if (activeRealm === 'silq') {
+                    charBtns.push({ key: 'tab', badge: '[Tab]', label: '🌟 Ability Tree', gold: true });
+                }
+                setCtxActions(renderCtxButtons(charBtns));
+            }
+        } else if (SC && SC.isSpellOrAbilityMenu && SC.isSpellOrAbilityMenu(screenText)) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('✨ GRIMOIRE & ABILITIES — Choose Spell or Power', '✨ GRIMOIRE / 呪文・技能の選択', '✨ 呪文・技能の選択')
+                : (activeRealm === 'silq' ? '✨ SONGS, ABILITIES & SMITHING' : '✨ GRIMOIRE & POWERS — Select Spell or Ability');
+            if (termDpad) termDpad.style.display = 'none';
+            if (termCtxActions) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 戻る', '⎋ 戻る'), gold: true },
+                    { key: 'up', badge: '[↑]', label: '▲ Up' },
+                    { key: 'down', badge: '[↓]', label: '▼ Down' },
+                    { key: 'left', badge: '[←]', label: '◀ Prev' },
+                    { key: 'right', badge: '[→]', label: '▶ Next' },
+                    { key: 'enter', badge: '[↵]', label: hengLabel('✓ Confirm / Select', '✓ Select / 決定', '✓ 決定'), gold: true },
+                    { key: 'space', badge: '[␣]', label: hengLabel('Page / Info', 'Page / 次頁', '次頁') }
+                ]));
+            }
+            populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
+        } else if (SC && SC.isKnowledgeOrOptions && SC.isKnowledgeOrOptions(screenText)) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('📚 KNOWLEDGE, OPTIONS & ARCHIVES', '📚 ARCHIVES / 知識・オプション', '📚 知識・オプション設定')
+                : '📚 KNOWLEDGE, OPTIONS & ARCHIVES';
+            if (termDpad) termDpad.style.display = 'none';
+            if (termCtxActions) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back / Exit', '⎋ Back / 戻る', '⎋ 戻る'), gold: true },
+                    { key: 'up', badge: '[↑]', label: '▲ Up' },
+                    { key: 'down', badge: '[↓]', label: '▼ Down' },
+                    { key: 'enter', badge: '[↵]', label: hengLabel('✓ Select / Toggle', '✓ Select / 選択', '✓ 選択'), gold: true },
+                    { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次頁') },
+                    { key: 'y', badge: '[y]', label: 'Yes / On' },
+                    { key: 'n', badge: '[n]', label: 'No / Off' }
+                ]));
             }
             populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
         } else {
@@ -5030,12 +5342,57 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const btnGraphicsPreset = document.getElementById('btn-graphics-preset');
+    if (btnGraphicsPreset) {
+        const updateGfxPresetUI = (preset) => {
+            const labelEl = btnGraphicsPreset.querySelector('.gfx-label');
+            const iconEl = btnGraphicsPreset.querySelector('.gfx-icon');
+            const p = preset || (window.GRAPHICS_CONFIG && window.GRAPHICS_CONFIG.preset) || 'ultra';
+            const presetMap = {
+                ultra: { label: 'GFX: Ultra', icon: '✨', toast: '3D Graphics: Ultra Realism (Dynamic Shadows & Volumetrics)' },
+                enhanced: { label: 'GFX: Enhanced', icon: '🎨', toast: '3D Graphics: Enhanced (60FPS Smooth Shading & Normal Maps)' },
+                classic: { label: 'GFX: Classic', icon: '🕹️', toast: '3D Graphics: Classic (Retro Pixel / Fast Performance)' }
+            };
+            const info = presetMap[p] || presetMap.ultra;
+            if (labelEl) labelEl.textContent = info.label;
+            if (iconEl) iconEl.textContent = info.icon;
+            return info;
+        };
+
+        const currentP = (window.GRAPHICS_CONFIG && window.GRAPHICS_CONFIG.preset) || 'ultra';
+        updateGfxPresetUI(currentP);
+
+        btnGraphicsPreset.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const cur = (window.GRAPHICS_CONFIG && window.GRAPHICS_CONFIG.preset) || 'ultra';
+            const order = ['ultra', 'enhanced', 'classic'];
+            const nextIdx = (order.indexOf(cur) + 1) % order.length;
+            const nextPreset = order[nextIdx];
+            if (typeof window.setGraphicsPreset === 'function') {
+                window.setGraphicsPreset(nextPreset);
+            }
+            const info = updateGfxPresetUI(nextPreset);
+            if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+            showRealmToast(info.toast);
+        });
+    }
+
     const btnToggleLang = document.getElementById('btn-toggle-lang');
     if (btnToggleLang) {
         btnToggleLang.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleLanguageMode();
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
+        });
+    }
+
+    const btnPauseResetHud = document.getElementById('btn-pause-reset-hud');
+    if (btnPauseResetHud) {
+        btnPauseResetHud.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (hud && typeof hud.resetHudLayout === 'function') {
+                hud.resetHudLayout();
+            }
         });
     }
 
@@ -5185,6 +5542,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
             lastFrame = frame;
             window.__lastFrame = frame;
+            if (window.__dungeonRenderer && window.__dungeonRenderer.userPitchOffset) {
+                window.__dungeonRenderer.userPitchOffset = 0.0;
+            }
             if (frame.realm) {
                 window.activeRealm = frame.realm;
                 window.__activeRealm = frame.realm;
@@ -5210,29 +5570,42 @@ window.addEventListener('DOMContentLoaded', () => {
                 stepQuickBirth(frame);
             } else if (birthConfirming) {
                 if (frame.phase === 'play' && frame.map && frame.player) {
+                    const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
+                    if (/\|\s*>\s*(?:Song\/Special|Action|Item|Equi|Info|Save)/i.test(rawScreenText) || (frame.ui && frame.ui.overlay > 0)) {
+                        network.sendKey('escape');
+                    }
                     finalizeHeroBirth();
                 } else {
                     const rawScreenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
                     const decodedScreenText = decodeHengbandText(rawScreenText);
                     const screenText = (rawScreenText + '\n' + decodedScreenText).toLowerCase();
-                    if (screenText.includes('[y/n]') || screenText.includes('(y/n)') ||
-                        screenText.includes('よろしいですか') || screenText.includes('冒険に出ますか') ||
-                        screenText.includes('決定しますか') || screenText.includes('この数値に決定')) {
-                        network.sendKey('y');
-                    } else if (screenText.includes("enter a name for your character") ||
-                        screenText.includes("character background") ||
-                        screenText.includes("start over, or enter to continue") ||
-                        screenText.includes("['q'uit, 's'tart over, or enter to continue]") ||
-                        screenText.includes("into the vast and echoing gloom") ||
-                        screenText.includes("down to the depths") ||
-                        screenText.includes("down awful corridors") ||
-                        screenText.includes("enter to continue") ||
-                        screenText.includes("名前を入力") ||
-                        screenText.includes("生い立ち") ||
-                        screenText.includes("ゲーム開始") ||
-                        screenText.includes("能力値") ||
-                        screenText.includes("決定")) {
-                        network.sendKey('enter');
+                    const sig = rawScreenText.trim();
+                    if (sig !== lastBirthConfirmSig) {
+                        if (screenText.includes('[y/n]') || screenText.includes('(y/n)') ||
+                            screenText.includes('よろしいですか') || screenText.includes('冒険に出ますか') ||
+                            screenText.includes('決定しますか') || screenText.includes('この数値に決定')) {
+                            lastBirthConfirmSig = sig;
+                            network.sendKey('y');
+                        } else if (screenText.includes("enter a name for your character") ||
+                            screenText.includes("character background") ||
+                            screenText.includes("enter start game") ||
+                            screenText.includes("start over, or enter to continue") ||
+                            screenText.includes("['q'uit, 's'tart over, or enter to continue]") ||
+                            screenText.includes("into the vast and echoing gloom") ||
+                            screenText.includes("down to the depths") ||
+                            screenText.includes("down awful corridors") ||
+                            screenText.includes("enter to continue") ||
+                            screenText.includes("begin play") ||
+                            screenText.includes("enter your starting stats") ||
+                            screenText.includes("accept character") ||
+                            screenText.includes("名前を入力") ||
+                            screenText.includes("生い立ち") ||
+                            screenText.includes("ゲーム開始") ||
+                            screenText.includes("能力値") ||
+                            screenText.includes("決定")) {
+                            lastBirthConfirmSig = sig;
+                            network.sendKey('enter');
+                        }
                     }
                 }
             } else if (frame.phase === 'play' && frame.map && frame.player) {
@@ -5281,20 +5654,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Auto-flush -more- prompts seamlessly during play (only in 3D world, NOT inside store/overlay or review screen)
-            const isOverlay = frame.ui && (frame.ui.overlay || 0) > 0;
-            const needsTerm = needsTerminal(frame);
-            if (frame.ui && frame.ui.more && !isOverlay && !needsTerm) {
-                const screenText = (frame.term && frame.term.rows)
-                    ? frame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
-                    : '';
-                const isReviewScreen = screenText.includes("use as is") || screenText.includes("'y': use") ||
-                                       screenText.includes("to start over") || screenText.includes("r to reroll") ||
-                                       screenText.includes("'s' to start");
-                if (!isReviewScreen) {
-                    network.sendKey('space');
-                }
-            }
 
             // Check if player died
             if (frame.player && frame.player.dead) {
@@ -5319,6 +5678,7 @@ window.addEventListener('DOMContentLoaded', () => {
             updateViewMode(frame);
 
             // Render Terminal if active or in setup phase
+            const needsTerm = needsTerminal(frame) || forceTerminal;
             if (frame.term && (needsTerm || currentPhase !== 'play')) {
                 terminal.render(frame.term);
             }
@@ -5433,6 +5793,22 @@ window.addEventListener('DOMContentLoaded', () => {
     updateRealmUI();
     setupRealmModalEvents();
     setupCommandPaletteEvents();
+
+    // Live 3D Celestial Diorama: When in Splash or Main Menu and no gameplay frame has arrived,
+    // gently tilt camera pitch upward and orbit yaw so the Celestial Sky Dome & Town diorama shine through.
+    function tickMenuDiorama(time) {
+        if ((appState === 'splash' || appState === 'mainMenu') && !lastFrame) {
+            const dr = window.__dungeonRenderer || window.dungeon;
+            if (dr && dr.camera) {
+                // Gently tilt camera pitch upward towards the celestial dome & Milky Way
+                dr.userPitchOffset = 0.22 + Math.sin(time * 0.0006) * 0.05;
+                // Smoothly orbit yaw so Town masonry and constellations pan gently
+                dr.targetYaw = (dr.targetYaw || 0) + 0.0006;
+            }
+        }
+        requestAnimationFrame(tickMenuDiorama);
+    }
+    requestAnimationFrame(tickMenuDiorama);
 
     // 3. Initial Boot: Check URL query parameters
     const urlParams = new URLSearchParams(window.location.search);

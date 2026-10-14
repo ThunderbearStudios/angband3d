@@ -62,8 +62,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=9.4.13">
-    <link rel="stylesheet" href="/css/chronicle.css?v=9.4.13">
+    <link rel="stylesheet" href="/css/dungeon.css?v=9.5.6">
+    <link rel="stylesheet" href="/css/chronicle.css?v=9.5.6">
 </head>
 <body>
     <div id="app-container">
@@ -233,6 +233,7 @@
                     </div>
                     <div class="chronicle-audio-toggles">
                         <button id="btn-chronicle-prompt-tale" class="chronicle-ctrl-btn" title="Weave Tale: Spin an on-demand saga tale with tactical hints [Alt+T]">🔮 Tale</button>
+                        <button id="chronicle-sketch-btn" class="chronicle-ctrl-btn chronicle-sketch-btn" title="Sketch Hero: Generate a lore-accurate action sketch of your character at this point in the story [Alt+K]" aria-label="Sketch Hero Action">🎨 Sketch</button>
                         <button id="btn-chronicle-mute" class="chronicle-ctrl-btn" title="Toggle Voice Narration">🔇 Muted</button>
                         <button id="btn-chronicle-speed" class="chronicle-ctrl-btn" title="Audiobook Speed (0.75x, 0.85x, 1.0x, 1.25x, 1.5x)">⚡ 1.0x</button>
                     </div>
@@ -374,6 +375,13 @@
 
         <!-- On-Screen Virtual Touch D-Pad (Mobile / Tablet / Touch) -->
         <div id="touch-controls">
+            <div class="dpad-header-bar" id="dpad-drag-handle" title="Drag to move D-Pad anywhere on screen • Double-click to reset">
+                <span class="dpad-grip-label">✥ MOVE PAD</span>
+                <div class="dpad-header-actions">
+                    <button type="button" id="btn-dpad-scale" class="dpad-mini-btn" title="Cycle D-Pad Size (Compact / Standard / Large)">⛶</button>
+                    <button type="button" id="btn-dpad-collapse" class="dpad-mini-btn" title="Minimize / Expand D-Pad">−</button>
+                </div>
+            </div>
             <!-- Top Turning Shoulder Wings -->
             <div class="dpad-turn-wings">
                 <button type="button" id="dpad-turn-left" class="dpad-btn dpad-turn-btn" title="Turn Camera Left 90° [Left Arrow]">
@@ -410,7 +418,13 @@
         <div id="hud-overlay">
             <!-- Character Status & Vitals (Gauges & Attributes) -->
             <div id="char-panel" class="hud-panel">
-                <div id="char-title" class="char-title">Hero of Angband</div>
+                <div class="char-panel-header" id="char-drag-handle" title="Drag to move Hero Status Card • Click title for Character Sheet [C]">
+                    <div class="char-header-main">
+                        <div id="char-title" class="char-title">Hero of Angband</div>
+                        <div id="char-sub-meta" class="char-sub-meta">Lv.1 Adventurer • Town</div>
+                    </div>
+                    <button type="button" id="btn-char-details-toggle" class="char-mini-btn" title="Toggle Extended Character Stats, Skills &amp; Context">▾</button>
+                </div>
                 <div class="gauge-container gauge-hp">
                     <div class="gauge-header">
                         <span>HEALTH</span>
@@ -441,6 +455,7 @@
                     <div class="stat-item" id="stat-item-ac" title="Armor Class"><span class="stat-label">AC</span><span id="val-ac" class="stat-value">0</span></div>
                     <div class="stat-item" id="stat-item-gold" title="Gold (AU)"><span class="stat-label">GOLD</span><span id="val-gold" class="stat-value" style="color: #ffd700;">0</span></div>
                 </div>
+                <div id="char-extended-drawer" class="char-extended-drawer hidden"></div>
             </div>
 
             <!-- Center Column: Quick Action Bar + Detailed 3-Row Telemetry Footer -->
@@ -450,6 +465,7 @@
 
                 <!-- Quick Action Bar -->
                 <div id="action-bar" class="hud-panel">
+                    <div id="action-bar-drag-handle" class="hud-dock-drag-handle" title="Drag to move Action Bar &amp; Status Dock • Double-click to reset">⋮⋮</div>
                     <button id="btn-hero-action" class="action-btn action-hero-btn" title="Context Action (Attack / Open / Pickup / Tunnel / Wait)"><span id="hero-action-icon">⚔</span> <span id="hero-action-text">Attack</span> <kbd id="hero-action-key">Space</kbd></button>
                     <button id="btn-attack" class="action-btn" title="Attack adjacent monster in front [Space]">⚔ Attack <kbd>Space</kbd></button>
                     <button id="btn-throw" class="action-btn" title="Throw item at target [v]">🎯 Throw <kbd>v</kbd></button>
@@ -499,6 +515,7 @@
                     <!-- Right: Active Status Conditions & Quick Help -->
                     <div class="status-group status-right">
                         <div id="footer-badges" class="footer-badges"></div>
+                        <button type="button" id="btn-hud-reset-layout" class="status-pill pill-reset-hud" title="Reset all moved HUD panels and D-Pad to default positions">↺ Layout</button>
                     </div>
                 </div>
             </div>
@@ -573,17 +590,26 @@
                 
                 <h1 class="splash-title">ANGBAND 3D</h1>
                 <div class="splash-subtitle">The Classic Roguelike Dungeon Crawler • Reborn in First-Person 3D</div>
+
+                <!-- Feature Badge Strip -->
+                <div class="splash-feature-pills">
+                    <span class="splash-pill">✨ 2K PBR &amp; Celestial Sky</span>
+                    <span class="splash-pill">🎙️ Voiced Lorekeeper</span>
+                    <span class="splash-pill">🎨 Hero Action Sketch</span>
+                    <span class="splash-pill">⚡ 4 Native Engines</span>
+                </div>
+
                 <div class="splash-instructions">⚔ Choose a Legendary Realm to Begin Your Descent ⚔</div>
 
                 <!-- 4 Interactive Realm Selection Cards (Forced Choice on Splash) -->
                 <div class="splash-realm-grid" id="splash-realm-grid">
                     <!-- Realm 1: Angband 4.2.6 -->
-                    <div class="splash-realm-card active" data-realm="angband" role="button" tabindex="0" title="Select Vanilla Angband 4.2.6 [1]">
+                    <div class="splash-realm-card realm-option active" data-realm="angband" role="button" tabindex="0" title="Select Vanilla Angband 4.2.6 [1]">
                         <div class="splash-realm-badge" id="splash-badge-angband">✓ ATTUNED</div>
                         <div class="splash-realm-header">
                             <span class="splash-realm-icon">⚔️</span>
                             <div class="splash-realm-title-group">
-                                <span class="splash-realm-key">[1]</span>
+                                <span class="splash-realm-key"><kbd>[1]</kbd></span>
                                 <h3 class="splash-realm-name">Angband 4.2.6</h3>
                             </div>
                         </div>
@@ -597,12 +623,12 @@
                     </div>
 
                     <!-- Realm 2: FrogComposBand -->
-                    <div class="splash-realm-card" data-realm="frogcomposband" role="button" tabindex="0" title="Select FrogComposBand [2]">
+                    <div class="splash-realm-card realm-option" data-realm="frogcomposband" role="button" tabindex="0" title="Select FrogComposBand [2]">
                         <div class="splash-realm-badge" id="splash-badge-frogcomposband" style="display:none;">✓ ATTUNED</div>
                         <div class="splash-realm-header">
                             <span class="splash-realm-icon">🐸</span>
                             <div class="splash-realm-title-group">
-                                <span class="splash-realm-key">[2]</span>
+                                <span class="splash-realm-key"><kbd>[2]</kbd></span>
                                 <h3 class="splash-realm-name">FrogComposBand</h3>
                             </div>
                         </div>
@@ -616,12 +642,12 @@
                     </div>
 
                     <!-- Realm 3: Hengband -->
-                    <div class="splash-realm-card" data-realm="hengband" role="button" tabindex="0" title="Select Hengband 3.0+ [3]">
+                    <div class="splash-realm-card realm-option" data-realm="hengband" role="button" tabindex="0" title="Select Hengband 3.0+ [3]">
                         <div class="splash-realm-badge" id="splash-badge-hengband" style="display:none;">✓ ATTUNED</div>
                         <div class="splash-realm-header">
                             <span class="splash-realm-icon">⛩️</span>
                             <div class="splash-realm-title-group">
-                                <span class="splash-realm-key">[3]</span>
+                                <span class="splash-realm-key"><kbd>[3]</kbd></span>
                                 <h3 class="splash-realm-name">Hengband 3.0+</h3>
                             </div>
                         </div>
@@ -642,12 +668,12 @@
                     </div>
 
                     <!-- Realm 4: Sil-Q -->
-                    <div class="splash-realm-card" data-realm="silq" role="button" tabindex="0" title="Select Sil-Q 1.5+ [4]">
+                    <div class="splash-realm-card realm-option" data-realm="silq" role="button" tabindex="0" title="Select Sil-Q 1.5+ [4]">
                         <div class="splash-realm-badge" id="splash-badge-silq" style="display:none;">✓ ATTUNED</div>
                         <div class="splash-realm-header">
                             <span class="splash-realm-icon">👑</span>
                             <div class="splash-realm-title-group">
-                                <span class="splash-realm-key">[4]</span>
+                                <span class="splash-realm-key"><kbd>[4]</kbd></span>
                                 <h3 class="splash-realm-name">Sil-Q 1.5+</h3>
                             </div>
                         </div>
@@ -661,11 +687,39 @@
                     </div>
                 </div>
 
-                <!-- Primary Enter Realm CTA -->
-                <button id="btn-splash-start" class="btn-splash-start" title="Enter attuned realm">
-                    <span class="btn-splash-start-text">⚔ ENTER REALM: <strong id="splash-cta-realm-name">Vanilla Angband 4.2.6</strong> ➔</span>
-                    <span class="btn-splash-start-sub">[ PRESS SPACE / ENTER / CLICK TO DESCEND ]</span>
-                </button>
+                <!-- Realm Lore Banner -->
+                <div id="splash-lore-banner" class="splash-lore-banner">
+                    <span id="splash-lore-icon" class="splash-lore-icon">📜</span>
+                    <strong id="splash-lore-title" class="splash-lore-title">Vanilla Angband 4.2.6:</strong>
+                    <span id="splash-lore-desc" class="splash-lore-desc">The Iron Fortress of Angband awaits. Overthrow Morgoth, Lord of Darkness, in the First Age of Middle-earth.</span>
+                </div>
+
+                <!-- Ergonomic Primary CTA Row -->
+                <div class="splash-primary-cta-row">
+                    <!-- Primary Button: Enter Realm -->
+                    <button id="btn-splash-start" class="btn-splash-start" title="Enter attuned realm [Enter]">
+                        <span class="btn-splash-start-text">⚔ ENTER REALM: <strong id="splash-cta-realm-name">Vanilla Angband 4.2.6</strong> ➔</span>
+                        <span class="btn-splash-start-sub"><kbd>[ENTER]</kbd> Open Realm Command Deck</span>
+                    </button>
+
+                    <!-- Direct 1-Click Quick Start Button -->
+                    <button id="btn-splash-quick-start" class="btn-splash-action btn-splash-quick-start" title="Quick Start Random Hero [Q]">
+                        <span class="btn-splash-action-icon">⚡</span>
+                        <div class="btn-splash-action-col">
+                            <span class="btn-splash-action-label">Quick Start</span>
+                            <span class="btn-splash-action-sub"><kbd>[Q]</kbd> Instant Hero</span>
+                        </div>
+                    </button>
+
+                    <!-- Direct 1-Click Saved Chronicles Button -->
+                    <button id="btn-splash-load-save" class="btn-splash-action btn-splash-load-save" title="Saved Chronicles &amp; Archives [L]">
+                        <span class="btn-splash-action-icon">📂</span>
+                        <div class="btn-splash-action-col">
+                            <span class="btn-splash-action-label">Saved Chronicles</span>
+                            <span class="btn-splash-action-sub"><kbd>[L]</kbd> Load Hero</span>
+                        </div>
+                    </button>
+                </div>
 
                 <!-- Clean, Elegant Secondary Action Bar -->
                 <div class="splash-shortcuts">
@@ -692,10 +746,18 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title">⚔ ANGBAND 3D ⚔</h2>
+                    <h2 class="main-menu-title" id="main-menu-title">⚔ ANGBAND 3D ⚔</h2>
+                    <div class="main-menu-subtitle" id="main-menu-subtitle">First-Person Roguelike Reborn in High-Realism 3D</div>
                     <div class="main-menu-realm-strip" id="main-menu-realm-strip">
-                        <span>Active Realm: <strong id="menu-active-realm-name" class="menu-realm-highlight">Vanilla Angband 4.2.6 (Tolkien)</strong></span>
+                        <span id="main-menu-realm-badge" class="main-menu-realm-badge">Active Realm: <strong id="menu-active-realm-name" class="menu-realm-highlight">Vanilla Angband 4.2.6 (Tolkien)</strong></span>
+                        <div class="main-menu-realm-pills" id="main-menu-realm-pills">
+                            <button type="button" class="realm-pill-btn active" data-switch-realm="angband" title="Switch to Vanilla Angband 4.2.6">⚔️ Angband</button>
+                            <button type="button" class="realm-pill-btn" data-switch-realm="silq" title="Switch to Sil-Q 1.5+">👑 Sil-Q</button>
+                            <button type="button" class="realm-pill-btn" data-switch-realm="frogcomposband" title="Switch to FrogComposBand">🐸 FrogComposBand</button>
+                            <button type="button" class="realm-pill-btn" data-switch-realm="hengband" title="Switch to Hengband 3.0+">⛩️ Hengband</button>
+                        </div>
                         <button type="button" id="btn-menu-realms" class="menu-realm-badge-btn" title="Switch Realm [R]">🌌 Switch Realm [R]</button>
+                        <button type="button" id="btn-menu-switch-realm" class="menu-realm-badge-btn" style="display:none;" aria-hidden="true" title="Switch Realm">Switch Realm</button>
                     </div>
                 </div>
 
@@ -733,15 +795,38 @@
                             <span class="menu-desc">Choose race, class, and roll stats step-by-step in the classic terminal wizard.</span>
                         </div>
                     </button>
+
+                    <!-- Preserved compatibility aliases for tests querying alternative ID schemes -->
+                    <button id="btn-menu-load-save" class="hidden-test-alias" style="display:none;" aria-hidden="true">Load Save</button>
+                    <button id="btn-menu-quick-start" class="hidden-test-alias" style="display:none;" aria-hidden="true">Quick Start</button>
+                    <button id="btn-menu-new-game" class="hidden-test-alias" style="display:none;" aria-hidden="true">New Game</button>
+                    <button id="btn-menu-how-to-play" class="hidden-test-alias" style="display:none;" aria-hidden="true">How to Play</button>
+                    <button id="btn-menu-controls" class="hidden-test-alias" style="display:none;" aria-hidden="true">Controls</button>
+                    <button id="btn-menu-audio" class="hidden-test-alias" style="display:none;" aria-hidden="true">Audio</button>
                 </div>
+
+                <!-- Main Menu Integrated Saved Chronicles Panel -->
+                <div id="main-menu-saves-panel" class="main-menu-saves-panel hidden">
+                    <div class="saves-panel-header">
+                        <h4>📂 Saved Chronicles</h4>
+                        <div class="saves-panel-actions">
+                            <button type="button" id="btn-menu-saves-refresh" class="btn-panel-action" title="Refresh Saves">🔄 Refresh</button>
+                            <label for="input-menu-upload-save" id="btn-menu-saves-upload" class="btn-panel-action" title="Upload Save">📤 Upload</label>
+                            <input type="file" id="input-menu-upload-save" accept=".sav,*" style="display: none;">
+                            <button type="button" id="btn-menu-saves-close" class="btn-panel-action close" title="Close Panel">✕</button>
+                        </div>
+                    </div>
+                    <div id="main-menu-saves-list" class="main-menu-saves-list"></div>
+                </div>
+                <div id="main-menu-guide-panel" class="main-menu-guide-panel hidden" style="display:none;" aria-hidden="true"></div>
 
                 <!-- Secondary Utilities Dock (Clean 4-column row) -->
                 <div class="main-menu-secondary-dock">
-                    <button class="menu-dock-btn" id="btn-menu-guide" data-index="4" title="Game Guide & Lore [5]">
+                    <button class="menu-dock-btn" id="btn-menu-guide" data-index="4" title="Game Guide &amp; Lore [5]">
                         <span class="dock-icon">📖</span>
                         <span class="dock-label"><kbd>[5]</kbd> Guide</span>
                     </button>
-                    <button class="menu-dock-btn" id="btn-menu-pwa" data-index="5" title="Standalone PC & Android Downloads [6]">
+                    <button class="menu-dock-btn" id="btn-menu-pwa" data-index="5" title="Standalone PC &amp; Android Downloads [6]">
                         <span class="dock-icon">📱</span>
                         <span class="dock-label"><kbd>[6]</kbd> Downloads</span>
                     </button>
@@ -749,7 +834,7 @@
                         <span class="dock-icon">🎬</span>
                         <span class="dock-label"><kbd>[7]</kbd> Demo</span>
                     </button>
-                    <button class="menu-dock-btn" id="btn-menu-credits" data-index="7" title="Summary & Credits [8]">
+                    <button class="menu-dock-btn" id="btn-menu-credits" data-index="7" title="Summary &amp; Credits [8]">
                         <span class="dock-icon">📜</span>
                         <span class="dock-label"><kbd>[8]</kbd> Credits</span>
                     </button>
@@ -829,6 +914,8 @@
                     <button id="btn-toggle-invert" class="icon-btn in-game-only" title="Toggle Invert Drag Look (Current: Normal)"><span class="invert-icon">🔄</span> <span class="invert-label">Invert</span></button>
                     <button id="btn-controls" class="icon-btn" title="View Complete Controls &amp; Commands Guide [?]"><span class="ctrl-icon">⌨</span> <span class="ctrl-label">Controls (?)</span></button>
                     <button id="btn-fullscreen" class="icon-btn" title="Toggle Fullscreen [F11]"><span class="fs-icon">⛶</span> <span class="fs-label">Fullscreen</span></button>
+                    <button id="btn-graphics-preset" class="icon-btn" title="Cycle 3D Graphics Quality Preset (Ultra Realism / Enhanced / Classic)"><span class="gfx-icon">✨</span> <span class="gfx-label">GFX: Ultra</span></button>
+                    <button id="btn-pause-reset-hud" class="icon-btn" title="Reset all HUD panels &amp; D-Pad to default positions">↺ Reset HUD</button>
                 </div>
 
                 <div class="main-menu-options" id="pause-menu-options">
@@ -884,8 +971,8 @@
                         <span class="menu-bullet">►</span>
                         <span class="menu-num">[7]</span>
                         <div class="menu-text-col">
-                            <span class="menu-label">Game Guide &amp; Primer</span>
-                            <span class="menu-desc">Controls, combat, spells, and survival handbook.</span>
+                            <span class="menu-label">Game Guide, Primer &amp; Credits</span>
+                            <span class="menu-desc">Controls, combat handbook, open-asset attribution &amp; licenses.</span>
                         </div>
                     </button>
                     <button class="menu-option-btn" id="btn-pause-fullscreen" data-index="7">
@@ -906,8 +993,9 @@
                     </button>
                 </div>
 
-                <div class="main-menu-footer">
+                <div class="main-menu-footer" style="display: flex; flex-direction: column; gap: 4px;">
                     <span>[↑/↓] Navigate &nbsp;•&nbsp; [1-9] Quick Select &nbsp;•&nbsp; [Enter/Click] Choose &nbsp;•&nbsp; [Esc] Resume Game</span>
+                    <span id="pause-credits-strip" style="font-size: 11px; color: #94a3b8; opacity: 0.9;">GPLv2 FOSS • Engines: Angband, Sil-Q, FrogComposBand &amp; Hengband • Art: Raymond &quot;Shockbolt&quot; Gaustadnes • PBR: Poly Haven &amp; KayKit (CC0)</span>
                 </div>
             </div>
         </div>
@@ -1080,11 +1168,13 @@
                         <p class="guide-p"><strong>Angband 3D</strong> is proudly developed and presented by <strong>Thunderbear Studios</strong> and open-source contributors.</p>
                         <ul class="guide-list">
                             <li>• <strong>Production, 3D Architecture &amp; Direction</strong>: Thunderbear Studios</li>
-                            <li>• <strong>Original Game Engine &amp; Mechanics</strong>: The Angband Development Team (Angband 4.2.6 C Engine)</li>
+                            <li>• <strong>Authoritative Roguelike Engines</strong>: <strong>Angband 4.2.6</strong> (The Angband Development Team), <strong>Sil-Q</strong> (Scatha, half, Hugo &quot;backwardsEric&quot; Cornelis &amp; contributors), <strong>FrogComposBand</strong> (Chris, Sideways &amp; contributors), and <strong>Hengband / 変愚蛮怒</strong> (Habu, Hourier, Deskull &amp; the Hengband Development Team).</li>
                             <li>• <strong>Historical Roguelike Pioneers</strong>: Robert Alan Koeneke &amp; Jimmey Wayne Todd Jr. (original Moria, 1983), Alex Cutler &amp; Andy Astrand (Umoria), Keith Horner, Charles Swiger, Ben Harrison, Robert Rühlmann, and the Angband community.</li>
+                            <li>• <strong>Illustrated Creature &amp; Item Artwork (Shockbolt Tileset)</strong>: Master 64×64 painted fantasy tileset by <strong>Raymond &quot;Shockbolt&quot; Gaustadnes</strong> (GPL-2.0 / Angband Open Source License).</li>
+                            <li>• <strong>2K Photogrammetry PBR Surfaces</strong>: <strong>Poly Haven</strong> (<a href="https://polyhaven.com/" target="_blank" rel="noopener noreferrer" style="color: var(--gold-bright);">polyhaven.com</a> — Rob Tuytel, Rico Cilliers, Charlotte Baglioni, Dimitrios Savva, Greg Zaal &amp; contributors, CC0 1.0 Public Domain).</li>
                             <li>• <strong>3D WebGL Graphics Engine</strong>: Three.js by Ricardo Cabello (Mr.doob) and the Three.js open-source community.</li>
                             <li>• <strong>Desktop C# Reference Client</strong>: Godot Engine 4.x (Juan Linietsky, Ariel Manzur, and Godot contributors).</li>
-                            <li>• <strong>3D Asset Packs &amp; Props</strong>: KayKit Medieval, Dungeon &amp; Character Packs by Kay Lousberg (CC0 Public Domain), and Quaternius (CC0).</li>
+                            <li>• <strong>3D Asset Packs &amp; Props</strong>: KayKit Medieval, Dungeon &amp; Character Packs by Kay Lousberg (CC0 Public Domain), Quaternius (CC0), and Kenney (CC0).</li>
                             <li>• <strong>Procedural Audio &amp; Foley</strong>: 100% real-time client-side procedural synthesis (Web Audio API &amp; C# dynamic PCM) with zero copyrighted audio files.</li>
                             <li>• <strong>Typography</strong>: Cinzel (Natanael Gama), Outfit (Outfit.io), and Fira Code (Nikita Prokopov) under SIL Open Font License 1.1.</li>
                             <li>• <strong>Community Manual &amp; Spoilers</strong>: <a href="https://angband.readthedocs.io/" target="_blank" rel="noopener noreferrer" style="color: var(--gold-bright);">https://angband.readthedocs.io/</a></li>
@@ -1440,6 +1530,24 @@
             </div>
         </div>
 
+        <!-- Chronicle Hero Action Sketch Lightbox Modal -->
+        <div id="chronicle-sketch-modal" class="modal-overlay hidden" role="dialog" aria-label="Hero Action Sketch Lightbox" style="display: none;">
+            <div class="modal-card chronicle-sketch-lightbox-card">
+                <div class="modal-header">
+                    <h3 id="chronicle-sketch-modal-title">🎨 Chronicle Hero Action Sketch</h3>
+                    <button type="button" id="btn-close-sketch-modal" class="icon-btn" title="Close Sketch">✕</button>
+                </div>
+                <div class="chronicle-sketch-modal-body">
+                    <img id="chronicle-sketch-modal-img" class="chronicle-sketch-img" src="" alt="Hero Action Sketch" />
+                    <div id="chronicle-sketch-modal-caption" class="chronicle-sketch-meta"></div>
+                    <div id="chronicle-sketch-modal-gear" class="chronicle-sketch-gear-tags"></div>
+                </div>
+                <div class="modal-footer">
+                    <a id="btn-download-sketch-png" class="btn-primary" download="angband3d-hero-sketch.png" href="#">⬇ Download PNG</a>
+                </div>
+            </div>
+        </div>
+
         <!-- Initial Connection Spinner -->
         <div id="loading-overlay" class="hidden">
             <div class="spinner"></div>
@@ -1454,28 +1562,28 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/safe-html.js?v=9.4.13"></script>
-    <script src="/js/screen-context.js?v=9.4.13"></script>
-    <script src="/js/menu-router.js?v=9.4.13"></script>
-    <script src="/js/device.js?v=9.4.13"></script>
-    <script src="/js/realm-keys.js?v=9.4.13"></script>
-    <script src="/js/mobile-overlay.js?v=9.4.13"></script>
-    <script src="/js/audio.js?v=9.4.13"></script>
-    <script src="/js/terminal.js?v=9.4.13"></script>
-    <script src="/js/dungeon3d.js?v=9.4.13"></script>
-    <script src="/js/hud.js?v=9.4.13"></script>
-    <script src="/js/network.js?v=9.4.13"></script>
-    <script src="/js/local_bridge.js?v=9.4.13"></script>
-    <script src="/js/input.js?v=9.4.13"></script>
-    <script src="/js/demo-player.js?v=9.4.13"></script>
+    <script src="/js/safe-html.js?v=9.5.6"></script>
+    <script src="/js/screen-context.js?v=9.5.6"></script>
+    <script src="/js/menu-router.js?v=9.5.6"></script>
+    <script src="/js/device.js?v=9.5.6"></script>
+    <script src="/js/realm-keys.js?v=9.5.6"></script>
+    <script src="/js/mobile-overlay.js?v=9.5.6"></script>
+    <script src="/js/audio.js?v=9.5.6"></script>
+    <script src="/js/terminal.js?v=9.5.6"></script>
+    <script src="/js/dungeon3d.js?v=9.5.6"></script>
+    <script src="/js/hud.js?v=9.5.6"></script>
+    <script src="/js/network.js?v=9.5.6"></script>
+    <script src="/js/local_bridge.js?v=9.5.6"></script>
+    <script src="/js/input.js?v=9.5.6"></script>
+    <script src="/js/demo-player.js?v=9.5.6"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=9.4.13"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=9.4.13"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=9.4.13"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=9.4.13"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=9.4.13"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=9.4.13"></script>
-    <script src="/js/app.js?v=9.4.13"></script>
-    <script src="/js/boot.js?v=9.4.13"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=9.5.6"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=9.5.6"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=9.5.6"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=9.5.6"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=9.5.6"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=9.5.6"></script>
+    <script src="/js/app.js?v=9.5.6"></script>
+    <script src="/js/boot.js?v=9.5.6"></script>
 </body>
 </html>

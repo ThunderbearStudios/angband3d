@@ -64,6 +64,10 @@ const inFlightTTS = new Map();
 const staticGzipCache = new Map();
 const MAX_STATIC_CACHE_ITEMS = 100;
 
+// In-Memory Living Chronicle Hero Action Sketch Cache (LRU up to 32 items)
+const sketchCache = new Map();
+const MAX_SKETCH_CACHE_ITEMS = 32;
+
 // Warm WebSocket Connection Pool for Edge Neural TTS
 // Eliminates 250-450ms cold TLS connection setup latency on repeated synthesis requests
 const edgeVoicePool = new Map(); // voice -> { tts, initPromise, lastUsed }
@@ -313,32 +317,41 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                 else if (roleKey === 'ninja') roleKey = 'rogue';
             }
 
-            if (geminiTag) {
-                tag = geminiTag.trim();
+            const cleanGeminiTag = geminiTag ? String(geminiTag).replace(/[\[\]]/g, '').trim() : '';
+            const cleanDirectorNote = directorNote ? String(directorNote).replace(/[\[\]]/g, '').trim() : '';
+            const cleanEmotion = emotion ? String(emotion).replace(/[\[\]]/g, '').trim() : '';
+
+            let tagInner = '';
+            if (cleanGeminiTag) {
+                tagInner = cleanGeminiTag;
                 if (!isHeng) {
-                    tag = tag.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
+                    tagInner = tagInner.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
                 }
-            } else if (directorNote) {
-                let note = directorNote.trim();
+            } else if (cleanDirectorNote) {
+                tagInner = cleanDirectorNote;
                 if (!isHeng) {
-                    note = note.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
+                    tagInner = tagInner.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
                 }
-                tag = `[${note}]`;
             } else {
                 const accent = CHARACTER_ACCENT_MAP[roleKey] || (roleKey === 'narrator' ? CHARACTER_ACCENT_MAP.narrator : 'natural, noble Classical British or Mid-Atlantic cadence');
-                tag = `[${accent}]`;
+                tagInner = accent.replace(/[\[\]]/g, '').trim();
+            }
+
+            if (cleanEmotion && !tagInner.toLowerCase().includes(cleanEmotion.toLowerCase())) {
+                tagInner = tagInner ? `${cleanEmotion}, ${tagInner}` : cleanEmotion;
             }
 
             // Strict Accent Invariant: Prohibit American southern drawl across all voices
-            if (tag) {
-                const lowerTag = tag.toLowerCase();
-                if (!lowerTag.includes('no southern') && !lowerTag.includes('no american southern')) {
-                    if (tag.endsWith(']')) {
-                        tag = tag.slice(0, -1) + ', no American southern drawl]';
-                    } else {
-                        tag = `[${tag}, no American southern drawl]`;
-                    }
+            if (tagInner) {
+                const lowerInner = tagInner.toLowerCase();
+                if (!lowerInner.includes('no southern') && !lowerInner.includes('no american southern')) {
+                    tagInner = `${tagInner}, no American southern drawl`;
                 }
+                tagInner = tagInner.replace(/[\[\]]/g, '').trim();
+                if (tagInner.length > 240) {
+                    tagInner = tagInner.slice(0, 240).replace(/[,;\s]+[^\s,;]*$/, '').trim();
+                }
+                tag = `[${tagInner}]`;
                 promptText = `${tag} ${text}`;
             }
         }
@@ -776,62 +789,62 @@ function createOwnerToken(savePath) {
 function readSaveMetadata(filePath) {
     try {
         const stat = fs.statSync(filePath);
-        if (stat.size < 36) return null;
+        if (stat.size < 4) return null;
 
         const fd = fs.openSync(filePath, 'r');
-        const header = Buffer.alloc(36);
-        fs.readSync(fd, header, 0, 36, 0);
+        try {
+            const readLen = Math.min(stat.size, 36);
+            const header = Buffer.alloc(readLen);
+            fs.readSync(fd, header, 0, readLen, 0);
 
-        const magic = header.toString('ascii', 0, 8);
-        const VALID_MAGICS = ['SaveVNLA', 'SaveSILQ', 'SaveFROX', 'SaveHENG'];
-        let detectedRealm = 'angband';
-        if (magic === 'SaveSILQ') detectedRealm = 'silq';
-        else if (magic === 'SaveFROX') detectedRealm = 'frogcomposband';
-        else if (magic === 'SaveHENG') detectedRealm = 'hengband';
+            const magic = readLen >= 8 ? header.toString('ascii', 0, 8) : '';
+            const VALID_MAGICS = ['SaveVNLA', 'SaveSILQ', 'SaveFROX', 'SaveHENG'];
+            let detectedRealm = 'angband';
+            if (magic === 'SaveSILQ') detectedRealm = 'silq';
+            else if (magic === 'SaveFROX') detectedRealm = 'frogcomposband';
+            else if (magic === 'SaveHENG') detectedRealm = 'hengband';
 
-        if (!VALID_MAGICS.includes(magic)) {
-            // Check sidecar
             const sidecarPath = filePath + '.realm.json';
             if (fs.existsSync(sidecarPath)) {
                 try {
                     const sidecar = JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
                     if (sidecar.realm) detectedRealm = sidecar.realm;
                 } catch (_) {}
-            } else {
-                fs.closeSync(fd);
+            } else if (!VALID_MAGICS.includes(magic)) {
                 return null;
             }
-        }
 
-        const blockName = header.toString('ascii', 8, 24).replace(/\0.*$/, '');
-        let description = null;
-        let charName = null;
+            const blockName = readLen >= 24 ? header.toString('ascii', 8, 24).replace(/\0.*$/, '') : '';
+            let description = null;
+            let charName = null;
 
-        if (blockName === 'description') {
-            const size = header.readUInt32LE(28);
-            if (size > 0 && size <= 512 && stat.size >= 36 + size) {
-                const descBuf = Buffer.alloc(size);
-                fs.readSync(fd, descBuf, 0, size, 36);
-                const nullIdx = descBuf.indexOf(0);
-                const strLen = nullIdx >= 0 ? nullIdx : size;
-                description = descBuf.toString('utf8', 0, strLen);
-                const commaIdx = description.indexOf(',');
-                if (commaIdx > 0) {
-                    charName = description.substring(0, commaIdx).trim();
+            if (blockName === 'description' && readLen >= 32) {
+                const size = header.readUInt32LE(28);
+                if (size > 0 && size <= 512 && stat.size >= 36 + size) {
+                    const descBuf = Buffer.alloc(size);
+                    fs.readSync(fd, descBuf, 0, size, 36);
+                    const nullIdx = descBuf.indexOf(0);
+                    const strLen = nullIdx >= 0 ? nullIdx : size;
+                    description = descBuf.toString('utf8', 0, strLen);
+                    const commaIdx = description.indexOf(',');
+                    if (commaIdx > 0) {
+                        charName = description.substring(0, commaIdx).trim();
+                    }
                 }
             }
-        }
 
-        fs.closeSync(fd);
-        const baseNameNoExt = path.basename(filePath).replace(/\.sav$/i, '');
-        return {
-            filename: path.basename(filePath),
-            characterName: charName || baseNameNoExt,
-            description: description || baseNameNoExt,
-            realm: detectedRealm,
-            sizeBytes: stat.size,
-            lastModified: stat.mtime.toISOString(),
-        };
+            const baseNameNoExt = path.basename(filePath).replace(/\.sav$/i, '');
+            return {
+                filename: path.basename(filePath),
+                characterName: charName || baseNameNoExt,
+                description: description || baseNameNoExt,
+                realm: detectedRealm,
+                sizeBytes: stat.size,
+                lastModified: stat.mtime.toISOString(),
+            };
+        } finally {
+            try { fs.closeSync(fd); } catch (_) {}
+        }
     } catch (e) {
         return null;
     }
@@ -872,6 +885,13 @@ function isAllowedOrigin(origin, host, req) {
         return false;
     }
     return EXTRA_ALLOWED_ORIGINS.has(origin);
+}
+function verifyBrowserOrigin(req) {
+    const origin = req.headers && req.headers.origin;
+    if (!origin) return true;
+    const fwdHost = (req.headers && req.headers['x-forwarded-host']) ? req.headers['x-forwarded-host'].split(',')[0].trim() : '';
+    const host = fwdHost || (req.headers && req.headers.host) || '';
+    return isAllowedOrigin(origin, host, req);
 }
 // Loopback check for dev-only endpoints (D17). Ignores X-Forwarded-For on purpose.
 function isLoopbackRequest(req) {
@@ -1052,27 +1072,41 @@ const server = http.createServer((req, res) => {
                 if (!fs.existsSync(sDir)) continue;
                 const files = fs.readdirSync(sDir);
                 for (const file of files) {
-                    if (file.startsWith('.') || seenFiles.has(file)) continue;
+                    if (file.startsWith('.') || file.endsWith('.realm.json') || seenFiles.has(file)) continue;
                     const fullPath = path.join(sDir, file);
                     try {
                         const stat = fs.statSync(fullPath);
                         if (stat.isFile() && stat.size > 0) {
                             let meta = readSaveMetadata(fullPath);
-                            if (!meta && stat.size >= 36) {
-                                meta = {
-                                    filename: file,
-                                    characterName: file,
-                                    description: file,
-                                    sizeBytes: stat.size,
-                                    lastModified: stat.mtime.toISOString(),
-                                };
+                            if (!meta && stat.size >= 4) {
+                                const sidecarPath = fullPath + '.realm.json';
+                                let sidecarRealm = null;
+                                if (fs.existsSync(sidecarPath)) {
+                                    try {
+                                        sidecarRealm = JSON.parse(fs.readFileSync(sidecarPath, 'utf8')).realm;
+                                    } catch (_) {}
+                                }
+                                if (!sidecarRealm || sidecarRealm === queryRealm) {
+                                    meta = {
+                                        filename: file,
+                                        characterName: file,
+                                        description: file,
+                                        realm: sidecarRealm || queryRealm,
+                                        sizeBytes: stat.size,
+                                        lastModified: stat.mtime.toISOString(),
+                                    };
+                                }
                             }
-                            if (meta) {
+                            if (meta && (!meta.realm || meta.realm === queryRealm)) {
                                 seenFiles.add(file);
                                 // Ensure save is mirrored into primary save directory if found in a secondary dir
                                 if (primarySaveDir && sDir !== primarySaveDir) {
                                     try {
                                         fs.copyFileSync(fullPath, path.join(primarySaveDir, file));
+                                        const sidecarPath = fullPath + '.realm.json';
+                                        if (fs.existsSync(sidecarPath)) {
+                                            fs.copyFileSync(sidecarPath, path.join(primarySaveDir, file + '.realm.json'));
+                                        }
                                     } catch (_) {}
                                 }
                                 saves.push(meta);
@@ -1222,6 +1256,9 @@ const server = http.createServer((req, res) => {
                 generationConfig.thinkingConfig = { thinkingLevel: 'LOW' };
             } else {
                 generationConfig.temperature = 0.7;
+                if (model.includes('gemini-2.5-flash') && generationConfig.maxOutputTokens <= 512) {
+                    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+                }
             }
 
             const payload = {
@@ -1262,7 +1299,9 @@ const server = http.createServer((req, res) => {
                     if (upstreamRes.statusCode === 200) {
                         try {
                             const rb = JSON.parse(respBody);
-                            const text = rb.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                            const parts = rb.candidates?.[0]?.content?.parts || [];
+                            const textPart = parts.find(p => !p.thought && typeof p.text === 'string') || parts[0];
+                            const text = textPart?.text || '';
                             res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }));
                         } catch(e) {
                             res.end(JSON.stringify({ error: { message: 'Upstream error parsing response' } }));
@@ -1285,6 +1324,150 @@ const server = http.createServer((req, res) => {
                 if (!res.headersSent) {
                     res.writeHead(502, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: { message: redactSecret(err.message, apiKey) } }));
+                }
+            });
+
+            upstreamReq.write(payloadStr);
+            upstreamReq.end();
+        });
+        return;
+    }
+
+    // REST: Living Chronicle Lore-Correct Hero Action Sketch (/api/chronicle/sketch)
+    if (pathname === '/api/chronicle/sketch' && req.method === 'POST') {
+        if (!verifyBrowserOrigin(req)) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Origin not allowed' }));
+            return;
+        }
+
+        const wait = llmLimiter(clientIp(req));
+        if (wait > 0) {
+            res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
+            res.end(JSON.stringify({ error: { message: 'Rate limit' } }));
+            return;
+        }
+
+        let rawBody = '';
+        const maxBodyBytes = 16384;
+        req.on('data', chunk => {
+            rawBody += chunk;
+            if (rawBody.length > maxBodyBytes) {
+                if (!res.headersSent) {
+                    res.writeHead(413, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: { message: 'Payload too large' } }));
+                }
+                req.destroy();
+            }
+        });
+
+        req.on('end', () => {
+            let parsed = null;
+            try {
+                parsed = JSON.parse(rawBody);
+            } catch (e) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: { message: 'Invalid JSON payload' } }));
+                return;
+            }
+
+            const realm = (parsed.realm || 'angband').toString();
+            const prompt = (typeof parsed.prompt === 'string' ? parsed.prompt.trim() : '');
+            const heroSummary = parsed.heroSummary || {};
+
+            if (!prompt || typeof prompt !== 'string' || prompt.length > 4000) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: { message: 'Invalid or missing prompt (max 4000 chars)' } }));
+                return;
+            }
+
+            const cacheKey = realm + ':' + prompt.slice(0, 800);
+            if (sketchCache.has(cacheKey)) {
+                res.writeHead(200, {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                });
+                res.end(JSON.stringify({
+                    ok: true,
+                    imageUrl: sketchCache.get(cacheKey),
+                    model: 'gemini-3.1-flash-image',
+                    cached: true
+                }));
+                return;
+            }
+
+            const apiKey = req.headers['x-goog-api-key'] || req.headers['x-api-key'] || process.env.GEMINI_API_KEY || '';
+            if (!apiKey) {
+                res.writeHead(200, {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                });
+                res.end(JSON.stringify({ ok: false, fallback: true, reason: 'no_api_key' }));
+                return;
+            }
+
+            const targetUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent';
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+            };
+            const payloadStr = JSON.stringify(payload);
+
+            const upstreamReq = https.request(targetUrl, {
+                method: 'POST',
+                agent: geminiHttpsAgent,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey,
+                    'Content-Length': Buffer.byteLength(payloadStr)
+                },
+                timeout: 30000
+            }, upstreamRes => {
+                let respBody = '';
+                upstreamRes.on('data', chunk => respBody += chunk);
+                upstreamRes.on('end', () => {
+                    res.writeHead(200, {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    });
+                    if (upstreamRes.statusCode === 200) {
+                        try {
+                            const rb = JSON.parse(respBody);
+                            const parts = rb.candidates?.[0]?.content?.parts || [];
+                            const imgPart = parts.find(p => p.inlineData && p.inlineData.data);
+                            if (imgPart) {
+                                const mime = imgPart.inlineData.mimeType || 'image/png';
+                                const imageUrl = 'data:' + mime + ';base64,' + imgPart.inlineData.data;
+                                if (sketchCache.size >= MAX_SKETCH_CACHE_ITEMS) {
+                                    const oldestKey = sketchCache.keys().next().value;
+                                    sketchCache.delete(oldestKey);
+                                }
+                                sketchCache.set(cacheKey, imageUrl);
+                                res.end(JSON.stringify({ ok: true, imageUrl, model: 'gemini-3.1-flash-image' }));
+                            } else {
+                                res.end(JSON.stringify({ ok: false, fallback: true, reason: 'upstream_no_image' }));
+                            }
+                        } catch(e) {
+                            res.end(JSON.stringify({ ok: false, fallback: true, reason: 'upstream_no_image' }));
+                        }
+                    } else {
+                        res.end(JSON.stringify({ ok: false, fallback: true, reason: `upstream_error_${upstreamRes.statusCode}` }));
+                    }
+                });
+            });
+
+            upstreamReq.on('timeout', () => {
+                upstreamReq.destroy();
+                if (!res.headersSent) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, fallback: true, reason: 'timeout' }));
+                }
+            });
+
+            upstreamReq.on('error', err => {
+                if (!res.headersSent) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, fallback: true, reason: 'network_error' }));
                 }
             });
 
@@ -1359,7 +1542,7 @@ const server = http.createServer((req, res) => {
             res.writeHead(400, { 'Content-Type': 'application/json' }); res.end('{"error":"Invalid rate"}'); return;
         }
 
-        const tagRegex = /^[\p{L}\p{N} ,.'-]{0,120}$/u;
+        const tagRegex = /^[\p{L}\p{N} ,.'\-:;!()\[\]/&+]{0,300}$/u;
         if (emotion && !tagRegex.test(emotion)) {
             res.writeHead(400, { 'Content-Type': 'application/json' }); res.end('{"error":"Invalid emotion"}'); return;
         }
@@ -1393,11 +1576,13 @@ const server = http.createServer((req, res) => {
                 'Enceladus', 'Iapetus', 'Umbriel', 'Algieba', 'Erinome', 'Rasalgethi',
                 'Laomedeia', 'Alnilam', 'Schedar', 'Pulcherrima', 'Achird', 'Zubenelgenubi', 'Sadachbia'
             ];
-            if (reqVoice && validGeminiVoices.map(v => v.toLowerCase()).includes(reqVoice.toLowerCase())) {
+            const isDefaultMaleFallback = isNarrator && reqVoice && reqVoice.toLowerCase() === 'enceladus'
+                && (reqGender === 'female' || (reqRealm && reqRealm !== 'angband' && GEMINI_REALM_NARRATOR_MAP[reqRealm]));
+            if (reqVoice && validGeminiVoices.map(v => v.toLowerCase()).includes(reqVoice.toLowerCase()) && !isDefaultMaleFallback) {
                 geminiVoice = validGeminiVoices.find(v => v.toLowerCase() === reqVoice.toLowerCase());
             } else if (isNarrator) {
                 geminiVoice = (reqGender === 'female')
-                    ? (reqRealm === 'silq' ? 'Despina' : (reqRealm === 'hengband' ? 'Sulafat' : (reqRealm === 'frogcomposband' ? 'Kore' : 'Aoede')))
+                    ? (reqRealm === 'silq' ? 'Despina' : (reqRealm === 'hengband' ? 'Sulafat' : (reqRealm === 'frogcomposband' ? 'Kore' : 'Zephyr')))
                     : (GEMINI_REALM_NARRATOR_MAP[reqRealm] || GEMINI_REALM_NARRATOR_MAP.default);
             } else if (reqGender === 'female' && GEMINI_VOICE_MAP[`female_${role}`]) {
                 geminiVoice = GEMINI_VOICE_MAP[`female_${role}`];
@@ -1419,7 +1604,7 @@ const server = http.createServer((req, res) => {
                 res.end(buffer);
             }
 
-            const geminiCacheKey = `gemini:${geminiVoice}:${emotion}:${geminiTag}:${text}`;
+            const geminiCacheKey = `gemini:${geminiVoice}:${role}:${emotion}:${geminiTag}:${directorNote}:${text}`;
             if (ttsAudioCache.has(geminiCacheKey)) {
                 sendWav(ttsAudioCache.get(geminiCacheKey), true);
                 return;
@@ -1760,13 +1945,22 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({ error: 'Invalid savefile: too short' }));
                 return;
             }
-            const magic = buf.toString('ascii', 0, 8);
+            const reqRealm = (urlObj.searchParams.get('realm') || req.headers['x-realm'] || '').toLowerCase().trim();
+            const magic = buf.length >= 8 ? buf.toString('ascii', 0, 8) : '';
             let detectedRealm = 'angband';
             if (magic === 'SaveVNLA') detectedRealm = 'angband';
             else if (magic === 'SaveSILQ') detectedRealm = 'silq';
             else if (magic === 'SaveFROX') detectedRealm = 'frogcomposband';
             else if (magic === 'SaveHENG') detectedRealm = 'hengband';
-            else {
+            else if (['silq', 'frogcomposband', 'hengband'].includes(reqRealm)) {
+                if (buf.length >= 4) {
+                    detectedRealm = reqRealm;
+                } else {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Invalid savefile: binary header too short' }));
+                    return;
+                }
+            } else {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Invalid savefile: missing or unknown magic header' }));
                 return;
@@ -1783,6 +1977,9 @@ const server = http.createServer((req, res) => {
             const tempFile = path.join(targetDir, '.tmp_' + Date.now());
             try {
                 fs.writeFileSync(tempFile, buf);
+                try {
+                    fs.writeFileSync(tempFile + '.realm.json', JSON.stringify({ realm: detectedRealm }), 'utf8');
+                } catch (_) {}
                 const meta = readSaveMetadata(tempFile);
                 if (meta && meta.characterName && !cleanHeaderName) {
                     const cleanMetaName = sanitizeFilename(meta.characterName);
@@ -1806,6 +2003,9 @@ const server = http.createServer((req, res) => {
                 }
 
                 fs.renameSync(tempFile, destPath);
+                try {
+                    fs.writeFileSync(destPath + '.realm.json', JSON.stringify({ realm: detectedRealm }), 'utf8');
+                } catch (_) {}
                 invalidateSavesCache();
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1816,6 +2016,7 @@ const server = http.createServer((req, res) => {
                 }));
             } finally {
                 if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+                if (fs.existsSync(tempFile + '.realm.json')) fs.unlinkSync(tempFile + '.realm.json');
             }
         });
         return;
@@ -1910,6 +2111,8 @@ const server = http.createServer((req, res) => {
             }
             try {
                 fs.unlinkSync(savePath);
+                const sidecarPath = savePath + '.realm.json';
+                if (fs.existsSync(sidecarPath)) fs.unlinkSync(sidecarPath);
                 const ownerPath = getOwnerTokenPath(savePath);
                 if (fs.existsSync(ownerPath)) fs.unlinkSync(ownerPath);
                 invalidateSavesCache();
@@ -2409,6 +2612,7 @@ function attachWebSocketToSession(session, ws) {
         const sp = cmd.indexOf(' ');
         const verb = sp === -1 ? cmd : cmd.slice(0, sp);
         if (!ENGINE_VERBS.has(verb)) return null;
+        if ((verb === 'key' || verb === 'keys') && sp === -1) return null;
         if (verb === 'keys' && cmd.length > 5 + 16) return null; // client only sends "keys .<dir>"
         return cmd;
     };
@@ -2682,7 +2886,7 @@ function spawnGameSession(ws, request) {
                     // Backpressure Guard: If socket has >64KB queued in OS/Node buffer, drop intermediate visual frames
                     // to prevent latency delay and memory bloat for slow network connections.
                     if (line.startsWith('{"t":"frame"') && session.ws.bufferedAmount > 65536) {
-                        return;
+                        continue;
                     }
                     session.ws.send(line);
                 }
@@ -2874,6 +3078,25 @@ wss.on('connection', (ws, request) => {
         }
     }
 
+    // If active games are at capacity, check if any disconnected grace-period session can be evicted
+    if (activeSessions.size >= MAX_CONCURRENT_GAMES) {
+        let oldestDisconnectedId = null;
+        let oldestDisconnectTime = Infinity;
+        for (const [sId, cand] of activeSessions.entries()) {
+            if (!cand.ws) {
+                const discTime = cand.disconnectedAt || cand.lastActivityTime || 0;
+                if (discTime < oldestDisconnectTime) {
+                    oldestDisconnectTime = discTime;
+                    oldestDisconnectedId = sId;
+                }
+            }
+        }
+        if (oldestDisconnectedId) {
+            console.log(`[WebSocket] Evicting oldest disconnected grace-period session ${oldestDisconnectedId} to make room for incoming connection`);
+            gracefulSessionSaveAndExit(oldestDisconnectedId, 'capacity-eviction');
+        }
+    }
+
     // If active games are at capacity or a queue already exists, enqueue!
     if (activeSessions.size >= MAX_CONCURRENT_GAMES || waitingQueue.length > 0) {
         if (waitingQueue.length >= MAX_QUEUE_SIZE) {
@@ -2978,7 +3201,7 @@ wsLivenessInterval.unref();
 // and never lost across unexpected client disconnects, power loss, or container restarts.
 setInterval(() => {
     for (const [sessionId, session] of activeSessions.entries()) {
-        if (!session.isDead && session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
+        if (!session.isDead && session.phase === 'play' && session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
             try {
                 session.child.stdin.write('save\n');
             } catch (_) {}

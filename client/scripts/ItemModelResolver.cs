@@ -15,6 +15,235 @@ public static class ItemModelResolver
     private static readonly Dictionary<char, Mesh> _meshCache = new();
     private static readonly Dictionary<(char Glyph, Color Color), StandardMaterial3D> _materialCache = new();
 
+    private struct ItemAtlasEntry
+    {
+        public float U0;
+        public float V0;
+        public float U1;
+        public float V1;
+        public float Width;
+        public float Height;
+        public bool IsFlat;
+    }
+
+    private static bool _itemAtlasLoaded;
+    private static Texture2D _itemAtlasTexture;
+    private static Texture2D _itemNormalTexture;
+    private static readonly Dictionary<string, ItemAtlasEntry> _itemAtlasItems = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, ItemAtlasEntry> _itemAtlasGlyphs = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, StandardMaterial3D> _itemAtlasMaterialCache = new();
+
+    private static string ResolveAssetPath(string relPath)
+    {
+        try
+        {
+            var pRes = ProjectSettings.GlobalizePath(relPath.StartsWith("res://") ? relPath : $"res://{relPath}");
+            if (System.IO.File.Exists(pRes)) return pRes;
+        }
+        catch { }
+
+        if (System.IO.File.Exists(relPath)) return relPath;
+
+        try
+        {
+            var pFull = System.IO.Path.GetFullPath(relPath);
+            if (System.IO.File.Exists(pFull)) return pFull;
+        }
+        catch { }
+
+        try
+        {
+            var pBase = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, relPath);
+            if (System.IO.File.Exists(pBase)) return pBase;
+        }
+        catch { }
+
+        return null;
+    }
+
+    public static void EnsureItemAtlasLoaded()
+    {
+        if (_itemAtlasLoaded) return;
+        _itemAtlasLoaded = true;
+
+        try
+        {
+            var atlasPngPath = ResolveAssetPath("../server/public/assets/sprites/items/item_atlas.png");
+            var normalPngPath = ResolveAssetPath("../server/public/assets/sprites/items/item_normal.png");
+            var jsonPath = ResolveAssetPath("../server/public/assets/sprites/items/item_atlas.json");
+
+            if (atlasPngPath != null && System.IO.File.Exists(atlasPngPath))
+            {
+                var img = Image.LoadFromFile(atlasPngPath);
+                if (img != null)
+                {
+                    img.GenerateMipmaps();
+                    _itemAtlasTexture = ImageTexture.CreateFromImage(img);
+                }
+            }
+
+            if (normalPngPath != null && System.IO.File.Exists(normalPngPath))
+            {
+                var nImg = Image.LoadFromFile(normalPngPath);
+                if (nImg != null)
+                {
+                    nImg.GenerateMipmaps();
+                    _itemNormalTexture = ImageTexture.CreateFromImage(nImg);
+                }
+            }
+
+            if (jsonPath != null && System.IO.File.Exists(jsonPath))
+            {
+                var jsonStr = System.IO.File.ReadAllText(jsonPath);
+                using var doc = JsonDocument.Parse(jsonStr);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("items", out var itemsElem) && itemsElem.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in itemsElem.EnumerateObject())
+                    {
+                        var entry = ParseItemAtlasEntry(prop.Value);
+                        _itemAtlasItems[prop.Name] = entry;
+                    }
+                }
+
+                if (root.TryGetProperty("glyphs", out var glyphsElem) && glyphsElem.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in glyphsElem.EnumerateObject())
+                    {
+                        var entry = ParseItemAtlasEntry(prop.Value);
+                        _itemAtlasGlyphs[prop.Name] = entry;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"[ItemModelResolver] Failed to load Shockbolt item atlas: {ex.Message}");
+        }
+    }
+
+    private static ItemAtlasEntry ParseItemAtlasEntry(JsonElement el)
+    {
+        var entry = new ItemAtlasEntry
+        {
+            Width = 0.40f,
+            Height = 0.40f,
+            IsFlat = false
+        };
+
+        if (el.TryGetProperty("uv", out var uvElem) && uvElem.ValueKind == JsonValueKind.Array && uvElem.GetArrayLength() >= 4)
+        {
+            entry.U0 = uvElem[0].GetSingle();
+            entry.V0 = uvElem[1].GetSingle();
+            entry.U1 = uvElem[2].GetSingle();
+            entry.V1 = uvElem[3].GetSingle();
+        }
+
+        if (el.TryGetProperty("width", out var wElem) && wElem.TryGetSingle(out var w))
+        {
+            entry.Width = w;
+        }
+
+        if (el.TryGetProperty("height", out var hElem) && hElem.TryGetSingle(out var h))
+        {
+            entry.Height = h;
+        }
+
+        if (el.TryGetProperty("isFlat", out var flatElem))
+        {
+            entry.IsFlat = flatElem.GetBoolean();
+        }
+
+        return entry;
+    }
+
+    public static bool TryCreateAtlasBillboard(string itemName, char glyph, out Node3D billboardNode)
+    {
+        billboardNode = null;
+        EnsureItemAtlasLoaded();
+
+        if (_itemAtlasTexture == null) return false;
+
+        ItemAtlasEntry entry = default;
+        bool found = false;
+
+        if (!string.IsNullOrEmpty(itemName))
+        {
+            var raw = itemName.Trim();
+            if (raw.EndsWith(" (pile)")) raw = raw.Substring(0, raw.Length - 7).Trim();
+
+            if (_itemAtlasItems.TryGetValue(raw, out entry))
+            {
+                found = true;
+            }
+            else
+            {
+                var lower = raw.ToLowerInvariant();
+                foreach (var (k, v) in _itemAtlasItems)
+                {
+                    if (lower.StartsWith(k.ToLowerInvariant()) || lower.Contains(k.ToLowerInvariant()))
+                    {
+                        entry = v;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!found)
+        {
+            var glyphKey = glyph.ToString();
+            if (_itemAtlasGlyphs.TryGetValue(glyphKey, out entry))
+            {
+                found = true;
+            }
+        }
+
+        if (!found) return false;
+
+        var matKey = $"{entry.U0}_{entry.V0}_{entry.U1}_{entry.V1}_{entry.IsFlat}";
+        if (!_itemAtlasMaterialCache.TryGetValue(matKey, out var mat))
+        {
+            mat = new StandardMaterial3D
+            {
+                AlbedoTexture = _itemAtlasTexture,
+                NormalEnabled = true,
+                NormalTexture = _itemNormalTexture,
+                NormalScale = 0.80f,
+                Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor,
+                AlphaScissorThreshold = 0.35f,
+                AlphaAntialiasingMode = BaseMaterial3D.AlphaAntiAliasing.AlphaToCoverage,
+                BillboardMode = BaseMaterial3D.BillboardModeEnum.FixedY,
+                TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+                Uv1Scale = new Vector3(entry.U1 - entry.U0, entry.V1 - entry.V0, 1.0f),
+                Uv1Offset = new Vector3(entry.U0, 1.0f - entry.V1, 0.0f),
+                CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+            };
+            _itemAtlasMaterialCache[matKey] = mat;
+        }
+
+        var w = entry.Width > 0 ? entry.Width : 0.40f;
+        var h = entry.Height > 0 ? entry.Height : 0.40f;
+
+        var quad = new QuadMesh
+        {
+            Size = new Vector2(w, h),
+        };
+
+        var meshInst = new MeshInstance3D
+        {
+            Mesh = quad,
+            MaterialOverride = mat,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.On,
+            Position = new Vector3(0, h * 0.5f, 0),
+        };
+
+        billboardNode = meshInst;
+        return true;
+    }
+
     /// <summary>
     /// Declarative mapping of item glyphs to CC0 3D mesh assets and scaling factors.
     /// Contributors can add new 3D item models here or via RegisterItemModel.
@@ -64,6 +293,31 @@ public static class ItemModelResolver
             itemName += " (pile)";
         }
 
+        // Subtle ground-level rarity plinth ring
+        var plinthMat = new StandardMaterial3D
+        {
+            AlbedoColor = color,
+            EmissionEnabled = true,
+            Emission = color,
+            EmissionEnergyMultiplier = 0.45f,
+            Roughness = 0.35f,
+            Metallic = 0.15f,
+        };
+        var plinthMesh = new TorusMesh
+        {
+            InnerRadius = 0.10f,
+            OuterRadius = 0.22f,
+            Rings = 24,
+            RingSegments = 12,
+        };
+        var plinth = new MeshInstance3D
+        {
+            Mesh = plinthMesh,
+            MaterialOverride = plinthMat,
+            Position = new Vector3(0, 0.01f, 0),
+        };
+        root.AddChild(plinth);
+
         var visual = CreateVisual(glyph, color, itemName);
         var rotator = new ItemRotator();
         rotator.Position = new Vector3(0, 0.12f, 0);
@@ -100,6 +354,11 @@ public static class ItemModelResolver
             var torch = ViewModel.CreateHandheldTorchNode();
             torch.Scale = Vector3.One * 0.75f;
             return torch;
+        }
+
+        if (TryCreateAtlasBillboard(itemName, glyph, out var billboardNode))
+        {
+            return billboardNode;
         }
 
         var modelConfig = ResolveSpecificItemModel(glyph, itemName);

@@ -1,22 +1,24 @@
-# Cursor Rules for angband3d
+# Cursor & IDE Agent Rules for `angband3d`
 
-Before starting work, review `AGENTS.md` and `docs/LLM_CONTEXT.md`.
+Before starting any task, read `AGENTS.md` (Turn-0 Master Operating Manual) and `docs/STATE.md`.
 
-## Key Commands
-- Build C Engine: `$env:MSYSTEM='MINGW64'; $env:CHERE_INVOKING='1'; & C:\msys64\usr\bin\bash.exe -lc "cd /c/Dev/angband3d/engine && cmake --build build"`
-- Build Godot C#: `dotnet build client/angband3d.csproj`
-- Run Smoke Tests: `python tools/smoke_test.py`
-- Play Game: `.\play.cmd`
+## 1. Orientation Order
+1. `git status -s`
+2. `docs/STATE.md` (active checklist & gate log; `docs/NEXT_STEPS.md` is history only)
+3. `docs/plan/EXECUTOR_START_HERE.md` & `docs/plan/master_audit_and_execution_plan.md` (Part VI: Atomic Execution Cards 1–5 & 8 Golden Anti-Trap Guardrails)
+4. `docs/LLM_CONTEXT.md`, `docs/PROTOCOL.md`, and `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md`
 
-## Context & Token Efficiency
-- Do not perform recursive repository searches for standard classes; use the File Map in `AGENTS.md`.
-- Prefer minimal surgical edits with `replace_string_in_file` / `multi_replace_string_in_file`.
-- Check `docs/NEXT_STEPS.md` to immediately resume tasks without repeating research.
+## 2. Verification Gates
+- Fast Gate (run after every edit): `node tools/run_tests.js --tier fast`
+- Native Bridge Smoke Gate: `python tools/smoke_test.py` (11/11)
+- C# Build Gate: `dotnet build client/angband3d.csproj` && `dotnet build desktop/Angband3D.csproj`
+- Asset Version & Android Sync (after any `server/public/` change): `node tools/bump_version.js && npm run android:sync`
 
-## Core Invariants
-- Engine changes stay in `engine/src/main-bridge.c` and `engine/src/bridge-json.c`.
-- Export patch: `cd engine; git diff 4.2.6..HEAD --output=..\engine-patch\0001-bridge-frontend.patch` (never use `>`).
-- Always check `bridge_in_play()` before accessing `cave` or `player->grid`.
-- Use `bridge_get_equipped_by_type()` rather than `slot_by_name()`.
-- Movement = arrow keys. Turning = camera yaw only (0 game turns).
-- View routing = `NeedsTerminal(frame)` in `Main.cs`.
+## 3. Non-Negotiable Invariants (`L1–L34`)
+- Never run unbounded `**/*` searches or dump full multi-thousand-line files; use line-bounded reads and surgical replacements.
+- Before adding/editing a method in a large class (`dungeon3d.js`, `app.js`, `hud.js`, `terminal.js`, `chronicle-*.js`), search the file for duplicate method definitions (`L23`).
+- Engine changes stay strictly in `main-bridge.c/.cpp` and `bridge-json.c/.h`. Export patch with `--output=`. Guard grid access with `bridge_in_play()` and equipment with `bridge_get_equipped_by_type()`.
+- Movement = arrow keys (`up`/`down`/`left`/`right`); Hold = `,`. Never send raw digits (`0`–`9`) for movement/hold (`L2`); never write `sendKey('5')` in `input.js`.
+- `-more-` prompts during `play` (`overlay == 0`) stay in 3D view with the HUD message banner (`L16`).
+- Escape all dynamic strings rendered via `innerHTML` with `escapeHtml()`.
+- Gate all per-frame DOM, Canvas2D, and 3D `InstancedMesh`/`MultiMesh` updates on state-change signatures (`L25`), and explicitly `.dispose()` removed GPU/audio resources (`L26`).

@@ -16,19 +16,25 @@ Activate this skill whenever:
 
 ---
 
-## 1. Zero-Turn Orientation Protocol
+## 1. Zero-Turn Orientation Protocol & 4-Tier Knowledge Hierarchy (Law U1)
+Every repository governed by Thunderbear Agentic Mastery maintains a strict **4-Tier Knowledge Hierarchy** with zero contradictions across tiers:
+1. **Tier 1 — Turn-0 Compass (`AGENTS.md` / `CLAUDE.md` / `.cursorrules`)**: Single source of truth for orientation order, non-negotiable invariants, file map, and build/test commands.
+2. **Tier 2 — Live State & Turnkey Execution Ledger (`docs/STATE.md` + `docs/plan/EXECUTOR_START_HERE.md`)**: Tracks the exact `Current task`, in-flight files, and gate output. (`docs/NEXT_STEPS.md` is historical archive only).
+3. **Tier 3 — Indexed Contracts (`docs/LLM_CONTEXT.md` + `docs/PROTOCOL.md`)**: Complete module & line-number map, wire schema, coordinate conventions, and security boundaries.
+4. **Tier 4 — Deep Post-Mortems (`docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md`)**: Root-cause analyses, subtle traps, and verification proofs.
+
 When booting or resuming:
 1. Run `git status -s` to inspect unstaged changes and the active branch.
-2. Read the active milestone in `docs/NEXT_STEPS.md` (lines 1–50).
-3. Read the operational guidelines in `AGENTS.md`.
-4. Run the project smoke test to verify workspace health.
+2. Read `docs/STATE.md` (lines 1–65) first to identify the exact active task card, then read `docs/plan/EXECUTOR_START_HERE.md`.
+3. Read the operational guidelines in `AGENTS.md` and target module entries in `docs/LLM_CONTEXT.md`.
+4. Run the fast verification gate (`node tools/run_tests.js --tier fast` or `python tools/smoke_test.py`) to verify workspace health.
 5. **NEVER** run recursive directory scans (`**/*`) or dump entire source files into context.
 
 ---
 
 ## 2. Token & Attention Economics
-- **Bounded Reads**: Read only 20–80 lines around target symbols.
-- **Surgical String Replacements**: Always use `replace_file_content` / `multi_replace_file_content` with 3 lines of unique context. Do not rewrite whole files.
+- **Bounded Reads**: Read only 20–100 lines around target symbols (`Select-String` first to locate line numbers).
+- **Surgical String Replacements**: Always use `replace_file_content` with 3 lines of unique context. Never rewrite whole files.
 - **No Command Polling**: Never execute `sleep` loops or while-wait commands. When a long task runs asynchronously, yield your turn and await reactive wakeup.
 
 ---
@@ -40,47 +46,52 @@ When booting or resuming:
 
 ---
 
-## 4. Architectural Invariants
-- Establish system invariants mathematically and structurally upfront.
+## 4. Universal High-Leverage Engineering Laws (`U1–U8`)
+- **U1 (Single-Entry-Point 4-Tier Hierarchy)**: Never leave stale task pointers in `docs/STATE.md`. Contradictions between `STATE.md` and `git status` cause smaller models to enter infinite read-only loops.
+- **U2 (Anti-Shadowing / No Duplicate Class Members)**: Before editing or adding any method/property in a class >500 lines, search the entire file for `<methodName>(` first. A duplicate method definition later in a class body silently shadows the earlier definition in JS/TS.
+- **U3 (Zero Per-Frame Reallocation & Instance/Module Dirty Signatures)**:
+  - Never allocate DOM nodes (`innerHTML =`), Canvas2D patterns, or GPU `InstancedMesh`/`MultiMesh` buffers on every animation frame or network tick.
+  - Gate all per-frame updates on a compact state signature stored on the **class instance or module scope** (`this._lastToolbarSig`), **never** in a local variable inside `onFrame()` (which resets to `''` every frame!).
+- **U4 (Explicit GPU, WebGL & Audio Graph Disposal + Bounded LRU Caches)**:
+  - Removing a 3D mesh from a scene graph (`scene.remove(mesh)`) or letting a `CanvasTexture` go out of scope does **not** free GPU VRAM. Always explicitly call `.dispose()` on geometries, materials, and textures on level change or entity despawn.
+  - Explicitly `.disconnect()` and `.stop()` procedural Web Audio nodes (`OscillatorNode`, `AudioBufferSourceNode`, `GainNode`, `BiquadFilterNode`) in `onended` callbacks.
+  - Bound all server/client memory caches (LRU max entries + TTL sweep) and exclude non-semantic fields (`context`, timestamps) from cache keys.
+- **U5 (Bidirectional Contract & Pre-Warm Symmetry)**:
+  - Derive protocol command allowlists from the **union** of all valid sender actions and backend handlers.
+  - Contract-test client request payloads against server validation regexes (`SAFE_PROSE_RE`).
+  - Never retry deterministic client errors (`HTTP 4xx`) in network retry loops.
+  - Route speculative pre-warming (`prewarmUtterance`) and live execution (`speakCreatureDialogue`) through the **exact same** option normalizer (`normalizeVoiceOptions`) and deterministic entity hash (`hashId(id) % len`, never `Math.random()`) so pre-warmed cache keys achieve 100% hit rates.
+- **U6 (State-Machine Self-Healing on Mode Exit)**:
+  - Multi-step client routers (`MenuRouter.pending`) must auto-clear in `onFrame` whenever the authoritative backend exits the expected mode, and async modal loops must wrap execution in `try { ... } finally { ... }` so cancelled/errored flows never leave the UI stuck.
+- **U7 (Red-First Atomic Commits & Disjoint Wave File Ownership)**:
+  - Write or extend the automated contract test **first** (verify it fails on the bug), apply the surgical fix, verify green, and commit atomically (`1 card = 1 commit`).
+  - Partition parallel execution waves strictly by **Target File** so no two concurrent tasks or subagents ever edit the same file in the same wave.
+- **U8 (Turnkey Atomic Execution Cards for Fast/Lower-Tier Models)**:
+  - When packaging an execution plan for fast models (e.g., Gemini 3.8 Flash) or new contributors, structure every work unit as a self-contained **Execution Card** with:
+    1. **Pinned Test-Contract Guardrails ("What NOT to Touch")**: Explicit list of existing test invariants and regexes that must remain untouched.
+    2. **Exact File Paths & Line Ranges**: Verified via `Select-String`.
+    3. **Copy-Paste-Ready Code Anchor & Replacement**: Eliminating architectural guesswork.
+    4. **One-Line Verification Gate**: Exact CLI command that must exit `0` before marking `[x]` in `docs/STATE.md`.
+
+---
+
+## 5. Platform & Media Invariants
 - **Audio Mutual Exclusion**: $\text{delay}_i + \text{duration}_i + \text{buffer} \le \text{delay}_{i+1}$.
 - **Semantic State**: Never rely on DOM mutations surviving layout loops. Bind UI elements to explicit state booleans.
 - **Golden State Vaulting**: Maintain pristine backups of persistent game/data state and restore before automated test runs.
-- **Media Streaming & Edge Proxy Invariant (RFC 7233 / 9110)**: Any endpoint serving video/audio requiring timeline seeking/scrubbing MUST use `HTTP 206 Partial Content` with `Accept-Ranges: bytes` and `Content-Range: bytes START-END/TOTAL`.
-  - **Dynamic Cache Headers**: It must NEVER be served with `public` caching headers to CDN edge proxies (Cloudflare, Fastly); always emit `Cache-Control: no-cache, no-store, must-revalidate` so proxies mark requests as dynamic, avoiding monolithic 200 chunked responses that destroy browser seekability.
-  - **Serverless Buffer Limits (Cloud Run / GFE 32MB Rule)**: Serverless reverse proxies (such as Google Frontend) enforce strict response payload limits (e.g. 32 MB). Origin servers must NEVER satisfy open-ended ranges (`bytes=0-`, `bytes=X-`) by streaming the full remainder of large media files. Always clamp chunk responses to safe slices (e.g. 4 MB: `Math.min(end, start + 4*1024*1024 - 1, total - 1)`).
-  - **Service Worker Range Bypass**: Service workers (`sw.js`) intercepting `fetch` events must explicitly bypass requests matching media assets (`/assets/video/`, `.mp4`, `.webm`) or containing a `Range` header, returning early without calling `event.respondWith()` to allow native browser AV decoding pipelines to manage byte range buffering.
-  - **Cache Busting / Versioned Asset Aliases**: When fixing media streaming issues behind aggressive edge networks, bump asset URLs in markup (e.g. `_v884.mp4`) and alias them dynamically to canonical files on disk to prevent stale edge cache collisions.
-- **True Fullscreen Video, Floating HUD & DOM Target Hierarchy Invariant**:
-  - **DOM Target Hierarchy Separation**: Never conflate a modal wrapper (`#demo-modal`) with the component stage (`.demo-theater-container`). When sharing a single component controller across both a modal overlay (`index.html`) and a standalone page (`demo.html`), falling back to `this.modalEl = document.querySelector('.demo-theater-container')` creates the **Self-Querying `Element.querySelector()` Trap**: `this.modalEl.querySelector('.demo-theater-container')` returns `null` because `querySelector()` exclusively inspects descendant nodes (never the element itself). Always maintain separate references (`this.modalEl`, `this.theaterContainerEl`, `this.videoWrapperEl`) and use a resilient multi-tier `getContainer()` resolver.
-  - **Viewport Expansion & Floating HUD**: In `:fullscreen` / `:-webkit-full-screen` / `.is-fullscreen`, containers and video elements must expand to `100vw !important` and `100vh !important` (`object-fit: contain; width: 100%; height: 100%`) without desktop container width caps (e.g. 1040px). Controls must float as bottom HUD overlays with dark glassmorphism and ambient blur. Implement 2.5s idle auto-hide (`.hud-hidden`) with cursor suppression while playing, single-click (240ms debounced) play/pause, double-click fullscreen toggle, `Escape` to exit fullscreen first before closing dialogs, iOS WebKit fallback (`video.webkitEnterFullscreen()`), and synchronized browser `fullscreenchange` lifecycle.
-  - **Dual-Engine Fullscreen Fallback**: If the browser's native `requestFullscreen()` is rejected (missing user gesture, iframe permission policies, or WebView restrictions), immediately activate CSS fullscreen (`.is-fullscreen` with fixed 100vw/100vh positioning and `z-index: 999999`) to guarantee 100% fullscreen parity on all platforms.
-- **Standalone Client External Link Decoupling & Distribution Hygiene Invariant**:
-  - **Media Isolation**: High-bandwidth media showcases (1080p narrated video walkthroughs, trailers) belong **strictly on the public website** (`https://.../demo`). Never bundle heavy video files in standalone offline packages (saving 260MB–700MB of distribution bloat). Non-web clients (Windows WebView2, Godot C#, Android APK) must never attempt native video playback.
-  - **Triple-Layer Redirection Protocol**:
-    1. *Host Container Interception*: In native desktop wrappers (WebView2, Electron, CEF), wire `NewWindowRequested` (`e.Handled = true; Process.Start(...)`), `NavigationStarting` (cancel non-local host navigations to prevent container page hijacking and launch system browser), and WebMessage IPC (`{ type: 'openExternal', url }`).
-    2. *Front-End Dispatcher*: Auto-detect standalone execution (`isStandaloneApp()`, local hostname, Capacitor) and route external links through a unified dispatcher (`openExternalUrl()`) before touching UI modals. Adapt button labels with external hints (e.g. `🎬 Demo (Web ↗)`) and descriptive tooltips.
-    3. *Player Engine Defensive Guards*: Suppress media preloading in standalone clients, deflect runtime `open()` calls to the external web URL, and guard standalone HTML pages with head redirection scripts.
-  - **Zero-Bloat Packaging Hygiene**: Build pipelines (`package.ps1`) must explicitly exclude heavy media (`assets/video/`) and web-only pages (`demo.html`) from staged release bundles, purge transient saves/logs, and run post-stage binary verification checks.
+- **Media Streaming & Edge Proxy Invariant (RFC 7233 / 9110)**: Any endpoint serving video/audio requiring timeline seeking/scrubbing MUST use `HTTP 206 Partial Content` with `Accept-Ranges: bytes`, `Content-Range: bytes START-END/TOTAL`, `Cache-Control: no-cache, no-store, must-revalidate`, clamped chunk slices ($\le 4\text{ MB}$), and Service Worker `Range` bypass.
+- **True Fullscreen Video, Floating HUD & DOM Target Hierarchy Invariant**: Never conflate a modal wrapper (`#demo-modal`) with the component stage (`.demo-theater-container`). Expand fullscreen stages to `100vw`/`100vh` with dual-engine CSS fallback (`.is-fullscreen`).
+- **Standalone Client External Link Decoupling & Distribution Hygiene Invariant**: High-bandwidth video showcases belong strictly on the public website; exclude `assets/video/` from offline builds and route external links via host container interception.
 
 ---
 
-## 5. Grounded Truth Standard
+## 6. Grounded Truth Standard & Award-Winning Aesthetics
 - **Never claim a fix without verification**: Execute test scripts, inspect exit codes, check HTTP status codes, or verify rendered keyframes before reporting completion.
-- Provide dense, action-oriented, factual responses.
-
----
-
-## 6. Award-Winning Aesthetics Baseline
-- Reject plain, default, or unstyled UI frameworks.
-- Standard Palette: Dark obsidian surfaces, radial amber/gold glows, emerald/cyan accents, and glassmorphism.
-- Typography: Curated fonts (`Cinzel`, `Outfit`, `Fira Code`) over default browser fonts.
-- Polish: Responsive mobile touch controls, fluid micro-animations, and high-impact visual first impressions.
+- **Award-Winning Aesthetics Baseline**: Dark obsidian surfaces, radial amber/gold glows, emerald/cyan accents, curated typography (`Cinzel`, `Outfit`, `Fira Code`), zero-jank GPU animations (`transform`/`opacity`), and $\ge 40\times 40\text{px}$ mobile touch targets.
 
 ---
 
 ## 7. Knowledge Codification
 - Whenever an elusive bug, race condition, or OS gotcha is conquered, immediately append a structured entry to `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md`:
-  - Failure Mode
-  - Root Cause
-  - Architectural Invariant
-  - Verification Proof
+  - **Failure Mode** $\rightarrow$ **Root Cause** $\rightarrow$ **Architectural Invariant** $\rightarrow$ **Verification Proof**.
+

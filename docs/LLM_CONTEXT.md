@@ -1,17 +1,25 @@
 # angband3d — AI Context & Onboarding Guide
 
 ## Mission & Architecture
-`angband3d` is a first-person 3D dungeon crawler frontend for Angband 4.2.6 (C engine + Godot 4.7.2 Mono/C# client).
-Rather than rewriting Angband rules in C#, Angband runs as a headless child process communicating via line-delimited JSON over stdio.
+`angband3d` is a multi-realm first-person 3D dungeon crawler platform powered by **4 authoritative C/C++ roguelike engines** (`Vanilla Angband 4.2.6`, `Sil-Q`, `FrogComposBand`, and `Hengband`) paired with both a **Web Three.js / CRT Canvas / Living Chronicle client** (plus Offline Emscripten WASM, Windows `.NET 8` WebView2, and Android Capacitor APK) and a **native Godot 4.7.2 C# client**.
+Rather than rewriting game rules, each engine runs as a headless child process (or WebWorker) communicating via line-delimited JSON over stdio / WebSockets.
 
 ```
-+------------------------------------+             +-------------------------------------+
-| engine/ (Angband 4.2.6 C)          |  JSON stdout | client/ (Godot 4.7.2 C# client)      |
-|  - main-bridge.c (JSON Term/events)| -----------> |  - BridgeClient.cs (Process stdio)  |
-|  - bridge-json.c                   |              |  - DungeonWorld.cs (3D mesh/camera) |
-|  - Minimal changes to 4 core files | <----------- |  - Overlay.cs (2D Map/Term/HUD/Menu)|
-+------------------------------------+  stdin keys  |  - Main.cs (view/input coordinator) |
-                                                    +-------------------------------------+
++------------------------------------------+              +-----------------------------------------------+
+| 4 Authoritative C/C++ Engines            |  JSON stdio  | Cloud Relay & AI Proxy (server/src/server.js) |
+|  - engine/src/main-bridge.c (Vanilla)    | <----------> |  - WS multiplexer & TOFU owner tokens         |
+|  - variants/silq-src/src/main-bridge.c   |              |  - /api/llm/generate & /api/tts (Gemini)      |
+|  - variants/frogcomposband-src/...       |              +-----------------------+-----------------------+
+|  - variants/hengband-src/... (.cpp)      |                                      | WebSocket / REST
++--------------------+---------------------+                                      v
+                     | Direct stdio / WS                  +-----------------------------------------------+
+                     v                                    | Web / Mobile / Desktop / Offline WASM Client  |
++------------------------------------------+              |  - app.js, input.js, screen-context.js        |
+| Godot 4.7.2 C# Client (client/scripts/)  |              |  - menu-router.js, realm-keys.js, heng/*.js   |
+|  - BridgeClient.cs / WebSocketBridge.cs  |              |  - dungeon3d.js (Three.js), hud.js, terminal  |
+|  - Main.cs, DungeonWorld.cs, Overlay.cs  |              |  - chronicle/*.js (Voiced Lorekeeper & Tome)  |
+|  - ViewModel.cs, *ModelResolver.cs       |              |  - local_bridge.js + engine-worker.js (WASM)  |
++------------------------------------------+              +-----------------------------------------------+
 ```
 
 ## Critical Invariants & Rules
@@ -137,7 +145,7 @@ Rather than rewriting Angband rules in C#, Angband runs as a headless child proc
     - Static module-level RegExp compilation eliminates per-frame heap allocations.
     - O(1) incremental story playlist appending eliminates O(N) DOM parsing on active turns.
     - Server-side in-memory static Gzip caching serves static bundles in `<1ms`.
-26. **Dual Voice Engines & Subterranean DSP**: Voice synthesis uses Gemini Native Audio (`Enceladus`) with fallbacks to Edge Neural TTS (`edgeVoicePool`), conditioned with a 10% Subterranean Reverb impulse response convolver and biquad ribbon filter for subterranean ambience.
+26. **Gemini Native Audio & Subterranean DSP (Zero Robotic Fallback)**: Voice synthesis uses Google Gemini Native Audio (`Enceladus` + 30 archetype voices via `/api/tts`; zero robotic `window.speechSynthesis` fallback), conditioned with a 10% Subterranean Reverb impulse response convolver and biquad ribbon filter for subterranean ambience.
 27. **PowerShell Banker's Rounding vs Math.Floor**: In PowerShell scripts creating sprite atlases, `[int]($i / $tilesPerRow)` uses IEEE 754 banker's rounding to the nearest even integer, shifting row indices for odd quotients (e.g. $147/32 = 4.59375 \to 5$), whereas C# / JS truncate towards zero. Always use `[int][Math]::Floor($i / $tilesPerRow)` to guarantee 100% lore-accurate UV slot alignment.
 28. **High-Density De-Fringing, 2D Drop Shadow Stripping & Sharpening**: Legacy Shockbolt tiles contain neutral-grey baked drop shadows ($A < 140$) and un-premultiplied dark fringes from transparent black canvas boundaries. Atlases must programmatically strip baked 2D shadows (replacing with real-time 3D contact shadows `contactShadowDisc`), un-premultiply alpha boundaries ($C' = C / \max(0.25, A/255)$), and apply contrast-adaptive cross-Laplacian detail sharpening. Three.js `alphaTest` set to `0.35` ensures clean edges without dark halos.
 29. **4096×4096 HD Bilateral Normal Maps & Anisotropic Filtering**: High-fidelity normal-mapped creature/item atlases utilize 4096×4096 resolution with 16× anisotropic filtering, `LinearFilter`, and balanced normalScale (0.45, 0.45).
@@ -145,19 +153,29 @@ Rather than rewriting Angband rules in C#, Angband runs as a headless child proc
 31. **FrogComposBand 2-Screen Quick-Birth Review**: Intermediate submenu frames during quick birth must not send fallback `enter` keystrokes, which would prematurely trigger `RET) Begin Play` on Screen 2. Once Screen 2 appears, pause for review; `[🎲 Reroll Hero (R)]` steps back via `ESC`, resets randomize state, and re-triggers `@`.
 32. **Hengband Death Telemetry Preservation**: Do not check `!p_ptr->is_dead` in `bridge_in_play()`. Omitting death frames prevents the client from displaying death causes, obituaries, and death tabs in the atmospheric modal.
 33. **Hengband Door & Store Entrance Translation Precedence**: Always evaluate doors (`FEAT_DOOR_HEAD`..`FEAT_DOOR_TAIL`) and stores (`FEAT_SHOP_HEAD`..`FEAT_SHOP_TAIL`) before checking `FEAT_PERM` wall flags, preventing solid granite wall traps at shop entrances.
-34. **Sil-Q Volumetric Sunlight Shafts at 50ft**: Guard `feat 25` under `realm === 'silq'`. Render it as warm sunlit flagstone floor (`_sunlightFloorColor = (1.30, 1.25, 0.90)`), skip ceiling creation over the tile, and instantiate a volumetric additive sunbeam cylinder (`sunbeamMesh`) streaming from the ceiling fissure.
+34. **Sil-Q Sunlight Lighting at 50ft (`BEST_PRACTICES` §35.1)**: Guard `feat 25` (`FEAT_SUNLIGHT`) under `realm === 'silq'`. Render it as warm sunlit flagstone floor (`_sunlightFloorColor = (1.30, 1.25, 0.90)`), skip ceiling creation over the tile, and attach a pooled warm golden `PointLight` + dust-mote particles (**never** instantiate a hollow `CylinderGeometry` `sunbeamMesh` pipe).
 35. **Chamfered Wall Geometry & 45-Degree Diagonal Sightline Aperture**: Solid 1.0m boxes occlude the line of sight between diagonally adjacent floor tiles. All standard walls (`feats 15, 17, 18, 19, 20, 21, 22`) must be 45-degree chamfered octagonal prisms (`chamfer = 0.40m`, 84 vertices) providing a 0.57m aperture. Watertight floor quads at $(wx, -0.05, wz)$ and ceiling quads at $(wx, wallHeight + 0.05, wz)$ must be rendered under/over exposed wall blocks to prevent void leakage.
 36. **Navigation Key Separation & Zero-Modifier Diagonal Movement**: Standalone `Home`, `PageUp`, `End`, `PageDown` must never be intercepted for camera tilt. Camera pitch is strictly bound to `Ctrl+PageUp`, `Ctrl+PageDown`, and `Ctrl+Home`. Standalone navigation keys are dedicated exclusively to 8-way diagonal movement with Shift-run support.
 37. **Zero-Exposure Credential Enclave & Cloudflare Proxy CSP**: Master API keys reside exclusively in backend `.env`. `GET /api/config/llm` returns boolean capabilities only. CSP header must include `https://static.cloudflareinsights.com` in `script-src` and `connect-src https://cloudflareinsights.com` for Cloudflare proxy parity.
 38. **Multi-Realm Container Build Isolation**: Cloud Run deployments must compile all 4 variant engines in the multi-stage Dockerfile and whitelist `variants/` in `.gcloudignore`. If a binary is missing, `resolveRealmEngine` defaults to `isFallback: true`.
 39. **Rubble (`:`) vs Green Bush (`:`) Disambiguation (`FEAT_BUSH = 42`)**: Both rubble and bushes share ASCII glyph `:`. Always inspect the tile color attribute (green: 3, 5, 11, 13) or terrain tag before translating to Feat 42 (Bush) vs Feat 16 (Rubble), preventing dungeon talus heaps from rendering as bushes.
 40. **Aquatic Immersion Offsets & Liquid Audio**: Water tiles apply dynamic camera immersion wading offsets (-0.08m shallow, -0.22m deep, -0.10m swamp) with buoyancy bobbing and procedural liquid footstep synthesis (low-frequency plunge displacement + resonant bubble spray + liquid slosh tail), respecting native engine drowning and speed mechanics.
+41. **No Duplicate Class Methods (`L23`)**: Before adding or editing a method in any large class (`dungeon3d.js`, `app.js`, `hud.js`, `terminal.js`, `chronicle-*.js`), run `Select-String` across the file for the method name to prevent a second definition at the bottom of the class from silently shadowing the first.
+42. **Verify Binary Save Formats Against C/C++ Source (`L24`)**: Only Vanilla Angband (`engine/src/savefile.c`) starts with 8-byte ASCII `SaveVNLA`. Sil-Q, FrogComposBand, and Hengband write 4-byte binary version headers (`sf_major, sf_minor, sf_patch, sf_extra`) and use `.realm.json` sidecar tracking on cloud upload.
+43. **Zero Per-Frame DOM/GPU Reallocation (`L25`)**: Never rebuild `innerHTML`, resize `<canvas>`, or regenerate `THREE.CanvasTexture` / `InstancedMesh` / `MultiMesh` matrices on every frame when data is unchanged. Gate all per-frame updates on a state signature (`frame.seq`, `(px, py, depth, rowsHash)`). Never declare state-cache variables as local variables inside a per-frame function.
+44. **Explicit Three.js / Godot / Web Audio Resource Disposal (`L26`)**: Every removed `THREE.Sprite`, `Mesh`, `CanvasTexture`, `BufferGeometry`, `Material`, or finished Web Audio `GainNode`/`StereoPannerNode` must be explicitly disposed/disconnected. Never include `${depth}` in `resolveContextualTheme` `theme.id` when procedural textures only depend on `(realm, chapter, sub)`.
+45. **Cross-Bridge Schema Parity (`L27`)**: All 4 C/C++ bridges must emit `null` for `player` and `map` when `!bridge_in_play()`, `"hp_max"` on monsters, `{text, count, attr}` objects in `messages[]`, and structured `player.inventory[]` / `player.equipment[]`.
+46. **State-Machine Auto-Reset on Mode Exit (`L28`)**: Multi-step client state machines (`MenuRouter.pending`, `birthReviewActive`) must auto-clear in `onFrame` whenever `classifier.mode` exits the expected mode AND when any Escape/Close UI button is clicked.
+47. **3D Directional Targeting Routing (`L29`)**: When `isDirectionalTargeting` keeps a `"Direction?"` / `"Target:"` prompt in 3D view, arrow keys must send relative direction keys (without rotating camera yaw), and target-nearest (`5`/`.`/`t`/rosette-center) must send `'t'` (never literal `sendKey('5')` in `input.js`).
+48. **Deterministic Pre-Warm & Cache-Key Symmetry (`L32`)**: Always unwrap `{ narrator: profile }` via `normalizeVocalOptions(options)` across `getAudioCacheKey`, `prewarmUtterance`, `fetchOrGetAudioBuffer`, and `playNeuralAudio`. Never use `Math.random()` inside pre-warmed encounter resolution (`resolveCreatureEncounter`).
+49. **Server/Client Validation Parity (`L33`)**: `/api/tts` `tagRegex` must accept all bracketed `geminiTag` and `directorNote` strings emitted by `ChronicleGrounder`, and client fetchers must never retry `HTTP 4xx` errors.
+50. **Speech Queue State Integrity (`L34`)**: `ChronicleAudio.speak()` must never set `this.isSpeaking = true` before `processSpeechQueue()` checks active playback, and `finally` blocks must always emit `'idle'` when speech ends or fails.
 
-> **Master Architecture & Lessons Learned Guide**: For complete historical context, architectural rationale, and deep-dive explanations of all lessons learned across the project, consult [docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md](file:///c:/Dev/angband3d/docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md).
+> **Master Architecture & Lessons Learned Guide**: For complete historical context, architectural rationale, and deep-dive explanations of all lessons learned across the project, consult [docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md](file:///c:/Dev/angband3d/docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md) and [docs/plan/master_audit_and_execution_plan.md](file:///c:/Dev/angband3d/docs/plan/master_audit_and_execution_plan.md).
 
 ## Token Efficiency & LLM Rate Limit Protocol
-1. **Zero-Discovery Startup**: Consult the Key Files Reference above rather than running exploratory searches.
-2. **Windowed Reads**: Limit `read_file` to specific line ranges (30-100 lines max).
-3. **Targeted Replacements**: Use `replace_string_in_file` / `multi_replace_string_in_file` with 3 lines of context.
-4. **Check State**: Fast verify via `python tools/smoke_test.py` (0.5s) and `dotnet build client/angband3d.csproj` (1.3s).
-5. **Session Continuity**: Record any pending work or newly discovered gotchas in `docs/NEXT_STEPS.md` before concluding.
+1. **Zero-Discovery Startup**: Consult `AGENTS.md`, `docs/STATE.md`, and `docs/plan/master_audit_and_execution_plan.md` rather than running exploratory searches.
+2. **Windowed Reads**: Limit `view_file` to specific line ranges (30-100 lines max).
+3. **Targeted Replacements**: Use `replace_file_content` with 3 lines of context.
+4. **Check State**: Fast verify via `node tools/run_tests.js --tier fast`, `python tools/smoke_test.py` (0.5s), and `dotnet build client/angband3d.csproj` (1.3s).
+5. **Session Continuity**: Record gate outputs and progress in `docs/STATE.md` before concluding.

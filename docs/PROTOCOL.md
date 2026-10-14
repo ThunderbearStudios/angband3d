@@ -75,11 +75,12 @@ Only read `map`, `monsters` and `objects` when `phase` is `"play"`.
 | `awaiting_command` | True when the game wants a normal game command. False when it is asking a question. |
 | `more` | A `-more-` message pause is waiting to be acknowledged. |
 
-**Clients should show the terminal channel whenever `overlay > 0`, `more` is
-true, or `awaiting_command` is false.** Those states exist only as text. A
-client that keeps rendering its own world view during them will swallow the
-player's keystrokes into an invisible menu, which is indistinguishable from a
-freeze.
+**View Routing Rule (`needsTerminal` / `NeedsTerminal`):** Clients should show
+the terminal channel whenever `phase != "play"`, `overlay > 0`, or
+(`!awaiting_command && !more`) (except active 3D directional targeting prompts
+explicitly handled in 3D view). When `more` is `true` during `play` with
+`overlay == 0`, clients **stay in the 3D World View** and display the `-more-`
+prompt in the top HUD message banner (waiting for explicit player `Space`/`Enter`/`Escape` input).
 
 #### `player`
 
@@ -311,7 +312,7 @@ The cloud server exposes secured REST endpoints:
 - `GET /health` — Health check endpoint returning `{ status: 'ok', uptime: number, engine: 'ready', version: string, activeSessions: number }`. Config secrets and environment variables are strictly excluded.
 - `GET /api/saves` (optional `?realm=<realm>`) — Lists saves for the specified realm with `{ saves: [{ name, file, size, mtime, hasOwner }] }`.
 - `GET /api/saves/:filename` — Download character savefile (`application/octet-stream`). Path traversal is blocked (`path.basename` enforcement).
-- `POST /api/saves/upload` — Upload savefile. Validates magic bytes per realm (`SaveVNLA`, `SaveSILQ`, `SaveFROX`, `SaveHENG`), validates size cap (10 MB), and validates `X-Owner-Token`.
+- `POST /api/saves/upload` (optional `?realm=<realm>` or `X-Realm: <realm>`) — Upload savefile. Validates binary header per realm (`SaveVNLA` 8-byte ASCII magic for `angband`; 4-byte binary version header `sf_major, sf_minor, sf_patch, sf_extra` + `.realm.json` sidecar for `silq`, `frogcomposband`, and `hengband`), validates size bounds (`>= 36` bytes and `<= 10 MB`), and validates `X-Owner-Token`.
 - `DELETE /api/saves/:filename` — Delete savefile. Enforces `X-Owner-Token` validation.
 - `GET /api/config/llm` — Returns `{ hasKey: bool, hasServerKey: bool, defaultModel: string, provider: 'gemini' }` without leaking keys.
 - `POST /api/llm/generate` — Protected server-side proxy for Gemini chronicle and lore generation:

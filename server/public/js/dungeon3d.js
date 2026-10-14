@@ -1222,44 +1222,66 @@ function procCreateShadowTexture() {
 }
 
 function procCreateStarTexture() {
-    const size = 64;
+    const size = 128;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
     const center = size / 2;
 
-    // 1. Soft radial Gaussian bloom falloff
+    // 1. Soft radial Gaussian bloom halo falloff
     const grad = ctx.createRadialGradient(center, center, 0, center, center, center);
     grad.addColorStop(0.00, 'rgba(255, 255, 255, 1.0)');
-    grad.addColorStop(0.12, 'rgba(255, 255, 255, 0.95)');
-    grad.addColorStop(0.28, 'rgba(225, 238, 255, 0.45)');
-    grad.addColorStop(0.55, 'rgba(180, 210, 255, 0.12)');
+    grad.addColorStop(0.04, 'rgba(255, 255, 255, 0.98)');
+    grad.addColorStop(0.12, 'rgba(235, 245, 255, 0.72)');
+    grad.addColorStop(0.28, 'rgba(190, 220, 255, 0.30)');
+    grad.addColorStop(0.55, 'rgba(150, 190, 255, 0.08)');
     grad.addColorStop(1.00, 'rgba(0, 0, 0, 0.0)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, size, size);
 
-    // 2. Subtle 4-point diffraction cross spikes on bright core (natural telescope/eye brilliance)
-    ctx.lineWidth = 1.0;
-    const spikeH = ctx.createLinearGradient(center - 16, center, center + 16, center);
-    spikeH.addColorStop(0.0, 'rgba(255, 255, 255, 0.0)');
-    spikeH.addColorStop(0.5, 'rgba(255, 255, 255, 0.70)');
-    spikeH.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
-    ctx.strokeStyle = spikeH;
+    // 2. Razor-sharp incandescent pinpoint core (r = 0..4px)
+    const coreGrad = ctx.createRadialGradient(center, center, 0, center, center, 4);
+    coreGrad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+    coreGrad.addColorStop(0.5, 'rgba(255, 255, 255, 1.0)');
+    coreGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+    ctx.fillStyle = coreGrad;
     ctx.beginPath();
-    ctx.moveTo(center - 16, center);
-    ctx.lineTo(center + 16, center);
-    ctx.stroke();
+    ctx.arc(center, center, 4, 0, Math.PI * 2);
+    ctx.fill();
 
-    const spikeV = ctx.createLinearGradient(center, center - 16, center, center + 16);
-    spikeV.addColorStop(0.0, 'rgba(255, 255, 255, 0.0)');
-    spikeV.addColorStop(0.5, 'rgba(255, 255, 255, 0.70)');
-    spikeV.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
-    ctx.strokeStyle = spikeV;
-    ctx.beginPath();
-    ctx.moveTo(center, center - 16);
-    ctx.lineTo(center, center + 16);
-    ctx.stroke();
+    // 3. 4-point celestial Airy diffraction spikes (crisp horizontal & vertical needles + 45° diagonal glints)
+    const drawSpike = (len, width, alpha, angle = 0) => {
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(angle);
+        const spikeGrad = ctx.createLinearGradient(-len, 0, len, 0);
+        spikeGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.0)');
+        spikeGrad.addColorStop(0.35, `rgba(230, 245, 255, ${alpha * 0.45})`);
+        spikeGrad.addColorStop(0.5, `rgba(255, 255, 255, ${alpha})`);
+        spikeGrad.addColorStop(0.65, `rgba(230, 245, 255, ${alpha * 0.45})`);
+        spikeGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+        ctx.fillStyle = spikeGrad;
+        ctx.beginPath();
+        ctx.moveTo(-len, 0);
+        ctx.lineTo(0, width * 0.5);
+        ctx.lineTo(len, 0);
+        ctx.lineTo(0, -width * 0.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    };
+
+    // Principal horizontal & vertical diffraction needles plus subtle 45° diagonal glints
+    const spikeConfigs = [
+        [58, 2.2, 0.95, 0],
+        [58, 2.2, 0.95, Math.PI / 2],
+        [26, 1.4, 0.35, Math.PI / 4],
+        [26, 1.4, 0.35, -Math.PI / 4]
+    ];
+    for (const cfg of spikeConfigs) {
+        drawSpike(cfg[0], cfg[1], cfg[2], cfg[3]);
+    }
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.generateMipmaps = false;
@@ -1410,6 +1432,70 @@ function procCreateMagmaEmission() {
             return [0.96, 0.34 + heat * 0.40, 0.04 + heat * 0.12];
         }
         return [0, 0, 0];
+    });
+}
+
+function procCreateLavaTexture(w = 256, h = 256) {
+    const size = w || 256;
+    return procCreateTexture(size, (x, y) => {
+        const nx = x / size;
+        const ny = y / size;
+        const qx = procFractalNoise(nx * 3.5, ny * 3.5, 4, 31) - 0.5;
+        const qy = procFractalNoise(nx * 3.5 + 5.2, ny * 3.5 + 1.3, 4, 47) - 0.5;
+        const rx = procFractalNoise((nx + qx * 0.8) * 4.0, (ny + qy * 0.8) * 4.0, 4, 83) - 0.5;
+        const ry = procFractalNoise((nx + qx * 0.8 + 1.7) * 4.0, (ny + qy * 0.8 + 9.2) * 4.0, 4, 19) - 0.5;
+        const warp = procFractalNoise((nx + rx * 0.9) * 4.2, (ny + ry * 0.9) * 4.2, 4, 59);
+
+        if (warp < 0.42) {
+            const crustGrain = (procSmoothNoise(nx * 32, ny * 32, 101) - 0.5) * 0.03;
+            const crustT = warp / 0.42;
+            const r = 0.09 + crustT * 0.04 + crustGrain;
+            const g = 0.07 + crustT * 0.02 + crustGrain;
+            const b = 0.06 + crustGrain;
+            return [Math.max(0, r), Math.max(0, g), Math.max(0, b)];
+        } else if (warp < 0.60) {
+            const t = (warp - 0.42) / 0.18;
+            const r = 0.78 + t * 0.22;
+            const g = 0.11 + t * 0.37;
+            const b = 0.0;
+            return [r, g, b];
+        } else if (warp < 0.80) {
+            const t = (warp - 0.60) / 0.20;
+            const r = 1.0;
+            const g = 0.48 + t * 0.48;
+            const b = t * 0.69;
+            return [r, g, b];
+        } else {
+            const t = Math.min(1.0, (warp - 0.80) / 0.20);
+            return [1.0, 0.96 + t * 0.04, 0.69 + t * 0.31];
+        }
+    });
+}
+
+function procCreateLavaEmission(w = 256, h = 256) {
+    const size = w || 256;
+    return procCreateTexture(size, (x, y) => {
+        const nx = x / size;
+        const ny = y / size;
+        const qx = procFractalNoise(nx * 3.5, ny * 3.5, 4, 31) - 0.5;
+        const qy = procFractalNoise(nx * 3.5 + 5.2, ny * 3.5 + 1.3, 4, 47) - 0.5;
+        const rx = procFractalNoise((nx + qx * 0.8) * 4.0, (ny + qy * 0.8) * 4.0, 4, 83) - 0.5;
+        const ry = procFractalNoise((nx + qx * 0.8 + 1.7) * 4.0, (ny + qy * 0.8 + 9.2) * 4.0, 4, 19) - 0.5;
+        const warp = procFractalNoise((nx + rx * 0.9) * 4.2, (ny + ry * 0.9) * 4.2, 4, 59);
+
+        if (warp < 0.42) {
+            const fissure = procFractalNoise(nx * 18, ny * 18, 2, 73);
+            if (fissure > 0.82) {
+                return [0.45, 0.08, 0.0];
+            }
+            return [0.0, 0.0, 0.0];
+        } else if (warp < 0.60) {
+            const t = (warp - 0.42) / 0.18;
+            return [0.85 + t * 0.15, 0.15 + t * 0.40, 0.0];
+        } else {
+            const t = Math.min(1.0, (warp - 0.60) / 0.40);
+            return [1.0, 0.55 + t * 0.45, t * 0.75];
+        }
     });
 }
 
@@ -1797,11 +1883,37 @@ function createChamferedWallGeometry(cellSize, wallHeight, chamfer = 0.40) {
 
     const extrudeSettings = {
         depth: wallHeight,
+        steps: 2,
         bevelEnabled: false
     };
     const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     geo.rotateX(Math.PI / 2);
     geo.center();
+
+    // Continuous arc-length UVs around the 8-sided column perimeter
+    const pos = geo.attributes.position;
+    const norm = geo.attributes.normal;
+    const uv = geo.attributes.uv;
+    if (pos && norm && uv) {
+        const halfH = wallHeight / 2;
+        const uvs = uv.array;
+        for (let i = 0; i < pos.count; i++) {
+            const ny = norm.getY(i);
+            const vx = pos.getX(i);
+            const vy = pos.getY(i);
+            const vz = pos.getZ(i);
+            if (Math.abs(ny) < 0.5) {
+                const uArc = ((Math.atan2(vz, vx) + Math.PI) / (2 * Math.PI)) * 4.0;
+                const vH = (vy + halfH) / wallHeight;
+                uvs[i * 2] = uArc;
+                uvs[i * 2 + 1] = vH;
+            } else {
+                uvs[i * 2] = (vx + half) / cellSize;
+                uvs[i * 2 + 1] = (vz + half) / cellSize;
+            }
+        }
+        uv.needsUpdate = true;
+    }
     return geo;
 }
 
@@ -1817,15 +1929,20 @@ function applyWallVertexAO(geo, wallHeight) {
     const colors = new Float32Array(count * 3);
     const halfH = wallHeight / 2;
     for (let i = 0; i < count; i++) {
+        const x = pos.getX(i);
         const y = pos.getY(i);
+        const z = pos.getZ(i);
         const t = Math.max(0, Math.min(1, (y + halfH) / wallHeight));
         let factor = 1.0;
         if (t < 0.28) {
-            // Rich ground contact shadow on bottom 28% of wall (darkens down to 0.58)
-            factor = 0.58 + Math.pow(t / 0.28, 0.85) * 0.42;
+            // Rich ground contact shadow on bottom 28% of wall (darkens down to 0.48 at t=0)
+            factor = 0.48 + Math.pow(t / 0.28, 0.85) * 0.52;
         } else if (t > 0.80) {
-            // Soft ceiling contact shadow on top 20% of wall (darkens down to 0.68)
-            factor = 0.68 + Math.pow((1.0 - t) / 0.20, 0.85) * 0.32;
+            // Soft ceiling contact shadow on top 20% of wall (darkens down to 0.60 at t=1)
+            factor = 0.60 + Math.pow((1.0 - t) / 0.20, 0.85) * 0.40;
+        }
+        if (Math.abs(x) > 0.55 && Math.abs(z) > 0.55) {
+            factor *= 0.86;
         }
         colors[i * 3 + 0] = factor;
         colors[i * 3 + 1] = factor;
@@ -1876,6 +1993,25 @@ function applyCeilingVertexAO(geo, cellSize) {
 // ==============================================================================
 // 2. Main 3D Dungeon Crawler Engine
 // ==============================================================================
+
+const POLYHAVEN_ITEM_GLTF_PATHS = {
+    ph_saber: '/assets/polyhaven/models/wooden_handle_saber/wooden_handle_saber.gltf',
+    ph_estoc: '/assets/polyhaven/models/antique_estoc/antique_estoc.gltf',
+    ph_katana: '/assets/polyhaven/models/antique_katana_01/antique_katana_01.gltf',
+    ph_dagger: '/assets/polyhaven/models/ornate_medieval_dagger/ornate_medieval_dagger.gltf',
+    ph_axe: '/assets/polyhaven/models/wooden_axe/wooden_axe.gltf',
+    ph_hatchet: '/assets/polyhaven/models/hatchet/hatchet.gltf',
+    ph_hammer: '/assets/polyhaven/models/ornate_war_hammer/ornate_war_hammer.gltf',
+    ph_mace: '/assets/polyhaven/models/ornate_medieval_mace/ornate_medieval_mace.gltf',
+    ph_shield: '/assets/polyhaven/models/kite_shield/kite_shield.gltf',
+    ph_potion_bottle: '/assets/polyhaven/models/wine_bottles_01/wine_bottles_01.gltf',
+    ph_potion_flask: '/assets/polyhaven/models/jug_01/jug_01.gltf',
+    ph_potion_urn: '/assets/polyhaven/models/ceramic_vase_01/ceramic_vase_01.gltf',
+    ph_goblet: '/assets/polyhaven/models/brass_goblets/brass_goblets.gltf',
+    ph_lantern: '/assets/polyhaven/models/wooden_lantern_01/wooden_lantern_01.gltf',
+    ph_candle: '/assets/polyhaven/models/brass_candleholders/brass_candleholders.gltf',
+    ph_chest: '/assets/polyhaven/models/treasure_chest/treasure_chest.gltf'
+};
 
 class Dungeon3D {
     constructor(canvasId) {
@@ -1978,6 +2114,10 @@ class Dungeon3D {
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.05;
         this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.autoUpdate = false;
+        this.renderer.shadowMap.needsUpdate = true;
 
         // Ambient light (dynamically adjusted per depth / town)
         this.ambientLight = new THREE.AmbientLight(0x808aa8, 0.75);
@@ -2023,6 +2163,12 @@ class Dungeon3D {
             this.renderer.setSize(window.innerWidth, window.innerHeight);
             this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, newDprCap));
         });
+    }
+
+    markShadowsDirty() {
+        if (this.renderer && this.renderer.shadowMap) {
+            this.renderer.shadowMap.needsUpdate = true;
+        }
     }
 
     getBiomeProfile(depth, levelSeed = 0, realm = 'angband') {
@@ -2629,6 +2775,15 @@ class Dungeon3D {
             vertexColors: true
         });
 
+        // Photogrammetry Boulders / Rubble (feat 16: RUBBLE)
+        this.rubbleMaterial = new THREE.MeshStandardMaterial({
+            map: this.wallTex,
+            normalMap: this.wallNormal,
+            roughness: 0.88,
+            metalness: 0.04,
+            vertexColors: true
+        });
+
         // Swamp & Wetland Marsh (feat 31: SWAMP)
         this.swampMaterial = new THREE.MeshStandardMaterial({
             map: this.dirtTex,
@@ -2639,38 +2794,70 @@ class Dungeon3D {
         });
 
         // Forest Trees (feat 25: TREE) - Foliage canopy with organic bark trunk
-        this.treeMaterial = new THREE.MeshStandardMaterial({
-            map: this.treeLeavesTex,
-            normalMap: this.treeLeavesNormal,
-            normalScale: new THREE.Vector2(1.35, 1.35),
-            roughness: 0.78,
-            metalness: 0.02,
-            vertexColors: true
-        });
-        this.treeTrunkMaterial = new THREE.MeshStandardMaterial({
+        this.treeTrunkMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
             map: this.treeBarkTex,
             normalMap: this.treeBarkNormal,
             normalScale: new THREE.Vector2(1.40, 1.40),
-            roughness: 0.88,
+            roughness: 0.90,
             metalness: 0.02,
+            side: THREE.DoubleSide,
             vertexColors: true
         });
+        this.treeTrunkMaterial = this.treeTrunkMat;
 
-        // In-View Molten Lava
+        this.treeLeavesMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            map: this.treeLeavesTex,
+            normalMap: this.treeLeavesNormal,
+            normalScale: new THREE.Vector2(1.35, 1.35),
+            roughness: 0.68,
+            metalness: 0.02,
+            alphaTest: 0.35,
+            side: THREE.DoubleSide,
+            vertexColors: true
+        });
+        this.treeMaterial = this.treeLeavesMat;
+
+        // Incandescent Domain-Warped Molten Lava (feat 23) & Cooled Basalt
+        this.lavaTex = procCreateLavaTexture(256, 256);
+        this.lavaEmission = procCreateLavaEmission(256, 256);
+        this.procCreateLavaTexture = procCreateLavaTexture;
+        this.procCreateLavaEmission = procCreateLavaEmission;
+        if (this.lavaTex) {
+            this.lavaTex.wrapS = THREE.RepeatWrapping;
+            this.lavaTex.wrapT = THREE.RepeatWrapping;
+            this.lavaTex.repeat.set(2, 2);
+        }
+        if (this.lavaEmission) {
+            this.lavaEmission.wrapS = THREE.RepeatWrapping;
+            this.lavaEmission.wrapT = THREE.RepeatWrapping;
+            this.lavaEmission.repeat.set(2, 2);
+        }
+
         this.lavaMaterial = new THREE.MeshStandardMaterial({
-            color: 0xff3300,
-            emissive: 0xff4400,
-            emissiveIntensity: 2.2,
-            roughness: 0.35,
-            metalness: 0.10,
+            color: 0xffffff,
+            map: this.lavaTex,
+            emissive: 0xff5500,
+            emissiveMap: this.lavaEmission,
+            emissiveIntensity: 2.35,
+            normalMap: this.townPermWallNormal || this.wallNormal,
+            normalScale: new THREE.Vector2(1.50, 1.50),
+            roughness: 0.32,
+            metalness: 0.08,
             side: THREE.DoubleSide
         });
 
-        // Cooled Basalt (Memory/Fog-of-War Lava)
         this.lavaCooledMaterial = new THREE.MeshStandardMaterial({
-            color: 0x141210,
-            roughness: 0.95,
-            metalness: 0.0,
+            color: 0x55382e,
+            map: this.lavaTex,
+            emissive: 0xff3300,
+            emissiveMap: this.lavaEmission,
+            emissiveIntensity: 0.35,
+            normalMap: this.townPermWallNormal || this.wallNormal,
+            normalScale: new THREE.Vector2(1.40, 1.40),
+            roughness: 0.78,
+            metalness: 0.12,
             side: THREE.DoubleSide
         });
 
@@ -2703,76 +2890,207 @@ class Dungeon3D {
         this.townFloorNormal = null;
         this.townFloorRoughness = null;
 
+        // Poly Haven CC0 8K-Scanned Photogrammetry PBR Texture Registry
+        this.polyHavenSets = new Map();
+        this.polyhavenSets = this.polyHavenSets;
         const loader = new THREE.TextureLoader();
-        const loadTownPBR = (url, propKey, isSRGB, repX = 1, repY = 1) => {
-            loader.load(url, (tex) => {
+
+        this.loadPolyHavenSet = (id, repX = 1, repY = 1, onReady = null) => {
+            if (this.polyHavenSets.has(id)) {
+                const existing = this.polyHavenSets.get(id);
+                if (onReady && existing.diff) onReady(existing);
+                return existing;
+            }
+            const entry = { id, diff: null, nor: null, arm: null };
+            this.polyHavenSets.set(id, entry);
+            const base = `/assets/polyhaven/textures/${id}`;
+            const cfgTex = (tex, isSRGB) => {
                 tex.wrapS = THREE.RepeatWrapping;
                 tex.wrapT = THREE.RepeatWrapping;
                 tex.repeat.set(repX, repY);
-                if (isSRGB) tex.encoding = THREE.sRGBEncoding;
-                tex.anisotropy = maxAniso;
-                this[propKey] = tex;
-                if (this.lastDepth === 0 || this.lastDepth === null || this.lastDepth === undefined) {
-                    this._currentTexturesAreOutdoors = null;
-                    this.applyEnvironmentTextures(true);
+                if (isSRGB && typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
+                tex.anisotropy = Math.min(4, maxAniso || 1);
+            };
+            const notify = () => {
+                if (onReady) onReady(entry);
+                this._currentThemeId = null;
+                this._currentTexturesAreOutdoors = null;
+                this._lastTerrainSig = null;
+                const isOut = (this.lastDepth === 0 || this.lastDepth === null || this.lastDepth === undefined);
+                this.applyEnvironmentTextures(isOut, this.currentBiome, this.realm || 'angband', this.lastDepth || 0, this.levelSeed || 0);
+            };
+            loader.load(`${base}/diff.jpg`, (tex) => { cfgTex(tex, true); entry.diff = tex; notify(); }, undefined, () => {});
+            loader.load(`${base}/nor_gl.jpg`, (tex) => { cfgTex(tex, false); entry.nor = tex; notify(); }, undefined, () => {});
+            loader.load(`${base}/arm.jpg`, (tex) => { cfgTex(tex, false); entry.arm = tex; notify(); }, undefined, () => {});
+            return entry;
+        };
+
+        // 13 Poly Haven 2K Photogrammetry PBR Texture Sets
+        // Town walls
+        this.loadPolyHavenSet('castle_brick_broken_06', 2, 3, (e) => {
+            this.townWallTex = e.diff || this.townWallTex;
+            this.townWallNormal = e.nor || this.townWallNormal;
+            this.townWallRoughness = e.arm || this.townWallRoughness;
+        });
+
+        // Town cobblestone floors
+        this.loadPolyHavenSet('cobblestone_floor_08', 2, 2, (e) => {
+            this.townFloorTex = e.diff || this.townFloorTex;
+            this.townFloorNormal = e.nor || this.townFloorNormal;
+            this.townFloorRoughness = e.arm || this.townFloorRoughness;
+        });
+
+        // Permanent bedrock & fortress ramparts + ceiling
+        this.loadPolyHavenSet('medieval_blocks_05', 2, 3, (e) => {
+            this.townPermWallTex = e.diff || this.townPermWallTex;
+            this.townPermWallNormal = e.nor || this.townPermWallNormal;
+            this.townPermWallRoughness = e.arm || this.townPermWallRoughness;
+            if (this.ceilingMaterial) {
+                if (e.diff) this.ceilingMaterial.map = e.diff;
+                if (e.nor) this.ceilingMaterial.normalMap = e.nor;
+                this.ceilingMaterial.needsUpdate = true;
+            }
+        });
+
+        // Doors
+        this.loadPolyHavenSet('bark_willow_02', 1, 1, (e) => {
+            if (this.doorMaterial) {
+                if (e.diff) this.doorMaterial.map = e.diff;
+                if (e.nor) this.doorMaterial.normalMap = e.nor;
+                if (e.arm) this.doorMaterial.roughnessMap = e.arm;
+                this.doorMaterial.needsUpdate = true;
+            }
+            if (this.treeTrunkMaterial && !this._hasPolyHavenTreeTex) {
+                if (e.diff) this.treeTrunkMaterial.map = e.diff;
+                if (e.nor) this.treeTrunkMaterial.normalMap = e.nor;
+                this.treeTrunkMaterial.needsUpdate = true;
+            }
+        });
+
+        // Storefronts
+        this.loadPolyHavenSet('plastered_stone_wall', 1, 1, (e) => {
+            if (this.storeMaterial) {
+                if (e.diff) this.storeMaterial.map = e.diff;
+                if (e.nor) this.storeMaterial.normalMap = e.nor;
+                if (e.arm) this.storeMaterial.roughnessMap = e.arm;
+                this.storeMaterial.needsUpdate = true;
+            }
+        });
+
+        // Lava crust normal map
+        this.loadPolyHavenSet('rock_boulder_cracked', 1, 1, (e) => {
+            if (e.nor) {
+                if (this.lavaMaterial) {
+                    this.lavaMaterial.normalMap = e.nor;
+                    this.lavaMaterial.needsUpdate = true;
                 }
-            }, undefined, () => {});
-        };
+                if (this.lavaCooledMaterial) {
+                    this.lavaCooledMaterial.normalMap = e.nor;
+                    this.lavaCooledMaterial.needsUpdate = true;
+                }
+            }
+        });
 
-        // Town Wall Textures (tan masonry brick for town buildings)
-        loadTownPBR('/assets/textures/T_Brick_BaseColor.png', 'townWallTex', true, 2, 3);
-        loadTownPBR('/assets/textures/T_Brick_Normal.png', 'townWallNormal', false, 2, 3);
-        loadTownPBR('/assets/textures/T_Brick_Roughness.png', 'townWallRoughness', false, 2, 3);
-
-        // Permanent Bedrock & Fortress Ramparts: Heavy Rock Trim with cyclopean stone joints
-        loadTownPBR('/assets/textures/T_RockTrim_BaseColor.png', 'townPermWallTex', true, 2, 3);
-        loadTownPBR('/assets/textures/T_RockTrim_Normal.png', 'townPermWallNormal', false, 2, 3);
-        loadTownPBR('/assets/textures/T_RockTrim_Roughness.png', 'townPermWallRoughness', false, 2, 3);
-
-        // Town Floor Textures: Cobblestone street pavers
-        loadTownPBR('/assets/textures/T_UnevenBrick_BaseColor.png', 'townFloorTex', true, 2, 2);
-        loadTownPBR('/assets/textures/T_UnevenBrick_Normal.png', 'townFloorNormal', false, 2, 2);
-        loadTownPBR('/assets/textures/T_UnevenBrick_Roughness.png', 'townFloorRoughness', false, 2, 2);
-
-        // Ceiling, Door & Store Textures
-        const loadMatPBR = (url, targetMat, prop, isSRGB, repX = 1, repY = 1) => {
-            loader.load(url, (tex) => {
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(repX, repY);
-                if (isSRGB) tex.encoding = THREE.sRGBEncoding;
-                tex.anisotropy = maxAniso;
-                targetMat[prop] = tex;
-                targetMat.needsUpdate = true;
-            }, undefined, () => {});
-        };
-        loadMatPBR('/assets/textures/T_RockTrim_BaseColor.png', this.ceilingMaterial, 'map', true, 2, 2);
-        loadMatPBR('/assets/textures/T_RockTrim_Normal.png', this.ceilingMaterial, 'normalMap', false, 2, 2);
-        loadMatPBR('/assets/textures/T_WoodTrim_BaseColor.png', this.doorMaterial, 'map', true, 1, 1);
-        loadMatPBR('/assets/textures/T_WoodTrim_Normal.png', this.doorMaterial, 'normalMap', false, 1, 1);
-        loadMatPBR('/assets/textures/T_WoodTrim_Roughness.png', this.doorMaterial, 'roughnessMap', false, 1, 1);
-        loadMatPBR('/assets/textures/T_Plaster_BaseColor.png', this.storeMaterial, 'map', true, 1, 1);
-        loadMatPBR('/assets/textures/T_Plaster_Normal.png', this.storeMaterial, 'normalMap', false, 1, 1);
-        loadMatPBR('/assets/textures/T_Plaster_ORM.png', this.storeMaterial, 'roughnessMap', false, 1, 1);
+        // Biome and dungeon sets
+        this.loadPolyHavenSet('monastery_stone_floor', 2, 2);
+        this.loadPolyHavenSet('rock_wall_10', 2, 3);
+        this.loadPolyHavenSet('rock_embedded_floor', 2, 2);
+        this.loadPolyHavenSet('cliff_side', 2, 3, (e) => {
+            this.townMountainDiff = e.diff || this.townMountainDiff;
+            this.townMountainNormal = e.nor || this.townMountainNormal;
+            this.townMountainRoughness = e.arm || this.townMountainRoughness;
+            if (this.mountainMaterial && !this._hasPolyHavenMountainTex) {
+                if (e.diff) this.mountainMaterial.map = e.diff;
+                if (e.nor) this.mountainMaterial.normalMap = e.nor;
+                this.mountainMaterial.needsUpdate = true;
+            }
+            if (this.chasmSideMaterial) {
+                if (this.townMountainDiff) this.chasmSideMaterial.map = this.townMountainDiff;
+                if (this.townMountainNormal) this.chasmSideMaterial.normalMap = this.townMountainNormal;
+                if (this.townMountainRoughness) this.chasmSideMaterial.roughnessMap = this.townMountainRoughness;
+                this.chasmSideMaterial.needsUpdate = true;
+            }
+        });
+        this.loadPolyHavenSet('japanese_stone_wall', 2, 3);
+        this.loadPolyHavenSet('aerial_grass_rock', 2, 2, (e) => {
+            if (this.grassMaterial) {
+                if (e.diff) this.grassMaterial.map = e.diff;
+                if (e.nor) this.grassMaterial.normalMap = e.nor;
+                this.grassMaterial.needsUpdate = true;
+            }
+        });
+        this.loadPolyHavenSet('brown_mud_rocks_01', 2, 2, (e) => {
+            if (this.dirtMaterial) {
+                if (e.diff) this.dirtMaterial.map = e.diff;
+                if (e.nor) this.dirtMaterial.normalMap = e.nor;
+                this.dirtMaterial.needsUpdate = true;
+            }
+            if (this.swampMaterial) {
+                if (e.diff) this.swampMaterial.map = e.diff;
+                if (e.nor) this.swampMaterial.normalMap = e.nor;
+                this.swampMaterial.needsUpdate = true;
+            }
+        });
     }
 
     getContextualTextureSet(theme, outdoors) {
         if (!this.contextualTextureCache) this.contextualTextureCache = new Map();
+        const ph = this.polyHavenSets || this.polyhavenSets || new Map();
 
-        // If outdoors and town PBR textures are loaded and applicable:
-        if (outdoors && theme.pbrWall && this.townWallTex && this.townFloorTex) {
+        let wallPhId = 'medieval_blocks_05';
+        let floorPhId = 'monastery_stone_floor';
+        let permPhId = 'medieval_blocks_05';
+        let ceilPhId = 'medieval_blocks_05';
+
+        const tid = (theme && theme.id) ? theme.id : 'angband_town';
+        const isHeng = (this.realm === 'hengband' || (typeof window !== 'undefined' && window.__activeRealm === 'hengband'));
+
+        if (outdoors) {
+            wallPhId = isHeng ? 'japanese_stone_wall' : 'castle_brick_broken_06';
+            const isWild = tid.includes('wild') || (this.currentBiome && (this.currentBiome.id === 'wilderness' || this.currentBiome.id === 'grassland'));
+            floorPhId = isWild ? 'aerial_grass_rock' : 'cobblestone_floor_08';
+            permPhId = 'medieval_blocks_05';
+            ceilPhId = 'medieval_blocks_05';
+        } else {
+            // Dungeon depths > 0
+            if (isHeng || tid.includes('heng')) {
+                wallPhId = 'japanese_stone_wall';
+                floorPhId = 'monastery_stone_floor';
+            } else if (tid.includes('chasm') || tid.includes('cliff') || tid.includes('torment') || tid.includes('mountain')) {
+                wallPhId = 'cliff_side';
+                floorPhId = 'rock_embedded_floor';
+            } else if (tid.includes('cavern') || tid.includes('slag') || tid.includes('nether') || tid.includes('crystal') || tid.includes('magma') || tid.includes('abyss')) {
+                wallPhId = 'rock_wall_10';
+                floorPhId = 'rock_embedded_floor';
+            } else if (tid.includes('swamp') || tid.includes('mud')) {
+                wallPhId = 'rock_wall_10';
+                floorPhId = 'brown_mud_rocks_01';
+            } else {
+                wallPhId = 'castle_brick_broken_06';
+                floorPhId = 'monastery_stone_floor';
+            }
+            permPhId = 'medieval_blocks_05';
+            ceilPhId = 'medieval_blocks_05';
+        }
+
+        const wSet = ph.get(wallPhId);
+        const fSet = ph.get(floorPhId);
+        const pSet = ph.get(permPhId);
+        const cSet = ph.get(ceilPhId);
+
+        if (wSet && wSet.diff && fSet && fSet.diff) {
             return {
-                wallTex: this.townWallTex,
-                wallNormal: this.townWallNormal,
-                wallRoughness: this.townWallRoughness,
-                floorTex: this.townFloorTex,
-                floorNormal: this.townFloorNormal,
-                floorRoughness: this.townFloorRoughness,
-                permWallTex: this.townPermWallTex || this.permWallTex,
-                permWallNormal: this.townPermWallNormal || this.permWallNormal,
-                permWallRoughness: this.townPermWallRoughness || null,
-                ceilingTex: this.ceilingTex,
-                ceilingNormal: null
+                wallTex: wSet.diff,
+                wallNormal: wSet.nor || this.wallNormal,
+                wallRoughness: wSet.arm || null,
+                floorTex: fSet.diff,
+                floorNormal: fSet.nor || this.floorNormal,
+                floorRoughness: fSet.arm || null,
+                permWallTex: (pSet && pSet.diff) ? pSet.diff : (this.townPermWallTex || this.permWallTex),
+                permWallNormal: (pSet && pSet.nor) ? pSet.nor : (this.townPermWallNormal || this.permWallNormal),
+                permWallRoughness: (pSet && pSet.arm) ? pSet.arm : (this.townPermWallRoughness || null),
+                ceilingTex: (cSet && cSet.diff) ? cSet.diff : this.ceilingTex,
+                ceilingNormal: (cSet && cSet.nor) ? cSet.nor : null
             };
         }
 
@@ -2781,19 +3099,19 @@ class Dungeon3D {
             return this.contextualTextureCache.get(cacheKey);
         }
 
-        const wallTex = procCreateContextualWallTexture(theme, 512);
-        const wallNormal = procCreateContextualWallNormal(theme, 512);
-        const wallRoughness = procCreateContextualWallRoughness(theme, 512);
+        const wallTex = procCreateContextualWallTexture(theme, 256);
+        const wallNormal = procCreateContextualWallNormal(theme, 256);
+        const wallRoughness = procCreateContextualWallRoughness(theme, 256);
 
-        const floorTex = procCreateContextualFloorTexture(theme, 512);
-        const floorNormal = procCreateContextualFloorNormal(theme, 512);
-        const floorRoughness = procCreateContextualFloorRoughness(theme, 512);
+        const floorTex = procCreateContextualFloorTexture(theme, 256);
+        const floorNormal = procCreateContextualFloorNormal(theme, 256);
+        const floorRoughness = procCreateContextualFloorRoughness(theme, 256);
 
-        const permWallTex = procCreateContextualPermWallTexture(theme, 512);
-        const permWallNormal = procCreateContextualPermWallNormal(theme, 512);
+        const permWallTex = procCreateContextualPermWallTexture(theme, 256);
+        const permWallNormal = procCreateContextualPermWallNormal(theme, 256);
 
-        const ceilingTex = procCreateContextualCeilingTexture(theme, 512);
-        const ceilingNormal = procCreateContextualCeilingNormal(theme, 512);
+        const ceilingTex = procCreateContextualCeilingTexture(theme, 256);
+        const ceilingNormal = procCreateContextualCeilingNormal(theme, 256);
 
         const set = {
             wallTex,
@@ -2825,17 +3143,20 @@ class Dungeon3D {
         this.wallMaterial.normalMap = texSet.wallNormal;
         this.wallMaterial.roughnessMap = texSet.wallRoughness || null;
         this.wallMaterial.roughness = theme.wallRoughness || 0.82;
+        this.wallMaterial.normalScale.set(1.65, 1.65);
         this.wallMaterial.needsUpdate = true;
 
         this.floorMaterial.map = texSet.floorTex;
         this.floorMaterial.normalMap = texSet.floorNormal;
         this.floorMaterial.roughnessMap = texSet.floorRoughness || null;
         this.floorMaterial.roughness = theme.floorRoughness || 0.74;
+        this.floorMaterial.normalScale.set(1.50, 1.50);
         this.floorMaterial.needsUpdate = true;
 
         this.permWallMaterial.map = texSet.permWallTex;
         this.permWallMaterial.normalMap = texSet.permWallNormal;
         this.permWallMaterial.roughnessMap = texSet.permWallRoughness || null;
+        this.permWallMaterial.normalScale.set(1.65, 1.65);
         this.permWallMaterial.needsUpdate = true;
 
         this.ceilingMaterial.map = texSet.ceilingTex;
@@ -2847,12 +3168,18 @@ class Dungeon3D {
         this.stairsMaterial.map = texSet.wallTex;
         this.stairsMaterial.normalMap = texSet.wallNormal;
         this.stairsMaterial.roughnessMap = texSet.wallRoughness || null;
+        this.stairsMaterial.normalScale.set(1.65, 1.65);
         this.stairsMaterial.needsUpdate = true;
 
-        if (this.mountainMaterial) {
+        if (this.mountainMaterial && !this._hasPolyHavenMountainTex) {
             this.mountainMaterial.map = texSet.permWallTex;
             this.mountainMaterial.normalMap = texSet.permWallNormal;
             this.mountainMaterial.needsUpdate = true;
+        }
+        if (this.rubbleMaterial && !this._hasPolyHavenRubbleTex) {
+            this.rubbleMaterial.map = texSet.wallTex;
+            this.rubbleMaterial.normalMap = texSet.wallNormal;
+            this.rubbleMaterial.needsUpdate = true;
         }
     }
 
@@ -3049,10 +3376,14 @@ class Dungeon3D {
 
         this.floorMesh = new THREE.InstancedMesh(floorGeo, this.floorMaterial, this.maxInstances);
         this.floorMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.floorMesh.castShadow = false;
+        this.floorMesh.receiveShadow = true;
         this.scene.add(this.floorMesh);
 
         this.ceilingMesh = new THREE.InstancedMesh(ceilingGeo, this.ceilingMaterial, this.maxInstances);
         this.ceilingMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.ceilingMesh.castShadow = false;
+        this.ceilingMesh.receiveShadow = true;
         this.scene.add(this.ceilingMesh);
 
         // Stone Doorways (Frames & Lintels for town & dungeon)
@@ -3066,7 +3397,7 @@ class Dungeon3D {
         this.scene.add(this.shopFrameMesh);
 
         // Impassable Rubble Piles (feat 16)
-        this.rubbleMesh = new THREE.InstancedMesh(rubbleGeo, this.wallMaterial, 256);
+        this.rubbleMesh = new THREE.InstancedMesh(rubbleGeo, this.rubbleMaterial || this.wallMaterial, 256);
         this.rubbleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.rubbleMesh);
 
@@ -3114,51 +3445,63 @@ class Dungeon3D {
         this.gemVeinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.gemVeinMesh);
 
-        // Forest Trees (feat 25: TREE) - Stylized 3D Bark Trunk + Tiered Foliage Canopy
-        const treeTrunkGeo = createMergedBoxGeometry([
-            { pos: [0, 0.55, 0], size: [0.36, 1.10, 0.36] }
-        ]);
-        const treeLeavesGeo = createMergedBoxGeometry([
-            { pos: [0, 1.35, 0], size: [1.60, 0.70, 1.60] },
-            { pos: [0, 1.95, 0], size: [1.25, 0.65, 1.25], rotY: 0.35 },
-            { pos: [0, 2.50, 0], size: [0.80, 0.60, 0.80], rotY: -0.25 }
-        ]);
-        this.treeTrunkMesh = new THREE.InstancedMesh(treeTrunkGeo, this.treeTrunkMaterial, this.maxInstances);
+        // Forest Trees (feat 25: TREE) - Lightweight Cone + Dodecahedron Placeholders (upgraded by Poly Haven)
+        const addWhiteVertexColors = (geo) => {
+            const count = geo.attributes.position ? geo.attributes.position.count : 0;
+            if (count > 0) geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3).fill(1.0), 3));
+            return geo;
+        };
+        const treeTrunkGeo = addWhiteVertexColors(new THREE.ConeGeometry(0.18, 2.2, 6));
+        treeTrunkGeo.translate(0, 1.1, 0);
+        this.treeTrunkMesh = new THREE.InstancedMesh(treeTrunkGeo, this.treeTrunkMat, this.maxInstances);
         this.treeTrunkMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.treeTrunkMesh.castShadow = true;
+        this.treeTrunkMesh.receiveShadow = true;
         this.scene.add(this.treeTrunkMesh);
 
-        this.treeLeavesMesh = new THREE.InstancedMesh(treeLeavesGeo, this.treeMaterial, this.maxInstances);
+        const treeLeavesGeo = addWhiteVertexColors(new THREE.DodecahedronGeometry(0.95, 1));
+        treeLeavesGeo.translate(0, 1.8, 0);
+        this.treeLeavesMesh = new THREE.InstancedMesh(treeLeavesGeo, this.treeLeavesMat, this.maxInstances);
         this.treeLeavesMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.treeLeavesMesh.castShadow = false;
+        this.treeLeavesMesh.receiveShadow = true;
         this.scene.add(this.treeLeavesMesh);
 
-        // Dense Brush / Thicket / Flowers (feat 42: BUSH / BRAKE) - Low organic rounded foliage cluster
-        const bushGeo = createMergedBoxGeometry([
-            { pos: [0, 0.22, 0], size: [0.92, 0.44, 0.92] },
-            { pos: [0, 0.38, 0], size: [0.72, 0.30, 0.72], rotY: 0.40 },
-            { pos: [0.12, 0.20, -0.08], size: [0.45, 0.38, 0.45], rotY: -0.25 }
-        ]);
-        this.bushMesh = new THREE.InstancedMesh(bushGeo, this.treeMaterial, this.maxInstances);
+        // Dense Brush / Thicket / Flowers (feat 42: BUSH / BRAKE) - Lightweight Dodecahedron Placeholder
+        const bushGeo = addWhiteVertexColors(new THREE.DodecahedronGeometry(0.48, 1));
+        bushGeo.translate(0, 0.35, 0);
+        this.bushMesh = new THREE.InstancedMesh(bushGeo, this.treeLeavesMat, this.maxInstances);
         this.bushMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.bushMesh.castShadow = false;
+        this.bushMesh.receiveShadow = true;
         this.scene.add(this.bushMesh);
 
         // Verdant Meadow Grass (feat 26: GRASS)
         this.grassMesh = new THREE.InstancedMesh(floorGeo, this.grassMaterial, this.maxInstances);
         this.grassMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.grassMesh.castShadow = false;
+        this.grassMesh.receiveShadow = true;
         this.scene.add(this.grassMesh);
 
         // Packed Dirt Road / Trail (feat 27: DIRT)
         this.dirtMesh = new THREE.InstancedMesh(floorGeo, this.dirtMaterial, this.maxInstances);
         this.dirtMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.dirtMesh.castShadow = false;
+        this.dirtMesh.receiveShadow = true;
         this.scene.add(this.dirtMesh);
 
         // Shallow Sparkling Water (feat 28: SHALLOW_WATER)
         this.waterMesh = new THREE.InstancedMesh(floorGeo, this.waterMaterial, this.maxInstances);
         this.waterMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.waterMesh.castShadow = false;
+        this.waterMesh.receiveShadow = true;
         this.scene.add(this.waterMesh);
 
         // Deep Oceanic Water (feat 29: DEEP_WATER)
         this.deepWaterMesh = new THREE.InstancedMesh(floorGeo, this.deepWaterMaterial, this.maxInstances);
         this.deepWaterMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.deepWaterMesh.castShadow = false;
+        this.deepWaterMesh.receiveShadow = true;
         this.scene.add(this.deepWaterMesh);
 
         // Alpine Mountain Crags (feat 30: MOUNTAIN)
@@ -3174,14 +3517,20 @@ class Dungeon3D {
         // Swamp & Wetland Marsh (feat 31: SWAMP)
         this.swampMesh = new THREE.InstancedMesh(floorGeo, this.swampMaterial, this.maxInstances);
         this.swampMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.swampMesh.castShadow = false;
+        this.swampMesh.receiveShadow = true;
         this.scene.add(this.swampMesh);
 
         this.lavaMesh = new THREE.InstancedMesh(floorGeo, this.lavaMaterial, 512);
         this.lavaMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.lavaMesh.castShadow = false;
+        this.lavaMesh.receiveShadow = true;
         this.scene.add(this.lavaMesh);
 
         this.lavaCooledMesh = new THREE.InstancedMesh(floorGeo, this.lavaCooledMaterial, 512);
         this.lavaCooledMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.lavaCooledMesh.castShadow = false;
+        this.lavaCooledMesh.receiveShadow = true;
         this.scene.add(this.lavaCooledMesh);
 
         // Down Staircase (feat 6)
@@ -3193,6 +3542,36 @@ class Dungeon3D {
         this.stairsUpMesh = new THREE.InstancedMesh(stairsUpGeo, this.stairsMaterial, 128);
         this.stairsUpMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.stairsUpMesh);
+
+        // FrogComposBand Bottomless Pit (feat 41: '#') - Chasm cliff-shaft & abyssal void
+        if (!this.dungeonGroup) {
+            this.dungeonGroup = new THREE.Group();
+            this.scene.add(this.dungeonGroup);
+        }
+        this.chasmVoidMat = new THREE.MeshBasicMaterial({ color: 0x020205, fog: true });
+        this.chasmVoidMesh = new THREE.InstancedMesh(floorGeo, this.chasmVoidMat, this.maxInstances);
+        this.chasmVoidMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.chasmVoidMesh.castShadow = false;
+        this.chasmVoidMesh.receiveShadow = false;
+        this.dungeonGroup.add(this.chasmVoidMesh);
+        this.chasmVoidMesh.count = 0;
+
+        this.chasmSideMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2a2d36,
+            roughness: 0.92,
+            metalness: 0.05,
+            side: THREE.DoubleSide
+        });
+        if (this.townMountainDiff) {
+            this.chasmSideMaterial.map = this.townMountainDiff;
+            this.chasmSideMaterial.normalMap = this.townMountainNormal;
+            this.chasmSideMaterial.roughnessMap = this.townMountainRoughness;
+        }
+        this.chasmMesh = new THREE.InstancedMesh(wallGeo, this.chasmSideMaterial, this.maxInstances);
+        this.chasmMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.chasmMesh.castShadow = false;
+        this.chasmMesh.receiveShadow = true;
+        this.scene.add(this.chasmMesh);
 
         // Pre-allocate instance color buffers with 1.0 (pure white albedo multiplier)
         const initInstancedColors = (mesh, count) => {
@@ -3226,11 +3605,16 @@ class Dungeon3D {
         initInstancedColors(this.deepWaterMesh, this.maxInstances);
         initInstancedColors(this.mountainMesh, this.maxInstances);
         initInstancedColors(this.swampMesh, this.maxInstances);
+        initInstancedColors(this.chasmMesh, this.maxInstances);
         this.lavaMesh.count = 0;
         this.lavaCooledMesh.count = 0;
         for (let i = 0; i < 8; i++) initInstancedColors(this.shopMeshes[i], 64);
 
         this.dummy = new THREE.Object3D();
+
+        // Ground loot rarity plinth ring geometry (itemPlinthGeo)
+        this.itemPlinthGeo = new THREE.RingGeometry(0.22, 0.28, 16);
+        this.itemPlinthGeo.rotateX(-Math.PI / 2);
 
         // Soft contact shadow quad for 3D item pickups & treasures (zero download cost)
         this.shadowGeo = new THREE.PlaneGeometry(0.36, 0.36);
@@ -3249,23 +3633,303 @@ class Dungeon3D {
         this.initStarCanopy();
     }
 
+    _mergeBufferGeometries(geometries) {
+        if (!geometries || geometries.length === 0) return new THREE.BufferGeometry();
+        let totalVerts = 0;
+        let totalIndices = 0;
+        for (const g of geometries) {
+            totalVerts += g.attributes.position ? g.attributes.position.count : 0;
+            totalIndices += g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0);
+        }
+        const posArr = new Float32Array(totalVerts * 3);
+        const normArr = new Float32Array(totalVerts * 3);
+        const uvArr = new Float32Array(totalVerts * 2);
+        const colArr = new Float32Array(totalVerts * 3);
+        colArr.fill(1.0);
+        const IndexArrayType = totalVerts > 65535 ? Uint32Array : Uint16Array;
+        const indexArr = new IndexArrayType(totalIndices);
+
+        let vOffset = 0;
+        let iOffset = 0;
+        for (const g of geometries) {
+            const vCount = g.attributes.position ? g.attributes.position.count : 0;
+            if (vCount === 0) continue;
+            posArr.set(g.attributes.position.array, vOffset * 3);
+            if (g.attributes.normal) {
+                normArr.set(g.attributes.normal.array, vOffset * 3);
+            }
+            if (g.attributes.uv) {
+                uvArr.set(g.attributes.uv.array, vOffset * 2);
+            }
+            if (g.index) {
+                const idx = g.index.array;
+                for (let i = 0; i < idx.length; i++) {
+                    indexArr[iOffset++] = idx[i] + vOffset;
+                }
+            } else {
+                for (let i = 0; i < vCount; i++) {
+                    indexArr[iOffset++] = i + vOffset;
+                }
+            }
+            vOffset += vCount;
+        }
+
+        const merged = new THREE.BufferGeometry();
+        merged.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+        merged.setAttribute('normal', new THREE.BufferAttribute(normArr, 3));
+        merged.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
+        merged.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+        merged.setIndex(new THREE.BufferAttribute(indexArr, 1));
+        merged.computeBoundingBox();
+        merged.computeBoundingSphere();
+        return merged;
+    }
+
+    _loadPolyHavenEnvironmentModels() {
+        const loader = this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
+        if (!loader) return;
+
+        this._hasPolyHavenTreeTex = true;
+        const texLoader = new THREE.TextureLoader();
+        texLoader.load('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_diff_1k.jpg', (diff) => {
+            diff.encoding = THREE.sRGBEncoding;
+            diff.flipY = false;
+            if (this.treeTrunkMat) {
+                this.treeTrunkMat.map = diff;
+                this.treeTrunkMat.needsUpdate = true;
+            }
+        });
+        texLoader.load('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_nor_gl_1k.jpg', (nor) => {
+            nor.flipY = false;
+            this.treeBarkNormal = nor;
+            if (this.treeTrunkMat) {
+                this.treeTrunkMat.normalMap = nor;
+                this.treeTrunkMat.needsUpdate = true;
+            }
+        });
+        texLoader.load('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_diff_1k.jpg', (diff) => {
+            diff.encoding = THREE.sRGBEncoding;
+            diff.flipY = false;
+            if (this.treeLeavesMat) {
+                this.treeLeavesMat.map = diff;
+                this.treeLeavesMat.needsUpdate = true;
+            }
+            this._lastTerrainSig = null;
+            if (this.lastFrame) this.updateDungeon(this.lastFrame);
+        });
+        texLoader.load('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_nor_gl_1k.jpg', (nor) => {
+            nor.flipY = false;
+            if (this.treeLeavesMat) {
+                this.treeLeavesMat.normalMap = nor;
+                this.treeLeavesMat.needsUpdate = true;
+            }
+        });
+
+        // 1. Pachira Aquatica (Photogrammetry Tree trunk, leaves & bush in local mesh space)
+        loader.load('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf', (gltf) => {
+            const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+            if (!scene) return;
+
+            const trunkParts = [];
+            const leafParts = [];
+            const bushParts = [];
+
+            scene.traverse((child) => {
+                if (child.isMesh && child.geometry) {
+                    const fullName = ((child.name || '') + ' ' + (child.parent ? child.parent.name || '' : '')).toLowerCase();
+                    const isBark = fullName.includes('bark_c') || fullName.includes('circle.001');
+                    const isLeavesB = fullName.includes('leaves_b') || fullName.includes('cylinder.118');
+                    const isLeavesC = fullName.includes('leaves_c') || fullName.includes('cylinder.092');
+                    if (!isBark && !isLeavesB && !isLeavesC) return;
+
+                    const g = child.geometry.clone();
+                    if (g.attributes.color) g.deleteAttribute('color');
+                    const colArr = new Float32Array(g.attributes.position.count * 3);
+                    colArr.fill(1.0);
+                    g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+
+                    if (isBark) {
+                        trunkParts.push(g);
+                    } else if (isLeavesB) {
+                        bushParts.push(g);
+                    } else if (isLeavesC) {
+                        leafParts.push(g);
+                    }
+                }
+            });
+
+            if (trunkParts.length > 0 && leafParts.length > 0) {
+                const trunkGeo = this._mergeBufferGeometries(trunkParts);
+                const leavesGeo = this._mergeBufferGeometries(leafParts);
+
+                const unionBox = new THREE.Box3();
+                if (trunkGeo.boundingBox) unionBox.union(trunkGeo.boundingBox);
+                if (leavesGeo.boundingBox) unionBox.union(leavesGeo.boundingBox);
+
+                const centerX = (unionBox.min.x + unionBox.max.x) * 0.5;
+                const centerZ = (unionBox.min.z + unionBox.max.z) * 0.5;
+                const spanXZ = Math.max(unionBox.max.x - unionBox.min.x, unionBox.max.z - unionBox.min.z) || 1.0;
+                const spanY = (unionBox.max.y - unionBox.min.y) || 1.0;
+
+                trunkGeo.translate(-centerX, -unionBox.min.y, -centerZ);
+                leavesGeo.translate(-centerX, -unionBox.min.y, -centerZ);
+
+                const scaleX = 2.35 / spanXZ;
+                const scaleY = 2.85 / spanY;
+                const scaleZ = 2.35 / spanXZ;
+                trunkGeo.scale(scaleX, scaleY, scaleZ);
+                leavesGeo.scale(scaleX, scaleY, scaleZ);
+
+                this._tanglethornTrunkGeo = trunkGeo.clone();
+                this._tanglethornLeavesGeo = leavesGeo.clone();
+
+                if (this.treeTrunkMesh && this.treeTrunkMesh.geometry) this.treeTrunkMesh.geometry.dispose();
+                if (this.treeLeavesMesh && this.treeLeavesMesh.geometry) this.treeLeavesMesh.geometry.dispose();
+                if (this.treeTrunkMesh) this.treeTrunkMesh.geometry = trunkGeo;
+                if (this.treeLeavesMesh) this.treeLeavesMesh.geometry = leavesGeo;
+
+                this._lastTerrainSig = null;
+                if (this.lastFrame) this.updateDungeon(this.lastFrame);
+            }
+
+            if (bushParts.length > 0) {
+                const bushGeo = this._mergeBufferGeometries(bushParts);
+                bushGeo.computeBoundingBox();
+                const bBox = bushGeo.boundingBox;
+                const bCenterX = (bBox.min.x + bBox.max.x) * 0.5;
+                const bCenterZ = (bBox.min.z + bBox.max.z) * 0.5;
+                const bSpanXZ = Math.max(bBox.max.x - bBox.min.x, bBox.max.z - bBox.min.z) || 1.0;
+                const bSpanY = (bBox.max.y - bBox.min.y) || 1.0;
+
+                bushGeo.translate(-bCenterX, -bBox.min.y, -bCenterZ);
+                bushGeo.scale(1.28 / bSpanXZ, 0.82 / bSpanY, 1.28 / bSpanXZ);
+                bushGeo.computeVertexNormals();
+
+                if (this.bushMesh && this.bushMesh.geometry) this.bushMesh.geometry.dispose();
+                if (this.bushMesh) this.bushMesh.geometry = bushGeo;
+            }
+        }, undefined, () => {});
+
+        // 2. Moon Rock 02 (Photogrammetry Rubble Boulders)
+        loader.load('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf', (gltf) => {
+            const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+            if (!scene) return;
+            const parts = [];
+            scene.traverse((c) => {
+                if (c.isMesh && c.geometry) {
+                    c.updateMatrixWorld(true);
+                    const g = c.geometry.clone();
+                    g.applyMatrix4(c.matrixWorld);
+                    if (g.attributes.color) g.deleteAttribute('color');
+                    const colArr = new Float32Array(g.attributes.position.count * 3);
+                    colArr.fill(1.0);
+                    g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+                    parts.push(g);
+                }
+            });
+            if (parts.length > 0) {
+                const geo = this._mergeBufferGeometries(parts);
+                geo.computeBoundingBox();
+                const bbox = geo.boundingBox;
+                const cx = (bbox.min.x + bbox.max.x) * 0.5;
+                const cz = (bbox.min.z + bbox.max.z) * 0.5;
+                const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
+                const spanY = (bbox.max.y - bbox.min.y) || 1.0;
+                geo.translate(-cx, -bbox.min.y, -cz);
+                geo.scale(1.42 / spanXZ, 1.08 / spanY, 1.42 / spanXZ);
+                geo.computeVertexNormals();
+
+                if (this.rubbleMesh && this.rubbleMesh.geometry) this.rubbleMesh.geometry.dispose();
+                if (this.rubbleMesh) this.rubbleMesh.geometry = geo;
+
+                const texLoader = new THREE.TextureLoader();
+                texLoader.load('/assets/polyhaven/models/moon_rock_02/textures/moon_rock_02_diff_1k.jpg', (diff) => {
+                    diff.encoding = THREE.sRGBEncoding;
+                    diff.flipY = false;
+                    texLoader.load('/assets/polyhaven/models/moon_rock_02/textures/moon_rock_02_nor_gl_1k.jpg', (nor) => {
+                        nor.flipY = false;
+                        if (this.rubbleMaterial) {
+                            this.rubbleMaterial.map = diff;
+                            this.rubbleMaterial.normalMap = nor;
+                            this.rubbleMaterial.needsUpdate = true;
+                        }
+                        this._hasPolyHavenRubbleTex = true;
+                        this._lastTerrainSig = null;
+                        if (this.lastFrame) this.updateDungeon(this.lastFrame);
+                    });
+                });
+            }
+        }, undefined, () => {});
+
+        // 3. Rock 07 (Photogrammetry Mountain Crag)
+        loader.load('/assets/polyhaven/models/rock_07/rock_07.gltf', (gltf) => {
+            const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+            if (!scene) return;
+            const parts = [];
+            scene.traverse((c) => {
+                if (c.isMesh && c.geometry) {
+                    c.updateMatrixWorld(true);
+                    const g = c.geometry.clone();
+                    g.applyMatrix4(c.matrixWorld);
+                    if (g.attributes.color) g.deleteAttribute('color');
+                    const colArr = new Float32Array(g.attributes.position.count * 3);
+                    colArr.fill(1.0);
+                    g.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+                    parts.push(g);
+                }
+            });
+            if (parts.length > 0) {
+                const geo = this._mergeBufferGeometries(parts);
+                geo.computeBoundingBox();
+                const bbox = geo.boundingBox;
+                const cx = (bbox.min.x + bbox.max.x) * 0.5;
+                const cz = (bbox.min.z + bbox.max.z) * 0.5;
+                const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
+                const spanY = (bbox.max.y - bbox.min.y) || 1.0;
+                geo.translate(-cx, -bbox.min.y, -cz);
+                geo.scale(2.15 / spanXZ, 3.80 / spanY, 2.15 / spanXZ);
+                geo.computeVertexNormals();
+
+                if (this.mountainMesh && this.mountainMesh.geometry) this.mountainMesh.geometry.dispose();
+                if (this.mountainMesh) this.mountainMesh.geometry = geo;
+
+                const texLoader = new THREE.TextureLoader();
+                texLoader.load('/assets/polyhaven/models/rock_07/textures/rock_07_diff_1k.jpg', (diff) => {
+                    diff.encoding = THREE.sRGBEncoding;
+                    diff.flipY = false;
+                    texLoader.load('/assets/polyhaven/models/rock_07/textures/rock_07_nor_gl_1k.jpg', (nor) => {
+                        nor.flipY = false;
+                        if (this.mountainMaterial) {
+                            this.mountainMaterial.map = diff;
+                            this.mountainMaterial.normalMap = nor;
+                            this.mountainMaterial.needsUpdate = true;
+                        }
+                        this._hasPolyHavenMountainTex = true;
+                        this._lastTerrainSig = null;
+                        if (this.lastFrame) this.updateDungeon(this.lastFrame);
+                    });
+                });
+            }
+        }, undefined, () => {});
+    }
+
     initStarCanopy() {
         this.starTexture = procCreateStarTexture();
-        const starCount = 1800;
+        const starCount = 4500;
         const positions = new Float32Array(starCount * 3);
         const colors = new Float32Array(starCount * 3);
         const sizes = new Float32Array(starCount);
         const phases = new Float32Array(starCount);
 
-        const radius = 70.0; // Comfortably inside camera far clipping plane (85-140m)
+        const radius = 70.0; // Inside camera far clipping plane (85-140m)
 
-        // Spectral Star Palettes (Normalized sRGB)
+        // Authentic Stellar Spectral Classes (Normalized sRGB)
         const spectralColors = [
-            [1.0, 1.0, 1.0],      // Class A: Pure diamond white (45%)
-            [0.82, 0.90, 1.0],    // Class B: Piercing ice-blue (22%)
-            [1.0, 0.94, 0.85],    // Class F/G: Warm solar gold (18%)
-            [1.0, 0.82, 0.60],    // Class K: Topaz amber (10%)
-            [1.0, 0.62, 0.52]     // Class M: Ruby garnet giant (5%)
+            [0.608, 0.722, 1.000], // Class O/B: Piercing blue-white (#9bb8ff)
+            [0.957, 0.973, 1.000], // Class A: Pure diamond white (#f4f8ff)
+            [1.000, 0.941, 0.800], // Class F/G: Warm solar gold (#fff0cc)
+            [1.000, 0.816, 0.588], // Class K: Topaz amber (#ffd096)
+            [1.000, 0.620, 0.431]  // Class M: Ruby garnet giant (#ff9e6e)
         ];
 
         // Seeded deterministic PRNG for stable celestial sphere across turns & sessions
@@ -3276,7 +3940,7 @@ class Dungeon3D {
         };
 
         for (let i = 0; i < starCount; i++) {
-            // Star 0: The Star of Eärendil (Flos Duellatorum / High Silmaril jewel of the sky)
+            // Star 0: The Star of Eärendil (Flos Duellatorum / High Silmaril starlight jewel of the sky)
             if (i === 0) {
                 const az = Math.PI * 0.28;
                 const el = Math.PI * 0.42;
@@ -3289,21 +3953,21 @@ class Dungeon3D {
                 positions[1] = y * radius;
                 positions[2] = z * radius;
 
-                colors[0] = 0.90;
-                colors[1] = 0.96;
+                colors[0] = 0.96;
+                colors[1] = 0.98;
                 colors[2] = 1.00;
-                sizes[0] = 6.5; // Majestic prominent jewel star
+                sizes[0] = 7.2; // Majestic prominent jewel star
                 phases[0] = 0.0;
                 continue;
             }
 
             let x, y, z;
-            const isGalacticBelt = (rand() < 0.38); // 38% cluster along the celestial River of Stars
+            const isGalacticBelt = (rand() < 0.42); // 42% cluster along the celestial River of Stars
 
             if (isGalacticBelt) {
                 // Arc tilted across the sky from SW to NE
                 const t = rand() * Math.PI * 2;
-                const beltSpread = (rand() - 0.5) * 0.35;
+                const beltSpread = (rand() - 0.5) * 0.32;
                 const bx = Math.cos(t);
                 const bz = Math.sin(t);
                 const tilt = 0.62;
@@ -3336,23 +4000,24 @@ class Dungeon3D {
             positions[i * 3 + 2] = z * radius;
 
             const cRoll = rand();
-            const sc = cRoll < 0.45 ? spectralColors[0] :
-                       cRoll < 0.67 ? spectralColors[1] :
+            const sc = cRoll < 0.28 ? spectralColors[0] :
+                       cRoll < 0.68 ? spectralColors[1] :
                        cRoll < 0.85 ? spectralColors[2] :
-                       cRoll < 0.95 ? spectralColors[3] : spectralColors[4];
+                       cRoll < 0.94 ? spectralColors[3] : spectralColors[4];
 
             colors[i * 3 + 0] = sc[0];
             colors[i * 3 + 1] = sc[1];
             colors[i * 3 + 2] = sc[2];
 
-            const sRoll = rand();
+            // Power-law magnitude distribution (82% pinpoint, 14% medium, 4% brilliant beacon stars)
+            const magRoll = rand();
             let starSize;
-            if (sRoll < 0.72) {
-                starSize = 1.3 + rand() * 0.8;
-            } else if (sRoll < 0.94) {
+            if (magRoll < 0.82) {
+                starSize = 1.1 + Math.pow(rand(), 3.2) * 0.9;
+            } else if (magRoll < 0.96) {
                 starSize = 2.4 + rand() * 1.0;
             } else {
-                starSize = 3.6 + rand() * 1.4;
+                starSize = 4.6 + rand() * 1.6;
             }
             sizes[i] = starSize;
             phases[i] = rand() * Math.PI * 2;
@@ -3415,10 +4080,125 @@ class Dungeon3D {
         this.starPoints = new THREE.Points(starGeo, this.starMaterial);
         this.starPoints.frustumCulled = false;
 
+        // Dedicated Celestial Sky Dome: Deep gradient, Milky Way dust lanes, aurora ribbons, crescent moon
+        const skyDomeGeo = new THREE.SphereGeometry(84, 32, 20);
+        this.skyDomeMaterial = new THREE.ShaderMaterial({
+            side: THREE.BackSide,
+            depthWrite: false,
+            transparent: false,
+            fog: false,
+            uniforms: {
+                uTime: { value: 0.0 },
+                uHorizonColor: { value: new THREE.Color(0x121b2d) },
+                uZenithColor: { value: new THREE.Color(0x03060f) },
+                uNebulaColorA: { value: new THREE.Color(0xffd188) },
+                uNebulaColorB: { value: new THREE.Color(0x3855a2) },
+                uAuroraColor: { value: new THREE.Color(0x1be896) },
+                uMoonDir: { value: new THREE.Vector3(0.42, 0.58, -0.69).normalize() }
+            },
+            vertexShader: `
+                varying vec3 vWorldDir;
+                void main() {
+                    vWorldDir = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float uTime;
+                uniform vec3 uHorizonColor;
+                uniform vec3 uZenithColor;
+                uniform vec3 uNebulaColorA;
+                uniform vec3 uNebulaColorB;
+                uniform vec3 uAuroraColor;
+                uniform vec3 uMoonDir;
+                varying vec3 vWorldDir;
+
+                float hash(vec3 p) {
+                    p = fract(p * 0.3183099 + 0.1);
+                    p *= 17.0;
+                    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+                }
+
+                float noise(vec3 x) {
+                    vec3 i = floor(x);
+                    vec3 f = fract(x);
+                    f = f * f * (3.0 - 2.0 * f);
+                    return mix(
+                        mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
+                            mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+                        mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                            mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+                }
+
+                float fbm4(vec3 p) {
+                    float v = 0.0;
+                    v += 0.5000 * noise(p); p *= 2.02;
+                    v += 0.2500 * noise(p); p *= 2.03;
+                    v += 0.1250 * noise(p); p *= 2.01;
+                    v += 0.0625 * noise(p);
+                    return v;
+                }
+
+                void main() {
+                    vec3 d = normalize(vWorldDir);
+                    float elev = max(d.y, 0.0);
+
+                    // 1. Deep Cosmic Zenith-to-Horizon Gradient
+                    vec3 sky = mix(uHorizonColor, uZenithColor, pow(elev, 0.42));
+
+                    // 2. Tilted Milky Way Galactic River & Dark Dust Lanes
+                    vec3 g = vec3(d.x * 0.82 - d.y * 0.57, d.x * 0.57 + d.y * 0.82, d.z);
+                    float fbm = fbm4(g * 4.8);
+                    float dustFbm = fbm4(g * 9.2 + vec3(1.2, 3.4, 5.6));
+                    float mwBand = exp(-pow(g.x * 3.1 + (fbm - 0.5) * 0.45, 2.0));
+                    float dustRift = smoothstep(0.40, 0.68, dustFbm) * exp(-pow(g.x * 3.8, 2.0)) * 0.70;
+                    float mwIntensity = clamp((mwBand * 0.90 - dustRift) * smoothstep(0.02, 0.18, elev), 0.0, 1.0);
+                    vec3 mwColor = mix(uNebulaColorB, uNebulaColorA, smoothstep(0.35, 0.75, fbm));
+                    sky += mwColor * mwIntensity * 0.85;
+
+                    // 3. Shimmering Boreal Aurora Curtains
+                    float auroraElev = smoothstep(0.08, 0.28, elev) * smoothstep(0.68, 0.35, elev);
+                    float ribbon = sin(d.x * 14.0 + uTime * 0.35 + fbm * 4.0);
+                    ribbon = smoothstep(0.25, 0.95, ribbon * 0.5 + 0.5);
+                    float aurora = ribbon * auroraElev * (0.45 + 0.55 * sin(uTime * 0.6 + d.z * 5.0));
+                    sky += uAuroraColor * (aurora * 0.55);
+
+                    // 4. Crisp Celestial Crescent Moon & Silver Corona
+                    vec3 mDir = normalize(uMoonDir);
+                    float cosA = dot(d, mDir);
+                    float corona = pow(max(cosA, 0.0), 48.0) * 0.35 + pow(max(cosA, 0.0), 6.0) * 0.08;
+                    sky += vec3(0.78, 0.88, 1.0) * corona;
+
+                    if (cosA > 0.9988) {
+                        vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), mDir));
+                        vec3 up = cross(mDir, right);
+                        vec2 moonCoord = vec2(dot(d, right), dot(d, up)) * 40.0;
+                        float r = length(moonCoord);
+                        if (r < 1.0) {
+                            vec2 shadowCenter = vec2(0.42, 0.15);
+                            float shadowR = length(moonCoord - shadowCenter);
+                            float crescent = smoothstep(0.95, 1.0, shadowR / 0.96);
+                            float crater = 0.88 + 0.12 * noise(vec3(moonCoord * 5.0, 2.0));
+                            vec3 moonSurface = vec3(0.96, 0.95, 0.92) * crater * crescent;
+                            float limb = sqrt(max(0.0, 1.0 - r * r));
+                            moonSurface *= (0.75 + 0.25 * limb);
+                            sky += moonSurface * 1.5;
+                        }
+                    }
+
+                    gl_FragColor = vec4(sky, 1.0);
+                }
+            `
+        });
+        this.skyDomeMesh = new THREE.Mesh(skyDomeGeo, this.skyDomeMaterial);
+        this.skyDomeMesh.frustumCulled = false;
+
         this.starGroup = new THREE.Group();
         this.starGroup.name = "StarCanopy";
+        this.starCanopyGroup = this.starGroup;
+        this.starGroup.add(this.skyDomeMesh);
         this.starGroup.add(this.starPoints);
-
+        this.nebulaClouds = [];
 
         this.scene.add(this.starGroup);
     }
@@ -3469,186 +4249,59 @@ class Dungeon3D {
     initModelResolvers() {
         this.objLoader = (typeof THREE.OBJLoader !== 'undefined') ? new THREE.OBJLoader() : null;
         this.gltfLoader = (typeof THREE.GLTFLoader !== 'undefined') ? new THREE.GLTFLoader() : null;
+        this.gltfModels = {};
+        this.objModels = {};
+        this._gltfTemplateCache = new Map();
+        this._gltfLoadingPromises = new Map();
         this.monsterTemplates = new Map();
         this.itemTemplates = new Map();
         this.weaponCache = new Map();
+        this._monster3DTemplates = new Map();
+        this._monster3DLoading = new Map();
 
-        // 1a. Preload KayKit Character Palette Textures (Paints outfits, armor, faces)
-        this.characterPalettes = new Map();
-        const texLoader = new THREE.TextureLoader();
-        const loadPalette = (key, url) => {
-            texLoader.load(url, (tex) => {
-                tex.encoding = THREE.sRGBEncoding;
-                this.characterPalettes.set(key, tex);
-            }, undefined, () => {});
-        };
-        loadPalette('knight', '/assets/models/characters/knight_texture.png');
-        loadPalette('rogue', '/assets/models/characters/rogue_texture.png');
-        loadPalette('barbarian', '/assets/models/characters/barbarian_texture.png');
-        loadPalette('mage', '/assets/models/characters/mage_texture.png');
-        loadPalette('skeleton', '/assets/models/characters/skeleton_texture.png');
-
-        // 1. High-Fidelity Character GLTF Rigs (KayKit CC0 Models & Bestiary)
-        if (this.gltfLoader) {
-            const characterModels = [
-                { key: 'adventurer', url: '/assets/models/characters/Adventurer.gltf', defaultScale: 0.95 },
-                { key: 'casual', url: '/assets/models/characters/Casual.gltf', defaultScale: 0.88 },
-                { key: 'farmer', url: '/assets/models/characters/Farmer.gltf', defaultScale: 0.88 },
-                { key: 'formal', url: '/assets/models/characters/Formal.gltf', defaultScale: 0.90 },
-                { key: 'king', url: '/assets/models/characters/King.gltf', defaultScale: 1.05 },
-                { key: 'medieval', url: '/assets/models/characters/Medieval.gltf', defaultScale: 0.95 },
-                { key: 'punk', url: '/assets/models/characters/Punk.gltf', defaultScale: 0.98 },
-                { key: 'soldier', url: '/assets/models/characters/Soldier.gltf', defaultScale: 0.92 },
-                { key: 'witch', url: '/assets/models/characters/Witch.gltf', defaultScale: 0.92 },
-                { key: 'worker', url: '/assets/models/characters/Worker.gltf', defaultScale: 0.90 },
-                { key: 'imp', url: '/assets/models/monsters/Imp.glb', defaultScale: 0.75 },
-                { key: 'puglin', url: '/assets/models/monsters/Puglin.glb', defaultScale: 0.70 }
-            ];
-
-            characterModels.forEach(m => {
-                this.gltfLoader.load(m.url, (gltf) => {
-                    const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
-                    if (scene) {
-                        scene.traverse((c) => {
-                            if (c.isMesh) {
-                                c.castShadow = true;
-                                c.receiveShadow = true;
-                                if (c.geometry) {
-                                    c.geometry.computeVertexNormals();
-                                }
-                            }
-                        });
-                        this.monsterTemplates.set(m.key, {
-                            scene: scene,
-                            defaultScale: m.defaultScale
-                        });
-                    }
-                }, undefined, (err) => {
-                    // Suppress harmless aborts when tab/page navigates or closes during model loading
-                    if (err && (err.name === 'AbortError' || (err.message && err.message.includes('fetch')))) {
-                        return;
-                    }
-                    console.warn(`[3D] Failed to load character model '${m.key}':`, err);
-                });
-            });
-        }
-
-        if (!this.objLoader) return;
-
-        // Shared PBR materials for loaded 3D models with organic normal maps
-        const ratMat = new THREE.MeshStandardMaterial({ color: 0x5a4838, roughness: 0.85, metalness: 0.05, normalMap: this.furNormal });
-        const snakeMat = new THREE.MeshStandardMaterial({ color: 0x3d6b35, roughness: 0.55, metalness: 0.15, normalMap: this.scaleNormal });
-        const spiderMat = new THREE.MeshStandardMaterial({ color: 0x1c1a24, roughness: 0.40, metalness: 0.35, normalMap: this.chitinNormal });
-        const frogMat = new THREE.MeshStandardMaterial({ color: 0x4f7d28, roughness: 0.45, metalness: 0.20, normalMap: this.scaleNormal });
-        const waspMat = new THREE.MeshStandardMaterial({ color: 0xcaa018, roughness: 0.40, metalness: 0.30, normalMap: this.chitinNormal });
-
-        const loadMonster = (key, url, mat, scale, yOffset = 0) => {
-            this.objLoader.load(url, (obj) => {
-                obj.traverse((c) => {
-                    if (c.isMesh) {
-                        c.material = mat.clone();
-                        if (c.geometry) {
-                            c.geometry.computeVertexNormals();
-                        }
-                    }
-                });
-                obj.scale.set(scale, scale, scale);
-                obj.position.y = yOffset;
-                this.monsterTemplates.set(key, obj);
-            }, undefined, () => {});
-        };
-
-        loadMonster('rat', '/assets/models/monsters/Rat.obj', ratMat, 0.42, 0.0);
-        loadMonster('snake', '/assets/models/monsters/Snake.obj', snakeMat, 0.38, 0.0);
-        loadMonster('snake_angry', '/assets/models/monsters/Snake_angry.obj', snakeMat, 0.40, 0.0);
-        loadMonster('spider', '/assets/models/monsters/Spider.obj', spiderMat, 0.48, 0.0);
-        loadMonster('frog', '/assets/models/monsters/Frog.obj', frogMat, 0.38, 0.0);
-        loadMonster('wasp', '/assets/models/monsters/Wasp.obj', waspMat, 0.42, 0.45);
-
-        // 1b. Initialize Shockbolt 2.5D PBR Monster Billboard Atlas & Normal Map
+        // 1. Shockbolt 2.5D PBR Monster Billboard Atlas & Normal Map
         this.initMonsterAtlas();
-        // 1c. Initialize Shockbolt 2.5D PBR Item Pickup Atlas & Normal Map
+        // 1.5 Prewarm high-realism 3D character & bestiary templates
+        this._ensureMonster3DTemplate('char_male_peasant').catch(() => {});
+        this._ensureMonster3DTemplate('char_female_peasant').catch(() => {});
+        this._ensureMonster3DTemplate('bestiary_fox').catch(() => {});
+        this._ensureMonster3DTemplate('char_male_ranger').catch(() => {});
+        // 2. Shockbolt 2.5D PBR Item Pickup Atlas & Normal Map
         this.initItemAtlas();
 
-        // Weapon models for Viewmodel (Multi-material PBR matching Blender/FBX/MTL definitions)
-        const loadWeapon = (key, url, scale, rot, pos) => {
-            this.objLoader.load(url, (obj) => {
-                obj.traverse((c) => {
-                    if (c.isMesh) {
-                        if (c.geometry) {
-                            c.geometry.computeVertexNormals();
-                        }
-                        const mName = ((c.material && c.material.name ? c.material.name : '') + ' ' + (c.name || '')).toLowerCase();
-                        if (mName.includes('darkwood') || mName.includes('leather') || mName.includes('grip') || mName.includes('strap')) {
-                            c.material = new THREE.MeshStandardMaterial({ color: 0x4a2a14, roughness: 0.85, metalness: 0.05 });
-                        } else if (mName.includes('lightwood') || mName.includes('handle') || mName.includes('wood')) {
-                            c.material = new THREE.MeshStandardMaterial({ color: 0x8a5528, roughness: 0.80, metalness: 0.05 });
-                        } else if (mName.includes('steel') || mName.includes('lightsteel') || mName.includes('head') || mName.includes('stone') || mName.includes('blade')) {
-                            c.material = new THREE.MeshStandardMaterial({ color: 0xc8d0dc, roughness: 0.35, metalness: 0.85 });
-                        } else if (mName.includes('gold') || mName.includes('guard') || mName.includes('pommel')) {
-                            c.material = new THREE.MeshStandardMaterial({ color: 0xe6b830, roughness: 0.25, metalness: 0.90 });
-                        } else {
-                            c.material = new THREE.MeshStandardMaterial({ color: 0xa8b4c4, roughness: 0.40, metalness: 0.75 });
-                        }
-                    }
-                });
-                obj.scale.set(scale, scale, scale);
-                if (pos) obj.position.set(pos.x, pos.y, pos.z);
-                if (rot) obj.rotation.set(rot.x, rot.y, rot.z);
-                this.weaponCache.set(key, obj);
+        // Authoritative Poly Haven Photogrammetry 3D Environment (Trees, Bushes, Rubble, Mountains)
+        this._loadPolyHavenEnvironmentModels();
 
-                // If this is the weapon currently held, mount it immediately in rightItemSlot
-                if (this.currentRightWeapon === key && this.rightItemSlot) {
-                    while (this.rightItemSlot.children.length > 0) {
-                        this.rightItemSlot.remove(this.rightItemSlot.children[0]);
-                    }
-                    this.rightItemSlot.add(obj.clone(true));
-                    this.rightHandGroup.visible = true;
-                }
-            }, undefined, () => {});
+        // 3. Poly Haven Photogrammetry 3D Viewmodel Weapons & Shields (On-Demand + Prewarm Sword/Shield)
+        this._viewmodelWeaponPhMap = {
+            sword: 'ph_saber',
+            blade: 'ph_estoc',
+            katana: 'ph_katana',
+            dagger: 'ph_dagger',
+            axe: 'ph_axe',
+            mace: 'ph_mace',
+            hammer: 'ph_hammer',
+            polearm: 'ph_estoc',
+            staff: 'ph_mace',
+            bow: 'ph_hatchet',
+            shield: 'ph_shield',
+            claymore: 'ph_estoc',
+            spear: 'ph_estoc'
         };
+        this._ensureViewmodelWeapon('sword');
+        this._ensureViewmodelWeapon('shield');
 
-        // Calibrated 1:1 with Godot ViewModel.cs:680-725 transforms
-        loadWeapon('sword', '/assets/models/weapons/Sword.obj', 0.088, { x: 18 * Math.PI / 180, y: -14 * Math.PI / 180, z: 6 * Math.PI / 180 }, { x: 0, y: -0.03, z: 0 });
-        loadWeapon('claymore', '/assets/models/weapons/Claymore.obj', 0.095, { x: 16 * Math.PI / 180, y: -12 * Math.PI / 180, z: 6 * Math.PI / 180 }, { x: 0, y: -0.03, z: 0 });
-        loadWeapon('dagger', '/assets/models/weapons/Dagger.obj', 0.090, { x: 20 * Math.PI / 180, y: -12 * Math.PI / 180, z: 8 * Math.PI / 180 }, { x: 0, y: 0, z: 0 });
-        loadWeapon('axe', '/assets/models/weapons/Axe_Small.obj', 0.085, { x: 18 * Math.PI / 180, y: -14 * Math.PI / 180, z: 6 * Math.PI / 180 }, { x: 0, y: -0.04, z: 0 });
-        loadWeapon('hammer', '/assets/models/weapons/Hammer_Small.obj', 0.085, { x: 18 * Math.PI / 180, y: -14 * Math.PI / 180, z: 6 * Math.PI / 180 }, { x: 0, y: -0.04, z: 0 });
-        loadWeapon('spear', '/assets/models/weapons/Spear.obj', 0.075, { x: 18 * Math.PI / 180, y: -12 * Math.PI / 180, z: 6 * Math.PI / 180 }, { x: 0, y: -0.08, z: 0 });
-        loadWeapon('bow', '/assets/models/weapons/Bow_Wooden.obj', 0.085, { x: 0.15, y: Math.PI / 2, z: 0 }, { x: 0, y: -0.02, z: 0.04 });
-        loadWeapon('shield', '/assets/models/weapons/Shield_Round.obj', 0.085, { x: 0.18, y: 0.35, z: 0 }, { x: 0, y: -0.03, z: 0 });
-
-        // Procedural 3D Whip for Viewmodel (Braided Leather Bullwhip with Brass Pommel & Collar)
+        // Whip viewmodel (zero CylinderGeometry - uses BoxGeometry)
         const createWhipViewmodelMesh = () => {
             const whipGroup = new THREE.Group();
+            const handleLeatherMat = new THREE.MeshStandardMaterial({ color: 0x3a2012, roughness: 0.85, metalness: 0.10 });
+            const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4a034, roughness: 0.28, metalness: 0.85 });
+            const lashMat = new THREE.MeshStandardMaterial({ color: 0x24140b, roughness: 0.80, metalness: 0.12 });
+            const popperMat = new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.90, metalness: 0.05 });
 
-            const handleLeatherMat = new THREE.MeshStandardMaterial({
-                color: 0x3a2012,
-                roughness: 0.85,
-                metalness: 0.10
-            });
-            const brassMat = new THREE.MeshStandardMaterial({
-                color: 0xd4a034,
-                roughness: 0.28,
-                metalness: 0.85
-            });
-            const lashMat = new THREE.MeshStandardMaterial({
-                color: 0x24140b,
-                roughness: 0.80,
-                metalness: 0.12
-            });
-            const popperMat = new THREE.MeshStandardMaterial({
-                color: 0x9c7a52,
-                roughness: 0.90,
-                metalness: 0.05
-            });
+            const handleGeom = new THREE.BoxGeometry(0.032, 0.22, 0.032);
+            whipGroup.add(new THREE.Mesh(handleGeom, handleLeatherMat));
 
-            // 1. Grip / Handle (Grip length 0.22m, held in hand)
-            const handleGeom = new THREE.CylinderGeometry(0.016, 0.018, 0.22, 12);
-            const handleMesh = new THREE.Mesh(handleGeom, handleLeatherMat);
-            whipGroup.add(handleMesh);
-
-            // 2. Brass Pommel & Wrist Loop
             const pommelGeom = new THREE.SphereGeometry(0.024, 12, 8);
             const pommelMesh = new THREE.Mesh(pommelGeom, brassMat);
             pommelMesh.position.set(0, -0.115, 0);
@@ -3660,13 +4313,11 @@ class Dungeon3D {
             loopMesh.rotation.x = Math.PI / 2;
             whipGroup.add(loopMesh);
 
-            // 3. Brass Collar at hilt
-            const collarGeom = new THREE.CylinderGeometry(0.020, 0.018, 0.03, 12);
+            const collarGeom = new THREE.BoxGeometry(0.038, 0.03, 0.038);
             const collarMesh = new THREE.Mesh(collarGeom, brassMat);
             collarMesh.position.set(0, 0.115, 0);
             whipGroup.add(collarMesh);
 
-            // 4. Braided Flexible Leather Lash (Curving forward and downward gracefully)
             const curvePoints = [
                 new THREE.Vector3(0, 0.125, 0),
                 new THREE.Vector3(0.015, 0.18, -0.04),
@@ -3679,10 +4330,8 @@ class Dungeon3D {
             ];
             const curve = new THREE.CatmullRomCurve3(curvePoints);
             const lashGeom = new THREE.TubeGeometry(curve, 32, 0.012, 8, false);
-            const lashMesh = new THREE.Mesh(lashGeom, lashMat);
-            whipGroup.add(lashMesh);
+            whipGroup.add(new THREE.Mesh(lashGeom, lashMat));
 
-            // 5. Whip Fall & Popper/Cracker (Thinner tip trailing at the end)
             const tipPoints = [
                 new THREE.Vector3(-0.040, -0.34, -0.50),
                 new THREE.Vector3(-0.048, -0.44, -0.52),
@@ -3690,8 +4339,7 @@ class Dungeon3D {
             ];
             const tipCurve = new THREE.CatmullRomCurve3(tipPoints);
             const tipGeom = new THREE.TubeGeometry(tipCurve, 12, 0.006, 6, false);
-            const tipMesh = new THREE.Mesh(tipGeom, popperMat);
-            whipGroup.add(tipMesh);
+            whipGroup.add(new THREE.Mesh(tipGeom, popperMat));
 
             return whipGroup;
         };
@@ -3699,114 +4347,14 @@ class Dungeon3D {
         const whipObj = createWhipViewmodelMesh();
         whipObj.rotation.set(18 * Math.PI / 180, -14 * Math.PI / 180, 6 * Math.PI / 180);
         this.weaponCache.set('whip', whipObj);
+    }
 
-        // Item templates
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0x553300, metalness: 0.95, roughness: 0.18 });
-        const potionMat = new THREE.MeshStandardMaterial({ color: 0xff3355, emissive: 0xbb1133, emissiveIntensity: 1.2, roughness: 0.15, metalness: 0.2 });
-        const scrollMat = new THREE.MeshStandardMaterial({ color: 0xeee0b0, roughness: 0.85 });
-        const bookMat = new THREE.MeshStandardMaterial({ color: 0x8b2500, roughness: 0.70, metalness: 0.1 });
-        const ringMat = new THREE.MeshStandardMaterial({ color: 0xffc400, emissive: 0x553300, metalness: 0.95, roughness: 0.15 });
-        const chestMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.75, metalness: 0.25 });
-        const weaponMat = new THREE.MeshStandardMaterial({ color: 0xd8e4ed, roughness: 0.20, metalness: 0.90 });
-        const armorMat = new THREE.MeshStandardMaterial({ color: 0xb0bcc8, roughness: 0.35, metalness: 0.85 });
-        const leatherMat = new THREE.MeshStandardMaterial({ color: 0x6e482b, roughness: 0.85, metalness: 0.05 });
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x82522c, roughness: 0.80, metalness: 0.05 });
-        const foodMat = new THREE.MeshStandardMaterial({ color: 0xbf6c3b, roughness: 0.85, metalness: 0.05 });
-        const gemMat = new THREE.MeshStandardMaterial({ color: 0x44ddff, emissive: 0x114466, emissiveIntensity: 0.8, roughness: 0.10, metalness: 0.2 });
+    getCharacterGltfKey(race, name, glyph) {
+        return null;
+    }
 
-        const loadItem = (key, url, mat, scale, yOffset = 0) => {
-            this.objLoader.load(url, (obj) => {
-                obj.traverse((c) => {
-                    if (c.isMesh) {
-                        c.material = mat.clone();
-                        if (c.geometry) {
-                            c.geometry.computeVertexNormals();
-                        }
-                    }
-                });
-                obj.scale.set(scale, scale, scale);
-                obj.position.y = yOffset;
-                this.itemTemplates.set(key, obj);
-            }, undefined, () => {});
-        };
-
-        // Core consumables & treasures
-        loadItem('$', '/assets/models/items/Gold_Ingots.obj', goldMat, 0.25, 0.05);
-        loadItem('coin', '/assets/models/items/Coin.obj', goldMat, 0.22, 0.05);
-        loadItem('coin_skull', '/assets/models/items/Coin_Skull.obj', goldMat, 0.22, 0.05);
-        loadItem('coin_star', '/assets/models/items/Coin_Star.obj', goldMat, 0.22, 0.05);
-        loadItem('!', '/assets/models/items/Potion1_Filled.obj', potionMat, 0.22, 0.05);
-        for (let pi = 1; pi <= 11; pi++) {
-            loadItem(`potion_${pi}`, `/assets/models/items/Potion${pi}_Filled.obj`, potionMat, 0.22, 0.05);
-        }
-        loadItem('?', '/assets/models/items/Scroll.obj', scrollMat, 0.22, 0.05);
-        loadItem('parchment', '/assets/models/items/Parchment.obj', scrollMat, 0.22, 0.05);
-        loadItem('book', '/assets/models/items/Book1_Closed.obj', bookMat, 0.20, 0.05);
-        loadItem('book_open', '/assets/models/items/Book1_Open.obj', bookMat, 0.20, 0.05);
-        loadItem('book_2', '/assets/models/items/Book2_Closed.obj', bookMat, 0.20, 0.05);
-        loadItem('book_3', '/assets/models/items/Book3_Closed.obj', bookMat, 0.20, 0.05);
-        loadItem('book_4', '/assets/models/items/Book4_Closed.obj', bookMat, 0.20, 0.05);
-        loadItem('=', '/assets/models/items/Ring1.obj', ringMat, 0.18, 0.08);
-        for (let ri = 1; ri <= 7; ri++) {
-            loadItem(`ring_${ri}`, `/assets/models/items/Ring${ri}.obj`, ringMat, 0.18, 0.08);
-        }
-        loadItem('"', '/assets/models/items/Necklace1.obj', goldMat, 0.18, 0.05);
-        loadItem('necklace_2', '/assets/models/items/Necklace2.obj', goldMat, 0.18, 0.05);
-        loadItem('necklace_3', '/assets/models/items/Necklace3.obj', goldMat, 0.18, 0.05);
-        loadItem('*', '/assets/models/items/Crystal1.obj', gemMat, 0.18, 0.05);
-        for (let ci = 1; ci <= 5; ci++) {
-            loadItem(`crystal_${ci}`, `/assets/models/items/Crystal${ci}.obj`, gemMat, 0.18, 0.05);
-        }
-        loadItem('chest', '/assets/models/items/Chest_Closed.obj', chestMat, 0.22, 0.0);
-        loadItem('chest_ingots', '/assets/models/items/Chest_Ingots.obj', chestMat, 0.22, 0.0);
-        loadItem('chest_open', '/assets/models/items/Chest_Open.obj', chestMat, 0.22, 0.0);
-        loadItem(',', '/assets/models/items/ChickenLeg.obj', foodMat, 0.20, 0.05);
-
-        // Armor, Footwear & Accessories
-        loadItem('armor_metal', '/assets/models/items/Armor_Metal.obj', armorMat, 0.22, 0.05);
-        loadItem('armor_metal2', '/assets/models/items/Armor_Metal2.obj', armorMat, 0.22, 0.05);
-        loadItem('armor_leather', '/assets/models/items/Armor_Leather.obj', leatherMat, 0.22, 0.05);
-        loadItem('armor_golden', '/assets/models/items/Armor_Golden.obj', goldMat, 0.22, 0.05);
-        loadItem('armor_black', '/assets/models/items/Armor_Black.obj', armorMat, 0.22, 0.05);
-        loadItem('crown', '/assets/models/items/Crown.obj', goldMat, 0.20, 0.05);
-        loadItem('crown_2', '/assets/models/items/Crown2.obj', goldMat, 0.20, 0.05);
-        loadItem('glove', '/assets/models/items/Glove.obj', leatherMat, 0.18, 0.05);
-        loadItem('backpack', '/assets/models/items/Backpack.obj', leatherMat, 0.20, 0.05);
-        loadItem('bag', '/assets/models/items/Bag.obj', leatherMat, 0.20, 0.05);
-        loadItem('pouch', '/assets/models/items/Pouch.obj', leatherMat, 0.18, 0.05);
-        loadItem('key', '/assets/models/items/Key1.obj', goldMat, 0.18, 0.05);
-        loadItem('key_2', '/assets/models/items/Key2.obj', goldMat, 0.18, 0.05);
-        loadItem('key_3', '/assets/models/items/Key3.obj', goldMat, 0.18, 0.05);
-        loadItem('skull', '/assets/models/items/Skull.obj', scrollMat, 0.18, 0.05);
-        loadItem('skull_2', '/assets/models/items/Skull2.obj', scrollMat, 0.18, 0.05);
-        loadItem('bone', '/assets/models/items/Bone.obj', scrollMat, 0.18, 0.05);
-
-        // Weapons & Shields
-        loadItem(')', '/assets/models/weapons/Sword.obj', weaponMat, 0.18, 0.05);
-        loadItem('sword_2', '/assets/models/weapons/Sword_2.obj', weaponMat, 0.18, 0.05);
-        loadItem('sword_big', '/assets/models/weapons/Sword_Big.obj', weaponMat, 0.20, 0.05);
-        loadItem('sword_golden', '/assets/models/weapons/Sword_Golden.obj', goldMat, 0.20, 0.05);
-        loadItem('claymore', '/assets/models/weapons/Claymore.obj', weaponMat, 0.20, 0.05);
-        loadItem('dagger', '/assets/models/weapons/Dagger.obj', weaponMat, 0.18, 0.05);
-        loadItem('dagger_2', '/assets/models/weapons/Dagger_2.obj', weaponMat, 0.18, 0.05);
-        loadItem('axe', '/assets/models/weapons/Axe_Small.obj', weaponMat, 0.20, 0.05);
-        loadItem('axe_double', '/assets/models/weapons/Axe_Double.obj', weaponMat, 0.22, 0.05);
-        loadItem('hammer', '/assets/models/weapons/Hammer_Small.obj', weaponMat, 0.20, 0.05);
-        loadItem('hammer_double', '/assets/models/weapons/Hammer_Double.obj', weaponMat, 0.20, 0.05);
-        loadItem('spear', '/assets/models/weapons/Spear.obj', weaponMat, 0.22, 0.05);
-        loadItem('scythe', '/assets/models/weapons/Scythe.obj', weaponMat, 0.22, 0.05);
-        loadItem('}', '/assets/models/weapons/Bow_Wooden.obj', woodMat, 0.22, 0.05);
-        loadItem('bow_wooden2', '/assets/models/weapons/Bow_Wooden2.obj', woodMat, 0.22, 0.05);
-        loadItem('bow_golden', '/assets/models/weapons/Bow_Golden.obj', goldMat, 0.22, 0.05);
-        loadItem('bow_evil', '/assets/models/weapons/Bow_Evil.obj', weaponMat, 0.22, 0.05);
-        loadItem('{', '/assets/models/weapons/Arrow.obj', woodMat, 0.20, 0.05);
-        loadItem('pebble', '/assets/models/items/Mineral.obj', weaponMat, 0.16, 0.05);
-        loadItem('dart', '/assets/models/items/Dart.obj', weaponMat, 0.18, 0.05);
-        loadItem('shield_heater', '/assets/models/weapons/Shield_Heater.obj', armorMat, 0.22, 0.05);
-        loadItem('shield_heater_2', '/assets/models/weapons/Shield_Heater_2.obj', armorMat, 0.22, 0.05);
-        loadItem('shield_round', '/assets/models/weapons/Shield_Round.obj', armorMat, 0.20, 0.05);
-        loadItem('shield_round_2', '/assets/models/weapons/Shield_Round_2.obj', armorMat, 0.20, 0.05);
-        loadItem('shield_celtic', '/assets/models/weapons/Shield_Celtic_Golden.obj', goldMat, 0.22, 0.05);
+    getMonsterObjKey(race, name, glyph) {
+        return null;
     }
 
     updateViewmodel(player) {
@@ -3869,9 +4417,10 @@ class Dungeon3D {
         this.viewmodelGroup.scale.set(this.heightRatio, this.heightRatio, this.heightRatio);
 
         // 4. Equipment resolution
-        const weaponItem = player.weapon_item || '';
-        const bowItem = player.bow_item || '';
-        const shieldItem = player.shield_item || '';
+        const _itemStr = (v) => (v && typeof v === 'object') ? String(v.name || v.desc || '') : String(v || '');
+        const weaponItem = _itemStr(player.weapon_item);
+        const bowItem = _itemStr(player.bow_item);
+        const shieldItem = _itemStr(player.shield_item);
         const lightRadius = player.light || 0;
         const depth = player.depth !== undefined ? player.depth : 0;
 
@@ -3915,7 +4464,7 @@ class Dungeon3D {
             key = 'bow';
         }
 
-        if (this.currentRightWeapon === key) return;
+        if (this.currentRightWeapon === key && this.rightItemSlot && this.rightItemSlot.children.length > 0) return;
         this.currentRightWeapon = key;
 
         if (this.rightItemSlot) {
@@ -3931,6 +4480,8 @@ class Dungeon3D {
             let mesh = null;
             if (this.weaponCache.has(key)) {
                 mesh = this.weaponCache.get(key).clone(true);
+            } else {
+                this._ensureViewmodelWeapon(key);
             }
             if (mesh) {
                 this.rightItemSlot.add(mesh);
@@ -3951,11 +4502,44 @@ class Dungeon3D {
         let mesh = null;
         if (this.weaponCache.has('shield')) {
             mesh = this.weaponCache.get('shield').clone(true);
+        } else {
+            this._ensureViewmodelWeapon('shield');
         }
         if (mesh) {
             this.leftItemSlot.add(mesh);
         }
         this.leftHandGroup.visible = true;
+    }
+
+    _ensureViewmodelWeapon(key) {
+        if (!key || this.weaponCache.has(key)) return;
+        const phKey = this._viewmodelWeaponPhMap && this._viewmodelWeaponPhMap[key];
+        if (!phKey) return;
+        this._ensurePolyHavenFloorItem(phKey).then((tmpl) => {
+            if (!tmpl || this.weaponCache.has(key)) return;
+            const wClone = this._cloneCachedGltfTemplate(tmpl, null, phKey);
+            if (!wClone) return;
+            if (key === 'shield') {
+                if (wClone.children[0]) {
+                    wClone.children[0].rotation.set(0, 0, 0);
+                }
+                wClone.scale.set(0.22, 0.22, 0.22);
+                wClone.position.set(-0.06, -0.05, -0.04);
+            } else {
+                if (wClone.children[0]) {
+                    wClone.children[0].rotation.set(-0.22, Math.PI * 0.5, 0.10);
+                    wClone.children[0].position.set(0, -0.06, 0);
+                }
+                wClone.scale.set(0.30, 0.30, 0.30);
+                wClone.position.set(0.04, -0.04, -0.04);
+            }
+            this.weaponCache.set(key, wClone);
+            if (this.lastFrame && this.lastFrame.player) {
+                this.currentRightWeapon = null;
+                this.currentLeftWeapon = null;
+                this.updateViewmodel(this.lastFrame.player);
+            }
+        }).catch(() => {});
     }
 
     triggerAttackAnimation() {
@@ -4193,7 +4777,7 @@ class Dungeon3D {
     }
 
     isWalkableOrPortal(feat) {
-        return feat === 1 || feat === 2 || feat === 3 || feat === 4 || feat === 5 || feat === 6 || feat === 16 || feat === 23 || feat === 24 || feat === 25 || feat === 26 || feat === 27 || feat === 28 || feat === 29 || feat === 31 || feat === 37 || feat === 42 || this.isStoreKind(feat);
+        return feat === 1 || feat === 2 || feat === 3 || feat === 4 || feat === 5 || feat === 6 || feat === 16 || feat === 23 || feat === 24 || feat === 25 || feat === 26 || feat === 27 || feat === 28 || feat === 29 || feat === 31 || feat === 37 || feat === 41 || feat === 42 || this.isStoreKind(feat);
     }
 
     /**
@@ -4478,6 +5062,38 @@ class Dungeon3D {
         if (this.lastMap) {
             this.updateMap(this.lastMap);
         }
+    }
+
+    _computeTerrainSig(px, py, depth, torchRadius, realm, map, minY, maxY, minX, maxX) {
+        let h = 2166136261 >>> 0;
+        h = Math.imul(h ^ (px & 0xffff), 16777619) >>> 0;
+        h = Math.imul(h ^ (py & 0xffff), 16777619) >>> 0;
+        h = Math.imul(h ^ (depth & 0xffff), 16777619) >>> 0;
+        h = Math.imul(h ^ (torchRadius & 0xff), 16777619) >>> 0;
+        const rLen = realm ? realm.length : 0;
+        h = Math.imul(h ^ rLen, 16777619) >>> 0;
+        if (!map || !map.rows) return h;
+        for (let y = minY; y <= maxY; y++) {
+            const row = map.rows[y];
+            if (!row) continue;
+            if (row.f) {
+                const fStr = row.f;
+                const startIdx = minX * 2;
+                const endIdx = Math.min(fStr.length - 1, (maxX + 1) * 2);
+                for (let i = startIdx; i <= endIdx; i += 4) {
+                    h = Math.imul(h ^ fStr.charCodeAt(i), 16777619) >>> 0;
+                }
+            }
+            if (row.flags) {
+                const flgStr = row.flags;
+                const startIdx = minX * 2;
+                const endIdx = Math.min(flgStr.length - 1, (maxX + 1) * 2);
+                for (let i = startIdx; i <= endIdx; i += 4) {
+                    h = Math.imul(h ^ flgStr.charCodeAt(i), 16777619) >>> 0;
+                }
+            }
+        }
+        return h;
     }
 
     update(frame) {
@@ -4837,6 +5453,8 @@ class Dungeon3D {
         let swampCount = 0;
         let rubbleCount = 0;
         let trapCount = 0;
+        let chasmIdx = 0;
+        let chasmVoidIdx = 0;
         const shopCounts = [0, 0, 0, 0, 0, 0, 0, 0];
 
         const sightRange = outdoors ? 40 : 22;
@@ -4845,10 +5463,31 @@ class Dungeon3D {
         const minY = Math.max(0, py - sightRange);
         const maxY = Math.min(h - 1, py + sightRange);
 
+        const sig = this._computeTerrainSig(px, py, depth, this.torchRadius, this.realm, map, minY, maxY, minX, maxX);
+        if (this._lastTerrainSig === sig) {
+            this.updateMonsters(frame.monsters || [], frame.player);
+            this.updateItems(frame.objects || frame.items || [], frame.player);
+            return;
+        }
+        this._lastTerrainSig = sig;
+        this.playerGridX = px;
+        this.playerGridY = py;
+        this.markShadowsDirty();
+
         for (let y = minY; y <= maxY; y++) {
             for (let x = minX; x <= maxX; x++) {
+                const dx = x - px, dy = y - py;
+                const distSq = dx * dx + dy * dy;
+                if (distSq > (outdoors ? 441 : 324)) continue; // 21-tile circular horizon outdoors, 18-tile indoors
+
                 let feat = this.getFeatAt(map, x, y);
                 const glyph = this.getGlyphAt(map, x, y);
+                const tileAttr = this.getAttrAt(map, x, y);
+
+                // FrogComposBand Bottomless Pit (feat 41): grey '#' in FrogComposBand
+                if (this.realm === 'frogcomposband' && glyph === '#' && (tileAttr === 2 || tileAttr === 8 || tileAttr === 9 || feat === 41)) {
+                    feat = 41;
+                }
 
                 // Disambiguate Tree (feat 25) vs Grass (feat 26):
                 // In Angband and roguelike variants, open ground / lawn / meadow is '.' (or ',', '\'').
@@ -5278,6 +5917,40 @@ class Dungeon3D {
                     continue;
                 }
 
+                // FrogComposBand Bottomless Pit (feat 41: '#') — Sunken dark cliff shaft & abyssal void
+                if (feat === 41) {
+                    if (chasmIdx < this.maxInstances) {
+                        this.dummy.position.set(wx, -this.wallHeight * 0.52 - 0.04, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.scale.set(0.98, 1.0, 0.98);
+                        this.dummy.updateMatrix();
+                        this.chasmMesh.setMatrixAt(chasmIdx, this.dummy.matrix);
+                        if (!this._scratchChasmShade) this._scratchChasmShade = new THREE.Color();
+                        if (!this._scratchChasmColor) this._scratchChasmColor = new THREE.Color(0x3a3d46);
+                        const chasmShade = this.computeTileShade(this._scratchChasmShade, this._scratchChasmColor, inView, outdoors, lighting, x, y, isRoom, depth);
+                        this.chasmMesh.setColorAt(chasmIdx, chasmShade);
+                        chasmIdx++;
+                        this.dummy.scale.set(1, 1, 1);
+                    }
+                    if (chasmVoidIdx < this.maxInstances) {
+                        this.dummy.position.set(wx, -1.75, wz);
+                        this.dummy.rotation.set(-Math.PI / 2, 0, 0);
+                        this.dummy.scale.set(1, 1, 1);
+                        this.dummy.updateMatrix();
+                        this.chasmVoidMesh.setMatrixAt(chasmVoidIdx, this.dummy.matrix);
+                        chasmVoidIdx++;
+                    }
+                    if (!outdoors && ceilingCount < this.maxInstances) {
+                        this.dummy.position.set(wx, this.wallHeight, wz);
+                        this.dummy.rotation.set(0, ceilingRot, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
                 // Floor / Walkable corridor / Passable rubble / Sunlight (feat 25 strictly in Sil-Q only)
                 const isSunlightTile = (this.realm === 'silq' && feat === 25);
                 if (feat === 1 || feat === 24 || isSunlightTile) {
@@ -5333,6 +6006,8 @@ class Dungeon3D {
                         this.dummy.position.set(wx, 0, wz);
                         const treeYaw = ((x * 67 + y * 97) % 8) * (Math.PI / 4);
                         this.dummy.rotation.set(0, treeYaw, 0);
+                        const s = 0.98 + ((x * 7 + y * 13) % 5) * 0.08;
+                        this.dummy.scale.set(s, s, s);
                         this.dummy.updateMatrix();
                         const trunkBase = (this.realm === 'silq')
                             ? this._scratchTrunkBaseColor.setRGB(0.65, 0.62, 0.58)
@@ -5341,10 +6016,27 @@ class Dungeon3D {
                         this.treeTrunkMesh.setMatrixAt(treeCount, this.dummy.matrix);
                         this.treeTrunkMesh.setColorAt(treeCount, trunkShade);
 
-                        const canopyShade = this.computeTileShade(this._scratchTreeColor, this.getBaseColour(25, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                        let leafBase;
+                        if (this._hasPolyHavenTreeTex) {
+                            if (!this._treeTintColor) this._treeTintColor = new THREE.Color();
+                            if (this.isHengband()) {
+                                leafBase = this._treeTintColor.setRGB(1.0, 0.86, 0.92);
+                            } else if (biome === 'swamp') {
+                                leafBase = this._treeTintColor.setRGB(0.88, 0.98, 0.86);
+                            } else if (biome === 'desert' || biome === 'autumn') {
+                                leafBase = this._treeTintColor.setRGB(0.96, 1.0, 0.88);
+                            } else {
+                                leafBase = this._treeTintColor.setRGB(0.94, 1.0, 0.92);
+                            }
+                        } else {
+                            leafBase = this.getBaseColour(25, biome);
+                        }
+
+                        const canopyShade = this.computeTileShade(this._scratchTreeColor, leafBase, inView, outdoors, lighting, x, y, isRoom, depth);
                         this.treeLeavesMesh.setMatrixAt(treeCount, this.dummy.matrix);
                         this.treeLeavesMesh.setColorAt(treeCount, canopyShade);
                         treeCount++;
+                        this.dummy.scale.set(1, 1, 1);
                     }
                     // Tree canopy reaches into open sky: NO ceiling!
                     continue;
@@ -5365,11 +6057,27 @@ class Dungeon3D {
                         this.dummy.position.set(wx, 0, wz);
                         const bushYaw = ((x * 43 + y * 71) % 8) * (Math.PI / 4);
                         this.dummy.rotation.set(0, bushYaw, 0);
+                        const bs = 0.95 + ((x * 11 + y * 5) % 5) * 0.08;
+                        this.dummy.scale.set(bs, bs, bs);
                         this.dummy.updateMatrix();
-                        const bushShade = this.computeTileShade(this._scratchTreeColor, this.getBaseColour(42, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+
+                        let bushBase;
+                        if (this._hasPolyHavenTreeTex) {
+                            if (!this._bushTintColor) this._bushTintColor = new THREE.Color();
+                            if (this.isHengband()) {
+                                bushBase = this._bushTintColor.setRGB(1.0, 0.86, 0.92);
+                            } else {
+                                bushBase = this._bushTintColor.setRGB(0.94, 1.0, 0.92);
+                            }
+                        } else {
+                            bushBase = this.getBaseColour(42, biome);
+                        }
+
+                        const bushShade = this.computeTileShade(this._scratchTreeColor, bushBase, inView, outdoors, lighting, x, y, isRoom, depth);
                         this.bushMesh.setMatrixAt(bushCount, this.dummy.matrix);
                         this.bushMesh.setColorAt(bushCount, bushShade);
                         bushCount++;
+                        this.dummy.scale.set(1, 1, 1);
                     }
                     continue;
                 }
@@ -5605,6 +6313,11 @@ class Dungeon3D {
         updateMesh(this.stairsMesh, stairsCount);
         updateMesh(this.stairsUpMesh, stairsUpCount);
         updateMesh(this.trapMesh, trapCount);
+        if (this.chasmMesh) updateMesh(this.chasmMesh, chasmIdx);
+        if (this.chasmVoidMesh) {
+            this.chasmVoidMesh.count = chasmVoidIdx;
+            this.chasmVoidMesh.instanceMatrix.needsUpdate = true;
+        }
 
         const oldLava = this.lavaMesh.count;
         this.lavaMesh.count = lavaCount;
@@ -5616,10 +6329,10 @@ class Dungeon3D {
 
         this.updateMonsters(frame.monsters || [], frame.player);
         this.updateItems(frame.objects || frame.items || [], frame.player);
-        this.updateTerrainLabels(map, w, h, depth);
+        this.updateTerrainLabels(map, w, h, depth, px, py);
     }
 
-    updateTerrainLabels(map, w, h, depth) {
+    updateTerrainLabels(map, w, h, depth, px = this.playerGridX, py = this.playerGridY) {
         if (!this.terrainLabelsGroup) return;
 
         const outdoors = depth === 0;
@@ -5636,6 +6349,7 @@ class Dungeon3D {
 
         const storePositions = new Map();
         const stairsList = [];
+        const pitList = [];
 
         for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
@@ -5645,7 +6359,13 @@ class Dungeon3D {
                 // STRICT FOG OF WAR: Never leak undiscovered space!
                 if (!known && !inView) continue;
 
-                const feat = this.getFeatAt(map, x, y);
+                let feat = this.getFeatAt(map, x, y);
+                const glyph = this.getGlyphAt(map, x, y);
+                const tileAttr = this.getAttrAt(map, x, y);
+                if (this.realm === 'frogcomposband' && glyph === '#' && (tileAttr === 2 || tileAttr === 8 || tileAttr === 9 || feat === 41)) {
+                    feat = 41;
+                }
+
                 if (feat >= 7 && feat <= 14) {
                     if (!storePositions.has(feat)) {
                         storePositions.set(feat, []);
@@ -5657,6 +6377,14 @@ class Dungeon3D {
                 } else if (feat === 6) {
                     const downText = depth === 0 ? '[>] Down to Dungeon (50\')' : `[>] Down to ${(depth + 1) * 50}ft`;
                     stairsList.push({ x: x * this.cellSize, y: 1.1, z: y * this.cellSize, name: downText });
+                } else if (feat === 41) {
+                    const playerX = px !== undefined ? px : (this.playerGridX !== undefined ? this.playerGridX : 0);
+                    const playerY = py !== undefined ? py : (this.playerGridY !== undefined ? this.playerGridY : 0);
+                    const pdx = x - playerX;
+                    const pdy = y - playerY;
+                    if (pdx * pdx + pdy * pdy <= 36) { // Within 6 tiles of player
+                        pitList.push({ x: x * this.cellSize, y: 0.45, z: y * this.cellSize, name: 'Bottomless Pit' });
+                    }
                 }
             }
         }
@@ -5668,6 +6396,9 @@ class Dungeon3D {
         }
         for (const s of stairsList) {
             sig += `${s.name}:${s.x},${s.z};`;
+        }
+        for (const p of pitList) {
+            sig += `pit:${p.x},${p.z};`;
         }
 
         if (sig === this.lastTerrainLabelsSignature) return;
@@ -5734,6 +6465,12 @@ class Dungeon3D {
             const sprite = createCaption(s.name, { x: s.x, y: s.y, z: s.z }, '#88ccff', false);
             this.terrainLabelsGroup.add(sprite);
         }
+
+        // Bottomless Pit Labels (within 6 tiles of player)
+        for (const p of pitList) {
+            const sprite = createCaption(p.name, { x: p.x, y: p.y, z: p.z }, '#8899aa', false);
+            this.terrainLabelsGroup.add(sprite);
+        }
     }
 
     isHengband() {
@@ -5765,10 +6502,38 @@ class Dungeon3D {
 
         ctx.clearRect(0, 0, 384, 110);
 
+        // Dark-obsidian rounded rectangle backdrop with beveled metallic gold border
+        const isSensed = (isSensedParam !== undefined) ? isSensedParam : !!(m.invisible || (m.detected && m.unlit));
+        const hasBadgeLine = Boolean(m.asleep || isTargeted || isSensed);
+        const padX = 14;
+        const padY = 4;
+        const bgW = 384 - padX * 2;
+        const bgH = hasBadgeLine ? 92 : 66;
+        const rad = 8;
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(padX, padY, bgW, bgH, rad);
+        } else {
+            ctx.moveTo(padX + rad, padY);
+            ctx.lineTo(padX + bgW - rad, padY);
+            ctx.quadraticCurveTo(padX + bgW, padY, padX + bgW, padY + rad);
+            ctx.lineTo(padX + bgW, padY + bgH - rad);
+            ctx.quadraticCurveTo(padX + bgW, padY + bgH, padX + bgW - rad, padY + bgH);
+            ctx.lineTo(padX + rad, padY + bgH);
+            ctx.quadraticCurveTo(padX, padY + bgH, padX, padY + bgH - rad);
+            ctx.lineTo(padX, padY + rad);
+            ctx.quadraticCurveTo(padX, padY, padX + rad, padY);
+            ctx.closePath();
+        }
+        ctx.fillStyle = 'rgba(10, 12, 18, 0.90)';
+        ctx.fill();
+        ctx.strokeStyle = isTargeted ? '#ffd700' : '#c89b3c';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
         let curY = 6;
 
         // Line 1: Status badge (e.g. 💤 Zzz... matching Godot MonsterModelResolver.cs:500-504)
-        const isSensed = (isSensedParam !== undefined) ? isSensedParam : !!(m.invisible || (m.detected && m.unlit));
         if (m.asleep) {
             ctx.font = '700 22px "Fira Code", monospace';
             ctx.textAlign = 'center';
@@ -5859,14 +6624,21 @@ class Dungeon3D {
         this.monsterNormalTex = null;
         this._monsterAtlasLowerMap = null;
 
+        this.monsterDepthMat = new THREE.MeshDepthMaterial({
+            depthPacking: THREE.RGBADepthPacking,
+            alphaTest: 0.35
+        });
+
         // Shared PBR Material for all monster billboards (Z-buffer depth tested, dynamic torchlight specular relief)
         this.monsterBillboardMat = new THREE.MeshStandardMaterial({
-            roughness: 0.82,
-            metalness: 0.10,
+            roughness: 0.58,
+            metalness: 0.06,
+            normalScale: new THREE.Vector2(0.55, 0.55),
             alphaTest: 0.35,
             depthWrite: true,
             transparent: false,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            vertexColors: true
         });
 
         this.monsterAtlasReady = new Promise((resolve) => {
@@ -5955,7 +6727,7 @@ class Dungeon3D {
                          lower.includes('スレイプニル') || lower.includes('黒王号') || lower.includes('明の明星')) &&
                          !lower.includes('uvatha');
         if (isEquine) {
-            return null; // Route directly to procedural 3D equine mesh
+            return (monsters && (monsters['Wild horse'] || monsters['Horse'] || monsters['Pony'])) || null;
         }
 
         // 3. Case-insensitive & partial lookup
@@ -6145,7 +6917,7 @@ class Dungeon3D {
         if (!atlasEntry || !atlasEntry.uv || !this.monsterBillboardMat) return null;
         const [u0, v0, u1, v1] = atlasEntry.uv;
 
-        // Custom 4-vertex quad with UVs mapping into the 4096x4096 HD atlas
+        // Custom 4-vertex quad with UVs mapping into the 4096x4096 HD atlas with vertex AO and gentle normals
         const geo = new THREE.PlaneGeometry(1, 1);
         geo.translate(0, 0.5, 0); // Ground pivot at feet
 
@@ -6156,12 +6928,31 @@ class Dungeon3D {
         uvAttr.setXY(3, u1, v0);
         uvAttr.needsUpdate = true;
 
+        const posAttr = geo.attributes.position;
+        const normAttr = geo.attributes.normal;
+        const colArr = new Float32Array(posAttr.count * 3);
+
+        for (let i = 0; i < posAttr.count; i++) {
+            const gu = posAttr.getX(i) + 0.5;
+            const gv = posAttr.getY(i);
+            const nx = (gu - 0.5) * 0.45;
+            const ny = (gv - 0.35) * 0.25;
+            const nz = 1.0;
+            const invLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
+            normAttr.setXYZ(i, nx * invLen, ny * invLen, nz * invLen);
+
+            const ao = 0.92 + 0.08 * Math.min(1.0, gv * 1.5);
+            colArr[i * 3 + 0] = ao;
+            colArr[i * 3 + 1] = ao;
+            colArr[i * 3 + 2] = ao;
+        }
+        geo.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+        normAttr.needsUpdate = true;
+
         const mesh = new THREE.Mesh(geo, this.monsterBillboardMat);
         let w = atlasEntry.width || 1.25;
         let h = atlasEntry.height || 1.70;
 
-        // Subterranean ceiling safety: wallHeight is 3.0m. Clamp maximum monster height to 2.05m
-        // while preserving aspect ratio, preventing heads and raised weapons from clipping the ceiling
         const maxMonsterHeight = 2.05;
         if (h > maxMonsterHeight) {
             const scaleDown = maxMonsterHeight / h;
@@ -6172,6 +6963,7 @@ class Dungeon3D {
         mesh.scale.set(w, h, 1.0);
         mesh.castShadow = true;
         mesh.receiveShadow = false;
+        mesh.customDepthMaterial = this.monsterDepthMat;
 
         mesh.isBillboard = true;
         mesh.baseWidth = w;
@@ -6185,6 +6977,16 @@ class Dungeon3D {
         return mesh;
     }
 
+    getMonsterAtlasUV(name, glyph) {
+        const entry = this.resolveMonsterAtlasEntry(name, glyph);
+        return entry ? entry.uv : null;
+    }
+
+    getItemAtlasUV(name, glyph) {
+        const entry = this.resolveItemAtlasEntry(name, glyph);
+        return entry ? entry.uv : null;
+    }
+
     initItemAtlas() {
         const texLoader = new THREE.TextureLoader();
         this.itemAtlasData = null;
@@ -6192,14 +6994,21 @@ class Dungeon3D {
         this.itemNormalTex = null;
         this._itemAtlasLowerMap = null;
 
+        this.itemDepthMat = new THREE.MeshDepthMaterial({
+            depthPacking: THREE.RGBADepthPacking,
+            alphaTest: 0.35
+        });
+
         // Shared PBR Material for all item pickup billboards (Z-buffer depth tested, dynamic torchlight specular relief)
         this.itemBillboardMat = new THREE.MeshStandardMaterial({
-            roughness: 0.65,
-            metalness: 0.15,
+            roughness: 0.55,
+            metalness: 0.08,
+            normalScale: new THREE.Vector2(0.50, 0.50),
             alphaTest: 0.35,
             depthWrite: true,
             transparent: false,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            vertexColors: true
         });
 
         this.itemAtlasReady = new Promise((resolve) => {
@@ -6347,14 +7156,11 @@ class Dungeon3D {
         if (!atlasEntry || !atlasEntry.uv || !this.itemBillboardMat) return null;
         const [u0, v0, u1, v1] = atlasEntry.uv;
 
-        // Custom 4-vertex quad with UVs mapping into the 2048x2048 item atlas
         const geo = new THREE.PlaneGeometry(1, 1);
         if (atlasEntry.isFlat) {
-            // Flat floor items (chests, rugs, floor tiles) lie horizontal
             geo.rotateX(-Math.PI / 2);
             geo.translate(0, 0.015, 0);
         } else {
-            // Vertical billboard facing camera with ground pivot at base
             geo.translate(0, 0.5, 0);
         }
 
@@ -6365,12 +7171,39 @@ class Dungeon3D {
         uvAttr.setXY(3, u1, v0);
         uvAttr.needsUpdate = true;
 
+        const posAttr = geo.attributes.position;
+        const normAttr = geo.attributes.normal;
+        const colArr = new Float32Array(posAttr.count * 3);
+
+        for (let i = 0; i < posAttr.count; i++) {
+            const gu = posAttr.getX(i) + 0.5;
+            const gv = atlasEntry.isFlat ? (posAttr.getZ(i) + 0.5) : posAttr.getY(i);
+            const nx = (gu - 0.5) * 0.40;
+            const ny = (gv - 0.35) * 0.20;
+            const nz = 1.0;
+            const invLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
+            normAttr.setXYZ(i, nx * invLen, ny * invLen, nz * invLen);
+
+            const ao = 0.94 + 0.06 * Math.min(1.0, gv * 1.5);
+            colArr[i * 3 + 0] = ao;
+            colArr[i * 3 + 1] = ao;
+            colArr[i * 3 + 2] = ao;
+        }
+        geo.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+        normAttr.needsUpdate = true;
+
         const mesh = new THREE.Mesh(geo, this.itemBillboardMat);
-        const w = atlasEntry.width || 0.40;
-        const h = atlasEntry.height || 0.40;
+        let w = (atlasEntry.width || 0.40) * (atlasEntry.isFlat ? 1.0 : 1.30);
+        let h = (atlasEntry.height || 0.40) * (atlasEntry.isFlat ? 1.0 : 1.30);
+        if (atlasEntry.isFlat) {
+            w = 0.56;
+            h = 0.56;
+        }
+
         mesh.scale.set(w, h, 1.0);
         mesh.castShadow = true;
         mesh.receiveShadow = false;
+        mesh.customDepthMaterial = this.itemDepthMat;
 
         mesh.isItemBillboard = true;
         mesh.baseWidth = w;
@@ -6384,32 +7217,30 @@ class Dungeon3D {
     }
 
     upgradeAllMonsterEntities() {
-        if (!this.monsterAtlasData || !this.monsters) return;
+        if (!this.monsters) return;
         for (const [id, entity] of this.monsters.entries()) {
             const m = entity.monsterData;
             if (!m) continue;
-            // Auto-upgrade procedural creature fallback to Shockbolt PBR billboard
-            if (!entity.isBillboard && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
-                const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, entity.glyph);
-                if (atlasEntry) {
-                    const upgradedBillboard = this.createMonsterBillboardMesh(atlasEntry);
-                    if (upgradedBillboard) {
-                        if (entity.creatureMesh) entity.remove(entity.creatureMesh);
-                        entity.creatureMesh = upgradedBillboard;
-                        entity.add(upgradedBillboard);
-                        entity.modelHeight = upgradedBillboard.baseHeight || Math.min(2.05, atlasEntry.height || 1.70);
-                        entity.isFloating = atlasEntry.isFloating || false;
-                        entity.isBillboard = true;
-                        entity.isBillboardFallback = false;
-                        entity.isFallback = false;
-                        upgradedBillboard.monsterData = m;
-                        if (entity.contactShadow) {
-                            const footprint = (upgradedBillboard.baseWidth || 1.25) * 0.75;
-                            entity.contactShadow.scale.set(footprint, footprint, footprint);
-                        }
-                        if (entity.nameplate) {
-                            entity.nameplate.position.set(0, entity.modelHeight + 0.42, 0);
-                        }
+            if (!entity.isReal3DMonster) {
+                const cfg = entity.pending3DConfig || this.resolveMonster3DConfig(m, entity.glyph);
+                const upgraded3D = this._instantiateMonster3DFromTemplate(cfg);
+                if (upgraded3D) {
+                    if (entity.creatureMesh) entity.remove(entity.creatureMesh);
+                    entity.creatureMesh = upgraded3D;
+                    entity.add(upgraded3D);
+                    entity.modelHeight = upgraded3D.baseHeight || 1.0;
+                    entity.isFloating = Boolean(cfg.isFloating);
+                    entity.isReal3DMonster = true;
+                    entity.isBillboard = false;
+                    entity.pending3DConfig = null;
+                    entity.isFallback = false;
+                    upgraded3D.monsterData = m;
+                    if (entity.contactShadow) {
+                        const footprint = (upgraded3D.baseWidth || 1.25) * 0.75;
+                        entity.contactShadow.scale.set(footprint, footprint, footprint);
+                    }
+                    if (entity.nameplate) {
+                        entity.nameplate.position.set(0, Math.min(2.55, Math.max(0.58, entity.modelHeight + 0.24)), 0);
                     }
                 }
             }
@@ -6452,892 +7283,7 @@ class Dungeon3D {
         return true;
     }
 
-    createProceduralCreatureMesh(glyph, raceName, colorHex) {
-        const group = new THREE.Group();
-        const lower = (raceName || '').toLowerCase();
-        const mainColor = new THREE.Color(colorHex);
-        const darkColor = mainColor.clone().multiplyScalar(0.4);
 
-        if (glyph === 't' || glyph === 'h' || glyph === 'p' || glyph === 'o' || glyph === 'k') {
-            // Humanoid / Orc / Townsperson / Guard
-            const isGuard = lower.includes('guard') || lower.includes('knight') || lower.includes('soldier') || lower.includes('mercenary') || lower.includes('uruk');
-            const skinMat = new THREE.MeshStandardMaterial({
-                color: glyph === 'o' || glyph === 'k' ? 0x5a7a40 : 0xd8ad88,
-                roughness: 0.75,
-                normalMap: this.organicNormal,
-                normalScale: new THREE.Vector2(0.65, 0.65)
-            });
-            const tunicMat = new THREE.MeshStandardMaterial({
-                color: mainColor,
-                roughness: 0.80,
-                metalness: isGuard ? 0.70 : 0.05,
-                normalMap: this.organicNormal,
-                normalScale: new THREE.Vector2(0.85, 0.85)
-            });
-            const leatherMat = new THREE.MeshStandardMaterial({
-                color: 0x3d2817,
-                roughness: 0.85,
-                normalMap: this.organicNormal
-            });
-
-            // Tapered muscular torso
-            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.14, 0.48, 10), tunicMat);
-            torso.position.y = 0.58;
-            group.add(torso);
-
-            // Head
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), skinMat);
-            head.position.y = 0.92;
-            group.add(head);
-
-            // Helmet for guards / warriors
-            if (isGuard) {
-                const helm = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.16, 0.18, 10), tunicMat);
-                helm.position.y = 0.94;
-                group.add(helm);
-            } else {
-                // Soft cap / hair for townspeople
-                const hairMat = new THREE.MeshStandardMaterial({ color: 0x4a3728, roughness: 0.9 });
-                const cap = new THREE.Mesh(new THREE.SphereGeometry(0.145, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), hairMat);
-                cap.position.y = 0.94;
-                group.add(cap);
-            }
-
-            // Legs
-            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.40, 8), leatherMat);
-            legL.position.set(-0.10, 0.20, 0);
-            const legR = legL.clone();
-            legR.position.x = 0.10;
-            group.add(legL);
-            group.add(legR);
-
-            // Arms
-            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.38, 8), tunicMat);
-            armL.position.set(-0.24, 0.55, 0.02);
-            const armR = armL.clone();
-            armR.position.x = 0.24;
-            group.add(armL);
-            group.add(armR);
-
-            // Role-Accurate Equipment Resolution (1:1 with Godot client MonsterModelResolver.cs)
-            const isArcher = lower.includes('archer') || lower.includes('scout') || lower.includes('ranger') || lower.includes('sniper');
-            const isMage = lower.includes('mage') || lower.includes('wizard') || lower.includes('sorcerer') || lower.includes('warlock') || lower.includes('priest') || lower.includes('shaman') || lower.includes('acolyte');
-            const isRogue = lower.includes('rogue') || lower.includes('thief') || lower.includes('assassin') || lower.includes('bandit') || lower.includes('cutpurse');
-
-            if (isGuard) {
-                // Warrior / Guard: Sword + Shield
-                armL.rotation.x = Math.PI / 6;
-                armR.rotation.x = Math.PI / 6;
-
-                const shield = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.03, 12), tunicMat);
-                shield.position.set(-0.26, 0.52, 0.14);
-                shield.rotation.x = Math.PI / 2;
-                group.add(shield);
-
-                const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.40, 0.015), new THREE.MeshStandardMaterial({ color: 0xccd5dd, metalness: 0.9, roughness: 0.2 }));
-                swordBlade.position.set(0.26, 0.55, 0.18);
-                swordBlade.rotation.x = Math.PI / 4;
-                group.add(swordBlade);
-            } else if (isArcher) {
-                // Archer: Bow in left hand, drawing right arm
-                armL.rotation.x = Math.PI / 3;
-                armR.rotation.x = Math.PI / 6;
-
-                const bowMesh = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.015, 6, 12, Math.PI), new THREE.MeshStandardMaterial({ color: 0x5a3d24, roughness: 0.8 }));
-                bowMesh.position.set(-0.26, 0.52, 0.18);
-                bowMesh.rotation.y = Math.PI / 2;
-                group.add(bowMesh);
-            } else if (isMage) {
-                // Mage: Glowing runic staff in right hand
-                armR.rotation.x = Math.PI / 4;
-
-                const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.70, 8), new THREE.MeshStandardMaterial({ color: 0x3d2817, roughness: 0.85 }));
-                staff.position.set(0.26, 0.60, 0.15);
-                const orb = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshBasicMaterial({ color: mainColor }));
-                orb.position.set(0.26, 0.96, 0.15);
-                group.add(staff);
-                group.add(orb);
-            } else if (isRogue) {
-                // Rogue: Serrated dagger in right hand
-                armR.rotation.x = Math.PI / 3;
-
-                const dagger = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.22, 0.01), new THREE.MeshStandardMaterial({ color: 0xa8b4c0, metalness: 0.85, roughness: 0.25 }));
-                dagger.position.set(0.24, 0.50, 0.15);
-                dagger.rotation.x = Math.PI / 3;
-                group.add(dagger);
-            }
-
-        } else if (glyph === 'C' || glyph === 'Z') {
-            // Canine: Dog / Wolf / War Dog / Hound (Quadruped with snout, ears, tail)
-            const furMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.85 });
-            const darkFur = new THREE.MeshStandardMaterial({ color: darkColor, roughness: 0.90 });
-
-            // Torso (horizontal body)
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.26, 0.52), furMat);
-            body.position.y = 0.32;
-            group.add(body);
-
-            // Neck & Head
-            const neck = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.20, 0.18), furMat);
-            neck.position.set(0, 0.42, 0.24);
-            neck.rotation.x = -Math.PI / 6;
-            group.add(neck);
-
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.20), furMat);
-            head.position.set(0, 0.48, 0.34);
-            group.add(head);
-
-            // Snout with black nose
-            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.10, 0.16), darkFur);
-            snout.position.set(0, 0.44, 0.46);
-            group.add(snout);
-
-            // Ears (triangular pointed)
-            const earGeo = new THREE.ConeGeometry(0.04, 0.10, 4);
-            const earL = new THREE.Mesh(earGeo, darkFur);
-            earL.position.set(-0.07, 0.58, 0.32);
-            const earR = earL.clone();
-            earR.position.x = 0.07;
-            group.add(earL);
-            group.add(earR);
-
-            // 4 Articulated Legs
-            const legGeo = new THREE.CylinderGeometry(0.04, 0.035, 0.28, 6);
-            const fl = new THREE.Mesh(legGeo, furMat); fl.position.set(-0.10, 0.14, 0.18);
-            const fr = fl.clone(); fr.position.x = 0.10;
-            const bl = fl.clone(); bl.position.set(-0.10, 0.14, -0.18);
-            const br = fl.clone(); br.position.set(0.10, 0.14, -0.18);
-            group.add(fl); group.add(fr); group.add(bl); group.add(br);
-
-            // Tail (curved upward)
-            const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.22, 6), furMat);
-            tail.position.set(0, 0.38, -0.32);
-            tail.rotation.x = -Math.PI / 4;
-            group.add(tail);
-
-        } else if (glyph === 'f') {
-            // Feline: Cat / Panther / Tiger / Lion (Slender agile quadruped)
-            const catMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.80 });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.20, 0.42), catMat);
-            body.position.y = 0.26;
-            group.add(body);
-
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), catMat);
-            head.position.set(0, 0.35, 0.24);
-            group.add(head);
-
-            // Pointed cat ears
-            const earGeo = new THREE.ConeGeometry(0.035, 0.08, 4);
-            const earL = new THREE.Mesh(earGeo, catMat);
-            earL.position.set(-0.06, 0.44, 0.22);
-            const earR = earL.clone();
-            earR.position.x = 0.06;
-            group.add(earL); group.add(earR);
-
-            // 4 Slender legs
-            const legGeo = new THREE.CylinderGeometry(0.03, 0.025, 0.22, 6);
-            const fl = new THREE.Mesh(legGeo, catMat); fl.position.set(-0.08, 0.11, 0.14);
-            const fr = fl.clone(); fr.position.x = 0.08;
-            const bl = fl.clone(); bl.position.set(-0.08, 0.11, -0.14);
-            const br = fl.clone(); br.position.set(0.08, 0.11, -0.14);
-            group.add(fl); group.add(fr); group.add(bl); group.add(br);
-
-            // Long upright curved tail
-            const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.26, 6), catMat);
-            tail.position.set(0, 0.36, -0.28);
-            tail.rotation.x = -Math.PI / 3;
-            group.add(tail);
-
-        } else if (glyph === 'r') {
-            // Rodent: Rat / Mouse / Cave Rat (Low rounded body, snout, ears, tail)
-            const ratMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.90 });
-            const pinkMat = new THREE.MeshStandardMaterial({ color: 0xe8a0a0, roughness: 0.70 });
-
-            const body = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), ratMat);
-            body.scale.set(0.8, 0.7, 1.4);
-            body.position.y = 0.16;
-            group.add(body);
-
-            const snout = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 8), ratMat);
-            snout.position.set(0, 0.14, 0.25);
-            snout.rotation.x = Math.PI / 2;
-            group.add(snout);
-
-            const earL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 6), pinkMat);
-            earL.position.set(-0.08, 0.24, 0.12);
-            const earR = earL.clone(); earR.position.x = 0.08;
-            group.add(earL); group.add(earR);
-
-            const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.32, 6), pinkMat);
-            tail.position.set(0, 0.10, -0.30);
-            tail.rotation.x = -Math.PI / 12;
-            group.add(tail);
-
-        } else if (glyph === 's') {
-            // Skeleton: Bony ribcage, hollow-socket skull, articulated limbs, rusty ancient blade
-            const boneMat = new THREE.MeshStandardMaterial({ color: 0xddd7c5, roughness: 0.85, metalness: 0.05 });
-            const darkBone = new THREE.MeshStandardMaterial({ color: 0x4a453b, roughness: 0.90 });
-
-            // Spine & Ribcage
-            const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.45, 6), boneMat);
-            spine.position.y = 0.55;
-            group.add(spine);
-
-            for (let i = 0; i < 3; i++) {
-                const rib = new THREE.Mesh(new THREE.TorusGeometry(0.12 - i * 0.015, 0.012, 4, 8, Math.PI), boneMat);
-                rib.position.set(0, 0.62 - i * 0.08, 0);
-                rib.rotation.x = Math.PI / 2;
-                group.add(rib);
-            }
-
-            // Pelvis
-            const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.12), boneMat);
-            pelvis.position.y = 0.35;
-            group.add(pelvis);
-
-            // Skull
-            const skull = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), boneMat);
-            skull.position.y = 0.88;
-            group.add(skull);
-
-            // Hollow eye sockets
-            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 6), darkBone);
-            eyeL.position.set(-0.04, 0.89, 0.09);
-            const eyeR = eyeL.clone(); eyeR.position.x = 0.04;
-            group.add(eyeL); group.add(eyeR);
-
-            // Bony legs
-            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.015, 0.35, 6), boneMat);
-            legL.position.set(-0.08, 0.18, 0);
-            const legR = legL.clone(); legR.position.x = 0.08;
-            group.add(legL); group.add(legR);
-
-            // Bony arms
-            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.015, 0.35, 6), boneMat);
-            armL.position.set(-0.18, 0.52, 0.05);
-            armL.rotation.x = Math.PI / 6;
-            const armR = armL.clone();
-            armR.position.x = 0.18;
-            armR.rotation.x = Math.PI / 4;
-            group.add(armL); group.add(armR);
-
-            // Rusty ancient blade in right hand
-            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.38, 0.01), new THREE.MeshStandardMaterial({ color: 0x6e584a, roughness: 0.75, metalness: 0.6 }));
-            blade.position.set(0.20, 0.60, 0.18);
-            blade.rotation.x = Math.PI / 3;
-            group.add(blade);
-
-        } else if (glyph === 'J' || glyph === 'n') {
-            // Snake / Serpent / Naga: Multi-segmented coiled body + raised cobra head
-            const scaleMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.50, metalness: 0.15 });
-            const numSegs = 6;
-            for (let i = 0; i < numSegs; i++) {
-                const segRad = 0.09 - i * 0.01;
-                const seg = new THREE.Mesh(new THREE.SphereGeometry(segRad, 8, 8), scaleMat);
-                const t = i / numSegs;
-                seg.position.set(Math.sin(t * Math.PI * 2) * 0.18, 0.08 + (i < 2 ? (2 - i) * 0.12 : 0), (i - 2) * 0.14);
-                group.add(seg);
-            }
-            const head = new THREE.Mesh(new THREE.ConeGeometry(0.10, 0.18, 8), scaleMat);
-            head.position.set(0, 0.38, -0.16);
-            head.rotation.x = -Math.PI / 4;
-            group.add(head);
-
-        } else if (glyph === 'S') {
-            // Spider / Scorpion: Cephalothorax, abdomen, 8 jointed legs, glowing eyes
-            const chitinMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.40, metalness: 0.35 });
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff1122 });
-
-            const thorax = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), chitinMat);
-            thorax.position.y = 0.22;
-            group.add(thorax);
-
-            const abdomen = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), chitinMat);
-            abdomen.position.set(0, 0.26, -0.28);
-            group.add(abdomen);
-
-            // 8 Jointed Legs
-            for (let i = 0; i < 4; i++) {
-                const zOff = (i - 1.5) * 0.10;
-                const legGeo = new THREE.CylinderGeometry(0.02, 0.015, 0.35, 6);
-
-                const legL = new THREE.Mesh(legGeo, chitinMat);
-                legL.position.set(-0.28, 0.20, zOff);
-                legL.rotation.z = Math.PI / 3;
-                const legR = legL.clone();
-                legR.position.x = 0.28;
-                legR.rotation.z = -Math.PI / 3;
-
-                group.add(legL); group.add(legR);
-            }
-
-            // Cluster of red eyes
-            for (let i = -1; i <= 1; i += 2) {
-                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), eyeMat);
-                eye.position.set(i * 0.05, 0.26, 0.13);
-                group.add(eye);
-            }
-
-        } else if (glyph === 'a' || glyph === 'K' || glyph === 'F' || glyph === 'I') {
-            // Insect: Ant / Killer Beetle / Fly (Segmented body + 6 legs + antennae)
-            const bugMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.45, metalness: 0.3 });
-            const thorax = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), bugMat);
-            thorax.position.y = 0.20;
-            group.add(thorax);
-
-            const abdomen = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), bugMat);
-            abdomen.position.set(0, 0.22, -0.20);
-            group.add(abdomen);
-
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), bugMat);
-            head.position.set(0, 0.22, 0.15);
-            group.add(head);
-
-            for (let i = 0; i < 3; i++) {
-                const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.012, 0.24, 6), bugMat);
-                legL.position.set(-0.18, 0.14, (i - 1) * 0.10);
-                legL.rotation.z = Math.PI / 3;
-                const legR = legL.clone();
-                legR.position.x = 0.18;
-                legR.rotation.z = -Math.PI / 3;
-                group.add(legL); group.add(legR);
-            }
-
-        } else if (glyph === 'd' || glyph === 'D' || glyph === 'M') {
-            // Dragon / Wyrm / Hydra: Scaled quadruped, horned head, leathery wings, tail
-            const dragonMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.50, metalness: 0.35 });
-            const bellyMat = new THREE.MeshStandardMaterial({ color: 0xecdca8, roughness: 0.60 });
-
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.45, 0.95), dragonMat);
-            body.position.y = 0.55;
-            group.add(body);
-
-            const belly = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.08, 0.85), bellyMat);
-            belly.position.y = 0.32;
-            group.add(belly);
-
-            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.55, 8), dragonMat);
-            neck.position.set(0, 0.80, 0.40);
-            neck.rotation.x = -Math.PI / 4;
-            group.add(neck);
-
-            const head = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.48, 8), dragonMat);
-            head.position.set(0, 0.95, 0.55);
-            head.rotation.x = Math.PI / 2;
-            group.add(head);
-
-            // Horns
-            const hornGeo = new THREE.ConeGeometry(0.04, 0.22, 6);
-            const hornL = new THREE.Mesh(hornGeo, dragonMat);
-            hornL.position.set(-0.12, 1.10, 0.45);
-            hornL.rotation.x = -Math.PI / 3;
-            const hornR = hornL.clone(); hornR.position.x = 0.12;
-            group.add(hornL); group.add(hornR);
-
-            // Large spreading wings
-            const wingMat = new THREE.MeshStandardMaterial({ color: darkColor, roughness: 0.65, side: THREE.DoubleSide });
-            const wingL = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.70), wingMat);
-            wingL.position.set(-0.60, 0.85, 0);
-            wingL.rotation.y = Math.PI / 5;
-            const wingR = wingL.clone();
-            wingR.position.x = 0.60;
-            wingR.rotation.y = -Math.PI / 5;
-            group.add(wingL); group.add(wingR);
-
-            // Spiked tail
-            const tail = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.75, 8), dragonMat);
-            tail.position.set(0, 0.42, -0.75);
-            tail.rotation.x = -Math.PI / 3;
-            group.add(tail);
-
-        } else if (glyph === 'j' || glyph === 'i') {
-            // Slime / Ooze / Jelly: Translucent pulsing dome + glowing inner core
-            const slimeMat = new THREE.MeshStandardMaterial({
-                color: mainColor,
-                roughness: 0.15,
-                metalness: 0.1,
-                transparent: true,
-                opacity: 0.78
-            });
-            const dome = new THREE.Mesh(new THREE.SphereGeometry(0.40, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), slimeMat);
-            dome.position.y = 0.0;
-            group.add(dome);
-
-            const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            const core = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 10), coreMat);
-            core.position.y = 0.18;
-            group.add(core);
-
-        } else if (glyph === 'e') {
-            // Beholder / Floating Eye: Sphere with central dilated pupil and radiating eyestalks
-            const orbMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.40, metalness: 0.15 });
-            const eyeOrb = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 14), orbMat);
-            eyeOrb.position.y = 0.65;
-            group.add(eyeOrb);
-
-            const pupilMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-            const pupil = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.04, 12), pupilMat);
-            pupil.position.set(0, 0.65, 0.34);
-            pupil.rotation.x = Math.PI / 2;
-            group.add(pupil);
-
-            for (let i = 0; i < 5; i++) {
-                const angle = (i / 5) * Math.PI - Math.PI / 2;
-                const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.28, 6), orbMat);
-                stalk.position.set(Math.sin(angle) * 0.25, 0.95, Math.cos(angle) * 0.15);
-                stalk.rotation.z = -angle * 0.5;
-                group.add(stalk);
-            }
-
-        } else if (glyph === 'z') {
-            // Zombie: Shambling rotting biped, tattered burial rags, outstretched arms
-            const fleshMat = new THREE.MeshStandardMaterial({ color: 0x4a5d44, roughness: 0.88 });
-            const ragMat = new THREE.MeshStandardMaterial({ color: 0x362c22, roughness: 0.95 });
-
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.48, 0.22), ragMat);
-            torso.position.y = 0.52;
-            torso.rotation.x = 0.12; // Hunched
-            group.add(torso);
-
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), fleshMat);
-            head.position.set(0, 0.82, 0.05);
-            group.add(head);
-
-            // Shambling outstretched rotting arms
-            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.040, 0.38, 6), fleshMat);
-            armL.position.set(-0.24, 0.60, 0.16);
-            armL.rotation.x = Math.PI / 2;
-            const armR = armL.clone();
-            armR.position.x = 0.24;
-            group.add(armL); group.add(armR);
-
-            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.050, 0.36, 6), ragMat);
-            legL.position.set(-0.10, 0.18, 0);
-            const legR = legL.clone();
-            legR.position.x = 0.10;
-            group.add(legL); group.add(legR);
-
-        } else if (glyph === 'W' || glyph === 'G' || glyph === 'L' || glyph === 'V') {
-            // Undead / Ghost / Wraith / Lich: Translucent glowing phantom with cyan eyes
-            const ghostMat = new THREE.MeshStandardMaterial({
-                color: mainColor,
-                emissive: mainColor,
-                emissiveIntensity: 0.45,
-                transparent: true,
-                opacity: 0.82,
-                roughness: 0.35
-            });
-            const cowl = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.95, 12), ghostMat);
-            cowl.position.y = 0.65;
-            group.add(cowl);
-
-            const skull = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), ghostMat);
-            skull.position.y = 0.95;
-            group.add(skull);
-
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), eyeMat);
-            eyeL.position.set(-0.05, 0.96, 0.15);
-            const eyeR = eyeL.clone(); eyeR.position.x = 0.05;
-            group.add(eyeL); group.add(eyeR);
-
-        } else if (glyph === 'b' || glyph === 'B') {
-            // Bat / Bird: Small body + dual flapping wings
-            const batMat = new THREE.MeshStandardMaterial({ color: 0x332822, roughness: 0.9 });
-            const body = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), batMat);
-            body.position.y = 0.65;
-            group.add(body);
-
-            const wingMat = new THREE.MeshStandardMaterial({ color: 0x221a15, roughness: 0.8, side: THREE.DoubleSide });
-            const wingL = new THREE.Mesh(new THREE.PlaneGeometry(0.40, 0.22), wingMat);
-            wingL.position.set(-0.25, 0.68, 0);
-            wingL.rotation.z = Math.PI / 8;
-            const wingR = wingL.clone();
-            wingR.position.x = 0.25;
-            wingR.rotation.z = -Math.PI / 8;
-            group.add(wingL); group.add(wingR);
-
-        } else if (glyph === 'm' || glyph === ',') {
-            // Mushroom / Fungi: Stalk + spotted cap
-            const stalkMat = new THREE.MeshStandardMaterial({ color: 0xded4b8, roughness: 0.85 });
-            const capMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.45, emissive: mainColor, emissiveIntensity: 0.25 });
-
-            const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.35, 8), stalkMat);
-            stalk.position.y = 0.18;
-            group.add(stalk);
-
-            const cap = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.20, 12), capMat);
-            cap.position.y = 0.42;
-            group.add(cap);
-
-        } else if (glyph === 'c') {
-            // Centipede: Multi-segmented creeping body + tiny legs
-            const centiMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.50, metalness: 0.25 });
-            for (let i = 0; i < 7; i++) {
-                const seg = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 6), centiMat);
-                seg.position.set(0, 0.08, (i - 3) * 0.12);
-                group.add(seg);
-                const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.12, 4), centiMat);
-                legL.position.set(-0.10, 0.06, (i - 3) * 0.12);
-                legL.rotation.z = Math.PI / 3;
-                const legR = legL.clone();
-                legR.position.x = 0.10;
-                legR.rotation.z = -Math.PI / 3;
-                group.add(legL); group.add(legR);
-            }
-
-        } else if (glyph === 'w') {
-            // Worm / Worm Mass: Annulated undulating tube
-            const wormMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.70 });
-            for (let i = 0; i < 6; i++) {
-                const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.12, 8), wormMat);
-                seg.position.set(Math.sin(i * 0.8) * 0.08, 0.08, (i - 2.5) * 0.14);
-                seg.rotation.x = Math.PI / 2;
-                group.add(seg);
-            }
-
-        } else if (glyph === 'P' || glyph === 'T' || glyph === 'O') {
-            // Giant / Troll / Ogre: Massive hulking brute
-            const skinMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.85 });
-            const loinMat = new THREE.MeshStandardMaterial({ color: 0x3d2716, roughness: 0.90 });
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.75, 0.45), skinMat);
-            torso.position.y = 0.85;
-            group.add(torso);
-            const loin = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.28, 0.48), loinMat);
-            loin.position.y = 0.52;
-            group.add(loin);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), skinMat);
-            head.position.y = 1.35;
-            group.add(head);
-            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.10, 0.65, 8), skinMat);
-            armL.position.set(-0.48, 0.80, 0);
-            const armR = armL.clone();
-            armR.position.x = 0.48;
-            group.add(armL); group.add(armR);
-            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.12, 0.50, 8), skinMat);
-            legL.position.set(-0.20, 0.25, 0);
-            const legR = legL.clone();
-            legR.position.x = 0.20;
-            group.add(legL); group.add(legR);
-            // Heavy club in right hand
-            const club = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.04, 0.75, 8), new THREE.MeshStandardMaterial({ color: 0x4a301a, roughness: 0.95 }));
-            club.position.set(0.52, 0.75, 0.25);
-            club.rotation.x = Math.PI / 4;
-            group.add(club);
-
-        } else if (glyph === 'u' || glyph === 'U') {
-            // Demon / Major Demon: Horned devil with wings & tail
-            const demonMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.55, metalness: 0.35 });
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.65, 0.32), demonMat);
-            torso.position.y = 0.72;
-            group.add(torso);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.28, 0.26), demonMat);
-            head.position.y = 1.15;
-            group.add(head);
-            const hornL = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.22, 6), demonMat);
-            hornL.position.set(-0.10, 1.35, 0.05);
-            hornL.rotation.z = -0.35;
-            const hornR = hornL.clone();
-            hornR.position.x = 0.10;
-            hornR.rotation.z = 0.35;
-            group.add(hornL); group.add(hornR);
-            const wingMat = new THREE.MeshStandardMaterial({ color: darkColor, side: THREE.DoubleSide });
-            const wingL = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.50), wingMat);
-            wingL.position.set(-0.45, 0.95, -0.15);
-            wingL.rotation.y = Math.PI / 4;
-            const wingR = wingL.clone();
-            wingR.position.x = 0.45;
-            wingR.rotation.y = -Math.PI / 4;
-            group.add(wingL); group.add(wingR);
-
-        } else if (glyph === 'l') {
-            // Ent / Animated Tree: Trunk, branches, foliage
-            const barkMat = new THREE.MeshStandardMaterial({ color: 0x3e2718, roughness: 0.95 });
-            const leafMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.75 });
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 1.10, 8), barkMat);
-            trunk.position.y = 0.55;
-            group.add(trunk);
-            const foliage = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 8), leafMat);
-            foliage.position.y = 1.35;
-            group.add(foliage);
-
-        } else if (glyph === '?') {
-            // Mimic: Treasure chest with lurking teeth
-            const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.8 });
-            const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 });
-            const chest = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.35, 0.38), woodMat);
-            chest.position.y = 0.18;
-            group.add(chest);
-            const lock = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.04), goldMat);
-            lock.position.set(0, 0.18, 0.20);
-            group.add(lock);
-
-        } else if (glyph === '$') {
-            // Creeping Coins: Gilded shimmering mound of coins
-            const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0x664400, metalness: 0.95, roughness: 0.15 });
-            const pile = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.35, 0.22, 12), coinMat);
-            pile.position.y = 0.11;
-            group.add(pile);
-
-        } else if (glyph === 'R') {
-            // Reptile / Amphibian / Frog: Low squat body, bulging eyes, splayed legs
-            const repMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.50 });
-            const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), repMat);
-            body.scale.set(1.0, 0.65, 1.2);
-            body.position.y = 0.16;
-            group.add(body);
-            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
-            eyeL.position.set(-0.10, 0.26, 0.16);
-            const eyeR = eyeL.clone();
-            eyeR.position.x = 0.10;
-            group.add(eyeL); group.add(eyeR);
-
-        } else if (glyph === 'q' || glyph === 'Q' || /\b(horse|pony|steed|unicorn|pegasus|mare|stallion|mount)\b/i.test(lower) || lower.includes('馬')) {
-            const isEquine = /\b(horse|pony|steed|unicorn|pegasus|mare|stallion|mount)\b/i.test(lower) ||
-                             lower.includes('馬') || lower.includes('ポニー') || lower.includes('ユニコーン') || lower.includes('ペガサス') ||
-                             lower.includes('スレイプニル') || lower.includes('黒王号') || lower.includes('明の明星');
-            if (isEquine) {
-                // Equine / Horse / Mount: Slender athletic body, arched neck, head, pointed ears, mane, tail & hooves
-                const isUnicorn = lower.includes('unicorn') || lower.includes('一角獣');
-                const isPegasus = lower.includes('pegasus') || lower.includes('天馬');
-
-                let coatColor = new THREE.Color(0x6e4526); // warm chestnut / bay fur
-                let maneColor = new THREE.Color(0x241a14); // dark mane & tail
-                if (isUnicorn || isPegasus) {
-                    coatColor = new THREE.Color(0xf6f8fc); // gleaming silver-white
-                    maneColor = new THREE.Color(0xe8f0f8);
-                } else if (lower.includes('black') || lower.includes('黒王号') || lower.includes('dark')) {
-                    coatColor = new THREE.Color(0x1a1816); // jet black war steed
-                    maneColor = new THREE.Color(0x100e0d);
-                } else if (colorHex && colorHex !== '#000000' && colorHex !== '#ffffff') {
-                    coatColor.lerp(mainColor, 0.40);
-                } else if (colorHex === '#ffffff') {
-                    coatColor = new THREE.Color(0xdcdad4); // dappled light grey
-                }
-
-                const horseMat = new THREE.MeshStandardMaterial({ color: coatColor, roughness: 0.70 });
-                const maneMat = new THREE.MeshStandardMaterial({ color: maneColor, roughness: 0.85 });
-                const hoofMat = new THREE.MeshStandardMaterial({ color: 0x1a1512, roughness: 0.45, metalness: 0.3 });
-                const muzzleMat = new THREE.MeshStandardMaterial({ color: 0x221812, roughness: 0.85 });
-                const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-
-                // Athletic barrel torso
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.40, 0.74), horseMat);
-                body.position.y = 0.52;
-                group.add(body);
-
-                // Leather riding saddle on withers
-                const saddleMat = new THREE.MeshStandardMaterial({ color: 0x3d2212, roughness: 0.65 });
-                const saddle = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.08, 0.30), saddleMat);
-                saddle.position.set(0, 0.73, 0.02);
-                group.add(saddle);
-
-                // Arched neck (tilted forward)
-                const neck = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.36, 0.22), horseMat);
-                neck.position.set(0, 0.74, 0.28);
-                neck.rotation.x = -0.35;
-                group.add(neck);
-
-                // Mane crest along neck
-                const mane = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.38, 0.14), maneMat);
-                mane.position.set(0, 0.77, 0.20);
-                mane.rotation.x = -0.35;
-                group.add(mane);
-
-                // Tapered equine head
-                const head = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.30), horseMat);
-                head.position.set(0, 0.88, 0.42);
-                group.add(head);
-
-                // Muzzle / nostrils at front of head
-                const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.13, 0.12), muzzleMat);
-                muzzle.position.set(0, 0.84, 0.58);
-                group.add(muzzle);
-
-                // Equine eyes (gentle dark eyes on sides)
-                const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 6), eyeMat);
-                eyeL.position.set(-0.092, 0.90, 0.44);
-                const eyeR = eyeL.clone();
-                eyeR.position.x = 0.092;
-                group.add(eyeL); group.add(eyeR);
-
-                // Pointed perked ears
-                const earGeo = new THREE.ConeGeometry(0.035, 0.10, 4);
-                const earL = new THREE.Mesh(earGeo, horseMat);
-                earL.position.set(-0.06, 1.00, 0.36);
-                const earR = new THREE.Mesh(earGeo, horseMat);
-                earR.position.set(0.06, 1.00, 0.36);
-                group.add(earL); group.add(earR);
-
-                // Unicorn Horn
-                if (isUnicorn) {
-                    const hornGeo = new THREE.ConeGeometry(0.025, 0.26, 6);
-                    const hornMat = new THREE.MeshStandardMaterial({
-                        color: 0xffffea,
-                        emissive: 0x66bbff,
-                        emissiveIntensity: 0.8,
-                        roughness: 0.2,
-                        metalness: 0.8
-                    });
-                    const horn = new THREE.Mesh(hornGeo, hornMat);
-                    horn.position.set(0, 1.04, 0.48);
-                    horn.rotation.x = -0.45;
-                    group.add(horn);
-                }
-
-                // Pegasus Wings
-                if (isPegasus) {
-                    const wingMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75, side: THREE.DoubleSide });
-                    const wingL = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.50), wingMat);
-                    wingL.position.set(-0.35, 0.78, 0.05);
-                    wingL.rotation.set(0, Math.PI / 4, Math.PI / 6);
-                    const wingR = wingL.clone();
-                    wingR.position.x = 0.35;
-                    wingR.rotation.set(0, -Math.PI / 4, -Math.PI / 6);
-                    group.add(wingL);
-                    group.add(wingR);
-                }
-
-                // Flowing tail
-                const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.02, 0.38, 6), maneMat);
-                tail.position.set(0, 0.42, -0.44);
-                tail.rotation.x = 0.30;
-                group.add(tail);
-
-                // 4 Slender legs with hooves
-                const legGeo = new THREE.CylinderGeometry(0.038, 0.03, 0.38, 6);
-                const hoofGeo = new THREE.CylinderGeometry(0.036, 0.042, 0.08, 6);
-                for (let i = 0; i < 4; i++) {
-                    const lx = (i % 2 === 0 ? -0.12 : 0.12);
-                    const lz = (i < 2 ? 0.24 : -0.24);
-                    const leg = new THREE.Mesh(legGeo, horseMat);
-                    leg.position.set(lx, 0.23, lz);
-                    group.add(leg);
-
-                    const hoof = new THREE.Mesh(hoofGeo, hoofMat);
-                    hoof.position.set(lx, 0.04, lz);
-                    group.add(hoof);
-                }
-            } else {
-                // Beast / Quadruped: Sturdy muscular body
-                const beastMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.85 });
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.65), beastMat);
-                body.position.y = 0.35;
-                group.add(body);
-                const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.28), beastMat);
-                head.position.set(0, 0.50, 0.38);
-                group.add(head);
-                const legGeo = new THREE.CylinderGeometry(0.05, 0.04, 0.28, 6);
-                for (let i = 0; i < 4; i++) {
-                    const leg = new THREE.Mesh(legGeo, beastMat);
-                    leg.position.set(i % 2 === 0 ? -0.14 : 0.14, 0.14, i < 2 ? 0.22 : -0.22);
-                    group.add(leg);
-                }
-            }
-
-        } else if (glyph === 'y' || glyph === 'Y') {
-            // Yeek / Yeti: Shaggy furry biped
-            const furMat = new THREE.MeshStandardMaterial({ color: glyph === 'Y' ? 0xf0f4f8 : mainColor, roughness: 0.95 });
-            const isYeti = (glyph === 'Y');
-            const scale = isYeti ? 1.4 : 0.65;
-            const body = new THREE.Mesh(new THREE.SphereGeometry(0.28 * scale, 10, 8), furMat);
-            body.position.y = 0.40 * scale;
-            group.add(body);
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.20 * scale, 10, 8), furMat);
-            head.position.y = 0.72 * scale;
-            group.add(head);
-
-        } else if (glyph === 'g') {
-            // Golem: Heavy stone blocks with glowing chest rune
-            const stoneMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.90, metalness: 0.10 });
-            const runeMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.65, 0.38), stoneMat);
-            torso.position.y = 0.68;
-            group.add(torso);
-            const rune = new THREE.Mesh(new THREE.PlaneGeometry(0.20, 0.20), runeMat);
-            rune.position.set(0, 0.75, 0.20);
-            group.add(rune);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.25, 0.28), stoneMat);
-            head.position.y = 1.10;
-            group.add(head);
-
-        } else if (glyph === 'E') {
-            // Elemental: Swirling incandescent vortex with core
-            const eleMat = new THREE.MeshStandardMaterial({
-                color: mainColor,
-                emissive: mainColor,
-                emissiveIntensity: 0.75,
-                roughness: 0.25,
-                transparent: true,
-                opacity: 0.85
-            });
-            const core = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25, 0), eleMat);
-            core.position.y = 0.65;
-            group.add(core);
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 20), eleMat);
-            ring.position.y = 0.65;
-            ring.rotation.x = Math.PI / 3;
-            group.add(ring);
-
-        } else {
-            // Sculpted Organic Brute / Mannequin with Tactical Normal Maps (eliminates blocky untextured shapes)
-            const bruteMat = new THREE.MeshStandardMaterial({
-                color: mainColor,
-                roughness: 0.70,
-                metalness: 0.15,
-                normalMap: this.organicNormal,
-                normalScale: new THREE.Vector2(0.85, 0.85)
-            });
-            const jointMat = new THREE.MeshStandardMaterial({
-                color: darkColor,
-                roughness: 0.85,
-                normalMap: this.chitinNormal
-            });
-
-            // Tapered muscular torso
-            const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.17, 0.44, 10), bruteMat);
-            chest.position.y = 0.68;
-            group.add(chest);
-
-            const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.20, 8), jointMat);
-            waist.position.y = 0.44;
-            group.add(waist);
-
-            // Sculpted rounded head with brow ridge
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), bruteMat);
-            head.position.y = 1.02;
-            group.add(head);
-
-            // Glowing focal eyes
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3322 });
-            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), eyeMat);
-            eyeL.position.set(-0.05, 1.04, 0.13);
-            const eyeR = eyeL.clone();
-            eyeR.position.x = 0.05;
-            group.add(eyeL); group.add(eyeR);
-
-            // Articulated rounded arms
-            const armGeo = new THREE.CylinderGeometry(0.05, 0.04, 0.42, 8);
-            const armL = new THREE.Mesh(armGeo, bruteMat);
-            armL.position.set(-0.28, 0.65, 0.04);
-            armL.rotation.x = Math.PI / 8;
-            armL.rotation.z = Math.PI / 16;
-            const armR = armL.clone();
-            armR.position.x = 0.28;
-            armR.rotation.z = -Math.PI / 16;
-            group.add(armL); group.add(armR);
-
-            // Articulated legs with feet
-            const legGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.38, 8);
-            const legL = new THREE.Mesh(legGeo, jointMat);
-            legL.position.set(-0.11, 0.20, 0);
-            const legR = legL.clone();
-            legR.position.x = 0.11;
-            group.add(legL); group.add(legR);
-        }
-
-        return group;
-    }
 
     // -------------------------------------------------------------------------
     // High-Fidelity Monster Model & Equipment Resolvers (Matching local Godot client 1:1)
@@ -7767,7 +7713,7 @@ class Dungeon3D {
         group.add(shroudMesh);
 
         // 2. Inner Glowing Core / Silhouette
-        const coreGeo = new THREE.CylinderGeometry(radius * 0.35, radius * 0.70, Math.max(0.45, modelHeight * 0.75), 12);
+        const coreGeo = new THREE.ConeGeometry(radius * 0.55, Math.max(0.45, modelHeight * 0.75), 10);
         const coreMat = new THREE.MeshBasicMaterial({
             color: 0xddffff,
             transparent: true,
@@ -7819,150 +7765,1376 @@ class Dungeon3D {
         return group;
     }
 
+    _cloneSkinnedGltf(sourceRoot) {
+        if (!sourceRoot) return null;
+        const clonedRoot = sourceRoot.clone(true);
+
+        const srcSkinnedMeshes = [];
+        const dstSkinnedMeshes = [];
+        sourceRoot.traverse(n => {
+            if (n.isSkinnedMesh) srcSkinnedMeshes.push(n);
+        });
+        clonedRoot.traverse(n => {
+            if (n.isSkinnedMesh) dstSkinnedMeshes.push(n);
+        });
+
+        for (let i = 0; i < srcSkinnedMeshes.length; i++) {
+            const srcMesh = srcSkinnedMeshes[i];
+            const dstMesh = dstSkinnedMeshes[i];
+            if (!dstMesh) continue;
+            dstMesh.frustumCulled = false;
+            dstMesh.castShadow = true;
+            dstMesh.receiveShadow = true;
+
+            // Scope bone collection strictly to dstMesh's parent Armature
+            let scope = dstMesh;
+            while (scope.parent && scope.parent.name !== 'Armature' && scope.parent.parent && scope.parent.parent.parent) {
+                if (scope.name === 'Armature') break;
+                scope = scope.parent;
+            }
+            if (scope.parent && scope.parent.name === 'Armature') scope = scope.parent;
+
+            const localBones = new Map();
+            scope.traverse(n => {
+                if (n.isBone && n.name) localBones.set(n.name, n);
+            });
+            if (localBones.size === 0) {
+                clonedRoot.traverse(n => {
+                    if (n.isBone && n.name) localBones.set(n.name, n);
+                });
+            }
+
+            if (srcMesh.skeleton && srcMesh.skeleton.bones) {
+                const newBones = srcMesh.skeleton.bones.map(b => localBones.get(b.name) || b);
+                const newInverses = srcMesh.skeleton.boneInverses ? srcMesh.skeleton.boneInverses.map(m => m.clone()) : [];
+                dstMesh.bind(new THREE.Skeleton(newBones, newInverses), srcMesh.bindMatrix ? srcMesh.bindMatrix.clone() : dstMesh.matrixWorld);
+            }
+        }
+
+        clonedRoot.traverse(c => {
+            if (c.geometry) c.geometry._sharedGeometry = true;
+            if (c.material) {
+                const mats = Array.isArray(c.material) ? c.material : [c.material];
+                for (const m of mats) {
+                    if (m) {
+                        m._sharedMaterial = true;
+                        if (m.map) m.map._sharedTexture = true;
+                        if (m.normalMap) m.normalMap._sharedTexture = true;
+                        if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
+                        if (m.metalnessMap) m.metalnessMap._sharedTexture = true;
+                        if (m.emissiveMap) m.emissiveMap._sharedTexture = true;
+                    }
+                }
+            }
+        });
+
+        return clonedRoot;
+    }
+
+    _poseRigNaturalStance(rootGroup, cfg = {}) {
+        if (!rootGroup) return;
+
+        const swingBoneTowardWorld = (bone, childBone, targetWorldDir) => {
+            if (!bone || !childBone) return;
+            rootGroup.updateMatrixWorld(true);
+            const p0 = bone.getWorldPosition(new THREE.Vector3());
+            const p1 = childBone.getWorldPosition(new THREE.Vector3());
+            const curDir = p1.sub(p0);
+            if (curDir.lengthSq() < 1e-8) return;
+            curDir.normalize();
+            const tgtDir = targetWorldDir.clone().normalize();
+            const qWorld = new THREE.Quaternion().setFromUnitVectors(curDir, tgtDir);
+            const parentWorldQ = new THREE.Quaternion();
+            if (bone.parent) bone.parent.getWorldQuaternion(parentWorldQ);
+            const localQ = parentWorldQ.clone().invert().multiply(qWorld).multiply(parentWorldQ);
+            bone.quaternion.premultiply(localQ);
+            rootGroup.updateMatrixWorld(true);
+        };
+
+        const armatures = [];
+        rootGroup.traverse(n => {
+            if (n.name === 'Armature' || (n.isBone && (!n.parent || !n.parent.isBone))) {
+                if (!armatures.includes(n)) armatures.push(n);
+            }
+        });
+        if (armatures.length === 0) armatures.push(rootGroup);
+
+        const rigBoneSets = [];
+        for (const armRoot of armatures) {
+            const boneMap = {};
+            armRoot.traverse(n => {
+                if (n.isBone && n.name) {
+                    boneMap[n.name] = n;
+                    boneMap[n.name.toLowerCase()] = n;
+                }
+            });
+
+            const getBone = (name) => boneMap[name] || boneMap[name.toLowerCase()] || null;
+
+            const upperarm_l = getBone('upperarm_l');
+            const upperarm_r = getBone('upperarm_r');
+            const lowerarm_l = getBone('lowerarm_l');
+            const lowerarm_r = getBone('lowerarm_r');
+            const hand_l = getBone('hand_l');
+            const hand_r = getBone('hand_r');
+            const clavicle_l = getBone('clavicle_l');
+            const clavicle_r = getBone('clavicle_r');
+            const spine_01 = getBone('spine_01');
+            const spine_02 = getBone('spine_02');
+            const neck_01 = getBone('neck_01');
+            const Head = getBone('Head') || getBone('head');
+            const thigh_l = getBone('thigh_l');
+            const thigh_r = getBone('thigh_r');
+            const calf_l = getBone('calf_l');
+            const calf_r = getBone('calf_r');
+
+            swingBoneTowardWorld(upperarm_l, lowerarm_l, new THREE.Vector3(0.18, -0.97, -0.04));
+            swingBoneTowardWorld(lowerarm_l, hand_l, cfg.shieldKey ? new THREE.Vector3(0.12, -0.45, 0.88) : new THREE.Vector3(0.08, -0.78, 0.62));
+            swingBoneTowardWorld(upperarm_r, lowerarm_r, new THREE.Vector3(-0.18, -0.97, -0.04));
+            swingBoneTowardWorld(lowerarm_r, hand_r, cfg.weaponKey ? new THREE.Vector3(-0.06, -0.42, 0.90) : new THREE.Vector3(-0.08, -0.78, 0.62));
+
+            if (thigh_l) thigh_l.rotateX(-0.08);
+            if (calf_l) calf_l.rotateX(0.10);
+            if (thigh_r) thigh_r.rotateX(0.06);
+            if (calf_r) calf_r.rotateX(0.08);
+            if (spine_01) {
+                spine_01.rotateY(0.08);
+                if (cfg.hunched) spine_01.rotateX(0.20);
+            }
+
+            const rigBones = {
+                upperarm_l, upperarm_r,
+                lowerarm_l, lowerarm_r,
+                hand_l, hand_r,
+                clavicle_l, clavicle_r,
+                spine_01, spine_02, neck_01, Head,
+                thigh_l, thigh_r, calf_l, calf_r
+            };
+
+            for (const [k, bone] of Object.entries(rigBones)) {
+                if (bone) {
+                    bone._restQuat = bone.quaternion.clone();
+                }
+            }
+
+            if (upperarm_l || upperarm_r) {
+                rigBoneSets.push(rigBones);
+            }
+        }
+
+        rootGroup.updateMatrixWorld(true);
+        rootGroup._rigBoneSets = rigBoneSets.length > 0 ? rigBoneSets : null;
+        rootGroup._rigBones = rigBoneSets[0] || null;
+    }
+
+    _filterInnerBodyHeadAndHands(bodyScene, includeForearms = false) {
+        if (!bodyScene) return;
+        bodyScene.traverse(child => {
+            if ((child.isMesh || child.isSkinnedMesh) && child.geometry) {
+                const name = (child.name || '') + (child.geometry.name || '');
+                if (name.includes('Sphere.005') || name.includes('Retopology') || name.includes('Superhero_Female') || name.includes('SuperHero_Male')) {
+                    const geo = child.geometry.clone();
+                    const skinIndex = geo.attributes.skinIndex;
+                    const pos = geo.attributes.position;
+                    const bones = (child.skeleton && child.skeleton.bones) ? child.skeleton.bones : [];
+                    const allowedJoints = new Set();
+                    for (let j = 0; j < bones.length; j++) {
+                        const bName = (bones[j] && bones[j].name) ? bones[j].name : '';
+                        if (/^(Head|head|neck_01|hand_[lr]|thumb_|index_|middle_|ring_|pinky_)/i.test(bName)) {
+                            allowedJoints.add(j);
+                        } else if (includeForearms && /^(lowerarm_[lr]|upperarm_[lr])/i.test(bName)) {
+                            allowedJoints.add(j);
+                        }
+                    }
+                    if (includeForearms && pos && geo.attributes.normal) {
+                        const norm = geo.attributes.normal;
+                        for (let v = 0; v < pos.count; v++) {
+                            if (pos.getY(v) < 1.44 && Math.abs(pos.getX(v)) < 0.44) {
+                                pos.setXYZ(
+                                    v,
+                                    pos.getX(v) - norm.getX(v) * 0.014,
+                                    pos.getY(v) - norm.getY(v) * 0.014,
+                                    pos.getZ(v) - norm.getZ(v) * 0.014
+                                );
+                            }
+                        }
+                        pos.needsUpdate = true;
+                    }
+                    if (geo.index && skinIndex && allowedJoints.size > 0) {
+                        const oldIdx = geo.index.array;
+                        const kept = [];
+                        for (let i = 0; i < oldIdx.length; i += 3) {
+                            const a = oldIdx[i], b = oldIdx[i + 1], c = oldIdx[i + 2];
+                            const ja = skinIndex.getX(a), jb = skinIndex.getX(b), jc = skinIndex.getX(c);
+                            if (allowedJoints.has(ja) && allowedJoints.has(jb) && allowedJoints.has(jc)) {
+                                kept.push(a, b, c);
+                            }
+                        }
+                        geo.setIndex(kept);
+                    } else if (geo.index && pos) {
+                        const oldIdx = geo.index.array;
+                        const kept = [];
+                        const xMin = includeForearms ? 0.36 : 0.54;
+                        for (let i = 0; i < oldIdx.length; i += 3) {
+                            const a = oldIdx[i], b = oldIdx[i + 1], c = oldIdx[i + 2];
+                            const keepVert = (v) => pos.getY(v) >= 1.46 || Math.abs(pos.getX(v)) >= xMin;
+                            if (keepVert(a) && keepVert(b) && keepVert(c)) {
+                                kept.push(a, b, c);
+                            }
+                        }
+                        geo.setIndex(kept);
+                    }
+                    child.geometry = geo;
+                }
+            }
+        });
+    }
+
+    _prepareRangerUndertunic(peasantScene) {
+        if (!peasantScene) return;
+        peasantScene.traverse(child => {
+            if (child.isMesh || child.isSkinnedMesh) {
+                const name = child.name || '';
+                if (/Feet|Arms/i.test(name)) {
+                    child.visible = false;
+                } else if (/Body|Legs/i.test(name)) {
+                    if (child.material) {
+                        child.material = Array.isArray(child.material) ? child.material[0].clone() : child.material.clone();
+                        child.material.color = new THREE.Color(0x38342c);
+                    }
+                    if (child.geometry && child.geometry.attributes && child.geometry.attributes.position && child.geometry.attributes.normal) {
+                        const geo = child.geometry.clone();
+                        const pos = geo.attributes.position;
+                        const norm = geo.attributes.normal;
+                        for (let i = 0; i < pos.count; i++) {
+                            pos.setXYZ(
+                                i,
+                                pos.getX(i) - norm.getX(i) * 0.006,
+                                pos.getY(i) - norm.getY(i) * 0.006,
+                                pos.getZ(i) - norm.getZ(i) * 0.006
+                            );
+                        }
+                        pos.needsUpdate = true;
+                        child.geometry = geo;
+                    }
+                }
+            }
+        });
+    }
+
+    _loadSingleGltfScene(url) {
+        const loader = this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
+        if (!loader) return Promise.reject(new Error('GLTFLoader not available'));
+        return new Promise((resolve, reject) => {
+            loader.load(url, gltf => {
+                const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+                if (!scene) {
+                    reject(new Error(`No scene in GLTF: ${url}`));
+                } else {
+                    resolve(scene);
+                }
+            }, undefined, reject);
+        });
+    }
+
+    _loadSingleObjScene(url) {
+        const loader = this.objLoader || (typeof THREE.OBJLoader !== 'undefined' ? new THREE.OBJLoader() : null);
+        if (!loader) return Promise.reject(new Error('OBJLoader not available'));
+        return new Promise((resolve, reject) => {
+            loader.load(url, obj => {
+                if (!obj) {
+                    reject(new Error(`No obj in: ${url}`));
+                } else {
+                    resolve(obj);
+                }
+            }, undefined, reject);
+        });
+    }
+
+    _loadTexturePbr(url, isColor = false) {
+        if (!this._texLoader) {
+            this._texLoader = new THREE.TextureLoader();
+        }
+        return new Promise(resolve => {
+            this._texLoader.load(url, tex => {
+                tex.flipY = false;
+                tex._sharedTexture = true;
+                if (isColor && typeof THREE.sRGBEncoding !== 'undefined') {
+                    tex.encoding = THREE.sRGBEncoding;
+                }
+                resolve(tex);
+            }, undefined, () => resolve(null));
+        });
+    }
+
+    _ensureMonster3DTemplate(templateKey) {
+        if (!this._monster3DTemplates) this._monster3DTemplates = new Map();
+        if (!this._monster3DLoading) this._monster3DLoading = new Map();
+
+        if (this._monster3DTemplates.has(templateKey)) {
+            return Promise.resolve(this._monster3DTemplates.get(templateKey));
+        }
+        if (this._monster3DLoading.has(templateKey)) {
+            return this._monster3DLoading.get(templateKey);
+        }
+
+        if (templateKey === 'ph_chest') {
+            const p = this._ensurePolyHavenFloorItem('ph_chest').then(tmpl => {
+                this._monster3DTemplates.set(templateKey, tmpl);
+                this._monster3DLoading.delete(templateKey);
+                this.upgradeAllMonsterEntities();
+                return tmpl;
+            }).catch(err => {
+                this._monster3DLoading.delete(templateKey);
+                throw err;
+            });
+            this._monster3DLoading.set(templateKey, p);
+            return p;
+        }
+
+        const tagTemplate = (tmpl) => {
+            tmpl.traverse(c => {
+                if (c.geometry) c.geometry._sharedGeometry = true;
+                if (c.material) {
+                    const mats = Array.isArray(c.material) ? c.material : [c.material];
+                    for (const m of mats) {
+                        if (m) {
+                            m._sharedMaterial = true;
+                            if (m.map) m.map._sharedTexture = true;
+                            if (m.normalMap) m.normalMap._sharedTexture = true;
+                            if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
+                            if (m.metalnessMap) m.metalnessMap._sharedTexture = true;
+                            if (m.emissiveMap) m.emissiveMap._sharedTexture = true;
+                        }
+                    }
+                }
+            });
+            return tmpl;
+        };
+
+        const normalizeWrapper = (content, targetDim, isHeightOnly, yawOffset = 0) => {
+            content.updateMatrixWorld(true);
+            const bbox = new THREE.Box3().setFromObject(content);
+            const size = new THREE.Vector3();
+            bbox.getSize(size);
+            const center = new THREE.Vector3();
+            bbox.getCenter(center);
+            const dim = isHeightOnly ? (size.y || 1.0) : (Math.max(size.x, size.y, size.z) || 1.0);
+            const scale = targetDim / dim;
+
+            const wrapper = new THREE.Group();
+            const pivot = new THREE.Group();
+            pivot.add(content);
+            content.position.set(-center.x, -bbox.min.y, -center.z);
+            if (yawOffset !== 0) {
+                pivot.rotation.y = yawOffset;
+            }
+            pivot.scale.set(scale, scale, scale);
+            wrapper.add(pivot);
+            wrapper.actualHeight = (size.y || 1.0) * scale;
+            wrapper.baseHeight = wrapper.actualHeight;
+            wrapper.baseWidth = Math.max(size.x || 0.5, size.z || 0.5) * scale;
+            return tagTemplate(wrapper);
+        };
+
+        let loadPromise = null;
+
+        if (templateKey === 'char_male_peasant') {
+            loadPromise = Promise.all([
+                this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
+                this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf'),
+                this._loadSingleGltfScene('/assets/models/characters/Hair_SimpleParted.gltf')
+            ]).then(([outfit, body, hair]) => {
+                this._filterInnerBodyHeadAndHands(body, true);
+                hair.traverse(c => {
+                    if (c.isMesh && c.material) {
+                        c.material = Array.isArray(c.material) ? c.material[0].clone() : c.material.clone();
+                        c.material.color = new THREE.Color(0x3b2a1e);
+                    }
+                });
+                const grp = new THREE.Group();
+                grp.add(outfit);
+                grp.add(body);
+                grp.add(hair);
+                return normalizeWrapper(grp, 1.70, true);
+            });
+        } else if (templateKey === 'char_male_peasant_bearded') {
+            loadPromise = Promise.all([
+                this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
+                this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf'),
+                this._loadSingleGltfScene('/assets/models/characters/Hair_Beard.gltf')
+            ]).then(([outfit, body, hair]) => {
+                this._filterInnerBodyHeadAndHands(body, true);
+                const grp = new THREE.Group();
+                grp.add(outfit);
+                grp.add(body);
+                grp.add(hair);
+                return normalizeWrapper(grp, 1.70, true);
+            });
+        } else if (templateKey === 'char_female_peasant') {
+            loadPromise = Promise.all([
+                this._loadSingleGltfScene('/assets/models/characters/Female_Peasant.gltf'),
+                this._loadSingleGltfScene('/assets/models/characters/Superhero_Female_FullBody.gltf'),
+                this._loadSingleGltfScene('/assets/models/characters/Hair_Long.gltf')
+            ]).then(([outfit, body, hair]) => {
+                this._filterInnerBodyHeadAndHands(body, true);
+                const grp = new THREE.Group();
+                grp.add(outfit);
+                grp.add(body);
+                grp.add(hair);
+                return normalizeWrapper(grp, 1.64, true);
+            });
+        } else if (templateKey === 'char_male_ranger') {
+            loadPromise = Promise.all([
+                this._loadSingleGltfScene('/assets/models/characters/Male_Ranger.gltf'),
+                this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
+                this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf')
+            ]).then(([outfit, peasant, body]) => {
+                this._prepareRangerUndertunic(peasant);
+                this._filterInnerBodyHeadAndHands(body, false);
+                const grp = new THREE.Group();
+                grp.add(outfit);
+                grp.add(peasant);
+                grp.add(body);
+                return normalizeWrapper(grp, 1.78, true);
+            });
+        } else if (templateKey === 'char_female_ranger') {
+            loadPromise = Promise.all([
+                this._loadSingleGltfScene('/assets/models/characters/Female_Ranger.gltf'),
+                this._loadSingleGltfScene('/assets/models/characters/Female_Peasant.gltf'),
+                this._loadSingleGltfScene('/assets/models/characters/Superhero_Female_FullBody.gltf')
+            ]).then(([outfit, peasant, body]) => {
+                this._prepareRangerUndertunic(peasant);
+                this._filterInnerBodyHeadAndHands(body, false);
+                const grp = new THREE.Group();
+                grp.add(outfit);
+                grp.add(peasant);
+                grp.add(body);
+                return normalizeWrapper(grp, 1.72, true);
+            });
+        } else if (templateKey === 'bestiary_puglin') {
+            loadPromise = Promise.all([
+                this._loadSingleGltfScene('/assets/models/monsters/Puglin.glb'),
+                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Puglin_BaseColor_1.png', true),
+                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Puglin_Normal.png', false),
+                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Puglin_ORM.png', false),
+                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Puglin_Emissive.png', true)
+            ]).then(([scene, baseTex, normTex, ormTex, emiTex]) => {
+                const mat = new THREE.MeshStandardMaterial({
+                    map: baseTex,
+                    normalMap: normTex,
+                    roughnessMap: ormTex,
+                    metalnessMap: ormTex,
+                    emissiveMap: emiTex,
+                    emissive: new THREE.Color(0xffffff),
+                    emissiveIntensity: 0.6,
+                    roughness: 0.78,
+                    metalness: 0.15,
+                    skinning: true
+                });
+                scene.traverse(c => {
+                    if (c.isMesh) {
+                        c.material = mat;
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                return normalizeWrapper(scene, 1.22, true);
+            });
+        } else if (templateKey === 'bestiary_imp') {
+            loadPromise = Promise.all([
+                this._loadSingleGltfScene('/assets/models/monsters/Imp.glb'),
+                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Imp_BaseColor_1.png', true),
+                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Imp_Normal.png', false),
+                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Imp_ORM.png', false),
+                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Imp_Emissive.png', true)
+            ]).then(([scene, baseTex, normTex, ormTex, emiTex]) => {
+                const mat = new THREE.MeshStandardMaterial({
+                    map: baseTex,
+                    normalMap: normTex,
+                    roughnessMap: ormTex,
+                    metalnessMap: ormTex,
+                    emissiveMap: emiTex,
+                    emissive: new THREE.Color(0xffffff),
+                    emissiveIntensity: 0.6,
+                    roughness: 0.78,
+                    metalness: 0.15,
+                    skinning: true
+                });
+                scene.traverse(c => {
+                    if (c.isMesh) {
+                        c.material = mat;
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                return normalizeWrapper(scene, 1.50, true);
+            });
+        } else if (templateKey === 'bestiary_dragon') {
+            loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Dragon.glb').then(scene => {
+                const toRemove = [];
+                scene.traverse(c => {
+                    if (c.name && (c.name.includes('Backdrop') || c.name.includes('Cloth'))) {
+                        toRemove.push(c);
+                    }
+                });
+                for (const c of toRemove) {
+                    if (c.parent) c.parent.remove(c);
+                }
+                scene.traverse(c => {
+                    if (c.isMesh || c.isSkinnedMesh) {
+                        if (c.geometry && c.geometry.attributes && c.geometry.attributes.color) {
+                            c.geometry.deleteAttribute('color');
+                        }
+                        if (c.geometry) c.geometry.computeVertexNormals();
+                        c.material = new THREE.MeshStandardMaterial({
+                            color: 0xb83828,
+                            roughness: 0.65,
+                            metalness: 0.08,
+                            emissive: new THREE.Color(0x221a14),
+                            emissiveIntensity: 0.22,
+                            normalMap: this.townPermWallNormal || this.wallNormal,
+                            normalScale: new THREE.Vector2(0.45, 0.45),
+                            skinning: Boolean(c.isSkinnedMesh)
+                        });
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                return normalizeWrapper(scene, 1.65, false, 0.42);
+            });
+        } else if (templateKey === 'bestiary_fox') {
+            loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Fox.glb').then(scene => {
+                const grp = new THREE.Group();
+                const foxMat = new THREE.MeshStandardMaterial({
+                    color: 0xa86838,
+                    roughness: 0.68,
+                    metalness: 0.06,
+                    emissive: new THREE.Color(0x241a12),
+                    emissiveIntensity: 0.24,
+                    normalMap: this.townFloorNormal || this.floorNormal,
+                    normalScale: new THREE.Vector2(0.55, 0.55)
+                });
+                scene.traverse(c => {
+                    if ((c.isMesh || c.isSkinnedMesh) && c.geometry) {
+                        const g = c.geometry.clone();
+                        if (g.attributes.color) g.deleteAttribute('color');
+                        if (g.attributes.skinIndex) g.deleteAttribute('skinIndex');
+                        if (g.attributes.skinWeight) g.deleteAttribute('skinWeight');
+                        g.computeVertexNormals();
+                        const m = new THREE.Mesh(g, foxMat);
+                        m.castShadow = true;
+                        m.receiveShadow = true;
+                        grp.add(m);
+                    }
+                });
+                return normalizeWrapper(grp, 1.05, false, 0.52);
+            });
+        } else if (templateKey === 'bestiary_horse') {
+            loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Horse.glb').then(scene => {
+                scene.traverse(c => {
+                    if (c.isMesh || c.isSkinnedMesh) {
+                        if (c.geometry && c.geometry.attributes && c.geometry.attributes.color) {
+                            c.geometry.deleteAttribute('color');
+                        }
+                        if (c.geometry) c.geometry.computeVertexNormals();
+                        c.material = new THREE.MeshStandardMaterial({
+                            color: 0x7c5436,
+                            roughness: 0.65,
+                            metalness: 0.08,
+                            emissive: new THREE.Color(0x221a14),
+                            emissiveIntensity: 0.22,
+                            normalMap: this.townFloorNormal || this.floorNormal,
+                            normalScale: new THREE.Vector2(0.45, 0.45),
+                            skinning: Boolean(c.isSkinnedMesh)
+                        });
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                return normalizeWrapper(scene, 1.45, false, 0.42);
+            });
+        } else if (templateKey === 'bestiary_bird') {
+            loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Parrot.glb').then(scene => {
+                scene.traverse(c => {
+                    if (c.isMesh || c.isSkinnedMesh) {
+                        if (c.geometry && c.geometry.attributes && c.geometry.attributes.color) {
+                            c.geometry.deleteAttribute('color');
+                        }
+                        if (c.geometry) c.geometry.computeVertexNormals();
+                        c.material = new THREE.MeshStandardMaterial({
+                            color: 0x6a5848,
+                            roughness: 0.65,
+                            metalness: 0.08,
+                            emissive: new THREE.Color(0x221a14),
+                            emissiveIntensity: 0.22,
+                            normalMap: this.townFloorNormal || this.floorNormal,
+                            normalScale: new THREE.Vector2(0.45, 0.45),
+                            skinning: Boolean(c.isSkinnedMesh)
+                        });
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                return normalizeWrapper(scene, 0.68, false);
+            });
+        } else if (templateKey === 'bestiary_skull') {
+            loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Skull.glb').then(scene => {
+                scene.traverse(c => {
+                    if (c.isMesh || c.isSkinnedMesh) {
+                        if (c.geometry && c.geometry.attributes && c.geometry.attributes.color) {
+                            c.geometry.deleteAttribute('color');
+                        }
+                        if (c.geometry) c.geometry.computeVertexNormals();
+                        c.material = new THREE.MeshStandardMaterial({
+                            color: 0xd8d4cc,
+                            roughness: 0.65,
+                            metalness: 0.08,
+                            emissive: new THREE.Color(0x221a14),
+                            emissiveIntensity: 0.22,
+                            normalMap: this.townFloorNormal || this.floorNormal,
+                            normalScale: new THREE.Vector2(0.45, 0.45),
+                            skinning: Boolean(c.isSkinnedMesh)
+                        });
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                return normalizeWrapper(scene, 0.68, false);
+            });
+        } else if (templateKey === 'ph_street_rat') {
+            loadPromise = this._loadSingleGltfScene('/assets/polyhaven/models/street_rat/street_rat.gltf').then(scene => {
+                scene.traverse(c => {
+                    if (c.isMesh) {
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                return normalizeWrapper(scene, 0.58, false, 0.42);
+            });
+        } else if (templateKey === 'bestiary_ant') {
+            loadPromise = this._loadSingleObjScene('/assets/models/monsters/Wasp.obj').then(scene => {
+                const antMat = new THREE.MeshStandardMaterial({
+                    color: 0x8b3a22,
+                    roughness: 0.30,
+                    metalness: 0.38,
+                    emissive: new THREE.Color(0x1a0c08),
+                    emissiveIntensity: 0.18,
+                    normalMap: this.townPermWallNormal || this.wallNormal,
+                    normalScale: new THREE.Vector2(0.8, 0.8)
+                });
+                scene.traverse(c => {
+                    if (c.isMesh && c.geometry && c.geometry.attributes && c.geometry.attributes.position) {
+                        const pos = c.geometry.attributes.position;
+                        for (let i = 0; i < pos.count; i++) {
+                            if (pos.getY(i) > 0.25 && Math.abs(pos.getX(i)) > 0.15) {
+                                pos.setXYZ(i, pos.getX(i) * 0.2, 0.12, pos.getZ(i));
+                            }
+                        }
+                        pos.needsUpdate = true;
+                        c.geometry.computeVertexNormals();
+                        c.material = antMat;
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                scene.scale.set(0.75, 0.58, 1.28);
+                return normalizeWrapper(scene, 0.62, false, 0.42);
+            });
+        } else if (templateKey === 'bestiary_beetle') {
+            loadPromise = this._loadSingleObjScene('/assets/models/monsters/Spider.obj').then(scene => {
+                const beetleMat = new THREE.MeshStandardMaterial({
+                    color: 0x2c4d63,
+                    roughness: 0.22,
+                    metalness: 0.62,
+                    emissive: new THREE.Color(0x0c1822),
+                    emissiveIntensity: 0.18,
+                    normalMap: this.townPermWallNormal || this.wallNormal,
+                    normalScale: new THREE.Vector2(0.9, 0.9)
+                });
+                scene.traverse(c => {
+                    if (c.isMesh) {
+                        if (c.geometry) c.geometry.computeVertexNormals();
+                        c.material = beetleMat;
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                scene.scale.set(1.18, 0.68, 1.22);
+                return normalizeWrapper(scene, 0.60, false, 0.35);
+            });
+        } else if (templateKey === 'bestiary_centipede') {
+            loadPromise = this._loadSingleObjScene('/assets/models/monsters/Spider.obj').then(scene => {
+                const centipedeMat = new THREE.MeshStandardMaterial({
+                    color: 0x2e7a34,
+                    roughness: 0.32,
+                    metalness: 0.35,
+                    emissive: new THREE.Color(0x0a220c),
+                    emissiveIntensity: 0.22,
+                    normalMap: this.townPermWallNormal || this.wallNormal,
+                    normalScale: new THREE.Vector2(1.0, 1.0)
+                });
+                scene.traverse(c => {
+                    if (c.isMesh) {
+                        if (c.geometry) c.geometry.computeVertexNormals();
+                        c.material = centipedeMat;
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                scene.updateMatrixWorld(true);
+                const segBox = new THREE.Box3().setFromObject(scene);
+                const segSize = new THREE.Vector3();
+                segBox.getSize(segSize);
+                const segStep = (segSize.z || 1.0) * 0.38;
+                const grp = new THREE.Group();
+                for (let seg = 0; seg < 5; seg++) {
+                    const part = scene.clone(true);
+                    const taper = (seg === 0 || seg === 4) ? 0.82 : 1.0;
+                    part.scale.set(0.56 * taper, 0.42 * taper, 0.48);
+                    part.position.set(
+                        Math.sin(seg * 1.15) * (segSize.x || 1.0) * 0.08,
+                        0,
+                        (seg - 2) * segStep
+                    );
+                    grp.add(part);
+                }
+                return normalizeWrapper(grp, 0.94, false, 0.55);
+            });
+        } else if (templateKey === 'env_tanglethorn') {
+            loadPromise = Promise.all([
+                this._loadSingleGltfScene('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf'),
+                this._loadTexturePbr('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_diff_1k.jpg', true),
+                this._loadTexturePbr('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_diff_1k.jpg', true)
+            ]).then(([scene, barkTex, leavesTex]) => {
+                const grp = new THREE.Group();
+                const brambleBarkMat = new THREE.MeshStandardMaterial({
+                    color: 0x6b4c32,
+                    map: barkTex || (this.treeTrunkMat ? this.treeTrunkMat.map : null),
+                    roughness: 0.88,
+                    metalness: 0.05,
+                    emissive: new THREE.Color(0x160f09),
+                    emissiveIntensity: 0.18,
+                    normalMap: this.treeBarkNormal || this.wallNormal,
+                    side: THREE.DoubleSide
+                });
+                const brambleThornMat = new THREE.MeshStandardMaterial({
+                    color: 0x5c7d36,
+                    map: leavesTex || (this.treeLeavesMat ? this.treeLeavesMat.map : null),
+                    alphaTest: 0.35,
+                    roughness: 0.72,
+                    metalness: 0.06,
+                    emissive: new THREE.Color(0x121c08),
+                    emissiveIntensity: 0.20,
+                    normalMap: this.treeBarkNormal || this.wallNormal,
+                    side: THREE.DoubleSide
+                });
+                scene.traverse(child => {
+                    if (child.isMesh && child.geometry) {
+                        const name = ((child.name || '') + ' ' + (child.parent ? child.parent.name || '' : '')).toLowerCase();
+                        const isBark = name.includes('bark_b') || name.includes('bark_c') || name.includes('circle.001') || name.includes('plane.002');
+                        const isFoliage = name.includes('leaves_b') || name.includes('cylinder.118');
+                        if (isBark || isFoliage) {
+                            const g = child.geometry.clone();
+                            if (g.attributes.color) g.deleteAttribute('color');
+                            const m = new THREE.Mesh(g, isBark ? brambleBarkMat : brambleThornMat);
+                            m.position.set(0, 0, 0);
+                            m.rotation.set(0, isBark ? 0.6 : 0, 0);
+                            m.castShadow = true;
+                            m.receiveShadow = true;
+                            grp.add(m);
+                        }
+                    }
+                });
+                return normalizeWrapper(grp, 1.32, false, 0.25);
+            });
+        } else if (templateKey === 'env_fungi_cluster') {
+            loadPromise = this._loadSingleGltfScene('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf').then(scene => {
+                const grp = new THREE.Group();
+                const fungiMat = new THREE.MeshStandardMaterial({
+                    color: 0x7c688b,
+                    roughness: 0.55,
+                    metalness: 0.10,
+                    emissive: new THREE.Color(0x281838),
+                    emissiveIntensity: 0.35,
+                    normalMap: this.townPermWallNormal || this.wallNormal
+                });
+                scene.traverse(c => {
+                    if (c.isMesh) {
+                        c.material = fungiMat;
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                const cap1 = scene.clone();
+                cap1.position.set(0, 0, 0);
+                cap1.scale.set(0.9, 0.6, 0.9);
+                grp.add(cap1);
+
+                const cap2 = scene.clone();
+                cap2.position.set(0.24, -0.06, 0.14);
+                cap2.scale.set(0.65, 0.45, 0.65);
+                grp.add(cap2);
+
+                const cap3 = scene.clone();
+                cap3.position.set(-0.20, -0.08, -0.16);
+                cap3.scale.set(0.52, 0.38, 0.52);
+                grp.add(cap3);
+
+                return normalizeWrapper(grp, 0.58, false, 0.20);
+            });
+        } else if (templateKey === 'env_ooze_mound') {
+            loadPromise = this._loadSingleGltfScene('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf').then(scene => {
+                const oozeMat = new THREE.MeshStandardMaterial({
+                    color: 0x48a868,
+                    roughness: 0.12,
+                    metalness: 0.18,
+                    transparent: true,
+                    opacity: 0.85,
+                    emissive: new THREE.Color(0x143820),
+                    emissiveIntensity: 0.28,
+                    normalMap: this.townFloorNormal || this.floorNormal
+                });
+                scene.traverse(c => {
+                    if (c.isMesh) {
+                        c.material = oozeMat;
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                scene.scale.set(1.25, 0.55, 1.25);
+                return normalizeWrapper(scene, 0.65, false, 0.20);
+            });
+        } else if (templateKey === 'obj_spider' || templateKey === 'obj_snake' || templateKey === 'obj_wasp' || templateKey === 'obj_frog') {
+            const objFileMap = {
+                obj_spider: '/assets/models/monsters/Spider.obj',
+                obj_snake: '/assets/models/monsters/Snake_angry.obj',
+                obj_wasp: '/assets/models/monsters/Wasp.obj',
+                obj_frog: '/assets/models/monsters/Frog.obj'
+            };
+            loadPromise = this._loadSingleObjScene(objFileMap[templateKey]).then(scene => {
+                const isSpider = (templateKey === 'obj_spider');
+                const pbrMat = new THREE.MeshStandardMaterial({
+                    color: isSpider ? 0x3b2e25 : 0x6a645c,
+                    roughness: isSpider ? 0.36 : 0.48,
+                    metalness: isSpider ? 0.26 : 0.18,
+                    emissive: new THREE.Color(isSpider ? 0x120c08 : 0x100e0c),
+                    emissiveIntensity: 0.18,
+                    normalMap: this.townPermWallNormal || this.wallNormal,
+                    normalScale: new THREE.Vector2(1.1, 1.1)
+                });
+                scene.traverse(c => {
+                    if (c.isMesh) {
+                        if (c.geometry) c.geometry.computeVertexNormals();
+                        c.material = pbrMat;
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                return normalizeWrapper(scene, isSpider ? 0.82 : 0.78, false, isSpider ? 0.35 : 0);
+            });
+        } else {
+            return Promise.reject(new Error(`Unknown 3D monster template key: ${templateKey}`));
+        }
+
+        const managedPromise = loadPromise.then(wrapper => {
+            this._monster3DTemplates.set(templateKey, wrapper);
+            this._monster3DLoading.delete(templateKey);
+            this.upgradeAllMonsterEntities();
+            return wrapper;
+        }).catch(err => {
+            this._monster3DLoading.delete(templateKey);
+            console.warn(`[Dungeon3D] Failed to load 3D monster template ${templateKey}:`, err);
+            throw err;
+        });
+
+        this._monster3DLoading.set(templateKey, managedPromise);
+        return managedPromise;
+    }
+
+    resolveMonster3DConfig(m, glyph) {
+        let rawName = (m && (m.race || m.name)) || '';
+        if (typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
+            rawName = window.HengTranslate.translateName(rawName, 1, 'en') || rawName;
+        }
+        const lower = rawName.toLowerCase();
+        const g = (glyph || (m && m.glyph) || '?').trim();
+
+        // 0a. Plants, Tanglethorns, Brambles, Trees, Huorns
+        if (g === '#' || /\b(tanglethorn|thorn|bramble|vine|weed|bush|shrub|tree|huorn|ent|treant|plant)\b/.test(lower)) {
+            return {
+                templateKey: 'env_tanglethorn',
+                scale: 1.0,
+                tintHex: (m && m.attr && m.attr > 2) ? getAngbandColorString(m.attr) : null
+            };
+        }
+
+        // 0b. Mushrooms, Molds, Fungi
+        if (g === ',' || g === 'm' || /\b(mushroom|fungus|mold|spore|patch|shrieker|myconid)\b/.test(lower)) {
+            return {
+                templateKey: 'env_fungi_cluster',
+                scale: 0.85,
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+
+        // 0c. Jellies, Oozes, Slimes, Vortices, Spheres
+        if (g === 'j' || g === 'i' || g === 'v' || g === '*' || /\b(jelly|ooze|slime|ichor|pudding|blob|vortex|plasm|sphere)\b/.test(lower)) {
+            return {
+                templateKey: 'env_ooze_mound',
+                scale: (g === 'v') ? 0.95 : 0.85,
+                isFloating: (g === 'v' || g === '*'),
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+
+        // 1. Canines, Felines, Hounds, Hybrids
+        if (g === 'C' || g === 'Z' || g === 'f' || g === 'H' ||
+            /\b(wolf|warg|hound|dog|jackal|coyote|fang|cat|panther|tiger|lion|leopard|cougar|lynx|saber|sabre|fox|griffon|chimera|manticore)\b/.test(lower)) {
+            if (g === 'f' || /\b(cat|panther|tiger|lion|leopard|cougar|lynx)\b/.test(lower)) {
+                return {
+                    templateKey: 'bestiary_fox',
+                    scaleX: 0.74,
+                    scaleY: 0.68,
+                    scaleZ: 0.88,
+                    tintHex: (m && m.attr && m.attr > 2) ? getAngbandColorString(m.attr) : '#c28246'
+                };
+            } else {
+                return {
+                    templateKey: 'bestiary_fox',
+                    scaleX: (g === 'H' ? 1.32 : 1.08),
+                    scaleY: (g === 'H' ? 1.35 : 1.12),
+                    scaleZ: (g === 'H' ? 1.38 : 1.18),
+                    tintHex: lower.includes('warg') ? '#4a423a' : (lower.includes('wolf') ? '#6e7580' : getAngbandColorString(m && m.attr))
+                };
+            }
+        }
+
+        // 2. Equines & Quadrupeds
+        if (g === 'q' || /\b(horse|steed|mare|stallion|pony|unicorn|pegasus|mule)\b/.test(lower)) {
+            return {
+                templateKey: 'bestiary_horse',
+                scale: 1.0
+            };
+        }
+
+        // 3. Rodents
+        if (g === 'r' || /\b(rat|mouse|mice|rodent|vole)\b/.test(lower)) {
+            return {
+                templateKey: 'ph_street_rat',
+                scale: 1.0
+            };
+        }
+
+        // 4. Dragons & Hydras
+        if (g === 'd' || g === 'D' || g === 'M' || /\b(dragon|drake|wyrm|hydra)\b/.test(lower)) {
+            const isAncient = (g === 'D' || lower.includes('ancient') || lower.includes('wyrm'));
+            return {
+                templateKey: 'bestiary_dragon',
+                scale: isAncient ? 1.38 : 0.92,
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+
+        // 5. Birds & Bats
+        if (g === 'B' || g === 'b' || /\b(bird|crow|raven|eagle|hawk|falcon|owl|bat|stirge)\b/.test(lower)) {
+            return {
+                templateKey: 'bestiary_bird',
+                scale: (g === 'b') ? 0.75 : 0.95,
+                isFloating: true,
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+
+        // 6. Floating Eyes, Skulls, Quylthulgs
+        if (g === 'e' || g === 'Q' || /\b(skull|druj|floating eye|beholder|quylthulg|eye)\b/.test(lower)) {
+            return {
+                templateKey: 'bestiary_skull',
+                scale: 0.85,
+                isFloating: true,
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+
+        // 7. Arthropods Split (Ants, Beetles, Centipedes, Spiders/Scorpions)
+        if (g === 'a' || /\b(ant|formic)\b/.test(lower)) {
+            return {
+                templateKey: 'bestiary_ant',
+                scale: 0.88,
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+        if (g === 'K' || /\b(beetle|scarab|stag)\b/.test(lower)) {
+            return {
+                templateKey: 'bestiary_beetle',
+                scale: 0.92,
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+        if (g === 'c' || g === 'l' || /\b(centipede|millipede|crawler|louse|tick|mite)\b/.test(lower)) {
+            return {
+                templateKey: 'bestiary_centipede',
+                scale: (g === 'l') ? 0.58 : 0.92,
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+        if (g === 'S' || /\b(spider|tarantula|scorpion|weaver|ungoliant)\b/.test(lower)) {
+            const isLightSpider = /\b(white|crystal|ice|phase)\b/.test(lower);
+            const spiderTint = (!isLightSpider && m && (m.attr === 1 || m.attr === 2)) ? '#4a3b30' : getAngbandColorString(m && m.attr);
+            return {
+                templateKey: 'obj_spider',
+                scale: lower.includes('ungoliant') ? 1.55 : 0.95,
+                tintHex: spiderTint
+            };
+        }
+
+        // 8. Snakes, Serpents, Nagas, Worms
+        if (g === 'J' || g === 'n' || g === 'w' || /\b(snake|serpent|viper|cobra|python|adder|naga|worm)\b/.test(lower)) {
+            return {
+                templateKey: 'obj_snake',
+                scale: (g === 'n') ? 1.25 : 0.92,
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+
+        // 9. Wasps, Flies, Insects
+        if (g === 'F' || g === 'I' || /\b(wasp|hornet|fly|bee|moth|mosquito|locust|insect)\b/.test(lower)) {
+            return {
+                templateKey: 'obj_wasp',
+                scale: 0.85,
+                isFloating: true,
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+
+        // 10. Frogs, Lizards, Reptiles
+        if (g === 'R' || /\b(frog|toad|lizard|newt|salamander|basilisk|iguana)\b/.test(lower)) {
+            return {
+                templateKey: 'obj_frog',
+                scale: 0.88,
+                tintHex: getAngbandColorString(m && m.attr)
+            };
+        }
+
+        // 11. Mimics & Creeping Coins
+        if (g === '$' || g === '?' || g === '!' || g === '~' || g === '|' || g === '(' || g === ']' ||
+            /\b(mimic|creeping.*coin)\b/.test(lower)) {
+            return {
+                templateKey: 'ph_chest',
+                scale: 0.95
+            };
+        }
+
+        // 12. Kobolds, Orcs, Goblins, Uruks, Trolls, Ogres (o, T, O, k, Y) vs Yeeks (y)
+        if (g === 'y' || /\b(yeek|gremlin|homunculus)\b/.test(lower)) {
+            return {
+                templateKey: 'bestiary_puglin',
+                scale: 0.72,
+                hunched: true,
+                weaponKey: null
+            };
+        }
+        if (g === 'k' || g === 'o' || g === 'T' || g === 'O' || g === 'Y' ||
+            /\b(kobold|goblin|orc|uruk|snaga|troll|ogre|yeti|sasquatch)\b/.test(lower)) {
+            const isLarge = (g === 'T' || g === 'O' || g === 'Y' || lower.includes('troll') || lower.includes('ogre'));
+            const isSmall = (g === 'k' || lower.includes('kobold') || lower.includes('goblin') || lower.includes('snaga'));
+            return {
+                templateKey: isSmall ? 'char_male_peasant' : 'char_male_ranger',
+                gender: 'male',
+                scaleY: isLarge ? 1.30 : (isSmall ? 0.76 : 0.96),
+                scaleXZ: isLarge ? 1.36 : (isSmall ? 0.82 : 1.08),
+                hunched: true,
+                isOrcish: true,
+                tintHex: isLarge ? '#44523b' : (isSmall ? '#6b5438' : '#4e633e'),
+                weaponKey: isLarge ? 'ph_mace' : 'ph_axe'
+            };
+        }
+
+        // 13. Demons, Imps, Balrogs, Golems, Gargoyles, Elementals, Vortices
+        if (g === 'u' || g === 'U' || g === 'g' || g === 'E' || g === 'X' ||
+            /\b(imp|demon|quasit|balrog|fiend|devil|golem|gargoyle|elemental|xorn)\b/.test(lower)) {
+            const isMajor = (g === 'U' || lower.includes('balrog') || lower.includes('greater'));
+            const isElemental = (g === 'g' || g === 'E');
+            return {
+                templateKey: 'bestiary_imp',
+                scale: isMajor ? 1.48 : 0.98,
+                tintHex: isElemental ? getAngbandColorString(m && m.attr) : null,
+                weaponKey: (g === 'U') ? 'ph_saber' : null
+            };
+        }
+
+        // 14. Townsfolk
+        if (g === 't') {
+            if (/\b(singing|drunk|woman|maiden|lady|witch|girl|sister)\b/.test(lower)) {
+                return {
+                    templateKey: 'char_female_peasant',
+                    gender: 'female',
+                    scale: 0.98
+                };
+            }
+            if (/\b(mercenary|veteran|guard|soldier|watchman|bouncer|warrior|ranger|agent)\b/.test(lower)) {
+                return {
+                    templateKey: 'char_male_ranger',
+                    gender: 'male',
+                    scale: 1.02,
+                    weaponKey: 'ph_saber',
+                    shieldKey: 'ph_shield'
+                };
+            }
+            const isBearded = /\b(elder|old|farmer|maggot|beggar|leper|prophet|wizard|mage|priest)\b/.test(lower);
+            const isUrchin = lower.includes('urchin');
+            const isHunched = /\b(leper|beggar|wretch|idiot|cripple)\b/.test(lower);
+            const tunicPalette = ['#7a684d', '#4d5d6b', '#5a6b4c', '#6e4f47', '#63566e'];
+            const rawSeed = m && m.id !== undefined ? m.id : ((m ? (m.x || 0) * 7 + (m.y || 0) * 13 : 0));
+            let seedNum = typeof rawSeed === 'number' ? rawSeed : 0;
+            if (typeof rawSeed === 'string') {
+                for (let si = 0; si < rawSeed.length; si++) seedNum = (seedNum * 31 + rawSeed.charCodeAt(si)) | 0;
+            }
+            const tunicTint = tunicPalette[Math.abs(seedNum) % tunicPalette.length];
+            const weaponKey = lower.includes('rogue') ? 'ph_dagger' : (lower.includes('leper') || lower.includes('beggar') ? 'ph_lantern' : null);
+            return {
+                templateKey: isBearded ? 'char_male_peasant_bearded' : 'char_male_peasant',
+                gender: 'male',
+                scale: isUrchin ? 0.78 : 0.98,
+                hunched: isHunched,
+                tunicOnlyTint: true,
+                tintHex: tunicTint,
+                weaponKey: weaponKey
+            };
+        }
+
+        // 15. Undead
+        if (g === 's' || g === 'z' || g === 'W' || g === 'V' || g === 'L' || g === 'G') {
+            if (g === 'z') {
+                return {
+                    templateKey: 'char_male_peasant',
+                    gender: 'male',
+                    scale: 0.98,
+                    hunched: true,
+                    tintHex: '#6c7d65'
+                };
+            }
+            const isFemale = /\b(banshee|lady|queen|bride|female)\b/.test(lower);
+            const tint = (g === 's') ? '#d8d0c0' : ((g === 'G') ? '#70a8d8' : '#4a3c58');
+            return {
+                templateKey: isFemale ? 'char_female_ranger' : 'char_male_ranger',
+                gender: isFemale ? 'female' : 'male',
+                scale: 1.04,
+                tintHex: tint,
+                weaponKey: (g === 'L') ? 'ph_mace' : 'ph_saber'
+            };
+        }
+
+        // 16. Giants, Titans, Ainur, Morgoth
+        if (g === 'P' || g === 'A') {
+            const isHuge = lower.includes('morgoth') || lower.includes('titan');
+            return {
+                templateKey: 'char_male_ranger',
+                gender: 'male',
+                scale: isHuge ? 1.62 : 1.42,
+                weaponKey: lower.includes('morgoth') ? 'ph_hammer' : 'ph_axe'
+            };
+        }
+
+        // 17. Humanoids & default
+        if (/\b(witch|priestess|sorceress|maiden|queen|lady|female|elf-maid|banshee|nymph)\b/.test(lower)) {
+            const isPeasant = /\b(peasant|novice|acolyte)\b/.test(lower);
+            return {
+                templateKey: isPeasant ? 'char_female_peasant' : 'char_female_ranger',
+                gender: 'female',
+                scale: 0.98,
+                weaponKey: 'ph_dagger'
+            };
+        }
+
+        if (g === 'h' || /\b(dwarf|dwarven|halfling|hobbit|gnome)\b/.test(lower)) {
+            return {
+                templateKey: 'char_male_ranger',
+                gender: 'male',
+                scaleY: 0.76,
+                scaleXZ: 1.16,
+                weaponKey: 'ph_axe',
+                shieldKey: 'ph_shield'
+            };
+        }
+
+        const isLowly = /\b(peasant|farmer|beggar|novice|monk|ruffian)\b/.test(lower);
+        return {
+            templateKey: isLowly ? 'char_male_peasant' : 'char_male_ranger',
+            gender: 'male',
+            scale: 1.0,
+            weaponKey: 'ph_saber'
+        };
+    }
+
+    _instantiateMonster3DFromTemplate(cfg) {
+        if (!cfg || !cfg.templateKey) return null;
+        const tmpl = this._monster3DTemplates && this._monster3DTemplates.get(cfg.templateKey);
+        if (!tmpl) return null;
+
+        const instance = this._cloneSkinnedGltf(tmpl);
+        if (!instance) return null;
+
+        this._poseRigNaturalStance(instance, cfg);
+
+        if (cfg.scaleX && cfg.scaleY && cfg.scaleZ) {
+            instance.scale.multiply(new THREE.Vector3(cfg.scaleX, cfg.scaleY, cfg.scaleZ));
+        } else if (cfg.scaleY && cfg.scaleXZ) {
+            instance.scale.multiply(new THREE.Vector3(cfg.scaleXZ, cfg.scaleY, cfg.scaleXZ));
+        } else if (cfg.scale) {
+            instance.scale.multiplyScalar(cfg.scale);
+        }
+
+        if (cfg.tintHex) {
+            const tintCol = new THREE.Color(cfg.tintHex);
+            const armorDarkCol = new THREE.Color(0x2e2a24);
+            instance.traverse(c => {
+                if ((c.isMesh || c.isSkinnedMesh) && c.material) {
+                    const meshName = ((c.name || '') + ' ' + (c.geometry ? c.geometry.name || '' : '')).toLowerCase();
+                    if (cfg.tunicOnlyTint && !meshName.includes('peasant_body')) {
+                        return;
+                    }
+                    const oldMat = Array.isArray(c.material) ? c.material[0] : c.material;
+                    const newMat = oldMat.clone();
+                    newMat._sharedMaterial = false;
+                    if (c.isSkinnedMesh || oldMat.skinning) {
+                        newMat.skinning = true;
+                    }
+                    if (newMat.color) {
+                        if (cfg.isOrcish) {
+                            const isSkin = meshName.includes('sphere.005') || meshName.includes('retopology') || meshName.includes('superhero');
+                            newMat.color.lerp(isSkin ? tintCol : armorDarkCol, isSkin ? 0.68 : 0.58);
+                        } else {
+                            newMat.color.lerp(tintCol, cfg.tunicOnlyTint ? 0.45 : 0.55);
+                        }
+                    }
+                    c.material = newMat;
+                }
+            });
+        }
+
+        if (cfg.weaponKey) {
+            this._ensurePolyHavenFloorItem(cfg.weaponKey).then(wTmpl => {
+                if (!wTmpl || !instance.parent) return;
+                const wClone = this._cloneCachedGltfTemplate(wTmpl, null, cfg.weaponKey);
+                if (wClone) {
+                    wClone.scale.set(0.55, 0.55, 0.55);
+                    if (wClone.children[0]) {
+                        wClone.children[0].rotation.set(0, 0, 0);
+                        wClone.children[0].position.set(0, -0.06, 0);
+                    }
+                    if (instance._rigBones && instance._rigBones.hand_r) {
+                        instance._rigBones.hand_r.add(wClone);
+                        wClone.position.set(0, 0.06, 0);
+                        wClone.quaternion.identity();
+                        instance.updateMatrixWorld(true);
+                        const handWorldQ = instance._rigBones.hand_r.getWorldQuaternion(new THREE.Quaternion());
+                        const bladeWorldQ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0.78, 0.62).normalize());
+                        wClone.quaternion.copy(handWorldQ.invert().multiply(bladeWorldQ));
+                    }
+                }
+            }).catch(() => {});
+        }
+
+        if (cfg.shieldKey) {
+            this._ensurePolyHavenFloorItem(cfg.shieldKey).then(sTmpl => {
+                if (!sTmpl || !instance.parent) return;
+                const sClone = this._cloneCachedGltfTemplate(sTmpl, null, cfg.shieldKey);
+                if (sClone) {
+                    sClone.scale.set(0.55, 0.55, 0.55);
+                    if (sClone.children[0]) {
+                        sClone.children[0].rotation.set(0, 0, 0);
+                        sClone.children[0].position.set(0, -0.22, 0.04);
+                    }
+                    if (instance._rigBones && instance._rigBones.lowerarm_l) {
+                        instance._rigBones.lowerarm_l.add(sClone);
+                        sClone.position.set(0, 0.12, 0);
+                        sClone.quaternion.identity();
+                        instance.updateMatrixWorld(true);
+                        const armWorldQ = instance._rigBones.lowerarm_l.getWorldQuaternion(new THREE.Quaternion());
+                        const shieldWorldQ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(-0.35, 0.08, 0.93).normalize());
+                        sClone.quaternion.copy(armWorldQ.invert().multiply(shieldWorldQ));
+                    } else if (instance._rigBones && instance._rigBones.hand_l) {
+                        instance._rigBones.hand_l.add(sClone);
+                        sClone.position.set(-0.05, 0, 0.05);
+                    }
+                }
+            }).catch(() => {});
+        }
+
+        instance.isReal3DMonster = true;
+        instance.isBillboard = false;
+        const baseH = tmpl.actualHeight || tmpl.baseHeight || 1.0;
+        instance.baseHeight = baseH * (cfg.scaleY || cfg.scale || 1.0);
+        instance.baseWidth = (tmpl.baseWidth || 0.85) * (cfg.scaleXZ || cfg.scaleX || cfg.scale || 1.0);
+
+        return instance;
+    }
+
     createMonster3DEntity(m, isTargeted, isSensed) {
         const root = new THREE.Group();
         const glyph = (m.glyph && m.glyph.trim()) ? m.glyph.trim() : '?';
-        const race = (m.race || m.name || '').toLowerCase();
         const colorHex = getAngbandColorString(m.attr);
 
-        const config = this.resolveMonsterModelConfig(glyph, m.race || m.name, m);
         let mesh = null;
         let modelHeight = 1.25;
         let isFloating = false;
 
-        if (config) {
-            const isFeminine = (config.templateKey === 'casual' || config.templateKey === 'witch' || config.templateKey === 'beach' || config.templateKey === 'female_peasant' || config.templateKey === 'female_ranger' || config.templateKey === 'superhero_female');
-            m.isFemale = isFeminine || (config.gender === 'female');
-            m.modelGender = m.isFemale ? 'female' : (config.gender || 'male');
-            m.gender = m.modelGender;
-            m.modelKey = config.templateKey;
-        }
+        const cfg = this.resolveMonster3DConfig(m, glyph);
+        root.config = cfg;
+        root.modelGender = cfg.gender || 'male';
+        root.modelKey = cfg.templateKey;
+        root.isFemale = (root.modelGender === 'female');
+        m.modelGender = root.modelGender;
+        m.gender = root.modelGender;
+        m.modelKey = root.modelKey;
+        m.isFemale = root.isFemale;
 
-        // 1. Primary: High-Fidelity Shockbolt 2.5D PBR Billboards with Normal Mapping (Canonical Daggerfall / Dungeon Master Style)
-        if (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic') {
-            const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, glyph);
-            if (atlasEntry) {
-                mesh = this.createMonsterBillboardMesh(atlasEntry);
-                if (mesh) {
-                    modelHeight = mesh.baseHeight || Math.min(2.05, atlasEntry.height || 1.70);
-                    isFloating = atlasEntry.isFloating || false;
-                }
-            }
-        }
-
-        // 2. Fallback: 3D Low-Poly Character & Monster Templates (KayKit / CC0 GLTF & OBJ Models)
-        if (!mesh && config && this.monsterTemplates && this.monsterTemplates.has(config.templateKey)) {
-            const tmplData = this.monsterTemplates.get(config.templateKey);
-            const srcObj = tmplData.scene || tmplData;
-            mesh = this.cloneModelHierarchy(srcObj);
-
-            const s = config.scale || (tmplData.defaultScale || 1.0);
-            mesh.scale.set(s, s, s);
-
-            isFloating = config.isFloating;
-            if (isFloating) mesh.position.y = 0.35;
-
-            // Compute true physical height from geometry bounding box
-            mesh.updateMatrixWorld(true);
-            const bbox = new THREE.Box3().setFromObject(mesh);
-            if (isFinite(bbox.max.y) && bbox.max.y > 0) {
-                modelHeight = bbox.max.y;
-            } else if (config.templateKey === 'rat') modelHeight = 0.95;
-            else if (config.templateKey === 'snake' || config.templateKey === 'snake_angry') modelHeight = 1.20;
-            else if (config.templateKey === 'spider') modelHeight = 1.00;
-            else if (config.templateKey === 'frog') modelHeight = 0.65;
-            else if (config.templateKey === 'wasp') modelHeight = 1.35;
-            else if (config.templateKey === 'imp' || config.templateKey === 'puglin') modelHeight = 1.35;
-            else if (config.templateKey === 'king' || config.templateKey === 'punk') modelHeight = 2.05;
-            else modelHeight = 1.85;
-
-            // Materials & tinting (Exact 1:1 Parity with Godot MonsterModelResolver.cs:3189-3406)
-            this.applyCharacterSkinAndTint(mesh, glyph, m.race || m.name, colorHex, config.templateKey, config.isEthereal);
-
-            // Role-accurate equipment slots
-            this.configureCreatureEquipment(mesh, config.role);
-        }
-
-        let isBillboardFallback = false;
-        // 3. Procedural anatomical creature fallback for unmapped non-humanoids (eyes, worms, slimes, mushrooms, etc.)
-        if (!mesh) {
-            isBillboardFallback = true;
-            mesh = this.createProceduralCreatureMesh(glyph, m.race || m.name, colorHex);
-            if (glyph === 'b' || glyph === 'B' || glyph === 'e' || glyph === 'W' || glyph === 'G' || glyph === 'I' || race.includes('wasp') || race.includes('eye') || race.includes('bat') || race.includes('ghost') || race.includes('wraith')) {
-                isFloating = true;
-                modelHeight = 1.10;
-            } else if (glyph === 'm' || glyph === ',' || glyph === 'r' || glyph === 's' || glyph === 'c' || glyph === 'w') {
-                modelHeight = 0.55;
-            } else if (glyph === 'd' || glyph === 'D' || glyph === 'P' || glyph === 'T' || glyph === 'O' || glyph === 'u' || glyph === 'U') {
-                modelHeight = 1.65;
-            } else if (glyph === 'S' || glyph === 'f' || glyph === 'C' || glyph === 'Z' || glyph === 'R') {
-                modelHeight = 0.75;
-            } else if (glyph === 'q' || glyph === 'Q' || race.includes('horse') || race.includes('steed') || race.includes('pony') || race.includes('unicorn') || race.includes('pegasus') || race.includes('馬')) {
-                modelHeight = 1.15;
-            }
+        mesh = this._instantiateMonster3DFromTemplate(cfg);
+        if (mesh) {
+            root.isReal3DMonster = true;
+            root.isBillboard = false;
+            root.pending3DConfig = null;
+            modelHeight = mesh.baseHeight || 1.0;
+            isFloating = Boolean(cfg.isFloating);
+        } else {
+            this._ensureMonster3DTemplate(cfg.templateKey);
+            mesh = new THREE.Group();
+            root.pending3DConfig = cfg;
+            root.isReal3DMonster = false;
+            root.isBillboard = false;
+            modelHeight = 1.0 * (cfg.scaleY || cfg.scale || 1.0);
+            isFloating = Boolean(cfg.isFloating);
         }
 
         root.add(mesh);
 
-        // Soft ground contact shadow disc anchoring creature to floor (eliminates floating paper-doll effect)
+        // Soft ground contact shadow disc anchoring creature to floor
         if ((!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.contactShadows) && this.shadowGeo && this.shadowMat) {
             const shadowDisc = new THREE.Mesh(this.shadowGeo, this.shadowMat);
             shadowDisc.position.set(0, 0.005, 0);
-            const footprint = ((mesh && mesh.baseWidth) ? mesh.baseWidth : 1.25) * 0.75;
+            const footprint = (mesh.baseWidth || 1.25) * 0.75;
             shadowDisc.scale.set(footprint, footprint, footprint);
             root.add(shadowDisc);
             root.contactShadow = shadowDisc;
         }
-        root.creatureMesh = mesh;
-        root.modelHeight = modelHeight;
-        root.isFloating = isFloating;
-        root.config = config;
-        const femaleTemplates = new Set(['casual', 'witch', 'beach', 'female_peasant', 'female_ranger', 'superhero_female']);
-        const isFeminineModel = config && femaleTemplates.has(config.templateKey);
-        root.modelKey = (config && config.templateKey) ? config.templateKey : null;
-        root.isFemale = isFeminineModel || ((config && config.gender === 'female') || (m && (m.isFemale || m.gender === 'female' || m.modelGender === 'female')));
-        root.modelGender = root.isFemale ? 'female' : ((config && config.gender) ? config.gender : 'male');
-        root.isBillboard = (mesh && mesh.geometry && mesh.geometry.type === 'PlaneGeometry');
-        root.isFallback = !root.isBillboard && (!config || !this.monsterTemplates || !this.monsterTemplates.has(config.templateKey));
-        root.isBillboardFallback = !root.isBillboard && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic');
-        root.colorHex = colorHex;
-        root.glyph = glyph;
-        root.race = m.race || m.name || '';
-        root.monsterData = m;
 
-        // Propagate model metadata to m instance
-        m.isFemale = root.isFemale;
-        m.modelGender = root.modelGender;
-        m.gender = root.modelGender;
-        m.modelKey = root.modelKey;
-
-        // Traverse mesh hierarchy to tag every sub-mesh for raycasting
-        if (mesh) {
-            mesh.monsterData = m;
-            mesh.modelGender = root.modelGender;
-            mesh.modelKey = root.modelKey;
-            mesh.isFemale = root.isFemale;
-            mesh.traverse(child => {
-                child.monsterData = m;
-                child.modelGender = root.modelGender;
-                child.modelKey = root.modelKey;
-                child.isFemale = root.isFemale;
-            });
+        // Diegetic obsidian & gold nameplate
+        const nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
+        if (nameplate) {
+            nameplate.position.set(0, Math.min(2.55, Math.max(0.58, modelHeight + 0.24)), 0);
+            nameplate.monsterData = m;
+            root.add(nameplate);
+            root.nameplate = nameplate;
         }
 
-        // Sensed / Invisible Foggy Misty Aura (depicts invisible or dark unlit sensed creatures)
-        const foggyAura = this.createFoggyMonsterAura(glyph, m.race || m.name, colorHex, modelHeight, isFloating);
-        root.add(foggyAura);
-        root.foggyAura = foggyAura;
-        root.foggyMaterials = foggyAura.foggyMaterials;
-        root.groundRipples = foggyAura.groundRipples;
-
-        // Overhead Billboarding Nameplate & Health Bar (always clear of creature model with generous margin, clamped below 3.0m ceiling)
-        const nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
-        nameplate.position.set(0, Math.min(2.65, modelHeight + 0.35), 0);
-        nameplate.monsterData = m;
-        root.add(nameplate);
-        root.nameplate = nameplate;
+        root.creatureMesh = mesh;
+        root.glyph = glyph;
+        root.colorHex = colorHex;
+        root.monsterData = m;
+        root.modelHeight = modelHeight;
+        root.isFloating = isFloating;
+        root.isBillboard = false;
 
         return root;
     }
@@ -8006,6 +9178,7 @@ class Dungeon3D {
             if (!entity) {
                 entity = this.createMonster3DEntity(m, isTargeted, isSensed);
                 entity.position.set(wx, baseY, wz);
+                entity.rotation.y = Math.atan2(px * this.cellSize - wx, py * this.cellSize - wz);
                 entity.targetPos = new THREE.Vector3(wx, baseY, wz);
                 entity.lastHp = m.hp;
                 entity.initialHp = m.hp_max || m.hp;
@@ -8023,61 +9196,29 @@ class Dungeon3D {
                 }
                 entity.monsterData = m;
 
-                // Auto-upgrade fallback mannequin entity to authentic GLTF/OBJ model once template has loaded!
-                if (entity.isFallback && entity.config && this.monsterTemplates && this.monsterTemplates.has(entity.config.templateKey)) {
-                    const tmplData = this.monsterTemplates.get(entity.config.templateKey);
-                    const srcObj = tmplData.scene || tmplData;
-                    const upgradedMesh = this.cloneModelHierarchy(srcObj);
-                    if (upgradedMesh) {
-                        const s = entity.config.scale || (tmplData.defaultScale || 1.0);
-                        upgradedMesh.scale.set(s, s, s);
-                        if (entity.config.isFloating) upgradedMesh.position.y = 0.35;
 
-                        upgradedMesh.updateMatrixWorld(true);
-                        const bbox = new THREE.Box3().setFromObject(upgradedMesh);
-                        if (isFinite(bbox.max.y) && bbox.max.y > 0) {
-                            entity.modelHeight = bbox.max.y;
-                        } else {
-                            entity.modelHeight = 1.85;
-                        }
 
-                        this.applyCharacterSkinAndTint(upgradedMesh, entity.glyph, entity.race, entity.colorHex, entity.config.templateKey, entity.config.isEthereal);
-
-                        this.configureCreatureEquipment(upgradedMesh, entity.config.role);
-
+                // Auto-upgrade monster to true 3D rigged model once glTF/GLB template has loaded
+                if (!entity.isReal3DMonster) {
+                    const cfg = entity.pending3DConfig || this.resolveMonster3DConfig(m, entity.glyph);
+                    const upgraded3D = this._instantiateMonster3DFromTemplate(cfg);
+                    if (upgraded3D) {
                         entity.remove(entity.creatureMesh);
-                        entity.creatureMesh = upgradedMesh;
-                        entity.add(upgradedMesh);
+                        entity.creatureMesh = upgraded3D;
+                        entity.add(upgraded3D);
+                        entity.modelHeight = upgraded3D.baseHeight || 1.0;
+                        entity.isFloating = Boolean(cfg.isFloating);
+                        entity.isReal3DMonster = true;
+                        entity.isBillboard = false;
+                        entity.pending3DConfig = null;
                         entity.isFallback = false;
-
-                        if (entity.nameplate) {
-                            entity.nameplate.position.set(0, Math.min(2.65, entity.modelHeight + 0.35), 0);
+                        upgraded3D.monsterData = m;
+                        if (entity.contactShadow) {
+                            const footprint = (upgraded3D.baseWidth || 1.25) * 0.75;
+                            entity.contactShadow.scale.set(footprint, footprint, footprint);
                         }
-                    }
-                }
-
-                // Auto-upgrade monster to Shockbolt PBR billboard once monster_atlas.json has loaded!
-                if (!entity.isBillboard && this.monsterAtlasData && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.creatureRenderer !== 'classic')) {
-                    const atlasEntry = this.resolveMonsterAtlasEntry(m.race || m.name, entity.glyph);
-                    if (atlasEntry) {
-                        const upgradedBillboard = this.createMonsterBillboardMesh(atlasEntry);
-                        if (upgradedBillboard) {
-                            entity.remove(entity.creatureMesh);
-                            entity.creatureMesh = upgradedBillboard;
-                            entity.add(upgradedBillboard);
-                            entity.modelHeight = upgradedBillboard.baseHeight || Math.min(2.05, atlasEntry.height || 1.70);
-                            entity.isFloating = atlasEntry.isFloating || false;
-                            entity.isBillboard = true;
-                            entity.isBillboardFallback = false;
-                            entity.isFallback = false;
-                            upgradedBillboard.monsterData = m;
-                            if (entity.contactShadow) {
-                                const footprint = (upgradedBillboard.baseWidth || 1.25) * 0.75;
-                                entity.contactShadow.scale.set(footprint, footprint, footprint);
-                            }
-                            if (entity.nameplate) {
-                                entity.nameplate.position.set(0, Math.min(2.65, entity.modelHeight + 0.35), 0);
-                            }
+                        if (entity.nameplate) {
+                            entity.nameplate.position.set(0, Math.min(2.55, Math.max(0.58, entity.modelHeight + 0.24)), 0);
                         }
                     }
                 }
@@ -8101,7 +9242,7 @@ class Dungeon3D {
                 if (entity.lastHp !== m.hp || entity.lastTargeted !== isTargeted || entity.lastAsleep !== m.asleep || entity.lastAfraid !== m.afraid || entity.lastSensed !== isSensed) {
                     entity.remove(entity.nameplate);
                     entity.nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
-                    entity.nameplate.position.set(0, Math.min(2.65, entity.modelHeight + 0.35), 0);
+                    entity.nameplate.position.set(0, Math.min(2.55, Math.max(0.58, entity.modelHeight + 0.24)), 0);
                     entity.add(entity.nameplate);
                     entity.lastHp = m.hp;
                     entity.lastTargeted = isTargeted;
@@ -8154,10 +9295,11 @@ class Dungeon3D {
                     const pan = this.calculateStereoPan(entity.position.x, entity.position.z);
                     this.audio.playMonsterDeath(entity.glyph, pan);
                 }
-                this.scene.remove(entity);
+                this.destroyEntity(entity);
                 this.monsters.delete(id);
             }
         }
+        this.markShadowsDirty();
     }
 
     refreshMonsterNameplates() {
@@ -8179,10 +9321,243 @@ class Dungeon3D {
         }
     }
 
+    getItemObjKey(name, glyph) {
+        const lower = (name || '').toLowerCase();
+        const g = glyph || '';
+
+        // Potions & Flasks
+        if (g === '!' || lower.includes('potion') || lower.includes('elixir') || lower.includes('draught') || lower.includes('flask') || lower.includes('tonic')) {
+            if (lower.includes('flask') || lower.includes('jug')) return 'ph_potion_flask';
+            if (lower.includes('urn') || lower.includes('vase')) return 'ph_potion_urn';
+            return 'ph_potion_bottle';
+        }
+
+        // Shields
+        if (g === '(' || lower.includes('shield') || lower.includes('buckler') || lower.includes('targe')) {
+            return 'ph_shield';
+        }
+
+        // Weapons
+        if (g === ')' || lower.includes('sword') || lower.includes('blade') || lower.includes('dagger') || lower.includes('knife') || lower.includes('axe') || lower.includes('hammer') || lower.includes('mace')) {
+            if (lower.includes('katana') || lower.includes('ninja-to') || lower.includes('nodachi') || lower.includes('wakizashi') || lower.includes('tanto')) return 'ph_katana';
+            if (lower.includes('estoc') || lower.includes('rapier') || lower.includes('foil') || lower.includes('epee')) return 'ph_estoc';
+            if (lower.includes('saber') || lower.includes('sabre') || lower.includes('scimitar') || lower.includes('cutlass') || lower.includes('falchion') || lower.includes('sword') || lower.includes('claymore') || lower.includes('blade')) return 'ph_saber';
+            if (lower.includes('dagger') || lower.includes('knife') || lower.includes('main gauche') || lower.includes('stiletto') || lower.includes('dirk') || lower.includes('misericorde')) return 'ph_dagger';
+            if (lower.includes('hatchet')) return 'ph_hatchet';
+            if (lower.includes('axe') || lower.includes('cleaver') || lower.includes('battle-axe')) return 'ph_axe';
+            if (lower.includes('war hammer') || lower.includes('hammer') || lower.includes('mattock') || lower.includes('mallet')) return 'ph_hammer';
+            if (lower.includes('mace') || lower.includes('flail') || lower.includes('morning star') || lower.includes('cudgel') || lower.includes('club')) return 'ph_mace';
+        }
+
+        // Chests & Containers (~ or name)
+        if ((g === '~' || g === '&') && (lower.includes('chest') || lower.includes('box') || lower.includes('coffer'))) {
+            return 'ph_chest';
+        }
+        if (lower.includes('chest') || lower.includes('coffer')) {
+            return 'ph_chest';
+        }
+
+        // Light Sources
+        if ((g === '~' || g === '!') && (lower.includes('lantern') || lower.includes('lamp') || lower.includes('torch') || lower.includes('phial'))) {
+            if (lower.includes('candle') || lower.includes('candlestick')) return 'ph_candle';
+            return 'ph_lantern';
+        }
+        if (lower.includes('lantern') || lower.includes('lamp')) {
+            return 'ph_lantern';
+        }
+        if (lower.includes('candle') || lower.includes('candlestick')) {
+            return 'ph_candle';
+        }
+
+        // Treasure goblets
+        if ((g === '$' || g === '~') && (lower.includes('goblet') || lower.includes('chalice') || lower.includes('cup') || lower.includes('grail'))) {
+            return 'ph_goblet';
+        }
+        if (lower.includes('goblet') || lower.includes('chalice') || lower.includes('grail')) {
+            return 'ph_goblet';
+        }
+
+        return null;
+    }
+
+    resolvePolyHavenFloorItemKey(it, g, lowerName, nameHash) {
+        return this.getItemObjKey(it ? it.name : lowerName, g);
+    }
+
+    _ensurePolyHavenFloorItem(key) {
+        if (!POLYHAVEN_ITEM_GLTF_PATHS[key]) return Promise.reject(new Error(`Unknown ph item key: ${key}`));
+        return this._loadCachedGltf(key, POLYHAVEN_ITEM_GLTF_PATHS[key]).then((tmpl) => {
+            this.upgradeAllItemEntities();
+            return tmpl;
+        });
+    }
+
+    _loadCachedGltf(key, path) {
+        if (!this._gltfTemplateCache) this._gltfTemplateCache = new Map();
+        if (!this._gltfLoadingPromises) this._gltfLoadingPromises = new Map();
+
+        if (this._gltfTemplateCache.has(key)) {
+            return Promise.resolve(this._gltfTemplateCache.get(key));
+        }
+        if (this._gltfLoadingPromises.has(key)) {
+            return this._gltfLoadingPromises.get(key);
+        }
+
+        const loader = this.gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
+        if (!loader) return Promise.reject(new Error('GLTFLoader not available'));
+
+        const promise = new Promise((resolve, reject) => {
+            loader.load(path, (gltf) => {
+                const scene = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+                if (!scene) {
+                    reject(new Error(`No scene in GLTF: ${path}`));
+                    return;
+                }
+
+                if (key === 'ph_dagger') {
+                    scene.traverse((c) => {
+                        if (c.name && c.name.toLowerCase().includes('scabbard')) {
+                            c.visible = false;
+                        }
+                    });
+                }
+
+                if (key === 'ph_potion_bottle') {
+                    scene.traverse((c) => {
+                        if (c.isMesh && c.name && !c.name.startsWith('Circle')) {
+                            c.visible = false;
+                        }
+                    });
+                }
+
+                scene.traverse((c) => {
+                    if (c.isMesh) {
+                        c.castShadow = true;
+                        c.receiveShadow = false;
+                        if (c.geometry) {
+                            c.geometry._sharedGeometry = true;
+                        }
+                        if (c.material) {
+                            const mats = Array.isArray(c.material) ? c.material : [c.material];
+                            for (const m of mats) {
+                                m._sharedMaterial = true;
+                                if (m.map) m.map._sharedTexture = true;
+                                if (m.normalMap) m.normalMap._sharedTexture = true;
+                                if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
+                                if (m.metalnessMap) m.metalnessMap._sharedTexture = true;
+                            }
+                        }
+                    }
+                });
+
+                scene.updateMatrixWorld(true);
+                const bbox = new THREE.Box3().setFromObject(scene);
+                const size = new THREE.Vector3();
+                bbox.getSize(size);
+                const center = new THREE.Vector3();
+                bbox.getCenter(center);
+
+                let targetSpan = 0.50;
+                const isWeaponOrShield = (key === 'ph_saber' || key === 'ph_estoc' || key === 'ph_katana' || key === 'ph_dagger' || key === 'ph_axe' || key === 'ph_hatchet' || key === 'ph_hammer' || key === 'ph_mace' || key === 'ph_shield');
+                if (isWeaponOrShield) {
+                    targetSpan = 0.68;
+                } else if (key === 'ph_chest') {
+                    targetSpan = 0.55;
+                } else {
+                    targetSpan = 0.46;
+                }
+
+                const maxDim = Math.max(size.x, size.y, size.z) || 1.0;
+                const scale = targetSpan / maxDim;
+
+                const wrapper = new THREE.Group();
+                const innerPivot = new THREE.Group();
+                innerPivot.add(scene);
+                scene.position.set(-center.x, -bbox.min.y, -center.z);
+                innerPivot.scale.set(scale, scale, scale);
+
+                if (isWeaponOrShield) {
+                    if (key === 'ph_shield') {
+                        innerPivot.rotation.set(-0.85, 0.25, 0.15);
+                        innerPivot.position.y = 0.08;
+                    } else {
+                        innerPivot.rotation.set(0.55, 0.35, -0.45);
+                        innerPivot.position.y = 0.14;
+                    }
+                } else {
+                    innerPivot.position.y = 0.02;
+                }
+
+                wrapper.add(innerPivot);
+                wrapper._sharedTemplate = true;
+
+                this._gltfTemplateCache.set(key, wrapper);
+                this.itemTemplates.set(key, wrapper);
+                this._gltfLoadingPromises.delete(key);
+                resolve(wrapper);
+            }, undefined, (err) => {
+                this._gltfLoadingPromises.delete(key);
+                reject(err);
+            });
+        });
+
+        this._gltfLoadingPromises.set(key, promise);
+        return promise;
+    }
+
+    _cloneCachedGltfTemplate(template, colorHex, key) {
+        if (!template) return null;
+        const clone = template.clone(true);
+        clone.traverse((c) => {
+            if (c.geometry) c.geometry._sharedGeometry = true;
+            if (c.material) {
+                const mats = Array.isArray(c.material) ? c.material : [c.material];
+                for (const m of mats) {
+                    m._sharedMaterial = true;
+                    if (m.map) m.map._sharedTexture = true;
+                }
+            }
+        });
+        clone.isReal3DItem = true;
+        clone.phKey = key;
+        return clone;
+    }
+
+    destroyEntity(entityObj) {
+        if (!entityObj) return;
+        this.scene.remove(entityObj);
+        const sharedMats = new Set([
+            this.monsterBillboardMat,
+            this.itemBillboardMat,
+            this.monsterDepthMat
+        ]);
+        const sharedTexs = new Set([
+            this.monsterAtlasTex,
+            this.monsterNormalTex,
+            this.itemAtlasTex,
+            this.itemNormalTex
+        ]);
+        entityObj.traverse((child) => {
+            if (child.geometry && !child.geometry._sharedGeometry) {
+                child.geometry.dispose();
+            }
+            if (child.material) {
+                const mats = Array.isArray(child.material) ? child.material : [child.material];
+                for (const m of mats) {
+                    if (m && !m._sharedMaterial && !sharedMats.has(m)) {
+                        if (m.map && !m.map._sharedTexture && !sharedTexs.has(m.map)) {
+                            m.map.dispose();
+                        }
+                        m.dispose();
+                    }
+                }
+            }
+        });
+    }
+
     createItem3DEntity(it) {
         const group = new THREE.Group();
         const g = it.glyph || '?';
-        const lowerName = (it.name || '').toLowerCase();
         const colorHex = getAngbandColorString(it.attr);
 
         let mesh = null;
@@ -8191,15 +9566,51 @@ class Dungeon3D {
         let footprint = 0.35;
         let isItemBillboardFallback = false;
 
-        // Deterministic item seed from name for model & aesthetic variation
         let nameHash = 0;
         const itemNameStr = it.name || '';
         for (let i = 0; i < itemNameStr.length; i++) {
             nameHash = ((nameHash << 5) - nameHash + itemNameStr.charCodeAt(i)) >>> 0;
         }
 
-        // 1. Primary: Canonical Shockbolt 2.5D PBR Illustrated Pickup with Normal Mapping (Daggerfall Style)
-        if (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.itemRenderer !== 'classic') {
+        const phKey = this.getItemObjKey(it.name, g);
+        if (phKey && POLYHAVEN_ITEM_GLTF_PATHS[phKey]) {
+            if (this._gltfTemplateCache && this._gltfTemplateCache.has(phKey)) {
+                const tmpl = this._gltfTemplateCache.get(phKey);
+                mesh = this._cloneCachedGltfTemplate(tmpl, colorHex, phKey);
+                footprint = (phKey === 'ph_chest') ? 0.50 : 0.40;
+                group.isReal3DItem = true;
+                group.phKey = phKey;
+            } else {
+                const atlasEntry = this.resolveItemAtlasEntry(it.name, g);
+                mesh = atlasEntry ? this.createItemBillboardMesh(atlasEntry) : null;
+                if (!mesh) {
+                    const tempGeo = new THREE.PlaneGeometry(0.4, 0.4);
+                    tempGeo.translate(0, 0.2, 0);
+                    mesh = new THREE.Mesh(tempGeo, this.itemBillboardMat);
+                }
+                isBillboard = true;
+                isFlat = atlasEntry ? !!atlasEntry.isFlat : false;
+                footprint = atlasEntry && atlasEntry.footprint ? atlasEntry.footprint : 0.35;
+                group.pendingPhKey = phKey;
+
+                this._loadCachedGltf(phKey, POLYHAVEN_ITEM_GLTF_PATHS[phKey]).then((tmpl) => {
+                    if (group.parent && group.pendingPhKey === phKey) {
+                        const upgraded3D = this._cloneCachedGltfTemplate(tmpl, colorHex, phKey);
+                        if (upgraded3D) {
+                            if (group.itemMesh) group.remove(group.itemMesh);
+                            group.itemMesh = upgraded3D;
+                            group.add(upgraded3D);
+                            group.isReal3DItem = true;
+                            group.isItemBillboard = false;
+                            delete group.pendingPhKey;
+                            group.phKey = phKey;
+                        }
+                    }
+                }).catch(() => {});
+            }
+        }
+
+        if (!mesh) {
             const atlasEntry = this.resolveItemAtlasEntry(it.name, g);
             if (atlasEntry) {
                 mesh = this.createItemBillboardMesh(atlasEntry);
@@ -8208,394 +9619,15 @@ class Dungeon3D {
                     isFlat = !!atlasEntry.isFlat;
                     footprint = atlasEntry.footprint || 0.35;
                 }
-            }
-        }
-
-        // 2. Fallback: High-Quality 3D OBJ Models & Templates
-        if (!mesh) {
-            if (!this.itemAtlasData && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.itemRenderer !== 'classic')) {
+            } else {
+                const tempGeo = new THREE.PlaneGeometry(0.4, 0.4);
+                tempGeo.translate(0, 0.2, 0);
+                mesh = new THREE.Mesh(tempGeo, this.itemBillboardMat);
+                isBillboard = true;
                 isItemBillboardFallback = true;
             }
-
-            let tmpl = null;
-
-        // Gold & Coins
-        if (g === '$' || lowerName.includes('gold') || lowerName.includes('coin') || lowerName.includes('copper') || lowerName.includes('silver')) {
-            if (lowerName.includes('skull')) {
-                tmpl = this.itemTemplates.get('coin_skull');
-            } else if (lowerName.includes('star')) {
-                tmpl = this.itemTemplates.get('coin_star');
-            } else if (lowerName.includes('ingot') || g === '$') {
-                tmpl = this.itemTemplates.get('$') || this.itemTemplates.get('coin');
-            } else {
-                tmpl = this.itemTemplates.get('coin') || this.itemTemplates.get('$');
-            }
-        }
-        // Potions & Flasks (11 Distinct Variations)
-        else if (g === '!' || lowerName.includes('potion') || lowerName.includes('flask') || lowerName.includes('draught') || lowerName.includes('elixir')) {
-            const potIdx = (nameHash % 11) + 1;
-            tmpl = this.itemTemplates.get(`potion_${potIdx}`) || this.itemTemplates.get('!');
-        }
-        // Books & Spellbooks (5 Distinct Open/Closed Variations)
-        else if (lowerName.includes('book') || lowerName.includes('tome') || lowerName.includes('grimoire') || lowerName.includes('prayer') || lowerName.includes('sorcery') || lowerName.includes('spellbook')) {
-            const bookVariants = ['book_open', 'book_2', 'book_3', 'book_4', 'book'];
-            tmpl = this.itemTemplates.get(bookVariants[nameHash % bookVariants.length]) || this.itemTemplates.get('book');
-        }
-        // Scrolls & Parchment
-        else if (g === '?' || lowerName.includes('scroll') || lowerName.includes('parchment')) {
-            tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('parchment') : null) || this.itemTemplates.get('?');
-        }
-        // Rings (7 Distinct Gem/Band Variations)
-        else if (g === '=' || lowerName.includes('ring') || lowerName.includes('band')) {
-            const ringIdx = (nameHash % 7) + 1;
-            tmpl = this.itemTemplates.get(`ring_${ringIdx}`) || this.itemTemplates.get('=');
-        }
-        // Amulets & Necklaces (3 Distinct Variations)
-        else if (g === '"' || lowerName.includes('amulet') || lowerName.includes('necklace') || lowerName.includes('pendant') || lowerName.includes('medallion') || lowerName.includes('periapt')) {
-            const necIdx = (nameHash % 3) + 1;
-            tmpl = this.itemTemplates.get(`necklace_${necIdx}`) || this.itemTemplates.get('"') || this.itemTemplates.get('=');
-        }
-        // Gems & Crystals (5 Distinct Crystal Geometries)
-        else if (g === '*' || lowerName.includes('gem') || lowerName.includes('crystal') || lowerName.includes('diamond') || lowerName.includes('ruby') || lowerName.includes('emerald') || lowerName.includes('sapphire') || lowerName.includes('phial') || lowerName.includes('star of') || lowerName.includes('arkenstone')) {
-            const cryIdx = (nameHash % 5) + 1;
-            tmpl = this.itemTemplates.get(`crystal_${cryIdx}`) || this.itemTemplates.get('*');
-        }
-        // Chests & Boxes
-        else if (lowerName.includes('chest') || lowerName.includes('coffer') || lowerName.includes('box')) {
-            if (lowerName.includes('ingot')) {
-                tmpl = this.itemTemplates.get('chest_ingots') || this.itemTemplates.get('chest');
-            } else if (lowerName.includes('open')) {
-                tmpl = this.itemTemplates.get('chest_open') || this.itemTemplates.get('chest');
-            } else {
-                tmpl = this.itemTemplates.get('chest');
-            }
-        }
-        // Food & Rations
-        else if (g === ',' || lowerName.includes('ration') || lowerName.includes('food') || lowerName.includes('meat') || lowerName.includes('bread') || lowerName.includes('mushroom') || lowerName.includes('apple') || lowerName.includes('slime mold')) {
-            tmpl = this.itemTemplates.get(',');
-        }
-        // Skulls & Remains
-        else if (lowerName.includes('skull') || lowerName.includes('bone') || lowerName.includes('skeleton')) {
-            if (lowerName.includes('bone')) {
-                tmpl = this.itemTemplates.get('bone') || this.itemTemplates.get('skull');
-            } else {
-                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('skull_2') : null) || this.itemTemplates.get('skull');
-            }
-        }
-        // Keys & Lockpicks
-        else if (lowerName.includes('key') || lowerName.includes('lockpick')) {
-            const keyIdx = (nameHash % 3) + 1;
-            tmpl = this.itemTemplates.get(`key_${keyIdx}`) || this.itemTemplates.get('key');
-        }
-        // Bags & Pouches
-        else if (lowerName.includes('backpack') || lowerName.includes('sack')) {
-            tmpl = this.itemTemplates.get('backpack');
-        } else if (lowerName.includes('bag') || lowerName.includes('pouch')) {
-            tmpl = this.itemTemplates.get('pouch') || this.itemTemplates.get('bag');
-        }
-        // Shields
-        else if (g === '(' || lowerName.includes('shield') || lowerName.includes('buckler') || lowerName.includes('targe')) {
-            if (lowerName.includes('celtic') || lowerName.includes('golden') || lowerName.includes('gold')) {
-                tmpl = this.itemTemplates.get('shield_celtic') || this.itemTemplates.get('shield_heater');
-            } else if (lowerName.includes('round') || lowerName.includes('small')) {
-                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('shield_round_2') : null) || this.itemTemplates.get('shield_round');
-            } else {
-                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('shield_heater_2') : null) || this.itemTemplates.get('shield_heater');
-            }
-        }
-        // Helms & Crowns
-        else if (lowerName.includes('crown') || lowerName.includes('coronet') || lowerName.includes('helm') || lowerName.includes('cap') || lowerName.includes('hat')) {
-            tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('crown_2') : null) || this.itemTemplates.get('crown');
-        }
-        // Gloves & Gauntlets
-        else if (lowerName.includes('glove') || lowerName.includes('gauntlet') || lowerName.includes('cesta') || lowerName.includes('bracer')) {
-            tmpl = this.itemTemplates.get('glove');
-        }
-        // Body Armor & Cloaks (Glyph '[')
-        else if (g === '[' || lowerName.includes('plate') || lowerName.includes('chain') || lowerName.includes('mail') || lowerName.includes('armor') || lowerName.includes('cuirass') || lowerName.includes('corselet') || lowerName.includes('robe') || lowerName.includes('cloak')) {
-            if (lowerName.includes('golden') || lowerName.includes('gold')) {
-                tmpl = this.itemTemplates.get('armor_golden') || this.itemTemplates.get('armor_metal');
-            } else if (lowerName.includes('black') || lowerName.includes('dark') || lowerName.includes('shadow')) {
-                tmpl = this.itemTemplates.get('armor_black') || this.itemTemplates.get('armor_metal');
-            } else if (lowerName.includes('leather') || lowerName.includes('soft') || lowerName.includes('robe') || lowerName.includes('cloak')) {
-                tmpl = this.itemTemplates.get('armor_leather');
-            } else {
-                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('armor_metal2') : null) || this.itemTemplates.get('armor_metal');
-            }
-        }
-        // Footwear: Boots, Shoes, Sandals (Glyph ']')
-        else if (g === ']' || lowerName.includes('sandal') || lowerName.includes('boot') || lowerName.includes('shoe') || lowerName.includes('greave')) {
-            tmpl = null; // High-fidelity procedural 3D shoe pair built below
-        }
-        // Weapons: Axes
-        else if (lowerName.includes('battle axe') || lowerName.includes('great axe') || lowerName.includes('broad axe') || lowerName.includes('halberd') || lowerName.includes('poleaxe')) {
-            tmpl = this.itemTemplates.get('axe_double') || this.itemTemplates.get('axe');
-        } else if (lowerName.includes('axe') || lowerName.includes('cleaver') || lowerName.includes('hatchet')) {
-            tmpl = this.itemTemplates.get('axe');
-        }
-        // Weapons: Hammers & Maces
-        else if (lowerName.includes('war hammer') || lowerName.includes('great hammer') || lowerName.includes('mattock')) {
-            tmpl = this.itemTemplates.get('hammer_double') || this.itemTemplates.get('hammer');
-        } else if (lowerName.includes('hammer') || lowerName.includes('mace') || lowerName.includes('flail') || lowerName.includes('star') || lowerName.includes('club') || lowerName.includes('cudgel')) {
-            tmpl = this.itemTemplates.get('hammer');
-        }
-        // Devices & Polearms: Wands, Rods, Staves, Spears & Polearms
-        else if (g === '-' || g === '/' || g === '_' || g === '|' || lowerName.includes('spear') || lowerName.includes('lance') || lowerName.includes('pike') || lowerName.includes('trident') || lowerName.includes('staff') || lowerName.includes('wand') || lowerName.includes('rod')) {
-            tmpl = this.itemTemplates.get('spear');
-        }
-        // Weapons: Scythes
-        else if (lowerName.includes('scythe')) {
-            tmpl = this.itemTemplates.get('scythe') || this.itemTemplates.get('spear');
-        }
-        // Weapons: Daggers & Knives
-        else if (lowerName.includes('dagger') || lowerName.includes('knife') || lowerName.includes('rapier') || lowerName.includes('stiletto') || lowerName.includes('main gauche') || lowerName.includes('misericorde') || lowerName.includes('athame')) {
-            tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('dagger_2') : null) || this.itemTemplates.get('dagger');
-        }
-        // Weapons: Two-Handed Swords & Greatswords
-        else if (lowerName.includes('two-handed') || lowerName.includes('great sword') || lowerName.includes('claymore') || lowerName.includes('zweihander') || lowerName.includes('flamberge')) {
-            tmpl = this.itemTemplates.get('claymore');
-        } else if (lowerName.includes('bastard') || lowerName.includes('broad sword') || lowerName.includes('broadsword')) {
-            tmpl = this.itemTemplates.get('sword_big') || this.itemTemplates.get('claymore');
-        }
-        // Weapons: Swords & Blades (Glyph ')')
-        else if (g === ')' || lowerName.includes('sword') || lowerName.includes('blade') || lowerName.includes('sabre') || lowerName.includes('scimitar') || lowerName.includes('cutlass') || lowerName.includes('katana') || lowerName.includes('foil')) {
-            if (lowerName.includes('golden') || lowerName.includes('gold')) {
-                tmpl = this.itemTemplates.get('sword_golden') || this.itemTemplates.get(')');
-            } else {
-                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('sword_2') : null) || this.itemTemplates.get(')');
-            }
-        }
-        // Bows & Crossbows (Glyph '}')
-        else if (g === '}' || lowerName.includes('bow') || lowerName.includes('crossbow') || lowerName.includes('arbalest') || lowerName.includes('sling')) {
-            if (lowerName.includes('evil') || lowerName.includes('dark')) {
-                tmpl = this.itemTemplates.get('bow_evil') || this.itemTemplates.get('}');
-            } else if (lowerName.includes('golden') || lowerName.includes('gold')) {
-                tmpl = this.itemTemplates.get('bow_golden') || this.itemTemplates.get('}');
-            } else {
-                tmpl = (nameHash % 2 === 0 ? this.itemTemplates.get('bow_wooden2') : null) || this.itemTemplates.get('}');
-            }
-        }
-        // Slings Ammo: Pebbles, Stones, Rocks (Glyph '{')
-        else if (lowerName.includes('pebble') || lowerName.includes('stone') || lowerName.includes('rock')) {
-            tmpl = this.itemTemplates.get('pebble') || this.itemTemplates.get('*');
-        }
-        // Darts
-        else if (lowerName.includes('dart')) {
-            tmpl = this.itemTemplates.get('dart');
-        }
-        // Shots & Bullets (Iron shot, sling bullet)
-        else if (lowerName.includes('shot') || lowerName.includes('bullet')) {
-            tmpl = this.itemTemplates.get('pebble') || this.itemTemplates.get('*');
-        }
-        // Arrows & Bolts (Glyph '{')
-        else if (g === '{' || lowerName.includes('arrow') || lowerName.includes('bolt')) {
-            tmpl = this.itemTemplates.get('{');
         }
 
-        if (tmpl) {
-            mesh = tmpl.clone(true);
-            mesh.traverse(child => {
-                if (child.isMesh && child.material) {
-                    child.material = child.material.clone();
-                    if (g === '!' || g === '*' || g === '=') {
-                        child.material.color.set(colorHex);
-                        child.material.emissive.set(colorHex);
-                        child.material.emissiveIntensity = (g === '!' ? 0.6 : (g === '*' ? 0.8 : 0.35));
-                    } else if (g === '$' || lowerName.includes('gold')) {
-                        child.material.color.setHex(0xffd700);
-                        child.material.metalness = 0.95;
-                        child.material.roughness = 0.18;
-                    } else if (g === '?' || lowerName.includes('scroll')) {
-                        child.material.color.setHex(0xf5eedb);
-                    } else {
-                        if (colorHex !== '#ffffff' && colorHex !== '#c0c0c0' && colorHex !== '#808080') {
-                            child.material.emissive.set(colorHex);
-                            child.material.emissiveIntensity = 0.25;
-                        }
-                    }
-                }
-            });
-        }
-
-        // 2. High-Quality Stylized Procedural 3D Item Pickups
-        // Ensures NO item appears as a raw generic white octahedron (Exact 1:1 Parity with Godot GetPickupMesh)
-        if (!mesh) {
-            const isMetal = (g === ')' || g === '[' || g === '(' || g === '=' || lowerName.includes('iron') || lowerName.includes('steel') || lowerName.includes('metal') || lowerName.includes('chain') || lowerName.includes('plate'));
-            const isGold = (g === '$' || lowerName.includes('gold') || lowerName.includes('crown'));
-            const mat = new THREE.MeshStandardMaterial({
-                color: new THREE.Color(colorHex),
-                emissive: new THREE.Color(colorHex),
-                emissiveIntensity: 0.35,
-                metalness: isMetal ? 0.88 : (isGold ? 0.95 : 0.15),
-                roughness: isMetal ? 0.30 : (isGold ? 0.20 : 0.65)
-            });
-
-            // Footwear / Boots / Sandals / Shoes (Glyph ']' or footwear keywords)
-            if (g === ']' || lowerName.includes('sandal') || lowerName.includes('boot') || lowerName.includes('shoe')) {
-                const bootsGroup = new THREE.Group();
-                const soleMat = new THREE.MeshStandardMaterial({ color: 0x3d2716, roughness: 0.85, metalness: 0.05 });
-                const strapMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(colorHex), roughness: 0.70, metalness: 0.10 });
-
-                [-0.07, 0.07].forEach(xOffset => {
-                    // Sole base
-                    const sole = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.035, 0.20), soleMat);
-                    sole.position.set(xOffset, 0.018, 0);
-                    bootsGroup.add(sole);
-
-                    // Upper foot body / strap
-                    const isBoot = lowerName.includes('boot') || lowerName.includes('greave');
-                    const upperHeight = isBoot ? 0.14 : 0.06;
-                    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.08, upperHeight, isBoot ? 0.14 : 0.10), strapMat);
-                    upper.position.set(xOffset, 0.035 + upperHeight / 2, isBoot ? -0.02 : 0.01);
-                    bootsGroup.add(upper);
-                });
-                mesh = bootsGroup;
-            }
-            // Whips, Bullwhips & Scourges (Floor Coiled Whip)
-            else if (lowerName.includes('whip') || lowerName.includes('scourge') || lowerName.includes('bullwhip')) {
-                const whipFloorGroup = new THREE.Group();
-                const leatherMat = new THREE.MeshStandardMaterial({ color: 0x3a2012, roughness: 0.85, metalness: 0.10 });
-                const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4a034, roughness: 0.28, metalness: 0.85 });
-
-                // Handle resting on floor
-                const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.22, 10), leatherMat);
-                handle.rotation.z = Math.PI / 2;
-                handle.position.set(-0.06, 0.018, 0.10);
-                whipFloorGroup.add(handle);
-
-                const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 8), brassMat);
-                pommel.position.set(-0.17, 0.018, 0.10);
-                whipFloorGroup.add(pommel);
-
-                // Coiled lash (3 concentric rings on the ground)
-                [0.07, 0.11, 0.15].forEach((r, idx) => {
-                    const coil = new THREE.Mesh(new THREE.TorusGeometry(r, 0.012 - idx * 0.002, 8, 20), leatherMat);
-                    coil.rotation.x = Math.PI / 2;
-                    coil.position.set(0.04, 0.014 + idx * 0.004, -0.01);
-                    whipFloorGroup.add(coil);
-                });
-
-                mesh = whipFloorGroup;
-            }
-            // Torches & Light Sources (Glyph '~')
-            else if (g === '~' || lowerName.includes('torch') || lowerName.includes('lantern')) {
-                const torchGroup = new THREE.Group();
-                const woodShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.45, 8), new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.85 }));
-                torchGroup.add(woodShaft);
-                const flame = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 8), new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff5500, emissiveIntensity: 1.5 }));
-                flame.position.y = 0.24;
-                torchGroup.add(flame);
-                mesh = torchGroup;
-            }
-            // Rings (Glyph '=')
-            else if (g === '=' || lowerName.includes('ring')) {
-                mesh = new THREE.Mesh(new THREE.TorusGeometry(0.10, 0.035, 12, 24), mat);
-                mesh.rotation.x = Math.PI / 4;
-            }
-            // Amulets & Necklaces (Glyph '"')
-            else if (g === '"' || lowerName.includes('amulet')) {
-                const amuletGroup = new THREE.Group();
-                const pendant = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.025, 16), mat);
-                pendant.rotation.x = Math.PI / 2;
-                amuletGroup.add(pendant);
-                const gem = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x0088cc, emissiveIntensity: 1.2 }));
-                gem.position.z = 0.015;
-                amuletGroup.add(gem);
-                mesh = amuletGroup;
-            }
-            // Potions (Glyph '!')
-            else if (g === '!') {
-                const flaskGroup = new THREE.Group();
-                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.10, 0.24, 12), mat);
-                const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.08, 12), mat);
-                neck.position.y = 0.15;
-                flaskGroup.add(body);
-                flaskGroup.add(neck);
-                mesh = flaskGroup;
-            }
-            // Scrolls (Glyph '?')
-            else if (g === '?') {
-                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 12), mat);
-                mesh.rotation.z = Math.PI / 2;
-            }
-            // Weapons (Glyph ')')
-            else if (g === ')') {
-                mesh = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.50, 0.10), mat);
-            }
-            // Armor & Shields (Glyphs '[', '(')
-            else if (g === '[' || g === '(') {
-                mesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.36, 0.08), mat);
-            }
-            // Wands & Rods (Glyph '-' or wand/rod keywords)
-            else if (g === '-' || lowerName.includes('wand') || lowerName.includes('rod')) {
-                const wandGroup = new THREE.Group();
-                const shaftMat = new THREE.MeshStandardMaterial({
-                    color: isMetal ? new THREE.Color(colorHex) : 0x5a3d28,
-                    metalness: isMetal ? 0.88 : 0.20,
-                    roughness: isMetal ? 0.25 : 0.65
-                });
-                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.020, 0.44, 12), shaftMat);
-                wandGroup.add(shaft);
-
-                // Glowing runic crystal tip
-                const tipMat = new THREE.MeshStandardMaterial({
-                    color: new THREE.Color(colorHex),
-                    emissive: new THREE.Color(colorHex),
-                    emissiveIntensity: 1.25,
-                    roughness: 0.15,
-                    metalness: 0.10
-                });
-                const tip = new THREE.Mesh(new THREE.OctahedronGeometry(0.035, 0), tipMat);
-                tip.position.y = 0.23;
-                wandGroup.add(tip);
-
-                // Metallic ferrule ring
-                const ferrule = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 10), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 }));
-                ferrule.position.y = 0.20;
-                wandGroup.add(ferrule);
-
-                mesh = wandGroup;
-            }
-            // Staves (Glyph '_' or staff keyword)
-            else if (g === '_' || lowerName.includes('staff')) {
-                const staffGroup = new THREE.Group();
-                const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a2e1b, roughness: 0.85, metalness: 0.05 });
-                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 0.72, 10), woodMat);
-                staffGroup.add(shaft);
-
-                const crownMat = new THREE.MeshStandardMaterial({
-                    color: new THREE.Color(colorHex),
-                    emissive: new THREE.Color(colorHex),
-                    emissiveIntensity: 0.85,
-                    metalness: 0.8,
-                    roughness: 0.25
-                });
-                const head = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), crownMat);
-                head.position.y = 0.36;
-                staffGroup.add(head);
-
-                mesh = staffGroup;
-            }
-            // Polearms, Spears, Scythes (Glyphs '/', '|')
-            else if (g === '/' || g === '|') {
-                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.55, 8), mat);
-            }
-            // Sling ammo / Pebbles / Stones / Rocks / Shots
-            else if (lowerName.includes('pebble') || lowerName.includes('stone') || lowerName.includes('rock') || lowerName.includes('shot') || lowerName.includes('bullet')) {
-                mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.08, 1), mat);
-            }
-            // Food (Glyph ',')
-            else if (g === ',') {
-                mesh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), mat);
-            }
-            // Default Stylized Relic
-            else {
-                mesh = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), mat);
-            }
-        }
-        }
-
-        // Soft contact shadow disc right on the floor (y = 0.005)
         if ((!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.contactShadows) && this.shadowGeo && this.shadowMat) {
             const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
             shadow.position.set(0, 0.005, 0);
@@ -8604,7 +9636,7 @@ class Dungeon3D {
             group.shadowMesh = shadow;
         }
 
-        if (!isBillboard) {
+        if (!isBillboard && !group.isReal3DItem) {
             mesh.position.y = 0.12;
         }
         group.add(mesh);
@@ -8618,7 +9650,6 @@ class Dungeon3D {
         group.colorHex = colorHex;
         group.itemData = it;
 
-        // Overhead Item Caption Sprite with Material Pooling
         if (it.name) {
             const sprite = this.createItemCaptionSprite(it);
             if (sprite) {
@@ -8643,6 +9674,15 @@ class Dungeon3D {
         const captionKey = `${localizedName}_${colorHex}_${langMode}`;
         let spriteMat = this.captionMaterialCache ? this.captionMaterialCache.get(captionKey) : null;
         if (!spriteMat) {
+            if (this.captionMaterialCache && this.captionMaterialCache.size >= 128) {
+                const firstKey = this.captionMaterialCache.keys().next().value;
+                const oldMat = this.captionMaterialCache.get(firstKey);
+                if (oldMat) {
+                    if (oldMat.map) oldMat.map.dispose();
+                    oldMat.dispose();
+                }
+                this.captionMaterialCache.delete(firstKey);
+            }
             const canvas = document.createElement('canvas');
             canvas.width = 384;
             canvas.height = 64;
@@ -8763,7 +9803,7 @@ class Dungeon3D {
 
         for (const [id, entity] of this.items.entries()) {
             if (!activeIds.has(id)) {
-                this.scene.remove(entity);
+                this.destroyEntity(entity);
                 this.items.delete(id);
             }
         }
@@ -9073,6 +10113,43 @@ class Dungeon3D {
                     const bh = entity.creatureMesh.baseHeight || 1.70;
                     entity.creatureMesh.scale.set(bw * (1.0 - breath * 0.5), bh * (1.0 + breath), 1.0);
                 }
+            } else if (entity.creatureMesh && (entity.creatureMesh._rigBoneSets || entity.creatureMesh._rigBones)) {
+                const boneSets = entity.creatureMesh._rigBoneSets || [entity.creatureMesh._rigBones];
+                const isMoving = Boolean(entity.targetPos && entity.position.distanceTo(entity.targetPos) > 0.02);
+                const breath = Math.sin(monTime * 1.8 + entity.position.x * 3.1) * 0.035;
+                const stride = isMoving ? Math.sin(tNow * 0.014 + entity.position.x) * 0.42 : 0;
+
+                for (const bones of boneSets) {
+                    if (!bones) continue;
+                    if (bones.spine_01 && bones.spine_01._restQuat) {
+                        bones.spine_01.quaternion.copy(bones.spine_01._restQuat);
+                        bones.spine_01.rotateX(breath);
+                    }
+                    if (bones.upperarm_l && bones.upperarm_l._restQuat) {
+                        bones.upperarm_l.quaternion.copy(bones.upperarm_l._restQuat);
+                        bones.upperarm_l.rotateZ(breath * 0.4);
+                        if (isMoving) bones.upperarm_l.rotateX(-stride * 0.55);
+                    }
+                    if (bones.upperarm_r && bones.upperarm_r._restQuat) {
+                        bones.upperarm_r.quaternion.copy(bones.upperarm_r._restQuat);
+                        bones.upperarm_r.rotateZ(-breath * 0.4);
+                        if (isMoving) bones.upperarm_r.rotateX(stride * 0.55);
+                    }
+
+                    if (isMoving) {
+                        if (bones.thigh_l && bones.thigh_l._restQuat) {
+                            bones.thigh_l.quaternion.copy(bones.thigh_l._restQuat);
+                            bones.thigh_l.rotateX(stride);
+                        }
+                        if (bones.thigh_r && bones.thigh_r._restQuat) {
+                            bones.thigh_r.quaternion.copy(bones.thigh_r._restQuat);
+                            bones.thigh_r.rotateX(-stride);
+                        }
+                    } else {
+                        if (bones.thigh_l && bones.thigh_l._restQuat) bones.thigh_l.quaternion.copy(bones.thigh_l._restQuat);
+                        if (bones.thigh_r && bones.thigh_r._restQuat) bones.thigh_r.quaternion.copy(bones.thigh_r._restQuat);
+                    }
+                }
             }
 
             // Ethereal pulse & ripple rotation for sensed / invisible foggy aura
@@ -9127,15 +10204,70 @@ class Dungeon3D {
         }
 
         // In-view molten lava surface breathing pulse (zero extra light sources)
+        if (this.lavaTex && this.lavaEmission) {
+            const time = tNow * 0.001;
+            const lx = Math.sin(time * 0.35) * 0.08 + (time * 0.018) % 1.0;
+            const ly = Math.cos(time * 0.28) * 0.08 + (time * 0.014) % 1.0;
+            this.lavaTex.offset.set(lx, ly);
+            this.lavaEmission.offset.set(lx, ly);
+        }
         if (this.lavaMaterial && (!window.GRAPHICS_CONFIG || window.GRAPHICS_CONFIG.surfaceBreathing)) {
-            this.lavaMaterial.emissiveIntensity = 2.2 + Math.sin(tNow * 0.0028) * 0.28;
+            const time = tNow * 0.001;
+            this.lavaMaterial.emissiveIntensity = 2.15 + Math.sin(time * 2.8) * 0.45 + Math.cos(time * 6.3) * 0.20;
         }
 
-        // High-Quality Celestial Star Canopy: Lock to camera position (infinite distance illusion, 0 translation parallax)
+        // High-Quality Celestial Star Canopy & Sky Dome: Lock to camera position (infinite distance illusion, 0 translation parallax)
         if (this.starGroup && this.starGroup.visible) {
             this.starGroup.position.copy(this.camera.position);
+            const time = tNow * 0.001;
             if (this.starMaterial && this.starMaterial.uniforms && this.starMaterial.uniforms.uTime) {
-                this.starMaterial.uniforms.uTime.value = tNow * 0.001;
+                this.starMaterial.uniforms.uTime.value = time;
+            }
+            if (this.skyDomeMaterial && this.skyDomeMaterial.uniforms) {
+                this.skyDomeMaterial.uniforms.uTime.value = time;
+                const curRealm = (this.realm || 'angband').toLowerCase();
+                if (this._lastSkyDomeRealm !== curRealm) {
+                    this._lastSkyDomeRealm = curRealm;
+                    const u = this.skyDomeMaterial.uniforms;
+                    if (curRealm === 'silq') {
+                        u.uHorizonColor.value.setHex(0x152232);
+                        u.uZenithColor.value.setHex(0x020610);
+                        u.uNebulaColorA.value.setHex(0xcfe4ff);
+                        u.uNebulaColorB.value.setHex(0x5099cc);
+                        u.uAuroraColor.value.setHex(0x44eeea);
+                    } else if (curRealm === 'frogcomposband') {
+                        u.uHorizonColor.value.setHex(0x24112e);
+                        u.uZenithColor.value.setHex(0x080210);
+                        u.uNebulaColorA.value.setHex(0xff44aa);
+                        u.uNebulaColorB.value.setHex(0x8833cc);
+                        u.uAuroraColor.value.setHex(0x00f0bb);
+                    } else if (curRealm === 'hengband') {
+                        u.uHorizonColor.value.setHex(0x28161c);
+                        u.uZenithColor.value.setHex(0x0a0408);
+                        u.uNebulaColorA.value.setHex(0xffaa33);
+                        u.uNebulaColorB.value.setHex(0xcc3344);
+                        u.uAuroraColor.value.setHex(0x2de288);
+                    } else { // angband & default
+                        u.uHorizonColor.value.setHex(0x121b2d);
+                        u.uZenithColor.value.setHex(0x03060f);
+                        u.uNebulaColorA.value.setHex(0xffd188);
+                        u.uNebulaColorB.value.setHex(0x3855a2);
+                        u.uAuroraColor.value.setHex(0x1be896);
+                    }
+                }
+            }
+        }
+
+        // On-demand shadow update when camera moves
+        if (this.camera) {
+            const camDist = Math.hypot(
+                this.camera.position.x - (this._lastShadowCamX || 0),
+                this.camera.position.z - (this._lastShadowCamZ || 0)
+            );
+            if (camDist > 0.08) {
+                this._lastShadowCamX = this.camera.position.x;
+                this._lastShadowCamZ = this.camera.position.z;
+                this.markShadowsDirty();
             }
         }
 

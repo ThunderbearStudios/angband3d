@@ -81,7 +81,7 @@ public class MainForm : Form
             var userDataFolder = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "Angband3D",
-                "UserData"
+                "WebView2"
             );
             Directory.CreateDirectory(userDataFolder);
 

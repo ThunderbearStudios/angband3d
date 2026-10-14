@@ -2223,7 +2223,7 @@
 
 ---
 
-## Active Execution Focus & High-Fidelity Roadmap (Daggerfall / Skyrim Aesthetic Track)
+## Active Execution Focus & High-Fidelity Roadmap (Masterwork Dark-Fantasy Aesthetic Track)
 
 The project has achieved the **Tier 4 Visual & Environmental Overhaul**: delivering immersive dungeon atmosphere, depth-based biome shifts, dynamic torch flame VFX, rich PBR materials, and 2.5D normal-mapped monster rendering, while preserving 100% of viewmodel, tracking, and bridge architecture.
 
@@ -2446,7 +2446,7 @@ The project has achieved the **Tier 4 Visual & Environmental Overhaul**: deliver
 
 ---
 
-## Skyrim-Style Graphical & Model Quality Scaling Track
+## Masterwork Dark-Fantasy Graphical & Model Quality Scaling Track
 
 1. **PBR Surface Realism & Parallax Mapping**:
    - 2K/4K PBR material sets (Albedo, Normal, Roughness, AO, Height/Displacement) for chiseled granite stone walls, damp flagstones, and cavern walls.

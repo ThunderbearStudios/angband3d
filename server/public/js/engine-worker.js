@@ -169,20 +169,12 @@ async function startEngine(charName, isNew, saveFile) {
                             const dotSavSlot = baseSlot + '.sav';
                             if (angbandModule.FS.analyzePath('/lib/save/' + targetSlot).exists) {
                                 const data = angbandModule.FS.readFile('/lib/save/' + targetSlot);
-                                if (!angbandModule.FS.analyzePath('/lib/save/' + baseSlot).exists) {
-                                    angbandModule.FS.writeFile('/lib/save/' + baseSlot, data);
-                                }
-                                if (!angbandModule.FS.analyzePath('/lib/save/' + dotSavSlot).exists) {
-                                    angbandModule.FS.writeFile('/lib/save/' + dotSavSlot, data);
-                                }
+                                angbandModule.FS.writeFile('/lib/save/' + baseSlot, data);
+                                angbandModule.FS.writeFile('/lib/save/' + dotSavSlot, data);
                             } else if (angbandModule.FS.analyzePath('/lib/save/' + baseSlot).exists) {
                                 const data = angbandModule.FS.readFile('/lib/save/' + baseSlot);
-                                if (!angbandModule.FS.analyzePath('/lib/save/' + targetSlot).exists) {
-                                    angbandModule.FS.writeFile('/lib/save/' + targetSlot, data);
-                                }
-                                if (!angbandModule.FS.analyzePath('/lib/save/' + dotSavSlot).exists) {
-                                    angbandModule.FS.writeFile('/lib/save/' + dotSavSlot, data);
-                                }
+                                angbandModule.FS.writeFile('/lib/save/' + targetSlot, data);
+                                angbandModule.FS.writeFile('/lib/save/' + dotSavSlot, data);
                             }
                         } catch (_) {}
 

@@ -208,4 +208,39 @@ Every post-mortem follows this strict structure:
 3. **The Architectural Invariant**: The permanent rule established to prevent recurrence.
 4. **Verification Proof**: The automated test or keyframe proving resolution.
 
-By adhering to this discipline, every project becomes a self-enriching masterclass that future agents and human engineers can build upon indefinitely.
+---
+
+## Chapter 9: Defense-in-Depth for Multi-Agent & Fast-Model Execution (`U1–U8`)
+
+### 9.1 Why Capable Codebases Still Suffer Agent Regressions
+When a complex codebase transitions across multiple human contributors or faster, lower-parameter execution models (e.g., Flash-tier executors), failures rarely stem from syntax ignorance. Instead, they stem from **eight recurring structural traps**:
+1. **State/Git Desync**: Stale `STATE.md` pointers contradicting `git status`, causing read-only paralysis loops.
+2. **Method Shadowing in Large Classes**: Defining a helper or lifecycle method twice in a 3,000+ line class (`dungeon3d.js`, `chronicle-manager.js`), where the second definition silently overwrites the first.
+3. **Local-Variable Dirty Signatures**: Declaring `let lastSig = ''` inside `onFrame()` instead of on the instance/module, causing 100% DOM/Canvas/GPU rebuilds every tick.
+4. **Silent VRAM & Audio Node Accumulation**: Removing 3D meshes without calling `.dispose()`, or firing Web Audio nodes without `.disconnect()` in `onended`.
+5. **Pre-Warm / Live Cache-Key Asymmetry**: Speculative pre-warmers computing cache keys with raw options or `Math.random()` while live callers normalize options or use deterministic hashes—yielding a 0% cache hit rate.
+6. **Orphaned Client State Machines**: Multi-step UI routers (`MenuRouter.pending`) or modal promises (`_activeCreatureChat`) remaining non-null when the backend exits the mode or throws an error.
+7. **Unverified HTTP 4xx Retries & Regex Drift**: Client retry loops waiting 1,800ms retrying `HTTP 400` validation rejections caused by an overly narrow server regex (`SAFE_PROSE_RE` rejecting `\n`).
+8. **Collateral Test Breakage**: Fixing a runtime bug by altering a constant or signature that a pinned regression test (`test_realm_keys.js`, `test_menu_router.js`) asserts by regex or exact value.
+
+### 9.2 The 5-Layer Defense-in-Depth Guarantee
+To guarantee **without a doubt** that any human or LLM contributor writes world-class, zero-regression code on the first pass, every repository must enforce five interlocking layers:
+
+1. **Layer 1 — Unambiguous Single Entry Point (The 4-Tier Knowledge Hierarchy, `U1`)**:
+   - `AGENTS.md` / `CLAUDE.md` / `.cursorrules` (Tier 1) $\rightarrow$ `docs/STATE.md` + `docs/plan/EXECUTOR_START_HERE.md` (Tier 2) $\rightarrow$ `docs/LLM_CONTEXT.md` + `docs/PROTOCOL.md` (Tier 3) $\rightarrow$ `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md` (Tier 4).
+   - Every AI IDE and CLI agent lands on the exact same Turn-0 sequence and sees the exact same active task card in `docs/STATE.md`.
+2. **Layer 2 — Pinned Test-Contract Guardrails ("What NOT to Touch")**:
+   - Before any code is edited, `AGENTS.md` and the active execution plan explicitly list the existing test contracts (and exact regexes/values they inspect) so an executor never accidentally breaks a passing gate while fixing an adjacent issue.
+3. **Layer 3 — Turnkey Atomic Execution Cards (`U8`)**:
+   - Complex roadmaps are pre-compiled into self-contained **Execution Cards** (`Card 1` $\rightarrow$ `Card 5`). Each card specifies:
+     - Exact target files and line ranges.
+     - Concrete before/after code snippets.
+     - Explicit anti-trap warnings (`L1–L34`).
+     - A single command verification gate.
+4. **Layer 4 — Disjoint Wave File Ownership (`U7`)**:
+   - Parallel waves (`Card 2A`, `2B`, `2C`, `2D`) are partitioned strictly by **Target File** (`app.js`/`input.js` vs `dungeon3d.js` vs `hud.js`/`terminal.js` vs `client/scripts/*.cs`), eliminating merge conflicts and cross-agent overwrite races by construction.
+5. **Layer 5 — Automated Multi-Tier Verification Gates**:
+   - Every card must pass `node tools/run_tests.js --tier fast` (<15s unit, security, version sync, and contract suite), `python tools/smoke_test.py` (native engine bridge), `dotnet build` (static type/compile check), and real-browser CDP verification (`test_boot_flow.js`) before `docs/STATE.md` is updated and committed.
+
+By combining **Principal-level upfront architectural planning** with **turnkey execution cards and automated contract gates**, any human engineer or fast LLM executor can contribute at a world-class standard with zero ambiguity and zero regressions.
+

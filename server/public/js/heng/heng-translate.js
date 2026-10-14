@@ -1364,6 +1364,12 @@
     if (mode === 'jp') return { text, attrs: attrs || '' };
     if (!CJK.test(text)) return { text, attrs: attrs || '' };
 
+    const cacheKey = `r:${mode}:${rowIdx !== undefined ? rowIdx : ''}:${text}:${attrs || ''}`;
+    return memo(cacheKey, () => _translateRowInner(text, attrs, mode, rowIdx));
+  }
+
+  function _translateRowInner(text, attrs, mode, rowIdx) {
+
     function makeAttrs(newText, defaultAttr) {
       if (!attrs || attrs.length === 0) return '';
       if (attrs.length === newText.length) return attrs;

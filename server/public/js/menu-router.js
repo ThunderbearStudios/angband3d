@@ -227,12 +227,12 @@
         if (glyph === '_') return realm === 'silq' ? 'a' : 'u';
         if (label.includes('staff') || label.includes('杖')) return realm === 'silq' ? 'a' : 'u';
 
+        // Rods
+        if (label.includes('rod')) return realm === 'silq' ? null : 'z';
+
         // Wands
         if (glyph === '-') return realm === 'silq' ? null : 'a';
         if (label.includes('wand')) return realm === 'silq' ? null : 'a';
-
-        // Rods
-        if (label.includes('rod')) return realm === 'silq' ? null : 'z';
 
         return null;
     }
@@ -280,6 +280,13 @@
             if (isEscape) {
                 clearPending();
                 return true; // Handled client-side, do not close the underlying inventory
+            }
+
+            if (key === 'Enter' || key === 'enter') {
+                const sug = determineSuggestedVerb(pending.item, pending.listKind, realm);
+                if (sug) chooseVerb(sug);
+                else clearPending();
+                return true;
             }
 
             const verbsForRealm = VERBS[realm];
@@ -347,6 +354,14 @@
 
     function onFrame(frame, realm) {
         if (!frame || !realm) return;
+
+        if (pending && pending.step === 'chooser') {
+            const classifier = getClassifier(frame, realm);
+            if (!classifier || classifier.mode !== 'item-list') {
+                clearPending();
+                return;
+            }
+        }
 
         if (pending && pending.step === 'await-prompt') {
             const now = Date.now();

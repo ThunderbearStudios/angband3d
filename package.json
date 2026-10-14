@@ -5,7 +5,7 @@
   "scripts": {
     "cap": "cap",
     "android:add": "cap add android",
-    "android:sync": "cap sync android",
+    "android:sync": "cap sync android && node -e \"const fs=require('fs'),p=require('path'),b='android/app/src/main/assets/public';for(const x of ['assets/video','demo.html'])fs.rmSync(p.join(b,x),{recursive:true,force:true});\"",
     "android:build": "cd android && .\\gradlew.bat assembleRelease"
   },
   "dependencies": {

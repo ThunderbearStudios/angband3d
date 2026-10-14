@@ -49,6 +49,7 @@ public partial class Main : Node
     private int _menuIndex;
     private int _autoMenuChoice;
     private readonly System.Collections.Generic.List<(string Label, Action Execute)> _menuItems = new();
+    private readonly System.Collections.Generic.Queue<string> _pendingKeys = new();
     private System.Collections.Generic.Dictionary<string, string> _ownerTokens = new();
 
     public override void _Ready()
@@ -1403,6 +1404,7 @@ public partial class Main : Node
             }
         }
 
+        _overlay.Realm = _realm;
         _overlay.Mode = EffectiveMode(f);
         _overlay.FacingName = Facings[_world.Facing];
         _overlay.PromptLine = PromptOf(f);
@@ -1700,9 +1702,9 @@ public partial class Main : Node
             {
                 _silqStatAllocated = true;
                 // Allocate all 13 birth stat points: Str+2 (3), Dex+2 (3), Con+3 (6), Gra+1 (1) = 13 pts
-                foreach (var k in new[] { "6", "6", "2", "6", "6", "2", "6", "6", "2", "6", "8", "6", "enter" })
+                foreach (var k in new[] { "right", "right", "down", "right", "right", "down", "right", "right", "down", "right", "up", "right", "enter" })
                 {
-                    _bridge.SendKey(k);
+                    _pendingKeys.Enqueue(k);
                 }
             }
         }
@@ -1822,9 +1824,9 @@ public partial class Main : Node
             if (!_silqStatAllocated)
             {
                 _silqStatAllocated = true;
-                foreach (var k in new[] { "6", "6", "2", "6", "6", "2", "6", "6", "2", "6", "8", "6", "enter" })
+                foreach (var k in new[] { "right", "right", "down", "right", "right", "down", "right", "right", "down", "right", "up", "right", "enter" })
                 {
-                    _bridge.SendKey(k);
+                    _pendingKeys.Enqueue(k);
                 }
             }
         }
@@ -1835,8 +1837,8 @@ public partial class Main : Node
             if (!_silqNameSent)
             {
                 _silqNameSent = true;
-                _bridge.SendKey("tab");
-                _bridge.SendKey("enter");
+                _pendingKeys.Enqueue("tab");
+                _pendingKeys.Enqueue("enter");
             }
         }
         else if (screen.Contains("enter a name for your character", StringComparison.OrdinalIgnoreCase)
@@ -1936,6 +1938,11 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
+        if (_pendingKeys.Count > 0 && _bridge != null && !_bridge.Busy)
+        {
+            _bridge.SendKey(_pendingKeys.Dequeue());
+        }
+
         // Only a real stall counts: time since the last frame, not merely
         // having a key in flight.
         var wasStalled = _waiting > 2.0;
@@ -2500,9 +2507,57 @@ public partial class Main : Node
             return;
         }
 
+        var inPlay = frame.HasValue && frame.Value.TryGetProperty("phase", out var p) && p.GetString() == "play";
+        bool awaitingCommand = frame.HasValue
+            && frame.Value.TryGetProperty("ui", out var uiEl)
+            && uiEl.ValueKind == JsonValueKind.Object
+            && uiEl.TryGetProperty("awaiting_command", out var ac) && ac.GetBoolean();
+        var overlay = frame.HasValue && frame.Value.TryGetProperty("ui", out var ui) && ui.TryGetProperty("overlay", out var ov) ? ov.GetInt32() : 0;
+        var more = frame.HasValue && frame.Value.TryGetProperty("ui", out var uim) && uim.TryGetProperty("more", out var m) && m.GetBoolean();
+
         // Relative directional movement via number pad (or top-row numbers in world view).
         // 8 = forward, 2 = back, 4 = strafe left, 6 = strafe right, diagonals 7,9,1,3, 5 = stay.
         var dir = GetDirectionKey(key);
+
+        // Active 3D direction prompt (e.g. fire/aim/cast/open target direction)
+        if (inPlay && !awaitingCommand && !more && overlay == 0)
+        {
+            var promptDir = dir;
+            if (promptDir == 0 && !key.CtrlPressed && !key.AltPressed)
+            {
+                promptDir = key.Keycode switch
+                {
+                    Key.Up => 8,
+                    Key.Down => 2,
+                    Key.Left => 4,
+                    Key.Right => 6,
+                    Key.K => 8,
+                    Key.J => 2,
+                    Key.H => 4,
+                    Key.L => 6,
+                    Key.Y => 7,
+                    Key.U => 9,
+                    Key.B => 1,
+                    Key.N => 3,
+                    Key.Period => 5,
+                    _ => 0
+                };
+            }
+            if (promptDir >= 1 && promptDir <= 9)
+            {
+                if (!_bridge.Busy)
+                {
+                    var moveKey = promptDir == 5 ? "t" : _world.RelativeMoveKey(promptDir);
+                    if (moveKey != null)
+                    {
+                        _bridge.SendKey(moveKey);
+                    }
+                }
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+        }
+
         if (inWorld && dir >= 1 && dir <= 9)
         {
             if (!_bridge.Busy)
@@ -2561,12 +2616,7 @@ public partial class Main : Node
             return;
         }
 
-        var inPlay = frame.HasValue && frame.Value.TryGetProperty("phase", out var p) && p.GetString() == "play";
-        var awaiting = frame.HasValue && frame.Value.TryGetProperty("awaiting_command", out var ac) && ac.GetBoolean();
-        var overlay = frame.HasValue && frame.Value.TryGetProperty("ui", out var ui) && ui.TryGetProperty("overlay", out var ov) ? ov.GetInt32() : 0;
-        var more = frame.HasValue && frame.Value.TryGetProperty("ui", out var uim) && uim.TryGetProperty("more", out var m) && m.GetBoolean();
-
-        if (inPlay && awaiting && overlay == 0 && !more && (key.ShiftPressed || _runMode))
+        if (inPlay && awaitingCommand && overlay == 0 && !more && (key.ShiftPressed || _runMode))
         {
             var termDir = key.Keycode switch
             {
@@ -2591,7 +2641,7 @@ public partial class Main : Node
         var spec = ToKeySpec(key);
         if (spec != null && !_bridge.Busy)
         {
-            if (inPlay && awaiting && overlay == 0 && !more)
+            if (inPlay && awaitingCommand && overlay == 0 && !more)
             {
                 spec = RealmKeys.FromVanilla(spec, _realm);
             }

@@ -47,8 +47,55 @@
             'needsTerminal', 'screenText', 'isItemPrompt', 'isStore', 'isTargeting',
             'isTargetingPrompt', 'isYesNoPrompt', 'isQuantityPrompt', 'isChoiceMenu',
             'isNamePrompt', 'isReviewScreen', 'isMenuOrInteractive', 'isSplashPoem',
-            'isPressAnyKey', 'isItemActions']
+            'isPressAnyKey', 'isItemActions', 'isPopupCommandMenu']
     });
+
+    const VARIANT_REGISTRY = {
+        angband: { id: 'angband', title: 'Angband 4.2.6', hasTown: true, hasShops: true, statCount: 6, invenMode: 'select', hasPopupCommandMenu: false },
+        silq: { id: 'silq', title: 'Sil-Q', hasTown: false, hasShops: false, statCount: 4, invenMode: 'command', hasPopupCommandMenu: false, features: { smithing: true, songs: true, abilityTree: true } },
+        frogcomposband: { id: 'frogcomposband', title: 'FrogComposBand', hasTown: true, hasShops: true, statCount: 6, invenMode: 'command', hasPopupCommandMenu: true, features: { wilderness: true, unifiedGearUi: true, powers: true, quests: true } },
+        hengband: { id: 'hengband', title: 'Hengband', hasTown: true, hasShops: true, statCount: 6, invenMode: 'command', hasPopupCommandMenu: true, isBilingual: true, features: { wilderness: true, riding: true, magicRealms: true } }
+    };
+
+    function registerVariant(id, spec) {
+        if (id && spec) VARIANT_REGISTRY[id] = Object.assign({}, VARIANT_REGISTRY.angband, spec, { id });
+        return VARIANT_REGISTRY[id];
+    }
+
+    function isPopupCommandMenu(screenText) {
+        return Boolean(screenText && (/\|\s*>\s*(?:song\/special|action|item|equi|info|save|呪文|行動|道具|装備|情報)/i.test(screenText) || (/\+---+\+/.test(screenText) && /\|\s*>\s*\S+/.test(screenText))));
+    }
+
+    function isCharacterSheet(screenText) {
+        if (!screenText) return false;
+        if (screenText.includes('(character sheet)') || screenText.includes('キャラクター情報') || screenText.includes('character sheet')) return true;
+        const hasIdentity = (screenText.includes('name') && (screenText.includes('race') || screenText.includes('house')) && (screenText.includes('sex') || screenText.includes('age') || screenText.includes('house') || screenText.includes('class'))) ||
+                            (screenText.includes('名前') && screenText.includes('種族') && screenText.includes('職業'));
+        const hasStats = (screenText.includes('str') && screenText.includes('dex') && screenText.includes('con')) ||
+                         (screenText.includes('str') && screenText.includes('gra')) ||
+                         (screenText.includes('腕力') && screenText.includes('器用'));
+        return Boolean(hasIdentity && hasStats);
+    }
+
+    function isSpellOrAbilityMenu(screenText) {
+        if (!screenText) return false;
+        if (/\bname\s+(?:lv|level)\s+(?:mana|cost|sp)\s+fail/i.test(screenText)) return true;
+        if (/名前\s+lv\s+(?:mp|魔力)/i.test(screenText)) return true;
+        if (/(?:cast|study|browse)\s+which\s+(?:spell|prayer|power|technique|incantation)/i.test(screenText)) return true;
+        if (/use\s+which\s+(?:power|ability|racial|technique|mindcraft)/i.test(screenText)) return true;
+        if (/sing\s+which\s+song|songs?\s+known|stop\s+singing/i.test(screenText)) return true;
+        if (screenText.includes('smithing') && (screenText.includes('weaponsmith') || screenText.includes('armoursmith') || screenText.includes('jeweller') || screenText.includes('mithril'))) return true;
+        if (screenText.includes('abilities') && (screenText.includes('stealth') || screenText.includes('evasion') || screenText.includes('archery')) && (screenText.includes('melee') || screenText.includes('will') || screenText.includes('perception'))) return true;
+        return false;
+    }
+
+    function isKnowledgeOrOptions(screenText) {
+        if (!screenText) return false;
+        if (/display\s+current\s+knowledge|knowledge\s+menu|known\s+artifacts|known\s+uniques|known\s+objects|現在の知識|既知の/i.test(screenText)) return true;
+        if (/options?\s+menu|game[\s-]*play\s+options|interface\s+options|disturbance\s+options|set\s+options|オプション設定/i.test(screenText)) return true;
+        if (/please\s+choose\s+one\s+of\s+the\s+following\s+online\s+help|angband\s+help|help\s+system|ヘルプ/i.test(screenText)) return true;
+        return false;
+    }
 
     /** Raw terminal text: rows' glyph strings joined by '\n' (no decoding, original case). */
     function rawScreenText(frame) {
@@ -66,11 +113,18 @@
         if (!decode && frame && frame._screenTextLower !== undefined) {
             return frame._screenTextLower;
         }
+        if (decode && frame && frame._screenTextDecodedLower !== undefined) {
+            return frame._screenTextDecodedLower;
+        }
         const raw = rawScreenText(frame);
         const decoded = typeof decode === 'function' ? decode(raw) : raw;
         const res = (raw + '\n' + decoded).toLowerCase();
-        if (!decode && frame && typeof frame === 'object') {
-            frame._screenTextLower = res;
+        if (frame && typeof frame === 'object') {
+            if (!decode) {
+                frame._screenTextLower = res;
+            } else {
+                frame._screenTextDecodedLower = res;
+            }
         }
         return res;
     }
@@ -226,6 +280,18 @@
             screenText.includes('quaff which') ||
             screenText.includes('read which') ||
             screenText.includes('destroy which') ||
+            screenText.includes('eat which') ||
+            screenText.includes('use which') ||
+            screenText.includes('aim which') ||
+            screenText.includes('zap which') ||
+            screenText.includes('activate which') ||
+            screenText.includes('inscribe which') ||
+            screenText.includes('uninscribe which') ||
+            screenText.includes('refill which') ||
+            screenText.includes('refill with which') ||
+            screenText.includes('cast which') ||
+            screenText.includes('browse which') ||
+            screenText.includes('study which') ||
             (!hasStoreText && screenText.includes('examine which item')) ||
             (isHeng && !hasStoreText && (
                 screenText.includes('持ち物：') ||
@@ -233,7 +299,16 @@
                 screenText.includes('どれを装備') ||
                 screenText.includes('どれを外しますか') ||
                 screenText.includes('どれを落としますか') ||
-                screenText.includes('どれを投げますか')
+                screenText.includes('どれを投げますか') ||
+                screenText.includes('どれを食べますか') ||
+                screenText.includes('どれを使いますか') ||
+                screenText.includes('どの杖') ||
+                screenText.includes('どのロッド') ||
+                screenText.includes('どれを発動') ||
+                screenText.includes('銘を刻み') ||
+                screenText.includes('銘を消') ||
+                screenText.includes('どの呪文') ||
+                screenText.includes('どれを学習')
             ))
         );
 
@@ -288,7 +363,10 @@
                              screenText.includes("standard roller") ||
                              screenText.includes("set minimum stats") ||
                              screenText.includes("enter for goto next") ||
-                             screenText.includes("roller");
+                             screenText.includes("roller") ||
+                             screenText.includes("points left") ||
+                             /allocate.*points/i.test(screenText) ||
+                             /tab.*abilities/i.test(screenText);
 
         const isBackgroundEdit = isHengHistory ||
                                  screenText.includes("character background") ||
@@ -332,6 +410,7 @@
                                 screenText.includes("or enter to accept") ||
                                 screenText.includes("reroll, 'h'istory") ||
                                 screenText.includes("enter to begin play") ||
+                                (screenText.includes("enter your starting stats") && screenText.includes("begin play")) ||
                                 screenText.includes("能力値決定") ||
                                 screenText.includes("次の数値") ||
                                 (screenText.includes("best") && screenText.includes("cur exp")));
@@ -727,6 +806,7 @@
                                      screenText.includes('when the world is old and the days of wonder') ||
                                      screenText.includes('rephial.org') ||
                                      screenText.includes('last battle be gathered'));
+        const isPopupCmd = isPopupCommandMenu(screenText);
 
         // Mode determination
         let mode = 'terminal';
@@ -736,14 +816,16 @@
             mode = 'targeting';
         } else if (isItemActions) {
             mode = 'item-actions';
+        } else if (isPopupCmd) {
+            mode = 'popup-menu';
         } else if (tb.isStore) {
             mode = 'store';
-        } else if (tb.isItemPrompt || (realm === 'frogcomposband' && (screenText.includes('inventory | equipment') || screenText.includes('inventory |') || screenText.includes('| equipment')))) {
-            mode = 'item-list';
         } else if (pf.isYesNoPrompt) {
             mode = 'yesno';
         } else if (pf.isQuantityPrompt) {
             mode = 'quantity';
+        } else if (tb.isItemPrompt || (realm === 'frogcomposband' && (screenText.includes('inventory | equipment') || screenText.includes('inventory |') || screenText.includes('| equipment')))) {
+            mode = 'item-list';
         } else if (!inPlay) {
             if (bf.isReviewScreen) mode = 'review';
             else if (bf.isNamePrompt) mode = 'name';
@@ -801,6 +883,28 @@
                 verbPrompt = 'examine';
             } else if (screenText.includes('destroy which')) {
                 verbPrompt = 'destroy';
+            } else if (screenText.includes('eat which') || screenText.includes('どれを食べますか')) {
+                verbPrompt = 'eat';
+            } else if (screenText.includes('use which') || screenText.includes('どれを使いますか')) {
+                verbPrompt = 'use';
+            } else if (screenText.includes('aim which') || screenText.includes('どの杖')) {
+                verbPrompt = 'aim';
+            } else if (screenText.includes('zap which') || screenText.includes('どのロッド')) {
+                verbPrompt = 'zap';
+            } else if (screenText.includes('activate which') || screenText.includes('どれを発動')) {
+                verbPrompt = 'activate';
+            } else if (screenText.includes('inscribe which') || screenText.includes('銘を刻み')) {
+                verbPrompt = 'inscribe';
+            } else if (screenText.includes('uninscribe which') || screenText.includes('銘を消')) {
+                verbPrompt = 'uninscribe';
+            } else if (screenText.includes('refill which') || screenText.includes('refill with which') || screenText.includes('fuel with which')) {
+                verbPrompt = 'refill';
+            } else if (screenText.includes('cast which') || screenText.includes('use which book') || screenText.includes('どの呪文')) {
+                verbPrompt = 'cast';
+            } else if (screenText.includes('browse which') || screenText.includes('どの本を')) {
+                verbPrompt = 'browse';
+            } else if (screenText.includes('study which') || screenText.includes('どれを学習')) {
+                verbPrompt = 'study';
             }
         }
 
@@ -808,7 +912,7 @@
             ? extractItems(frame && frame.term ? frame.term.rows : [], isHeng, decode)
             : [];
 
-        const isMenuOrInteractive = Boolean(mode === 'item-list' || mode === 'item-actions' || mode === 'store' ||
+        const isMenuOrInteractive = Boolean(mode === 'item-list' || mode === 'item-actions' || mode === 'popup-menu' || mode === 'store' ||
             mode === 'birth' || mode === 'review' || mode === 'name' || mode === 'yesno' ||
             mode === 'quantity' || mode === 'press-any-key');
 
@@ -833,7 +937,8 @@
             isMenuOrInteractive,
             isSplashPoem,
             isPressAnyKey,
-            isItemActions
+            isItemActions,
+            isPopupCommandMenu: isPopupCmd
         };
 
         if (frame) {
@@ -868,6 +973,12 @@
 
     return {
         KEYS,
+        VARIANT_REGISTRY,
+        registerVariant,
+        isPopupCommandMenu,
+        isCharacterSheet,
+        isSpellOrAbilityMenu,
+        isKnowledgeOrOptions,
         rawScreenText,
         screenTextOf,
         playerFeatOf,

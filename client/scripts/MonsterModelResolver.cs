@@ -183,6 +183,283 @@ public static class MonsterModelResolver
     private static readonly Dictionary<string, (Texture2D Albedo, Texture2D Normal)> _spriteCache = new();
     private static readonly Dictionary<string, StandardMaterial3D> _creatureMaterialCache = new();
 
+    private struct MonsterAtlasEntry
+    {
+        public float U0;
+        public float V0;
+        public float U1;
+        public float V1;
+        public float Width;
+        public float Height;
+        public bool IsFloating;
+    }
+
+    private static bool _monsterAtlasLoaded;
+    private static Texture2D _monsterAtlasTexture;
+    private static Texture2D _monsterNormalTexture;
+    private static readonly Dictionary<string, MonsterAtlasEntry> _monsterAtlasMonsters = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, MonsterAtlasEntry> _monsterAtlasGlyphs = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, StandardMaterial3D> _monsterAtlasMaterialCache = new();
+
+    private static string ResolveAssetPath(string relPath)
+    {
+        try
+        {
+            var pRes = ProjectSettings.GlobalizePath(relPath.StartsWith("res://") ? relPath : $"res://{relPath}");
+            if (System.IO.File.Exists(pRes)) return pRes;
+        }
+        catch { }
+
+        if (System.IO.File.Exists(relPath)) return relPath;
+
+        try
+        {
+            var pFull = System.IO.Path.GetFullPath(relPath);
+            if (System.IO.File.Exists(pFull)) return pFull;
+        }
+        catch { }
+
+        try
+        {
+            var pBase = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, relPath);
+            if (System.IO.File.Exists(pBase)) return pBase;
+        }
+        catch { }
+
+        return null;
+    }
+
+    public static void EnsureMonsterAtlasLoaded()
+    {
+        if (_monsterAtlasLoaded) return;
+        _monsterAtlasLoaded = true;
+
+        try
+        {
+            const string resAtlas = "res://assets/sprites/monsters/monster_atlas.png";
+            const string resNormal = "res://assets/sprites/monsters/monster_normal.png";
+            const string resJson = "res://assets/sprites/monsters/monster_atlas.json";
+
+            string jsonPath = null;
+
+            if (ResourceLoader.Exists(resAtlas))
+            {
+                _monsterAtlasTexture = GD.Load<Texture2D>(resAtlas);
+                if (ResourceLoader.Exists(resNormal))
+                {
+                    _monsterNormalTexture = GD.Load<Texture2D>(resNormal);
+                }
+                jsonPath = ProjectSettings.GlobalizePath(resJson);
+                if (!System.IO.File.Exists(jsonPath))
+                {
+                    jsonPath = ResolveAssetPath("../server/public/assets/sprites/monsters/monster_atlas.json");
+                }
+            }
+            else
+            {
+                // Fall back to external files via Image.LoadFromFile / File.ReadAllText
+                var atlasPngPath = ResolveAssetPath("../server/public/assets/sprites/monsters/monster_atlas.png");
+                var normalPngPath = ResolveAssetPath("../server/public/assets/sprites/monsters/monster_normal.png");
+                jsonPath = ResolveAssetPath("../server/public/assets/sprites/monsters/monster_atlas.json");
+
+                if (atlasPngPath != null && System.IO.File.Exists(atlasPngPath))
+                {
+                    var img = Image.LoadFromFile(atlasPngPath);
+                    if (img != null)
+                    {
+                        img.GenerateMipmaps();
+                        _monsterAtlasTexture = ImageTexture.CreateFromImage(img);
+                    }
+                }
+
+                if (normalPngPath != null && System.IO.File.Exists(normalPngPath))
+                {
+                    var nImg = Image.LoadFromFile(normalPngPath);
+                    if (nImg != null)
+                    {
+                        nImg.GenerateMipmaps();
+                        _monsterNormalTexture = ImageTexture.CreateFromImage(nImg);
+                    }
+                }
+            }
+
+            if (jsonPath != null && System.IO.File.Exists(jsonPath))
+            {
+                var jsonStr = System.IO.File.ReadAllText(jsonPath);
+                using var doc = JsonDocument.Parse(jsonStr);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("monsters", out var monstersElem) && monstersElem.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in monstersElem.EnumerateObject())
+                    {
+                        var entry = ParseMonsterAtlasEntry(prop.Value);
+                        _monsterAtlasMonsters[prop.Name] = entry;
+                    }
+                }
+
+                if (root.TryGetProperty("glyphs", out var glyphsElem) && glyphsElem.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in glyphsElem.EnumerateObject())
+                    {
+                        var entry = ParseMonsterAtlasEntry(prop.Value);
+                        _monsterAtlasGlyphs[prop.Name] = entry;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"[MonsterModelResolver] Failed to load monster atlas: {ex.Message}");
+        }
+    }
+
+    private static MonsterAtlasEntry ParseMonsterAtlasEntry(JsonElement el)
+    {
+        var entry = new MonsterAtlasEntry
+        {
+            Width = 1.25f,
+            Height = 1.70f,
+            IsFloating = false
+        };
+
+        if (el.TryGetProperty("uv", out var uvElem) && uvElem.ValueKind == JsonValueKind.Array && uvElem.GetArrayLength() >= 4)
+        {
+            entry.U0 = uvElem[0].GetSingle();
+            entry.V0 = uvElem[1].GetSingle();
+            entry.U1 = uvElem[2].GetSingle();
+            entry.V1 = uvElem[3].GetSingle();
+        }
+
+        if (el.TryGetProperty("width", out var wElem) && wElem.TryGetSingle(out var w))
+        {
+            entry.Width = w;
+        }
+
+        if (el.TryGetProperty("height", out var hElem) && hElem.TryGetSingle(out var h))
+        {
+            entry.Height = h;
+        }
+
+        if (el.TryGetProperty("isFloating", out var floatElem))
+        {
+            entry.IsFloating = floatElem.GetBoolean();
+        }
+
+        return entry;
+    }
+
+    private static bool TryResolveMonsterAtlasEntry(string raceName, char glyph, string lowerName, out MonsterAtlasEntry entry)
+    {
+        entry = default;
+        // Flora (#) and Fungi/Molds (m, ,) map strictly to non-humanoid organic/flora 3D meshes rather than humanoids or 2D billboards
+        if (glyph is '#' or 'm' or ',')
+        {
+            return false;
+        }
+
+        EnsureMonsterAtlasLoaded();
+        if (_monsterAtlasTexture == null) return false;
+
+        // Equine mapping:
+        // map equine/mount names to monsters['Wild horse'] || monsters['White horse'] || monsters['Death steed'] || glyphs['q']
+        bool isEquine = (lowerName.Contains("horse") || lowerName.Contains("warhorse") || lowerName.Contains("pony") ||
+                         lowerName.Contains("steed") || lowerName.Contains("unicorn") || lowerName.Contains("pegasus") ||
+                         lowerName.Contains("mare") || lowerName.Contains("stallion") || lowerName.Contains("mount") ||
+                         lowerName.Contains("馬") || lowerName.Contains("ポニー") || lowerName.Contains("ユニコーン") ||
+                         lowerName.Contains("ペガサス") || lowerName.Contains("スレイプニル") || lowerName.Contains("騎")) &&
+                         !lowerName.Contains("uvatha");
+
+        if (isEquine)
+        {
+            if (_monsterAtlasMonsters.TryGetValue("Wild horse", out entry) ||
+                _monsterAtlasMonsters.TryGetValue("White horse", out entry) ||
+                _monsterAtlasMonsters.TryGetValue("Death steed", out entry) ||
+                _monsterAtlasMonsters.TryGetValue("Warhorse", out entry) ||
+                _monsterAtlasGlyphs.TryGetValue("q", out entry))
+            {
+                return true;
+            }
+        }
+
+        // Direct name lookup
+        if (!string.IsNullOrEmpty(raceName) && _monsterAtlasMonsters.TryGetValue(raceName, out entry))
+        {
+            return true;
+        }
+
+        // Case-insensitive / partial name lookup
+        foreach (var (k, v) in _monsterAtlasMonsters)
+        {
+            if (lowerName.Contains(k.ToLowerInvariant()))
+            {
+                entry = v;
+                return true;
+            }
+        }
+
+        // Glyph fallback
+        var glyphStr = glyph.ToString();
+        if (_monsterAtlasGlyphs.TryGetValue(glyphStr, out entry))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryCreateMonsterAtlasBillboard(MonsterEntity entity, char glyph, string raceName, string lowerName, Color color)
+    {
+        if (!TryResolveMonsterAtlasEntry(raceName, glyph, lowerName, out var entry))
+        {
+            return false;
+        }
+
+        var matKey = $"{entry.U0}_{entry.V0}_{entry.U1}_{entry.V1}";
+        if (!_monsterAtlasMaterialCache.TryGetValue(matKey, out var mat))
+        {
+            mat = new StandardMaterial3D
+            {
+                AlbedoTexture = _monsterAtlasTexture,
+                NormalEnabled = _monsterNormalTexture != null,
+                NormalTexture = _monsterNormalTexture,
+                NormalScale = 0.80f,
+                Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor,
+                AlphaScissorThreshold = 0.35f,
+                AlphaAntialiasingMode = BaseMaterial3D.AlphaAntiAliasing.AlphaToCoverage,
+                BillboardMode = BaseMaterial3D.BillboardModeEnum.FixedY,
+                TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+                Uv1Scale = new Vector3(entry.U1 - entry.U0, entry.V1 - entry.V0, 1.0f),
+                Uv1Offset = new Vector3(entry.U0, 1.0f - entry.V1, 0.0f),
+                CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+            };
+            _monsterAtlasMaterialCache[matKey] = mat;
+        }
+
+        var w = entry.Width > 0 ? entry.Width : 1.25f;
+        var h = entry.Height > 0 ? entry.Height : 1.70f;
+
+        var quadMesh = new QuadMesh
+        {
+            Size = new Vector2(w, h),
+        };
+
+        var meshInst = new MeshInstance3D
+        {
+            Mesh = quadMesh,
+            MaterialOverride = mat,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.On,
+            Position = new Vector3(0, h * 0.5f, 0),
+        };
+
+        entity.IsFloating = entry.IsFloating;
+        entity.BaseY = entry.IsFloating ? 0.35f : 0.0f;
+        entity.ModelHeight = h;
+
+        entity.CharacterNode.AddChild(meshInst);
+        return true;
+    }
+
     /// <summary>
     /// Generates high-resolution procedural PBR textures & materials for creature tokens
     /// (fur, reptilian scales, chitin, wet slime, bark, stone, etc.)
@@ -390,7 +667,7 @@ public static class MonsterModelResolver
             VisibilityRangeEndMargin = 3.0f,
             VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
             RenderPriority = 1,
-            Position = new Vector3(0, entity.ModelHeight + 0.20f, 0),
+            Position = new Vector3(0, entity.ModelHeight + 0.24f, 0),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Bottom,
         };
@@ -413,7 +690,7 @@ public static class MonsterModelResolver
             VisibilityRangeEndMargin = 3.0f,
             VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
             RenderPriority = 2,
-            Position = new Vector3(0, entity.ModelHeight + 0.65f, 0),
+            Position = new Vector3(0, entity.ModelHeight + 0.24f + 0.40f, 0),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Bottom,
         };
@@ -437,7 +714,7 @@ public static class MonsterModelResolver
             VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
             RenderPriority = 3,
             Visible = false,
-            Position = new Vector3(0, entity.ModelHeight + 0.95f, 0),
+            Position = new Vector3(0, entity.ModelHeight + 0.24f + 0.70f, 0),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Bottom,
         };
@@ -468,6 +745,7 @@ public static class MonsterModelResolver
             {
                 entity.Nameplate.Modulate = HealthColour(hp, hpMax);
             }
+            entity.Nameplate.Position = new Vector3(0, entity.ModelHeight + 0.24f, 0);
             entity.Nameplate.Visible = isVisibleInView;
         }
 
@@ -564,6 +842,14 @@ public static class MonsterModelResolver
                 {
                     entity.ModelHeight = 2.80f * scale;
                 }
+                else if (modelPath.Contains("tree_dead_medium"))
+                {
+                    entity.ModelHeight = 1.90f * scale;
+                }
+                else if (modelPath.Contains("tree_dead_small") || modelPath.Contains("waterplant") || modelPath.Contains("plant") || modelPath.Contains("thorn"))
+                {
+                    entity.ModelHeight = 0.85f * scale;
+                }
                 else if (modelPath.Contains("Chest_Closed") || modelPath.Contains("chest"))
                 {
                     entity.ModelHeight = 0.65f * scale;
@@ -622,6 +908,12 @@ public static class MonsterModelResolver
             }
         }
 
+        // Flora (#) and Fungi/Molds (m, ,) map to dedicated 3D organic/flora meshes rather than flat 2D billboards or humanoids
+        if (glyph is not ('#' or 'm' or ',') && TryCreateMonsterAtlasBillboard(entity, glyph, raceName, lowerName, color))
+        {
+            return;
+        }
+
         // Dedicated High-Fidelity 3D Anatomical Creature Models for Non-Humanoids
         BuildCreatureToken(entity, glyph, lowerName, color);
     }
@@ -638,7 +930,9 @@ public static class MonsterModelResolver
             AlbedoTexture = albedoTex,
             NormalEnabled = true,
             NormalTexture = normalTex,
+            NormalScale = 0.75f,
             Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+            AlphaAntialiasingMode = BaseMaterial3D.AlphaAntiAliasing.AlphaToCoverage,
             BillboardMode = BaseMaterial3D.BillboardModeEnum.FixedY,
             CullMode = BaseMaterial3D.CullModeEnum.Disabled,
             TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmaps,
@@ -654,6 +948,7 @@ public static class MonsterModelResolver
         {
             Mesh = quadMesh,
             MaterialOverride = spriteMat,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.On,
             Position = new Vector3(0, spriteHeight * 0.5f, 0),
         };
 
@@ -765,6 +1060,11 @@ public static class MonsterModelResolver
 
         // 12. Ents & Trees (l)
         AddModelRule('l', new MonsterModelRule("res://assets/models/props/tree_dead_large.gltf", 0.40f, speed: 0.5f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("tree") || n.Contains("ent") || n.Contains("huorn") || n.Contains("willow") || n.Contains("wood")));
+
+        // 13. Flora, Plants, Thorns, Creepers, Huorns & Trees (#)
+        AddModelRule('#', new MonsterModelRule("res://assets/models/props/tree_dead_large.gltf", 0.40f, speed: 0.5f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("tree") || n.Contains("ent") || n.Contains("huorn") || n.Contains("willow") || n.Contains("wood")));
+        AddModelRule('#', new MonsterModelRule("res://assets/models/props/tree_dead_small.gltf", 0.32f, speed: 0.5f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("tanglethorn") || n.Contains("thorn") || n.Contains("creeper") || n.Contains("vine") || n.Contains("bush") || n.Contains("plant")));
+        AddModelRule('#', new MonsterModelRule("res://assets/models/props/tree_dead_small.gltf", 0.30f, speed: 0.5f, equipment: EquipmentRole.Unarmed));
 
         // 16. Humanoids (h) and People / Adventurers (p)
         Func<string, bool> isKnight = n => n.Contains("knight") || n.Contains("paladin") || n.Contains("veteran") ||
@@ -1108,40 +1408,54 @@ public static class MonsterModelResolver
                 height = 0.20f + 0.32f * mushScale;
                 break;
 
+            case '#': // Flora, Plants, Thorns, Creepers, Vines, Huorns
+                var isHuorn = lowerName.Contains("tree") || lowerName.Contains("ent") || lowerName.Contains("huorn") || lowerName.Contains("willow") || lowerName.Contains("wood");
+                if (isHuorn)
+                {
+                    tokenBody = CreateLouseOrTreeToken(entity, color, true, lowerName);
+                    height = 2.20f;
+                }
+                else
+                {
+                    tokenBody = CreateFloraToken(entity, color, lowerName);
+                    height = 0.55f;
+                }
+                break;
+
             case 'c': // Centipede (Giant white centipede, etc.)
-                var centScale = lowerName.Contains("giant") ? 0.48f : (lowerName.Contains("metallic") ? 0.52f : 0.38f);
-                tokenBody = CreateCentipedeToken(entity, color, centScale);
-                height = 0.18f + 0.25f * centScale;
+                var centScale = lowerName.Contains("giant") ? 0.50f : (lowerName.Contains("metallic") ? 0.54f : 0.38f);
+                tokenBody = CreateCentipedeToken(entity, color, centScale, lowerName);
+                height = 0.16f + 0.20f * centScale;
                 break;
 
             case 'a': // Ant (Soldier ant, giant red ant, fire ant, army ant)
-                var antScale = lowerName.Contains("queen") ? 0.58f : (lowerName.Contains("soldier") ? 0.36f : (lowerName.Contains("giant") ? 0.42f : 0.30f));
-                tokenBody = CreateInsectToken(entity, color, antScale, isFlying: false, isBeetle: false);
-                height = 0.22f + 0.30f * antScale;
+                var antScale = lowerName.Contains("queen") ? 0.55f : (lowerName.Contains("soldier") ? 0.36f : (lowerName.Contains("giant") ? 0.42f : 0.28f));
+                tokenBody = CreateInsectToken(entity, color, antScale, isFlying: false, isBeetle: false, lowerName: lowerName);
+                height = 0.18f + 0.22f * antScale;
                 break;
 
             case 'K': // Killer Beetle
-                var beetleScale = lowerName.Contains("giant") || lowerName.Contains("rhinoceros") ? 0.60f : 0.46f;
-                tokenBody = CreateInsectToken(entity, color, beetleScale, isFlying: false, isBeetle: true);
-                height = 0.24f + 0.32f * beetleScale;
+                var beetleScale = lowerName.Contains("giant") || lowerName.Contains("rhinoceros") || lowerName.Contains("stag") ? 0.62f : 0.48f;
+                tokenBody = CreateInsectToken(entity, color, beetleScale, isFlying: false, isBeetle: true, lowerName: lowerName);
+                height = 0.24f + 0.30f * beetleScale;
                 break;
 
             case 'F': // Dragonfly / Fly
                 var flyScale = lowerName.Contains("giant") ? 0.46f : 0.36f;
-                tokenBody = CreateInsectToken(entity, color, flyScale, isFlying: true, isBeetle: false);
+                tokenBody = CreateInsectToken(entity, color, flyScale, isFlying: true, isBeetle: false, lowerName: lowerName);
                 height = 0.70f;
                 isFloating = true;
                 break;
 
             case 'I': // Generic crawling/swarming insects
                 var insectScale = 0.34f;
-                tokenBody = CreateInsectToken(entity, color, insectScale, isFlying: false, isBeetle: false);
+                tokenBody = CreateInsectToken(entity, color, insectScale, isFlying: false, isBeetle: false, lowerName: lowerName);
                 height = 0.28f;
                 break;
 
             case 'S': // Spider, Scorpion
-                var spiderScale = lowerName.Contains("shelob") || lowerName.Contains("ungoliant") ? 1.05f : (lowerName.Contains("giant") ? 0.62f : (lowerName.Contains("cave") || lowerName.Contains("phase") ? 0.44f : 0.34f));
-                tokenBody = CreateArachnidToken(entity, color, spiderScale);
+                var spiderScale = lowerName.Contains("shelob") || lowerName.Contains("ungoliant") ? 1.10f : (lowerName.Contains("giant") ? 0.65f : (lowerName.Contains("cave") || lowerName.Contains("phase") ? 0.44f : 0.34f));
+                tokenBody = CreateArachnidToken(entity, color, spiderScale, lowerName);
                 height = 0.20f + 0.32f * spiderScale;
                 break;
 
@@ -1753,13 +2067,80 @@ public static class MonsterModelResolver
         return container;
     }
 
-    private static Node3D CreateInsectToken(MonsterEntity entity, Color glowColor, float scale, bool isFlying, bool isBeetle)
+    private static Node3D CreateInsectToken(MonsterEntity entity, Color glowColor, float scale, bool isFlying, bool isBeetle, string lowerName = "")
     {
         entity.TokenType = CreatureTokenType.Insect;
         var container = new Node3D { Position = new Vector3(0, 0, 0), Scale = new Vector3(scale, scale, scale) };
 
-        var chitinColor = new Color(0.16f, 0.15f, 0.17f).Lerp(glowColor, isBeetle ? 0.45f : 0.35f);
-        var chitinMat = GetProceduralCreatureMaterial("chitin", chitinColor, roughness: 0.35f, metallic: 0.3f);
+        Color baseTone;
+        float metallic;
+        float roughness;
+
+        if (isBeetle)
+        {
+            // Beetle (K): heavy armored, domed carapace with metallic/iridescent sheen
+            if (lowerName.Contains("bronze") || lowerName.Contains("copper"))
+            {
+                baseTone = new Color(0.48f, 0.28f, 0.12f);
+                metallic = 0.80f;
+                roughness = 0.20f;
+            }
+            else if (lowerName.Contains("scarab") || lowerName.Contains("jewel") || lowerName.Contains("green"))
+            {
+                baseTone = new Color(0.12f, 0.38f, 0.20f);
+                metallic = 0.70f;
+                roughness = 0.22f;
+            }
+            else if (lowerName.Contains("fire") || lowerName.Contains("red"))
+            {
+                baseTone = new Color(0.45f, 0.10f, 0.08f);
+                metallic = 0.55f;
+                roughness = 0.28f;
+            }
+            else
+            {
+                baseTone = new Color(0.10f, 0.12f, 0.14f);
+                metallic = 0.65f;
+                roughness = 0.25f;
+            }
+        }
+        else
+        {
+            // Ant (a): warm reddish-brown/amber natural chitin, slender three-part body
+            if (lowerName.Contains("fire") || lowerName.Contains("red"))
+            {
+                baseTone = new Color(0.58f, 0.14f, 0.08f);
+                metallic = 0.15f;
+                roughness = 0.40f;
+            }
+            else if (lowerName.Contains("soldier") || lowerName.Contains("army") || lowerName.Contains("black"))
+            {
+                baseTone = new Color(0.20f, 0.12f, 0.10f);
+                metallic = 0.25f;
+                roughness = 0.35f;
+            }
+            else if (lowerName.Contains("queen"))
+            {
+                baseTone = new Color(0.48f, 0.08f, 0.22f);
+                metallic = 0.30f;
+                roughness = 0.30f;
+            }
+            else if (lowerName.Contains("snow") || lowerName.Contains("white"))
+            {
+                baseTone = new Color(0.85f, 0.88f, 0.90f);
+                metallic = 0.10f;
+                roughness = 0.45f;
+            }
+            else
+            {
+                baseTone = new Color(0.38f, 0.18f, 0.10f);
+                metallic = 0.20f;
+                roughness = 0.40f;
+            }
+        }
+
+        var chitinColor = baseTone.Lerp(glowColor, isBeetle ? 0.45f : 0.35f);
+        var chitinMat = GetProceduralCreatureMaterial("chitin", chitinColor, roughness: roughness, metallic: metallic);
         var darkMat = new StandardMaterial3D { AlbedoColor = chitinColor * 0.75f, Roughness = 0.4f };
 
         var thoraxNode = new Node3D { Position = new Vector3(0, 0.16f, 0) };
@@ -1767,15 +2148,22 @@ public static class MonsterModelResolver
         entity.BodyNode = thoraxNode;
         entity.InitialBodyScale = Vector3.One;
 
-        // Thorax (central body)
-        var thoraxSize = isBeetle ? new Vector3(0.32f, 0.22f, 0.32f) : new Vector3(0.20f, 0.18f, 0.28f);
+        // Thorax (central body) - broader on beetles, slender on ants
+        var thoraxSize = isBeetle ? new Vector3(0.34f, 0.22f, 0.32f) : new Vector3(0.18f, 0.16f, 0.26f);
         var thoraxMesh = new SphereMesh { Radius = thoraxSize.X * 0.5f, Height = thoraxSize.Y, RadialSegments = 10, Rings = 5 };
         thoraxNode.AddChild(new MeshInstance3D { Mesh = thoraxMesh, MaterialOverride = chitinMat });
 
-        // Abdomen (rear gaster, bulbous and raised)
-        var abdomenSize = isBeetle ? new Vector3(0.38f, 0.26f, 0.44f) : new Vector3(0.28f, 0.24f, 0.40f);
+        // Ant slender pinched petiole waist
+        if (!isBeetle && !isFlying)
+        {
+            var petioleMesh = new SphereMesh { Radius = 0.045f, Height = 0.08f, RadialSegments = 8, Rings = 4 };
+            thoraxNode.AddChild(new MeshInstance3D { Mesh = petioleMesh, MaterialOverride = darkMat, Position = new Vector3(0, 0.06f, -0.16f) });
+        }
+
+        // Abdomen (beetle: wide domed elytra shell; ant: elevated teardrop gaster)
+        var abdomenSize = isBeetle ? new Vector3(0.44f, 0.26f, 0.46f) : new Vector3(0.24f, 0.22f, 0.36f);
         var abdomenMesh = new SphereMesh { Radius = abdomenSize.X * 0.5f, Height = abdomenSize.Z, RadialSegments = 12, Rings = 6 };
-        var abdomenPos = isBeetle ? new Vector3(0, 0.05f, -0.32f) : new Vector3(0, 0.08f, -0.30f);
+        var abdomenPos = isBeetle ? new Vector3(0, 0.05f, -0.32f) : new Vector3(0, 0.10f, -0.32f);
         thoraxNode.AddChild(new MeshInstance3D { Mesh = abdomenMesh, MaterialOverride = chitinMat, Position = abdomenPos });
 
         // Head
@@ -1783,8 +2171,21 @@ public static class MonsterModelResolver
         thoraxNode.AddChild(headNode);
         entity.HeadNode = headNode;
 
-        var headMesh = new SphereMesh { Radius = 0.12f, Height = 0.18f, RadialSegments = 10, Rings = 5 };
+        var headMesh = new SphereMesh { Radius = isBeetle ? 0.14f : 0.11f, Height = 0.18f, RadialSegments = 10, Rings = 5 };
         headNode.AddChild(new MeshInstance3D { Mesh = headMesh, MaterialOverride = chitinMat });
+
+        // Beetle Horn (Rhinoceros / stag horn)
+        if (isBeetle && (lowerName.Contains("rhinoceros") || lowerName.Contains("stag") || lowerName.Contains("giant") || lowerName.Contains("horned")))
+        {
+            var hornMesh = new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.035f, Height = 0.22f, RadialSegments = 6 };
+            headNode.AddChild(new MeshInstance3D
+            {
+                Mesh = hornMesh,
+                MaterialOverride = darkMat,
+                Position = new Vector3(0, 0.12f, 0.08f),
+                Rotation = new Vector3(Mathf.DegToRad(35), 0, 0)
+            });
+        }
 
         // Faceted Glowing Compound Eyes
         var eyeMesh = new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 8, Rings = 4 };
@@ -1792,22 +2193,23 @@ public static class MonsterModelResolver
         headNode.AddChild(new MeshInstance3D { Mesh = eyeMesh, MaterialOverride = eyeMat, Position = new Vector3(0.09f, 0.05f, 0.07f) });
         headNode.AddChild(new MeshInstance3D { Mesh = eyeMesh, MaterialOverride = eyeMat, Position = new Vector3(-0.09f, 0.05f, 0.07f) });
 
-        // Antennae (Left & Right)
-        var antMesh = new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = 0.24f, RadialSegments = 5 };
+        // Antennae (Left & Right - elbowed on ants, shorter on beetles)
+        var antHeight = isBeetle ? 0.16f : 0.26f;
+        var antMesh = new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = antHeight, RadialSegments = 5 };
         var antMat = new StandardMaterial3D { AlbedoColor = glowColor * 0.9f, EmissionEnabled = true, Emission = glowColor * 0.4f, EmissionEnergyMultiplier = 0.8f };
 
         var leftAnt = new Node3D { Position = new Vector3(0.05f, 0.08f, 0.08f), Rotation = new Vector3(Mathf.DegToRad(35), Mathf.DegToRad(20), Mathf.DegToRad(15)) };
-        leftAnt.AddChild(new MeshInstance3D { Mesh = antMesh, MaterialOverride = antMat, Position = new Vector3(0, 0.10f, 0) });
+        leftAnt.AddChild(new MeshInstance3D { Mesh = antMesh, MaterialOverride = antMat, Position = new Vector3(0, antHeight * 0.5f, 0) });
         headNode.AddChild(leftAnt);
         entity.LeftAntennaNode = leftAnt;
 
         var rightAnt = new Node3D { Position = new Vector3(-0.05f, 0.08f, 0.08f), Rotation = new Vector3(Mathf.DegToRad(35), Mathf.DegToRad(-20), Mathf.DegToRad(-15)) };
-        rightAnt.AddChild(new MeshInstance3D { Mesh = antMesh, MaterialOverride = antMat, Position = new Vector3(0, 0.10f, 0) });
+        rightAnt.AddChild(new MeshInstance3D { Mesh = antMesh, MaterialOverride = antMat, Position = new Vector3(0, antHeight * 0.5f, 0) });
         headNode.AddChild(rightAnt);
         entity.RightAntennaNode = rightAnt;
 
-        // Mandibles (curved pinchers)
-        var mandMesh = new BoxMesh { Size = new Vector3(0.035f, 0.035f, 0.12f) };
+        // Mandibles (sharp pincers)
+        var mandMesh = new BoxMesh { Size = new Vector3(0.035f, 0.035f, isBeetle ? 0.14f : 0.11f) };
         var leftMand = new Node3D { Position = new Vector3(0.06f, -0.04f, 0.10f) };
         leftMand.AddChild(new MeshInstance3D { Mesh = mandMesh, MaterialOverride = darkMat, Position = new Vector3(0, 0, 0.05f), Rotation = new Vector3(0, Mathf.DegToRad(-20), 0) });
         headNode.AddChild(leftMand);
@@ -1820,8 +2222,8 @@ public static class MonsterModelResolver
 
         // 6 Angled Legs (3 pairs)
         var legZPositions = new[] { 0.10f, 0.0f, -0.10f };
-        var legMeshUpper = new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.02f, Height = 0.16f, RadialSegments = 5 };
-        var legMeshLower = new CylinderMesh { TopRadius = 0.010f, BottomRadius = 0.015f, Height = 0.16f, RadialSegments = 5 };
+        var legMeshUpper = new CylinderMesh { TopRadius = isBeetle ? 0.020f : 0.015f, BottomRadius = isBeetle ? 0.025f : 0.020f, Height = 0.16f, RadialSegments = 5 };
+        var legMeshLower = new CylinderMesh { TopRadius = isBeetle ? 0.015f : 0.010f, BottomRadius = isBeetle ? 0.020f : 0.015f, Height = 0.16f, RadialSegments = 5 };
 
         // 3 Left legs
         for (int i = 0; i < 3; i++)
@@ -1866,14 +2268,36 @@ public static class MonsterModelResolver
         return container;
     }
 
-    private static Node3D CreateCentipedeToken(MonsterEntity entity, Color glowColor, float scale)
+    private static Node3D CreateCentipedeToken(MonsterEntity entity, Color glowColor, float scale, string lowerName = "")
     {
         entity.TokenType = CreatureTokenType.Centipede;
         var container = new Node3D { Position = new Vector3(0, 0, 0), Scale = new Vector3(scale, scale, scale) };
 
-        var bodyColor = new Color(0.18f, 0.16f, 0.15f).Lerp(glowColor, 0.40f);
-        var bodyMat = new StandardMaterial3D { AlbedoColor = bodyColor, Roughness = 0.4f, Metallic = 0.25f };
-        var darkMat = new StandardMaterial3D { AlbedoColor = bodyColor * 0.75f, Roughness = 0.5f };
+        Color baseColor = new Color(0.34f, 0.20f, 0.12f);
+        float metallic = 0.30f;
+        float roughness = 0.45f;
+        if (lowerName.Contains("metallic") || lowerName.Contains("steel") || lowerName.Contains("silver"))
+        {
+            baseColor = new Color(0.60f, 0.62f, 0.68f);
+            metallic = 0.80f;
+            roughness = 0.20f;
+        }
+        else if (lowerName.Contains("white") || lowerName.Contains("pale"))
+        {
+            baseColor = new Color(0.86f, 0.84f, 0.72f);
+            metallic = 0.10f;
+            roughness = 0.50f;
+        }
+        else if (lowerName.Contains("red") || lowerName.Contains("fire"))
+        {
+            baseColor = new Color(0.68f, 0.22f, 0.08f);
+            metallic = 0.25f;
+            roughness = 0.40f;
+        }
+
+        var bodyColor = baseColor.Lerp(glowColor, 0.40f);
+        var bodyMat = new StandardMaterial3D { AlbedoColor = bodyColor, Roughness = roughness, Metallic = metallic };
+        var darkMat = new StandardMaterial3D { AlbedoColor = bodyColor * 0.75f, Roughness = roughness + 0.1f };
 
         // Head
         var headNode = new Node3D { Position = new Vector3(0, 0.14f, 0.35f) };
@@ -1920,8 +2344,9 @@ public static class MonsterModelResolver
 
         for (int i = 0; i < segPositionsZ.Length; i++)
         {
+            var segMat = (i % 2 == 0) ? bodyMat : darkMat;
             var segNode = new Node3D { Position = new Vector3(0, 0.12f, segPositionsZ[i]) };
-            segNode.AddChild(new MeshInstance3D { Mesh = segMesh, MaterialOverride = bodyMat });
+            segNode.AddChild(new MeshInstance3D { Mesh = segMesh, MaterialOverride = segMat });
 
             // Left leg
             var legL = new Node3D { Position = new Vector3(0.12f, 0, 0), Rotation = new Vector3(0, 0, Mathf.DegToRad(-35)) };
@@ -1942,13 +2367,31 @@ public static class MonsterModelResolver
         return container;
     }
 
-    private static Node3D CreateArachnidToken(MonsterEntity entity, Color glowColor, float scale)
+    private static Node3D CreateArachnidToken(MonsterEntity entity, Color glowColor, float scale, string lowerName = "")
     {
         entity.TokenType = CreatureTokenType.Arachnid;
         var container = new Node3D { Position = new Vector3(0, 0, 0), Scale = new Vector3(scale, scale, scale) };
 
-        var bodyColor = new Color(0.15f, 0.14f, 0.16f).Lerp(glowColor, 0.35f);
-        var bodyMat = new StandardMaterial3D { AlbedoColor = bodyColor, Roughness = 0.35f, Metallic = 0.3f };
+        Color baseColor = new Color(0.14f, 0.12f, 0.16f);
+        float roughness = 0.55f;
+        float metallic = 0.15f;
+        if (lowerName.Contains("phase") || lowerName.Contains("ethereal"))
+        {
+            baseColor = new Color(0.40f, 0.22f, 0.62f);
+            roughness = 0.30f;
+            metallic = 0.40f;
+        }
+        else if (lowerName.Contains("red") || lowerName.Contains("widow"))
+        {
+            baseColor = new Color(0.10f, 0.06f, 0.08f);
+        }
+        else if (lowerName.Contains("shelob") || lowerName.Contains("ungoliant"))
+        {
+            baseColor = new Color(0.08f, 0.05f, 0.10f);
+        }
+
+        var bodyColor = baseColor.Lerp(glowColor, 0.35f);
+        var bodyMat = new StandardMaterial3D { AlbedoColor = bodyColor, Roughness = roughness, Metallic = metallic };
         var darkMat = new StandardMaterial3D { AlbedoColor = bodyColor * 0.70f, Roughness = 0.4f };
 
         var thoraxNode = new Node3D { Position = new Vector3(0, 0.18f, 0) };
@@ -2207,6 +2650,70 @@ public static class MonsterModelResolver
 
         bodyNode.AddChild(new MeshInstance3D { Mesh = sideStemMesh, MaterialOverride = stemMat, Position = new Vector3(-0.18f, 0.10f, -0.08f) });
         bodyNode.AddChild(new MeshInstance3D { Mesh = sideCapMesh, MaterialOverride = capMat, Position = new Vector3(-0.18f, 0.22f, -0.08f) });
+
+        return container;
+    }
+
+    private static Node3D CreateFloraToken(MonsterEntity entity, Color glowColor, string lowerName)
+    {
+        entity.TokenType = CreatureTokenType.Ent;
+        var scale = lowerName.Contains("giant") ? 0.70f : (lowerName.Contains("creeper") ? 0.45f : 0.50f);
+        var container = new Node3D { Position = Vector3.Zero, Scale = new Vector3(scale, scale, scale) };
+
+        var bodyNode = new Node3D { Position = Vector3.Zero };
+        container.AddChild(bodyNode);
+        entity.BodyNode = bodyNode;
+        entity.InitialBodyScale = Vector3.One;
+
+        var plantBase = new Color(0.18f, 0.28f, 0.12f);
+        if (lowerName.Contains("tanglethorn") || lowerName.Contains("thorn") || lowerName.Contains("bramble"))
+            plantBase = new Color(0.24f, 0.18f, 0.10f); // Thorny woody brown
+        else if (lowerName.Contains("poison") || lowerName.Contains("venom"))
+            plantBase = new Color(0.12f, 0.35f, 0.14f); // Toxic venomous green
+
+        var plantColor = plantBase.Lerp(glowColor, 0.40f);
+        var stemMat = GetProceduralCreatureMaterial("scales", plantColor, roughness: 0.80f);
+        var thornMat = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.08f, 0.05f), Roughness = 0.50f };
+        var budMat = new StandardMaterial3D { AlbedoColor = glowColor, EmissionEnabled = true, Emission = glowColor, EmissionEnergyMultiplier = 1.2f };
+
+        // Central twisted thorny stem/bulb
+        var stemMesh = new CylinderMesh { TopRadius = 0.12f, BottomRadius = 0.22f, Height = 0.55f, RadialSegments = 8 };
+        bodyNode.AddChild(new MeshInstance3D { Mesh = stemMesh, MaterialOverride = stemMat, Position = new Vector3(0, 0.27f, 0) });
+
+        var bulbMesh = new SphereMesh { Radius = 0.20f, Height = 0.32f, RadialSegments = 10, Rings = 5 };
+        bodyNode.AddChild(new MeshInstance3D { Mesh = bulbMesh, MaterialOverride = stemMat, Position = new Vector3(0, 0.50f, 0) });
+
+        // Spreading thorny tendrils / bramble branches (4 angled radial shoots)
+        for (int i = 0; i < 4; i++)
+        {
+            var angle = i * Mathf.Pi * 0.5f + 0.3f;
+            var branch = new Node3D { Position = new Vector3(0, 0.20f, 0), Rotation = new Vector3(0, angle, 0) };
+            var branchMesh = new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.07f, Height = 0.38f, RadialSegments = 6 };
+            var branchInst = new MeshInstance3D
+            {
+                Mesh = branchMesh,
+                MaterialOverride = stemMat,
+                Position = new Vector3(0.14f, 0.10f, 0),
+                Rotation = new Vector3(0, 0, Mathf.DegToRad(-40))
+            };
+            branch.AddChild(branchInst);
+
+            // Sharp thorns along the branch
+            var thornMesh = new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.025f, Height = 0.10f, RadialSegments = 4 };
+            branch.AddChild(new MeshInstance3D
+            {
+                Mesh = thornMesh,
+                MaterialOverride = thornMat,
+                Position = new Vector3(0.24f, 0.20f, 0),
+                Rotation = new Vector3(0, 0, Mathf.DegToRad(-75))
+            });
+
+            bodyNode.AddChild(branch);
+        }
+
+        // Bioluminescent flower bud / carnivorous maw
+        var budMesh = new SphereMesh { Radius = 0.06f, Height = 0.10f, RadialSegments = 6, Rings = 4 };
+        bodyNode.AddChild(new MeshInstance3D { Mesh = budMesh, MaterialOverride = budMat, Position = new Vector3(0, 0.65f, 0) });
 
         return container;
     }
@@ -3365,7 +3872,29 @@ public static class MonsterModelResolver
                     }
                     else if (modelPath != null && (modelPath.Contains("Spider") || modelPath.Contains("Snake") || modelPath.Contains("Frog") || modelPath.Contains("Wasp")))
                     {
-                        if (tintColor != Colors.White && tintColor.A > 0)
+                        if (modelPath.Contains("Spider"))
+                        {
+                            if (lowerName.Contains("phase"))
+                            {
+                                mat.AlbedoColor = new Color(0.50f, 0.30f, 0.75f).Lerp(tintColor, 0.50f);
+                                mat.EmissionEnabled = true;
+                                mat.Emission = new Color(0.60f, 0.35f, 0.90f);
+                                mat.EmissionEnergyMultiplier = 0.8f;
+                            }
+                            else if (lowerName.Contains("red") || lowerName.Contains("widow") || lowerName.Contains("fire"))
+                            {
+                                mat.AlbedoColor = new Color(0.65f, 0.12f, 0.08f).Lerp(tintColor, 0.40f);
+                            }
+                            else if (lowerName.Contains("shelob") || lowerName.Contains("ungoliant"))
+                            {
+                                mat.AlbedoColor = new Color(0.08f, 0.05f, 0.10f);
+                            }
+                            else if (tintColor != Colors.White && tintColor.A > 0)
+                            {
+                                mat.AlbedoColor = mat.AlbedoColor.Lerp(tintColor, 0.55f);
+                            }
+                        }
+                        else if (tintColor != Colors.White && tintColor.A > 0)
                         {
                             mat.AlbedoColor = mat.AlbedoColor.Lerp(tintColor, 0.55f);
                         }
@@ -4555,6 +5084,16 @@ public static class MonsterModelResolver
                 if (entity.BodyNode != null)
                 {
                     entity.BodyNode.Scale = entity.InitialBodyScale * new Vector3(1.0f + 0.12f * pulse, 1.0f - 0.08f * pulse, 1.0f + 0.12f * pulse);
+                }
+                break;
+            }
+
+            case CreatureTokenType.Ent:
+            {
+                var sway = Mathf.Sin(t * 1.8f);
+                if (entity.BodyNode != null)
+                {
+                    entity.BodyNode.Rotation = new Vector3(Mathf.Sin(t * 1.2f) * 0.04f, 0, sway * 0.05f);
                 }
                 break;
             }

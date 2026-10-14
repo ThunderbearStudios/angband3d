@@ -2035,3 +2035,75 @@ Wildcard Cross-Origin Resource Sharing (`Access-Control-Allow-Origin: *`) must n
 - **L21 (Atomic Commit & Gate Tracking)**: Verify gates before marking tasks complete. Commit one task at a time.
 - **L22 (Single Workstream Focus)**: Work strictly on one workstream at a time to prevent cross-cutting branch destabilization.
 
+---
+
+## 43. Award-Pass v2 Deep-Audit Post-Mortems & Hardened Invariants (`L23–L34`)
+
+### 43.1 Silent Method Shadowing in Monolithic Classes (`L23`)
+- **The Phenomenon & Failure Mode**:
+  In large JavaScript ES6 classes (`dungeon3d.js`, `hud.js`, `terminal.js`, `chronicle-manager.js`, `chronicle-audio.js`), agents appending new methods near the bottom of the class defined a second method with the same name (`destroyEntity`, `playHitReaction`, `setPing`, `decodeText`, `getActiveRealm`, `get isStaging`). Because ES6 class syntax allows duplicate method identifiers in non-strict/standard parsing and simply overwrites the prototype property with the last definition in source order, edits made to the earlier method had **zero effect at runtime**!
+- **The Architectural Invariant (`L23`)**:
+  Before adding or editing any method in a class >300 lines, always run `Select-String -Path <file> -Pattern "<methodName>"` across the entire file to verify there is only one definition. Enforce a static duplicate-method check in `--tier fast`.
+
+### 43.2 Offline WASM Save Alias Freeze & Resurrection Bug (`SEC-1`, `L24`)
+- **The Phenomenon & Failure Mode**:
+  In `engine-worker.js`, after the C engine saved `/lib/save/Hero`, the post-save hook copied `/lib/save/Hero` to `/lib/save/Hero.sav` guarded by `if (!Module.FS.analyzePath(savPath).exists)`. On Save #1, both files were created. On Save #2+, `Hero.sav` already existed, so `!exists` evaluated to `false` and `Hero.sav` stayed frozen at Save #1! Worse, `LocalSaveManager.listSaves()` iterated IndexedDB keys alphabetically (`Hero` then `Hero.sav`), overwriting `savesMap['Hero']` with `Hero.sav`, and `preRun` copied the stale `Hero.sav` back over `Hero` on reload—wiping out all subsequent progress!
+- **The Architectural Invariant (`L24`)**:
+  Never guard post-save alias synchronization with `!exists`; always overwrite the `.sav`/base alias unconditionally before calling `FS.syncfs(false)`. Deduplicate IndexedDB save entries by newest `record.timestamp`, and delete both `/lib/save/${base}` and `/lib/save/${base}.sav` on character deletion.
+
+### 43.3 Binary Savefile Headers Across Realms (`DOC-5`, `SEC-5`, `L24`)
+- **The Phenomenon & Failure Mode**:
+  Previous documentation and upload validators assumed Sil-Q, FrogComposBand, and Hengband savefiles began with 8-byte ASCII magic strings `SaveSILQ`, `SaveFROX`, and `SaveHENG`. In reality, only Vanilla Angband 4.2.6 (`engine/src/savefile.c:81`) writes `SaveVNLA`; the 3 variants (`silq-src/src/save.c`, `frogcomposband-src/src/save.c`, `hengband-src/src/save.cpp`) write 4-byte binary version headers (`sf_major, sf_minor, sf_patch, sf_extra`) followed by XOR-encoded streams.
+- **The Architectural Invariant (`L24`)**:
+  Always verify binary file formats directly against C/C++ source code. Validate `SaveVNLA` for `angband`, and validate 4-byte binary version headers + size bounds + `.realm.json` sidecar metadata for `silq`, `frogcomposband`, and `hengband`.
+
+### 43.4 Per-Frame DOM/GPU Reallocation & Local-Scope Cache Bugs (`PERF-2..PERF-6`, `L25`, `L26`)
+- **The Phenomenon & Failure Mode**:
+  1. `resolveContextualTheme` embedded `_d${depth}` into `theme.id` even though the 10 procedural 512×512 textures only depended on `(realm, chapter, sub)`. Every floor change missed `contextualTextureCache`, synchronously generating 2.62M pixels (~150ms stall) and leaking ~26 MB of un-disposed `CanvasTexture` VRAM per floor.
+  2. `let lastPopulatedLetters = ''` inside `updateTerminalToolbar` (`app.js:4087`) was declared as a local variable inside the per-frame function instead of module scope, causing `#term-letter-ribbon.innerHTML` to be destroyed and recreated on every single frame!
+  3. `updateDungeon` (`dungeon3d.js`) and `Rebuild` (`DungeonWorld.cs`) rebuilt thousands of `InstancedMesh`/`MultiMesh` matrices and recreated Canvas2D store/stair labels on every frame—even when `(px, py, depth)` and map rows were completely unchanged.
+- **The Architectural Invariant (`L25`, `L26`)**:
+  - Never include irrelevant parameters (such as `depth` within a chapter) in procedural texture cache keys, and cap `contextualTextureCache` at 4 entries with explicit `.dispose()`.
+  - Gate all per-frame 3D grid rebuilds, terminal redraws, and HUD DOM updates on a state signature stored on the instance or module scope (never as a local variable inside the frame handler).
+  - Explicitly call `.dispose()` on every removed `THREE.Sprite`, `CanvasTexture`, `BufferGeometry`, and `Material`.
+
+### 43.5 Zero-Latency Living Chronicle & Voiced Lorekeeper Architecture (`CHRON-1..CHRON-6`, `L31–L34`)
+- **The Phenomenon & Failure Mode**:
+  Six interacting bugs caused 1,800ms–5,400ms voice startup latency, ~0% pre-warm cache hits, false `⚡ Interrupted` badges, and stuck `"Buffering narrator voice..."` pills:
+  1. **Server `tagRegex` HTTP 400 Rejection (`CHRON-1`)**: `ChronicleGrounder.resolveVoiceProfile` wrapped every `geminiTag` in `[...]` and emitted `directorNote`s up to 198 chars, while `server.js:1362` validated `/api/tts` with `/^[\p{L}\p{N} ,.'-]{0,120}$/u` (forbidding `[` `]` and `>120` chars). Every tagged request failed with `HTTP 400`, and `fetchOrGetAudioBuffer` slept `600ms + 1200ms = 1,800ms` retrying the 400 error!
+  2. **Premature `this.isSpeaking = true` Self-Interruption (`CHRON-2`)**: `speak()` set `this.isSpeaking = true` before `processSpeechQueue()` checked if audio was playing, forcing every idle utterance into `_executeSeamlessSpeak`, which called `_gracefulHandoffCurrentAudio()` on itself (+40ms sleep, false `'interrupted'` badge, and stuck loading pill on fetch failure).
+  3. **Five Pre-Warm vs. Playback Cache-Key Mismatches (`CHRON-3`)**: `getAudioCacheKey` read top-level `options`, while `startFreshChronicle` and `_executeSeamlessSpeak` passed `{ narrator: narrProfile }`; `startFreshChronicle` pre-warmed the full paragraph while `_executeSeamlessSpeak` split into `s1` and `remainder` without checking `audioBufferCache.has(fullKey)` first; and `_speculativePrewarmProximity` used `Math.random()` in `resolveCreatureEncounter` (generating Bark A on pre-warm and Bark B on click) and skipped pre-warming `res.prose`.
+  4. **Gemini 3.x Thought-Token Stripping Bug (`CHRON-4`)**: `server.js:1265` read `parts[0].text` when `thinkingConfig` returned `parts[0] = { thought: true }` and `parts[1] = { text: "{...}" }`, causing `JSON.parse` in `chronicle-llm.js` to throw `SyntaxError`.
+- **The Architectural Invariants (`L31–L34`)**:
+  - **L31 (Realm Voice Contract Parity)**: Keep `ChronicleGrounder.getLorekeeperVoice`, `chronicle-audio.js` `setRealm`, and `server.js` `GEMINI_REALM_NARRATOR_MAP` 100% aligned (`angband: 'Enceladus'/'Zephyr'`, `silq: 'Charon'/'Despina'`, `frogcomposband: 'Fenrir'/'Kore'`, `hengband: 'Gacrux'/'Sulafat'`), with zero robotic `window.speechSynthesis` fallback.
+  - **L32 (Deterministic Pre-Warm & Cache-Key Symmetry)**: Always unwrap `options.narrator` via `normalizeVocalOptions(options)` across `getAudioCacheKey`, `prewarmUtterance`, `fetchOrGetAudioBuffer`, and `playNeuralAudio`; check `audioBufferCache.has(fullKey)` before splitting sentences; and use deterministic hashing (never `Math.random()`) in `resolveCreatureEncounter`.
+  - **L33 (Server-Client Validation & Thought-Part Filtering)**: Keep `/api/tts` `tagRegex` contract-tested against all `ChronicleGrounder` voice profiles, never retry `HTTP 4xx` errors, and filter out `.thought` parts (`parts.find(p => !p.thought && p.text)`) in `/api/llm/generate`.
+  - **L34 (Speech Queue State Integrity)**: Never set `this.isSpeaking = true` before `processSpeechQueue()` checks active physical playback (`this.currentSource || this.currentAudio || this.isStaging`), and always emit `'idle'` in `finally` blocks when playback finishes or errors.
+
+### 43.6 The 8 Pinned Test-Contract Guardrails (`tools/`)
+To guarantee zero regressions against the existing test suite (`tools/test_manifest.json`):
+1. **Never edit `server/public/js/realm-keys.js`** (`tools/test_realm_keys.js:116` pins `fromVanilla('r', 'silq') === null`); handle Sil-Q native `'r'`/`'b'` passthrough in `input.js:1283-1291`.
+2. **Never write literal `sendKey('5')` or `sendKey("5")` in `server/public/js/input.js`** (`tools/test_realm_keys.js:174` forbids it); use `this.network.sendKey('t')` for target-nearest.
+3. **Never alter `ChronicleGrounder.getLorekeeperVoice` realm voice names** (`tools/test_realm_chronicles_and_inspection.js:47-59` and `tools/test_chronicle_llm_realm_voices.js:43-59`).
+4. **Never alter `MenuRouter.chooseVerb` key count for Vanilla `angband`** (`tools/test_menu_router.js:198-200` pins `sentKeys = ['w']`).
+5. **Run `node tools/test_screen_context.js --update` after any classifier change in `screen-context.js`** and preserve `SC.KEYS`.
+6. **Preserve `translateName(label` in `server/public/js/app.js`** (`tools/test_heng_wiring.js:93-96`).
+7. **Preserve `#top-right-bar` IDs (`index.html`) and `#message-feed-window` / `.top-message-banner` rules (`dungeon.css`)** (`tools/test_top_bar_consolidation.js`, `tools/test_hud_message_pass.js`).
+8. **Run `node tools/bump_version.js && npm run android:sync` after any `server/public/` change** (`tools/check_version_sync.js`, `tools/check_android_sync.js`).
+
+### 43.7 Argon Token-Frugal Execution Protocol & Real-Asset Mandate (`L35–L36`)
+- **L35 (Argon Token-Frugal Execution Protocol)**:
+  - Every extra LLM turn re-tokenizes the active conversation window, and streaming large code blocks from a heavy reasoning model (`Pro` / Argon) burns expensive output tokens. Agents must minimize turn count and token cost by:
+    1. **Flash Subagent Delegation Mandate**: Never stream >40-line code edits or mutations to large files (`dungeon3d.js`, `app.js`, `server.js`, `hud.js`, `chronicle-*.js`, `DungeonWorld.cs`) directly from the parent Argon context. Write the exact line-numbered card into `docs/plan/master_audit_and_execution_plan.md` and delegate execution to a `Model: 'flash'` subagent (`invoke_subagent`).
+    2. **Single-File Tool Serialization**: Never call `replace_file_content` in parallel on the same file (violates tool rules and causes canceled/colliding streams). Parallel tool calls are only permitted across *different* files.
+    3. **Pinpoint Reads & Capped Stdout**: Locate exact line numbers via `Select-String ... | Select-Object -First 20` before viewing 30–100 line slices, and bound all CLI stdout.
+    4. **Canonical Asset Matrix**: Consult the pre-verified asset matrix in `docs/plan/master_audit_and_execution_plan.md` (Part VIII) instead of re-scanning asset directories across turns.
+- **L36 (Zero-Scratch & Zero-KayKit High-Realism Asset Mandate)**:
+  - Hand-assembled procedural 3D primitives (`BoxGeometry`, `SphereGeometry`, `CylinderGeometry`, `createMergedBoxGeometry`, `createProceduralCreatureMesh`) AND cartoonish low-poly asset packs (KayKit `/assets/models/characters/*.gltf` and untextured low-poly `/assets/models/monsters/*.obj`, `/assets/models/items/*.obj`) destroy grimdark visual realism and must never be used.
+  - Always bind pre-authored **Poly Haven CC0 8K-scanned photogrammetry 3D models/textures** and **4096×4096 Shockbolt hand-painted dark-fantasy PBR atlases**:
+    1. **Botanical Trees, Shrubs, Boulders & Mountains**: Extract indexed single-tree submeshes (`pachira_aquatica_01_bark_c` / `Circle.001`, `pachira_aquatica_01_leaves_c` / `Cylinder.092`, `pachira_aquatica_01_leaves_b` / `Cylinder.118`), `moon_rock_02`, and `rock_07` from `server/public/assets/polyhaven/models/` with their 1K photogrammetry diffuse + normal textures (`*_diff_1k.jpg`, `*_nor_gl_1k.jpg`), keeping the GPU `.index` buffer intact (never call `.toNonIndexed()`).
+    2. **Characters & Monsters**: Render 100% of creatures and townsfolk via **4096×4096 Shockbolt hand-painted dark-fantasy PBR billboards** (`monster_atlas.png` + `monster_normal.png`) with volumetric `4×4` capsule-curved normals, real-time silhouette shadows (`monsterDepthMat`), crisp roughness (`0.58`), and bright vertex AO (`0.92..1.0`)—never KayKit mannequins or `createProceduralCreatureMesh`.
+    3. **Items & Weapons on the Ground**: Prioritize **Poly Haven CC0 photogrammetry 3D glTF models** (`antique_estoc`, `antique_katana_01`, `wooden_handle_saber`, `ornate_medieval_dagger`, `ornate_medieval_mace`, `ornate_war_hammer`, `hatchet`, `wooden_axe`, `kite_shield`, `wine_bottles_01`, `jug_01`, `ceramic_vase_01`, `brass_goblets`, `wooden_lantern_01`, `brass_candleholders`, `treasure_chest` — grounded at `min.y = 0`, normalized to `0.50m–0.68m`, with 1K PBR diffuse/normal/ARM maps), and use **4096×4096 Shockbolt hand-painted PBR item billboards** (`item_atlas.png` + `item_normal.png`) for all other item classes—never low-poly `.obj` files or primitive shapes.
+    4. **Template Geometry Protection**: Tag all cached geometries, materials, and textures with `_sharedGeometry = true` / `_sharedMaterial = true` / `_sharedTexture = true` and guard them in `destroyEntity()` so despawning entities never dispose shared template vertex buffers.
+
+

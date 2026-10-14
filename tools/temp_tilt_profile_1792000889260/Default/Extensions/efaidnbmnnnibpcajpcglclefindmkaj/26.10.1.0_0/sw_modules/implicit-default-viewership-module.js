@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import{floodgate as t}from"./floodgate.js";import{dcLocalStorage as e}from"../common/local-storage.js";import{fetchDefaultViewershipConfig as i}from"../content_scripts/utils/util.js";import{util as o}from"./util.js";import{checkUserLocaleEnabled as r,safeParseFeatureFlag as n}from"./gsuite/util.js";import{setExperimentCodeForAnalytics as a,removeExperimentCodeForAnalytics as l}from"../common/experimentUtils.js";import{analytics as c}from"../common/analytics.js";const s={outlook:{treatment:"ODVT",control:"ODVC"}};function m(t,{treatmentActive:e,controlActive:i}={}){const o=s[t];o&&(e?(a(o.treatment),l(o.control),c.event(`DCBrowserExt:${t}:ImplicitDV:CohortEnabled`,{workflow:"challenger"},{frequency:"monthly",uniqueIdentifier:{props:["prop6"]}})):i?(a(o.control),l(o.treatment),c.event(`DCBrowserExt:${t}:ImplicitDV:CohortEnabled`,{workflow:"control"},{frequency:"monthly",uniqueIdentifier:{props:["prop6"]}})):(l(o.treatment),l(o.control)))}async function p(i){const o=e.getItem(`${i}-pdf-implicit-dv-feature-enabled`);if(""!==o)return"true"===o;const[a,l]=await Promise.all([t.hasFlag(`dc-cv-${i}-implicit-default-viewership`),t.hasFlag(`dc-cv-${i}-implicit-default-viewership-control`)]);if(!a&&!l)return!1;let c={};a?c=n(`dc-cv-${i}-implicit-default-viewership`):l&&(c=n(`dc-cv-${i}-implicit-default-viewership-control`));const s=r(c?.enLocaleEnabled,c?.nonEnLocaleEnabled);return a&&s}async function u(a,l){const[c,s]=await Promise.all([t.hasFlag(`dc-cv-${a}-implicit-default-viewership`),t.hasFlag(`dc-cv-${a}-implicit-default-viewership-control`)]);if(!c&&!s){m(a,{treatmentActive:!1,controlActive:!1});const t={enableImplicitDefaultViewershipFeature:!1,isAcrobatDefaultForSurface:!1,toastMessage:"",fteToolTipStrings:{title:"",description:"",button:""},metadata:{maxLRUSizeForAttachments:0}};return l?.(t),t}let p={};c?p=n(`dc-cv-${a}-implicit-default-viewership`):s&&(p=n(`dc-cv-${a}-implicit-default-viewership-control`));const u=!!p&&p.enLocaleEnabled,f=!!p&&p.nonEnLocaleEnabled,d=r(u,f);m(a,{treatmentActive:c&&d,controlActive:s&&d});""===e.getItem(`${a}-pdf-default-viewership`)&&d&&(c?(e.setItem(`${a}-pdf-implicit-dv-feature-enablement-status`,"true"),e.setItem(`${a}-pdf-default-viewership`,"true")):s&&e.setItem(`${a}-pdf-implicit-dv-feature-enablement-status`,"false"));const v=e.getItem(`${a}-pdf-implicit-dv-feature-enablement-status`),h="true"===await i(a),w=c&&d&&"true"===v;e.setItem(`${a}-pdf-implicit-dv-feature-enabled`,w.toString());const g={enableImplicitDefaultViewershipFeature:w,isAcrobatDefaultForSurface:h,toastMessage:o.getTranslation(`${a}ImplicitDVNotification`),fteToolTipStrings:{title:o.getTranslation(`${a}ImplicitDVFTEHeader`),description:o.getTranslation(`${a}ImplicitDVFTEBody`),button:o.getTranslation("closeButton")},metadata:p};return l?.(g),g}export{u as implicitDefaultViewershipInit,p as isImplicitDefaultViewershipEligible};

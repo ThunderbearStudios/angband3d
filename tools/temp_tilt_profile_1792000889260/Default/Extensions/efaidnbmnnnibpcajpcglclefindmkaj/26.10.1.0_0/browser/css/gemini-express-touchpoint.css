@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+.cc440d50ba-gemini-divider{height:24px}.cc440d50ba-gemini-divider,.cc440d50ba-gemini-preview-divider{align-self:center;background-color:#e1e1e1;border-radius:2px;display:inline-block;flex-shrink:0;width:1px}.cc440d50ba-gemini-preview-divider{height:32px}.cc440d50ba-gemini-edit-image-group{align-items:center;display:flex;flex-direction:row}.cc440d50ba-gemini-edit-image-group--chat-view{gap:8px;margin-left:8px}.cc440d50ba-gemini-edit-image-group--preview{gap:13px}.cc440d50ba-express-entrypoint-button.geminiChatView{background-color:transparent;border:2px solid rgba(0,0,0,.15)}.cc440d50ba-express-entrypoint-button.geminiChatView:hover{background-color:rgba(0,0,0,.05)}.geminiChatView .cc440d50ba-express-entrypoint-button-text{font-size:14px;font-weight:700}.cc440d50ba-express-entrypoint-button.geminiPreview{background-color:transparent;border:1px solid hsla(0,0%,100%,.25);color:hsla(0,0%,100%,.9)}.cc440d50ba-express-entrypoint-button.geminiPreview:hover{background-color:hsla(0,0%,100%,.1)}.geminiPreview.acrobat-touch-point-tooltip.cc440d50ba-express-tooltip{background:#dbdbdb;color:#111}.geminiPreview.acrobat-touch-point-tooltip-bottom:after{border:5px solid transparent;border-bottom-color:#dbdbdb;bottom:100%;content:"";left:50%;margin-left:-5px;position:absolute}.geminiChatView.acrobat-touch-point-tooltip-bottom:after{border:5px solid transparent;border-bottom-color:#292929;bottom:100%;content:"";left:50%;margin-left:-5px;position:absolute}@media (prefers-color-scheme:dark){.cc440d50ba-gemini-divider{background-color:#323232}.cc440d50ba-express-entrypoint-button.geminiChatView{background-color:transparent;border:2px solid hsla(0,0%,100%,.2);color:hsla(0,0%,100%,.9)}.cc440d50ba-express-entrypoint-button.geminiChatView:hover{background-color:hsla(0,0%,100%,.1)}.geminiChatView.acrobat-touch-point-tooltip-bottom:after{border-color:transparent transparent #dbdbdb}}

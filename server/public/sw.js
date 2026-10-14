@@ -1,20 +1,30 @@
 // Angband3D Service Worker — v9.1.0 PWA & Multi-Realm Standalone Client Caching
-const CACHE_NAME = 'angband3d-v9.4.13';
+const CACHE_NAME = 'angband3d-v9.5.6';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/css/dungeon.css',
   '/css/chronicle.css',
+  '/js/app.js',
+  '/js/input.js',
+  '/js/menu-router.js',
+  '/js/terminal.js',
+  '/js/hud.js',
+  '/js/dungeon3d.js',
+  '/js/audio.js',
+  '/js/network.js',
   '/js/realm-keys.js',
   '/js/screen-context.js',
   '/js/demo-player.js',
+  '/js/mobile-overlay.js',
   '/js/chronicle/chronicle-store.js',
   '/js/chronicle/chronicle-grounder.js',
   '/js/chronicle/chronicle-filter.js',
   '/js/chronicle/chronicle-audio.js',
   '/js/chronicle/chronicle-llm.js',
   '/js/chronicle/chronicle-manager.js',
+  '/js/heng/heng-translate.js',
   '/js/local_bridge.js',
   '/js/engine-worker.js',
   '/wasm/angband.js',
@@ -74,7 +84,7 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        return caches.match(event.request);
+        return caches.match(event.request, { ignoreSearch: true });
       })
   );
 });

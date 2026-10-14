@@ -411,10 +411,6 @@ class ChronicleAudioRouter {
         this._emitVocalState(loading ? 'loading' : (this.isSpeaking ? 'speaking' : 'idle'), { details });
     }
 
-    get isStaging() {
-        return !!this._activeStaging && !this._activeStaging.aborted;
-    }
-
     get isBusy() {
         return this.isSpeaking || this.isStaging || this.isProcessingSpeechQueue || (this.speechQueue && this.speechQueue.length > 0) || this.isLoading;
     }
@@ -425,7 +421,7 @@ class ChronicleAudioRouter {
      * across Web Audio, HTML5 Audio, and Web Speech API.
      * Guarantees that at any given millisecond, EXACTLY ZERO or ONE voice is physically emitting audio.
      */
-    _disconnectPhysicalSources({ preserveResolve = null } = {}) {
+    _disconnectPhysicalSources({ preserveResolve = null, preserveStaging = false } = {}) {
         // 1. Web Audio Source
         if (this.currentSource) {
             try {
@@ -474,7 +470,7 @@ class ChronicleAudioRouter {
      * Invalidates all in-flight session and playback tokens, aborts active fetches and staging,
      * and physically silences all audio sources.
      */
-    _stopAllActiveAudioSources({ preserveResolve = null } = {}) {
+    _stopAllActiveAudioSources({ preserveResolve = null, preserveStaging = false } = {}) {
         this._activePlayToken = (this._activePlayToken || 0) + 1;
         this._playSessionId = (this._playSessionId || 0) + 1;
         this._transitionSessionId = (this._transitionSessionId || 0) + 1;
@@ -484,7 +480,7 @@ class ChronicleAudioRouter {
             this._activeFetchController = null;
         }
 
-        if (this._activeStaging) {
+        if (!preserveStaging && this._activeStaging) {
             this._activeStaging.aborted = true;
             if (this._activeStaging.abortCtrl) {
                 try { this._activeStaging.abortCtrl.abort(); } catch (_) {}
@@ -497,7 +493,7 @@ class ChronicleAudioRouter {
             this._pauseTimeout = null;
         }
 
-        this._disconnectPhysicalSources({ preserveResolve });
+        this._disconnectPhysicalSources({ preserveResolve, preserveStaging });
     }
 
     stopSpeaking() {
@@ -716,16 +712,16 @@ class ChronicleAudioRouter {
      * Guaranteed zero-alloc on cache hits and safe abort support.
      */
     async fetchOrGetAudioBuffer(text, role = 'narrator', customVoice = null, options = {}, signal = null) {
+        options = this.normalizeVocalOptions(options);
         // Narrator uses high quality Gemini Native Audio
         const isNarrator = (role === 'narrator');
         const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
         if (this.isMuted()) {
             return { audioBuffer: null, engine, cached: false, muted: true };
         }
-        let voice = isNarrator ? (options.voice || this.narratorVoice || 'Enceladus') : (customVoice || this.narratorVoice || '');
-        if (engine === 'gemini' && options.geminiVoice && !isNarrator) {
-            voice = options.geminiVoice;
-        }
+        let voice = isNarrator
+            ? ((engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.voice || options.geminiVoice)) || this.narratorVoice || 'Enceladus')
+            : (customVoice || (engine === 'gemini' ? (options.geminiVoice || options.voice) : (options.voice || options.geminiVoice)) || this.narratorVoice || '');
         const cacheKey = this.getAudioCacheKey(text, role, customVoice, options);
 
         // 1. Direct in-memory hit
@@ -781,7 +777,11 @@ class ChronicleAudioRouter {
             try {
                 const fetchHeaders = this.getFetchHeaders();
                 const res = await fetch(url, { headers: fetchHeaders, signal: signal || undefined });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                if (!res.ok) {
+                    lastErr = new Error(`HTTP ${res.status}`);
+                    if (res.status >= 400 && res.status < 500) break;
+                    throw lastErr;
+                }
 
                 const usedEngine = res.headers.get('x-tts-engine') || engine;
                 const fallbackReason = res.headers.get('x-tts-fallback-reason');
@@ -893,10 +893,35 @@ class ChronicleAudioRouter {
      * Keeps current narration playing while fetching/decoding the next vocals.
      * When ready, smoothly fades down the old audio, pauses 50ms, and cuts over seamlessly.
      */
-    async _executeSeamlessSpeak(text, dialogue = null, options = {}) {
+    async _executeSeamlessSpeak(text, dialogue = null, options = {}, isActivelyPlaying = undefined) {
         if (this.isMuted() || !text) {
             return { skipped: true, muted: true };
         }
+        if (dialogue && typeof dialogue === 'object' && !('text' in dialogue) && !('speaker' in dialogue)) {
+            if (typeof options === 'boolean') {
+                isActivelyPlaying = options;
+            }
+            options = dialogue;
+            dialogue = null;
+        }
+        options = this.normalizeVocalOptions(options);
+
+        const cleanText = text.replace(/<[^>]*>/g, '').trim();
+        if (!cleanText) {
+            return { finished: true };
+        }
+
+        const role = options.role || (options.narrator ? 'narrator' : 'narrator');
+        const customVoice = options.voice || options.geminiVoice || null;
+        const speakerName = (dialogue && dialogue.speaker) || '';
+        const fullKey = this.getAudioCacheKey(cleanText, role, customVoice, options);
+        if (this.audioBufferCache.has(fullKey)) {
+            if (this.currentSource || this.currentAudio) {
+                await this._gracefulHandoffCurrentAudio();
+            }
+            return await this._executeSpeak(cleanText, dialogue, options);
+        }
+
         const transitionId = ++this._transitionSessionId;
         const stagingToken = ++this._stagingTokenSeq;
         if (this._activeStaging) {
@@ -913,12 +938,6 @@ class ChronicleAudioRouter {
             aborted: false
         };
         this._activeStaging = staging;
-
-        const cleanText = text.replace(/<[^>]*>/g, '').trim();
-        if (!cleanText) {
-            if (this._activeStaging === staging) this._activeStaging = null;
-            return { finished: true };
-        }
 
         // Pre-warm creature bark in parallel if dialogue exists
         if (dialogue && dialogue.text && !dialogue.isNoise && this.enabled) {
@@ -964,7 +983,7 @@ class ChronicleAudioRouter {
 
         // Now that the new vocals are ready in RAM, perform the gentle handoff:
         // Smooth 80ms fade down + 50ms natural breath pause
-        if (this.isSpeaking || this.currentSource || this.currentAudio || (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking)) {
+        if (isActivelyPlaying !== undefined ? isActivelyPlaying : (this.isSpeaking || this.currentSource || this.currentAudio || (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking))) {
             await this._gracefulHandoffCurrentAudio();
         } else {
             await new Promise(r => setTimeout(r, 40));
@@ -1038,6 +1057,7 @@ class ChronicleAudioRouter {
                     }
                 }
             }
+            if (!this.isSpeaking && !this.isStaging) this._emitVocalState('idle');
         }
     }
 
@@ -1065,7 +1085,6 @@ class ChronicleAudioRouter {
             // Zero-lag real-time preemption (Death or hard interrupt):
             // Always halt prior speech immediately and clear backlog so new game actions speak without latency
             this.stopSpeaking();
-            this.isSpeaking = true;
             return new Promise((resolve) => {
                 this.speechQueue.push({ text, dialogue, monsterCoords, playerCoords, cameraYaw, options, resolve, seamless: false });
                 if (!this.isProcessingSpeechQueue) {
@@ -1102,7 +1121,6 @@ class ChronicleAudioRouter {
             }
         }
 
-        this.isSpeaking = true;
         return new Promise((resolve) => {
             this.speechQueue.push({ text, dialogue, monsterCoords, playerCoords, cameraYaw, options, resolve, seamless: true });
             if (!this.isProcessingSpeechQueue) {
@@ -1120,8 +1138,9 @@ class ChronicleAudioRouter {
                 const item = this.speechQueue.shift();
                 let result = null;
                 try {
-                    if (item.seamless && (this.isSpeaking || this.isStaging)) {
-                        result = await this._executeSeamlessSpeak(item.text, item.dialogue, item.options || {});
+                    const isActivelyPlaying = Boolean(this.currentSource || this.currentAudio || this.isStaging);
+                    if (item.seamless && isActivelyPlaying) {
+                        result = await this._executeSeamlessSpeak(item.text, item.dialogue, item.options || {}, isActivelyPlaying);
                     } else {
                         result = await this._executeSpeak(item.text, item.dialogue, item.options || {});
                     }
@@ -1142,10 +1161,25 @@ class ChronicleAudioRouter {
                     try { this.onPlaybackEnded(); } catch (_) {}
                 }
             }
+            if (!this.isSpeaking && !this.isStaging) this._emitVocalState('idle');
         }
     }
 
     async _executeSpeak(text, dialogue = null, options = {}) {
+        let execRole = 'narrator';
+        let execSpeaker = '';
+        let execVoice = null;
+        if (arguments.length >= 4 || typeof dialogue === 'string') {
+            execRole = dialogue || 'narrator';
+            execSpeaker = arguments[2] || '';
+            execVoice = arguments[3] || null;
+            options = arguments[4] || {};
+            dialogue = null;
+            options = { ...options, role: execRole, voice: execVoice };
+        } else if (options && options.role) {
+            execRole = options.role;
+            execVoice = options.voice || null;
+        }
         if (this.isMuted() || !text) {
             return { skipped: true, muted: true };
         }
@@ -1176,7 +1210,7 @@ class ChronicleAudioRouter {
 
             // 1. Speak main narrative prose (Narrator voice) with emotion & tradition context
             const narrOptions = options.narrator || options || {};
-            const r1 = await this.speakUtterance(text, 'narrator', '', null, narrOptions);
+            const r1 = await this.speakUtterance(text, execRole, execSpeaker, execVoice, narrOptions);
             if (r1 && (r1.aborted || r1.interrupted || r1.superseded)) return { aborted: true, interrupted: true };
             if (!this.enabled || this.isPaused || this._sequenceSessionId !== currentSeqId || this._activeVoiceToken !== currentVoiceToken) return { stopped: true };
 
@@ -1212,6 +1246,7 @@ class ChronicleAudioRouter {
                     }
                 }
             }
+            if (!this.isSpeaking && !this.isStaging) this._emitVocalState('idle');
         }
     }
 
@@ -1373,8 +1408,9 @@ class ChronicleAudioRouter {
                 this.isSpeaking = false;
                 return resolve({ skipped: true, muted: true });
             }
+            options = this.normalizeVocalOptions(options);
             // First stop any prior in-flight fetch and invalidate prior sessions
-            this._stopAllActiveAudioSources({ preserveResolve: resolve });
+            this._stopAllActiveAudioSources({ preserveResolve: resolve, preserveStaging: true });
             const sessionId = this._playSessionId;
             const playToken = this._activePlayToken;
             const abortCtrl = new AbortController();
@@ -1387,7 +1423,7 @@ class ChronicleAudioRouter {
                 const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
                 let voice = (engine === 'gemini' && options.geminiVoice)
                     ? options.geminiVoice
-                    : (customVoice || this.narratorVoice || (isNarrator ? 'Enceladus' : ''));
+                    : (customVoice || options.voice || this.narratorVoice || (isNarrator ? 'Enceladus' : ''));
 
                 const emotion = options.emotion || '';
                 const geminiTag = options.geminiTag || '';
@@ -1559,7 +1595,7 @@ class ChronicleAudioRouter {
                         }
 
                         // Absolute physical mutual exclusion right before starting node
-                        this._disconnectPhysicalSources({ preserveResolve: resolve });
+                        this._disconnectPhysicalSources({ preserveResolve: resolve, preserveStaging: true });
                         this.activePlaybackResolve = resolve;
 
                         const source = this.ctx.createBufferSource();
@@ -1632,7 +1668,7 @@ class ChronicleAudioRouter {
                 }
 
                 // --- TIER 2: HTML5 AUDIO ELEMENT FALLBACK ---
-                this._disconnectPhysicalSources({ preserveResolve: resolve });
+                this._disconnectPhysicalSources({ preserveResolve: resolve, preserveStaging: true });
                 this.activePlaybackResolve = resolve;
 
                 const audio = new Audio();
@@ -1860,28 +1896,38 @@ class ChronicleAudioRouter {
         this.duckGameAudio(false);
     }
 
+    normalizeVocalOptions(options = {}) {
+        if (!options || typeof options !== 'object') return {};
+        if (options.narrator && typeof options.narrator === 'object') {
+            return { ...options.narrator, ...options, narrator: undefined };
+        }
+        return options;
+    }
+
     /**
      * Deterministic Cache Key generator matching server and local AudioBuffer cache.
      */
     getAudioCacheKey(text, role, customVoice, options = {}) {
-        const cleanText = text.replace(/<[^>]*>/g, '').trim();
+        const opts = this.normalizeVocalOptions(options);
+        const cleanText = String(text || '').replace(/<[^>]*>/g, '').trim();
         const isNarrator = (role === 'narrator');
-        const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
-        let voice = isNarrator ? (options.voice || this.narratorVoice || 'Enceladus') : (customVoice || this.narratorVoice || '');
-        if (engine === 'gemini' && options.geminiVoice && !isNarrator) voice = options.geminiVoice;
+        const engine = isNarrator ? 'gemini' : (opts.engine || this.ttsEngine || 'gemini');
+        let voice = isNarrator
+            ? ((engine === 'gemini' ? (opts.geminiVoice || opts.voice) : (opts.voice || opts.geminiVoice)) || this.narratorVoice || 'Enceladus')
+            : (customVoice || (engine === 'gemini' ? (opts.geminiVoice || opts.voice) : (opts.voice || opts.geminiVoice)) || this.narratorVoice || '');
 
-        const emotion = options.emotion || '';
-        const geminiTag = options.geminiTag || '';
-        const directorNote = options.directorNote || '';
-        const pitch = options.pitch || '';
-        const gender = options.gender || '';
+        const emotion = opts.emotion || '';
+        const geminiTag = opts.geminiTag || '';
+        const directorNote = opts.directorNote || '';
+        const pitch = opts.pitch || '';
+        const gender = opts.gender || '';
         const realm = this.activeRealm || 'angband';
 
         const currentSpeed = Math.max(0.5, Math.min(2.5, this.speed || 1.0));
         const speedRatePercent = Math.round((currentSpeed - 1.0) * 100);
         let baseRateNum = 0;
-        if (options.rate) {
-            const m = String(options.rate).match(/([+-]?\d+)/);
+        if (opts.rate) {
+            const m = String(opts.rate).match(/([+-]?\d+)/);
             if (m) baseRateNum = parseInt(m[1], 10);
         }
         const combinedRateNum = Math.max(-50, Math.min(100, baseRateNum + speedRatePercent));
@@ -1899,6 +1945,7 @@ class ChronicleAudioRouter {
         if (this.isMuted()) return null; // STRICT: Zero processing or network requests when Tome audio is muted
         const cleanText = text.replace(/<[^>]*>/g, '').trim();
         if (!cleanText) return null;
+        options = this.normalizeVocalOptions(options);
 
         const cacheKey = this.getAudioCacheKey(cleanText, role, customVoice, options);
         if (this.audioBufferCache.has(cacheKey)) {
@@ -1912,7 +1959,7 @@ class ChronicleAudioRouter {
             try {
                 const isNarrator = (role === 'narrator');
                 const engine = isNarrator ? 'gemini' : (options.engine || this.ttsEngine || 'gemini');
-                let voice = isNarrator ? (options.voice || this.narratorVoice || 'Enceladus') : (customVoice || this.narratorVoice || '');
+                let voice = isNarrator ? (options.voice || options.geminiVoice || this.narratorVoice || 'Enceladus') : (customVoice || options.geminiVoice || options.voice || this.narratorVoice || '');
                 if (engine === 'gemini' && options.geminiVoice && !isNarrator) voice = options.geminiVoice;
 
                 const emotion = options.emotion || '';

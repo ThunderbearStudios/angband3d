@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import{getContract as e}from"./message-registry.js";import{BUS as n,DECISION as t}from"./messaging-constants.js";import{describeTargetEndpoint as i,isEndpointPermitted as o}from"./mediation-helpers.js";import{startTiming as r,endTiming as s}from"./gateway-perf-core.js";function d(e){return{bus:e,op:void 0,decision:void 0,path:"bypass"}}let a=!1;function c(e){a||(a=!0,console.error("DCBrowserExt:Messaging:PerfTimingError",e))}function p(e){try{return e()}catch(e){return void c(e)}}function m(e,n,t){try{e(n,t)}catch(e){c(e)}}async function u({op:e,contract:n,request:o,sender:r,discriminatorField:s,endpoint:d,mediateFn:a,reportRejectionFn:c,envelopeFields:p}){const m=n?.bus;let u="unknown";try{const{decision:n}=await a({busId:m,op:e,envelopeFields:p??[s],request:o,sender:r,endpoint:d,discriminatorField:s,onModeResolved:e=>{u=e}});return n}catch(o){return c({bus:m,op:e,mode:u,decision:t.UNMIGRATED,tier:null,endpoint:i(n?.targetEndpoint),reason:`mediateFn threw: ${o?.message||o}. Actual mode: ${u}; forcing UNMIGRATED to avoid blocking the feature.`,timestamp:Date.now()}),t.UNMIGRATED}}export function wrapRuntimeMessageListener(i,a,{mediateFn:c,endpoint:g,reportRejectionFn:F,startTiming:l=r,endTiming:T=s,envelopeFields:f}){return function(r,s,R){const E=p(l);if(void 0!==r?.dcMsgOp)return;const v=r?.[i];if(void 0===v)return m(T,E,d(n.RUNTIME_MESSAGE)),a(r,s,R);const M={...r},j=e(v,i);return!j||void 0===g||o(g,j.targetEndpoint)?(u({op:v,contract:j,request:M,sender:s,discriminatorField:i,endpoint:g,mediateFn:c,reportRejectionFn:F,envelopeFields:f}).then(e=>{m(T,E,{bus:j?.bus,op:v,decision:e,path:"mediated"}),e!==t.REJECTED&&a(M,s,R)}),!0):void 0}}export function registerRuntimeMessageHandler(e,n,{endpoint:t,mediateFn:i,reportRejectionFn:o,startTiming:r,endTiming:s,envelopeFields:d}){const a={mediateFn:i,endpoint:t,reportRejectionFn:o,startTiming:r,endTiming:s,envelopeFields:d};chrome.runtime.onMessage.addListener(wrapRuntimeMessageListener(e,n,a))}export function wrapPortMessageListener(i,a,{mediateFn:c,endpoint:g,reportRejectionFn:F,startTiming:l=r,endTiming:T=s}){return function(r,s){const f=p(l),R=r?.[i];if(void 0===R)return m(T,f,d(n.RUNTIME_CONNECT)),a(r,s);const E=e(R,i);E&&void 0!==g&&!o(g,E.targetEndpoint)||u({op:R,contract:E,request:r,sender:s.sender,discriminatorField:i,endpoint:g,mediateFn:c,reportRejectionFn:F}).then(e=>{m(T,f,{bus:E?.bus,op:R,decision:e,path:"mediated"}),e!==t.REJECTED&&a(r,s)})}}export function registerPortMessageHandler(e,n,t,{endpoint:i,mediateFn:o,reportRejectionFn:r,startTiming:s,endTiming:d}){const a={mediateFn:o,endpoint:i,reportRejectionFn:r,startTiming:s,endTiming:d};e.onMessage.addListener(wrapPortMessageListener(n,t,a))}

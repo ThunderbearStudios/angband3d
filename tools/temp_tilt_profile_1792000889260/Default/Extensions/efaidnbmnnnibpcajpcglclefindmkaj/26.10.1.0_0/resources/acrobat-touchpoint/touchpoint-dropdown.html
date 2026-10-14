@@ -1,0 +1,159 @@
+<!--
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2026 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+-->
+<!--
+    Common (surface-agnostic) trigger + dropdown menu markup/CSS for AcrobatTouchpointDropdown.
+    One trigger design (dots icon, swaps to close icon while open) serves both the old
+    three-dot-trigger and hamburger-trigger surfaces. Per-surface color/dark-mode overrides live
+    in each surface's own CSS file instead (e.g. browser/css/gemini-express-touchpoint.css).
+
+    Reveal-on-hover is JS-driven, not a CSS ":hover ancestor" selector, since classNames are
+    configurable per surface — see touchpoint-dropdown.js's class doc comment.
+-->
+<style>
+    .acrobat-touch-point-dropdown-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 0;
+        height: 24px;
+        flex-shrink: 0;
+        align-self: center;
+        margin-right: 0;
+        border-radius: 7px;
+        box-sizing: border-box;
+        cursor: pointer;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background-color: transparent;
+        -webkit-appearance: none;
+        appearance: none;
+        color: inherit;
+        overflow: hidden;
+        opacity: 0;
+        transition: width 0.2s ease-out, margin-right 0.2s ease-out, opacity 0.2s ease-out;
+    }
+
+    .acrobat-touch-point-dropdown-trigger svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+    }
+
+    .acrobat-touch-point-dropdown-trigger:focus,
+    .acrobat-touch-point-dropdown-trigger:focus-visible,
+    .acrobat-touch-point-dropdown-trigger:focus-within {
+        outline: none !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Not compounded with .acrobat-touch-point-dropdown-trigger — triggerClass override would
+       drop that base class, but these state classes are always classList.add()-ed regardless. */
+    .acrobat-touch-point-dropdown-trigger-visible {
+        width: 24px;
+        margin-right: 8px;
+        background-color: #f3f3f3;
+        opacity: 1;
+        transition: width 0.3s ease, margin-right 0.3s ease, opacity 0.3s ease;
+    }
+
+    .acrobat-touch-point-dropdown-trigger-active {
+        background-color: #d5d5d5;
+    }
+
+    /* Icon swap while open — CSS-only, keyed off the same trigger-active state. */
+    .acrobat-touch-point-dropdown-trigger-icon-close {
+        display: none;
+    }
+
+    .acrobat-touch-point-dropdown-trigger-active .acrobat-touch-point-dropdown-trigger-icon-open {
+        display: none;
+    }
+
+    .acrobat-touch-point-dropdown-trigger-active .acrobat-touch-point-dropdown-trigger-icon-close {
+        display: flex;
+    }
+
+    .acrobat-touch-point-dropdown-menu {
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+        position: fixed;
+        background: #FFFFFF;
+        border-radius: 10px;
+        filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.12))
+                drop-shadow(0px 2px 6px rgba(0, 0, 0, 0.04))
+                drop-shadow(0px 4px 12px rgba(0, 0, 0, 0.08));
+        padding: 8px;
+        z-index: 49;
+        min-width: 143px;
+        width: max-content;
+        box-sizing: border-box;
+    }
+
+    /* Not compounded with .acrobat-touch-point-dropdown-menu, same reason as trigger-visible above. */
+    .acrobat-touch-point-dropdown-menu-open {
+        display: flex;
+    }
+
+    .acrobat-touch-point-dropdown-menu-item {
+        display: flex;
+        align-items: center;
+        height: 24px;
+        padding: 0 9px;
+        cursor: pointer;
+        border-radius: 7px;
+        box-sizing: border-box;
+        outline: none;
+        width: 100%;
+        flex-shrink: 0;
+    }
+
+    .acrobat-touch-point-dropdown-menu-item:hover {
+        background: #e9e9e9;
+    }
+
+    .acrobat-touch-point-dropdown-menu-item:focus-visible {
+        outline: 2px solid #147AF3;
+        outline-offset: -2px;
+        border-radius: 7px;
+    }
+
+    .acrobat-touch-point-dropdown-menu-item-text {
+        font-family: "Adobe Clean", adobe-clean, "AdobeClean-Regular", sans-serif !important;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 16px;
+        color: #292929;
+        white-space: nowrap;
+    }
+</style>
+<div class="acrobat-touch-point-dropdown-trigger" role="button" tabindex="-1" aria-haspopup="true" aria-expanded="false">
+    <svg class="acrobat-touch-point-dropdown-trigger-icon-open" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2.4" y="3.2" width="11.2" height="1.2" rx="0.6" fill="currentColor"/>
+        <rect x="2.4" y="7.4" width="11.2" height="1.2" rx="0.6" fill="currentColor"/>
+        <rect x="2.4" y="11.6" width="11.2" height="1.2" rx="0.6" fill="currentColor"/>
+    </svg>
+    <svg class="acrobat-touch-point-dropdown-trigger-icon-close" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7.74218 6.9999L11.3867 3.35567C11.5918 3.15059 11.5918 2.81836 11.3867 2.61328C11.1816 2.4082 10.8494 2.4082 10.6443 2.61328L6.99976 6.25752L3.35518 2.61328C3.1501 2.4082 2.81787 2.4082 2.61279 2.61328C2.40771 2.81836 2.40771 3.15059 2.61279 3.35567L6.25733 6.9999L2.61279 10.6441C2.40771 10.8492 2.40771 11.1814 2.61279 11.3865C2.71533 11.4891 2.84966 11.5403 2.98398 11.5403C3.11831 11.5403 3.25264 11.4891 3.35517 11.3865L6.99975 7.74229L10.6443 11.3865C10.7469 11.4891 10.8812 11.5403 11.0155 11.5403C11.1498 11.5403 11.2842 11.4891 11.3867 11.3865C11.5918 11.1814 11.5918 10.8492 11.3867 10.6441L7.74218 6.9999Z" fill="currentColor"/>
+    </svg>
+</div>
+<div class="acrobat-touch-point-dropdown-menu"></div>

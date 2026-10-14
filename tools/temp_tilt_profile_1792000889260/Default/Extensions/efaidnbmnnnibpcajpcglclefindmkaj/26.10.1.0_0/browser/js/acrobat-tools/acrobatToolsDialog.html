@@ -1,0 +1,243 @@
+<!--
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2026 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+-->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            font-family: adobe-clean, "Source Sans Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        #acrobat-tools-root {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        #acrobat-tools-loading {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            opacity: 1;
+            transition: opacity 200ms ease;
+            pointer-events: auto;
+            padding: 20px 16px 16px;
+            box-sizing: border-box;
+        }
+
+        #acrobat-tools-loading.is-fading {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #acrobat-tools-loading.is-hidden {
+            display: none;
+        }
+
+        .acrobat-tools-loading-close {
+            position: absolute;
+            top: 20px;
+            right: 16px;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: none;
+            border-radius: 4px;
+            background: url('../../images/SDC_Close_22_N.svg') center / contain no-repeat;
+            cursor: pointer;
+        }
+
+        .acrobat-tools-loading-close:hover {
+            background-color: rgba(0, 0, 0, 0.06);
+        }
+
+        .acrobat-tools-loading-close:focus-visible,
+        .acrobat-tools-loading-close.acrobat-tools--keyboard-focus {
+            outline: 2px solid #1473e6;
+            outline-offset: 2px;
+        }
+
+        .acrobat-tools-skeleton {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            gap: 20px;
+        }
+
+        .acrobat-tools-skeleton__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding-right: 40px;
+        }
+
+        .acrobat-tools-skeleton__header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .acrobat-tools-skeleton__body {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            border: 1px solid #e6e6e6;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .acrobat-tools-skeleton__pane {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 12px 16px;
+            box-sizing: border-box;
+        }
+
+        .acrobat-tools-skeleton__pane--list {
+            width: 34%;
+            flex: 0 0 34%;
+            background: #f8f8f8;
+            border-right: 1px solid #e6e6e6;
+        }
+
+        .acrobat-tools-skeleton__pane--detail {
+            flex: 1 1 auto;
+        }
+
+        .shimmer-bar {
+            height: 12px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #f0f0f0 0%, #e6e6e6 45%, #f0f0f0 90%);
+            background-size: 200% 100%;
+            animation: acrobat-tools-shimmer 1.4s ease-in-out infinite;
+        }
+
+        .shimmer-bar--circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            flex: 0 0 auto;
+            margin: 0 3px;
+        }
+
+        .shimmer-bar--title {
+            width: 120px;
+            height: 14px;
+        }
+
+        .shimmer-bar--section {
+            width: 72px;
+            height: 10px;
+            margin-bottom: 4px;
+        }
+
+        .shimmer-bar--wide {
+            width: 70%;
+            height: 16px;
+        }
+
+        .shimmer-bar--medium {
+            width: 55%;
+        }
+
+        .shimmer-bar--short {
+            width: 40%;
+        }
+
+        @keyframes acrobat-tools-shimmer {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+
+        #acrobat-tools-hosted-container {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+        }
+
+        #acrobat-tools-hosted-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+    </style>
+    <script type="module" src="./acrobatToolsDialog.js"></script>
+</head>
+
+<body>
+    <div id="acrobat-tools-root">
+        <div id="acrobat-tools-loading" aria-busy="true">
+            <button
+                type="button"
+                id="acrobat-tools-loading-close"
+                class="acrobat-tools-loading-close"
+            ></button>
+            <div class="acrobat-tools-skeleton" aria-hidden="true">
+                <div class="acrobat-tools-skeleton__header">
+                    <div class="acrobat-tools-skeleton__header-left">
+                        <div class="shimmer-bar shimmer-bar--circle"></div>
+                        <div class="shimmer-bar shimmer-bar--title"></div>
+                    </div>
+                </div>
+                <div class="acrobat-tools-skeleton__body">
+                    <div class="acrobat-tools-skeleton__pane acrobat-tools-skeleton__pane--list">
+                        <div class="shimmer-bar shimmer-bar--section"></div>
+                        <div class="shimmer-bar shimmer-bar--wide"></div>
+                        <div class="shimmer-bar shimmer-bar--medium"></div>
+                        <div class="shimmer-bar shimmer-bar--wide"></div>
+                        <div class="shimmer-bar shimmer-bar--short"></div>
+                    </div>
+                    <div class="acrobat-tools-skeleton__pane acrobat-tools-skeleton__pane--detail">
+                        <div class="shimmer-bar shimmer-bar--wide"></div>
+                        <div class="shimmer-bar shimmer-bar--short"></div>
+                        <div class="shimmer-bar shimmer-bar--section" style="margin-top: 8px;"></div>
+                        <div class="shimmer-bar shimmer-bar--medium"></div>
+                        <div class="shimmer-bar shimmer-bar--medium"></div>
+                        <div class="shimmer-bar shimmer-bar--medium"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="acrobat-tools-hosted-container"></div>
+    </div>
+</body>
+
+</html>
