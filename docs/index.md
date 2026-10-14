@@ -88,26 +88,7 @@ Every adventurer plays differently. Angband 3D features a complete, zero-lag dra
 
 ---
 
-### 5. 📖 The Living Chronicle: Voiced Lorekeepers & AI Masterwork Sketches
-*(Exclusive to the Web Client)*
-
-The dungeon comes alive with an integrated, zero-latency narrative engine powered by Google Gemini and procedural Web Audio:
-
-* **30-Archetype Neural Voice Matrix**:
-  * Features realm-specific literary Lorekeepers: **Enceladus** (Old English classical narrator for Vanilla Angband), **Zephyr**, **Charon** (grim, haunting First Age narrator for Sil-Q), **Fenrir** (chaotic mythic voice for FrogComposBand), and **Gacrux** (feudal Eastern narrator for Hengband).
-  * Distinct monster encounter voices spanning beasts, orcs, undead wights, high-tier demons, and ancient dragons.
-* **Proximity Speculative Pre-Warming**:
-  * As hostiles approach through the dark, the client speculatively pre-fetches and decodes neural vocal buffers in the background. The exact millisecond a creature enters your field of view, its vocal bark plays with **zero perceptible latency**.
-* **Intelligent Combat Flow Governor**:
-  * Automatically regulates voice queues during frantic skirmishes: routine melee strikes remain brief and punchy, while close calls, legendary artifact discoveries, and boss takedowns trigger triumphant narrative prose.
-* **On-Demand "🔮 Tale" Button**:
-  * Tap the Tale button in the HUD or Tome deck (or press `Alt+T`) to receive realm-attuned saga prose, strategic survival counsel, and lore insights tailored to your current dungeon depth, equipment, and surrounding foes.
-* **Full-Context Hero Action Sketches (`Alt+K`)**:
-  * Generates an illuminated `800×600` canvas etching and AI-rendered masterwork illustration capturing your hero's exact character race, class, physical traits, equipped weapons and armor, active wounds or blessings, and recent chronicle milestones.
-
----
-
-### 6. 🎨 Photogrammetry Ultra-Realism & 4096×4096 HD Dark Fantasy Art
+### 5. 🎨 Photogrammetry Ultra-Realism & 4096×4096 HD Dark Fantasy Art
 Angband 3D combines 8K photogrammetry scans with the beloved dark-fantasy art of **Raymond "Shockbolt" Gaustadnes**:
 
 * **Photogrammetry 3D Weapons & Viewmodels**: First-person viewmodels feature CC0 8K-scanned Poly Haven models—including medieval estocs, sabers, katanas, ornate daggers, warhammers, maces, battleaxes, and kite shields—with animated weapon recoil upon attack.
@@ -118,7 +99,7 @@ Angband 3D combines 8K photogrammetry scans with the beloved dark-fantasy art of
 
 ---
 
-### 7. 💾 Universal Save Game Portability
+### 6. 💾 Universal Save Game Portability
 Your character lives wherever you want to play:
 
 * **Universal Binary Saves (`SaveVNLA`, `SaveSILQ`, `SaveFROX`, `SaveHENG`)**:
@@ -129,9 +110,39 @@ Your character lives wherever you want to play:
 
 ---
 
+## 📜 The Living Chronicle: Web-Exclusive Living Saga & AI Voice Matrix
+*(Exclusive to the Web Client at `angband3d.com`)*
+
+The classic dungeon crawl is transformed into an epic voiced chronicle. Angband 3D on the web integrates a state-of-the-art neural storytelling suite powered by Google Gemini and a procedural Web Audio acoustic chain:
+
+* **30-Archetype Realm-Bound Voice Matrix**:
+  * **Vanilla Angband**: Narrated by **Enceladus** (a resonant, scholarly Old English Tolkienian voice) and **Zephyr**.
+  * **Sil-Q**: Narrated by **Charon** (a stark, haunting First Age chronicler) and **Despina**, perfectly capturing the doomed grandeur of Beleriand.
+  * **FrogComposBand**: Narrated by **Fenrir** (a mythic, boisterous skald) and **Kore**, attuned to the chaotic multiverse.
+  * **Hengband**: Narrated by **Gacrux** (a grave, dignified Eastern feudal storyteller) and **Sulafat**.
+  * **Encounter Vocatives**: Distinct neural vocal textures for beasts, orc raiders, undead wights, high-tier fiends, and elder dragons.
+* **Proximity Speculative Pre-Warming (Zero-Latency Audio)**:
+  * As hostile creatures move through the corridors, the web client detects proximity in the background and speculatively pre-fetches and decodes their neural audio buffers before you even see them.
+  * The exact millisecond a creature enters your torchlight or line of sight, its vocalization plays with **zero perceptible latency (0ms lag)**.
+* **Non-Intrusive Combat Flow Governor**:
+  * Dungeon combat is fast and perilous; narrators should never get you killed.
+  * Routine melee exchanges remain brief and punchy ($\le 80$ characters).
+  * Catch-up messages are aggregated cleanly without audio overlap ($\le 150$ characters).
+  * Narrow escapes, legendary artifact discoveries, and boss triumphs receive full, dramatic narrative delivery ($> 90$ characters).
+* **On-Demand Contextual Saga Prompt (`Alt+T`)**:
+  * Tap the **"🔮 Tale"** button in the HUD or Tome deck (or press `Alt+T`) to receive deep lore and survival counsel dynamically attuned to your current depth, gear, wounds, and surrounding foes.
+* **Masterwork Hero Action Sketches (`Alt+K`)**:
+  * Press `Alt+K` to generate an illuminated `800×600` canvas etching depicting your character at this exact turn, capturing weapons, armor, wounds, and chronicle deeds.
+* **Procedural Web Audio Synthesis & Zero-Robotic Fallbacks**:
+  * Angband 3D strictly prohibits robotic browser `window.speechSynthesis` voices.
+  * All audio is routed through a dedicated Web Audio acoustic chain featuring multi-band dynamic range compression (`DynamicsCompressorNode`), spatial stereo panning, and distance attenuation for authentic dungeon reverberation.
+
+---
+
 ## 🌍 The Open Source Hooks & Architecture
 
-Angband 3D is not a walled garden. It is an **open architecture and educational reference** demonstrating how classic terminal-based software can be elevated to modern graphic standards without breaking upstream backward compatibility.
+Angband 3D is not a walled garden. It is an **open architecture and educational reference** illustrating how classic terminal-based software can be elevated to modern graphic standards without breaking upstream backward compatibility.
+
 
 ```
                         +------------------------------------+

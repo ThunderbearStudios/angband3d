@@ -39,7 +39,7 @@ Rather than reimplementing Angband, Angband 3D retains the **unmodified, authori
 | **Independent Games Festival (IGF)** | **Nuovo Award** | Philosophical challenge to video game "remake" culture: treating retro engines as living, immortal simulation backends. | The Preservation Manifesto, dual-reality CRT terminal. |
 | **Independent Games Festival (IGF)** | **Seumas McNally Grand Prize** | Holistic masterwork: technical ambition, design purity, audiovisual innovation, cultural preservation. | Complete playable game across Web, Windows, and Android. |
 | **The Webby Awards** | **Games & Technical Achievement** | Console-quality 60 FPS WebGL PBR gaming in any browser with zero installation, instant PWA caching, and split-thumb mobile UX. | `https://angband3d.com`, PWA manifest, Chrome Lighthouse 95+ score. |
-| **IndieCade** | **Innovation in Interaction & Trailblazer** | Recontextualizing historical gameplay through dual-reality perspectives and ergonomic 0-turn camera controls. | Interactive 10-Act Showcase (`/demo`), Dual-Reality toggle. |
+| **IndieCade** | **Innovation in Interaction & Trailblazer** | Recontextualizing historical gameplay through dual-reality perspectives and ergonomic 0-turn camera controls. | Dual-Reality CRT/3D toggle, universal movable HUD, 0-turn camera yaw. |
 | **Roguelike Celebration** | **Talk & Playable Showcase** | "Preservation Over Reimplementation: Driving 35-Year-Old C Roguelikes with Modern 3D Engines & WebAssembly". | `docs/ARCHITECTURE.md`, `tools/smoke_test.py`, live presentation demo. |
 | **AbleGamers / GAconf Awards** | **Excellence in Accessibility** | Turn-based temporal agency (zero twitch reflexes), 2D CRT mode for vestibular/motion sensitivity, full closed captions, -6 dB audio safety. | `docs/ACCESSIBILITY.md`, closed captions (`[CC]`), visual combat logs. |
 | **GitHub Innovation Awards** | **Open Source Game Architecture** | Rebasable upstream C architecture, generic engine integration blueprint for NetHack/DCSS, 100% automated test coverage. | `docs/GENERIC_ENGINE_INTEGRATION.md`, `PROTOCOL.md`, GitHub repository. |
@@ -167,7 +167,7 @@ Angband 3D redefines what is possible in web gaming. Without downloading an inst
 - **PWA & Offline Resilience**: A Service Worker caches critical game shells and PBR texture atlases, enabling instant sub-second page loads and complete offline playability through IndexedDB (`IDBFS`).
 - **Responsive Touch & Split-Thumb Ergonomics**: Mobile players experience dedicated on-screen split-thumb controls, swipe-to-turn gestures, and responsive HUD scaling that rivals native mobile applications.
 - **Universal Save Export**: Single-click save export allows players to move seamlessly between browser, desktop, and mobile devices with 100% binary `.sav` fidelity.
-- **Broadcast-Quality Showcase**: The built-in `/demo` cinematic viewer delivers an interactive, 10-act narrated walkthrough with true fullscreen capabilities and chapter scrubbing.
+- **Living Chronicle Narrative Engine**: The built-in neural storytelling suite delivers on-demand realm sagas, tactical survival counsel, and illuminated character sketches powered by Google Gemini and zero-latency Web Audio.
 
 Angband 3D represents the pinnacle of modern web technology: fast, open, accessible, and stunningly crafted.
 

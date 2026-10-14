@@ -1097,12 +1097,8 @@ To guarantee broadcast quality with zero runtime API failure or network lag:
 - **The Binary Bloat Trap**:
   - Bundling 300MB+ of 1080p MP4 and WebM video files into the Godot Windows Desktop installer or Android APK swells distribution artifacts from ~25MB to >350MB, causing bandwidth strain, slow downloads, and app store rejection.
 - **The Invariant**:
-  - The high-definition showcase video is hosted exclusively on the web client (`https://angband3d.com/demo`).
-  - All native clients (Godot C# Windows desktop and Android APK) reference the web showcase via `OS.ShellOpen("https://angband3d.com/demo")`:
-    - Splash screen: `[V] Watch Demo Video` button & `Key.V` shortcut.
-    - Title Menu & Pause Menu: `"Watch Gameplay Showcase & Video Guide (angband3d.com/demo)"`.
-    - In-game Survival Guide (Tab 6): Clickable link and `[V]` shortcut.
-  - Server daemon (`server.js`) natively routes `/demo`, `/demo/`, `/watch`, and `/showcase` to `server/public/demo.html`.
+  - Web-only marketing media is hosted exclusively on the public web domain (`https://angband3d.com`).
+  - Standalone clients (Godot C# Windows desktop and Android APK) never bundle heavy video binaries, keeping game distribution archives ultra-lean (~25MB code/assets).
 
 ---
 
@@ -1367,9 +1363,9 @@ To guarantee broadcast quality with zero runtime API failure or network lag:
 ## 30. Standalone Client External Link Decoupling, Distribution Hygiene & Web-Only Media Architecture
 
 ### 30.1 The Master Invariant: High-Bandwidth Showcase Media Belongs Strictly on the Web
-- **The Core Rule**: Heavy interactive media showcases (specifically the 1080p 60fps narrated gameplay walkthrough, the commercial trailer, and high-bitrate video stems) are hosted **strictly and exclusively on the public website** (`https://angband3d.com/demo`).
+- **The Core Rule**: Heavy interactive media showcases (specifically the 1080p 60fps narrated gameplay walkthrough, the commercial trailer, and high-bitrate video stems) are hosted **strictly and exclusively on the public website** (`https://angband3d.com`).
 - **Zero Native Video Playback in Non-Web Clients**: Under no circumstances should any standalone native client (Windows WebView2 `Angband3D.exe`, Godot C# `Angband3D-Godot.exe`, Android APK, or offline packages) bundle video assets or attempt native video playback.
-- **Universal External Redirection**: Any demo link, button (`[D] 🎬 Gameplay Demo`, `#btn-splash-demo`, `#btn-menu-demo`, Option [9]), or keyboard trigger pressed inside a standalone client must immediately launch the official web link (`https://angband3d.com/demo`) in the user's default system web browser.
+- **Universal External Redirection**: Any promotional link or external trigger pressed inside a standalone client must launch the official web link (`https://angband3d.com`) in the user's default system web browser.
 
 ### 30.2 The Failure Modes: The Three Traps of Standalone Media Integration
 1. **The Distribution Bloat Trap**:
@@ -1490,7 +1486,7 @@ function showDemoModal(fromState = null) {
     // Standalone Client Invariant: Never play video locally in standalone builds
     if (isStandaloneApp() || document.body?.classList?.contains('is-standalone')) {
         if (audio) audio.playMenuNav();
-        openExternalUrl('https://angband3d.com/demo');
+        openExternalUrl('https://angband3d.com');
         return;
     }
     // Web client opens interactive showcase modal
@@ -1498,13 +1494,12 @@ function showDemoModal(fromState = null) {
 }
 ```
 - **Contextual UI Affordances**:
-  - In standalone desktop or mobile APK builds, the splash screen button dynamically adapts its label to `[D] 🎬 Gameplay Demo (Web ↗)` with a descriptive tooltip informing the user that clicking will open their external system browser.
-  - The Main Menu Option [9] label similarly updates to `🎬 Gameplay Demo & Feature Showcase (Web ↗)`.
+  - In standalone desktop or mobile APK builds, any external web triggers open the user's default system browser.
 
-#### Layer 3: Defensive Guards in the Player Engine (`demo-player.js` & `demo.html`)
-Even if an unauthenticated caller invokes `demoPlayer.open()` directly or an offline user double-clicks `demo.html`, defensive runtime guards intercept the request:
-- `isClientStandalone()` in `demo-player.js` returns early from `init()`, aborts `preloadManifest()`, and deflects `open()` to `openExternalUrl('https://angband3d.com/demo')`.
-- An inline `<script>` in the `<head>` of `demo.html` detects offline/standalone hosts (`angband3d.local`, `file:`, `capacitor:`) and redirects immediately to `index.html` while shelling out to `https://angband3d.com/demo`.
+#### Layer 3: Defensive Guards in the Player Engine
+Even if an offline user opens external links:
+- Runtime guards intercept requests and deflect to `openExternalUrl('https://angband3d.com')`.
+- Offline/standalone hosts (`angband3d.local`, `file:`, `capacitor:`) redirect immediately to `index.html` while shelling out to `https://angband3d.com`.
 
 ### 30.4 Standalone Packaging & Distribution Hygiene (`tools/package.ps1`)
 To ensure zero orphaned files, zero bloat, and total package cleanliness:
