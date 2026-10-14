@@ -14,7 +14,21 @@ class SoundEngine {
         this.unlocked = false;
 
         this.sampleRate = 44100;
-        this.buffers = {};
+        this._sfxLibraryGenerated = false;
+        this._rawBuffers = {};
+        this.buffers = new Proxy(this._rawBuffers, {
+            get: (target, prop) => {
+                if (!this._sfxLibraryGenerated) {
+                    this._sfxLibraryGenerated = true;
+                    this.generateSfxLibrary();
+                }
+                return target[prop];
+            },
+            set: (target, prop, value) => {
+                target[prop] = value;
+                return true;
+            }
+        });
         this.stoneFootsteps = [];
         this.outdoorFootsteps = [];
         this.waterFootsteps = [];
@@ -164,7 +178,7 @@ class SoundEngine {
             this.sfxGain = null;
         }
 
-        this.generateSfxLibrary();
+        // SFX library generated lazily on first audio interaction
     }
 
     unlock(forceFromGesture = false) {
@@ -200,7 +214,15 @@ class SoundEngine {
         return buffer;
     }
 
+    ensureSfxLibrary() {
+        if (!this._sfxLibraryGenerated) {
+            this._sfxLibraryGenerated = true;
+            this.generateSfxLibrary();
+        }
+    }
+
     playBuffer(buffer, pitchScale = 1.0, volumeScale = 1.0, pan = 0.0) {
+        this.ensureSfxLibrary();
         if (!this.enabled || !this.ctx || !buffer || !this.unlocked) return;
         if (this.ctx.state === 'suspended') {
             return;
@@ -226,9 +248,22 @@ class SoundEngine {
             source.connect(gain);
             gain.connect(panner);
             panner.connect(dest);
+            source.onended = () => {
+                try {
+                    source.disconnect();
+                    gain.disconnect();
+                    panner.disconnect();
+                } catch (_) {}
+            };
         } else {
             source.connect(gain);
             gain.connect(dest);
+            source.onended = () => {
+                try {
+                    source.disconnect();
+                    gain.disconnect();
+                } catch (_) {}
+            };
         }
 
         source.start(now);
@@ -1286,6 +1321,7 @@ class SoundEngine {
     playFootstep(outdoors = false, heightRatio = 1.0, surface = null) {
         if (!this.enabled) return;
         this.unlock();
+        this.ensureSfxLibrary();
         let list;
         if (surface === 'water' || surface === 'deep_water' || surface === 'swamp') {
             list = this.waterFootsteps;

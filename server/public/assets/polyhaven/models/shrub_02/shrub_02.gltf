@@ -1,0 +1,437 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v3.5.30",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "shrub_02_a",
+      "rotation": [
+        0.12589912116527557,
+        -0.6947680711746216,
+        0.006097283214330673,
+        0.708102822303772
+      ],
+      "translation": [
+        -1.5478131771087646,
+        -0.005240630358457565,
+        -0.02073405683040619
+      ]
+    },
+    {
+      "mesh": 1,
+      "name": "shrub_02_b",
+      "rotation": [
+        0.08358937501907349,
+        -0.746630847454071,
+        0.26227879524230957,
+        0.6056113243103027
+      ],
+      "translation": [
+        0.0007123738760128617,
+        -0.006340932101011276,
+        -0.01680799387395382
+      ]
+    },
+    {
+      "mesh": 2,
+      "name": "shrub_02_c",
+      "rotation": [
+        0.12648986279964447,
+        -0.7129753232002258,
+        0.3943961560726166,
+        0.5657898783683777
+      ],
+      "translation": [
+        1.5559492111206055,
+        -0.005484403111040592,
+        -0.006101916544139385
+      ]
+    },
+    {
+      "mesh": 3,
+      "name": "shrub_02_d",
+      "rotation": [
+        0.047377295792102814,
+        -0.7383221983909607,
+        -0.300414502620697,
+        0.60198575258255
+      ],
+      "translation": [
+        3.258664131164551,
+        -0.004767145495861769,
+        -0.005447957664728165
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "alphaCutoff": 0.5,
+      "alphaMode": "MASK",
+      "doubleSided": true,
+      "name": "shrub_02",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0,
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Plane.024",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "TEXCOORD_0": 1,
+            "NORMAL": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Plane.029",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "TEXCOORD_0": 5,
+            "NORMAL": 6
+          },
+          "indices": 7,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Plane.041",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 8,
+            "TEXCOORD_0": 9,
+            "NORMAL": 10
+          },
+          "indices": 11,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Plane.036",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 12,
+            "TEXCOORD_0": 13,
+            "NORMAL": 14
+          },
+          "indices": 15,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "shrub_02_nor_gl",
+      "uri": "textures/shrub_02_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "shrub_02_diff",
+      "uri": "textures/shrub_02_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "shrub_02_rough",
+      "uri": "textures/shrub_02_arm_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 5125,
+      "max": [
+        0.6156559586524963,
+        1.6821810007095337,
+        0.42684367299079895
+      ],
+      "min": [
+        -0.9439988136291504,
+        -0.03012576885521412,
+        -0.863244354724884
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 5125,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 5125,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 22770,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 3600,
+      "max": [
+        0.9647624492645264,
+        1.0844767093658447,
+        0.30848613381385803
+      ],
+      "min": [
+        -0.4038015305995941,
+        -0.10226154327392578,
+        -1.0773800611495972
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 3600,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 3600,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 15726,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 6346,
+      "max": [
+        1.287977695465088,
+        0.8719967007637024,
+        0.24143657088279724
+      ],
+      "min": [
+        -0.8910231590270996,
+        -0.2947101294994354,
+        -1.22649085521698
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5126,
+      "count": 6346,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 6346,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5123,
+      "count": 27702,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 12,
+      "componentType": 5126,
+      "count": 3528,
+      "max": [
+        0.22877177596092224,
+        1.153072476387024,
+        0.5660104751586914
+      ],
+      "min": [
+        -1.051486849784851,
+        -0.09016040712594986,
+        -0.41910019516944885
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 13,
+      "componentType": 5126,
+      "count": 3528,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 14,
+      "componentType": 5126,
+      "count": 3528,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 15,
+      "componentType": 5123,
+      "count": 15564,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 61500,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 41000,
+      "byteOffset": 61500,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 61500,
+      "byteOffset": 102500,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 45540,
+      "byteOffset": 164000,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 43200,
+      "byteOffset": 209540,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 28800,
+      "byteOffset": 252740,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 43200,
+      "byteOffset": 281540,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 31452,
+      "byteOffset": 324740,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 76152,
+      "byteOffset": 356192,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 50768,
+      "byteOffset": 432344,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 76152,
+      "byteOffset": 483112,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 55404,
+      "byteOffset": 559264,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 42336,
+      "byteOffset": 614668,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 28224,
+      "byteOffset": 657004,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 42336,
+      "byteOffset": 685228,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 31128,
+      "byteOffset": 727564,
+      "target": 34963
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 758692,
+      "uri": "shrub_02.bin"
+    }
+  ]
+}

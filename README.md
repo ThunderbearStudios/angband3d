@@ -146,8 +146,8 @@ In a 2D roguelike, looking in a direction is indistinguishable from moving. In f
 * Monsters only step or strike when you take a turn, preserving pure turn-based tactical deliberation.
 
 ### 2. Master Lore Accuracy & 4096×4096 HD Atlases
-Angband 3D standardizes on the beloved, authentic 2.5D illustrated visual aesthetic (reminiscent of *The Elder Scrolls: Daggerfall* and *Dungeon Master*):
-* **100% Lore Accuracy Audit**: Validated by automated CI tests (`tools/audit_atlas_models.js`) cross-referencing all 624 monster species and 498 items against upstream canonical Shockbolt PRF tables.
+Angband 3D standardizes on the beloved, authentic 2.5D illustrated dark-fantasy visual aesthetic:
+* **100% Lore Accuracy Audit**: Validated by automated CI tests (`tools/audit_atlas_models.js`) cross-referencing all 624 monster species and 498 items against upstream canonical Shockbolt PRF tables by **Raymond "Shockbolt" Gaustadnes**.
 * **Math Floor Alignment**: Eradicated IEEE 754 banker's rounding shifts, ensuring creatures like the **Hippogriff** (`[H]`, eagle-headed winged horse) render with their authentic artwork on Row 4, Col 19 rather than shifting into Flesh Golems.
 * **4096×4096 HD Atlases**: 4× pixel density (128×128 pixel tiles) upscaled with high-quality bicubic filtering.
 * **De-fringed Silhouettes & CAS Sharpening**: Legacy baked 2D drop-shadows are stripped programmatically, edge alpha is un-premultiplied, and Contrast-Adaptive Cross-Laplacian sharpening restores razor-sharp eyes, claws, and weapon bevels.
@@ -344,9 +344,9 @@ To guarantee rock-solid stability and security across long-term deployments:
 * **Literary Inspiration**: The setting, lore, and names draw inspiration from the literary legendarium created by **J.R.R. Tolkien**.
 * **Trademarks**: *The Lord of the Rings*, *The Hobbit*, *Middle-earth*, *Angband*, and *Moria* are trademarks or registered trademarks of **Middle-earth Enterprises, LLC** (Embracer Group AB) and/or **The Tolkien Estate**. This project is not affiliated with, endorsed by, or sponsored by Middle-earth Enterprises or The Tolkien Estate.
 * **Strict Zero-Monetization Policy**: The game is 100% free. It contains **no ads, no microtransactions, no paywalls, and accepts no donations or commercial sponsorship**.
-* **Licensing**:
-  * Core engine and derivative work: **GNU General Public License, Version 2** (GPL-2.0). Complete source code is available in this repository. Full terms in [`LICENSE`](LICENSE) and [`LEGAL.md`](LEGAL.md).
-  * 3D Art & Textures: Permissive **CC0 1.0 Universal** public domain dedications (KayKit, Kenney, Quaternius).
-  * 2D Tile Art: Upstream canonical Angband tiles by **Shockbolt** and the Angband Development Team.
+* **Licensing & Open-Asset Attribution**:
+  * Core engines and derivative work: **GNU General Public License, Version 2** (GPL-2.0) across **Angband 4.2.6**, **Sil-Q**, **FrogComposBand**, and **Hengband**. Complete source code is available in this repository. Full terms in [`LICENSE`](LICENSE) and [`LEGAL.md`](LEGAL.md).
+  * 2K Photogrammetry PBR Textures & 3D Art: Permissive **CC0 1.0 Universal** public domain dedications (**Poly Haven**, **KayKit**, **Kenney**, **Quaternius**).
+  * Illustrated 64×64 Creature & Item Tile Art: Master painted fantasy tileset by **Raymond "Shockbolt" Gaustadnes** and the Angband Development Team (GPL-2.0 / Angband Open Source License).
   * Fonts: **SIL Open Font License 1.1** (Cinzel, Outfit, Fira Code).
   * Full asset credits and citations are detailed in [`CREDITS.md`](CREDITS.md).

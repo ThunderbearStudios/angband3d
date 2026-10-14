@@ -289,7 +289,7 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
 
     public void SendKey(string spec)
     {
-        if (Busy)
+        if (!Connected || Busy)
         {
             return;
         }
@@ -299,7 +299,7 @@ public partial class WebSocketBridgeClient : Node, IGameEngineBridge
 
     public void SendKeys(string text)
     {
-        if (Busy || string.IsNullOrEmpty(text))
+        if (!Connected || Busy || string.IsNullOrEmpty(text))
         {
             return;
         }

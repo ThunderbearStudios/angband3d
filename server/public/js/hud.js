@@ -94,8 +94,10 @@ class WebHUD {
         this.deathTerminal = null;
 
         this.setupMinimapControls();
+        this.setupCharacterPanelShortcuts();
         this.setupDeathModal();
         this.setupMessageFeed();
+        this.initUniversalMovableHud();
 
         // Offscreen canvas cache for static minimap tiles (eliminates hundreds of fillText calls per frame on turn)
         this.minimapTileCanvas = document.createElement('canvas');
@@ -663,6 +665,51 @@ class WebHUD {
             const endTouch = () => { initialPinch = null; };
             this.minimapCanvas.addEventListener('touchend', endTouch, { passive: true });
             this.minimapCanvas.addEventListener('touchcancel', endTouch, { passive: true });
+
+            // Interactive Minimap Hover Tooltip & Click-to-Inspect
+            this.minimapCanvas.addEventListener('mousemove', (e) => {
+                if (!this.lastFrame || !this.lastFrame.map || !this.lastFrame.player) return;
+                const rect = this.minimapCanvas.getBoundingClientRect();
+                if (!rect.width || !rect.height) return;
+                const scaleX = this.minimapCanvas.width / rect.width;
+                const scaleY = this.minimapCanvas.height / rect.height;
+                const cellSize = this._minimapCellSize || Math.max(4, Math.min(48, Math.round(12 * this.minimapZoom)));
+                const mx = (this._minimapOx || 0) + Math.floor(((e.clientX - rect.left) * scaleX) / cellSize);
+                const my = (this._minimapOy || 0) + Math.floor(((e.clientY - rect.top) * scaleY) / cellSize);
+                const label = this.describeMinimapCell(mx, my);
+                const hintEl = document.getElementById('minimap-hint-text');
+                if (hintEl && label) {
+                    hintEl.textContent = label;
+                    hintEl.style.color = '#ffd700';
+                }
+                this.minimapCanvas.title = label || 'Minimap Radar';
+            });
+
+            this.minimapCanvas.addEventListener('mouseleave', () => {
+                const hintEl = document.getElementById('minimap-hint-text');
+                if (hintEl) hintEl.style.color = '';
+                this.updateMinimapHeader();
+            });
+
+            this.minimapCanvas.addEventListener('click', (e) => {
+                if (!this.lastFrame || !this.lastFrame.map || !this.lastFrame.player) return;
+                const rect = this.minimapCanvas.getBoundingClientRect();
+                if (!rect.width || !rect.height) return;
+                const scaleX = this.minimapCanvas.width / rect.width;
+                const scaleY = this.minimapCanvas.height / rect.height;
+                const cellSize = this._minimapCellSize || Math.max(4, Math.min(48, Math.round(12 * this.minimapZoom)));
+                const mx = (this._minimapOx || 0) + Math.floor(((e.clientX - rect.left) * scaleX) / cellSize);
+                const my = (this._minimapOy || 0) + Math.floor(((e.clientY - rect.top) * scaleY) / cellSize);
+                const monsters = Array.isArray(this.lastFrame.monsters) ? this.lastFrame.monsters : [];
+                const hitMon = monsters.find(m => m && m.x === mx && m.y === my);
+                if (hitMon) {
+                    if (window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') {
+                        window.chronicleManager.interactWithCreature(hitMon);
+                    }
+                    const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                    this.updateTargetInspector({ target: { name: hitMon.name, glyph: hitMon.glyph, pct: hitMon.hp_max > 0 ? Math.round((hitMon.hp / hitMon.hp_max) * 100) : 100 } }, realm);
+                }
+            });
         }
 
         const btnToggleSize = document.getElementById('btn-map-toggle-size');
@@ -679,6 +726,444 @@ class WebHUD {
                 e.stopPropagation();
                 this.resetMinimapZoom();
             });
+        }
+    }
+
+    describeMinimapCell(mx, my) {
+        const frame = this.lastFrame;
+        if (!frame || !frame.map || !frame.player) return '';
+        const map = frame.map;
+        if (mx < 0 || my < 0 || mx >= map.w || my >= map.h) return '';
+        if (mx === frame.player.x && my === frame.player.y) {
+            return `Hero (${mx},${my})`;
+        }
+        const monsters = Array.isArray(frame.monsters) ? frame.monsters : [];
+        const mon = monsters.find(m => m && m.x === mx && m.y === my);
+        if (mon) {
+            return `⚔ ${mon.name || 'Creature'} (${mx},${my})`;
+        }
+        const items = Array.isArray(frame.items) ? frame.items : [];
+        const item = items.find(it => it && it.x === mx && it.y === my);
+        if (item) {
+            return `💎 ${item.name || 'Item'} (${mx},${my})`;
+        }
+        const row = map.rows && map.rows[my];
+        if (!row || !row.g || mx >= row.g.length) return '';
+        const flag = (row.l && mx < row.l.length) ? (parseInt(row.l[mx], 16) || 0) : 0;
+        if ((flag & 0x3) === 0) return `Unexplored (${mx},${my})`;
+        const ch = row.g[mx];
+        const feat = this.getFeatAt(map, mx, my);
+        if (ch === '<' || feat === 5) return `⬆ Stairs Up (${mx},${my})`;
+        if (ch === '>' || feat === 6) return `⬇ Stairs Down (${mx},${my})`;
+        if (ch === '0' || feat === 37) return `⚒ Smithing Forge (${mx},${my})`;
+        if ((ch >= '1' && ch <= '9') || this.isStoreKind(feat)) return `🏛 Store [${ch}] (${mx},${my})`;
+        if (ch === '+' || ch === '\'') return `🚪 Door (${mx},${my})`;
+        if (ch === '^') return `⚠ Trap (${mx},${my})`;
+        if (ch === '%' || ch === '*') return `⛏ Mineral Vein (${mx},${my})`;
+        if (ch === '#') return `🧱 Wall (${mx},${my})`;
+        if (ch === '.') return `Floor (${mx},${my})`;
+        return `[${ch}] (${mx},${my})`;
+    }
+
+    sendQuickHudCommand(key) {
+        if (!key || !this.lastFrame || this.lastFrame.phase !== 'play') return;
+        const net = (window.__app && window.__app.network) || window.__network;
+        if (!net || typeof net.sendKey !== 'function') return;
+        if (this.lastFrame.ui && this.lastFrame.ui.more) {
+            net.sendKey('space');
+        }
+        net.sendKey(key);
+    }
+
+    setupCharacterPanelShortcuts() {
+        const charPanel = document.getElementById('char-panel');
+        if (charPanel) {
+            charPanel.style.cursor = 'pointer';
+            charPanel.title = 'Click to open full Character Sheet [C]';
+            charPanel.addEventListener('click', (e) => {
+                if (e.target && e.target.closest('button, a, input')) return;
+                if (this._hudWasDragged) return;
+                this.sendQuickHudCommand('C');
+            });
+        }
+        const bindPill = (el, key, tip) => {
+            if (!el) return;
+            el.style.cursor = 'pointer';
+            el.title = tip;
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.sendQuickHudCommand(key);
+            });
+        };
+        bindPill(this.footerCharIdentity, 'C', 'Click to open Character Sheet [C]');
+        bindPill(this.footerLevel, 'C', 'Click to open Character Sheet [C]');
+        bindPill(this.footerGear, 'e', 'Click to inspect Equipped Gear [e]');
+        bindPill(this.footerPlace, 'M', 'Click to open Full Level Map [M]');
+    }
+
+    /* -------------------------------------------------------------
+     * Universal 60 FPS Moveable HUD & Cross-Platform Persistence (Wave 10 Track B)
+     * ------------------------------------------------------------- */
+    initUniversalMovableHud() {
+        this._hudWasDragged = false;
+
+        const widgets = [
+            { id: 'touch-controls', handleId: 'dpad-drag-handle' },
+            { id: 'char-panel', handleId: 'char-drag-handle' },
+            { id: 'hud-center-column', handleId: 'action-bar-drag-handle' },
+            { id: 'compass-container', handleId: 'compass-container' }
+        ];
+
+        widgets.forEach(({ id, handleId }) => {
+            const widgetEl = document.getElementById(id);
+            const handleEl = document.getElementById(handleId);
+            if (!widgetEl || !handleEl) return;
+
+            if (id === 'compass-container') {
+                widgetEl.style.cursor = 'grab';
+            }
+
+            let isDragging = false;
+            let isPending = false;
+            let startX = 0, startY = 0;
+            let initialLeft = 0, initialTop = 0;
+            let widgetW = 0, widgetH = 0;
+
+            const onStart = (clientX, clientY, e) => {
+                if (e && e.target && e.target.closest('button, a, input, select, kbd')) return;
+                isPending = true;
+                isDragging = false;
+                startX = clientX;
+                startY = clientY;
+                const rect = widgetEl.getBoundingClientRect();
+                initialLeft = rect.left;
+                initialTop = rect.top;
+                widgetW = rect.width;
+                widgetH = rect.height;
+            };
+
+            const onMove = (clientX, clientY, e) => {
+                if (!isPending && !isDragging) return;
+                const dx = clientX - startX;
+                const dy = clientY - startY;
+
+                if (isPending) {
+                    if (Math.hypot(dx, dy) > 4) {
+                        isPending = false;
+                        isDragging = true;
+                        this._hudWasDragged = true;
+                        widgetEl.classList.add('hud-widget-dragging');
+                        widgetEl.style.position = 'fixed';
+                        widgetEl.style.right = 'auto';
+                        widgetEl.style.bottom = 'auto';
+                        widgetEl.style.margin = '0';
+                    } else {
+                        return;
+                    }
+                }
+
+                if (isDragging) {
+                    if (e && e.cancelable && e.preventDefault) e.preventDefault();
+                    const newLeft = initialLeft + dx;
+                    const newTop = initialTop + dy;
+                    const minX = 4;
+                    const maxX = Math.max(4, window.innerWidth - widgetW - 4);
+                    const minY = 36;
+                    const maxY = Math.max(36, window.innerHeight - widgetH - 4);
+                    const clampedX = Math.max(minX, Math.min(newLeft, maxX));
+                    const clampedY = Math.max(minY, Math.min(newTop, maxY));
+
+                    widgetEl.style.left = `${clampedX}px`;
+                    widgetEl.style.top = `${clampedY}px`;
+                }
+            };
+
+            const onEnd = () => {
+                if (isDragging) {
+                    widgetEl.classList.remove('hud-widget-dragging');
+                    const rect = widgetEl.getBoundingClientRect();
+                    const clampedX = Math.max(4, Math.min(rect.left, window.innerWidth - rect.width - 4));
+                    const clampedY = Math.max(36, Math.min(rect.top, window.innerHeight - rect.height - 4));
+                    const xRatio = clampedX / Math.max(1, window.innerWidth);
+                    const yRatio = clampedY / Math.max(1, window.innerHeight);
+
+                    this.saveHudWidgetPosition(id, { xRatio, yRatio });
+                    setTimeout(() => {
+                        this._hudWasDragged = false;
+                    }, 150);
+                }
+                isPending = false;
+                isDragging = false;
+            };
+
+            handleEl.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                onStart(e.clientX, e.clientY, e);
+                const onMouseMove = (ev) => onMove(ev.clientX, ev.clientY, ev);
+                const onMouseUp = () => {
+                    onEnd();
+                    window.removeEventListener('mousemove', onMouseMove);
+                    window.removeEventListener('mouseup', onMouseUp);
+                };
+                window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('mouseup', onMouseUp);
+            });
+
+            handleEl.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    onStart(e.touches[0].clientX, e.touches[0].clientY, e);
+                }
+            }, { passive: true });
+
+            handleEl.addEventListener('touchmove', (e) => {
+                if ((isPending || isDragging) && e.touches.length === 1) {
+                    onMove(e.touches[0].clientX, e.touches[0].clientY, e);
+                }
+            }, { passive: false });
+
+            const touchEndHandler = () => onEnd();
+            handleEl.addEventListener('touchend', touchEndHandler, { passive: true });
+            handleEl.addEventListener('touchcancel', touchEndHandler, { passive: true });
+
+            handleEl.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                this.resetSingleHudWidget(id);
+            });
+
+            handleEl.addEventListener('click', (e) => {
+                if (this._hudWasDragged) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+            }, true);
+        });
+
+        // Re-apply saved positions on load
+        this.applySavedHudLayout();
+
+        // Responsive window resize clamping
+        window.addEventListener('resize', () => {
+            const ids = ['touch-controls', 'char-panel', 'hud-center-column', 'compass-container'];
+            for (const id of ids) {
+                const el = document.getElementById(id);
+                if (!el || el.style.position !== 'fixed') continue;
+                const rect = el.getBoundingClientRect();
+                const minX = 4;
+                const maxX = Math.max(4, window.innerWidth - rect.width - 4);
+                const minY = 36;
+                const maxY = Math.max(36, window.innerHeight - rect.height - 4);
+                const curX = parseFloat(el.style.left) || rect.left;
+                const curY = parseFloat(el.style.top) || rect.top;
+                const clampedX = Math.max(minX, Math.min(curX, maxX));
+                const clampedY = Math.max(minY, Math.min(curY, maxY));
+                el.style.left = `${clampedX}px`;
+                el.style.top = `${clampedY}px`;
+            }
+        });
+
+        // Wire D-Pad Scale Cycle (1.0 -> 1.15 -> 0.85)
+        const btnDpadScale = document.getElementById('btn-dpad-scale');
+        const touchControls = document.getElementById('touch-controls');
+        if (btnDpadScale && touchControls) {
+            const scales = [1.0, 1.15, 0.85];
+            btnDpadScale.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const curScale = parseFloat(touchControls.style.getPropertyValue('--dpad-scale')) || 1.0;
+                let idx = scales.findIndex(s => Math.abs(s - curScale) < 0.05);
+                if (idx === -1) idx = 0;
+                const nextScale = scales[(idx + 1) % scales.length];
+                touchControls.style.setProperty('--dpad-scale', nextScale);
+                this.saveHudWidgetPosition('touch-controls', { scale: nextScale });
+            });
+        }
+
+        // Wire D-Pad Collapse / Expand
+        const btnDpadCollapse = document.getElementById('btn-dpad-collapse');
+        if (btnDpadCollapse && touchControls) {
+            btnDpadCollapse.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isCollapsed = touchControls.classList.toggle('dpad-collapsed');
+                btnDpadCollapse.textContent = isCollapsed ? '+' : '−';
+                btnDpadCollapse.title = isCollapsed ? 'Expand D-Pad' : 'Minimize / Expand D-Pad';
+                this.saveHudWidgetPosition('touch-controls', { collapsed: isCollapsed });
+            });
+        }
+
+        // Wire Extended Character Details Drawer
+        const btnCharDetails = document.getElementById('btn-char-details-toggle');
+        const charDrawer = document.getElementById('char-extended-drawer');
+        if (btnCharDetails && charDrawer) {
+            btnCharDetails.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isHidden = charDrawer.classList.toggle('hidden');
+                btnCharDetails.textContent = isHidden ? '▾' : '▴';
+                btnCharDetails.setAttribute('aria-expanded', String(!isHidden));
+            });
+        }
+
+        // Wire Layout Reset Buttons
+        const btnResetLayout = document.getElementById('btn-hud-reset-layout');
+        if (btnResetLayout) {
+            btnResetLayout.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.resetHudLayout();
+            });
+        }
+        const btnPauseReset = document.getElementById('btn-pause-reset-hud');
+        if (btnPauseReset) {
+            btnPauseReset.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.resetHudLayout();
+            });
+        }
+    }
+
+    saveHudWidgetPosition(id, posData) {
+        try {
+            let layout = {};
+            const raw = localStorage.getItem('angband3d_hud_layout_v2');
+            if (raw) layout = JSON.parse(raw);
+            if (!layout[id]) layout[id] = {};
+            Object.assign(layout[id], posData);
+            localStorage.setItem('angband3d_hud_layout_v2', JSON.stringify(layout));
+        } catch (_) {}
+    }
+
+    resetSingleHudWidget(id) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.position = '';
+            el.style.left = '';
+            el.style.top = '';
+            el.style.right = '';
+            el.style.bottom = '';
+            el.style.margin = '';
+            if (id === 'touch-controls') {
+                el.style.removeProperty('--dpad-scale');
+                el.classList.remove('dpad-collapsed');
+                const btnCol = document.getElementById('btn-dpad-collapse');
+                if (btnCol) {
+                    btnCol.textContent = '−';
+                    btnCol.title = 'Minimize / Expand D-Pad';
+                }
+            }
+        }
+        try {
+            const raw = localStorage.getItem('angband3d_hud_layout_v2');
+            if (raw) {
+                const layout = JSON.parse(raw);
+                delete layout[id];
+                localStorage.setItem('angband3d_hud_layout_v2', JSON.stringify(layout));
+            }
+        } catch (_) {}
+    }
+
+    applySavedHudLayout() {
+        let layout = null;
+        try {
+            const raw = localStorage.getItem('angband3d_hud_layout_v2');
+            if (raw) layout = JSON.parse(raw);
+        } catch (_) {}
+        if (!layout || typeof layout !== 'object') return;
+
+        for (const [id, data] of Object.entries(layout)) {
+            const el = document.getElementById(id);
+            if (!el || !data) continue;
+
+            if (typeof data.xRatio === 'number' && typeof data.yRatio === 'number') {
+                const rect = el.getBoundingClientRect();
+                const w = rect.width || (id === 'touch-controls' ? 186 : (id === 'char-panel' ? 240 : 100));
+                const h = rect.height || (id === 'touch-controls' ? 180 : 100);
+                const targetX = data.xRatio * window.innerWidth;
+                const targetY = data.yRatio * window.innerHeight;
+                const clampedX = Math.max(4, Math.min(targetX, window.innerWidth - w - 4));
+                const clampedY = Math.max(36, Math.min(targetY, window.innerHeight - h - 4));
+
+                el.style.position = 'fixed';
+                el.style.left = `${clampedX}px`;
+                el.style.top = `${clampedY}px`;
+                el.style.right = 'auto';
+                el.style.bottom = 'auto';
+                el.style.margin = '0';
+            }
+
+            if (id === 'touch-controls') {
+                if (typeof data.scale === 'number') {
+                    el.style.setProperty('--dpad-scale', data.scale);
+                }
+                if (data.collapsed) {
+                    el.classList.add('dpad-collapsed');
+                    const btnCol = document.getElementById('btn-dpad-collapse');
+                    if (btnCol) {
+                        btnCol.textContent = '+';
+                        btnCol.title = 'Expand D-Pad';
+                    }
+                }
+            }
+        }
+    }
+
+    resetHudLayout() {
+        try {
+            localStorage.removeItem('angband3d_hud_layout_v2');
+            localStorage.removeItem('angband_map_pos');
+            localStorage.removeItem('angband_map_size');
+            localStorage.removeItem('angband_msg_pos');
+            localStorage.removeItem('angband_msg_size');
+            localStorage.removeItem('angband_chronicle_pos');
+            localStorage.removeItem('angband_chronicle_size');
+        } catch (_) {}
+
+        const allWidgets = [
+            'touch-controls',
+            'char-panel',
+            'hud-center-column',
+            'compass-container',
+            'minimap-container',
+            'message-feed-window',
+            'chronicle-window'
+        ];
+
+        for (const id of allWidgets) {
+            const el = document.getElementById(id);
+            if (!el) continue;
+            el.style.position = '';
+            el.style.left = '';
+            el.style.top = '';
+            el.style.right = '';
+            el.style.bottom = '';
+            el.style.width = '';
+            el.style.height = '';
+            el.style.margin = '';
+            el.classList.remove('hud-widget-dragging');
+        }
+
+        const touchControls = document.getElementById('touch-controls');
+        if (touchControls) {
+            touchControls.style.removeProperty('--dpad-scale');
+            touchControls.classList.remove('dpad-collapsed');
+        }
+        const btnDpadCollapse = document.getElementById('btn-dpad-collapse');
+        if (btnDpadCollapse) {
+            btnDpadCollapse.textContent = '−';
+            btnDpadCollapse.title = 'Minimize / Expand D-Pad';
+        }
+
+        if (window.__app && typeof window.__app.showToast === 'function') {
+            window.__app.showToast('HUD Layout Reset to Default');
+        } else {
+            let toast = document.getElementById('realm-toast-banner');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'realm-toast-banner';
+                toast.className = 'realm-toast';
+                document.body.appendChild(toast);
+            }
+            toast.innerHTML = `<span style="font-size: 20px;">↺</span><span>HUD Layout Reset to Default</span>`;
+            toast.classList.add('show');
+            setTimeout(() => {
+                if (toast) toast.classList.remove('show');
+            }, 3000);
         }
     }
 
@@ -715,6 +1200,30 @@ class WebHUD {
         } else {
             this.footerFacing.textContent = `🧭 ${dirName}`;
             this.footerFacing.title = `Camera Facing: ${dirName} (${dirArrow})`;
+        }
+    }
+
+    updateTargetInspector(player, realm) {
+        if (!this.footerTarget) return;
+        if (player && player.target && player.target.name) {
+            let tName = player.target.name;
+            const lang = window.__langMode || 'en';
+            if (realm === 'hengband' && typeof window.getLocalizedMonsterName === 'function') {
+                tName = window.getLocalizedMonsterName(tName, 'hengband', lang);
+            }
+            const tPrefix = (realm === 'hengband' && lang === 'jp') ? '標的' : ((realm === 'hengband' && lang === 'bilingual') ? 'Target (標的)' : 'Target');
+            this.footerTarget.style.display = 'inline-flex';
+            let portraitHtml = '';
+            if (typeof window.getShockboltSpriteCss === 'function') {
+                const iconStyle = window.getShockboltSpriteCss('monster', player.target.name, player.target.glyph || null, 36);
+                if (iconStyle) {
+                    portraitHtml = `<span class="sb-sprite-icon hud-target-portrait" style="${iconStyle}"></span> `;
+                }
+            }
+            const esc = typeof escapeHtml === 'function' ? escapeHtml : (s) => String(s).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+            this.footerTarget.innerHTML = `${portraitHtml}⚔ ${esc(tPrefix)}: ${esc(tName)} (${esc(String(player.target.pct || 100))}%)`;
+        } else {
+            this.footerTarget.style.display = 'none';
         }
     }
 
@@ -836,6 +1345,9 @@ class WebHUD {
 
         const ox = Math.max(0, Math.min(map.w - cols, Math.floor(drawPx) - Math.floor(cols / 2)));
         const oy = Math.max(0, Math.min(map.h - lines, Math.floor(drawPy) - Math.floor(lines / 2)));
+        this._minimapOx = ox;
+        this._minimapOy = oy;
+        this._minimapCellSize = cellSize;
 
         const cx = (drawPx - ox) * cellSize + cellSize / 2;
         const cy = (drawPy - oy) * cellSize + cellSize / 2;
@@ -1014,6 +1526,13 @@ class WebHUD {
     }
 
     updateLanguageUI(realm, lang = 'en') {
+        const isRunActive = Boolean(window.__app && window.__app.input && typeof window.__app.input.isRunningActive === 'function' ? window.__app.input.isRunningActive() : false);
+        const langKey = `${realm || ''}|${lang}|${isRunActive}`;
+        if (this._lastLanguageUIKey === langKey) {
+            return;
+        }
+        this._lastLanguageUIKey = langKey;
+
         const isHeng = realm === 'hengband';
 
         // 1. Primary Attributes & Combat Stats
@@ -1463,6 +1982,20 @@ class WebHUD {
             }
         }
         if (this.depthVal) this.depthVal.textContent = locStr;
+
+        // Sub-meta: Level, Race, Class & Depth (Wave 10 Track B)
+        const depthLabel = depth === 0 ? (player.wilderness ? 'Wilderness' : 'Town') : `${depth * 50}ft`;
+        const charSubMetaEl = document.getElementById('char-sub-meta');
+        if (charSubMetaEl) {
+            const pLev = player.lev || player.level || 1;
+            const pRace = player.race || '';
+            const pClass = player.class || player.cls || '';
+            const subMetaStr = `Lv.${pLev} ${pRace}${pClass ? ` ${pClass}` : ''} • ${depthLabel}`;
+            if (this._lastCharSubMeta !== subMetaStr) {
+                this._lastCharSubMeta = subMetaStr;
+                charSubMetaEl.textContent = subMetaStr;
+            }
+        }
         if (this.goldVal) {
             this.goldVal.textContent = (player.gold || 0).toLocaleString();
             this.goldVal.title = `Gold: ${(player.gold || 0).toLocaleString()} AU`;
@@ -1490,8 +2023,8 @@ class WebHUD {
             const titleEl = document.getElementById('minimap-title-text');
             if (titleEl) {
                 const lang = window.__langMode || 'en';
-                const prefix = (realm === 'hengband' && lang === 'jp') ? '地図' : ((realm === 'hengband' && lang === 'bilingual') ? 'MINIMAP (地図)' : 'MINIMAP');
-                titleEl.innerHTML = `${escapeHtml(prefix)} (${player.x},${player.y}) <span style="color:#ffd700;">[${escapeHtml(arrowChar)} ${escapeHtml(facingName)}]</span>`;
+                const prefix = (realm === 'hengband' && lang === 'jp') ? '地図' : ((realm === 'hengband' && lang === 'bilingual') ? 'MAP (地図)' : 'MAP');
+                titleEl.innerHTML = `<span style="white-space:nowrap;">${escapeHtml(prefix)} (${player.x},${player.y})</span> <span style="color:#ffd700; white-space:nowrap;">[${escapeHtml(arrowChar)} ${escapeHtml(facingName)}]</span>`;
             }
         }
 
@@ -1688,6 +2221,7 @@ class WebHUD {
                     spdStr = `Slow (${spd})`;
                 }
             }
+            this._lastSpdStr = spdStr;
             const lang = window.__langMode || 'en';
             if (realm === 'hengband' && lang === 'jp') {
                 const jpSpd = spdStr.replace('Normal', '普通').replace('Fast', '加速').replace('Slow', '減速');
@@ -1726,96 +2260,93 @@ class WebHUD {
 
         // Target tracking
         if (this.footerTarget) {
-            if (player.target && player.target.name) {
-                let tName = player.target.name;
-                const lang = window.__langMode || 'en';
-                if (realm === 'hengband' && typeof window.getLocalizedMonsterName === 'function') {
-                    tName = window.getLocalizedMonsterName(tName, 'hengband', lang);
-                }
-                const tPrefix = (realm === 'hengband' && lang === 'jp') ? '標的' : ((realm === 'hengband' && lang === 'bilingual') ? 'Target (標的)' : 'Target');
-                this.footerTarget.style.display = 'inline-flex';
-                this.footerTarget.textContent = `⚔ ${tPrefix}: ${tName} (${player.target.pct || 100}%)`;
-            } else {
-                this.footerTarget.style.display = 'none';
-            }
+            this.updateTargetInspector(player, realm);
         }
 
         // Status badges
         if (this.footerBadges) {
-            this.footerBadges.innerHTML = '';
-            if (player.statuses && Array.isArray(player.statuses) && player.statuses.length > 0) {
-                const statusDict = {
-                    'Fast': '加速', 'Slow': '減速', 'Blind': '盲目', 'Confused': '混乱',
-                    'Poisoned': '毒', 'Afraid': '恐怖', 'Paralyzed': '麻痺', 'Hungry': '空腹',
-                    'Weak': '衰弱', 'Cut': '切創', 'Stun': '朦朧', 'Blessed': '祝福',
-                    'Hero': '英雄', 'Berserk': '狂戦士', 'Protec': '防護', 'Shield': '盾',
-                    'Invuln': '無敵', 'Infra': '赤外視', 'Recall': '帰還', 'Rest': '休息',
-                    'Study': '学習', 'Halluc': '幻覚', 'Tired': '疲労', 'Mortal Wound': '致命傷',
-                    'Heavy Stun': '大朦朧', 'Knocked Out': '気絶'
-                };
-                const lang = window.__langMode || 'en';
-                player.statuses.forEach(st => {
-                    let displayName = st.name || '';
-                    if (realm === 'hengband') {
-                        if (lang === 'jp' && statusDict[displayName]) {
-                            displayName = statusDict[displayName];
-                        } else if (lang === 'bilingual' && statusDict[displayName]) {
-                            displayName = `${displayName} (${statusDict[displayName]})`;
+            const lang = window.__langMode || 'en';
+            const statusesKey = (player.statuses && Array.isArray(player.statuses))
+                ? player.statuses.map(st => `${st.name || ''}:${st.attr !== undefined ? st.attr : ''}`).join(',')
+                : '';
+            const badgesKey = `${realm}:${lang}:${statusesKey}:${player.study || 0}:${player.resting || 0}:${player.word_recall || 0}:${player.song || ''}:${player.stealth_mode ? 1 : 0}`;
+            if (this._lastBadgesKey !== badgesKey) {
+                this._lastBadgesKey = badgesKey;
+                this.footerBadges.innerHTML = '';
+                if (player.statuses && Array.isArray(player.statuses) && player.statuses.length > 0) {
+                    const statusDict = {
+                        'Fast': '加速', 'Slow': '減速', 'Blind': '盲目', 'Confused': '混乱',
+                        'Poisoned': '毒', 'Afraid': '恐怖', 'Paralyzed': '麻痺', 'Hungry': '空腹',
+                        'Weak': '衰弱', 'Cut': '切創', 'Stun': '朦朧', 'Blessed': '祝福',
+                        'Hero': '英雄', 'Berserk': '狂戦士', 'Protec': '防護', 'Shield': '盾',
+                        'Invuln': '無敵', 'Infra': '赤外視', 'Recall': '帰還', 'Rest': '休息',
+                        'Study': '学習', 'Halluc': '幻覚', 'Tired': '疲労', 'Mortal Wound': '致命傷',
+                        'Heavy Stun': '大朦朧', 'Knocked Out': '気絶'
+                    };
+                    player.statuses.forEach(st => {
+                        let displayName = st.name || '';
+                        if (realm === 'hengband') {
+                            if (lang === 'jp' && statusDict[displayName]) {
+                                displayName = statusDict[displayName];
+                            } else if (lang === 'bilingual' && statusDict[displayName]) {
+                                displayName = `${displayName} (${statusDict[displayName]})`;
+                            }
                         }
-                    }
+                        const span = document.createElement('span');
+                        span.className = 'footer-badge';
+                        span.textContent = `[${displayName}]`;
+                        if (window.getAngbandColorString && st.attr !== undefined) {
+                            span.style.color = window.getAngbandColorString(st.attr);
+                        }
+                        this.footerBadges.appendChild(span);
+                    });
+                }
+
+                if (player.study && player.study > 0) {
                     const span = document.createElement('span');
-                    span.className = 'footer-badge';
-                    span.textContent = `[${displayName}]`;
-                    if (window.getAngbandColorString && st.attr !== undefined) {
-                        span.style.color = window.getAngbandColorString(st.attr);
-                    }
+                    span.className = 'footer-badge badge-study';
+                    span.textContent = `[STUDY: ${player.study}]`;
                     this.footerBadges.appendChild(span);
-                });
-            }
+                }
 
-            if (player.study && player.study > 0) {
-                const span = document.createElement('span');
-                span.className = 'footer-badge badge-study';
-                span.textContent = `[STUDY: ${player.study}]`;
-                this.footerBadges.appendChild(span);
-            }
+                if (player.resting && player.resting !== 0) {
+                    const span = document.createElement('span');
+                    span.className = 'footer-badge badge-resting';
+                    span.textContent = `[RESTING${player.resting > 0 ? `: ${player.resting}` : ''}]`;
+                    this.footerBadges.appendChild(span);
+                }
 
-            if (player.resting && player.resting !== 0) {
-                const span = document.createElement('span');
-                span.className = 'footer-badge badge-resting';
-                span.textContent = `[RESTING${player.resting > 0 ? `: ${player.resting}` : ''}]`;
-                this.footerBadges.appendChild(span);
-            }
+                if (player.word_recall && player.word_recall > 0) {
+                    const span = document.createElement('span');
+                    span.className = 'footer-badge badge-recall';
+                    span.textContent = `[RECALL: ${player.word_recall}t]`;
+                    this.footerBadges.appendChild(span);
+                }
 
-            if (player.word_recall && player.word_recall > 0) {
-                const span = document.createElement('span');
-                span.className = 'footer-badge badge-recall';
-                span.textContent = `[RECALL: ${player.word_recall}t]`;
-                this.footerBadges.appendChild(span);
-            }
+                if (player.song) {
+                    const span = document.createElement('span');
+                    span.className = 'footer-badge badge-song';
+                    span.textContent = `[SONG: ${player.song}]`;
+                    span.style.color = '#70c0ff';
+                    this.footerBadges.appendChild(span);
+                }
 
-            if (player.song) {
-                const span = document.createElement('span');
-                span.className = 'footer-badge badge-song';
-                span.textContent = `[SONG: ${player.song}]`;
-                span.style.color = '#70c0ff';
-                this.footerBadges.appendChild(span);
-            }
-
-            if (player.stealth_mode) {
-                const span = document.createElement('span');
-                span.className = 'footer-badge badge-stealth';
-                span.textContent = '[STEALTH]';
-                span.style.color = '#a0a0a0';
-                this.footerBadges.appendChild(span);
+                if (player.stealth_mode) {
+                    const span = document.createElement('span');
+                    span.className = 'footer-badge badge-stealth';
+                    span.textContent = '[STEALTH]';
+                    span.style.color = '#a0a0a0';
+                    this.footerBadges.appendChild(span);
+                }
             }
         }
 
         // Gear summary on status bar
+        const _hudItemStr = (v) => (v && typeof v === 'object') ? String(v.name || v.desc || '') : String(v || '');
         if (this.footerGear) {
-            const rawWeap = player.weapon_item;
-            const rawBow = player.bow_item;
-            const rawShield = player.shield_item;
+            const rawWeap = _hudItemStr(player.weapon_item);
+            const rawBow = _hudItemStr(player.bow_item);
+            const rawShield = _hudItemStr(player.shield_item);
             const lang = window.__langMode || 'en';
             const locItem = (name) => {
                 if (!name) return name;
@@ -1842,6 +2373,77 @@ class WebHUD {
             this.currentTurn = player.turn;
         } else if (player.game_turn !== undefined) {
             this.currentTurn = player.game_turn;
+        } else if (frame && frame.turn !== undefined) {
+            this.currentTurn = frame.turn;
+        }
+
+        // Update Extended Character Context Drawer (Wave 10 Track B)
+        const drawerEl = document.getElementById('char-extended-drawer');
+        if (drawerEl) {
+            const esc = typeof escapeHtml === 'function' ? escapeHtml : (s) => String(s).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+            if (isSilQ) {
+                const getSilqSkill = (sk) => {
+                    if (player.skills && player.skills[sk.toLowerCase()] !== undefined) {
+                        return String(player.skills[sk.toLowerCase()]);
+                    }
+                    if (player.skills && player.skills[sk] !== undefined) {
+                        return String(player.skills[sk]);
+                    }
+                    if (frame.term && frame.term.lines) {
+                        const text = frame.term.lines.join('\n');
+                        const re = new RegExp(sk + '(?:\\s*:\\s*|\\s+)([+-]?[0-9]+)', 'i');
+                        const m = text.match(re);
+                        if (m) return m[1];
+                    }
+                    return '0';
+                };
+                const mel = getSilqSkill('Melee');
+                const arc = getSilqSkill('Archery');
+                const eva = getSilqSkill('Evasion') !== '0' ? getSilqSkill('Evasion') : (getSilqSkill('Evade') !== '0' ? getSilqSkill('Evade') : (player.evn !== undefined ? String(player.evn) : '0'));
+                const stl = getSilqSkill('Stealth');
+                const per = getSilqSkill('Perception');
+                const wil = getSilqSkill('Will');
+                const smi = getSilqSkill('Smithing');
+                const sng = getSilqSkill('Song');
+                const voice = `${curSp}/${maxSp}`;
+                const turn = String(this.currentTurn || 0);
+                const sig = `silq:${mel}:${arc}:${eva}:${stl}:${per}:${wil}:${smi}:${sng}:${voice}:${turn}`;
+                if (this._lastExtendedDrawerSig !== sig) {
+                    this._lastExtendedDrawerSig = sig;
+                    const skills = [
+                        ['Melee', mel], ['Archery', arc],
+                        ['Evasion', eva], ['Stealth', stl],
+                        ['Perception', per], ['Will', wil],
+                        ['Smithing', smi], ['Song', sng],
+                        ['Voice', voice], ['Turn', turn]
+                    ];
+                    drawerEl.innerHTML = `<div class="char-ext-grid">${skills.map(([k, v]) => `<div class="char-ext-item"><span class="char-ext-lbl">${esc(k)}</span><span class="char-ext-val">${esc(v)}</span></div>`).join('')}</div>`;
+                }
+            } else {
+                const maxD = player.max_depth ? `${player.max_depth * 50}ft (DL${player.max_depth})` : (depth > 0 ? `${depth * 50}ft (DL${depth})` : 'Town');
+                const spd = this._lastSpdStr || 'Normal (0)';
+                const turn = String(this.currentTurn || 0);
+                const xp = `${(player.exp || 0).toLocaleString()}${player.exp_next ? ` / ${player.exp_next.toLocaleString()}` : ''}`;
+                const eqCount = (player.equipment && Array.isArray(player.equipment)) ? String(player.equipment.length) : (player.equip_count !== undefined ? String(player.equip_count) : (player.equip ? String(Object.keys(player.equip).length) : '--'));
+                const pkCount = (player.inventory && Array.isArray(player.inventory)) ? String(player.inventory.length) : (player.inven_count !== undefined ? String(player.inven_count) : (player.inven ? String(Object.keys(player.inven).length) : '--'));
+                const weap = _hudItemStr(player.weapon_item) || 'Bare Hands';
+                const light = _hudItemStr(player.light_item) || (player.cur_light > 0 ? `Light +${player.cur_light}` : (player.light > 0 ? `Light +${player.light}` : 'Daylight / Dark'));
+                const sig = `std:${maxD}:${spd}:${turn}:${xp}:${eqCount}:${pkCount}:${weap}:${light}`;
+                if (this._lastExtendedDrawerSig !== sig) {
+                    this._lastExtendedDrawerSig = sig;
+                    const items = [
+                        ['Max Depth', maxD],
+                        ['Speed', spd],
+                        ['Turn', turn],
+                        ['XP', xp],
+                        ['Equip Count', eqCount],
+                        ['Pack Count', pkCount],
+                        ['Weapon', weap],
+                        ['Light/Torch', light]
+                    ];
+                    drawerEl.innerHTML = `<div class="char-ext-grid">${items.map(([k, v]) => `<div class="char-ext-item"><span class="char-ext-lbl">${esc(k)}</span><span class="char-ext-val" title="${esc(v)}">${esc(v)}</span></div>`).join('')}</div>`;
+                }
+            }
         }
 
         if (!this.messageFeedWindow) {
@@ -2315,12 +2917,6 @@ class WebHUD {
                     <div class="death-stat-card"><div class="stat-name">DEEP LEVEL</div><div class="stat-num">${player.max_depth || player.depth || 0} (${(player.max_depth || player.depth || 0) * 50}ft)</div></div>
                 `;
             }
-        }
-    }
-
-    setPing(ms) {
-        if (this.pingBadge) {
-            this.pingBadge.textContent = `Cloud [${ms}ms]`;
         }
     }
 }

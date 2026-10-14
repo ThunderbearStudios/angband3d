@@ -68,8 +68,10 @@ public static class RealmKeys
         return vanillaKey;
     }
 
+    public static string Get(string verb, string realm = "angband") => GetKey(verb, realm);
+
     public static string StayKey(string realm = "angband")
     {
-        return string.Equals(realm, "silq", StringComparison.OrdinalIgnoreCase) ? "," : ".";
+        return Get("hold", realm) ?? ",";
     }
 }

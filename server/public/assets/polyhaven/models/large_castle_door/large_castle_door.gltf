@@ -1,0 +1,335 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v3.6.27",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1,
+        2
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "large_castle_door_frame"
+    },
+    {
+      "mesh": 1,
+      "name": "large_castle_door_right",
+      "rotation": [
+        0,
+        0.0961761400103569,
+        0,
+        0.9953643679618835
+      ],
+      "translation": [
+        0.8959715366363525,
+        1.164455533027649,
+        0.021356018260121346
+      ]
+    },
+    {
+      "mesh": 2,
+      "name": "large_castle_door_left",
+      "rotation": [
+        0,
+        -0.037102110683918,
+        0,
+        0.9993115067481995
+      ],
+      "translation": [
+        -0.9870141744613647,
+        1.1648424863815308,
+        0.022135525941848755
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "large_castle_door",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "mesh.011",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Cylinder.004",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Cylinder.006",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 8,
+            "NORMAL": 9,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "large_castle_door_nor_gl",
+      "uri": "textures/large_castle_door_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "large_castle_door_diff",
+      "uri": "textures/large_castle_door_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "large_castle_door_metal-large_castle_door_rough",
+      "uri": "textures/large_castle_door_arm_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 946,
+      "max": [
+        0.9618338346481323,
+        2.93505597114563,
+        0.04409465938806534
+      ],
+      "min": [
+        -1.0502818822860718,
+        -0.02969646453857422,
+        -0.08490749448537827
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 946,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 946,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 2640,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 5276,
+      "max": [
+        0.022121310234069824,
+        1.667604684829712,
+        0.022455735132098198
+      ],
+      "min": [
+        -0.9614605903625488,
+        -1.126866102218628,
+        -0.08901376277208328
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 5276,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 5276,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 18963,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 4609,
+      "max": [
+        0.9348296523094177,
+        1.6666207313537598,
+        0.023952066898345947
+      ],
+      "min": [
+        -0.02216649055480957,
+        -1.1272530555725098,
+        -0.1322847604751587
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5126,
+      "count": 4609,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 4609,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5123,
+      "count": 16317,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 11352,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 11352,
+      "byteOffset": 11352,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 7568,
+      "byteOffset": 22704,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 5280,
+      "byteOffset": 30272,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 63312,
+      "byteOffset": 35552,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 63312,
+      "byteOffset": 98864,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 42208,
+      "byteOffset": 162176,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 37926,
+      "byteOffset": 204384,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 55308,
+      "byteOffset": 242312,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 55308,
+      "byteOffset": 297620,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 36872,
+      "byteOffset": 352928,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 32634,
+      "byteOffset": 389800,
+      "target": 34963
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 422436,
+      "uri": "large_castle_door.bin"
+    }
+  ]
+}

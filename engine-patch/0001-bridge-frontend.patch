@@ -254,10 +254,10 @@ index 000000000..86bc4945d
 +endmacro()
 diff --git a/src/main-bridge.c b/src/main-bridge.c
 new file mode 100644
-index 000000000..b974288d6
+index 000000000..f2063cfe3
 --- /dev/null
 +++ b/src/main-bridge.c
-@@ -0,0 +1,1300 @@
+@@ -0,0 +1,1331 @@
 +/**
 + * \file main-bridge.c
 + * \brief JSON state bridge front end, for driving Angband from an external client.
@@ -374,7 +374,7 @@ index 000000000..b974288d6
 +
 +static void emit_player(FILE *fp)
 +{
-+	if (!player || !player->upkeep) {
++	if (!bridge_in_play() || !player || !player->upkeep) {
 +		fputs("null", fp);
 +		return;
 +	}
@@ -410,7 +410,9 @@ index 000000000..b974288d6
 +	fputc(',', fp);
 +	long exp_next = (player->lev >= PY_MAX_LEVEL)
 +		? (long)player->exp
-+		: (long)(player_exp[player->lev - 1] * player->expfact / 100L);
++		: ((player->lev >= 1)
++			? (long)(player_exp[player->lev - 1] * player->expfact / 100L)
++			: 0L);
 +	bj_kv_int(fp, "exp_next", exp_next);
 +	fputc(',', fp);
 +	bj_kv_int(fp, "gold", player->au);
@@ -1149,14 +1151,32 @@ index 000000000..b974288d6
 + */
 +static void emit_ui(FILE *fp)
 +{
++	int overlay = screen_save_depth;
++	const char *context = "dungeon";
++	bool in_dungeon = inkey_flag && bridge_in_play() && (overlay == 0);
++
++	if (!character_generated) {
++		context = "birth";
++		overlay = 1;
++	} else if (player && player->is_dead) {
++		context = "death";
++		overlay = 1;
++	} else if (overlay > 0) {
++		context = "menu";
++	} else {
++		context = "dungeon";
++	}
++
 +	fputc('{', fp);
 +	/* Non-zero when a screen has been pushed: menu, store, character sheet. */
-+	bj_kv_int(fp, "overlay", screen_save_depth);
++	bj_kv_int(fp, "overlay", overlay);
 +	fputc(',', fp);
-+	/* False when the game is asking a question rather than for a command. */
-+	bj_kv_bool(fp, "awaiting_command", inkey_flag);
++	/* True only when strictly awaiting a command in the dungeon. */
++	bj_kv_bool(fp, "awaiting_command", in_dungeon);
 +	fputc(',', fp);
 +	bj_kv_bool(fp, "more", msg_flag);
++	fputc(',', fp);
++	bj_kv_string(fp, "context", context);
 +	fputc('}', fp);
 +}
 +
@@ -1303,6 +1323,8 @@ index 000000000..b974288d6
 +}
 +
 +
++static bool save_pending = false;
++
 +/**
 + * Handle one command line. Returns the number of keypresses queued.
 + */
@@ -1357,10 +1379,13 @@ index 000000000..b974288d6
 +		return 0;
 +	}
 +
-+	if (streq(cmd, "save")) {
++	if (streq(cmd, "save") || (line && strstr(line, "\"t\":\"save\""))) {
 +		if (bridge_in_play() && (!player || !player->is_dead) && savefile[0]) {
 +			bool ok = savefile_save(savefile);
 +			emit_event("ok", ok ? "saved" : "save_failed");
++		} else if (!bridge_in_play()) {
++			save_pending = true;
++			emit_event("ok", "save_pending");
 +		} else {
 +			emit_event("error", (player && player->is_dead) ? "player is dead" : "not in play");
 +		}
@@ -1418,6 +1443,12 @@ index 000000000..b974288d6
 +static errr bridge_pump(void)
 +{
 +	char buf[2048];
++
++	if (save_pending && bridge_in_play() && (!player || !player->is_dead) && savefile[0]) {
++		save_pending = false;
++		bool ok = savefile_save(savefile);
++		emit_event("ok", ok ? "saved" : "save_failed");
++	}
 +
 +	emit_frame();
 +

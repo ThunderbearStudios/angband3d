@@ -11,11 +11,24 @@ class MobileOverlay {
      * @returns {Object} Parsed hero review data.
      */
     static parseHero(frame) {
-        const text = (frame && frame.term && frame.term.rows)
+        const realm = (frame && frame.realm) || (typeof window !== 'undefined' && (window.__activeRealm || (typeof getActiveRealm === 'function' ? getActiveRealm() : 'angband'))) || 'angband';
+        const isHeng = realm === 'hengband';
+        const isSilq = realm === 'silq';
+        const isFCB = realm === 'frogcomposband';
+
+        const decodeFn = (typeof decodeHengbandText === 'function')
+            ? decodeHengbandText
+            : ((typeof window !== 'undefined' && window.terminal && typeof window.terminal.decodeText === 'function')
+                ? (s => window.terminal.decodeText(s))
+                : (s => s));
+
+        const rawText = (frame && frame.term && frame.term.rows)
             ? frame.term.rows.map(r => r.g || '').join('\n')
             : '';
+        const decodedText = (isHeng || isFCB) ? decodeFn(rawText) : rawText;
+        const text = rawText + (decodedText && decodedText !== rawText ? '\n' + decodedText : '');
         const lines = text.split('\n').map(l => l.trimEnd());
-        const data = { stats: {}, secondary: {} };
+        const data = { realm, stats: {}, secondary: {}, skills: {} };
 
         // Fallbacks from structured player object if available
         if (frame && frame.player) {
@@ -120,9 +133,12 @@ class MobileOverlay {
             return '--';
         }
 
-        // 5 Core Stats (STR, INT, WIS, DEX, CON)
-        for (const s of ['STR', 'INT', 'WIS', 'DEX', 'CON']) {
-            const re = new RegExp(s + '(?:\\s*:\\s*|\\s+)([0-9\\/]+)(?:\\s+([+-]?[0-9]+)\\s+([+-]?[0-9]+)\\s+([+-]?[0-9]+)\\s+([0-9\\/]+))?', 'i');
+        // Realm-aware Core Stats (Sil-Q: 4 stats; FCB/Hengband: 6 stats; Vanilla: 5 stats)
+        const statList = isSilq ? ['STR', 'DEX', 'CON', 'GRA'] :
+                         (isHeng || isFCB) ? ['STR', 'INT', 'WIS', 'DEX', 'CON', 'CHR'] :
+                         ['STR', 'INT', 'WIS', 'DEX', 'CON'];
+        for (const s of statList) {
+            const re = new RegExp(s + '(?:\\s*:\\s*|\\s+)([+-]?[0-9\\/]+)(?:\\s+([+-]?[0-9]+)\\s+([+-]?[0-9]+)\\s+([+-]?[0-9]+)\\s+([+-]?[0-9\\/]+))?', 'i');
             const m = text.match(re);
             if (m) {
                 data.stats[s] = {
@@ -141,6 +157,22 @@ class MobileOverlay {
                 };
             } else {
                 data.stats[s] = { val: '--', rb: '+0', cb: '+0', eb: '+0', best: '--' };
+            }
+        }
+
+        // Sil-Q 8 Core Skills
+        if (isSilq) {
+            const silqSkills = ['Melee', 'Archery', 'Evade', 'Stealth', 'Perception', 'Will', 'Smithing', 'Song'];
+            for (const sk of silqSkills) {
+                const re = new RegExp(sk + '(?:\\s*:\\s*|\\s+)([+-]?[0-9]+)', 'i');
+                const m = text.match(re);
+                if (m) {
+                    data.skills[sk] = m[1];
+                } else if (frame && frame.player && frame.player.skills && frame.player.skills[sk.toLowerCase()] !== undefined) {
+                    data.skills[sk] = String(frame.player.skills[sk.toLowerCase()]);
+                } else {
+                    data.skills[sk] = '0';
+                }
             }
         }
 
@@ -201,13 +233,38 @@ class MobileOverlay {
         }
         container._lastHeroSig = heroSig;
 
-        const statNames = [
-            { key: 'STR', label: 'Strength' },
-            { key: 'INT', label: 'Intelligence' },
-            { key: 'WIS', label: 'Wisdom' },
-            { key: 'DEX', label: 'Dexterity' },
-            { key: 'CON', label: 'Constitution' }
-        ];
+        const escapeHtml = (typeof window !== 'undefined' && window.escapeHtml) ? window.escapeHtml : (s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
+
+        const isSilq = hero.realm === 'silq';
+        const isHeng = hero.realm === 'hengband';
+        const isFCB = hero.realm === 'frogcomposband';
+
+        let statNames;
+        if (isSilq) {
+            statNames = [
+                { key: 'STR', label: 'Strength' },
+                { key: 'DEX', label: 'Dexterity' },
+                { key: 'CON', label: 'Constitution' },
+                { key: 'GRA', label: 'Grace' }
+            ];
+        } else if (isHeng || isFCB) {
+            statNames = [
+                { key: 'STR', label: 'Strength' },
+                { key: 'INT', label: 'Intelligence' },
+                { key: 'WIS', label: 'Wisdom' },
+                { key: 'DEX', label: 'Dexterity' },
+                { key: 'CON', label: 'Constitution' },
+                { key: 'CHR', label: 'Charisma' }
+            ];
+        } else {
+            statNames = [
+                { key: 'STR', label: 'Strength' },
+                { key: 'INT', label: 'Intelligence' },
+                { key: 'WIS', label: 'Wisdom' },
+                { key: 'DEX', label: 'Dexterity' },
+                { key: 'CON', label: 'Constitution' }
+            ];
+        }
 
         let statsHtml = '';
         for (const s of statNames) {
@@ -215,14 +272,30 @@ class MobileOverlay {
             statsHtml += `
                 <div class="m-hero-stat-card">
                     <div class="m-stat-top">
-                        <span class="m-stat-key">${s.key}</span>
-                        <span class="m-stat-val">${st.val}</span>
+                        <span class="m-stat-key">${escapeHtml(s.key)}</span>
+                        <span class="m-stat-val">${escapeHtml(st.val)}</span>
                     </div>
                     <div class="m-stat-bot">
-                        <span class="m-stat-mod" title="Racial Bonus">Race ${st.rb}</span>
-                        <span class="m-stat-best" title="Best Possible Roll">Best ${st.best}</span>
+                        <span class="m-stat-mod" title="Racial Bonus">Race ${escapeHtml(st.rb)}</span>
+                        <span class="m-stat-best" title="Best Possible Roll">Best ${escapeHtml(st.best)}</span>
                     </div>
                 </div>
+            `;
+        }
+
+        let combatHtml = '';
+        if (isSilq && hero.skills && Object.keys(hero.skills).length > 0) {
+            combatHtml = Object.entries(hero.skills).map(([k, v]) => `
+                <div class="m-combat-chip"><span class="m-chip-lbl">${escapeHtml(k)}:</span> <span class="m-chip-val">${escapeHtml(v)}</span></div>
+            `).join('');
+        } else {
+            combatHtml = `
+                <div class="m-combat-chip"><span class="m-chip-lbl">Melee:</span> <span class="m-chip-val">${escapeHtml(hero.melee || '1d1')} (${escapeHtml(hero.blows || '1.0')}/turn)</span></div>
+                <div class="m-combat-chip"><span class="m-chip-lbl">Saving Throw:</span> <span class="m-chip-val">${escapeHtml(hero.secondary.savingThrow || '30%')}</span></div>
+                <div class="m-combat-chip"><span class="m-chip-lbl">Stealth:</span> <span class="m-chip-val">${escapeHtml(hero.secondary.stealth || 'Normal')}</span></div>
+                <div class="m-combat-chip"><span class="m-chip-lbl">Disarm:</span> <span class="m-chip-val">${escapeHtml(hero.secondary.disarmPhys || '30%')}</span></div>
+                <div class="m-combat-chip"><span class="m-chip-lbl">Magic Devices:</span> <span class="m-chip-val">${escapeHtml(hero.secondary.magicDevices || '25')}</span></div>
+                <div class="m-combat-chip"><span class="m-chip-lbl">Infravision:</span> <span class="m-chip-val">${escapeHtml(hero.secondary.infravision || '0 ft')}</span></div>
             `;
         }
 
@@ -234,11 +307,11 @@ class MobileOverlay {
                         <div class="m-hero-avatar">🧙</div>
                     </div>
                     <div class="m-hero-title-group">
-                        <div class="m-hero-name">${hero.name || 'Hero of Angband'}</div>
+                        <div class="m-hero-name">${escapeHtml(hero.name || 'Hero of Angband')}</div>
                         <div class="m-hero-meta">
-                            <span class="m-meta-badge m-race-badge">${hero.race || 'Human'}</span>
-                            <span class="m-meta-badge m-class-badge">${hero.class || 'Warrior'}</span>
-                            <span class="m-meta-badge m-title-badge">${hero.title || 'Novice'}</span>
+                            <span class="m-meta-badge m-race-badge">${escapeHtml(hero.race || 'Human')}</span>
+                            <span class="m-meta-badge m-class-badge">${escapeHtml(hero.class || 'Warrior')}</span>
+                            <span class="m-meta-badge m-title-badge">${escapeHtml(hero.title || 'Novice')}</span>
                         </div>
                     </div>
                 </div>
@@ -247,44 +320,39 @@ class MobileOverlay {
                 <div class="m-hero-vitals-row">
                     <div class="m-vital-pill m-vital-hp">
                         <span class="m-vital-lbl">❤️ HP</span>
-                        <span class="m-vital-val">${hero.hp || '15/15'}</span>
+                        <span class="m-vital-val">${escapeHtml(hero.hp || '15/15')}</span>
                     </div>
                     <div class="m-vital-pill m-vital-sp">
                         <span class="m-vital-lbl">✨ SP</span>
-                        <span class="m-vital-val">${hero.sp || '0/0'}</span>
+                        <span class="m-vital-val">${escapeHtml(hero.sp || '0/0')}</span>
                     </div>
                     <div class="m-vital-pill m-vital-ac">
                         <span class="m-vital-lbl">🛡 ARMOR</span>
-                        <span class="m-vital-val">${hero.armor || '[0]'}</span>
+                        <span class="m-vital-val">${escapeHtml(hero.armor || '[0]')}</span>
                     </div>
                     <div class="m-vital-pill m-vital-spd">
                         <span class="m-vital-lbl">⚡ SPEED</span>
-                        <span class="m-vital-val">${hero.speed || 'Normal'}</span>
+                        <span class="m-vital-val">${escapeHtml(hero.speed || 'Normal')}</span>
                     </div>
                 </div>
 
-                <!-- Attributes 5-Tile Grid -->
+                <!-- Attributes Tile Grid -->
                 <div class="m-section-label">ATTRIBUTES</div>
                 <div class="m-hero-stat-grid">
                     ${statsHtml}
                 </div>
 
                 <!-- Combat & Secondary Abilities -->
-                <div class="m-section-label">COMBAT & EXPLORATION</div>
+                <div class="m-section-label">${isSilq ? 'SKILLS' : 'COMBAT & EXPLORATION'}</div>
                 <div class="m-hero-combat-grid">
-                    <div class="m-combat-chip"><span class="m-chip-lbl">Melee:</span> <span class="m-chip-val">${hero.melee || '1d1'} (${hero.blows || '1.0'}/turn)</span></div>
-                    <div class="m-combat-chip"><span class="m-chip-lbl">Saving Throw:</span> <span class="m-chip-val">${hero.secondary.savingThrow || '30%'}</span></div>
-                    <div class="m-combat-chip"><span class="m-chip-lbl">Stealth:</span> <span class="m-chip-val">${hero.secondary.stealth || 'Normal'}</span></div>
-                    <div class="m-combat-chip"><span class="m-chip-lbl">Disarm:</span> <span class="m-chip-val">${hero.secondary.disarmPhys || '30%'}</span></div>
-                    <div class="m-combat-chip"><span class="m-chip-lbl">Magic Devices:</span> <span class="m-chip-val">${hero.secondary.magicDevices || '25'}</span></div>
-                    <div class="m-combat-chip"><span class="m-chip-lbl">Infravision:</span> <span class="m-chip-val">${hero.secondary.infravision || '0 ft'}</span></div>
+                    ${combatHtml}
                 </div>
 
                 <!-- Backstory Lore Box -->
                 ${hero.backstory ? `
                 <div class="m-section-label">HERO LORE & ORIGIN</div>
                 <div class="m-hero-lore-box">
-                    <div class="m-lore-scroll">📜 "${hero.backstory}"</div>
+                    <div class="m-lore-scroll">📜 "${escapeHtml(hero.backstory)}"</div>
                 </div>
                 ` : ''}
 

@@ -373,7 +373,7 @@ class ChronicleGrounder {
      * Non-repeating bark selector with LRU memory buffer per category/speaker.
      * Prevents consecutive identical barks and guarantees variety across turns.
      */
-    static pickNonRepeatingBark(key, barkList, seed = 0) {
+    static pickNonRepeatingBark(key, barkList, seed = 0, options = {}) {
         if (!barkList || barkList.length === 0) return '';
         if (barkList.length === 1) return barkList[0];
 
@@ -386,15 +386,19 @@ class ChronicleGrounder {
         let available = barkList.filter(b => !history.includes(b));
         if (available.length === 0) {
             const last = history[history.length - 1];
-            history.length = 0;
-            if (last) history.push(last);
+            if (!options.dryRun) {
+                history.length = 0;
+                if (last) history.push(last);
+            }
             available = barkList.filter(b => b !== last);
             if (available.length === 0) available = barkList;
         }
 
         const chosen = available[Math.abs(seed) % available.length];
-        history.push(chosen);
-        if (history.length > 8) history.shift();
+        if (!options.dryRun) {
+            history.push(chosen);
+            if (history.length > 8) history.shift();
+        }
         return chosen;
     }
 
@@ -1855,8 +1859,18 @@ class ChronicleGrounder {
      * Integrates creature state, player context (race/class/depth/HP), turn memory, and diegetic user queries.
      * Consumes strictly ZERO engine turns.
      */
-    static resolveCreatureEncounter(monster, hero, recentMessages = [], interactionTurn = 1, userQuery = '', realmKey = null, langMode = 'en') {
+    static resolveCreatureEncounter(monster, hero, recentMessages = [], interactionTurn = 1, userQuery = '', realmKey = null, langMode = 'en', options = {}) {
         if (!monster) return { prose: 'A shadow lingers in the gloom.', text: null, isDialogue: false, speaker: 'Creature', recommendedVoice: null };
+
+        if (typeof realmKey === 'object' && realmKey !== null) {
+            options = realmKey;
+            realmKey = null;
+        } else if (typeof langMode === 'object' && langMode !== null) {
+            options = langMode;
+            langMode = 'en';
+        }
+        options = (options && typeof options === 'object') ? options : {};
+        const isDryRun = Boolean(options.dryRun);
 
         const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
         const effLang = ((rk === 'hengband') ? (langMode || (typeof window !== 'undefined' && window.__langMode ? window.__langMode : 'en')) : 'en').toLowerCase();
@@ -1871,6 +1885,16 @@ class ChronicleGrounder {
         const maxHp = (typeof monster.hp_max === 'number') ? monster.hp_max : (typeof monster.mhp === 'number' ? monster.mhp : currentHp);
         const hpPercent = (maxHp > 0) ? (currentHp / maxHp) : 1.0;
         const query = (userQuery || '').toLowerCase().trim();
+
+        const turn = interactionTurn || 1;
+        const mKey = (monster.id !== undefined && monster.id !== null) ? String(monster.id) : (monster.name || 'creature');
+        let encounterIdx = 0;
+        if (!isDryRun) {
+            encounterIdx = this.getNextEncounterIndex(mKey);
+        } else {
+            encounterIdx = this._encounterCounters.get(mKey) || 0;
+        }
+        const encounterSeed = (this.hashString(mKey + ':' + turn) + encounterIdx);
 
         const gender = profile.gender || this.detectCreatureGender(name, monster);
         const isF = (gender === 'female');
@@ -2079,12 +2103,12 @@ class ChronicleGrounder {
                         'Mommy! Mercy! Hurts so bad! Leave poor Gaffer alone!',
                         'Hurts! Red juice coming out! Don\'t hit poor me no more!',
                         'Waaah! Why you so mean?! Gaffer just wants to go home!'
-                    ], Math.floor(Math.random() * 1000))
+                    ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('idiot_combat_high', [
                         'Waaaah! Why you hit poor me?! Bad man! Don\'t hit!',
                         'Ow, ow, ow! Mean traveler with the sharp stick! Stop it!',
                         'No hit! Look, I got no pennies! Go hit the rocks!'
-                    ], Math.floor(Math.random() * 1000));
+                    ], encounterSeed, { dryRun: isDryRun });
             } else if (profile.category === 'beggar' || stateObj.state === 'cowering_beggar') {
                 prose = `Cowering in terror, the ${name} clutches threadbare rags and cowers against the damp stones, weeping for mercy!`;
                 text = (hpPercent <= 0.35)
@@ -2092,12 +2116,12 @@ class ChronicleGrounder {
                         'Mercy! I yield! I have no silver, only rags! Spare an unarmed beggar!',
                         'I am bleeding out on the cold stone... have you no pity on a beggar?',
                         'Spare me, noble traveler! I will leave town forever, only spare my life!'
-                    ], Math.floor(Math.random() * 1000))
+                    ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('beggar_combat_high', [
                         'Why do you strike an unarmed wretch?! Guards, murder! Have mercy!',
                         'Please! I have nothing! Take my bowl, take my rags, only spare my life!',
                         'I only asked for a copper bit! Why draw cold steel on a starving soul?!'
-                    ], Math.floor(Math.random() * 1000));
+                    ], encounterSeed, { dryRun: isDryRun });
             } else if (profile.category === 'veteran' || stateObj.state === 'veteran_in_combat') {
                 prose = `The scarred ${name} parries your steel with a sharp clang of metal, ${prPoss} face hardening as ${prSub} steps into a fighting crouch!`;
                 text = (hpPercent <= 0.35)
@@ -2107,7 +2131,7 @@ class ChronicleGrounder {
                         `The frontier has tested me harder than you! To me, then!`,
                         `Steel breaks, but a veteran never yields! Face me!`,
                         `Grave wounds won't stop a seasoned blade! Draw your last breath!`
-                    ], Math.floor(Math.random() * 1000))
+                    ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('veteran_combat_high', [
                         'You want a taste of veteran steel, fool?! Stand and fight!',
                         'I have broken fiercer warriors than you in the deep trenches!',
@@ -2115,7 +2139,7 @@ class ChronicleGrounder {
                         'Iron and blood! You picked the wrong soldier to cross!',
                         'Let us see if your armor is as stout as your temper!',
                         'A soldier does not flinch before raw steel! Back to the dirt with you!'
-                    ], Math.floor(Math.random() * 1000));
+                    ], encounterSeed, { dryRun: isDryRun });
             } else if (profile.category === 'townsperson') {
                 prose = `Bleeding and reeling from the assault, the ${name} clutches a painful wound and shrieks in panic, frantic eyes darting for the town watch!`;
                 text = (hpPercent <= 0.35)
@@ -2123,12 +2147,12 @@ class ChronicleGrounder {
                         'Mercy! I yield! Take my purse, take my boots, only spare my life!',
                         'Town Watch! Murder! Someone stop this mad butcher before I bleed dry!',
                         'Mercy! I have a family! Take everything, only put away the steel!'
-                    ], Math.floor(Math.random() * 1000))
+                    ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('town_combat_high', [
                         'Madman! Murder in the streets! Help, town guards, murder! Why do you attack me?!',
                         'Madman! Keep away from me, butcher! Guards! Someone stop this maniac!',
                         'Murder! Assault! The town watch will have your head on a pike for this!'
-                    ], Math.floor(Math.random() * 1000));
+                    ], encounterSeed, { dryRun: isDryRun });
             } else if (profile.category === 'rogue') {
                 prose = `${prPoss.charAt(0).toUpperCase() + prPoss.slice(1)} blade parries yours with a harsh shriek of metal! The ${name} sneers through gritted teeth, blood dripping from ${prPoss} knuckles as ${prSub} circles you in the alley gloom.`;
                 text = (hpPercent <= 0.35)
@@ -2138,14 +2162,14 @@ class ChronicleGrounder {
                         'Curse this town... you won\'t take my boots while I draw breath!',
                         'A pox on your sword! The shadows will swallow you whole!',
                         'You haven\'t won yet, dog! Cold steel bites both ways!'
-                    ], Math.floor(Math.random() * 1000))
+                    ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('rogue_combat_high', [
                         'You think your steel frightens me, fool? I will carve the liver out of you!',
                         'Die, surface scum! I will pick your bones clean before the watch arrives!',
                         'Quick hands, cold steel! Let us see what spills from your purse!',
                         'You should have handed over the silver when you had the chance!',
                         'One slip in the cobblestone dark, and you are meat for the alley crows!'
-                    ], Math.floor(Math.random() * 1000));
+                    ], encounterSeed, { dryRun: isDryRun });
             } else if (profile.category === 'orc') {
                 prose = `Dark black blood spatters the stones as the ${name} snarls in bloodthirsty fury, hacking violently at your guard!`;
                 if (rk === 'silq') {
@@ -2155,14 +2179,14 @@ class ChronicleGrounder {
                             'Black blood in my eyes... but Boldog\'s wrath will consume your soul!',
                             'The Great Darkness will blot out your star, Noldor scum!',
                             'You bleed on the stones of Angband! None escape the Iron Hell!'
-                        ], Math.floor(Math.random() * 1000))
+                        ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('orc_silq_high', [
                             'Thralls of Angband, slay the intruder!',
                             'Morgoth Bauglir holds the Silmarils—none escape his darkness!',
                             'Die in the shadow of the Iron Mountains!',
                             'Curse your elven steel! Slice the pink flesh!',
                             'Iron and ash! Your skull will pave the Throne of Thangorodrim!'
-                        ], Math.floor(Math.random() * 1000));
+                        ], encounterSeed, { dryRun: isDryRun });
                 } else if (rk === 'frogcomposband') {
                     text = (hpPercent <= 0.35)
                         ? ChronicleGrounder.pickNonRepeatingBark('orc_fcb_low', [
@@ -2170,30 +2194,30 @@ class ChronicleGrounder {
                             'Curse your blade! Blood for the Logrus!',
                             'The Courts of Chaos will devour your reality!',
                             'Bleeding out... but the multiverse will swallow you whole!'
-                        ], Math.floor(Math.random() * 1000))
+                        ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('orc_fcb_high', [
                             'The multiverse belongs to the strong! Die, Outpost dog!',
                             'No Trump can pull you from my grasp!',
                             'Your shadow ends in this gutter!',
                             'Feel the raw chaotic power of the wilderness!',
                             'We butcher knights and evolving beasts alike!'
-                        ], Math.floor(Math.random() * 1000));
+                        ], encounterSeed, { dryRun: isDryRun });
                 } else if (rk === 'hengband') {
                     if (effLang === 'jp') {
                         text = (hpPercent <= 0.35)
                             ? ChronicleGrounder.pickNonRepeatingBark('orc_heng_low_jp', [
-                                'Idaten-hashiri! My blade still thirsts for your heart!',
-                                'By the demon blade of Muramasa, we die together in the blood mud!',
-                                'No warrior flinches before death! A warrior\'s spirit is eternal!',
-                                'You have pierced my armor, but the demons of Sengoku will avenge me!'
-                            ], Math.floor(Math.random() * 1000))
+                                '韋駄天走り！貴様の心臓、まだ我が刃が欲している！',
+                                '妖刀村正にかけて、この血泥の中で相討ちだ！',
+                                '武士に死など恐れにあらず！もののふの魂は永遠なのだ！',
+                                '鎧は貫かれたが、戦国の怨霊が貴様を討つであろう！'
+                            ], encounterSeed, { dryRun: isDryRun })
                             : ChronicleGrounder.pickNonRepeatingBark('orc_heng_high_jp', [
-                                'Ippon! Face the fury of the Sengoku lords!',
-                                'The Kagura shrine will sing no prayers for you!',
-                                'Oni and Tengu feast upon intruders!',
-                                'Taste the edge of dishonor and steel!',
-                                'By the fallen cherry blossoms, draw your last breath!'
-                            ], Math.floor(Math.random() * 1000));
+                                '一本！戦国の大名たちの怒りを受けるがよい！',
+                                '神楽の社もお前への祈りは捧げぬ！',
+                                '鬼と天狗が侵入者の肉を喰らうのだ！',
+                                '鋼の刃の味を知るがよい！',
+                                '散りゆく桜花と共に、最後の息を吸うがよい！'
+                            ], encounterSeed, { dryRun: isDryRun });
                     } else {
                         text = (hpPercent <= 0.35)
                             ? ChronicleGrounder.pickNonRepeatingBark('orc_heng_low_en', [
@@ -2201,14 +2225,14 @@ class ChronicleGrounder {
                                 'No warrior flinches before death! A warrior\'s spirit is eternal!',
                                 'You have pierced my armor, but the dark lords of this realm will avenge me!',
                                 'My blade still thirsts for your heart!'
-                            ], Math.floor(Math.random() * 1000))
+                            ], encounterSeed, { dryRun: isDryRun })
                             : ChronicleGrounder.pickNonRepeatingBark('orc_heng_high_en', [
                                 'Face the fury of the mountain lords!',
                                 'The shrine bells will sing no prayers for you!',
                                 'Oni and beasts feast upon intruders!',
                                 'Taste the edge of dishonor and steel!',
                                 'By the fallen cherry blossoms, draw your last breath!'
-                            ], Math.floor(Math.random() * 1000));
+                            ], encounterSeed, { dryRun: isDryRun });
                     }
                 } else {
                     text = (hpPercent <= 0.35)
@@ -2217,14 +2241,14 @@ class ChronicleGrounder {
                             'Black blood in my eyes... but my scimitar will taste your throat!',
                             'The master\'s lash was worse than your steel! Die, surface scum!',
                             'You bleed too, dog! We die together on the cold rock!'
-                        ], Math.floor(Math.random() * 1000))
+                        ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('orc_combat_high', [
                             'Fresh meat bleeds! Hack the surface scum to ribbons!',
                             'I will gnaw the marrow from your bones, worm!',
                             'What is this? A soft-skinned intruder to feed to the drakes! Slay!',
                             'Chop the legs off! Make the pink-skin crawl in the dirt!',
                             'Iron and ash! Your skull will hang from the warren gate!'
-                        ], Math.floor(Math.random() * 1000));
+                        ], encounterSeed, { dryRun: isDryRun });
                 }
             } else if (profile.category === 'spellcaster') {
                 prose = `Dark sorcerous fire crackles across the robes of the ${name} as he recoils from your steel, hissing ancient incantations in fury!`;
@@ -2234,53 +2258,53 @@ class ChronicleGrounder {
                             'The Iron Hell never yields! Morgoth\'s shadow covers all Beleriand!',
                             'My song falters... but the doom of Mandos claims your soul!',
                             'Curse your song! Even in death, the black frost shall wither you!'
-                        ], Math.floor(Math.random() * 1000))
+                        ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('caster_silq_high', [
                             'Tremble before the will of the Iron Crown!',
                             'No song of Elbereth can kindle light in this abyss!',
                             'Dissolve in the subterranean black flame of Udûn!',
                             'The Will of the Great Enemy crushes mortal clay!'
-                        ], Math.floor(Math.random() * 1000));
+                        ], encounterSeed, { dryRun: isDryRun });
                 } else if (rk === 'frogcomposband') {
                     text = (hpPercent <= 0.35)
                         ? ChronicleGrounder.pickNonRepeatingBark('caster_fcb_low', [
                             'My body unravels into shadow... but the Logrus will claim you!',
                             'The Trump of Doom was already drawn for your fate!',
                             'Curse your steel! Chaos dissolves all boundaries!'
-                        ], Math.floor(Math.random() * 1000))
+                        ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('caster_fcb_high', [
                             'I twist the probabilities of the Pattern against you!',
                             'Burn in the cold chaos of the Abyss!',
                             'Reality warps at my command—witness true sorcery!',
                             'Your existence is but a flickering shadow!'
-                        ], Math.floor(Math.random() * 1000));
+                        ], encounterSeed, { dryRun: isDryRun });
                 } else if (rk === 'hengband') {
                     if (effLang === 'jp') {
                         text = (hpPercent <= 0.35)
                             ? ChronicleGrounder.pickNonRepeatingBark('caster_heng_low_jp', [
-                                'Nine cuts of Kuji-kiri... my spirit ascends to the Kami!',
-                                'The Buddhist wheel of retribution will crush you in your next reincarnation!',
-                                'The curse of the Fox Spirit shall cling to your shadow!'
-                            ], Math.floor(Math.random() * 1000))
+                                '九字切り……我が魂は神仏の元へ昇る！',
+                                '輪廻応報の輪が、来世で貴様を押し潰すであろう！',
+                                '妖狐の呪いが貴様の影にまとわりつくのだ！'
+                            ], encounterSeed, { dryRun: isDryRun })
                             : ChronicleGrounder.pickNonRepeatingBark('caster_heng_high_jp', [
-                                'Rin, Pyo, Toh, Sha, Kai, Jin, Retsu, Zai, Zen! Banish the intruder!',
-                                'Demonic flame of Mount Hiei, reduce this fool to cinders!',
-                                'Gate gate paragate parasamgate—taste karmic annihilation!',
-                                'The Shinto spirits reject your corrupted presence!'
-                            ], Math.floor(Math.random() * 1000));
+                                '臨・兵・闘・者・皆・陣・烈・在・前！侵入者を調伏せよ！',
+                                '比叡の魔炎よ、この愚か者を灰燼に帰せ！',
+                                '羯諦羯諦波羅羯諦波羅僧羯諦……業火の消滅を味わうがよい！',
+                                '神祇諸仏が貴様の穢れた存在を拒絶する！'
+                            ], encounterSeed, { dryRun: isDryRun });
                     } else {
                         text = (hpPercent <= 0.35)
                             ? ChronicleGrounder.pickNonRepeatingBark('caster_heng_low_en', [
                                 'Nine secret strikes... my spirit ascends to the heavens!',
                                 'The wheel of karmic retribution will crush you in your next life!',
                                 'The curse of the fox spirit shall cling to your shadow!'
-                            ], Math.floor(Math.random() * 1000))
+                            ], encounterSeed, { dryRun: isDryRun })
                             : ChronicleGrounder.pickNonRepeatingBark('caster_heng_high_en', [
                                 'Spirits of earth and sky, banish the intruder!',
                                 'Mystic flame of the mountain, reduce this fool to cinders!',
                                 'Taste karmic annihilation!',
                                 'The ancient spirits reject your corrupted presence!'
-                            ], Math.floor(Math.random() * 1000));
+                            ], encounterSeed, { dryRun: isDryRun });
                     }
                 } else {
                     text = (hpPercent <= 0.35)
@@ -2288,13 +2312,13 @@ class ChronicleGrounder {
                             'The Dark Masters will avenge my blood! The Shadow never ends!',
                             'My flesh perishes... but the Nether will consume your soul!',
                             'Curse your iron! Even in death, the dark runes shall wither you!'
-                        ], Math.floor(Math.random() * 1000))
+                        ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('caster_combat_high', [
                             'Feel the freezing hand of the Void! Burn in dark fire!',
                             'Mortal clay, dissolve before the black flame!',
                             'Your feeble armor cannot turn the wrath of the ancient arts!',
                             'The deeps hunger for your soul—wither into ashes!'
-                        ], Math.floor(Math.random() * 1000));
+                        ], encounterSeed, { dryRun: isDryRun });
                 }
             } else {
                 prose = `Gravely engaged in combat, the ${name} trades savage blows with ${pName}, blades clashing in the dark!`;
@@ -2303,13 +2327,13 @@ class ChronicleGrounder {
                         'Curse your steel! You will not leave these deeps alive!',
                         'Bleeding upon the rock... but I will drag you down with me!',
                         'No mercy in the dark! Fall with me!'
-                    ], Math.floor(Math.random() * 1000))
+                    ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('general_combat_high', [
                         'Die on the cold stone, mortal!',
                         'You dare step into the deeps? Pave these stones with your bones!',
                         'Steel answers steel! Let us see what you are made of!',
                         'No light reaches these depths—only our blades!'
-                    ], Math.floor(Math.random() * 1000));
+                    ], encounterSeed, { dryRun: isDryRun });
             }
 
             return {
@@ -2480,7 +2504,7 @@ class ChronicleGrounder {
                     'You dare enter Angband unchained? Bauglir will break your spirit!',
                     'The Iron Crown holds all! Flesh for the pits of Thangorodrim!',
                     'Smell that? An unbranded trespasser! Boldog will feast on your marrow!'
-                ], Math.floor(Math.random() * 1000));
+                ], encounterSeed, { dryRun: isDryRun });
             } else if (rk === 'frogcomposband') {
                 prose = `The ${name} snarls with wild chaotic frenzy, eye twitching as he stalks across the multiversal dust.`;
                 text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_fcb', [
@@ -2488,23 +2512,23 @@ class ChronicleGrounder {
                     'The Courts of Chaos await fresh meat! Blood for the Logrus!',
                     'No Trump card will save you out here in the wilderness!',
                     'Look what crawled out of the Outpost! Strip his gold and boots!'
-                ], Math.floor(Math.random() * 1000));
+                ], encounterSeed, { dryRun: isDryRun });
             } else if (rk === 'hengband') {
                 prose = `The ${name} bares fangs beneath a jagged mempo mask, clutching a rusty naginata with demonic ferocity.`;
                 if (effLang === 'jp') {
                     text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_heng_jp', [
-                        'Gaijin intruder! You step uninvited into the lands of the Sengoku lords!',
-                        'The Kagura shrine bells toll for your demise! Taste cold iron!',
-                        'Oni blood stirs in these veins! Draw your katana or die like a dog!',
-                        'No ronin or ashigaru leaves this mountain alive!'
-                    ], Math.floor(Math.random() * 1000));
+                        '異境の侵入者め！戦国諸将の領地に土足で踏み入るとは！',
+                        '神楽の神鈴が貴様の終焉を告げている！冷刃の錆となれ！',
+                        'この身に流れる鬼の血がたぎる！刀を抜け、犬死にするでない！',
+                        'この山を生きて越えた浪人も足軽もおらぬわ！'
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else {
                     text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_heng_en', [
                         'Intruder! You step uninvited into the lands of the mountain lords!',
                         'The shrine bells toll for your demise! Taste cold iron!',
                         'Oni blood stirs in these veins! Draw your blade or die like a dog!',
                         'No ronin or wanderer leaves this mountain alive!'
-                    ], Math.floor(Math.random() * 1000));
+                    ], encounterSeed, { dryRun: isDryRun });
                 }
             } else {
                 prose = `The ${name} hefts a notched scimitar, yellow fangs bared in a wicked sneer as he stomps against the flagstones.`;
@@ -2513,7 +2537,7 @@ class ChronicleGrounder {
                     'Your skull will make a fine cup for the captain\'s ale! Stand still and die!',
                     'Sniff the air... soft-skin smells of fear and town bread! Get him!',
                     'No one leaves the warrens alive! Hack the stranger down!'
-                ], Math.floor(Math.random() * 1000));
+                ], encounterSeed, { dryRun: isDryRun });
             }
         } else if (profile.category === 'dragon') {
             prose = `The ancient wyrm regards ${pName} with smoldering golden eyes, sulfurous smoke drifting lazily from slit nostrils.`;
@@ -2522,7 +2546,7 @@ class ChronicleGrounder {
                 'You bring your frail spark of life before the mountain fire? Kneel and burn, mortal!',
                 'Generations of heroes have melted beneath my breath. You will be no different.',
                 'The hoard beneath my talons was bought in blood. You shall add yours to the gold.'
-            ], Math.floor(Math.random() * 1000));
+            ], encounterSeed, { dryRun: isDryRun });
         } else if (profile.category === 'high_undead') {
             prose = `A sepulchral chill sweeps the chamber as the ${name} hovers in the gloom, ethereal robes fluttering without wind.`;
             text = ChronicleGrounder.pickNonRepeatingBark('undead_ambient', [
@@ -2530,7 +2554,7 @@ class ChronicleGrounder {
                 '...the living have no dominion in these silent halls... sleep eternal...',
                 '...flesh withers, steel rusts... only the crypt endures...',
                 '...give your breath to the dust... surrender your light...'
-            ], Math.floor(Math.random() * 1000));
+            ], encounterSeed, { dryRun: isDryRun });
         } else {
             prose = `The ${name} stands poised in the gloom, watching your movements with wary calculation.`;
             text = ChronicleGrounder.pickNonRepeatingBark('general_ambient', [
@@ -2538,7 +2562,7 @@ class ChronicleGrounder {
                 'Steel will decide our fate if you take one step closer.',
                 'The shadows watch you, stranger. Watch your back.',
                 'Draw no blade here unless you intend to use it.'
-            ], Math.floor(Math.random() * 1000));
+            ], encounterSeed, { dryRun: isDryRun });
         }
 
         return {
@@ -5119,10 +5143,10 @@ class ChronicleGrounder {
             }
 
             // Exploration
-            if (ev.type === 'TREASURE_DISCOVERY' && data.gold) {
-                treasureFound += data.gold;
+            if (ev.type === 'TREASURE_DISCOVERY' && (data.amount || data.gold)) {
+                treasureFound += (data.amount ?? data.gold);
             }
-            if (ev.type === 'DUNGEON_FEATURE' && data.feature && data.feature.includes('door')) {
+            if (ev.type === 'DUNGEON_FEATURE' && ((data.feature && data.feature.includes('door')) || (data.message && data.message.includes('door')) || (data.text && data.text.includes('door')))) {
                 secretFound = true;
             }
             if (ev.type === 'EXCAVATION') {
@@ -5132,8 +5156,8 @@ class ChronicleGrounder {
 
         const kills = Array.from(killSet);
         const assailants = Array.from(assailantSet);
-        const currentHp = player ? (player.chp || 1) : 1;
-        const maxHp = player ? (player.mhp || 1) : 1;
+        const currentHp = player ? (player.hp ?? player.chp ?? 1) : 1;
+        const maxHp = player ? (player.hp_max ?? player.mhp ?? 1) : 1;
         const hpPercent = currentHp / maxHp;
         const inMortalPeril = hpPercent < 0.35;
 

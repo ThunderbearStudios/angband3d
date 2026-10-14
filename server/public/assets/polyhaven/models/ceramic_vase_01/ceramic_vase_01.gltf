@@ -1,0 +1,155 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v1.6.16",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "ceramic_vase_01"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "ceramic_vase_01",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Cylinder.009",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "ceramic_vase_01_nor_gl",
+      "uri": "textures/ceramic_vase_01_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "ceramic_vase_01_diff",
+      "uri": "textures/ceramic_vase_01_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "ceramic_vase_01_metal-ceramic_vase_01_rough",
+      "uri": "textures/ceramic_vase_01_arm_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 6590,
+      "max": [
+        0.10181723535060883,
+        0.40147727727890015,
+        0.10181790590286255
+      ],
+      "min": [
+        -0.10181723535060883,
+        0.00120898790191859,
+        -0.10181842744350433
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 6590,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 6590,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 30888,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 79080,
+      "byteOffset": 0
+    },
+    {
+      "buffer": 0,
+      "byteLength": 79080,
+      "byteOffset": 79080
+    },
+    {
+      "buffer": 0,
+      "byteLength": 52720,
+      "byteOffset": 158160
+    },
+    {
+      "buffer": 0,
+      "byteLength": 61776,
+      "byteOffset": 210880
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 272656,
+      "uri": "ceramic_vase_01.bin"
+    }
+  ]
+}

@@ -11,26 +11,30 @@ This document provides complete attribution, provenance, and licensing details f
 
 ---
 
-## 2. Core Game Engine & Historical Roguelike Lineage
+## 2. Core Game Engines & Multi-Realm Roguelike Lineage
 
-Angband 3D is powered by the authoritative, unmodified **Angband 4.2.6 C engine**, operating as a headless subprocess via a high-speed, zero-allocation JSON IPC bridge.
+Angband 3D is powered by **four authoritative, unmodified C/C++ roguelike engines**, operating as headless subprocesses (or WebAssembly workers) via a high-speed, zero-allocation JSON IPC bridge:
 
-- **Upstream Angband Project**: [https://angband.github.io/](https://angband.github.io/)
-- **Angband Development Team**: Ben Harrison, James E. Wilson, Robert Alan Koeneke, Alex Cutler, Andy Astrand, David Grabiner, Robert Rühlmann, Nick McConway, Peter Denison, and the global Angband open-source community.
+- **Upstream Angband 4.2.6**: [https://angband.github.io/](https://angband.github.io/) — Ben Harrison, James E. Wilson, Robert Alan Koeneke, Alex Cutler, Andy Astrand, David Grabiner, Robert Rühlmann, Nick McConway, Peter Denison, and the global Angband open-source community.
+- **Sil-Q (First Age of Beleriand)**: [https://github.com/sil-quirk/sil-q](https://github.com/sil-quirk/sil-q) — Original *Sil* by Scatha and half; *Sil-Q* maintained by Hugo "backwardsEric" Cornelis and contributors.
+- **FrogComposBand (Chaos & Wilderness Realm)**: [https://github.com/sulkasormi/frogcomposband](https://github.com/sulkasormi/frogcomposband) — Built upon *PosChengband* (Chris) and *Chengband* / *Hengband* / *Zangband*; maintained by Sideways (sulkasormi) and the FrogComposBand community.
+- **Hengband / 変愚蛮怒 (Eastern & Chaos Realm)**: [https://hengband.github.io/](https://hengband.github.io/) — Maintained by the Hengband Development Team (Habu, Hourier, Deskull, and contributors).
 - **Historical Lineage**:
   - *Moria* (1983) — Robert Alan Koeneke and Jimmey Wayne Todd Jr.
   - *Umoria* (1988–1992) — Alex Cutler, Andy Astrand, and David Grabiner.
   - *Angband* (1990–present) — Alex Cutler, Andy Astrand, Keith Horner, Charles Swiger, Ben Harrison, and successive maintainers.
-- **Engine License**: GNU General Public License Version 2 (GPL-2.0) and historical Angband Open Source License.
+- **Engine Licenses**: GNU General Public License Version 2 (GPL-2.0) and the historical Angband Open Source License.
 
 ---
 
-## 3. 3D Models, Textures & Environmental Assets
+## 3. Illustrated Creature & Item Artwork, PBR Photogrammetry & 3D Assets
 
-All third-party 3D models and textures utilized in Angband 3D are released under permissive public domain dedications (**CC0 1.0 Universal**) or free open-game licenses:
+All third-party 2D/3D art and photogrammetry textures utilized in Angband 3D are used under their respective open-source licenses or permissive public domain dedications (**CC0 1.0 Universal**):
 
 | Asset Collection | Author / Source | License | Usage in Angband 3D |
 |---|---|---|---|
+| **Shockbolt 64×64 Fantasy Tileset** | **Raymond "Shockbolt" Gaustadnes** ([Upstream Angband Graphic Tiles](https://github.com/angband/angband/tree/master/lib/tiles/shockbolt)) | **GPL-2.0 / Angband Open Source License** | Master illustrated 64×64 painted fantasy creature & item tileset (`4096×4096` HD creature & item atlases, 2.5D volumetric normal-mapped billboards, GUI item/creature portraits, and Chronicle Hero Action Sketch sprites). |
+| **Poly Haven 2K Photogrammetry PBR** | **[Poly Haven](https://polyhaven.com/)** (Rob Tuytel, Rico Cilliers, Charlotte Baglioni, Dimitrios Savva, Greg Zaal & contributors) | **CC0 1.0 Universal** (Public Domain) | 2K photogrammetry PBR stone, brick, cobble, dirt, plaster, and timber diffuse, normal (`nor_gl`), and roughness/AO (`arm`) texture sets across dungeon and wilderness biomes. |
 | **KayKit Dungeon Remastered** | [Kay Lousberg](https://kaylousberg.com/) / [GitHub](https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0) | **CC0** (Public Domain) | Dungeon stone walls, flagstone floors, arched portals, wooden doors, stone stairs, iron-bound chests, columns, and sconces. |
 | **KayKit Character Pack: Skeletons** | [Kay Lousberg](https://kaylousberg.com/) / [GitHub](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0) | **CC0** (Public Domain) | Skeletons, liches, necromancers, and crypt horrors. |
 | **KayKit Character Pack: Adventures** | [Kay Lousberg](https://kaylousberg.com/) / [GitHub](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0) | **CC0** (Public Domain) | Rogue, warrior, mage, and humanoid adventurers and townspeople. |

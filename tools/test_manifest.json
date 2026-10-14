@@ -15,7 +15,9 @@
     "test_story_prompt.js",
     "test_chronicle_llm_realm_voices.js",
     "check_version_sync.js",
-    "check_android_sync.js"
+    "check_android_sync.js",
+    "test_static_invariants.js",
+    "test_hero_sketch_and_gui.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",

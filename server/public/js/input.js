@@ -817,6 +817,9 @@ class InputController {
                 if (window.__app && window.__app.cancelQuickBirth) {
                     window.__app.cancelQuickBirth();
                 }
+                if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
+                    window.MenuRouter.clearPending();
+                }
 
                 const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
                 const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && (lastFrame.map || (lastFrame.player && lastFrame.player.name)));
@@ -886,6 +889,14 @@ class InputController {
         const { isChoiceMenu, isNamePrompt, isReviewScreen } = (window.ScreenContext && typeof window.ScreenContext.inputTerminalKeyFlags === 'function')
             ? window.ScreenContext.inputTerminalKeyFlags(screenText, inPlay, isReviewActive)
             : { isChoiceMenu: false, isNamePrompt: false, isReviewScreen: false };
+        const pf = (window.ScreenContext && typeof window.ScreenContext.promptFlags === 'function')
+            ? window.ScreenContext.promptFlags(screenText)
+            : { isYesNoPrompt: false, isQuantityPrompt: false };
+        const tf = {
+            isQuantityPrompt: Boolean(pf.isQuantityPrompt || screenText.includes('how many') || screenText.includes('quantity') || screenText.includes('how much')),
+            isNamePrompt: Boolean(isNamePrompt),
+            isInscriptionPrompt: Boolean(screenText.includes('inscription:') || screenText.includes('inscribe:'))
+        };
 
         // Reroll hotkey on review screen ('R') -> Re-randomize
         if (isReviewScreen && (e.key === 'r' || e.key === 'R')) {
@@ -982,7 +993,10 @@ class InputController {
 
         let keySpec = null;
 
-        if (e.key === 'ArrowUp' || e.code === 'Numpad8') keySpec = 'up';
+        const isNumpadDigit = Boolean(e.code && /^Numpad[0-9]$/.test(e.code));
+        if (isNumpadDigit && (tf.isQuantityPrompt || tf.isNamePrompt || tf.isInscriptionPrompt)) {
+            keySpec = e.code.slice(6);
+        } else if (e.key === 'ArrowUp' || e.code === 'Numpad8') keySpec = 'up';
         else if (e.key === 'ArrowDown' || e.code === 'Numpad2') keySpec = 'down';
         else if (e.key === 'ArrowLeft' || e.code === 'Numpad4') keySpec = 'left';
         else if (e.key === 'ArrowRight' || e.code === 'Numpad6') keySpec = 'right';
@@ -995,6 +1009,9 @@ class InputController {
         else if (e.key === 'Enter') keySpec = 'enter';
         else if (e.key === 'Escape') {
             keySpec = 'escape';
+            if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
+                window.MenuRouter.clearPending();
+            }
             if (window.__app && window.__app.setForceTerminal) {
                 window.__app.setForceTerminal(false);
             }
@@ -1110,6 +1127,57 @@ class InputController {
 
         const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
         const ui = lastFrame ? lastFrame.ui : null;
+
+        const screenText = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function')
+            ? window.ScreenContext.screenTextOf(lastFrame)
+            : '';
+        const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+        const isHeng = realm === 'hengband';
+        const inPlay = Boolean(lastFrame && lastFrame.phase === 'play');
+        const ntFlags = {
+            isDirectionalTargeting: Boolean(
+                (window.ScreenContext && typeof window.ScreenContext.toolbarFlags === 'function' && window.ScreenContext.toolbarFlags(lastFrame, screenText, isHeng).isTargeting) ||
+                (window.ScreenContext && typeof window.ScreenContext.inputTargetingPrompt === 'function' && window.ScreenContext.inputTargetingPrompt(screenText, inPlay))
+            )
+        };
+        const isTargeting = Boolean(ntFlags && ntFlags.isDirectionalTargeting);
+
+        if (isTargeting) {
+            if (e.code === 'Digit5' || e.code === 'Numpad5' || e.key === '.' || e.key === 't' || e.key === 'T') {
+                e.preventDefault();
+                this.network.sendKey('t');
+                return;
+            }
+            if (e.key === ' ' || e.code === 'Space') {
+                e.preventDefault();
+                this.network.sendKey('space');
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const moveKey = this.getRelativeDirectionKey(8);
+                if (moveKey) this.network.sendKey(moveKey);
+                return;
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const moveKey = this.getRelativeDirectionKey(2);
+                if (moveKey) this.network.sendKey(moveKey);
+                return;
+            }
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const moveKey = this.getRelativeDirectionKey(4);
+                if (moveKey) this.network.sendKey(moveKey);
+                return;
+            }
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                const moveKey = this.getRelativeDirectionKey(6);
+                if (moveKey) this.network.sendKey(moveKey);
+                return;
+            }
+        }
 
         // Context prompt (-more-) active: immediately dismiss with space (1:1 with Angband msg_flush)
         // and if a move or turn key was pressed, execute it so the character never gets stuck on stairs!
@@ -1282,6 +1350,10 @@ class InputController {
             );
             if (isTopLevelWorldCmd && typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) {
                 const mapped = RealmKeys.fromVanilla(e.key, realm);
+                if (mapped === null && realm === 'silq' && (e.key === 'r' || e.key === 'b')) {
+                    this.network.sendKey(e.key);
+                    return;
+                }
                 if (mapped === null) {
                     return; // Verb does not exist in active realm (e.g. read in Sil-Q)
                 }
@@ -1330,7 +1402,10 @@ class InputController {
      * 7 = Forward-Left, 9 = Forward-Right, 1 = Backward-Left, 3 = Backward-Right, 5 = Stay.
      */
     getRelativeDirectionKey(numpadDir) {
-        if (numpadDir === 5) return '5';
+        if (numpadDir === 5) {
+            const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+            return (typeof RealmKeys !== 'undefined' && typeof RealmKeys.get === 'function') ? (RealmKeys.get('hold', realm) || ',') : ',';
+        }
         const localIndexMap = {
             8: 0,
             9: 1,
@@ -1558,12 +1633,30 @@ class InputController {
             sectors.forEach(sec => {
                 bindReliableAction(sec, () => {
                     const dir = parseInt(sec.dataset.dir, 10);
+                    const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
+                    const screenText = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function')
+                        ? window.ScreenContext.screenTextOf(lastFrame)
+                        : '';
+                    const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                    const isHeng = realm === 'hengband';
+                    const inPlay = Boolean(lastFrame && lastFrame.phase === 'play');
+                    const ntFlags = {
+                        isDirectionalTargeting: Boolean(
+                            (window.ScreenContext && typeof window.ScreenContext.toolbarFlags === 'function' && window.ScreenContext.toolbarFlags(lastFrame, screenText, isHeng).isTargeting) ||
+                            (window.ScreenContext && typeof window.ScreenContext.inputTargetingPrompt === 'function' && window.ScreenContext.inputTargetingPrompt(screenText, inPlay))
+                        )
+                    };
+                    const isTargeting = Boolean(ntFlags && ntFlags.isDirectionalTargeting);
+
                     if (dir === 5) {
-                        const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
-                        const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
-                            ? (RealmKeys.realmKey('hold', realm) || ',')
-                            : ',';
-                        this.network.sendKey(holdKey);
+                        if (isTargeting) {
+                            this.network.sendKey('t');
+                        } else {
+                            const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                                ? (RealmKeys.realmKey('hold', realm) || ',')
+                                : ',';
+                            this.network.sendKey(holdKey);
+                        }
                     } else if (!isNaN(dir)) {
                         const moveKey = this.getRelativeDirectionKey(dir);
                         if (moveKey) this.network.sendKey(moveKey);

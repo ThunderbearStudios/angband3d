@@ -13,8 +13,23 @@ public partial class Overlay : Control
     private Vector2 _cell = new(10, 18);
     private Texture2D _logoTexture;
     private bool _logoLoadAttempted;
+    private JsonElement? _frame;
+    public JsonElement? Frame
+    {
+        get => _frame;
+        set => SetFrame(value);
+    }
+    public string Realm { get; set; } = "angband";
 
-    public JsonElement? Frame { get; set; }
+    public void SetFrame(JsonElement? frame)
+    {
+        _frame = frame;
+        if (frame.HasValue)
+        {
+            var now = Time.GetTicksMsec() / 1000.0;
+            UpdateDiscoveryPulses(frame.Value, now);
+        }
+    }
     public ViewMode Mode { get; set; } = ViewMode.World;
     public string Status { get; set; } = "starting...";
     public double Waiting { get; set; }
@@ -75,6 +90,7 @@ public partial class Overlay : Control
     public event System.Action DeathIdentifyRequested;
     public event System.Action DeathMainMenuRequested;
     public event System.Action<int> DeathTabClicked;
+    public event System.Action<string> TerminalKeyClicked;
 
     // Interactive clickable bounding rects
     private readonly System.Collections.Generic.List<Rect2> _menuItemRects = new();
@@ -1372,15 +1388,17 @@ public partial class Overlay : Control
             var r = rows[y];
             var glyphs = r.GetProperty("g").GetString() ?? "";
             var attrs = r.GetProperty("a").GetString() ?? "";
-            for (var x = 0; x < w && x < glyphs.Length; x++)
+            int col = 0;
+            for (var i = 0; i < glyphs.Length && col < w; i++)
             {
-                if (glyphs[x] == ' ')
+                var ch = glyphs[i];
+                if (ch != ' ')
                 {
-                    continue;
+                    DrawString(_font, new Vector2(startX + col * termCharW, startY + y * termCharH + termAscent),
+                        ch.ToString(), HorizontalAlignment.Left, -1, termFontSize,
+                        AngbandColors.Get(AngbandColors.ParseAttr(attrs, i)));
                 }
-                DrawString(_font, new Vector2(startX + x * termCharW, startY + y * termCharH + termAscent),
-                    glyphs[x].ToString(), HorizontalAlignment.Left, -1, termFontSize,
-                    AngbandColors.Get(AngbandColors.ParseAttr(attrs, x)));
+                col += ch >= 0x3000 ? 2 : 1;
             }
         }
     }
@@ -1475,7 +1493,6 @@ public partial class Overlay : Control
             _font.GetHeight(miniFontSize));
 
         var now = Time.GetTicksMsec() / 1000.0;
-        UpdateDiscoveryPulses(frame, now);
 
         if (miniCell.X > 0 && miniCell.Y > 0)
         {
@@ -1630,7 +1647,7 @@ public partial class Overlay : Control
                 HorizontalAlignment.Right, -1, _fontSize, new Color(0.35f, 0.85f, 1.0f));
         }
 
-        var realm = p.TryGetProperty("realm", out var rlmProp) ? rlmProp.GetString() ?? "" : "";
+        var realm = !string.IsNullOrEmpty(Realm) ? Realm : (p.TryGetProperty("realm", out var rlmProp) ? rlmProp.GetString() ?? "" : "");
         var isSilQ = realm == "silq";
         var wizard = p.TryGetProperty("wizard", out var wz) && wz.GetBoolean() ? " [WIZARD]" : "";
         var depth = p.TryGetProperty("depth", out var dp) ? dp.GetInt32() : (frame.TryGetProperty("dungeon", out var dg) && dg.TryGetProperty("depth", out var dgp) ? dgp.GetInt32() : 0);
@@ -1915,7 +1932,64 @@ public partial class Overlay : Control
         {
             if (mb.ButtonIndex == MouseButton.Left)
             {
-                if (Mode == ViewMode.Splash)
+                if (Mode == ViewMode.Terminal)
+                {
+                    if (_frame.HasValue &&
+                        _frame.Value.TryGetProperty("term", out var termObj) &&
+                        termObj.TryGetProperty("rows", out var rowsArr) &&
+                        rowsArr.ValueKind == JsonValueKind.Array)
+                    {
+                        var rowCount = rowsArr.GetArrayLength();
+                        var w = termObj.TryGetProperty("w", out var wProp) ? wProp.GetInt32() : 80;
+                        float cellH = _cell.Y;
+                        float topOffset = 0f;
+
+                        if (w > 0 && rowCount > 0 && _font != null)
+                        {
+                            var targetCellW = View.X / (w + 2f);
+                            var targetCellH = View.Y / (rowCount + 2f);
+                            var termFontSize = Mathf.Clamp(Mathf.FloorToInt(Mathf.Min(targetCellW * 1.55f, targetCellH * 0.85f)), 10, 28);
+                            var termCharH = _font.GetHeight(termFontSize) + 2f;
+                            if (termCharH > 0)
+                            {
+                                cellH = termCharH;
+                            }
+                            var totalH = rowCount * cellH;
+                            topOffset = Mathf.Max(0f, (View.Y - totalH) / 2f);
+                        }
+
+                        int row = (int)((mb.Position.Y - topOffset) / _cell.Y);
+                        if (row < 0 || row >= rowCount)
+                        {
+                            row = (int)((mb.Position.Y - topOffset) / cellH);
+                        }
+
+                        if (row >= 0 && row < rowCount)
+                        {
+                            var rowElem = rowsArr[row];
+                            if (rowElem.TryGetProperty("g", out var gProp))
+                            {
+                                var rowText = gProp.GetString() ?? "";
+                                var match = System.Text.RegularExpressions.Regex.Match(rowText, @"(?:^|\s)(?:\[([a-zA-Z])\]|([a-zA-Z])\s*[\)\:\-])");
+                                if (match.Success)
+                                {
+                                    var keyStr = (match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value).ToLowerInvariant();
+                                    TerminalKeyClicked?.Invoke(keyStr);
+                                }
+                                else if (rowText.Contains("> "))
+                                {
+                                    TerminalKeyClicked?.Invoke("enter");
+                                }
+                                else if (rowText.Contains("-more-"))
+                                {
+                                    TerminalKeyClicked?.Invoke("space");
+                                }
+                            }
+                        }
+                    }
+                    return;
+                }
+                else if (Mode == ViewMode.Splash)
                 {
                     if (_splashGuideRect.HasPoint(mb.Position))
                     {
@@ -1997,6 +2071,14 @@ public partial class Overlay : Control
                             DeathTabClicked?.Invoke(i);
                             return;
                         }
+                    }
+                }
+                else if (Mode == ViewMode.World)
+                {
+                    if (mb.Position.X >= View.X - 310f && mb.Position.Y >= View.Y - 140f)
+                    {
+                        TerminalKeyClicked?.Invoke("C");
+                        return;
                     }
                 }
             }

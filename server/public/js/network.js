@@ -234,14 +234,24 @@ class GameNetwork {
                         }
                     }
                     if (this.onFrame) this.onFrame(msg);
+                } else if (msg.t === 'ok' && msg.detail === 'saved') {
+                    if (this._pendingSaveResolve) {
+                        this._pendingSaveResolve();
+                    }
+                    if (this.onSave) this.onSave(msg);
                 } else if (msg.t === 'error') {
-                    console.error('[Engine Error]', msg.message);
+                    const errText = (msg.message || msg.detail || '').trim();
+                    const isNotInPlay = !errText || errText.toLowerCase().includes('not in play');
+                    if (isNotInPlay) {
+                        return;
+                    }
+                    console.error('[Engine Error]', errText);
                     this.manualDisconnect = true;
                     if (this.reconnectTimer) {
                         clearTimeout(this.reconnectTimer);
                         this.reconnectTimer = null;
                     }
-                    if (this.onError) this.onError(msg.message || 'Game engine error');
+                    if (this.onError) this.onError(errText);
                 } else if (msg.t === 'bye') {
                     this.sessionId = null;
                     try {
@@ -307,8 +317,30 @@ class GameNetwork {
             console.log('[GameNetwork] Refusing to send save command: Player is dead, protecting living save.');
             return;
         }
-        this.sendCommand('save');
-        await new Promise(r => setTimeout(r, 300));
+        return new Promise(resolve => {
+            let settled = false;
+            const timer = setTimeout(() => {
+                if (!settled) {
+                    settled = true;
+                    this._pendingSaveResolve = null;
+                    resolve();
+                }
+            }, 1500);
+
+            const prevResolve = this._pendingSaveResolve;
+            this._pendingSaveResolve = () => {
+                if (typeof prevResolve === 'function') {
+                    try { prevResolve(); } catch (_) {}
+                }
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timer);
+                    this._pendingSaveResolve = null;
+                    resolve();
+                }
+            };
+            this.sendCommand('save');
+        });
     }
 
     async saveAndDisconnect() {

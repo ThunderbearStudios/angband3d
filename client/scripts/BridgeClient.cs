@@ -206,10 +206,18 @@ public partial class BridgeClient : Node, IGameEngineBridge
                     _incoming.Enqueue(Encoding.UTF8.GetBytes(e.Data));
                 }
             };
+            _proc.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data != null)
+                {
+                    GD.PushWarning($"bridge stderr: {e.Data}");
+                }
+            };
             _proc.Exited += (_, _) =>
                 _incoming.Enqueue(ByeBytes);
             _proc.Start();
             _proc.BeginOutputReadLine();
+            _proc.BeginErrorReadLine();
             Connected = true;
         }
         catch (Exception e)

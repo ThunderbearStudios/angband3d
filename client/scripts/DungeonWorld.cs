@@ -240,6 +240,7 @@ public partial class DungeonWorld : Node3D
         public Color CeilingColor { get; set; } = new Color(0.55f, 0.55f, 0.58f);
         public float FloorRoughness { get; set; } = 0.84f;
         public float WallRoughness { get; set; } = 0.82f;
+        public float WallHeight { get; set; } = 3.0f;
         public Color ParticleColor { get; set; } = new Color(0.85f, 0.82f, 0.75f, 0.35f);
         public int ParticleAmount { get; set; } = 22;
         public float ParticleScaleMin { get; set; } = 0.015f;
@@ -529,7 +530,7 @@ public partial class DungeonWorld : Node3D
                 var wcs = new[] { new Color(0.72f, 0.86f, 0.70f), new Color(0.68f, 0.84f, 0.78f), new Color(0.78f, 0.82f, 0.66f), new Color(0.70f, 0.88f, 0.64f) };
                 var fcs = new[] { new Color(0.65f, 0.78f, 0.64f), new Color(0.60f, 0.76f, 0.70f), new Color(0.70f, 0.74f, 0.58f), new Color(0.62f, 0.80f, 0.56f) };
                 var ccs = new[] { new Color(0.52f, 0.65f, 0.50f), new Color(0.48f, 0.62f, 0.56f), new Color(0.56f, 0.60f, 0.46f), new Color(0.50f, 0.66f, 0.44f) };
-                var frs = new[] { 0.65f, 0.58f, 0.72f, 0.52f };
+                var frs = new[] { 0.65f, 0.58f, 0.72f, 0.24f };
                 var tcs = new[] { new Color(1.0f, 0.88f, 0.60f), new Color(0.94f, 0.90f, 0.78f), new Color(1.0f, 0.89f, 0.71f), new Color(0.91f, 0.94f, 0.69f) };
                 var fogs = new[] { new Color(0.012f, 0.022f, 0.015f), new Color(0.008f, 0.022f, 0.020f), new Color(0.020f, 0.024f, 0.010f), new Color(0.012f, 0.028f, 0.008f) };
                 var ambs = new[] { new Color(0.26f, 0.38f, 0.28f), new Color(0.22f, 0.36f, 0.34f), new Color(0.35f, 0.37f, 0.21f), new Color(0.28f, 0.41f, 0.19f) };
@@ -725,6 +726,10 @@ public partial class DungeonWorld : Node3D
 
     private static readonly Dictionary<Kind, Mesh> _meshCache = new();
 
+    private string[] _featRows;
+    private string[] _flagRows;
+    private uint _lastMapRebuildSig;
+
     public override void _Ready()
     {
         InitMaterials();
@@ -748,14 +753,14 @@ public partial class DungeonWorld : Node3D
             Name = "TownSunLight",
             LightColor = new Color(0.70f, 0.80f, 0.98f),
             LightEnergy = 1.35f,
-            ShadowEnabled = true,
+            ShadowEnabled = _outdoors,
             DirectionalShadowMode = DirectionalLight3D.ShadowMode.Parallel4Splits,
             RotationDegrees = new Vector3(-55, 38, 0),
             Visible = false,
         };
         AddChild(_sunLight);
 
-        // Realistic warm torch with smooth wide-angle illumination (shadows disabled for performance & stable lighting)
+        // Realistic warm torch with smooth wide-angle illumination (cubemap shadows disabled for 60fps performance)
         _torch = new OmniLight3D
         {
             LightColor = _currentBiome.TorchLightColor,
@@ -838,8 +843,8 @@ public partial class DungeonWorld : Node3D
             FogDensity = b.FogDensity,
             VolumetricFogEnabled = false,
             SsaoEnabled = true,
-            SsaoRadius = 1.6f,
-            SsaoIntensity = 2.2f,
+            SsaoRadius = 0.85f,
+            SsaoIntensity = 1.4f,
             SsaoPower = 1.4f,
             SsaoDetail = 0.6f,
             SsrEnabled = false,
@@ -847,7 +852,7 @@ public partial class DungeonWorld : Node3D
             SdfgiEnabled = false,
             GlowEnabled = true,
             GlowIntensity = 0.45f,
-            GlowBloom = 0.12f,
+            GlowBloom = 0.08f,
             GlowBlendMode = Godot.Environment.GlowBlendModeEnum.Softlight,
             TonemapMode = Godot.Environment.ToneMapper.Filmic,
             TonemapExposure = b.TonemapExposure,
@@ -859,7 +864,7 @@ public partial class DungeonWorld : Node3D
 
     #region Procedural Textures & Materials
 
-    private static Texture2D LoadTextureOrFallback(string resPath, Func<ImageTexture> fallbackFunc)
+    private static Texture2D LoadTextureOrFallback(string resPath, Func<Texture2D> fallbackFunc)
     {
         if (ResourceLoader.Exists(resPath))
         {
@@ -1878,6 +1883,111 @@ public partial class DungeonWorld : Node3D
         });
     }
 
+    private static readonly Dictionary<string, (ImageTexture, ImageTexture)> _polyHavenTextureCache = new();
+
+    private static string FindPolyHavenFile(string texName, params string[] filenames)
+    {
+        foreach (var fn in filenames)
+        {
+            var p1 = $"../server/public/assets/polyhaven/textures/{texName}/{fn}";
+            var p2 = $"server/public/assets/polyhaven/textures/{texName}/{fn}";
+
+            try
+            {
+                var global = ProjectSettings.GlobalizePath($"res://{p1}");
+                if (System.IO.File.Exists(global)) return global;
+            }
+            catch { }
+
+            if (System.IO.File.Exists(p1)) return p1;
+            if (System.IO.File.Exists(p2)) return p2;
+
+            try
+            {
+                var full1 = System.IO.Path.GetFullPath(p1);
+                if (System.IO.File.Exists(full1)) return full1;
+                var full2 = System.IO.Path.GetFullPath(p2);
+                if (System.IO.File.Exists(full2)) return full2;
+            }
+            catch { }
+        }
+        return null;
+    }
+
+    public static bool TryLoadPolyHavenTextureSet(string texName, out ImageTexture diff, out ImageTexture norm, out ImageTexture arm)
+    {
+        diff = null;
+        norm = null;
+        arm = null;
+
+        if (string.IsNullOrEmpty(texName)) return false;
+
+        if (_polyHavenTextureCache.TryGetValue(texName, out var cached))
+        {
+            diff = cached.Item1;
+            norm = cached.Item2;
+            return diff != null;
+        }
+
+        string diffPath = FindPolyHavenFile(texName, $"{texName}_diff_2k.jpg", "diff.jpg", $"{texName}_diff_1k.jpg");
+        string normPath = FindPolyHavenFile(texName, $"{texName}_nor_gl_2k.jpg", "nor_gl.jpg", $"{texName}_nor_gl_1k.jpg");
+        string armPath = FindPolyHavenFile(texName, $"{texName}_arm_2k.jpg", "arm.jpg", $"{texName}_arm_1k.jpg");
+
+        if (diffPath != null)
+        {
+            try
+            {
+                var diffImg = Image.LoadFromFile(diffPath);
+                if (diffImg != null)
+                {
+                    diffImg.GenerateMipmaps();
+                    diff = ImageTexture.CreateFromImage(diffImg);
+                }
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[DungeonWorld] Poly Haven diff error '{diffPath}': {ex.Message}");
+            }
+        }
+
+        if (normPath != null)
+        {
+            try
+            {
+                var normImg = Image.LoadFromFile(normPath);
+                if (normImg != null)
+                {
+                    normImg.GenerateMipmaps();
+                    norm = ImageTexture.CreateFromImage(normImg);
+                }
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[DungeonWorld] Poly Haven norm error '{normPath}': {ex.Message}");
+            }
+        }
+
+        if (armPath != null)
+        {
+            try
+            {
+                var armImg = Image.LoadFromFile(armPath);
+                if (armImg != null)
+                {
+                    armImg.GenerateMipmaps();
+                    arm = ImageTexture.CreateFromImage(armImg);
+                }
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[DungeonWorld] Poly Haven arm error '{armPath}': {ex.Message}");
+            }
+        }
+
+        _polyHavenTextureCache[texName] = (diff, norm);
+        return diff != null;
+    }
+
     private static void InitMaterials()
     {
         if (_wallMaterial != null)
@@ -1886,11 +1996,11 @@ public partial class DungeonWorld : Node3D
         }
 
         var wallTex = LoadTextureOrFallback("res://assets/models/town/T_Brick_BaseColor.png", CreateStoneWallTexture);
-        var wallNormal = LoadTextureOrFallback("res://assets/models/town/T_Brick_Normal.png", CreateStoneWallNormal);
+        var wallNormal = LoadTextureOrFallback("res://assets/textures/T_RockTrim_Normal.png", () => LoadTextureOrFallback("res://assets/models/town/T_Brick_Normal.png", CreateStoneWallNormal));
         var wallRoughness = LoadTextureOrFallback("res://assets/models/town/T_Brick_Roughness.png", CreateStoneWallRoughness);
 
         var floorTex = LoadTextureOrFallback("res://assets/models/town/T_UnevenBrick_BaseColor.png", CreateFloorTexture);
-        var floorNormal = LoadTextureOrFallback("res://assets/models/town/T_UnevenBrick_Normal.png", CreateFloorNormal);
+        var floorNormal = LoadTextureOrFallback("res://assets/textures/T_UnevenBrick_Normal.png", () => LoadTextureOrFallback("res://assets/models/town/T_UnevenBrick_Normal.png", CreateFloorNormal));
         var floorRoughness = LoadTextureOrFallback("res://assets/models/town/T_UnevenBrick_Roughness.png", CreateFloorRoughness);
 
         var ceilingTex = LoadTextureOrFallback("res://assets/models/town/T_RockTrim_BaseColor.png", CreateCeilingTexture);
@@ -1916,7 +2026,7 @@ public partial class DungeonWorld : Node3D
             AlbedoTexture = wallTex,
             NormalEnabled = true,
             NormalTexture = wallNormal,
-            NormalScale = 0.85f,
+            NormalScale = 1.55f,
             RoughnessTexture = wallRoughness,
             Roughness = 0.80f,
             Metallic = 0.02f,
@@ -1932,7 +2042,7 @@ public partial class DungeonWorld : Node3D
             AlbedoTexture = floorTex,
             NormalEnabled = true,
             NormalTexture = floorNormal,
-            NormalScale = 0.80f,
+            NormalScale = 1.45f,
             RoughnessTexture = floorRoughness,
             Roughness = 0.74f,
             Metallic = 0.04f,
@@ -1941,6 +2051,20 @@ public partial class DungeonWorld : Node3D
             Uv1WorldTriplanar = true,
             Uv1Scale = new Vector3(0.5f, 0.5f, 0.5f),
         };
+
+        if (TryLoadPolyHavenTextureSet("castle_brick_broken_06", out var phWallDiff, out var phWallNorm, out var phWallArm))
+        {
+            if (phWallDiff != null) _wallMaterial.AlbedoTexture = phWallDiff;
+            if (phWallNorm != null) { _wallMaterial.NormalEnabled = true; _wallMaterial.NormalTexture = phWallNorm; }
+            if (phWallArm != null) _wallMaterial.RoughnessTexture = phWallArm;
+        }
+
+        if (TryLoadPolyHavenTextureSet("cobblestone_floor_08", out var phFloorDiff, out var phFloorNorm, out var phFloorArm))
+        {
+            if (phFloorDiff != null) _floorMaterial.AlbedoTexture = phFloorDiff;
+            if (phFloorNorm != null) { _floorMaterial.NormalEnabled = true; _floorMaterial.NormalTexture = phFloorNorm; }
+            if (phFloorArm != null) _floorMaterial.RoughnessTexture = phFloorArm;
+        }
 
         _ceilingMaterial = new StandardMaterial3D
         {
@@ -2666,6 +2790,41 @@ void fragment() {
         return mesh;
     }
 
+    private static Mesh BuildForgeMesh()
+    {
+        // Surface 0: Heavy Iron Smithing Anvil + Stone Hearth Basin
+        var stIron = new SurfaceTool();
+        stIron.Begin(Mesh.PrimitiveType.Triangles);
+
+        // Stone hearth fire-pit base
+        AddBox(stIron, new Vector3(0.35f, 0.25f, 0.0f), new Vector3(0.85f, 0.50f, 0.85f));
+
+        // Anvil base foot
+        AddBox(stIron, new Vector3(-0.35f, 0.12f, 0.0f), new Vector3(0.55f, 0.24f, 0.45f));
+        // Anvil waist / column
+        AddBox(stIron, new Vector3(-0.35f, 0.35f, 0.0f), new Vector3(0.32f, 0.22f, 0.28f));
+        // Anvil body & striking face
+        AddBox(stIron, new Vector3(-0.35f, 0.55f, 0.0f), new Vector3(0.70f, 0.18f, 0.34f));
+        // Anvil conical horn
+        AddBox(stIron, new Vector3(-0.76f, 0.56f, 0.0f), new Vector3(0.22f, 0.12f, 0.16f));
+
+        stIron.GenerateNormals();
+        stIron.GenerateTangents();
+        var mesh = stIron.Commit();
+
+        // Surface 1: Glowing Coal Hearth
+        var stCoal = new SurfaceTool();
+        stCoal.Begin(Mesh.PrimitiveType.Triangles);
+        AddBox(stCoal, new Vector3(0.35f, 0.45f, 0.0f), new Vector3(0.65f, 0.15f, 0.65f));
+        stCoal.GenerateNormals();
+        stCoal.GenerateTangents();
+        mesh = stCoal.Commit(mesh);
+
+        mesh.SurfaceSetMaterial(0, _rubbleMaterial ?? _wallMaterial);
+        mesh.SurfaceSetMaterial(1, _lavaMaterial);
+        return mesh;
+    }
+
     private static Mesh BuildMountainMesh()
     {
         var st = new SurfaceTool();
@@ -2677,6 +2836,35 @@ void fragment() {
         st.GenerateTangents();
         var mesh = st.Commit();
         mesh.SurfaceSetMaterial(0, _mountainMaterial);
+        return mesh;
+    }
+
+    private static Mesh BuildChasmMesh()
+    {
+        var st = new SurfaceTool();
+        st.Begin(Mesh.PrimitiveType.Triangles);
+
+        // Sunken dark abyssal floor at bottom of pit (Y = -1.80f)
+        AddBox(st, new Vector3(0, -1.80f, 0), new Vector3(Cell, 0.10f, Cell));
+
+        // Recessed dark rim walls descending from surface level (Y=0) down into the abyssal pit (Y=-1.80f)
+        const float rimThick = 0.12f;
+        const float rimHeight = 1.80f;
+        const float rimY = -rimHeight / 2.0f; // -0.90f
+
+        // North rim (-Z)
+        AddBox(st, new Vector3(0, rimY, -Cell / 2.0f + rimThick / 2.0f), new Vector3(Cell, rimHeight, rimThick));
+        // South rim (+Z)
+        AddBox(st, new Vector3(0, rimY, Cell / 2.0f - rimThick / 2.0f), new Vector3(Cell, rimHeight, rimThick));
+        // West rim (-X)
+        AddBox(st, new Vector3(-Cell / 2.0f + rimThick / 2.0f, rimY, 0), new Vector3(rimThick, rimHeight, Cell));
+        // East rim (+X)
+        AddBox(st, new Vector3(Cell / 2.0f - rimThick / 2.0f, rimY, 0), new Vector3(rimThick, rimHeight, Cell));
+
+        st.GenerateNormals();
+        st.GenerateTangents();
+        var mesh = st.Commit();
+        mesh.SurfaceSetMaterial(0, _chasmMaterial);
         return mesh;
     }
 
@@ -2821,7 +3009,9 @@ void fragment() {
             Kind.Lava =>
                 new BoxMesh { Size = new Vector3(Cell, 0.12f, Cell) },
             Kind.Chasm =>
-                new BoxMesh { Size = new Vector3(Cell, 0.04f, Cell) },
+                BuildChasmMesh(),
+            Kind.Forge =>
+                BuildForgeMesh(),
             _ when IsStoreKind(k) =>
                 BuildShopDoorMesh(StoreNumOf(k)),
             _ => new BoxMesh { Size = new Vector3(Cell, WallHeight, Cell) },
@@ -3020,6 +3210,7 @@ void fragment() {
                 _sunLight.Visible = _outdoors;
                 _sunLight.LightEnergy = _outdoors ? 1.35f : 0.0f;
             }
+            _lastMapRebuildSig = 0;
 
             // Transition to new depth biome profile with deterministic level sub-theme
             var mapW = map.GetProperty("w").GetInt32();
@@ -3041,6 +3232,29 @@ void fragment() {
             if (_wallMaterial != null)
             {
                 _wallMaterial.Roughness = _targetBiome.WallRoughness;
+            }
+
+            var realmLower = (Realm ?? "").ToLowerInvariant();
+            string wallTexName = depth <= 0
+                ? (realmLower == "hengband" ? "plastered_stone_wall" : "castle_brick_broken_06")
+                : (realmLower == "hengband" ? "japanese_stone_wall" : (depth >= 80 ? "rock_boulder_cracked" : (depth >= 50 ? "rock_wall_10" : "medieval_blocks_05")));
+
+            string floorTexName = depth <= 0
+                ? (realmLower == "hengband" ? "monastery_stone_floor" : "cobblestone_floor_08")
+                : (depth >= 50 ? "rock_embedded_floor" : "monastery_stone_floor");
+
+            if (_wallMaterial != null && TryLoadPolyHavenTextureSet(wallTexName, out var bWallDiff, out var bWallNorm, out var bWallArm))
+            {
+                if (bWallDiff != null) _wallMaterial.AlbedoTexture = bWallDiff;
+                if (bWallNorm != null) { _wallMaterial.NormalEnabled = true; _wallMaterial.NormalTexture = bWallNorm; }
+                if (bWallArm != null) _wallMaterial.RoughnessTexture = bWallArm;
+            }
+
+            if (_floorMaterial != null && TryLoadPolyHavenTextureSet(floorTexName, out var bFloorDiff, out var bFloorNorm, out var bFloorArm))
+            {
+                if (bFloorDiff != null) _floorMaterial.AlbedoTexture = bFloorDiff;
+                if (bFloorNorm != null) { _floorMaterial.NormalEnabled = true; _floorMaterial.NormalTexture = bFloorNorm; }
+                if (bFloorArm != null) _floorMaterial.RoughnessTexture = bFloorArm;
             }
 
             if (_biomeParticles != null)
@@ -3080,12 +3294,90 @@ void fragment() {
         // Calculate character height ratio and eye height for active level
         CalculateCharacterHeight(player);
 
-        Rebuild(map, px, py);
+        _torchRadius = Math.Max(1, player.GetProperty("light").GetInt32());
+
+        bool hasWaterOrSwamp = false;
+        if (map.TryGetProperty("rows", out var mapRows) && mapRows.ValueKind == JsonValueKind.Array)
+        {
+            var h = mapRows.GetArrayLength();
+            if (_featRows == null || _featRows.Length != h)
+            {
+                _featRows = new string[h];
+                _flagRows = new string[h];
+            }
+            for (var r = 0; r < h; r++)
+            {
+                var row = mapRows[r];
+                var f = row.TryGetProperty("f", out var fVal) ? (fVal.GetString() ?? "") : "";
+                var l = row.TryGetProperty("l", out var lVal) ? (lVal.GetString() ?? "") : "";
+                _featRows[r] = f;
+                _flagRows[r] = l;
+                if (!hasWaterOrSwamp && f.Length > 0)
+                {
+                    for (var c = 0; c + 1 < f.Length; c += 2)
+                    {
+                        var featCode = (AngbandColors.HexVal(f[c]) << 4) | AngbandColors.HexVal(f[c + 1]);
+                        if (featCode is 28 or 29 or 31)
+                        {
+                            hasWaterOrSwamp = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (_floorMaterial != null && _targetBiome != null)
+        {
+            var isWetBiome = _targetBiome.Name != null && (
+                _targetBiome.Name.Contains("Marsh") ||
+                _targetBiome.Name.Contains("Grotto") ||
+                _targetBiome.Name.Contains("Cistern") ||
+                _targetBiome.Name.Contains("Damp"));
+            _floorMaterial.Roughness = (isWetBiome || hasWaterOrSwamp) ? 0.24f : _targetBiome.FloorRoughness;
+        }
+
+        uint rowsHash = 2166136261u;
+        if (_featRows != null && _flagRows != null)
+        {
+            for (var r = 0; r < _featRows.Length; r++)
+            {
+                var f = _featRows[r];
+                for (var i = 0; i < f.Length; i++)
+                {
+                    rowsHash = (rowsHash ^ f[i]) * 16777619u;
+                }
+                var l = _flagRows[r];
+                for (var i = 0; i < l.Length; i++)
+                {
+                    rowsHash = (rowsHash ^ l[i]) * 16777619u;
+                }
+            }
+        }
+
+        uint sig = 2166136261u;
+        sig = (sig ^ (uint)px) * 16777619u;
+        sig = (sig ^ (uint)py) * 16777619u;
+        sig = (sig ^ (uint)depth) * 16777619u;
+        sig = (sig ^ (uint)_torchRadius) * 16777619u;
+        if (Realm != null)
+        {
+            for (var i = 0; i < Realm.Length; i++)
+            {
+                sig = (sig ^ Realm[i]) * 16777619u;
+            }
+        }
+        sig = (sig ^ rowsHash) * 16777619u;
+
+        if (sig != _lastMapRebuildSig)
+        {
+            _lastMapRebuildSig = sig;
+            Rebuild(map, px, py);
+        }
 
         var activeWater = CalculateWaterYOffset(map, px, py);
         _currentWaterYOffset = activeWater;
         _targetPos = new Vector3(px * Cell, CurrentEyeHeight + activeWater, py * Cell);
-        _torchRadius = Math.Max(1, player.GetProperty("light").GetInt32());
         UpdateStairsHint(map, px, py);
 
         // Player HP delta tracking for floating damage/healing & feedback
@@ -3387,6 +3679,7 @@ void fragment() {
         k is Kind.Floor or Kind.DoorClosed or Kind.DoorOpen or Kind.DoorBroken
             or Kind.StairsDown or Kind.StairsUp or Kind.Lava or Kind.Rubble
             or Kind.Tree or Kind.Grass or Kind.Dirt or Kind.ShallowWater or Kind.DeepWater or Kind.Swamp
+            or Kind.Chasm
             || IsStoreKind(k);
 
     private static float DetermineDoorOrientation(JsonElement map, int x, int y, int w, int h)
@@ -3568,7 +3861,12 @@ void fragment() {
                 var isSunlight = Realm == "silq" && feat == 25;
                 if (Realm != "silq")
                 {
-                    if (feat == (int)Feat.Tree && (glyph == '.' || glyph == ',' || glyph == '\''))
+                    if (string.Equals(Realm, "frogcomposband", StringComparison.OrdinalIgnoreCase) && glyph == '#' &&
+                        (tileAttr == 2 || tileAttr == 8 || tileAttr == 9 || feat == (int)Feat.Chasm))
+                    {
+                        feat = (int)Feat.Chasm;
+                    }
+                    else if (feat == (int)Feat.Tree && (glyph == '.' || glyph == ',' || glyph == '\''))
                     {
                         feat = (int)Feat.Grass;
                     }
@@ -3722,7 +4020,7 @@ void fragment() {
                     _xf[Kind.Floor].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, -0.05f, y * Cell)));
                     _col[Kind.Floor].Add(shade);
 
-                    // Solid stone blocks spanning from Y=0 to Y=WallHeight=3.0m
+                    // Solid stone blocks spanning from Y=0 to Y=WallHeight
                     var pos = new Vector3(x * Cell, WallHeight / 2.0f, y * Cell);
                     _xf[kind].Add(new Transform3D(Basis.Identity, pos));
                     _col[kind].Add(shade);
@@ -3834,11 +4132,24 @@ void fragment() {
                     _xf[Kind.Lava].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, 0.06f, y * Cell)));
                     _col[Kind.Lava].Add(shade);
                 }
+                else if (kind == Kind.Chasm)
+                {
+                    _xf[Kind.Chasm].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, 0f, y * Cell)));
+                    _col[Kind.Chasm].Add(new Color(0.01f, 0.01f, 0.02f));
+                }
+                else if (kind == Kind.Forge && (!_outdoors || Realm == "silq"))
+                {
+                    _xf[Kind.Floor].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, -0.05f, y * Cell)));
+                    _col[Kind.Floor].Add(shade);
+
+                    _xf[Kind.Forge].Add(new Transform3D(Basis.Identity, new Vector3(x * Cell, 0, y * Cell)));
+                    _col[Kind.Forge].Add(shade);
+                }
 
                 // Ceiling over walkable areas and doorways in the dungeon (including subterranean lava pools, skip sunlight fissures)
                 if (!_outdoors && !isSunlight && (kind is Kind.Floor or Kind.StairsDown or Kind.StairsUp
                     or Kind.DoorClosed or Kind.DoorOpen or Kind.DoorBroken or Kind.Rubble or Kind.Lava
-                    or Kind.Wall or Kind.PermWall or Kind.Magma or Kind.Quartz or Kind.GoldVein or Kind.GemVein || IsStoreKind(kind)))
+                    or Kind.Forge or Kind.Wall or Kind.PermWall or Kind.Magma or Kind.Quartz or Kind.GoldVein or Kind.GemVein || IsStoreKind(kind)))
                 {
                     _xf[Kind.Ceiling].Add(new Transform3D(Basis.Identity,
                         new Vector3(x * Cell, WallHeight + 0.05f, y * Cell)));
@@ -4211,7 +4522,7 @@ void fragment() {
     {
         if (numpadDir == 5)
         {
-            return Realm == "silq" ? "," : ".";
+            return RealmKeys.Get("hold", Realm) ?? ",";
         }
         int localIndex = numpadDir switch
         {
@@ -4997,14 +5308,14 @@ void fragment() {
             if (monster.StatusBadge != null && monster.StatusBadge.Visible)
             {
                 var badgeOffset = Mathf.Sin((float)_flicker * 2.5f + monster.FloatOffset) * 0.04f;
-                monster.StatusBadge.Position = new Vector3(0, monster.ModelHeight + 0.65f + badgeOffset, 0);
+                monster.StatusBadge.Position = new Vector3(0, monster.ModelHeight + 0.24f + 0.40f + badgeOffset, 0);
             }
 
             if (monster.TargetBadge != null && monster.TargetBadge.Visible)
             {
                 var reticleOffset = Mathf.Sin((float)_flicker * 4.0f) * 0.06f;
                 var reticleAlpha = 0.80f + Mathf.Sin((float)_flicker * 5.0f) * 0.20f;
-                monster.TargetBadge.Position = new Vector3(0, monster.ModelHeight + 0.95f + reticleOffset, 0);
+                monster.TargetBadge.Position = new Vector3(0, monster.ModelHeight + 0.24f + 0.70f + reticleOffset, 0);
                 monster.TargetBadge.Modulate = new Color(1.0f, 0.92f, 0.30f, reticleAlpha);
             }
 

@@ -38,30 +38,39 @@ class LocalSaveManager {
             return new Promise((resolve) => {
                 const tx = db.transaction(this.STORE_NAME, 'readonly');
                 const store = tx.objectStore(this.STORE_NAME);
-                const req = store.getAllKeys();
-                req.onsuccess = async () => {
-                    const keys = req.result || [];
-                    const saves = [];
-                    const seenBases = new Set();
-                    for (const k of keys) {
+                const req = store.openCursor();
+                const savesByBase = new Map();
+                req.onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        const k = cursor.key;
+                        const record = cursor.value || {};
                         if (typeof k === 'string' && k.startsWith('/lib/save/')) {
                             const filename = k.replace('/lib/save/', '');
                             if (filename && filename !== '.' && filename !== '..' && !filename.includes('/')) {
                                 const base = filename.replace(/\.sav$/i, '');
-                                if (!seenBases.has(base.toLowerCase())) {
-                                    seenBases.add(base.toLowerCase());
-                                    saves.push({
-                                        characterName: base,
-                                        filename: filename,
-                                        description: 'Local Device Save (Offline)',
-                                        isLocal: true,
-                                        lastModified: Date.now()
-                                    });
+                                const lowerBase = base.toLowerCase();
+                                const rawTs = record.timestamp || record.mtime || 0;
+                                const ts = rawTs ? (rawTs instanceof Date ? rawTs.getTime() : new Date(rawTs).getTime()) : 0;
+                                const entry = {
+                                    characterName: base,
+                                    filename: filename,
+                                    description: 'Local Device Save (Offline)',
+                                    isLocal: true,
+                                    lastModified: ts || Date.now(),
+                                    timestamp: ts
+                                };
+                                if (!savesByBase.has(lowerBase) || ts > (savesByBase.get(lowerBase).timestamp || 0)) {
+                                    savesByBase.set(lowerBase, entry);
                                 }
                             }
                         }
+                        cursor.continue();
+                    } else {
+                        const saves = Array.from(savesByBase.values());
+                        saves.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                        resolve(saves);
                     }
-                    resolve(saves);
                 };
                 req.onerror = () => resolve([]);
             });
@@ -121,9 +130,11 @@ class LocalSaveManager {
             return new Promise((resolve) => {
                 const tx = db.transaction(this.STORE_NAME, 'readwrite');
                 const store = tx.objectStore(this.STORE_NAME);
-                const req = store.delete('/lib/save/' + filename);
-                req.onsuccess = () => resolve(true);
-                req.onerror = () => resolve(false);
+                const base = filename.replace(/\.sav$/i, '');
+                store.delete('/lib/save/' + base);
+                store.delete('/lib/save/' + base + '.sav');
+                tx.oncomplete = () => resolve(true);
+                tx.onerror = () => resolve(false);
             });
         } catch (_) {
             return false;
@@ -272,10 +283,14 @@ class LocalGameBridge {
         if (!this.connected || !this.worker) return false;
         return new Promise((resolve) => {
             let resolved = false;
-            const onPersist = () => {
+            const prev = this.onSavePersisted;
+            const onPersist = (data) => {
+                if (typeof prev === 'function') {
+                    try { prev(data); } catch (_) {}
+                }
                 if (!resolved) {
                     resolved = true;
-                    this.onSavePersisted = null;
+                    this.onSavePersisted = prev;
                     resolve(true);
                 }
             };
@@ -284,6 +299,9 @@ class LocalGameBridge {
             setTimeout(() => {
                 if (!resolved) {
                     resolved = true;
+                    if (this.onSavePersisted === onPersist) {
+                        this.onSavePersisted = prev;
+                    }
                     resolve(false);
                 }
             }, 2000);

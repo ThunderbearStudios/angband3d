@@ -1,0 +1,241 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v3.5.30",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "ornate_medieval_dagger"
+    },
+    {
+      "mesh": 1,
+      "name": "ornate_medieval_dagger_scabbard",
+      "translation": [
+        0.06000000983476639,
+        0.12600000202655792,
+        0
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "ornate_medieval_dagger",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Vert.003",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "TEXCOORD_0": 1,
+            "NORMAL": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Plane.013",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "TEXCOORD_0": 5,
+            "NORMAL": 6
+          },
+          "indices": 7,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "ornate_medieval_dagger_nor_gl",
+      "uri": "textures/ornate_medieval_dagger_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "ornate_medieval_dagger_diff",
+      "uri": "textures/ornate_medieval_dagger_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "ornate_medieval_dagger_metal-ornate_medieval_dagger_rough",
+      "uri": "textures/ornate_medieval_dagger_arm_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 2523,
+      "max": [
+        0.03962269425392151,
+        0.26718372106552124,
+        0.012485486455261707
+      ],
+      "min": [
+        -0.040217939764261246,
+        -0.07869891822338104,
+        -0.012474235147237778
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 2523,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 2523,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 12684,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 1364,
+      "max": [
+        0.019931631162762642,
+        0.14425094425678253,
+        0.007378548849374056
+      ],
+      "min": [
+        -0.019931672140955925,
+        -0.07491575926542282,
+        -0.007381004747003317
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 1364,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 1364,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 6186,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 30276,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 20184,
+      "byteOffset": 30276,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 30276,
+      "byteOffset": 50460,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 25368,
+      "byteOffset": 80736,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 16368,
+      "byteOffset": 106104,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 10912,
+      "byteOffset": 122472,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 16368,
+      "byteOffset": 133384,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 12372,
+      "byteOffset": 149752,
+      "target": 34963
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 162124,
+      "uri": "ornate_medieval_dagger.bin"
+    }
+  ]
+}

@@ -4,6 +4,16 @@
  * interactive Q&A consultation, and tab visibility audio etiquette.
  */
 
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 class ChronicleManager {
     constructor() {
         this.store = (typeof window !== 'undefined' && window.ChronicleStore) ? window.ChronicleStore : (typeof ChronicleStore !== 'undefined' ? ChronicleStore : null);
@@ -74,6 +84,15 @@ class ChronicleManager {
         this.btnExpand = null;
         this.btnSettings = null;
         this.btnClose = null;
+        this.btnSketch = null;
+        this.sketchModal = null;
+        this.sketchModalImg = null;
+        this.sketchModalCaption = null;
+        this.sketchModalGear = null;
+        this.sketchModalTitle = null;
+        this.btnDownloadSketchPng = null;
+        this.btnCloseSketchModal = null;
+        this._lastHeroSketchTime = 0;
 
         // Audiobook & Story Playback State
         this.storyPlaylist = [];
@@ -176,6 +195,14 @@ class ChronicleManager {
         this.navBtn = document.getElementById('btn-toggle-chronicle');
         this.pauseNavBtn = document.getElementById('btn-pause-chronicle');
         this.btnStoryPromptTome = document.getElementById('btn-chronicle-prompt-tale');
+        this.btnSketch = document.getElementById('chronicle-sketch-btn');
+        this.sketchModal = document.getElementById('chronicle-sketch-modal');
+        this.sketchModalImg = document.getElementById('chronicle-sketch-modal-img');
+        this.sketchModalCaption = document.getElementById('chronicle-sketch-modal-caption');
+        this.sketchModalGear = document.getElementById('chronicle-sketch-modal-gear');
+        this.sketchModalTitle = document.getElementById('chronicle-sketch-modal-title');
+        this.btnDownloadSketchPng = document.getElementById('btn-download-sketch-png');
+        this.btnCloseSketchModal = document.getElementById('btn-close-sketch-modal');
         this.vocalPillEl = document.getElementById('chronicle-vocal-pill');
         this.hudToastEl = document.getElementById('chronicle-hud-toast');
 
@@ -315,6 +342,25 @@ class ChronicleManager {
                 this.requestStoryPrompt();
             });
         }
+        if (this.btnSketch) {
+            this.btnSketch.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.promptHeroActionSketch();
+            });
+        }
+        if (this.btnCloseSketchModal) {
+            this.btnCloseSketchModal.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.closeSketchLightbox();
+            });
+        }
+        if (this.sketchModal) {
+            this.sketchModal.addEventListener('click', (e) => {
+                if (e.target === this.sketchModal) {
+                    this.closeSketchLightbox();
+                }
+            });
+        }
 
         // Safe Global Hotkeys for Chronicle Window & Audio Playback
         // NOTE: Standard movement (ArrowUp, ArrowDown, Shift+ArrowLeft, Shift+ArrowRight, k, j)
@@ -323,6 +369,12 @@ class ChronicleManager {
         if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
             window.addEventListener('keydown', (e) => {
                 if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+
+                if (e.key === 'Escape' && this.sketchModal && !this.sketchModal.classList.contains('hidden') && this.sketchModal.style.display !== 'none') {
+                    e.preventDefault();
+                    this.closeSketchLightbox();
+                    return;
+                }
 
                 if (e.altKey) {
                     // Alt + C: Toggle Living Chronicle window
@@ -364,6 +416,13 @@ class ChronicleManager {
                     if (e.key === 't' || e.key === 'T') {
                         e.preventDefault();
                         this.requestStoryPrompt();
+                        return;
+                    }
+
+                    // Alt + K: Hero Action Sketch
+                    if (e.key === 'k' || e.key === 'K') {
+                        e.preventDefault();
+                        this.promptHeroActionSketch();
                         return;
                     }
                 }
@@ -683,7 +742,7 @@ class ChronicleManager {
                 }
 
                 try {
-                    const res = await this.llm.testConnection(prov, key, model, endpoint);
+                    const res = await this.llm.testConnection(model);
                     if (this.testStatus) {
                         if (res && res.ok) {
                             this.testStatus.style.color = '#4ade80';
@@ -808,13 +867,6 @@ class ChronicleManager {
                 .replace('The Red Book of ', '');
             tradBadge.title = `Literary Tradition: ${trad.name} (${this.getLorekeeperName()} • Attuned to ${this.currentHero?.race || 'Adventurer'})`;
         }
-    }
-
-    getActiveRealm() {
-        return (this.currentHero && this.currentHero.realm) ||
-               (typeof window !== 'undefined' && window.__activeRealm) ||
-               (typeof window !== 'undefined' && window.activeRealm) ||
-               (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband');
     }
 
     getLanguageMode() {
@@ -946,10 +998,22 @@ class ChronicleManager {
                 if (prologueEntry && prologueEntry.prose) {
                     const narrProfile = this.grounder.resolveVoiceProfile(null, hero, 'ONBOARDING_TOWN_ARRIVAL', this.tradition);
                     const prewarmOpts = {
+                        ...(narrProfile || {}),
                         narrator: narrProfile,
                         engine: this.audio.ttsEngine
                     };
                     this.audio.prewarmUtterance(prologueEntry.prose, 'narrator', '', null, prewarmOpts).catch(() => {});
+
+                    const clean = prologueEntry.prose.replace(/<[^>]*>/g, '').trim();
+                    const sentences = clean.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [clean];
+                    if (sentences.length > 1 && clean.length > 40 && sentences[0].length >= 10) {
+                        const s1 = sentences[0];
+                        const remainder = sentences.slice(1).join(' ');
+                        if (s1 && remainder) {
+                            this.audio.prewarmUtterance(s1, 'narrator', '', null, prewarmOpts).catch(() => {});
+                            this.audio.prewarmUtterance(remainder, 'narrator', '', null, prewarmOpts).catch(() => {});
+                        }
+                    }
                 }
             } catch (_) {}
         }
@@ -1213,9 +1277,13 @@ class ChronicleManager {
                 nearestMonster._interactTurn || 1,
                 '',
                 this.getActiveRealm(),
-                this.getLanguageMode()
+                this.getLanguageMode(),
+                { dryRun: true }
             );
             if (!res) return;
+
+            nearestMonster._prewarmedEncounter = res;
+            nearestMonster._prewarmedState = nearestMonster.state || stateObj.state;
 
             const cVoiceProfile = this.grounder.resolveVoiceProfile(
                 nearestMonster,
@@ -1227,35 +1295,45 @@ class ChronicleManager {
                 this.getLanguageMode()
             );
 
-            if (res.isDialogue && res.text) {
+            const narrProfile = this.grounder.resolveVoiceProfile(
+                null,
+                hero,
+                stateObj.state,
+                this.tradition,
+                false,
+                this.getActiveRealm(),
+                this.getLanguageMode()
+            );
+
+            if (res.prose) {
+                const nOpts = {
+                    ...(narrProfile || {}),
+                    narrator: narrProfile,
+                    voice: narrProfile?.edgeVoice || '',
+                    geminiVoice: narrProfile?.geminiVoice || 'Enceladus',
+                    pitch: narrProfile?.pitch || '',
+                    rate: narrProfile?.rate || '',
+                    emotion: narrProfile?.emotion || '',
+                    gender: narrProfile?.gender || 'male',
+                    engine: this.audio.ttsEngine || 'gemini'
+                };
+                this.audio.prewarmUtterance(res.prose, 'narrator', '', null, nOpts).catch(() => {});
+            }
+
+            if (res.text && !res.isNoise) {
                 const dOpts = {
+                    ...(cVoiceProfile || {}),
                     voice: cVoiceProfile?.edgeVoice || '',
                     geminiVoice: cVoiceProfile?.geminiVoice || 'Fenrir',
                     directorNote: cVoiceProfile?.directorNote || '',
                     geminiTag: cVoiceProfile?.geminiTag || '',
                     pitch: cVoiceProfile?.pitch || '',
                     rate: cVoiceProfile?.rate || '',
+                    emotion: cVoiceProfile?.emotion || '',
+                    gender: cVoiceProfile?.gender || '',
                     engine: this.audio.ttsEngine || 'gemini'
                 };
                 this.audio.prewarmUtterance(res.text, 'creature', nearestMonster.name, cVoiceProfile?.geminiVoice || null, dOpts).catch(() => {});
-            } else if (res.prose) {
-                const narrProfile = this.grounder.resolveVoiceProfile(
-                    null,
-                    hero,
-                    stateObj.state,
-                    this.tradition,
-                    false,
-                    this.getActiveRealm(),
-                    this.getLanguageMode()
-                );
-                const nOpts = {
-                    voice: narrProfile?.edgeVoice || '',
-                    geminiVoice: narrProfile?.geminiVoice || 'Enceladus',
-                    pitch: narrProfile?.pitch || '',
-                    rate: narrProfile?.rate || '',
-                    engine: this.audio.ttsEngine || 'gemini'
-                };
-                this.audio.prewarmUtterance(res.prose, 'narrator', '', null, nOpts).catch(() => {});
             }
         } catch (_) {}
     }
@@ -1287,14 +1365,15 @@ class ChronicleManager {
         const hasPotionOrHeal = events.some(ev => ev.type === 'POTION_QUAFFED' || ev.type === 'HEALING_DRAUGHT' || (ev.data?.item && ev.data.item.toLowerCase().includes('potion')));
         const hasSpellCast = events.some(ev => ev.data?.attackMedium && (ev.data.attackMedium.type === 'spell' || ev.data.attackMedium.method === 'spell'));
         const hasMajorAffliction = events.some(ev => ev.type === 'PLAYER_STATUS');
-        const curHp = curPlayer.chp || 1;
-        const maxHp = curPlayer.mhp || 1;
+        const curHp = curPlayer.hp ?? curPlayer.chp ?? 1;
+        const maxHp = curPlayer.hp_max ?? curPlayer.mhp ?? 1;
         const hpPct = curHp / maxHp;
         const inMortalPeril = hpPct < 0.35;
 
         let significantHpDrop = false;
-        if (this.voicingHeroSnapshot && typeof this.voicingHeroSnapshot.chp === 'number') {
-            const hpDelta = this.voicingHeroSnapshot.chp - curHp;
+        const snapChp = this.voicingHeroSnapshot ? (this.voicingHeroSnapshot.hp ?? this.voicingHeroSnapshot.chp) : null;
+        if (typeof snapChp === 'number') {
+            const hpDelta = snapChp - curHp;
             if (hpDelta >= Math.max(15, maxHp * 0.25)) {
                 significantHpDrop = true;
             }
@@ -1838,6 +1917,18 @@ class ChronicleManager {
                 const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, '', this.tradition) : null;
                 const speakOpts = { ...(narrProfile || {}), narrator: narrProfile, engine: this.audio.ttsEngine || 'gemini' };
                 this.audio.prewarmUtterance(beat.text, 'narrator', '', null, speakOpts).catch(() => {});
+                if (beat.text) {
+                    const clean = beat.text.replace(/<[^>]*>/g, '').trim();
+                    const sentences = clean.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [clean];
+                    if (sentences.length > 1 && clean.length > 40 && sentences[0].length >= 10) {
+                        const s1 = sentences[0];
+                        const remainder = sentences.slice(1).join(' ');
+                        if (s1 && remainder) {
+                            this.audio.prewarmUtterance(s1, 'narrator', '', null, speakOpts).catch(() => {});
+                            this.audio.prewarmUtterance(remainder, 'narrator', '', null, speakOpts).catch(() => {});
+                        }
+                    }
+                }
                 if (beat.dialogue && beat.dialogue.text && !beat.dialogue.isNoise) {
                     const speakerEntity = beat.dialogue.creature || { name: beat.dialogue.speaker };
                     const cProfile = this.grounder ? this.grounder.resolveVoiceProfile(speakerEntity, this.currentHero, '', this.tradition) : null;
@@ -2309,6 +2400,1385 @@ class ChronicleManager {
         }
     }
 
+    escapeHtml(str) {
+        return escapeHtml(str);
+    }
+
+    openSketchLightbox(imageUrl, title, caption, gearBadges = [], statBadges = [], statusBadges = [], historyTimeline = []) {
+        if (!this.sketchModal) {
+            this.sketchModal = document.getElementById('chronicle-sketch-modal');
+            this.sketchModalImg = document.getElementById('chronicle-sketch-modal-img');
+            this.sketchModalCaption = document.getElementById('chronicle-sketch-modal-caption');
+            this.sketchModalGear = document.getElementById('chronicle-sketch-modal-gear');
+            this.sketchModalTitle = document.getElementById('chronicle-sketch-modal-title');
+            this.btnDownloadSketchPng = document.getElementById('btn-download-sketch-png');
+            this.btnCloseSketchModal = document.getElementById('btn-close-sketch-modal');
+        }
+        if (!this.sketchModal) return;
+
+        if (this.sketchModalTitle && title) {
+            this.sketchModalTitle.textContent = title;
+        }
+        if (this.sketchModalImg) {
+            this.sketchModalImg.src = imageUrl || '';
+        }
+        if (this.sketchModalCaption) {
+            this.sketchModalCaption.textContent = caption || '';
+        }
+        if (this.sketchModalGear) {
+            this.sketchModalGear.innerHTML = '';
+
+            let gear = gearBadges;
+            let stats = statBadges;
+            let status = statusBadges;
+            let history = historyTimeline;
+            if (gearBadges && !Array.isArray(gearBadges) && typeof gearBadges === 'object') {
+                stats = gearBadges.statBadges || [];
+                status = gearBadges.statusBadges || [];
+                history = gearBadges.historyTimeline || [];
+                gear = gearBadges.gearBadges || [];
+            }
+
+            const appendPills = (items, className, prefix = '') => {
+                if (!Array.isArray(items) || items.length === 0) return;
+                for (const item of items) {
+                    const tag = document.createElement('span');
+                    tag.className = 'chronicle-sketch-gear-tag ' + className;
+                    tag.textContent = prefix ? `${prefix} ${item}` : item;
+                    this.sketchModalGear.appendChild(tag);
+                }
+            };
+
+            appendPills(status, 'chronicle-sketch-status-tag');
+            appendPills(stats, 'chronicle-sketch-stat-tag');
+            appendPills(gear, 'chronicle-sketch-gear-pill');
+            appendPills(history, 'chronicle-sketch-history-tag', '📜');
+        }
+        if (this.btnDownloadSketchPng) {
+            this.btnDownloadSketchPng.href = imageUrl || '#';
+            const cleanName = (title || 'angband3d-hero-sketch').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            this.btnDownloadSketchPng.download = `${cleanName}.png`;
+        }
+        this.sketchModal.classList.remove('hidden');
+        this.sketchModal.style.display = 'flex';
+    }
+
+    closeSketchLightbox() {
+        if (!this.sketchModal) {
+            this.sketchModal = document.getElementById('chronicle-sketch-modal');
+        }
+        if (!this.sketchModal) return;
+        this.sketchModal.classList.add('hidden');
+        this.sketchModal.style.display = 'none';
+    }
+
+    buildHeroSketchContext(overrideBeat = null) {
+        const realm = (typeof this.getActiveRealm === 'function' ? this.getActiveRealm() : 'angband') || 'angband';
+        const isSilq = (realm === 'silq');
+        const frame = this.lastFrame || {};
+        const p = frame.player || this.currentHero || {};
+
+        const name = p.name || 'Hero';
+        const race = p.race || 'Human';
+        const heroClass = p.class || p.cls || (isSilq ? 'Edain' : 'Warrior');
+        const title = p.title || '';
+        const level = p.lev || p.level || 1;
+        const depth = frame.depth ?? p.depth ?? 0;
+
+        // Vitals
+        const hp = p.hp ?? p.chp ?? 10;
+        const hp_max = p.hp_max ?? p.mhp ?? 10;
+        const mp = p.sp ?? p.csp ?? p.mp ?? p.mana ?? 0;
+        const mp_max = p.sp_max ?? p.msp ?? p.mp_max ?? p.max_mana ?? 0;
+        const exp = p.exp ?? p.max_exp ?? 0;
+        const turn = frame.turn ?? p.turn ?? 1;
+        const maxDepth = p.max_depth ?? p.max_dlv ?? frame.max_depth ?? depth;
+
+        let acVal = p.ac ?? p.armor ?? null;
+        let goldVal = p.au ?? p.gold ?? 0;
+        let speedVal = p.speed ?? null;
+
+        // 1. Scan terminal sidebar & screen rows (rows 0..22) for attributes, AC, Gold, Speed
+        const termRows = (frame.term && Array.isArray(frame.term.rows)) ? frame.term.rows : [];
+        const parsedSidebarStats = {};
+        for (let r = 0; r < Math.min(termRows.length, 23); r++) {
+            const row = typeof termRows[r] === 'string' ? termRows[r] : '';
+            if (!row) continue;
+            // Match attributes / skills: STR, INT, WIS, DEX, CON, CHR, GRA, Mel, Arc, Eva, Stl, Per, Wil, Smt, Sng
+            const statRegex = /\b(STR|INT|WIS|DEX|CON|CHR|GRA|Mel|Arc|Eva|Stl|Per|Wil|Smt|Sng)[\s:]+([0-9\/!+]+(?:\s*\([+-]?\d+\))?)/gi;
+            let m;
+            while ((m = statRegex.exec(row)) !== null) {
+                const key = m[1].toUpperCase();
+                if (!parsedSidebarStats[key]) {
+                    parsedSidebarStats[key] = m[2].trim();
+                }
+            }
+            if (acVal === null) {
+                const acMatch = row.match(/\b(?:AC|Armor|[\[\(]\d+,\s*\d+-\d+[\]\)])[\s:]*([+-]?\d+)/i);
+                if (acMatch) acVal = parseInt(acMatch[1], 10);
+            }
+            if (goldVal === 0) {
+                const goldMatch = row.match(/\b(?:AU|Gold)[\s:]+([0-9,]+)/i);
+                if (goldMatch) goldVal = parseInt(goldMatch[1].replace(/,/g, ''), 10);
+            }
+            if (speedVal === null) {
+                const spdMatch = row.match(/\b(?:Speed|Spd)[\s:]*([+-]?\d+)/i);
+                if (spdMatch) speedVal = parseInt(spdMatch[1], 10);
+            }
+        }
+        if (acVal === null) acVal = isSilq ? 2 : 14;
+        if (speedVal === null) speedVal = 0;
+
+        // Build stats object
+        const stats = {};
+        const statBadges = [];
+        const pStats = p.stats || p.stat_cur || p.abilities || null;
+
+        const resolveStat = (key, idx, defaultVal) => {
+            const upper = key.toUpperCase();
+            const lower = key.toLowerCase();
+            if (parsedSidebarStats[upper]) return parsedSidebarStats[upper];
+            if (p[lower] !== undefined && p[lower] !== null) return String(p[lower]);
+            if (pStats) {
+                if (Array.isArray(pStats) && pStats[idx] !== undefined) return String(pStats[idx]);
+                if (typeof pStats === 'object') {
+                    if (pStats[upper] !== undefined) return String(pStats[upper]);
+                    if (pStats[lower] !== undefined) return String(pStats[lower]);
+                }
+            }
+            return String(defaultVal);
+        };
+
+        if (isSilq) {
+            stats.STR = resolveStat('STR', 0, 3);
+            stats.DEX = resolveStat('DEX', 1, 3);
+            stats.CON = resolveStat('CON', 2, 3);
+            stats.GRA = resolveStat('GRA', 3, 3);
+
+            statBadges.push(`STR ${stats.STR}`, `DEX ${stats.DEX}`, `CON ${stats.CON}`, `GRA ${stats.GRA}`);
+            statBadges.push(`AC ${acVal}`, `HP ${hp}/${hp_max}`, `AU ${goldVal}`);
+
+            const silqSkills = ['Mel', 'Arc', 'Eva', 'Stl', 'Per', 'Wil', 'Smt', 'Sng'];
+            for (const sk of silqSkills) {
+                const upper = sk.toUpperCase();
+                if (parsedSidebarStats[upper]) {
+                    statBadges.push(`${sk} ${parsedSidebarStats[upper]}`);
+                }
+            }
+        } else {
+            stats.STR = resolveStat('STR', 0, 16);
+            stats.INT = resolveStat('INT', 1, 12);
+            stats.WIS = resolveStat('WIS', 2, 12);
+            stats.DEX = resolveStat('DEX', 3, 15);
+            stats.CON = resolveStat('CON', 4, 14);
+            stats.CHR = resolveStat('CHR', 5, 12);
+
+            statBadges.push(
+                `STR ${stats.STR}`,
+                `INT ${stats.INT}`,
+                `WIS ${stats.WIS}`,
+                `DEX ${stats.DEX}`,
+                `CON ${stats.CON}`,
+                `CHR ${stats.CHR}`,
+                `AC ${acVal}`,
+                `HP ${hp}/${hp_max}`
+            );
+            if (mp_max > 0 || mp > 0) {
+                statBadges.push(`MP ${mp}/${mp_max}`);
+            }
+            statBadges.push(`AU ${goldVal}`);
+        }
+
+        const vitals = {
+            hp,
+            hp_max,
+            mp,
+            mp_max,
+            ac: acVal,
+            gold: goldVal,
+            exp,
+            speed: speedVal,
+            turn,
+            maxDepth
+        };
+
+        // Stat Traits
+        const parseNum = (val, isSilqScale = false) => {
+            if (!val) return 10;
+            const s = String(val).trim();
+            if (s.includes('/')) return 22; // Angband 18/xx
+            const n = parseInt(s, 10);
+            if (isNaN(n)) return 10;
+            return isSilqScale ? (n * 4) : n;
+        };
+
+        const strScore = parseNum(stats.STR, isSilq);
+        const dexScore = parseNum(stats.DEX, isSilq);
+        const conScore = parseNum(stats.CON, isSilq);
+        const intScore = parseNum(stats.INT || 10, isSilq);
+        const wisScore = parseNum(stats.WIS || 10, isSilq);
+        const graScore = parseNum(stats.GRA || stats.CHR || 10, isSilq);
+
+        const traitParts = [];
+        if (strScore >= 16) traitParts.push('mighty muscular frame and formidable melee strength');
+        if (dexScore >= 16) traitParts.push('lithe reflexes, agile footing, and quick blade-draw');
+        if (conScore >= 16) traitParts.push('broad-shouldered ironclad endurance and high pain threshold');
+        if (intScore >= 15) traitParts.push('sharp scholarly gaze and deep arcane insight');
+        if (wisScore >= 15) traitParts.push('serene spiritual focus and pious divine aura');
+        if (graScore >= 15) traitParts.push('regal bearing, high nobility, and commanding presence');
+
+        if (traitParts.length === 0) {
+            traitParts.push('battle-tested adventurer posture and steadfast resolve');
+        }
+        const statTraits = traitParts.slice(0, 3).join(', ');
+
+        // 2. Active Status Effects & Conditions
+        const hpRatio = hp_max > 0 ? (hp / hp_max) : 1;
+        const condition = hpRatio < 0.35
+            ? 'battle-worn, bleeding, desperate stance'
+            : (hpRatio < 0.7 ? 'weary, soot-stained, alert stance' : 'vigorous, heroic, poised stance');
+
+        const bottomText = termRows.slice(-5).join(' ');
+        const fullScreenText = termRows.join(' ');
+        const testStatus = (re) => re.test(bottomText) || re.test(fullScreenText);
+
+        const isPoisoned = Boolean(p.poisoned || p.status?.poisoned || p.timed?.poisoned || p.effects?.poisoned) || testStatus(/\b(Poisoned|Poison|Psn)\b/i);
+        const isCut = Boolean(p.cut || p.status?.cut || p.timed?.cut || p.bleeding) || testStatus(/\b(Cut|Bleeding|Graze|Wound)\b/i);
+        const isStunned = Boolean(p.stun || p.stunned || p.status?.stun) || testStatus(/\b(Stun|Stunned)\b/i);
+        const isBlind = Boolean(p.blind || p.blindness || p.status?.blind) || testStatus(/\b(Blind)\b/i);
+        const isConfused = Boolean(p.confused || p.status?.confused) || testStatus(/\b(Confused|Conf)\b/i);
+        const isAfraid = Boolean(p.afraid || p.fear || p.status?.afraid) || testStatus(/\b(Afraid|Fear)\b/i);
+        const isBlessed = Boolean(p.blessed || p.status?.blessed || p.timed?.blessed) || testStatus(/\b(Blessed|Bless)\b/i);
+        const isHeroic = Boolean(p.hero || p.heroic || p.berserk || p.shero) || testStatus(/\b(Hero|Heroic|Berserk|Shero)\b/i);
+        const isFast = Boolean(p.fast || p.haste || (speedVal > 0)) || testStatus(/\b(Fast|Haste|Spd)\b/i);
+        const isSlow = Boolean(p.slow || (speedVal < 0)) || testStatus(/\b(Slow)\b/i);
+        const isProtEvil = Boolean(p.protevil || p.prtevl) || testStatus(/\b(Protevil|PrtEvl)\b/i);
+        const isShielded = Boolean(p.shield || p.shielded || p.shld) || testStatus(/\b(Shield|Shld)\b/i);
+        const isStudy = Boolean(p.study) || testStatus(/\b(Study)\b/i);
+        const isLowHp = hpRatio < 0.35;
+        const hasHighMana = mp_max > 0 && (mp / mp_max) > 0.7;
+
+        const statusBadges = [];
+        if (isBlessed) statusBadges.push('✨ Blessed');
+        if (isHeroic) statusBadges.push('🔥 Heroic');
+        if (isPoisoned) statusBadges.push('☠ Poisoned');
+        if (isCut) statusBadges.push('🩸 Bleeding');
+        if (isFast) statusBadges.push(speedVal > 0 ? `⚡ Fast (+${speedVal})` : '⚡ Fast');
+        if (isSlow) statusBadges.push(speedVal < 0 ? `🐢 Slow (${speedVal})` : '🐢 Slow');
+        if (isStunned) statusBadges.push('💫 Stunned');
+        if (isBlind) statusBadges.push('👁‍🗨 Blind');
+        if (isConfused) statusBadges.push('🌀 Confused');
+        if (isAfraid) statusBadges.push('😨 Afraid');
+        if (isProtEvil) statusBadges.push('🛡 Prot Evil');
+        if (isShielded) statusBadges.push('🛡 Shielded');
+        if (isStudy) statusBadges.push('📖 Study');
+
+        // Always include overall health/stance badge so statusBadges is never empty
+        if (hpRatio >= 0.85) {
+            statusBadges.push(`🛡 Vigorous (${Math.round(hpRatio * 100)}% HP)`);
+        } else if (hpRatio >= 0.5) {
+            statusBadges.push(`⚔ Alert (${Math.round(hpRatio * 100)}% HP)`);
+        } else if (hpRatio >= 0.35) {
+            statusBadges.push(`⚠️ Weary (${Math.round(hpRatio * 100)}% HP)`);
+        } else {
+            statusBadges.push(`🩸 Critical (${Math.round(hpRatio * 100)}% HP)`);
+        }
+
+        const statusVisuals = {
+            isPoisoned,
+            isCut,
+            isStunned,
+            isBlind,
+            isBlessed,
+            isHeroic,
+            isAfraid,
+            isFast,
+            isLowHp,
+            hasHighMana
+        };
+
+        // 3. Equipment & Loadout
+        const rawItems = [];
+        if (Array.isArray(p.equipment)) {
+            for (const item of p.equipment) {
+                if (item) rawItems.push(item);
+            }
+        }
+        if (p.weapon_item) rawItems.push(p.weapon_item);
+        if (p.bow_item) rawItems.push(p.bow_item);
+        if (p.shield_item) rawItems.push(p.shield_item);
+
+        const gearBadges = [];
+        const seenGear = new Set();
+        const effLang = (typeof window !== 'undefined' && window.__currentLanguage) || 'en';
+
+        for (const item of rawItems) {
+            let label = '';
+            let slot = '';
+            if (typeof item === 'string') {
+                label = item.replace(/^[a-z]\)\s*/i, '').trim();
+            } else if (item && typeof item === 'object') {
+                label = String(item.name || item.label || item.desc || '').replace(/^[a-z]\)\s*/i, '').trim();
+                slot = String(item.slot ?? item.type ?? '').toLowerCase();
+            }
+            if (!label || label.toLowerCase().includes('(nothing)') || label.toLowerCase().includes('empty')) continue;
+
+            if (realm === 'hengband' && typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
+                try {
+                    label = window.HengTranslate.translateName(label, 1, effLang) || label;
+                } catch (_) {}
+            }
+
+            const dedupKey = label.toLowerCase();
+            if (seenGear.has(dedupKey)) continue;
+            seenGear.add(dedupKey);
+
+            let icon = '🎒';
+            const lower = label.toLowerCase();
+            if (slot.includes('weapon') || lower.includes('sword') || lower.includes('dagger') || lower.includes('blade') || lower.includes('axe') || lower.includes('mace') || lower.includes('spear') || lower.includes('halberd') || lower.includes('whip') || lower.includes('katana') || lower.includes('naginata')) {
+                icon = '⚔';
+            } else if (slot.includes('shield') || lower.includes('shield') || lower.includes('buckler')) {
+                icon = '🛡';
+            } else if (slot.includes('bow') || slot.includes('shoot') || lower.includes('bow') || lower.includes('crossbow') || lower.includes('sling')) {
+                icon = '🏹';
+            } else if (slot.includes('armour') || slot.includes('armor') || slot.includes('body') || lower.includes('mail') || lower.includes('armour') || lower.includes('armor') || lower.includes('robe') || lower.includes('leather')) {
+                icon = '🥋';
+            } else if (slot.includes('head') || slot.includes('helm') || lower.includes('helm') || lower.includes('crown') || lower.includes('cap') || lower.includes('hat')) {
+                icon = '🪖';
+            } else if (slot.includes('cloak') || lower.includes('cloak')) {
+                icon = '🧥';
+            } else if (slot.includes('boot') || slot.includes('feet') || lower.includes('boot') || lower.includes('shoe')) {
+                icon = '👢';
+            } else if (slot.includes('glove') || slot.includes('hand') || lower.includes('glove') || lower.includes('gauntlet')) {
+                icon = '🧤';
+            } else if (slot.includes('light') || lower.includes('torch') || lower.includes('lantern') || lower.includes('phial') || lower.includes('star')) {
+                icon = '🔦';
+            } else if (slot.includes('ring') || lower.includes('ring')) {
+                icon = '💍';
+            } else if (slot.includes('amulet') || slot.includes('neck') || lower.includes('amulet') || lower.includes('necklace')) {
+                icon = '📿';
+            }
+
+            gearBadges.push(`${icon} ${label}`);
+        }
+
+        // Notable Carried Inventory Highlights
+        const inventoryHighlights = [];
+        const rawInv = Array.isArray(p.inventory) ? p.inventory : (Array.isArray(frame.inventory) ? frame.inventory : []);
+        const seenInv = new Set();
+        for (const it of rawInv) {
+            if (!it) continue;
+            let label = '';
+            if (typeof it === 'string') {
+                label = it.replace(/^[a-z]\)\s*/i, '').trim();
+            } else if (typeof it === 'object') {
+                label = String(it.name || it.label || it.desc || '').replace(/^[a-z]\)\s*/i, '').trim();
+            }
+            if (!label || label.toLowerCase().includes('(nothing)') || label.toLowerCase().includes('empty')) continue;
+
+            if (realm === 'hengband' && typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
+                try {
+                    label = window.HengTranslate.translateName(label, 1, effLang) || label;
+                } catch (_) {}
+            }
+
+            const dedup = label.toLowerCase();
+            if (seenInv.has(dedup)) continue;
+            seenInv.add(dedup);
+
+            let icon = '🎒';
+            const lower = label.toLowerCase();
+            if (lower.includes('potion')) icon = '🧪';
+            else if (lower.includes('scroll')) icon = '📜';
+            else if (lower.includes('rod') || lower.includes('wand') || lower.includes('staff')) icon = '🪄';
+            else if (lower.includes('book') || lower.includes('grimoire') || lower.includes('magic') || lower.includes('incantation')) icon = '📕';
+            else if (lower.includes('ration') || lower.includes('food') || lower.includes('mushroom') || lower.includes('bread')) icon = '🍞';
+            else if (lower.includes('ring')) icon = '💍';
+            else if (lower.includes('amulet')) icon = '📿';
+            else if (lower.includes('sword') || lower.includes('dagger') || lower.includes('blade') || lower.includes('axe') || lower.includes('mace')) icon = '⚔';
+            else if (lower.includes('shield')) icon = '🛡';
+
+            inventoryHighlights.push(`${icon} ${label}`);
+            if (inventoryHighlights.length >= 5) break;
+        }
+
+        // 4. Visible Monsters and Items
+        const visibleMonsters = [];
+        if (Array.isArray(frame.monsters)) {
+            for (const m of frame.monsters.slice(0, 4)) {
+                if (!m) continue;
+                let mName = m.name || 'Unknown beast';
+                if (realm === 'hengband' && typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
+                    try {
+                        mName = window.HengTranslate.translateName(mName, 1, effLang) || mName;
+                    } catch (_) {}
+                }
+                const glyph = m.glyph || m.char || 'm';
+                const state = m.sleep ? 'asleep' : (m.afraid ? 'afraid' : 'alert');
+                visibleMonsters.push({ name: mName, glyph, state });
+            }
+        }
+
+        const visibleItems = [];
+        if (Array.isArray(frame.items)) {
+            for (const it of frame.items.slice(0, 3)) {
+                if (!it) continue;
+                let itName = it.name || it.label || 'Item';
+                if (realm === 'hengband' && typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
+                    try {
+                        itName = window.HengTranslate.translateName(itName, 1, effLang) || itName;
+                    } catch (_) {}
+                }
+                visibleItems.push(itName);
+            }
+        }
+
+        let locationLabel = '';
+        if (depth === 0) {
+            if (realm === 'silq') locationLabel = 'Gates of Angband';
+            else if (realm === 'frogcomposband') locationLabel = 'Outpost Wilderness';
+            else if (realm === 'hengband') locationLabel = 'Town of Morivant';
+            else locationLabel = 'Town of Angband';
+        } else {
+            if (realm === 'angband' || realm === 'silq') {
+                locationLabel = `${depth * 50}ft (Level ${depth})`;
+            } else {
+                locationLabel = `Dungeon Level ${depth}`;
+            }
+        }
+
+        // 5. Story & Chronicle History
+        let originSummary = '';
+        if (Array.isArray(this.entries) && this.entries.length > 0) {
+            originSummary = this.entries[0]?.text || this.entries[0]?.prose || '';
+        }
+        if (!originSummary && this.activeChronicle && Array.isArray(this.activeChronicle.chapters) && this.activeChronicle.chapters.length > 0) {
+            originSummary = this.activeChronicle.chapters[0]?.summary || this.activeChronicle.chapters[0]?.text || '';
+        }
+        if (!originSummary) {
+            originSummary = `A bold ${race} ${heroClass} seeking renown in ${realm === 'silq' ? 'Angband of Beleriand' : 'the ancient dungeon'}.`;
+        }
+
+        const notableDeeds = [];
+        if (Array.isArray(frame.messages)) {
+            for (const msg of frame.messages.slice(-8)) {
+                if (!msg || typeof msg !== 'string') continue;
+                const clean = msg.trim();
+                if (clean.length < 5) continue;
+                if (/kill|slain|destroy|hit|cast|breathe|found|artifact|level|stair|door|quaff|read/i.test(clean)) {
+                    notableDeeds.push(clean);
+                }
+            }
+        }
+        if (notableDeeds.length === 0) {
+            if (depth > 0) {
+                notableDeeds.push(`Descended to ${locationLabel}`);
+            } else {
+                notableDeeds.push(`Prepared equipment in ${locationLabel}`);
+            }
+        }
+
+        const historyTimeline = [];
+        if (Array.isArray(this.entries) && this.entries.length > 0) {
+            historyTimeline.push(this.entries[0].text?.slice(0, 70) || 'Journey commenced');
+            if (this.entries.length > 2) {
+                const midIdx = Math.floor(this.entries.length / 2);
+                historyTimeline.push(this.entries[midIdx].text?.slice(0, 70) || 'Perilous subterranean trial');
+            }
+            if (this.entries.length > 1) {
+                historyTimeline.push(this.entries[this.entries.length - 1].text?.slice(0, 70) || 'Recent struggle in the dark');
+            }
+        } else if (this.activeChronicle && Array.isArray(this.activeChronicle.chapters) && this.activeChronicle.chapters.length > 0) {
+            for (const ch of this.activeChronicle.chapters.slice(-3)) {
+                const txt = ch.summary || ch.text || ch.prose || '';
+                if (txt) historyTimeline.push(txt.slice(0, 70));
+            }
+        } else {
+            historyTimeline.push(`Embarkation in ${locationLabel}`);
+            if (depth > 0) historyTimeline.push(`Deep descent to Level ${depth}`);
+            historyTimeline.push(`Standing vigilant against the darkness`);
+        }
+
+        const maxDepthLabel = maxDepth > 0 ? (realm === 'angband' || realm === 'silq' ? `${maxDepth * 50}ft` : `DLvl ${maxDepth}`) : 'Surface';
+        const storyArc = `Origin: ${originSummary.slice(0, 80)} • Deepest: ${maxDepthLabel} • Deeds: ${notableDeeds.slice(0, 2).join('; ').slice(0, 80)}`;
+
+        let narrativeText = overrideBeat?.text || overrideBeat?.prose || '';
+        if (!narrativeText && this.activeChronicle && Array.isArray(this.activeChronicle.chapters) && this.activeChronicle.chapters.length > 0) {
+            const lastCh = this.activeChronicle.chapters[this.activeChronicle.chapters.length - 1];
+            narrativeText = lastCh.text || lastCh.prose || lastCh.summary || '';
+        }
+        if (!narrativeText && Array.isArray(this.entries) && this.entries.length > 0) {
+            narrativeText = this.entries[this.entries.length - 1]?.text || '';
+        }
+        if (!narrativeText) {
+            narrativeText = 'Exploring the perilous depths.';
+        }
+
+        let realmAtmosphere = '';
+        if (realm === 'silq') {
+            realmAtmosphere = 'Tolkien First Age Beleriand, Fortress of Angband, black iron architecture, underground smithies, subterranean forge embers, solemn tragic heroic mood.';
+        } else if (realm === 'frogcomposband') {
+            realmAtmosphere = 'Amber Multiverse and Chaos wildlands, warped stone ruins, swirling chaotic mist, eldritch shadows, surreal dungeon corridors.';
+        } else if (realm === 'hengband') {
+            realmAtmosphere = 'Feudal Japanese Eastern dark fantasy, mist-veiled pagoda silhouettes, stone lanterns, samurai armor styling, youkai and demon shadows.';
+        } else {
+            realmAtmosphere = 'Tolkien Middle-earth Angband, deep stone dungeon vault, rough-hewn granite arches, flickering torchlight halo, ancient gothic masonry.';
+        }
+
+        const monstersDesc = visibleMonsters.length > 0
+            ? `Facing nearby hostile threats in combat stance: ${visibleMonsters.map(m => `${m.name} (${m.state})`).join(', ')}.`
+            : 'Stalking through dark dungeon corridors with drawn weapon, watchful for ambushes.';
+
+        const gearDesc = gearBadges.length > 0
+            ? `Equipped gear visibly worn or wielded: ${gearBadges.join(', ')}.`
+            : 'Equipped with basic explorer traveling clothes and a sturdy blade.';
+
+        const packDesc = inventoryHighlights.length > 0
+            ? `Carried pack relics: ${inventoryHighlights.join(', ')}.`
+            : '';
+
+        const statsSummary = statBadges.join(', ');
+        const statusSummary = statusBadges.join(', ');
+        const deedsSummary = notableDeeds.join('; ');
+
+        const prompt = `A masterwork dark-fantasy book illustration, charcoal and graphite drawing with deep pen-and-ink crosshatching on aged vellum paper, accented with subtle gold-leaf highlights. Depict the hero ${name}, a Level ${level} ${race} ${heroClass} (${condition}). Physical form and attributes: ${statTraits} (${statsSummary}). Active conditions & aura: ${statusSummary}. Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${packDesc} ${monstersDesc} Chronicle deeds & path: ${storyArc} (Past deeds: ${deedsSummary}). Latest chronicle scene: “${narrativeText}”. Dramatic chiaroscuro lighting with warm lantern and torchlight glow casting sharp ink-wash shadows. Intricate anatomical detail, realistic armor texture, dynamic action composition, fine historic printmaking style.`;
+
+        const heroObj = {
+            name,
+            race,
+            class: heroClass,
+            title,
+            level,
+            hp,
+            hp_max,
+            mp,
+            mp_max,
+            depth,
+            condition,
+            stats,
+            statBadges,
+            vitals,
+            statusBadges
+        };
+
+        const heroSummary = {
+            name,
+            race,
+            class: heroClass,
+            level,
+            depth,
+            locationLabel,
+            condition,
+            stats: statBadges,
+            status: statusBadges,
+            gearBadges,
+            inventory: inventoryHighlights,
+            history: historyTimeline,
+            monsters: visibleMonsters.map(m => m.name)
+        };
+
+        return {
+            realm,
+            hero: heroObj,
+            heroSummary,
+            stats,
+            statBadges,
+            statTraits,
+            vitals,
+            statusBadges,
+            statusVisuals,
+            inventoryHighlights,
+            originSummary,
+            historyTimeline,
+            notableDeeds,
+            storyArc,
+            locationLabel,
+            condition,
+            gearBadges,
+            visibleMonsters,
+            visibleItems,
+            narrativeText,
+            prompt
+        };
+    }
+
+    renderMasterworkCanvasSketch(ctxData) {
+        if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = 800;
+        canvas.height = 600;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+        }
+
+        const realm = ctxData.realm || 'angband';
+        const hero = ctxData.hero || {};
+        const statBadges = Array.isArray(ctxData.statBadges) ? ctxData.statBadges : [];
+        const statusBadges = Array.isArray(ctxData.statusBadges) ? ctxData.statusBadges : [];
+        const gearBadges = Array.isArray(ctxData.gearBadges) ? ctxData.gearBadges : [];
+        const inventoryHighlights = Array.isArray(ctxData.inventoryHighlights) ? ctxData.inventoryHighlights : [];
+        const historyTimeline = Array.isArray(ctxData.historyTimeline) ? ctxData.historyTimeline : [];
+        const statusVisuals = ctxData.statusVisuals || {};
+        const vitals = ctxData.vitals || {};
+
+        // 1. Warm aged vellum & obsidian chiaroscuro backdrop
+        const grad = ctx.createRadialGradient(385, 270, 30, 400, 300, 450);
+        grad.addColorStop(0, '#3a3024');
+        grad.addColorStop(0.4, '#241d16');
+        grad.addColorStop(0.8, '#14100c');
+        grad.addColorStop(1, '#0b0907');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 800, 600);
+
+        // Procedural fine charcoal crosshatching
+        ctx.save();
+        ctx.strokeStyle = 'rgba(200, 180, 140, 0.04)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = -600; x < 1400; x += 18) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x + 600, 600);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(15, 12, 9, 0.2)';
+        ctx.beginPath();
+        for (let x = 1400; x > -600; x -= 24) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x - 600, 600);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        // Ornate double-line gold-leaf frame
+        ctx.save();
+        ctx.strokeStyle = '#c9a050';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(18, 18, 764, 564);
+        ctx.strokeStyle = 'rgba(201, 160, 80, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(24, 24, 752, 552);
+
+        const corners = [[18, 18], [782, 18], [18, 582], [782, 582]];
+        ctx.fillStyle = '#f1d08a';
+        for (const [cx, cy] of corners) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // 2. Top Heraldic Banner + Status Condition Pills (y = 26..92)
+        ctx.save();
+        const realmTitle = realm.toUpperCase();
+        ctx.fillStyle = '#f1d08a';
+        ctx.font = 'bold 15px "Cinzel", "Times New Roman", Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 6;
+        ctx.fillText(`✦  CHRONICLE OF ${realmTitle}  ✦`, 400, 42);
+
+        ctx.fillStyle = '#fce7a1';
+        ctx.font = 'bold 12px "Cinzel", Georgia, serif';
+        const heroLine = `${hero.name || 'Hero'} — Lv.${hero.level || 1} ${hero.race || 'Human'} ${hero.class || 'Warrior'}  •  ${ctxData.locationLabel || 'Dungeon'}`;
+        ctx.fillText(heroLine, 400, 60);
+
+        // Horizontal row of colored Status Condition Pills (y = 68..88)
+        const displayStatus = statusBadges.slice(0, 5);
+        if (displayStatus.length > 0) {
+            ctx.font = '10px sans-serif';
+            const pillPadX = 8;
+            const pillH = 18;
+            const pillY = 70;
+            const pillGutter = 8;
+
+            const pillWidths = displayStatus.map(st => ctx.measureText(st).width + pillPadX * 2);
+            const totalRowW = pillWidths.reduce((a, b) => a + b, 0) + (displayStatus.length - 1) * pillGutter;
+            let curPillX = Math.max(35, 400 - (totalRowW / 2));
+
+            displayStatus.forEach((st, idx) => {
+                const w = pillWidths[idx];
+                ctx.save();
+
+                let borderColor = 'rgba(201, 160, 80, 0.6)';
+                let textColor = '#e6d3a3';
+                let bgColor = 'rgba(24, 18, 14, 0.85)';
+
+                if (st.includes('Blessed') || st.includes('Heroic')) {
+                    borderColor = '#ffd700';
+                    textColor = '#ffeaa7';
+                    bgColor = 'rgba(50, 40, 10, 0.9)';
+                } else if (st.includes('Poisoned')) {
+                    borderColor = '#34d399';
+                    textColor = '#a7f3d0';
+                    bgColor = 'rgba(10, 40, 20, 0.9)';
+                } else if (st.includes('Bleeding') || st.includes('Critical') || st.includes('Cut')) {
+                    borderColor = '#f87171';
+                    textColor = '#fecaca';
+                    bgColor = 'rgba(45, 12, 12, 0.9)';
+                } else if (st.includes('Fast')) {
+                    borderColor = '#38bdf8';
+                    textColor = '#bae6fd';
+                    bgColor = 'rgba(12, 30, 48, 0.9)';
+                } else if (st.includes('Vigorous')) {
+                    borderColor = '#60a5fa';
+                    textColor = '#dbeafe';
+                    bgColor = 'rgba(16, 28, 44, 0.9)';
+                }
+
+                ctx.fillStyle = bgColor;
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.roundRect ? ctx.roundRect(curPillX, pillY, w, pillH, 9) : ctx.rect(curPillX, pillY, w, pillH);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = textColor;
+                ctx.textAlign = 'center';
+                ctx.fillText(st, curPillX + (w / 2), pillY + 13);
+                ctx.restore();
+
+                curPillX += w + pillGutter;
+            });
+        }
+        ctx.restore();
+
+        // 3. Left Illuminated Margin — Character Stats & Vitals Column (x = 30..188, y = 104..428)
+        ctx.save();
+        ctx.fillStyle = 'rgba(18, 14, 10, 0.92)';
+        ctx.strokeStyle = '#a6833b';
+        ctx.lineWidth = 1.2;
+        ctx.fillRect(30, 104, 158, 324);
+        ctx.strokeRect(30, 104, 158, 324);
+
+        // Header
+        ctx.fillStyle = '#fce7a1';
+        ctx.font = 'bold 11px "Cinzel", Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚔ ATTRIBUTES & VITALS ⚔', 109, 122);
+        ctx.strokeStyle = 'rgba(166, 131, 59, 0.4)';
+        ctx.beginPath();
+        ctx.moveTo(38, 128);
+        ctx.lineTo(180, 128);
+        ctx.stroke();
+
+        // Render stat badges list with mini accent indicators
+        const displayStats = statBadges.slice(0, 10);
+        let statY = 144;
+        displayStats.forEach(b => {
+            const parts = b.split(/\s+/);
+            const label = parts[0] || b;
+            const val = parts.slice(1).join(' ') || '';
+
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'left';
+            let labelColor = '#d4c2a0';
+            let valColor = '#fce7a1';
+            if (label === 'HP') { labelColor = '#f87171'; valColor = '#fca5a5'; }
+            else if (label === 'MP') { labelColor = '#60a5fa'; valColor = '#93c5fd'; }
+            else if (label === 'AC') { labelColor = '#34d399'; valColor = '#a7f3d0'; }
+            else if (label === 'AU') { labelColor = '#fbbf24'; valColor = '#fde68a'; }
+
+            ctx.fillStyle = labelColor;
+            ctx.fillText(label, 40, statY);
+
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'right';
+            ctx.fillStyle = valColor;
+            ctx.fillText(val, 178, statY);
+
+            // Subtle divider dot
+            ctx.fillStyle = 'rgba(166, 131, 59, 0.25)';
+            ctx.fillRect(40, statY + 3, 138, 1);
+
+            statY += 17;
+        });
+
+        // Bottom of stat panel: Physical Form & Traits
+        if (ctxData.statTraits) {
+            ctx.fillStyle = '#a89a84';
+            ctx.font = 'bold 9px "Cinzel", Georgia, serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('PHYSICAL TRAITS', 40, 332);
+
+            ctx.font = 'italic 9px Georgia, serif';
+            ctx.fillStyle = '#d4c2a0';
+            const traitWords = ctxData.statTraits.split(' ');
+            let line = '';
+            let ty = 346;
+            for (const word of traitWords) {
+                const test = line + (line ? ' ' : '') + word;
+                if (ctx.measureText(test).width > 138 && line) {
+                    ctx.fillText(line, 40, ty);
+                    line = word;
+                    ty += 12;
+                    if (ty > 418) break;
+                } else {
+                    line = test;
+                }
+            }
+            if (line && ty <= 418) {
+                ctx.fillText(line, 40, ty);
+            }
+        }
+        ctx.restore();
+
+        // 4. Right Illuminated Margin — Equipped Arms, Pack Relics & Chronicle History (x = 582..770, y = 104..428)
+        ctx.save();
+        ctx.fillStyle = 'rgba(18, 14, 10, 0.92)';
+        ctx.strokeStyle = '#a6833b';
+        ctx.lineWidth = 1.2;
+        ctx.fillRect(582, 104, 188, 324);
+        ctx.strokeRect(582, 104, 188, 324);
+
+        // Header
+        ctx.fillStyle = '#fce7a1';
+        ctx.font = 'bold 11px "Cinzel", Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🛡 ARMS & CHRONICLE 📜', 676, 122);
+        ctx.strokeStyle = 'rgba(166, 131, 59, 0.4)';
+        ctx.beginPath();
+        ctx.moveTo(590, 128);
+        ctx.lineTo(762, 128);
+        ctx.stroke();
+
+        // Section A: Equipped Arms
+        ctx.fillStyle = '#c9a050';
+        ctx.font = 'bold 9px "Cinzel", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('EQUIPPED LOADOUT', 592, 142);
+
+        let armY = 156;
+        const arms = gearBadges.slice(0, 4);
+        if (arms.length > 0) {
+            ctx.font = '10px sans-serif';
+            ctx.fillStyle = '#e2d2b5';
+            arms.forEach(arm => {
+                let text = arm;
+                if (ctx.measureText(text).width > 170) {
+                    while (text.length > 3 && ctx.measureText(text + '...').width > 170) {
+                        text = text.slice(0, -1);
+                    }
+                    text += '...';
+                }
+                ctx.fillText(text, 592, armY);
+                armY += 15;
+            });
+        } else {
+            ctx.font = 'italic 10px sans-serif';
+            ctx.fillStyle = '#8f8373';
+            ctx.fillText('Basic traveling apparel', 592, armY);
+            armY += 15;
+        }
+
+        // Section B: Pack Relics
+        ctx.fillStyle = '#c9a050';
+        ctx.font = 'bold 9px "Cinzel", sans-serif';
+        ctx.fillText('CARRIED RELICS', 592, armY + 8);
+        let relicY = armY + 22;
+        const relics = inventoryHighlights.slice(0, 2);
+        if (relics.length > 0) {
+            ctx.font = '10px sans-serif';
+            ctx.fillStyle = '#c0d0a0';
+            relics.forEach(rel => {
+                let text = rel;
+                if (ctx.measureText(text).width > 170) {
+                    while (text.length > 3 && ctx.measureText(text + '...').width > 170) {
+                        text = text.slice(0, -1);
+                    }
+                    text += '...';
+                }
+                ctx.fillText(text, 592, relicY);
+                relicY += 15;
+            });
+        } else {
+            ctx.font = 'italic 10px sans-serif';
+            ctx.fillStyle = '#8f8373';
+            ctx.fillText('Supplies gathered in pack', 592, relicY);
+            relicY += 15;
+        }
+
+        // Section C: Chronicle History Milestones
+        ctx.fillStyle = '#c9a050';
+        ctx.font = 'bold 9px "Cinzel", sans-serif';
+        ctx.fillText('CHRONICLE BEATS', 592, relicY + 8);
+        let histY = relicY + 22;
+        const beats = historyTimeline.slice(0, 3);
+        if (beats.length > 0) {
+            ctx.font = 'italic 9px Georgia, serif';
+            ctx.fillStyle = '#d4c2a0';
+            beats.forEach(beat => {
+                let text = '• ' + beat;
+                if (ctx.measureText(text).width > 170) {
+                    while (text.length > 5 && ctx.measureText(text + '...').width > 170) {
+                        text = text.slice(0, -1);
+                    }
+                    text += '...';
+                }
+                ctx.fillText(text, 592, histY);
+                histY += 14;
+            });
+        }
+        ctx.restore();
+
+        // 5. Center Chiaroscuro Action Stage (x = 194..576, y = 104..428)
+        ctx.save();
+        // Stage floor
+        const floorGrad = ctx.createLinearGradient(0, 370, 0, 430);
+        floorGrad.addColorStop(0, '#221a14');
+        floorGrad.addColorStop(1, '#110d0a');
+        ctx.fillStyle = floorGrad;
+        ctx.fillRect(194, 370, 382, 58);
+
+        // Biome architectural silhouettes in background
+        if (realm === 'silq') {
+            ctx.fillStyle = '#17120e';
+            ctx.fillRect(205, 120, 30, 250);
+            ctx.fillRect(535, 120, 30, 250);
+            // Underground forge embers
+            const emberGrad = ctx.createRadialGradient(500, 340, 5, 500, 340, 80);
+            emberGrad.addColorStop(0, 'rgba(255, 110, 30, 0.45)');
+            emberGrad.addColorStop(1, 'rgba(255, 110, 30, 0)');
+            ctx.fillStyle = emberGrad;
+            ctx.beginPath();
+            ctx.arc(500, 340, 80, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (realm === 'hengband') {
+            ctx.fillStyle = '#15110d';
+            ctx.beginPath();
+            ctx.moveTo(210, 200);
+            ctx.quadraticCurveTo(385, 175, 560, 200);
+            ctx.lineTo(540, 218);
+            ctx.quadraticCurveTo(385, 195, 230, 218);
+            ctx.closePath();
+            ctx.fill();
+            // Stone pagoda post
+            ctx.fillRect(540, 218, 14, 155);
+        } else if (realm === 'frogcomposband') {
+            ctx.fillStyle = '#140f0c';
+            ctx.beginPath();
+            ctx.moveTo(460, 370);
+            ctx.lineTo(510, 160);
+            ctx.lineTo(565, 370);
+            ctx.closePath();
+            ctx.fill();
+        } else {
+            // Vanilla Angband: Rough-hewn gothic masonry arch and torchlight
+            ctx.fillStyle = '#18120d';
+            ctx.fillRect(202, 120, 32, 250);
+            ctx.fillRect(538, 120, 32, 250);
+            const torchGrad = ctx.createRadialGradient(245, 200, 5, 245, 200, 95);
+            torchGrad.addColorStop(0, 'rgba(255, 185, 80, 0.45)');
+            torchGrad.addColorStop(1, 'rgba(255, 185, 80, 0)');
+            ctx.fillStyle = torchGrad;
+            ctx.beginPath();
+            ctx.arc(245, 200, 95, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Hero and Monster atlas sprite compositing
+        const dungeon = this.dungeon || (typeof window !== 'undefined' && (window.__dungeonRenderer || window.dungeonRenderer || window.dungeon));
+        const monsterAtlasImg = dungeon?.monsterAtlasTex?.image;
+        const itemAtlasImg = dungeon?.itemAtlasTex?.image;
+        let drewHero = false;
+
+        const heroX = 275;
+        const heroY = 220;
+
+        // Ground shadow beneath hero
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.beginPath();
+        ctx.ellipse(heroX + 50, 375, 55, 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (dungeon && typeof dungeon.getMonsterAtlasUV === 'function' && monsterAtlasImg && monsterAtlasImg.complete && monsterAtlasImg.width > 0) {
+            try {
+                const heroUv = dungeon.getMonsterAtlasUV(hero.class || '<player>', '@') || dungeon.getMonsterAtlasUV('<player>', '@');
+                const uvArr = heroUv && (Array.isArray(heroUv) ? heroUv : heroUv.uv);
+                if (uvArr && uvArr.length >= 4) {
+                    const [u0, v0, u1, v1] = uvArr;
+                    const sx = u0 * monsterAtlasImg.width;
+                    const sy = (1 - v1) * monsterAtlasImg.height;
+                    const sw = (u1 - u0) * monsterAtlasImg.width;
+                    const sh = (v1 - v0) * monsterAtlasImg.height;
+
+                    ctx.save();
+                    ctx.shadowColor = '#f5c97a';
+                    ctx.shadowBlur = 16;
+                    ctx.drawImage(monsterAtlasImg, sx, sy, sw, sh, heroX, heroY, 110, 145);
+                    ctx.restore();
+                    drewHero = true;
+
+                    // Flanking equipped item icons
+                    if (itemAtlasImg && itemAtlasImg.complete && itemAtlasImg.width > 0 && typeof dungeon.getItemAtlasUV === 'function') {
+                        const gearPositions = [[208, 235], [208, 295]];
+                        gearBadges.slice(0, 2).forEach((badge, idx) => {
+                            const cleanItem = badge.replace(/^[^\w\u3000-\u9faf]+/, '').trim();
+                            const itUv = dungeon.getItemAtlasUV(cleanItem, null);
+                            const iArr = itUv && (Array.isArray(itUv) ? itUv : itUv.uv);
+                            if (iArr && iArr.length >= 4) {
+                                const [iu0, iv0, iu1, iv1] = iArr;
+                                const isx = iu0 * itemAtlasImg.width;
+                                const isy = (1 - iv1) * itemAtlasImg.height;
+                                const isw = (iu1 - iu0) * itemAtlasImg.width;
+                                const ish = (iv1 - iv0) * itemAtlasImg.height;
+                                const [gx, gy] = gearPositions[idx];
+                                ctx.save();
+                                ctx.fillStyle = 'rgba(18, 14, 10, 0.85)';
+                                ctx.strokeStyle = 'rgba(201, 160, 80, 0.75)';
+                                ctx.lineWidth = 1.2;
+                                ctx.beginPath();
+                                ctx.arc(gx + 20, gy + 20, 22, 0, Math.PI * 2);
+                                ctx.fill();
+                                ctx.stroke();
+                                ctx.drawImage(itemAtlasImg, isx, isy, isw, ish, gx + 4, gy + 4, 32, 32);
+                                ctx.restore();
+                            }
+                        });
+                    }
+
+                    // Visible monster sprite
+                    if (Array.isArray(ctxData.visibleMonsters) && ctxData.visibleMonsters.length > 0) {
+                        const m = ctxData.visibleMonsters[0];
+                        const mUv = dungeon.getMonsterAtlasUV(m.name, m.glyph);
+                        const mArr = mUv && (Array.isArray(mUv) ? mUv : mUv.uv);
+                        if (mArr && mArr.length >= 4) {
+                            const [mu0, mv0, mu1, mv1] = mArr;
+                            const msx = mu0 * monsterAtlasImg.width;
+                            const msy = (1 - mv1) * monsterAtlasImg.height;
+                            const msw = (mu1 - mu0) * monsterAtlasImg.width;
+                            const msh = (mv1 - mv0) * monsterAtlasImg.height;
+
+                            ctx.save();
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+                            ctx.beginPath();
+                            ctx.ellipse(475, 375, 55, 14, 0, 0, Math.PI * 2);
+                            ctx.fill();
+
+                            ctx.shadowColor = '#ff6050';
+                            ctx.shadowBlur = 18;
+                            ctx.drawImage(monsterAtlasImg, msx, msy, msw, msh, 420, 225, 110, 140);
+                            ctx.restore();
+                        }
+                    }
+                }
+            } catch (_) {}
+        }
+
+        if (!drewHero) {
+            // Stylized hero silhouette fallback
+            ctx.save();
+            ctx.fillStyle = '#1c1611';
+            ctx.strokeStyle = '#2d231b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(330, 230);
+            ctx.lineTo(310, 260);
+            ctx.lineTo(285, 370);
+            ctx.quadraticCurveTo(330, 380, 375, 370);
+            ctx.lineTo(350, 260);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f0c09';
+            ctx.beginPath();
+            ctx.arc(330, 240, 18, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Glowing blade
+            ctx.shadowColor = '#80d0ff';
+            ctx.shadowBlur = 15;
+            ctx.strokeStyle = '#e0f4ff';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(355, 310);
+            ctx.lineTo(415, 235);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Status-Driven Visual VFX
+        // 1. Blessed / Heroic: Golden celestial halo arc + rising gold embers
+        if (statusVisuals.isBlessed || statusVisuals.isHeroic) {
+            ctx.save();
+            ctx.strokeStyle = '#ffd700';
+            ctx.shadowColor = '#ffe066';
+            ctx.shadowBlur = 18;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(heroX + 55, heroY + 8, 26, Math.PI * 1.1, Math.PI * 1.9);
+            ctx.stroke();
+
+            // Rising spark embers
+            ctx.fillStyle = '#fff0a0';
+            const emberOffsets = [[20, 40], [35, 15], [65, 10], [80, 35], [50, -10]];
+            for (const [ox, oy] of emberOffsets) {
+                ctx.beginPath();
+                ctx.arc(heroX + ox, heroY + oy, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // 2. Poisoned: Sickly emerald miasma wisps rising at the hero's feet
+        if (statusVisuals.isPoisoned) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(74, 222, 128, 0.55)';
+            ctx.shadowColor = '#22c55e';
+            ctx.shadowBlur = 14;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(heroX + 20, 375);
+            ctx.bezierCurveTo(heroX + 15, 345, heroX + 45, 335, heroX + 35, 310);
+            ctx.moveTo(heroX + 65, 375);
+            ctx.bezierCurveTo(heroX + 80, 350, heroX + 55, 340, heroX + 70, 315);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 3. Cut / Bleeding or Critical HP: Crimson blood droplets & corner vignette
+        if (statusVisuals.isCut || statusVisuals.isLowHp) {
+            ctx.save();
+            ctx.fillStyle = '#ef4444';
+            ctx.shadowColor = '#b91c1c';
+            ctx.shadowBlur = 10;
+            const dropOffsets = [[25, 360], [45, 370], [75, 365], [90, 372]];
+            for (const [dx, dy] of dropOffsets) {
+                ctx.beginPath();
+                ctx.arc(heroX + dx, dy, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // Corner warning arc
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(195, 105, 35, 0, Math.PI * 0.5);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 4. High Mana: Glowing cyan/violet arcane sigil ring beneath the hero
+        if (statusVisuals.hasHighMana) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+            ctx.shadowColor = '#0284c7';
+            ctx.shadowBlur = 14;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.ellipse(heroX + 50, 375, 62, 16, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.restore();
+
+        // 6. Bottom Illuminated Story & History Scroll (x = 30..770, y = 438..572)
+        ctx.save();
+        ctx.fillStyle = 'rgba(20, 15, 11, 0.94)';
+        ctx.strokeStyle = '#a6833b';
+        ctx.lineWidth = 1.5;
+        ctx.fillRect(30, 438, 740, 134);
+        ctx.strokeRect(30, 438, 740, 134);
+
+        // Line 1: Origin & History Arc
+        ctx.fillStyle = '#fce7a1';
+        ctx.font = 'bold 11px "Cinzel", Georgia, serif';
+        ctx.textAlign = 'left';
+        let arcText = `📜 ${ctxData.storyArc || ('Origin: ' + ctxData.originSummary)}`;
+        if (ctx.measureText(arcText).width > 710) {
+            while (arcText.length > 5 && ctx.measureText(arcText + '...').width > 710) {
+                arcText = arcText.slice(0, -1);
+            }
+            arcText += '...';
+        }
+        ctx.fillText(arcText, 45, 456);
+
+        // Lines 2-3: Current Narrative Beat Quote
+        ctx.fillStyle = '#d4c2a0';
+        ctx.font = 'italic 11px Georgia, serif';
+        let quote = (ctxData.narrativeText || 'Venturing into the dungeon depths.').replace(/\s+/g, ' ').trim();
+        const quoteWords = quote.split(' ');
+        let qLine = '“';
+        let qY = 474;
+        let lineCount = 0;
+        for (const w of quoteWords) {
+            const test = qLine + (qLine === '“' ? '' : ' ') + w;
+            if (ctx.measureText(test + (lineCount >= 1 ? '”' : '')).width > 710 && qLine !== '“') {
+                ctx.fillText(qLine, 45, qY);
+                qLine = w;
+                qY += 15;
+                lineCount++;
+                if (lineCount >= 2) break;
+            } else {
+                qLine = test;
+            }
+        }
+        if (qLine) {
+            if (!qLine.endsWith('”') && !qLine.endsWith('"')) qLine += '”';
+            ctx.fillText(qLine, 45, qY);
+        }
+
+        // Line 4: Equipped Arms & Relics Summary
+        ctx.fillStyle = '#c9a050';
+        ctx.font = '10px sans-serif';
+        const loadoutSummary = [...gearBadges.slice(0, 4), ...inventoryHighlights.slice(0, 2)].join('  •  ') || 'Traveling apparel';
+        let loadoutText = `Arms & Pack: ${loadoutSummary}`;
+        if (ctx.measureText(loadoutText).width > 710) {
+            while (loadoutText.length > 5 && ctx.measureText(loadoutText + '...').width > 710) {
+                loadoutText = loadoutText.slice(0, -1);
+            }
+            loadoutText += '...';
+        }
+        ctx.fillText(loadoutText, 45, 524);
+
+        // Line 5: Active Status & Traits Footer Line
+        ctx.fillStyle = '#a89a84';
+        ctx.font = '10px sans-serif';
+        const statusSummaryLine = `Status: ${statusBadges.join(' • ')}  |  Stance: ${ctxData.condition}`;
+        let statusText = statusSummaryLine;
+        if (ctx.measureText(statusText).width > 710) {
+            while (statusText.length > 5 && ctx.measureText(statusText + '...').width > 710) {
+                statusText = statusText.slice(0, -1);
+            }
+            statusText += '...';
+        }
+        ctx.fillText(statusText, 45, 542);
+
+        // Line 6: Inscribed timestamp & turn footer
+        ctx.fillStyle = '#7a6e5d';
+        ctx.font = '9px monospace';
+        const footerNote = `✦ Living Chronicle of ${realmTitle} • Location: ${ctxData.locationLabel} • Turn ${vitals.turn ?? 1} ✦`;
+        ctx.textAlign = 'center';
+        ctx.fillText(footerNote, 400, 560);
+
+        ctx.restore();
+
+        return canvas.toDataURL('image/png');
+    }
+
+    async promptHeroActionSketch(overrideBeat = null) {
+        const now = Date.now();
+        if (this._lastHeroSketchTime && (now - this._lastHeroSketchTime < 2500)) {
+            return;
+        }
+        this._lastHeroSketchTime = now;
+
+        const ctxData = this.buildHeroSketchContext(overrideBeat);
+        const dataUrl = this.renderMasterworkCanvasSketch(ctxData);
+
+        const sketchBtn = this.btnSketch || document.getElementById('chronicle-sketch-btn');
+        if (sketchBtn) sketchBtn.classList.add('is-voicing');
+
+        if (!this.visible) {
+            this.showWindow();
+        }
+
+        const cardEl = document.createElement('div');
+        cardEl.className = 'chronicle-sketch-card';
+
+        const cleanFilename = (ctxData.hero.name || 'angband3d-hero-sketch').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const quoteSnippet = (ctxData.narrativeText || '').replace(/\s+/g, ' ').trim();
+        const displayQuote = quoteSnippet.length > 120 ? quoteSnippet.slice(0, 117) + '...' : quoteSnippet;
+
+        const statPillsHtml = (ctxData.statBadges || []).slice(0, 8).map(b => `<span class="chronicle-sketch-gear-tag chronicle-sketch-stat-tag chronicle-sketch-gear-pill">${this.escapeHtml(b)}</span>`).join('');
+        const statusPillsHtml = (ctxData.statusBadges || []).map(b => `<span class="chronicle-sketch-gear-tag chronicle-sketch-status-tag chronicle-sketch-gear-pill">${this.escapeHtml(b)}</span>`).join('');
+        const gearPillsHtml = (ctxData.gearBadges || []).map(b => `<span class="chronicle-sketch-gear-tag chronicle-sketch-gear-pill">${this.escapeHtml(b)}</span>`).join('');
+        const relicPillsHtml = (ctxData.inventoryHighlights || []).map(r => `<span class="chronicle-sketch-gear-tag chronicle-sketch-relic-tag chronicle-sketch-gear-pill">${this.escapeHtml(r)}</span>`).join('');
+        const foePillsHtml = (ctxData.visibleMonsters || []).map(m => `<span class="chronicle-sketch-gear-tag chronicle-sketch-foe-tag chronicle-sketch-gear-pill">👁 ${this.escapeHtml(m.name)} (${this.escapeHtml(m.state)})</span>`).join('');
+        const historyPillsHtml = (ctxData.historyTimeline || []).map(h => `<span class="chronicle-sketch-gear-tag chronicle-sketch-history-tag chronicle-sketch-gear-pill">📜 ${this.escapeHtml(h)}</span>`).join('');
+
+        cardEl.innerHTML = `
+            <div class="chronicle-sketch-card-header">
+                <span class="chronicle-sketch-title">🎨 Hero Action Sketch — ${this.escapeHtml(ctxData.hero.name)}</span>
+                <span class="chronicle-sketch-badge">${this.escapeHtml(ctxData.locationLabel)}</span>
+            </div>
+            <div class="chronicle-sketch-img-wrap">
+                <img class="chronicle-sketch-card-img chronicle-sketch-img" src="${dataUrl}" alt="Hero Action Sketch" />
+                <div class="chronicle-sketch-overlay-actions">
+                    <button type="button" class="btn-sketch-expand chronicle-sketch-expand-btn chronicle-ctrl-btn" title="Expand Fullscreen Lightbox">🔍 Expand</button>
+                    <a class="btn-sketch-save chronicle-ctrl-btn" download="${this.escapeHtml(cleanFilename)}.png" href="${dataUrl}">⬇ Save PNG</a>
+                </div>
+            </div>
+            <div class="chronicle-sketch-caption">
+                <p class="chronicle-sketch-quote">“${this.escapeHtml(displayQuote)}”</p>
+                ${ctxData.storyArc ? `<p class="chronicle-sketch-history-summary" style="font-size: 0.85em; opacity: 0.85; margin-top: 4px;">📜 ${this.escapeHtml(ctxData.storyArc)}</p>` : ''}
+            </div>
+            <div class="chronicle-sketch-gear-tags">
+                ${statusPillsHtml}
+                ${statPillsHtml}
+                ${gearPillsHtml}
+                ${relicPillsHtml}
+                ${foePillsHtml}
+                ${historyPillsHtml}
+            </div>
+        `;
+
+        const cardImg = cardEl.querySelector('.chronicle-sketch-card-img');
+        const expandBtn = cardEl.querySelector('.btn-sketch-expand');
+        const saveLink = cardEl.querySelector('.btn-sketch-save');
+
+        const openLightboxForCard = () => {
+            const currentSrc = (cardImg && cardImg.src) || dataUrl;
+            this.openSketchLightbox(
+                currentSrc,
+                `🎨 ${ctxData.hero.name} — ${ctxData.locationLabel}`,
+                displayQuote,
+                ctxData.gearBadges,
+                ctxData.statBadges,
+                ctxData.statusBadges,
+                ctxData.historyTimeline
+            );
+        };
+
+        if (expandBtn) expandBtn.addEventListener('click', (e) => { e.preventDefault(); openLightboxForCard(); });
+        if (cardImg) cardImg.addEventListener('click', (e) => { e.preventDefault(); openLightboxForCard(); });
+
+        if (this.listEl) {
+            this.listEl.appendChild(cardEl);
+            if (this.scrollEl) {
+                this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
+            }
+        }
+
+        if (this.statusTextEl) {
+            this.statusTextEl.textContent = `🎨 Sketched ${ctxData.hero.name}`;
+        }
+        this.showHudToast(`🎨 Sketched ${ctxData.hero.name} at ${ctxData.locationLabel}`);
+
+        (async () => {
+            try {
+                const res = await fetch('/api/chronicle/sketch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        realm: ctxData.realm,
+                        prompt: ctxData.prompt,
+                        heroSummary: ctxData.heroSummary
+                    })
+                });
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json && json.ok && json.imageUrl) {
+                        if (cardImg) cardImg.src = json.imageUrl;
+                        if (saveLink) saveLink.href = json.imageUrl;
+                        if (this.statusTextEl) {
+                            this.statusTextEl.textContent = `🎨 Masterwork Sketch Rendered (${json.model || 'gemini'})`;
+                        }
+                    }
+                }
+            } catch (_) {
+                // Keep the deterministic Masterwork Canvas Sketch
+            } finally {
+                if (sketchBtn) sketchBtn.classList.remove('is-voicing');
+            }
+        })();
+    }
+
     onVocalStateChanged(state, telemetry = {}) {
         this.isVoiceLoading = (state === 'loading');
 
@@ -2462,9 +3932,16 @@ class ChronicleManager {
 
         // Initial Greeting / Reaction from the creature with full scene prose
         let res = null;
-        if (this.llm && this.llm.isConfigured()) {
-            res = await this.llm.chatWithCreature(monster, '', this.currentHero, this.lastSeenMessages);
-        } else {
+        if (monster._prewarmedEncounter && (!monster.state || monster._prewarmedState === monster.state || !monster._prewarmedState || monster._prewarmedState === stateObj.state)) {
+            res = monster._prewarmedEncounter;
+        } else if (this.llm && this.llm.isConfigured()) {
+            try {
+                res = await this.llm.chatWithCreature(monster, '', this.currentHero, this.lastSeenMessages);
+            } catch (e) {
+                res = null;
+            }
+        }
+        if (!res) {
             res = this.grounder.resolveCreatureEncounter(monster, this.currentHero, this.lastSeenMessages, monster._interactTurn, '', this.getActiveRealm(), this.getLanguageMode());
         }
 
