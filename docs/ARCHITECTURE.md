@@ -23,19 +23,20 @@ Alternatives considered and rejected:
 ## Repository layout
 
 ```
-engine/          Angband fork, branch `bridge`, based on tag 4.2.6
-  src/main-bridge.c    the front end
-  src/bridge-json.c    JSON writer
-  src/bridge-json.h
-  src/cmake/macros/BRIDGE_Frontend.cmake
-client/          Godot 4 client
-tools/           build scripts, reference client, tests
-docs/            protocol and architecture
+engine/                      Vanilla Angband 4.2.6 C engine + bridge
+variants/silq-src/           Sil-Q 1.5.0 C engine + bridge
+variants/frogcomposband-src/ FrogComposBand 7.1.1 C engine + bridge
+variants/hengband-src/       Hengband 3.0.1 C++ engine + bridge
+server/src/                  Cloud session multiplexer, rate limiting, and AI proxy (/api/tts, /api/llm)
+server/public/               Three.js WebGL client (PBR shaders, Movable HUD, Living Chronicle, CRT canvas)
+client/                      Native Godot 4.3+ .NET 8 C# client (Vulkan / D3D12)
+desktop/                     Standalone Windows .NET 8 WebView2 wrapper
+android/                     Capacitor Android mobile client (Target SDK 34)
+tools/                       Tiered test runner (fast/e2e/cdp), C smoke tests, asset sync, and CI gates
+docs/                        Protocol specification, architecture, and playability guides
 ```
 
-`engine/` is a fork with its own history and an `upstream` remote pointing at
-angband/angband. It is deliberately not committed to the parent repository; once
-the fork is published it becomes a submodule.
+All 4 authoritative engines maintain rebasability: upstream C/C++ game balance, formulas, content, and RNG are preserved intact, while presentation is decoupled through headless JSON bridge frontends.
 
 ## Keeping the fork rebasable
 

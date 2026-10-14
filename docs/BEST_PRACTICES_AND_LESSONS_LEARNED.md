@@ -1672,9 +1672,8 @@ Award jurors review dozens or hundreds of submissions under tight time constrain
 ### 32.3 Judge Evaluation Optimization & Zero Friction
 Jurors often have less than 15 minutes to form an initial impression. Every barrier to entry reduces submission score.
 1. **Zero-Install Web Entry**: Always provide an unauthenticated, zero-friction link (`https://angband3d.com`) requiring zero plugins, downloads, or accounts.
-2. **Curated Showcase Alternative**: For jurors who cannot play immediately or prefer a guided experience, provide a broadcast-quality, chapter-scrubbable interactive walkthrough (`https://angband3d.com/demo`).
-3. **Wizard Mode Shortcuts for Deep Content**: Roguelikes take dozens of hours to reach late-game content (unique dragons, ancient artifact vaults). Provide clear, prominent debug hotkeys (`Ctrl-W` Wizard Mode, `Ctrl-A` Debug Commands) in the submission dossier so jurors can immediately inspect endgame content.
-4. **Permanent Empirical Grounding**: Never make unverified marketing claims. Always cite automated test counts (11/11 C smoke tests, 932 unit tests), lore audits (624/624 entities), memory benchmarks (0 KB leaks over 10,000 turns), and open-source file paths.
+2. **Wizard Mode Shortcuts for Deep Content**: Roguelikes take dozens of hours to reach late-game content (unique dragons, ancient artifact vaults). Provide clear, prominent debug hotkeys (`Ctrl-W` Wizard Mode, `Ctrl-A` Debug Commands) in the submission dossier so jurors can immediately inspect endgame content.
+3. **Permanent Empirical Grounding**: Never make unverified marketing claims. Always cite automated test counts (11/11 C smoke tests, 932 unit tests), lore audits (624/624 entities), memory benchmarks (0 KB leaks over 10,000 turns), and open-source file paths.
 
 ---
 
