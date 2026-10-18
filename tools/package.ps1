@@ -129,8 +129,14 @@ if ($godotExe) {
 
     Write-Host "Exporting optional Angband3D-Godot.exe using Godot ($godotExe)..." -ForegroundColor Yellow
     $logPath = Join-Path $repo "godot-export.log"
-    & $godotExe --headless --path $clientPath --export-release "Windows Desktop" $exportTarget *>&1 | Tee-Object -FilePath $logPath
-    $exportCode = $LASTEXITCODE
+    $oldEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $godotExe --headless --path $clientPath --export-release "Windows Desktop" $exportTarget *>&1 | Tee-Object -FilePath $logPath
+        $exportCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $oldEAP
+    }
 
     if ($exportCode -eq 0 -and (Test-Path $exportTarget)) {
         Write-Host "Godot client exported successfully: $exportTarget" -ForegroundColor Green

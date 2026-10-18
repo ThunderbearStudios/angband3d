@@ -180,13 +180,15 @@
     }
 
     function getClassifier(frame, realm) {
-        if (typeof window !== 'undefined' && window.ScreenContext && typeof window.ScreenContext.classify === 'function') {
-            return window.ScreenContext.classify(frame, realm);
+        const sc = (typeof window !== 'undefined' && window.ScreenContext) ? window.ScreenContext
+                 : (typeof global !== 'undefined' && global.ScreenContext) ? global.ScreenContext : null;
+        if (sc && typeof sc.classify === 'function') {
+            const decode = (typeof window !== 'undefined' && window.__app && typeof window.__app.decodeHengbandText === 'function')
+                ? (s => window.__app.decodeHengbandText(s))
+                : null;
+            return sc.classify(frame, realm, decode ? { decode } : undefined);
         }
-        if (typeof global !== 'undefined' && global.ScreenContext && typeof global.ScreenContext.classify === 'function') {
-            return global.ScreenContext.classify(frame, realm);
-        }
-        return null;
+        return { mode: 'unknown', realm: realm || 'angband' };
     }
 
     function determineSuggestedVerb(item, listKind, realm) {
@@ -310,7 +312,7 @@
 
         // Case B: In item-list with command prompt (Sil-Q or Hengband), FCB Gear UI, or Angband item select
         const isCommandPrompt = (classifier.mode === 'item-list' && classifier.promptKind === 'command');
-        const isFcbGear = (realm === 'frogcomposband' && classifier.mode === 'item-list' && classifier.listKind);
+        const isFcbGear = (realm === 'frogcomposband' && classifier.mode === 'item-list' && classifier.listKind && classifier.promptKind === 'command');
         const isAngbandSelect = (realm === 'angband' && classifier.mode === 'item-list' && !classifier.verbPrompt);
 
         if (isCommandPrompt || isFcbGear || isAngbandSelect) {

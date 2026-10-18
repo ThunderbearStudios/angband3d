@@ -2787,19 +2787,35 @@ function spawnGameSession(ws, request) {
     const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
 
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
-    const targetSlot = save || user || 'Adventurer';
-    const savePath = path.join(engineInfo.saveDir || SAVE_DIR, targetSlot);
+    let targetSlot = save || user || 'Adventurer';
+    let savePath = path.join(engineInfo.saveDir || SAVE_DIR, targetSlot);
 
     let ownerToken = undefined;
     const reqToken = urlObj.searchParams.get('owner') || '';
 
-    // If we're creating a new character over an existing one, check ownership
+    // If we're creating a new character over an existing one, check ownership.
+    // If no explicit save file was targeted (e.g. random hero name collision or default 'Adventurer'),
+    // allocate a fresh non-colliding slot instead of failing with an Engine Error.
     if (isNew && fs.existsSync(savePath)) {
         if (!verifyOwnerToken(savePath, reqToken)) {
-            ws.send(JSON.stringify({ t: 'error', message: 'Forbidden: invalid owner token for existing character' }));
-            ws.send(JSON.stringify({ t: 'bye', detail: 'Invalid owner token' }));
-            ws.close(4403, 'Invalid owner token');
-            return;
+            if (!rawSave) {
+                const baseUser = (user || 'Adventurer').replace(/_[0-9a-z]+$/i, '').slice(0, 20) || 'Hero';
+                for (let i = 0; i < 20; i++) {
+                    const candidate = `${baseUser}_${Math.floor(100 + Math.random() * 900)}`;
+                    const candPath = path.join(engineInfo.saveDir || SAVE_DIR, candidate);
+                    if (!fs.existsSync(candPath)) {
+                        user = candidate;
+                        targetSlot = candidate;
+                        savePath = candPath;
+                        break;
+                    }
+                }
+            } else {
+                ws.send(JSON.stringify({ t: 'error', message: 'Forbidden: invalid owner token for existing character' }));
+                ws.send(JSON.stringify({ t: 'bye', detail: 'Invalid owner token' }));
+                ws.close(4403, 'Invalid owner token');
+                return;
+            }
         }
     }
 

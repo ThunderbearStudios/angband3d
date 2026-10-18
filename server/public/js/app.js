@@ -826,13 +826,24 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
                 if (window.MenuRouter && typeof window.MenuRouter.chooseVerb === 'function') {
                     window.MenuRouter.chooseVerb(verb);
-                    updateTerminalToolbar(lastFrame);
+                    const pending = (typeof window.MenuRouter.getPending === 'function') ? window.MenuRouter.getPending() : null;
+                    if (!pending || pending.step !== 'await-prompt') {
+                        updateTerminalToolbar(lastFrame);
+                    }
                     return;
                 }
             }
 
             // Letter Ribbon option buttons (e.g. [a], [b], [*]) must strictly pass their key directly
             if (btn.classList.contains('term-letter-btn')) {
+                if (btn.dataset.storeAutoBuy) {
+                    const buyCmd = btn.dataset.storeAutoBuy;
+                    network.sendKey(buyCmd);
+                    setTimeout(() => {
+                        network.sendKey(key);
+                    }, 45);
+                    return;
+                }
                 const realm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
                 if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
                     if (window.MenuRouter.route(key, lastFrame, realm)) {
@@ -2179,8 +2190,21 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
             base = REALM_HERO_NAMES.angband[Math.floor(Math.random() * REALM_HERO_NAMES.angband.length)];
         }
-        const suffix = Math.floor(10 + Math.random() * 90);
-        return `${base}_${suffix}`;
+        const existingSet = new Set(
+            Array.isArray(loadedSaves)
+                ? loadedSaves.map(s => String(s.filename || s.characterName || '').toLowerCase())
+                : []
+        );
+        for (let attempt = 0; attempt < 25; attempt++) {
+            const suffix = attempt < 12
+                ? Math.floor(10 + Math.random() * 90)
+                : Math.floor(100 + Math.random() * 900);
+            const candidate = `${base}_${suffix}`;
+            if (!existingSet.has(candidate.toLowerCase())) {
+                return candidate;
+            }
+        }
+        return `${base}_${Math.floor(100 + Math.random() * 900)}`;
     }
 
     function startNewRandomHero() {
@@ -3458,7 +3482,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         const realm = REALM_DATA[realmKey];
-        showRealmToast(`Realm Attuned: <strong>${realm.name}</strong> • ${realm.tagline}`);
+        showRealmToast(`Realm Attuned: ${realm.name} • ${realm.tagline}`);
         updateRealmUI();
         checkSaves();
 
@@ -3498,7 +3522,7 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch (_) {}
         updateLanguageUI();
         const desc = mode === 'en' ? 'English (純英語)' : (mode === 'jp' ? 'Japanese / 漢字 (Kanji)' : 'Bilingual (日本語 + English)');
-        showRealmToast(`🌐 Hengband Language Mode: <strong>${desc}</strong> [Alt+L]`);
+        showRealmToast(`🌐 Hengband Language Mode: ${desc} [Alt+L]`);
         if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
 
         // If in setup or play, re-render terminal & HUD to reflect updated language immediately
@@ -4873,6 +4897,19 @@ window.addEventListener('DOMContentLoaded', () => {
                     setCtxActions(renderCtxButtons(storeBtns));
                 }
                 populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
+                const promptLine = (frame && frame.term && frame.term.rows && frame.term.rows[0]) ? (frame.term.rows[0].g || '') : screenText;
+                if (!/which item|examine which|buy which|purchase which|sell which|how many|accept/i.test(promptLine)) {
+                    if (termLetterRibbon) {
+                        const buyCmd = (screenText.includes('g) Get') || screenText.includes('g) Purchase') || screenText.includes('g) get') || screenText.includes('g) purchase')) ? 'g' : 'p';
+                        const btns = termLetterRibbon.querySelectorAll('.term-letter-btn');
+                        btns.forEach(b => {
+                            const k = b.dataset.key;
+                            if (k && /^[a-l]$/i.test(k)) {
+                                b.dataset.storeAutoBuy = buyCmd;
+                            }
+                        });
+                    }
+                }
             }
         } else if (isItemActions) {
             terminalTitle.textContent = isHeng
@@ -4907,6 +4944,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 isSilq, isSilqInvenCmd, isSilqEquipCmd, isSilqWear, isSilqRemove, isSilqExamine,
                 isSilqDrop, isSilqThrow, isSilqFire, isEquipView, isQuiverView
             } = SC.itemFlags(screenText, activeRealm);
+            const isSpellPrompt = Boolean(SC && SC.isSpellOrAbilityMenu && SC.isSpellOrAbilityMenu(screenText));
+            const promptLine = (frame && frame.term && frame.term.rows && frame.term.rows[0]) ? (frame.term.rows[0].g || '') : screenText;
 
             if (isSilqInvenCmd) {
                 terminalTitle.textContent = '🎒 INVENTORY PACK (Choose action)';
@@ -4981,6 +5020,12 @@ window.addEventListener('DOMContentLoaded', () => {
                         { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
                         { key: '/', badge: '[/]', label: 'Switch Inven/Gear' },
                         { key: 'space', badge: '[␣]', label: 'Next Page' }
+                    ]));
+                } else if (isSpellPrompt || /spell|prayer|book|magic|power|mindcraft|invocation|song/i.test(promptLine)) {
+                    setCtxActions(renderCtxButtons([
+                        { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
+                        { key: 'space', badge: '[␣]', label: '📖 Show Choices' },
+                        { key: '?', badge: '[?]', label: '❓ Spell Help' }
                     ]));
                 } else if (isHeng) {
                     const packLabel = isEquipView

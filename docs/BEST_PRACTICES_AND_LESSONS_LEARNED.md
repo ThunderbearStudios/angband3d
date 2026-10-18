@@ -2100,4 +2100,37 @@ To guarantee zero regressions against the existing test suite (`tools/test_manif
     3. **Items & Weapons on the Ground**: Prioritize **Poly Haven CC0 photogrammetry 3D glTF models** (`antique_estoc`, `antique_katana_01`, `wooden_handle_saber`, `ornate_medieval_dagger`, `ornate_medieval_mace`, `ornate_war_hammer`, `hatchet`, `wooden_axe`, `kite_shield`, `wine_bottles_01`, `jug_01`, `ceramic_vase_01`, `brass_goblets`, `wooden_lantern_01`, `brass_candleholders`, `treasure_chest` — grounded at `min.y = 0`, normalized to `0.50m–0.68m`, with 1K PBR diffuse/normal/ARM maps), and use **4096×4096 Shockbolt hand-painted PBR item billboards** (`item_atlas.png` + `item_normal.png`) for all other item classes—never low-poly `.obj` files or primitive shapes.
     4. **Template Geometry Protection**: Tag all cached geometries, materials, and textures with `_sharedGeometry = true` / `_sharedMaterial = true` / `_sharedTexture = true` and guard them in `destroyEntity()` so despawning entities never dispose shared template vertex buffers.
 
+---
+
+## 44. 3D Skinned-Mesh Fist Centroid Attachment, Mixamo Clip Hygiene, First-Person Rim Framing & Gothic HUD Architecture (`v9.8.0`, `L37–L40`)
+
+### 44.1 Skinned-Mesh Inverse-Bind Fist Centroid & Synthetic Wrist Bones (`L37`)
+- **The Phenomenon & Failure Mode**:
+  Attaching a 3D weapon or shield at `(0, 0, 0)` on a character's `hand_r` / `hand_l` bone places the grip at the anatomical wrist joint (or forearm elbow on 3-bone fingerless rigs like `goblin.glb`, `orc.glb`, `kobold.glb`), causing hilts to protrude from forearms or float outside the palm. Furthermore, scaling the weapon by `1 / handBone.getWorldScale().y` canceled out the parent creature's scale (`pivot.scale.y`), making a `1.18m` goblin carry a giant human-sized weapon unless multiplied by `Math.clamp(charHeight / 1.75, 0.58, 1.35)`.
+- **The Architectural Invariant (`L37`)**:
+  - For 3-bone arms lacking a dedicated hand bone (`lowerarm_r` has 0 bone children), synthesize a child `THREE.Bone` (`RightHand_Synthetic` / `LeftHand_Synthetic`) at the distal end of the forearm along the upper-to-lower arm axis before equipment attachment.
+  - Compute the exact local palm/fist grip offset `_computeHandGripLocalOffset(rootGroup, handBone, isLeft)` using either the wrist-to-middle/index knuckle vector (`68%` toward `RightHandMiddle1`/`RightHandIndex1`) or the GPU inverse-bind vertex bounding box (`c.skeleton.boneInverses[bIdx] * c.bindMatrix`) of vertices weighted (`w >= 0.35`) to the hand bone (`58%` along the principal palm axis).
+
+### 44.2 Corrupted Mixamo Crouch/Root-Motion Clip Stripping & Static-Rig _restQuat Immutability (`L38`)
+- **The Phenomenon & Failure Mode**:
+  1. `guard.glb` contained embedded Mixamo clips (`Idle`, `Walk`) with broken root/pelvis rotations that twisted the knight 90° sideways into a 1.07m crouch.
+  2. Running `_applyCombatArmPose` and `_stabilizeHeldEquipment` every frame in `animate()` on static rigs (where `entity._mixer == null`) overwrote `b._restQuat` with the already-pitched arm quaternion on frame 1 and then compounded pitch or froze procedural walking arm swings on subsequent frames.
+- **The Architectural Invariant (`L38`)**:
+  - Strip corrupted Mixamo clips (`content._animations = []`) at template load time when the T-pose rest skeleton is clean, letting `_poseRigNaturalStance` pose the rig upright at full stature (`1.82m`).
+  - Restrict `_applyCombatArmPose` and per-frame `_stabilizeHeldEquipment` strictly to animated `AnimationMixer` rigs (`Boolean(instRoot._mixer)`). Static rigs are posed once in `_poseRigNaturalStance` before `captureRestPoses` records their immutable `_restQuat`.
+
+### 44.3 First-Person Viewmodel FOV Frustum Rim Anchoring & Armored Gauntlet Grip (`L39`)
+- **The Phenomenon & Failure Mode**:
+  In a `68°` vertical FOV camera (`tan(34°) = 0.6745`), placing first-person viewmodel hands at `y = -0.15, z = -0.38` placed the bare weapon pommel floating inside the lower-middle of the screen (`58%` down from center, well above the `y = -0.256` bottom frustum edge), and displaying a left-hand torch occluded dual-wielding / shield framing while dungeon lighting was already provided by `playerLight`.
+- **The Architectural Invariant (`L39`)**:
+  - Anchor first-person viewmodel weapons below the lower-right viewport rim (`rightRestPos = (0.31, -0.30, -0.36)`) with a 3D armored gauntlet cuff (`iron_gauntlets.glb`) wrapped around the hilt so the gauntlet cuff emerges naturally from the bottom-right corner and the blade angles diagonally into the lower-right combat quadrant.
+  - Never render handheld illumination sources (torches/lanterns) in the left viewmodel hand; reserve the left hand strictly for equipped shields (`leftRestPos = (-0.30, -0.26, -0.38)`).
+
+### 44.4 CSS !important Override Trap on Dynamic Attribute Grids & Gothic HUD Ergonomics (`L40`)
+- **The Phenomenon & Failure Mode**:
+  Using `display: flex !important` on `#char-panel #stats-strip .stat-item` overrode inline `style="display: none;"` on Sil-Q's 5th attribute (`#stat-item-gra` `GRA`) in standard 6-stat realms (`angband`, `frogcomposband`, `hengband`), creating a 7th orphan grid cell that pushed `CHR` onto a third row.
+- **The Architectural Invariant (`L40`)**:
+  Never apply `display: flex !important` to `.stat-item` without an explicit `#stat-item-gra[style*="display: none"] { display: none !important; }` rule, ensuring the 3×2 attribute grid (`STR, INT, WIS / DEX, CON, CHR`) remains compact across all realms.
+
+
 

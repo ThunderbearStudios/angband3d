@@ -138,7 +138,7 @@ Before editing code, remember these **8 pinned test contracts** in `tools/`:
 
 ---
 
-## 6. Argon Token-Frugal Execution & Real-Asset Mandate (`L35–L36`)
+## 6. Argon Token-Frugal Execution & Real-Asset Mandate (`L35–L40`)
 
 1. **Zero Token Waste (`L35` — Argon High-Efficiency Protocol)**:
    - **Never Stream Large Code Edits from Parent Argon Context (`Flash Subagent Delegation Mandate`)**: For any edit > 40 lines or any mutation to a large file (`dungeon3d.js`, `app.js`, `server.js`, `hud.js`, `chronicle-*.js`, `DungeonWorld.cs`), write the exact line-numbered spec into `docs/plan/master_audit_and_execution_plan.md` and delegate the file mutation to a **`Model: 'flash'` subagent (`invoke_subagent`)** so the heavy parent context never pays to stream or re-serialize large code blocks.
@@ -149,9 +149,24 @@ Before editing code, remember these **8 pinned test contracts** in `tools/`:
    - **Never build 3D models from scratch** out of primitive geometries (`BoxGeometry`, `SphereGeometry`, `CylinderGeometry`, `IcosahedronGeometry`, `createProceduralCreatureMesh`).
    - **Never use KayKit cartoon models** (`Adventurer.gltf`, `Farmer.gltf`, `King.gltf`, `Medieval.gltf`, `Punk.gltf`, `Soldier.gltf`, `Witch.gltf`, `Worker.gltf`) or render characters/creatures as flat 2D sprite billboards in the 3D viewport.
    - **Use ONLY high-realism photogrammetry, UE5-rigged 2K PBR 3D character/bestiary models & dark-fantasy painted assets** (see **Parts VIII–IX Asset Matrix** in `docs/plan/master_audit_and_execution_plan.md`):
-     1. **Poly Haven CC0 8K-Scanned Photogrammetry glTFs & 1K/2K PBR Textures** (`server/public/assets/polyhaven/models/` & `textures/`) for trees (`pachira_aquatica_01`), bushes, boulders (`moon_rock_02`), mountain crags (`rock_07`), rodents (`street_rat`), weapons/shields (`antique_estoc`, `antique_katana_01`, `wooden_handle_saber`, `ornate_medieval_dagger`, `ornate_medieval_mace`, `ornate_war_hammer`, `hatchet`, `wooden_axe`, `kite_shield`), and dungeon props/loot (`wine_bottles_01`, `jug_01`, `ceramic_vase_01`, `brass_goblets`, `wooden_lantern_01`, `brass_candleholders`, `treasure_chest`).
-     2. **High-Realism 2K PBR UE5-Rigged 3D Character & Bestiary Models** (`server/public/assets/models/characters/{Male_Peasant,Female_Peasant,Male_Ranger,Female_Ranger,Superhero_Male_FullBody,Superhero_Female_FullBody,Hair_*}.gltf` + `server/public/assets/models/monsters/{Puglin,Imp}.glb` + `server/public/assets/models/monsters/bestiary/{Dragon,Fox,Horse,Parrot,Stork,Skull}.glb` + PBR-enhanced `Spider/Snake_angry/Wasp/Frog.obj`) for **100% of townsfolk, humanoids, undead, demons, goblins/orcs/trolls, dragons, beasts, and creatures in the 3D world**.
+     1. **Poly Haven CC0 8K-Scanned Photogrammetry glTFs & OpenMMO 3D Weapon/Item Library** (`server/public/assets/polyhaven/models/`, `textures/`, `items/` & `weapons/`) for trees (`pachira_aquatica_01`), bushes, boulders (`moon_rock_02`), mountain crags (`rock_07`), rodents (`street_rat`), weapons/shields (`antique_estoc`, `antique_katana_01`, `wooden_handle_saber`, `ornate_medieval_dagger`, `ornate_medieval_mace`, `ornate_war_hammer`, `hatchet`, `wooden_axe`, `kite_shield`, `steel_longsword.glb`, `iron_gauntlets.glb`), and dungeon props/loot (`rusted_spade_01`, `picke_dirty_01`, `dead_quiver_branch_01`, `decorative_book_set_01`, `carved_wooden_plate`, `wine_bottles_01`, `jug_01`, `ceramic_vase_01`, `brass_goblets`, `wooden_lantern_01`, `brass_candleholders`, `treasure_chest`).
+     2. **High-Realism 2K PBR 42-Model 3D Bestiary & Townsfolk Library** (`server/public/assets/models/characters/{Male_Peasant,Female_Peasant,Male_Ranger,Female_Ranger,Superhero_Male_FullBody,Superhero_Female_FullBody,Hair_*}.gltf` + `server/public/assets/models/monsters/{Puglin,Imp}.glb` + `server/public/assets/models/monsters/bestiary/{Dragon,Fox,Horse,Parrot,Stork,Skull,goblin,orc,kobold,guard,...}.glb` + PBR-enhanced `Spider/Snake_angry/Wasp/Frog.obj`) for **100% of townsfolk, humanoids, undead, demons, goblins/orcs/trolls, dragons, beasts, and creatures in the 3D world**.
      3. **4096×4096 Shockbolt Hand-Painted Dark-Fantasy PBR Atlases** (`item_atlas.png` + `item_normal.png` for non-photogrammetry floor items; `monster_atlas.png` + `item_atlas.png` for 2D UI Target Inspector portraits, ribbon icons, and Living Chronicle Hero Action Sketches).
    - Keep GPU index buffers intact on loaded glTF submeshes (never call `.toNonIndexed()`) and tag cached template geometries/materials/textures with `_sharedGeometry = true` / `_sharedMaterial = true` / `_sharedTexture = true` so `destroyEntity()` never disposes shared GPU buffers.
+
+### D. 3D Rig Attachment, Viewmodel Framing & HUD Grid Integrity (`L37–L40`)
+
+3. **Skinned-Mesh Inverse-Bind Fist Centroid & Synthetic Wrist Bones (`L37`)**:
+   - For 3-bone arms lacking a dedicated hand bone (`lowerarm_r` has 0 children), synthesize a child `THREE.Bone` (`RightHand_Synthetic` / `LeftHand_Synthetic`) at the distal forearm axis before attaching weapons or shields.
+   - Compute exact local palm grip offset `_computeHandGripLocalOffset` using wrist-to-middle/index knuckle vectors (`68%` toward knuckle) or GPU inverse-bind bounding boxes (`c.skeleton.boneInverses[bIdx] * c.bindMatrix`) of weighted vertices (`w >= 0.35`). Multiply weapon scale by `Math.clamp(charHeight / 1.75, 0.58, 1.35)` to preserve creature scale hierarchy.
+4. **Corrupted Mixamo Crouch Stripping & Static-Rig Immutability (`L38`)**:
+   - Strip corrupted embedded Mixamo clips (`content._animations = []`) at template load time when rest poses are clean, letting `_poseRigNaturalStance` establish full stature (`1.82m`).
+   - Restrict `_applyCombatArmPose` and per-frame `_stabilizeHeldEquipment` strictly to animated rigs with active `AnimationMixer`s. Pose static rigs once before `captureRestPoses` records their immutable `_restQuat`.
+5. **First-Person Viewmodel FOV Frustum Rim Anchoring & Armored Gauntlet Grip (`L39`)**:
+   - Anchor first-person viewmodel weapons below the lower-right viewport rim (`rightRestPos = (0.31, -0.30, -0.36)`) wrapped in a 3D armored gauntlet cuff (`iron_gauntlets.glb`) emerging from the bottom-right corner.
+   - Never render handheld light sources (torches/lanterns) in the left viewmodel hand (`playerLight` illuminates the scene); reserve the left hand strictly for equipped shields (`leftRestPos = (-0.30, -0.26, -0.38)`).
+6. **CSS !important Override Trap on Dynamic Attribute Grids (`L40`)**:
+   - Never apply `display: flex !important` to `.stat-item` without explicit `#stat-item-gra[style*="display: none"] { display: none !important; }` override protection, ensuring the 3×2 attribute grid (`STR, INT, WIS / DEX, CON, CHR`) remains compact across all realms.
+
 
 

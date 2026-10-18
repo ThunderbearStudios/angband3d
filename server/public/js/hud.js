@@ -80,6 +80,7 @@ class WebHUD {
         this.footerFacing = document.getElementById('footer-facing');
 
         this.footerTarget = document.getElementById('footer-target');
+        this.reticleTargetCard = document.getElementById('reticle-target-card');
         this.footerBadges = document.getElementById('footer-badges');
         this.footerGear = document.getElementById('footer-gear');
 
@@ -707,7 +708,7 @@ class WebHUD {
                         window.chronicleManager.interactWithCreature(hitMon);
                     }
                     const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
-                    this.updateTargetInspector({ target: { name: hitMon.name, glyph: hitMon.glyph, pct: hitMon.hp_max > 0 ? Math.round((hitMon.hp / hitMon.hp_max) * 100) : 100 } }, realm);
+                    this.updateTargetInspector({ target: { name: hitMon.name, glyph: hitMon.glyph, pct: hitMon.hp_max > 0 ? Math.round((hitMon.hp / hitMon.hp_max) * 100) : 100, visible: true } }, realm);
                 }
             });
         }
@@ -942,24 +943,26 @@ class WebHUD {
         this.applySavedHudLayout();
 
         // Responsive window resize clamping
-        window.addEventListener('resize', () => {
-            const ids = ['touch-controls', 'char-panel', 'hud-center-column', 'compass-container'];
-            for (const id of ids) {
-                const el = document.getElementById(id);
-                if (!el || el.style.position !== 'fixed') continue;
-                const rect = el.getBoundingClientRect();
-                const minX = 4;
-                const maxX = Math.max(4, window.innerWidth - rect.width - 4);
-                const minY = 36;
-                const maxY = Math.max(36, window.innerHeight - rect.height - 4);
-                const curX = parseFloat(el.style.left) || rect.left;
-                const curY = parseFloat(el.style.top) || rect.top;
-                const clampedX = Math.max(minX, Math.min(curX, maxX));
-                const clampedY = Math.max(minY, Math.min(curY, maxY));
-                el.style.left = `${clampedX}px`;
-                el.style.top = `${clampedY}px`;
-            }
-        });
+        if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+            window.addEventListener('resize', () => {
+                const ids = ['touch-controls', 'char-panel', 'hud-center-column', 'compass-container'];
+                for (const id of ids) {
+                    const el = document.getElementById(id);
+                    if (!el || el.style.position !== 'fixed') continue;
+                    const rect = el.getBoundingClientRect();
+                    const minX = 4;
+                    const maxX = Math.max(4, window.innerWidth - rect.width - 4);
+                    const minY = 36;
+                    const maxY = Math.max(36, window.innerHeight - rect.height - 4);
+                    const curX = parseFloat(el.style.left) || rect.left;
+                    const curY = parseFloat(el.style.top) || rect.top;
+                    const clampedX = Math.max(minX, Math.min(curX, maxX));
+                    const clampedY = Math.max(minY, Math.min(curY, maxY));
+                    el.style.left = `${clampedX}px`;
+                    el.style.top = `${clampedY}px`;
+                }
+            });
+        }
 
         // Wire D-Pad Scale Cycle (1.0 -> 1.15 -> 0.85)
         const btnDpadScale = document.getElementById('btn-dpad-scale');
@@ -1203,27 +1206,175 @@ class WebHUD {
         }
     }
 
-    updateTargetInspector(player, realm) {
-        if (!this.footerTarget) return;
-        if (player && player.target && player.target.name) {
-            let tName = player.target.name;
+    updateReticleTargetCard(frame) {
+        const effFrame = frame || this.lastFrame;
+        const player = effFrame ? effFrame.player : null;
+        const realm = (effFrame && effFrame.realm) || (window.__activeRealm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
+        return this.updateTargetInspector(player, realm, effFrame);
+    }
+
+    updateTargetInspector(player, realm, frameOpt) {
+        const reticleCard = this.reticleTargetCard || document.getElementById('reticle-target-card');
+        const targetCardName = document.getElementById('target-card-name');
+        const targetCardTier = document.getElementById('target-card-tier');
+        const targetCardHpFill = document.getElementById('target-card-hp-fill');
+        const targetCardAffinities = document.getElementById('target-card-affinities');
+
+        const frame = frameOpt || this.lastFrame;
+        const pl = player || (frame ? frame.player : null);
+        let t = (pl && pl.target && pl.target.name) ? pl.target : ((frame && frame.target && frame.target.name) ? frame.target : null);
+        const hasTarget = !!(t && t.name);
+        const isVisible = hasTarget && (t.visible !== false);
+        const esc = typeof escapeHtml === 'function' ? escapeHtml : (s) => String(s).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+
+        if (hasTarget && isVisible) {
+            let tName = t.name;
             const lang = window.__langMode || 'en';
             if (realm === 'hengband' && typeof window.getLocalizedMonsterName === 'function') {
                 tName = window.getLocalizedMonsterName(tName, 'hengband', lang);
             }
-            const tPrefix = (realm === 'hengband' && lang === 'jp') ? '標的' : ((realm === 'hengband' && lang === 'bilingual') ? 'Target (標的)' : 'Target');
-            this.footerTarget.style.display = 'inline-flex';
-            let portraitHtml = '';
-            if (typeof window.getShockboltSpriteCss === 'function') {
-                const iconStyle = window.getShockboltSpriteCss('monster', player.target.name, player.target.glyph || null, 36);
-                if (iconStyle) {
-                    portraitHtml = `<span class="sb-sprite-icon hud-target-portrait" style="${iconStyle}"></span> `;
+            const pct = Math.max(0, Math.min(100, Math.round(t.hp_pct !== undefined ? t.hp_pct : (t.pct !== undefined ? t.pct : 100))));
+
+            if (this.footerTarget) {
+                this.footerTarget.style.display = 'inline-flex';
+                this.footerTarget.style.maxWidth = '190px';
+                this.footerTarget.style.overflow = 'hidden';
+                this.footerTarget.style.textOverflow = 'ellipsis';
+                this.footerTarget.style.whiteSpace = 'nowrap';
+                let portraitHtml = '';
+                if (typeof window.getShockboltSpriteCss === 'function') {
+                    const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
+                    if (iconStyle) {
+                        portraitHtml = `<span class="sb-sprite-icon hud-target-portrait" style="${iconStyle}"></span> `;
+                    }
+                }
+                this.footerTarget.innerHTML = `${portraitHtml}⚔ ${esc(tName)} (${pct}%)`;
+            }
+
+            if (reticleCard) {
+                reticleCard.style.display = 'block';
+                reticleCard.classList.remove('hidden');
+
+                if (targetCardName) {
+                    let portraitHtml = '';
+                    if (typeof window.getShockboltSpriteCss === 'function') {
+                        const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
+                        if (iconStyle) {
+                            portraitHtml = `<span class="sb-sprite-icon hud-target-portrait" style="${iconStyle}"></span> `;
+                        }
+                    }
+                    targetCardName.innerHTML = `${portraitHtml}${esc(tName)}`;
+                }
+
+                if (targetCardTier) {
+                    const isUnique = !!(t.unique || (t.tier && String(t.tier).toLowerCase() === 'unique') || (t.flags && t.flags.unique));
+                    const tierText = isUnique ? 'Unique' : (t.tier || 'Monster');
+                    targetCardTier.textContent = tierText;
+                    targetCardTier.className = `target-card-tier ${isUnique ? 'badge-unique' : 'badge-monster'}`;
+                }
+
+                if (targetCardHpFill) {
+                    targetCardHpFill.style.width = `${pct}%`;
+                    targetCardHpFill.style.setProperty('--target-hp-pct', `${pct}%`);
+                }
+
+                if (targetCardAffinities) {
+                    let affHtml = '';
+                    if (Array.isArray(t.affinities) && t.affinities.length > 0) {
+                        affHtml = t.affinities.map(a => `<span class="target-affinity-chip">${esc(String(a))}</span>`).join('');
+                    } else if (t.status) {
+                        affHtml = `<span class="target-affinity-chip">${esc(String(t.status))}</span>`;
+                    } else if (t.speed !== undefined && t.speed !== 0) {
+                        affHtml = `<span class="target-affinity-chip">Spd ${t.speed > 0 ? '+' : ''}${esc(String(t.speed))}</span>`;
+                    }
+                    targetCardAffinities.innerHTML = affHtml;
                 }
             }
-            const esc = typeof escapeHtml === 'function' ? escapeHtml : (s) => String(s).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
-            this.footerTarget.innerHTML = `${portraitHtml}⚔ ${esc(tPrefix)}: ${esc(tName)} (${esc(String(player.target.pct || 100))}%)`;
         } else {
-            this.footerTarget.style.display = 'none';
+            // When t is null/empty or not valid, before hiding, check if frame.monsters has any visible hostile monster within 10 tiles of player
+            let fallbackMonster = null;
+            const px = pl ? pl.x : (frame && frame.player ? frame.player.x : undefined);
+            const py = pl ? pl.y : (frame && frame.player ? frame.player.y : undefined);
+            const monsters = (frame && Array.isArray(frame.monsters)) ? frame.monsters : null;
+
+            if (px !== undefined && py !== undefined && monsters && monsters.length > 0) {
+                let closestDist = Infinity;
+                for (const m of monsters) {
+                    if (!m || !m.name) continue;
+                    if (/townsperson|shopkeeper|citizen|villager|guide/i.test(m.name)) continue;
+                    if (m.visible === false) continue;
+                    const dx = m.x - px;
+                    const dy = m.y - py;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist <= 10 && dist < closestDist) {
+                        closestDist = dist;
+                        fallbackMonster = m;
+                    }
+                }
+            }
+
+            if (fallbackMonster) {
+                const m = fallbackMonster;
+                const hp_pct = (m.maxhp > 0 ? Math.round((m.hp / m.maxhp) * 100) : (m.hp_pct !== undefined ? m.hp_pct : (m.pct !== undefined ? m.pct : 100)));
+                const synthTarget = {
+                    active: true,
+                    x: m.x,
+                    y: m.y,
+                    name: m.name,
+                    hp_pct: hp_pct,
+                    pct: hp_pct,
+                    status: m.status || m.desc || 'Nearby Threat',
+                    glyph: m.c || m.glyph,
+                    attr: m.a || m.attr,
+                    unique: m.unique
+                };
+
+                let tName = synthTarget.name;
+                const lang = window.__langMode || 'en';
+                if (realm === 'hengband' && typeof window.getLocalizedMonsterName === 'function') {
+                    tName = window.getLocalizedMonsterName(tName, 'hengband', lang);
+                }
+
+                if (reticleCard) {
+                    reticleCard.style.display = 'block';
+                    reticleCard.classList.remove('hidden');
+
+                    if (targetCardName) {
+                        let portraitHtml = '';
+                        if (typeof window.getShockboltSpriteCss === 'function') {
+                            const iconStyle = window.getShockboltSpriteCss('monster', synthTarget.name, synthTarget.glyph || null, 36);
+                            if (iconStyle) {
+                                portraitHtml = `<span class="sb-sprite-icon hud-target-portrait" style="${iconStyle}"></span> `;
+                            }
+                        }
+                        targetCardName.innerHTML = `${portraitHtml}${esc(tName)}`;
+                    }
+
+                    if (targetCardTier) {
+                        const isUnique = !!(synthTarget.unique);
+                        const tierText = isUnique ? 'Unique' : 'Monster';
+                        targetCardTier.textContent = tierText;
+                        targetCardTier.className = `target-card-tier ${isUnique ? 'badge-unique' : 'badge-monster'}`;
+                    }
+
+                    if (targetCardHpFill) {
+                        targetCardHpFill.style.width = `${hp_pct}%`;
+                        targetCardHpFill.style.setProperty('--target-hp-pct', `${hp_pct}%`);
+                    }
+
+                    if (targetCardAffinities) {
+                        targetCardAffinities.innerHTML = `<span class="target-affinity-chip">${esc(synthTarget.status)}</span>`;
+                    }
+                }
+            } else {
+                if (this.footerTarget) {
+                    this.footerTarget.style.display = 'none';
+                }
+                if (reticleCard) {
+                    reticleCard.style.display = 'none';
+                    reticleCard.classList.add('hidden');
+                }
+            }
         }
     }
 
@@ -1661,6 +1812,26 @@ class WebHUD {
                 bi: '🛡 Gear (装備) <kbd>e</kbd>',
                 jp: '🛡 装備 <kbd>e</kbd>'
             },
+            'btn-wield': {
+                en: '⚔ Wield <kbd>w</kbd>',
+                bi: '⚔ Wield (装備) <kbd>w</kbd>',
+                jp: '⚔ 装備 <kbd>w</kbd>'
+            },
+            'btn-drop': {
+                en: '📦 Drop <kbd>d</kbd>',
+                bi: '📦 Drop (落とす) <kbd>d</kbd>',
+                jp: '📦 落とす <kbd>d</kbd>'
+            },
+            'btn-search': {
+                en: '🔍 Search <kbd>s</kbd>',
+                bi: '🔍 Search (探索) <kbd>s</kbd>',
+                jp: '🔍 探索 <kbd>s</kbd>'
+            },
+            'btn-wasd-toggle': {
+                en: '⌨ WASD',
+                bi: '⌨ WASD',
+                jp: '⌨ WASD'
+            },
             'btn-terminal': {
                 en: '📜 Classic <kbd>Tab</kbd>',
                 bi: '📜 Classic (端末) <kbd>Tab</kbd>',
@@ -1906,7 +2077,13 @@ class WebHUD {
         const curHp = player.hp !== undefined ? player.hp : (player.chp !== undefined ? player.chp : 100);
         const maxHp = player.hp_max !== undefined ? player.hp_max : (player.max_hp !== undefined ? player.max_hp : (player.mhp !== undefined ? player.mhp : 100));
         const hpPct = Math.max(0, Math.min(100, (curHp / Math.max(1, maxHp)) * 100));
-        this.hpFill.style.width = `${hpPct}%`;
+        if (this.hpFill) {
+            this.hpFill.style.width = `${hpPct}%`;
+            this.hpFill.style.height = `${hpPct}%`;
+            if (typeof this.hpFill.style.setProperty === 'function') {
+                this.hpFill.style.setProperty('--vial-pct', `${hpPct}%`);
+            }
+        }
         this.hpText.textContent = `${curHp} / ${maxHp}`;
 
         // SP / Voice Bar
@@ -1923,7 +2100,13 @@ class WebHUD {
         const curSp = player.sp !== undefined ? player.sp : (player.csp !== undefined ? player.csp : 0);
         const maxSp = player.sp_max !== undefined ? player.sp_max : (player.max_sp !== undefined ? player.max_sp : (player.msp !== undefined ? player.msp : 0));
         const spPct = maxSp > 0 ? Math.max(0, Math.min(100, (curSp / maxSp) * 100)) : 0;
-        this.spFill.style.width = `${spPct}%`;
+        if (this.spFill) {
+            this.spFill.style.width = `${spPct}%`;
+            this.spFill.style.height = `${spPct}%`;
+            if (typeof this.spFill.style.setProperty === 'function') {
+                this.spFill.style.setProperty('--vial-pct', `${spPct}%`);
+            }
+        }
         this.spText.textContent = `${curSp} / ${maxSp}`;
 
         // Left Panel Stats
@@ -2259,7 +2442,7 @@ class WebHUD {
         }
 
         // Target tracking
-        if (this.footerTarget) {
+        if (this.footerTarget || this.reticleTargetCard || document.getElementById('reticle-target-card')) {
             this.updateTargetInspector(player, realm);
         }
 
@@ -2302,21 +2485,22 @@ class WebHUD {
                     });
                 }
 
-                if (player.study && player.study > 0) {
+                const hasStatusMatching = (re) => Array.isArray(player.statuses) && player.statuses.some(st => st && st.name && re.test(st.name));
+                if (player.study && player.study > 0 && !hasStatusMatching(/^study/i)) {
                     const span = document.createElement('span');
                     span.className = 'footer-badge badge-study';
                     span.textContent = `[STUDY: ${player.study}]`;
                     this.footerBadges.appendChild(span);
                 }
 
-                if (player.resting && player.resting !== 0) {
+                if (player.resting && player.resting !== 0 && !hasStatusMatching(/^rest/i)) {
                     const span = document.createElement('span');
                     span.className = 'footer-badge badge-resting';
                     span.textContent = `[RESTING${player.resting > 0 ? `: ${player.resting}` : ''}]`;
                     this.footerBadges.appendChild(span);
                 }
 
-                if (player.word_recall && player.word_recall > 0) {
+                if (player.word_recall && player.word_recall > 0 && !hasStatusMatching(/^recall/i)) {
                     const span = document.createElement('span');
                     span.className = 'footer-badge badge-recall';
                     span.textContent = `[RECALL: ${player.word_recall}t]`;

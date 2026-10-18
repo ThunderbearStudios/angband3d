@@ -8,11 +8,33 @@ class InputController {
         this.network = network;
         this.dungeon = dungeon;
         this.terminal = terminal;
-        this.audio = audio;
-        this.toggleTerminalView = toggleTerminalView;
+        if (audio && (audio.hud || audio.lastFrame || audio.getActiveRealm)) {
+            this.app = audio;
+            this.audio = audio.audio || null;
+            this.toggleTerminalView = toggleTerminalView || (this.app ? () => this.app.toggleTerminalView() : null);
+        } else {
+            this.audio = audio;
+            this.toggleTerminalView = toggleTerminalView;
+            this.app = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
+        }
+
+        if (this.dungeon) {
+            if (typeof this.dungeon.turnLeft !== 'function') {
+                this.dungeon.turnLeft = () => this.dungeon.turn(-1);
+            }
+            if (typeof this.dungeon.turnRight !== 'function') {
+                this.dungeon.turnRight = () => this.dungeon.turn(1);
+            }
+            if (typeof this.dungeon.getRelativeDirection !== 'function') {
+                this.dungeon.getRelativeDirection = (fwd, strafe) => (fwd > 0 ? 8 : (fwd < 0 ? 2 : (strafe < 0 ? 4 : 6)));
+            }
+        }
 
         this.inTerminal = false;
         this.smartAction = 'wait';
+        this.wasdMode = (function() {
+            try { return localStorage.getItem('angband3d_wasd_mode') === '1'; } catch (_) { return false; }
+        })();
         this.invertDragLook = (function() {
             try { return localStorage.getItem('angband3d_invert_drag') === 'true'; } catch (_) { return false; }
         })();
@@ -25,6 +47,319 @@ class InputController {
         this.setupViewportGestures();
         this.setupInvertControls();
         this.updateRunToggleUI();
+        this.init();
+    }
+
+    init() {
+        const btnWasd = document.getElementById('btn-wasd-toggle');
+        if (btnWasd) {
+            btnWasd.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleWasdMode();
+                if (window.AngbandAudio && typeof window.AngbandAudio.playUiTick === 'function') {
+                    window.AngbandAudio.playUiTick();
+                }
+            });
+        }
+        this.setupTouchControls();
+        this.syncWasdUiState();
+    }
+
+    setupTouchControls() {
+        const btnWield = document.getElementById('btn-wield');
+        if (btnWield && !btnWield.dataset.boundWield) {
+            btnWield.dataset.boundWield = '1';
+            btnWield.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.openContextualMenu('wield');
+            });
+        }
+        const btnDrop = document.getElementById('btn-drop');
+        if (btnDrop && !btnDrop.dataset.boundDrop) {
+            btnDrop.dataset.boundDrop = '1';
+            btnDrop.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.openContextualMenu('drop');
+            });
+        }
+        const btnSearch = document.getElementById('btn-search');
+        if (btnSearch && !btnSearch.dataset.boundSearch) {
+            btnSearch.dataset.boundSearch = '1';
+            btnSearch.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.openContextualMenu('search');
+            });
+        }
+    }
+
+    toggleWasdMode(forceState) {
+        this.wasdMode = typeof forceState === 'boolean' ? forceState : !this.wasdMode;
+        try {
+            localStorage.setItem('angband3d_wasd_mode', this.wasdMode ? '1' : '0');
+        } catch (_) {}
+        this.syncWasdUiState();
+        const msg = this.wasdMode
+            ? '⌨ WASD Movement ENABLED — W/S Move, A/D Turn, Shift+A/D Strafe (Wield/Drop/Search highlighted on HUD)'
+            : '⌨ WASD Movement OFF — Classic Arrow Keys & W/A/S/D roguelike hotkeys restored';
+        const hud = (this.app && this.app.hud) || (window.__app && window.__app.hud);
+        if (hud && typeof hud.showToast === 'function') {
+            hud.showToast(msg);
+        } else if (window.__app && typeof window.__app.showRealmToast === 'function') {
+            window.__app.showRealmToast(msg);
+        }
+        return this.wasdMode;
+    }
+
+    syncWasdUiState() {
+        const active = Boolean(this.wasdMode);
+        const btn = document.getElementById('btn-wasd-toggle');
+        if (btn) {
+            btn.classList.toggle('wasd-active', active);
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+            btn.textContent = active ? '⌨ WASD: ON' : '⌨ WASD';
+            btn.title = active
+                ? 'WASD Movement Active (Alt+W to toggle off). W/S: Move, A/D: Turn, Shift+A/D: Strafe. W/A/S/D commands locked to HUD buttons.'
+                : 'Toggle WASD Keyboard Movement (Alt+W). Locks W/A/S/D roguelike keys and highlights HUD command buttons.';
+        }
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.classList.toggle('wasd-mode-active', active);
+        }
+        const turnL = document.querySelector('#dpad-turn-left .dpad-turn-text');
+        if (turnL) turnL.textContent = active ? 'Turn [A]' : 'Turn L';
+        const turnR = document.querySelector('#dpad-turn-right .dpad-turn-text');
+        if (turnR) turnR.textContent = active ? 'Turn [D]' : 'Turn R';
+        const dpadUp = document.getElementById('dpad-up');
+        if (dpadUp) dpadUp.textContent = active ? '▲ W' : '▲';
+        const dpadDown = document.getElementById('dpad-down');
+        if (dpadDown) dpadDown.textContent = active ? '▼ S' : '▼';
+        const strafeL = document.querySelector('#dpad-left .dpad-sub-lbl');
+        if (strafeL) strafeL.textContent = active ? '⇧A' : 'Strafe';
+        const strafeR = document.querySelector('#dpad-right .dpad-sub-lbl');
+        if (strafeR) strafeR.textContent = active ? '⇧D' : 'Strafe';
+        const remappedBtnIds = ['btn-wield', 'btn-drop', 'btn-search', 'btn-use', 'btn-fire', 'btn-cast', 'btn-inventory', 'btn-equipment'];
+        for (const id of remappedBtnIds) {
+            const b = document.getElementById(id);
+            if (b) {
+                b.classList.toggle('wasd-remapped-highlight', active);
+            }
+        }
+    }
+
+    sendMoveOrRun(dir, isRunning) {
+        const run = (isRunning !== undefined) ? Boolean(isRunning) : this.isRunningActive();
+        if (run && dir !== 5) {
+            this.sendRunMove(dir);
+        } else {
+            const moveKey = this.getRelativeDirectionKey(dir);
+            if (moveKey) this.sendMovementKey(moveKey);
+        }
+    }
+
+    clearDirectionHint() {
+        const el = document.getElementById('footer-diagonal-hint');
+        if (el) el.style.display = 'none';
+    }
+
+    syncCompass() {
+        const hud = (this.app && this.app.hud) || (window.__app && window.__app.hud);
+        if (hud && typeof hud.updateFooterFacing === 'function') {
+            const yaw = (this.dungeon && typeof this.dungeon.yaw === 'number') ? this.dungeon.yaw : 0;
+            hud.updateFooterFacing(yaw);
+        }
+    }
+
+    openContextualMenu(actionName) {
+        const realm = (this.app && typeof this.app.getActiveRealm === 'function')
+            ? this.app.getActiveRealm()
+            : ((window.__app && typeof window.__app.getActiveRealm === 'function')
+                ? window.__app.getActiveRealm()
+                : 'angband');
+        let keyToSend = null;
+        if (actionName === 'wield') {
+            keyToSend = (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla)
+                ? RealmKeys.fromVanilla('w', realm)
+                : 'w';
+            if (this.audio && typeof this.audio.playEquipWeapon === 'function') {
+                this.audio.playEquipWeapon();
+            }
+        } else if (actionName === 'drop') {
+            keyToSend = (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla)
+                ? RealmKeys.fromVanilla('d', realm)
+                : 'd';
+            if (this.audio && typeof this.audio.playItemDrop === 'function') {
+                this.audio.playItemDrop();
+            }
+        } else if (actionName === 'search') {
+            keyToSend = (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla)
+                ? RealmKeys.fromVanilla('s', realm)
+                : 's';
+        }
+        if (keyToSend) {
+            const lastFrame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+            if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
+                if (window.MenuRouter.route(keyToSend, lastFrame, realm)) {
+                    if (this.app && typeof this.app.updateTerminalToolbar === 'function') {
+                        this.app.updateTerminalToolbar(lastFrame);
+                    }
+                    return;
+                }
+            }
+            this.network.sendKey(keyToSend);
+        }
+    }
+
+    resolveHeroAction(frame) {
+        if (!frame || !frame.player || !frame.map) {
+            const realm = (this.app && typeof this.app.getActiveRealm === 'function')
+                ? this.app.getActiveRealm()
+                : ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband');
+            const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                ? (RealmKeys.realmKey('hold', realm) || ',')
+                : ',';
+            return { id: 'wait', label: 'Wait', icon: '⏳', key: holdKey };
+        }
+        const player = frame.player;
+        const px = player.x;
+        const py = player.y;
+        if (px === undefined || py === undefined) {
+            const realm = (this.app && typeof this.app.getActiveRealm === 'function')
+                ? this.app.getActiveRealm()
+                : ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband');
+            const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                ? (RealmKeys.realmKey('hold', realm) || ',')
+                : ',';
+            return { id: 'wait', label: 'Wait', icon: '⏳', key: holdKey };
+        }
+
+        const currentFeat = (this.getFeatAt && frame.map) ? this.getFeatAt(frame.map, px, py) : 0;
+        const items = frame.items || frame.objects || [];
+        const itemOnTile = items.find(it => it.x === px && it.y === py);
+
+        const yaw = (this.dungeon && typeof this.dungeon.yaw === 'number') ? this.dungeon.yaw : 0;
+        const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
+        const forwardOffsets = [
+            { dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 },
+            { dx: 0, dy: 1 },  { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }
+        ];
+        const fwd = forwardOffsets[sector] || { dx: 0, dy: -1 };
+        const rayTarget = (this.raycastTargetAhead) ? this.raycastTargetAhead(frame, px, py, fwd) : null;
+
+        if (rayTarget && rayTarget.type === 'monster' && rayTarget.dist === 1) {
+            return { id: 'attack', label: 'Attack', icon: '⚔', key: 'Space', target: rayTarget.data };
+        }
+        if (currentFeat === 6) {
+            return { id: 'stair-down', label: 'Descend', icon: '⬇', key: '>' };
+        }
+        if (currentFeat === 5) {
+            return { id: 'stair-up', label: 'Ascend', icon: '⬆', key: '<' };
+        }
+        if (itemOnTile) {
+            return { id: 'pickup', label: 'Get', icon: '🎒', key: 'g', item: itemOnTile };
+        }
+        if (rayTarget && rayTarget.type === 'door' && rayTarget.dist === 1) {
+            return { id: 'open-door', label: 'Open', icon: '🚪', key: 'o' };
+        }
+        if (rayTarget && rayTarget.type === 'wall' && rayTarget.dist === 1 && rayTarget.feat !== 22) {
+            return { id: 'tunnel', label: 'Tunnel', icon: '⛏️', key: 'Shift+T' };
+        }
+        if (rayTarget && rayTarget.type === 'monster' && rayTarget.dist > 1) {
+            return { id: 'shoot', label: 'Shoot', icon: '🏹', key: 'f', target: rayTarget.data };
+        }
+        const realm = (this.app && typeof this.app.getActiveRealm === 'function')
+            ? this.app.getActiveRealm()
+            : ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband');
+        const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+            ? (RealmKeys.realmKey('hold', realm) || ',')
+            : ',';
+        return { id: 'wait', label: 'Wait', icon: '⏳', key: holdKey };
+    }
+
+    updateContextButtons(frame) {
+        if (!frame || !frame.player) return;
+        const heroAction = this.resolveHeroAction ? this.resolveHeroAction(frame) : null;
+        const btnHero = document.getElementById('btn-hero-action');
+        const heroActive = Boolean(btnHero && btnHero.style.display !== 'none' && heroAction && heroAction.id !== 'wait');
+
+        const px = frame.player.x;
+        const py = frame.player.y;
+        const map = frame.map;
+
+        let adjClosedDoors = 0;
+        let adjMonsters = 0;
+        const standingOnItem = Boolean(Array.isArray(frame.items) && frame.items.some(it => it.x === px && it.y === py));
+        const currentFeat = (this.getFeatAt && map) ? this.getFeatAt(map, px, py) : 0;
+        const standingStair = (currentFeat === 5 || currentFeat === 6);
+
+        if (map && px !== undefined && py !== undefined) {
+            const neighbors = [
+                { x: px + 1, y: py }, { x: px - 1, y: py },
+                { x: px, y: py + 1 }, { x: px, y: py - 1 },
+                { x: px + 1, y: py - 1 }, { x: px - 1, y: py - 1 },
+                { x: px + 1, y: py + 1 }, { x: px - 1, y: py + 1 }
+            ];
+            for (const n of neighbors) {
+                const feat = (this.getFeatAt && map) ? this.getFeatAt(map, n.x, n.y) : 0;
+                if (feat === 3 || feat === 4) adjClosedDoors++;
+            }
+        }
+        if (Array.isArray(frame.monsters) && px !== undefined && py !== undefined) {
+            for (const m of frame.monsters) {
+                if (m && Math.abs(m.x - px) <= 1 && Math.abs(m.y - py) <= 1 && !(m.x === px && m.y === py)) {
+                    adjMonsters++;
+                }
+            }
+        }
+
+        const btnDoor = document.getElementById('btn-door');
+        const btnPickup = document.getElementById('btn-pickup');
+        const btnStair = document.getElementById('btn-stair');
+        const btnAttack = document.getElementById('btn-attack');
+        const btnFire = document.getElementById('btn-fire');
+
+        if (btnDoor) {
+            btnDoor.style.display = (adjClosedDoors > 0 && (!heroActive || heroAction.id !== 'open-door')) ? 'flex' : 'none';
+        }
+        if (btnPickup) {
+            btnPickup.style.display = (standingOnItem && (!heroActive || heroAction.id !== 'pickup')) ? 'flex' : 'none';
+        }
+        if (btnStair) {
+            btnStair.style.display = (standingStair && (!heroActive || (heroAction.id !== 'stair-down' && heroAction.id !== 'stair-up'))) ? 'flex' : 'none';
+        }
+        if (btnAttack) {
+            btnAttack.style.display = (adjMonsters > 0 && (!heroActive || heroAction.id !== 'attack')) ? 'flex' : 'none';
+        }
+        if (btnFire) {
+            btnFire.style.display = (heroActive && heroAction.id === 'shoot') ? 'none' : '';
+        }
+    }
+
+    syncRealmButtons(realm) {
+        const activeRealm = realm || ((this.app && typeof this.app.getActiveRealm === 'function')
+            ? this.app.getActiveRealm()
+            : ((window.__app && typeof window.__app.getActiveRealm === 'function')
+                ? window.__app.getActiveRealm()
+                : 'angband'));
+
+        const keyBadges = {
+            'btn-wield': (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) ? RealmKeys.fromVanilla('w', activeRealm) : 'w',
+            'btn-drop': (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) ? RealmKeys.fromVanilla('d', activeRealm) : 'd',
+            'btn-search': (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) ? RealmKeys.fromVanilla('s', activeRealm) : 's'
+        };
+
+        for (const [id, key] of Object.entries(keyBadges)) {
+            const btn = document.getElementById(id);
+            if (!btn) continue;
+            let kbd = btn.querySelector('kbd');
+            if (!kbd) {
+                kbd = document.createElement('kbd');
+                btn.appendChild(kbd);
+            }
+            if (kbd) kbd.textContent = key || '';
+        }
+
+        this.syncWasdUiState();
     }
 
     setupInvertControls() {
@@ -270,6 +605,13 @@ class InputController {
                 if (typeof this.toggleDpadRunMode === 'function') {
                     this.toggleDpadRunMode();
                 }
+                return;
+            }
+
+            // Global Alt+W: Toggle WASD Keyboard Movement Mode
+            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'w' || e.key === 'W')) {
+                e.preventDefault();
+                this.toggleWasdMode();
                 return;
             }
 
@@ -864,6 +1206,13 @@ class InputController {
                 return;
             }
 
+            // Global Alt+W: Toggle WASD Keyboard Movement Mode
+            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'w' || e.key === 'W')) {
+                e.preventDefault();
+                this.toggleWasdMode();
+                return;
+            }
+
             // In Terminal Mode (Character creation, birth choices, help, shops, inventory, equipment)
             const termContainer = document.getElementById('terminal-container');
             const isTermVisible = Boolean(termContainer && !termContainer.classList.contains('hidden'));
@@ -1177,6 +1526,45 @@ class InputController {
                 if (moveKey) this.network.sendKey(moveKey);
                 return;
             }
+            if (this.wasdMode && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                const lowerK = e.key.toLowerCase();
+                if (lowerK === 'w') {
+                    e.preventDefault();
+                    const dir = (this.dungeon && typeof this.dungeon.getRelativeDirection === 'function')
+                        ? this.dungeon.getRelativeDirection(1, 0)
+                        : 8;
+                    const moveKey = this.getRelativeDirectionKey(dir);
+                    if (moveKey) this.network.sendKey(moveKey);
+                    return;
+                }
+                if (lowerK === 's') {
+                    e.preventDefault();
+                    const dir = (this.dungeon && typeof this.dungeon.getRelativeDirection === 'function')
+                        ? this.dungeon.getRelativeDirection(-1, 0)
+                        : 2;
+                    const moveKey = this.getRelativeDirectionKey(dir);
+                    if (moveKey) this.network.sendKey(moveKey);
+                    return;
+                }
+                if (lowerK === 'a') {
+                    e.preventDefault();
+                    const dir = (this.dungeon && typeof this.dungeon.getRelativeDirection === 'function')
+                        ? this.dungeon.getRelativeDirection(0, -1)
+                        : 4;
+                    const moveKey = this.getRelativeDirectionKey(dir);
+                    if (moveKey) this.network.sendKey(moveKey);
+                    return;
+                }
+                if (lowerK === 'd') {
+                    e.preventDefault();
+                    const dir = (this.dungeon && typeof this.dungeon.getRelativeDirection === 'function')
+                        ? this.dungeon.getRelativeDirection(0, 1)
+                        : 6;
+                    const moveKey = this.getRelativeDirectionKey(dir);
+                    if (moveKey) this.network.sendKey(moveKey);
+                    return;
+                }
+            }
         }
 
         // Context prompt (-more-) active: immediately dismiss with space (1:1 with Angband msg_flush)
@@ -1185,14 +1573,20 @@ class InputController {
             e.preventDefault();
             this.network.sendKey('space');
 
-            if (e.key === 'ArrowLeft') {
+            const lowerMoreK = (this.wasdMode && !e.ctrlKey && !e.altKey && !e.metaKey) ? e.key.toLowerCase() : '';
+            if (e.key === 'ArrowLeft' || (lowerMoreK === 'a' && !e.shiftKey)) {
                 this.dungeon.turn(-1);
-            } else if (e.key === 'ArrowRight') {
+                this.syncCompass();
+            } else if (e.key === 'ArrowRight' || (lowerMoreK === 'd' && !e.shiftKey)) {
                 this.dungeon.turn(1);
+                this.syncCompass();
             } else {
-                const dir = numpadDirMap[e.code] || numpadDirMap[e.key];
+                const wasdMoreDir = lowerMoreK === 'w' ? 8 : (lowerMoreK === 's' ? 2 : (lowerMoreK === 'a' && e.shiftKey ? 4 : (lowerMoreK === 'd' && e.shiftKey ? 6 : 0)));
+                const dir = wasdMoreDir || numpadDirMap[e.code] || numpadDirMap[e.key];
                 if (dir) {
-                    if (this.isRunningActive(e) && dir !== 5) {
+                    if (this.isRunningActive(e) && dir !== 5 && !wasdMoreDir) {
+                        setTimeout(() => this.sendRunMove(dir), 35);
+                    } else if (wasdMoreDir && this.isRunningActive(e) && (dir === 8 || dir === 2)) {
                         setTimeout(() => this.sendRunMove(dir), 35);
                     } else {
                         const moveKey = this.getRelativeDirectionKey(dir);
@@ -1215,6 +1609,58 @@ class InputController {
                 }
             }
             return;
+        }
+
+        const isMore = Boolean(ui && ui.more);
+        if (this.wasdMode && !isTargeting && !isMore && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            const lowerK = e.key.toLowerCase();
+            if (lowerK === 'w' || lowerK === 's' || lowerK === 'a' || lowerK === 'd') {
+                e.preventDefault();
+                this.clearDirectionHint();
+                const runActive = this.isRunningActive(e);
+                if (lowerK === 'w') {
+                    if (runActive && e.repeat) return;
+                    const dir = (this.dungeon && typeof this.dungeon.getRelativeDirection === 'function')
+                        ? this.dungeon.getRelativeDirection(1, 0)
+                        : 8;
+                    if (dir) this.sendMoveOrRun(dir, runActive);
+                } else if (lowerK === 's') {
+                    if (runActive && e.repeat) return;
+                    const dir = (this.dungeon && typeof this.dungeon.getRelativeDirection === 'function')
+                        ? this.dungeon.getRelativeDirection(-1, 0)
+                        : 2;
+                    if (dir) this.sendMoveOrRun(dir, runActive);
+                } else if (lowerK === 'a') {
+                    if (e.shiftKey) {
+                        const dir = (this.dungeon && typeof this.dungeon.getRelativeDirection === 'function')
+                            ? this.dungeon.getRelativeDirection(0, -1)
+                            : 4;
+                        if (dir) this.sendMoveOrRun(dir, false);
+                    } else {
+                        if (this.dungeon && typeof this.dungeon.turnLeft === 'function') {
+                            this.dungeon.turnLeft();
+                        } else if (this.dungeon && typeof this.dungeon.turn === 'function') {
+                            this.dungeon.turn(-1);
+                        }
+                        this.syncCompass();
+                    }
+                } else if (lowerK === 'd') {
+                    if (e.shiftKey) {
+                        const dir = (this.dungeon && typeof this.dungeon.getRelativeDirection === 'function')
+                            ? this.dungeon.getRelativeDirection(0, 1)
+                            : 6;
+                        if (dir) this.sendMoveOrRun(dir, false);
+                    } else {
+                        if (this.dungeon && typeof this.dungeon.turnRight === 'function') {
+                            this.dungeon.turnRight();
+                        } else if (this.dungeon && typeof this.dungeon.turn === 'function') {
+                            this.dungeon.turn(1);
+                        }
+                        this.syncCompass();
+                    }
+                }
+                return;
+            }
         }
 
         const dirKey = numpadDirMap[e.code] || numpadDirMap[e.key];
@@ -1425,6 +1871,21 @@ class InputController {
         return dirKeys[targetWorldSector];
     }
 
+    isDirectionalTargeting() {
+        const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
+        if (!lastFrame) return false;
+        const screenText = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function')
+            ? window.ScreenContext.screenTextOf(lastFrame)
+            : '';
+        const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+        const isHeng = realm === 'hengband';
+        const inPlay = Boolean(lastFrame.phase === 'play');
+        return Boolean(
+            (window.ScreenContext && typeof window.ScreenContext.toolbarFlags === 'function' && window.ScreenContext.toolbarFlags(lastFrame, screenText, isHeng).isTargeting) ||
+            (window.ScreenContext && typeof window.ScreenContext.inputTargetingPrompt === 'function' && window.ScreenContext.inputTargetingPrompt(screenText, inPlay))
+        );
+    }
+
     setupActionButtons() {
         // Universal helper for reliable mobile touch + desktop click handling:
         // - Tracks displacement during touchmove (>10px cancels activation if user was scrolling/swiping)
@@ -1489,17 +1950,22 @@ class InputController {
                     if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
                     if (this.audio) this.audio.unlock();
 
+                    const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
+                    if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
+                        this.network.sendKey(' ');
+                        lastTriggerTime = 0;
+                        setTimeout(() => {
+                            fire(ev);
+                        }, 45);
+                        return;
+                    }
+
                     const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
 
                     if (verb === 'toggle-run') {
                         this.toggleDpadRunMode();
                         return;
                     } else if (verb === 'attack') {
-                        const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
-                        if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
-                            this.network.sendKey('space');
-                            return;
-                        }
                         this.dungeon.triggerAttackAnimation();
                         if (this.audio) this.audio.playWhoosh();
                         const fwdKey = this.getRelativeDirectionKey(8) || 'up';
@@ -1507,6 +1973,18 @@ class InputController {
                         return;
                     } else if (verb === 'terminal') {
                         if (this.toggleTerminalView) this.toggleTerminalView();
+                        return;
+                    } else if (verb === 'wield') {
+                        this.openContextualMenu('wield');
+                        return;
+                    } else if (verb === 'drop') {
+                        this.openContextualMenu('drop');
+                        return;
+                    } else if (verb === 'search') {
+                        const sKey = (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla)
+                            ? RealmKeys.fromVanilla('s', realm)
+                            : 's';
+                        this.network.sendKey(sKey);
                         return;
                     }
 
@@ -1519,12 +1997,30 @@ class InputController {
                         return;
                     }
 
+                    if (this.isDirectionalTargeting && this.isDirectionalTargeting() && (verb !== 'attack' && verb !== 'fire' && verb !== 'throw')) {
+                        this.network.sendKey('escape');
+                        setTimeout(() => {
+                            if (this.audio) {
+                                if (effKey === 'm' || effKey === 's') this.audio.playSpell();
+                                else if (effKey === 'i' || effKey === 'e' || effKey === 'v' || effKey === 't' || effKey === 'N' || effKey === 'tab' || effKey === 'U' || effKey === 'O' || effKey === 'Q' || effKey === 'b' || effKey === 'G') this.audio.playMenuOpen();
+                                else if (effKey === 'g') this.audio.playItemPickup();
+                                else if (effKey === 'q') (typeof this.audio.playQuaff === 'function') ? this.audio.playQuaff() : this.audio.playMenuOpen();
+                                else if (effKey === 'r') (typeof this.audio.playScroll === 'function') ? this.audio.playScroll() : this.audio.playMenuOpen();
+                                else if (effKey === 'f') (typeof this.audio.playBowShoot === 'function') ? this.audio.playBowShoot() : this.audio.playWhoosh();
+                            }
+                            this.network.sendKey(effKey);
+                        }, 40);
+                        return;
+                    }
+
                     if (verb === 'rest') {
                         if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
                         this.network.sendKey(effKey);
                         // If the realm's rest key is 'R', follow with enter (prompting for duration)
                         if (effKey === 'R') {
                             setTimeout(() => {
+                                const lf = window.__app && window.__app.lastFrame;
+                                if (!lf || lf.phase !== 'play') return;
                                 this.network.sendKey('enter');
                             }, 80);
                         }
@@ -1535,6 +2031,8 @@ class InputController {
                         const fwdKey = this.getRelativeDirectionKey(8) || 'up';
                         this.network.sendKey(effKey);
                         setTimeout(() => {
+                            const lf = window.__app && window.__app.lastFrame;
+                            if (!lf || lf.phase !== 'play') return;
                             this.network.sendKey(fwdKey);
                         }, 80);
                         return;
@@ -1572,6 +2070,9 @@ class InputController {
         bind('btn-rest', 'rest');
         bind('btn-inventory', 'inven');
         bind('btn-equipment', 'equip');
+        bind('btn-wield', 'wield');
+        bind('btn-drop', 'drop');
+        bind('btn-search', 'search');
         bind('btn-terminal', 'terminal');
         bind('btn-run-toggle', 'toggle-run');
 
@@ -1700,6 +2201,9 @@ class InputController {
             'btn-rest',
             'btn-inventory',
             'btn-equipment',
+            'btn-wield',
+            'btn-drop',
+            'btn-search',
             'btn-door',
             'btn-power',
             'btn-browse',
@@ -2409,6 +2913,16 @@ class InputController {
             btnHero.classList.toggle('action-suggested', action !== 'wait');
         }
 
+        const btnAttack = document.getElementById('btn-attack');
+        if (btnHero && btnHero.style.display !== 'none' && action === 'attack') {
+            if (btnAttack) btnAttack.style.display = 'none';
+        } else {
+            if (btnAttack) btnAttack.style.display = '';
+        }
+        if (typeof this.updateContextButtons === 'function') {
+            this.updateContextButtons(frame);
+        }
+
         // Update In-Play & Terminal Overlay Status
         const inPlay = Boolean(frame && (frame.phase === 'play' || (frame.player && frame.player.name)));
         const inTerminalOverlay = Boolean(frame && frame.ui && (frame.ui.overlay || 0) > 0) ||
@@ -2419,9 +2933,11 @@ class InputController {
         // Update HUD Status Bar Alert (#footer-target) - Perfectly docked outside 3D line of sight
         const footerTarget = document.getElementById('footer-target');
         if (footerTarget) {
-            if (action !== 'wait' && inPlay && !inTerminalOverlay && !isDead) {
+            const isMonsterTarget = Boolean(rayTarget && rayTarget.type === 'monster');
+            if (action !== 'wait' && inPlay && !inTerminalOverlay && !isDead && !isMonsterTarget) {
                 footerTarget.style.display = 'inline-flex';
-                footerTarget.innerHTML = `<span class="target-alert-icon">${escapeHtml(icon)}</span> <span class="target-alert-text">${escapeHtml(cueText || text)}</span> <kbd class="target-alert-kbd">${escapeHtml(key)}</kbd>`;
+                const label = (rayTarget && rayTarget.label) || cueText || text;
+                footerTarget.innerHTML = `<span class="target-alert-icon">${escapeHtml(icon)}</span> <span class="target-alert-text">${escapeHtml(label)}</span>`;
             } else {
                 footerTarget.style.display = 'none';
             }
@@ -2631,3 +3147,7 @@ class InputController {
 }
 
 window.InputController = InputController;
+window.InputManager = InputController;
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { InputController, InputManager: InputController };
+}

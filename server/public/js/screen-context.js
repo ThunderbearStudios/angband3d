@@ -219,7 +219,7 @@
      */
     function toolbarFlags(frame, screenText, isHeng) {
         screenText = screenText || '';
-        const inPlay = Boolean(frame && frame.phase === 'play' && frame.map);
+        const inPlay = Boolean(frame && frame.phase === 'play' && (frame.map || (frame.player && frame.player.name)));
         const playerFeat = playerFeatOf(frame);
         const isStoreFeat = (playerFeat >= 7 && playerFeat <= 14) ||
                             (playerFeat >= 0x20 && playerFeat <= 0x28) ||
@@ -296,6 +296,7 @@
             (isHeng && !hasStoreText && (
                 screenText.includes('持ち物：') ||
                 screenText.includes('装備：') ||
+                ((screenText.includes('inventory:') || screenText.includes('equipment:') || screenText.includes('(inventory)') || screenText.includes('(equipment)')) && screenText.includes('command:')) ||
                 screenText.includes('どれを装備') ||
                 screenText.includes('どれを外しますか') ||
                 screenText.includes('どれを落としますか') ||
@@ -360,10 +361,9 @@
                              screenText.includes("to modify") ||
                              screenText.includes("total cost:") ||
                              screenText.includes("point-based") ||
-                             screenText.includes("standard roller") ||
+                             ((screenText.includes("minimum") && screenText.includes("roller")) || screenText.includes("hit 'r' to reroll") || screenText.includes("previous roll")) ||
                              screenText.includes("set minimum stats") ||
                              screenText.includes("enter for goto next") ||
-                             screenText.includes("roller") ||
                              screenText.includes("points left") ||
                              /allocate.*points/i.test(screenText) ||
                              /tab.*abilities/i.test(screenText);
@@ -839,7 +839,11 @@
         // listKind determination
         let listKind = null;
         if (mode === 'item-list') {
-            if (screenText.includes('(inventory)') || screenText.includes('inven:') || screenText.includes('inventory |') || (isHeng && screenText.includes('持ち物：'))) {
+            if ((realm === 'hengband' || isHeng) && (screenText.includes('装備：') || screenText.includes('Equipment:') || screenText.includes('(Equipment)') || screenText.includes('equipment:') || screenText.includes('(equipment)'))) {
+                listKind = 'equip';
+            } else if ((realm === 'hengband' || isHeng) && (screenText.includes('持ち物：') || screenText.includes('Inventory:') || screenText.includes('(Inventory)') || screenText.includes('inventory:') || screenText.includes('(inventory)'))) {
+                listKind = 'inven';
+            } else if (screenText.includes('(inventory)') || screenText.includes('inven:') || screenText.includes('inventory |') || (isHeng && screenText.includes('持ち物：'))) {
                 listKind = 'inven';
             } else if (screenText.includes('(equipment)') || screenText.includes('equip:') || screenText.includes('| equipment') || (isHeng && screenText.includes('装備：'))) {
                 listKind = 'equip';
@@ -853,8 +857,16 @@
         if (mode === 'item-list') {
             if (realm === 'silq' && (screenText.includes('(inventory) command:') || screenText.includes('(equipment) command:'))) {
                 promptKind = 'command';
-            } else if (isHeng && (screenText.includes('持ち物：') || screenText.includes('装備：')) && screenText.includes('コマンド:')) {
-                promptKind = 'command';
+            } else if (realm === 'hengband' || isHeng) {
+                const hasListHeader = screenText.includes('持ち物：') || screenText.includes('装備：')
+                    || ((screenText.includes('Inventory:') || screenText.includes('Equipment:') || screenText.includes('(Inventory)') || screenText.includes('(Equipment)') || screenText.includes('inventory:') || screenText.includes('equipment:') || screenText.includes('(inventory)') || screenText.includes('(equipment)')) && (screenText.includes('Command:') || screenText.includes('command:')));
+                const hasCommandPrompt = screenText.includes('コマンド:') || screenText.includes('Command:') || screenText.includes('command:');
+                if (hasListHeader) {
+                    listKind = (screenText.includes('装備：') || screenText.includes('Equipment:') || screenText.includes('(Equipment)') || screenText.includes('equipment:') || screenText.includes('(equipment)')) ? 'equip' : 'inven';
+                    promptKind = hasCommandPrompt ? 'command' : 'select';
+                } else {
+                    promptKind = 'select';
+                }
             } else if (realm === 'frogcomposband' && (screenText.includes('inventory | equipment') || screenText.includes('inventory |') || screenText.includes('| equipment'))) {
                 promptKind = 'command';
             } else {

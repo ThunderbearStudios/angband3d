@@ -63,8 +63,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=9.5.7">
-    <link rel="stylesheet" href="/css/chronicle.css?v=9.5.7">
+    <link rel="stylesheet" href="/css/dungeon.css?v=9.8.0">
+    <link rel="stylesheet" href="/css/chronicle.css?v=9.8.0">
 </head>
 <body>
     <div id="app-container">
@@ -376,8 +376,9 @@
 
         <!-- On-Screen Virtual Touch D-Pad (Mobile / Tablet / Touch) -->
         <div id="touch-controls">
-            <div class="dpad-header-bar" id="dpad-drag-handle" title="Drag to move D-Pad anywhere on screen • Double-click to reset">
+            <div class="dpad-header-bar panel-drag-handle" id="dpad-drag-handle" title="Drag to reposition D-Pad anywhere on screen • Double-click to reset">
                 <span class="dpad-grip-label">✥ MOVE PAD</span>
+                <button id="btn-wasd-toggle" type="button" class="wasd-toggle-pill" aria-pressed="false" title="Toggle WASD Keyboard Movement (Alt+W). Locks W/A/S/D roguelike keys and highlights HUD command buttons.">⌨ WASD</button>
                 <div class="dpad-header-actions">
                     <button type="button" id="btn-dpad-scale" class="dpad-mini-btn" title="Cycle D-Pad Size (Compact / Standard / Large)">⛶</button>
                     <button type="button" id="btn-dpad-collapse" class="dpad-mini-btn" title="Minimize / Expand D-Pad">−</button>
@@ -426,24 +427,34 @@
                     </div>
                     <button type="button" id="btn-char-details-toggle" class="char-mini-btn" title="Toggle Extended Character Stats, Skills &amp; Context">▾</button>
                 </div>
-                <div class="gauge-container gauge-hp">
-                    <div class="gauge-header">
-                        <span>HEALTH</span>
-                        <span id="hp-text">100 / 100</span>
+                <!-- Twin Alchemical Blown-Glass Crystal Vials (Health & Mana / Voice) -->
+                <div class="vitals-vials-row">
+                    <div class="gauge-container gauge-block gauge-hp">
+                        <div class="gauge-header">
+                            <span id="hp-label">HEALTH</span>
+                            <span id="hp-text" class="gauge-val">100 / 100</span>
+                            <span id="hp-val" class="vial-val-mirror" style="display: none;">100 / 100</span>
+                        </div>
+                        <div class="gauge-track">
+                            <div id="hp-fill" class="gauge-fill" style="width: 100%;"></div>
+                            <div class="vial-glass-gloss" aria-hidden="true"></div>
+                            <div class="vial-neck-collar" aria-hidden="true"></div>
+                        </div>
                     </div>
-                    <div class="gauge-track">
-                        <div id="hp-fill" class="gauge-fill" style="width: 100%;"></div>
+                    <div class="gauge-container gauge-block gauge-sp">
+                        <div class="gauge-header">
+                            <span id="sp-label">MANA</span>
+                            <span id="sp-text" class="gauge-val">0 / 0</span>
+                            <span id="sp-val" class="vial-val-mirror" style="display: none;">0 / 0</span>
+                        </div>
+                        <div class="gauge-track">
+                            <div id="sp-fill" class="gauge-fill" style="width: 0%;"></div>
+                            <div class="vial-glass-gloss" aria-hidden="true"></div>
+                            <div class="vial-neck-collar" aria-hidden="true"></div>
+                        </div>
                     </div>
                 </div>
-                <div class="gauge-container gauge-sp">
-                    <div class="gauge-header">
-                        <span>MANA</span>
-                        <span id="sp-text">0 / 0</span>
-                    </div>
-                    <div class="gauge-track">
-                        <div id="sp-fill" class="gauge-fill" style="width: 0%;"></div>
-                    </div>
-                </div>
+                <div id="char-extended-drawer" class="char-extended-drawer hidden"></div>
                 <div id="stats-strip">
                     <div class="stat-item" id="stat-item-str"><span class="stat-label">STR</span><span id="stat-str" class="stat-value">10</span></div>
                     <div class="stat-item" id="stat-item-int"><span class="stat-label">INT</span><span id="stat-int" class="stat-value">10</span></div>
@@ -456,7 +467,6 @@
                     <div class="stat-item" id="stat-item-ac" title="Armor Class"><span class="stat-label">AC</span><span id="val-ac" class="stat-value">0</span></div>
                     <div class="stat-item" id="stat-item-gold" title="Gold (AU)"><span class="stat-label">GOLD</span><span id="val-gold" class="stat-value" style="color: #ffd700;">0</span></div>
                 </div>
-                <div id="char-extended-drawer" class="char-extended-drawer hidden"></div>
             </div>
 
             <!-- Center Column: Quick Action Bar + Detailed 3-Row Telemetry Footer -->
@@ -485,6 +495,15 @@
                     <button id="btn-rest" class="action-btn" title="Rest until fully healed [R]">⏳ Rest <kbd>R</kbd></button>
                     <button id="btn-inventory" class="action-btn" title="Open inventory pack [i]">🎒 Pack <kbd>i</kbd></button>
                     <button id="btn-equipment" class="action-btn" title="Inspect worn equipment [e]">🛡 Gear <kbd>e</kbd></button>
+                    <button id="btn-wield" class="act-btn act-wasd-socket action-btn" title="Wield / Equip Item (w)">
+                        <span class="act-icon">🗡</span><span class="act-label">Wield</span><span class="act-key">w</span>
+                    </button>
+                    <button id="btn-drop" class="act-btn act-wasd-socket action-btn" title="Drop Item (d)">
+                        <span class="act-icon">📤</span><span class="act-label">Drop</span><span class="act-key">d</span>
+                    </button>
+                    <button id="btn-search" class="act-btn act-wasd-socket action-btn" title="Search / Perception (s)">
+                        <span class="act-icon">🔍</span><span class="act-label">Search</span><span class="act-key">s</span>
+                    </button>
                     <button id="btn-stair" class="action-btn stair-btn" style="display: none;" title="Use stairs [&gt; or &lt;]">⬇ Descend <kbd>&gt;</kbd></button>
                     <button id="btn-run-toggle" class="action-btn action-run-pill" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="action-run-icon">🚶</span> <span id="action-run-text">Walk</span> <kbd>Alt+R</kbd></button>
                     <button id="btn-terminal" class="action-btn" title="Toggle 80x24 classic CRT terminal view [Tab]">📜 Classic <kbd>Tab</kbd></button>
@@ -594,10 +613,10 @@
 
                 <!-- Feature Badge Strip -->
                 <div class="splash-feature-pills">
-                    <span class="splash-pill">✨ 2K PBR &amp; Celestial Sky</span>
-                    <span class="splash-pill">🎙️ Voiced Lorekeeper</span>
-                    <span class="splash-pill">🎨 Hero Action Sketch</span>
-                    <span class="splash-pill">⚡ 4 Native Engines</span>
+                    <span class="splash-pill">✦ 2K PBR &amp; Celestial Sky</span>
+                    <span class="splash-pill">◈ Voiced Lorekeeper</span>
+                    <span class="splash-pill">⛨ Hero Action Sketch</span>
+                    <span class="splash-pill">⚔ 4 Native Engines</span>
                 </div>
 
                 <div class="splash-instructions">⚔ Choose a Legendary Realm to Begin Your Descent ⚔</div>
@@ -606,9 +625,9 @@
                 <div class="splash-realm-grid" id="splash-realm-grid">
                     <!-- Realm 1: Angband 4.2.6 -->
                     <div class="splash-realm-card realm-option active" data-realm="angband" role="button" tabindex="0" title="Select Vanilla Angband 4.2.6 [1]">
-                        <div class="splash-realm-badge" id="splash-badge-angband">✓ ATTUNED</div>
+                        <div class="splash-realm-badge" id="splash-badge-angband">✦ ATTUNED</div>
                         <div class="splash-realm-header">
-                            <span class="splash-realm-icon">⚔️</span>
+                            <span class="splash-realm-icon">⚔</span>
                             <div class="splash-realm-title-group">
                                 <span class="splash-realm-key"><kbd>[1]</kbd></span>
                                 <h3 class="splash-realm-name">Angband 4.2.6</h3>
@@ -625,9 +644,9 @@
 
                     <!-- Realm 2: FrogComposBand -->
                     <div class="splash-realm-card realm-option" data-realm="frogcomposband" role="button" tabindex="0" title="Select FrogComposBand [2]">
-                        <div class="splash-realm-badge" id="splash-badge-frogcomposband" style="display:none;">✓ ATTUNED</div>
+                        <div class="splash-realm-badge" id="splash-badge-frogcomposband" style="display:none;">✦ ATTUNED</div>
                         <div class="splash-realm-header">
-                            <span class="splash-realm-icon">🐸</span>
+                            <span class="splash-realm-icon">◈</span>
                             <div class="splash-realm-title-group">
                                 <span class="splash-realm-key"><kbd>[2]</kbd></span>
                                 <h3 class="splash-realm-name">FrogComposBand</h3>
@@ -644,9 +663,9 @@
 
                     <!-- Realm 3: Hengband -->
                     <div class="splash-realm-card realm-option" data-realm="hengband" role="button" tabindex="0" title="Select Hengband 3.0+ [3]">
-                        <div class="splash-realm-badge" id="splash-badge-hengband" style="display:none;">✓ ATTUNED</div>
+                        <div class="splash-realm-badge" id="splash-badge-hengband" style="display:none;">✦ ATTUNED</div>
                         <div class="splash-realm-header">
-                            <span class="splash-realm-icon">⛩️</span>
+                            <span class="splash-realm-icon">⛩</span>
                             <div class="splash-realm-title-group">
                                 <span class="splash-realm-key"><kbd>[3]</kbd></span>
                                 <h3 class="splash-realm-name">Hengband 3.0+</h3>
@@ -670,7 +689,7 @@
 
                     <!-- Realm 4: Sil-Q -->
                     <div class="splash-realm-card realm-option" data-realm="silq" role="button" tabindex="0" title="Select Sil-Q 1.5+ [4]">
-                        <div class="splash-realm-badge" id="splash-badge-silq" style="display:none;">✓ ATTUNED</div>
+                        <div class="splash-realm-badge" id="splash-badge-silq" style="display:none;">✦ ATTUNED</div>
                         <div class="splash-realm-header">
                             <span class="splash-realm-icon">👑</span>
                             <div class="splash-realm-title-group">
@@ -1563,28 +1582,28 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/safe-html.js?v=9.5.7"></script>
-    <script src="/js/screen-context.js?v=9.5.7"></script>
-    <script src="/js/menu-router.js?v=9.5.7"></script>
-    <script src="/js/device.js?v=9.5.7"></script>
-    <script src="/js/realm-keys.js?v=9.5.7"></script>
-    <script src="/js/mobile-overlay.js?v=9.5.7"></script>
-    <script src="/js/audio.js?v=9.5.7"></script>
-    <script src="/js/terminal.js?v=9.5.7"></script>
-    <script src="/js/dungeon3d.js?v=9.5.7"></script>
-    <script src="/js/hud.js?v=9.5.7"></script>
-    <script src="/js/network.js?v=9.5.7"></script>
-    <script src="/js/local_bridge.js?v=9.5.7"></script>
-    <script src="/js/input.js?v=9.5.7"></script>
-    <script src="/js/demo-player.js?v=9.5.7"></script>
+    <script src="/js/safe-html.js?v=9.8.0"></script>
+    <script src="/js/screen-context.js?v=9.8.0"></script>
+    <script src="/js/menu-router.js?v=9.8.0"></script>
+    <script src="/js/device.js?v=9.8.0"></script>
+    <script src="/js/realm-keys.js?v=9.8.0"></script>
+    <script src="/js/mobile-overlay.js?v=9.8.0"></script>
+    <script src="/js/audio.js?v=9.8.0"></script>
+    <script src="/js/terminal.js?v=9.8.0"></script>
+    <script src="/js/dungeon3d.js?v=9.8.0"></script>
+    <script src="/js/hud.js?v=9.8.0"></script>
+    <script src="/js/network.js?v=9.8.0"></script>
+    <script src="/js/local_bridge.js?v=9.8.0"></script>
+    <script src="/js/input.js?v=9.8.0"></script>
+    <script src="/js/demo-player.js?v=9.8.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=9.5.7"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=9.5.7"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=9.5.7"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=9.5.7"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=9.5.7"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=9.5.7"></script>
-    <script src="/js/app.js?v=9.5.7"></script>
-    <script src="/js/boot.js?v=9.5.7"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=9.8.0"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=9.8.0"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=9.8.0"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=9.8.0"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=9.8.0"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=9.8.0"></script>
+    <script src="/js/app.js?v=9.8.0"></script>
+    <script src="/js/boot.js?v=9.8.0"></script>
 </body>
 </html>
