@@ -153,4 +153,30 @@ assert.ok(
     'dungeon3d.js destroyEntity must protect shared singleton materials and textures from disposal'
 );
 
-console.log('[PASS] test_static_invariants.js: syntax (22 files), 0 duplicate methods, tagRegex parity, cache-key symmetry, and 3D geometry invariants verified.');
+// 6. Cross-browser CSS prefixes and Apple PWA metadata invariants
+const cssSrc = fs.readFileSync(path.join(ROOT, 'server/public/css/dungeon.css'), 'utf8');
+const cssLines = cssSrc.split('\n');
+const missingPrefixes = [];
+cssLines.forEach((line, idx) => {
+    if (/(?<!-webkit-)backdrop-filter:/.test(line)) {
+        const prev = cssLines[idx - 1] || '';
+        const next = cssLines[idx + 1] || '';
+        if (!/-webkit-backdrop-filter:/.test(prev) && !/-webkit-backdrop-filter:/.test(next)) {
+            missingPrefixes.push(`Line ${idx + 1}: ${line.trim()}`);
+        }
+    }
+});
+assert.strictEqual(
+    missingPrefixes.length,
+    0,
+    `Every backdrop-filter in dungeon.css must have a paired -webkit-backdrop-filter. Found missing at:\n${missingPrefixes.join('\n')}`
+);
+
+const indexHtmlSrc = fs.readFileSync(path.join(ROOT, 'server/public/index.html'), 'utf8');
+assert.ok(
+    indexHtmlSrc.includes('apple-mobile-web-app-title'),
+    'index.html must include apple-mobile-web-app-title meta tag'
+);
+
+console.log('[PASS] test_static_invariants.js: syntax (22 files), 0 duplicate methods, tagRegex parity, cache-key symmetry, 3D geometry invariants, and cross-browser CSS / PWA meta verified.');
+

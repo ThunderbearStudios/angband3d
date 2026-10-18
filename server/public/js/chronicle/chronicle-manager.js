@@ -1624,21 +1624,21 @@ class ChronicleManager {
             `;
         }
 
-        html += `<p class="chapter-prose ${isDeath ? 'death-prose' : ''}">${entry.prose}</p>`;
+        html += `<p class="chapter-prose ${isDeath ? 'death-prose' : ''}">${this.escapeHtml(entry.prose || '')}</p>`;
 
         if (entry.dialogue && entry.dialogue.text) {
             if (entry.dialogue.isNoise) {
                 html += `
                     <div class="chapter-dialogue creature-sound-box">
-                        <span class="dialogue-speaker">${entry.dialogue.speaker}</span>
-                        <span class="dialogue-sound-noise">${entry.dialogue.text}</span>
+                        <span class="dialogue-speaker">${this.escapeHtml(entry.dialogue.speaker || '')}</span>
+                        <span class="dialogue-sound-noise">${this.escapeHtml(entry.dialogue.text || '')}</span>
                     </div>
                 `;
             } else {
                 html += `
                     <div class="chapter-dialogue">
-                        <span class="dialogue-speaker">${entry.dialogue.speaker}</span>
-                        "${entry.dialogue.text}"
+                        <span class="dialogue-speaker">${this.escapeHtml(entry.dialogue.speaker || '')}</span>
+                        "${this.escapeHtml(entry.dialogue.text || '')}"
                     </div>
                 `;
             }
@@ -1648,7 +1648,7 @@ class ChronicleManager {
             html += `
                 <div class="lorekeeper-insight ${isDeath ? 'death-insight' : ''}">
                     <span class="lorekeeper-insight-icon">${isDeath ? '🕯️' : '💡'}</span>
-                    <span><strong>${isDeath ? 'Epitaph:' : 'Lorekeeper:'}</strong> ${entry.insight}</span>
+                    <span><strong>${isDeath ? 'Epitaph:' : 'Lorekeeper:'}</strong> ${this.escapeHtml(entry.insight || '')}</span>
                 </div>
             `;
         }
@@ -3748,7 +3748,7 @@ class ChronicleManager {
         if (this.statusTextEl) {
             this.statusTextEl.textContent = `🎨 Sketched ${ctxData.hero.name}`;
         }
-        this.showHudToast(`🎨 Sketched ${ctxData.hero.name} at ${ctxData.locationLabel}`);
+        this.showHudToast(`🎨 Sketched ${this.escapeHtml(ctxData.hero.name || 'Hero')} at ${this.escapeHtml(ctxData.locationLabel || 'Dungeon')}`);
 
         (async () => {
             try {

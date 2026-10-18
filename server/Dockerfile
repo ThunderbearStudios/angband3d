@@ -131,5 +131,5 @@ ENV TRUST_PROXY=1
 
 EXPOSE 8080
 
-CMD ["npm", "start"]
+CMD ["node", "src/server.js"]
 

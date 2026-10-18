@@ -1,5 +1,5 @@
 // Angband3D Service Worker — v9.1.0 PWA & Multi-Realm Standalone Client Caching
-const CACHE_NAME = 'angband3d-v9.5.6';
+const CACHE_NAME = 'angband3d-v9.5.7';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -56,6 +56,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname === '/robots.txt' || url.pathname.startsWith('/.well-known/')) return;
+
   // Strictly bypass WebSockets, live API calls, health probes, and heavy media / range requests
   if (
     url.pathname.startsWith('/ws') ||
@@ -84,7 +87,13 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        return caches.match(event.request, { ignoreSearch: true });
+        return caches.match(event.request, { ignoreSearch: true }).then((cached) => {
+          if (cached) return cached;
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html', { ignoreSearch: true }).then((nav) => nav || new Response('Offline', { status: 503, statusText: 'Offline' }));
+          }
+          return new Response('Offline', { status: 503, statusText: 'Offline' });
+        });
       })
   );
 });
