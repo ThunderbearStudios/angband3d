@@ -2601,7 +2601,10 @@ class InputController {
                 if (elem.requestFullscreen) {
                     elem.requestFullscreen().catch(() => {});
                 } else if (elem.webkitRequestFullscreen) {
-                    elem.webkitRequestFullscreen();
+                    try {
+                        const p = elem.webkitRequestFullscreen();
+                        if (p && typeof p.catch === 'function') p.catch(() => {});
+                    } catch (_) {}
                 } else if (elem.mozRequestFullScreen) {
                     elem.mozRequestFullScreen();
                 } else if (elem.msRequestFullscreen) {
@@ -2611,7 +2614,10 @@ class InputController {
                 if (doc.exitFullscreen) {
                     doc.exitFullscreen().catch(() => {});
                 } else if (doc.webkitExitFullscreen) {
-                    doc.webkitExitFullscreen();
+                    try {
+                        const p = doc.webkitExitFullscreen();
+                        if (p && typeof p.catch === 'function') p.catch(() => {});
+                    } catch (_) {}
                 } else if (doc.mozCancelFullScreen) {
                     doc.mozCancelFullScreen();
                 } else if (doc.msExitFullscreen) {

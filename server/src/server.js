@@ -499,6 +499,7 @@ const PORT = parseInt(process.env.PORT || '8080', 10);
 const IS_WIN = process.platform === 'win32';
 const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${20 * 60 * 1000}`, 10); // 20 minutes
 const MAX_CONCURRENT_GAMES = parseInt(process.env.MAX_CONCURRENT_GAMES || '50', 10);
+const MAX_WS_PER_IP = parseInt(process.env.MAX_WS_PER_IP || '8', 10);
 const MAX_QUEUE_SIZE = parseInt(process.env.MAX_QUEUE_SIZE || '100', 10);
 // Reconnect Grace Period: Keeps headless game engine alive across network drops, tab reloads, or lag spikes (30 minutes)
 const DISCONNECT_GRACE_PERIOD_MS = parseInt(process.env.DISCONNECT_GRACE_PERIOD_MS || `${30 * 60 * 1000}`, 10); // 30 minutes
@@ -867,16 +868,27 @@ const EXTRA_ALLOWED_ORIGINS = new Set(
         'http://www.angband3d.com'
     ].concat((process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean))
 );
+EXTRA_ALLOWED_ORIGINS.some = function(fn) {
+    for (const item of this) {
+        if (fn(item)) return true;
+    }
+    return false;
+};
 function isAllowedOrigin(origin, host, req) {
     if (!origin) return true;
     try {
         const originHost = new URL(origin).host;
         if (host && (originHost === host || originHost === host.split(':')[0])) return true;
         if (req && req.headers) {
-            const fwdHost = req.headers['x-forwarded-host'];
-            if (fwdHost) {
-                const firstFwd = fwdHost.split(',')[0].trim();
-                if (originHost === firstFwd || originHost === firstFwd.split(':')[0]) return true;
+            if (process.env.TRUST_PROXY === '1') {
+                const fwdHost = req.headers['x-forwarded-host'];
+                if (fwdHost) {
+                    const firstFwd = fwdHost.split(',')[0].trim();
+                    const firstFwdHost = firstFwd.split(':')[0].toLowerCase();
+                    if (EXTRA_ALLOWED_ORIGINS.some(o => o.endsWith('://' + firstFwdHost)) || firstFwdHost.endsWith('.run.app')) {
+                        if (originHost === firstFwd || originHost === firstFwdHost) return true;
+                    }
+                }
             }
             const reqHost = req.headers.host;
             if (reqHost && (originHost === reqHost || originHost === reqHost.split(':')[0])) return true;
@@ -889,7 +901,14 @@ function isAllowedOrigin(origin, host, req) {
 function verifyBrowserOrigin(req) {
     const origin = req.headers && req.headers.origin;
     if (!origin) return true;
-    const fwdHost = (req.headers && req.headers['x-forwarded-host']) ? req.headers['x-forwarded-host'].split(',')[0].trim() : '';
+    let fwdHost = '';
+    if (process.env.TRUST_PROXY === '1' && req.headers && req.headers['x-forwarded-host']) {
+        const firstFwd = req.headers['x-forwarded-host'].split(',')[0].trim();
+        const firstFwdHost = firstFwd.split(':')[0].toLowerCase();
+        if (EXTRA_ALLOWED_ORIGINS.some(o => o.endsWith('://' + firstFwdHost)) || firstFwdHost.endsWith('.run.app')) {
+            fwdHost = firstFwd;
+        }
+    }
     const host = fwdHost || (req.headers && req.headers.host) || '';
     return isAllowedOrigin(origin, host, req);
 }
@@ -905,7 +924,14 @@ const server = http.createServer((req, res) => {
 
     // HTTPS Redirection behind SSL Proxies (Cloud Run / Load Balancers)
     const proto = req.headers['x-forwarded-proto'];
-    const fwdHost = req.headers['x-forwarded-host'] ? req.headers['x-forwarded-host'].split(',')[0].trim() : '';
+    let fwdHost = '';
+    if (process.env.TRUST_PROXY === '1' && req.headers['x-forwarded-host']) {
+        const firstFwd = req.headers['x-forwarded-host'].split(',')[0].trim();
+        const firstFwdHost = firstFwd.split(':')[0].toLowerCase();
+        if (EXTRA_ALLOWED_ORIGINS.some(o => o.endsWith('://' + firstFwdHost)) || firstFwdHost.endsWith('.run.app')) {
+            fwdHost = firstFwd;
+        }
+    }
     const host = fwdHost || req.headers.host || '';
     if (proto === 'http' && host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
         res.writeHead(301, {
@@ -984,6 +1010,30 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    if ((pathname === '/robots.txt' || req.url === '/robots.txt') && (req.method === 'GET' || req.method === 'HEAD')) {
+        const body = 'User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /ws\n';
+        res.writeHead(200, {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Content-Length': Buffer.byteLength(body),
+            'Cache-Control': 'public, max-age=86400'
+        });
+        if (req.method === 'HEAD') { res.end(); return; }
+        res.end(body);
+        return;
+    }
+
+    if ((pathname === '/.well-known/security.txt' || pathname === '/security.txt' || req.url === '/.well-known/security.txt' || req.url === '/security.txt') && (req.method === 'GET' || req.method === 'HEAD')) {
+        const body = 'Contact: https://github.com/erea-software/angband3d/security/advisories\nExpires: 2027-12-31T23:59:59.000Z\nPreferred-Languages: en\nCanonical: https://angband3d.com/.well-known/security.txt\n';
+        res.writeHead(200, {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Content-Length': Buffer.byteLength(body),
+            'Cache-Control': 'public, max-age=86400'
+        });
+        if (req.method === 'HEAD') { res.end(); return; }
+        res.end(body);
+        return;
+    }
+
     // Standalone package ZIP download
     if ((pathname === '/download/angband3d-standalone.zip' || pathname === '/download/Angband3D-Windows-x64.zip' || pathname === '/download/angband3d-windows.zip') && (req.method === 'GET' || req.method === 'HEAD')) {
         // Look for zip in DIST_DIR
@@ -1005,7 +1055,18 @@ const server = http.createServer((req, res) => {
                 'Content-Length': stat.size,
                 'Content-Disposition': `attachment; filename="${path.basename(zipPath)}"`,
             });
-            fs.createReadStream(zipPath).pipe(res);
+            if (req.method === 'HEAD') {
+                res.end();
+                return;
+            }
+            const dlStream = fs.createReadStream(zipPath);
+            res.on('close', () => dlStream.destroy());
+            dlStream.on('error', () => {
+                if (!res.headersSent) res.writeHead(500);
+                res.end();
+            });
+            dlStream.pipe(res);
+            return;
         } else {
             // Redirect to latest GitHub Release asset as fallback
             res.writeHead(302, {
@@ -1032,7 +1093,18 @@ const server = http.createServer((req, res) => {
                 'Content-Length': stat.size,
                 'Content-Disposition': 'attachment; filename="Angband3D-Android.apk"',
             });
-            fs.createReadStream(apkPath).pipe(res);
+            if (req.method === 'HEAD') {
+                res.end();
+                return;
+            }
+            const dlStream = fs.createReadStream(apkPath);
+            res.on('close', () => dlStream.destroy());
+            dlStream.on('error', () => {
+                if (!res.headersSent) res.writeHead(500);
+                res.end();
+            });
+            dlStream.pipe(res);
+            return;
         } else {
             // Redirect to latest GitHub Release asset
             res.writeHead(302, {
@@ -2153,7 +2225,7 @@ const server = http.createServer((req, res) => {
 
     // Guard against hidden dotfiles (.env, .git, etc.)
     const pathSegments = safePath.split(/[/\\]/);
-    if (pathSegments.some(seg => seg.startsWith('.') && seg !== '.' && seg !== '..')) {
+    if (pathSegments.some(seg => seg.startsWith('.') && seg !== '.' && seg !== '..' && seg !== '.well-known')) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Access denied' }));
         return;
@@ -2221,9 +2293,11 @@ const server = http.createServer((req, res) => {
                 'Cache-Control': cacheControl,
                 'ETag': etag,
                 'Accept-Ranges': 'bytes',
-                'Access-Control-Allow-Origin': '*',
                 'Cross-Origin-Resource-Policy': 'cross-origin',
             };
+            if (ext !== '.html') {
+                headers['Access-Control-Allow-Origin'] = '*';
+            }
 
             // Handle Conditional ETag Revalidation (HTTP 304 Not Modified)
             // (Strictly bypass 304 for HTML shell and sw.js to ensure immediate localhost live updates)
@@ -2388,7 +2462,14 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 
 server.on('upgrade', (request, socket, head) => {
-    const fwdHost = request.headers['x-forwarded-host'] ? request.headers['x-forwarded-host'].split(',')[0].trim() : '';
+    let fwdHost = '';
+    if (process.env.TRUST_PROXY === '1' && request.headers['x-forwarded-host']) {
+        const firstFwd = request.headers['x-forwarded-host'].split(',')[0].trim();
+        const firstFwdHost = firstFwd.split(':')[0].toLowerCase();
+        if (EXTRA_ALLOWED_ORIGINS.some(o => o.endsWith('://' + firstFwdHost)) || firstFwdHost.endsWith('.run.app')) {
+            fwdHost = firstFwd;
+        }
+    }
     const host = fwdHost || request.headers.host || '';
     const urlObj = new URL(request.url, `http://${host || 'localhost'}`);
     // Cross-site WebSocket hijacking guard (E22): browsers always send Origin on WS upgrades.
@@ -2502,6 +2583,7 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
                                 try {
                                     if (child && !child.killed && child.exitCode === null) {
                                         child.kill();
+                                        setTimeout(() => { try { if (session.child && session.child.exitCode === null) session.child.kill('SIGKILL'); } catch (_) {} }, 2000).unref();
                                     }
                                     invalidateSavesCache();
                                 } catch (_) {}
@@ -2521,13 +2603,17 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
                     try {
                         if (child && !child.killed && child.exitCode === null) {
                             child.kill();
+                            setTimeout(() => { try { if (session.child && session.child.exitCode === null) session.child.kill('SIGKILL'); } catch (_) {} }, 2000).unref();
                         }
                         invalidateSavesCache();
                     } catch (_) {}
                 }, 300);
             }
         } catch (_) {
-            try { child.kill(); } catch (_) {}
+            try {
+                child.kill();
+                setTimeout(() => { try { if (session.child && session.child.exitCode === null) session.child.kill('SIGKILL'); } catch (_) {} }, 2000).unref();
+            } catch (_) {}
         }
     }
 
@@ -2712,7 +2798,7 @@ function spawnGameSession(ws, request) {
         if (!verifyOwnerToken(savePath, reqToken)) {
             ws.send(JSON.stringify({ t: 'error', message: 'Forbidden: invalid owner token for existing character' }));
             ws.send(JSON.stringify({ t: 'bye', detail: 'Invalid owner token' }));
-            ws.close();
+            ws.close(4403, 'Invalid owner token');
             return;
         }
     }
@@ -2829,7 +2915,8 @@ function spawnGameSession(ws, request) {
         isDead: false,
         disconnectedAt: null,
         disconnectTimer: null,
-        lastFrame: null
+        lastFrame: null,
+        clientIp: clientIp(request)
     };
 
     activeSessions.set(sessionId, session);
@@ -2839,6 +2926,7 @@ function spawnGameSession(ws, request) {
 
     child.stdout.on('data', chunk => {
         lineBuffer += stdoutDecoder.decode(chunk, { stream: true });
+        if (lineBuffer.length > 524288 && lineBuffer.indexOf('\n') === -1) { lineBuffer = ''; return; }
         let newlineIdx;
         while ((newlineIdx = lineBuffer.indexOf('\n')) !== -1) {
             let line = lineBuffer.substring(0, newlineIdx).trim(); // let: realm tag is spliced in below (E1 fix)
@@ -2939,6 +3027,24 @@ wss.on('connection', (ws, request) => {
     ws.on('pong', function wsHeartbeat() {
         this.isAlive = true;
     });
+
+    const connIp = clientIp(request);
+    if (connIp !== '127.0.0.1' && connIp !== '::1' && connIp !== '::ffff:127.0.0.1' && connIp !== 'unknown') {
+        let ipCount = 0;
+        for (const s of activeSessions.values()) {
+            if (s.clientIp === connIp && s.ws && s.ws.readyState === 1) {
+                ipCount++;
+            }
+        }
+        if (ipCount >= MAX_WS_PER_IP) {
+            try {
+                ws.send(JSON.stringify({ t: 'error', message: 'Too many concurrent sessions from your IP' }));
+                ws.send(JSON.stringify({ t: 'bye', detail: 'Too many concurrent sessions' }));
+                ws.close(1008, 'Rate limit exceeded');
+            } catch (_) {}
+            return;
+        }
+    }
 
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
     const rawUser = urlObj.searchParams.get('user') || null;
@@ -3269,6 +3375,8 @@ process.on('unhandledRejection', (reason, promise) => {
 // Ensure keepAliveTimeout exceeds reverse proxy (Cloudflare/ALB/Nginx) standard 60s idle timeout
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 66000;
+server.requestTimeout = 30000;
+server.timeout = 60000;
 
 server.listen(PORT, () => {
     console.log(`[Angband3D Cloud Server] Listening on http://localhost:${PORT}`);

@@ -2013,6 +2013,21 @@ const POLYHAVEN_ITEM_GLTF_PATHS = {
     ph_chest: '/assets/polyhaven/models/treasure_chest/treasure_chest.gltf'
 };
 
+if (typeof window !== 'undefined' && !window.DeviceProfile) {
+    window.DeviceProfile = {
+        getTier() {
+            const w = window.innerWidth || 1024;
+            const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+            if (w <= 640 || (coarse && w <= 820)) return 'phone';
+            if (w <= 1024 && coarse) return 'tablet';
+            return 'desktop';
+        },
+        triggerHaptic(ms = 12) {
+            try { if (navigator && typeof navigator.vibrate === 'function') navigator.vibrate(ms); } catch (_) {}
+        }
+    };
+}
+
 class Dungeon3D {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -2118,6 +2133,19 @@ class Dungeon3D {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.shadowMap.autoUpdate = false;
         this.renderer.shadowMap.needsUpdate = true;
+
+        this._contextLost = false;
+        if (this.canvas && typeof this.canvas.addEventListener === 'function') {
+            this.canvas.addEventListener('webglcontextlost', (e) => {
+                e.preventDefault();
+                this._contextLost = true;
+            }, false);
+            this.canvas.addEventListener('webglcontextrestored', () => {
+                this._contextLost = false;
+                this._lastMapHash = '';
+                this._lastEntitiesSig = '';
+            }, false);
+        }
 
         // Ambient light (dynamically adjusted per depth / town)
         this.ambientLight = new THREE.AmbientLight(0x808aa8, 0.75);
@@ -10271,7 +10299,9 @@ class Dungeon3D {
             }
         }
 
-        this.renderer.render(this.scene, this.camera);
+        if (!this._contextLost) {
+            this.renderer.render(this.scene, this.camera);
+        }
     }
 
     /**

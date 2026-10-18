@@ -79,11 +79,25 @@ async function waitUp() {
 
         const up = await req({ path: '/api/recordings/upload', method: 'POST', headers: { 'X-Recording-Name': 'x.webm', 'Content-Type': 'application/octet-stream' } }, 'abc');
         if (up.statusCode !== 404) fails.push('recording upload not blocked (status ' + up.statusCode + ')');
+
+        // X-Forwarded-Host spoofing guard tests
+        const fwdEvil = await req({ path: '/health', headers: { Origin: 'https://evil.example', 'X-Forwarded-Host': 'evil.example' } });
+        if (fwdEvil.headers['access-control-allow-origin']) fails.push('X-Forwarded-Host spoofed Origin got ACAO=' + fwdEvil.headers['access-control-allow-origin']);
+
+        const mutFwd = await req({ path: '/api/saves/x', method: 'DELETE', headers: { Origin: 'https://evil.example', 'X-Forwarded-Host': 'evil.example' } });
+        if (mutFwd.statusCode !== 403) fails.push('DELETE /api/saves/x with spoofed X-Forwarded-Host not 403 (got ' + mutFwd.statusCode + ')');
+
+        // Compliance / discovery endpoints
+        const robots = await req({ path: '/robots.txt', method: 'GET' });
+        if (robots.statusCode !== 200) fails.push('GET /robots.txt not 200 (got ' + robots.statusCode + ')');
+
+        const secTxt = await req({ path: '/.well-known/security.txt', method: 'GET' });
+        if (secTxt.statusCode !== 200) fails.push('GET /.well-known/security.txt not 200 (got ' + secTxt.statusCode + ')');
     } finally {
         child.kill();
         try { fs.rmSync(saveDir, { recursive: true, force: true }); } catch (_) {}
         if (fails.length) { console.error('FAIL\n' + fails.join('\n')); process.exit(1); }
-        console.log('PASS http guard (CORS allowlist, WS origin, recording upload dev-only)');
+        console.log('PASS http guard (CORS allowlist, WS origin, recording upload dev-only, X-Forwarded-Host spoof guard, robots/security.txt)');
         process.exit(0);
     }
 })();

@@ -9,7 +9,7 @@
  * @returns {boolean} true if the request was rejected (handled), false otherwise.
  */
 function guardMutation(req, res, isAllowedOrigin, host) {
-    const effectiveHost = ((process.env.TRUST_PROXY === '1' && req.headers && req.headers['x-forwarded-host']) ? req.headers['x-forwarded-host'].split(',')[0].trim() : '') || host || 'localhost';
+    const effectiveHost = host || (req.headers && req.headers.host) || 'localhost';
     const urlObj = new URL(req.url, `http://${effectiveHost}`);
     const pathname = urlObj.pathname;
 
