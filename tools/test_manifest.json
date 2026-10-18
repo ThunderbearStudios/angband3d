@@ -17,7 +17,8 @@
     "check_version_sync.js",
     "check_android_sync.js",
     "test_static_invariants.js",
-    "test_hero_sketch_and_gui.js"
+    "test_hero_sketch_and_gui.js",
+    "test_bestiary_match_verification.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",

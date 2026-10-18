@@ -4433,7 +4433,7 @@ void fragment() {
             else
             {
                 // Newly appeared monster
-                var newEntity = MonsterModelResolver.CreateMonsterEntity(m, targetWorldPos, playerPos, monId);
+                var newEntity = MonsterModelResolver.CreateMonsterEntity(m, targetWorldPos, playerPos, monId, this.Realm);
                 MonsterModelResolver.UpdateMonsterVisual(newEntity, m, isTargeted, isVisibleInView);
                 newEntity.LastSeenFrame = _frameSeq;
                 _entities.AddChild(newEntity.RootNode);

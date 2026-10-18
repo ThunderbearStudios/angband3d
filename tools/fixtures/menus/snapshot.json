@@ -1271,7 +1271,7 @@
   "isHengEmbark": false,
   "isNamePrompt": false,
   "isHistoryPrompt": false,
-  "isStatRoller": true,
+  "isStatRoller": false,
   "isBackgroundEdit": false,
   "isReadyPrompt": false,
   "isChoiceMenu": false,

@@ -2002,15 +2002,50 @@ const POLYHAVEN_ITEM_GLTF_PATHS = {
     ph_axe: '/assets/polyhaven/models/wooden_axe/wooden_axe.gltf',
     ph_hatchet: '/assets/polyhaven/models/hatchet/hatchet.gltf',
     ph_hammer: '/assets/polyhaven/models/ornate_war_hammer/ornate_war_hammer.gltf',
+    ph_sledgehammer: '/assets/polyhaven/models/sledgehammer_01/sledgehammer_01.gltf',
     ph_mace: '/assets/polyhaven/models/ornate_medieval_mace/ornate_medieval_mace.gltf',
     ph_shield: '/assets/polyhaven/models/kite_shield/kite_shield.gltf',
-    ph_potion_bottle: '/assets/polyhaven/models/wine_bottles_01/wine_bottles_01.gltf',
-    ph_potion_flask: '/assets/polyhaven/models/jug_01/jug_01.gltf',
-    ph_potion_urn: '/assets/polyhaven/models/ceramic_vase_01/ceramic_vase_01.gltf',
+    ph_potion_bottle: '/assets/models/items/healing_potion.glb',
+    ph_potion_flask: '/assets/models/items/greater_healing_potion.glb',
+    ph_potion_urn: '/assets/models/items/supreme_healing_potion.glb',
     ph_goblet: '/assets/polyhaven/models/brass_goblets/brass_goblets.gltf',
     ph_lantern: '/assets/polyhaven/models/wooden_lantern_01/wooden_lantern_01.gltf',
     ph_candle: '/assets/polyhaven/models/brass_candleholders/brass_candleholders.gltf',
-    ph_chest: '/assets/polyhaven/models/treasure_chest/treasure_chest.gltf'
+    ph_chest: '/assets/polyhaven/models/treasure_chest/treasure_chest.gltf',
+    item_bow: '/assets/models/items/bow.glb',
+    item_spear: '/assets/models/items/spear.glb',
+    item_torch: '/assets/models/items/torch.glb',
+    item_greatsword: '/assets/models/items/great_sword.glb',
+    item_rune_blade: '/assets/models/items/rune_blade.glb',
+    item_goblin_sword: '/assets/models/items/goblin_sword.glb',
+    item_morningstar: '/assets/models/items/morningstar.glb',
+    item_greatclub: '/assets/models/items/greatclub.glb',
+    item_longsword: '/assets/models/items/steel_longsword.glb',
+    item_shield_wooden: '/assets/models/items/shield_wooden.glb',
+    item_shield_raven: '/assets/models/items/shield_raven.glb',
+    item_helmet: '/assets/models/items/iron_helmet.glb',
+    item_plate_armor: '/assets/models/items/plate_armor.glb',
+    item_leather_armor: '/assets/models/items/leather_armor.glb',
+    item_boots: '/assets/models/items/iron_boots.glb',
+    item_gauntlets: '/assets/models/items/iron_gauntlets.glb',
+    item_cloak: '/assets/models/items/wool_cape.glb',
+    item_scroll: '/assets/models/items/scroll.glb',
+    item_scroll_enchant: '/assets/models/items/scroll_enchant.glb',
+    item_coins: '/assets/models/items/coin_pile_spill.glb',
+    item_key: '/assets/models/items/dungeon_key_gold.glb',
+    item_bread: '/assets/models/items/bread.glb',
+    item_lembas: '/assets/models/items/lembas_wafer.glb',
+    item_shovel: '/assets/polyhaven/models/rusted_spade_01/rusted_spade_01.gltf',
+    item_pickaxe: '/assets/polyhaven/models/picke_dirty_01/picke_dirty_01.gltf',
+    item_staff_branch: '/assets/polyhaven/models/dead_quiver_branch_01/dead_quiver_branch_01.gltf',
+    item_book: '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf',
+    item_shield_wicker: '/assets/models/items/shield_wooden.glb',
+    item_shield_leather: '/assets/models/items/shield_wooden.glb',
+    item_shield_metal: '/assets/models/items/shield_wooden.glb',
+    item_arrow: '/assets/models/items/steel_arrow.glb',
+    item_talisman: '/assets/models/items/phoenix_talisman.glb',
+    item_chainmail: '/assets/models/items/chain_mail.glb',
+    item_crown: '/assets/models/items/helm_of_brilliance.glb'
 };
 
 if (typeof window !== 'undefined' && !window.DeviceProfile) {
@@ -2129,7 +2164,7 @@ class Dungeon3D {
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.05;
         this.renderer.outputEncoding = THREE.sRGBEncoding;
-        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.enabled = false;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.shadowMap.autoUpdate = false;
         this.renderer.shadowMap.needsUpdate = true;
@@ -4239,11 +4274,9 @@ class Dungeon3D {
         this.heightRatio = 1.0;
         this.cameraBobPhase = 0;
 
-        // Right Hand Weapon Slot: Calibrated cleanly to lower right corner (1:1 with Godot ViewModel.cs:694, 704)
-        // Position: (0.24, -0.24, -0.32), Rotation: (18°, -14°, 6°)
         this.rightHandGroup = new THREE.Group();
-        this.rightRestPos = new THREE.Vector3(0.24, -0.24, -0.32);
-        this.rightRestRot = new THREE.Euler(18 * Math.PI / 180, -14 * Math.PI / 180, 6 * Math.PI / 180);
+        this.rightRestPos = new THREE.Vector3(0.31, -0.30, -0.36);
+        this.rightRestRot = new THREE.Euler(-0.26, 0.24, 0.16);
         this.rightHandGroup.position.copy(this.rightRestPos);
         this.rightHandGroup.rotation.copy(this.rightRestRot);
         this.rightItemSlot = new THREE.Group();
@@ -4252,10 +4285,10 @@ class Dungeon3D {
         this.rightHandGroup.visible = false; // Hidden when unarmed
         this.viewmodelGroup.add(this.rightHandGroup);
 
-        // Left Hand Shield Slot: Calibrated to lower left corner (1:1 with Godot ViewModel.cs)
+        // Left Hand Shield Slot: Anchored at lower-left corner angled inward at 3/4 guard pose
         this.leftHandGroup = new THREE.Group();
-        this.leftRestPos = new THREE.Vector3(-0.24, -0.24, -0.32);
-        this.leftRestRot = new THREE.Euler(18 * Math.PI / 180, 14 * Math.PI / 180, -6 * Math.PI / 180);
+        this.leftRestPos = new THREE.Vector3(-0.33, -0.29, -0.36);
+        this.leftRestRot = new THREE.Euler(0.08, 0.88, -0.12);
         this.leftHandGroup.position.copy(this.leftRestPos);
         this.leftHandGroup.rotation.copy(this.leftRestRot);
         this.leftItemSlot = new THREE.Group();
@@ -4302,19 +4335,35 @@ class Dungeon3D {
 
         // 3. Poly Haven Photogrammetry 3D Viewmodel Weapons & Shields (On-Demand + Prewarm Sword/Shield)
         this._viewmodelWeaponPhMap = {
-            sword: 'ph_saber',
-            blade: 'ph_estoc',
+            sword: 'item_longsword',
+            saber: 'ph_saber',
+            blade: 'item_rune_blade',
             katana: 'ph_katana',
             dagger: 'ph_dagger',
             axe: 'ph_axe',
+            hatchet: 'ph_hatchet',
             mace: 'ph_mace',
+            morningstar: 'item_morningstar',
+            club: 'item_greatclub',
             hammer: 'ph_hammer',
-            polearm: 'ph_estoc',
-            staff: 'ph_mace',
-            bow: 'ph_hatchet',
+            sledgehammer: 'ph_sledgehammer',
+            polearm: 'item_spear',
+            staff: 'item_staff_branch',
+            wand: 'item_staff_branch',
+            shovel: 'item_shovel',
+            pickaxe: 'item_pickaxe',
+            whip: 'item_morningstar',
+            bow: 'item_bow',
             shield: 'ph_shield',
-            claymore: 'ph_estoc',
-            spear: 'ph_estoc'
+            shield_wooden: 'item_shield_wooden',
+            shield_raven: 'item_shield_raven',
+            shield_wicker: 'item_shield_wicker',
+            shield_leather: 'item_shield_leather',
+            shield_metal: 'item_shield_metal',
+            claymore: 'item_greatsword',
+            spear: 'item_spear',
+            torch: 'item_torch',
+            lantern: 'ph_lantern'
         };
         this._ensureViewmodelWeapon('sword');
         this._ensureViewmodelWeapon('shield');
@@ -4442,48 +4491,71 @@ class Dungeon3D {
             this.camera.updateProjectionMatrix();
         }
 
-        this.viewmodelGroup.scale.set(this.heightRatio, this.heightRatio, this.heightRatio);
+        this.viewmodelGroup.scale.set(1.0, 1.0, 1.0);
 
         // 4. Equipment resolution
         const _itemStr = (v) => (v && typeof v === 'object') ? String(v.name || v.desc || '') : String(v || '');
         const weaponItem = _itemStr(player.weapon_item);
         const bowItem = _itemStr(player.bow_item);
         const shieldItem = _itemStr(player.shield_item);
+        const lightItem = _itemStr(player.light_item);
         const lightRadius = player.light || 0;
         const depth = player.depth !== undefined ? player.depth : 0;
 
-        // LEFT HAND RULE (1:1 with Godot ViewModel.cs:342-355):
-        // Only show what is actually wielded in the off-hand (such as an equipped shield).
-        // Carrying a torch in the light slot illuminates the dungeon without occupying hands!
+        // Left hand: strictly reserved for equipped shields or off-hand weapons (never illumination items)
         if (shieldItem) {
             this.resolveShieldModel(shieldItem);
         } else {
             this.leftHandGroup.visible = false;
+            this.currentLeftWeapon = null;
         }
 
         // RIGHT HAND RULE (1:1 with Godot ViewModel.cs:351-353):
         // Primary equipped melee weapon or ranged bow.
         // If unarmed, remains clean & empty (no fake default weapons or mannequin arms).
-        this.resolveRightWeaponModel(weaponItem, bowItem);
+        this.resolveRightWeaponModel(weaponItem, bowItem, player);
     }
 
-    resolveRightWeaponModel(weaponItem, bowItem) {
+    resolveRightWeaponModel(weaponItem, bowItem, player) {
         let key = '';
         const lowerW = (weaponItem || '').toLowerCase();
         const lowerB = (bowItem || '').toLowerCase();
+        const wTval = player && Number(player.weapon_tval || 0);
 
         if (lowerW.length > 0) {
-            if (lowerW.includes('whip') || lowerW.includes('bullwhip') || lowerW.includes('scourge') || lowerW.includes('cat-o')) {
+            if (/\b(shovel|spade|trowel)\b/.test(lowerW)) {
+                key = 'shovel';
+            } else if (/\b(pick|pickaxe|mattock|digger)\b/.test(lowerW) || wTval === 20) {
+                key = 'pickaxe';
+            } else if (/\b(wand|rod|staff|quarterstaff)\b/.test(lowerW) || wTval === 55 || wTval === 65 || wTval === 66) {
+                key = 'staff';
+            } else if (/\b(scythe|sickle|glaive|halberd|lochaber)\b/.test(lowerW)) {
+                key = 'axe';
+            } else if (lowerW.includes('whip') || lowerW.includes('bullwhip') || lowerW.includes('scourge') || lowerW.includes('cat-o')) {
                 key = 'whip';
-            } else if (lowerW.includes('dagger') || lowerW.includes('knife') || lowerW.includes('blade') || lowerW.includes('main gauche') || lowerW.includes('misericorde')) {
+            } else if (lowerW.includes('katana') || lowerW.includes('wakizashi') || lowerW.includes('nodachi') || lowerW.includes('ninja-to') || lowerW.includes('tanto')) {
+                key = 'katana';
+            } else if (lowerW.includes('dagger') || lowerW.includes('knife') || lowerW.includes('main gauche') || lowerW.includes('misericorde') || lowerW.includes('stiletto') || lowerW.includes('dirk')) {
                 key = 'dagger';
             } else if (lowerW.includes('claymore') || lowerW.includes('two-handed') || lowerW.includes('great sword') || lowerW.includes('executioner') || lowerW.includes('zweihander')) {
                 key = 'claymore';
-            } else if (lowerW.includes('axe') || lowerW.includes('hatchet') || lowerW.includes('cleaver')) {
+            } else if (lowerW.includes('rune') || lowerW.includes('vorpal') || lowerW.includes('morgul') || lowerW.includes('ringil') || lowerW.includes('anduril') || lowerW.includes('glamdring')) {
+                key = 'blade';
+            } else if (lowerW.includes('saber') || lowerW.includes('sabre') || lowerW.includes('scimitar') || lowerW.includes('cutlass') || lowerW.includes('falchion') || lowerW.includes('tulwar')) {
+                key = 'saber';
+            } else if (lowerW.includes('hatchet')) {
+                key = 'hatchet';
+            } else if (lowerW.includes('axe') || lowerW.includes('cleaver')) {
                 key = 'axe';
-            } else if (lowerW.includes('hammer') || lowerW.includes('mace') || lowerW.includes('flail') || lowerW.includes('morning star') || lowerW.includes('club') || lowerW.includes('cudgel')) {
+            } else if (lowerW.includes('morning star') || lowerW.includes('morningstar') || lowerW.includes('flail') || lowerW.includes('ball-and-chain')) {
+                key = 'morningstar';
+            } else if (lowerW.includes('club') || lowerW.includes('cudgel')) {
+                key = 'club';
+            } else if (lowerW.includes('mace') || lowerW.includes('scepter')) {
+                key = 'mace';
+            } else if (lowerW.includes('hammer') || lowerW.includes('maul')) {
                 key = 'hammer';
-            } else if (lowerW.includes('spear') || lowerW.includes('staff') || lowerW.includes('pike') || lowerW.includes('lance') || lowerW.includes('trident') || lowerW.includes('halberd') || lowerW.includes('polearm')) {
+            } else if (lowerW.includes('spear') || lowerW.includes('pike') || lowerW.includes('lance') || lowerW.includes('trident') || lowerW.includes('polearm')) {
                 key = 'spear';
             } else {
                 key = 'sword';
@@ -4520,21 +4592,58 @@ class Dungeon3D {
 
     resolveShieldModel(shieldItem) {
         if (!this.leftItemSlot) return;
+        if (!shieldItem) {
+            this.leftHandGroup.visible = false;
+            this.currentLeftWeapon = null;
+            return;
+        }
+        const lower = String(shieldItem).toLowerCase();
+        let key;
+        if (/\b(deflection|dragon|artifact|thorin|celegorm|anor|gil-galad|harad|raven|mirror|elven)\b/.test(lower)) {
+            key = 'shield_raven';
+        } else if (/\b(wicker|buckler|basket)\b/.test(lower)) {
+            key = 'shield_wicker';
+        } else if (/\bleather\b/.test(lower)) {
+            key = 'shield_leather';
+        } else if (/\bsmall metal\b/.test(lower)) {
+            key = 'shield_metal';
+        } else if (/\b(wooden|wood|round|small|target)\b/.test(lower)) {
+            key = 'shield_wooden';
+        } else {
+            key = 'shield';
+        }
+        if (this.currentLeftWeapon === key && this.leftItemSlot.children.length > 0) {
+            this.leftHandGroup.visible = true;
+            return;
+        }
+        this.currentLeftWeapon = key;
         while (this.leftItemSlot.children.length > 0) {
             this.leftItemSlot.remove(this.leftItemSlot.children[0]);
         }
-        if (!shieldItem) {
-            this.leftHandGroup.visible = false;
+        if (this.weaponCache.has(key)) {
+            this.leftItemSlot.add(this.weaponCache.get(key).clone(true));
+        } else {
+            this._ensureViewmodelWeapon(key);
+        }
+        this.leftHandGroup.visible = true;
+    }
+
+    resolveLeftLightModel(lightItem) {
+        if (!this.leftItemSlot) return;
+        const lowerL = String(lightItem || '').toLowerCase();
+        const key = /torch/.test(lowerL) ? 'torch' : 'lantern';
+        if (this.currentLeftWeapon === key && this.leftItemSlot.children.length > 0) {
+            this.leftHandGroup.visible = true;
             return;
         }
-        let mesh = null;
-        if (this.weaponCache.has('shield')) {
-            mesh = this.weaponCache.get('shield').clone(true);
-        } else {
-            this._ensureViewmodelWeapon('shield');
+        this.currentLeftWeapon = key;
+        while (this.leftItemSlot.children.length > 0) {
+            this.leftItemSlot.remove(this.leftItemSlot.children[0]);
         }
-        if (mesh) {
-            this.leftItemSlot.add(mesh);
+        if (this.weaponCache.has(key)) {
+            this.leftItemSlot.add(this.weaponCache.get(key).clone(true));
+        } else {
+            this._ensureViewmodelWeapon(key);
         }
         this.leftHandGroup.visible = true;
     }
@@ -4547,19 +4656,35 @@ class Dungeon3D {
             if (!tmpl || this.weaponCache.has(key)) return;
             const wClone = this._cloneCachedGltfTemplate(tmpl, null, phKey);
             if (!wClone) return;
-            if (key === 'shield') {
-                if (wClone.children[0]) {
-                    wClone.children[0].rotation.set(0, 0, 0);
-                }
-                wClone.scale.set(0.22, 0.22, 0.22);
-                wClone.position.set(-0.06, -0.05, -0.04);
+            this._prepareCanonicalHeldClone(wClone, phKey);
+            if (key === 'shield' || key.startsWith('shield_')) {
+                wClone.scale.setScalar(0.38);
+                wClone.position.set(0.02, -0.01, 0);
+                wClone.rotation.set(0, 0, 0);
+            } else if (key === 'bow') {
+                wClone.scale.setScalar(0.36);
+                wClone.position.set(0, 0.01, 0);
+                wClone.rotation.set(0.16, -0.25, 0.12);
+            } else if (key === 'shovel' || key === 'pickaxe' || key === 'staff') {
+                wClone.scale.setScalar(0.42);
+                wClone.position.set(0, -0.01, 0);
+                wClone.rotation.set(0.12, key === 'shovel' ? -0.35 : -0.22, 0.06);
             } else {
-                if (wClone.children[0]) {
-                    wClone.children[0].rotation.set(-0.22, Math.PI * 0.5, 0.10);
-                    wClone.children[0].position.set(0, -0.06, 0);
-                }
-                wClone.scale.set(0.30, 0.30, 0.30);
-                wClone.position.set(0.04, -0.04, -0.04);
+                const vmScale = key === 'spear' ? 0.32 : (key === 'claymore' ? 0.35 : (key === 'dagger' || key === 'hatchet' ? 0.46 : 0.40));
+                wClone.scale.setScalar(vmScale);
+                wClone.position.set(0, key === 'dagger' || key === 'hatchet' ? -0.02 : -0.01, 0);
+                wClone.rotation.set(0.14, -0.24, 0.08);
+            }
+            if (!key.startsWith('shield') && key !== 'bow') {
+                this._ensurePolyHavenFloorItem('item_gauntlets').then((gTmpl) => {
+                    if (!gTmpl) return;
+                    const gClone = this._cloneCachedGltfTemplate(gTmpl, '#3a3530', 'item_gauntlets');
+                    if (!gClone) return;
+                    gClone.scale.set(0.34, 0.42, 0.34);
+                    gClone.position.set(0.0, -0.09, 0.02);
+                    gClone.rotation.set(0.35, 0.0, -0.18);
+                    wClone.add(gClone);
+                }).catch(() => {});
             }
             this.weaponCache.set(key, wClone);
             if (this.lastFrame && this.lastFrame.player) {
@@ -4646,6 +4771,477 @@ class Dungeon3D {
             duration: 0.38,
             material: sparkMat
         });
+    }
+
+    _resolveCombatEndpoints(msgLower, isPlayerAction = true) {
+        const playerPos = this.camera ? this.camera.position.clone() : new THREE.Vector3();
+        const fwd = new THREE.Vector3(0, 0, -1);
+        if (this.camera) fwd.applyQuaternion(this.camera.quaternion);
+
+        let monsterEntity = null;
+        if (this.targetedMonsterId && this.monsters && this.monsters.has(this.targetedMonsterId)) {
+            monsterEntity = this.monsters.get(this.targetedMonsterId);
+        } else if (this.monsters) {
+            for (const ent of this.monsters.values()) {
+                const mData = ent.monsterData;
+                const mName = ((mData && mData.name) || ent.name || '').toLowerCase();
+                if (mName && msgLower.includes(mName)) {
+                    monsterEntity = ent;
+                    break;
+                }
+            }
+            if (!monsterEntity) {
+                let bestDist = 14.0;
+                for (const ent of this.monsters.values()) {
+                    if (!ent.visible) continue;
+                    const d = ent.position.distanceTo(playerPos);
+                    if (d < bestDist) {
+                        bestDist = d;
+                        monsterEntity = ent;
+                    }
+                }
+            }
+        }
+
+        let monsterPos;
+        if (monsterEntity) {
+            monsterPos = monsterEntity.position.clone().add(new THREE.Vector3(0, (monsterEntity.modelHeight || 1.4) * 0.55, 0));
+        } else {
+            monsterPos = playerPos.clone().addScaledVector(fwd, 3.2);
+            monsterPos.y = playerPos.y - 0.15;
+        }
+
+        const rightVec = new THREE.Vector3(1, 0, 0);
+        if (this.camera) rightVec.applyQuaternion(this.camera.quaternion);
+        const toMonster = monsterPos.clone().sub(playerPos).normalize();
+        const pan = Math.max(-0.95, Math.min(0.95, toMonster.dot(rightVec)));
+
+        const playerHandPos = playerPos.clone().addScaledVector(fwd, 0.45).add(new THREE.Vector3(0.18, -0.18, 0));
+        const playerFacePos = playerPos.clone().addScaledVector(fwd, 0.55);
+
+        return {
+            startPos: isPlayerAction ? playerHandPos : monsterPos,
+            endPos: isPlayerAction ? monsterPos : playerFacePos,
+            monsterEntity,
+            pan
+        };
+    }
+
+    triggerMonsterHitReaction(monsterEntity, isKill = false) {
+        if (!monsterEntity) return;
+        monsterEntity._hitFlinchTimer = 0.20;
+        const camPos = this.camera ? this.camera.position : new THREE.Vector3();
+        monsterEntity._hitFlinchDir = monsterEntity.position.clone().sub(camPos).setY(0).normalize();
+        if (monsterEntity._hitFlinchDir.lengthSq() < 0.001) {
+            monsterEntity._hitFlinchDir.set(0, 0, -1);
+        }
+        monsterEntity._hitFlashTimer = 0.18;
+    }
+
+    spawnProjectileOrSpellVfx(kind, startPos, endPos, colorHex = 0xff6600) {
+        this.activeProjectiles = this.activeProjectiles || [];
+        const group = new THREE.Group();
+        group.position.copy(startPos);
+        this.scene.add(group);
+
+        const disposables = [];
+        let duration = 0.25;
+        let onComplete = null;
+        let lines = null;
+        let mat = null;
+
+        const col = new THREE.Color(colorHex);
+
+        if (kind === 'arrow') {
+            duration = 0.22;
+            let arrowMesh = null;
+            if (this._gltfTemplateCache && this._gltfTemplateCache.has('item_arrow')) {
+                arrowMesh = this._cloneCachedGltfTemplate(this._gltfTemplateCache.get('item_arrow'), null, 'item_arrow');
+                arrowMesh.scale.setScalar(0.42);
+            } else {
+                const shaftGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.65, 6);
+                const shaftMat = new THREE.MeshBasicMaterial({ color: 0xdbeafe });
+                disposables.push(shaftGeo, shaftMat);
+                arrowMesh = new THREE.Mesh(shaftGeo, shaftMat);
+            }
+            const dir = endPos.clone().sub(startPos).normalize();
+            arrowMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+            group.add(arrowMesh);
+            onComplete = () => {
+                this.spawnHitSparks(endPos, 0xdbeafe, 12);
+            };
+        } else if (kind === 'potion') {
+            duration = 0.34;
+            let bottleMesh = null;
+            if (this._gltfTemplateCache && this._gltfTemplateCache.has('ph_potion_bottle')) {
+                bottleMesh = this._cloneCachedGltfTemplate(this._gltfTemplateCache.get('ph_potion_bottle'), null, 'ph_potion_bottle');
+                bottleMesh.scale.setScalar(0.35);
+            } else {
+                const botGeo = new THREE.CylinderGeometry(0.05, 0.07, 0.20, 8);
+                const botMat = new THREE.MeshBasicMaterial({ color: col });
+                disposables.push(botGeo, botMat);
+                bottleMesh = new THREE.Mesh(botGeo, botMat);
+            }
+            group.add(bottleMesh);
+            onComplete = () => {
+                this.spawnHitSparks(endPos, colorHex, 16);
+            };
+        } else if (kind === 'lightning') {
+            duration = 0.28;
+            lines = [];
+            const lineMat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.95 });
+            disposables.push(lineMat);
+            for (let arc = 0; arc < 3; arc++) {
+                const pts = [];
+                const ptCount = 10;
+                for (let i = 0; i < ptCount; i++) {
+                    const frac = i / (ptCount - 1);
+                    const pt = new THREE.Vector3().lerpVectors(startPos, endPos, frac);
+                    if (i > 0 && i < ptCount - 1) {
+                        pt.x += (Math.random() - 0.5) * 0.36;
+                        pt.y += (Math.random() - 0.5) * 0.36;
+                        pt.z += (Math.random() - 0.5) * 0.36;
+                    }
+                    pts.push(pt.clone().sub(startPos));
+                }
+                const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+                disposables.push(lineGeo);
+                const line = new THREE.Line(lineGeo, lineMat);
+                group.add(line);
+                lines.push(line);
+            }
+            const pLight = new THREE.PointLight(colorHex, 3.5, 8);
+            group.add(pLight);
+            disposables.push(pLight);
+            onComplete = () => {
+                this.spawnHitSparks(endPos, colorHex, 16);
+            };
+        } else if (kind === 'fireball' || kind === 'breath' || kind === 'bolt') {
+            duration = 0.28;
+            const radius = (kind === 'breath') ? 0.24 : 0.18;
+            const innerGeo = new THREE.SphereGeometry(radius * 0.58, 12, 12);
+            const innerMat = new THREE.MeshBasicMaterial({ color: 0xfff7cc, transparent: true, opacity: 0.98 });
+            const outerGeo = new THREE.SphereGeometry(radius, 14, 14);
+            const outerMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.78,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const ringGeo = new THREE.TorusGeometry(radius * 1.35, 0.028, 8, 20);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            disposables.push(innerGeo, innerMat, outerGeo, outerMat, ringGeo, ringMat);
+            group.add(new THREE.Mesh(innerGeo, innerMat));
+            group.add(new THREE.Mesh(outerGeo, outerMat));
+            const coronaRing = new THREE.Mesh(ringGeo, ringMat);
+            coronaRing.lookAt(endPos);
+            group.add(coronaRing);
+            this.spawnHitSparks(startPos.clone().lerp(endPos, 0.35), colorHex, 14);
+            this.spawnHitSparks(startPos.clone().lerp(endPos, 0.65), 0xffcc44, 14);
+
+            const pLight = new THREE.PointLight(colorHex, 3.8, 10);
+            group.add(pLight);
+            disposables.push(pLight);
+            onComplete = () => {
+                this.spawnHitSparks(endPos, colorHex, 28);
+            };
+        } else if (kind === 'aura') {
+            duration = 0.55;
+            const ringGeo = new THREE.RingGeometry(0.48, 0.62, 24);
+            mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+            disposables.push(ringGeo, mat);
+            const ringMesh = new THREE.Mesh(ringGeo, mat);
+            ringMesh.rotation.x = -Math.PI / 2;
+            group.add(ringMesh);
+            this.spawnHitSparks(startPos, colorHex, 16);
+        } else if (kind === 'slash') {
+            duration = 0.18;
+            group.position.copy(endPos);
+            const slashGeo = new THREE.TorusGeometry(0.42, 0.025, 6, 16, Math.PI * 0.75);
+            mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95, side: THREE.DoubleSide });
+            disposables.push(slashGeo, mat);
+            const slashMesh = new THREE.Mesh(slashGeo, mat);
+            slashMesh.rotation.set(0.2, 0.4, 0.6);
+            group.add(slashMesh);
+            this.spawnHitSparks(endPos, colorHex, 18);
+        }
+
+        this.activeProjectiles.push({
+            kind,
+            group,
+            startPos: startPos.clone(),
+            endPos: endPos.clone(),
+            colorHex,
+            elapsed: 0,
+            duration,
+            lines,
+            mat,
+            onComplete,
+            disposables
+        });
+    }
+
+    triggerMessageVfx(msgText) {
+        if (!msgText) return;
+        const lower = msgText.toLowerCase();
+
+        const isPlayerSource = lower.startsWith('you ') || lower.startsWith('your ') ||
+            lower.includes('you hit') || lower.includes('you strike') || lower.includes('you slash') ||
+            lower.includes('you crush') || lower.includes('you smite') || lower.includes('you shoot') ||
+            lower.includes('you fire') || lower.includes('you cast') || lower.includes('you throw') ||
+            lower.includes('you zap') || lower.includes('you aim') || lower.includes('you quaff') ||
+            lower.includes('you read') || lower.includes('you tunnel') || lower.includes('you dig') ||
+            lower.includes('you pray') || lower.includes('you recite') || lower.includes('you use a staff');
+
+        const ep = this._resolveCombatEndpoints(lower, isPlayerSource);
+
+        // 1. Lightning Spells & Attacks
+        if (/\b(lightning|elec|shock|thunder|spark)\b/.test(lower)) {
+            this.spawnProjectileOrSpellVfx('lightning', ep.startPos, ep.endPos, 0x66f0ff);
+            if (this.audio && typeof this.audio.playLightningCrack === 'function') {
+                this.audio.playLightningCrack(ep.pan);
+            } else if (this.audio && typeof this.audio.playSpell === 'function') {
+                this.audio.playSpell('lightning');
+            }
+            if (isPlayerSource) {
+                this.triggerCastAnimation();
+                this.spawnFloatingText('LIGHTNING', ep.startPos, '#66f0ff', 1.15);
+            } else {
+                this.addTrauma(0.28);
+                this.triggerHurtAnimation();
+            }
+            return;
+        }
+
+        // 2. Fire / Frost / Acid / Poison / Chaos / Mana Spells & Breaths
+        if (/\b(breathes|fireball|frost|cold|acid|poison|venom|missile|mana|chaos|nether|you cast|you zap|you aim|mumbles|invokes)\b/.test(lower)) {
+            const isBreath = lower.includes('breathe') || lower.includes('breath');
+            let elemColor = 0xff7722;
+            let elemType = 'fire';
+            if (lower.includes('frost') || lower.includes('cold') || lower.includes('ice')) {
+                elemColor = 0x88ddff;
+                elemType = 'cold';
+            } else if (lower.includes('acid')) {
+                elemColor = 0x88ff33;
+                elemType = 'acid';
+            } else if (lower.includes('poison') || lower.includes('venom')) {
+                elemColor = 0x33dd66;
+                elemType = 'poison';
+            } else if (lower.includes('chaos') || lower.includes('nether') || lower.includes('mana')) {
+                elemColor = 0xbb55ff;
+                elemType = 'magic';
+            }
+            this.spawnProjectileOrSpellVfx(isBreath ? 'breath' : 'fireball', ep.startPos, ep.endPos, elemColor);
+            if (this.audio && typeof this.audio.playFireballDetonation === 'function') {
+                this.audio.playFireballDetonation(isBreath, ep.pan);
+            } else if (this.audio && typeof this.audio.playSpell === 'function') {
+                this.audio.playSpell(elemType);
+            }
+            if (isPlayerSource) {
+                this.triggerCastAnimation();
+                this.spawnFloatingText(isBreath ? 'BREATH' : 'CAST', ep.startPos, '#ff9944', 1.10);
+            } else {
+                this.addTrauma(0.30);
+                this.triggerHurtAnimation();
+            }
+            return;
+        }
+
+        // 3. Arrows / Bolts / Slings
+        if (/\b(you shoot|you fire|shoots an arrow|fires a bolt|hits the|pierces|shoots a|fires a)\b/.test(lower) ||
+            ((lower.includes('arrow') || lower.includes('bolt')) && (lower.includes('shoot') || lower.includes('fire')))) {
+            this.spawnProjectileOrSpellVfx('arrow', ep.startPos, ep.endPos, 0xdbeafe);
+            if (this.audio && typeof this.audio.playArrowLooseAndImpact === 'function') {
+                this.audio.playArrowLooseAndImpact('loose', ep.pan);
+            } else if (this.audio && typeof this.audio.playBowShoot === 'function') {
+                this.audio.playBowShoot();
+            }
+            if (isPlayerSource) {
+                this.triggerAttackAnimation();
+                this.spawnFloatingText('SHOOT', ep.startPos, '#ffdd55', 1.05);
+            }
+            return;
+        }
+
+        // 4. Thrown Potions / Flasks / Items
+        if (/\b(you throw|you hurl|shatters|flask of oil)\b/.test(lower)) {
+            const potCol = lower.includes('oil') ? 0xcc6611 : 0x55ffaa;
+            this.spawnProjectileOrSpellVfx('potion', ep.startPos, ep.endPos, potCol);
+            if (this.audio && typeof this.audio.playPotionThrowAndShatter === 'function') {
+                this.audio.playPotionThrowAndShatter('shatter', ep.pan);
+            } else if (this.audio && typeof this.audio.playWhoosh === 'function') {
+                this.audio.playWhoosh();
+            }
+            if (isPlayerSource) {
+                this.triggerAttackAnimation();
+                this.spawnFloatingText('THROW', ep.startPos, '#ffcc44', 1.05);
+            }
+            return;
+        }
+
+        // 5. Scrolls, Staves & Potions Quaffed
+        if (/\b(you read|you recite|you use a staff|you quaff|you drink|you pray)\b/.test(lower)) {
+            let auraColor = 0x66ccff;
+            let auraKind = 'runic';
+            if (lower.includes('quaff') || lower.includes('drink')) {
+                auraColor = 0x33ff88;
+                auraKind = 'potion';
+            } else if (lower.includes('pray') || lower.includes('bless')) {
+                auraColor = 0xffe066;
+                auraKind = 'holy';
+            }
+            this.spawnProjectileOrSpellVfx('aura', ep.startPos, ep.startPos, auraColor);
+            if (this.audio && typeof this.audio.playRunicAura === 'function') {
+                this.audio.playRunicAura(auraKind, 0);
+            } else if (lower.includes('quaff') || lower.includes('drink')) {
+                if (this.audio && typeof this.audio.playQuaff === 'function') this.audio.playQuaff();
+            } else {
+                if (this.audio && typeof this.audio.playScroll === 'function') this.audio.playScroll();
+            }
+            this.spawnFloatingText((lower.includes('quaff') || lower.includes('drink')) ? 'QUAFF' : 'INVOKE', ep.startPos, '#88ffcc', 1.10);
+            return;
+        }
+
+        // 6. Digging / Tunneling
+        if (/\b(you tunnel|you dig|finished tunneling)\b/.test(lower)) {
+            this.spawnHitSparks(ep.endPos, 0xa89f91, 14);
+            if (this.audio && typeof this.audio.playDiggingStrike === 'function') {
+                this.audio.playDiggingStrike(ep.pan);
+            } else if (this.audio && typeof this.audio.playHit === 'function') {
+                this.audio.playHit(false);
+            }
+            this.triggerAttackAnimation();
+            this.spawnFloatingText('DIG', ep.endPos, '#c2b29d', 1.0);
+            return;
+        }
+
+        // 7. Critical Melee Strikes
+        if (lower.includes('critical hit') || lower.includes('great force') || lower.includes('superb')) {
+            this.addTrauma(0.25);
+            this.spawnFloatingText('CRITICAL!', ep.endPos.clone().add(new THREE.Vector3(0, 0.25, 0)), '#ffd700', 1.35);
+            this.spawnProjectileOrSpellVfx('slash', ep.startPos, ep.endPos, 0xffd700);
+            this.triggerMonsterHitReaction(ep.monsterEntity);
+            if (this.audio && typeof this.audio.playWeaponImpact === 'function') {
+                this.audio.playWeaponImpact('blade', true, ep.pan);
+            } else if (this.audio && typeof this.audio.playCrit === 'function') {
+                this.audio.playCrit();
+            }
+            this.triggerAttackAnimation();
+            return;
+        }
+
+        // 8. Normal Melee Strikes
+        if (lower.includes('you hit') || lower.includes('you strike') || lower.includes('you slash') || lower.includes('you crush') || lower.includes('you smite') || lower.includes('you stab') || lower.includes('you gouge')) {
+            let weaponCat = 'blade';
+            if (lower.includes('crush') || lower.includes('hammer') || lower.includes('club') || lower.includes('mace')) weaponCat = 'blunt';
+            else if (lower.includes('stab') || lower.includes('gouge') || lower.includes('spear')) weaponCat = 'pierce';
+            this.spawnProjectileOrSpellVfx('slash', ep.startPos, ep.endPos, 0xff4444);
+            this.triggerMonsterHitReaction(ep.monsterEntity);
+            if (this.audio && typeof this.audio.playWeaponImpact === 'function') {
+                this.audio.playWeaponImpact(weaponCat, false, ep.pan);
+            } else if (this.audio && typeof this.audio.playHit === 'function') {
+                this.audio.playHit(false);
+            }
+            this.triggerAttackAnimation();
+            this.spawnFloatingText('HIT', ep.endPos, '#ffaa33', 1.05);
+            return;
+        }
+
+        // 9. Monster Strikes Player
+        if (lower.includes('hits you') || lower.includes('bites you') || lower.includes('claws you') || lower.includes('crushes you') || lower.includes('stings you') || lower.includes('burns you')) {
+            this.addTrauma(0.35);
+            this.spawnFloatingText('OUCH!', ep.endPos, '#ff3333', 1.15);
+            this.spawnHitSparks(ep.endPos, '#ff2222', 14);
+            this.triggerHurtAnimation();
+            if (this.audio && typeof this.audio.playPlayerHurt === 'function') this.audio.playPlayerHurt();
+            return;
+        }
+
+        // 10. Deflect / Block
+        if (lower.includes('deflect') || lower.includes('blocks the blow') || lower.includes('parr') || lower.includes('bounces off')) {
+            this.spawnFloatingText('BLOCK', ep.endPos, '#55bbff', 1.05);
+            this.spawnHitSparks(ep.endPos, '#88ddff', 10);
+            if (this.audio && typeof this.audio.playShieldBlock === 'function') this.audio.playShieldBlock();
+            return;
+        }
+
+        // 11. Misses
+        if (lower.includes('you miss') || lower.includes('misses you')) {
+            if (lower.includes('you miss')) this.triggerAttackAnimation();
+            this.spawnFloatingText('MISS', ep.endPos, '#a0b0c0', 0.95);
+            if (this.audio && typeof this.audio.playWhoosh === 'function') this.audio.playWhoosh();
+            return;
+        }
+
+        // 12. Monster Slain
+        if (lower.includes('you have slain') || lower.includes('is destroyed') || lower.includes('dies.')) {
+            this.spawnFloatingText('SLAIN!', ep.endPos.clone().add(new THREE.Vector3(0, 0.25, 0)), '#ff44aa', 1.30);
+            this.spawnHitSparks(ep.endPos, '#ff44aa', 24);
+            this.triggerMonsterHitReaction(ep.monsterEntity, true);
+            if (this.audio && typeof this.audio.playMonsterDeath === 'function') this.audio.playMonsterDeath();
+            return;
+        }
+
+        // 13. Other environmental & UI triggers
+        if ((lower.includes('wall') || lower.includes('door') || lower.includes('rubble')) && (lower.includes('blocking your way') || lower.includes('cannot see where you are going') || lower.includes('in your way'))) {
+            this.addTrauma(0.08);
+            this.spawnFloatingText('BLOCKED', ep.endPos, '#aaaaaa', 0.95);
+            if (this.audio && typeof this.audio.playWallBump === 'function') this.audio.playWallBump();
+        } else if (lower.includes('you open the door') || lower.includes('the door opens')) {
+            if (this.audio && typeof this.audio.playDoor === 'function') this.audio.playDoor(true);
+        } else if (lower.includes('you close the door') || lower.includes('the door closes')) {
+            if (this.audio && typeof this.audio.playDoor === 'function') this.audio.playDoor(false);
+        } else if (lower.includes('door is broken') || lower.includes('smash open the door') || lower.includes('door is destroyed')) {
+            if (this.audio && typeof this.audio.playDoorBreak === 'function') this.audio.playDoorBreak();
+        } else if (lower.includes('gold') || lower.includes('coins')) {
+            if (this.audio && typeof this.audio.playGoldPickup === 'function') this.audio.playGoldPickup();
+        } else if (lower.includes('you are wielding') || lower.includes('wielding ') || lower.includes('you wear') || lower.includes('you are wearing')) {
+            if (lower.includes('sword') || lower.includes('dagger') || lower.includes('blade') || lower.includes('axe') || lower.includes('spear') || lower.includes('mace') || lower.includes('bow')) {
+                if (this.audio && typeof this.audio.playEquipWeapon === 'function') this.audio.playEquipWeapon();
+            } else {
+                if (this.audio && typeof this.audio.playEquipArmor === 'function') this.audio.playEquipArmor();
+            }
+        } else if (lower.includes('you drop') || lower.includes('dropped') || lower.includes('were wielding') || lower.includes('were wearing') || lower.includes('unwield')) {
+            if (this.audio && typeof this.audio.playItemDrop === 'function') this.audio.playItemDrop();
+        } else if (lower.includes('you eat') || lower.includes('delicious') || lower.includes('tastes like') || lower.includes('you devour') || lower.includes('ration') || lower.includes('hard biscuit')) {
+            this.spawnFloatingText('EAT', ep.endPos, '#ffcc66', 1.05);
+            if (this.audio && typeof this.audio.playEat === 'function') this.audio.playEat();
+        } else if (lower.includes('chest') && (lower.includes('open') || lower.includes('unlock'))) {
+            if (this.audio && typeof this.audio.playChest === 'function') this.audio.playChest();
+        } else if (lower.includes('disarm') && lower.includes('trap')) {
+            this.spawnFloatingText('DISARMED', ep.endPos, '#33ffaa', 1.10);
+            if (this.audio && typeof this.audio.playTrapDisarm === 'function') this.audio.playTrapDisarm();
+        } else if ((lower.includes('set off') || lower.includes('trigger') || lower.includes('spring')) && lower.includes('trap')) {
+            this.addTrauma(0.25);
+            this.spawnFloatingText('TRAP!', ep.endPos, '#ff4444', 1.25);
+            if (this.audio && typeof this.audio.playTrapTrigger === 'function') this.audio.playTrapTrigger();
+        } else if (lower.includes('teleport') || lower.includes('phase door') || lower.includes('space distortion') || lower.includes('disappears!')) {
+            this.spawnFloatingText('WARP', ep.endPos, '#cc66ff', 1.20);
+            if (this.audio && typeof this.audio.playTeleport === 'function') this.audio.playTeleport();
+        } else if (lower.includes('poisoned') || lower.includes('feel very sick') || lower.includes('poison burns')) {
+            if (this.audio && typeof this.audio.playPoison === 'function') this.audio.playPoison();
+        } else if (lower.includes('confused') || lower.includes('feel dazed') || lower.includes('feel very dizzy')) {
+            if (this.audio && typeof this.audio.playConfused === 'function') this.audio.playConfused();
+        } else if (lower.includes('you are blind') || lower.includes('cloak of darkness falls') || lower.includes('cannot see')) {
+            if (this.audio && typeof this.audio.playBlind === 'function') this.audio.playBlind();
+        } else if (lower.includes('paralyzed') || lower.includes('frozen in place') || lower.includes('cannot move')) {
+            if (this.audio && typeof this.audio.playParalyzed === 'function') this.audio.playParalyzed();
+        } else if (lower.includes('terrified') || lower.includes('flee in terror') || lower.includes('afraid')) {
+            if (this.audio && typeof this.audio.playAfraid === 'function') this.audio.playAfraid();
+        } else if (lower.includes('starving') || lower.includes('faint with hunger') || lower.includes('getting hungry')) {
+            if (this.audio && typeof this.audio.playHunger === 'function') this.audio.playHunger();
+        } else if (lower.includes('pick up') || lower.includes('found')) {
+            if (this.audio && typeof this.audio.playItemPickup === 'function') this.audio.playItemPickup();
+        } else if (lower.includes('level') && (lower.includes('welcome to') || lower.includes('gain') || lower.includes('advance'))) {
+            if (this.audio && typeof this.audio.playLevelUp === 'function') this.audio.playLevelUp();
+        }
     }
 
     addTrauma(amount) {
@@ -5311,105 +5907,7 @@ class Dungeon3D {
                     this.processedMessages.delete(first);
                 }
 
-                const lower = msgText.toLowerCase();
-                if (lower.includes('critical hit') || lower.includes('great force') || lower.includes('superb')) {
-                    this.addTrauma(0.25);
-                    this.spawnFloatingText('CRITICAL!', spawnInFront.clone().add(new THREE.Vector3(0, 0.25, 0)), '#ffd700', 1.35);
-                    this.spawnHitSparks(spawnInFront, '#ffe066', 18);
-                    this.triggerAttackAnimation();
-                    if (this.audio) this.audio.playCrit();
-                } else if (lower.includes('you hit') || lower.includes('you strike') || lower.includes('you slash') || lower.includes('you crush') || lower.includes('you smite')) {
-                    this.spawnFloatingText('HIT', spawnInFront, '#ffaa33', 1.05);
-                    this.spawnHitSparks(spawnInFront, '#ff9933', 12);
-                    this.triggerAttackAnimation();
-                    if (this.audio) this.audio.playHit(false);
-                } else if (lower.includes('deflect') || lower.includes('blocks the blow') || lower.includes('parr') || lower.includes('bounces off')) {
-                    this.spawnFloatingText('BLOCK', spawnInFront, '#55bbff', 1.05);
-                    this.spawnHitSparks(spawnInFront, '#88ddff', 10);
-                    if (this.audio) this.audio.playShieldBlock();
-                } else if ((lower.includes('wall') || lower.includes('door') || lower.includes('rubble')) && (lower.includes('blocking your way') || lower.includes('cannot see where you are going') || lower.includes('in your way'))) {
-                    this.addTrauma(0.08);
-                    this.spawnFloatingText('BLOCKED', spawnInFront, '#aaaaaa', 0.95);
-                    if (this.audio) this.audio.playWallBump();
-                } else if (lower.includes('you miss') || lower.includes('misses you')) {
-                    if (lower.includes('you miss')) this.triggerAttackAnimation();
-                    this.spawnFloatingText('MISS', spawnInFront, '#a0b0c0', 0.95);
-                    if (this.audio) this.audio.playWhoosh();
-                } else if (lower.includes('you cast') || lower.includes('you zap') || lower.includes('you aim') || lower.includes('you recite')) {
-                    this.triggerCastAnimation();
-                    this.spawnFloatingText('CAST', spawnInFront, '#66ccff', 1.10);
-                    let el = 'magic';
-                    if (lower.includes('fire') || lower.includes('flame')) el = 'fire';
-                    else if (lower.includes('frost') || lower.includes('cold') || lower.includes('ice')) el = 'cold';
-                    else if (lower.includes('lightning') || lower.includes('elec') || lower.includes('spark')) el = 'lightning';
-                    else if (lower.includes('poison') || lower.includes('acid')) el = 'poison';
-                    if (this.audio) this.audio.playSpell(el);
-                } else if (lower.includes('you shoot') || lower.includes('you fire')) {
-                    this.spawnFloatingText('SHOOT', spawnInFront, '#ffdd55', 1.05);
-                    this.triggerAttackAnimation();
-                    if (this.audio) this.audio.playBowShoot();
-                } else if (lower.includes('you have slain') || lower.includes('is destroyed') || lower.includes('dies.')) {
-                    this.spawnFloatingText('SLAIN!', spawnInFront.clone().add(new THREE.Vector3(0, 0.25, 0)), '#ff44aa', 1.30);
-                    this.spawnHitSparks(spawnInFront, '#ff44aa', 24);
-                    if (this.audio) this.audio.playMonsterDeath();
-                } else if (lower.includes('hits you') || lower.includes('bites you') || lower.includes('claws you') || lower.includes('crushes you') || lower.includes('stings you') || lower.includes('burns you')) {
-                    this.addTrauma(0.35);
-                    this.spawnFloatingText('OUCH!', spawnInFront, '#ff3333', 1.15);
-                    this.spawnHitSparks(spawnInFront, '#ff2222', 14);
-                    this.triggerHurtAnimation();
-                    if (this.audio) this.audio.playPlayerHurt();
-                } else if (lower.includes('you open the door') || lower.includes('the door opens')) {
-                    if (this.audio) this.audio.playDoor(true);
-                } else if (lower.includes('you close the door') || lower.includes('the door closes')) {
-                    if (this.audio) this.audio.playDoor(false);
-                } else if (lower.includes('door is broken') || lower.includes('smash open the door') || lower.includes('door is destroyed')) {
-                    if (this.audio) this.audio.playDoorBreak();
-                } else if (lower.includes('quaff') || lower.includes('drink')) {
-                    if (this.audio) this.audio.playQuaff();
-                } else if (lower.includes('read') || lower.includes('scroll')) {
-                    if (this.audio) this.audio.playScroll();
-                } else if (lower.includes('gold') || lower.includes('coins')) {
-                    if (this.audio) this.audio.playGoldPickup();
-                } else if (lower.includes('you are wielding') || lower.includes('wielding ') || lower.includes('you wear') || lower.includes('you are wearing')) {
-                    if (lower.includes('sword') || lower.includes('dagger') || lower.includes('blade') || lower.includes('axe') || lower.includes('spear') || lower.includes('mace') || lower.includes('bow')) {
-                        if (this.audio) this.audio.playEquipWeapon();
-                    } else {
-                        if (this.audio) this.audio.playEquipArmor();
-                    }
-                } else if (lower.includes('you drop') || lower.includes('dropped') || lower.includes('were wielding') || lower.includes('were wearing') || lower.includes('unwield')) {
-                    if (this.audio) this.audio.playItemDrop();
-                } else if (lower.includes('you eat') || lower.includes('delicious') || lower.includes('tastes like') || lower.includes('you devour') || lower.includes('ration') || lower.includes('hard biscuit')) {
-                    this.spawnFloatingText('EAT', spawnInFront, '#ffcc66', 1.05);
-                    if (this.audio) this.audio.playEat();
-                } else if (lower.includes('chest') && (lower.includes('open') || lower.includes('unlock'))) {
-                    if (this.audio) this.audio.playChest();
-                } else if (lower.includes('disarm') && lower.includes('trap')) {
-                    this.spawnFloatingText('DISARMED', spawnInFront, '#33ffaa', 1.10);
-                    if (this.audio) this.audio.playTrapDisarm();
-                } else if ((lower.includes('set off') || lower.includes('trigger') || lower.includes('spring')) && lower.includes('trap')) {
-                    this.addTrauma(0.25);
-                    this.spawnFloatingText('TRAP!', spawnInFront, '#ff4444', 1.25);
-                    if (this.audio) this.audio.playTrapTrigger();
-                } else if (lower.includes('teleport') || lower.includes('phase door') || lower.includes('space distortion') || lower.includes('disappears!')) {
-                    this.spawnFloatingText('WARP', spawnInFront, '#cc66ff', 1.20);
-                    if (this.audio) this.audio.playTeleport();
-                } else if (lower.includes('poisoned') || lower.includes('feel very sick') || lower.includes('poison burns')) {
-                    if (this.audio) this.audio.playPoison();
-                } else if (lower.includes('confused') || lower.includes('feel dazed') || lower.includes('feel very dizzy')) {
-                    if (this.audio) this.audio.playConfused();
-                } else if (lower.includes('you are blind') || lower.includes('cloak of darkness falls') || lower.includes('cannot see')) {
-                    if (this.audio) this.audio.playBlind();
-                } else if (lower.includes('paralyzed') || lower.includes('frozen in place') || lower.includes('cannot move')) {
-                    if (this.audio) this.audio.playParalyzed();
-                } else if (lower.includes('terrified') || lower.includes('flee in terror') || lower.includes('afraid')) {
-                    if (this.audio) this.audio.playAfraid();
-                } else if (lower.includes('starving') || lower.includes('faint with hunger') || lower.includes('getting hungry')) {
-                    if (this.audio) this.audio.playHunger();
-                } else if (lower.includes('pick up') || lower.includes('found')) {
-                    if (this.audio) this.audio.playItemPickup();
-                } else if (lower.includes('level') && (lower.includes('welcome to') || lower.includes('gain') || lower.includes('advance'))) {
-                    if (this.audio) this.audio.playLevelUp();
-                }
+                this.triggerMessageVfx(msgText);
             }
         }
 
@@ -6641,7 +7139,7 @@ class Dungeon3D {
         // Godot MonsterModelResolver.cs:388 sets NoDepthTest = false (occluded by walls)
         const mat = new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false, transparent: true });
         const sprite = new THREE.Sprite(mat);
-        sprite.scale.set(1.15, 0.33, 1.0);
+        sprite.scale.set(0.82, 0.23, 1.0);
         return sprite;
     }
 
@@ -7262,6 +7760,13 @@ class Dungeon3D {
                     entity.isBillboard = false;
                     entity.pending3DConfig = null;
                     entity.isFallback = false;
+                    if (upgraded3D._mixer) {
+                        entity._mixer = upgraded3D._mixer;
+                        entity._idleAction = upgraded3D._idleAction;
+                        entity._walkAction = upgraded3D._walkAction;
+                        entity._activeAnimState = upgraded3D._activeAnimState;
+                    }
+                    entity._heldAttachments = upgraded3D._heldAttachments;
                     upgraded3D.monsterData = m;
                     if (entity.contactShadow) {
                         const footprint = (upgraded3D.baseWidth || 1.25) * 0.75;
@@ -7796,6 +8301,9 @@ class Dungeon3D {
     _cloneSkinnedGltf(sourceRoot) {
         if (!sourceRoot) return null;
         const clonedRoot = sourceRoot.clone(true);
+        if (sourceRoot._animations) {
+            clonedRoot._animations = sourceRoot._animations;
+        }
 
         const srcSkinnedMeshes = [];
         const dstSkinnedMeshes = [];
@@ -7810,9 +8318,15 @@ class Dungeon3D {
             const srcMesh = srcSkinnedMeshes[i];
             const dstMesh = dstSkinnedMeshes[i];
             if (!dstMesh) continue;
-            dstMesh.frustumCulled = false;
-            dstMesh.castShadow = true;
-            dstMesh.receiveShadow = true;
+            dstMesh.frustumCulled = false; // SkinnedMesh CPU frustum culling uses un-skinned bind-pose sphere; distance culling is handled at entity level in animate()
+            if (dstMesh.geometry && !dstMesh.geometry.boundingSphere) {
+                dstMesh.geometry.computeBoundingSphere();
+            }
+            if (dstMesh.geometry && dstMesh.geometry.boundingSphere) {
+                dstMesh.geometry.boundingSphere.radius = Math.max(dstMesh.geometry.boundingSphere.radius || 1.5, 2.5);
+            }
+            dstMesh.castShadow = false;
+            dstMesh.receiveShadow = false;
 
             // Scope bone collection strictly to dstMesh's parent Armature
             let scope = dstMesh;
@@ -7859,6 +8373,66 @@ class Dungeon3D {
         return clonedRoot;
     }
 
+    _computeHandGripLocalOffset(armRoot, handBone, lowerArmBone, fingerBone) {
+        if (!handBone) return new THREE.Vector3();
+        armRoot.updateMatrixWorld(true);
+        if (fingerBone && fingerBone !== handBone) {
+            const wPos = new THREE.Vector3();
+            const fPos = new THREE.Vector3();
+            handBone.getWorldPosition(wPos);
+            fingerBone.getWorldPosition(fPos);
+            wPos.lerp(fPos, 0.68);
+            handBone.worldToLocal(wPos);
+            if (wPos.lengthSq() > 1e-6) return wPos;
+        }
+        const measureBoneBox = (targetBone) => {
+            const box = new THREE.Box3();
+            let cnt = 0;
+            const v = new THREE.Vector3();
+            armRoot.traverse(c => {
+                if (c.isSkinnedMesh && c.skeleton && c.geometry && c.geometry.attributes && c.geometry.attributes.position && !/Puglin_Stick|Imp_Mace/i.test(c.name || '')) {
+                    const bIdx = c.skeleton.bones.indexOf(targetBone);
+                    if (bIdx < 0 || !c.skeleton.boneInverses[bIdx]) return;
+                    const toBoneLocal = new THREE.Matrix4().multiplyMatrices(c.skeleton.boneInverses[bIdx], c.bindMatrix);
+                    const pos = c.geometry.attributes.position;
+                    const si = c.geometry.attributes.skinIndex;
+                    const sw = c.geometry.attributes.skinWeight;
+                    if (!si || !sw) return;
+                    for (let i = 0; i < pos.count; i++) {
+                        for (const fn of ['getX', 'getY', 'getZ', 'getW']) {
+                            if (si[fn](i) === bIdx && sw[fn](i) > 0.30) {
+                                v.fromBufferAttribute(pos, i).applyMatrix4(toBoneLocal);
+                                box.expandByPoint(v);
+                                cnt++;
+                            }
+                        }
+                    }
+                }
+            });
+            return { box, cnt };
+        };
+        if (handBone !== lowerArmBone) {
+            const hb = measureBoneBox(handBone);
+            if (hb.cnt > 5) {
+                const center = new THREE.Vector3();
+                hb.box.getCenter(center);
+                center.y = hb.box.min.y + (hb.box.max.y - hb.box.min.y) * 0.62;
+                return center;
+            }
+        }
+        if (lowerArmBone) {
+            const lb = measureBoneBox(lowerArmBone);
+            if (lb.cnt > 5) {
+                const center = new THREE.Vector3();
+                lb.box.getCenter(center);
+                const palmInLower = new THREE.Vector3(center.x, lb.box.min.y + (lb.box.max.y - lb.box.min.y) * 0.78, center.z);
+                if (handBone === lowerArmBone) return palmInLower;
+                return palmInLower.sub(handBone.position);
+            }
+        }
+        return new THREE.Vector3(0, 0.05, 0);
+    }
+
     _poseRigNaturalStance(rootGroup, cfg = {}) {
         if (!rootGroup) return;
 
@@ -7881,7 +8455,7 @@ class Dungeon3D {
 
         const armatures = [];
         rootGroup.traverse(n => {
-            if (n.name === 'Armature' || (n.isBone && (!n.parent || !n.parent.isBone))) {
+            if (n.isBone && (!n.parent || !n.parent.isBone)) {
                 if (!armatures.includes(n)) armatures.push(n);
             }
         });
@@ -7897,43 +8471,137 @@ class Dungeon3D {
                 }
             });
 
-            const getBone = (name) => boneMap[name] || boneMap[name.toLowerCase()] || null;
+            const getBone = (...names) => {
+                for (const name of names) {
+                    const b = boneMap[name] || boneMap[name.toLowerCase()];
+                    if (b) return b;
+                    for (const k in boneMap) {
+                        const lk = k.toLowerCase();
+                        const ln = name.toLowerCase();
+                        if (lk === ln || lk.endsWith(':' + ln) || lk.endsWith('_' + ln) || lk.replace(/^mixamorig/, '') === ln) {
+                            return boneMap[k];
+                        }
+                    }
+                }
+                return null;
+            };
 
-            const upperarm_l = getBone('upperarm_l');
-            const upperarm_r = getBone('upperarm_r');
-            const lowerarm_l = getBone('lowerarm_l');
-            const lowerarm_r = getBone('lowerarm_r');
-            const hand_l = getBone('hand_l');
-            const hand_r = getBone('hand_r');
-            const clavicle_l = getBone('clavicle_l');
-            const clavicle_r = getBone('clavicle_r');
-            const spine_01 = getBone('spine_01');
-            const spine_02 = getBone('spine_02');
-            const neck_01 = getBone('neck_01');
-            const Head = getBone('Head') || getBone('head');
-            const thigh_l = getBone('thigh_l');
-            const thigh_r = getBone('thigh_r');
-            const calf_l = getBone('calf_l');
-            const calf_r = getBone('calf_r');
+            const upperarm_l = getBone('upperarm_l', 'UpperArm_L', 'LeftArm', 'L_Upperarm', 'arm_l');
+            const upperarm_r = getBone('upperarm_r', 'UpperArm_R', 'RightArm', 'R_Upperarm', 'arm_r');
+            const lowerarm_l = getBone('lowerarm_l', 'LowerArm_L', 'LeftForeArm', 'L_Forearm', 'forearm_l');
+            const lowerarm_r = getBone('lowerarm_r', 'LowerArm_R', 'RightForeArm', 'R_Forearm', 'forearm_r');
+            let hand_l = getBone('hand_l', 'LeftHand', 'Hand_L', 'L_Hand');
+            let hand_r = getBone('hand_r', 'RightHand', 'Hand_R', 'R_Hand');
+            if (!hand_r && lowerarm_r) {
+                hand_r = lowerarm_r.children && lowerarm_r.children.find(ch => ch.name === 'RightHand_Synthetic');
+                if (!hand_r) {
+                    hand_r = new THREE.Bone();
+                    hand_r.name = 'RightHand_Synthetic';
+                    hand_r.position.set(0, 0.18, 0);
+                    lowerarm_r.add(hand_r);
+                }
+            }
+            if (!hand_l && lowerarm_l) {
+                hand_l = lowerarm_l.children && lowerarm_l.children.find(ch => ch.name === 'LeftHand_Synthetic');
+                if (!hand_l) {
+                    hand_l = new THREE.Bone();
+                    hand_l.name = 'LeftHand_Synthetic';
+                    const refY = (hand_r && hand_r.parent === lowerarm_r && hand_r.position.y > 0.05) ? hand_r.position.y : 0.18;
+                    hand_l.position.set(0, refY, 0);
+                    lowerarm_l.add(hand_l);
+                }
+            }
+            const middle_01_l = getBone('middle_01_l', 'LeftHandMiddle1', 'LeftHandIndex1', 'Middle1_L', 'Index1_L', 'L_Middle1', 'L_Index1', 'f_middle.01.L');
+            const middle_01_r = getBone('middle_01_r', 'RightHandMiddle1', 'RightHandIndex1', 'Middle1_R', 'Index1_R', 'R_Middle1', 'R_Index1', 'f_middle.01.R');
+            if (hand_r && !hand_r._palmLocalOffset) {
+                hand_r._palmLocalOffset = this._computeHandGripLocalOffset(rootGroup, hand_r, lowerarm_r, middle_01_r);
+            }
+            if (hand_l && !hand_l._palmLocalOffset) {
+                hand_l._palmLocalOffset = this._computeHandGripLocalOffset(rootGroup, hand_l, lowerarm_l, middle_01_l);
+            }
+            const clavicle_l = getBone('clavicle_l', 'Shoulder_L', 'LeftShoulder', 'L_Clavicle');
+            const clavicle_r = getBone('clavicle_r', 'Shoulder_R', 'RightShoulder', 'R_Clavicle');
+            const spine_01 = getBone('spine_01', 'Spine01', 'Spine', 'Chest', 'spine');
+            const spine_02 = getBone('spine_02', 'Spine02', 'Spine1', 'Spine2', 'Chest');
+            const neck_01 = getBone('neck_01', 'NeckTwist01', 'Neck', 'neck');
+            const Head = getBone('Head', 'head');
+            const thigh_l = getBone('thigh_l', 'UpperLeg_L', 'LeftUpLeg', 'L_Thigh');
+            const thigh_r = getBone('thigh_r', 'UpperLeg_R', 'RightUpLeg', 'R_Thigh');
+            const calf_l = getBone('calf_l', 'LowerLeg_L', 'LeftLeg', 'L_Calf');
+            const calf_r = getBone('calf_r', 'LowerLeg_R', 'RightLeg', 'R_Calf');
 
-            swingBoneTowardWorld(upperarm_l, lowerarm_l, new THREE.Vector3(0.18, -0.97, -0.04));
-            swingBoneTowardWorld(lowerarm_l, hand_l, cfg.shieldKey ? new THREE.Vector3(0.12, -0.45, 0.88) : new THREE.Vector3(0.08, -0.78, 0.62));
-            swingBoneTowardWorld(upperarm_r, lowerarm_r, new THREE.Vector3(-0.18, -0.97, -0.04));
-            swingBoneTowardWorld(lowerarm_r, hand_r, cfg.weaponKey ? new THREE.Vector3(-0.06, -0.42, 0.90) : new THREE.Vector3(-0.08, -0.78, 0.62));
+            const hasAnimations = Boolean((rootGroup._animations && rootGroup._animations.length > 0) || (armRoot._animations && armRoot._animations.length > 0));
+            if (!hasAnimations) {
+                const isBow = (cfg.weaponKey === 'item_bow');
+                const hasLeftItem = Boolean(cfg.shieldKey || isBow);
+                const hasRightItem = Boolean(!isBow && cfg.weaponKey);
+                swingBoneTowardWorld(
+                    upperarm_l,
+                    lowerarm_l,
+                    hasLeftItem ? new THREE.Vector3(0.28, -0.80, 0.52) : new THREE.Vector3(0.30, -0.90, 0.10)
+                );
+                swingBoneTowardWorld(
+                    lowerarm_l,
+                    hand_l,
+                    isBow
+                        ? new THREE.Vector3(0.18, 0.04, 0.98)
+                        : (cfg.shieldKey ? new THREE.Vector3(-0.14, 0.14, 0.98) : new THREE.Vector3(0.22, -0.58, 0.78))
+                );
+                swingBoneTowardWorld(
+                    upperarm_r,
+                    lowerarm_r,
+                    hasRightItem ? new THREE.Vector3(-0.30, -0.82, 0.48) : new THREE.Vector3(-0.34, -0.88, 0.14)
+                );
+                swingBoneTowardWorld(
+                    lowerarm_r,
+                    hand_r,
+                    hasRightItem
+                        ? new THREE.Vector3(-0.18, 0.18, 0.96)
+                        : new THREE.Vector3(-0.22, -0.52, 0.82)
+                );
 
-            if (thigh_l) thigh_l.rotateX(-0.08);
-            if (calf_l) calf_l.rotateX(0.10);
-            if (thigh_r) thigh_r.rotateX(0.06);
-            if (calf_r) calf_r.rotateX(0.08);
-            if (spine_01) {
-                spine_01.rotateY(0.08);
-                if (cfg.hunched) spine_01.rotateX(0.20);
+                armRoot.traverse(fb => {
+                    if (!fb.isBone || !fb.name) return;
+                    const fn = fb.name.toLowerCase();
+                    const isRight = /^(righthand|r_hand|hand_r).*(index|middle|ring|pinky)[123]/.test(fn) || /^(index|middle|ring|pinky)_0[123]_r/.test(fn);
+                    const isLeft = /^(lefthand|l_hand|hand_l).*(index|middle|ring|pinky)[123]/.test(fn) || /^(index|middle|ring|pinky)_0[123]_l/.test(fn);
+                    if (isRight || isLeft) {
+                        const childFinger = fb.children && fb.children.find(ch => ch.isBone);
+                        if (childFinger) {
+                            const sign = isRight ? 1 : -1;
+                            const isGrip = (isRight && cfg.weaponKey && !isBow) || (isLeft && (cfg.shieldKey || isBow));
+                            const isPh1 = /1$|_01_/.test(fn);
+                            const isPh2 = /2$|_02_/.test(fn);
+                            let dir;
+                            if (isGrip) {
+                                dir = isPh1
+                                    ? new THREE.Vector3(sign * 0.72, -0.45, -0.25)
+                                    : (isPh2 ? new THREE.Vector3(sign * 0.35, -0.55, -0.80) : new THREE.Vector3(-sign * 0.55, -0.35, -0.80));
+                            } else {
+                                dir = isPh1
+                                    ? new THREE.Vector3(sign * 0.45, -0.78, 0.15)
+                                    : new THREE.Vector3(sign * 0.55, -0.72, -0.42);
+                            }
+                            swingBoneTowardWorld(fb, childFinger, dir);
+                        }
+                    }
+                });
+
+                if (thigh_l) thigh_l.rotateX(-0.08);
+                if (calf_l) calf_l.rotateX(0.10);
+                if (thigh_r) thigh_r.rotateX(0.06);
+                if (calf_r) calf_r.rotateX(0.08);
+                if (spine_01) {
+                    spine_01.rotateY(0.08);
+                    if (cfg.hunched) spine_01.rotateX(0.20);
+                }
             }
 
             const rigBones = {
                 upperarm_l, upperarm_r,
                 lowerarm_l, lowerarm_r,
                 hand_l, hand_r,
+                middle_01_l, middle_01_r,
                 clavicle_l, clavicle_r,
                 spine_01, spine_02, neck_01, Head,
                 thigh_l, thigh_r, calf_l, calf_r
@@ -8059,6 +8727,37 @@ class Dungeon3D {
                 if (!scene) {
                     reject(new Error(`No scene in GLTF: ${url}`));
                 } else {
+                    scene._animations = gltf.animations || [];
+                    scene.traverse((c) => {
+                        if (c.isMesh) {
+                            c.castShadow = false;
+                            c.receiveShadow = false;
+                            if (c.geometry) {
+                                c.geometry._sharedGeometry = true;
+                            }
+                            if (c.material) {
+                                const mats = Array.isArray(c.material) ? c.material : [c.material];
+                                for (const m of mats) {
+                                    if (m) {
+                                        m._sharedMaterial = true;
+                                        if (m.map) {
+                                            m.map._sharedTexture = true;
+                                            if (typeof THREE.sRGBEncoding !== 'undefined') m.map.encoding = THREE.sRGBEncoding;
+                                        }
+                                        if (m.normalMap) m.normalMap._sharedTexture = true;
+                                        if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
+                                        if (m.metalnessMap) m.metalnessMap._sharedTexture = true;
+                                        if (m.metalness !== undefined && m.metalness > 0.32) {
+                                            m.metalness = 0.32;
+                                        }
+                                        if (m.roughness !== undefined && m.roughness < 0.28) {
+                                            m.roughness = 0.42;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
                     resolve(scene);
                 }
             }, undefined, reject);
@@ -8095,6 +8794,85 @@ class Dungeon3D {
         });
     }
 
+    _selectCreatureClips(animClips, cfg = {}) {
+        if (!Array.isArray(animClips) || animClips.length === 0) return { idleClip: null, walkClip: null };
+        const badIdleRe = /crouch|dead|death|die|attack|slash|punch|kick|slap|hit|stagger|jump|dance|celebration|roll|dodge|turn|sword_idle/i;
+        const nonCrouchIdle = animClips.filter(c => c && c.name && !badIdleRe.test(c.name));
+        const idleClip = nonCrouchIdle.find(c => /^(Idle_Loop_Rig|Idle|idle|Idle_02|939_Idle|Survey|fly|storkFly_B_|parrot_A_|horse_A_)$/i.test(c.name))
+            || nonCrouchIdle.find(c => /idle|fly|survey/i.test(c.name))
+            || animClips.find(c => c && c.name && !/crouch|dead|death|die|attack|slash|punch|kick|slap|hit/i.test(c.name))
+            || animClips[0];
+        const badWalkRe = /crouch|dead|death|die|turn|attack|slash|punch|kick|slap|hit/i;
+        const nonCrouchWalk = animClips.filter(c => c && c.name && !badWalkRe.test(c.name));
+        const walkClip = nonCrouchWalk.find(c => /^(Walk_Loop_Rig|Walk|walk|Walking|939_Walking|Jog_Fwd_Loop_Rig|Run|run|Running|fly|storkFly_B_|parrot_A_)$/i.test(c.name))
+            || nonCrouchWalk.find(c => /walk|jog|run|fly/i.test(c.name))
+            || idleClip;
+        return { idleClip, walkClip };
+    }
+
+    _computeTrueSkinnedBoundingBox(root) {
+        if (!root) return new THREE.Box3();
+        if (root._animations && root._animations.length > 0 && typeof THREE.AnimationMixer !== 'undefined') {
+            try {
+                const { idleClip } = this._selectCreatureClips(root._animations);
+                if (idleClip) {
+                    const tmpMixer = new THREE.AnimationMixer(root);
+                    const act = tmpMixer.clipAction(idleClip);
+                    act.play();
+                    tmpMixer.update(0.02);
+                    tmpMixer.stopAllAction();
+                }
+            } catch (_) {}
+        }
+        root.updateMatrixWorld(true);
+        const rootInv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+        const wBox = new THREE.Box3();
+        const v = new THREE.Vector3(), skinned = new THREE.Vector3(), temp = new THREE.Vector3(), boneMat = new THREE.Matrix4();
+        root.traverse(c => {
+            if ((c.isMesh || c.isSkinnedMesh) && c.geometry && c.geometry.attributes && c.geometry.attributes.position && c.visible !== false) {
+                const pos = c.geometry.attributes.position;
+                const si = c.geometry.attributes.skinIndex;
+                const sw = c.geometry.attributes.skinWeight;
+                const step = Math.max(1, Math.floor(pos.count / 300));
+                if (c.isSkinnedMesh && c.skeleton && si && sw) {
+                    c.skeleton.update();
+                    for (let i = 0; i < pos.count; i += step) {
+                        v.fromBufferAttribute(pos, i).applyMatrix4(c.bindMatrix);
+                        skinned.set(0, 0, 0);
+                        const ws = [sw.getX(i), sw.getY(i), sw.getZ(i), sw.getW(i)];
+                        const is = [si.getX(i), si.getY(i), si.getZ(i), si.getW(i)];
+                        let totalW = 0;
+                        for (let j = 0; j < 4; j++) {
+                            const w = ws[j];
+                            if (w > 0.0001) {
+                                const bone = c.skeleton.bones[is[j]];
+                                if (bone && c.skeleton.boneInverses[is[j]]) {
+                                    boneMat.multiplyMatrices(bone.matrixWorld, c.skeleton.boneInverses[is[j]]);
+                                    temp.copy(v).applyMatrix4(boneMat).multiplyScalar(w);
+                                    skinned.add(temp);
+                                    totalW += w;
+                                }
+                            }
+                        }
+                        if (totalW > 0.0001) {
+                            skinned.applyMatrix4(rootInv);
+                            wBox.expandByPoint(skinned);
+                        }
+                    }
+                } else {
+                    for (let i = 0; i < pos.count; i += step) {
+                        v.fromBufferAttribute(pos, i).applyMatrix4(c.matrixWorld).applyMatrix4(rootInv);
+                        wBox.expandByPoint(v);
+                    }
+                }
+            }
+        });
+        if (wBox.isEmpty()) {
+            wBox.setFromObject(root);
+        }
+        return wBox;
+    }
+
     _ensureMonster3DTemplate(templateKey) {
         if (!this._monster3DTemplates) this._monster3DTemplates = new Map();
         if (!this._monster3DLoading) this._monster3DLoading = new Map();
@@ -8106,8 +8884,8 @@ class Dungeon3D {
             return this._monster3DLoading.get(templateKey);
         }
 
-        if (templateKey === 'ph_chest') {
-            const p = this._ensurePolyHavenFloorItem('ph_chest').then(tmpl => {
+        if (templateKey === 'ph_chest' || templateKey === 'ph_sledgehammer') {
+            const p = this._ensurePolyHavenFloorItem(templateKey).then(tmpl => {
                 this._monster3DTemplates.set(templateKey, tmpl);
                 this._monster3DLoading.delete(templateKey);
                 this.upgradeAllMonsterEntities();
@@ -8140,160 +8918,197 @@ class Dungeon3D {
             return tmpl;
         };
 
-        const normalizeWrapper = (content, targetDim, isHeightOnly, yawOffset = 0) => {
-            content.updateMatrixWorld(true);
-            const bbox = new THREE.Box3().setFromObject(content);
+        const normalizeWrapper = (content, targetHeight, isHeightOnly = true, yawOffset = 0, maxFootprint = 1.65) => {
+            const bbox = this._computeTrueSkinnedBoundingBox(content);
             const size = new THREE.Vector3();
             bbox.getSize(size);
             const center = new THREE.Vector3();
             bbox.getCenter(center);
-            const dim = isHeightOnly ? (size.y || 1.0) : (Math.max(size.x, size.y, size.z) || 1.0);
-            const scale = targetDim / dim;
+
+            const rawH = Math.max(0.005, size.y || 1.0);
+            const rawSpan = Math.max(0.005, size.x || 0.5, size.z || 0.5);
+            let scaleY = targetHeight / rawH;
+            if (!isHeightOnly && rawSpan * scaleY > targetHeight * 1.35) {
+                scaleY = (targetHeight * 1.35) / rawSpan;
+            }
+            if (rawSpan * scaleY > maxFootprint) {
+                scaleY = maxFootprint / rawSpan;
+            }
+            const scaleXZ = scaleY;
 
             const wrapper = new THREE.Group();
             const pivot = new THREE.Group();
             pivot.add(content);
-            content.position.set(-center.x, -bbox.min.y, -center.z);
             if (yawOffset !== 0) {
-                pivot.rotation.y = yawOffset;
+                content.rotation.y = (content.rotation.y || 0) + yawOffset;
             }
-            pivot.scale.set(scale, scale, scale);
+            pivot.scale.set(scaleXZ, scaleY, scaleXZ);
+            pivot.position.set(-center.x * scaleXZ, -bbox.min.y * scaleY, -center.z * scaleXZ);
             wrapper.add(pivot);
-            wrapper.actualHeight = (size.y || 1.0) * scale;
+            wrapper.actualHeight = rawH * scaleY;
             wrapper.baseHeight = wrapper.actualHeight;
-            wrapper.baseWidth = Math.max(size.x || 0.5, size.z || 0.5) * scale;
+            wrapper.baseWidth = rawSpan * scaleXZ;
+            if (content._animations) {
+                wrapper._animations = content._animations;
+            }
             return tagTemplate(wrapper);
+        };
+
+        const loadGltf = (url, fallback = null) => {
+            return this._loadSingleGltfScene(url).catch(err => {
+                if (fallback) {
+                    if (typeof fallback === 'string') {
+                        if (fallback.endsWith('.obj')) {
+                            return this._loadSingleObjScene(fallback);
+                        }
+                        return this._loadSingleGltfScene(fallback);
+                    }
+                    if (typeof fallback === 'function') {
+                        return fallback();
+                    }
+                }
+                throw err;
+            });
         };
 
         let loadPromise = null;
 
         if (templateKey === 'char_male_peasant') {
-            loadPromise = Promise.all([
-                this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
-                this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf'),
-                this._loadSingleGltfScene('/assets/models/characters/Hair_SimpleParted.gltf')
-            ]).then(([outfit, body, hair]) => {
-                this._filterInnerBodyHeadAndHands(body, true);
-                hair.traverse(c => {
-                    if (c.isMesh && c.material) {
-                        c.material = Array.isArray(c.material) ? c.material[0].clone() : c.material.clone();
-                        c.material.color = new THREE.Color(0x3b2a1e);
-                    }
+            loadPromise = loadGltf('/assets/models/characters/steward.glb', () => {
+                return Promise.all([
+                    this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Hair_SimpleParted.gltf')
+                ]).then(([outfit, body, hair]) => {
+                    this._filterInnerBodyHeadAndHands(body, true);
+                    hair.traverse(c => {
+                        if (c.isMesh && c.material) {
+                            c.material = Array.isArray(c.material) ? c.material[0].clone() : c.material.clone();
+                            c.material.color = new THREE.Color(0x3b2a1e);
+                        }
+                    });
+                    const grp = new THREE.Group();
+                    grp.add(outfit);
+                    grp.add(body);
+                    grp.add(hair);
+                    return grp;
                 });
-                const grp = new THREE.Group();
-                grp.add(outfit);
-                grp.add(body);
-                grp.add(hair);
-                return normalizeWrapper(grp, 1.70, true);
-            });
+            }).then(content => normalizeWrapper(content, 1.70, true));
         } else if (templateKey === 'char_male_peasant_bearded') {
-            loadPromise = Promise.all([
-                this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
-                this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf'),
-                this._loadSingleGltfScene('/assets/models/characters/Hair_Beard.gltf')
-            ]).then(([outfit, body, hair]) => {
-                this._filterInnerBodyHeadAndHands(body, true);
-                const grp = new THREE.Group();
-                grp.add(outfit);
-                grp.add(body);
-                grp.add(hair);
-                return normalizeWrapper(grp, 1.70, true);
-            });
+            loadPromise = loadGltf('/assets/models/characters/steward.glb', () => {
+                return Promise.all([
+                    this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Hair_Beard.gltf')
+                ]).then(([outfit, body, hair]) => {
+                    this._filterInnerBodyHeadAndHands(body, true);
+                    const grp = new THREE.Group();
+                    grp.add(outfit);
+                    grp.add(body);
+                    grp.add(hair);
+                    return grp;
+                });
+            }).then(content => normalizeWrapper(content, 1.70, true));
         } else if (templateKey === 'char_female_peasant') {
-            loadPromise = Promise.all([
-                this._loadSingleGltfScene('/assets/models/characters/Female_Peasant.gltf'),
-                this._loadSingleGltfScene('/assets/models/characters/Superhero_Female_FullBody.gltf'),
-                this._loadSingleGltfScene('/assets/models/characters/Hair_Long.gltf')
-            ]).then(([outfit, body, hair]) => {
-                this._filterInnerBodyHeadAndHands(body, true);
-                const grp = new THREE.Group();
-                grp.add(outfit);
-                grp.add(body);
-                grp.add(hair);
-                return normalizeWrapper(grp, 1.64, true);
-            });
+            loadPromise = loadGltf('/assets/models/characters/npc_woman.glb', () => {
+                return Promise.all([
+                    this._loadSingleGltfScene('/assets/models/characters/Female_Peasant.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Superhero_Female_FullBody.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Hair_Long.gltf')
+                ]).then(([outfit, body, hair]) => {
+                    this._filterInnerBodyHeadAndHands(body, true);
+                    const grp = new THREE.Group();
+                    grp.add(outfit);
+                    grp.add(body);
+                    grp.add(hair);
+                    return grp;
+                });
+            }).then(content => normalizeWrapper(content, 1.64, true));
         } else if (templateKey === 'char_male_ranger') {
-            loadPromise = Promise.all([
-                this._loadSingleGltfScene('/assets/models/characters/Male_Ranger.gltf'),
-                this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
-                this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf')
-            ]).then(([outfit, peasant, body]) => {
-                this._prepareRangerUndertunic(peasant);
-                this._filterInnerBodyHeadAndHands(body, false);
-                const grp = new THREE.Group();
-                grp.add(outfit);
-                grp.add(peasant);
-                grp.add(body);
-                return normalizeWrapper(grp, 1.78, true);
-            });
+            loadPromise = loadGltf('/assets/models/characters/ranger.glb', () => {
+                return Promise.all([
+                    this._loadSingleGltfScene('/assets/models/characters/Male_Ranger.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Male_Peasant.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Superhero_Male_FullBody.gltf')
+                ]).then(([outfit, peasant, body]) => {
+                    this._prepareRangerUndertunic(peasant);
+                    this._filterInnerBodyHeadAndHands(body, false);
+                    const grp = new THREE.Group();
+                    grp.add(outfit);
+                    grp.add(peasant);
+                    grp.add(body);
+                    return grp;
+                });
+            }).then(content => normalizeWrapper(content, 1.78, true));
         } else if (templateKey === 'char_female_ranger') {
-            loadPromise = Promise.all([
-                this._loadSingleGltfScene('/assets/models/characters/Female_Ranger.gltf'),
-                this._loadSingleGltfScene('/assets/models/characters/Female_Peasant.gltf'),
-                this._loadSingleGltfScene('/assets/models/characters/Superhero_Female_FullBody.gltf')
-            ]).then(([outfit, peasant, body]) => {
-                this._prepareRangerUndertunic(peasant);
-                this._filterInnerBodyHeadAndHands(body, false);
-                const grp = new THREE.Group();
-                grp.add(outfit);
-                grp.add(peasant);
-                grp.add(body);
-                return normalizeWrapper(grp, 1.72, true);
+            loadPromise = loadGltf('/assets/models/characters/female_rogue.glb', () => {
+                return Promise.all([
+                    this._loadSingleGltfScene('/assets/models/characters/Female_Ranger.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Female_Peasant.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Superhero_Female_FullBody.gltf'),
+                    this._loadSingleGltfScene('/assets/models/characters/Hair_Long.gltf')
+                ]).then(([outfit, peasant, body, hair]) => {
+                    this._prepareRangerUndertunic(peasant);
+                    this._filterInnerBodyHeadAndHands(body, false);
+                    const grp = new THREE.Group();
+                    grp.add(outfit);
+                    grp.add(peasant);
+                    grp.add(body);
+                    grp.add(hair);
+                    return grp;
+                });
+            }).then(content => normalizeWrapper(content, 1.72, true));
+        } else if (templateKey === 'char_valkyrie') {
+            loadPromise = loadGltf('/assets/models/characters/valkyrie.glb', () => this._ensureMonster3DTemplate('char_female_ranger')).then(content => {
+                return normalizeWrapper(content, 1.88, true);
+            });
+        } else if (templateKey === 'char_male_guard') {
+            loadPromise = loadGltf('/assets/models/characters/guard.glb', () => this._ensureMonster3DTemplate('char_male_ranger')).then(content => {
+                if (content) content._animations = [];
+                return normalizeWrapper(content, 1.82, true, 0);
+            });
+        } else if (templateKey === 'char_male_rogue') {
+            loadPromise = loadGltf('/assets/models/characters/rogue.glb', () => this._ensureMonster3DTemplate('char_male_ranger')).then(content => {
+                return normalizeWrapper(content, 1.74, true);
+            });
+        } else if (templateKey === 'char_male_priest') {
+            loadPromise = loadGltf('/assets/models/characters/priest.glb', () => this._ensureMonster3DTemplate('char_male_peasant')).then(content => {
+                return normalizeWrapper(content, 1.72, true);
             });
         } else if (templateKey === 'bestiary_puglin') {
-            loadPromise = Promise.all([
-                this._loadSingleGltfScene('/assets/models/monsters/Puglin.glb'),
-                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Puglin_BaseColor_1.png', true),
-                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Puglin_Normal.png', false),
-                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Puglin_ORM.png', false),
-                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Puglin_Emissive.png', true)
-            ]).then(([scene, baseTex, normTex, ormTex, emiTex]) => {
-                const mat = new THREE.MeshStandardMaterial({
-                    map: baseTex,
-                    normalMap: normTex,
-                    roughnessMap: ormTex,
-                    metalnessMap: ormTex,
-                    emissiveMap: emiTex,
-                    emissive: new THREE.Color(0xffffff),
-                    emissiveIntensity: 0.6,
-                    roughness: 0.78,
-                    metalness: 0.15,
-                    skinning: true
-                });
+            loadPromise = this._loadSingleGltfScene('/assets/models/monsters/Puglin.glb').then(scene => {
                 scene.traverse(c => {
-                    if (c.isMesh) {
-                        c.material = mat;
-                        c.castShadow = true;
-                        c.receiveShadow = true;
+                    if (c.isMesh && c.material) {
+                        const m = c.material;
+                        if (m.roughnessMap && !m.aoMap) {
+                            m.aoMap = m.roughnessMap;
+                            m.aoMapIntensity = 1.25;
+                        }
+                        m.emissive = new THREE.Color(m.emissiveMap ? 0xff3b00 : 0x000000);
+                        m.emissiveIntensity = m.emissiveMap ? 1.35 : 0.0;
+                        if (c.geometry) c.geometry._sharedGeometry = true;
+                        m._sharedMaterial = true;
+                        c.castShadow = false;
+                        c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 1.22, true);
+                return normalizeWrapper(scene, 1.05, true);
             });
         } else if (templateKey === 'bestiary_imp') {
-            loadPromise = Promise.all([
-                this._loadSingleGltfScene('/assets/models/monsters/Imp.glb'),
-                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Imp_BaseColor_1.png', true),
-                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Imp_Normal.png', false),
-                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Imp_ORM.png', false),
-                this._loadTexturePbr('/assets/models/monsters/bestiary/T_Imp_Emissive.png', true)
-            ]).then(([scene, baseTex, normTex, ormTex, emiTex]) => {
-                const mat = new THREE.MeshStandardMaterial({
-                    map: baseTex,
-                    normalMap: normTex,
-                    roughnessMap: ormTex,
-                    metalnessMap: ormTex,
-                    emissiveMap: emiTex,
-                    emissive: new THREE.Color(0xffffff),
-                    emissiveIntensity: 0.6,
-                    roughness: 0.78,
-                    metalness: 0.15,
-                    skinning: true
-                });
+            loadPromise = this._loadSingleGltfScene('/assets/models/monsters/Imp.glb').then(scene => {
                 scene.traverse(c => {
-                    if (c.isMesh) {
-                        c.material = mat;
-                        c.castShadow = true;
-                        c.receiveShadow = true;
+                    if (c.isMesh && c.material) {
+                        const m = c.material;
+                        if (m.roughnessMap && !m.aoMap) {
+                            m.aoMap = m.roughnessMap;
+                            m.aoMapIntensity = 1.25;
+                        }
+                        m.emissive = new THREE.Color(m.emissiveMap ? 0xff3b00 : 0x000000);
+                        m.emissiveIntensity = m.emissiveMap ? 1.35 : 0.0;
+                        if (c.geometry) c.geometry._sharedGeometry = true;
+                        m._sharedMaterial = true;
+                        c.castShadow = false;
+                        c.receiveShadow = false;
                     }
                 });
                 return normalizeWrapper(scene, 1.50, true);
@@ -8311,305 +9126,262 @@ class Dungeon3D {
                 }
                 scene.traverse(c => {
                     if (c.isMesh || c.isSkinnedMesh) {
-                        if (c.geometry && c.geometry.attributes && c.geometry.attributes.color) {
-                            c.geometry.deleteAttribute('color');
+                        const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
+                        if (c.material) {
+                            const mats = Array.isArray(c.material) ? c.material : [c.material];
+                            for (const m of mats) {
+                                if (hasVColor) m.vertexColors = true;
+                                m.skinning = Boolean(c.isSkinnedMesh);
+                                m._sharedMaterial = true;
+                            }
                         }
-                        if (c.geometry) c.geometry.computeVertexNormals();
-                        c.material = new THREE.MeshStandardMaterial({
-                            color: 0xb83828,
-                            roughness: 0.65,
-                            metalness: 0.08,
-                            emissive: new THREE.Color(0x221a14),
-                            emissiveIntensity: 0.22,
-                            normalMap: this.townPermWallNormal || this.wallNormal,
-                            normalScale: new THREE.Vector2(0.45, 0.45),
-                            skinning: Boolean(c.isSkinnedMesh)
-                        });
-                        c.castShadow = true;
-                        c.receiveShadow = true;
+                        if (c.geometry) c.geometry._sharedGeometry = true;
+                        c.castShadow = false;
+                        c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 1.65, false, 0.42);
+                return normalizeWrapper(scene, 1.95, true, 0.42, 2.20);
             });
         } else if (templateKey === 'bestiary_fox') {
             loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Fox.glb').then(scene => {
-                const grp = new THREE.Group();
-                const foxMat = new THREE.MeshStandardMaterial({
-                    color: 0xa86838,
-                    roughness: 0.68,
-                    metalness: 0.06,
-                    emissive: new THREE.Color(0x241a12),
-                    emissiveIntensity: 0.24,
-                    normalMap: this.townFloorNormal || this.floorNormal,
-                    normalScale: new THREE.Vector2(0.55, 0.55)
-                });
-                scene.traverse(c => {
-                    if ((c.isMesh || c.isSkinnedMesh) && c.geometry) {
-                        const g = c.geometry.clone();
-                        if (g.attributes.color) g.deleteAttribute('color');
-                        if (g.attributes.skinIndex) g.deleteAttribute('skinIndex');
-                        if (g.attributes.skinWeight) g.deleteAttribute('skinWeight');
-                        g.computeVertexNormals();
-                        const m = new THREE.Mesh(g, foxMat);
-                        m.castShadow = true;
-                        m.receiveShadow = true;
-                        grp.add(m);
-                    }
-                });
-                return normalizeWrapper(grp, 1.05, false, 0.52);
-            });
-        } else if (templateKey === 'bestiary_horse') {
-            loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Horse.glb').then(scene => {
                 scene.traverse(c => {
                     if (c.isMesh || c.isSkinnedMesh) {
-                        if (c.geometry && c.geometry.attributes && c.geometry.attributes.color) {
-                            c.geometry.deleteAttribute('color');
+                        const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
+                        if (c.material) {
+                            const mats = Array.isArray(c.material) ? c.material : [c.material];
+                            for (const m of mats) {
+                                if (hasVColor) m.vertexColors = true;
+                                m.skinning = Boolean(c.isSkinnedMesh);
+                                m._sharedMaterial = true;
+                            }
                         }
-                        if (c.geometry) c.geometry.computeVertexNormals();
-                        c.material = new THREE.MeshStandardMaterial({
-                            color: 0x7c5436,
-                            roughness: 0.65,
-                            metalness: 0.08,
-                            emissive: new THREE.Color(0x221a14),
-                            emissiveIntensity: 0.22,
-                            normalMap: this.townFloorNormal || this.floorNormal,
-                            normalScale: new THREE.Vector2(0.45, 0.45),
-                            skinning: Boolean(c.isSkinnedMesh)
-                        });
-                        c.castShadow = true;
-                        c.receiveShadow = true;
+                        if (c.geometry) c.geometry._sharedGeometry = true;
+                        c.castShadow = false;
+                        c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 1.45, false, 0.42);
+                return normalizeWrapper(scene, 0.62, true, 0.52, 1.15);
+            });
+        } else if (templateKey === 'bestiary_horse') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/horse_mount.glb', '/assets/models/monsters/bestiary/Horse.glb').then(scene => {
+                scene.traverse(c => {
+                    if (c.isMesh || c.isSkinnedMesh) {
+                        const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
+                        if (c.material) {
+                            const mats = Array.isArray(c.material) ? c.material : [c.material];
+                            for (const m of mats) {
+                                if (hasVColor) m.vertexColors = true;
+                                m.skinning = Boolean(c.isSkinnedMesh);
+                                m._sharedMaterial = true;
+                            }
+                        }
+                        if (c.geometry) c.geometry._sharedGeometry = true;
+                        c.castShadow = false;
+                        c.receiveShadow = false;
+                    }
+                });
+                return normalizeWrapper(scene, 1.55, true, 0.42, 1.85);
             });
         } else if (templateKey === 'bestiary_bird') {
             loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Parrot.glb').then(scene => {
                 scene.traverse(c => {
                     if (c.isMesh || c.isSkinnedMesh) {
-                        if (c.geometry && c.geometry.attributes && c.geometry.attributes.color) {
-                            c.geometry.deleteAttribute('color');
+                        const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
+                        if (c.material) {
+                            const mats = Array.isArray(c.material) ? c.material : [c.material];
+                            for (const m of mats) {
+                                if (hasVColor) m.vertexColors = true;
+                                m.skinning = Boolean(c.isSkinnedMesh);
+                                m._sharedMaterial = true;
+                            }
                         }
-                        if (c.geometry) c.geometry.computeVertexNormals();
-                        c.material = new THREE.MeshStandardMaterial({
-                            color: 0x6a5848,
-                            roughness: 0.65,
-                            metalness: 0.08,
-                            emissive: new THREE.Color(0x221a14),
-                            emissiveIntensity: 0.22,
-                            normalMap: this.townFloorNormal || this.floorNormal,
-                            normalScale: new THREE.Vector2(0.45, 0.45),
-                            skinning: Boolean(c.isSkinnedMesh)
-                        });
-                        c.castShadow = true;
-                        c.receiveShadow = true;
+                        if (c.geometry) c.geometry._sharedGeometry = true;
+                        c.castShadow = false;
+                        c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 0.68, false);
+                return normalizeWrapper(scene, 0.52, true, 0, 1.10);
             });
         } else if (templateKey === 'bestiary_skull') {
             loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Skull.glb').then(scene => {
                 scene.traverse(c => {
                     if (c.isMesh || c.isSkinnedMesh) {
-                        if (c.geometry && c.geometry.attributes && c.geometry.attributes.color) {
-                            c.geometry.deleteAttribute('color');
+                        const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
+                        if (c.material) {
+                            const mats = Array.isArray(c.material) ? c.material : [c.material];
+                            for (const m of mats) {
+                                if (hasVColor) m.vertexColors = true;
+                                m.skinning = Boolean(c.isSkinnedMesh);
+                                m._sharedMaterial = true;
+                            }
                         }
-                        if (c.geometry) c.geometry.computeVertexNormals();
-                        c.material = new THREE.MeshStandardMaterial({
-                            color: 0xd8d4cc,
-                            roughness: 0.65,
-                            metalness: 0.08,
-                            emissive: new THREE.Color(0x221a14),
-                            emissiveIntensity: 0.22,
-                            normalMap: this.townFloorNormal || this.floorNormal,
-                            normalScale: new THREE.Vector2(0.45, 0.45),
-                            skinning: Boolean(c.isSkinnedMesh)
-                        });
-                        c.castShadow = true;
-                        c.receiveShadow = true;
+                        if (c.geometry) c.geometry._sharedGeometry = true;
+                        c.castShadow = false;
+                        c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 0.68, false);
+                return normalizeWrapper(scene, 0.58, true, 0, 0.85);
             });
         } else if (templateKey === 'ph_street_rat') {
             loadPromise = this._loadSingleGltfScene('/assets/polyhaven/models/street_rat/street_rat.gltf').then(scene => {
                 scene.traverse(c => {
                     if (c.isMesh) {
-                        c.castShadow = true;
-                        c.receiveShadow = true;
+                        c.castShadow = false;
+                        c.receiveShadow = false;
                     }
                 });
-                return normalizeWrapper(scene, 0.58, false, 0.42);
+                return normalizeWrapper(scene, 0.36, true, 0.42, 0.90);
             });
-        } else if (templateKey === 'bestiary_ant') {
-            loadPromise = this._loadSingleObjScene('/assets/models/monsters/Wasp.obj').then(scene => {
-                const antMat = new THREE.MeshStandardMaterial({
-                    color: 0x8b3a22,
-                    roughness: 0.30,
-                    metalness: 0.38,
-                    emissive: new THREE.Color(0x1a0c08),
-                    emissiveIntensity: 0.18,
-                    normalMap: this.townPermWallNormal || this.wallNormal,
-                    normalScale: new THREE.Vector2(0.8, 0.8)
-                });
+        } else if (templateKey === 'bestiary_kobold') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/kobold.glb', () => this._ensureMonster3DTemplate('bestiary_puglin')).then(scene => {
+                return normalizeWrapper(scene, 1.05, true);
+            });
+        } else if (templateKey === 'bestiary_goblin') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/goblin.glb', () => loadGltf('/assets/models/monsters/bestiary/goblin_warrior.glb', () => this._ensureMonster3DTemplate('bestiary_puglin'))).then(scene => {
+                return normalizeWrapper(scene, 1.18, true);
+            });
+        } else if (templateKey === 'bestiary_orc') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/orc.glb', () => this._ensureMonster3DTemplate('char_male_ranger')).then(scene => {
+                return normalizeWrapper(scene, 1.72, true);
+            });
+        } else if (templateKey === 'bestiary_orc_female') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/orc_female.glb', () => this._ensureMonster3DTemplate('bestiary_orc')).then(scene => {
+                return normalizeWrapper(scene, 1.64, true);
+            });
+        } else if (templateKey === 'bestiary_hobgoblin') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/hobgoblin.glb', () => this._ensureMonster3DTemplate('bestiary_orc')).then(scene => {
+                return normalizeWrapper(scene, 1.85, true);
+            });
+        } else if (templateKey === 'bestiary_gnoll') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/gnoll.glb', () => this._ensureMonster3DTemplate('bestiary_orc')).then(scene => {
+                return normalizeWrapper(scene, 1.90, true);
+            });
+        } else if (templateKey === 'bestiary_troll') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/troll.glb', () => this._ensureMonster3DTemplate('bestiary_yeti')).then(scene => {
+                return normalizeWrapper(scene, 2.25, true, 0, 1.75);
+            });
+        } else if (templateKey === 'bestiary_ogre') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/ogre.glb', () => this._ensureMonster3DTemplate('bestiary_yeti')).then(scene => {
+                return normalizeWrapper(scene, 2.10, true, 0, 1.75);
+            });
+        } else if (templateKey === 'bestiary_cyclops') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/cyclop.glb', () => this._ensureMonster3DTemplate('bestiary_ogre')).then(scene => {
+                return normalizeWrapper(scene, 2.45, true, 0, 1.85);
+            });
+        } else if (templateKey === 'bestiary_lizardfolk') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/lizardfolk.glb', () => this._ensureMonster3DTemplate('bestiary_orc')).then(scene => {
+                return normalizeWrapper(scene, 1.78, true);
+            });
+        } else if (templateKey === 'bestiary_skeleton_warrior') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/skeleton_warrior.glb', () => this._ensureMonster3DTemplate('bestiary_wraith')).then(scene => {
+                return normalizeWrapper(scene, 1.72, true);
+            });
+        } else if (templateKey === 'bestiary_skeleton_knight') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/skeleton_knight.glb', () => this._ensureMonster3DTemplate('bestiary_skeleton_warrior')).then(scene => {
+                return normalizeWrapper(scene, 1.82, true);
+            });
+        } else if (templateKey === 'bestiary_zombie') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/zombie_model.glb', () => this._ensureMonster3DTemplate('char_male_peasant')).then(scene => {
+                return normalizeWrapper(scene, 1.68, true);
+            });
+        } else if (templateKey === 'bestiary_wraith') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/GhostArmature.glb', () => loadGltf('/assets/models/monsters/bestiary/skeleton_knight.glb', () => this._ensureMonster3DTemplate('char_male_ranger'))).then(scene => {
                 scene.traverse(c => {
-                    if (c.isMesh && c.geometry && c.geometry.attributes && c.geometry.attributes.position) {
-                        const pos = c.geometry.attributes.position;
-                        for (let i = 0; i < pos.count; i++) {
-                            if (pos.getY(i) > 0.25 && Math.abs(pos.getX(i)) > 0.15) {
-                                pos.setXYZ(i, pos.getX(i) * 0.2, 0.12, pos.getZ(i));
+                    if (c.isMesh && c.material) {
+                        const mat = Array.isArray(c.material) ? c.material[0] : c.material;
+                        if (c.name && /ghost|wraith|phantom/i.test(c.name)) {
+                            mat.transparent = true;
+                            mat.opacity = 0.82;
+                            mat.blending = THREE.NormalBlending;
+                            mat.depthWrite = false;
+                            mat.onBeforeCompile = (shader) => {
+                                shader.uniforms.rimColor = { value: new THREE.Color(0x66ccff) };
+                                shader.uniforms.rimPower = { value: 2.2 };
+                                shader.fragmentShader = shader.fragmentShader.replace(
+                                    '#include <common>',
+                                    `#include <common>\nuniform vec3 rimColor;\nuniform float rimPower;`
+                                );
+                                shader.fragmentShader = shader.fragmentShader.replace(
+                                    '#include <dithering_fragment>',
+                                    `#include <dithering_fragment>\nvec3 viewDir = normalize(vViewPosition);\nfloat rim = 1.0 - max(0.0, dot(geometryNormal, -viewDir));\nrim = pow(rim, rimPower);\ngl_FragColor.rgb += rimColor * rim * 0.8;\ngl_FragColor.a = max(gl_FragColor.a, rim * 0.7);`
+                                );
+                            };
+                        }
+                    }
+                });
+                return normalizeWrapper(scene, 1.68, true);
+            });
+        } else if (templateKey === 'bestiary_horror') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/scp939.glb', () => this._ensureMonster3DTemplate('bestiary_wraith')).then(scene => {
+                return normalizeWrapper(scene, 1.35, true, 0, 1.65);
+            });
+        } else if (templateKey === 'bestiary_golem') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/stone_golem.glb', () => loadGltf('/assets/polyhaven/models/gothic_statue/gothic_statue.gltf', () => loadGltf('/assets/models/monsters/bestiary/GodAnubis_Art.glb', () => this._ensureMonster3DTemplate('char_male_ranger')))).then(scene => {
+                return normalizeWrapper(scene, 2.05, true, 0, 1.85);
+            });
+        } else if (templateKey === 'bestiary_guardian') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/GodAnubis_Art.glb', () => this._ensureMonster3DTemplate('char_male_ranger')).then(scene => {
+                return normalizeWrapper(scene, 2.05, true, 0, 1.65);
+            });
+        } else if (templateKey === 'bestiary_yeti') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/YetiSmall.glb', () => loadGltf('/assets/models/monsters/bestiary/troll.glb', () => this._ensureMonster3DTemplate('char_male_ranger'))).then(scene => {
+                return normalizeWrapper(scene, 1.95, true, 0, 1.65);
+            });
+        } else if (templateKey === 'bestiary_wolf') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
+                return normalizeWrapper(scene, 0.88, true, 0.42, 1.45);
+            });
+        } else if (templateKey === 'bestiary_lion') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/MountainLion.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
+                return normalizeWrapper(scene, 0.95, true, 0.42, 1.45);
+            });
+        } else if (templateKey === 'bestiary_owl') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/Owl.glb', () => this._ensureMonster3DTemplate('bestiary_bird')).then(scene => {
+                return normalizeWrapper(scene, 0.68, true, 0, 0.95);
+            });
+        } else if (templateKey === 'bestiary_stork') {
+            loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Stork.glb').then(scene => {
+                scene.traverse(c => {
+                    if (c.isMesh || c.isSkinnedMesh) {
+                        const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
+                        if (c.material) {
+                            const mats = Array.isArray(c.material) ? c.material : [c.material];
+                            for (const m of mats) {
+                                if (hasVColor) m.vertexColors = true;
+                                m.skinning = Boolean(c.isSkinnedMesh);
+                                m._sharedMaterial = true;
                             }
                         }
-                        pos.needsUpdate = true;
-                        c.geometry.computeVertexNormals();
-                        c.material = antMat;
-                        c.castShadow = true;
-                        c.receiveShadow = true;
+                        if (c.geometry) c.geometry._sharedGeometry = true;
+                        c.castShadow = false;
+                        c.receiveShadow = false;
                     }
                 });
-                scene.scale.set(0.75, 0.58, 1.28);
-                return normalizeWrapper(scene, 0.62, false, 0.42);
+                return normalizeWrapper(scene, 0.78, true, 0, 1.25);
             });
-        } else if (templateKey === 'bestiary_beetle') {
-            loadPromise = this._loadSingleObjScene('/assets/models/monsters/Spider.obj').then(scene => {
-                const beetleMat = new THREE.MeshStandardMaterial({
-                    color: 0x2c4d63,
-                    roughness: 0.22,
-                    metalness: 0.62,
-                    emissive: new THREE.Color(0x0c1822),
-                    emissiveIntensity: 0.18,
-                    normalMap: this.townPermWallNormal || this.wallNormal,
-                    normalScale: new THREE.Vector2(0.9, 0.9)
-                });
-                scene.traverse(c => {
-                    if (c.isMesh) {
-                        if (c.geometry) c.geometry.computeVertexNormals();
-                        c.material = beetleMat;
-                        c.castShadow = true;
-                        c.receiveShadow = true;
-                    }
-                });
-                scene.scale.set(1.18, 0.68, 1.22);
-                return normalizeWrapper(scene, 0.60, false, 0.35);
+        } else if (templateKey === 'obj_spider' || templateKey === 'bestiary_beetle' || templateKey === 'bestiary_centipede') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/giant_spider.glb', () => loadGltf('/assets/models/monsters/bestiary/giant_spider_model.glb', '/assets/models/monsters/Spider.obj')).then(scene => {
+                return normalizeWrapper(scene, (templateKey === 'bestiary_centipede' ? 0.48 : 0.62), true, 0.35, 1.25);
             });
-        } else if (templateKey === 'bestiary_centipede') {
-            loadPromise = this._loadSingleObjScene('/assets/models/monsters/Spider.obj').then(scene => {
-                const centipedeMat = new THREE.MeshStandardMaterial({
-                    color: 0x2e7a34,
-                    roughness: 0.32,
-                    metalness: 0.35,
-                    emissive: new THREE.Color(0x0a220c),
-                    emissiveIntensity: 0.22,
-                    normalMap: this.townPermWallNormal || this.wallNormal,
-                    normalScale: new THREE.Vector2(1.0, 1.0)
-                });
-                scene.traverse(c => {
-                    if (c.isMesh) {
-                        if (c.geometry) c.geometry.computeVertexNormals();
-                        c.material = centipedeMat;
-                        c.castShadow = true;
-                        c.receiveShadow = true;
-                    }
-                });
-                scene.updateMatrixWorld(true);
-                const segBox = new THREE.Box3().setFromObject(scene);
-                const segSize = new THREE.Vector3();
-                segBox.getSize(segSize);
-                const segStep = (segSize.z || 1.0) * 0.38;
-                const grp = new THREE.Group();
-                for (let seg = 0; seg < 5; seg++) {
-                    const part = scene.clone(true);
-                    const taper = (seg === 0 || seg === 4) ? 0.82 : 1.0;
-                    part.scale.set(0.56 * taper, 0.42 * taper, 0.48);
-                    part.position.set(
-                        Math.sin(seg * 1.15) * (segSize.x || 1.0) * 0.08,
-                        0,
-                        (seg - 2) * segStep
-                    );
-                    grp.add(part);
-                }
-                return normalizeWrapper(grp, 0.94, false, 0.55);
+        } else if (templateKey === 'bestiary_ant' || templateKey === 'obj_wasp') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/wasp.glb', '/assets/models/monsters/Wasp.obj').then(scene => {
+                return normalizeWrapper(scene, 0.62, true, 0.42, 0.95);
+            });
+        } else if (templateKey === 'obj_snake') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/snake.glb', '/assets/models/monsters/Snake_angry.obj').then(scene => {
+                return normalizeWrapper(scene, 0.78, true, 0, 1.15);
+            });
+        } else if (templateKey === 'obj_frog') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/frog.glb', '/assets/models/monsters/Frog.obj').then(scene => {
+                return normalizeWrapper(scene, 0.48, true, 0, 0.95);
             });
         } else if (templateKey === 'env_tanglethorn') {
-            loadPromise = Promise.all([
-                this._loadSingleGltfScene('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf'),
-                this._loadTexturePbr('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_bark_diff_1k.jpg', true),
-                this._loadTexturePbr('/assets/polyhaven/models/pachira_aquatica_01/textures/pachira_aquatica_01_leaves_diff_1k.jpg', true)
-            ]).then(([scene, barkTex, leavesTex]) => {
-                const grp = new THREE.Group();
-                const brambleBarkMat = new THREE.MeshStandardMaterial({
-                    color: 0x6b4c32,
-                    map: barkTex || (this.treeTrunkMat ? this.treeTrunkMat.map : null),
-                    roughness: 0.88,
-                    metalness: 0.05,
-                    emissive: new THREE.Color(0x160f09),
-                    emissiveIntensity: 0.18,
-                    normalMap: this.treeBarkNormal || this.wallNormal,
-                    side: THREE.DoubleSide
-                });
-                const brambleThornMat = new THREE.MeshStandardMaterial({
-                    color: 0x5c7d36,
-                    map: leavesTex || (this.treeLeavesMat ? this.treeLeavesMat.map : null),
-                    alphaTest: 0.35,
-                    roughness: 0.72,
-                    metalness: 0.06,
-                    emissive: new THREE.Color(0x121c08),
-                    emissiveIntensity: 0.20,
-                    normalMap: this.treeBarkNormal || this.wallNormal,
-                    side: THREE.DoubleSide
-                });
-                scene.traverse(child => {
-                    if (child.isMesh && child.geometry) {
-                        const name = ((child.name || '') + ' ' + (child.parent ? child.parent.name || '' : '')).toLowerCase();
-                        const isBark = name.includes('bark_b') || name.includes('bark_c') || name.includes('circle.001') || name.includes('plane.002');
-                        const isFoliage = name.includes('leaves_b') || name.includes('cylinder.118');
-                        if (isBark || isFoliage) {
-                            const g = child.geometry.clone();
-                            if (g.attributes.color) g.deleteAttribute('color');
-                            const m = new THREE.Mesh(g, isBark ? brambleBarkMat : brambleThornMat);
-                            m.position.set(0, 0, 0);
-                            m.rotation.set(0, isBark ? 0.6 : 0, 0);
-                            m.castShadow = true;
-                            m.receiveShadow = true;
-                            grp.add(m);
-                        }
-                    }
-                });
-                return normalizeWrapper(grp, 1.32, false, 0.25);
+            loadPromise = loadGltf('/assets/polyhaven/models/pine_roots/pine_roots.gltf', () => loadGltf('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf')).then(scene => {
+                return normalizeWrapper(scene, 1.15, true, 0.25, 1.20);
             });
         } else if (templateKey === 'env_fungi_cluster') {
-            loadPromise = this._loadSingleGltfScene('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf').then(scene => {
-                const grp = new THREE.Group();
-                const fungiMat = new THREE.MeshStandardMaterial({
-                    color: 0x7c688b,
-                    roughness: 0.55,
-                    metalness: 0.10,
-                    emissive: new THREE.Color(0x281838),
-                    emissiveIntensity: 0.35,
-                    normalMap: this.townPermWallNormal || this.wallNormal
-                });
-                scene.traverse(c => {
-                    if (c.isMesh) {
-                        c.material = fungiMat;
-                        c.castShadow = true;
-                        c.receiveShadow = true;
-                    }
-                });
-                const cap1 = scene.clone();
-                cap1.position.set(0, 0, 0);
-                cap1.scale.set(0.9, 0.6, 0.9);
-                grp.add(cap1);
-
-                const cap2 = scene.clone();
-                cap2.position.set(0.24, -0.06, 0.14);
-                cap2.scale.set(0.65, 0.45, 0.65);
-                grp.add(cap2);
-
-                const cap3 = scene.clone();
-                cap3.position.set(-0.20, -0.08, -0.16);
-                cap3.scale.set(0.52, 0.38, 0.52);
-                grp.add(cap3);
-
-                return normalizeWrapper(grp, 0.58, false, 0.20);
+            loadPromise = loadGltf('/assets/polyhaven/models/crystalline_iceplant/crystalline_iceplant.gltf', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf')).then(scene => {
+                return normalizeWrapper(scene, 0.56, true, 0.20, 0.90);
             });
         } else if (templateKey === 'env_ooze_mound') {
             loadPromise = this._loadSingleGltfScene('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf').then(scene => {
@@ -8626,40 +9398,11 @@ class Dungeon3D {
                 scene.traverse(c => {
                     if (c.isMesh) {
                         c.material = oozeMat;
-                        c.castShadow = true;
-                        c.receiveShadow = true;
+                        c.castShadow = false;
+                        c.receiveShadow = false;
                     }
                 });
-                scene.scale.set(1.25, 0.55, 1.25);
-                return normalizeWrapper(scene, 0.65, false, 0.20);
-            });
-        } else if (templateKey === 'obj_spider' || templateKey === 'obj_snake' || templateKey === 'obj_wasp' || templateKey === 'obj_frog') {
-            const objFileMap = {
-                obj_spider: '/assets/models/monsters/Spider.obj',
-                obj_snake: '/assets/models/monsters/Snake_angry.obj',
-                obj_wasp: '/assets/models/monsters/Wasp.obj',
-                obj_frog: '/assets/models/monsters/Frog.obj'
-            };
-            loadPromise = this._loadSingleObjScene(objFileMap[templateKey]).then(scene => {
-                const isSpider = (templateKey === 'obj_spider');
-                const pbrMat = new THREE.MeshStandardMaterial({
-                    color: isSpider ? 0x3b2e25 : 0x6a645c,
-                    roughness: isSpider ? 0.36 : 0.48,
-                    metalness: isSpider ? 0.26 : 0.18,
-                    emissive: new THREE.Color(isSpider ? 0x120c08 : 0x100e0c),
-                    emissiveIntensity: 0.18,
-                    normalMap: this.townPermWallNormal || this.wallNormal,
-                    normalScale: new THREE.Vector2(1.1, 1.1)
-                });
-                scene.traverse(c => {
-                    if (c.isMesh) {
-                        if (c.geometry) c.geometry.computeVertexNormals();
-                        c.material = pbrMat;
-                        c.castShadow = true;
-                        c.receiveShadow = true;
-                    }
-                });
-                return normalizeWrapper(scene, isSpider ? 0.82 : 0.78, false, isSpider ? 0.35 : 0);
+                return normalizeWrapper(scene, 0.58, true, 0.20, 0.95);
             });
         } else {
             return Promise.reject(new Error(`Unknown 3D monster template key: ${templateKey}`));
@@ -8680,20 +9423,378 @@ class Dungeon3D {
         return managedPromise;
     }
 
-    resolveMonster3DConfig(m, glyph) {
+    resolveMonster3DConfig(m, glyph, realmOverride) {
+        const realm = String(realmOverride || (m && m.realm) || this.realm || 'angband').toLowerCase();
         let rawName = (m && (m.race || m.name)) || '';
         if (typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
             rawName = window.HengTranslate.translateName(rawName, 1, 'en') || rawName;
         }
-        const lower = rawName.toLowerCase();
+        const lowerName = rawName.toLowerCase();
+        const lower = lowerName;
         const g = (glyph || (m && m.glyph) || '?').trim();
+
+        const rawSeed = m && m.id !== undefined ? m.id : ((m ? (m.x || 0) * 7 + (m.y || 0) * 13 : 0));
+        let seedNum = typeof rawSeed === 'number' ? rawSeed : 0;
+        if (typeof rawSeed === 'string') {
+            for (let si = 0; si < rawSeed.length; si++) seedNum = (seedNum * 31 + rawSeed.charCodeAt(si)) | 0;
+        }
+        const seed = Math.abs(seedNum);
+
+        // --- Multi-Realm Lore Accuracy Branches (Evaluated BEFORE Generic Glyph Fallbacks) ---
+
+        // 1. Sil-Q Realm
+        if (realm === 'silq') {
+            // g === 'R' (Raukar / Balrogs: Gothmog, Lungorthin, Ururauko, Sulrauko, Ringrauko, Kemenrauko, Gwathrauko)
+            if (g === 'R' || /rauko|balrog|gothmog|lungorthin/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_imp',
+                    scale: 1.62,
+                    weaponKey: 'ph_saber',
+                    isBalrog: true,
+                    seed
+                };
+            }
+            // g === 'V' && Morgoth
+            if (g === 'V' && /morgoth/.test(lowerName)) {
+                return {
+                    templateKey: 'char_male_ranger',
+                    scale: 1.75,
+                    weaponKey: 'ph_sledgehammer',
+                    isMorgoth: true,
+                    seed
+                };
+            }
+            // g === 'M' (Ungoliant, the Gloomweaver)
+            if (g === 'M' || /ungoliant/.test(lowerName)) {
+                return {
+                    templateKey: 'obj_spider',
+                    scale: 1.85,
+                    isBoss: true,
+                    seed
+                };
+            }
+            // g === 'H' (Horrors)
+            if (g === 'H') {
+                return {
+                    templateKey: 'bestiary_wraith',
+                    scale: 1.22,
+                    floating: true,
+                    isFloating: true,
+                    seed
+                };
+            }
+            // g === 'C' (Carcharoth, Gorthaur, Wolves)
+            if (g === 'C' || /carcharoth|gorthaur|wolf|warg/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_wolf',
+                    scale: /carcharoth|gorthaur/.test(lowerName) ? 1.48 : 1.15,
+                    seed
+                };
+            }
+        }
+
+        // 2. FrogComposBand Realm
+        if (realm === 'frogcomposband') {
+            // g === 'J' && serpent of chaos
+            if (g === 'J' && /serpent of chaos/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_dragon',
+                    scale: 1.90,
+                    isBoss: true,
+                    seed
+                };
+            }
+            // g === 'U' && cyberdemon / oremorj
+            if (g === 'U' && /cyberdemon|oremorj/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_imp',
+                    scale: 1.70,
+                    weaponKey: 'ph_sledgehammer',
+                    isBoss: true,
+                    seed
+                };
+            }
+            // g === 'U' && cthulhu
+            if (g === 'U' && /cthulhu/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_imp',
+                    scale: 1.82,
+                    tintHex: '#2d6e4e',
+                    isBoss: true,
+                    seed
+                };
+            }
+        }
+
+        // 3. Hengband Realm or Japanese/Eastern Archetypes
+        if (realm === 'hengband' || /samurai|ronin|kensei|ninja|shinobi|yakuza|orochi|shuten|oni|tengu|kappa|kitsune|酒呑童子|八岐大蛇|天狗|河童|九尾/.test(lowerName)) {
+            if (/samurai|ronin|kensei|ninja|shinobi|yakuza|サムライ|ニンジャ/.test(lowerName)) {
+                return {
+                    templateKey: 'char_male_ranger',
+                    weaponKey: 'ph_katana',
+                    scale: 1.02,
+                    seed
+                };
+            }
+            if (g === 'M' && /orochi|八岐大蛇/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_dragon',
+                    scale: 1.85,
+                    isBoss: true,
+                    seed
+                };
+            }
+            if (/shuten|oni|ooe-mountain|酒呑童子|鬼/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_yeti',
+                    scale: 1.55,
+                    weaponKey: 'ph_sledgehammer',
+                    tintHex: '#a82820',
+                    seed
+                };
+            }
+            if (/tengu|天狗/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_owl',
+                    scale: 1.25,
+                    floating: true,
+                    isFloating: true,
+                    seed
+                };
+            }
+            if (/kappa|河童/.test(lowerName)) {
+                return {
+                    templateKey: 'obj_frog',
+                    scale: 1.05,
+                    seed
+                };
+            }
+            if (/kitsune|nine-tailed|九尾/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_fox',
+                    scale: 1.28,
+                    tintHex: '#f5f0e6',
+                    seed
+                };
+            }
+        }
+
+        // --- Universal Creature Archetypes across All Realms ---
+
+        // Morgoth / Sauron
+        if (/morgoth/.test(lowerName)) {
+            return {
+                templateKey: 'char_male_ranger',
+                scale: 1.75,
+                weaponKey: 'ph_sledgehammer',
+                isBoss: true,
+                seed
+            };
+        }
+        if (/sauron/.test(lowerName)) {
+            return {
+                templateKey: 'char_male_ranger',
+                scale: 1.42,
+                weaponKey: 'ph_mace',
+                tintHex: '#4b2d73',
+                isBoss: true,
+                seed
+            };
+        }
+
+        // Golems, Gargoyles, Statues, Idols
+        if (g === 'g' || /\b(golem|gargoyle|statue|idol)\b/.test(lowerName)) {
+            return {
+                templateKey: /anubis|guardian|demon|bronze/.test(lowerName) ? 'bestiary_guardian' : 'bestiary_golem',
+                scale: 1.18,
+                seed
+            };
+        }
+
+        // Skeletons / Druj
+        if (g === 's' || /\b(skeleton|druj)\b/.test(lowerName)) {
+            return {
+                templateKey: /knight|warrior|lord|champion|king|druj/.test(lowerName) ? 'bestiary_skeleton_knight' : 'bestiary_skeleton_warrior',
+                scale: 1.0,
+                weaponKey: /knight|warrior|lord|champion|king|druj/.test(lowerName) ? 'item_longsword' : 'item_goblin_sword',
+                shieldKey: /knight|lord|champion|king/.test(lowerName) ? 'item_shield_raven' : 'item_shield_wooden',
+                seed
+            };
+        }
+
+        // Zombies / Ghouls / Mummies
+        if (g === 'z' || /\b(zombie|ghoul|mummy)\b/.test(lowerName)) {
+            return {
+                templateKey: 'bestiary_zombie',
+                scale: 1.02,
+                seed
+            };
+        }
+
+        // Wraiths, Nazgûl, Ghosts, Liches
+        if (g === 'W' || g === 'G' || g === 'L' || /\b(wraith|nazgul|ghost|spectre|specter|lich|shade|barrow-wight)\b/.test(lowerName)) {
+            return {
+                templateKey: /\bbarrow-wight\b/.test(lowerName) ? 'bestiary_skeleton_knight' : 'bestiary_wraith',
+                scale: 1.05,
+                floating: true,
+                isFloating: true,
+                weaponKey: (g === 'L' || /lich/.test(lowerName)) ? 'item_morningstar' : 'item_rune_blade',
+                seed
+            };
+        }
+
+        // Gnolls & Werewolves
+        if (/\b(gnoll|werewolf|wulver)\b/.test(lowerName)) {
+            return {
+                templateKey: 'bestiary_gnoll',
+                scale: 1.0,
+                weaponKey: 'ph_axe',
+                seed
+            };
+        }
+
+        // Lizardfolk & Saurians
+        if (/\b(lizardman|lizardfolk|saurian|draconian|troglodyte)\b/.test(lowerName)) {
+            return {
+                templateKey: 'bestiary_lizardfolk',
+                scale: 1.0,
+                weaponKey: 'item_spear',
+                shieldKey: 'item_shield_wooden',
+                seed
+            };
+        }
+
+        // Kobolds
+        if (g === 'k' || /\bkobold\b/.test(lowerName)) {
+            return {
+                templateKey: 'bestiary_kobold',
+                scale: /large|chief|lord|hero/.test(lowerName) ? 1.12 : 0.95,
+                weaponKey: 'ph_dagger',
+                seed
+            };
+        }
+
+        // Goblins, Orcs, Hobgoblins, Uruks
+        if (g === 'o' || /\b(goblin|orc|uruk|snaga|hobgoblin|golfimbul|bolg|azog|lugdush|ugluk|grishnakh)\b/.test(lowerName)) {
+            if (/\b(goblin|snaga)\b/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_goblin',
+                    scale: 1.0,
+                    weaponKey: /archer/.test(lowerName) ? 'item_bow' : 'item_goblin_sword',
+                    shieldKey: /warrior|guard|captain|chief|soldier/.test(lowerName) ? 'item_shield_wooden' : null,
+                    seed
+                };
+            }
+            if (/\b(uruk|hobgoblin|black orc|captain|chief|lord|golfimbul|bolg|azog|lugdush|ugluk|grishnakh)\b/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_hobgoblin',
+                    scale: /golfimbul|bolg|azog|lord|chief/.test(lowerName) ? 1.12 : 1.02,
+                    weaponKey: 'ph_axe',
+                    shieldKey: /golfimbul|bolg|azog|lord|chief|captain/.test(lowerName) ? 'ph_shield' : 'item_shield_wooden',
+                    seed
+                };
+            }
+            return {
+                templateKey: 'bestiary_orc',
+                scale: 1.0,
+                weaponKey: /archer|tracker/.test(lowerName) ? 'item_bow' : ((seed % 2 === 0) ? 'ph_axe' : 'item_goblin_sword'),
+                shieldKey: /warrior|guard|captain/.test(lowerName) ? 'item_shield_wooden' : null,
+                seed
+            };
+        }
+
+        // Trolls
+        if (g === 'T' || /\b(troll|olog|ettin|algroth)\b/.test(lowerName)) {
+            return {
+                templateKey: 'bestiary_troll',
+                scale: /lord|chief|king|great|olog|ettin/.test(lowerName) ? 1.15 : 1.0,
+                weaponKey: (seed % 2 === 0) ? 'item_greatclub' : 'ph_sledgehammer',
+                seed
+            };
+        }
+
+        // Ogres
+        if (g === 'O' || /\bogre\b/.test(lowerName)) {
+            return {
+                templateKey: 'bestiary_ogre',
+                scale: /lord|king|mage|shaman|giant|black/.test(lowerName) ? 1.12 : 1.0,
+                weaponKey: (seed % 2 === 0) ? 'item_greatclub' : 'ph_sledgehammer',
+                seed
+            };
+        }
+
+        // Yetis
+        if (g === 'Y' || /\b(yeti|sasquatch|wendigo)\b/.test(lowerName)) {
+            return {
+                templateKey: 'bestiary_yeti',
+                scale: 1.05,
+                seed
+            };
+        }
+
+        // Giants, Cyclopes, Titans
+        if (g === 'P' || /\b(cyclops|titan|colossus|hill giant|frost giant|fire giant|stone giant|cloud giant|storm giant|mountain giant)\b/.test(lowerName)) {
+            return {
+                templateKey: 'bestiary_cyclops',
+                scale: /titan|storm|greater/.test(lowerName) ? 1.18 : 1.0,
+                weaponKey: 'ph_sledgehammer',
+                seed
+            };
+        }
+
+        // Wolves, Wargs, Hounds, Foxes, Canines
+        if (g === 'C' || g === 'Z' || /\b(wolf|warg|hound|dog|jackal|coyote|fox)\b/.test(lowerName)) {
+            if (/\bfox\b/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_fox',
+                    scale: 0.92,
+                    seed
+                };
+            }
+            return {
+                templateKey: 'bestiary_wolf',
+                scale: /\b(jackal|coyote|pup|little dog|wild dog)\b/.test(lowerName) ? 0.72 : (/\b(warg|dire|carcharoth|gorthaur|draugluin|cerberus)\b/.test(lowerName) ? 1.32 : 1.0),
+                seed
+            };
+        }
+
+        // Felines & Horrors
+        if (g === 'f' || g === 'H' || /\b(cat|panther|tiger|lion|leopard|cougar|lynx|chimera|manticore|horror|abomination)\b/.test(lowerName)) {
+            if (g === 'H' && /\b(horror|abomination|crawler)\b/.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_horror',
+                    scale: 1.05,
+                    seed
+                };
+            }
+            const isSmallCat = /\b(scrawny cat|wild cat|house cat|kitten|cat|feline)\b/.test(lowerName) && !/\b(big|great|giant|sabre|saber|lion|tiger|panther|leopard|cougar|puma|lynx|jaguar|cheetah)\b/.test(lowerName);
+            const isMedCat = !isSmallCat && /\b(lynx|bobcat|ocelot|caracal|cheetah|leopard|panther|cougar|puma)\b/.test(lowerName);
+            return {
+                templateKey: 'bestiary_lion',
+                scale: isSmallCat ? 0.46 : (isMedCat ? 0.85 : 1.18),
+                tintHex: /panther|black/.test(lowerName) ? '#262630' : (/white|snow/.test(lowerName) ? '#e8e6e0' : null),
+                seed
+            };
+        }
+
+        // Birds, Owls, Ravens, Eagles, Bats
+        if (g === 'B' || g === 'b' || /\b(bird|crow|raven|eagle|hawk|falcon|owl|bat|stirge|stork|swan)\b/.test(lowerName)) {
+            return {
+                templateKey: /owl|bat|raven|crow/.test(lowerName) ? 'bestiary_owl' : (/stork|swan|water/.test(lowerName) ? 'bestiary_stork' : 'bestiary_bird'),
+                scale: (g === 'b' || /bat/.test(lowerName)) ? 0.75 : 0.95,
+                floating: true,
+                isFloating: true,
+                seed
+            };
+        }
 
         // 0a. Plants, Tanglethorns, Brambles, Trees, Huorns
         if (g === '#' || /\b(tanglethorn|thorn|bramble|vine|weed|bush|shrub|tree|huorn|ent|treant|plant)\b/.test(lower)) {
             return {
                 templateKey: 'env_tanglethorn',
                 scale: 1.0,
-                tintHex: (m && m.attr && m.attr > 2) ? getAngbandColorString(m.attr) : null
+                tintHex: (m && m.attr && m.attr > 2) ? getAngbandColorString(m.attr) : null,
+                seed
             };
         }
 
@@ -8702,7 +9803,8 @@ class Dungeon3D {
             return {
                 templateKey: 'env_fungi_cluster',
                 scale: 0.85,
-                tintHex: getAngbandColorString(m && m.attr)
+                tintHex: getAngbandColorString(m && m.attr),
+                seed
             };
         }
 
@@ -8712,37 +9814,18 @@ class Dungeon3D {
                 templateKey: 'env_ooze_mound',
                 scale: (g === 'v') ? 0.95 : 0.85,
                 isFloating: (g === 'v' || g === '*'),
-                tintHex: getAngbandColorString(m && m.attr)
+                floating: (g === 'v' || g === '*'),
+                tintHex: getAngbandColorString(m && m.attr),
+                seed
             };
-        }
-
-        // 1. Canines, Felines, Hounds, Hybrids
-        if (g === 'C' || g === 'Z' || g === 'f' || g === 'H' ||
-            /\b(wolf|warg|hound|dog|jackal|coyote|fang|cat|panther|tiger|lion|leopard|cougar|lynx|saber|sabre|fox|griffon|chimera|manticore)\b/.test(lower)) {
-            if (g === 'f' || /\b(cat|panther|tiger|lion|leopard|cougar|lynx)\b/.test(lower)) {
-                return {
-                    templateKey: 'bestiary_fox',
-                    scaleX: 0.74,
-                    scaleY: 0.68,
-                    scaleZ: 0.88,
-                    tintHex: (m && m.attr && m.attr > 2) ? getAngbandColorString(m.attr) : '#c28246'
-                };
-            } else {
-                return {
-                    templateKey: 'bestiary_fox',
-                    scaleX: (g === 'H' ? 1.32 : 1.08),
-                    scaleY: (g === 'H' ? 1.35 : 1.12),
-                    scaleZ: (g === 'H' ? 1.38 : 1.18),
-                    tintHex: lower.includes('warg') ? '#4a423a' : (lower.includes('wolf') ? '#6e7580' : getAngbandColorString(m && m.attr))
-                };
-            }
         }
 
         // 2. Equines & Quadrupeds
         if (g === 'q' || /\b(horse|steed|mare|stallion|pony|unicorn|pegasus|mule)\b/.test(lower)) {
             return {
                 templateKey: 'bestiary_horse',
-                scale: 1.0
+                scale: 1.0,
+                seed
             };
         }
 
@@ -8750,7 +9833,8 @@ class Dungeon3D {
         if (g === 'r' || /\b(rat|mouse|mice|rodent|vole)\b/.test(lower)) {
             return {
                 templateKey: 'ph_street_rat',
-                scale: 1.0
+                scale: 1.0,
+                seed
             };
         }
 
@@ -8760,17 +9844,8 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_dragon',
                 scale: isAncient ? 1.38 : 0.92,
-                tintHex: getAngbandColorString(m && m.attr)
-            };
-        }
-
-        // 5. Birds & Bats
-        if (g === 'B' || g === 'b' || /\b(bird|crow|raven|eagle|hawk|falcon|owl|bat|stirge)\b/.test(lower)) {
-            return {
-                templateKey: 'bestiary_bird',
-                scale: (g === 'b') ? 0.75 : 0.95,
-                isFloating: true,
-                tintHex: getAngbandColorString(m && m.attr)
+                tintHex: getAngbandColorString(m && m.attr),
+                seed
             };
         }
 
@@ -8780,7 +9855,9 @@ class Dungeon3D {
                 templateKey: 'bestiary_skull',
                 scale: 0.85,
                 isFloating: true,
-                tintHex: getAngbandColorString(m && m.attr)
+                floating: true,
+                tintHex: getAngbandColorString(m && m.attr),
+                seed
             };
         }
 
@@ -8789,21 +9866,24 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_ant',
                 scale: 0.88,
-                tintHex: getAngbandColorString(m && m.attr)
+                tintHex: getAngbandColorString(m && m.attr),
+                seed
             };
         }
         if (g === 'K' || /\b(beetle|scarab|stag)\b/.test(lower)) {
             return {
                 templateKey: 'bestiary_beetle',
                 scale: 0.92,
-                tintHex: getAngbandColorString(m && m.attr)
+                tintHex: getAngbandColorString(m && m.attr),
+                seed
             };
         }
         if (g === 'c' || g === 'l' || /\b(centipede|millipede|crawler|louse|tick|mite)\b/.test(lower)) {
             return {
                 templateKey: 'bestiary_centipede',
                 scale: (g === 'l') ? 0.58 : 0.92,
-                tintHex: getAngbandColorString(m && m.attr)
+                tintHex: getAngbandColorString(m && m.attr),
+                seed
             };
         }
         if (g === 'S' || /\b(spider|tarantula|scorpion|weaver|ungoliant)\b/.test(lower)) {
@@ -8812,7 +9892,8 @@ class Dungeon3D {
             return {
                 templateKey: 'obj_spider',
                 scale: lower.includes('ungoliant') ? 1.55 : 0.95,
-                tintHex: spiderTint
+                tintHex: spiderTint,
+                seed
             };
         }
 
@@ -8821,7 +9902,8 @@ class Dungeon3D {
             return {
                 templateKey: 'obj_snake',
                 scale: (g === 'n') ? 1.25 : 0.92,
-                tintHex: getAngbandColorString(m && m.attr)
+                tintHex: getAngbandColorString(m && m.attr),
+                seed
             };
         }
 
@@ -8831,7 +9913,9 @@ class Dungeon3D {
                 templateKey: 'obj_wasp',
                 scale: 0.85,
                 isFloating: true,
-                tintHex: getAngbandColorString(m && m.attr)
+                floating: true,
+                tintHex: getAngbandColorString(m && m.attr),
+                seed
             };
         }
 
@@ -8840,7 +9924,8 @@ class Dungeon3D {
             return {
                 templateKey: 'obj_frog',
                 scale: 0.88,
-                tintHex: getAngbandColorString(m && m.attr)
+                tintHex: getAngbandColorString(m && m.attr),
+                seed
             };
         }
 
@@ -8849,118 +9934,151 @@ class Dungeon3D {
             /\b(mimic|creeping.*coin)\b/.test(lower)) {
             return {
                 templateKey: 'ph_chest',
-                scale: 0.95
+                scale: 0.95,
+                seed
             };
         }
 
-        // 12. Kobolds, Orcs, Goblins, Uruks, Trolls, Ogres (o, T, O, k, Y) vs Yeeks (y)
+        // 12. Yeeks
         if (g === 'y' || /\b(yeek|gremlin|homunculus)\b/.test(lower)) {
             return {
                 templateKey: 'bestiary_puglin',
                 scale: 0.72,
                 hunched: true,
-                weaponKey: null
-            };
-        }
-        if (g === 'k' || g === 'o' || g === 'T' || g === 'O' || g === 'Y' ||
-            /\b(kobold|goblin|orc|uruk|snaga|troll|ogre|yeti|sasquatch)\b/.test(lower)) {
-            const isLarge = (g === 'T' || g === 'O' || g === 'Y' || lower.includes('troll') || lower.includes('ogre'));
-            const isSmall = (g === 'k' || lower.includes('kobold') || lower.includes('goblin') || lower.includes('snaga'));
-            return {
-                templateKey: isSmall ? 'char_male_peasant' : 'char_male_ranger',
-                gender: 'male',
-                scaleY: isLarge ? 1.30 : (isSmall ? 0.76 : 0.96),
-                scaleXZ: isLarge ? 1.36 : (isSmall ? 0.82 : 1.08),
-                hunched: true,
-                isOrcish: true,
-                tintHex: isLarge ? '#44523b' : (isSmall ? '#6b5438' : '#4e633e'),
-                weaponKey: isLarge ? 'ph_mace' : 'ph_axe'
+                weaponKey: null,
+                seed
             };
         }
 
         // 13. Demons, Imps, Balrogs, Golems, Gargoyles, Elementals, Vortices
-        if (g === 'u' || g === 'U' || g === 'g' || g === 'E' || g === 'X' ||
-            /\b(imp|demon|quasit|balrog|fiend|devil|golem|gargoyle|elemental|xorn)\b/.test(lower)) {
+        if (g === 'u' || g === 'U' || g === 'E' || g === 'X' ||
+            /\b(imp|demon|quasit|balrog|fiend|devil|elemental|xorn)\b/.test(lower)) {
             const isMajor = (g === 'U' || lower.includes('balrog') || lower.includes('greater'));
-            const isElemental = (g === 'g' || g === 'E');
+            const isElemental = (g === 'E');
             return {
                 templateKey: 'bestiary_imp',
                 scale: isMajor ? 1.48 : 0.98,
                 tintHex: isElemental ? getAngbandColorString(m && m.attr) : null,
-                weaponKey: (g === 'U') ? 'ph_saber' : null
+                weaponKey: (g === 'U') ? 'ph_saber' : null,
+                seed
             };
         }
 
         // 14. Townsfolk
-        if (g === 't') {
+        if (g === 't' || lower.includes('farmer maggot')) {
+            if (lower === 'filthy street urchin' || lower.includes('urchin')) {
+                return {
+                    templateKey: 'char_male_peasant',
+                    gender: 'male',
+                    scale: 0.78,
+                    seed
+                };
+            }
+            if (lower === 'town guard') {
+                return {
+                    templateKey: 'char_male_guard',
+                    gender: 'male',
+                    scale: 1.02,
+                    weaponKey: 'item_spear',
+                    shieldKey: 'ph_shield',
+                    seed
+                };
+            }
             if (/\b(singing|drunk|woman|maiden|lady|witch|girl|sister)\b/.test(lower)) {
                 return {
                     templateKey: 'char_female_peasant',
                     gender: 'female',
-                    scale: 0.98
+                    scale: 0.98,
+                    seed
                 };
             }
             if (/\b(mercenary|veteran|guard|soldier|watchman|bouncer|warrior|ranger|agent)\b/.test(lower)) {
                 return {
-                    templateKey: 'char_male_ranger',
+                    templateKey: 'char_male_guard',
                     gender: 'male',
                     scale: 1.02,
-                    weaponKey: 'ph_saber',
-                    shieldKey: 'ph_shield'
+                    weaponKey: /archer|ranger/.test(lower) ? 'item_bow' : 'item_longsword',
+                    shieldKey: /archer|ranger/.test(lower) ? null : 'ph_shield',
+                    seed
                 };
             }
-            const isBearded = /\b(elder|old|farmer|maggot|beggar|leper|prophet|wizard|mage|priest)\b/.test(lower);
-            const isUrchin = lower.includes('urchin');
-            const isHunched = /\b(leper|beggar|wretch|idiot|cripple)\b/.test(lower);
-            const tunicPalette = ['#7a684d', '#4d5d6b', '#5a6b4c', '#6e4f47', '#63566e'];
-            const rawSeed = m && m.id !== undefined ? m.id : ((m ? (m.x || 0) * 7 + (m.y || 0) * 13 : 0));
-            let seedNum = typeof rawSeed === 'number' ? rawSeed : 0;
-            if (typeof rawSeed === 'string') {
-                for (let si = 0; si < rawSeed.length; si++) seedNum = (seedNum * 31 + rawSeed.charCodeAt(si)) | 0;
-            }
-            const tunicTint = tunicPalette[Math.abs(seedNum) % tunicPalette.length];
-            const weaponKey = lower.includes('rogue') ? 'ph_dagger' : (lower.includes('leper') || lower.includes('beggar') ? 'ph_lantern' : null);
-            return {
-                templateKey: isBearded ? 'char_male_peasant_bearded' : 'char_male_peasant',
-                gender: 'male',
-                scale: isUrchin ? 0.78 : 0.98,
-                hunched: isHunched,
-                tunicOnlyTint: true,
-                tintHex: tunicTint,
-                weaponKey: weaponKey
-            };
-        }
-
-        // 15. Undead
-        if (g === 's' || g === 'z' || g === 'W' || g === 'V' || g === 'L' || g === 'G') {
-            if (g === 'z') {
+            if (/\b(rogue|thief|cutpurse|bandit|pickpocket|burglar)\b/.test(lower)) {
                 return {
-                    templateKey: 'char_male_peasant',
+                    templateKey: 'char_male_rogue',
+                    gender: 'male',
+                    scale: 0.98,
+                    weaponKey: 'ph_dagger',
+                    seed
+                };
+            }
+            if (lower.includes('leper')) {
+                return {
+                    templateKey: 'char_male_priest',
                     gender: 'male',
                     scale: 0.98,
                     hunched: true,
-                    tintHex: '#6c7d65'
+                    weaponKey: 'ph_lantern',
+                    seed
                 };
             }
+            if (/\b(priest|cleric|prophet|acolyte|monk)\b/.test(lower)) {
+                return {
+                    templateKey: 'char_male_priest',
+                    gender: 'male',
+                    scale: 0.98,
+                    seed
+                };
+            }
+            if (lower.includes('farmer maggot')) {
+                return {
+                    templateKey: 'char_male_peasant_bearded',
+                    gender: 'male',
+                    scaleY: 0.78,
+                    scaleXZ: 1.05,
+                    tunicOnlyTint: true,
+                    tintHex: '#5a6b4c',
+                    weaponKey: 'item_staff_branch',
+                    seed
+                };
+            }
+            const isBearded = /\b(elder|old|farmer|maggot|beggar|wizard|mage)\b/.test(lower);
+            const isHunched = /\b(beggar|wretch|idiot|cripple)\b/.test(lower);
+            const tunicPalette = ['#7a684d', '#4d5d6b', '#5a6b4c', '#6e4f47', '#63566e'];
+            const tunicTint = tunicPalette[Math.abs(seed) % tunicPalette.length];
+            const weaponKey = lower.includes('beggar') ? 'ph_lantern' : null;
+            return {
+                templateKey: isBearded ? 'char_male_peasant_bearded' : 'char_male_peasant',
+                gender: 'male',
+                scale: 0.98,
+                hunched: isHunched,
+                tunicOnlyTint: true,
+                tintHex: tunicTint,
+                weaponKey: weaponKey,
+                seed
+            };
+        }
+
+        // 15. Undead fallback
+        if (g === 'V') {
             const isFemale = /\b(banshee|lady|queen|bride|female)\b/.test(lower);
-            const tint = (g === 's') ? '#d8d0c0' : ((g === 'G') ? '#70a8d8' : '#4a3c58');
             return {
                 templateKey: isFemale ? 'char_female_ranger' : 'char_male_ranger',
                 gender: isFemale ? 'female' : 'male',
                 scale: 1.04,
-                tintHex: tint,
-                weaponKey: (g === 'L') ? 'ph_mace' : 'ph_saber'
+                tintHex: '#4a3c58',
+                weaponKey: 'ph_saber',
+                seed
             };
         }
 
-        // 16. Giants, Titans, Ainur, Morgoth
-        if (g === 'P' || g === 'A') {
-            const isHuge = lower.includes('morgoth') || lower.includes('titan');
+        // 16. Ainur
+        if (g === 'A') {
             return {
-                templateKey: 'char_male_ranger',
-                gender: 'male',
-                scale: isHuge ? 1.62 : 1.42,
-                weaponKey: lower.includes('morgoth') ? 'ph_hammer' : 'ph_axe'
+                templateKey: 'char_valkyrie',
+                scale: 1.25,
+                weaponKey: 'item_rune_blade',
+                shieldKey: 'item_shield_raven',
+                seed
             };
         }
 
@@ -8971,18 +10089,61 @@ class Dungeon3D {
                 templateKey: isPeasant ? 'char_female_peasant' : 'char_female_ranger',
                 gender: 'female',
                 scale: 0.98,
-                weaponKey: 'ph_dagger'
+                weaponKey: 'ph_dagger',
+                seed
             };
         }
 
-        if (g === 'h' || /\b(dwarf|dwarven|halfling|hobbit|gnome)\b/.test(lower)) {
+        if (/\b(dwarf|dwarven|halfling|hobbit|gnome|nibelung|petty-dwarf)\b/.test(lower)) {
             return {
                 templateKey: 'char_male_ranger',
                 gender: 'male',
-                scaleY: 0.76,
-                scaleXZ: 1.16,
+                scale: 0.78,
+                scaleY: 0.78,
+                scaleXZ: 1.12,
                 weaponKey: 'ph_axe',
-                shieldKey: 'ph_shield'
+                shieldKey: 'ph_shield',
+                seed
+            };
+        }
+
+        if (/\b(mind flayer|illithid|ulthar)\b/.test(lower)) {
+            return {
+                templateKey: 'char_male_priest',
+                gender: 'male',
+                scale: 1.04,
+                tintHex: '#6a3d8a',
+                weaponKey: 'ph_mace',
+                seed
+            };
+        }
+
+        if (/\b(rogue|thief|cutpurse|bandit|brigand|assassin|burglar|mugger|pirate|outlaw|highwayman)\b/.test(lower)) {
+            return {
+                templateKey: 'char_male_rogue',
+                gender: 'male',
+                scale: 0.98,
+                weaponKey: 'ph_dagger',
+                seed
+            };
+        }
+        if (/\b(priest|cleric|prophet|acolyte|monk|mage|wizard|sorcerer|necromancer|illusionist|conjurer|warlock|druid|shaman|cultist)\b/.test(lower)) {
+            return {
+                templateKey: 'char_male_priest',
+                gender: 'male',
+                scale: 0.98,
+                weaponKey: 'ph_mace',
+                seed
+            };
+        }
+        if (/\b(paladin|knight|guard|veteran|mercenary|templar|crusader|champion|warlord|captain|berserker)\b/.test(lower)) {
+            return {
+                templateKey: 'char_male_guard',
+                gender: 'male',
+                scale: 1.02,
+                weaponKey: /berserker|warlord/.test(lower) ? 'item_greatsword' : 'item_longsword',
+                shieldKey: /berserker/.test(lower) ? null : 'ph_shield',
+                seed
             };
         }
 
@@ -8991,8 +10152,194 @@ class Dungeon3D {
             templateKey: isLowly ? 'char_male_peasant' : 'char_male_ranger',
             gender: 'male',
             scale: 1.0,
-            weaponKey: 'ph_saber'
+            weaponKey: /archer|ranger|hunter|scout/.test(lower) ? 'item_bow' : (isLowly ? 'ph_dagger' : 'item_longsword'),
+            seed
         };
+    }
+
+    _prepareCanonicalHeldClone(wClone, itemKey) {
+        if (!wClone) return null;
+        const innerPivot = wClone.children && wClone.children[0];
+        const scene = innerPivot && innerPivot.children && innerPivot.children[0];
+        wClone.position.set(0, 0, 0);
+        wClone.rotation.set(0, 0, 0);
+        wClone.scale.set(1, 1, 1);
+        if (!innerPivot || !scene) return wClone;
+
+        innerPivot.position.set(0, 0, 0);
+        innerPivot.rotation.set(0, 0, 0);
+        scene.position.set(0, 0, 0);
+        scene.rotation.set(0, 0, 0);
+
+        const openMmoXWeapons = {
+            item_goblin_sword: 0.72,
+            item_longsword: 0.98,
+            item_greatsword: 1.28,
+            item_rune_blade: 1.22,
+            item_morningstar: 0.82,
+            item_greatclub: 1.18,
+            item_spear: 1.68,
+            item_bow: 1.18,
+            item_torch: 0.58
+        };
+        const phYWeapons = {
+            ph_dagger: { span: 0.44, rotY: -Math.PI * 0.5, gripFrac: 0.20 },
+            ph_hatchet: { span: 0.52, rotY: 0, gripFrac: 0.22 },
+            ph_axe: { span: 0.74, rotY: 0, gripFrac: 0.22 },
+            ph_mace: { span: 0.68, rotY: -Math.PI * 0.5, gripFrac: 0.20 },
+            ph_hammer: { span: 0.74, rotY: -Math.PI * 0.5, gripFrac: 0.22 },
+            ph_sledgehammer: { span: 1.02, rotY: -Math.PI * 0.5, gripFrac: 0.25 },
+            ph_saber: { span: 0.88, rotY: 0, gripFrac: 0.16 },
+            ph_katana: { span: 0.94, rotY: 0, gripFrac: 0.18 },
+            ph_estoc: { span: 1.04, rotY: -Math.PI * 0.5, gripFrac: 0.14 }
+        };
+
+        let combatSpan = 0.75;
+        let scaleMult = 1.0;
+        if (openMmoXWeapons[itemKey] !== undefined) {
+            combatSpan = openMmoXWeapons[itemKey];
+            // Raw OpenMMO weapons: +X is shaft (pommel->tip), +Y is blade edge / bow curve, +Z is thickness
+            // Map raw +X -> canonical +Y (shaft), raw +Y -> canonical +Z (edge/front), raw +Z -> canonical +X
+            const basis = new THREE.Matrix4().makeBasis(
+                new THREE.Vector3(0, 1, 0),
+                new THREE.Vector3(0, 0, 1),
+                new THREE.Vector3(1, 0, 0)
+            );
+            scene.quaternion.setFromRotationMatrix(basis);
+            if (itemKey === 'item_spear') {
+                scene.position.set(0, -0.15, 0);
+            } else if (itemKey === 'item_bow') {
+                const c = wClone._rawCenter || new THREE.Vector3();
+                scene.position.set(0, 0, -c.x);
+            } else {
+                scene.position.set(0, 0.04, 0);
+            }
+        } else if (phYWeapons[itemKey]) {
+            const cfgW = phYWeapons[itemKey];
+            combatSpan = cfgW.span;
+            const c = wClone._rawCenter || new THREE.Vector3();
+            const rMin = wClone._rawMin || new THREE.Vector3(0, -0.25, 0);
+            const rSize = wClone._rawSize || new THREE.Vector3(0.1, 0.6, 0.1);
+            const gripY = -(rMin.y + rSize.y * (cfgW.gripFrac || 0.20));
+            scene.rotation.set(0, cfgW.rotY, 0);
+            scene.position.set(0, gripY, 0);
+        } else if (itemKey === 'item_shovel') {
+            combatSpan = 0.86;
+            // rusted_spade_01: scoop is at -Y, handle at +Y; flip 180 deg Z so scoop is at +Y top and face scoop forward
+            scene.rotation.set(0, -0.35, Math.PI);
+            scene.position.set(0, 0.16, 0);
+        } else if (itemKey === 'item_pickaxe') {
+            combatSpan = 0.84;
+            // picke_dirty_01: iron pick head is at +Y, prongs along X; rotate -90 deg Y so prongs point along +Z
+            scene.rotation.set(0, -Math.PI * 0.5, 0);
+            scene.position.set(0, 0.16, 0);
+        } else if (itemKey === 'item_staff_branch') {
+            combatSpan = 1.12;
+            const c = wClone._rawCenter || new THREE.Vector3();
+            scene.position.set(-c.x, -c.y, -c.z);
+            innerPivot.position.y = 0.08;
+            scaleMult = 1.0;
+        } else if (itemKey === 'item_shield_wicker' || itemKey === 'ph_shield' || itemKey === 'item_shield_wooden' || itemKey === 'item_shield_raven' || itemKey === 'item_shield_leather' || itemKey === 'item_shield_metal') {
+            combatSpan = itemKey === 'ph_shield' ? 0.72 : (itemKey === 'item_shield_wicker' ? 0.56 : 0.62);
+            const c = wClone._rawCenter || new THREE.Vector3();
+            scene.position.set(-c.x, -c.y, -c.z);
+        } else if (itemKey === 'ph_lantern') {
+            combatSpan = 0.38;
+            const c = wClone._rawCenter || new THREE.Vector3();
+            const mx = wClone._rawMax || new THREE.Vector3(0, 0.5, 0);
+            scene.position.set(-c.x, -mx.y, -c.z);
+        } else {
+            const c = wClone._rawCenter || new THREE.Vector3();
+            scene.position.set(-c.x, -c.y, -c.z);
+        }
+
+        const rawMaxDim = Math.max(0.001, wClone._rawMaxDim || 1.0);
+        const s = (combatSpan / rawMaxDim) * scaleMult;
+        innerPivot.scale.set(s, s, s);
+        if (itemKey === 'item_staff_branch') {
+            innerPivot.scale.set(s * 0.28, s, s * 0.28);
+        }
+        if (itemKey === 'item_shield_wicker' || itemKey === 'ph_shield' || itemKey === 'item_shield_wooden' || itemKey === 'item_shield_raven' || itemKey === 'item_shield_leather' || itemKey === 'item_shield_metal') {
+            innerPivot.position.z = 0.04;
+            innerPivot.position.y = 0.02;
+        }
+        return wClone;
+    }
+
+    _applyCombatArmPose(rootObj) {
+        if (!rootObj) return;
+        const instRoot = rootObj.creatureMesh || rootObj.mesh || rootObj;
+        const isAnimatedMixer = Boolean(instRoot._mixer || rootObj._mixer);
+        if (!isAnimatedMixer) return;
+
+        const rigBones = rootObj._rigBones || (rootObj.mesh && rootObj.mesh._rigBones) || (rootObj.creatureMesh && rootObj.creatureMesh._rigBones);
+        const atts = rootObj._heldAttachments || (rootObj.mesh && rootObj.mesh._heldAttachments) || (rootObj.creatureMesh && rootObj.creatureMesh._heldAttachments);
+        if (!rigBones || !atts || atts.length === 0) return;
+
+        const hasWeapon = atts.some(a => a.role === 'weapon' || a.role === 'lantern' || (!a.role && a.bone === rigBones.hand_r));
+        const hasShield = atts.some(a => a.role === 'shield' || a.role === 'bow' || (!a.role && (a.bone === rigBones.hand_l || a.bone === rigBones.lowerarm_l)));
+        if (!hasWeapon && !hasShield) return;
+
+        this._tmpArmPPos = this._tmpArmPPos || new THREE.Vector3();
+        this._tmpArmCPos = this._tmpArmCPos || new THREE.Vector3();
+        this._tmpArmTgt = this._tmpArmTgt || new THREE.Vector3();
+        this._tmpArmUpper = this._tmpArmUpper || new THREE.Vector3();
+        this._tmpArmLower = this._tmpArmLower || new THREE.Vector3();
+        this._tmpArmDeltaQ = this._tmpArmDeltaQ || new THREE.Quaternion();
+        this._tmpArmPWorldQ = this._tmpArmPWorldQ || new THREE.Quaternion();
+        this._tmpArmLocalQ = this._tmpArmLocalQ || new THREE.Quaternion();
+        this._tmpArmRootQ = this._tmpArmRootQ || new THREE.Quaternion();
+
+        const swingBone = (parentBone, childBone, targetWorldDir) => {
+            if (!parentBone || !childBone) return;
+            parentBone.updateWorldMatrix(true, false);
+            childBone.updateWorldMatrix(true, false);
+            this._tmpArmPPos.setFromMatrixPosition(parentBone.matrixWorld);
+            this._tmpArmCPos.setFromMatrixPosition(childBone.matrixWorld);
+            const curDir = this._tmpArmCPos.sub(this._tmpArmPPos);
+            if (curDir.lengthSq() < 1e-6) return;
+            curDir.normalize();
+            const tgtDir = this._tmpArmTgt.copy(targetWorldDir).normalize();
+            this._tmpArmDeltaQ.setFromUnitVectors(curDir, tgtDir);
+            parentBone.getWorldQuaternion(this._tmpArmPWorldQ);
+            this._tmpArmLocalQ.copy(this._tmpArmPWorldQ).invert().multiply(this._tmpArmDeltaQ).multiply(this._tmpArmPWorldQ);
+            parentBone.quaternion.multiply(this._tmpArmLocalQ);
+            parentBone.updateMatrixWorld(true);
+        };
+
+        instRoot.updateMatrixWorld(true);
+        instRoot.getWorldQuaternion(this._tmpArmRootQ);
+
+        if (hasWeapon && rigBones.upperarm_r && rigBones.lowerarm_r && rigBones.hand_r) {
+            this._tmpArmUpper.set(-0.30, -0.82, 0.48).applyQuaternion(this._tmpArmRootQ);
+            this._tmpArmLower.set(-0.18, 0.18, 0.96).applyQuaternion(this._tmpArmRootQ);
+            swingBone(rigBones.upperarm_r, rigBones.lowerarm_r, this._tmpArmUpper);
+            swingBone(rigBones.lowerarm_r, rigBones.hand_r, this._tmpArmLower);
+        }
+        if (hasShield && rigBones.upperarm_l && rigBones.lowerarm_l && rigBones.hand_l) {
+            this._tmpArmUpper.set(0.28, -0.80, 0.52).applyQuaternion(this._tmpArmRootQ);
+            this._tmpArmLower.set(-0.14, 0.14, 0.98).applyQuaternion(this._tmpArmRootQ);
+            swingBone(rigBones.upperarm_l, rigBones.lowerarm_l, this._tmpArmUpper);
+            swingBone(rigBones.lowerarm_l, rigBones.hand_l, this._tmpArmLower);
+        }
+    }
+
+    _stabilizeHeldEquipment(entity) {
+        this._applyCombatArmPose(entity);
+        const list = entity && (entity._heldAttachments || (entity.creatureMesh && entity.creatureMesh._heldAttachments) || (entity.mesh && entity.mesh._heldAttachments));
+        if (!list || list.length === 0) return;
+        const instObj = entity.creatureMesh || entity.mesh || entity;
+        instObj.updateMatrixWorld(true);
+        this._tmpInstQ = this._tmpInstQ || new THREE.Quaternion();
+        this._tmpBoneQ = this._tmpBoneQ || new THREE.Quaternion();
+        instObj.getWorldQuaternion(this._tmpInstQ).invert();
+        for (let i = 0; i < list.length; i++) {
+            const att = list[i];
+            if (!att || !att.clone || !att.bone || !att.targetCharQ) continue;
+            att.bone.getWorldQuaternion(this._tmpBoneQ);
+            this._tmpBoneQ.premultiply(this._tmpInstQ).invert().multiply(att.targetCharQ);
+            att.clone.quaternion.copy(this._tmpBoneQ);
+        }
     }
 
     _instantiateMonster3DFromTemplate(cfg) {
@@ -9014,80 +10361,184 @@ class Dungeon3D {
         }
 
         if (cfg.tintHex) {
+            this._tintedMatPool = this._tintedMatPool || new Map();
             const tintCol = new THREE.Color(cfg.tintHex);
             const armorDarkCol = new THREE.Color(0x2e2a24);
             instance.traverse(c => {
                 if ((c.isMesh || c.isSkinnedMesh) && c.material) {
+                    const matName = (Array.isArray(c.material) ? c.material.map(m => m.name || '').join(' ') : (c.material.name || '')).toLowerCase();
                     const meshName = ((c.name || '') + ' ' + (c.geometry ? c.geometry.name || '' : '')).toLowerCase();
+                    if (/eye|teeth|tooth|superhero|regular/i.test(matName + '_' + meshName)) return;
                     if (cfg.tunicOnlyTint && !meshName.includes('peasant_body')) {
                         return;
                     }
                     const oldMat = Array.isArray(c.material) ? c.material[0] : c.material;
-                    const newMat = oldMat.clone();
-                    newMat._sharedMaterial = false;
-                    if (c.isSkinnedMesh || oldMat.skinning) {
-                        newMat.skinning = true;
-                    }
-                    if (newMat.color) {
-                        if (cfg.isOrcish) {
-                            const isSkin = meshName.includes('sphere.005') || meshName.includes('retopology') || meshName.includes('superhero');
-                            newMat.color.lerp(isSkin ? tintCol : armorDarkCol, isSkin ? 0.68 : 0.58);
-                        } else {
-                            newMat.color.lerp(tintCol, cfg.tunicOnlyTint ? 0.45 : 0.55);
+                    const poolKey = `${oldMat.uuid}_${cfg.tintHex}_${Boolean(cfg.isOrcish)}_${Boolean(cfg.tunicOnlyTint)}`;
+                    let pooledMat = this._tintedMatPool.get(poolKey);
+                    if (!pooledMat) {
+                        if (this._tintedMatPool.size >= 64) {
+                            const firstKey = this._tintedMatPool.keys().next().value;
+                            this._tintedMatPool.delete(firstKey);
                         }
+                        pooledMat = oldMat.clone();
+                        pooledMat._sharedMaterial = true;
+                        if (c.isSkinnedMesh || oldMat.skinning) {
+                            pooledMat.skinning = true;
+                        }
+                        if (pooledMat.color) {
+                            if (cfg.isOrcish) {
+                                const isSkin = meshName.includes('sphere.005') || meshName.includes('retopology') || meshName.includes('superhero');
+                                pooledMat.color.lerp(isSkin ? tintCol : armorDarkCol, isSkin ? 0.68 : 0.58);
+                            } else {
+                                pooledMat.color.lerp(tintCol, cfg.tunicOnlyTint ? 0.45 : 0.55);
+                            }
+                        }
+                        this._tintedMatPool.set(poolKey, pooledMat);
                     }
-                    c.material = newMat;
+                    c.material = pooledMat;
                 }
             });
         }
 
-        if (cfg.weaponKey) {
-            this._ensurePolyHavenFloorItem(cfg.weaponKey).then(wTmpl => {
-                if (!wTmpl || !instance.parent) return;
-                const wClone = this._cloneCachedGltfTemplate(wTmpl, null, cfg.weaponKey);
-                if (wClone) {
-                    wClone.scale.set(0.55, 0.55, 0.55);
-                    if (wClone.children[0]) {
-                        wClone.children[0].rotation.set(0, 0, 0);
-                        wClone.children[0].position.set(0, -0.06, 0);
-                    }
-                    if (instance._rigBones && instance._rigBones.hand_r) {
-                        instance._rigBones.hand_r.add(wClone);
-                        wClone.position.set(0, 0.06, 0);
-                        wClone.quaternion.identity();
-                        instance.updateMatrixWorld(true);
-                        const handWorldQ = instance._rigBones.hand_r.getWorldQuaternion(new THREE.Quaternion());
-                        const bladeWorldQ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0.78, 0.62).normalize());
-                        wClone.quaternion.copy(handWorldQ.invert().multiply(bladeWorldQ));
-                    }
+        let animClips = (instance._animations && instance._animations.length > 0)
+            ? instance._animations
+            : (tmpl._animations && tmpl._animations.length > 0 ? tmpl._animations : null);
+        if (animClips && animClips.length > 0 && typeof THREE.AnimationMixer !== 'undefined') {
+            try {
+                const { idleClip, walkClip } = this._selectCreatureClips(animClips, cfg);
+                const mixer = new THREE.AnimationMixer(instance);
+                const idleAction = idleClip ? mixer.clipAction(idleClip) : null;
+                const walkAction = (walkClip && walkClip !== idleClip) ? mixer.clipAction(walkClip) : null;
+                if (idleAction) {
+                    idleAction.time = ((cfg.seed || 0) % Math.max(0.1, idleClip.duration || 1));
+                    idleAction.play();
+                    mixer.update(0.016);
+                    instance.updateMatrixWorld(true);
                 }
-            }).catch(() => {});
+                instance._mixer = mixer;
+                instance._idleAction = idleAction;
+                instance._walkAction = walkAction;
+                instance._activeAnimState = 'idle';
+            } catch (err) {}
+        }
+
+        const creatureRatio = Math.max(0.58, Math.min(1.35, (tmpl.actualHeight || tmpl.baseHeight || 1.72) / 1.75));
+        instance._heldAttachments = [];
+
+        if (cfg.weaponKey) {
+            instance.traverse(c => {
+                if (c.name && /^(Puglin_Stick|Imp_Mace)$/i.test(c.name)) {
+                    c.visible = false;
+                }
+            });
+            const attachWeapon = (wTmpl) => {
+                if (!wTmpl || !instance._rigBones) return;
+                const handBone = (cfg.weaponKey === 'item_bow' && instance._rigBones.hand_l)
+                    ? instance._rigBones.hand_l
+                    : instance._rigBones.hand_r;
+                if (!handBone) return;
+                const wClone = this._cloneCachedGltfTemplate(wTmpl, null, cfg.weaponKey);
+                if (!wClone) return;
+                this._prepareCanonicalHeldClone(wClone, cfg.weaponKey);
+
+                instance.updateMatrixWorld(true);
+                const bScale = new THREE.Vector3();
+                handBone.getWorldScale(bScale);
+                const ws = creatureRatio / Math.max(0.0001, bScale.y || 1.0);
+                wClone.scale.set(ws, ws, ws);
+                handBone.add(wClone);
+                wClone.position.set(0, 0, 0);
+
+                const fingerBone = (handBone === instance._rigBones.hand_l) ? instance._rigBones.middle_01_l : instance._rigBones.middle_01_r;
+                if (handBone._palmLocalOffset) {
+                    wClone.position.copy(handBone._palmLocalOffset);
+                } else if (fingerBone && fingerBone !== handBone) {
+                    const wPos = new THREE.Vector3();
+                    const fPos = new THREE.Vector3();
+                    handBone.getWorldPosition(wPos);
+                    fingerBone.getWorldPosition(fPos);
+                    wPos.lerp(fPos, 0.68);
+                    handBone.worldToLocal(wPos);
+                    wClone.position.copy(wPos);
+                }
+
+                instance.updateMatrixWorld(true);
+                const instWorldQ = instance.getWorldQuaternion(new THREE.Quaternion());
+                const boneWorldQ = handBone.getWorldQuaternion(new THREE.Quaternion());
+                const boneCharQ = instWorldQ.clone().invert().multiply(boneWorldQ);
+
+                let yChar, zChar;
+                if (cfg.weaponKey === 'item_bow') {
+                    yChar = new THREE.Vector3(-0.10, 0.98, 0.12).normalize();
+                    zChar = new THREE.Vector3(0.28, -0.08, 0.96).normalize();
+                } else if (cfg.weaponKey === 'ph_lantern') {
+                    yChar = new THREE.Vector3(0.0, 1.0, 0.0);
+                    zChar = new THREE.Vector3(0.35, 0.0, 0.94).normalize();
+                } else if (cfg.weaponKey === 'item_spear' || cfg.weaponKey === 'item_staff_branch') {
+                    yChar = new THREE.Vector3(-0.12, 0.88, 0.46).normalize();
+                    zChar = new THREE.Vector3(0.42, -0.40, 0.81).normalize();
+                } else {
+                    yChar = new THREE.Vector3(-0.16, 0.84, 0.52).normalize();
+                    zChar = new THREE.Vector3(0.46, -0.44, 0.77).normalize();
+                }
+                const xChar = new THREE.Vector3().crossVectors(yChar, zChar).normalize();
+                zChar.crossVectors(xChar, yChar).normalize();
+                const basisMat = new THREE.Matrix4().makeBasis(xChar, yChar, zChar);
+                const targetCharQ = new THREE.Quaternion().setFromRotationMatrix(basisMat);
+                const role = (cfg.weaponKey === 'item_bow') ? 'bow' : (cfg.weaponKey === 'ph_lantern' ? 'lantern' : 'weapon');
+                instance._heldAttachments.push({ clone: wClone, bone: handBone, targetCharQ: targetCharQ.clone(), role });
+                this._stabilizeHeldEquipment(instance);
+            };
+            if (this._gltfTemplateCache && this._gltfTemplateCache.has(cfg.weaponKey)) {
+                attachWeapon(this._gltfTemplateCache.get(cfg.weaponKey));
+            } else {
+                this._ensurePolyHavenFloorItem(cfg.weaponKey).then(attachWeapon).catch(() => {});
+            }
         }
 
         if (cfg.shieldKey) {
-            this._ensurePolyHavenFloorItem(cfg.shieldKey).then(sTmpl => {
-                if (!sTmpl || !instance.parent) return;
+            const attachShield = (sTmpl) => {
+                if (!sTmpl || !instance._rigBones) return;
+                const shieldBone = instance._rigBones.hand_l || instance._rigBones.lowerarm_l;
+                if (!shieldBone) return;
                 const sClone = this._cloneCachedGltfTemplate(sTmpl, null, cfg.shieldKey);
-                if (sClone) {
-                    sClone.scale.set(0.55, 0.55, 0.55);
-                    if (sClone.children[0]) {
-                        sClone.children[0].rotation.set(0, 0, 0);
-                        sClone.children[0].position.set(0, -0.22, 0.04);
-                    }
-                    if (instance._rigBones && instance._rigBones.lowerarm_l) {
-                        instance._rigBones.lowerarm_l.add(sClone);
-                        sClone.position.set(0, 0.12, 0);
-                        sClone.quaternion.identity();
-                        instance.updateMatrixWorld(true);
-                        const armWorldQ = instance._rigBones.lowerarm_l.getWorldQuaternion(new THREE.Quaternion());
-                        const shieldWorldQ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(-0.35, 0.08, 0.93).normalize());
-                        sClone.quaternion.copy(armWorldQ.invert().multiply(shieldWorldQ));
-                    } else if (instance._rigBones && instance._rigBones.hand_l) {
-                        instance._rigBones.hand_l.add(sClone);
-                        sClone.position.set(-0.05, 0, 0.05);
-                    }
+                if (!sClone) return;
+                this._prepareCanonicalHeldClone(sClone, cfg.shieldKey);
+
+                instance.updateMatrixWorld(true);
+                const bScale = new THREE.Vector3();
+                shieldBone.getWorldScale(bScale);
+                const ss = creatureRatio / Math.max(0.0001, bScale.y || 1.0);
+                sClone.scale.set(ss, ss, ss);
+                shieldBone.add(sClone);
+                if (shieldBone._palmLocalOffset) {
+                    sClone.position.copy(shieldBone._palmLocalOffset);
+                } else if (shieldBone === instance._rigBones.lowerarm_l) {
+                    sClone.position.set(0, 0.18 * ss, 0.03 * ss);
+                } else {
+                    sClone.position.set(0, 0, 0);
                 }
-            }).catch(() => {});
+
+                instance.updateMatrixWorld(true);
+                const instWorldQ = instance.getWorldQuaternion(new THREE.Quaternion());
+                const boneWorldQ = shieldBone.getWorldQuaternion(new THREE.Quaternion());
+                const boneCharQ = instWorldQ.clone().invert().multiply(boneWorldQ);
+
+                const yChar = new THREE.Vector3(0.0, 0.99, -0.08).normalize();
+                const zChar = new THREE.Vector3(0.28, 0.08, 0.95).normalize();
+                const xChar = new THREE.Vector3().crossVectors(yChar, zChar).normalize();
+                yChar.crossVectors(zChar, xChar).normalize();
+                const basisMat = new THREE.Matrix4().makeBasis(xChar, yChar, zChar);
+                const targetCharQ = new THREE.Quaternion().setFromRotationMatrix(basisMat);
+                sClone.quaternion.copy(boneCharQ.clone().invert().multiply(targetCharQ));
+                instance._heldAttachments.push({ clone: sClone, bone: shieldBone, targetCharQ: targetCharQ.clone(), role: 'shield' });
+                this._stabilizeHeldEquipment(instance);
+            };
+            if (this._gltfTemplateCache && this._gltfTemplateCache.has(cfg.shieldKey)) {
+                attachShield(this._gltfTemplateCache.get(cfg.shieldKey));
+            } else {
+                this._ensurePolyHavenFloorItem(cfg.shieldKey).then(attachShield).catch(() => {});
+            }
         }
 
         instance.isReal3DMonster = true;
@@ -9124,7 +10575,14 @@ class Dungeon3D {
             root.isBillboard = false;
             root.pending3DConfig = null;
             modelHeight = mesh.baseHeight || 1.0;
-            isFloating = Boolean(cfg.isFloating);
+            isFloating = Boolean(cfg.isFloating || cfg.floating);
+            if (mesh._mixer) {
+                root._mixer = mesh._mixer;
+                root._idleAction = mesh._idleAction;
+                root._walkAction = mesh._walkAction;
+                root._activeAnimState = mesh._activeAnimState;
+            }
+            root._heldAttachments = mesh._heldAttachments;
         } else {
             this._ensureMonster3DTemplate(cfg.templateKey);
             mesh = new THREE.Group();
@@ -9132,7 +10590,7 @@ class Dungeon3D {
             root.isReal3DMonster = false;
             root.isBillboard = false;
             modelHeight = 1.0 * (cfg.scaleY || cfg.scale || 1.0);
-            isFloating = Boolean(cfg.isFloating);
+            isFloating = Boolean(cfg.isFloating || cfg.floating);
         }
 
         root.add(mesh);
@@ -9211,11 +10669,16 @@ class Dungeon3D {
                 entity.lastHp = m.hp;
                 entity.initialHp = m.hp_max || m.hp;
                 entity.lastSensed = isSensed;
+                entity.lastTargeted = isTargeted;
+                entity.lastAsleep = !!m.asleep;
+                entity.lastAfraid = !!m.afraid;
+                entity.isAsleep = !!m.asleep;
                 entity.monsterData = m;
                 this.scene.add(entity);
                 this.monsters.set(id, entity);
             } else {
                 entity.targetPos.set(wx, baseY, wz);
+                entity.isAsleep = !!m.asleep;
                 if (entity.config) {
                     m.modelGender = entity.config.gender || 'male';
                     m.gender = entity.config.gender || 'male';
@@ -9223,8 +10686,6 @@ class Dungeon3D {
                     m.isFemale = (m.modelGender === 'female' || m.modelKey === 'casual' || m.modelKey === 'witch');
                 }
                 entity.monsterData = m;
-
-
 
                 // Auto-upgrade monster to true 3D rigged model once glTF/GLB template has loaded
                 if (!entity.isReal3DMonster) {
@@ -9235,11 +10696,18 @@ class Dungeon3D {
                         entity.creatureMesh = upgraded3D;
                         entity.add(upgraded3D);
                         entity.modelHeight = upgraded3D.baseHeight || 1.0;
-                        entity.isFloating = Boolean(cfg.isFloating);
+                        entity.isFloating = Boolean(cfg.isFloating || cfg.floating);
                         entity.isReal3DMonster = true;
                         entity.isBillboard = false;
                         entity.pending3DConfig = null;
                         entity.isFallback = false;
+                        if (upgraded3D._mixer) {
+                            entity._mixer = upgraded3D._mixer;
+                            entity._idleAction = upgraded3D._idleAction;
+                            entity._walkAction = upgraded3D._walkAction;
+                            entity._activeAnimState = upgraded3D._activeAnimState;
+                        }
+                        entity._heldAttachments = upgraded3D._heldAttachments;
                         upgraded3D.monsterData = m;
                         if (entity.contactShadow) {
                             const footprint = (upgraded3D.baseWidth || 1.25) * 0.75;
@@ -9268,7 +10736,13 @@ class Dungeon3D {
 
                 // Refresh nameplate if HP, status, target state, or sensed state changed
                 if (entity.lastHp !== m.hp || entity.lastTargeted !== isTargeted || entity.lastAsleep !== m.asleep || entity.lastAfraid !== m.afraid || entity.lastSensed !== isSensed) {
-                    entity.remove(entity.nameplate);
+                    if (entity.nameplate) {
+                        if (entity.nameplate.material) {
+                            if (entity.nameplate.material.map) entity.nameplate.material.map.dispose();
+                            entity.nameplate.material.dispose();
+                        }
+                        entity.remove(entity.nameplate);
+                    }
                     entity.nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
                     entity.nameplate.position.set(0, Math.min(2.55, Math.max(0.58, entity.modelHeight + 0.24)), 0);
                     entity.add(entity.nameplate);
@@ -9338,6 +10812,10 @@ class Dungeon3D {
                 const isTargeted = Boolean(this.currentTarget && this.currentTarget.key === id);
                 const isSensed = !!(m.invisible || (m.detected && m.unlit));
                 if (entity.nameplate) {
+                    if (entity.nameplate.material) {
+                        if (entity.nameplate.material.map) entity.nameplate.material.map.dispose();
+                        entity.nameplate.material.dispose();
+                    }
                     entity.remove(entity.nameplate);
                 }
                 entity.nameplate = this.createNameplateSprite(m, isTargeted, isSensed);
@@ -9353,55 +10831,120 @@ class Dungeon3D {
         const lower = (name || '').toLowerCase();
         const g = glyph || '';
 
+        // Digging Tools (Picks, Shovels, Spades)
+        if (/\b(pick|pickaxe|mattock|digger)\b/.test(lower)) return 'item_pickaxe';
+        if (g === '\\' || /\b(shovel|spade|trowel)\b/.test(lower)) return 'item_shovel';
+
+        // Arrows, Bolts & Ammo
+        if (g === '{' || /\b(arrow|bolt|quarrel|seeker|sheaf)\b/.test(lower)) {
+            return 'item_arrow';
+        }
+
         // Potions & Flasks
-        if (g === '!' || lower.includes('potion') || lower.includes('elixir') || lower.includes('draught') || lower.includes('flask') || lower.includes('tonic')) {
-            if (lower.includes('flask') || lower.includes('jug')) return 'ph_potion_flask';
-            if (lower.includes('urn') || lower.includes('vase')) return 'ph_potion_urn';
+        if (g === '!' || /potion|elixir|draught|flask|tonic/.test(lower)) {
+            if (/supreme|star|life|invulnerability|augmentation|experience/.test(lower)) return 'ph_potion_urn';
+            if (/greater|critical|restore|mana|enlightenment|speed|healing/.test(lower)) return 'ph_potion_flask';
             return 'ph_potion_bottle';
         }
 
+        // Books & Spellbooks
+        if ((g === '?' && /\b(book|tome|grimoire|manual|prayer|spellbook)\b/.test(lower)) || g === '+' || /\b(book|tome|grimoire|manual|prayer|spellbook)\b/.test(lower)) {
+            return 'item_book';
+        }
+
+        // Scrolls
+        if (g === '?' || /scroll|parchment/.test(lower)) {
+            if (/enchant|acquirement|artifact|rune|blessing|holy/.test(lower)) return 'item_scroll_enchant';
+            return 'item_scroll';
+        }
+
+        // Bows & Slings
+        if (g === '}' || /bow|crossbow|arbalest/.test(lower)) {
+            return 'item_bow';
+        }
+
+        // Wands, Rods & Staves
+        if (g === '_' || g === '-' || /\b(wand|staff|rod|quarterstaff)\b/.test(lower)) {
+            return 'item_staff_branch';
+        }
+
+        // Polearms
+        if (g === '/' || /spear|pike|lance|trident|halberd|glaive|polearm/.test(lower)) {
+            return 'item_spear';
+        }
+
+        // Amulets & Talismans
+        if (g === '"' || /\b(amulet|talisman|pendant|necklace|periapt)\b/.test(lower)) {
+            return 'item_talisman';
+        }
+
         // Shields
-        if (g === '(' || lower.includes('shield') || lower.includes('buckler') || lower.includes('targe')) {
+        if (g === '(' || (g === ')' && /shield|buckler|targe/.test(lower)) || /shield|buckler|targe/.test(lower)) {
+            if (/\b(wicker|buckler|basket)\b/.test(lower)) return 'item_shield_wicker';
+            if (/\bleather\b/.test(lower) && /shield|targe/.test(lower)) return 'item_shield_leather';
+            if (/\bsmall metal\b/.test(lower) && /shield/.test(lower)) return 'item_shield_metal';
+            if (/\b(round|wooden|wood)\b/.test(lower)) return 'item_shield_wooden';
+            if (/\b(knight|dragon|mithril|deflection|raven|heraldic)\b/.test(lower)) return 'item_shield_raven';
             return 'ph_shield';
         }
 
         // Weapons
-        if (g === ')' || lower.includes('sword') || lower.includes('blade') || lower.includes('dagger') || lower.includes('knife') || lower.includes('axe') || lower.includes('hammer') || lower.includes('mace')) {
-            if (lower.includes('katana') || lower.includes('ninja-to') || lower.includes('nodachi') || lower.includes('wakizashi') || lower.includes('tanto')) return 'ph_katana';
-            if (lower.includes('estoc') || lower.includes('rapier') || lower.includes('foil') || lower.includes('epee')) return 'ph_estoc';
-            if (lower.includes('saber') || lower.includes('sabre') || lower.includes('scimitar') || lower.includes('cutlass') || lower.includes('falchion') || lower.includes('sword') || lower.includes('claymore') || lower.includes('blade')) return 'ph_saber';
-            if (lower.includes('dagger') || lower.includes('knife') || lower.includes('main gauche') || lower.includes('stiletto') || lower.includes('dirk') || lower.includes('misericorde')) return 'ph_dagger';
-            if (lower.includes('hatchet')) return 'ph_hatchet';
-            if (lower.includes('axe') || lower.includes('cleaver') || lower.includes('battle-axe')) return 'ph_axe';
-            if (lower.includes('war hammer') || lower.includes('hammer') || lower.includes('mattock') || lower.includes('mallet')) return 'ph_hammer';
-            if (lower.includes('mace') || lower.includes('flail') || lower.includes('morning star') || lower.includes('cudgel') || lower.includes('club')) return 'ph_mace';
+        if (g === ')' || g === '|' || /sword|blade|dagger|knife|axe|hammer|mace|flail|club|katana|saber|sabre|hatchet|cleaver|morningstar|greatclub|cudgel|rapier|estoc|scimitar|tulwar/.test(lower)) {
+            if (/katana|ninja-to|nodachi|wakizashi|tanto/.test(lower)) return 'ph_katana';
+            if (/claymore|two-handed|great sword|zweihander|executioner/.test(lower)) return 'item_greatsword';
+            if (/rune|vorpal|morgul|ringil|anduril|glamdring|sting/.test(lower)) return 'item_rune_blade';
+            if (/orc|goblin|scimitar|cutlass|falchion/.test(lower)) return 'item_goblin_sword';
+            if (/estoc|rapier|foil|epee|small sword/.test(lower)) return 'ph_estoc';
+            if (/saber|sabre|tulwar/.test(lower)) return 'ph_saber';
+            if (/dagger|knife|main gauche|stiletto|dirk|misericorde/.test(lower)) return 'ph_dagger';
+            if (/hatchet/.test(lower)) return 'ph_hatchet';
+            if (/axe|cleaver|battle-axe/.test(lower)) return 'ph_axe';
+            if (/sledge|great hammer|maul|grond/.test(lower)) return 'ph_sledgehammer';
+            if (/war hammer|hammer|mattock|mallet/.test(lower)) return 'ph_hammer';
+            if (/morning star|morningstar|flail|ball-and-chain/.test(lower)) return 'item_morningstar';
+            if (/club|cudgel|greatclub/.test(lower)) return 'item_greatclub';
+            if (/mace|scepter/.test(lower)) return 'ph_mace';
+            return 'item_longsword';
         }
 
-        // Chests & Containers (~ or name)
-        if ((g === '~' || g === '&') && (lower.includes('chest') || lower.includes('box') || lower.includes('coffer'))) {
-            return 'ph_chest';
+        // Armor, Helms, Boots, Gloves, Cloaks
+        if (g === '[' || g === ']' || /armor|armour|plate|chain|mail|scale|splint|brigandine|hauberk|helm|crown|cap|coronet|basinet|boot|shoes|greaves|sandals|glove|gauntlet|cestus|cesti|cloak|mantle|cape|robe|jerkin/.test(lower)) {
+            if (/crown|circlet|diadem|brilliance|telepathy/.test(lower)) return 'item_crown';
+            if (/helm|cap|coronet|basinet/.test(lower)) return 'item_helmet';
+            if (/boot|shoes|greaves|sandals/.test(lower)) return 'item_boots';
+            if (/glove|gauntlet|cestus|cesti/.test(lower)) return 'item_gauntlets';
+            if (/cloak|mantle|cape/.test(lower)) return 'item_cloak';
+            if (/chain mail|chainmail|hauberk|scale mail|augmented chain|bar chain|double chain/.test(lower)) return 'item_chainmail';
+            if (/plate|splint|brigandine|mithril/.test(lower)) return 'item_plate_armor';
+            if (/leather|robe|filthy|soft|studded|jerkin/.test(lower)) return 'item_leather_armor';
+            return 'item_plate_armor';
         }
-        if (lower.includes('chest') || lower.includes('coffer')) {
+
+        // Chests & Containers
+        if (lower.includes('chest') || lower.includes('coffer') || lower.includes('box')) {
             return 'ph_chest';
         }
 
         // Light Sources
-        if ((g === '~' || g === '!') && (lower.includes('lantern') || lower.includes('lamp') || lower.includes('torch') || lower.includes('phial'))) {
-            if (lower.includes('candle') || lower.includes('candlestick')) return 'ph_candle';
-            return 'ph_lantern';
-        }
-        if (lower.includes('lantern') || lower.includes('lamp')) {
-            return 'ph_lantern';
-        }
-        if (lower.includes('candle') || lower.includes('candlestick')) {
-            return 'ph_candle';
+        if (/torch|lantern|lamp|phial|candle/.test(lower)) {
+            if (/torch/.test(lower)) return 'item_torch';
+            if (/candle|candlestick/.test(lower)) return 'ph_candle';
+            if (/lantern|lamp|phial/.test(lower)) return 'ph_lantern';
         }
 
-        // Treasure goblets
-        if ((g === '$' || g === '~') && (lower.includes('goblet') || lower.includes('chalice') || lower.includes('cup') || lower.includes('grail'))) {
-            return 'ph_goblet';
+        // Food
+        if (g === ',' || /ration|bread|food|waybread|lembas|wafer/.test(lower)) {
+            if (/waybread|lembas|wafer/.test(lower)) return 'item_lembas';
+            return 'item_bread';
         }
-        if (lower.includes('goblet') || lower.includes('chalice') || lower.includes('grail')) {
+
+        // Keys
+        if (/key|lockpick/.test(lower)) {
+            return 'item_key';
+        }
+
+        // Goblets & Chalices (generic $ coins fall through to Shockbolt item_atlas.png)
+        if (/goblet|chalice|cup|grail/.test(lower)) {
             return 'ph_goblet';
         }
 
@@ -9442,37 +10985,66 @@ class Dungeon3D {
                     return;
                 }
 
-                if (key === 'ph_dagger') {
-                    scene.traverse((c) => {
-                        if (c.name && c.name.toLowerCase().includes('scabbard')) {
-                            c.visible = false;
-                        }
-                    });
-                }
-
-                if (key === 'ph_potion_bottle') {
-                    scene.traverse((c) => {
-                        if (c.isMesh && c.name && !c.name.startsWith('Circle')) {
-                            c.visible = false;
-                        }
-                    });
-                }
+                const toRemove = [];
+                scene.traverse(c => {
+                    if (key === 'ph_dagger' && c.name && c.name.toLowerCase().includes('scabbard')) {
+                        toRemove.push(c);
+                    } else if (key === 'ph_candle' && (c.name === 'brass_candleholder_02' || c.name === 'brass_candleholder_03')) {
+                        toRemove.push(c);
+                    } else if (key === 'ph_goblet' && (c.name === 'brass_goblet_02' || c.name === 'brass_goblet_03')) {
+                        toRemove.push(c);
+                    } else if (key === 'item_book' && c.isMesh && !/^Cube004(_1)?$/i.test(c.name)) {
+                        c.visible = false;
+                        toRemove.push(c);
+                    }
+                });
+                toRemove.forEach(c => {
+                    if (c.parent) c.parent.remove(c);
+                });
 
                 scene.traverse((c) => {
                     if (c.isMesh) {
-                        c.castShadow = true;
+                        c.castShadow = false;
                         c.receiveShadow = false;
                         if (c.geometry) {
                             c.geometry._sharedGeometry = true;
                         }
                         if (c.material) {
+                            if (key === 'item_shield_wicker') {
+                                c.material = c.material.clone();
+                                c.material.color = new THREE.Color(0xd2a862);
+                                c.material.roughness = 0.92;
+                                c.material._sharedMaterial = true;
+                            } else if (key === 'item_shield_leather') {
+                                c.material = c.material.clone();
+                                c.material.color = new THREE.Color(0x6e4228);
+                                c.material.roughness = 0.78;
+                                c.material._sharedMaterial = true;
+                            } else if (key === 'item_shield_metal') {
+                                c.material = c.material.clone();
+                                c.material.color = new THREE.Color(0x9aa4b2);
+                                c.material.metalness = 0.78;
+                                c.material.roughness = 0.32;
+                                c.material._sharedMaterial = true;
+                            }
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
                             for (const m of mats) {
-                                m._sharedMaterial = true;
-                                if (m.map) m.map._sharedTexture = true;
-                                if (m.normalMap) m.normalMap._sharedTexture = true;
-                                if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
-                                if (m.metalnessMap) m.metalnessMap._sharedTexture = true;
+                                if (m) {
+                                    m._sharedMaterial = true;
+                                    if (m.map) {
+                                        m.map._sharedTexture = true;
+                                        if (typeof THREE.sRGBEncoding !== 'undefined') m.map.encoding = THREE.sRGBEncoding;
+                                    }
+                                    if (m.normalMap) m.normalMap._sharedTexture = true;
+                                    if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
+                                    if (m.metalnessMap) m.metalnessMap._sharedTexture = true;
+                                    if (m.metalness !== undefined && m.metalness > 0.32) {
+                                        m.metalness = 0.32;
+                                    }
+                                    if (m.roughness !== undefined && m.roughness < 0.28) {
+                                        m.roughness = 0.42;
+                                    }
+                                }
                             }
                         }
                     }
@@ -9486,9 +11058,17 @@ class Dungeon3D {
                 bbox.getCenter(center);
 
                 let targetSpan = 0.50;
-                const isWeaponOrShield = (key === 'ph_saber' || key === 'ph_estoc' || key === 'ph_katana' || key === 'ph_dagger' || key === 'ph_axe' || key === 'ph_hatchet' || key === 'ph_hammer' || key === 'ph_mace' || key === 'ph_shield');
-                if (isWeaponOrShield) {
+                const isOpenMmoXWeapon = (key === 'item_goblin_sword' || key === 'item_longsword' || key === 'item_greatsword' || key === 'item_rune_blade' || key === 'item_morningstar' || key === 'item_greatclub' || key === 'item_spear' || key === 'item_bow' || key === 'item_torch');
+                const isShield = (key === 'ph_shield' || key === 'item_shield_wooden' || key === 'item_shield_raven' || key === 'item_shield_wicker' || key === 'item_shield_leather' || key === 'item_shield_metal');
+                const isArmor = (key === 'item_helmet' || key === 'item_plate_armor' || key === 'item_leather_armor' || key === 'item_boots' || key === 'item_gauntlets' || key === 'item_cloak' || key === 'item_chainmail' || key === 'item_crown');
+                const isWeapon = (key === 'ph_saber' || key === 'ph_estoc' || key === 'ph_katana' || key === 'ph_dagger' || key === 'ph_axe' || key === 'ph_hatchet' || key === 'ph_hammer' || key === 'ph_sledgehammer' || key === 'ph_mace' || isOpenMmoXWeapon || key === 'item_shovel' || key === 'item_pickaxe' || key === 'item_staff_branch' || key === 'item_arrow');
+
+                if (isWeapon) {
                     targetSpan = 0.68;
+                } else if (isShield) {
+                    targetSpan = 0.62;
+                } else if (isArmor) {
+                    targetSpan = 0.52;
                 } else if (key === 'ph_chest') {
                     targetSpan = 0.55;
                 } else {
@@ -9504,20 +11084,34 @@ class Dungeon3D {
                 scene.position.set(-center.x, -bbox.min.y, -center.z);
                 innerPivot.scale.set(scale, scale, scale);
 
-                if (isWeaponOrShield) {
-                    if (key === 'ph_shield') {
-                        innerPivot.rotation.set(-0.85, 0.25, 0.15);
-                        innerPivot.position.y = 0.08;
+                if (isShield) {
+                    innerPivot.rotation.set(-0.85, 0.25, 0.15);
+                    innerPivot.position.y = 0.08;
+                } else if (isWeapon) {
+                    if (key === 'item_arrow' || key === 'item_shovel' || key === 'item_pickaxe' || key === 'item_staff_branch') {
+                        innerPivot.rotation.set(0.66, 0.25, 0.72);
+                        innerPivot.position.y = 0.18;
+                    } else if (isOpenMmoXWeapon) {
+                        innerPivot.rotation.set(0.35, 0.25, 0.72);
+                        innerPivot.position.y = 0.22;
                     } else {
                         innerPivot.rotation.set(0.55, 0.35, -0.45);
                         innerPivot.position.y = 0.14;
                     }
+                } else if (isArmor) {
+                    innerPivot.position.y = 0.06;
                 } else {
                     innerPivot.position.y = 0.02;
                 }
 
                 wrapper.add(innerPivot);
                 wrapper._sharedTemplate = true;
+                wrapper._rawSize = size.clone();
+                wrapper._rawMin = bbox.min.clone();
+                wrapper._rawMax = bbox.max.clone();
+                wrapper._rawCenter = center.clone();
+                wrapper._rawMaxDim = maxDim;
+                wrapper._normScale = scale;
 
                 this._gltfTemplateCache.set(key, wrapper);
                 this.itemTemplates.set(key, wrapper);
@@ -9548,12 +11142,27 @@ class Dungeon3D {
         });
         clone.isReal3DItem = true;
         clone.phKey = key;
+        clone._rawSize = template._rawSize;
+        clone._rawMin = template._rawMin;
+        clone._rawMax = template._rawMax;
+        clone._rawCenter = template._rawCenter;
+        clone._rawMaxDim = template._rawMaxDim;
+        clone._normScale = template._normScale;
         return clone;
     }
 
     destroyEntity(entityObj) {
         if (!entityObj) return;
         this.scene.remove(entityObj);
+        if (entityObj._mixer) {
+            try {
+                entityObj._mixer.stopAllAction();
+                if (typeof entityObj._mixer.uncacheRoot === 'function') {
+                    entityObj._mixer.uncacheRoot(entityObj);
+                }
+            } catch (_) {}
+            entityObj._mixer = null;
+        }
         const sharedMats = new Set([
             this.monsterBillboardMat,
             this.itemBillboardMat,
@@ -10083,6 +11692,67 @@ class Dungeon3D {
             }
         }
 
+        // Kinetic 3D combat projectiles & spell effects
+        if (this.activeProjectiles && this.activeProjectiles.length > 0) {
+            for (let i = this.activeProjectiles.length - 1; i >= 0; i--) {
+                const proj = this.activeProjectiles[i];
+                proj.elapsed += delta;
+                const t = Math.min(1.0, proj.elapsed / proj.duration);
+
+                if (proj.kind === 'arrow') {
+                    proj.group.position.lerpVectors(proj.startPos, proj.endPos, t);
+                } else if (proj.kind === 'potion') {
+                    proj.group.position.lerpVectors(proj.startPos, proj.endPos, t);
+                    proj.group.position.y += 4 * 0.65 * t * (1.0 - t);
+                    proj.group.rotation.x += delta * 12.0;
+                    proj.group.rotation.z += delta * 8.0;
+                } else if (proj.kind === 'fireball' || proj.kind === 'breath' || proj.kind === 'bolt') {
+                    proj.group.position.lerpVectors(proj.startPos, proj.endPos, t);
+                    if (Math.random() < 0.6) {
+                        this.spawnHitSparks(proj.group.position, proj.colorHex, 2);
+                    }
+                } else if (proj.kind === 'lightning') {
+                    proj.jitterTimer = (proj.jitterTimer || 0) + delta;
+                    if (proj.jitterTimer >= 0.035 && proj.lines) {
+                        proj.jitterTimer = 0;
+                        for (const line of proj.lines) {
+                            const posAttr = line.geometry.attributes.position;
+                            const count = posAttr.count;
+                            for (let pIdx = 1; pIdx < count - 1; pIdx++) {
+                                const frac = pIdx / (count - 1);
+                                const basePt = new THREE.Vector3().lerpVectors(proj.startPos, proj.endPos, frac);
+                                basePt.x += (Math.random() - 0.5) * 0.36;
+                                basePt.y += (Math.random() - 0.5) * 0.36;
+                                basePt.z += (Math.random() - 0.5) * 0.36;
+                                posAttr.setXYZ(pIdx, basePt.x - proj.group.position.x, basePt.y - proj.group.position.y, basePt.z - proj.group.position.z);
+                            }
+                            posAttr.needsUpdate = true;
+                        }
+                    }
+                } else if (proj.kind === 'aura') {
+                    proj.group.rotation.y += delta * 3.5;
+                    const sc = 1.0 + t * 0.6;
+                    proj.group.scale.set(sc, sc, sc);
+                    if (proj.mat) proj.mat.opacity = Math.max(0, (1.0 - t) * 0.85);
+                } else if (proj.kind === 'slash') {
+                    const sc = 1.0 + t * 0.45;
+                    proj.group.scale.set(sc, sc, sc);
+                    if (proj.mat) proj.mat.opacity = Math.max(0, 1.0 - t);
+                }
+
+                if (proj.elapsed >= proj.duration) {
+                    this.scene.remove(proj.group);
+                    if (proj.onComplete) proj.onComplete();
+                    if (proj.disposables) {
+                        for (const d of proj.disposables) {
+                            if (d && typeof d.dispose === 'function') d.dispose();
+                        }
+                    }
+                    this.activeProjectiles.splice(i, 1);
+                }
+            }
+        }
+
         // Distance culling for floating terrain labels (Godot VisibilityRangeEnd: 45m stores, 25m stairs)
         if (this.terrainLabelsGroup && this.terrainLabelsGroup.children) {
             for (let i = 0; i < this.terrainLabelsGroup.children.length; i++) {
@@ -10094,9 +11764,25 @@ class Dungeon3D {
 
         // Monsters gentle hover, walking lerp & facing
         const monTime = tNow * 0.003;
+        const camPos = this.camera ? this.camera.position : null;
+        const candidateNameplates = [];
+
         for (const entity of this.monsters.values()) {
-            if (entity.nameplate) {
-                entity.nameplate.visible = (this.camera.position.distanceToSquared(entity.position) <= 576.0); // Godot VisibilityRangeEnd = 24.0f (24^2 = 576)
+            const entityDistSq = camPos ? ((entity.position.x - camPos.x) ** 2 + (entity.position.z - camPos.z) ** 2) : 0;
+            entity.visible = (entityDistSq <= 1225);
+
+            if (camPos && entity.nameplate) {
+                const dx = entity.position.x - camPos.x;
+                const dz = entity.position.z - camPos.z;
+                const distSq = dx * dx + dz * dz;
+                const dist = Math.sqrt(distSq);
+                if (dist > 14.0 || !entity.visible) {
+                    entity.nameplate.visible = false;
+                } else {
+                    const angle = Math.atan2(dx, dz);
+                    const isTargeted = Boolean(entity.lastTargeted || (entity.nameplate && entity.nameplate.isTargeted));
+                    candidateNameplates.push({ entity, dist, angle, isTargeted });
+                }
             }
             if (entity.targetPos) {
                 const dist = entity.position.distanceTo(entity.targetPos);
@@ -10114,19 +11800,85 @@ class Dungeon3D {
                     }
                 } else {
                     // Idle: Smoothly turn to face the player's camera (matching Godot client MonsterModelResolver.cs)
-                    const dx = this.camera.position.x - entity.position.x;
-                    const dz = this.camera.position.z - entity.position.z;
-                    if (dx * dx + dz * dz > 0.001) {
-                        const targetYaw = Math.atan2(dx, dz);
-                        const diff = targetYaw - entity.rotation.y;
-                        const wrapped = Math.atan2(Math.sin(diff), Math.cos(diff));
-                        entity.rotation.y += wrapped * 0.12;
+                    if (!entity.isAsleep && !(entity.monsterData && entity.monsterData.asleep)) {
+                        const dx = this.camera.position.x - entity.position.x;
+                        const dz = this.camera.position.z - entity.position.z;
+                        if (dx * dx + dz * dz > 0.001) {
+                            const targetYaw = Math.atan2(dx, dz);
+                            const diff = targetYaw - entity.rotation.y;
+                            const wrapped = Math.atan2(Math.sin(diff), Math.cos(diff));
+                            entity.rotation.y += wrapped * 0.12;
+                        }
                     }
                 }
             }
             // Vertical hover/float
             const baseY = entity.isFloating ? 0.45 : 0.0;
             entity.position.y = baseY + Math.sin(monTime + entity.position.x * 2.0) * (entity.isFloating ? 0.08 : 0.02);
+
+            // Hit flinch recoil and warm crimson flash
+            if (entity._hitFlinchTimer > 0) {
+                entity._hitFlinchTimer -= delta;
+                if (entity._hitFlinchDir) {
+                    const flinchFactor = Math.sin(Math.max(0, entity._hitFlinchTimer / 0.20) * Math.PI) * 0.14;
+                    entity.position.addScaledVector(entity._hitFlinchDir, flinchFactor * delta * 8);
+                }
+            }
+            if (entity._hitFlashTimer > 0) {
+                entity._hitFlashTimer -= delta;
+                const flashAmt = Math.max(0, entity._hitFlashTimer / 0.18);
+                entity.traverse(c => {
+                    if (c.isMesh && c.material) {
+                        const mats = Array.isArray(c.material) ? c.material : [c.material];
+                        for (const m of mats) {
+                            if (m.emissive) {
+                                if (!m._origEmissive) m._origEmissive = m.emissive.clone();
+                                m.emissive.setRGB(flashAmt * 0.85, flashAmt * 0.08, flashAmt * 0.08);
+                            }
+                        }
+                    }
+                });
+            } else if (entity._hitFlashTimer !== undefined && entity._hitFlashTimer <= 0 && entity._hitFlashTimer > -1) {
+                entity._hitFlashTimer = -1;
+                entity.traverse(c => {
+                    if (c.isMesh && c.material) {
+                        const mats = Array.isArray(c.material) ? c.material : [c.material];
+                        for (const m of mats) {
+                            if (m.emissive && m._origEmissive) {
+                                m.emissive.copy(m._origEmissive);
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Mixer state machine: idle vs walk vs sleep (distance-culled at 18m / 324m^2)
+            const isAsleep = Boolean(entity.isAsleep || (entity.monsterData && entity.monsterData.asleep));
+            if (entity._mixer) {
+                if (isAsleep) {
+                    entity._mixer.timeScale = 0.0;
+                } else {
+                    entity._mixer.timeScale = 1.0;
+                    const isMoving = Boolean(entity.targetPos && entity.position.distanceTo(entity.targetPos) > 0.02);
+                    if (isMoving && entity._walkAction) {
+                        if (entity._activeAnimState !== 'walk') {
+                            entity._activeAnimState = 'walk';
+                            if (entity._idleAction) entity._idleAction.fadeOut(0.2);
+                            entity._walkAction.reset().fadeIn(0.2).play();
+                        }
+                    } else if (!isMoving && entity._idleAction) {
+                        if (entity._activeAnimState !== 'idle') {
+                            entity._activeAnimState = 'idle';
+                            if (entity._walkAction) entity._walkAction.fadeOut(0.2);
+                            entity._idleAction.reset().fadeIn(0.2).play();
+                        }
+                    }
+                    if (entity.visible && entityDistSq < 324) {
+                        entity._mixer.update(delta);
+                        this._stabilizeHeldEquipment(entity);
+                    }
+                }
+            }
 
             // Billboard cylindrical Y-facing & volume-conserving breathing
             if (entity.creatureMesh && entity.creatureMesh.isBillboard) {
@@ -10141,7 +11893,7 @@ class Dungeon3D {
                     const bh = entity.creatureMesh.baseHeight || 1.70;
                     entity.creatureMesh.scale.set(bw * (1.0 - breath * 0.5), bh * (1.0 + breath), 1.0);
                 }
-            } else if (entity.creatureMesh && (entity.creatureMesh._rigBoneSets || entity.creatureMesh._rigBones)) {
+            } else if (!entity._mixer && entity.creatureMesh && (entity.creatureMesh._rigBoneSets || entity.creatureMesh._rigBones)) {
                 const boneSets = entity.creatureMesh._rigBoneSets || [entity.creatureMesh._rigBones];
                 const isMoving = Boolean(entity.targetPos && entity.position.distanceTo(entity.targetPos) > 0.02);
                 const breath = Math.sin(monTime * 1.8 + entity.position.x * 3.1) * 0.035;
@@ -10196,6 +11948,35 @@ class Dungeon3D {
             }
         }
 
+        // Apply line-of-sight angular de-overlap (14m max distance, suppress only when directly behind a closer creature)
+        if (candidateNameplates.length > 0) {
+            candidateNameplates.sort((a, b) => a.dist - b.dist);
+            const accepted = [];
+            for (let i = 0; i < candidateNameplates.length; i++) {
+                const item = candidateNameplates[i];
+                if (item.isTargeted) {
+                    item.entity.nameplate.visible = true;
+                    accepted.push(item);
+                    continue;
+                }
+                let isOccluded = false;
+                for (let j = 0; j < accepted.length; j++) {
+                    const acc = accepted[j];
+                    const diff = Math.abs(Math.atan2(Math.sin(item.angle - acc.angle), Math.cos(item.angle - acc.angle)));
+                    if (diff < 0.08 && Math.abs(item.dist - acc.dist) > 1.2) {
+                        isOccluded = true;
+                        break;
+                    }
+                }
+                if (isOccluded) {
+                    item.entity.nameplate.visible = false;
+                } else {
+                    item.entity.nameplate.visible = true;
+                    accepted.push(item);
+                }
+            }
+        }
+
         // Items continuous gentle hover kinematics, cylindrical facing & contact shadow modulation
         for (const entity of this.items.values()) {
             if (entity.itemMesh) {
@@ -10209,7 +11990,7 @@ class Dungeon3D {
                             entity.rotation.y = Math.atan2(bdx, bdz);
                         }
                     }
-                    // Subtle magical floating breathing hover (1:1 Daggerfall feel)
+                    // Subtle magical floating breathing hover (1:1 retro dungeon feel)
                     const hover = Math.sin(tNow * 0.0022 + seed * 0.3) * 0.012;
                     const baseElevation = entity.itemMesh.baseElevation || 0.04;
                     entity.itemMesh.position.y = baseElevation + hover;

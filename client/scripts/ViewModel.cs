@@ -37,9 +37,9 @@ public partial class ViewModel : Node3D
     private string _currentRightModel = "";
 
     // Rest transforms (relative to sway root) - calibrated to clean, natural lower corners
-    private Vector3 _leftRestPos = new(-0.25f, -0.25f, -0.34f);
+    private Vector3 _leftRestPos = new(-0.30f, -0.26f, -0.38f);
     private Vector3 _leftRestRot = new(Mathf.DegToRad(12), Mathf.DegToRad(18), Mathf.DegToRad(-10));
-    private Vector3 _rightRestPos = new(0.25f, -0.25f, -0.34f);
+    private Vector3 _rightRestPos = new(0.31f, -0.30f, -0.36f);
     private Vector3 _rightRestRot = new(Mathf.DegToRad(18), Mathf.DegToRad(-14), Mathf.DegToRad(8));
 
     // Motion & sway state
@@ -508,7 +508,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     1f,
-                    new Vector3(-0.25f, -0.25f, -0.34f),
+                    new Vector3(-0.30f, -0.26f, -0.38f),
                     new Vector3(Mathf.DegToRad(12), Mathf.DegToRad(18), Mathf.DegToRad(-10)),
                     Vector3.Zero
                 );
@@ -517,7 +517,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     1f,
-                    new Vector3(0.25f, -0.25f, -0.34f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(18), Mathf.DegToRad(-14), Mathf.DegToRad(8)),
                     Vector3.Zero
                 );
@@ -563,7 +563,7 @@ public partial class ViewModel : Node3D
                 // Round buckler shield
                 return (
                     0.13f,
-                    new Vector3(-0.26f, -0.24f, -0.32f),
+                    new Vector3(-0.30f, -0.26f, -0.38f),
                     new Vector3(Mathf.DegToRad(8), Mathf.DegToRad(18), Mathf.DegToRad(-6)),
                     Vector3.Zero
                 );
@@ -573,7 +573,7 @@ public partial class ViewModel : Node3D
                 // Heavy / Tower heater shield
                 return (
                     0.13f,
-                    new Vector3(-0.26f, -0.24f, -0.32f),
+                    new Vector3(-0.30f, -0.26f, -0.38f),
                     new Vector3(Mathf.DegToRad(6), Mathf.DegToRad(16), Mathf.DegToRad(-6)),
                     Vector3.Zero
                 );
@@ -583,7 +583,7 @@ public partial class ViewModel : Node3D
                 // Elaborate Celtic / Golden kite shield
                 return (
                     0.10f,
-                    new Vector3(-0.26f, -0.24f, -0.32f),
+                    new Vector3(-0.30f, -0.26f, -0.38f),
                     new Vector3(Mathf.DegToRad(6), Mathf.DegToRad(16), Mathf.DegToRad(-6)),
                     Vector3.Zero
                 );
@@ -593,7 +593,7 @@ public partial class ViewModel : Node3D
                 // Knight's heater shield
                 return (
                     0.13f,
-                    new Vector3(-0.26f, -0.24f, -0.32f),
+                    new Vector3(-0.30f, -0.26f, -0.38f),
                     new Vector3(Mathf.DegToRad(8), Mathf.DegToRad(16), Mathf.DegToRad(-6)),
                     Vector3.Zero
                 );
@@ -609,7 +609,7 @@ public partial class ViewModel : Node3D
             }
             return (
                 0.10f,
-                new Vector3(-0.25f, -0.24f, -0.32f),
+                new Vector3(-0.30f, -0.26f, -0.38f),
                 new Vector3(Mathf.DegToRad(8), Mathf.DegToRad(16), Mathf.DegToRad(-6)),
                 Vector3.Zero
             );
@@ -621,7 +621,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     0.80f,
-                    new Vector3(0.24f, -0.24f, -0.32f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(14), Mathf.DegToRad(-12), Mathf.DegToRad(6)),
                     Vector3.Zero
                 );
@@ -631,7 +631,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     0.088f,
-                    new Vector3(0.24f, -0.24f, -0.32f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(18), Mathf.DegToRad(-14), Mathf.DegToRad(6)),
                     new Vector3(0f, -0.06f, 0f)
                 );
@@ -641,7 +641,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     0.085f,
-                    new Vector3(0.24f, -0.24f, -0.32f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(18), Mathf.DegToRad(-14), Mathf.DegToRad(6)),
                     new Vector3(0f, -0.04f, 0f)
                 );
@@ -651,7 +651,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     0.085f,
-                    new Vector3(0.24f, -0.24f, -0.32f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(18), Mathf.DegToRad(-14), Mathf.DegToRad(6)),
                     new Vector3(0f, -0.04f, 0f)
                 );
@@ -661,7 +661,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     0.078f,
-                    new Vector3(0.24f, -0.24f, -0.32f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(14), Mathf.DegToRad(-12), Mathf.DegToRad(6)),
                     new Vector3(0f, -0.16f, 0f)
                 );
@@ -671,7 +671,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     0.085f,
-                    new Vector3(0.23f, -0.22f, -0.30f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(10), Mathf.DegToRad(-12), Mathf.DegToRad(6)),
                     Vector3.Zero
                 );
@@ -681,7 +681,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     0.090f,
-                    new Vector3(0.23f, -0.22f, -0.30f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(20), Mathf.DegToRad(-12), Mathf.DegToRad(8)),
                     Vector3.Zero
                 );
@@ -691,7 +691,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     0.085f,
-                    new Vector3(0.24f, -0.24f, -0.32f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(18), Mathf.DegToRad(-14), Mathf.DegToRad(6)),
                     new Vector3(0f, -0.04f, 0f)
                 );
@@ -701,7 +701,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     0.085f,
-                    new Vector3(0.24f, -0.24f, -0.32f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(18), Mathf.DegToRad(-14), Mathf.DegToRad(6)),
                     new Vector3(0f, -0.04f, 0f)
                 );
@@ -711,7 +711,7 @@ public partial class ViewModel : Node3D
             {
                 return (
                     0.080f,
-                    new Vector3(0.23f, -0.22f, -0.30f),
+                    new Vector3(0.31f, -0.30f, -0.36f),
                     new Vector3(Mathf.DegToRad(18), Mathf.DegToRad(-12), Mathf.DegToRad(6)),
                     new Vector3(0f, -0.10f, 0f)
                 );
@@ -719,7 +719,7 @@ public partial class ViewModel : Node3D
             // 1-Handed Swords (Standard 1H sword)
             return (
                 0.088f,
-                new Vector3(0.24f, -0.24f, -0.32f),
+                new Vector3(0.31f, -0.30f, -0.36f),
                 new Vector3(Mathf.DegToRad(18), Mathf.DegToRad(-14), Mathf.DegToRad(6)),
                 new Vector3(0f, -0.03f, 0f)
             );
@@ -729,13 +729,17 @@ public partial class ViewModel : Node3D
     private static string ResolveShieldModel(string shieldItem)
     {
         var lower = (shieldItem ?? "").ToLowerInvariant();
-        if (lower.Contains("golden") || lower.Contains("celtic") || lower.Contains("dragon") || lower.Contains("thorin") || lower.Contains("anor"))
+        if (lower.Contains("raven") || lower.Contains("heraldic") || lower.Contains("dragon") || lower.Contains("mithril") || lower.Contains("deflection") || lower.Contains("thorin") || lower.Contains("anor") || lower.Contains("golden") || lower.Contains("celtic"))
         {
-            return "res://assets/models/weapons/Shield_Celtic_Golden.fbx";
+            return ResourceLoader.Exists("res://assets/models/items/shield_raven.glb")
+                ? "res://assets/models/items/shield_raven.glb"
+                : "res://assets/models/weapons/Shield_Celtic_Golden.fbx";
         }
-        if (lower.Contains("round") || lower.Contains("buckler") || lower.Contains("small metal shield") || lower.Contains("small leather shield") || lower.Contains("targe"))
+        if (lower.Contains("wicker") || lower.Contains("wooden") || lower.Contains("leather") || lower.Contains("round") || lower.Contains("buckler") || lower.Contains("targe") || lower.Contains("small"))
         {
-            return "res://assets/models/weapons/Shield_Round.fbx";
+            return ResourceLoader.Exists("res://assets/models/items/shield_wooden.glb")
+                ? "res://assets/models/items/shield_wooden.glb"
+                : "res://assets/models/weapons/Shield_Round.fbx";
         }
         if (lower.Contains("large") || lower.Contains("tower") || lower.Contains("square") || lower.Contains("pavise") || lower.Contains("spiked") || lower.Contains("spikes"))
         {
@@ -757,6 +761,19 @@ public partial class ViewModel : Node3D
             if (lowerW.Contains("torch"))
             {
                 return "__torch_handheld__";
+            }
+
+            if (lowerW.Contains("shovel") || lowerW.Contains("spade"))
+            {
+                return ResourceLoader.Exists("res://assets/polyhaven/models/rusted_spade_01/rusted_spade_01.gltf")
+                    ? "res://assets/polyhaven/models/rusted_spade_01/rusted_spade_01.gltf"
+                    : "res://assets/models/weapons/Spear.fbx";
+            }
+            if (lowerW.Contains("pick") || lowerW.Contains("mattock"))
+            {
+                return ResourceLoader.Exists("res://assets/polyhaven/models/picke_dirty_01/picke_dirty_01.gltf")
+                    ? "res://assets/polyhaven/models/picke_dirty_01/picke_dirty_01.gltf"
+                    : "res://assets/models/weapons/Hammer_Double.fbx";
             }
 
             // Daggers & Small Blades
@@ -955,6 +972,39 @@ public partial class ViewModel : Node3D
         {
             modelNode.Scale = Vector3.One * scale;
             modelNode.Visible = true;
+
+            if (slot == _rightItemSlot && newPath != "__torch_handheld__" && !string.IsNullOrEmpty(newPath))
+            {
+                const string gauntletPath = "res://assets/models/items/iron_gauntlets.glb";
+                if (ResourceLoader.Exists(gauntletPath) && modelNode.GetNodeOrNull<Node3D>("ViewModelGauntletCuff") == null)
+                {
+                    try
+                    {
+                        if (!_sceneCache.TryGetValue(gauntletPath, out var gauntletScene) || gauntletScene == null)
+                        {
+                            gauntletScene = GD.Load<PackedScene>(gauntletPath);
+                            if (gauntletScene != null)
+                            {
+                                _sceneCache[gauntletPath] = gauntletScene;
+                            }
+                        }
+
+                        if (gauntletScene != null)
+                        {
+                            var gauntletInst = gauntletScene.Instantiate<Node3D>();
+                            gauntletInst.Name = "ViewModelGauntletCuff";
+                            gauntletInst.Scale = Vector3.One * 0.26f;
+                            gauntletInst.Position = new Vector3(0.01f, -0.05f, 0.04f);
+                            gauntletInst.Rotation = new Vector3(Mathf.DegToRad(-38), Mathf.DegToRad(18), Mathf.DegToRad(-12));
+                            modelNode.AddChild(gauntletInst);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        GD.PrintErr($"[ViewModel] Failed attaching gauntlet cuff: {ex.Message}");
+                    }
+                }
+            }
         }
     }
 

@@ -176,6 +176,7 @@ class WebTerminal {
         let isTouchPinching = false;
         let touchStartX = 0;
         let touchStartY = 0;
+        let touchStartTime = 0;
         let touchStartScrollLeft = 0;
         let touchStartScrollTop = 0;
         let initialPinchDist = null;
@@ -254,6 +255,7 @@ class WebTerminal {
                 isTouchPinching = false;
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
+                touchStartTime = Date.now();
                 touchStartScrollLeft = viewport.scrollLeft;
                 touchStartScrollTop = viewport.scrollTop;
                 this.userHasScrolled = true;
@@ -278,7 +280,20 @@ class WebTerminal {
             }
         }, { passive: false });
 
-        const endTouch = () => {
+        const endTouch = (e) => {
+            if (isTouchDragging && e && e.changedTouches && e.changedTouches.length === 1) {
+                const touch = e.changedTouches[0];
+                const dx = touch.clientX - touchStartX;
+                const dy = touch.clientY - touchStartY;
+                if (Math.hypot(dx, dy) < 12 && (Date.now() - touchStartTime) < 300) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    if (rect.height && this.charHeight) {
+                        const offsetY = (touch.clientY - rect.top) * ((this.rows * this.charHeight) / rect.height);
+                        const r = Math.floor(offsetY / this.charHeight);
+                        this.handleRowClick(r);
+                    }
+                }
+            }
             isTouchDragging = false;
             isTouchPinching = false;
             initialPinchDist = null;

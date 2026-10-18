@@ -8,7 +8,7 @@
 [![Web Client: Three.js PBR](https://img.shields.io/badge/Web_Client-Three.js_WebGL_PBR-orange.svg)](server/public)
 [![Desktop Client: Godot 4 C#](https://img.shields.io/badge/Desktop_Client-Godot_4.3+_.NET_8-blueviolet.svg)](https://godotengine.org/)
 [![Mobile: Android Standalone APK](https://img.shields.io/badge/Mobile-Android_SDK_34_APK-green.svg)](#-play-instantly-cross-platform-matrix)
-[![Tests: 18/18 Fast + 11/11 Smoke](https://img.shields.io/badge/Automated_Gates-100%25_Passing-brightgreen.svg)](tools)
+[![Tests: 19/19 Fast + 11/11 Smoke](https://img.shields.io/badge/Automated_Gates-100%25_Passing-brightgreen.svg)](tools)
 
 ---
 
@@ -28,7 +28,7 @@ Classic turn-based roguelikes represent some of the most mathematically deep, ta
 
 Rather than rewriting the game, Angband 3D runs **four authoritative, unmodified C/C++ roguelike engines** in headless bridge mode. Every combat roll, saving throw, item generation curve, stealth check, and monster AI pathfinding decision runs bit-for-bit canonical upstream C code. Frontends—whether our responsive Three.js WebGL client, native Godot 4 C# engine, or standalone Android APK—act purely as reactive presentation layers.
 
-The result is a breathtaking first-person dungeon crawl with real-time camera look, procedural lighting, and voiced narrative sagas, built upon a foundation of absolute mathematical rigor.
+The result is a breathtaking first-person dungeon crawl with real-time camera look, procedural lighting, Gothic dark-fantasy crimson life and sapphire mana orbs, 3D armored gauntlet viewmodels, a 42-model rigged 3D bestiary, and voiced narrative sagas, built upon a foundation of absolute mathematical rigor.
 
 ---
 
@@ -86,10 +86,12 @@ Transition seamlessly between modern 3D immersion and nostalgic terminal play wi
 ### 4. 🎛️ Universal Movable HUD & Ergonomic Controls
 Every adventurer plays differently. Angband 3D features a complete, zero-lag draggable HUD system where **every major interface widget can be repositioned and customized**:
 
-* **Tactile Virtual D-Pad (`#touch-controls`)**:
+* **Gothic Dark-Fantasy Crimson Life & Sapphire Mana Orbs (`#orb-hp`, `#orb-sp`)**:
+  * Ornate filigree orbs flanking the viewport with fluid liquid level animations, pulsing critical-health danger states, and crisp numeric/percentage readouts.
+* **Tactile Virtual D-Pad & WASD Movement Mode Toggle**:
   * Equipped with a dedicated top grip (`✥ MOVE PAD`) that lets phone, tablet, and desktop players drag the directional pad anywhere on screen.
-  * Three-step cycling scale button (`0.85x` compact, `1.0x` standard, `1.20x` large).
-  * One-tap minimize/collapse toggle to tuck the pad away during keyboard play while keeping quick-turn wings accessible.
+  * Three-step cycling scale button (`0.85x` compact, `1.0x` standard, `1.20x` large) and one-tap minimize toggle to tuck the pad away during keyboard play.
+  * **WASD Movement Mode Toggle**: Seamlessly switch between classical roguelike command keys and modern first-person WASD exploration/strafe controls with one tap or hotkey.
 * **Hero Card & Expandable Context Drawer (`#char-panel`)**:
   * Draggable status medallion displaying real-time HP, MP, Voice/Stamina, and AC gauges.
   * 1-click toggle (`▾`) reveals the **Extended Character Context Drawer**: full view of all primary attributes (`STR..CHR` or Sil-Q's 4 core attributes + 8 skills), secondary stats (To-Hit, To-Dam, Speed, Burden, Turn, Depth), and active condition badges (`✨ Blessed`, `🩸 Cut`, `🧪 Poisoned`, `⚡ Hasted`, `🛡 Shielded`).
@@ -105,8 +107,8 @@ Every adventurer plays differently. Angband 3D features a complete, zero-lag dra
 ### 5. 🎨 Photogrammetry Ultra-Realism & 4096×4096 HD Dark Fantasy Art
 Angband 3D combines 8K photogrammetry scans with the beloved dark-fantasy art of **Raymond "Shockbolt" Gaustadnes**:
 
-* **Photogrammetry 3D Weapons & Viewmodels**: First-person viewmodels feature CC0 8K-scanned Poly Haven models—including medieval estocs, sabers, katanas, ornate daggers, warhammers, maces, battleaxes, and kite shields—with animated weapon recoil upon attack.
-* **High-Realism 3D Bestiary**: 100% rigged 3D models for humanoids (Rangers, Peasants with distinct beard/hair variations), quadrupeds (timber wolves with realistic fur shading, sleek felines, horses), terrifying bestiary horrors (dragons, skulls, giant formics, iridescent scarab beetles, segmented centipedes, and dark-chitin cave spiders), and flora/oozes (gnarled tanglethorn brambles, bioluminescent fungal clusters, and translucent gelatinous oozes).
+* **3D Armored Gauntlet Viewmodels & Poly Haven Weapons**: First-person viewmodels feature CC0 8K-scanned Poly Haven models and OpenMMO weaponry anchored below the lower-right viewport rim, gripped by a fully articulated 3D armored gauntlet (`iron_gauntlets.glb`) with animated weapon strike recoil, off-hand shields, and zero HUD occlusion.
+* **High-Realism 42-Model 3D Bestiary**: 100% rigged 3D models for humanoids (Rangers, Peasants with distinct beard/hair variations, armored Royal Guards), monsters & goblinoids (goblins, orcs, kobolds, imps, puglins), quadrupeds (timber wolves with realistic fur shading, sleek felines, horses), terrifying bestiary horrors (dragons, skulls, giant formics, iridescent scarab beetles, segmented centipedes, and dark-chitin cave spiders), and flora/oozes (gnarled tanglethorn brambles, bioluminescent fungal clusters, and translucent gelatinous oozes).
 * **Next-Gen Celestial Sky Dome**: When stepping onto town cobblestones or traversing wilderness plains, look up to behold a custom GLSL sky dome featuring the shimmering Milky Way galactic river, dark interstellar dust lanes, an animated boreal aurora veil, and a silver crescent moon with earthshine.
 * **4096×4096 Shockbolt HD Atlases**: Over 1,100 monster species and items mapped to 4× pixel density atlases, enhanced with bilateral normal maps, dynamic contact shadows, and contrast-adaptive sharpening.
 * **4-Level Biome Chapters**: As you delve deeper, the dungeon transitions every 200 feet through distinct architectural themes—from Upper Ashlar Crypts and Damp Flooded Undercrofts to Ancient Sandstone Sepulchres, Fungal Catacombs, and Deep Magma Pits.

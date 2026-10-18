@@ -46,7 +46,16 @@ const MODEL_IDS = [
     'shrub_04',
     'pachira_aquatica_01',
     'shrub_sorrel_01',
-    'fern_02'
+    'fern_02',
+    'gothic_statue',
+    'sledgehammer_01',
+    'crystalline_iceplant',
+    'pine_roots',
+    'rusted_spade_01',
+    'picke_dirty_01',
+    'dead_quiver_branch_01',
+    'decorative_book_set_01',
+    'carved_wooden_plate'
 ];
 
 async function downloadFile(url, destPath) {
@@ -95,12 +104,19 @@ async function fetchTextureSet(id) {
     console.log(`[Texture] ${id} ready (${(totalBytes / 1024).toFixed(0)} KB)`);
 }
 
+const MODEL_ALIASES = {
+    // Poly Haven only hosts FBX/USD/blend for decorative_book_set_01,
+    // so map to Poly Haven's authentic CC0 glTF book model book_encyclopedia_set_01
+    'decorative_book_set_01': 'book_encyclopedia_set_01'
+};
+
 async function fetchModel(id) {
-    const metaRes = await fetch(`https://api.polyhaven.com/files/${id}`);
-    if (!metaRes.ok) throw new Error(`Failed metadata for model ${id}`);
+    const fetchId = MODEL_ALIASES[id] || id;
+    const metaRes = await fetch(`https://api.polyhaven.com/files/${fetchId}`);
+    if (!metaRes.ok) throw new Error(`Failed metadata for model ${fetchId}`);
     const meta = await metaRes.json();
     const gEntry = meta.gltf && meta.gltf['1k'] && meta.gltf['1k'].gltf;
-    if (!gEntry || !gEntry.url) throw new Error(`No 1k gltf for ${id}`);
+    if (!gEntry || !gEntry.url) throw new Error(`No 1k gltf for ${id} (${fetchId})`);
 
     const dir = path.join(OUT_ROOT, 'models', id);
     fs.mkdirSync(dir, { recursive: true });
