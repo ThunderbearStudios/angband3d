@@ -97,7 +97,7 @@ COPY --from=engine-builder /src/variants/hengband-src/src/hengband-bridge /app/v
 # Setup cloud server daemon
 COPY server/package*.json /app/server/
 WORKDIR /app/server
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 COPY server/src/ /app/server/src/
 COPY server/public/ /app/public/

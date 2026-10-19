@@ -213,5 +213,45 @@ assert.ok(
     'spawnHitSparks must reuse shared VFX geometries and never allocate per-call SphereGeometry'
 );
 
-console.log(`[PASS] test_static_invariants.js: syntax (22 files), 0 duplicate methods, tagRegex parity, cache-key symmetry, 3D geometry/VFX invariants, ${sfxManifest.files.length} clean studio SFX files (L41 verified), and cross-browser CSS / PWA meta verified.`);
+// 8. WS22 Universal Agentic Mastery Compliance Invariants (L45–L48: CWE-208, E17, BUDGET-01, INDEX-01, SLSA v1.0)
+const verifyOwnerBlock = serverSrc.slice(
+    serverSrc.indexOf('function verifyOwnerToken('),
+    serverSrc.indexOf('function createOwnerToken(')
+);
+assert.ok(
+    verifyOwnerBlock.includes('crypto.timingSafeEqual') && !verifyOwnerBlock.includes('data.hash ==='),
+    'verifyOwnerToken in server.js must use constant-time crypto.timingSafeEqual (CWE-208 / L45)'
+);
 
+const realmsRouteBlock = serverSrc.slice(
+    serverSrc.indexOf("pathname === '/api/realms'"),
+    serverSrc.indexOf("pathname === '/api/status'")
+);
+assert.ok(
+    !realmsRouteBlock.includes("'Access-Control-Allow-Origin': '*'"),
+    'GET /api/realms in server.js must not override CORS with wildcard * (E17 / L46)'
+);
+
+const agentsSize = fs.statSync(path.join(ROOT, 'AGENTS.md')).size;
+const stateSize = fs.statSync(path.join(ROOT, 'docs/STATE.md')).size;
+assert.ok(agentsSize <= 6000, `AGENTS.md exceeds 6.0 KB Tier 1 token budget (${agentsSize} bytes; L47)`);
+assert.ok(stateSize <= 5000, `docs/STATE.md exceeds 5.0 KB Tier 2 token budget (${stateSize} bytes; L47)`);
+
+const bpHead = fs.readFileSync(path.join(ROOT, 'docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md'), 'utf8').split('\n').slice(0, 45).join('\n');
+assert.ok(
+    bpHead.includes('| ID |') && bpHead.includes('Master $O(1)$ Dispatch Index'),
+    'docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md must include Top-of-File O(1) Master Dispatch Index table in lines 1-45 (INDEX-01 / L47)'
+);
+
+const dockerfileSrc = fs.readFileSync(path.join(ROOT, 'server/Dockerfile'), 'utf8');
+const releaseYmlSrc = fs.readFileSync(path.join(ROOT, '.github/workflows/release.yml'), 'utf8');
+assert.ok(
+    dockerfileSrc.includes('npm ci --omit=dev') && !dockerfileSrc.includes('npm install --omit=dev'),
+    'server/Dockerfile must use deterministic npm ci --omit=dev (SLSA v1.0 / L48)'
+);
+assert.ok(
+    !releaseYmlSrc.includes('npm install\n'),
+    '.github/workflows/release.yml must use deterministic npm ci instead of npm install (SLSA v1.0 / L48)'
+);
+
+console.log(`[PASS] test_static_invariants.js: syntax (22 files), 0 duplicate methods, tagRegex parity, cache-key symmetry, 3D geometry/VFX invariants, ${sfxManifest.files.length} clean studio SFX files (L41), and WS22 compliance invariants (L45–L48) verified.`);

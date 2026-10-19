@@ -762,7 +762,9 @@ function verifyOwnerToken(savePath, requestToken) {
     try {
         const data = JSON.parse(fs.readFileSync(ownerPath, 'utf8'));
         if (!data || !data.hash) return true;
-        return data.hash === sha(requestToken || '');
+        const expected = Buffer.from(String(data.hash), 'utf8');
+        const actual = Buffer.from(sha(requestToken || ''), 'utf8');
+        return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
     } catch (e) {
         return false;
     }
@@ -988,7 +990,7 @@ const server = http.createServer((req, res) => {
 
     // Health & Liveness Probes (/health and /healthz for Cloud Run / Kubernetes)
     if ((pathname === '/health' || pathname === '/healthz') && req.method === 'GET') {
-        let appVersion = '9.4.5';
+        let appVersion = '9.9.1';
         try {
             const vFile = path.join(WEB_DIR, 'version.json');
             if (fs.existsSync(vFile)) {
@@ -1227,8 +1229,7 @@ const server = http.createServer((req, res) => {
         }
         res.writeHead(200, {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-            'Access-Control-Allow-Origin': '*'
+            'Cache-Control': 'no-store, no-cache, must-revalidate'
         });
         res.end(JSON.stringify({
             status: 'ok',
@@ -1240,6 +1241,13 @@ const server = http.createServer((req, res) => {
 
     // REST: Server Capacity & Telemetry Status
     if (pathname === '/api/status' && req.method === 'GET') {
+        let appVersion = '9.9.1';
+        try {
+            const vFile = path.join(WEB_DIR, 'version.json');
+            if (fs.existsSync(vFile)) {
+                appVersion = JSON.parse(fs.readFileSync(vFile, 'utf8')).v || appVersion;
+            }
+        } catch (_) {}
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
             status: 'online',
@@ -1247,7 +1255,7 @@ const server = http.createServer((req, res) => {
             maxCapacity: MAX_CONCURRENT_GAMES,
             waitingQueue: waitingQueue.length,
             maxQueueSize: MAX_QUEUE_SIZE,
-            version: '3.0.0'
+            version: appVersion
         }));
         return;
     }

@@ -2,8 +2,8 @@
 'use strict';
 
 /**
- * Fast-tier test: verify that version strings across server/public/ are in sync.
- * (WS5.4: Single version source)
+ * Fast-tier test: verify that version strings across all clients & packages are in sync.
+ * (WS5.4 / WS22: Single canonical version source across Web, SW, Android, Desktop C#, Godot C#, and Server)
  */
 
 const fs = require('fs');
@@ -15,7 +15,7 @@ const versionJsonPath = path.join(rootDir, 'server/public/version.json');
 const swJsPath = path.join(rootDir, 'server/public/sw.js');
 const indexHtmlPath = path.join(rootDir, 'server/public/index.html');
 
-console.log('Testing version sync across assets...');
+console.log('Testing version sync across all clients and assets...');
 
 // 1. Read canonical version from version.json
 assert(fs.existsSync(versionJsonPath), 'server/public/version.json must exist');
@@ -59,5 +59,27 @@ if (fs.existsSync(gradlePath)) {
     console.log(`  android/app/build.gradle matches: versionName "${canonical}"`);
 }
 
-console.log('✓ All asset versions are in sync!');
+// 5. Check desktop/Angband3D.csproj and client/angband3d.csproj
+for (const relCsproj of ['desktop/Angband3D.csproj', 'client/angband3d.csproj']) {
+    const csprojPath = path.join(rootDir, relCsproj);
+    if (fs.existsSync(csprojPath)) {
+        const csprojContent = fs.readFileSync(csprojPath, 'utf8');
+        const vMatch = csprojContent.match(/<Version>([^<]+)<\/Version>/);
+        assert(vMatch, `${relCsproj} must declare <Version>`);
+        assert.strictEqual(vMatch[1], canonical, `${relCsproj} <Version> (${vMatch[1]}) must match canonical (${canonical})`);
+        console.log(`  ${relCsproj} matches: <Version>${canonical}</Version>`);
+    }
+}
+
+// 6. Check root package.json and server/package.json
+for (const relPkg of ['package.json', 'server/package.json']) {
+    const pkgPath = path.join(rootDir, relPkg);
+    if (fs.existsSync(pkgPath)) {
+        const pkgData = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        assert.strictEqual(pkgData.version, canonical, `${relPkg} version (${pkgData.version}) must match canonical (${canonical})`);
+        console.log(`  ${relPkg} matches: version "${canonical}"`);
+    }
+}
+
+console.log('✓ All client & package versions are in sync!');
 process.exit(0);

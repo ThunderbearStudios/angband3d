@@ -57,6 +57,10 @@ async function waitUp() {
         if (evil.headers['access-control-allow-origin']) fails.push('foreign Origin got ACAO=' + evil.headers['access-control-allow-origin']);
         const same = await req({ path: '/health', headers: { Origin: self } });
         if (same.headers['access-control-allow-origin'] !== self) fails.push('same-host Origin not echoed: ' + same.headers['access-control-allow-origin']);
+        const evilRealms = await req({ path: '/api/realms', headers: { Origin: 'https://evil.example' } });
+        if (evilRealms.headers['access-control-allow-origin']) fails.push('/api/realms foreign Origin got ACAO=' + evilRealms.headers['access-control-allow-origin']);
+        const sameRealms = await req({ path: '/api/realms', headers: { Origin: self } });
+        if (sameRealms.headers['access-control-allow-origin'] !== self) fails.push('/api/realms same-host Origin not echoed: ' + sameRealms.headers['access-control-allow-origin']);
         if (await wsUpgrade('https://evil.example') === 101) fails.push('WS upgrade accepted from foreign Origin');
         const okWs = await wsUpgrade(self);
         if (okWs !== 101) fails.push('WS upgrade refused for same-host Origin (status ' + okWs + ')');

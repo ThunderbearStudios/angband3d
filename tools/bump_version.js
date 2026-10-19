@@ -48,4 +48,40 @@ if (fs.existsSync(gradlePath)) {
     console.log(`Updated ${gradlePath} -> versionName "${newVersion}"`);
 }
 
-console.log(`Version bump to ${newVersion} complete.`);
+// 5. Update desktop/Angband3D.csproj and client/angband3d.csproj
+const csprojPaths = [
+    path.join(rootDir, 'desktop/Angband3D.csproj'),
+    path.join(rootDir, 'client/angband3d.csproj')
+];
+const fourPartVersion = newVersion.split('.').length === 3 ? `${newVersion}.0` : newVersion;
+for (const csprojPath of csprojPaths) {
+    if (fs.existsSync(csprojPath)) {
+        let csproj = fs.readFileSync(csprojPath, 'utf8');
+        csproj = csproj.replace(/<Version>[^<]+<\/Version>/, `<Version>${newVersion}</Version>`);
+        csproj = csproj.replace(/<FileVersion>[^<]+<\/FileVersion>/, `<FileVersion>${fourPartVersion}</FileVersion>`);
+        csproj = csproj.replace(/<AssemblyVersion>[^<]+<\/AssemblyVersion>/, `<AssemblyVersion>${fourPartVersion}</AssemblyVersion>`);
+        fs.writeFileSync(csprojPath, csproj, 'utf8');
+        console.log(`Updated ${csprojPath} -> Version ${newVersion}`);
+    }
+}
+
+// 6. Update root package.json, server/package.json, and lockfiles
+const pkgPaths = [
+    path.join(rootDir, 'package.json'),
+    path.join(rootDir, 'server/package.json'),
+    path.join(rootDir, 'package-lock.json'),
+    path.join(rootDir, 'server/package-lock.json')
+];
+for (const pkgPath of pkgPaths) {
+    if (fs.existsSync(pkgPath)) {
+        const pkgContent = fs.readFileSync(pkgPath, 'utf8');
+        const updatedPkg = pkgContent.replace(
+            /(^\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"version"\s*:\s*")[^"]+("[\s\S]*?"packages"\s*:\s*\{\s*""\s*:\s*\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"version"\s*:\s*")[^"]+(")/,
+            `$1${newVersion}$2${newVersion}$3`
+        ).replace(/^(\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"version"\s*:\s*")[^"]+(")/, `$1${newVersion}$2`);
+        fs.writeFileSync(pkgPath, updatedPkg, 'utf8');
+        console.log(`Updated ${pkgPath} -> version "${newVersion}"`);
+    }
+}
+
+console.log(`Version bump to ${newVersion} complete across all clients and packages.`);
