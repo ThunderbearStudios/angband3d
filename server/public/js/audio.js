@@ -345,8 +345,8 @@ class SoundEngine {
             potionThrow: ['miss_1.ogg', 'miss_2.ogg'],
             potionShatter: ['impact_glass_1.ogg', 'impact_glass_2.ogg'],
             scroll: ['book_flip_1.ogg', 'book_flip_2.ogg'],
-            heal: ['heal_spell.wav', 'magic_holy_1.ogg'],
-            prayer: ['magic_holy_1.ogg', 'magic_holy_2.ogg', 'impact_bell_1.ogg'],
+            heal: ['potion_drink.ogg'],
+            prayer: ['book_flip_1.ogg', 'book_flip_2.ogg'],
             staff: ['magic_faerie.ogg', 'magic_missile_1.ogg'],
             levelUp: ['fanfare_short.wav', 'magic_holy_2.ogg'],
             teleport: ['magic_faerie.ogg', 'magic_missile_2.ogg'],
@@ -987,20 +987,19 @@ class SoundEngine {
         return this.createBuffer(samples);
     }
 
-    // Restorative heal chime
+    // Soft, warm low-register restorative acoustic pad (zero high-frequency sweeps or bells per L49)
     synthHeal() {
-        const duration = 0.38;
+        const duration = 0.24;
         const totalSamples = Math.floor(this.sampleRate * duration);
         const samples = new Float32Array(totalSamples);
 
         for (let i = 0; i < totalSamples; i++) {
             const t = i / this.sampleRate;
-            const env = Math.exp(-t * 7);
-            const sweep = 523.25 + t * 400; // C5 to G5
-            const tone1 = Math.sin(2 * Math.PI * sweep * t) * 0.4;
-            const tone2 = Math.sin(2 * Math.PI * (sweep * 1.5) * t) * 0.25;
-            const shimmer = Math.sin(2 * Math.PI * 1318.5 * t) * Math.exp(-t * 18) * 0.2;
-            samples[i] = (tone1 + tone2 + shimmer) * env * 0.75;
+            const attack = Math.min(1.0, t / 0.015);
+            const env = attack * Math.exp(-t * 12);
+            const tone1 = Math.sin(2 * Math.PI * 220.0 * t) * 0.45;
+            const tone2 = Math.sin(2 * Math.PI * 330.0 * t) * 0.28;
+            samples[i] = (tone1 + tone2) * env * 0.22;
         }
         return this.createBuffer(samples);
     }
@@ -1450,20 +1449,20 @@ class SoundEngine {
         return this.createBuffer(samples);
     }
 
-    // Upgraded Scroll Reading: Parchment texture + glowing rune triad
+    // Upgraded Scroll Reading: Soft parchment texture + warm low-register rune triad
     synthScroll() {
-        const duration = 0.36;
+        const duration = 0.28;
         const totalSamples = Math.floor(this.sampleRate * duration);
         const samples = new Float32Array(totalSamples);
 
         for (let i = 0; i < totalSamples; i++) {
             const t = i / this.sampleRate;
-            const env = Math.exp(-t * 8);
-            const rustle = (Math.random() * 2 - 1) * Math.exp(-t * 22) * 0.35;
-            const rune1 = Math.sin(2 * Math.PI * 523.25 * t) * 0.32;
-            const rune2 = Math.sin(2 * Math.PI * 783.99 * t) * 0.26;
-            const rune3 = Math.sin(2 * Math.PI * 1318.51 * t) * 0.20;
-            samples[i] = Math.tanh((rustle + (rune1 + rune2 + rune3) * env) * 0.80);
+            const env = Math.exp(-t * 11);
+            const rustle = (Math.random() * 2 - 1) * Math.exp(-t * 28) * 0.28;
+            const rune1 = Math.sin(2 * Math.PI * 220.0 * t) * 0.30;
+            const rune2 = Math.sin(2 * Math.PI * 330.0 * t) * 0.20;
+            const rune3 = Math.sin(2 * Math.PI * 440.0 * t) * 0.12;
+            samples[i] = Math.tanh((rustle + (rune1 + rune2 + rune3) * env) * 0.40);
         }
         return this.createBuffer(samples);
     }
@@ -1797,9 +1796,12 @@ class SoundEngine {
     }
 
     playHeal() {
+        const now = performance.now();
+        if (now - (this.lastStatusTimes['heal'] || 0) < 1800) return;
+        this.lastStatusTimes['heal'] = now;
         this.unlock();
-        if (this.playPoolSample('heal', 1.0, 0.90, 0.0, 0.28, 'heal')) return;
-        this.playBuffer(this.buffers['heal'], 1.0, 0.90);
+        if (this.playPoolSample('heal', 1.0, 0.25, 0.0, 0.10, 'heal')) return;
+        this.playBuffer(this.buffers['heal'], 1.0, 0.25);
     }
 
     playLevelUp() {
@@ -1952,17 +1954,17 @@ class SoundEngine {
 
     playQuaff(pan = 0.0) {
         this.unlock();
-        if (this.playPoolSample('quaff', 1.0, 0.95, pan, 0.20, 'quaff')) return;
-        this.playBuffer(this.buffers['quaff'], 1.0, 0.95, pan);
+        if (this.playPoolSample('quaff', 1.0, 0.42, pan, 0.12, 'quaff')) return;
+        this.playBuffer(this.buffers['quaff'], 1.0, 0.42, pan);
     }
 
     playScroll(pan = 0.0) {
         this.unlock();
-        if (this.playPoolSample('scroll', 1.0, 0.90, pan, 0.28, 'scroll')) return;
+        if (this.playPoolSample('scroll', 1.0, 0.40, pan, 0.14, 'scroll')) return;
         if (this.ctx && typeof this.ctx.createOscillator === 'function') {
             this.playRunicAura('scroll', pan);
         } else {
-            this.playBuffer(this.buffers['scroll'], 1.0, 0.90, pan);
+            this.playBuffer(this.buffers['scroll'], 1.0, 0.40, pan);
         }
     }
 
@@ -2753,88 +2755,73 @@ class SoundEngine {
             poolKey = 'staff';
         }
 
-        if (this.playPoolSample(poolKey, 1.0, 0.90, pan, 0.30)) {
-            if (poolKey === 'scroll') {
-                this.playPoolSample('staff', 1.08, 0.55, pan, 0.35);
-            }
+        if (this.playPoolSample(poolKey, 1.0, 0.35, pan, 0.12)) {
             return;
         }
 
-        const duration = (k === 'prayer' || k === 'heal') ? 0.85 : (k.includes('staff') || k.includes('wand') || k.includes('rod') ? 0.70 : 0.60);
+        const duration = (k === 'prayer' || k === 'heal' || k === 'holy' || k === 'celestial') ? 0.36 : (k.includes('staff') || k.includes('wand') || k.includes('rod') ? 0.55 : 0.45);
         const voice = this._createVoice(duration, pan);
         if (!voice) return;
         const { ctx, now, out } = voice;
         const noiseBuf = this.getNoiseBuffer(1.0);
 
         if (k.includes('staff') || k.includes('wand') || k.includes('rod')) {
-            // Arcane capacitor hum: crystalline chime (528Hz + 792Hz + 1056Hz) with vibrato
-            const freqs = [528, 792, 1056];
+            // Arcane capacitor hum: warm low-mid chord (264Hz + 396Hz + 528Hz) with gentle vibrato
+            const freqs = [264, 396, 528];
             const lfo = ctx.createOscillator();
             const lfoGain = ctx.createGain();
-            lfo.frequency.setValueAtTime(6.0, now);
-            lfoGain.gain.setValueAtTime(10.0, now);
+            lfo.frequency.setValueAtTime(5.0, now);
+            lfoGain.gain.setValueAtTime(6.0, now);
             lfo.connect(lfoGain);
 
             freqs.forEach((freq, idx) => {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
-                osc.type = idx === 0 ? 'sine' : 'triangle';
+                osc.type = 'sine';
                 osc.frequency.setValueAtTime(freq, now);
                 lfoGain.connect(osc.frequency);
 
                 gain.gain.setValueAtTime(0.0001, now);
-                gain.gain.linearRampToValueAtTime(0.35 / (idx + 1), now + 0.015);
-                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+                gain.gain.linearRampToValueAtTime(0.18 / (idx + 1), now + 0.015);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.50);
 
                 osc.connect(gain);
                 gain.connect(out);
                 osc.start(now);
-                osc.stop(now + 0.68);
+                osc.stop(now + 0.52);
                 voice.add(osc, gain);
             });
 
             lfo.start(now);
-            lfo.stop(now + 0.68);
+            lfo.stop(now + 0.52);
             voice.add(lfo, lfoGain);
-        } else if (k === 'prayer' || k === 'heal' || k === 'celestial') {
-            // Celestial cathedral bell + ascending harmonic fifth (523.25Hz -> 783.99Hz)
-            const bell = ctx.createOscillator();
-            const bellGain = ctx.createGain();
-            bell.type = 'sine';
-            bell.frequency.setValueAtTime(523.25, now);
-            bellGain.gain.setValueAtTime(0.50, now);
-            bellGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.80);
-            bell.connect(bellGain);
-            bellGain.connect(out);
-            bell.start(now);
-            bell.stop(now + 0.82);
-            voice.add(bell, bellGain);
+        } else if (k === 'prayer' || k === 'heal' || k === 'holy' || k === 'celestial') {
+            // Warm, unobtrusive low-register restorative acoustic pad (A3 220Hz + E4 330Hz, zero high bells)
+            const rootOsc = ctx.createOscillator();
+            const rootGain = ctx.createGain();
+            rootOsc.type = 'sine';
+            rootOsc.frequency.setValueAtTime(220.0, now);
+            rootGain.gain.setValueAtTime(0.0001, now);
+            rootGain.gain.linearRampToValueAtTime(0.16, now + 0.02);
+            rootGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+            rootOsc.connect(rootGain);
+            rootGain.connect(out);
+            rootOsc.start(now);
+            rootOsc.stop(now + 0.35);
+            voice.add(rootOsc, rootGain);
 
-            const bellOvertone = ctx.createOscillator();
-            const bellOGain = ctx.createGain();
-            bellOvertone.type = 'sine';
-            bellOvertone.frequency.setValueAtTime(1046.5, now);
-            bellOGain.gain.setValueAtTime(0.25, now);
-            bellOGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
-            bellOvertone.connect(bellOGain);
-            bellOGain.connect(out);
-            bellOvertone.start(now);
-            bellOvertone.stop(now + 0.58);
-            voice.add(bellOvertone, bellOGain);
-
-            const fifth = ctx.createOscillator();
+            const fifthOsc = ctx.createOscillator();
             const fifthGain = ctx.createGain();
-            fifth.type = 'triangle';
-            fifth.frequency.setValueAtTime(523.25, now);
-            fifth.frequency.exponentialRampToValueAtTime(783.99, now + 0.22);
+            fifthOsc.type = 'sine';
+            fifthOsc.frequency.setValueAtTime(330.0, now);
             fifthGain.gain.setValueAtTime(0.0001, now);
-            fifthGain.gain.linearRampToValueAtTime(0.42, now + 0.08);
-            fifthGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.78);
-            fifth.connect(fifthGain);
+            fifthGain.gain.linearRampToValueAtTime(0.10, now + 0.025);
+            fifthGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+            fifthOsc.connect(fifthGain);
             fifthGain.connect(out);
-            fifth.start(now);
-            fifth.stop(now + 0.80);
-            voice.add(fifth, fifthGain);
+            fifthOsc.start(now);
+            fifthOsc.stop(now + 0.34);
+            voice.add(fifthOsc, fifthGain);
         } else {
             // Scroll: Crisp parchment unfurl noise (1400Hz bandpass) + warm mystical triad chord (440Hz + 554.37Hz + 659.25Hz)
             if (noiseBuf) {
@@ -2856,19 +2843,19 @@ class SoundEngine {
                 voice.add(unfurlSrc, bpFilter, unfurlGain);
             }
 
-            const triad = [440.00, 554.37, 659.25];
+            const triad = [220.00, 277.18, 329.63];
             triad.forEach(f => {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(f, now);
                 gain.gain.setValueAtTime(0.0001, now);
-                gain.gain.linearRampToValueAtTime(0.28, now + 0.04);
-                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.52);
+                gain.gain.linearRampToValueAtTime(0.12, now + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
                 osc.connect(gain);
                 gain.connect(out);
                 osc.start(now);
-                osc.stop(now + 0.55);
+                osc.stop(now + 0.40);
                 voice.add(osc, gain);
             });
         }

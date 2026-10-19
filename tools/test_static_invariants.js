@@ -254,4 +254,31 @@ assert.ok(
     '.github/workflows/release.yml must use deterministic npm ci instead of npm install (SLSA v1.0 / L48)'
 );
 
-console.log(`[PASS] test_static_invariants.js: syntax (22 files), 0 duplicate methods, tagRegex parity, cache-key symmetry, 3D geometry/VFX invariants, ${sfxManifest.files.length} clean studio SFX files (L41), and WS22 compliance invariants (L45–L48) verified.`);
+// 9. Silent Passive Regeneration & Non-Invasive Restorative Audio Invariants (L49)
+const hpDeltaBlock = d3dSrc.slice(
+    d3dSrc.indexOf('// Player HP delta tracking'),
+    d3dSrc.indexOf('// Track Active Status Conditions')
+);
+assert.ok(
+    !hpDeltaBlock.includes('playHeal('),
+    'Passive HP regeneration delta in dungeon3d.js must never call playHeal() (L49)'
+);
+assert.ok(
+    !d3dSrc.includes('|missile|mana|chaos|'),
+    'triggerMessageVfx in dungeon3d.js must not match standalone "mana" as an offensive fireball explosion (use mana bolt|mana storm|mana burst; L49)'
+);
+assert.ok(
+    !audioJsSrc.includes("heal: ['heal_spell.wav'") && !audioJsSrc.includes("prayer: ['magic_holy_1.ogg'"),
+    'STUDIO_POOL_MAP in audio.js must not map heal/prayer to piercing heal_spell.wav or magic_holy_1.ogg chimes (L49)'
+);
+const csWorldSrc = fs.readFileSync(path.join(ROOT, 'client/scripts/DungeonWorld.cs'), 'utf8');
+const csHpBlock = csWorldSrc.slice(
+    csWorldSrc.indexOf('else if (_lastPlayerHp >= 0 && curHp > _lastPlayerHp)'),
+    csWorldSrc.indexOf('_lastPlayerHp = curHp;')
+);
+assert.ok(
+    !csHpBlock.includes('AudioManager.Play('),
+    'Passive HP regeneration delta in DungeonWorld.cs must never call AudioManager.Play (L49)'
+);
+
+console.log(`[PASS] test_static_invariants.js: syntax (22 files), 0 duplicate methods, tagRegex parity, cache-key symmetry, 3D geometry/VFX invariants, ${sfxManifest.files.length} clean studio SFX files (L41), and WS22 compliance & audio invariants (L45–L49) verified.`);

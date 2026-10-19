@@ -1,9 +1,9 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS22 — Universal Agentic Mastery, Zero-Trust Security, All-Client Sync & Live Deployment (`v9.9.1`) — COMPLETE**
+**WS22 — Universal Agentic Mastery, Silent Passive Regeneration Audio Hotfix, All-Client Sync & Live Deployment (`v9.9.2`) — COMPLETE**
 
-- **Current Phase**: All workstreams `WS0–WS22` complete and verified (`19/19 fast`, `11/11 smoke`, `0 C# errors`, `tb_mastery.py audit` `0 errors / 0 warnings`).
+- **Current Phase**: All workstreams `WS0–WS22` complete and verified (`19/19 fast`, `4/4 e2e`, `11/11 smoke`, `0 C# errors`, `tb_mastery.py audit` `0 errors / 0 warnings`).
 - **Historical Log**: Full checklist and gate history for `WS0–WS21` are archived in [`docs/archive/STATE_HISTORY_WS0_WS21.md`](file:///c:/Dev/angband3d/docs/archive/STATE_HISTORY_WS0_WS21.md).
 
 ## Completed Workstream Summary (`WS0–WS22`)
@@ -17,7 +17,7 @@
 | **WS5, WS9, WS10** | Single version source (`version.json`), top-bar consolidation, HUD message pass, and Android SDK 34 sync (`501/501` SHA-1) | `[x] DONE` |
 | **WS11–WS18** | Voiced Lorekeeper (`Enceladus` + 30 archetypes), 8-Pillar Ultra Realism 3D, Shockbolt 4096 HD atlases, Hero Action Sketch, and Skinned-Mesh Held Equipment (`L37–L40`) | `[x] DONE` |
 | **WS19–WS21** | 4-Realm 3D Bestiary (`.glb`), Studio Foley + Stone-Hall Convolution Reverb, Shared Singleton VFX (`L43`), and Vertical Apothecary Medicine Vials / Tattered-Scroll UI (`L41–L44`) | `[x] DONE` |
-| **WS22** | Universal Agentic Mastery Compliance: Tier 1/2/4 Token Budget Optimization (`AGENTS.md` $\le 4.5\text{ KB}$, `STATE.md` $\le 4.5\text{ KB}$, `BEST_PRACTICES` $O(1)$ Dispatch Table), Constant-Time Token Verification (`CWE-208`), `/api/realms` CORS (`E17`), Deterministic `npm ci` (`SLSA v1.0`), All-Client Version Sync (`v9.9.1`), and Pinned Static Invariants (`L45–L48`) | `[x] DONE` |
+| **WS22** | Universal Agentic Mastery Compliance & Audio Hotfix: Tier 1/2/4 Token Budgets (`L47`), Constant-Time Token Verification (`CWE-208` / `L45`), `/api/realms` CORS (`E17` / `L46`), Deterministic `npm ci` (`SLSA v1.0` / `L48`), Silent Passive HP/Mana Regen & Warm Restorative Audio (`L49`), and All-Client Sync (`v9.9.2`) | `[x] DONE` |
 
 ## Mandatory Verification Gate
 Server must be fresh (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }` then `cd server; node src/server.js`.
@@ -40,5 +40,5 @@ Server must be fresh (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Liste
 None
 
 ## Last Gate Results
-- **WS22 Universal Agentic Mastery Compliance & All-Client Sync Gate (2026-10-19)**: `fast 19/19 PASS` (`test_http_guard` `/api/realms` `E17` CORS, `test_screen_context` `144/144`, `check_version_sync` `9.9.1` across all 8 client/package targets, `check_android_sync` SHA-1 matched, `test_static_invariants` `L45–L48` [`CWE-208` `timingSafeEqual`, `E17`, `BUDGET-01`/`INDEX-01`, `SLSA v1.0` `npm ci`]) | `smoke_test.py` `11/11 PASS` | `dotnet build` Godot & Desktop `0 warn / 0 err` | `tb_mastery.py audit` `0 errors / 0 warnings`.
+- **WS22 Universal Agentic Mastery, Silent Regen Audio Hotfix & All-Client Sync Gate (`v9.9.2`, 2026-10-19)**: `fast 19/19 PASS` (`test_http_guard` `E17`, `test_screen_context` `144/144`, `check_version_sync` `9.9.2`, `check_android_sync` SHA-1 matched, `test_static_invariants` `L45–L49`) | `e2e 4/4 PASS` | `smoke_test.py` `11/11 PASS` | `dotnet build` Godot & Desktop `0 warn / 0 err` | `tb_mastery.py audit` `0 errors / 0 warnings`.
 - **Wave 21 HUD, Studio Audio & Release Gate (2026-10-19 11:48)**: `fast 19/19 PASS` | `test_audio_browser.js` `39/39 PASS` | `smoke_test.py` `11/11 PASS` | `dotnet build` Godot & Desktop `0 warn / 0 err`.

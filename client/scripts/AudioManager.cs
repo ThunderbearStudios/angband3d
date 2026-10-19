@@ -689,24 +689,21 @@ public partial class AudioManager : Node
 
     private static AudioStreamWav SynthSpellCast()
     {
-        var duration = 0.35f;
+        var duration = 0.28f;
         var totalSamples = (int)(SampleRate * duration);
         var samples = new float[totalSamples];
 
         for (var i = 0; i < totalSamples; i++)
         {
             var t = i / (float)SampleRate;
-            var progress = t / duration;
-            var env = Mathf.Sin(progress * Mathf.Pi);
+            var env = Mathf.Exp(-t * 10f);
 
-            // Rising magic resonant frequency chirp + shimmer
-            var f = 300f + progress * 650f;
-            var shimmerF = 1200f + Mathf.Sin(t * 50f) * 300f;
-            var wave1 = Mathf.Sin(2f * Mathf.Pi * f * t) * 0.5f;
-            var wave2 = Mathf.Sin(2f * Mathf.Pi * shimmerF * t) * 0.35f;
-            var wave3 = Mathf.Sin(2f * Mathf.Pi * (f * 1.5f) * t) * 0.25f;
+            // Warm low-register harmonic resonance (A3 220Hz + E4 330Hz + A4 440Hz)
+            var wave1 = Mathf.Sin(2f * Mathf.Pi * 220f * t) * 0.45f;
+            var wave2 = Mathf.Sin(2f * Mathf.Pi * 330f * t) * 0.30f;
+            var wave3 = Mathf.Sin(2f * Mathf.Pi * 440f * t) * 0.18f;
 
-            samples[i] = (wave1 + wave2 + wave3) * env * 0.80f;
+            samples[i] = (wave1 + wave2 + wave3) * env * 0.42f;
         }
         return CreateWav(samples);
     }
@@ -1103,7 +1100,7 @@ public partial class AudioManager : Node
 
     private static AudioStreamWav SynthScroll()
     {
-        var duration = 0.36f;
+        var duration = 0.28f;
         var totalSamples = (int)(SampleRate * duration);
         var samples = new float[totalSamples];
         var rng = new Random(1212);
@@ -1111,12 +1108,12 @@ public partial class AudioManager : Node
         for (var i = 0; i < totalSamples; i++)
         {
             var t = i / (float)SampleRate;
-            var env = Mathf.Exp(-t * 8f);
-            var rustle = ((float)rng.NextDouble() * 2f - 1f) * Mathf.Exp(-t * 22f) * 0.35f;
-            var rune1 = Mathf.Sin(2f * Mathf.Pi * 523.25f * t) * 0.32f;
-            var rune2 = Mathf.Sin(2f * Mathf.Pi * 783.99f * t) * 0.26f;
-            var rune3 = Mathf.Sin(2f * Mathf.Pi * 1318.51f * t) * 0.20f;
-            samples[i] = (float)Math.Tanh((rustle + (rune1 + rune2 + rune3) * env) * 0.80f);
+            var env = Mathf.Exp(-t * 11f);
+            var rustle = ((float)rng.NextDouble() * 2f - 1f) * Mathf.Exp(-t * 28f) * 0.28f;
+            var rune1 = Mathf.Sin(2f * Mathf.Pi * 220.0f * t) * 0.30f;
+            var rune2 = Mathf.Sin(2f * Mathf.Pi * 330.0f * t) * 0.20f;
+            var rune3 = Mathf.Sin(2f * Mathf.Pi * 440.0f * t) * 0.12f;
+            samples[i] = (float)Math.Tanh((rustle + (rune1 + rune2 + rune3) * env) * 0.40f);
         }
         return CreateWav(samples);
     }

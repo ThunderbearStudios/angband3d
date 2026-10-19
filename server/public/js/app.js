@@ -5700,13 +5700,16 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
 
-            // Check if player died
+            // Check if player died or took damage into critical HP range (never while regenerating/resting)
             if (frame.player && frame.player.dead) {
                 if (audio) audio.playDeathBell();
+                window.__lastWarningHp = null;
             } else if (frame.player && frame.player.hp !== undefined && frame.player.hp_max) {
-                if (frame.player.hp / frame.player.hp_max <= 0.25) {
+                const prevWarnHp = typeof window.__lastWarningHp === 'number' ? window.__lastWarningHp : frame.player.hp;
+                if (frame.player.hp < prevWarnHp && (frame.player.hp / frame.player.hp_max <= 0.25)) {
                     if (audio) audio.playLowHpWarning();
                 }
+                window.__lastWarningHp = frame.player.hp;
             }
 
             // MenuRouter advances pending two-phase dispatch before view mode is evaluated

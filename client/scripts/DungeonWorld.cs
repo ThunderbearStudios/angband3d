@@ -3415,10 +3415,13 @@ void fragment() {
             else if (_lastPlayerHp >= 0 && curHp > _lastPlayerHp)
             {
                 var heal = curHp - _lastPlayerHp;
-                var forward = _camera != null ? -_camera.Transform.Basis.Z : Vector3.Forward;
-                var fPos = _targetPos + forward * 1.0f + new Vector3(0, 0.2f, 0);
-                SpawnFloatingText($"+{heal}", fPos, new Color(0.20f, 1.0f, 0.40f), 1.15f);
-                AudioManager.Play(SoundEffect.ItemPickup, 1.2f);
+                var minActiveHeal = Math.Max(8, (curMaxHp > 0 ? curMaxHp : 20) * 15 / 100);
+                if (heal >= minActiveHeal)
+                {
+                    var forward = _camera != null ? -_camera.Transform.Basis.Z : Vector3.Forward;
+                    var fPos = _targetPos + forward * 1.0f + new Vector3(0, 0.2f, 0);
+                    SpawnFloatingText($"+{heal}", fPos, new Color(0.20f, 1.0f, 0.40f), 1.15f);
+                }
             }
 
             _lastPlayerHp = curHp;
@@ -4940,6 +4943,7 @@ void fragment() {
             else if (lower.Contains("frost") || lower.Contains("cold") || lower.Contains("ice")) AudioManager.Play(SoundEffect.SpellCold);
             else if (lower.Contains("lightning") || lower.Contains("elec") || lower.Contains("spark")) AudioManager.Play(SoundEffect.SpellLightning);
             else if (lower.Contains("poison") || lower.Contains("acid") || lower.Contains("stinking")) AudioManager.Play(SoundEffect.SpellPoison);
+            else if (lower.Contains("heal") || lower.Contains("cure") || lower.Contains("bless") || lower.Contains("restore")) AudioManager.Play(SoundEffect.Scroll, volumeDb: -6f);
             else AudioManager.Play(SoundEffect.SpellCast);
 
             Color spellCol;

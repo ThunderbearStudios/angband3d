@@ -5466,8 +5466,18 @@ class Dungeon3D {
         }
 
         // 2. Fire / Frost / Acid / Poison / Chaos / Mana Spells & Breaths
-        if (/\b(breathes|fireball|frost|cold|acid|poison|venom|missile|mana|chaos|nether|you cast|you zap|you aim|mumbles|invokes)\b/.test(lower)) {
+        if (/\b(breathes|fireball|frost|cold|acid|poison|venom|missile|mana bolt|mana storm|mana burst|chaos|nether|you cast|you zap|you aim|mumbles|invokes)\b/.test(lower)) {
             const isBreath = lower.includes('breathe') || lower.includes('breath');
+            if (/\b(heal|cure|restore|satisfy|bless|sanctuary|prayer)\b/.test(lower) && !isBreath) {
+                this.spawnProjectileOrSpellVfx('aura', ep.startPos, ep.startPos, 0x33ff88);
+                if (this.audio && typeof this.audio.playRunicAura === 'function') {
+                    this.audio.playRunicAura('heal', ep.pan);
+                }
+                if (isPlayerSource) {
+                    this.triggerCastAnimation();
+                }
+                return;
+            }
             let elemColor = 0xff7722;
             let elemType = 'fire';
             if (lower.includes('frost') || lower.includes('cold') || lower.includes('ice')) {
@@ -5479,15 +5489,15 @@ class Dungeon3D {
             } else if (lower.includes('poison') || lower.includes('venom')) {
                 elemColor = 0x33dd66;
                 elemType = 'poison';
-            } else if (lower.includes('chaos') || lower.includes('nether') || lower.includes('mana')) {
+            } else if (lower.includes('chaos') || lower.includes('nether') || lower.includes('mana') || lower.includes('missile')) {
                 elemColor = 0xbb55ff;
                 elemType = 'magic';
             }
             this.spawnProjectileOrSpellVfx(isBreath ? 'breath' : 'fireball', ep.startPos, ep.endPos, elemColor);
-            if (this.audio && typeof this.audio.playFireballDetonation === 'function') {
+            if ((isBreath || elemType === 'fire') && this.audio && typeof this.audio.playFireballDetonation === 'function') {
                 this.audio.playFireballDetonation(isBreath, ep.pan);
             } else if (this.audio && typeof this.audio.playSpell === 'function') {
-                this.audio.playSpell(elemType);
+                this.audio.playSpell(elemType, ep.pan);
             }
             if (isPlayerSource) {
                 this.triggerCastAnimation();
@@ -6321,8 +6331,10 @@ class Dungeon3D {
                     if (this.audio) this.audio.playPlayerHurt();
                 } else if (curHp > this.lastPlayerHp) {
                     const heal = curHp - this.lastPlayerHp;
-                    this.spawnFloatingText(`+${heal}`, spawnInFront, '#33ff66', 1.15);
-                    if (this.audio) this.audio.playHeal();
+                    const minActiveHeal = Math.max(8, Math.floor((frame.player.hp_max || 20) * 0.15));
+                    if (heal >= minActiveHeal) {
+                        this.spawnFloatingText(`+${heal}`, spawnInFront, '#33ff66', 1.15);
+                    }
                 }
             }
             this.lastPlayerHp = curHp;

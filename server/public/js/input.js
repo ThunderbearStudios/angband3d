@@ -1823,7 +1823,10 @@ class InputController {
                     if (typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
                 } else if (k === '>' || k === '<') {
                     if (typeof this.audio.playStairs === 'function') this.audio.playStairs(k === '>');
-                } else if (kl === 'm' || kl === 's' || kl === 'b' || kl === 'p') this.audio.playSpell();
+                } else if (kl === 'm' || kl === 'b' || kl === 'p') this.audio.playMenuOpen();
+                else if (kl === 's') {
+                    if (typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
+                }
                 else if (kl === 'q') this.audio.playQuaff();
                 else if (kl === 'r') this.audio.playScroll();
                 else if (kl === 'g' || kl === ',') this.audio.playItemPickup();
@@ -2001,8 +2004,8 @@ class InputController {
                         this.network.sendKey('escape');
                         setTimeout(() => {
                             if (this.audio) {
-                                if (effKey === 'm' || effKey === 's') this.audio.playSpell();
-                                else if (effKey === 'i' || effKey === 'e' || effKey === 'v' || effKey === 't' || effKey === 'N' || effKey === 'tab' || effKey === 'U' || effKey === 'O' || effKey === 'Q' || effKey === 'b' || effKey === 'G') this.audio.playMenuOpen();
+                                if (effKey === 's' && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
+                                else if (effKey === 'm' || effKey === 'i' || effKey === 'e' || effKey === 'v' || effKey === 't' || effKey === 'N' || effKey === 'tab' || effKey === 'U' || effKey === 'O' || effKey === 'Q' || effKey === 'b' || effKey === 'G') this.audio.playMenuOpen();
                                 else if (effKey === 'g') this.audio.playItemPickup();
                                 else if (effKey === 'q') (typeof this.audio.playQuaff === 'function') ? this.audio.playQuaff() : this.audio.playMenuOpen();
                                 else if (effKey === 'r') (typeof this.audio.playScroll === 'function') ? this.audio.playScroll() : this.audio.playMenuOpen();
@@ -2039,8 +2042,8 @@ class InputController {
                     }
 
                     if (this.audio) {
-                        if (effKey === 'm' || effKey === 's') this.audio.playSpell();
-                        else if (effKey === 'i' || effKey === 'e' || effKey === 'v' || effKey === 't' || effKey === 'N' || effKey === 'tab' || effKey === 'U' || effKey === 'O' || effKey === 'Q' || effKey === 'b' || effKey === 'G') this.audio.playMenuOpen();
+                        if (effKey === 's' && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
+                        else if (effKey === 'm' || effKey === 'i' || effKey === 'e' || effKey === 'v' || effKey === 't' || effKey === 'N' || effKey === 'tab' || effKey === 'U' || effKey === 'O' || effKey === 'Q' || effKey === 'b' || effKey === 'G') this.audio.playMenuOpen();
                         else if (effKey === 'g') this.audio.playItemPickup();
                         else if (effKey === 'q') (typeof this.audio.playQuaff === 'function') ? this.audio.playQuaff() : this.audio.playMenuOpen();
                         else if (effKey === 'r') (typeof this.audio.playScroll === 'function') ? this.audio.playScroll() : this.audio.playMenuOpen();
