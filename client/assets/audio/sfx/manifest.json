@@ -1,0 +1,487 @@
+{
+  "version": "1.0.0",
+  "sources": [
+    {
+      "name": "Kenney RPG Audio & Impact Sounds",
+      "license": "CC0 1.0 Universal",
+      "url": "https://kenney.nl/assets"
+    },
+    {
+      "name": "The Battle for Wesnoth Core Sound Library",
+      "license": "GPL-2.0+",
+      "url": "https://github.com/wesnoth/wesnoth"
+    }
+  ],
+  "files": [
+    {
+      "file": "axe_hit.ogg",
+      "category": "weapons",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 6805
+    },
+    {
+      "file": "bat_hit_1.ogg",
+      "category": "monsters",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 9303
+    },
+    {
+      "file": "bite.ogg",
+      "category": "monsters",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 12703
+    },
+    {
+      "file": "blade_draw_1.ogg",
+      "category": "weapons",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 11134
+    },
+    {
+      "file": "blade_draw_2.ogg",
+      "category": "weapons",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 12395
+    },
+    {
+      "file": "blade_slice_1.ogg",
+      "category": "weapons",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 15532
+    },
+    {
+      "file": "blade_slice_2.ogg",
+      "category": "weapons",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 15099
+    },
+    {
+      "file": "book_flip_1.ogg",
+      "category": "items",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 18248
+    },
+    {
+      "file": "book_flip_2.ogg",
+      "category": "items",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 12393
+    },
+    {
+      "file": "bow_fire.ogg",
+      "category": "ranged",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 12804
+    },
+    {
+      "file": "bow_miss.ogg",
+      "category": "ranged",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 13478
+    },
+    {
+      "file": "cave_in.ogg",
+      "category": "environment",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 81618
+    },
+    {
+      "file": "chop.ogg",
+      "category": "weapons",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 9370
+    },
+    {
+      "file": "claws.ogg",
+      "category": "monsters",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 8759
+    },
+    {
+      "file": "cloth_1.ogg",
+      "category": "items",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 16508
+    },
+    {
+      "file": "cloth_2.ogg",
+      "category": "items",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 11787
+    },
+    {
+      "file": "coins_1.ogg",
+      "category": "items",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 25394
+    },
+    {
+      "file": "coins_2.ogg",
+      "category": "items",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 13094
+    },
+    {
+      "file": "creak_1.ogg",
+      "category": "environment",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 15761
+    },
+    {
+      "file": "crossbow_fire.ogg",
+      "category": "ranged",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 9497
+    },
+    {
+      "file": "door_close_1.ogg",
+      "category": "environment",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 18564
+    },
+    {
+      "file": "door_open_1.ogg",
+      "category": "environment",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 22848
+    },
+    {
+      "file": "drake_hit_1.ogg",
+      "category": "monsters",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 13802
+    },
+    {
+      "file": "explosion.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 70590
+    },
+    {
+      "file": "fanfare_short.wav",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 88164
+    },
+    {
+      "file": "flail_hit.ogg",
+      "category": "weapons",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 13696
+    },
+    {
+      "file": "flame_big.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 12699
+    },
+    {
+      "file": "gold_pickup.ogg",
+      "category": "items",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 27470
+    },
+    {
+      "file": "heal_spell.wav",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 69454
+    },
+    {
+      "file": "hiss_big.wav",
+      "category": "monsters",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 43516
+    },
+    {
+      "file": "impact_bell_1.ogg",
+      "category": "spells",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 13915
+    },
+    {
+      "file": "impact_glass_1.ogg",
+      "category": "items",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 7403
+    },
+    {
+      "file": "impact_glass_2.ogg",
+      "category": "items",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 8946
+    },
+    {
+      "file": "impact_metal_heavy_1.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 6110
+    },
+    {
+      "file": "impact_metal_heavy_2.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 7279
+    },
+    {
+      "file": "impact_mining_1.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 12035
+    },
+    {
+      "file": "impact_mining_2.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 11481
+    },
+    {
+      "file": "impact_mining_3.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 11235
+    },
+    {
+      "file": "impact_plate_heavy_1.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 10032
+    },
+    {
+      "file": "impact_plate_heavy_2.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 8713
+    },
+    {
+      "file": "impact_plate_med_1.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 10921
+    },
+    {
+      "file": "impact_punch_1.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 11617
+    },
+    {
+      "file": "impact_punch_2.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 10861
+    },
+    {
+      "file": "impact_wood_heavy_1.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 6233
+    },
+    {
+      "file": "impact_wood_heavy_2.ogg",
+      "category": "impacts",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 6239
+    },
+    {
+      "file": "lightning_bolt.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 32890
+    },
+    {
+      "file": "mace_hit.ogg",
+      "category": "weapons",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 18675
+    },
+    {
+      "file": "magic_dark_big.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 14949
+    },
+    {
+      "file": "magic_faerie.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 30828
+    },
+    {
+      "file": "magic_holy_1.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 24394
+    },
+    {
+      "file": "magic_holy_2.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 29130
+    },
+    {
+      "file": "magic_missile_1.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 12067
+    },
+    {
+      "file": "magic_missile_2.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 11442
+    },
+    {
+      "file": "metal_latch.ogg",
+      "category": "environment",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 10208
+    },
+    {
+      "file": "miss_1.ogg",
+      "category": "weapons",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 4934
+    },
+    {
+      "file": "miss_2.ogg",
+      "category": "weapons",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 5557
+    },
+    {
+      "file": "miss_3.ogg",
+      "category": "weapons",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 5503
+    },
+    {
+      "file": "open_chest.wav",
+      "category": "environment",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 5040
+    },
+    {
+      "file": "petrified.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 13955
+    },
+    {
+      "file": "pincers.ogg",
+      "category": "monsters",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 7596
+    },
+    {
+      "file": "poison_spell.ogg",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 14580
+    },
+    {
+      "file": "potion_drink.ogg",
+      "category": "items",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 54327
+    },
+    {
+      "file": "skeleton_die_1.ogg",
+      "category": "monsters",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 32929
+    },
+    {
+      "file": "skeleton_hit_1.ogg",
+      "category": "monsters",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 18077
+    },
+    {
+      "file": "spear_hit.ogg",
+      "category": "weapons",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 7606
+    },
+    {
+      "file": "step_grass_1.ogg",
+      "category": "footsteps",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 8290
+    },
+    {
+      "file": "step_grass_2.ogg",
+      "category": "footsteps",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 8313
+    },
+    {
+      "file": "step_grass_3.ogg",
+      "category": "footsteps",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 8278
+    },
+    {
+      "file": "step_grass_4.ogg",
+      "category": "footsteps",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 8129
+    },
+    {
+      "file": "step_stone_1.ogg",
+      "category": "footsteps",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 5808
+    },
+    {
+      "file": "step_stone_2.ogg",
+      "category": "footsteps",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 6308
+    },
+    {
+      "file": "step_stone_3.ogg",
+      "category": "footsteps",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 6255
+    },
+    {
+      "file": "step_stone_4.ogg",
+      "category": "footsteps",
+      "license": "CC0-1.0 (Kenney Impact Sounds)",
+      "bytes": 5805
+    },
+    {
+      "file": "step_wood_1.ogg",
+      "category": "footsteps",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 9475
+    },
+    {
+      "file": "step_wood_2.ogg",
+      "category": "footsteps",
+      "license": "CC0-1.0 (Kenney RPG Audio)",
+      "bytes": 9900
+    },
+    {
+      "file": "sword_1.ogg",
+      "category": "weapons",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 8488
+    },
+    {
+      "file": "water_blast.wav",
+      "category": "spells",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 112674
+    },
+    {
+      "file": "wolf_growl_1.ogg",
+      "category": "monsters",
+      "license": "GPL-2.0+ (Battle for Wesnoth)",
+      "bytes": 27851
+    }
+  ],
+  "totalFiles": 78,
+  "totalBytes": 1435766
+}

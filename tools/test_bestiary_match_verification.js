@@ -557,5 +557,119 @@ test('Card 17A 3D rig posture, skinned-mesh fist centroid attachment & viewmodel
     assert.strictEqual(maggot.weaponKey, 'item_staff_branch', 'Farmer Maggot must wield item_staff_branch');
 });
 
+// ==============================================================================
+// 7. Wave 19: Multi-Realm Bestiary & Dedicated 3D .glb Model Verification
+// ==============================================================================
+test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct template loaders & 4-realm taxonomy', () => {
+    const d3dSrc = read('server/public/js/dungeon3d.js');
+    const resolverSrc = read('client/scripts/MonsterModelResolver.cs');
+
+    const wave19Glbs = [
+        'centipede.glb',
+        'beetle.glb',
+        'ant.glb',
+        'scorpion.glb',
+        'floating_eye.glb',
+        'worm_mass.glb',
+        'jelly_ooze.glb',
+        'mushroom_cluster.glb',
+        'vortex_elemental.glb',
+        'quylthulg.glb',
+        'hydra.glb',
+        'naga.glb',
+        'bat.glb',
+        'bear.glb',
+        'lizard.glb',
+        'aquatic.glb'
+    ];
+    const upgradedAnimalGlbs = [
+        'giant_spider.glb',
+        'snake.glb',
+        'wasp.glb',
+        'frog.glb'
+    ];
+
+    for (const file of [...wave19Glbs, ...upgradedAnimalGlbs]) {
+        const webPath = path.join(ROOT, 'server/public/assets/models/monsters/bestiary', file);
+        const godotPath = path.join(ROOT, 'client/assets/models/monsters/bestiary', file);
+        assert(fs.existsSync(webPath), `Missing Web bestiary GLB: ${webPath}`);
+        assert(fs.existsSync(godotPath), `Missing Godot bestiary GLB: ${godotPath}`);
+
+        const buf = fs.readFileSync(webPath);
+        assert.strictEqual(buf.readUInt32LE(0), 0x46546C67, `Invalid glTF magic header in ${file}`);
+        const jsonLen = buf.readUInt32LE(12);
+        const json = JSON.parse(buf.slice(20, 20 + jsonLen).toString('utf8'));
+        assert(json.meshes && json.meshes.length > 0, `No meshes in ${file}`);
+        for (const mesh of json.meshes) {
+            for (const prim of mesh.primitives) {
+                assert(prim.attributes.POSITION !== undefined, `Missing POSITION in ${file}`);
+                assert(prim.attributes.NORMAL !== undefined, `Missing NORMAL in ${file}`);
+                assert(prim.attributes.TEXCOORD_0 !== undefined, `Missing TEXCOORD_0 UVs in ${file}`);
+            }
+        }
+        assert(d3dSrc.includes(`/assets/models/monsters/bestiary/${file}`), `dungeon3d.js must load /assets/models/monsters/bestiary/${file}`);
+        assert(resolverSrc.includes(file), `MonsterModelResolver.cs must reference ${file}`);
+    }
+
+    // Verify _enhanceBestiaryMeshQuality is defined and called
+    assert(d3dSrc.includes('_enhanceBestiaryMeshQuality(scene'), 'dungeon3d.js must define and invoke _enhanceBestiaryMeshQuality');
+
+    // Isolate resolveMonster3DConfig
+    const startIdx = d3dSrc.indexOf('\n    resolveMonster3DConfig(');
+    const endIdx = d3dSrc.indexOf('\n    _prepareCanonicalHeldClone(', startIdx);
+    const fnSrc = 'function ' + d3dSrc.slice(startIdx + 5, endIdx).trim();
+    const sandbox = {
+        window: {},
+        getAngbandColorString: () => '#ffffff'
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(fnSrc, sandbox);
+    const resolve = sandbox.resolveMonster3DConfig;
+
+    // Screenshot 1 & 2 regressions:
+    // 1. Giant yellow centipede [c] -> bestiary_centipede (loads centipede.glb, never spider)
+    assert.strictEqual(resolve({ race: 'Giant yellow centipede', glyph: 'c' }, 'c', 'angband').templateKey, 'bestiary_centipede');
+    // 2. White worm mass [w] -> bestiary_worm_mass (loads worm_mass.glb, never upright cobra snake.glb)
+    assert.strictEqual(resolve({ race: 'White worm mass', glyph: 'w' }, 'w', 'angband').templateKey, 'bestiary_worm_mass');
+    // 3. Floating eye [e] -> bestiary_eye + isFloating: true (loads floating_eye.glb, never human Skull.glb on floor)
+    const floatingEye = resolve({ race: 'Floating eye', glyph: 'e' }, 'e', 'angband');
+    assert.strictEqual(floatingEye.templateKey, 'bestiary_eye');
+    assert.strictEqual(floatingEye.isFloating, true);
+
+    // Additional taxonomic families across Vanilla, FCB, Hengband & Sil-Q:
+    assert.strictEqual(resolve({ race: 'Scuttling scorpion', glyph: 'S' }, 'S', 'angband').templateKey, 'bestiary_scorpion');
+    assert.strictEqual(resolve({ race: 'Quylthulg', glyph: 'Q' }, 'Q', 'angband').templateKey, 'bestiary_quylthulg');
+    assert.strictEqual(resolve({ race: 'Fire vortex', glyph: 'v' }, 'v', 'angband').templateKey, 'bestiary_vortex');
+    assert.strictEqual(resolve({ race: 'Fire elemental', glyph: 'E' }, 'E', 'angband').templateKey, 'bestiary_vortex');
+    assert.strictEqual(resolve({ race: '5-headed hydra', glyph: 'M' }, 'M', 'angband').templateKey, 'bestiary_hydra');
+    assert.strictEqual(resolve({ race: 'Spirit naga', glyph: 'n' }, 'n', 'angband').templateKey, 'bestiary_naga');
+    assert.strictEqual(resolve({ race: 'Vampire bat', glyph: 'b' }, 'b', 'angband').templateKey, 'bestiary_bat');
+    assert.strictEqual(resolve({ race: 'Grizzly bear', glyph: 'q' }, 'q', 'angband').templateKey, 'bestiary_bear');
+    assert.strictEqual(resolve({ race: 'Mumak', glyph: 'q' }, 'q', 'angband').templateKey, 'bestiary_bear');
+    assert.strictEqual(resolve({ race: 'Wild horse', glyph: 'q' }, 'q', 'frogcomposband').templateKey, 'bestiary_horse');
+    assert.strictEqual(resolve({ race: 'Basilisk', glyph: 'R' }, 'R', 'angband').templateKey, 'bestiary_lizard');
+    assert.strictEqual(resolve({ race: 'Rock lizard', glyph: 'R' }, 'R', 'angband').templateKey, 'bestiary_lizard');
+    assert.strictEqual(resolve({ race: 'Giant green frog', glyph: 'R' }, 'R', 'angband').templateKey, 'obj_frog');
+    assert.strictEqual(resolve({ race: 'Great white shark', glyph: 'l' }, 'l', 'frogcomposband').templateKey, 'bestiary_aquatic');
+    assert.strictEqual(resolve({ race: 'Piranha', glyph: 'l' }, 'l', 'hengband').templateKey, 'bestiary_aquatic');
+    assert.strictEqual(resolve({ race: 'Huorn', glyph: 'l' }, 'l', 'angband').templateKey, 'env_tree');
+    assert.strictEqual(resolve({ race: 'Creeping copper coins', glyph: '$' }, '$', 'angband').templateKey, 'item_gold');
+    assert.strictEqual(resolve({ race: 'Death sword', glyph: '|' }, '|', 'angband').templateKey, 'item_greatsword');
+    assert.strictEqual(resolve({ race: 'Potion mimic', glyph: '!' }, '!', 'angband').templateKey, 'ph_potion_flask');
+    assert.strictEqual(resolve({ race: 'Scroll mimic', glyph: '?' }, '?', 'angband').templateKey, 'ph_book');
+
+    // Sil-Q realm collisions fixed:
+    assert.strictEqual(resolve({ race: 'Spider hatchling', glyph: 'm' }, 'm', 'silq').templateKey, 'obj_spider');
+    assert.strictEqual(resolve({ race: 'Attercop', glyph: 'm' }, 'm', 'silq').templateKey, 'obj_spider');
+    assert.strictEqual(resolve({ race: 'Blue serpent', glyph: 's' }, 's', 'silq').templateKey, 'obj_snake');
+    assert.strictEqual(resolve({ race: 'Ancient sapphire serpent', glyph: 'S' }, 'S', 'silq').templateKey, 'obj_snake');
+    assert.strictEqual(resolve({ race: 'Gilim, the Giant of Eruman', glyph: 'G' }, 'G', 'silq').templateKey, 'bestiary_cyclops');
+    assert.strictEqual(resolve({ race: 'Vampire lord', glyph: 'v' }, 'v', 'silq').templateKey, 'char_male_priest');
+    assert.strictEqual(resolve({ race: 'Thuringwethil', glyph: 'v' }, 'v', 'silq').templateKey, 'bestiary_bat');
+    assert.strictEqual(resolve({ race: 'Phantom', glyph: 'w' }, 'w', 'silq').templateKey, 'bestiary_wraith');
+    assert.strictEqual(resolve({ race: 'Nameless thing', glyph: 'N' }, 'N', 'silq').templateKey, 'bestiary_horror');
+    assert(['env_bush_dead', 'env_tanglethorn'].includes(resolve({ race: 'Tanglethorn', glyph: '&' }, '&', 'silq').templateKey));
+});
+
 console.log('test_bestiary_match_verification.js: ALL PASS');
 

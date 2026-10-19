@@ -84,6 +84,45 @@ assert.ok(html.includes('id="btn-msg-clear"'), 'index.html must have #btn-msg-cl
 console.log('  ✓ Test 2 passed: All required HUD message elements exist in DOM\n');
 
 // ---------------------------------------------------------------------------
+// 2B. Vertical Apothecary Medicine Vials & Tattered-Scroll / Charred-Wood UI Assets
+// ---------------------------------------------------------------------------
+console.log('Test 2B: Vertical Apothecary Medicine Vials & Tattered-Scroll / Charred-Wood UI Assets');
+const requiredUiAssets = [
+    'tattered_scroll.png',
+    'charred_wood.png',
+    'apothecary_vial_overlay.svg'
+];
+
+for (const asset of requiredUiAssets) {
+    const webAssetPath = path.resolve(__dirname, '../server/public/assets/ui', asset);
+    const clientAssetPath = path.resolve(__dirname, '../client/assets/ui', asset);
+
+    assert.ok(fs.existsSync(webAssetPath), `server/public/assets/ui/${asset} must exist`);
+    assert.ok(fs.statSync(webAssetPath).size > 0, `server/public/assets/ui/${asset} must be non-empty`);
+
+    assert.ok(fs.existsSync(clientAssetPath), `client/assets/ui/${asset} must exist (mirrored)`);
+    assert.ok(fs.statSync(clientAssetPath).size > 0, `client/assets/ui/${asset} must be non-empty`);
+}
+
+// Verify dungeon.css rules
+assert.ok(allCss.includes('.vitals-vials-row'), 'dungeon.css must style .vitals-vials-row');
+assert.ok(
+    /\.vial-neck-collar\s*\{[^}]*display:\s*block\s*!important/s.test(allCss),
+    'dungeon.css must style .vial-neck-collar with display: block !important'
+);
+assert.ok(allCss.includes('apothecary_vial_overlay.svg'), 'dungeon.css must reference apothecary_vial_overlay.svg');
+assert.ok(allCss.includes('tattered_scroll.png'), 'dungeon.css must reference tattered_scroll.png');
+assert.ok(allCss.includes('charred_wood.png'), 'dungeon.css must reference charred_wood.png');
+
+// Verify that #char-panel .gauge-hp .gauge-track does NOT have border-radius: 50%
+assert.ok(
+    !/#char-panel\s+\.gauge-hp\s+\.gauge-track[^{]*\{[^}]*border-radius:\s*50%/s.test(allCss),
+    'dungeon.css must NOT set border-radius: 50% on #char-panel .gauge-hp .gauge-track'
+);
+
+console.log('  ✓ Test 2B passed: UI assets verified and apothecary vial CSS rules enforced\n');
+
+// ---------------------------------------------------------------------------
 // 3. Contrast ratio checks for WCAG AA conformance
 // ---------------------------------------------------------------------------
 console.log('Test 3: WCAG AA contrast ratio check for HUD text colors');

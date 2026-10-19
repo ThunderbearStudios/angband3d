@@ -1,12 +1,13 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
 async function testAudioBrowser() {
     const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
     const port = 9227;
-    const profileDir = path.join(__dirname, 'temp_audio_test_' + Date.now());
+    const profileDir = path.join(os.tmpdir(), 'temp_audio_test_' + Date.now());
 
     console.log('[Test] Launching headless Chrome on port ' + port + '...');
     const chrome = spawn(chromePath, [

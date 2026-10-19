@@ -72,6 +72,9 @@ Transition seamlessly between modern 3D immersion and nostalgic terminal play wi
 ### 4. 🎛️ Universal Movable HUD & Ergonomic Controls
 Every adventurer plays differently. Angband 3D features a complete, zero-lag draggable HUD system where **every major interface widget can be repositioned and customized**:
 
+* **Twin Vertical Apothecary Medicine Vials & Tattered-Scroll / Charred-Wood Chrome**:
+  * Graduated vertical glass medicine vials (`#hp-fill` crimson tincture & `#sp-fill` sapphire elixir) topped by hammered brass & cork neck collars, etched apothecary graduation marks (`apothecary_vial_overlay.svg`), and side-mounted tabular telemetry readouts (`#hp-text`, `#sp-text`).
+  * Structural HUD docks (`#char-panel`, `#action-bar`, `#hud-footer`, `#minimap-container`, `#touch-controls`) are forged in **Charred Iron-Bound Wood** (`charred_wood.png`), while lore windows and menus (`#message-feed-window`, `#chronicle-window`, modals) are rendered on **Tattered Parchment Scrolls** (`tattered_scroll.png`).
 * **Tactile Virtual D-Pad (`#touch-controls`)**:
   * Equipped with a dedicated top grip (`✥ MOVE PAD`) that lets phone, tablet, and desktop players drag the directional pad anywhere on screen.
   * Three-step cycling scale button (`0.85x` compact, `1.0x` standard, `1.20x` large).
@@ -88,14 +91,14 @@ Every adventurer plays differently. Angband 3D features a complete, zero-lag dra
 
 ---
 
-### 5. 🎨 Photogrammetry Ultra-Realism & 4096×4096 HD Dark Fantasy Art
-Angband 3D combines 8K photogrammetry scans with the beloved dark-fantasy art of **Raymond "Shockbolt" Gaustadnes**:
+### 5. 🎨 Photogrammetry Ultra-Realism, 58-Model 3D Bestiary, Studio Foley & Next-Gen Action VFX
+Angband 3D combines 8K photogrammetry scans, a comprehensive 4-realm 3D bestiary, studio-recorded open-source foley, and the dark-fantasy art of **Raymond "Shockbolt" Gaustadnes**:
 
-* **Photogrammetry 3D Weapons & Viewmodels**: First-person viewmodels feature CC0 8K-scanned Poly Haven models—including medieval estocs, sabers, katanas, ornate daggers, warhammers, maces, battleaxes, and kite shields—with animated weapon recoil upon attack.
-* **High-Realism 3D Bestiary**: 100% rigged 3D models for humanoids (Rangers, Peasants with distinct beard/hair variations), quadrupeds (timber wolves with realistic fur shading, sleek felines, horses), terrifying bestiary horrors (dragons, skulls, giant formics, iridescent scarab beetles, segmented centipedes, and dark-chitin cave spiders), and flora/oozes (gnarled tanglethorn brambles, bioluminescent fungal clusters, and translucent gelatinous oozes).
-* **Next-Gen Celestial Sky Dome**: When stepping onto town cobblestones or traversing wilderness plains, look up to behold a custom GLSL sky dome featuring the shimmering Milky Way galactic river, dark interstellar dust lanes, an animated boreal aurora veil, and a silver crescent moon with earthshine.
-* **4096×4096 Shockbolt HD Atlases**: Over 1,100 monster species and items mapped to 4× pixel density atlases, enhanced with bilateral normal maps, dynamic contact shadows, and contrast-adaptive sharpening.
-* **4-Level Biome Chapters**: As you delve deeper, the dungeon transitions every 200 feet through distinct architectural themes—from Upper Ashlar Crypts and Damp Flooded Undercrofts to Ancient Sandstone Sepulchres, Fungal Catacombs, and Deep Magma Pits.
+* **Photogrammetry 3D Weapons & Viewmodels**: First-person viewmodels feature CC0 8K-scanned Poly Haven models—including medieval estocs, sabers, katanas, ornate daggers, warhammers, maces, battleaxes, and kite shields—anchored below the lower-right viewport rim in a 3D armored gauntlet (`iron_gauntlets.glb`).
+* **Comprehensive 58-Model 4-Realm 3D Bestiary**: 100% dedicated 3D models across all 4 realms—including humanoids, goblinoids, multi-headed hydras (`hydra.glb`), hooded nagas (`naga.glb`), floating beholder eyes (`floating_eye.glb`), writhing worm masses (`worm_mass.glb`), scorpions (`scorpion.glb`), centipedes (`centipede.glb`), scarab beetles (`beetle.glb`), formics (`ant.glb`), bats (`bat.glb`), bears (`bear.glb`), basilisks (`lizard.glb`), sharks (`aquatic.glb`), elemental vortices (`vortex_elemental.glb`), quylthulgs (`quylthulg.glb`), fungal colonies (`mushroom_cluster.glb`), and translucent oozes (`jelly_ooze.glb`).
+* **78-File Open-Source Studio Audio Bank & Stereo Dungeon Convolution Reverb**: Crisp, non-vocal medieval combat foley (`Kenney CC0` + `Battle for Wesnoth GPL-2.0+`) routed through a 2-channel subterranean stone-hall convolution reverb impulse (`createDungeonReverbImpulse`).
+* **Zero-Leak 3D Action & Spell VFX**: Crescent blade cleaves (`slash`), blazing X-cleaves (`crit_slash`), dual seismic shockwave rings (`blunt`), piercing thrust lances (`pierce`), volumetric dragon breath cones (`breath`), multi-branch forked lightning (`lightning`), impact detonation domes (`spawnDetonationDome`), and runic ascension pillars (`aura`).
+* **Next-Gen Celestial Sky Dome & 4-Level Biome Chapters**: Custom GLSL sky dome on surface levels and 4-level biome transitions every 200 feet.
 
 ---
 

@@ -53,20 +53,16 @@ The following 3D models and shader systems were created specifically for Angband
 
 ---
 
-## 4. Audio Systems & Foley Synthesis
+## 4. Audio Systems, Studio Foley & Open-Source Sound Libraries
 
-Angband 3D uses **100% procedural mathematical sound synthesis**:
+Angband 3D combines **high-fidelity open-source studio foley & combat recordings** with **real-time Web Audio convolution reverb and physical acoustic modeling**:
 
-- **Web Audio API Real-Time Synthesizer (`server/public/js/audio.js`)**: Pure client-side synthesis using Web Audio API nodes (`OscillatorNode`, `BiquadFilterNode`, `GainNode`, `DynamicsCompressorNode`, `StereoPannerNode`, and `WaveShaperNode`). Zero audio files are downloaded over the network.
-- **Godot C# Dynamic PCM Synthesizer (`client/scripts/AudioManager.cs`)**: Pure in-memory 16-bit PCM mathematical acoustic modeling.
-- **Physical Models**:
-  - Inharmonic Euler-Bernoulli bar mode transients for blade strikes and hammer crits.
-  - Multi-octave resonant metallic clang with ricochet high pings for shields and heavy armor.
-  - Granular fluid turbulence simulation for quaffing potions.
-  - Fibrous friction noise with resonant harmonic triad chimes for reading scrolls.
-  - Exponential frequency sweeps and vacuum implosion pops for teleportation.
-  - Formant vocalization resonators and guttural low-frequency growls for monster grunts.
-- **Zero Third-Party Audio Files**: No copyrighted or pre-recorded audio samples are bundled.
+| Audio Collection | Author / Source | License | Usage in Angband 3D |
+|---|---|---|---|
+| **Kenney RPG Audio & Impact Sounds** | **[Kenney (Kenney Vleugels)](https://kenney.nl/assets)** | **CC0 1.0 Universal** (Public Domain) | Recorded stone, cobblestone, grass, and timber footsteps, steel blade draws/slices, heavy plate/metal/wood/mining impacts, door latches/creaks, coin jingles, parchment/tome page flips, and glass shatter foley (`server/public/assets/audio/sfx/`, `client/assets/audio/sfx/`). |
+| **The Battle for Wesnoth Core Sound Library** | **[The Battle for Wesnoth Project](https://github.com/wesnoth/wesnoth/tree/master/data/core/sounds)** (West, LordBob, Espreon, and Wesnoth sound contributors) | **GNU GPL v2.0+** (compatible with Angband GPL-2.0) | Studio-recorded medieval melee weapons (sword, axe, mace, flail, spear), bows & crossbows, elemental spells & dragon breaths (fireball, explosion, lightning bolt, arcane missiles, holy chimes, frost/petrify, water blast), and creature vocalizations (orc, goblin, troll, dragon/drake, wolf, serpent, undead skeleton/zombie/lich/wraith, bat, insect pincers/claws). |
+| **Web Audio API Studio Sampler & Convolution Reverb (`server/public/js/audio.js`)** | **Thunderbear Studios** | **GPL-2.0** | Multi-sample round-robin variation engine with stereo stone-dungeon `ConvolverNode` impulse response reverb, `DynamicsCompressorNode` mastering bus, 3D stereo panning, and physical transient synthesis fallbacks. |
+| **Godot C# Studio Stream & PCM Audio Engine (`client/scripts/AudioManager.cs`)** | **Thunderbear Studios** | **GPL-2.0** | Native `.ogg`/`.wav` studio sample pool loader with in-memory 16-bit PCM acoustic fallback modeling. |
 
 ---
 

@@ -25,6 +25,8 @@ dist/
 *.mp4
 *.webm
 *.wav
+!server/public/assets/audio/sfx/*.wav
+!client/assets/audio/sfx/*.wav
 
 # Local asset packages & raw resources
 /resources/

@@ -142,9 +142,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Angband3D-Windows-x64
-          path: |
-            dist/Angband3D-Windows-x64.zip
-            dist/angband3d-standalone.zip
+          path: dist/Angband3D-Windows-x64.zip
           if-no-files-found: error
 
   build-linux:
@@ -242,7 +240,7 @@ jobs:
       - name: Install Dependencies & Sync Capacitor
         run: |
           npm install
-          npx cap sync android
+          npm run android:sync
 
       - name: Build Android APK (Release)
         run: |
@@ -255,6 +253,8 @@ jobs:
           mkdir -p dist
           if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
             cp android/app/build/outputs/apk/release/app-release.apk dist/Angband3D-Android.apk
+          elif [ -f android/app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release-unsigned.apk dist/Angband3D-Android.apk
           else
             cp android/app/build/outputs/apk/debug/app-debug.apk dist/Angband3D-Android.apk
           fi

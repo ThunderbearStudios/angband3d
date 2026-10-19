@@ -79,10 +79,10 @@ public partial class AudioManager : Node
     public static AudioManager Instance { get; private set; }
 
     private const int SampleRate = 44100;
-    private readonly Dictionary<SoundEffect, AudioStreamWav> _sfxLibrary = new();
-    private readonly AudioStreamWav[] _stoneFootsteps = new AudioStreamWav[4];
-    private readonly AudioStreamWav[] _outdoorFootsteps = new AudioStreamWav[4];
-    private readonly AudioStreamWav[] _waterFootsteps = new AudioStreamWav[4];
+    private readonly Dictionary<SoundEffect, AudioStream> _sfxLibrary = new();
+    private readonly AudioStream[] _stoneFootsteps = new AudioStream[4];
+    private readonly AudioStream[] _outdoorFootsteps = new AudioStream[4];
+    private readonly AudioStream[] _waterFootsteps = new AudioStream[4];
     private int _stoneStepIdx = 0;
     private int _outdoorStepIdx = 0;
     private int _waterStepIdx = 0;
@@ -181,7 +181,17 @@ public partial class AudioManager : Node
         Instance?.PlayAtInternal(effect, position, pitchScale, volumeDb);
     }
 
-    private AudioStreamWav ResolveStream(SoundEffect effect)
+    private AudioStream TryLoadStudioSfx(string fileName)
+    {
+        string path = $"res://assets/audio/sfx/{fileName}";
+        if (ResourceLoader.Exists(path))
+        {
+            return ResourceLoader.Load<AudioStream>(path);
+        }
+        return null;
+    }
+
+    private AudioStream ResolveStream(SoundEffect effect)
     {
         if (effect == SoundEffect.Footstep)
         {
@@ -332,6 +342,69 @@ public partial class AudioManager : Node
         _sfxLibrary[SoundEffect.DragonRoar] = SynthDragonRoar();
         _sfxLibrary[SoundEffect.RodentSqueak] = SynthRodentSqueak();
         _sfxLibrary[SoundEffect.InsectChitin] = SynthInsectChitin();
+
+        // Override with studio recordings when present on disk
+        for (var i = 0; i < 4; i++)
+        {
+            var stoneSfx = TryLoadStudioSfx($"step_stone_{i + 1}.ogg");
+            if (stoneSfx != null) _stoneFootsteps[i] = stoneSfx;
+
+            var grassSfx = TryLoadStudioSfx($"step_grass_{i + 1}.ogg");
+            if (grassSfx != null) _outdoorFootsteps[i] = grassSfx;
+        }
+
+        var waterSfx = TryLoadStudioSfx("water_blast.wav");
+        if (waterSfx != null)
+        {
+            for (var i = 0; i < _waterFootsteps.Length; i++)
+            {
+                _waterFootsteps[i] = waterSfx;
+            }
+        }
+
+        void TrySetSfx(SoundEffect effect, string fileName)
+        {
+            var s = TryLoadStudioSfx(fileName);
+            if (s != null) _sfxLibrary[effect] = s;
+        }
+
+        TrySetSfx(SoundEffect.Footstep, "step_stone_1.ogg");
+        TrySetSfx(SoundEffect.FootstepOutdoor, "step_grass_1.ogg");
+        TrySetSfx(SoundEffect.FootstepWater, "water_blast.wav");
+        TrySetSfx(SoundEffect.MeleeSwing, "miss_1.ogg");
+        TrySetSfx(SoundEffect.MeleeHit, "sword_1.ogg");
+        TrySetSfx(SoundEffect.MeleeCrit, "axe_hit.ogg");
+        TrySetSfx(SoundEffect.MonsterGrunt, "impact_plate_med_1.ogg");
+        TrySetSfx(SoundEffect.MonsterDeath, "skeleton_die_1.ogg");
+        TrySetSfx(SoundEffect.PlayerHurt, "impact_plate_heavy_2.ogg");
+        TrySetSfx(SoundEffect.PlayerDeath, "impact_bell_1.ogg");
+        TrySetSfx(SoundEffect.BowShoot, "bow_fire.ogg");
+        TrySetSfx(SoundEffect.DoorOpen, "door_open_1.ogg");
+        TrySetSfx(SoundEffect.DoorClose, "door_close_1.ogg");
+        TrySetSfx(SoundEffect.DoorBreak, "impact_wood_heavy_1.ogg");
+        TrySetSfx(SoundEffect.ChestOpen, "open_chest.wav");
+        TrySetSfx(SoundEffect.ItemPickup, "cloth_1.ogg");
+        TrySetSfx(SoundEffect.ItemDrop, "cloth_2.ogg");
+        TrySetSfx(SoundEffect.GoldPickup, "gold_pickup.ogg");
+        TrySetSfx(SoundEffect.WallBump, "impact_wood_heavy_2.ogg");
+        TrySetSfx(SoundEffect.ShieldBlock, "impact_plate_heavy_1.ogg");
+        TrySetSfx(SoundEffect.ArmorDeflect, "impact_plate_med_1.ogg");
+        TrySetSfx(SoundEffect.EquipWeapon, "blade_draw_1.ogg");
+        TrySetSfx(SoundEffect.EquipArmor, "impact_plate_med_1.ogg");
+        TrySetSfx(SoundEffect.Quaff, "potion_drink.ogg");
+        TrySetSfx(SoundEffect.Scroll, "book_flip_1.ogg");
+        TrySetSfx(SoundEffect.Teleport, "magic_faerie.ogg");
+        TrySetSfx(SoundEffect.SpellCast, "magic_missile_1.ogg");
+        TrySetSfx(SoundEffect.SpellFire, "flame_big.ogg");
+        TrySetSfx(SoundEffect.SpellCold, "petrified.ogg");
+        TrySetSfx(SoundEffect.SpellLightning, "lightning_bolt.ogg");
+        TrySetSfx(SoundEffect.SpellPoison, "poison_spell.ogg");
+        TrySetSfx(SoundEffect.MonsterGrowl, "wolf_growl_1.ogg");
+        TrySetSfx(SoundEffect.MonsterHiss, "hiss_big.wav");
+        TrySetSfx(SoundEffect.GhostWail, "magic_dark_big.ogg");
+        TrySetSfx(SoundEffect.DragonRoar, "drake_hit_1.ogg");
+        TrySetSfx(SoundEffect.RodentSqueak, "bat_hit_1.ogg");
+        TrySetSfx(SoundEffect.InsectChitin, "pincers.ogg");
     }
 
     private static AudioStreamWav CreateWav(float[] samples)
