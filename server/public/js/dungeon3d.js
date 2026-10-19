@@ -2045,7 +2045,9 @@ const POLYHAVEN_ITEM_GLTF_PATHS = {
     item_arrow: '/assets/models/items/steel_arrow.glb',
     item_talisman: '/assets/models/items/phoenix_talisman.glb',
     item_chainmail: '/assets/models/items/chain_mail.glb',
-    item_crown: '/assets/models/items/helm_of_brilliance.glb'
+    item_crown: '/assets/models/items/helm_of_brilliance.glb',
+    item_gold: '/assets/models/items/coin_pile_spill.glb',
+    ph_book: '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf'
 };
 
 if (typeof window !== 'undefined' && !window.DeviceProfile) {
@@ -4741,16 +4743,67 @@ class Dungeon3D {
         });
     }
 
-    spawnHitSparks(worldPos, colorHex = '#ffaa33', count = 14) {
+    _ensureSharedVfxResources() {
+        if (this._sharedVfxInitialized) return;
+        this._sharedVfxInitialized = true;
+        if (typeof THREE === 'undefined') return;
+
+        this._sharedSparkGeo = new THREE.OctahedronGeometry(0.032, 0);
+        this._sharedSparkGeo._sharedGeometry = true;
+
+        this._sharedStreakGeo = new THREE.ConeGeometry(0.022, 0.24, 5);
+        this._sharedStreakGeo.rotateX(Math.PI / 2);
+        this._sharedStreakGeo._sharedGeometry = true;
+
+        this._sharedShockRingGeo = new THREE.RingGeometry(0.18, 0.36, 28);
+        this._sharedShockRingGeo.rotateX(-Math.PI / 2);
+        this._sharedShockRingGeo._sharedGeometry = true;
+
+        this._sharedSlashArcGeo = new THREE.RingGeometry(0.30, 0.62, 24, 1, -Math.PI * 0.42, Math.PI * 0.84);
+        this._sharedSlashArcGeo._sharedGeometry = true;
+
+        this._sharedSlashCoreGeo = new THREE.RingGeometry(0.42, 0.56, 24, 1, -Math.PI * 0.38, Math.PI * 0.76);
+        this._sharedSlashCoreGeo._sharedGeometry = true;
+
+        this._sharedThrustLanceGeo = new THREE.ConeGeometry(0.075, 0.95, 8);
+        this._sharedThrustLanceGeo.rotateX(Math.PI / 2);
+        this._sharedThrustLanceGeo._sharedGeometry = true;
+
+        this._sharedBreathConeGeo = new THREE.ConeGeometry(0.52, 1.45, 16, 1, true);
+        this._sharedBreathConeGeo.rotateX(-Math.PI / 2);
+        this._sharedBreathConeGeo._sharedGeometry = true;
+
+        this._sharedDetonationDomeGeo = new THREE.SphereGeometry(0.46, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.58);
+        this._sharedDetonationDomeGeo._sharedGeometry = true;
+
+        this._sharedOrbCoreGeo = new THREE.IcosahedronGeometry(0.11, 1);
+        this._sharedOrbCoreGeo._sharedGeometry = true;
+
+        this._sharedOrbShellGeo = new THREE.IcosahedronGeometry(0.19, 1);
+        this._sharedOrbShellGeo._sharedGeometry = true;
+
+        this._sharedAuraCylinderGeo = new THREE.CylinderGeometry(0.42, 0.50, 1.35, 20, 1, true);
+        this._sharedAuraCylinderGeo._sharedGeometry = true;
+    }
+
+    spawnHitSparks(worldPos, colorHex = '#ffaa33', count = 14, opts = {}) {
+        this._ensureSharedVfxResources();
         const pGroup = new THREE.Group();
         pGroup.position.copy(worldPos);
         const col = new THREE.Color(colorHex);
-        const sparkMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 1.0 });
-        const sparkGeo = new THREE.SphereGeometry(0.025, 4, 4);
+        const sparkMat = new THREE.MeshBasicMaterial({
+            color: col,
+            transparent: true,
+            opacity: 1.0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
 
         const sparks = [];
         for (let i = 0; i < count; i++) {
-            const m = new THREE.Mesh(sparkGeo, sparkMat);
+            const isStreak = (i % 2 === 0);
+            const geo = isStreak ? this._sharedStreakGeo : this._sharedSparkGeo;
+            const m = new THREE.Mesh(geo, sparkMat);
             const theta = Math.random() * Math.PI * 2;
             const phi = (Math.random() - 0.5) * Math.PI;
             const speed = 1.2 + Math.random() * 2.2;
@@ -4759,8 +4812,27 @@ class Dungeon3D {
                 Math.sin(phi) * speed + 1.2,
                 Math.sin(theta) * Math.cos(phi) * speed
             );
+            if (isStreak) {
+                m.lookAt(m.position.clone().add(vel));
+            }
             pGroup.add(m);
-            sparks.push({ mesh: m, vel: vel });
+            sparks.push({ mesh: m, vel: vel, isStreak });
+        }
+
+        let shockRingMesh = null;
+        let ringMat = null;
+        if (opts && opts.shockRing) {
+            ringMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            shockRingMesh = new THREE.Mesh(this._sharedShockRingGeo, ringMat);
+            shockRingMesh.position.y = 0.02;
+            pGroup.add(shockRingMesh);
         }
 
         this.scene.add(pGroup);
@@ -4769,7 +4841,74 @@ class Dungeon3D {
             sparks: sparks,
             elapsed: 0,
             duration: 0.38,
-            material: sparkMat
+            material: sparkMat,
+            shockRingMesh,
+            ringMat
+        });
+    }
+
+    spawnDetonationDome(worldPos, colorHex = 0xff6600, scale = 1.0) {
+        this._ensureSharedVfxResources();
+        this.activeProjectiles = this.activeProjectiles || [];
+        const group = new THREE.Group();
+        group.position.copy(worldPos);
+        this.scene.add(group);
+
+        const col = new THREE.Color(colorHex);
+        const domeMat = new THREE.MeshBasicMaterial({
+            color: col,
+            transparent: true,
+            opacity: 0.82,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        const domeMesh = new THREE.Mesh(this._sharedDetonationDomeGeo, domeMat);
+        group.add(domeMesh);
+
+        const coreMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.95,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        const coreMesh = new THREE.Mesh(this._sharedDetonationDomeGeo, coreMat);
+        coreMesh.scale.set(0.55, 0.55, 0.55);
+        group.add(coreMesh);
+
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: col,
+            transparent: true,
+            opacity: 0.88,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        const ringMesh = new THREE.Mesh(this._sharedShockRingGeo, ringMat);
+        ringMesh.position.y = 0.02;
+        group.add(ringMesh);
+
+        const pLight = new THREE.PointLight(colorHex, 4.2, 9);
+        group.add(pLight);
+
+        const disposables = [domeMat, coreMat, ringMat, pLight];
+
+        this.activeProjectiles.push({
+            kind: 'detonation',
+            group,
+            baseScale: scale,
+            domeMat,
+            coreMat,
+            ringMat,
+            pLight,
+            startPos: worldPos.clone(),
+            endPos: worldPos.clone(),
+            colorHex,
+            elapsed: 0,
+            duration: 0.32,
+            disposables
         });
     }
 
@@ -4839,6 +4978,7 @@ class Dungeon3D {
     }
 
     spawnProjectileOrSpellVfx(kind, startPos, endPos, colorHex = 0xff6600) {
+        this._ensureSharedVfxResources();
         this.activeProjectiles = this.activeProjectiles || [];
         const group = new THREE.Group();
         group.position.copy(startPos);
@@ -4849,6 +4989,17 @@ class Dungeon3D {
         let onComplete = null;
         let lines = null;
         let mat = null;
+        let outerMat = null;
+        let innerMat = null;
+        let ringMat = null;
+        let bluntRingMat = null;
+        let bluntDomeMat = null;
+        let lanceMat = null;
+        let needleMat = null;
+        let pillarMat = null;
+        let pLight = null;
+        let dist = null;
+        let vortexRings = null;
 
         const col = new THREE.Color(colorHex);
 
@@ -4886,91 +5037,373 @@ class Dungeon3D {
             onComplete = () => {
                 this.spawnHitSparks(endPos, colorHex, 16);
             };
-        } else if (kind === 'lightning') {
-            duration = 0.28;
-            lines = [];
-            const lineMat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.95 });
-            disposables.push(lineMat);
-            for (let arc = 0; arc < 3; arc++) {
-                const pts = [];
-                const ptCount = 10;
-                for (let i = 0; i < ptCount; i++) {
-                    const frac = i / (ptCount - 1);
-                    const pt = new THREE.Vector3().lerpVectors(startPos, endPos, frac);
-                    if (i > 0 && i < ptCount - 1) {
-                        pt.x += (Math.random() - 0.5) * 0.36;
-                        pt.y += (Math.random() - 0.5) * 0.36;
-                        pt.z += (Math.random() - 0.5) * 0.36;
-                    }
-                    pts.push(pt.clone().sub(startPos));
-                }
-                const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
-                disposables.push(lineGeo);
-                const line = new THREE.Line(lineGeo, lineMat);
-                group.add(line);
-                lines.push(line);
+        } else if (kind === 'slash' || kind === 'crit_slash') {
+            duration = (kind === 'crit_slash') ? 0.26 : 0.20;
+            group.position.copy(endPos);
+            group.lookAt(startPos);
+
+            outerMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.95,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            innerMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.98,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            disposables.push(outerMat, innerMat);
+
+            const blade1 = new THREE.Group();
+            blade1.rotation.set(0.28, -0.22, 0.58);
+            blade1.add(new THREE.Mesh(this._sharedSlashArcGeo, outerMat));
+            blade1.add(new THREE.Mesh(this._sharedSlashCoreGeo, innerMat));
+            group.add(blade1);
+
+            if (kind === 'crit_slash') {
+                const blade2 = new THREE.Group();
+                blade2.scale.x = -1;
+                blade2.rotation.set(0.28, 0.22, 0.58);
+                blade2.add(new THREE.Mesh(this._sharedSlashArcGeo, outerMat));
+                blade2.add(new THREE.Mesh(this._sharedSlashCoreGeo, innerMat));
+                group.add(blade2);
+
+                ringMat = new THREE.MeshBasicMaterial({
+                    color: col,
+                    transparent: true,
+                    opacity: 0.85,
+                    blending: THREE.AdditiveBlending,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                });
+                const ringMesh = new THREE.Mesh(this._sharedShockRingGeo, ringMat);
+                ringMesh.position.y = -0.2;
+                group.add(ringMesh);
+                disposables.push(ringMat);
+
+                pLight = new THREE.PointLight(colorHex, 3.5, 6);
+                group.add(pLight);
+                disposables.push(pLight);
             }
-            const pLight = new THREE.PointLight(colorHex, 3.5, 8);
+
+            this.spawnHitSparks(endPos, colorHex, (kind === 'crit_slash') ? 24 : 14, { shockRing: kind === 'crit_slash' });
+        } else if (kind === 'blunt') {
+            duration = 0.24;
+            group.position.copy(endPos);
+
+            bluntRingMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            bluntDomeMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            disposables.push(bluntRingMat, bluntDomeMat);
+
+            const ring1 = new THREE.Mesh(this._sharedShockRingGeo, bluntRingMat);
+            ring1.position.y = 0.02;
+            group.add(ring1);
+
+            const ring2 = new THREE.Mesh(this._sharedShockRingGeo, bluntRingMat);
+            if (this.camera) {
+                ring2.quaternion.copy(this.camera.quaternion);
+            } else {
+                ring2.rotation.x = Math.PI * 0.25;
+            }
+            group.add(ring2);
+
+            const flashDome = new THREE.Mesh(this._sharedDetonationDomeGeo, bluntDomeMat);
+            flashDome.scale.setScalar(0.55);
+            group.add(flashDome);
+
+            pLight = new THREE.PointLight(colorHex, 3.0, 6);
             group.add(pLight);
             disposables.push(pLight);
+
+            this.spawnHitSparks(endPos, colorHex, 18, { shockRing: true });
+        } else if (kind === 'pierce') {
+            duration = 0.19;
+            group.position.copy(startPos.clone().lerp(endPos, 0.35));
+            group.lookAt(endPos);
+
+            lanceMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.95,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            needleMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.98,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            disposables.push(lanceMat, needleMat);
+
+            const lanceMesh = new THREE.Mesh(this._sharedThrustLanceGeo, lanceMat);
+            group.add(lanceMesh);
+
+            const needleMesh = new THREE.Mesh(this._sharedThrustLanceGeo, needleMat);
+            needleMesh.scale.set(0.45, 0.45, 1.15);
+            group.add(needleMesh);
+
+            const pRing = new THREE.Mesh(this._sharedShockRingGeo, lanceMat);
+            pRing.rotation.x = Math.PI / 2;
+            group.add(pRing);
+
+            this.spawnHitSparks(endPos, colorHex, 15);
+        } else if (kind === 'breath') {
+            duration = 0.38;
+            group.position.copy(startPos);
+            group.lookAt(endPos);
+            dist = Math.max(1.5, startPos.distanceTo(endPos));
+
+            outerMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.72,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            innerMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            ringMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.80,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            disposables.push(outerMat, innerMat, ringMat);
+
+            const outerCone = new THREE.Mesh(this._sharedBreathConeGeo, outerMat);
+            group.add(outerCone);
+
+            const innerCone = new THREE.Mesh(this._sharedBreathConeGeo, innerMat);
+            innerCone.scale.set(0.55, 0.55, 0.92);
+            group.add(innerCone);
+
+            vortexRings = [];
+            const ringFracs = [0.33, 0.66, 0.95];
+            for (let r = 0; r < ringFracs.length; r++) {
+                const vRing = new THREE.Mesh(this._sharedShockRingGeo, ringMat);
+                vRing.rotation.x = Math.PI / 2;
+                vRing.position.z = 1.45 * ringFracs[r];
+                const sc = 0.5 + ringFracs[r] * 0.8;
+                vRing.scale.set(sc, sc, sc);
+                group.add(vRing);
+                vortexRings.push(vRing);
+            }
+
+            pLight = new THREE.PointLight(colorHex, 4.5, 11);
+            group.add(pLight);
+            disposables.push(pLight);
+
             onComplete = () => {
-                this.spawnHitSparks(endPos, colorHex, 16);
+                this.spawnDetonationDome(endPos, colorHex, 1.15);
+                this.spawnHitSparks(endPos, colorHex, 24, { shockRing: true });
             };
-        } else if (kind === 'fireball' || kind === 'breath' || kind === 'bolt') {
+        } else if (kind === 'fireball' || kind === 'bolt') {
             duration = 0.28;
-            const radius = (kind === 'breath') ? 0.24 : 0.18;
-            const innerGeo = new THREE.SphereGeometry(radius * 0.58, 12, 12);
-            const innerMat = new THREE.MeshBasicMaterial({ color: 0xfff7cc, transparent: true, opacity: 0.98 });
-            const outerGeo = new THREE.SphereGeometry(radius, 14, 14);
-            const outerMat = new THREE.MeshBasicMaterial({
+            const scaleMult = (kind === 'fireball') ? 1.0 : 0.75;
+            innerMat = new THREE.MeshBasicMaterial({
+                color: 0xfff7cc,
+                transparent: true,
+                opacity: 0.98,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            outerMat = new THREE.MeshBasicMaterial({
                 color: col,
                 transparent: true,
                 opacity: 0.78,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
-            const ringGeo = new THREE.TorusGeometry(radius * 1.35, 0.028, 8, 20);
-            const ringMat = new THREE.MeshBasicMaterial({
+            ringMat = new THREE.MeshBasicMaterial({
                 color: col,
                 transparent: true,
                 opacity: 0.85,
                 blending: THREE.AdditiveBlending,
-                depthWrite: false
+                depthWrite: false,
+                side: THREE.DoubleSide
             });
-            disposables.push(innerGeo, innerMat, outerGeo, outerMat, ringGeo, ringMat);
-            group.add(new THREE.Mesh(innerGeo, innerMat));
-            group.add(new THREE.Mesh(outerGeo, outerMat));
-            const coronaRing = new THREE.Mesh(ringGeo, ringMat);
+            disposables.push(innerMat, outerMat, ringMat);
+
+            const innerMesh = new THREE.Mesh(this._sharedOrbCoreGeo, innerMat);
+            innerMesh.scale.setScalar(scaleMult);
+            group.add(innerMesh);
+
+            const outerMesh = new THREE.Mesh(this._sharedOrbShellGeo, outerMat);
+            outerMesh.scale.setScalar(scaleMult);
+            group.add(outerMesh);
+
+            const coronaRing = new THREE.Mesh(this._sharedShockRingGeo, ringMat);
+            coronaRing.scale.setScalar(scaleMult * 0.9);
             coronaRing.lookAt(endPos);
             group.add(coronaRing);
+
             this.spawnHitSparks(startPos.clone().lerp(endPos, 0.35), colorHex, 14);
             this.spawnHitSparks(startPos.clone().lerp(endPos, 0.65), 0xffcc44, 14);
 
-            const pLight = new THREE.PointLight(colorHex, 3.8, 10);
+            pLight = new THREE.PointLight(colorHex, 3.8, 10);
             group.add(pLight);
             disposables.push(pLight);
+
             onComplete = () => {
-                this.spawnHitSparks(endPos, colorHex, 28);
+                this.spawnDetonationDome(endPos, colorHex, kind === 'fireball' ? 1.0 : 0.65);
+                this.spawnHitSparks(endPos, colorHex, 20, { shockRing: true });
+            };
+        } else if (kind === 'lightning') {
+            duration = 0.28;
+            lines = [];
+            const coreMat = new THREE.LineBasicMaterial({ color: 0xeeffff, transparent: true, opacity: 1.0 });
+            const outerLineMat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.92 });
+            ringMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            disposables.push(coreMat, outerLineMat, ringMat);
+
+            const ptCount = 12;
+            const corePts = [];
+            for (let i = 0; i < ptCount; i++) {
+                const frac = i / (ptCount - 1);
+                const pt = new THREE.Vector3().lerpVectors(startPos, endPos, frac);
+                if (i > 0 && i < ptCount - 1) {
+                    pt.x += (Math.random() - 0.5) * 0.22;
+                    pt.y += (Math.random() - 0.5) * 0.22;
+                    pt.z += (Math.random() - 0.5) * 0.22;
+                }
+                corePts.push(pt.clone().sub(startPos));
+            }
+            const coreGeo = new THREE.BufferGeometry().setFromPoints(corePts);
+            disposables.push(coreGeo);
+            const coreLine = new THREE.Line(coreGeo, coreMat);
+            group.add(coreLine);
+            lines.push(coreLine);
+
+            for (let arc = 0; arc < 3; arc++) {
+                const pts = [];
+                for (let i = 0; i < ptCount; i++) {
+                    const frac = i / (ptCount - 1);
+                    const pt = new THREE.Vector3().lerpVectors(startPos, endPos, frac);
+                    if (i > 0 && i < ptCount - 1) {
+                        pt.x += (Math.random() - 0.5) * 0.42;
+                        pt.y += (Math.random() - 0.5) * 0.42;
+                        pt.z += (Math.random() - 0.5) * 0.42;
+                    }
+                    pts.push(pt.clone().sub(startPos));
+                }
+                const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+                disposables.push(lineGeo);
+                const line = new THREE.Line(lineGeo, outerLineMat);
+                group.add(line);
+                lines.push(line);
+            }
+
+            const branchFractions = [0.30, 0.55, 0.75];
+            for (let b = 0; b < branchFractions.length; b++) {
+                const frac = branchFractions[b];
+                const forkStart = new THREE.Vector3().lerpVectors(startPos, endPos, frac);
+                const branchPts = [forkStart.clone().sub(startPos)];
+                let curPt = forkStart.clone();
+                const forkDir = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.8,
+                    (Math.random() - 0.2) * 0.6,
+                    (Math.random() - 0.5) * 0.8
+                ).normalize();
+                for (let step = 1; step <= 4; step++) {
+                    curPt.addScaledVector(forkDir, 0.20);
+                    curPt.x += (Math.random() - 0.5) * 0.15;
+                    curPt.y += (Math.random() - 0.5) * 0.15;
+                    curPt.z += (Math.random() - 0.5) * 0.15;
+                    branchPts.push(curPt.clone().sub(startPos));
+                }
+                const bGeo = new THREE.BufferGeometry().setFromPoints(branchPts);
+                disposables.push(bGeo);
+                const bLine = new THREE.Line(bGeo, outerLineMat);
+                group.add(bLine);
+                lines.push(bLine);
+            }
+
+            const strikeRing = new THREE.Mesh(this._sharedShockRingGeo, ringMat);
+            strikeRing.position.copy(endPos).sub(startPos);
+            strikeRing.position.y += 0.02;
+            group.add(strikeRing);
+
+            pLight = new THREE.PointLight(colorHex, 4.5, 10);
+            group.add(pLight);
+            disposables.push(pLight);
+
+            onComplete = () => {
+                this.spawnDetonationDome(endPos, colorHex, 0.65);
+                this.spawnHitSparks(endPos, colorHex, 18, { shockRing: true });
             };
         } else if (kind === 'aura') {
-            duration = 0.55;
-            const ringGeo = new THREE.RingGeometry(0.48, 0.62, 24);
-            mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
-            disposables.push(ringGeo, mat);
-            const ringMesh = new THREE.Mesh(ringGeo, mat);
-            ringMesh.rotation.x = -Math.PI / 2;
-            group.add(ringMesh);
+            duration = 0.62;
+            pillarMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.42,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            ringMat = new THREE.MeshBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            disposables.push(pillarMat, ringMat);
+
+            const pillarMesh = new THREE.Mesh(this._sharedAuraCylinderGeo, pillarMat);
+            group.add(pillarMesh);
+
+            const yOffsets = [-0.35, 0.0, 0.35];
+            for (const yOff of yOffsets) {
+                const rMesh = new THREE.Mesh(this._sharedShockRingGeo, ringMat);
+                rMesh.position.y = yOff;
+                group.add(rMesh);
+            }
+
+            pLight = new THREE.PointLight(colorHex, 3.2, 7);
+            group.add(pLight);
+            disposables.push(pLight);
+
             this.spawnHitSparks(startPos, colorHex, 16);
-        } else if (kind === 'slash') {
-            duration = 0.18;
-            group.position.copy(endPos);
-            const slashGeo = new THREE.TorusGeometry(0.42, 0.025, 6, 16, Math.PI * 0.75);
-            mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95, side: THREE.DoubleSide });
-            disposables.push(slashGeo, mat);
-            const slashMesh = new THREE.Mesh(slashGeo, mat);
-            slashMesh.rotation.set(0.2, 0.4, 0.6);
-            group.add(slashMesh);
-            this.spawnHitSparks(endPos, colorHex, 18);
         }
 
         this.activeProjectiles.push({
@@ -4983,6 +5416,17 @@ class Dungeon3D {
             duration,
             lines,
             mat,
+            outerMat,
+            innerMat,
+            ringMat,
+            bluntRingMat,
+            bluntDomeMat,
+            lanceMat,
+            needleMat,
+            pillarMat,
+            pLight,
+            dist,
+            vortexRings,
             onComplete,
             disposables
         });
@@ -5001,6 +5445,7 @@ class Dungeon3D {
             lower.includes('you pray') || lower.includes('you recite') || lower.includes('you use a staff');
 
         const ep = this._resolveCombatEndpoints(lower, isPlayerSource);
+        const mGlyph = (ep.monsterEntity && ep.monsterEntity.monsterData && ep.monsterEntity.monsterData.char) || (ep.monsterEntity && ep.monsterEntity.glyph) || 'm';
 
         // 1. Lightning Spells & Attacks
         if (/\b(lightning|elec|shock|thunder|spark)\b/.test(lower)) {
@@ -5123,10 +5568,10 @@ class Dungeon3D {
         }
 
         // 7. Critical Melee Strikes
-        if (lower.includes('critical hit') || lower.includes('great force') || lower.includes('superb')) {
+        if (lower.includes('critical hit') || lower.includes('was a good hit') || lower.includes('was a great hit') || lower.includes('was a superb hit') || lower.includes('great force') || lower.includes('superb') || lower.includes('痛恨')) {
             this.addTrauma(0.25);
             this.spawnFloatingText('CRITICAL!', ep.endPos.clone().add(new THREE.Vector3(0, 0.25, 0)), '#ffd700', 1.35);
-            this.spawnProjectileOrSpellVfx('slash', ep.startPos, ep.endPos, 0xffd700);
+            this.spawnProjectileOrSpellVfx('crit_slash', ep.startPos, ep.endPos, 0xffd700);
             this.triggerMonsterHitReaction(ep.monsterEntity);
             if (this.audio && typeof this.audio.playWeaponImpact === 'function') {
                 this.audio.playWeaponImpact('blade', true, ep.pan);
@@ -5142,7 +5587,9 @@ class Dungeon3D {
             let weaponCat = 'blade';
             if (lower.includes('crush') || lower.includes('hammer') || lower.includes('club') || lower.includes('mace')) weaponCat = 'blunt';
             else if (lower.includes('stab') || lower.includes('gouge') || lower.includes('spear')) weaponCat = 'pierce';
-            this.spawnProjectileOrSpellVfx('slash', ep.startPos, ep.endPos, 0xff4444);
+            const vfxKind = weaponCat === 'blunt' ? 'blunt' : (weaponCat === 'pierce' ? 'pierce' : 'slash');
+            const vfxColor = weaponCat === 'blunt' ? 0xffaa44 : (weaponCat === 'pierce' ? 0x88eeff : 0xff4444);
+            this.spawnProjectileOrSpellVfx(vfxKind, ep.startPos, ep.endPos, vfxColor);
             this.triggerMonsterHitReaction(ep.monsterEntity);
             if (this.audio && typeof this.audio.playWeaponImpact === 'function') {
                 this.audio.playWeaponImpact(weaponCat, false, ep.pan);
@@ -5181,11 +5628,14 @@ class Dungeon3D {
         }
 
         // 12. Monster Slain
-        if (lower.includes('you have slain') || lower.includes('is destroyed') || lower.includes('dies.')) {
+        if (lower.includes('you have slain') || lower.includes('is destroyed') || lower.includes('dies.') || lower.includes('is slain') || lower.includes('倒した') || lower.includes('葬り去った')) {
             this.spawnFloatingText('SLAIN!', ep.endPos.clone().add(new THREE.Vector3(0, 0.25, 0)), '#ff44aa', 1.30);
+            this.spawnDetonationDome(ep.endPos, 0xff44aa, 0.75);
             this.spawnHitSparks(ep.endPos, '#ff44aa', 24);
             this.triggerMonsterHitReaction(ep.monsterEntity, true);
-            if (this.audio && typeof this.audio.playMonsterDeath === 'function') this.audio.playMonsterDeath();
+            if (this.audio && typeof this.audio.playMonsterDeath === 'function') {
+                this.audio.playMonsterDeath(mGlyph, ep.pan);
+            }
             return;
         }
 
@@ -8873,6 +9323,106 @@ class Dungeon3D {
         return wBox;
     }
 
+    _enhanceBestiaryMeshQuality(scene, opts = {}) {
+        if (!scene) return;
+        scene.traverse(c => {
+            if (c.material) {
+                const mats = Array.isArray(c.material) ? c.material : [c.material];
+                if (mats.some(m => m && m.name && /blackoutline|outline/i.test(m.name))) {
+                    c.visible = false;
+                }
+            }
+            if (c.name && /blackoutline|outline/i.test(c.name)) {
+                c.visible = false;
+            }
+            if (c.isMesh && c.geometry && c.geometry.attributes && c.geometry.attributes.position) {
+                const pos = c.geometry.attributes.position;
+                const hadMissingUv = !c.geometry.attributes.uv;
+                if (!c.geometry.attributes.uv && typeof THREE !== 'undefined' && THREE.BufferAttribute) {
+                    if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
+                    const bb = c.geometry.boundingBox;
+                    const sx = Math.max(1e-4, bb.max.x - bb.min.x);
+                    const sy = Math.max(1e-4, bb.max.y - bb.min.y);
+                    const sz = Math.max(1e-4, bb.max.z - bb.min.z);
+                    const uvArr = new Float32Array(pos.count * 2);
+                    for (let i = 0; i < pos.count; i++) {
+                        const px = pos.getX(i);
+                        const py = pos.getY(i);
+                        const pz = pos.getZ(i);
+                        let nx = 0, ny = 1, nz = 0;
+                        if (c.geometry.attributes.normal) {
+                            nx = Math.abs(c.geometry.attributes.normal.getX(i));
+                            ny = Math.abs(c.geometry.attributes.normal.getY(i));
+                            nz = Math.abs(c.geometry.attributes.normal.getZ(i));
+                        }
+                        if (ny >= nx && ny >= nz) {
+                            uvArr[i * 2] = (px - bb.min.x) / sx;
+                            uvArr[i * 2 + 1] = (pz - bb.min.z) / sz;
+                        } else if (nx >= ny && nx >= nz) {
+                            uvArr[i * 2] = (pz - bb.min.z) / sz;
+                            uvArr[i * 2 + 1] = (py - bb.min.y) / sy;
+                        } else {
+                            uvArr[i * 2] = (px - bb.min.x) / sx;
+                            uvArr[i * 2 + 1] = (py - bb.min.y) / sy;
+                        }
+                    }
+                    c.geometry.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
+                }
+                if (opts.smoothNormals && !c.isSkinnedMesh && (hadMissingUv || !c.geometry.attributes.normal)) {
+                    if (!c.geometry.attributes.normal) {
+                        c.geometry.computeVertexNormals();
+                    }
+                    const norm = c.geometry.attributes.normal;
+                    if (norm) {
+                        const normalMap = new Map();
+                        for (let i = 0; i < pos.count; i++) {
+                            const rx = Math.round(pos.getX(i) * 1000);
+                            const ry = Math.round(pos.getY(i) * 1000);
+                            const rz = Math.round(pos.getZ(i) * 1000);
+                            const key = `${rx},${ry},${rz}`;
+                            const entry = normalMap.get(key);
+                            const nx = norm.getX(i);
+                            const ny = norm.getY(i);
+                            const nz = norm.getZ(i);
+                            if (entry) {
+                                entry[0] += nx;
+                                entry[1] += ny;
+                                entry[2] += nz;
+                            } else {
+                                normalMap.set(key, [nx, ny, nz]);
+                            }
+                        }
+                        for (let i = 0; i < pos.count; i++) {
+                            const rx = Math.round(pos.getX(i) * 1000);
+                            const ry = Math.round(pos.getY(i) * 1000);
+                            const rz = Math.round(pos.getZ(i) * 1000);
+                            const entry = normalMap.get(`${rx},${ry},${rz}`);
+                            if (entry) {
+                                const len = Math.hypot(entry[0], entry[1], entry[2]) || 1;
+                                norm.setXYZ(i, entry[0] / len, entry[1] / len, entry[2] / len);
+                            }
+                        }
+                        norm.needsUpdate = true;
+                    }
+                }
+                if (opts.applyCreatureBump && c.material) {
+                    const mats = Array.isArray(c.material) ? c.material : [c.material];
+                    const bumpTex = this.floorNormal || this.townFloorNormal || null;
+                    for (const m of mats) {
+                        if (m && !m.normalMap && bumpTex) {
+                            m.normalMap = bumpTex;
+                            if (typeof THREE !== 'undefined' && THREE.Vector2) {
+                                m.normalScale = new THREE.Vector2(0.28, 0.28);
+                            }
+                            m.roughness = opts.roughness !== undefined ? opts.roughness : 0.58;
+                            m.needsUpdate = true;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     _ensureMonster3DTemplate(templateKey) {
         if (!this._monster3DTemplates) this._monster3DTemplates = new Map();
         if (!this._monster3DLoading) this._monster3DLoading = new Map();
@@ -8884,7 +9434,7 @@ class Dungeon3D {
             return this._monster3DLoading.get(templateKey);
         }
 
-        if (templateKey === 'ph_chest' || templateKey === 'ph_sledgehammer') {
+        if (templateKey === 'ph_chest' || templateKey === 'ph_sledgehammer' || templateKey === 'item_gold' || templateKey === 'item_greatsword' || templateKey === 'ph_potion_flask' || templateKey === 'ph_book' || templateKey === 'item_crown' || templateKey === 'item_plate_armor') {
             const p = this._ensurePolyHavenFloorItem(templateKey).then(tmpl => {
                 this._monster3DTemplates.set(templateKey, tmpl);
                 this._monster3DLoading.delete(templateKey);
@@ -9282,6 +9832,26 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_zombie') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/zombie_model.glb', () => this._ensureMonster3DTemplate('char_male_peasant')).then(scene => {
+                scene.traverse(c => {
+                    if (c.isMesh && c.material) {
+                        const name = (c.name || '').toLowerCase();
+                        const mats = Array.isArray(c.material) ? c.material : [c.material];
+                        const isFlesh = /head|hand|arm/i.test(name);
+                        const isCloth = /torso|leg|foot/i.test(name);
+                        for (const mat of mats) {
+                            if (!mat) continue;
+                            if (isFlesh) {
+                                mat.color = new THREE.Color(0x6b7c5e);
+                                mat.roughness = 0.82;
+                                mat.needsUpdate = true;
+                            } else if (isCloth) {
+                                mat.color = new THREE.Color(0x3b352e);
+                                mat.roughness = 0.88;
+                                mat.needsUpdate = true;
+                            }
+                        }
+                    }
+                });
                 return normalizeWrapper(scene, 1.68, true);
             });
         } else if (templateKey === 'bestiary_wraith') {
@@ -9289,24 +9859,22 @@ class Dungeon3D {
                 scene.traverse(c => {
                     if (c.isMesh && c.material) {
                         const mat = Array.isArray(c.material) ? c.material[0] : c.material;
-                        if (c.name && /ghost|wraith|phantom/i.test(c.name)) {
-                            mat.transparent = true;
-                            mat.opacity = 0.82;
-                            mat.blending = THREE.NormalBlending;
-                            mat.depthWrite = false;
-                            mat.onBeforeCompile = (shader) => {
-                                shader.uniforms.rimColor = { value: new THREE.Color(0x66ccff) };
-                                shader.uniforms.rimPower = { value: 2.2 };
-                                shader.fragmentShader = shader.fragmentShader.replace(
-                                    '#include <common>',
-                                    `#include <common>\nuniform vec3 rimColor;\nuniform float rimPower;`
-                                );
-                                shader.fragmentShader = shader.fragmentShader.replace(
-                                    '#include <dithering_fragment>',
-                                    `#include <dithering_fragment>\nvec3 viewDir = normalize(vViewPosition);\nfloat rim = 1.0 - max(0.0, dot(geometryNormal, -viewDir));\nrim = pow(rim, rimPower);\ngl_FragColor.rgb += rimColor * rim * 0.8;\ngl_FragColor.a = max(gl_FragColor.a, rim * 0.7);`
-                                );
-                            };
-                        }
+                        mat.transparent = true;
+                        mat.opacity = 0.84;
+                        mat.blending = THREE.NormalBlending;
+                        mat.depthWrite = false;
+                        mat.onBeforeCompile = (shader) => {
+                            shader.uniforms.rimColor = { value: new THREE.Color(0x66ccff) };
+                            shader.uniforms.rimPower = { value: 2.2 };
+                            shader.fragmentShader = shader.fragmentShader.replace(
+                                '#include <common>',
+                                `#include <common>\nuniform vec3 rimColor;\nuniform float rimPower;`
+                            );
+                            shader.fragmentShader = shader.fragmentShader.replace(
+                                '#include <dithering_fragment>',
+                                `#include <dithering_fragment>\nvec3 viewDir = normalize(vViewPosition);\nfloat rim = 1.0 - max(0.0, dot(geometryNormal, -viewDir));\nrim = pow(rim, rimPower);\ngl_FragColor.rgb += rimColor * rim * 0.8;\ngl_FragColor.a = max(gl_FragColor.a, rim * 0.7);`
+                            );
+                        };
                     }
                 });
                 return normalizeWrapper(scene, 1.68, true);
@@ -9333,10 +9901,12 @@ class Dungeon3D {
             });
         } else if (templateKey === 'bestiary_lion') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/MountainLion.glb', () => this._ensureMonster3DTemplate('bestiary_fox')).then(scene => {
+                this._enhanceBestiaryMeshQuality(scene);
                 return normalizeWrapper(scene, 0.95, true, 0.42, 1.45);
             });
         } else if (templateKey === 'bestiary_owl') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/Owl.glb', () => this._ensureMonster3DTemplate('bestiary_bird')).then(scene => {
+                this._enhanceBestiaryMeshQuality(scene);
                 return normalizeWrapper(scene, 0.68, true, 0, 0.95);
             });
         } else if (templateKey === 'bestiary_stork') {
@@ -9359,50 +9929,97 @@ class Dungeon3D {
                 });
                 return normalizeWrapper(scene, 0.78, true, 0, 1.25);
             });
-        } else if (templateKey === 'obj_spider' || templateKey === 'bestiary_beetle' || templateKey === 'bestiary_centipede') {
+        } else if (templateKey === 'obj_spider') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/giant_spider.glb', () => loadGltf('/assets/models/monsters/bestiary/giant_spider_model.glb', '/assets/models/monsters/Spider.obj')).then(scene => {
-                return normalizeWrapper(scene, (templateKey === 'bestiary_centipede' ? 0.48 : 0.62), true, 0.35, 1.25);
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, roughness: 0.52 });
+                return normalizeWrapper(scene, 0.62, true, 0.35, 1.25);
             });
-        } else if (templateKey === 'bestiary_ant' || templateKey === 'obj_wasp') {
+        } else if (templateKey === 'bestiary_centipede') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/centipede.glb', () => loadGltf('/assets/models/monsters/bestiary/giant_spider.glb', '/assets/models/monsters/Spider.obj')).then(scene => {
+                return normalizeWrapper(scene, 0.38, true, 0.20, 1.25);
+            });
+        } else if (templateKey === 'bestiary_beetle') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/beetle.glb', () => loadGltf('/assets/models/monsters/bestiary/giant_spider.glb', '/assets/models/monsters/Spider.obj')).then(scene => {
+                return normalizeWrapper(scene, 0.52, true, 0.25, 1.15);
+            });
+        } else if (templateKey === 'bestiary_scorpion') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/scorpion.glb', () => loadGltf('/assets/models/monsters/bestiary/giant_spider.glb', '/assets/models/monsters/Spider.obj')).then(scene => {
+                return normalizeWrapper(scene, 0.64, true, 0.25, 1.20);
+            });
+        } else if (templateKey === 'bestiary_ant') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/ant.glb', () => loadGltf('/assets/models/monsters/bestiary/wasp.glb', '/assets/models/monsters/Wasp.obj')).then(scene => {
+                return normalizeWrapper(scene, 0.48, true, 0.25, 1.10);
+            });
+        } else if (templateKey === 'obj_wasp') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/wasp.glb', '/assets/models/monsters/Wasp.obj').then(scene => {
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, roughness: 0.48 });
                 return normalizeWrapper(scene, 0.62, true, 0.42, 0.95);
             });
         } else if (templateKey === 'obj_snake') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/snake.glb', '/assets/models/monsters/Snake_angry.obj').then(scene => {
-                return normalizeWrapper(scene, 0.78, true, 0, 1.15);
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, roughness: 0.42 });
+                return normalizeWrapper(scene, 0.78, true, 0.35, 1.15);
             });
         } else if (templateKey === 'obj_frog') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/frog.glb', '/assets/models/monsters/Frog.obj').then(scene => {
-                return normalizeWrapper(scene, 0.48, true, 0, 0.95);
+                this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, roughness: 0.38 });
+                return normalizeWrapper(scene, 0.48, true, 0.25, 0.95);
             });
-        } else if (templateKey === 'env_tanglethorn') {
+        } else if (templateKey === 'bestiary_eye') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/floating_eye.glb', () => loadGltf('/assets/models/monsters/bestiary/Skull.glb', () => this._ensureMonster3DTemplate('bestiary_wraith'))).then(scene => {
+                return normalizeWrapper(scene, 0.72, true, 0.15, 0.85);
+            });
+        } else if (templateKey === 'bestiary_worm_mass') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/worm_mass.glb', () => loadGltf('/assets/models/monsters/bestiary/snake.glb', '/assets/models/monsters/Snake_angry.obj')).then(scene => {
+                return normalizeWrapper(scene, 0.42, true, 0.20, 1.25);
+            });
+        } else if (templateKey === 'env_fungi_cluster') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/mushroom_cluster.glb', () => loadGltf('/assets/polyhaven/models/crystalline_iceplant/crystalline_iceplant.gltf', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf'))).then(scene => {
+                return normalizeWrapper(scene, 0.56, true, 0.15, 0.95);
+            });
+        } else if (templateKey === 'env_ooze_mound') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/jelly_ooze.glb', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf')).then(scene => {
+                return normalizeWrapper(scene, 0.58, true, 0.15, 1.05);
+            });
+        } else if (templateKey === 'env_tanglethorn' || templateKey === 'env_bush_dead') {
             loadPromise = loadGltf('/assets/polyhaven/models/pine_roots/pine_roots.gltf', () => loadGltf('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf')).then(scene => {
                 return normalizeWrapper(scene, 1.15, true, 0.25, 1.20);
             });
-        } else if (templateKey === 'env_fungi_cluster') {
-            loadPromise = loadGltf('/assets/polyhaven/models/crystalline_iceplant/crystalline_iceplant.gltf', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf')).then(scene => {
-                return normalizeWrapper(scene, 0.56, true, 0.20, 0.90);
+        } else if (templateKey === 'env_tree') {
+            loadPromise = loadGltf('/assets/polyhaven/models/pachira_aquatica_01/pachira_aquatica_01.gltf', () => loadGltf('/assets/polyhaven/models/pine_roots/pine_roots.gltf')).then(scene => {
+                return normalizeWrapper(scene, 1.65, true, 0.25, 1.40);
             });
-        } else if (templateKey === 'env_ooze_mound') {
-            loadPromise = this._loadSingleGltfScene('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf').then(scene => {
-                const oozeMat = new THREE.MeshStandardMaterial({
-                    color: 0x48a868,
-                    roughness: 0.12,
-                    metalness: 0.18,
-                    transparent: true,
-                    opacity: 0.85,
-                    emissive: new THREE.Color(0x143820),
-                    emissiveIntensity: 0.28,
-                    normalMap: this.townFloorNormal || this.floorNormal
-                });
-                scene.traverse(c => {
-                    if (c.isMesh) {
-                        c.material = oozeMat;
-                        c.castShadow = false;
-                        c.receiveShadow = false;
-                    }
-                });
-                return normalizeWrapper(scene, 0.58, true, 0.20, 0.95);
+        } else if (templateKey === 'bestiary_vortex') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/vortex_elemental.glb', () => loadGltf('/assets/models/monsters/bestiary/GhostArmature.glb', () => this._ensureMonster3DTemplate('bestiary_wraith'))).then(scene => {
+                return normalizeWrapper(scene, 1.15, true, 0.15, 1.05);
+            });
+        } else if (templateKey === 'bestiary_quylthulg') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/quylthulg.glb', () => loadGltf('/assets/models/monsters/bestiary/jelly_ooze.glb', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf'))).then(scene => {
+                return normalizeWrapper(scene, 0.62, true, 0.15, 1.05);
+            });
+        } else if (templateKey === 'bestiary_hydra') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/hydra.glb', () => loadGltf('/assets/models/monsters/bestiary/Dragon.glb', () => this._ensureMonster3DTemplate('bestiary_dragon'))).then(scene => {
+                return normalizeWrapper(scene, 1.45, true, 0.25, 1.55);
+            });
+        } else if (templateKey === 'bestiary_naga') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/naga.glb', () => loadGltf('/assets/models/monsters/bestiary/snake.glb', '/assets/models/monsters/Snake_angry.obj')).then(scene => {
+                return normalizeWrapper(scene, 1.25, true, 0.25, 1.25);
+            });
+        } else if (templateKey === 'bestiary_bat') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/bat.glb', () => loadGltf('/assets/models/monsters/bestiary/Owl.glb', () => this._ensureMonster3DTemplate('bestiary_owl'))).then(scene => {
+                return normalizeWrapper(scene, 0.52, true, 0.15, 1.15);
+            });
+        } else if (templateKey === 'bestiary_bear') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/bear.glb', () => loadGltf('/assets/models/monsters/bestiary/wolf.glb', () => this._ensureMonster3DTemplate('bestiary_wolf'))).then(scene => {
+                return normalizeWrapper(scene, 1.05, true, 0.25, 1.45);
+            });
+        } else if (templateKey === 'bestiary_lizard') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => loadGltf('/assets/models/monsters/bestiary/frog.glb', '/assets/models/monsters/Frog.obj')).then(scene => {
+                return normalizeWrapper(scene, 0.54, true, 0.20, 1.35);
+            });
+        } else if (templateKey === 'bestiary_aquatic') {
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/aquatic.glb', () => loadGltf('/assets/models/monsters/bestiary/lizard.glb', () => loadGltf('/assets/models/monsters/bestiary/frog.glb', '/assets/models/monsters/Frog.obj'))).then(scene => {
+                return normalizeWrapper(scene, 0.68, true, 0.20, 1.30);
             });
         } else {
             return Promise.reject(new Error(`Unknown 3D monster template key: ${templateKey}`));
@@ -9432,6 +10049,7 @@ class Dungeon3D {
         const lowerName = rawName.toLowerCase();
         const lower = lowerName;
         const g = (glyph || (m && m.glyph) || '?').trim();
+        const colorHex = (typeof getAngbandColorString === 'function') ? getAngbandColorString(m && m.attr) : null;
 
         const rawSeed = m && m.id !== undefined ? m.id : ((m ? (m.x || 0) * 7 + (m.y || 0) * 13 : 0));
         let seedNum = typeof rawSeed === 'number' ? rawSeed : 0;
@@ -9444,6 +10062,16 @@ class Dungeon3D {
 
         // 1. Sil-Q Realm
         if (realm === 'silq') {
+            // Thorns & dead bushes (&)
+            if (g === '&' || /thorn|tanglethorn|madthorn|nightthorn/i.test(lower)) {
+                return {
+                    templateKey: 'env_bush_dead',
+                    scale: 1.05,
+                    tintHex: colorHex,
+                    isFloating: false,
+                    seed
+                };
+            }
             // g === 'R' (Raukar / Balrogs: Gothmog, Lungorthin, Ururauko, Sulrauko, Ringrauko, Kemenrauko, Gwathrauko)
             if (g === 'R' || /rauko|balrog|gothmog|lungorthin/.test(lowerName)) {
                 return {
@@ -9454,8 +10082,8 @@ class Dungeon3D {
                     seed
                 };
             }
-            // g === 'V' && Morgoth
-            if (g === 'V' && /morgoth/.test(lowerName)) {
+            // g === 'V' (Morgoth / Valar)
+            if (g === 'V') {
                 return {
                     templateKey: 'char_male_ranger',
                     scale: 1.75,
@@ -9473,7 +10101,78 @@ class Dungeon3D {
                     seed
                 };
             }
-            // g === 'H' (Horrors)
+            // Spiders / Attercops (m)
+            if (g === 'm' || /spider|attercop/i.test(lower)) {
+                return {
+                    templateKey: 'obj_spider',
+                    scale: /hatchling/i.test(lower) ? 0.68 : 0.92,
+                    tintHex: colorHex,
+                    isFloating: false,
+                    seed
+                };
+            }
+            // Serpents vs Spiders (S / s)
+            if (g === 'S' || g === 's') {
+                if (/spider/i.test(lower)) {
+                    return {
+                        templateKey: 'obj_spider',
+                        scale: 0.95,
+                        tintHex: colorHex,
+                        isFloating: false,
+                        seed
+                    };
+                }
+                return {
+                    templateKey: 'obj_snake',
+                    scale: (g === 'S' ? 1.25 : 0.95),
+                    tintHex: colorHex,
+                    isFloating: false,
+                    seed
+                };
+            }
+            // Giants (G) (Gilim, Nan, Giant)
+            if (g === 'G') {
+                return {
+                    templateKey: 'bestiary_cyclops',
+                    scale: 1.48,
+                    tintHex: '#9a8470',
+                    weaponKey: 'item_greatclub',
+                    isFloating: false,
+                    seed
+                };
+            }
+            // Vampires (v) (Thuringwethil, Vampire lord, Vampire)
+            if (g === 'v') {
+                return {
+                    templateKey: (/thuringwethil|bat/i.test(lower) ? 'bestiary_bat' : 'char_male_priest'),
+                    scale: 1.12,
+                    tintHex: '#2a1228',
+                    weaponKey: null,
+                    isFloating: true,
+                    seed
+                };
+            }
+            // Phantoms / Shadows / Spectres (w)
+            if (g === 'w') {
+                return {
+                    templateKey: 'bestiary_wraith',
+                    scale: 1.08,
+                    tintHex: colorHex,
+                    isFloating: true,
+                    seed
+                };
+            }
+            // Nameless things (N)
+            if (g === 'N' || /nameless/i.test(lower)) {
+                return {
+                    templateKey: 'bestiary_horror',
+                    scale: 1.45,
+                    tintHex: colorHex,
+                    isFloating: false,
+                    seed
+                };
+            }
+            // g === 'H' (Horrors / Lurking horror)
             if (g === 'H') {
                 return {
                     templateKey: 'bestiary_wraith',
@@ -9758,9 +10457,301 @@ class Dungeon3D {
             };
         }
 
+        // Mimics & Animated Objects ($, |, /, !, ?, =, _, ~)
+        if (g === '$' || /creeping.*coins|coin mimic/i.test(lower)) {
+            return {
+                templateKey: 'item_gold',
+                scale: 1.05,
+                tintHex: colorHex,
+                isFloating: false,
+                seed
+            };
+        }
+        if (g === '|' || /death sword|hellblade|animated.*sword|dancing.*sword|mourningblade/i.test(lower)) {
+            return {
+                templateKey: 'item_greatsword',
+                scale: 1.15,
+                tintHex: colorHex,
+                isFloating: true,
+                floatHeight: 0.35,
+                seed
+            };
+        }
+        if (g === '/' || /animated.*axe|animated.*pike|animated.*staff|death scythe/i.test(lower)) {
+            return {
+                templateKey: 'ph_sledgehammer',
+                scale: 1.15,
+                tintHex: colorHex,
+                isFloating: true,
+                floatHeight: 0.35,
+                seed
+            };
+        }
+        if (g === '!' || /potion mimic/i.test(lower)) {
+            return {
+                templateKey: 'ph_potion_flask',
+                scale: 1.0,
+                tintHex: colorHex,
+                isFloating: false,
+                seed
+            };
+        }
+        if (g === '?' || /scroll mimic|book mimic/i.test(lower)) {
+            return {
+                templateKey: 'ph_book',
+                scale: 1.0,
+                tintHex: colorHex,
+                isFloating: false,
+                seed
+            };
+        }
+        if (g === '~' || g === '=' || g === '_' || /\bmimic\b/.test(lower)) {
+            return {
+                templateKey: 'ph_chest',
+                scale: 0.95,
+                tintHex: colorHex,
+                seed
+            };
+        }
+
+        // Floating Eyes & Beholders (g === 'e' or beholder / gazer / eye)
+        if (g === 'e' || /floating eye|disenchanter eye|bloodshot eye|beholder|gazer|spectator|undead beholder|eye of/i.test(lower)) {
+            return {
+                templateKey: 'bestiary_eye',
+                scale: /beholder|hivemind|unmaker/i.test(lower) ? 1.28 : 0.92,
+                tintHex: colorHex,
+                isFloating: true,
+                floatHeight: 0.45,
+                seed
+            };
+        }
+
+        // Quylthulgs (g === 'Q' or quylthulg)
+        if (g === 'Q' || /quylthulg/i.test(lower)) {
+            return {
+                templateKey: 'bestiary_quylthulg',
+                scale: /master|greater|emperor|draconic|demonic/i.test(lower) ? 1.25 : 0.95,
+                tintHex: colorHex,
+                isFloating: false,
+                seed
+            };
+        }
+
+        // Vortices & Elementals (g === 'E' or vortex/elemental/plasma/whirlwind, when g !== 'C')
+        if (g !== 'C' && (g === 'E' || /vortex|elemental|whirlwind|water spirit|fire spirit|air spirit|earth spirit|plasma|hound of tindalos/i.test(lower))) {
+            return {
+                templateKey: 'bestiary_vortex',
+                scale: /elemental|lord/i.test(lower) ? 1.22 : 0.95,
+                tintHex: colorHex,
+                isFloating: true,
+                floatHeight: 0.25,
+                seed
+            };
+        }
+
+        // Worm Masses (g === 'w' or worm mass/crawler/maggot/leech, when not Farmer Maggot and not Sil-Q)
+        if (g === 'w' || /worm mass|crawler|maggot|leech/i.test(lower)) {
+            if (!lower.includes('farmer maggot')) {
+                return {
+                    templateKey: 'bestiary_worm_mass',
+                    scale: 1.0,
+                    tintHex: colorHex,
+                    isFloating: false,
+                    seed
+                };
+            }
+        }
+
+        // Nagas (g === 'n' or naga)
+        if (g === 'n' || /\bnaga\b/i.test(lower)) {
+            return {
+                templateKey: 'bestiary_naga',
+                scale: 1.08,
+                tintHex: colorHex,
+                isFloating: false,
+                seed
+            };
+        }
+
+        // Hydras (g === 'M' or hydra, when not Yamata-no-Orochi/八岐大蛇 and not Sil-Q)
+        if (g === 'M' || /\bhydra\b/i.test(lower)) {
+            return {
+                templateKey: 'bestiary_hydra',
+                scale: 1.18,
+                tintHex: colorHex,
+                isFloating: false,
+                seed
+            };
+        }
+
+        // Dragons & Drakes (d, D)
+        if (g === 'd' || g === 'D' || /\b(dragon|drake|wyrm)\b/i.test(lower)) {
+            const isAncient = (g === 'D' || lower.includes('ancient') || lower.includes('wyrm'));
+            return {
+                templateKey: 'bestiary_dragon',
+                scale: isAncient ? 1.38 : 0.92,
+                tintHex: colorHex,
+                seed
+            };
+        }
+
+        // Bats (g === 'b' or bat)
+        if (g === 'b' || /\bbat\b|doombat|vampire bat|fruit bat/i.test(lower)) {
+            return {
+                templateKey: 'bestiary_bat',
+                scale: /giant|doom|vampire/i.test(lower) ? 1.08 : 0.82,
+                tintHex: colorHex,
+                isFloating: true,
+                floatHeight: 0.42,
+                seed
+            };
+        }
+
+        // Birds, Owls, Ravens, Eagles
+        if (g === 'B' || /\b(bird|crow|raven|eagle|hawk|falcon|owl|stirge|stork|swan)\b/.test(lower)) {
+            return {
+                templateKey: /owl|raven|crow/.test(lower) ? 'bestiary_owl' : (/stork|swan|water/.test(lower) ? 'bestiary_stork' : 'bestiary_bird'),
+                scale: 0.95,
+                floating: true,
+                isFloating: true,
+                seed
+            };
+        }
+
+        // Scorpions (/scorpion/i)
+        if (/scorpion/i.test(lower)) {
+            return {
+                templateKey: 'bestiary_scorpion',
+                scale: /giant|king|emperor|black/i.test(lower) ? 1.15 : 0.92,
+                tintHex: colorHex,
+                isFloating: false,
+                seed
+            };
+        }
+
+        // Spiders
+        if (g === 'S' || /\b(spider|tarantula|weaver|ungoliant)\b/.test(lower)) {
+            const isLightSpider = /\b(white|crystal|ice|phase)\b/.test(lower);
+            const spiderTint = (!isLightSpider && m && (m.attr === 1 || m.attr === 2)) ? '#4a3b30' : colorHex;
+            return {
+                templateKey: 'obj_spider',
+                scale: lower.includes('ungoliant') ? 1.55 : 0.95,
+                tintHex: spiderTint,
+                seed
+            };
+        }
+
+        // Bears, Boars & Heavy Quadrupeds vs Equines (g === 'q' or bear/boar/etc.)
+        if (g === 'q' || /\bbear\b|werebear|grizzly|beorn|\bboar\b|catoblepas|mumak|mûmak|mastodon|elephant|rhino|triceratops|hippo|bison|ox|bull|yak|tapir|pig|swine|hog/i.test(lower)) {
+            if (/horse|pony|stallion|mare|unicorn|pegasus|steed|kirin|nightmare|sleipnir|kelpie|zebra|donkey|mule|camel|deer|stag|elk|moose|goat|sheep|ram/i.test(lower)) {
+                return {
+                    templateKey: 'bestiary_horse',
+                    scale: 1.0,
+                    seed
+                };
+            }
+            return {
+                templateKey: 'bestiary_bear',
+                scale: /mumak|mûmak|elephant|mastodon|beorn|grizzly/i.test(lower) ? 1.28 : 1.0,
+                tintHex: colorHex,
+                isFloating: false,
+                seed
+            };
+        }
+
+        // Lizards, Salamanders, Basilisks & Reptiles vs Frogs (g === 'R' or lizard/salamander/etc.)
+        if (g === 'R' || /lizard|salamander|basilisk|alligator|crocodile|iguana|chameleon|gecko|komodo|dinosaur|raptor|ankylosaur|pterosaur|monitor/i.test(lower)) {
+            if (/frog|toad|newt|amphibian|axolotl|tadpole/i.test(lower)) {
+                return {
+                    templateKey: 'obj_frog',
+                    scale: 0.88,
+                    tintHex: colorHex,
+                    seed
+                };
+            }
+            return {
+                templateKey: 'bestiary_lizard',
+                scale: /basilisk|alligator|crocodile|dinosaur|salamander/i.test(lower) ? 1.15 : 0.92,
+                tintHex: colorHex,
+                isFloating: false,
+                seed
+            };
+        }
+
+        // Frogs & Toads
+        if (/frog|toad|newt|amphibian|axolotl|tadpole/i.test(lower)) {
+            return {
+                templateKey: 'obj_frog',
+                scale: 0.88,
+                tintHex: colorHex,
+                seed
+            };
+        }
+
+        // Aquatic Creatures vs Trees (g === 'l')
+        if (g === 'l' || /piranha|shark|barracuda|swordfish|fish|kraken|eel|octopus|squid|whale|dolphin|manta|ray|crab|lobster|shrimp|jellyfish|seahorse|nautilus|ixitxachitl/i.test(lower)) {
+            if (/tree|ent|huorn|willow|pine|oak|bush|shrub|vine|kelp|plant|sapling/i.test(lower) || (g === 'l' && realm === 'angband' && !/fish|shark|piranha|eel|kraken|squid|octopus|crab/i.test(lower))) {
+                if (g === 'l' && realm === 'angband' && !/tree|ent|huorn|bush|plant/i.test(lower)) {
+                    return {
+                        templateKey: 'bestiary_centipede',
+                        scale: 0.58,
+                        tintHex: colorHex,
+                        seed
+                    };
+                }
+                return {
+                    templateKey: 'env_tree',
+                    scale: 1.0,
+                    tintHex: colorHex,
+                    seed
+                };
+            }
+            return {
+                templateKey: 'bestiary_aquatic',
+                scale: /kraken|whale|megalodon|giant|great/i.test(lower) ? 1.35 : 0.95,
+                tintHex: colorHex,
+                isFloating: true,
+                floatHeight: 0.28,
+                seed
+            };
+        }
+
+        // Hybrids (g === 'H')
+        if (g === 'H' || /harpy|griffon|hippogriff|roc|siren|garuda|cockatrice|chickatrice|pegasus|sphinx|minotaur|centaur|satyr|faun|owlbear/i.test(lower)) {
+            if (/harpy|griffon|hippogriff|roc|siren|garuda|cockatrice|chickatrice|pegasus|sphinx/i.test(lower)) {
+                return {
+                    templateKey: 'bestiary_owl',
+                    scale: 1.18,
+                    tintHex: colorHex,
+                    isFloating: true,
+                    floatHeight: 0.35,
+                    seed
+                };
+            }
+            if (/minotaur|centaur|satyr|faun/i.test(lower)) {
+                return {
+                    templateKey: 'bestiary_guardian',
+                    scale: 1.22,
+                    tintHex: colorHex,
+                    weaponKey: 'ph_axe',
+                    isFloating: false,
+                    seed
+                };
+            }
+            if (/owlbear/i.test(lower)) {
+                return {
+                    templateKey: 'bestiary_bear',
+                    scale: 1.18,
+                    tintHex: colorHex,
+                    isFloating: false,
+                    seed
+                };
+            }
+        }
+
         // Felines & Horrors
-        if (g === 'f' || g === 'H' || /\b(cat|panther|tiger|lion|leopard|cougar|lynx|chimera|manticore|horror|abomination)\b/.test(lowerName)) {
-            if (g === 'H' && /\b(horror|abomination|crawler)\b/.test(lowerName)) {
+        if (g === 'f' || /\b(cat|panther|tiger|lion|leopard|cougar|lynx|chimera|manticore|horror|abomination)\b/.test(lowerName)) {
+            if (/\b(horror|abomination)\b/.test(lowerName)) {
                 return {
                     templateKey: 'bestiary_horror',
                     scale: 1.05,
@@ -9777,51 +10768,40 @@ class Dungeon3D {
             };
         }
 
-        // Birds, Owls, Ravens, Eagles, Bats
-        if (g === 'B' || g === 'b' || /\b(bird|crow|raven|eagle|hawk|falcon|owl|bat|stirge|stork|swan)\b/.test(lowerName)) {
-            return {
-                templateKey: /owl|bat|raven|crow/.test(lowerName) ? 'bestiary_owl' : (/stork|swan|water/.test(lowerName) ? 'bestiary_stork' : 'bestiary_bird'),
-                scale: (g === 'b' || /bat/.test(lowerName)) ? 0.75 : 0.95,
-                floating: true,
-                isFloating: true,
-                seed
-            };
-        }
-
-        // 0a. Plants, Tanglethorns, Brambles, Trees, Huorns
+        // Plants, Tanglethorns, Brambles, Trees, Huorns
         if (g === '#' || /\b(tanglethorn|thorn|bramble|vine|weed|bush|shrub|tree|huorn|ent|treant|plant)\b/.test(lower)) {
             return {
                 templateKey: 'env_tanglethorn',
                 scale: 1.0,
-                tintHex: (m && m.attr && m.attr > 2) ? getAngbandColorString(m.attr) : null,
+                tintHex: colorHex,
                 seed
             };
         }
 
-        // 0b. Mushrooms, Molds, Fungi
+        // Mushrooms, Molds, Fungi
         if (g === ',' || g === 'm' || /\b(mushroom|fungus|mold|spore|patch|shrieker|myconid)\b/.test(lower)) {
             return {
                 templateKey: 'env_fungi_cluster',
                 scale: 0.85,
-                tintHex: getAngbandColorString(m && m.attr),
+                tintHex: colorHex,
                 seed
             };
         }
 
-        // 0c. Jellies, Oozes, Slimes, Vortices, Spheres
-        if (g === 'j' || g === 'i' || g === 'v' || g === '*' || /\b(jelly|ooze|slime|ichor|pudding|blob|vortex|plasm|sphere)\b/.test(lower)) {
+        // Jellies, Oozes, Slimes, Spheres
+        if (g === 'j' || g === 'i' || g === 'v' || g === '*' || /\b(jelly|ooze|slime|ichor|pudding|blob|sphere)\b/.test(lower)) {
             return {
                 templateKey: 'env_ooze_mound',
-                scale: (g === 'v') ? 0.95 : 0.85,
-                isFloating: (g === 'v' || g === '*'),
-                floating: (g === 'v' || g === '*'),
-                tintHex: getAngbandColorString(m && m.attr),
+                scale: 0.85,
+                isFloating: (g === '*'),
+                floating: (g === '*'),
+                tintHex: colorHex,
                 seed
             };
         }
 
-        // 2. Equines & Quadrupeds
-        if (g === 'q' || /\b(horse|steed|mare|stallion|pony|unicorn|pegasus|mule)\b/.test(lower)) {
+        // Equines & Quadrupeds
+        if (/\b(horse|steed|mare|stallion|pony|unicorn|pegasus|mule)\b/.test(lower)) {
             return {
                 templateKey: 'bestiary_horse',
                 scale: 1.0,
@@ -9829,7 +10809,7 @@ class Dungeon3D {
             };
         }
 
-        // 3. Rodents
+        // Rodents
         if (g === 'r' || /\b(rat|mouse|mice|rodent|vole)\b/.test(lower)) {
             return {
                 templateKey: 'ph_street_rat',
@@ -9838,35 +10818,12 @@ class Dungeon3D {
             };
         }
 
-        // 4. Dragons & Hydras
-        if (g === 'd' || g === 'D' || g === 'M' || /\b(dragon|drake|wyrm|hydra)\b/.test(lower)) {
-            const isAncient = (g === 'D' || lower.includes('ancient') || lower.includes('wyrm'));
-            return {
-                templateKey: 'bestiary_dragon',
-                scale: isAncient ? 1.38 : 0.92,
-                tintHex: getAngbandColorString(m && m.attr),
-                seed
-            };
-        }
-
-        // 6. Floating Eyes, Skulls, Quylthulgs
-        if (g === 'e' || g === 'Q' || /\b(skull|druj|floating eye|beholder|quylthulg|eye)\b/.test(lower)) {
-            return {
-                templateKey: 'bestiary_skull',
-                scale: 0.85,
-                isFloating: true,
-                floating: true,
-                tintHex: getAngbandColorString(m && m.attr),
-                seed
-            };
-        }
-
-        // 7. Arthropods Split (Ants, Beetles, Centipedes, Spiders/Scorpions)
+        // Arthropods (Ants, Beetles, Centipedes)
         if (g === 'a' || /\b(ant|formic)\b/.test(lower)) {
             return {
                 templateKey: 'bestiary_ant',
                 scale: 0.88,
-                tintHex: getAngbandColorString(m && m.attr),
+                tintHex: colorHex,
                 seed
             };
         }
@@ -9874,72 +10831,49 @@ class Dungeon3D {
             return {
                 templateKey: 'bestiary_beetle',
                 scale: 0.92,
-                tintHex: getAngbandColorString(m && m.attr),
+                tintHex: colorHex,
                 seed
             };
         }
-        if (g === 'c' || g === 'l' || /\b(centipede|millipede|crawler|louse|tick|mite)\b/.test(lower)) {
+        if (g === 'c' || /\b(centipede|millipede)\b/.test(lower)) {
             return {
                 templateKey: 'bestiary_centipede',
-                scale: (g === 'l') ? 0.58 : 0.92,
-                tintHex: getAngbandColorString(m && m.attr),
+                scale: 0.92,
+                tintHex: colorHex,
                 seed
             };
         }
-        if (g === 'S' || /\b(spider|tarantula|scorpion|weaver|ungoliant)\b/.test(lower)) {
-            const isLightSpider = /\b(white|crystal|ice|phase)\b/.test(lower);
-            const spiderTint = (!isLightSpider && m && (m.attr === 1 || m.attr === 2)) ? '#4a3b30' : getAngbandColorString(m && m.attr);
-            return {
-                templateKey: 'obj_spider',
-                scale: lower.includes('ungoliant') ? 1.55 : 0.95,
-                tintHex: spiderTint,
-                seed
-            };
-        }
-
-        // 8. Snakes, Serpents, Nagas, Worms
-        if (g === 'J' || g === 'n' || g === 'w' || /\b(snake|serpent|viper|cobra|python|adder|naga|worm)\b/.test(lower)) {
-            return {
-                templateKey: 'obj_snake',
-                scale: (g === 'n') ? 1.25 : 0.92,
-                tintHex: getAngbandColorString(m && m.attr),
-                seed
-            };
-        }
-
-        // 9. Wasps, Flies, Insects
-        if (g === 'F' || g === 'I' || /\b(wasp|hornet|fly|bee|moth|mosquito|locust|insect)\b/.test(lower)) {
+        if (g === 'I') {
+            if (/louse|flea|bug|tick|mite|roach|cockroach|earwig|silverfish|grub|larva/i.test(lower)) {
+                return {
+                    templateKey: 'bestiary_beetle',
+                    scale: 0.65,
+                    tintHex: colorHex,
+                    isFloating: false,
+                    seed
+                };
+            }
             return {
                 templateKey: 'obj_wasp',
                 scale: 0.85,
                 isFloating: true,
                 floating: true,
-                tintHex: getAngbandColorString(m && m.attr),
+                tintHex: colorHex,
                 seed
             };
         }
-
-        // 10. Frogs, Lizards, Reptiles
-        if (g === 'R' || /\b(frog|toad|lizard|newt|salamander|basilisk|iguana)\b/.test(lower)) {
+        if (g === 'F' || /\b(wasp|hornet|fly|bee|moth|mosquito|locust|insect)\b/.test(lower)) {
             return {
-                templateKey: 'obj_frog',
-                scale: 0.88,
-                tintHex: getAngbandColorString(m && m.attr),
+                templateKey: 'obj_wasp',
+                scale: 0.85,
+                isFloating: true,
+                floating: true,
+                tintHex: colorHex,
                 seed
             };
         }
 
-        // 11. Mimics & Creeping Coins
-        if (g === '$' || g === '?' || g === '!' || g === '~' || g === '|' || g === '(' || g === ']' ||
-            /\b(mimic|creeping.*coin)\b/.test(lower)) {
-            return {
-                templateKey: 'ph_chest',
-                scale: 0.95,
-                seed
-            };
-        }
-
-        // 12. Yeeks
+        // Yeeks
         if (g === 'y' || /\b(yeek|gremlin|homunculus)\b/.test(lower)) {
             return {
                 templateKey: 'bestiary_puglin',
@@ -9950,15 +10884,14 @@ class Dungeon3D {
             };
         }
 
-        // 13. Demons, Imps, Balrogs, Golems, Gargoyles, Elementals, Vortices
-        if (g === 'u' || g === 'U' || g === 'E' || g === 'X' ||
-            /\b(imp|demon|quasit|balrog|fiend|devil|elemental|xorn)\b/.test(lower)) {
+        // Demons, Imps, Balrogs
+        if (g === 'u' || g === 'U' || g === 'X' ||
+            /\b(imp|demon|quasit|balrog|fiend|devil|xorn)\b/.test(lower)) {
             const isMajor = (g === 'U' || lower.includes('balrog') || lower.includes('greater'));
-            const isElemental = (g === 'E');
             return {
                 templateKey: 'bestiary_imp',
                 scale: isMajor ? 1.48 : 0.98,
-                tintHex: isElemental ? getAngbandColorString(m && m.attr) : null,
+                tintHex: null,
                 weaponKey: (g === 'U') ? 'ph_saber' : null,
                 seed
             };
@@ -10368,7 +11301,7 @@ class Dungeon3D {
                 if ((c.isMesh || c.isSkinnedMesh) && c.material) {
                     const matName = (Array.isArray(c.material) ? c.material.map(m => m.name || '').join(' ') : (c.material.name || '')).toLowerCase();
                     const meshName = ((c.name || '') + ' ' + (c.geometry ? c.geometry.name || '' : '')).toLowerCase();
-                    if (/eye|teeth|tooth|superhero|regular/i.test(matName + '_' + meshName)) return;
+                    if (/eye|pupil|iris|teeth|tooth|fang|maw|bone|spore|core|pustule|snout|material\.001|^red$|superhero|regular/i.test(matName + '_' + meshName)) return;
                     if (cfg.tunicOnlyTint && !meshName.includes('peasant_body')) {
                         return;
                     }
@@ -10546,6 +11479,10 @@ class Dungeon3D {
         const baseH = tmpl.actualHeight || tmpl.baseHeight || 1.0;
         instance.baseHeight = baseH * (cfg.scaleY || cfg.scale || 1.0);
         instance.baseWidth = (tmpl.baseWidth || 0.85) * (cfg.scaleXZ || cfg.scaleX || cfg.scale || 1.0);
+
+        if (cfg.isFloating || cfg.floating) {
+            instance.position.y = (cfg.floatHeight || 0.36);
+        }
 
         return instance;
     }
@@ -11685,9 +12622,16 @@ class Dungeon3D {
             }
             const alpha = Math.max(0, 1.0 - (p.elapsed / p.duration));
             p.material.opacity = alpha;
+            if (p.shockRingMesh) {
+                const sFrac = Math.min(1.0, p.elapsed / p.duration);
+                const ringScale = 1.0 + sFrac * 2.2;
+                p.shockRingMesh.scale.set(ringScale, ringScale, ringScale);
+                if (p.ringMat) p.ringMat.opacity = alpha * 0.85;
+            }
             if (p.elapsed >= p.duration) {
                 this.scene.remove(p.group);
                 p.material.dispose();
+                if (p.ringMat) p.ringMat.dispose();
                 this.particles.splice(i, 1);
             }
         }
@@ -11706,11 +12650,55 @@ class Dungeon3D {
                     proj.group.position.y += 4 * 0.65 * t * (1.0 - t);
                     proj.group.rotation.x += delta * 12.0;
                     proj.group.rotation.z += delta * 8.0;
-                } else if (proj.kind === 'fireball' || proj.kind === 'breath' || proj.kind === 'bolt') {
+                } else if (proj.kind === 'fireball' || proj.kind === 'bolt') {
                     proj.group.position.lerpVectors(proj.startPos, proj.endPos, t);
-                    if (Math.random() < 0.6) {
-                        this.spawnHitSparks(proj.group.position, proj.colorHex, 2);
+                    if (Math.random() < 0.25) {
+                        this.spawnHitSparks(proj.group.position, proj.colorHex, 1);
                     }
+                } else if (proj.kind === 'breath') {
+                    const dist = proj.dist || Math.max(1.5, proj.startPos.distanceTo(proj.endPos));
+                    const zReach = dist * Math.min(1.0, t * 1.4);
+                    proj.group.scale.set(0.65 + t * 0.75, 0.65 + t * 0.75, zReach / 1.45);
+                    if (proj.vortexRings) {
+                        for (const vr of proj.vortexRings) {
+                            vr.rotation.z += delta * 7.5;
+                        }
+                    }
+                    const fade = Math.max(0, 1.0 - t);
+                    if (proj.outerMat) proj.outerMat.opacity = fade * 0.72;
+                    if (proj.innerMat) proj.innerMat.opacity = fade * 0.85;
+                    if (proj.ringMat) proj.ringMat.opacity = fade * 0.80;
+                    if (proj.pLight) proj.pLight.intensity = fade * 4.5;
+                } else if (proj.kind === 'detonation') {
+                    const sc = (proj.baseScale || 1.0) * (0.8 + t * 1.6);
+                    proj.group.scale.set(sc, sc, sc);
+                    const fade = Math.max(0, 1.0 - t);
+                    if (proj.domeMat) proj.domeMat.opacity = fade * 0.82;
+                    if (proj.coreMat) proj.coreMat.opacity = fade * 0.95;
+                    if (proj.ringMat) proj.ringMat.opacity = fade * 0.88;
+                    if (proj.pLight) proj.pLight.intensity = (1.0 - t) * 4.2;
+                } else if (proj.kind === 'slash' || proj.kind === 'crit_slash') {
+                    proj.group.rotation.z += delta * 6.5;
+                    const sc = 1.0 + t * 0.55;
+                    proj.group.scale.set(sc, sc, sc);
+                    const fade = Math.max(0, 1.0 - t);
+                    if (proj.outerMat) proj.outerMat.opacity = fade * 0.95;
+                    if (proj.innerMat) proj.innerMat.opacity = fade * 0.98;
+                    if (proj.ringMat) proj.ringMat.opacity = fade * 0.85;
+                    if (proj.pLight) proj.pLight.intensity = (1.0 - t) * 3.5;
+                } else if (proj.kind === 'blunt') {
+                    const sc = 1.0 + t * 1.35;
+                    proj.group.scale.set(sc, sc, sc);
+                    const fade = Math.max(0, 1.0 - t);
+                    if (proj.bluntRingMat) proj.bluntRingMat.opacity = fade * 0.85;
+                    if (proj.bluntDomeMat) proj.bluntDomeMat.opacity = fade * 0.85;
+                    if (proj.pLight) proj.pLight.intensity = (1.0 - t) * 3.0;
+                } else if (proj.kind === 'pierce') {
+                    proj.group.position.lerpVectors(proj.startPos, proj.endPos, Math.min(1.0, t * 1.35));
+                    proj.group.scale.set(1.0, 1.0, 1.0 + t * 0.8);
+                    const fade = Math.max(0, 1.0 - t);
+                    if (proj.lanceMat) proj.lanceMat.opacity = fade * 0.95;
+                    if (proj.needleMat) proj.needleMat.opacity = fade * 0.98;
                 } else if (proj.kind === 'lightning') {
                     proj.jitterTimer = (proj.jitterTimer || 0) + delta;
                     if (proj.jitterTimer >= 0.035 && proj.lines) {
@@ -11730,14 +12718,14 @@ class Dungeon3D {
                         }
                     }
                 } else if (proj.kind === 'aura') {
-                    proj.group.rotation.y += delta * 3.5;
-                    const sc = 1.0 + t * 0.6;
-                    proj.group.scale.set(sc, sc, sc);
-                    if (proj.mat) proj.mat.opacity = Math.max(0, (1.0 - t) * 0.85);
-                } else if (proj.kind === 'slash') {
-                    const sc = 1.0 + t * 0.45;
-                    proj.group.scale.set(sc, sc, sc);
-                    if (proj.mat) proj.mat.opacity = Math.max(0, 1.0 - t);
+                    proj.group.rotation.y += delta * 4.2;
+                    proj.group.position.y = proj.startPos.y + t * 0.35;
+                    const sc = 1.0 + t * 0.3;
+                    proj.group.scale.set(sc, 1.0, sc);
+                    const fade = Math.max(0, 1.0 - t);
+                    if (proj.pillarMat) proj.pillarMat.opacity = fade * 0.42;
+                    if (proj.ringMat) proj.ringMat.opacity = fade * 0.85;
+                    if (proj.pLight) proj.pLight.intensity = (1.0 - t) * 3.2;
                 }
 
                 if (proj.elapsed >= proj.duration) {

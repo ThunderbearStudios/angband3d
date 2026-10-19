@@ -1,5 +1,6 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
 async function main() {
@@ -17,7 +18,7 @@ async function main() {
     const targetUrl = 'http://localhost:8088/?char=SfxHero_' + Date.now();
 
     console.log('[Test] Launching Chrome CDP on port ' + port + '...');
-    const profileDir = path.join(__dirname, 'temp_sfx_profile_' + Date.now());
+    const profileDir = path.join(os.tmpdir(), 'temp_sfx_profile_' + Date.now());
     const chrome = spawn(chromePath, [
         '--headless=new',
         `--remote-debugging-port=${port}`,

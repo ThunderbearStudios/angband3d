@@ -178,5 +178,40 @@ assert.ok(
     'index.html must include apple-mobile-web-app-title meta tag'
 );
 
-console.log('[PASS] test_static_invariants.js: syntax (22 files), 0 duplicate methods, tagRegex parity, cache-key symmetry, 3D geometry invariants, and cross-browser CSS / PWA meta verified.');
+// 7. Wave 20 Studio Audio Bank, Convolution Reverb & Zero-Leak Shared 3D Action VFX Invariants
+const webManifestPath = path.join(ROOT, 'server/public/assets/audio/sfx/manifest.json');
+const godotManifestPath = path.join(ROOT, 'client/assets/audio/sfx/manifest.json');
+assert.ok(fs.existsSync(webManifestPath), 'Missing web studio SFX manifest.json');
+assert.ok(fs.existsSync(godotManifestPath), 'Missing Godot studio SFX manifest.json');
+const sfxManifest = JSON.parse(fs.readFileSync(webManifestPath, 'utf8'));
+assert.ok(Array.isArray(sfxManifest.files) && sfxManifest.files.length >= 60, 'Studio SFX manifest must list at least 60 open-source sound files');
+for (const entry of sfxManifest.files) {
+    const wf = path.join(ROOT, 'server/public/assets/audio/sfx', entry.file);
+    const gf = path.join(ROOT, 'client/assets/audio/sfx', entry.file);
+    assert.ok(fs.existsSync(wf) && fs.statSync(wf).size > 64, `Missing or empty web studio SFX file: ${entry.file}`);
+    assert.ok(fs.existsSync(gf) && fs.statSync(gf).size > 64, `Missing or empty Godot studio SFX file: ${entry.file}`);
+}
+
+const audioJsSrc = fs.readFileSync(path.join(ROOT, 'server/public/js/audio.js'), 'utf8');
+assert.ok(
+    audioJsSrc.includes('loadStudioSfxBank') && audioJsSrc.includes('createDungeonReverbImpulse') && audioJsSrc.includes('playPoolSample') && audioJsSrc.includes('reverbConvolver'),
+    'audio.js must implement loadStudioSfxBank, createDungeonReverbImpulse, playPoolSample, and reverbConvolver'
+);
+const bannedVocalFiles = ['orc_hit_1.ogg', 'orc_die_1.ogg', 'goblin_hit_1.ogg', 'goblin_die_1.ogg', 'troll_hit_1.ogg', 'troll_die_1.ogg', 'zombie_hit_1.ogg', 'lich_hit_1.ogg', 'lich_die.ogg', 'squishy_hit.wav', 'wail.wav'];
+for (const banned of bannedVocalFiles) {
+    assert.ok(!audioJsSrc.includes(banned), `audio.js must not reference banned guttural vocal file: ${banned}`);
+    assert.ok(!sfxManifest.files.some((f) => f.file === banned), `manifest.json must not include banned guttural vocal file: ${banned}`);
+}
+
+assert.ok(
+    d3dSrc.includes('_ensureSharedVfxResources') && d3dSrc.includes('spawnDetonationDome') && d3dSrc.includes('_sharedSparkGeo') && d3dSrc.includes('_sharedSlashArcGeo') && d3dSrc.includes('_sharedBreathConeGeo'),
+    'dungeon3d.js must implement _ensureSharedVfxResources, spawnDetonationDome, and shared VFX singleton geometries'
+);
+const hitSparksBlock = d3dSrc.slice(d3dSrc.indexOf('spawnHitSparks('), d3dSrc.indexOf('spawnDetonationDome('));
+assert.ok(
+    !hitSparksBlock.includes('new THREE.SphereGeometry'),
+    'spawnHitSparks must reuse shared VFX geometries and never allocate per-call SphereGeometry'
+);
+
+console.log(`[PASS] test_static_invariants.js: syntax (22 files), 0 duplicate methods, tagRegex parity, cache-key symmetry, 3D geometry/VFX invariants, ${sfxManifest.files.length} clean studio SFX files (L41 verified), and cross-browser CSS / PWA meta verified.`);
 

@@ -8217,23 +8217,41 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 /* ==============================================================================
-   Card 16B: Masterwork Middle-Earth / PoE Forged Bronze, Obsidian & Crystal Globe Overhaul
+   Card 21B: Vertical Apothecary Medicine Vials + Charred Iron-Bound Wood & Tattered Parchment Scroll Overhaul
    ============================================================================== */
 
-/* 1. Global Panel Architecture: Carved Obsidian & Multi-Layered Forged Dwarven Bronze Double-Bezel */
+/* 1. Global Panel Architecture: Charred Iron-Bound Wood Docks & Tattered Parchment Scroll Windows */
 #char-panel,
 #action-bar,
 #hud-footer,
 #minimap-container,
+#touch-controls {
+    background:
+        linear-gradient(180deg, rgba(22, 14, 9, 0.88) 0%, rgba(10, 6, 4, 0.94) 100%),
+        url('/assets/ui/charred_wood.png') repeat !important;
+    background-size: auto, 160px 160px !important;
+    border: 2px solid #9e7334 !important;
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.95),
+        0 0 0 1px #140c06,
+        inset 0 1px 0 rgba(255, 224, 152, 0.34),
+        inset 0 0 22px rgba(0, 0, 0, 0.88) !important;
+}
+
 #message-feed-window,
-#touch-controls,
-#compass-container,
-#reticle-target-card,
-.top-message-banner,
-#chronicle-window {
-    background: linear-gradient(180deg, rgba(24, 18, 13, 0.96) 0%, rgba(12, 9, 7, 0.98) 100%) !important;
-    border: 2px solid #9a7238 !important;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(10, 7, 4, 0.98), inset 0 0 0 1px rgba(245, 204, 122, 0.28), inset 0 2px 12px rgba(0, 0, 0, 0.88) !important;
+#chronicle-window,
+.reticle-target-card,
+.birth-review-card {
+    background:
+        linear-gradient(180deg, rgba(16, 11, 8, 0.86) 0%, rgba(8, 6, 4, 0.92) 100%),
+        url('/assets/ui/tattered_scroll.png') repeat !important;
+    background-size: auto, 180px 180px !important;
+    border: 2px solid #b58642 !important;
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.94),
+        0 0 0 1px #1a1008,
+        inset 0 1px 0 rgba(255, 228, 168, 0.32),
+        inset 0 0 26px rgba(0, 0, 0, 0.88) !important;
 }
 
 .top-message-banner {
@@ -8252,58 +8270,75 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     box-shadow: inset 0 1px 0 rgba(255, 228, 168, 0.32) !important;
 }
 
-/* 2. Sculpted 76px Alchemical Crystal Globes */
+/* 2. Twin Vertical Apothecary Medicine Vials */
 #char-panel {
-    width: 244px !important;
-    padding: 8px 10px !important;
+    width: 228px !important;
+    min-width: 228px !important;
+    max-width: 228px !important;
+    padding: 7px 8px !important;
+}
+
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
+    #char-panel {
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: 320px !important;
+    }
 }
 
 .vitals-vials-row {
-    display: flex !important;
-    justify-content: space-around !important;
-    align-items: center !important;
-    gap: 12px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 5px !important;
     margin: 4px 0 8px 0 !important;
-    padding: 8px 10px 10px 10px !important;
-    background: radial-gradient(ellipse at center, rgba(34, 22, 16, 0.95) 0%, rgba(12, 8, 6, 0.98) 100%) !important;
-    border: 1px solid rgba(198, 152, 74, 0.42) !important;
-    border-radius: 8px !important;
-    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.95), 0 2px 8px rgba(0, 0, 0, 0.75) !important;
+    padding: 6px 5px !important;
+    background: linear-gradient(180deg, rgba(14, 9, 6, 0.94) 0%, rgba(6, 4, 3, 0.98) 100%), url('/assets/ui/charred_wood.png') repeat !important;
+    background-size: auto, 128px 128px !important;
+    border: 1px solid rgba(198, 152, 74, 0.48) !important;
+    border-radius: 6px !important;
+    box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.96), 0 1px 4px rgba(0, 0, 0, 0.75) !important;
 }
 
 #char-panel .gauge-hp,
 #char-panel .gauge-sp {
     position: relative !important;
-    width: 76px !important;
-    height: 76px !important;
+    width: auto !important;
+    height: 86px !important;
     display: flex !important;
-    justify-content: center !important;
+    flex-direction: row !important;
     align-items: center !important;
-    margin: 0 auto !important;
+    justify-content: flex-start !important;
+    gap: 5px !important;
+    margin: 0 !important;
+    padding: 4px 4px !important;
+    background: linear-gradient(180deg, rgba(28, 19, 12, 0.78) 0%, rgba(11, 7, 5, 0.90) 100%) !important;
+    border: 1px solid rgba(182, 134, 62, 0.38) !important;
+    border-radius: 5px !important;
 }
 
 #char-panel .gauge-hp .gauge-track,
 #char-panel .gauge-sp .gauge-track {
-    width: 76px !important;
+    order: 1 !important;
+    width: 26px !important;
     height: 76px !important;
-    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+    border-radius: 5px 5px 11px 11px !important;
     position: relative !important;
     overflow: hidden !important;
-    background: radial-gradient(circle at 35% 30%, rgba(35, 28, 24, 0.95) 0%, rgba(6, 5, 8, 0.98) 85%) !important;
+    background: linear-gradient(90deg, rgba(8, 6, 6, 0.98) 0%, rgba(28, 22, 18, 0.94) 40%, rgba(6, 5, 8, 0.99) 100%) !important;
     margin: 0 !important;
 }
 
 #char-panel .gauge-hp .gauge-track {
-    border: 3px solid #c89b4b !important;
-    box-shadow: 0 0 0 2px #1c1209, 0 0 0 3px rgba(212, 165, 78, 0.55), 0 6px 16px rgba(0, 0, 0, 0.95), inset 0 0 16px rgba(0, 0, 0, 0.9) !important;
+    border: 2px solid #c89b4b !important;
+    box-shadow: 0 0 0 1px #140c06, 0 4px 10px rgba(0, 0, 0, 0.95), inset 0 0 10px rgba(0, 0, 0, 0.92) !important;
 }
 
 #char-panel .gauge-sp .gauge-track {
-    border: 3px solid #689fd4 !important;
-    box-shadow: 0 0 0 2px #1c1209, 0 0 0 3px rgba(104, 159, 212, 0.55), 0 6px 16px rgba(0, 0, 0, 0.95), inset 0 0 16px rgba(0, 0, 0, 0.9) !important;
+    border: 2px solid #689fd4 !important;
+    box-shadow: 0 0 0 1px #140c06, 0 4px 10px rgba(0, 0, 0, 0.95), inset 0 0 10px rgba(0, 0, 0, 0.92) !important;
 }
 
-/* Life-Elixir & Starlight Sapphire Mana Gradients */
 #char-panel #hp-fill,
 #char-panel #sp-fill {
     position: absolute !important;
@@ -8311,87 +8346,97 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     left: 0 !important;
     right: 0 !important;
     width: 100% !important;
-    height: var(--vial-pct, 100%) !important;
+    height: calc(var(--vial-pct, 100%) * 0.88) !important;
     transition: height 0.32s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 #char-panel #hp-fill {
-    background: radial-gradient(circle at 35% 30%, #ff5e5e 0%, #d41922 45%, #7a0810 82%, #3d0206 100%) !important;
-    border-top: 2px solid #ffcab8 !important;
-    box-shadow: inset 0 4px 10px rgba(255, 180, 160, 0.8), 0 -3px 12px rgba(255, 50, 50, 0.75) !important;
+    background: linear-gradient(90deg, #52050a 0%, #d41922 30%, #ff5a5a 52%, #9e0c15 82%, #3d0206 100%) !important;
+    border-top: 2px solid #ffd4c4 !important;
+    box-shadow: inset 0 3px 8px rgba(255, 190, 170, 0.85), 0 -2px 10px rgba(255, 45, 45, 0.8) !important;
 }
 
 #char-panel #sp-fill {
-    background: radial-gradient(circle at 35% 30%, #70ecff 0%, #1c78dc 45%, #0c357a 82%, #051638 100%) !important;
-    border-top: 2px solid #d4f8ff !important;
-    box-shadow: inset 0 4px 10px rgba(190, 245, 255, 0.85), 0 -3px 12px rgba(65, 185, 255, 0.75) !important;
+    background: linear-gradient(90deg, #051638 0%, #1668c4 30%, #70ecff 52%, #0e4694 82%, #030e26 100%) !important;
+    border-top: 2px solid #dcffff !important;
+    box-shadow: inset 0 3px 8px rgba(200, 248, 255, 0.88), 0 -2px 10px rgba(55, 185, 255, 0.8) !important;
 }
 
 .vial-glass-gloss {
     position: absolute !important;
     inset: 0 !important;
-    border-radius: 50% !important;
+    border-radius: 4px 4px 10px 10px !important;
     pointer-events: none !important;
-    z-index: 3 !important;
-    background: radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.12) 35%, transparent 65%, rgba(0, 0, 0, 0.4) 100%),
-                linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, transparent 45%, rgba(0, 0, 0, 0.3) 100%) !important;
-}
-
-.vial-glass-gloss::after {
-    content: '' !important;
-    position: absolute !important;
-    inset: 4px !important;
-    border-radius: 50% !important;
-    background: repeating-linear-gradient(180deg, transparent 0px, transparent 11px, rgba(255, 235, 180, 0.18) 11px, rgba(255, 235, 180, 0.18) 12px) !important;
-    pointer-events: none !important;
-    opacity: 0.7 !important;
+    z-index: 4 !important;
+    background: url('/assets/ui/apothecary_vial_overlay.svg') no-repeat center / 100% 100% !important;
 }
 
 .vial-neck-collar {
-    display: none !important;
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 9px !important;
+    z-index: 5 !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, #4a3014 0%, #d8ab54 28%, #fff0b8 50%, #9c6e28 78%, #3b240d 100%) !important;
+    border-bottom: 2px solid #241406 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 245, 200, 0.65) !important;
 }
 
-/* Crystal Globe Overlay Readout */
 #char-panel .gauge-hp .gauge-header,
 #char-panel .gauge-sp .gauge-header {
-    position: absolute !important;
-    inset: 0 !important;
+    order: 2 !important;
+    position: static !important;
+    inset: auto !important;
     z-index: 6 !important;
     display: flex !important;
     flex-direction: column !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     justify-content: center !important;
+    gap: 4px !important;
     pointer-events: none !important;
-    width: 76px !important;
-    height: 76px !important;
+    width: auto !important;
+    height: auto !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
     margin: 0 !important;
-}
-
-#char-panel #hp-text,
-#char-panel #sp-text {
-    order: 1 !important;
-    font-size: 12.5px !important;
-    font-weight: 700 !important;
-    font-variant-numeric: tabular-nums !important;
-    color: #fff9ec !important;
-    text-shadow: 0 1px 3px #000, 0 0 6px #000, 0 0 10px rgba(0, 0, 0, 0.95) !important;
-    line-height: 1.1 !important;
 }
 
 #char-panel #hp-label,
 #char-panel #sp-label {
-    order: 2 !important;
+    order: 1 !important;
     background: linear-gradient(180deg, #382614 0%, #1c1209 100%) !important;
     border: 1px solid #b88b44 !important;
     border-radius: 3px !important;
-    padding: 1px 7px !important;
+    padding: 1px 5px !important;
     font-family: 'Cinzel', serif !important;
-    font-size: 8.5px !important;
-    letter-spacing: 0.10em !important;
+    font-size: 8px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
     color: #f5d488 !important;
-    margin-top: 3px !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.9) !important;
+    margin: 0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
     text-transform: uppercase !important;
+}
+
+#char-panel #hp-text,
+#char-panel #sp-text {
+    order: 2 !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    font-variant-numeric: tabular-nums !important;
+    color: #fff9ec !important;
+    text-shadow: 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, 0.95) !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+}
+
+/* Legacy globe dimensions compatibility */
+.crystal-globe-legacy {
+    width: 76px !important;
+    height: 76px !important;
 }
 
 /* 3. 2-Row Engraved Dwarven Runestone Attribute Grid */
@@ -8452,8 +8497,10 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 /* 4. Recessed Forged-Iron & Brass Skill Hotbar Sockets & Engraved Brass Status Ledger */
-#hud-center-column {
-    max-width: calc(100vw - 448px) !important;
+@media (min-width: 1024px) {
+    #hud-center-column {
+        max-width: calc(100vw - 468px) !important;
+    }
 }
 
 #action-bar {
@@ -8461,7 +8508,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     flex-wrap: nowrap !important;
     align-items: center !important;
     gap: 3px !important;
-    max-width: calc(100vw - 448px) !important;
+    max-width: 100% !important;
     overflow-x: auto !important;
     scrollbar-width: none !important;
     padding: 5px 8px !important;
@@ -8673,7 +8720,7 @@ body.wasd-mode-active .wasd-toggle-pill {
     box-shadow: 0 0 14px rgba(220, 50, 40, 0.75), inset 0 1px 3px rgba(255, 220, 180, 0.6) !important;
 }
 
-/* 6. All Menus & Modals: Middle-Earth Royal Tome & Forged Dwarven Citadel */
+/* 6. All Menus & Modals: Tattered Scroll & Charred Wood Overhaul */
 .splash-card,
 .main-menu-card,
 .pause-card,
@@ -8683,9 +8730,45 @@ body.wasd-mode-active .wasd-toggle-pill {
 .cmd-palette-card,
 .mco-sheet,
 .death-panel {
-    background: radial-gradient(ellipse at top, #261b11 0%, #120d09 62%, #090604 100%) !important;
-    border: 2px solid #b58840 !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.96), 0 0 0 1px #1a1108, inset 0 0 0 2px rgba(245, 204, 122, 0.22), inset 0 0 36px rgba(0, 0, 0, 0.85) !important;
+    background: linear-gradient(180deg, rgba(28, 19, 12, 0.90) 0%, rgba(14, 9, 6, 0.95) 100%), url('/assets/ui/tattered_scroll.png') repeat !important;
+    background-size: auto, 220px 220px !important;
+    border: 2px solid #c29146 !important;
+    box-shadow: 0 22px 64px rgba(0, 0, 0, 0.96), 0 0 0 2px #1a1008, inset 0 0 0 2px rgba(245, 204, 122, 0.24), inset 0 0 42px rgba(0, 0, 0, 0.88) !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #9e7334 #120b06 !important;
+}
+
+.splash-card::-webkit-scrollbar,
+.main-menu-card::-webkit-scrollbar,
+.pause-card::-webkit-scrollbar,
+.load-card::-webkit-scrollbar,
+.guide-card::-webkit-scrollbar,
+.cmd-palette-card::-webkit-scrollbar,
+.mco-sheet::-webkit-scrollbar {
+    width: 8px !important;
+}
+
+.splash-card::-webkit-scrollbar-track,
+.main-menu-card::-webkit-scrollbar-track,
+.pause-card::-webkit-scrollbar-track,
+.load-card::-webkit-scrollbar-track,
+.guide-card::-webkit-scrollbar-track,
+.cmd-palette-card::-webkit-scrollbar-track,
+.mco-sheet::-webkit-scrollbar-track {
+    background: #120b06 !important;
+    border-left: 1px solid rgba(194, 145, 70, 0.28) !important;
+}
+
+.splash-card::-webkit-scrollbar-thumb,
+.main-menu-card::-webkit-scrollbar-thumb,
+.pause-card::-webkit-scrollbar-thumb,
+.load-card::-webkit-scrollbar-thumb,
+.guide-card::-webkit-scrollbar-thumb,
+.cmd-palette-card::-webkit-scrollbar-thumb,
+.mco-sheet::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #b8873d 0%, #6e4c1e 100%) !important;
+    border-radius: 4px !important;
+    border: 1px solid #1a1008 !important;
 }
 
 .splash-ornament-corner,
@@ -8697,8 +8780,10 @@ body.wasd-mode-active .wasd-toggle-pill {
 
 .splash-realm-card,
 .menu-option-btn {
-    background: linear-gradient(135deg, rgba(42, 30, 18, 0.92) 0%, rgba(18, 13, 9, 0.96) 100%) !important;
-    border: 1px solid rgba(196, 148, 72, 0.48) !important;
+    background: linear-gradient(135deg, rgba(36, 25, 15, 0.88) 0%, rgba(16, 11, 7, 0.94) 100%), url('/assets/ui/charred_wood.png') repeat !important;
+    background-size: auto, 160px 160px !important;
+    border: 1px solid rgba(202, 152, 74, 0.54) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 225, 160, 0.22), 0 3px 8px rgba(0, 0, 0, 0.8) !important;
     transition: all 0.2s ease !important;
 }
 
@@ -8708,9 +8793,10 @@ body.wasd-mode-active .wasd-toggle-pill {
 .menu-option-btn:hover,
 .menu-option-btn.active,
 .menu-option-btn.selected {
-    background: linear-gradient(135deg, rgba(62, 45, 27, 0.96) 0%, rgba(28, 20, 14, 0.98) 100%) !important;
+    background: linear-gradient(135deg, rgba(64, 44, 24, 0.90) 0%, rgba(28, 19, 11, 0.95) 100%), url('/assets/ui/tattered_scroll.png') repeat !important;
+    background-size: auto, 180px 180px !important;
     border-color: #ffd268 !important;
-    box-shadow: 0 0 16px rgba(245, 204, 122, 0.45), inset 0 0 12px rgba(255, 215, 100, 0.18) !important;
+    box-shadow: 0 0 16px rgba(245, 204, 122, 0.48), inset 0 0 14px rgba(255, 215, 100, 0.22) !important;
     color: #fff9ec !important;
 }
 

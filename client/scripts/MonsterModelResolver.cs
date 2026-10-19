@@ -808,10 +808,9 @@ public static class MonsterModelResolver
 
         if (modelPath != null && ResourceLoader.Exists(modelPath))
         {
-            var scene = GetModel(modelPath);
-            if (scene != null)
+            var instance = LoadGltfInstance(modelPath);
+            if (instance != null)
             {
-                var instance = scene.Instantiate<Node3D>();
                 var ap = FindAnimationPlayer(instance);
 
                 if (modelPath.Contains("guard.glb") && ap != null)
@@ -856,7 +855,7 @@ public static class MonsterModelResolver
                 {
                     entity.ModelHeight = 1.90f * scale;
                 }
-                else if (modelPath.Contains("tree_dead_small") || modelPath.Contains("waterplant") || modelPath.Contains("plant") || modelPath.Contains("thorn"))
+                else if (modelPath.Contains("tree_dead_small") || modelPath.Contains("waterplant") || modelPath.Contains("plant") || modelPath.Contains("thorn") || modelPath.Contains("pine_roots"))
                 {
                     entity.ModelHeight = 0.85f * scale;
                 }
@@ -868,7 +867,7 @@ public static class MonsterModelResolver
                 {
                     entity.ModelHeight = 0.50f * scale;
                 }
-                else if (modelPath.Contains("Spider") || modelPath.Contains("giant_spider"))
+                else if (modelPath.Contains("Spider") || modelPath.Contains("giant_spider") || modelPath.Contains("scorpion"))
                 {
                     entity.ModelHeight = 0.85f * scale;
                 }
@@ -876,25 +875,59 @@ public static class MonsterModelResolver
                 {
                     entity.ModelHeight = 0.60f * scale;
                 }
-                else if (modelPath.Contains("Snake") || modelPath.Contains("snake"))
+                else if (modelPath.Contains("Snake") || modelPath.Contains("snake") || modelPath.Contains("worm_mass"))
                 {
                     entity.ModelHeight = 0.65f * scale;
                 }
-                else if (modelPath.Contains("Frog") || modelPath.Contains("frog"))
+                else if (modelPath.Contains("Frog") || modelPath.Contains("frog") || modelPath.Contains("lizard"))
                 {
                     entity.ModelHeight = 0.70f * scale;
                 }
-                else if (modelPath.Contains("Wasp") || modelPath.Contains("wasp"))
+                else if (modelPath.Contains("Wasp") || modelPath.Contains("wasp") || modelPath.Contains("floating_eye") || modelPath.Contains("vortex_elemental"))
                 {
                     entity.ModelHeight = 0.85f * scale;
                     entity.BaseY = 0.35f;
                     entity.IsFloating = true;
                 }
+                else if (modelPath.Contains("bat"))
+                {
+                    entity.ModelHeight = 0.65f * scale;
+                    entity.BaseY = 0.35f;
+                    entity.IsFloating = true;
+                }
+                else if (modelPath.Contains("jelly_ooze") || modelPath.Contains("mushroom_cluster"))
+                {
+                    entity.ModelHeight = 0.75f * scale;
+                }
+                else if (modelPath.Contains("centipede") || modelPath.Contains("beetle") || modelPath.Contains("ant"))
+                {
+                    entity.ModelHeight = 0.60f * scale;
+                }
+                else if (modelPath.Contains("hydra") || modelPath.Contains("Dragon"))
+                {
+                    entity.ModelHeight = 2.10f * scale;
+                }
+                else if (modelPath.Contains("bear"))
+                {
+                    entity.ModelHeight = 1.45f * scale;
+                }
+                else if (modelPath.Contains("aquatic"))
+                {
+                    entity.ModelHeight = 0.75f * scale;
+                }
+                else if (modelPath.Contains("naga"))
+                {
+                    entity.ModelHeight = 1.70f * scale;
+                }
+                else if (modelPath.Contains("quylthulg"))
+                {
+                    entity.ModelHeight = 0.95f * scale;
+                }
                 else if (modelPath.Contains("Imp") || modelPath.Contains("Puglin"))
                 {
                     entity.ModelHeight = 1.35f * scale;
                 }
-                else if (modelPath.Contains("YetiSmall") || modelPath.Contains("Dragon") || modelPath.Contains("GodAnubis"))
+                else if (modelPath.Contains("YetiSmall") || modelPath.Contains("GodAnubis"))
                 {
                     entity.ModelHeight = 2.05f * scale;
                 }
@@ -1085,8 +1118,9 @@ public static class MonsterModelResolver
         AddModelRule('?', new MonsterModelRule("res://assets/models/items/Chest_Closed.fbx", 0.22f, speed: 1.0f, equipment: EquipmentRole.Unarmed));
         AddModelRule('$', new MonsterModelRule("res://assets/models/items/Gold_Ingots.fbx", 0.20f, speed: 1.0f, equipment: EquipmentRole.Unarmed));
 
-        // 12. Ents & Trees (l)
+        // 12. Ents & Trees (l) and Aquatic Creatures
         AddModelRule('l', new MonsterModelRule("res://assets/models/props/tree_dead_large.gltf", 0.40f, speed: 0.5f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("tree") || n.Contains("ent") || n.Contains("huorn") || n.Contains("willow") || n.Contains("wood")));
+        AddModelRule('l', new MonsterModelRule("res://assets/models/monsters/bestiary/aquatic.glb", 0.85f, speed: 1.15f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("fish") || n.Contains("shark") || n.Contains("piranha") || n.Contains("kraken") || n.Contains("eel") || n.Contains("squid") || n.Contains("octopus") || n.Contains("merman") || n.Contains("mermaid") || n.Contains("crab") || n.Contains("lobster") || n.Contains("dolphin") || n.Contains("whale") || n.Contains("manta") || n.Contains("ixitxachitl")));
 
         // 13. Flora, Plants, Thorns, Creepers, Huorns & Trees (#)
         AddModelRule('#', new MonsterModelRule("res://assets/models/props/tree_dead_large.gltf", 0.40f, speed: 0.5f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("tree") || n.Contains("ent") || n.Contains("huorn") || n.Contains("willow") || n.Contains("wood")));
@@ -1158,11 +1192,13 @@ public static class MonsterModelResolver
         AddModelRule('p', new MonsterModelRule("res://assets/models/characters/priest.glb", 0.92f, speed: 0.95f, equipment: EquipmentRole.Mage, matcher: isMage));
         AddModelRule('p', new MonsterModelRule("res://assets/models/characters/ranger.glb", 0.95f));
 
-        // 17. Nagas (n) - Rigged 3D Serpent Enemy Models
+        // 17. Nagas (n) - Rigged 3D Naga Bestiary Model
+        AddModelRule('n', new MonsterModelRule("res://assets/models/monsters/bestiary/naga.glb", 0.85f, speed: 1.05f, equipment: EquipmentRole.Warrior, matcher: n => n.Contains("naga")));
         AddModelRule('n', new MonsterModelRule("res://assets/models/monsters/bestiary/snake.glb", 0.38f, speed: 1.15f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("black") || n.Contains("spirit") || n.Contains("guardian") || n.Contains("fire") || n.Contains("red")));
-        AddModelRule('n', new MonsterModelRule("res://assets/models/monsters/bestiary/snake.glb", 0.32f, speed: 1.10f, equipment: EquipmentRole.Unarmed));
+        AddModelRule('n', new MonsterModelRule("res://assets/models/monsters/bestiary/naga.glb", 0.80f, speed: 1.05f, equipment: EquipmentRole.Warrior));
 
         // 18. Spiders & Scorpions (S) - Rigged 3D Enemy Models
+        AddModelRule('S', new MonsterModelRule("res://assets/models/monsters/bestiary/scorpion.glb", 0.75f, speed: 1.15f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("scorpion")));
         AddModelRule('S', new MonsterModelRule("res://assets/models/monsters/bestiary/giant_spider.glb", 0.35f, speed: 1.15f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("giant") || n.Contains("shelob") || n.Contains("ungoliant")));
         AddModelRule('S', new MonsterModelRule("res://assets/models/monsters/bestiary/giant_spider.glb", 0.25f, speed: 1.20f, equipment: EquipmentRole.Unarmed));
 
@@ -1177,9 +1213,11 @@ public static class MonsterModelResolver
         // 21. Wasps & Flying Insects (F) - Rigged 3D Enemy Models
         AddModelRule('F', new MonsterModelRule("res://assets/models/monsters/bestiary/wasp.glb", 0.25f, isFloating: true, speed: 1.40f, equipment: EquipmentRole.Unarmed));
 
-        // 22. Frogs, Amphibians & Reptiles (R)
-        AddModelRule('R', new MonsterModelRule("res://assets/models/monsters/bestiary/lizardfolk.glb", 0.95f, speed: 1.05f, equipment: EquipmentRole.Warrior, matcher: n => n.Contains("lizard") || n.Contains("reptile") || n.Contains("gecko") || n.Contains("saurian")));
-        AddModelRule('R', new MonsterModelRule("res://assets/models/monsters/bestiary/frog.glb", 0.25f, speed: 1.10f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("frog") || n.Contains("toad")));
+        // 22. Frogs, Amphibians, Lizards & Reptiles (R)
+        AddModelRule('R', new MonsterModelRule("res://assets/models/monsters/bestiary/frog.glb", 0.25f, speed: 1.10f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("frog") || n.Contains("toad") || n.Contains("newt") || n.Contains("kappa")));
+        AddModelRule('R', new MonsterModelRule("res://assets/models/monsters/bestiary/lizardfolk.glb", 0.95f, speed: 1.05f, equipment: EquipmentRole.Warrior, matcher: n => n.Contains("lizardman") || n.Contains("lizardfolk") || n.Contains("saurian") || n.Contains("troglodyte")));
+        AddModelRule('R', new MonsterModelRule("res://assets/models/monsters/bestiary/lizard.glb", 0.85f, speed: 1.05f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("lizard") || n.Contains("salamander") || n.Contains("basilisk") || n.Contains("reptile") || n.Contains("gecko") || n.Contains("alligator") || n.Contains("crocodile")));
+        AddModelRule('R', new MonsterModelRule("res://assets/models/monsters/bestiary/lizard.glb", 0.80f, speed: 1.05f, equipment: EquipmentRole.Unarmed));
 
         // 23. Kobolds (k) - Rigged 3D Kobold Model
         AddModelRule('k', new MonsterModelRule("res://assets/models/monsters/bestiary/kobold.glb", 0.70f, speed: 1.15f, equipment: EquipmentRole.Rogue));
@@ -1193,32 +1231,79 @@ public static class MonsterModelResolver
         AddModelRule('d', new MonsterModelRule("res://assets/models/monsters/bestiary/Dragon.glb", 0.95f, speed: 1.0f, equipment: EquipmentRole.Unarmed));
         AddModelRule('D', new MonsterModelRule("res://assets/models/monsters/bestiary/Dragon.glb", 1.40f, speed: 0.95f, equipment: EquipmentRole.Unarmed));
 
-        // 26. Birds & Owls (B, b)
+        // 26. Birds, Owls & Bats (B, b)
         AddModelRule('B', new MonsterModelRule("res://assets/models/monsters/bestiary/Owl.glb", 0.65f, isFloating: true, speed: 1.20f, equipment: EquipmentRole.Unarmed));
-        AddModelRule('b', new MonsterModelRule("res://assets/models/monsters/bestiary/Owl.glb", 0.50f, isFloating: true, speed: 1.25f, equipment: EquipmentRole.Unarmed));
+        AddModelRule('b', new MonsterModelRule("res://assets/models/monsters/bestiary/bat.glb", 0.60f, isFloating: true, speed: 1.30f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("bat")));
+        AddModelRule('b', new MonsterModelRule("res://assets/models/monsters/bestiary/Owl.glb", 0.50f, isFloating: true, speed: 1.25f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("bird") || n.Contains("crow") || n.Contains("raven") || n.Contains("owl")));
+        AddModelRule('b', new MonsterModelRule("res://assets/models/monsters/bestiary/bat.glb", 0.60f, isFloating: true, speed: 1.25f, equipment: EquipmentRole.Unarmed));
 
-        // 27. Equines (q)
-        AddModelRule('q', new MonsterModelRule("res://assets/models/monsters/bestiary/horse_mount.glb", 0.95f, speed: 1.10f, equipment: EquipmentRole.Unarmed));
+        // 27. Equines, Bears & Quadrupeds (q)
+        AddModelRule('q', new MonsterModelRule("res://assets/models/monsters/bestiary/horse_mount.glb", 0.95f, speed: 1.10f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("horse") || n.Contains("pony") || n.Contains("stallion") || n.Contains("mare") || n.Contains("unicorn") || n.Contains("pegasus") || n.Contains("steed") || n.Contains("kirin") || n.Contains("mule")));
+        AddModelRule('q', new MonsterModelRule("res://assets/models/monsters/bestiary/bear.glb", 0.95f, speed: 1.05f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("bear") || n.Contains("boar") || n.Contains("catoblepas") || n.Contains("mumak") || n.Contains("beorn")));
+        AddModelRule('q', new MonsterModelRule("res://assets/models/monsters/bestiary/bear.glb", 0.90f, speed: 1.05f, equipment: EquipmentRole.Unarmed));
 
-        // 28. Floating Skulls & Eyes (e, Q)
-        AddModelRule('e', new MonsterModelRule("res://assets/models/monsters/bestiary/Skull.glb", 0.55f, isFloating: true, speed: 1.0f, equipment: EquipmentRole.Unarmed));
-        AddModelRule('Q', new MonsterModelRule("res://assets/models/monsters/bestiary/Skull.glb", 0.70f, isFloating: true, speed: 0.9f, equipment: EquipmentRole.Unarmed));
+        // 28. Floating Skulls, Eyes & Quylthulgs (e, Q)
+        AddModelRule('e', new MonsterModelRule("res://assets/models/monsters/bestiary/floating_eye.glb", 0.70f, isFloating: true, speed: 1.0f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("eye") || n.Contains("beholder") || n.Contains("gazer")));
+        AddModelRule('e', new MonsterModelRule("res://assets/models/monsters/bestiary/Skull.glb", 0.55f, isFloating: true, speed: 1.0f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("skull") || n.Contains("druj")));
+        AddModelRule('e', new MonsterModelRule("res://assets/models/monsters/bestiary/floating_eye.glb", 0.70f, isFloating: true, speed: 1.0f, equipment: EquipmentRole.Unarmed));
+        AddModelRule('Q', new MonsterModelRule("res://assets/models/monsters/bestiary/quylthulg.glb", 0.85f, speed: 0.80f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("quylthulg")));
+        AddModelRule('Q', new MonsterModelRule("res://assets/models/monsters/bestiary/Skull.glb", 0.70f, isFloating: true, speed: 0.9f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("skull") || n.Contains("druj")));
+        AddModelRule('Q', new MonsterModelRule("res://assets/models/monsters/bestiary/quylthulg.glb", 0.80f, speed: 0.80f, equipment: EquipmentRole.Unarmed));
 
         // 29. Golems (g)
         AddModelRule('g', new MonsterModelRule("res://assets/models/monsters/bestiary/GodAnubis_Art.glb", 1.15f, speed: 0.85f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("anubis") || n.Contains("god") || n.Contains("jackal") || n.Contains("statue")));
         AddModelRule('g', new MonsterModelRule("res://assets/models/monsters/bestiary/stone_golem.glb", 1.10f, speed: 0.85f, equipment: EquipmentRole.Unarmed));
+
+        // 30. Centipedes (c)
+        AddModelRule('c', new MonsterModelRule("res://assets/models/monsters/bestiary/centipede.glb", 0.65f, speed: 1.15f, equipment: EquipmentRole.Unarmed));
+
+        // 31. Beetles, Lice, Fleas, Bugs (K)
+        AddModelRule('K', new MonsterModelRule("res://assets/models/monsters/bestiary/beetle.glb", 0.75f, speed: 1.10f, equipment: EquipmentRole.Unarmed));
+
+        // 32. Ants (a)
+        AddModelRule('a', new MonsterModelRule("res://assets/models/monsters/bestiary/ant.glb", 0.70f, speed: 1.15f, equipment: EquipmentRole.Unarmed));
+
+        // 33. Worm masses, Crawlers, Maggots, Leeches (w)
+        AddModelRule('w', new MonsterModelRule("res://assets/models/monsters/bestiary/worm_mass.glb", 0.65f, speed: 0.90f, equipment: EquipmentRole.Unarmed));
+
+        // 34. Jellies, Oozes, Slimes, Molds (j, i, ,)
+        AddModelRule('j', new MonsterModelRule("res://assets/models/monsters/bestiary/jelly_ooze.glb", 0.75f, speed: 0.85f, equipment: EquipmentRole.Unarmed));
+        AddModelRule('i', new MonsterModelRule("res://assets/models/monsters/bestiary/jelly_ooze.glb", 0.75f, speed: 0.85f, equipment: EquipmentRole.Unarmed));
+        AddModelRule(',', new MonsterModelRule("res://assets/models/monsters/bestiary/jelly_ooze.glb", 0.70f, speed: 0.75f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("slime") || n.Contains("ooze") || n.Contains("jelly") || n.Contains("pudding") || n.Contains("blob")));
+        AddModelRule(',', new MonsterModelRule("res://assets/models/monsters/bestiary/mushroom_cluster.glb", 0.75f, speed: 0.50f, equipment: EquipmentRole.Unarmed));
+
+        // 35. Mushrooms, Shrieker, Fungi (m)
+        AddModelRule('m', new MonsterModelRule("res://assets/models/monsters/bestiary/mushroom_cluster.glb", 0.80f, speed: 0.50f, equipment: EquipmentRole.Unarmed));
+
+        // 36. Vortices & Elementals (E, v)
+        AddModelRule('E', new MonsterModelRule("res://assets/models/monsters/bestiary/vortex_elemental.glb", 0.95f, isEthereal: true, isFloating: true, speed: 1.10f, equipment: EquipmentRole.Unarmed));
+        AddModelRule('v', new MonsterModelRule("res://assets/models/monsters/bestiary/vortex_elemental.glb", 0.90f, isEthereal: true, isFloating: true, speed: 1.15f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("vortex") || n.Contains("whirlwind") || n.Contains("storm") || n.Contains("elemental")));
+
+        // 37. Hydras (M)
+        AddModelRule('M', new MonsterModelRule("res://assets/models/monsters/bestiary/Dragon.glb", 1.65f, speed: 1.0f, equipment: EquipmentRole.Unarmed, matcher: n => n.Contains("orochi") || n.Contains("yamata") || n.Contains("八岐大蛇")));
+        AddModelRule('M', new MonsterModelRule("res://assets/models/monsters/bestiary/hydra.glb", 1.10f, speed: 1.0f, equipment: EquipmentRole.Unarmed));
+
+        // 38. Yeeks (y)
+        AddModelRule('y', new MonsterModelRule("res://assets/models/monsters/bestiary/Puglin.glb", 0.72f, speed: 1.10f, equipment: EquipmentRole.Unarmed));
     }
 
-    private static (string ModelPath, float Scale, bool IsEthereal, bool IsFloating, float Speed, EquipmentRole Equipment) ResolveModelConfig(
+    public static (string ModelPath, float Scale, bool IsEthereal, bool IsFloating, float Speed, EquipmentRole Equipment) ResolveModelConfig(
+        string name, char glyph, string colorHex, string realm = "angband")
+    {
+        var lowerName = (name ?? "").ToLowerInvariant();
+        return ResolveModelConfig(glyph, name, lowerName, realm);
+    }
+
+    public static (string ModelPath, float Scale, bool IsEthereal, bool IsFloating, float Speed, EquipmentRole Equipment) ResolveModelConfig(
         char glyph, string raceName, string lowerName, string realm = "angband")
     {
         var r = (realm ?? "angband").ToLowerInvariant();
 
-        // Realm-specific rules
+        // 1. Sil-Q Realm Rules
         if (r == "silq")
         {
-            // Sil-Q 'R' Raukar -> Imp.glb
-            if (glyph == 'R')
+            // Sil-Q 'R' Raukar / Balrogs -> Imp.glb
+            if (glyph == 'R' || lowerName.Contains("rauko") || lowerName.Contains("balrog") || lowerName.Contains("gothmog") || lowerName.Contains("lungorthin"))
             {
                 return ("res://assets/models/monsters/Imp.glb", 0.95f, false, false, 1.10f, EquipmentRole.Unarmed);
             }
@@ -1228,7 +1313,7 @@ public static class MonsterModelResolver
                 return ("res://assets/models/characters/guard.glb", 1.75f, false, false, 0.85f, EquipmentRole.TwoHandedAxe);
             }
             // Sil-Q 'M' Ungoliant -> giant_spider.glb
-            if (glyph == 'M' && lowerName.Contains("ungoliant"))
+            if (glyph == 'M' && (lowerName.Contains("ungoliant") || lowerName.Contains("spider") || lowerName.Contains("gloomweaver")))
             {
                 return ("res://assets/models/monsters/bestiary/giant_spider.glb", 1.55f, false, false, 1.10f, EquipmentRole.Unarmed);
             }
@@ -1237,6 +1322,54 @@ public static class MonsterModelResolver
             {
                 return ("res://assets/models/monsters/bestiary/GhostArmature.glb", 1.15f, true, true, 0.90f, EquipmentRole.Unarmed);
             }
+            // Sil-Q '&' or thorn -> pine_roots.gltf
+            if (glyph == '&' || lowerName.Contains("thorn") || lowerName.Contains("tanglethorn") || lowerName.Contains("bramble"))
+            {
+                return ("res://assets/polyhaven/models/pine_roots/pine_roots.gltf", 0.85f, false, false, 0.50f, EquipmentRole.Unarmed);
+            }
+            // Sil-Q 'm' or spider/attercop -> giant_spider.glb
+            if (glyph == 'm' || lowerName.Contains("spider") || lowerName.Contains("attercop") || lowerName.Contains("shelob"))
+            {
+                return ("res://assets/models/monsters/bestiary/giant_spider.glb", 0.85f, false, false, 1.15f, EquipmentRole.Unarmed);
+            }
+            // Sil-Q 'S' or 's' -> if spider then giant_spider.glb, else snake.glb (serpents)
+            if (glyph == 'S' || glyph == 's')
+            {
+                if (lowerName.Contains("spider") || lowerName.Contains("attercop"))
+                {
+                    return ("res://assets/models/monsters/bestiary/giant_spider.glb", 0.85f, false, false, 1.15f, EquipmentRole.Unarmed);
+                }
+                return ("res://assets/models/monsters/bestiary/snake.glb", 0.80f, false, false, 1.15f, EquipmentRole.Unarmed);
+            }
+            // Sil-Q 'G' -> cyclop.glb (Sil-Q Giants)
+            if (glyph == 'G')
+            {
+                return ("res://assets/models/monsters/bestiary/cyclop.glb", 1.35f, false, false, 0.85f, EquipmentRole.Barbarian);
+            }
+            // Sil-Q 'v' -> priest.glb or bat.glb (Sil-Q Vampires)
+            if (glyph == 'v')
+            {
+                if (lowerName.Contains("bat"))
+                {
+                    return ("res://assets/models/monsters/bestiary/bat.glb", 0.65f, false, true, 1.25f, EquipmentRole.Unarmed);
+                }
+                return ("res://assets/models/characters/priest.glb", 0.95f, false, false, 1.00f, EquipmentRole.Mage);
+            }
+            // Sil-Q 'w' -> GhostArmature.glb (Sil-Q Phantoms/Shadows)
+            if (glyph == 'w')
+            {
+                return ("res://assets/models/monsters/bestiary/GhostArmature.glb", 0.95f, true, true, 0.90f, EquipmentRole.Unarmed);
+            }
+            // Sil-Q 'N' -> scp939.glb (Nameless thing)
+            if (glyph == 'N')
+            {
+                return ("res://assets/models/monsters/bestiary/scp939.glb", 1.05f, false, false, 1.15f, EquipmentRole.Unarmed);
+            }
+            // Sil-Q 'C' Wolves
+            if (glyph == 'C' || lowerName.Contains("carcharoth") || lowerName.Contains("wolf") || lowerName.Contains("warg") || lowerName.Contains("draugluin"))
+            {
+                return ("res://assets/models/monsters/bestiary/wolf.glb", lowerName.Contains("carcharoth") ? 1.45f : 1.00f, false, false, 1.15f, EquipmentRole.Unarmed);
+            }
         }
         else if (r == "frogcomposband")
         {
@@ -1244,6 +1377,11 @@ public static class MonsterModelResolver
             if (glyph == 'J' && (lowerName.Contains("serpent") || lowerName.Contains("chaos")))
             {
                 return ("res://assets/models/monsters/bestiary/Dragon.glb", 1.65f, false, false, 1.10f, EquipmentRole.Unarmed);
+            }
+            // FCB 'l' aquatic
+            if (glyph == 'l' && !(lowerName.Contains("tree") || lowerName.Contains("ent") || lowerName.Contains("huorn") || lowerName.Contains("willow") || lowerName.Contains("wood") || lowerName.Contains("plant")))
+            {
+                return ("res://assets/models/monsters/bestiary/aquatic.glb", 0.85f, false, false, 1.15f, EquipmentRole.Unarmed);
             }
         }
         else if (r == "hengband")
@@ -1258,6 +1396,20 @@ public static class MonsterModelResolver
             {
                 return ("res://assets/models/monsters/bestiary/YetiSmall.glb", 1.35f, false, false, 1.00f, EquipmentRole.Barbarian);
             }
+            // Japanese/Eastern archetypes
+            if (lowerName.Contains("samurai") || lowerName.Contains("ronin") || lowerName.Contains("kensei") || lowerName.Contains("ninja") || lowerName.Contains("shinobi") || lowerName.Contains("yakuza") || lowerName.Contains("サムライ") || lowerName.Contains("ニンジャ"))
+            {
+                return ("res://assets/models/characters/ranger.glb", 1.00f, false, false, 1.05f, EquipmentRole.Warrior);
+            }
+            if (lowerName.Contains("tengu") || lowerName.Contains("天狗"))
+            {
+                return ("res://assets/models/monsters/bestiary/Owl.glb", 1.15f, false, true, 1.15f, EquipmentRole.Unarmed);
+            }
+            // Hengband 'l' aquatic
+            if (glyph == 'l' && !(lowerName.Contains("tree") || lowerName.Contains("ent") || lowerName.Contains("huorn") || lowerName.Contains("willow") || lowerName.Contains("wood") || lowerName.Contains("plant")))
+            {
+                return ("res://assets/models/monsters/bestiary/aquatic.glb", 0.85f, false, false, 1.15f, EquipmentRole.Unarmed);
+            }
         }
 
         // Townsfolk (t) - completely unarmed / bare-handed
@@ -1271,6 +1423,64 @@ public static class MonsterModelResolver
             }
             var townModel = SelectTownspersonModel(raceName);
             return (townModel, Mathf.Clamp(scale, MinModelScale, MaxModelScale), false, false, 1.0f, EquipmentRole.Unarmed);
+        }
+
+        // Dedicated routing for new bestiary archetypes
+        if (lowerName.Contains("scorpion"))
+        {
+            return ("res://assets/models/monsters/bestiary/scorpion.glb", 0.75f, false, false, 1.15f, EquipmentRole.Unarmed);
+        }
+        if (lowerName.Contains("piranha") || lowerName.Contains("shark") || lowerName.Contains("barracuda") || lowerName.Contains("kraken") || lowerName.Contains("merman") || lowerName.Contains("mermaid") || lowerName.Contains("ixitxachitl"))
+        {
+            return ("res://assets/models/monsters/bestiary/aquatic.glb", 0.85f, false, false, 1.15f, EquipmentRole.Unarmed);
+        }
+        if (glyph == 'M' && (lowerName.Contains("orochi") || lowerName.Contains("yamata") || lowerName.Contains("八岐大蛇")))
+        {
+            return ("res://assets/models/monsters/bestiary/Dragon.glb", 1.65f, false, false, 1.10f, EquipmentRole.Unarmed);
+        }
+        if (glyph == 'M')
+        {
+            return ("res://assets/models/monsters/bestiary/hydra.glb", 1.10f, false, false, 1.00f, EquipmentRole.Unarmed);
+        }
+        if (lowerName.Contains("quylthulg"))
+        {
+            return ("res://assets/models/monsters/bestiary/quylthulg.glb", 0.85f, false, false, 0.80f, EquipmentRole.Unarmed);
+        }
+        if (lowerName.Contains("naga"))
+        {
+            return ("res://assets/models/monsters/bestiary/naga.glb", 0.85f, false, false, 1.05f, EquipmentRole.Warrior);
+        }
+        if (glyph == 'w')
+        {
+            return ("res://assets/models/monsters/bestiary/worm_mass.glb", 0.65f, false, false, 0.90f, EquipmentRole.Unarmed);
+        }
+        if (glyph == 'e' && (lowerName.Contains("eye") || lowerName.Contains("beholder") || lowerName.Contains("gazer")))
+        {
+            return ("res://assets/models/monsters/bestiary/floating_eye.glb", 0.70f, false, true, 1.00f, EquipmentRole.Unarmed);
+        }
+        if (glyph == 'E' || (glyph == 'v' && (lowerName.Contains("vortex") || lowerName.Contains("whirlwind") || lowerName.Contains("elemental"))))
+        {
+            return ("res://assets/models/monsters/bestiary/vortex_elemental.glb", 0.95f, true, true, 1.10f, EquipmentRole.Unarmed);
+        }
+        if (glyph == 'b' && (lowerName.Contains("bat") || lowerName.Contains("doombat")))
+        {
+            return ("res://assets/models/monsters/bestiary/bat.glb", 0.60f, false, true, 1.25f, EquipmentRole.Unarmed);
+        }
+        if (glyph == 'q' && (lowerName.Contains("bear") || lowerName.Contains("boar") || lowerName.Contains("catoblepas") || lowerName.Contains("mumak") || lowerName.Contains("beorn")))
+        {
+            return ("res://assets/models/monsters/bestiary/bear.glb", 0.95f, false, false, 1.05f, EquipmentRole.Unarmed);
+        }
+        if (glyph == 'R' && (lowerName.Contains("lizard") || lowerName.Contains("salamander") || lowerName.Contains("basilisk") || lowerName.Contains("reptile") || lowerName.Contains("gecko")))
+        {
+            return ("res://assets/models/monsters/bestiary/lizard.glb", 0.85f, false, false, 1.05f, EquipmentRole.Unarmed);
+        }
+        if (glyph is 'j' or 'i' || lowerName.Contains("jelly") || lowerName.Contains("ooze") || lowerName.Contains("slime") || lowerName.Contains("pudding") || lowerName.Contains("blob"))
+        {
+            return ("res://assets/models/monsters/bestiary/jelly_ooze.glb", 0.75f, false, false, 0.85f, EquipmentRole.Unarmed);
+        }
+        if (glyph is 'm' or ',' || lowerName.Contains("mushroom") || lowerName.Contains("fungus") || lowerName.Contains("fungi") || lowerName.Contains("mold") || lowerName.Contains("spore") || lowerName.Contains("shrieker"))
+        {
+            return ("res://assets/models/monsters/bestiary/mushroom_cluster.glb", 0.80f, false, false, 0.50f, EquipmentRole.Unarmed);
         }
 
         if (_modelRules.TryGetValue(glyph, out var rules))
@@ -3925,6 +4135,7 @@ public static class MonsterModelResolver
     {
         if (node is MeshInstance3D mi)
         {
+            if (!mi.Visible) return;
             var surfaceCount = mi.Mesh != null ? mi.Mesh.GetSurfaceCount() : 1;
             for (int i = 0; i < surfaceCount; i++)
             {
@@ -5309,6 +5520,62 @@ public static class MonsterModelResolver
         return f > 0.6f ? new Color(0.45f, 0.95f, 0.45f)
             : f > 0.3f ? new Color(1.0f, 0.85f, 0.35f)
             : new Color(1.0f, 0.42f, 0.38f);
+    }
+
+    private static Node3D LoadGltfInstance(string path)
+    {
+        var scene = GetModel(path);
+        if (scene == null) return null;
+        try
+        {
+            var instance = scene.Instantiate<Node3D>();
+            if (instance != null)
+            {
+                HideBlackOutlineMeshes(instance);
+            }
+            return instance;
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"[MonsterModelResolver] Failed to instantiate model '{path}': {ex.Message}");
+            return null;
+        }
+    }
+
+    private static void HideBlackOutlineMeshes(Node node)
+    {
+        if (node == null) return;
+        if (node is MeshInstance3D mi)
+        {
+            var nodeName = mi.Name.ToString();
+            bool isOutline = nodeName.IndexOf("BlackOutline", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                             nodeName.IndexOf("Outline", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (!isOutline)
+            {
+                var surfaceCount = mi.Mesh != null ? mi.Mesh.GetSurfaceCount() : 1;
+                for (int i = 0; i < surfaceCount; i++)
+                {
+                    var mat = mi.GetActiveMaterial(i);
+                    var matName = mat?.ResourceName ?? "";
+                    if (matName.IndexOf("BlackOutline", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        matName.IndexOf("Outline", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        isOutline = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isOutline)
+            {
+                mi.Visible = false;
+            }
+        }
+
+        foreach (Node child in node.GetChildren())
+        {
+            HideBlackOutlineMeshes(child);
+        }
     }
 
     private static PackedScene GetModel(string path)

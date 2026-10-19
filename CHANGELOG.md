@@ -4,6 +4,27 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v9.9.0] — 2026-10-19
+
+### 🏰 Complete 4-Realm 3D Bestiary Overhaul, Studio Foley & Convolution Reverb, Next-Gen 3D Action VFX, Vertical Apothecary Medicine Vials & Tattered-Scroll / Charred-Wood HUD (`Waves 19–21`)
+
+- **Complete 4-Realm 3D Bestiary Taxonomy & 16 Dedicated `.glb` Models (`Wave 19`, `tools/build_bestiary_glbs.js`, `dungeon3d.js`, `MonsterModelResolver.cs`)**:
+  - Built 16 anatomically unmistakable, UV-mapped, multi-material binary glTF 2.0 (`.glb`) bestiary models (`centipede.glb`, `beetle.glb`, `ant.glb`, `scorpion.glb`, `floating_eye.glb`, `worm_mass.glb`, `jelly_ooze.glb`, `mushroom_cluster.glb`, `vortex_elemental.glb`, `quylthulg.glb`, `hydra.glb`, `naga.glb`, `bat.glb`, `bear.glb`, `lizard.glb`, `aquatic.glb`) and welded smooth vertex normals + box-projected `TEXCOORD_0` UVs into `giant_spider.glb`, `snake.glb`, `wasp.glb`, and `frog.glb`.
+  - Eliminated cross-realm glyph collisions across `angband`, `silq`, `frogcomposband`, and `hengband` (including Sil-Q `&` thorns, `s`/`S` serpents vs spiders, `G` giants, `v` vampires, `w` phantoms, `N` nameless horrors, and animated coin/weapon/potion/scroll mimics).
+- **78-File Open-Source Studio Audio Bank, Non-Vocal Combat Foley & Stereo Dungeon Convolution Reverb (`Waves 20–21`, `tools/fetch_open_sfx.js`, `audio.js`, `AudioManager.cs`)**:
+  - Bundled 78 clean, non-vocal studio sound recordings from **Kenney RPG Audio & Impact Sounds (`CC0 1.0`)** and **The Battle for Wesnoth Core Sound Library (`GPL-2.0+`)** for medieval steel blades, axes, maces, flails, spears, heavy plate/shield blocks, bows/crossbows, stone/grass/wood footsteps, doors, chests, coins, scrolls, potions, and elemental spells/breaths.
+  - Added a 2-channel **Stereo Stone-Dungeon Convolution Reverb Bus** (`createDungeonReverbImpulse` + `reverbConvolver`) with early stone reflections (`11ms..61ms`) and lowpass-damped acoustic decay.
+  - Sanitized combat audio (`L41`): purged all guttural/groaning humanoid and monster vocal files (`orc_hit`, `goblin_hit`, `troll_hit`, `zombie_hit`, `lich_hit`, `squishy_hit`, `wail`, etc.) so melee exchanges sound like crisp medieval steel, armor deflection, and bone clatter.
+- **Zero-Leak Singleton 3D Action & Spell VFX (`Wave 20`, `dungeon3d.js`)**:
+  - Eliminated per-hit `SphereGeometry` GPU VBO allocation in `spawnHitSparks` by pre-allocating 11 shared singleton VFX geometries (`_ensureSharedVfxResources`).
+  - Upgraded 3D combat & spell graphics with weapon-specific crescent blade cleaves (`slash`), blazing X-cleaves (`crit_slash`), dual seismic shockwave rings (`blunt`), high-velocity thrust lances (`pierce`), volumetric dragon breath cones (`breath`), multi-branch forked lightning (`lightning`), impact detonation domes (`spawnDetonationDome`), and runic ascension pillars (`aura`).
+- **Vertical Apothecary Medicine Vials & Tattered-Scroll / Charred-Wood HUD & Menus (`Wave 21`, `tools/build_hud_textures.js`, `dungeon.css`, `Overlay.cs`)**:
+  - Replaced the round HP/Mana globes with graduated **Twin Vertical Apothecary Medicine Vials** featuring hammered brass & cork neck collars (`.vial-neck-collar`), etched glass graduation ticks (`apothecary_vial_overlay.svg`), vertical liquid meniscus columns (`#hp-fill`, `#sp-fill`), and side-mounted tabular telemetry readouts across both Web and Godot 4 C#.
+  - Styled structural HUD docks (`#char-panel`, `#action-bar`, `#hud-footer`, `#minimap-container`, `#touch-controls`) in **Charred Iron-Bound Wood** (`charred_wood.png`) and lore windows/menus (`#message-feed-window`, `#chronicle-window`, `.splash-card`, `.main-menu-card`, `.pause-card`, `.terminal-card`, `.load-card`, `.guide-card`, `.cmd-palette-card`, `.death-panel`) in **Tattered Parchment Scrolls** (`tattered_scroll.png`).
+- **158.9 MB Bloat Reduction & Bulletproof Android/Release CI (`Wave 21`, `L43–L44`)**:
+  - Purged 158.9 MB of unreferenced legacy demo audio/video frame caches from `server/public/assets/`.
+  - Fixed Android `assembleRelease` CI signing fallback (`signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug` in `android/app/build.gradle`) so GitHub Actions releases build and publish cleanly even when custom keystore secrets are absent.
+
 ## [v9.4.3] — 2026-10-12
 
 ### Android Signing Key Rotation & Save Migration (WS10.2 / D14 / G-F)

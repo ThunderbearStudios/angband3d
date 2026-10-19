@@ -27,6 +27,20 @@ class SoundEngine {
             set: (target, prop, value) => {
                 target[prop] = value;
                 return true;
+            },
+            ownKeys: (target) => {
+                if (!this._sfxLibraryGenerated) {
+                    this._sfxLibraryGenerated = true;
+                    this.generateSfxLibrary();
+                }
+                return Reflect.ownKeys(target);
+            },
+            getOwnPropertyDescriptor: (target, prop) => {
+                if (!this._sfxLibraryGenerated) {
+                    this._sfxLibraryGenerated = true;
+                    this.generateSfxLibrary();
+                }
+                return Reflect.getOwnPropertyDescriptor(target, prop);
             }
         });
         this.stoneFootsteps = [];
@@ -35,6 +49,14 @@ class SoundEngine {
         this.stoneStepIdx = 0;
         this.outdoorStepIdx = 0;
         this.waterStepIdx = 0;
+
+        this.samplePools = {};
+        this._poolCursors = {};
+        this._studioBankLoading = false;
+        this._studioBankLoaded = false;
+        this.reverbConvolver = null;
+        this.reverbSend = null;
+        this.reverbWetGain = null;
 
         // Master Limiter / Compressor Stage & SFX Bus
         this.masterCompressor = null;
@@ -47,25 +69,27 @@ class SoundEngine {
         this.lastStatusTimes = {};
 
         // Restore persisted volume and mute state
-        if (typeof window !== 'undefined' && window.localStorage) {
+        if (typeof window !== 'undefined') {
             try {
-                const savedVol = localStorage.getItem('angband3d_volume');
-                if (savedVol !== null) {
-                    const parsed = parseFloat(savedVol);
-                    if (!isNaN(parsed) && parsed >= 0 && parsed <= 1.0) {
-                        this.masterVolume = parsed;
+                if (window.localStorage) {
+                    const savedVol = localStorage.getItem('angband3d_volume');
+                    if (savedVol !== null) {
+                        const parsed = parseFloat(savedVol);
+                        if (!isNaN(parsed) && parsed >= 0 && parsed <= 1.0) {
+                            this.masterVolume = parsed;
+                        }
                     }
-                }
-                const savedSfxVol = localStorage.getItem('angband3d_sfx_volume');
-                if (savedSfxVol !== null) {
-                    const parsedSfx = parseFloat(savedSfxVol);
-                    if (!isNaN(parsedSfx) && parsedSfx >= 0 && parsedSfx <= 1.0) {
-                        this.sfxVolume = parsedSfx;
+                    const savedSfxVol = localStorage.getItem('angband3d_sfx_volume');
+                    if (savedSfxVol !== null) {
+                        const parsedSfx = parseFloat(savedSfxVol);
+                        if (!isNaN(parsedSfx) && parsedSfx >= 0 && parsedSfx <= 1.0) {
+                            this.sfxVolume = parsedSfx;
+                        }
                     }
-                }
-                const savedMuted = localStorage.getItem('angband3d_muted');
-                if (savedMuted !== null) {
-                    this.enabled = (savedMuted !== 'true');
+                    const savedMuted = localStorage.getItem('angband3d_muted');
+                    if (savedMuted !== null) {
+                        this.enabled = (savedMuted !== 'true');
+                    }
                 }
             } catch (_) {}
         }
@@ -84,8 +108,8 @@ class SoundEngine {
 
     setMasterVolume(volume) {
         this.masterVolume = Math.max(0.0, Math.min(1.0, parseFloat(volume) || 0.0));
-        if (typeof window !== 'undefined' && window.localStorage) {
-            try { localStorage.setItem('angband3d_volume', this.masterVolume.toString()); } catch (_) {}
+        if (typeof window !== 'undefined') {
+            try { if (window.localStorage) localStorage.setItem('angband3d_volume', this.masterVolume.toString()); } catch (_) {}
         }
         if (this.ctx && this.masterGain) {
             const effectiveVol = this.enabled ? this.masterVolume : 0.0;
@@ -102,8 +126,8 @@ class SoundEngine {
 
     setSfxVolume(volume) {
         this.sfxVolume = Math.max(0.0, Math.min(1.0, parseFloat(volume) || 0.0));
-        if (typeof window !== 'undefined' && window.localStorage) {
-            try { localStorage.setItem('angband3d_sfx_volume', this.sfxVolume.toString()); } catch (_) {}
+        if (typeof window !== 'undefined') {
+            try { if (window.localStorage) localStorage.setItem('angband3d_sfx_volume', this.sfxVolume.toString()); } catch (_) {}
         }
         if (this.ctx && this.sfxGain) {
             this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
@@ -117,8 +141,8 @@ class SoundEngine {
 
     setMute(isMuted) {
         this.enabled = !isMuted;
-        if (typeof window !== 'undefined' && window.localStorage) {
-            try { localStorage.setItem('angband3d_muted', (!this.enabled).toString()); } catch (_) {}
+        if (typeof window !== 'undefined') {
+            try { if (window.localStorage) localStorage.setItem('angband3d_muted', (!this.enabled).toString()); } catch (_) {}
         }
         if (this.ctx && this.masterGain) {
             const effectiveVol = this.enabled ? this.masterVolume : 0.0;
@@ -172,14 +196,28 @@ class SoundEngine {
             this.sfxGain = this.ctx.createGain();
             this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
             this.sfxGain.connect(this.masterCompressor);
+
+            this.reverbSend = this.ctx.createGain();
+            this.reverbSend.gain.setValueAtTime(1.0, this.ctx.currentTime);
+            this.reverbConvolver = this.ctx.createConvolver();
+            this.reverbConvolver.buffer = this.createDungeonReverbImpulse(1.35, 3.2);
+            this.reverbWetGain = this.ctx.createGain();
+            this.reverbWetGain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+            this.reverbSend.connect(this.reverbConvolver);
+            this.reverbConvolver.connect(this.reverbWetGain);
+            this.reverbWetGain.connect(this.masterCompressor);
         } catch (e) {
             console.warn('[SoundEngine] Could not initialize master audio nodes:', e);
             this.masterCompressor = null;
             this.masterGain = null;
             this.sfxGain = null;
+            this.reverbSend = null;
+            this.reverbConvolver = null;
+            this.reverbWetGain = null;
         }
 
         // SFX library generated lazily on first audio interaction
+        this.loadStudioSfxBank();
     }
 
     unlock(forceFromGesture = false) {
@@ -220,6 +258,227 @@ class SoundEngine {
             this._sfxLibraryGenerated = true;
             this.generateSfxLibrary();
         }
+    }
+
+    createDungeonReverbImpulse(duration = 1.35, decay = 3.2) {
+        if (!this.ctx || typeof this.ctx.createBuffer !== 'function') return null;
+        try {
+            const rate = this.sampleRate || 44100;
+            const length = Math.max(1, Math.floor(rate * duration));
+            const impulse = this.ctx.createBuffer(2, length, rate);
+            const left = impulse.getChannelData(0);
+            const right = impulse.getChannelData(1);
+
+            // Early stone wall reflections at 11ms, 19ms, 29ms, 43ms, 61ms with slight stereo offset
+            const earlyReflections = [
+                { t: 0.011, l: 0.45, r: 0.30 },
+                { t: 0.019, l: 0.28, r: 0.42 },
+                { t: 0.029, l: 0.35, r: 0.25 },
+                { t: 0.043, l: 0.22, r: 0.30 },
+                { t: 0.061, l: 0.18, r: 0.16 }
+            ];
+
+            for (const ref of earlyReflections) {
+                const idxL = Math.floor(ref.t * rate);
+                const idxR = Math.floor((ref.t + 0.0018) * rate);
+                if (idxL < length) left[idxL] += ref.l;
+                if (idxR < length) right[idxR] += ref.r;
+            }
+
+            // Exponentially decaying, lowpass-damped diffuse stereo tail
+            let prevL = 0;
+            let prevR = 0;
+            const damping = 0.65; // High-frequency stone absorption
+
+            for (let i = 0; i < length; i++) {
+                const t = i / rate;
+                const env = Math.exp(-t * decay);
+                const rawL = (Math.random() * 2 - 1) * env;
+                const rawR = (Math.random() * 2 - 1) * env;
+
+                prevL = prevL * damping + rawL * (1 - damping);
+                prevR = prevR * damping + rawR * (1 - damping);
+
+                left[i] += prevL * 0.70;
+                right[i] += prevR * 0.70;
+            }
+
+            return impulse;
+        } catch (e) {
+            console.warn('[SoundEngine] Could not create convolution impulse:', e);
+            return null;
+        }
+    }
+
+    loadStudioSfxBank() {
+        if (this._studioBankLoading || this._studioBankLoaded || !this.ctx || typeof fetch !== 'function') return;
+        if (typeof window !== 'undefined' && window.location && !/^https?:/i.test(window.location.protocol)) return;
+
+        this._studioBankLoading = true;
+
+        const STUDIO_SFX_POOLS = {
+            step_stone: ['step_stone_1.ogg', 'step_stone_2.ogg', 'step_stone_3.ogg', 'step_stone_4.ogg'],
+            step_grass: ['step_grass_1.ogg', 'step_grass_2.ogg', 'step_grass_3.ogg', 'step_grass_4.ogg'],
+            step_wood: ['step_wood_1.ogg', 'step_wood_2.ogg'],
+            step_water: ['water_blast.wav'],
+            whoosh: ['miss_1.ogg', 'miss_2.ogg', 'miss_3.ogg', 'blade_slice_1.ogg', 'blade_slice_2.ogg'],
+            slash: ['sword_1.ogg', 'axe_hit.ogg', 'blade_slice_1.ogg', 'blade_slice_2.ogg', 'chop.ogg'],
+            bludgeon: ['mace_hit.ogg', 'flail_hit.ogg', 'impact_metal_heavy_1.ogg', 'impact_wood_heavy_1.ogg'],
+            pierce: ['spear_hit.ogg', 'sword_1.ogg', 'blade_slice_2.ogg'],
+            crit: ['axe_hit.ogg', 'mace_hit.ogg', 'impact_metal_heavy_1.ogg', 'impact_plate_heavy_1.ogg'],
+            shieldBlock: ['impact_plate_heavy_1.ogg', 'impact_plate_heavy_2.ogg', 'impact_metal_heavy_1.ogg', 'impact_metal_heavy_2.ogg'],
+            armorDeflect: ['impact_plate_med_1.ogg', 'impact_metal_heavy_2.ogg'],
+            bow_loose: ['bow_fire.ogg', 'crossbow_fire.ogg', 'bow_miss.ogg'],
+            bow_impact: ['spear_hit.ogg', 'impact_wood_heavy_1.ogg', 'impact_wood_heavy_2.ogg'],
+            digging: ['impact_mining_1.ogg', 'impact_mining_2.ogg', 'impact_mining_3.ogg'],
+            wallBump: ['impact_wood_heavy_2.ogg', 'step_stone_1.ogg'],
+            doorOpen: ['door_open_1.ogg', 'creak_1.ogg'],
+            doorClose: ['door_close_1.ogg', 'metal_latch.ogg'],
+            doorBreak: ['impact_wood_heavy_1.ogg', 'cave_in.ogg'],
+            chestOpen: ['open_chest.wav', 'metal_latch.ogg'],
+            itemPickup: ['cloth_1.ogg', 'cloth_2.ogg'],
+            itemDrop: ['step_wood_1.ogg', 'cloth_2.ogg'],
+            goldPickup: ['gold_pickup.ogg', 'coins_1.ogg', 'coins_2.ogg'],
+            equipWeapon: ['blade_draw_1.ogg', 'blade_draw_2.ogg'],
+            equipArmor: ['impact_plate_med_1.ogg', 'cloth_1.ogg'],
+            quaff: ['potion_drink.ogg'],
+            potionThrow: ['miss_1.ogg', 'miss_2.ogg'],
+            potionShatter: ['impact_glass_1.ogg', 'impact_glass_2.ogg'],
+            scroll: ['book_flip_1.ogg', 'book_flip_2.ogg'],
+            heal: ['heal_spell.wav', 'magic_holy_1.ogg'],
+            prayer: ['magic_holy_1.ogg', 'magic_holy_2.ogg', 'impact_bell_1.ogg'],
+            staff: ['magic_faerie.ogg', 'magic_missile_1.ogg'],
+            levelUp: ['fanfare_short.wav', 'magic_holy_2.ogg'],
+            teleport: ['magic_faerie.ogg', 'magic_missile_2.ogg'],
+            spell_fire: ['flame_big.ogg', 'explosion.ogg'],
+            spell_cold: ['petrified.ogg', 'impact_glass_1.ogg'],
+            spell_lightning: ['lightning_bolt.ogg'],
+            spell_acid: ['water_blast.wav', 'poison_spell.ogg'],
+            spell_poison: ['poison_spell.ogg'],
+            spell_magic: ['magic_missile_1.ogg', 'magic_missile_2.ogg', 'magic_faerie.ogg'],
+            spell_dark: ['magic_dark_big.ogg', 'impact_bell_1.ogg'],
+            breath: ['flame_big.ogg', 'drake_hit_1.ogg', 'explosion.ogg'],
+            monster_orc: ['impact_plate_med_1.ogg', 'impact_wood_heavy_1.ogg'],
+            monster_orc_die: ['impact_plate_heavy_1.ogg', 'impact_wood_heavy_2.ogg'],
+            monster_troll: ['impact_wood_heavy_1.ogg', 'impact_metal_heavy_1.ogg'],
+            monster_troll_die: ['cave_in.ogg', 'impact_wood_heavy_2.ogg'],
+            monster_dragon: ['drake_hit_1.ogg', 'flame_big.ogg'],
+            monster_dragon_die: ['explosion.ogg', 'cave_in.ogg'],
+            monster_wolf: ['wolf_growl_1.ogg', 'bite.ogg'],
+            monster_wolf_die: ['bite.ogg', 'claws.ogg'],
+            monster_hiss: ['hiss_big.wav', 'bite.ogg'],
+            monster_hiss_die: ['hiss_big.wav'],
+            monster_undead: ['skeleton_hit_1.ogg'],
+            monster_undead_die: ['skeleton_die_1.ogg'],
+            monster_ghost: ['magic_dark_big.ogg', 'magic_faerie.ogg'],
+            monster_bat: ['bat_hit_1.ogg', 'claws.ogg'],
+            monster_insect: ['pincers.ogg', 'claws.ogg'],
+            playerHurt: ['impact_plate_med_1.ogg', 'impact_plate_heavy_2.ogg'],
+            playerDeath: ['impact_bell_1.ogg', 'magic_dark_big.ogg']
+        };
+
+        const POOL_TO_RAW_BUFFER_KEYS = {
+            whoosh: ['whoosh'],
+            slash: ['hit'],
+            crit: ['crit'],
+            shieldBlock: ['shieldBlock'],
+            armorDeflect: ['armorDeflect'],
+            bow_loose: ['bow'],
+            wallBump: ['wallBump'],
+            doorOpen: ['doorOpen'],
+            doorClose: ['doorClose'],
+            doorBreak: ['doorBreak'],
+            chestOpen: ['chestOpen'],
+            itemPickup: ['itemPickup'],
+            itemDrop: ['itemDrop'],
+            goldPickup: ['goldPickup'],
+            equipWeapon: ['equipWeapon'],
+            equipArmor: ['equipArmor'],
+            quaff: ['quaff'],
+            scroll: ['scroll'],
+            heal: ['heal'],
+            levelUp: ['levelUp'],
+            teleport: ['teleport'],
+            spell_fire: ['spell_fire'],
+            spell_cold: ['spell_cold'],
+            spell_lightning: ['spell_lightning'],
+            spell_acid: ['spell_acid'],
+            spell_poison: ['spell_poison'],
+            spell_magic: ['spell_magic'],
+            monster_orc: ['monsterGrunt'],
+            monster_orc_die: ['monsterDeath'],
+            monster_wolf: ['monsterGrowl'],
+            monster_hiss: ['monsterHiss'],
+            monster_ghost: ['ghostWail'],
+            monster_dragon: ['dragonRoar'],
+            monster_bat: ['rodentSqueak'],
+            monster_insect: ['insectChitin'],
+            playerHurt: ['playerHurt'],
+            playerDeath: ['playerDeath']
+        };
+
+        const decodedByFile = new Map();
+        const loadFileBuffer = async (fileName) => {
+            if (decodedByFile.has(fileName)) {
+                return decodedByFile.get(fileName);
+            }
+            const promise = (async () => {
+                try {
+                    const res = await fetch(`/assets/audio/sfx/${fileName}`);
+                    if (!res.ok) return null;
+                    const ab = await res.arrayBuffer();
+                    return await new Promise((resolve, reject) => {
+                        this.ctx.decodeAudioData(ab, resolve, reject);
+                    });
+                } catch (e) {
+                    return null;
+                }
+            })();
+            decodedByFile.set(fileName, promise);
+            return promise;
+        };
+
+        const allPoolPromises = Object.entries(STUDIO_SFX_POOLS).map(async ([poolKey, files]) => {
+            try {
+                const buffers = await Promise.all(files.map(f => loadFileBuffer(f)));
+                const valid = buffers.filter(Boolean);
+                if (valid.length > 0) {
+                    this.samplePools[poolKey] = valid;
+                    if (poolKey === 'step_stone') {
+                        this.stoneFootsteps = valid;
+                    } else if (poolKey === 'step_grass') {
+                        this.outdoorFootsteps = valid;
+                    } else if (poolKey === 'step_water') {
+                        this.waterFootsteps = valid;
+                    }
+                    const rawKeys = POOL_TO_RAW_BUFFER_KEYS[poolKey];
+                    if (rawKeys) {
+                        for (const rk of rawKeys) {
+                            this._rawBuffers[rk] = valid[0];
+                        }
+                    }
+                }
+            } catch (_) {}
+        });
+
+        Promise.allSettled(allPoolPromises).then(() => {
+            this._studioBankLoaded = true;
+            this._studioBankLoading = false;
+        });
+    }
+
+    playPoolSample(poolKey, pitchScale = 1.0, volumeScale = 1.0, pan = 0.0, reverbAmount = 0.22, fallbackBufferKey = null) {
+        const pool = this.samplePools && this.samplePools[poolKey];
+        if (pool && pool.length > 0) {
+            const cursor = (this._poolCursors[poolKey] || 0) % pool.length;
+            this._poolCursors[poolKey] = (cursor + 1) % pool.length;
+            this.playBuffer(pool[cursor], pitchScale, volumeScale, pan, reverbAmount);
+            return true;
+        } else if (fallbackBufferKey && this.buffers && this.buffers[fallbackBufferKey]) {
+            this.playBuffer(this.buffers[fallbackBufferKey], pitchScale, volumeScale, pan, reverbAmount);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -314,7 +573,7 @@ class SoundEngine {
         };
     }
 
-    playBuffer(buffer, pitchScale = 1.0, volumeScale = 1.0, pan = 0.0) {
+    playBuffer(buffer, pitchScale = 1.0, volumeScale = 1.0, pan = 0.0, reverbAmount = 0.20) {
         this.ensureSfxLibrary();
         if (!this.enabled || !this.ctx || !buffer || !this.unlocked) return;
         if (this.ctx.state === 'suspended') {
@@ -335,6 +594,18 @@ class SoundEngine {
 
         const dest = this.sfxGain || this.masterCompressor || this.masterGain || this.ctx.destination;
 
+        let wetSend = null;
+        if (this.reverbSend && reverbAmount > 0) {
+            try {
+                wetSend = this.ctx.createGain();
+                wetSend.gain.setValueAtTime(volumeScale * reverbAmount, now);
+                source.connect(wetSend);
+                wetSend.connect(this.reverbSend);
+            } catch (_) {
+                wetSend = null;
+            }
+        }
+
         const panner = (pan !== 0.0) ? this.createPanner(pan) : null;
 
         if (panner) {
@@ -346,6 +617,7 @@ class SoundEngine {
                     source.disconnect();
                     gain.disconnect();
                     panner.disconnect();
+                    if (wetSend) wetSend.disconnect();
                 } catch (_) {}
             };
         } else {
@@ -355,6 +627,7 @@ class SoundEngine {
                 try {
                     source.disconnect();
                     gain.disconnect();
+                    if (wetSend) wetSend.disconnect();
                 } catch (_) {}
             };
         }
@@ -758,36 +1031,43 @@ class SoundEngine {
         return this.createBuffer(samples);
     }
 
-    // Guttural monster roar / grunt (AudioManager.cs:393-412)
+    // Clean physical armor/shield impact transient (Zero vocal groans per L41)
     synthMonsterGrunt() {
-        const duration = 0.20;
+        const duration = 0.16;
         const totalSamples = Math.floor(this.sampleRate * duration);
         const samples = new Float32Array(totalSamples);
 
         for (let i = 0; i < totalSamples; i++) {
             const t = i / this.sampleRate;
-            const env = Math.exp(-t * 18);
-            const freq = Math.max(40, 180 - t * 450);
-            const roar = Math.sin(2 * Math.PI * freq * t) * 0.6;
-            const rasp = (Math.random() * 2 - 1) * 0.4;
-            samples[i] = (roar + rasp) * env * 0.75;
+            const env = Math.exp(-t * 32);
+            const clack = Math.sin(2 * Math.PI * (420 - t * 900) * t) * Math.exp(-t * 45) * 0.55;
+            const plate = Math.sin(2 * Math.PI * 1180 * t) * Math.exp(-t * 60) * 0.30;
+            const leather = (Math.random() * 2 - 1) * Math.exp(-t * 48) * 0.25;
+            samples[i] = (clack + plate + leather) * env * 0.80;
         }
         return this.createBuffer(samples);
     }
 
-    // Monster crumbling death & dissolution (AudioManager.cs:414-434)
+    // Clean collapsing armor & bone clatter dissolution (Zero vocal groans per L41)
     synthMonsterDeath() {
-        const duration = 0.45;
+        const duration = 0.34;
         const totalSamples = Math.floor(this.sampleRate * duration);
         const samples = new Float32Array(totalSamples);
+        const clatters = [0.0, 0.055, 0.125, 0.21];
 
         for (let i = 0; i < totalSamples; i++) {
             const t = i / this.sampleRate;
-            const env = Math.exp(-t * 8);
-            const rumble = Math.sin(2 * Math.PI * (90 - t * 120) * t) * 0.5;
-            const hiss = (Math.random() * 2 - 1) * Math.sin(t * 12) * 0.45;
-            const sub = Math.sin(2 * Math.PI * 45 * t) * 0.5;
-            samples[i] = (rumble + hiss + sub) * env * 0.85;
+            const env = Math.exp(-t * 10);
+            let clatter = 0;
+            for (const c of clatters) {
+                const dt = t - c;
+                if (dt >= 0 && dt < 0.045) {
+                    clatter += Math.sin(2 * Math.PI * (680 - c * 900) * dt) * Math.exp(-dt * 95) * 0.45;
+                    clatter += (Math.random() * 2 - 1) * Math.exp(-dt * 110) * 0.25;
+                }
+            }
+            const drop = Math.sin(2 * Math.PI * (110 - t * 140) * t) * Math.exp(-t * 18) * 0.45;
+            samples[i] = Math.tanh((clatter + drop) * env * 0.85);
         }
         return this.createBuffer(samples);
     }
@@ -1438,6 +1718,7 @@ class SoundEngine {
 
     playWhoosh() {
         this.unlock();
+        if (this.playPoolSample('whoosh', 1.0, 0.85, 0.0, 0.15, 'whoosh')) return;
         this.playBuffer(this.buffers['whoosh'], 1.0, 0.85);
     }
 
@@ -1463,11 +1744,13 @@ class SoundEngine {
 
     playShieldBlock(pan = 0.0) {
         this.unlock();
+        if (this.playPoolSample('shieldBlock', 1.0, 0.95, pan, 0.22, 'shieldBlock')) return;
         this.playBuffer(this.buffers['shieldBlock'], 1.0, 0.95, pan);
     }
 
     playArmorDeflect(pan = 0.0) {
         this.unlock();
+        if (this.playPoolSample('armorDeflect', 1.0, 0.90, pan, 0.20, 'armorDeflect')) return;
         this.playBuffer(this.buffers['armorDeflect'], 1.0, 0.90, pan);
     }
 
@@ -1476,6 +1759,8 @@ class SoundEngine {
         if (this.ctx && typeof this.ctx.createOscillator === 'function') {
             this.playArrowLooseAndImpact(stage, pan);
         } else {
+            const poolKey = stage !== 'impact' ? 'bow_loose' : 'bow_impact';
+            if (this.playPoolSample(poolKey, 1.0, 0.95, pan, 0.20, 'bow')) return;
             this.playBuffer(this.buffers['bow'], 1.0, 0.95, pan);
         }
     }
@@ -1485,12 +1770,14 @@ class SoundEngine {
         if (this.ctx && typeof this.ctx.createOscillator === 'function') {
             this.playArrowLooseAndImpact('loose', pan);
         } else {
+            if (this.playPoolSample('bow_loose', 1.0, 0.95, pan, 0.20, 'bow')) return;
             this.playBuffer(this.buffers['bow'], 1.0, 0.95, pan);
         }
     }
 
     playPlayerHurt() {
         this.unlock();
+        if (this.playPoolSample('playerHurt', 1.0, 1.10, 0.0, 0.22, 'playerHurt')) return;
         this.playBuffer(this.buffers['playerHurt'], 1.0, 1.10);
     }
 
@@ -1505,16 +1792,19 @@ class SoundEngine {
 
     playDeathBell() {
         this.unlock();
+        if (this.playPoolSample('playerDeath', 1.0, 1.25, 0.0, 0.40, 'playerDeath')) return;
         this.playBuffer(this.buffers['playerDeath'], 1.0, 1.25);
     }
 
     playHeal() {
         this.unlock();
+        if (this.playPoolSample('heal', 1.0, 0.90, 0.0, 0.28, 'heal')) return;
         this.playBuffer(this.buffers['heal'], 1.0, 0.90);
     }
 
     playLevelUp() {
         this.unlock();
+        if (this.playPoolSample('levelUp', 1.0, 1.15, 0.0, 0.35, 'levelUp')) return;
         this.playBuffer(this.buffers['levelUp'], 1.0, 1.15);
     }
 
@@ -1522,29 +1812,51 @@ class SoundEngine {
     playMonsterVocal(glyph, action = 'grunt', pan = 0.0) {
         this.unlock();
         const g = glyph || 'm';
+        const isDeath = action === 'death';
 
-        if (action === 'death') {
-            let pitch = 1.0;
-            if (['D', 'U', 'B'].includes(g)) pitch = 0.70;
-            else if (['r', 'b', 's', 'S', 'I'].includes(g)) pitch = 1.35;
-            this.playBuffer(this.buffers['monsterDeath'], pitch, 1.05, pan);
-            return;
+        let poolKey;
+        let fallbackKey;
+        let fallbackPitch = 1.0;
+        let volume = isDeath ? 1.05 : 0.90;
+
+        if (['D', 'd', 'M'].includes(g)) {
+            poolKey = isDeath ? 'monster_dragon_die' : 'monster_dragon';
+            fallbackKey = isDeath ? 'monsterDeath' : 'dragonRoar';
+            fallbackPitch = isDeath ? 0.70 : 1.0;
+            volume = 1.10;
+        } else if (['C', 'Z', 'q'].includes(g)) {
+            poolKey = isDeath ? 'monster_wolf_die' : 'monster_wolf';
+            fallbackKey = isDeath ? 'monsterDeath' : 'monsterGrowl';
+        } else if (['J', 'n', 'R', 'w'].includes(g)) {
+            poolKey = isDeath ? 'monster_hiss_die' : 'monster_hiss';
+            fallbackKey = isDeath ? 'monsterDeath' : 'monsterHiss';
+        } else if (['G', 'W', 'V'].includes(g)) {
+            poolKey = isDeath ? 'monster_undead_die' : 'monster_ghost';
+            fallbackKey = isDeath ? 'monsterDeath' : 'ghostWail';
+        } else if (['s', 'z', 'L'].includes(g)) {
+            poolKey = isDeath ? 'monster_undead_die' : 'monster_undead';
+            fallbackKey = isDeath ? 'monsterDeath' : 'ghostWail';
+        } else if (['T', 'O', 'P', 'U'].includes(g)) {
+            poolKey = isDeath ? 'monster_troll_die' : 'monster_troll';
+            fallbackKey = isDeath ? 'monsterDeath' : 'monsterGrunt';
+            fallbackPitch = isDeath ? 0.70 : 0.85;
+        } else if (['r', 'b', 'B'].includes(g)) {
+            poolKey = 'monster_bat';
+            fallbackKey = isDeath ? 'monsterDeath' : 'rodentSqueak';
+            fallbackPitch = isDeath ? 1.35 : 1.0;
+        } else if (['a', 'c', 'I', 'K', 'S', 'j', 'i', 'm', 'Q'].includes(g)) {
+            poolKey = 'monster_insect';
+            fallbackKey = isDeath ? 'monsterDeath' : 'insectChitin';
+            fallbackPitch = isDeath ? 1.35 : 1.0;
+        } else {
+            poolKey = isDeath ? 'monster_orc_die' : 'monster_orc';
+            fallbackKey = isDeath ? 'monsterDeath' : 'monsterGrunt';
         }
 
-        if (['C', 'Z', 'd'].includes(g)) {
-            this.playBuffer(this.buffers['monsterGrowl'], 1.0, 0.92, pan);
-        } else if (['J', 'n', 'R'].includes(g)) {
-            this.playBuffer(this.buffers['monsterHiss'], 1.0, 0.90, pan);
-        } else if (['G', 'W', 'L', 'v'].includes(g)) {
-            this.playBuffer(this.buffers['ghostWail'], 1.0, 0.85, pan);
-        } else if (['D', 'U', 'B'].includes(g)) {
-            this.playBuffer(this.buffers['dragonRoar'], 1.0, 1.10, pan);
-        } else if (['r', 'b'].includes(g)) {
-            this.playBuffer(this.buffers['rodentSqueak'], 1.0, 0.85, pan);
-        } else if (['s', 'S', 'I'].includes(g)) {
-            this.playBuffer(this.buffers['insectChitin'], 1.0, 0.85, pan);
-        } else {
-            this.playBuffer(this.buffers['monsterGrunt'], 1.0, 0.90, pan);
+        if (this.playPoolSample(poolKey, 1.0, volume, pan, 0.25)) return;
+
+        if (this.buffers[fallbackKey]) {
+            this.playBuffer(this.buffers[fallbackKey], fallbackPitch, volume, pan);
         }
     }
 
@@ -1559,16 +1871,20 @@ class SoundEngine {
 
     playWallBump(volume = 0.85) {
         this.unlock();
+        if (this.playPoolSample('wallBump', 1.0, volume, 0.0, 0.22, 'wallBump')) return;
         this.playBuffer(this.buffers['wallBump'], 1.0, volume);
     }
 
     playDoor(open = true, pan = 0.0) {
         this.unlock();
+        const poolKey = open ? 'doorOpen' : 'doorClose';
+        if (this.playPoolSample(poolKey, 1.0, 0.85, pan, 0.25, poolKey)) return;
         this.playBuffer(open ? this.buffers['doorOpen'] : this.buffers['doorClose'], 1.0, 0.85, pan);
     }
 
     playDoorBreak(pan = 0.0) {
         this.unlock();
+        if (this.playPoolSample('doorBreak', 1.0, 1.05, pan, 0.30, 'doorBreak')) return;
         this.playBuffer(this.buffers['doorBreak'], 1.0, 1.05, pan);
     }
 
@@ -1584,6 +1900,7 @@ class SoundEngine {
 
     playChest() {
         this.unlock();
+        if (this.playPoolSample('chestOpen', 1.0, 0.95, 0.0, 0.25, 'chestOpen')) return;
         this.playBuffer(this.buffers['chestOpen'], 1.0, 0.95);
     }
 
@@ -1599,41 +1916,49 @@ class SoundEngine {
 
     playTeleport() {
         this.unlock();
+        if (this.playPoolSample('teleport', 1.0, 0.95, 0.0, 0.30, 'teleport')) return;
         this.playBuffer(this.buffers['teleport'], 1.0, 0.95);
     }
 
     playItemPickup() {
         this.unlock();
+        if (this.playPoolSample('itemPickup', 1.0, 0.85, 0.0, 0.18, 'itemPickup')) return;
         this.playBuffer(this.buffers['itemPickup'], 1.0, 0.85);
     }
 
     playGoldPickup() {
         this.unlock();
+        if (this.playPoolSample('goldPickup', 1.0, 1.00, 0.0, 0.20, 'goldPickup')) return;
         this.playBuffer(this.buffers['goldPickup'], 1.0, 1.00);
     }
 
     playItemDrop() {
         this.unlock();
+        if (this.playPoolSample('itemDrop', 1.0, 0.85, 0.0, 0.18, 'itemDrop')) return;
         this.playBuffer(this.buffers['itemDrop'], 1.0, 0.85);
     }
 
     playEquipWeapon() {
         this.unlock();
+        if (this.playPoolSample('equipWeapon', 1.0, 0.90, 0.0, 0.22, 'equipWeapon')) return;
         this.playBuffer(this.buffers['equipWeapon'], 1.0, 0.90);
     }
 
     playEquipArmor() {
         this.unlock();
+        if (this.playPoolSample('equipArmor', 1.0, 0.85, 0.0, 0.22, 'equipArmor')) return;
         this.playBuffer(this.buffers['equipArmor'], 1.0, 0.85);
     }
 
     playQuaff(pan = 0.0) {
         this.unlock();
+        if (this.playPoolSample('quaff', 1.0, 0.95, pan, 0.20, 'quaff')) return;
         this.playBuffer(this.buffers['quaff'], 1.0, 0.95, pan);
     }
 
     playScroll(pan = 0.0) {
         this.unlock();
+        if (this.playPoolSample('scroll', 1.0, 0.90, pan, 0.28, 'scroll')) return;
         if (this.ctx && typeof this.ctx.createOscillator === 'function') {
             this.playRunicAura('scroll', pan);
         } else {
@@ -1693,6 +2018,8 @@ class SoundEngine {
             this.playFireballDetonation(false, pan);
             return;
         }
+        const poolKey = 'spell_' + element;
+        if (this.playPoolSample(poolKey, 1.0, 0.95, pan, 0.28)) return;
         const key = `spell_${element}`;
         const buffer = this.buffers[key] || this.buffers['spell_magic'];
         this.playBuffer(buffer, 1.0, 0.95, pan);
@@ -1751,6 +2078,26 @@ class SoundEngine {
      */
     playWeaponImpact(category = 'slash', isCrit = false, pan = 0) {
         const cat = String(category || 'slash').toLowerCase();
+        let poolKey = 'slash';
+        if (cat.includes('blunt') || cat.includes('bludgeon') || cat.includes('mace') || cat.includes('hammer') || cat.includes('club') || cat.includes('staff')) {
+            poolKey = 'bludgeon';
+        } else if (cat.includes('pierce') || cat.includes('spear') || cat.includes('stab') || cat.includes('dagger')) {
+            poolKey = 'pierce';
+        }
+
+        if (this.samplePools && this.samplePools[poolKey] && this.samplePools[poolKey].length > 0) {
+            this.playPoolSample(poolKey, isCrit ? 0.92 : 1.0, isCrit ? 1.05 : 0.90, pan, 0.26);
+            if (isCrit) {
+                this.playPoolSample('crit', 1.04, 0.85, pan, 0.32);
+            }
+            return;
+        }
+
+        if (this.buffers && this.buffers[isCrit ? 'crit' : 'hit']) {
+            this.playBuffer(this.buffers[isCrit ? 'crit' : 'hit'], 1.0, 0.95, pan);
+            return;
+        }
+
         const duration = isCrit ? 0.45 : 0.35;
         const voice = this._createVoice(duration, pan);
         if (!voice) return;
@@ -1928,6 +2275,8 @@ class SoundEngine {
      * @param {number} pan Spatial pan [-0.95, 0.95]
      */
     playDiggingStrike(pan = 0) {
+        if (this.playPoolSample('digging', 1.0, 0.92, pan, 0.28)) return;
+
         const duration = 0.38;
         const voice = this._createVoice(duration, pan);
         if (!voice) return;
@@ -2007,6 +2356,12 @@ class SoundEngine {
      * @param {number} pan Spatial pan [-0.95, 0.95]
      */
     playArrowLooseAndImpact(stage = 'loose', pan = 0) {
+        if (stage !== 'impact') {
+            if (this.playPoolSample('bow_loose', 1.0, 0.92, pan, 0.20)) return;
+        } else {
+            if (this.playPoolSample('bow_impact', 1.0, 0.92, pan, 0.22)) return;
+        }
+
         const isLoose = stage !== 'impact';
         const duration = isLoose ? 0.25 : 0.22;
         const voice = this._createVoice(duration, pan);
@@ -2101,6 +2456,12 @@ class SoundEngine {
      * @param {number} pan Spatial pan [-0.95, 0.95]
      */
     playPotionThrowAndShatter(stage = 'throw', pan = 0) {
+        if (stage === 'throw') {
+            if (this.playPoolSample('potionThrow', 1.05, 0.82, pan, 0.16)) return;
+        } else {
+            if (this.playPoolSample('potionShatter', 1.0, 0.95, pan, 0.28)) return;
+        }
+
         const isThrow = stage === 'throw';
         const duration = isThrow ? 0.32 : 0.48;
         const voice = this._createVoice(duration, pan);
@@ -2195,6 +2556,8 @@ class SoundEngine {
      * @param {number} pan Spatial pan [-0.95, 0.95]
      */
     playLightningCrack(pan = 0) {
+        if (this.playPoolSample('spell_lightning', 1.0, 1.0, pan, 0.35)) return;
+
         const duration = 0.65;
         const voice = this._createVoice(duration, pan);
         if (!voice) return;
@@ -2271,6 +2634,15 @@ class SoundEngine {
      * @param {number} pan Spatial pan [-0.95, 0.95]
      */
     playFireballDetonation(isBreath = false, pan = 0) {
+        if (isBreath) {
+            if (this.playPoolSample('breath', 0.92, 1.05, pan, 0.38)) {
+                this.playPoolSample('monster_dragon', 0.88, 0.85, pan, 0.35);
+                return;
+            }
+        } else {
+            if (this.playPoolSample('spell_fire', 1.0, 0.98, pan, 0.34)) return;
+        }
+
         const duration = isBreath ? 0.80 : 0.65;
         const voice = this._createVoice(duration, pan);
         if (!voice) return;
@@ -2372,6 +2744,22 @@ class SoundEngine {
      */
     playRunicAura(kind = 'scroll', pan = 0) {
         const k = String(kind || 'scroll').toLowerCase();
+        let poolKey = 'scroll';
+        if (k.includes('potion') || k.includes('quaff')) {
+            poolKey = 'quaff';
+        } else if (k.includes('pray') || k.includes('holy') || k.includes('heal') || k.includes('celestial')) {
+            poolKey = 'prayer';
+        } else if (k.includes('staff') || k.includes('wand') || k.includes('rod')) {
+            poolKey = 'staff';
+        }
+
+        if (this.playPoolSample(poolKey, 1.0, 0.90, pan, 0.30)) {
+            if (poolKey === 'scroll') {
+                this.playPoolSample('staff', 1.08, 0.55, pan, 0.35);
+            }
+            return;
+        }
+
         const duration = (k === 'prayer' || k === 'heal') ? 0.85 : (k.includes('staff') || k.includes('wand') || k.includes('rod') ? 0.70 : 0.60);
         const voice = this._createVoice(duration, pan);
         if (!voice) return;

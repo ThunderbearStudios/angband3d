@@ -1371,3 +1371,283 @@ To prevent any agent from wasting tokens re-scanning `server/public/assets/`, co
 
 
 
+## XII. Wave 19: Multi-Realm Bestiary & 3D Creature Model Overhaul (`v9.8.1`)
+
+### 1. Root-Cause Audit Summary (`Screenshot 1` & `Screenshot 2` + 4-Realm Corpus Scan)
+1. **Duplicate/Shared `.glb` Paths in `_ensureMonster3DTemplate` (`server/public/js/dungeon3d.js:9362-9368`)**:
+   - `bestiary_centipede` (`c` — Giant Yellow Centipede) and `bestiary_beetle` (`K` — Killer Beetle) loaded `/assets/models/monsters/bestiary/giant_spider.glb` (an 8-legged spider!).
+   - `bestiary_ant` (`a` — Giant Red Ant) loaded `/assets/models/monsters/bestiary/wasp.glb` (a flying winged wasp!).
+   - `env_fungi_cluster` (`m` — Mushroom Patch) and `env_ooze_mound` (`j`/`v` — Jelly/Mold/Vortex) loaded `rock_07_2k.gltf` (a grey boulder!).
+2. **Missing UV Coordinates & Unwelded Split-Vertex Normals on Existing Animal `.glb` Files**:
+   - `giant_spider.glb` (`5382` verts), `snake.glb` (`3218` verts), `wasp.glb` (`3955` verts), and `frog.glb` (`3281` verts) have `TEXCOORD_0 = false` (zero UV attributes) and unwelded split-triangle vertices, preventing normal/roughness texture mapping and rendering flat-shaded facets.
+   - `MountainLion.glb` and `Owl.glb` include an inverted-hull `BlackOutline` material submesh that wraps the creature and gets tinted into an opaque shell unless stripped.
+   - `GhostArmature.glb` (`bestiary_wraith`) has mesh name `Mesh.038` (`Mats: Character_Opaque, Character_Transparent`), so `/ghost|wraith|phantom/i.test(c.name)` never matched.
+3. **Anatomical Mismatches in `resolveMonster3DConfig` & `MonsterModelResolver.cs`**:
+   - `Floating Eye [e]` (`e`) and `Quylthulg [Q]` (`Q`) mapped to `bestiary_skull` (`Skull.glb` — a human skull sitting on the floor!).
+   - `White Worm Mass [w]` (`w`) mapped to `obj_snake` (`snake.glb` — an upright rearing cobra facing head-on, looking like a white vertical post with a red mouth dot).
+   - **Sil-Q (`variants/silq-src/lib/edit/monster.txt`) Glyph Collisions**:
+     - `&` (`Tanglethorn`, `Madthorn`, `Nightthorn`) was not recognized as a plant/thorn bush.
+     - `G` (`Giant`, `Gilim`, `Nan`) mapped to `bestiary_wraith` (floating ghost!) instead of a Giant warrior.
+     - `m` (`Spider hatchling`, `Attercop`) mapped to `env_fungi_cluster` (mushroom!) instead of `obj_spider`.
+     - `s` (`Blue serpent`, `Red serpent`, `Green serpent`, etc.) mapped to `bestiary_skeleton_warrior` (human skeleton with sword & shield!) instead of `obj_snake`.
+     - `v` (`Lesser vampire`, `Vampire`, `Vampire lord`, `Thuringwethil`) mapped to `env_ooze_mound` (slime!) instead of a dark robed Vampire lord.
+     - `w` (`Phantom`, `Whispering shadow`, `Spectre`) mapped to `obj_snake` instead of `bestiary_wraith`.
+     - `N` (`Nameless thing`) fell through instead of mapping to `bestiary_horror` (`scp939.glb`).
+   - **Vanilla / FCB / Hengband Collisions**:
+     - `q` (`Cave bear`, `Grizzly bear`, `Werebear`, `Beorn`, `Catoblepas`, `Mumak`) mapped to `bestiary_horse` (`horse_mount.glb` — a saddled riding horse!).
+     - `R` (`Rock lizard`, `Cave lizard`, `Salamander`, `Basilisk`, `Alligator`) mapped to `obj_frog` (`frog.glb`).
+     - `l` in FCB & Hengband (`Piranha`, `Barracuda`, `Shark`, `Kraken`, `Swordfish`) mapped to `bestiary_centipede` -> `giant_spider.glb`.
+     - `M` (`2-headed hydra`, `5-headed hydra`, `11-headed hydra`) mapped to `bestiary_dragon` (`Dragon.glb` — a winged single-headed dragon).
+     - `n` (`Spirit naga`, `Guardian naga`, `Dark naga`) mapped to `obj_snake` instead of a hooded serpentine guardian (`bestiary_naga`).
+     - `b` (`Fruit bat`, `Vampire bat`, `Doombat`) mapped to `bestiary_owl` (`Owl.glb`) instead of a winged chiropteran (`bestiary_bat`).
+     - `S` Scuttling Scorpions mapped to `obj_spider` instead of an 8-legged pincer-and-stinger arachnid (`bestiary_scorpion`).
+     - `$` (`Creeping coins`), `|` (`Death sword`, `Hellblade`), `/` (`Animated poleaxe`, `Death Scythe`), `!` (`Potion mimic`), `?` (`Scroll mimic`) mapped to `ph_chest` (or human ranger) instead of their true 3D item/weapon models (`item_gold`, `item_greatsword`, `ph_sledgehammer`, `ph_potion_flask`, `ph_book`).
+
+---
+
+### 2. Turnkey Execution Cards (`19A` → `19B` → `19C` → `19D`)
+
+#### CARD 19A: Offline Binary glTF 2.0 (`.glb`) Bestiary Asset Builder (`tools/build_bestiary_glbs.js`)
+* **Files**: `tools/build_bestiary_glbs.js` + 16 generated `.glb` files in `server/public/assets/models/monsters/bestiary/` and `client/assets/models/monsters/bestiary/`.
+* **Specification**:
+  - Generate 16 multi-material, UV-mapped, smooth-normal binary glTF 2.0 (`.glb`) creature models with embedded 256×256 procedural PBR normal/roughness/albedo PNG textures:
+    1. `centipede.glb` (`bestiary_centipede`): 9-segment S-curved myriapod carapace + 18 articulated legs + antennae + venom forcipules + dark eyes (`Eye_Dark` material exempted from body tint).
+    2. `beetle.glb` (`bestiary_beetle`): Domed scarab/stag elytra + pronotum + serrated stag mandibles + 6 spiked legs + eyes.
+    3. `ant.glb` (`bestiary_ant`): 3-tagmata insect (head, narrow mesosoma, petiole node, bulbous gaster) + serrated mandibles + elbowed antennae + 6 grounded legs + compound eyes.
+    4. `scorpion.glb` (`bestiary_scorpion`): Armored prosoma + 2 pedipalp pincer chelae + 8 walking legs + 5-segment arched metasoma tail + venomous telson stinger.
+    5. `floating_eye.glb` (`bestiary_eye`): Levitating veined sclera orb + colored iris ring (`Iris_Mat`) + deep black pupil (`Pupil_Dark`) + corneal highlight + trailing optic nerve tendrils & beholder eyestalks.
+    6. `worm_mass.glb` (`bestiary_worm_mass`): Writhing low-slung cluster of 8 intertwined segmented annelid worms with raised circular lamprey-toothed maws (`Maw_Dark`) and glistening slime base.
+    7. `jelly_ooze.glb` (`env_ooze_mound`): Translucent multi-lobed undulating slime dome with viscous pseudopods and suspended internal core/digestive nucleus (`Core_Mat`).
+    8. `mushroom_cluster.glb` (`env_fungi_cluster`): Colony of 5 spotted fungal toadstool caps with underside gills, bulbous stalks, and glowing spore pods (`Spore_Glow`).
+    9. `vortex_elemental.glb` (`bestiary_vortex`): Swirling biconical elemental cyclone funnel with helical plasma rings, orbiting jagged elemental shards, and radiant inner core (`Core_Glow`).
+    10. `quylthulg.glb` (`bestiary_quylthulg`): Pulsating fleshy horror mound with organic lobes, translucent pustules (`Pustule_Glow`), dorsal bone spines (`Bone_Mat`), and basal cilia.
+    11. `hydra.glb` (`bestiary_hydra`): Heavy quadrupedal reptile body with 4 clawed legs, lashed tail, dorsal ridge, and 5 sinuous serpentine necks topped with horned, fanged draconic heads (`Teeth_Bone`, `Eye_Glow`).
+    12. `naga.glb` (`bestiary_naga`): Coiled lower serpent tail rising into an upright hooded serpentine torso with flared cobra hood, muscular arms, and fanged head.
+    13. `bat.glb` (`bestiary_bat`): Furry chiropteran torso, pointed ears, fanged snout, clawed feet, and wide scalloped leathery patagium wings (`Wing_Membrane`).
+    14. `bear.glb` (`bestiary_bear`): Heavy hump-shouldered quadrupedal bear/boar/beast with thick furred body, 4 plantigrade clawed paws, ears, and fanged snout (`Snout_Dark`, `Teeth_Bone`).
+    15. `lizard.glb` (`bestiary_lizard`): Low sprawling 4-legged reptile/salamander/basilisk with elongated snout, splayed clawed legs, serrated dorsal crest (`Crest_Mat`), and curved tail.
+    16. `aquatic.glb` (`bestiary_aquatic`): Streamlined predatory piranha/shark with dorsal fin, pectoral fins, forked caudal tail fin, gill slits, glaring eyes (`Eye_Glow`), and razor-toothed open jaw (`Teeth_Bone`).
+
+---
+
+#### CARD 19B: Web Three.js Bestiary Loader, Mesh Enhancer & 4-Realm Resolver (`server/public/js/dungeon3d.js`)
+* **Delegation**: Delegate to `Model: 'flash'` subagent per `L35`.
+* **Exact Edits in `server/public/js/dungeon3d.js`**:
+  1. **Add `_enhanceBestiaryMeshQuality(scene, opts)` (around line 8876)**:
+     - For meshes lacking `geometry.attributes.uv` (`giant_spider.glb`, `snake.glb`, `wasp.glb`, `frog.glb`), compute bounding box and generate triplanar `uv` coordinates so procedural PBR bump/roughness maps bind cleanly, and weld split-triangle vertices to compute smooth vertex normals (`computeVertexNormals()`).
+     - Strip inverted-hull `BlackOutline` submeshes (`if (/Outline/i.test(c.material?.name)) c.visible = false`) on `MountainLion.glb` and `Owl.glb`.
+     - Apply spectral Fresnel shader to all meshes in `GhostArmature.glb` (`bestiary_wraith`) regardless of mesh name (`Mesh.038`).
+     - Apply distinct decayed necrotic skin and tattered cloth materials to `zombie_model.glb` (`bestiary_zombie`) submeshes (`zombie_head`/`hand`/`arm` vs `torso`/`leg`/`foot`).
+  2. **Wire All 16 New `.glb` Templates in `_ensureMonster3DTemplate` (`lines 9280–9415`)**:
+     - `bestiary_centipede` -> `/assets/models/monsters/bestiary/centipede.glb`
+     - `bestiary_beetle` -> `/assets/models/monsters/bestiary/beetle.glb`
+     - `bestiary_ant` -> `/assets/models/monsters/bestiary/ant.glb`
+     - `bestiary_scorpion` -> `/assets/models/monsters/bestiary/scorpion.glb`
+     - `bestiary_eye` -> `/assets/models/monsters/bestiary/floating_eye.glb`
+     - `bestiary_worm_mass` -> `/assets/models/monsters/bestiary/worm_mass.glb`
+     - `env_ooze_mound` -> `/assets/models/monsters/bestiary/jelly_ooze.glb`
+     - `env_fungi_cluster` -> `/assets/models/monsters/bestiary/mushroom_cluster.glb`
+     - `bestiary_vortex` -> `/assets/models/monsters/bestiary/vortex_elemental.glb`
+     - `bestiary_quylthulg` -> `/assets/models/monsters/bestiary/quylthulg.glb`
+     - `bestiary_hydra` -> `/assets/models/monsters/bestiary/hydra.glb`
+     - `bestiary_naga` -> `/assets/models/monsters/bestiary/naga.glb`
+     - `bestiary_bat` -> `/assets/models/monsters/bestiary/bat.glb`
+     - `bestiary_bear` -> `/assets/models/monsters/bestiary/bear.glb`
+     - `bestiary_lizard` -> `/assets/models/monsters/bestiary/lizard.glb`
+     - `bestiary_aquatic` -> `/assets/models/monsters/bestiary/aquatic.glb`
+     - `item_gold` -> `/assets/polyhaven/items/coin_pile_spill.glb`
+     - `item_greatsword` -> `/assets/polyhaven/weapons/greatsword_cross.glb`
+  3. **Protect Contrast Materials & Elevate Floating Creatures (`_instantiateMonster3DFromTemplate` & `createMonster3DEntity`)**:
+     - Exempt `Material.001|Red|Eye_|Pupil_|Iris_|Teeth_|Maw_|Bone_|Spore_|Core_|Pustule_|Snout_` from `pooledMat.color.lerp(tintCol, 0.55)` so eyes, pupils, fangs, mouths, and glowing cores retain high-contrast detail when the body is tinted (`yellow centipede`, `white worm mass`, `red frog`, etc.).
+     - In `createMonster3DEntity`, when `cfg.isFloating` is true, elevate `_meshRoot.position.y = 0.36` so Floating Eyes, Beholders, Vortices, Ghosts, and Wraiths visibly hover above the dungeon floor.
+  4. **Overhaul `resolveMonster3DConfig(m, glyph, realmOverride)` (`lines 9426–10158`)**:
+     - Preserve 100% of existing `test_bestiary_match_verification.js` contracts.
+     - Add dedicated Sil-Q glyph & name routing (`&` thorns -> `env_bush_dead`, `G` Giants -> Giant warrior rig, `M`/`m` Spiders -> `obj_spider`, `S`/`s` Serpents -> `obj_snake` when not `/spider/i`, `V` Valar -> crowned sovereign rig, `v` Vampires -> dark robed vampire rig, `w` Phantoms/Shadows -> `bestiary_wraith`, `N` Nameless thing -> `bestiary_horror`).
+     - Route `Floating Eye` / `Beholder` / `Gazer` / `g === 'e'` to `bestiary_eye` (`isFloating: true`).
+     - Route `Quylthulg` / `g === 'Q'` to `bestiary_quylthulg`.
+     - Route `Worm mass` / `Crawler` / `Maggot` / `Leech` / `g === 'w'` (non-Sil-Q) to `bestiary_worm_mass`.
+     - Route `Scorpion` to `bestiary_scorpion`.
+     - Route `Hydra` / `g === 'M'` (Vanilla/FCB/Hengband non-Orochi) to `bestiary_hydra`.
+     - Route `Naga` / `g === 'n'` to `bestiary_naga`.
+     - Route `Bat` / `g === 'b'` to `bestiary_bat`.
+     - Route `Vortex` / `Elemental` / `Hound of Tindalos` (`E`, `v` vortex) to `bestiary_vortex` (`isFloating: true`).
+     - Route `Bear` / `Boar` / `Catoblepas` / `Mumak` / `Beorn` / `g === 'q'` (when not `/horse|pony|stallion|mare|unicorn|pegasus|steed|kirin/i`) to `bestiary_bear`.
+     - Route `Lizard` / `Salamander` / `Basilisk` / `Alligator` / `Crocodile` / `Iguana` / `Chameleon` / `Dinosaur` / `Raptor` / `g === 'R'` (when not `/frog|toad|newt|kappa|turtle|tortoise/i`) to `bestiary_lizard`.
+     - Route FCB/Hengband `g === 'l'` (when not `/tree|ent|huorn|willow|kelp|vine|plant/i`) and `/piranha|shark|barracuda|fish|kraken|eel|octopus|squid|whale|dolphin|manta|crab|lobster|ixitxachitl|merman|mermaid/i` to `bestiary_aquatic`.
+     - Route `Creeping.*coins` / `g === '$'` to `item_gold`, animated swords `g === '|'` to `item_greatsword`, animated polearms `g === '/'` to `ph_sledgehammer`, potion mimics `g === '!'` to `ph_potion_flask`, scroll/book mimics `g === '?'` to `ph_book`.
+
+---
+
+#### CARD 19C: Godot 4 C# Bestiary Parity (`client/scripts/MonsterModelResolver.cs`)
+* **Delegation**: Delegate to `Model: 'flash'` subagent per `L35`.
+* **Exact Edits in `client/scripts/MonsterModelResolver.cs`**:
+  - Register all 16 new `.glb` models (`res://assets/models/monsters/bestiary/{centipede,beetle,ant,scorpion,floating_eye,worm_mass,jelly_ooze,mushroom_cluster,vortex_elemental,quylthulg,hydra,naga,bat,bear,lizard,aquatic}.glb`) and mirror the multi-realm (`silq`, `frogcomposband`, `hengband`, `angband`) rules in `InitModelRules()` and `ResolveModelConfig()`.
+  - Verify `dotnet build client/angband3d.csproj` passes with `0 Warning(s), 0 Error(s)`.
+
+---
+
+#### CARD 19D: Verification Suite Expansion, Visual Contact Sheet & Sync (`tools/test_bestiary_match_verification.js`)
+* **Execution Steps**:
+  1. Expand `tools/test_bestiary_match_verification.js` to assert:
+     - All 16 new `.glb` files exist on disk in both `server/public/assets/models/monsters/bestiary/` and `client/assets/models/monsters/bestiary/`, and have valid `glTF` magic headers (`0x46546C67`) and `TEXCOORD_0` UVs.
+     - `_ensureMonster3DTemplate` loads distinct `.glb` paths for `bestiary_centipede` (`centipede.glb`), `bestiary_beetle` (`beetle.glb`), `bestiary_ant` (`ant.glb`), `bestiary_scorpion` (`scorpion.glb`), `bestiary_eye` (`floating_eye.glb`), `bestiary_worm_mass` (`worm_mass.glb`), `env_ooze_mound` (`jelly_ooze.glb`), `env_fungi_cluster` (`mushroom_cluster.glb`), `bestiary_vortex` (`vortex_elemental.glb`), `bestiary_quylthulg` (`quylthulg.glb`), `bestiary_hydra` (`hydra.glb`), `bestiary_naga` (`naga.glb`), `bestiary_bat` (`bat.glb`), `bestiary_bear` (`bear.glb`), `bestiary_lizard` (`lizard.glb`), and `bestiary_aquatic` (`aquatic.glb`).
+     - Cross-realm bestiary resolution tests pass across `angband`, `silq`, `frogcomposband`, and `hengband`.
+  2. Run `node tools/bump_version.js` and `npm run android:sync`.
+  3. Run `node tools/run_tests.js --tier fast`, `python tools/smoke_test.py`, and `dotnet build`.
+  4. Render a real-browser Chrome CDP 3D WebGL visual contact sheet (`verified_wave19_bestiary_models.png`) showcasing the upgraded 3D models (`Giant Yellow Centipede [c]`, `White Worm Mass [w]`, `Floating Eye [e]`, `Cave Spider [S]`, `Scorpion [S]`, `Giant Red Ant [a]`, `Killer Beetle [K]`, `5-Headed Hydra [M]`, `Spirit Naga [n]`, `Grizzly Bear [q]`, `Basilisk [R]`, `Fire Vortex [v]`, `Mushroom Patch [m]`, `Gelatinous Cube [j]`, `Quylthulg [Q]`, `Vampire Bat [b]`).
+
+
+---
+
+## PART XIII: Wave 20 — Efficiency Polish, Open-Source Studio Audio Overhaul & Next-Gen 3D Action VFX (`v9.8.2`)
+
+### 1. Root-Cause Findings from Efficiency, Audio & Action VFX Audit
+
+#### A. Efficiency & GPU Memory Audit (`server/public/js/dungeon3d.js`)
+1. **Critical GPU VBO Leak in `spawnHitSparks` (`dungeon3d.js:4751` & `12178`)**:
+   - `spawnHitSparks(x, z, color, count)` allocates `new THREE.SphereGeometry(0.025, 4, 4)` on every single invocation, and when the particle group expires in `animate()` at line `12178` (`this.scene.remove(p.group); p.material.dispose();`), `sparkGeo` is **never disposed**. Because `animate()` calls `spawnHitSparks` on 60% of frames during projectile/breath flight (`line 12200`), every fireball or breath leaks ~25–40 WebGL vertex buffers!
+   - **Fix (`L25`, `L26`)**: Pre-allocate shared singleton geometries (`this._sharedSparkGeo`, `this._sharedStreakGeo`, `this._sharedSlashArcGeo`, `this._sharedShockRingGeo`, `this._sharedBreathConeGeo`, `this._sharedDetonationDomeGeo`, `this._sharedAuraCylinderGeo`, all tagged `_sharedGeometry = true`) and a cached radial glow texture (`this._sharedVfxGlowTex`, tagged `_sharedTexture = true`). Dispose every per-effect material and remove point lights cleanly on expiry so 3D combat VFX allocate **zero** GPU geometries or textures per hit.
+2. **Redundant Load-Time Vertex Welding in `_enhanceBestiaryMeshQuality` (`dungeon3d.js:8922`)**:
+   - Since `tools/build_bestiary_glbs.js` already welded smooth vertex normals and wrote `TEXCOORD_0` UVs directly into the `.glb` files on disk (`giant_spider.glb`, `snake.glb`, `wasp.glb`, `frog.glb`, plus all 16 new models), running the JS vertex-welding loop on already-UV-mapped meshes wastes ~15,800 vertex iterations at load time.
+   - **Fix**: Only run JS vertex-normal welding when `hadMissingUv` is true (or when a mesh lacks `normal` attributes).
+
+#### B. Why Audio Sounded "8-Bit Corny" (`server/public/js/audio.js` & `client/scripts/AudioManager.cs`)
+1. **Zero Recorded Foley/Combat Samples**:
+   - Previously, `audio.js` and `AudioManager.cs` generated 100% of sounds using mathematical `Math.sin(2 * Math.PI * freq * t)` loops (`synthWhoosh` was a sine-wave slide whistle; `synthHit`/`synthCrit` were basic sine/noise bursts) or real-time `ctx.createOscillator()` frequency sweeps (`playWeaponImpact` swept a `sawtooth` oscillator from `1800Hz -> 420Hz`, sounding like an 8-bit NES laser "pew!").
+2. **High-Fidelity Open/Free Studio Audio Upgrade (`CC0 1.0` + `GPL-2.0`)**:
+   - Bundle a curated, high-fidelity 62-file `.ogg`/`.wav` studio SFX bank in `server/public/assets/audio/sfx/` (and mirrored to `client/assets/audio/sfx/`) sourced from:
+     - **Kenney CC0 RPG Audio & Impact Sounds (`CC0 1.0 Universal`)**: Real recorded foley footsteps (stone/cobble, grass/outdoor, wood), steel blade draws/slices, heavy plate/metal/wood/mining impacts, door latches/creaks, coin jingles, parchment/book flips, potion corks/glass, and UI clicks.
+     - **Battle for Wesnoth Open-Source Core Sound Library (`GPL-2.0+`, matching Angband's GPL-2.0 license)**: Studio-recorded medieval weapons (`sword_1.ogg`, `axe_hit.ogg`, `mace_hit.ogg`, `flail_hit.ogg`, `spear_hit.ogg`, `miss_1..3.ogg`, `bow_fire.ogg`, `bow_miss.ogg`, `crossbow_fire.ogg`), elemental spells & dragon breaths (`flame_big.ogg`, `explosion.ogg`, `lightning_bolt.ogg`, `magic_missile_1..2.ogg`, `magic_dark_big.ogg`, `magic_holy_1..2.ogg`, `magic_faerie.ogg`, `petrified.ogg`, `poison_spell.ogg`, `heal_spell.wav`, `fanfare_short.wav`, `water_blast.wav`), and authentic creature vocalizations (`orc_hit/die`, `goblin_hit/die`, `troll_hit/die`, `drake_hit/die`, `wolf_growl/hit/die`, `hiss_big/hit/die`, `skeleton_hit/die`, `zombie_hit`, `lich_hit/die`, `wail`, `bat_hit`, `pincers`, `bite`, `claws`, `squishy_hit`).
+   - Add a **Stereo Dungeon Convolution Reverb Bus** (`ConvolverNode` with a stereo stone-hall acoustic impulse response + dry/wet mix control) in `SoundEngine` so every blade clash, arrow loose, monster roar, and fireball detonation has authentic subterranean stone acoustics.
+   - Maintain 100% synchronous buffer readiness (`this.buffers`, `this.stoneFootsteps`, `this.outdoorFootsteps`) for offline/`about:blank` unit tests (`tools/test_audio_browser.js`), while replacing all 8-bit sine/sawtooth pitch sweeps with multi-layered physical transient synthesis as the synchronous fallback and seamlessly swapping in decoded `.ogg`/`.wav` studio `AudioBuffer`s via `loadStudioSfxBank()`.
+
+#### C. Why Action Graphics Looked Basic (`server/public/js/dungeon3d.js`)
+1. **Single-Primitive Wire Hoops & Unvaried Spheres**:
+   - Previously, `spawnProjectileOrSpellVfx` used a single flat `TorusGeometry` hoop for `slash`/`blunt`/`pierce`, a single `SphereGeometry` for `fireball`/`bolt`/`breath`, and a single thin 1px `THREE.Line` for `lightning`.
+2. **Next-Gen 3D Action & Spell VFX Upgrade (`dungeon3d.js`)**:
+   - **Weapon-Specific 3D Melee Cleaves, Shockwaves & Thrust Lances**:
+     - `slash`: Multi-layered glowing crescent blade-arc ribbon (`RingGeometry` arc segment with hot white-gold leading edge + crimson/steel wake) that sweeps across the target's chest height, spawns a cross-slash X-cleave on critical hits (`crit_slash`), and emits directional velocity-streaked steel sparks.
+     - `blunt`: Dual expanding seismic ground/air concussive shockwave rings + radial dust/debris cloud + central impact flash dome.
+     - `pierce`: High-velocity directional thrust lance streak (`ConeGeometry` energy lance) piercing forward from attacker to target with a focused forward cone of armor sparks.
+   - **Volumetric 3D Spell, Breath & Ranged Projectiles**:
+     - `bolt` / `fireball`: Multi-layered elemental orb (white-hot inner plasma core + counter-rotating elemental corona shell + trailing directional embers) that detonates on impact into an expanding volumetric elemental shockwave dome (`spawnDetonationDome`) + ground scorch/frost ring!
+     - `breath`: True **Dragon Breath Cone Torrent** — a billowing conical stream of elemental plasma/fire/frost/acid/lightning rings and high-velocity breath particles surging from caster to target with dynamic point-light illumination.
+     - `lightning`: Multi-branching jagged **3D Forked Lightning** (`main bolt + 3 secondary jagged branches + glowing plasma core + ground-strike arc flash`) with realistic rapid electrical flicker.
+     - `aura`: **Runic Ascension Pillar** — 3 staggered rising runic light rings + vertical translucent light column + ascending golden/emerald helical motes.
+
+---
+
+### 2. Turnkey Execution Cards (`Cards 20A–20D`)
+
+#### CARD 20A: Curate & Bundle Open-Source Studio SFX Library (`tools/fetch_open_sfx.js` + `CREDITS.md`)
+* **Execution Steps**:
+  1. Create `tools/fetch_open_sfx.js` to extract/download the curated 62-file open-source fantasy SFX bank into `server/public/assets/audio/sfx/` and mirror to `client/assets/audio/sfx/`.
+  2. Write `server/public/assets/audio/sfx/manifest.json` listing all bundled studio SFX files and categories.
+  3. Update `CREDITS.md` Section 4 (`Audio Systems, Studio Foley & Open-Source Sound Libraries`) to credit **Kenney RPG Audio & Impact Sounds (`CC0 1.0 Universal`)** and **The Battle for Wesnoth Sound Library (`GPL-2.0+`)**, while preserving all existing lines required by `tools/test_hero_sketch_and_gui.js`.
+
+#### CARD 20B: Web Audio Studio Sampler + Convolution Reverb (`server/public/js/audio.js`) & Godot `AudioManager.cs`
+* **Delegation**: Delegate to `Model: 'flash'` subagents per `L35`.
+* **Exact Edits in `server/public/js/audio.js`**:
+  1. Preserve 100% of existing public API & test contracts (`this.buffers`, `this.stoneFootsteps`, `this.outdoorFootsteps`, `this.masterCompressor`, `this.masterGain`, `this.sfxGain`, `this.ambientGain`, and all `play*()` methods).
+  2. Add Stereo Dungeon Convolution Reverb (`createDungeonReverbImpulse` + `this.reverbConvolver` + `this.reverbWetGain` + `this.reverbSend`).
+  3. Add Asynchronous Studio SFX Bank Loader (`loadStudioSfxBank()`) + Multi-Sample Variation Pools (`this.samplePools`) + `playPoolSample(poolKey, volume, pitchMin, pitchMax, pan, reverbAmount, fallbackBufferKey)`.
+  4. Replace all 8-bit `OscillatorNode` frequency sweeps in `playWeaponImpact`, `playArrowLooseAndImpact`, `playPotionThrowAndShatter`, `playLightningCrack`, `playFireballDetonation`, `playRunicAura`, `playDiggingStrike`, `playMonsterVocal`, `playHit`, `playCrit`, `playWhoosh`, `playSpell`, `playBreath`, `playDoorOpen`, `playDoorSlam`, `playPickup`, `playGoldPickup`, `playQuaff`, `playReadScroll`, and `playLevelUp` so they play the layered studio samples via `playPoolSample(...)` and fall back to physical multi-band filtered transient buffers instead of sine/sawtooth oscillators in offline unit tests.
+* **Exact Edits in `client/scripts/AudioManager.cs`**:
+  - Add `LoadStudioStream(string fileName)` checking `res://assets/audio/sfx/{fileName}` via `ResourceLoader.Exists` / `ResourceLoader.Load<AudioStream>()`, populating variation pools (`_studioPools`) and overriding `_sfxLibrary` entries when present.
+
+#### CARD 20C: Efficiency Polish & Next-Gen 3D Action Graphics (`server/public/js/dungeon3d.js`)
+* **Delegation**: Delegate to `Model: 'flash'` subagent per `L35`.
+* **Exact Edits in `server/public/js/dungeon3d.js`**:
+  1. Pre-allocate shared singleton VFX geometries (`_ensureSharedVfxResources`: `_sharedSparkGeo`, `_sharedStreakGeo`, `_sharedShockRingGeo`, `_sharedSlashArcGeo`, `_sharedThrustLanceGeo`, `_sharedBreathConeGeo`, `_sharedDetonationDomeGeo`, `_sharedAuraCylinderGeo`, `_sharedVfxGlowTex`) and eliminate per-call `new THREE.SphereGeometry` in `spawnHitSparks`.
+  2. Upgrade `spawnProjectileOrSpellVfx`, `spawnDetonationDome`, and `animate()` to render crescent blade-cleave arcs (`slash` & `crit_slash`), dual seismic shockwave rings (`blunt`), piercing thrust lances (`pierce`), multi-layered elemental orbs + impact detonation domes (`bolt` / `fireball`), volumetric dragon breath cones (`breath`), multi-branch forked lightning (`lightning`), and runic ascension pillars (`aura`).
+  3. Wire critical hit detection and monster vocalizations (`playMonsterVocal(ep.glyph, 'grunt'|'death', ep.pan)`) in `triggerMessageVfx`.
+  4. Skip redundant JS vertex-normal welding in `_enhanceBestiaryMeshQuality` when the `.glb` already has `TEXCOORD_0` UVs on disk.
+
+#### CARD 20D: Verification Suite, Visual Proof Contact Sheet, Version Bump (`v9.8.2`) & Android Sync
+* **Execution Steps**:
+  1. Update `tools/test_audio_browser.js` and `tools/test_sfx_and_minimap.js` to verify studio SFX bank presence, `SoundEngine` convolution reverb & sample pools, and zero-leak shared VFX geometries.
+  2. Run `node tools/bump_version.js 9.8.2` and `npm run android:sync`.
+  3. Run `node tools/run_tests.js --tier fast`, `node tools/test_audio_browser.js`, `python tools/smoke_test.py`, and `dotnet build`.
+  4. Capture real-browser Chrome CDP 3D WebGL visual contact sheet (`verified_wave20_action_vfx.png`).
+
+---
+
+## PART XIV: Wave 21 — Combat Audio Sanitization, Vertical Apothecary Medicine Vials & Tattered-Scroll/Charred-Wood HUD Overhaul, 158.5 MB Bloat Reduction, Bulletproof Release Fix & Production Deploy (`v9.9.0`)
+
+### 1. Root-Cause Findings from Wave 21 Audit
+
+#### A. Why Combat Audio Had Guttural / Obscene Vocal Sounds (`server/public/js/audio.js`, `server/public/js/dungeon3d.js`, `client/scripts/AudioManager.cs`)
+1. **Continuous Humanoid/Monster Vocal Grunts on Every Melee Hit**:
+   - In `server/public/js/dungeon3d.js` (`triggerMessageVfx`, lines 5409 & 5437), `this.audio.playMonsterVocal(mGlyph, 'grunt', ep.pan)` fired on every critical melee hit and every monster attack, and `loadStudioSfxBank()` in `server/public/js/audio.js` mapped `monster_orc`, `monster_troll`, `monster_undead`, `monster_ghost`, `monster_insect`, `monsterGrunt`, and `monsterDeath` to Battle for Wesnoth humanoid/creature groan/retching/screaming recordings (`orc_hit_1.ogg`, `orc_die_1.ogg`, `goblin_hit_1.ogg`, `goblin_die_1.ogg`, `troll_hit_1.ogg`, `troll_die_1.ogg`, `zombie_hit_1.ogg`, `lich_hit_1.ogg`, `lich_die.ogg`, `squishy_hit.wav`, `wail.wav`, `hiss_die.wav`, `hiss_hit.wav`, `wolf_die_1.ogg`, `drake_die.ogg`).
+   - Additionally, the procedural fallbacks `synthMonsterGrunt()` and `synthMonsterDeath()` in `audio.js` used vocal-tract formant resonators (`500Hz`, `1100Hz`, `2200Hz`) that produced guttural throat groans.
+2. **Sanitization Solution (`L41` — Non-Vocal Physical Foley Combat Principle)**:
+   - Remove all 15 guttural/groaning/wet vocal recordings from `tools/fetch_open_sfx.js`, `server/public/assets/audio/sfx/`, `client/assets/audio/sfx/`, and `manifest.json`, retaining **79 crisp, clean studio weapon, armor, shield, bow, spell, footstep, and physical foley recordings** (`sfxManifest.files.length === 79 >= 60`).
+   - Ensure `.gitignore` includes `!server/public/assets/audio/sfx/*.wav` and `!client/assets/audio/sfx/*.wav` so the 5 clean studio `.wav` SFX files (`fanfare_short.wav`, `heal_spell.wav`, `hiss_big.wav`, `open_chest.wav`, `water_blast.wav`) are tracked by Git and present in CI/CD runners.
+   - Map `monsterGrunt`, `monsterDeath`, `monster_orc`, `monster_troll`, `monster_undead`, `monster_ghost`, and `playerHurt` strictly to **clean non-vocal physical foley** (`impact_plate_med_1.ogg`, `impact_plate_heavy_1..2.ogg`, `impact_metal_heavy_1..2.ogg`, `impact_wood_heavy_1..2.ogg`, `skeleton_hit_1.ogg`, `skeleton_die_1.ogg` dry bone clatter, `claws.ogg`, `bite.ogg`, `pincers.ogg`, `bat_hit_1.ogg`, `wolf_growl_1.ogg`, `drake_hit_1.ogg`), replace `synthMonsterGrunt`/`synthMonsterDeath` with crisp physical impact/armor/bone transients, and remove `playMonsterVocal` from melee hits in `triggerMessageVfx` (throttling `playMonsterDeath` to at most once per 900ms).
+
+#### B. Why the HUD & Menus Looked Comical & Plain (`server/public/css/dungeon.css:8255-8718`, `server/public/index.html:422-470`, `client/scripts/Overlay.cs`)
+1. **Round 76×76 "Beach-Ball" HP/MP Orbs & Flat CSS Panels**:
+   - In `dungeon.css:8265-8395`, `.gauge-hp .gauge-track` and `.gauge-sp .gauge-track` were styled as `width: 76px; height: 76px; border-radius: 50%` round balls with centered overlapping text, and `.vial-neck-collar` was hidden (`display: none`).
+   - Structural docks and modal menus used plain CSS linear-gradients without tactile charred-wood or tattered-scroll textures.
+2. **Dark-Fantasy Vertical Apothecary Medicine Vials + Tattered-Scroll & Charred-Wood Overhaul (`L42`)**:
+   - Build `tools/build_hud_textures.js` to deterministically generate seamless, high-detail dark-fantasy UI textures in `server/public/assets/ui/` and `client/assets/ui/`:
+     1. `tattered_scroll.png`: Aged medieval vellum/parchment with organic linen fibers, burnt umber deckled borders, and subtle ink grain.
+     2. `charred_wood.png`: Deep scorched oak plank grain with iron-bound rivet/ash texture.
+     3. `apothecary_vial_overlay.svg`: Precision cylindrical glass medicine vial overlay with etched apothecary graduation marks (`100 / 75 / 50 / 25`), specular glass refraction ribs, and brass collar rim.
+   - Transform `#char-panel .vitals-vials-row` into **Twin Vertical Apothecary Medicine Vials**:
+     - Each gauge (`gauge-hp`, `gauge-sp`) is a horizontal pod containing a **Vertical Cylindrical Glass Medicine Vial** (`width: 30px; height: 86px; border-radius: 5px 5px 11px 11px`) topped with a visible **Cork & Hammered-Brass Neck Collar** (`.vial-neck-collar { display: block !important; }`), internal vertical liquid column (`#hp-fill` crimson tincture / `#sp-fill` arcane sapphire elixir with glowing meniscus crest and rising micro-bubbles), etched glass graduation ticks (`apothecary_vial_overlay.svg`), and a crisp side-mounted telemetry column (`HEALTH` / `100/100` and `MANA` / `45/45` + delta badge) next to each vial so numbers never obscure the liquid column and the entire `#char-panel` remains compact (`width: 244px`).
+   - Style all structural HUD docks (`#char-panel`, `#action-bar`, `#hud-footer`, `#minimap-container`, `#touch-controls`, `#top-right-bar .icon-btn`) as **Charred Iron-Bound Wood** (`charred_wood.png` + forged bronze/iron bevels) and all lore/text panels & modal menus (`#message-feed-window`, `#chronicle-window`, `.reticle-target-card`, `.splash-card`, `.main-menu-card`, `.pause-card`, `.terminal-card`, `.load-card`, `.guide-card`, `.cmd-palette-card`, `.mco-sheet`, `.birth-review-card`, `.menu-option-btn`, `.splash-realm-card`) as **Tattered Parchment Scrolls** (`tattered_scroll.png` + scorched umber deckled framing).
+   - Mirror the vertical medicine vial gauges and charred-wood/parchment styling into the native Godot 4 C# HUD (`client/scripts/Overlay.cs`).
+   - Preserve 100% of pinned test contracts in `AGENTS.md` Guardrail #7 (`#message-feed-window` `106px`, `0.35`, `320px`; `.top-message-banner { cursor: pointer; }`; `#stat-item-gra[style*="display: none"] { display: none !important; }`).
+
+#### C. Bloat Audit & 158.5 MB Repository Diet (`L43`)
+1. **158.5 MB of Unreferenced Legacy Demo Assets in `server/public/assets/`**:
+   - `server/public/assets/audio/demo/` contained **52.64 MB** of unreferenced old demo narration `.wav` and `.mp3` clips (zero code or HTML references).
+   - `server/public/assets/video/frames/` contained **107.65 MB** (66 PNG files) of old demo video frames, of which only `kf_15_dragon_target_fire_clash_205s.png` (`1.7 MB`) is referenced for social OpenGraph metadata in `index.html`.
+   - Removing `server/public/assets/audio/demo/` and the 65 unreferenced `kf_*.png` files frees **158.5 MB** from `server/public/` and the Git repository.
+2. **Temp Chrome Profile Hygiene in Browser Tests (`D16`)**:
+   - Update `tools/test_audio_browser.js` and `tools/test_sfx_and_minimap.js` to allocate temporary Chrome user-data directories inside `os.tmpdir()` instead of `tools/`.
+
+#### D. Why the `v9.8.0` GitHub Release Failed & How to Make It Bulletproof (`L44`)
+1. **Exact Root Cause (`GitHub Actions run 39177055235`, job `117821773169`)**:
+   - `build-windows` and `build-linux` succeeded, but `build-android` failed at `:app:packageRelease` with:
+     `SigningConfig "release" is missing required property "storeFile".`
+   - In `android/app/build.gradle:39-45`, `buildTypes.release` unconditionally set `signingConfig signingConfigs.release` even when neither `keystore.properties` nor `ANDROID_KEYSTORE_PATH` was configured in CI secrets (`signingConfigs.release.storeFile == null`).
+2. **Bulletproof Fix (`android/app/build.gradle` & `.github/workflows/release.yml`)**:
+   - In `android/app/build.gradle`, set:
+     `signingConfig (signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug)`
+     so `assembleRelease` signs with the custom release keystore when provided, and automatically falls back to `signingConfigs.debug` in CI when no keystore secret is present—always producing a signed, installable `app-release.apk` (`Angband3D-Android.apk`).
+   - In `.github/workflows/release.yml`:
+     - Use `npm run android:sync` in `build-android` so `assets/video` and `demo.html` are automatically stripped from the Android APK.
+     - Upload only `dist/Angband3D-Windows-x64.zip` in `build-windows` (removing the duplicate `dist/angband3d-standalone.zip` artifact upload).
+
+---
+
+### 2. Turnkey Execution Cards (`Cards 21A–21D`)
+
+#### CARD 21A: Combat Audio Sanitization & 158.5 MB Bloat Purge (`tools/fetch_open_sfx.js`, `server/public/js/audio.js`, `server/public/js/dungeon3d.js`, `client/scripts/AudioManager.cs`)
+* **Execution Steps**:
+  1. Remove the 15 guttural/groaning/wet vocal recordings (`orc_hit_1.ogg`, `orc_die_1.ogg`, `goblin_hit_1.ogg`, `goblin_die_1.ogg`, `troll_hit_1.ogg`, `troll_die_1.ogg`, `zombie_hit_1.ogg`, `lich_hit_1.ogg`, `lich_die.ogg`, `squishy_hit.wav`, `wail.wav`, `hiss_die.wav`, `hiss_hit.wav`, `wolf_die_1.ogg`, `drake_die.ogg`) from `tools/fetch_open_sfx.js`, delete them from `server/public/assets/audio/sfx/` and `client/assets/audio/sfx/`, and re-run `node tools/fetch_open_sfx.js` to write the clean 79-file `manifest.json`.
+  2. Add `!server/public/assets/audio/sfx/*.wav` and `!client/assets/audio/sfx/*.wav` to `.gitignore` so the 5 clean studio `.wav` SFX files are tracked in Git.
+  3. Update `server/public/js/audio.js`, `client/scripts/AudioManager.cs`, and `server/public/js/dungeon3d.js` (`triggerMessageVfx`) so combat strikes play crisp weapon/armor/bone/elemental foley with zero guttural groans.
+  4. Purge `server/public/assets/audio/demo/` (`52.64 MB`) and the 65 unreferenced `server/public/assets/video/frames/kf_*.png` files (`105.9 MB`), and switch temp Chrome profile paths in `tools/test_audio_browser.js` and `tools/test_sfx_and_minimap.js` to `os.tmpdir()`.
+
+#### CARD 21B: Vertical Apothecary Medicine Vials & Tattered-Scroll / Charred-Wood HUD & Menus (`tools/build_hud_textures.js`, `server/public/css/dungeon.css`, `server/public/js/hud.js`, `client/scripts/Overlay.cs`)
+* **Delegation**: Delegate CSS/HUD & Godot `Overlay.cs` updates to `Model: 'flash'` subagent per `L35`.
+* **Execution Steps**:
+  1. Create and run `tools/build_hud_textures.js` to generate `tattered_scroll.png`, `charred_wood.png`, and `apothecary_vial_overlay.svg` in `server/public/assets/ui/` and `client/assets/ui/`.
+  2. Overhaul `server/public/css/dungeon.css` (`lines 8250-8718` + modal/menu cards) and `server/public/js/hud.js` (`updateVitals` bubble/meniscus polish) so HP & Mana render as graduated **Vertical Apothecary Medicine Vials** with corked brass collars and side telemetry readouts, structural HUD docks render as **Charred Iron-Bound Wood**, and lore panels/menus render as **Tattered Parchment Scrolls**.
+  3. Mirror the Vertical Medicine Vial gauges and charred-wood/parchment theme in `client/scripts/Overlay.cs` for the Godot 4 C# client.
+  4. Add HUD & menu contract checks to `tools/test_hud_message_pass.js` and render a real-browser Chrome CDP visual verification contact sheet (`verified_wave21_hud_and_menus.png`).
+
+#### CARD 21C: Bulletproof Release Workflow Fix & Comprehensive Documentation (`android/app/build.gradle`, `.github/workflows/release.yml`, `README.md`, `docs/index.md`, `docs/LLM_CONTEXT.md`, `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md`, `CHANGELOG.md`, `CREDITS.md`, `docs/STATE.md`)
+* **Execution Steps**:
+  1. Fix `android/app/build.gradle` `signingConfig` fallback and `.github/workflows/release.yml`.
+  2. Update `README.md`, `docs/index.md`, `docs/LLM_CONTEXT.md`, `docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md` (adding `L41–L44`), `CHANGELOG.md` (`v9.9.0`), `CREDITS.md`, and `docs/STATE.md`.
+
+#### CARD 21D: Full Verification Gate, Commit, Push, Bulletproof `v9.9.0` Release & Live Production Deployment to `angband3d.com`
+* **Execution Steps**:
+  1. Run `node tools/bump_version.js 9.9.0` and `npm run android:sync`.
+  2. Run `node tools/run_tests.js --tier fast`, `node tools/test_audio_browser.js`, `python tools/smoke_test.py`, `dotnet build client/angband3d.csproj`, and `dotnet build desktop/Angband3D.csproj`.
+  3. Commit and push to `fix/award-pass` and `main`, create and push tag `v9.9.0`, monitor the GitHub Actions `Release Build & Publish` workflow to 100% green completion, and deploy/verify `v9.9.0` live on `https://angband3d.com`.
+

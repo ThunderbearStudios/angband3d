@@ -2132,5 +2132,38 @@ To guarantee zero regressions against the existing test suite (`tools/test_manif
 - **The Architectural Invariant (`L40`)**:
   Never apply `display: flex !important` to `.stat-item` without an explicit `#stat-item-gra[style*="display: none"] { display: none !important; }` rule, ensuring the 3×2 attribute grid (`STR, INT, WIS / DEX, CON, CHR`) remains compact across all realms.
 
+---
 
+## 45. Studio Foley Sanitization, Vertical Apothecary Vials & Tattered-Scroll UI, Repository Diet & Bulletproof Android Release Signing (`v9.9.0`, `L41–L44`)
 
+### 45.1 Non-Vocal Physical Foley Combat Principle (`L41`)
+- **The Phenomenon & Failure Mode**:
+  Triggering humanoid/monster vocal grunt recordings (`orc_hit_1.ogg`, `goblin_hit_1.ogg`, `troll_hit_1.ogg`, `zombie_hit_1.ogg`, `lich_hit_1.ogg`, `squishy_hit.wav`, `wail.wav`) or vocal-tract formant resonators (`synthMonsterGrunt` / `synthMonsterDeath`) on every melee strike (`triggerMessageVfx`) caused rapid roguelike combat exchanges to produce repetitive, guttural, and unpleasant groaning noises.
+- **The Architectural Invariant (`L41`)**:
+  - Combat audio in high-speed roguelikes must rely strictly on **crisp, non-vocal physical foley** (medieval steel blade slices, axe/mace/spear impacts, plate-armor deflection, heavy shield blocks, bowstring releases, dry skeleton bone clatter, and elemental spell/breath transients) conditioned through a stereo stone-dungeon convolution reverb bus (`createDungeonReverbImpulse`).
+  - Never include humanoid/creature groan/retching/screaming recordings in `server/public/assets/audio/sfx/` or call `playMonsterVocal` on routine melee strikes. Ensure `.gitignore` explicitly whitelists `!server/public/assets/audio/sfx/*.wav` and `!client/assets/audio/sfx/*.wav` so studio `.wav` SFX files are tracked in Git and present on CI runners.
+
+### 45.2 Vertical Apothecary Medicine Vials & Tattered-Scroll / Charred-Wood UI (`L42`)
+- **The Phenomenon & Failure Mode**:
+  Styling `#char-panel .gauge-hp .gauge-track` and `.gauge-sp .gauge-track` as `76px × 76px` `border-radius: 50%` circles with `.vial-neck-collar { display: none }` and centered overlapping text looked like cartoon beach balls and obscured liquid levels, while flat CSS linear-gradients on panels and modals lacked tactile dark-fantasy materiality.
+- **The Architectural Invariant (`L42`)**:
+  - Render Health and Mana/Voice vitals as **Twin Vertical Apothecary Medicine Vials** (`width: 28px; height: 78px; border-radius: 5px 5px 11px 11px`) topped by a visible brass & cork neck collar (`.vial-neck-collar { display: block !important }`), overlaid with etched apothecary graduation marks (`apothecary_vial_overlay.svg`), filled vertically via `height: calc(var(--vial-pct, 100%) * 0.88)`, and paired with an adjacent side telemetry column (`.gauge-header` `order: 2`) so numbers never obscure the liquid meniscus.
+  - Pair **Charred Iron-Bound Wood** (`charred_wood.png`) on structural HUD docks (`#char-panel`, `#action-bar`, `#hud-footer`, `#minimap-container`, `#touch-controls`) with **Tattered Parchment Scrolls** (`tattered_scroll.png`) on lore/text windows and modal menus (`#message-feed-window`, `#chronicle-window`, `.splash-card`, `.main-menu-card`, `.pause-card`, `.terminal-card`, `.load-card`, `.guide-card`, `.cmd-palette-card`, `.death-panel`).
+
+### 45.3 Shared Singleton VFX Geometries & Asset Bloat Hygiene (`L43`)
+- **The Phenomenon & Failure Mode**:
+  1. Calling `new THREE.SphereGeometry(0.025, 4, 4)` inside `spawnHitSparks` without disposing the geometry when particles expired leaked 25–40 WebGL VBOs per spell/breath flight.
+  2. `server/public/assets/audio/demo/` (`52.64 MB` of untracked `.wav` and unused `.mp3` clips) and 65 unreferenced `server/public/assets/video/frames/kf_*.png` files (`105.9 MB`) bloated `server/public/` by `158.9 MB`.
+- **The Architectural Invariant (`L43`)**:
+  - Pre-allocate all 3D combat/spell VFX geometries once in `_ensureSharedVfxResources()` (`_sharedSparkGeo`, `_sharedStreakGeo`, `_sharedShockRingGeo`, `_sharedSlashArcGeo`, `_sharedSlashCoreGeo`, `_sharedThrustLanceGeo`, `_sharedBreathConeGeo`, `_sharedDetonationDomeGeo`, `_sharedOrbCoreGeo`, `_sharedOrbShellGeo`, `_sharedAuraCylinderGeo`, all tagged `_sharedGeometry = true`) so per-hit VFX allocate zero GPU geometries.
+  - Keep `server/public/assets/` free of unreferenced media caches and allocate all headless Chrome test profiles in `os.tmpdir()`.
+
+### 45.4 Bulletproof Android Release Signing Fallback in CI (`L44`)
+- **The Phenomenon & Failure Mode**:
+  In `android/app/build.gradle`, `buildTypes.release` unconditionally set `signingConfig signingConfigs.release`. When GitHub Actions (`build-android` in `.github/workflows/release.yml`) ran `./gradlew assembleRelease` without `keystore.properties` or `ANDROID_KEYSTORE_PATH` secrets configured, `signingConfigs.release.storeFile` was `null`, causing `:app:packageRelease` to fail with `SigningConfig "release" is missing required property "storeFile"` and blocking `publish-release`.
+- **The Architectural Invariant (`L44`)**:
+  Always guard `buildTypes.release.signingConfig` in `android/app/build.gradle` with a fallback to `signingConfigs.debug` when no release keystore file is present:
+  ```groovy
+  signingConfig (signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug)
+  ```
+  and run `npm run android:sync` in CI before `./gradlew assembleRelease` so stripped web assets are always synchronized and `assembleRelease` produces a signed, installable `app-release.apk` in both secret-backed and secretless CI environments.
