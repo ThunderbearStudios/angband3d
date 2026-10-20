@@ -278,19 +278,103 @@ class InputController {
 
     updateContextButtons(frame) {
         if (!frame || !frame.player) return;
+        const realm = (this.app && typeof this.app.getActiveRealm === 'function')
+            ? this.app.getActiveRealm()
+            : ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband');
+        this.evaluateActionBarContext(frame, realm);
+    }
+
+    /**
+     * Context-filters `#action-bar` buttons so only possible actions are shown,
+     * highlights contextually recommended actions with `.is-suggested`, and
+     * updates the 4-button `#quick-slot-bar` (gated on state signature per L25).
+     */
+    evaluateActionBarContext(frame, realm = 'angband') {
+        if (!frame || !frame.player) return;
+        const r = String(realm || 'angband').toLowerCase();
+        const lang = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
+        const isJp = r === 'hengband' && lang === 'jp';
+        const player = frame.player;
+
+        if (typeof window !== 'undefined' && window.QuickActionManager && typeof window.QuickActionManager.renderBar === 'function') {
+            window.QuickActionManager.renderBar(frame, r, lang);
+        }
+
         const heroAction = this.resolveHeroAction ? this.resolveHeroAction(frame) : null;
         const btnHero = document.getElementById('btn-hero-action');
         const heroActive = Boolean(btnHero && btnHero.style.display !== 'none' && heroAction && heroAction.id !== 'wait');
 
-        const px = frame.player.x;
-        const py = frame.player.y;
+        const px = player.x;
+        const py = player.y;
         const map = frame.map;
+        const inv = Array.isArray(player.inventory) ? player.inventory : [];
+        const eq = Array.isArray(player.equipment) ? player.equipment : [];
+        const quiv = Array.isArray(player.quiver) ? player.quiver : [];
+        const monsters = Array.isArray(frame.monsters) ? frame.monsters.filter((m) => m && m.visible !== false) : [];
+        const items = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
 
+        // 1. Scan inventory & equipment categories in a single O(N) pass
+        let potionCount = 0;
+        let scrollCount = 0;
+        let tomeCount = 0;
+        let deviceCount = 0;
+        let rangedInPack = 0;
+        let wearableInPack = 0;
+        let weaponInPack = 0;
+
+        const isVanilla = r === 'angband';
+        for (const it of inv) {
+            const name = String((it && it.name) || '');
+            const lower = name.toLowerCase();
+            const tval = Number(it && it.tval) || 0;
+            const isPotionTval = isVanilla ? (tval === 26) : (tval === 75 || tval === 71);
+            const isScrollTval = isVanilla ? (tval === 25) : (tval === 70 || tval === 50);
+            const isTomeTval = isVanilla ? (tval >= 30 && tval <= 34) : (tval >= 90 && tval <= 115);
+            const isDeviceTval = isVanilla ? (tval >= 22 && tval <= 24) : (tval === 55 || tval === 65 || tval === 66);
+            const isRangedTval = isVanilla ? (tval >= 2 && tval <= 5) : (tval >= 16 && tval <= 19);
+            const isWeaponTval = isVanilla ? (tval >= 6 && tval <= 9) : (tval >= 20 && tval <= 23);
+            const isArmorTval = isVanilla ? (tval >= 10 && tval <= 21) : (tval >= 30 && tval <= 45);
+
+            if (/\b(potion|phial|draught|elixir)\b/.test(lower) || /(の薬|水薬|霊薬|丸薬|薬$)/.test(name) || isPotionTval) {
+                potionCount++;
+            } else if (/\b(scroll|parchment|card|trump)\b/.test(lower) || /(の巻物|巻物|カード)/.test(name) || isScrollTval) {
+                scrollCount++;
+            } else if (/\b(book|tome|grimoire|manual|hymnal|songbook)\b/.test(lower) || /(魔法書|仙術書|経典|教本|『[^』]+』|\[[^\]]+の魔法書\])/.test(name) || isTomeTval) {
+                tomeCount++;
+            } else if (/\b(wand|rod|staff)\b/.test(lower) || /(魔法棒|ロッド|スタッフ|の杖)/.test(name) || isDeviceTval) {
+                deviceCount++;
+            }
+            if (/\b(bow|crossbow|sling|arrow|bolt|shot|pebble|seeker|sheaf)\b/.test(lower) || /(ボウ|スリング|弓|矢|弾|丸石)/.test(name) || isRangedTval) {
+                rangedInPack++;
+            }
+            if (/\b(sword|dagger|blade|rapier|sabre|katana|spear|lance|halberd|axe|mace|flail|hammer|whip|club)\b/.test(lower) ||
+                /(剣|刀|脇差|ダガー|槍|斧|槌|メイス|フレイル|ハンマー|ムチ|棍棒)/.test(name) ||
+                isWeaponTval) {
+                weaponInPack++;
+                wearableInPack++;
+            } else if (/\b(armour|armor|mail|plate|robe|cloak|shield|helm|crown|cap|gloves|gauntlets|boots|ring|amulet|torch|lantern)\b/.test(lower) ||
+                       /(鎧|メイル|ローブ|クローク|盾|兜|冠|帽子|篭手|靴|指輪|アミュレット|松明|ランタン)/.test(name) ||
+                       isArmorTval) {
+                wearableInPack++;
+            }
+        }
+
+        const hasWeaponEquipped = Boolean(player.weapon_item) || eq.some((it) => {
+            const n = String((it && it.name) || '').toLowerCase();
+            return /\b(sword|dagger|blade|axe|mace|spear|hammer|katana|whip|club)\b/.test(n) || Number(it && it.slot) === 0;
+        });
+        const hasBowEquipped = Boolean(player.bow_item) || eq.some((it) => /\b(bow|longbow|shortbow|crossbow|sling)\b/i.test(String((it && it.name) || '')) || /(ボウ|スリング|弓)/.test(String((it && it.name) || '')) || Number(it && it.tval) === (isVanilla ? 5 : 19));
+        const hasEquipQuiver = eq.some((it) => /\b(arrow|bolt|shot|pebble|seeker|sheaf)\b/i.test(String((it && it.name) || '')) || (!isVanilla && (Number(it && it.tval) >= 16 && Number(it && it.tval) <= 18)));
+        const hasAmmo = quiv.length > 0 || Boolean(player.quiver_item) || hasEquipQuiver || rangedInPack > 0;
+
+        // 2. Scan adjacent map tiles & monster distances
         let adjClosedDoors = 0;
+        let adjAnyDoors = 0;
         let adjMonsters = 0;
-        const standingOnItem = Boolean(Array.isArray(frame.items) && frame.items.some(it => it.x === px && it.y === py));
-        const currentFeat = (this.getFeatAt && map) ? this.getFeatAt(map, px, py) : 0;
-        const standingStair = (currentFeat === 5 || currentFeat === 6);
+        let rangedMonsters = 0;
+        const standingOnItem = Boolean(px !== undefined && py !== undefined && items.some((it) => it && it.x === px && it.y === py));
+        const currentFeat = (this.getFeatAt && map && px !== undefined) ? this.getFeatAt(map, px, py) : 0;
+        const standingStair = (currentFeat === 5 || currentFeat === 6 || (currentFeat >= 7 && currentFeat <= 14) || (currentFeat >= 32 && currentFeat <= 40));
 
         if (map && px !== undefined && py !== undefined) {
             const neighbors = [
@@ -300,38 +384,181 @@ class InputController {
                 { x: px + 1, y: py + 1 }, { x: px - 1, y: py + 1 }
             ];
             for (const n of neighbors) {
-                const feat = (this.getFeatAt && map) ? this.getFeatAt(map, n.x, n.y) : 0;
-                if (feat === 3 || feat === 4) adjClosedDoors++;
-            }
-        }
-        if (Array.isArray(frame.monsters) && px !== undefined && py !== undefined) {
-            for (const m of frame.monsters) {
-                if (m && Math.abs(m.x - px) <= 1 && Math.abs(m.y - py) <= 1 && !(m.x === px && m.y === py)) {
-                    adjMonsters++;
+                const feat = this.getFeatAt ? this.getFeatAt(map, n.x, n.y) : 0;
+                const row = map.rows && map.rows[n.y];
+                const ch = (row && row.g && n.x >= 0 && n.x < row.g.length) ? row.g[n.x] : ' ';
+                if (ch === '+' || feat === 2) {
+                    adjClosedDoors++;
+                    adjAnyDoors++;
+                } else if (ch === '\'' || feat === 3 || feat === 4) {
+                    adjAnyDoors++;
                 }
             }
         }
 
-        const btnDoor = document.getElementById('btn-door');
-        const btnPickup = document.getElementById('btn-pickup');
-        const btnStair = document.getElementById('btn-stair');
-        const btnAttack = document.getElementById('btn-attack');
-        const btnFire = document.getElementById('btn-fire');
+        if (px !== undefined && py !== undefined) {
+            for (const m of monsters) {
+                const dist = Math.max(Math.abs(m.x - px), Math.abs(m.y - py));
+                if (dist === 1) adjMonsters++;
+                else if (dist > 1 && dist <= 12) rangedMonsters++;
+            }
+        }
 
-        if (btnDoor) {
-            btnDoor.style.display = (adjClosedDoors > 0 && (!heroActive || heroAction.id !== 'open-door')) ? 'flex' : 'none';
+        // 3. Player vitals & status conditions
+        const curHp = Number(player.hp ?? 0);
+        const maxHp = Math.max(1, Number(player.hp_max ?? 1));
+        const hpPct = Math.round((curHp / maxHp) * 100);
+        const curSp = Number(player.sp ?? player.csp ?? 0);
+        const maxSp = Number(player.sp_max ?? player.max_sp ?? player.msp ?? 0);
+        const spPct = maxSp > 0 ? Math.round((curSp / maxSp) * 100) : 100;
+        const studyCount = Number(player.study || 0);
+        const statuses = Array.isArray(player.statuses) ? player.statuses : [];
+        const hasBadStatus = statuses.some((st) => st && st.name && /(poison|confus|blind|cut|bleed|stun|afraid|fear|halluc|paralyz|毒|混乱|盲目|切傷|朦朧|恐怖|幻覚)/i.test(st.name));
+
+        // 4. Compute compact state signature (L25)
+        const hasFullData = player.inventory !== undefined || player.hp_max !== undefined;
+        const stateSig = `${r}:${lang}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${tomeCount}:${deviceCount}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors}:${adjAnyDoors}:${adjMonsters}:${rangedMonsters}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${studyCount}:${hasBadStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
+
+        if (stateSig === this._lastActionBarContextSig) return;
+        this._lastActionBarContextSig = stateSig;
+
+        // If frame is a minimal test stub without full inventory array, keep standard buttons visible
+        const hasInvTelemetry = Array.isArray(player.inventory);
+
+        const rules = {
+            'btn-attack': {
+                show: adjMonsters > 0 && (!heroActive || heroAction.id !== 'attack'),
+                suggest: adjMonsters > 0,
+                reason: isJp ? '隣接する敵を攻撃！' : 'Adjacent enemy in melee range!'
+            },
+            'btn-fire': {
+                show: (!hasInvTelemetry || (hasBowEquipped && hasAmmo)) && (!heroActive || heroAction.id !== 'shoot'),
+                suggest: hasBowEquipped && hasAmmo && rangedMonsters > 0 && adjMonsters === 0,
+                reason: isJp ? '射程内に敵 — 射撃推奨' : 'Enemy in range — Shoot!'
+            },
+            'btn-throw': {
+                show: !hasInvTelemetry || (inv.length > 0 && (monsters.length > 0 || r === 'silq')),
+                suggest: r === 'silq' && rangedInPack > 0 && rangedMonsters > 0 && adjMonsters === 0,
+                reason: 'Throw weapon at ranged target'
+            },
+            'btn-cast': {
+                show: !hasInvTelemetry || (r === 'silq' ? maxSp > 0 : (maxSp > 0 && tomeCount > 0)),
+                suggest: maxSp > 0 && (r === 'silq' || tomeCount > 0) && monsters.length > 0 && curSp >= Math.max(1, maxSp * 0.25),
+                reason: isJp ? '魔力あり — 呪文詠唱' : 'Mana available — Cast spell'
+            },
+            'btn-browse': {
+                show: r !== 'silq' && (!hasInvTelemetry || tomeCount > 0),
+                suggest: false
+            },
+            'btn-study': {
+                show: r !== 'silq' && (studyCount > 0 || (!hasInvTelemetry && r !== 'silq') || (tomeCount > 0 && maxSp > 0)),
+                suggest: studyCount > 0 && adjMonsters === 0,
+                reason: isJp ? `新しい呪文を学習可能 (${studyCount})` : `Learn new spell (${studyCount} ready)!`
+            },
+            'btn-skills': {
+                show: r === 'silq',
+                suggest: r === 'silq' && Number(player.exp || 0) >= 500 && monsters.length === 0,
+                reason: 'Spend XP on Sil-Q Abilities [Tab]'
+            },
+            'btn-power': {
+                show: r === 'frogcomposband' || r === 'hengband',
+                suggest: (r === 'frogcomposband' || r === 'hengband') && monsters.length > 0 && hpPct < 70,
+                reason: isJp ? '特殊能力・レイシャル発動' : 'Invoke Racial/Class Power'
+            },
+            'btn-quaff': {
+                show: !hasInvTelemetry || potionCount > 0,
+                suggest: potionCount > 0 && (hpPct < 50 || hasBadStatus),
+                reason: isJp ? '体力低下/状態異常 — 薬を飲む！' : 'Low HP or ailment — Drink Potion!'
+            },
+            'btn-read': {
+                show: r !== 'silq' && (!hasInvTelemetry || scrollCount > 0),
+                suggest: scrollCount > 0 && ((hpPct < 35 && monsters.length > 0) || adjMonsters >= 2),
+                reason: isJp ? '危険 — 巻物で脱出・対処！' : 'Danger — Read Scroll!'
+            },
+            'btn-door': {
+                show: adjAnyDoors > 0 && (!heroActive || heroAction.id !== 'open-door'),
+                suggest: adjClosedDoors > 0 && adjMonsters === 0,
+                reason: isJp ? '隣接する扉を開閉' : 'Open/close adjacent door'
+            },
+            'btn-pickup': {
+                show: standingOnItem && (!heroActive || heroAction.id !== 'pickup'),
+                suggest: standingOnItem,
+                reason: isJp ? '足元のアイテムを拾う' : 'Item underfoot — Pick up!'
+            },
+            'btn-stair': {
+                show: standingStair && (!heroActive || (heroAction.id !== 'stair-down' && heroAction.id !== 'stair-up')),
+                suggest: standingStair && adjMonsters === 0,
+                reason: isJp ? '階段・入口を使用' : 'Use stairs / entrance underfoot'
+            },
+            'btn-rest': {
+                show: !hasInvTelemetry || ((hpPct < 100 || (maxSp > 0 && spPct < 100) || hasBadStatus) && adjMonsters === 0),
+                suggest: (hpPct < 75 || (maxSp > 0 && spPct < 45) || hasBadStatus) && monsters.length === 0,
+                reason: isJp ? '周囲安全 — 休憩して回復' : 'Area clear — Rest to recover HP/Mana'
+            },
+            'btn-inventory': {
+                show: !hasInvTelemetry || inv.length > 0 || eq.length > 0,
+                suggest: false
+            },
+            'btn-equipment': {
+                show: !hasInvTelemetry || eq.length > 0,
+                suggest: false
+            },
+            'btn-wield': {
+                show: !hasInvTelemetry || wearableInPack > 0,
+                suggest: !hasWeaponEquipped && weaponInPack > 0,
+                reason: isJp ? '武器未装備 — 武器を装備！' : 'Unarmed — Wield weapon from pack!'
+            },
+            'btn-drop': {
+                show: !hasInvTelemetry || inv.length > 0,
+                suggest: false
+            },
+            'btn-search': {
+                show: r !== 'silq',
+                suggest: false
+            },
+            'btn-overland': {
+                show: r === 'frogcomposband' || r === 'hengband',
+                suggest: false
+            },
+            'btn-quests': {
+                show: r === 'frogcomposband' || r === 'hengband',
+                suggest: false
+            }
+        };
+
+        let visMask = '';
+        for (const [id, rule] of Object.entries(rules)) {
+            const btn = document.getElementById(id);
+            if (!btn) continue;
+            const visible = Boolean(rule.show) && btn.dataset.realmHidden !== '1';
+            visMask += visible ? '1' : '0';
+            if (visible) {
+                delete btn.dataset.contextHidden;
+                if (!btn.dataset.overflowHidden) {
+                    btn.style.display = id === 'btn-door' || id === 'btn-pickup' || id === 'btn-stair' || id === 'btn-attack' ? 'flex' : '';
+                }
+            } else {
+                btn.dataset.contextHidden = '1';
+                btn.style.display = 'none';
+            }
+
+            const isSuggested = Boolean(visible && rule.suggest);
+            btn.classList.toggle('is-suggested', isSuggested);
+            if (isSuggested && rule.reason) {
+                btn.setAttribute('data-suggest-reason', rule.reason);
+                if (!btn._baseTitle) btn._baseTitle = btn.title || '';
+                btn.title = `★ Suggested: ${rule.reason} • ${btn._baseTitle}`;
+            } else {
+                btn.removeAttribute('data-suggest-reason');
+                if (btn._baseTitle) btn.title = btn._baseTitle;
+            }
         }
-        if (btnPickup) {
-            btnPickup.style.display = (standingOnItem && (!heroActive || heroAction.id !== 'pickup')) ? 'flex' : 'none';
-        }
-        if (btnStair) {
-            btnStair.style.display = (standingStair && (!heroActive || (heroAction.id !== 'stair-down' && heroAction.id !== 'stair-up'))) ? 'flex' : 'none';
-        }
-        if (btnAttack) {
-            btnAttack.style.display = (adjMonsters > 0 && (!heroActive || heroAction.id !== 'attack')) ? 'flex' : 'none';
-        }
-        if (btnFire) {
-            btnFire.style.display = (heroActive && heroAction.id === 'shoot') ? 'none' : '';
+
+        if (visMask !== this._lastActionBarVisMask) {
+            this._lastActionBarVisMask = visMask;
+            if (typeof window !== 'undefined' && typeof window.__updateActionBarOverflow === 'function') {
+                window.__updateActionBarOverflow();
+            }
         }
     }
 
@@ -1109,9 +1336,27 @@ class InputController {
                 return;
             }
 
-            // Any manual key cancels automated quick birth
+            // Any manual key cancels automated quick birth or minimap auto-navigation
             if (window.__app && window.__app.cancelQuickBirth) {
                 window.__app.cancelQuickBirth();
+            }
+            if (this.isAutoNavigating && this.isAutoNavigating()) {
+                this.stopMinimapAutoNav('Manual key press');
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    return;
+                }
+            }
+
+            // F1–F4 or Alt+1–Alt+4: Trigger 4-Slot Bindable Quick-Action Bar (only during active 3D gameplay)
+            const isFKeySlot = (e.key === 'F1' || e.key === 'F2' || e.key === 'F3' || e.key === 'F4') && !e.ctrlKey && !e.altKey && !e.metaKey;
+            const isAltNumSlot = e.altKey && !e.ctrlKey && !e.metaKey && (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4');
+            const isGameActive = !window.__app || (typeof window.__app.getAppState === 'function' ? window.__app.getAppState() === 'game' : (!window.__app.state || window.__app.state === 'playing' || window.__app.state === 'game'));
+            if ((isFKeySlot || isAltNumSlot) && isGameActive && !this.inTerminal) {
+                e.preventDefault();
+                const slotIdx = isFKeySlot ? (parseInt(e.key.slice(1), 10) - 1) : (parseInt(e.key, 10) - 1);
+                this.triggerQuickSlot(slotIdx);
+                return;
             }
 
             // Guide Modal Active: handle tab navigation and close
@@ -1390,13 +1635,6 @@ class InputController {
         else if (e.key === 'Enter') keySpec = 'enter';
         else if (e.key === 'Escape') {
             keySpec = 'escape';
-            if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
-                window.MenuRouter.clearPending();
-            }
-            if (window.__app && window.__app.setForceTerminal) {
-                window.__app.setForceTerminal(false);
-            }
-            window.__manualTerminalOpen = false;
         }
         else if (e.key === 'Backspace') keySpec = 'backspace';
         else if (e.key === 'Tab') keySpec = 'tab';
@@ -1409,13 +1647,68 @@ class InputController {
             const realm = (window.__app && typeof window.__app.getActiveRealm === 'function')
                 ? window.__app.getActiveRealm()
                 : ((window.__app && window.__app.currentRealm) || (lastFrame && lastFrame.realm) || 'angband');
+
+            // Virtual cursor Up/Down navigation when Action Chooser is open or in non-Angband item lists
+            if ((keySpec === 'up' || keySpec === 'down') && this.terminal && typeof this.terminal.moveSelection === 'function') {
+                const pending = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
+                    ? window.MenuRouter.getPending()
+                    : null;
+                const scClass = (window.ScreenContext && typeof window.ScreenContext.classify === 'function' && lastFrame)
+                    ? window.ScreenContext.classify(lastFrame, realm)
+                    : null;
+                const inNonNativeItemList = Boolean(scClass && scClass.mode === 'item-list' && realm !== 'angband');
+                if ((pending && pending.step === 'chooser') || inNonNativeItemList) {
+                    const nextKey = this.terminal.moveSelection(keySpec === 'up' ? -1 : 1);
+                    if (nextKey) {
+                        if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
+                        if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') {
+                            window.__app.updateTerminalToolbar(lastFrame);
+                        }
+                        return;
+                    }
+                }
+            }
+
+            // In non-Angband item lists (Sil-Q, FrogComposBand, Hengband), pressing Enter when chooser is not open
+            // activates the currently highlighted item key from the virtual cursor.
+            if (keySpec === 'enter' && this.terminal && typeof this.terminal.getSelectedKey === 'function') {
+                const pending = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
+                    ? window.MenuRouter.getPending()
+                    : null;
+                const scClass = (window.ScreenContext && typeof window.ScreenContext.classify === 'function' && lastFrame)
+                    ? window.ScreenContext.classify(lastFrame, realm)
+                    : null;
+                if ((!pending || pending.step !== 'chooser') && scClass && scClass.mode === 'item-list' && realm !== 'angband') {
+                    const selKey = this.terminal.getSelectedKey();
+                    if (selKey) {
+                        keySpec = selKey;
+                    }
+                }
+            }
+
             if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
                 if (window.MenuRouter.route(keySpec, lastFrame, realm)) {
+                    if (this.terminal && typeof this.terminal.setSelectedKey === 'function' && keySpec.length === 1) {
+                        this.terminal.setSelectedKey(keySpec);
+                    }
                     if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') {
                         window.__app.updateTerminalToolbar(lastFrame);
                     }
+                    if (this.terminal && lastFrame && lastFrame.term && typeof this.terminal.render === 'function') {
+                        this.terminal.render(lastFrame.term);
+                    }
                     return;
                 }
+            }
+
+            if (keySpec === 'escape') {
+                if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
+                    window.MenuRouter.clearPending();
+                }
+                if (window.__app && window.__app.setForceTerminal) {
+                    window.__app.setForceTerminal(false);
+                }
+                window.__manualTerminalOpen = false;
             }
             this.network.sendKey(keySpec);
         }
@@ -2269,8 +2562,11 @@ class InputController {
                     // Mobile / coarse pointer: collapse to 6 primary buttons plus More
                     let kept = 0;
                     for (const btn of allButtons) {
-                        const isHiddenByRule = btn.dataset.realmHidden === '1' || (btn.style.display === 'none' && !btn.dataset.overflowHidden);
-                        if (isHiddenByRule) continue;
+                        const isHiddenByRule = btn.dataset.realmHidden === '1' || btn.dataset.contextHidden === '1' || (btn.style.display === 'none' && !btn.dataset.overflowHidden);
+                        if (isHiddenByRule) {
+                            btn.style.display = 'none';
+                            continue;
+                        }
 
                         if (kept < 6) {
                             if (btn.parentElement !== actionBar) {
@@ -2288,12 +2584,15 @@ class InputController {
                     actionMoreBtn.classList.add('is-needed');
                     actionMoreBtn.style.display = 'inline-flex';
                 } else {
-                    // Desktop fine pointer: restore all buttons into actionBar before actionMoreBtn
+                    // Desktop fine pointer: restore all visible buttons into actionBar before actionMoreBtn
                     for (const btn of allButtons) {
                         if (btn.parentElement !== actionBar) {
                             actionBar.insertBefore(btn, actionMoreBtn);
                         }
                         btn.removeAttribute('data-overflow-hidden');
+                        if (btn.dataset.realmHidden === '1' || btn.dataset.contextHidden === '1') {
+                            btn.style.display = 'none';
+                        }
                     }
 
                     // Check row count (2 rows max)
@@ -2305,9 +2604,10 @@ class InputController {
                         actionMoreBtn.classList.add('is-needed');
                         actionMoreBtn.style.display = 'inline-flex';
 
-                        // Move trailing buttons by reverse priority into actionPopover until scrollHeight <= 2 rows
+                        // Move trailing visible buttons by reverse priority into actionPopover until scrollHeight <= 2 rows
                         for (let i = allButtons.length - 1; i >= 0; i--) {
                             const btn = allButtons[i];
+                            if (btn.dataset.realmHidden === '1' || btn.dataset.contextHidden === '1') continue;
                             if (btn.parentElement === actionBar) {
                                 if (actionPopover) actionPopover.insertBefore(btn, actionPopover.firstChild);
                                 btn.setAttribute('data-overflow-hidden', '1');
@@ -2427,8 +2727,42 @@ class InputController {
             }
         });
 
+        // 4-Slot Bindable Quick-Action Bar (#quick-slot-bar)
+        for (let i = 0; i < 4; i++) {
+            const qBtn = document.getElementById(`quick-slot-btn-${i + 1}`);
+            if (qBtn) {
+                bindReliableAction(qBtn, (ev) => {
+                    if (ev && ev.stopPropagation) ev.stopPropagation();
+                    this.triggerQuickSlot(i);
+                });
+                qBtn.addEventListener('contextmenu', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const curRealm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                    const curFrame = (window.__app && window.__app.lastFrame) || null;
+                    if (window.QuickActionManager) {
+                        window.QuickActionManager.openBinderPopover(i, curFrame, curRealm);
+                    }
+                });
+            }
+        }
+        const qsConfigBtn = document.getElementById('btn-quick-slot-config');
+        if (qsConfigBtn) {
+            bindReliableAction(qsConfigBtn, (ev) => {
+                if (ev && ev.stopPropagation) ev.stopPropagation();
+                const curRealm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+                const curFrame = (window.__app && window.__app.lastFrame) || null;
+                if (window.QuickActionManager) {
+                    window.QuickActionManager.openBinderPopover(0, curFrame, curRealm);
+                }
+            });
+        }
+
         // Clicking anywhere in world exploration while -more- prompt is up dismisses prompt
         window.addEventListener('click', (e) => {
+            if (e.target && e.target.closest && e.target.closest('#quick-slot-bar, #quick-slot-popover, #minimap-canvas, #grimoire-deck-container')) {
+                return;
+            }
             const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
             if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
                 const inModal = e.target.closest('#pause-modal, #load-modal, #guide-modal, #death-modal');
@@ -2657,6 +2991,10 @@ class InputController {
     }
 
     updateContextualControls(frame) {
+        if (this.isAutoNavigating && this.isAutoNavigating() && frame && frame.seq !== this._lastAutoNavSeq) {
+            this._lastAutoNavSeq = frame.seq;
+            this.stepMinimapAutoNav(frame, false);
+        }
         if (!frame || !frame.player || !frame.map) return;
         const player = frame.player;
         const px = player.x;
@@ -3102,20 +3440,55 @@ class InputController {
                     this.dungeon.turn(turnDir);
                 }
             } else if (elapsed < 380 && Math.abs(totalDx) < 18 && Math.abs(totalDy) < 18) {
-                // Single Click / Tap in 3D: Open non-modal entity inspection popover without stealing focus
-                if (this.dungeon && typeof this.dungeon.getMonsterAtScreenCoords === 'function') {
-                    const monster = this.dungeon.getMonsterAtScreenCoords(finalX, finalY);
-                    if (monster && window.chronicleManager) {
-                        window.chronicleManager.interactWithCreature(monster, { mode: 'popover', clientX: finalX, clientY: finalY });
-                    } else if (typeof this.dungeon.getItemAtScreenCoords === 'function') {
-                        const item = this.dungeon.getItemAtScreenCoords(finalX, finalY);
-                        if (item && window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') {
-                            window.chronicleManager.inspectObject(item, { mode: 'popover', clientX: finalX, clientY: finalY });
-                        } else if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
-                            window.chronicleManager.preemptForGameplay('canvas_click');
+                // Single Click / Tap in 3D:
+                // 1) If clicking a creature or floor item, open non-modal entity inspection popover without moving.
+                // 2) Otherwise, raycast against 3D floor/door tiles and auto-navigate there if reachable.
+                if (this.dungeon) {
+                    const monster = (typeof this.dungeon.getMonsterAtScreenCoords === 'function')
+                        ? this.dungeon.getMonsterAtScreenCoords(finalX, finalY)
+                        : null;
+                    if (monster) {
+                        if (window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') {
+                            window.chronicleManager.interactWithCreature(monster, { mode: 'popover', clientX: finalX, clientY: finalY });
                         }
-                    } else if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
+                        return;
+                    }
+                    const item = (typeof this.dungeon.getItemAtScreenCoords === 'function')
+                        ? this.dungeon.getItemAtScreenCoords(finalX, finalY)
+                        : null;
+                    if (item) {
+                        if (window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') {
+                            window.chronicleManager.inspectObject(item, { mode: 'popover', clientX: finalX, clientY: finalY });
+                        }
+                        return;
+                    }
+                    if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
                         window.chronicleManager.preemptForGameplay('canvas_click');
+                    }
+                    if (typeof this.dungeon.getTileAtScreenCoords === 'function' && !this.inTerminal) {
+                        const hitTile = this.dungeon.getTileAtScreenCoords(finalX, finalY);
+                        if (hitTile) {
+                            const frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || this.dungeon.lastFrame;
+                            if (frame) {
+                                const mons = Array.isArray(frame.monsters) ? frame.monsters : [];
+                                const monOnTile = mons.find((m) => m && m.visible !== false && m.x === hitTile.x && m.y === hitTile.y);
+                                if (monOnTile) {
+                                    if (window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') {
+                                        window.chronicleManager.interactWithCreature(monOnTile, { mode: 'popover', clientX: finalX, clientY: finalY });
+                                    }
+                                    return;
+                                }
+                                const its = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
+                                const itemOnTile = its.find((it) => it && it.x === hitTile.x && it.y === hitTile.y);
+                                if (itemOnTile) {
+                                    if (window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') {
+                                        window.chronicleManager.inspectObject(itemOnTile, { mode: 'popover', clientX: finalX, clientY: finalY });
+                                    }
+                                    return;
+                                }
+                                this.startMinimapAutoNav(hitTile.x, hitTile.y, frame);
+                            }
+                        }
                     }
                 }
             }
@@ -3197,10 +3570,503 @@ class InputController {
             console.warn('[Input] Fullscreen toggle error:', err);
         }
     }
+
+    /**
+     * Triggers Quick-Action Slot `slotIdx` (0..3).
+     */
+    triggerQuickSlot(slotIdx) {
+        if (!window.QuickActionManager) return false;
+        const realm = (this.app && typeof this.app.getActiveRealm === 'function')
+            ? this.app.getActiveRealm()
+            : ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband');
+        const frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+        if (this.audio && typeof this.audio.playMenuSelect === 'function') {
+            this.audio.playMenuSelect();
+        }
+        const toastFn = (msg) => {
+            const hud = (this.app && this.app.hud) || (window.__app && window.__app.hud);
+            if (hud && typeof hud.showToast === 'function') hud.showToast(msg);
+            else if (window.__app && typeof window.__app.showRealmToast === 'function') window.__app.showRealmToast(msg);
+        };
+        return window.QuickActionManager.executeSlot(slotIdx, frame, realm, (k) => {
+            if (this.network && typeof this.network.sendKey === 'function') {
+                this.network.sendKey(k);
+            }
+        }, toastFn);
+    }
+
+    /* =========================================================================
+     * Minimap Click-to-Auto-Navigate (8-Way Octile A* with Rest-Like Interrupts)
+     * ========================================================================= */
+    isAutoNavigating() {
+        return Boolean(this._autoNav && this._autoNav.active);
+    }
+
+    getWorldDirectionKey(dx, dy) {
+        if (dx === 0 && dy === -1) return 'up';
+        if (dx === 1 && dy === -1) return 'pageup';
+        if (dx === 1 && dy === 0) return 'right';
+        if (dx === 1 && dy === 1) return 'pagedown';
+        if (dx === 0 && dy === 1) return 'down';
+        if (dx === -1 && dy === 1) return 'end';
+        if (dx === -1 && dy === 0) return 'left';
+        if (dx === -1 && dy === -1) return 'home';
+        return null;
+    }
+
+    _isTileWalkableForNav(map, x, y, allowUnexplored = false, outdoors = false) {
+        if (!map || !Array.isArray(map.rows)) return { walkable: false, cost: Infinity, isClosedDoor: false, isTrap: false, isStore: false };
+        const h = map.h || map.rows.length;
+        const w = map.w || (map.rows[0] && map.rows[0].g ? map.rows[0].g.length : 0);
+        if (y < 0 || y >= h || x < 0 || x >= w) return { walkable: false, cost: Infinity, isClosedDoor: false, isTrap: false, isStore: false };
+        const row = map.rows[y];
+        if (!row) return { walkable: false, cost: Infinity, isClosedDoor: false, isTrap: false, isStore: false };
+
+        const ch = (row.g && x < row.g.length) ? row.g[x] : ' ';
+        const feat = this.getFeatAt ? this.getFeatAt(map, x, y) : 0;
+        const flagStr = row.l || row.v;
+        if (!allowUnexplored && !outdoors) {
+            if (flagStr && x < flagStr.length) {
+                const flag = parseInt(flagStr[x], 16) || 0;
+                if ((flag & 0x3) === 0) {
+                    return { walkable: false, cost: Infinity, isClosedDoor: false, isTrap: false, isStore: false };
+                }
+            } else if (ch === ' ' && feat === 0) {
+                return { walkable: false, cost: Infinity, isClosedDoor: false, isTrap: false, isStore: false };
+            }
+        } else if (!allowUnexplored && outdoors && ch === ' ' && feat === 0) {
+            return { walkable: false, cost: Infinity, isClosedDoor: false, isTrap: false, isStore: false };
+        }
+
+        // Solid walls (15..23), Sil-Q chasm (41), variant lava/deep water/mountains (29..30), or variant wall (25 when not '.'/',')
+        if (ch === '#' || ch === '%' || ch === '*' || feat === 0 || (feat >= 15 && feat <= 23) || (feat === 25 && ch !== '.' && ch !== ',' && ch !== '\'') || feat === 29 || feat === 30 || feat === 41) {
+            return { walkable: false, cost: Infinity, isClosedDoor: false, isTrap: false, isStore: false };
+        }
+        // Known trap: high traversal penalty so A* routes around traps whenever possible
+        if (ch === '^') {
+            return { walkable: true, cost: 12.0, isClosedDoor: false, isTrap: true, isStore: false };
+        }
+        // Town store/building portal (feat 7..14 or 32..40): walkable when targeted, but higher cost so A* routes around shop doors
+        if ((feat >= 7 && feat <= 14) || (feat >= 32 && feat <= 40)) {
+            return { walkable: true, cost: 8.0, isClosedDoor: false, isTrap: false, isStore: true };
+        }
+        // Closed door (feat === 2 in all 4 C engines, or '+' glyph)
+        if (ch === '+' || feat === 2) {
+            return { walkable: true, cost: 1.4, isClosedDoor: true, isTrap: false, isStore: false };
+        }
+        return { walkable: true, cost: 1.0, isClosedDoor: false, isTrap: false, isStore: false };
+    }
+
+    /**
+     * Computes an 8-way Octile A* path from (startX, startY) to (goalX, goalY) over explored map tiles.
+     * Routes around visible creatures/townspeople and known traps.
+     * Returns an array of `{ x, y, isClosedDoor, isTrap }` steps (excluding start tile), or `[]` if unreachable.
+     */
+    computeMinimapPath(frame, startX, startY, goalX, goalY) {
+        if (!frame || !frame.map || !Array.isArray(frame.map.rows)) return [];
+        const map = frame.map;
+        const outdoors = Boolean((frame.player && frame.player.depth === 0) || frame.is_wild_mode);
+        const sx = Math.round(Number(startX));
+        const sy = Math.round(Number(startY));
+        let gx = Math.round(Number(goalX));
+        let gy = Math.round(Number(goalY));
+        if (sx === gx && sy === gy) return [];
+
+        const w = map.w || (map.rows[0] && map.rows[0].g ? map.rows[0].g.length : 80);
+        const keyOf = (x, y) => y * w + x;
+
+        // Visible creatures/townspeople occupy tiles and must be routed around (never walked into during auto-nav)
+        const occupiedByCreature = new Set();
+        if (Array.isArray(frame.monsters)) {
+            for (const m of frame.monsters) {
+                if (m && m.visible !== false && typeof m.x === 'number' && typeof m.y === 'number') {
+                    if (!(m.x === sx && m.y === sy)) {
+                        occupiedByCreature.add(keyOf(m.x, m.y));
+                    }
+                }
+            }
+        }
+
+        // Do not auto-navigate directly onto a creature tile
+        if (occupiedByCreature.has(keyOf(gx, gy))) return [];
+
+        let goalCheck = this._isTileWalkableForNav(map, gx, gy, false, outdoors);
+        if (!goalCheck.walkable) {
+            // If user clicked a wall/unexplored tile right next to an explored floor tile, snap to closest walkable neighbor
+            const adj = [
+                { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 },
+                { dx: 1, dy: -1 }, { dx: 1, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 }
+            ];
+            let bestNeighbor = null;
+            let bestDist = Infinity;
+            for (const d of adj) {
+                const nx = gx + d.dx;
+                const ny = gy + d.dy;
+                if (occupiedByCreature.has(keyOf(nx, ny))) continue;
+                const nc = this._isTileWalkableForNav(map, nx, ny, false, outdoors);
+                if (nc.walkable && !nc.isTrap && !nc.isStore) {
+                    const dist = Math.hypot(nx - sx, ny - sy);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestNeighbor = { x: nx, y: ny, check: nc };
+                    }
+                }
+            }
+            if (!bestNeighbor) return [];
+            gx = bestNeighbor.x;
+            gy = bestNeighbor.y;
+            if (sx === gx && sy === gy) return [];
+        }
+
+        const octile = (x1, y1, x2, y2) => {
+            const dx = Math.abs(x1 - x2);
+            const dy = Math.abs(y1 - y2);
+            return (dx + dy) + (1.41421356 - 2) * Math.min(dx, dy);
+        };
+
+        const open = [{ x: sx, y: sy, g: 0, f: octile(sx, sy, gx, gy) }];
+        const gScore = new Map();
+        const cameFrom = new Map();
+        const stepMeta = new Map();
+        gScore.set(keyOf(sx, sy), 0);
+        const closed = new Set();
+
+        const dirs = [
+            { dx: 0, dy: -1, w: 1.0 },
+            { dx: 1, dy: 0, w: 1.0 },
+            { dx: 0, dy: 1, w: 1.0 },
+            { dx: -1, dy: 0, w: 1.0 },
+            { dx: 1, dy: -1, w: 1.4142 },
+            { dx: 1, dy: 1, w: 1.4142 },
+            { dx: -1, dy: 1, w: 1.4142 },
+            { dx: -1, dy: -1, w: 1.4142 }
+        ];
+
+        let iterations = 0;
+        const maxIterations = 4500;
+
+        while (open.length > 0 && iterations++ < maxIterations) {
+            // Pop lowest f-score
+            let bestIdx = 0;
+            for (let i = 1; i < open.length; i++) {
+                if (open[i].f < open[bestIdx].f) bestIdx = i;
+            }
+            const cur = open.splice(bestIdx, 1)[0];
+            const curKey = keyOf(cur.x, cur.y);
+
+            if (cur.x === gx && cur.y === gy) {
+                const path = [];
+                let k = curKey;
+                while (cameFrom.has(k)) {
+                    const meta = stepMeta.get(k);
+                    path.push(meta);
+                    k = cameFrom.get(k);
+                }
+                path.reverse();
+                return path;
+            }
+
+            if (closed.has(curKey)) continue;
+            closed.add(curKey);
+
+            for (const d of dirs) {
+                const nx = cur.x + d.dx;
+                const ny = cur.y + d.dy;
+                const nKey = keyOf(nx, ny);
+                if (closed.has(nKey)) continue;
+                if (occupiedByCreature.has(nKey)) continue;
+
+                const tileInfo = this._isTileWalkableForNav(map, nx, ny, false, outdoors);
+                if (!tileInfo.walkable) continue;
+                // Do not step onto a known trap unless the user explicitly clicked the trap tile
+                if (tileInfo.isTrap && !(nx === gx && ny === gy)) continue;
+                // Do not enter a store/building portal unless it is the destination tile
+                if (tileInfo.isStore && !(nx === gx && ny === gy)) continue;
+
+                const tentativeG = cur.g + d.w * tileInfo.cost;
+                const prevG = gScore.get(nKey);
+                if (prevG === undefined || tentativeG < prevG) {
+                    gScore.set(nKey, tentativeG);
+                    cameFrom.set(nKey, curKey);
+                    stepMeta.set(nKey, {
+                        x: nx,
+                        y: ny,
+                        isClosedDoor: tileInfo.isClosedDoor,
+                        isTrap: tileInfo.isTrap
+                    });
+                    open.push({
+                        x: nx,
+                        y: ny,
+                        g: tentativeG,
+                        f: tentativeG + octile(nx, ny, gx, gy)
+                    });
+                }
+            }
+        }
+        return [];
+    }
+
+    _statusSignatureOf(player) {
+        if (!player) return '';
+        const st = Array.isArray(player.statuses)
+            ? player.statuses.map((s) => `${s.name || ''}:${s.val || 0}`).sort().join('|')
+            : '';
+        return `${st}::${player.blind ? 1 : 0}:${player.confused ? 1 : 0}:${player.poisoned ? 1 : 0}:${player.afraid ? 1 : 0}:${player.cut ? 1 : 0}:${player.stun ? 1 : 0}`;
+    }
+
+    _itemSignatureOf(frame) {
+        const items = (frame && Array.isArray(frame.items)) ? frame.items : ((frame && Array.isArray(frame.objects)) ? frame.objects : []);
+        return items.map((it) => `${it.x},${it.y}:${it.name || it.glyph || ''}`).sort().join('|');
+    }
+
+    startMinimapAutoNav(goalX, goalY, frameOverride = null) {
+        const winApp = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
+        const frame = frameOverride || (this.app && this.app.lastFrame) || (winApp && winApp.lastFrame) || null;
+        if (!frame || !frame.player || !frame.map) return false;
+
+        const px = frame.player.x;
+        const py = frame.player.y;
+        const rxGoal = Math.round(Number(goalX));
+        const ryGoal = Math.round(Number(goalY));
+
+        // If already auto-navigating: clicking the current tile or current goal cancels; clicking a new goal re-routes
+        if (this.isAutoNavigating()) {
+            const curGoalX = this._autoNav.goalX;
+            const curGoalY = this._autoNav.goalY;
+            if ((rxGoal === px && ryGoal === py) || (rxGoal === curGoalX && ryGoal === curGoalY)) {
+                this.stopMinimapAutoNav('Cancelled');
+                return false;
+            }
+            this.stopMinimapAutoNav('');
+        }
+
+        const path = this.computeMinimapPath(frame, px, py, rxGoal, ryGoal);
+        const hud = (this.app && this.app.hud) || (winApp && winApp.hud);
+
+        if (!path || path.length === 0) {
+            if (this.audio && typeof this.audio.playWallBump === 'function') {
+                this.audio.playWallBump(0.45);
+            }
+            if (hud && typeof hud.showToast === 'function') {
+                hud.showToast(`No clear explored route to (${rxGoal}, ${ryGoal})`);
+            }
+            return false;
+        }
+
+        const visibleMonsters = Array.isArray(frame.monsters) ? frame.monsters.filter((m) => m && m.visible !== false) : [];
+        const baselineMonsterKeys = new Set(visibleMonsters.map((m) => `${m.name || ''}|${m.glyph || ''}`));
+        const hadAdjacentMonsterAtStart = visibleMonsters.some((m) => Math.max(Math.abs(m.x - px), Math.abs(m.y - py)) <= 1);
+
+        this._autoNav = {
+            active: true,
+            goalX: path[path.length - 1].x,
+            goalY: path[path.length - 1].y,
+            path: path.slice(),
+            lastHp: Number(frame.player.hp ?? 0),
+            startStatusesSig: this._statusSignatureOf(frame.player),
+            baselineItemSig: this._itemSignatureOf(frame),
+            baselineMonsterCount: visibleMonsters.length,
+            baselineMonsterKeys,
+            hadAdjacentMonsterAtStart,
+            startDepth: frame.player.depth,
+            lastPlayerX: px,
+            lastPlayerY: py,
+            expectedX: null,
+            expectedY: null,
+            openingDoorAt: null,
+            stepTimer: null
+        };
+
+        if (hud && typeof hud.updateMinimap === 'function') {
+            hud._lastMinimapSig = '';
+            hud.updateMinimap(frame);
+        }
+
+        this.stepMinimapAutoNav(frame, true);
+        return true;
+    }
+
+    stopMinimapAutoNav(reason = '') {
+        if (!this._autoNav || !this._autoNav.active) return;
+        if (this._autoNav.stepTimer) {
+            clearTimeout(this._autoNav.stepTimer);
+        }
+        this._autoNav.active = false;
+        this._autoNav.path = [];
+        this._autoNav = null;
+
+        const winApp = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
+        const hud = (this.app && this.app.hud) || (winApp && winApp.hud);
+        const frame = (this.app && this.app.lastFrame) || (winApp && winApp.lastFrame) || null;
+        if (hud && frame && typeof hud.updateMinimap === 'function') {
+            hud._lastMinimapSig = '';
+            hud.updateMinimap(frame);
+        }
+        if (reason && reason !== 'Reached destination' && reason !== 'Cancelled' && hud && typeof hud.showToast === 'function') {
+            hud.showToast(`Auto-travel stopped: ${reason}`);
+        }
+    }
+
+    stepMinimapAutoNav(frame, isInitial = false) {
+        if (!this._autoNav || !this._autoNav.active || !frame || !frame.player) return;
+        const nav = this._autoNav;
+        const player = frame.player;
+        const px = player.x;
+        const py = player.y;
+
+        // 1. Prompt / Overlay / Phase Interrupt
+        const ui = frame.ui || {};
+        if (frame.phase !== 'play' || (ui.overlay || 0) > 0 || ui.awaiting_command === false) {
+            this.stopMinimapAutoNav('Prompt requires attention');
+            return;
+        }
+        if (ui.more) {
+            if (isInitial && this.network && typeof this.network.sendKey === 'function') {
+                this.network.sendKey('space');
+                if (nav.stepTimer) clearTimeout(nav.stepTimer);
+                nav.stepTimer = setTimeout(() => {
+                    const winApp = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
+                    const latest = (this.app && this.app.lastFrame) || (winApp && winApp.lastFrame) || frame;
+                    this.stepMinimapAutoNav(latest, true);
+                }, 48);
+                return;
+            }
+            this.stopMinimapAutoNav('Prompt requires attention');
+            return;
+        }
+
+        // 2. Depth Change Interrupt
+        if (player.depth !== nav.startDepth) {
+            this.stopMinimapAutoNav('Entered new level');
+            return;
+        }
+
+        // 3. HP Loss or Status Change Interrupt (Rest-like interrupt)
+        const curHp = Number(player.hp ?? 0);
+        if (curHp < nav.lastHp) {
+            this.stopMinimapAutoNav('Took damage!');
+            return;
+        }
+        nav.lastHp = curHp;
+
+        const curStatusSig = this._statusSignatureOf(player);
+        if (curStatusSig !== nav.startStatusesSig) {
+            this.stopMinimapAutoNav('Status condition changed!');
+            return;
+        }
+
+        // 4. Creature Spotted / Approached Interrupt (on dungeon levels depth > 0, or if a creature steps adjacent)
+        const visibleMonsters = Array.isArray(frame.monsters) ? frame.monsters.filter((m) => m && m.visible !== false) : [];
+        if (!isInitial && visibleMonsters.length > 0) {
+            const isDungeon = (player.depth || 0) > 0;
+            const newlySpotted = visibleMonsters.find((m) => !nav.baselineMonsterKeys || !nav.baselineMonsterKeys.has(`${m.name || ''}|${m.glyph || ''}`));
+            const countIncreased = visibleMonsters.length > (nav.baselineMonsterCount || 0);
+            const adjacentMon = visibleMonsters.find((m) => Math.max(Math.abs(m.x - px), Math.abs(m.y - py)) <= 1);
+            if (isDungeon && (newlySpotted || countIncreased || (adjacentMon && !nav.hadAdjacentMonsterAtStart))) {
+                const targetMon = newlySpotted || adjacentMon || visibleMonsters[0];
+                this.stopMinimapAutoNav(`Spotted ${targetMon.name || 'a creature'}!`);
+                return;
+            }
+        }
+
+        // 5. New Item Discovered or Stepped On Interrupt
+        const items = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
+        const curItemSig = this._itemSignatureOf(frame);
+        const steppedOnItem = !isInitial && items.some((it) => it && it.x === px && it.y === py);
+        if (steppedOnItem || (!isInitial && curItemSig !== nav.baselineItemSig && items.length > 0)) {
+            this.stopMinimapAutoNav('Discovered an item!');
+            return;
+        }
+
+        // 6. Destination Reached
+        if (px === nav.goalX && py === nav.goalY) {
+            this.stopMinimapAutoNav('Reached destination');
+            return;
+        }
+
+        const outdoors = Boolean((player.depth === 0) || frame.is_wild_mode);
+
+        // 7. Verify previous step progress
+        if (!isInitial) {
+            if (nav.openingDoorAt) {
+                const doorTile = this._isTileWalkableForNav(frame.map, nav.openingDoorAt.x, nav.openingDoorAt.y, false, outdoors);
+                nav.openingDoorAt = null;
+                if (doorTile.isClosedDoor) {
+                    // Door remained closed (locked or jammed)
+                    this.stopMinimapAutoNav('Door is locked or blocked');
+                    return;
+                }
+            } else if (nav.expectedX !== null && nav.expectedY !== null) {
+                if (px === nav.expectedX && py === nav.expectedY) {
+                    nav.path.shift();
+                } else {
+                    this.stopMinimapAutoNav('Path blocked');
+                    return;
+                }
+            }
+        }
+
+        if (nav.path.length === 0) {
+            this.stopMinimapAutoNav('Reached destination');
+            return;
+        }
+
+        // If a creature or townsperson moved onto nextStep, try to dynamically route around them
+        let nextStep = nav.path[0];
+        if (visibleMonsters.some((m) => m.x === nextStep.x && m.y === nextStep.y)) {
+            const detour = this.computeMinimapPath(frame, px, py, nav.goalX, nav.goalY);
+            if (!detour || detour.length === 0) {
+                this.stopMinimapAutoNav('Path blocked');
+                return;
+            }
+            nav.path = detour;
+            nextStep = nav.path[0];
+        }
+
+        const dx = nextStep.x - px;
+        const dy = nextStep.y - py;
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || (dx === 0 && dy === 0)) {
+            this.stopMinimapAutoNav('Route diverged');
+            return;
+        }
+
+        const worldKey = this.getWorldDirectionKey(dx, dy);
+        if (!worldKey) {
+            this.stopMinimapAutoNav('Invalid step direction');
+            return;
+        }
+
+        if (nav.stepTimer) clearTimeout(nav.stepTimer);
+        const dispatchStep = () => {
+            if (!this._autoNav || !this._autoNav.active) return;
+            const liveTile = this._isTileWalkableForNav(frame.map, nextStep.x, nextStep.y, false, outdoors);
+            if (liveTile.isClosedDoor) {
+                nav.openingDoorAt = { x: nextStep.x, y: nextStep.y };
+                nav.expectedX = px;
+                nav.expectedY = py;
+            } else {
+                nav.expectedX = nextStep.x;
+                nav.expectedY = nextStep.y;
+            }
+            if (typeof this.sendMovementKey === 'function') {
+                this.sendMovementKey(worldKey);
+            } else if (this.network) {
+                this.network.sendKey(worldKey);
+            }
+        };
+
+        if (isInitial) {
+            dispatchStep();
+        } else {
+            nav.stepTimer = setTimeout(dispatchStep, 42);
+        }
+    }
 }
 
-window.InputController = InputController;
-window.InputManager = InputController;
+if (typeof window !== 'undefined') {
+    window.InputController = InputController;
+    window.InputManager = InputController;
+}
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { InputController, InputManager: InputController };
 }

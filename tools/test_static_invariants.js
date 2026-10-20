@@ -31,6 +31,7 @@ const JS_FILES = [
     'server/public/js/menu-router.js',
     'server/public/js/realm-keys.js',
     'server/public/js/grimoire-deck.js',
+    'server/public/js/quick-actions.js',
     'server/public/js/terminal.js',
     'server/public/js/hud.js',
     'server/public/js/dungeon3d.js',

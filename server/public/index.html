@@ -63,8 +63,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=9.9.5">
-    <link rel="stylesheet" href="/css/chronicle.css?v=9.9.5">
+    <link rel="stylesheet" href="/css/dungeon.css?v=9.9.8">
+    <link rel="stylesheet" href="/css/chronicle.css?v=9.9.8">
 </head>
 <body>
     <div id="app-container">
@@ -502,10 +502,19 @@
             <div id="hud-center-column">
                 <!-- Action Overflow Popover / Drawer (WS9.1) -->
                 <div id="action-more-popover" class="action-more-popover" role="region" aria-label="Additional Actions"></div>
+                <div id="quick-slot-popover" class="quick-slot-popover" role="dialog" aria-label="Bind Quick-Action Slots"></div>
 
                 <!-- Quick Action Bar -->
                 <div id="action-bar" class="hud-panel">
                     <div id="action-bar-drag-handle" class="hud-dock-drag-handle" title="Drag to move Action Bar &amp; Status Dock • Double-click to reset">⋮⋮</div>
+                    <!-- 4-Button Cross-Realm Bindable Quick-Action Strip (WS32) -->
+                    <div id="quick-slot-bar" class="quick-slot-bar" role="group" aria-label="Bindable Quick Actions">
+                        <button type="button" id="quick-slot-btn-1" class="quick-slot-btn" data-quick-slot="0" title="Quick Slot 1 [F1 / Alt+1]"><span class="qs-hotkey">F1</span><span class="qs-icon">🏹</span><span class="qs-label">Shoot</span></button>
+                        <button type="button" id="quick-slot-btn-2" class="quick-slot-btn" data-quick-slot="1" title="Quick Slot 2 [F2 / Alt+2]"><span class="qs-hotkey">F2</span><span class="qs-icon">🧪</span><span class="qs-label">Heal</span></button>
+                        <button type="button" id="quick-slot-btn-3" class="quick-slot-btn" data-quick-slot="2" title="Quick Slot 3 [F3 / Alt+3]"><span class="qs-hotkey">F3</span><span class="qs-icon">✨</span><span class="qs-label">Spell</span></button>
+                        <button type="button" id="quick-slot-btn-4" class="quick-slot-btn" data-quick-slot="3" title="Quick Slot 4 [F4 / Alt+4]"><span class="qs-hotkey">F4</span><span class="qs-icon">📜</span><span class="qs-label">Escape</span></button>
+                        <button type="button" id="btn-quick-slot-config" class="quick-slot-config-btn" title="Configure / Bind Quick Slots [F1–F4]">⚙</button>
+                    </div>
                     <button id="btn-hero-action" class="action-btn action-hero-btn" title="Context Action (Attack / Open / Pickup / Tunnel / Wait)"><span id="hero-action-icon">⚔</span> <span id="hero-action-text">Attack</span> <kbd id="hero-action-key">Space</kbd></button>
                     <button id="btn-attack" class="action-btn" title="Attack adjacent monster in front [Space]">⚔ Attack <kbd>Space</kbd></button>
                     <button id="btn-throw" class="action-btn" title="Throw item at target [v]">🎯 Throw <kbd>v</kbd></button>
@@ -1611,29 +1620,30 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/safe-html.js?v=9.9.5"></script>
-    <script src="/js/screen-context.js?v=9.9.5"></script>
-    <script src="/js/menu-router.js?v=9.9.5"></script>
-    <script src="/js/grimoire-deck.js?v=9.9.5"></script>
-    <script src="/js/device.js?v=9.9.5"></script>
-    <script src="/js/realm-keys.js?v=9.9.5"></script>
-    <script src="/js/mobile-overlay.js?v=9.9.5"></script>
-    <script src="/js/audio.js?v=9.9.5"></script>
-    <script src="/js/terminal.js?v=9.9.5"></script>
-    <script src="/js/dungeon3d.js?v=9.9.5"></script>
-    <script src="/js/hud.js?v=9.9.5"></script>
-    <script src="/js/network.js?v=9.9.5"></script>
-    <script src="/js/local_bridge.js?v=9.9.5"></script>
-    <script src="/js/input.js?v=9.9.5"></script>
-    <script src="/js/demo-player.js?v=9.9.5"></script>
+    <script src="/js/safe-html.js?v=9.9.8"></script>
+    <script src="/js/screen-context.js?v=9.9.8"></script>
+    <script src="/js/menu-router.js?v=9.9.8"></script>
+    <script src="/js/grimoire-deck.js?v=9.9.8"></script>
+    <script src="/js/quick-actions.js?v=9.9.8"></script>
+    <script src="/js/device.js?v=9.9.8"></script>
+    <script src="/js/realm-keys.js?v=9.9.8"></script>
+    <script src="/js/mobile-overlay.js?v=9.9.8"></script>
+    <script src="/js/audio.js?v=9.9.8"></script>
+    <script src="/js/terminal.js?v=9.9.8"></script>
+    <script src="/js/dungeon3d.js?v=9.9.8"></script>
+    <script src="/js/hud.js?v=9.9.8"></script>
+    <script src="/js/network.js?v=9.9.8"></script>
+    <script src="/js/local_bridge.js?v=9.9.8"></script>
+    <script src="/js/input.js?v=9.9.8"></script>
+    <script src="/js/demo-player.js?v=9.9.8"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=9.9.5"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=9.9.5"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=9.9.5"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=9.9.5"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=9.9.5"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=9.9.5"></script>
-    <script src="/js/app.js?v=9.9.5"></script>
-    <script src="/js/boot.js?v=9.9.5"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=9.9.8"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=9.9.8"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=9.9.8"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=9.9.8"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=9.9.8"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=9.9.8"></script>
+    <script src="/js/app.js?v=9.9.8"></script>
+    <script src="/js/boot.js?v=9.9.8"></script>
 </body>
 </html>

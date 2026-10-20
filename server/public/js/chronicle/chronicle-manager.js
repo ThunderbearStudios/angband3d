@@ -340,6 +340,7 @@ class ChronicleManager {
 
         // Update UI Button states
         this.updateAudioControlsUI();
+        this.updateLanguageUI();
 
         // Tab Visibility Safety: Pause speech on hidden, restore on return
         if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
@@ -936,6 +937,52 @@ class ChronicleManager {
         const rk = this.getActiveRealm();
         if (rk !== 'hengband') return 'en';
         return (typeof window !== 'undefined' && window.__langMode) || 'en';
+    }
+
+    updateLanguageUI() {
+        const rk = this.getActiveRealm();
+        const lang = this.getLanguageMode();
+        const isJp = (rk === 'hengband' && lang === 'jp');
+        if (this.audio) {
+            this.audio.activeRealm = rk;
+            this.audio.langMode = lang;
+        }
+        if (typeof document === 'undefined') return;
+        const tradBadge = document.getElementById('chronicle-tradition-badge');
+        if (tradBadge && isJp) {
+            tradBadge.textContent = '五輪書・宮本武蔵';
+        } else if (tradBadge) {
+            this.updateTraditionBadge();
+        }
+        if (this.inputQuery) {
+            this.inputQuery.placeholder = isJp
+                ? '宮本武蔵に戦術・武具・迷宮の理を問う...'
+                : `Ask ${this.getLorekeeperName()} of survival, gear, or lore...`;
+        }
+        if (this.btnStoryPromptTome) {
+            this.btnStoryPromptTome.textContent = isJp ? '📜 物語を紡ぐ' : '📜 Spin Tale';
+        }
+        if (this.quickChips && this.quickChips.length > 0) {
+            const jpChips = [
+                { label: '🧪 薬と回復', query: '薬と回復について教えてくれ' },
+                { label: '🏕️ 休息の心得', query: '安全な休息の方法は？' },
+                { label: '⚔️ 通路の兵法', query: '通路での戦い方を教えてくれ' },
+                { label: '🏯 城下町の店', query: '城下町の店について教えてくれ' }
+            ];
+            const enChips = [
+                { label: '🧪 Potions', query: 'How do I quaff potions and heal?' },
+                { label: '🏕️ Resting', query: 'How do I rest safely to recover HP and mana?' },
+                { label: '⚔️ Tactics', query: 'What is corridor funneling combat tactics?' },
+                { label: '🏪 Town Shops', query: 'What do the town shops sell?' }
+            ];
+            this.quickChips.forEach((chip, idx) => {
+                const cfg = isJp ? jpChips[idx % jpChips.length] : enChips[idx % enChips.length];
+                if (cfg) {
+                    chip.textContent = cfg.label;
+                    chip.setAttribute('data-query', cfg.query);
+                }
+            });
+        }
     }
 
     showWindow() {

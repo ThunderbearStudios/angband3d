@@ -335,7 +335,10 @@
                             step: 'chooser',
                             verb: null,
                             deadline: 0,
-                            fromPassiveAngbandList: isAngbandSelect
+                            realm,
+                            fromPassiveAngbandList: isAngbandSelect,
+                            fromPassiveFcbList: isFcbGear,
+                            awaitingVerbPrompt: false
                         };
                         return true; // Intercepted! Action Chooser will render
                     }
@@ -351,12 +354,36 @@
 
     function chooseVerb(verb) {
         if (!pending || !pending.item) return;
+        if (verb === 'Escape' || verb === 'escape') {
+            clearPending();
+            return;
+        }
+
+        // In FrogComposBand passive gear_ui ("Examine which item (Esc to exit)?"),
+        // Inspect ('I' / 'x') is already the active prompt: simply send the slot key.
+        if (pending.fromPassiveFcbList && (verb === 'I' || verb === 'x')) {
+            const slotKey = pending.item.key;
+            clearPending();
+            getSendKey()(slotKey);
+            return;
+        }
 
         pending.verb = verb;
         pending.step = 'await-prompt';
         pending.deadline = Date.now() + 1500;
 
-        // Send the verb key to the engine
+        // In Vanilla Angband passive `Select Item:` and FrogComposBand passive `gear_ui`,
+        // lowercase verb keys ('d', 'a', 'w', 'q', 'r', etc.) collide with item slot letters a-z
+        // or are ignored while the passive list is open. Exit the passive list with Escape first,
+        // then dispatch the verb key to open the engine's verb-specific item prompt.
+        if (pending.fromPassiveAngbandList || pending.fromPassiveFcbList) {
+            pending.awaitingVerbPrompt = true;
+            getSendKey()('Escape');
+            getSendKey()(verb);
+            return;
+        }
+
+        // In Sil-Q and Hengband, `(Inventory) Command:` / `コマンド:` natively accepts verb keys.
         getSendKey()(verb);
     }
 
@@ -380,12 +407,18 @@
 
             const classifier = getClassifier(frame, realm);
 
+            // Engine responded with a native item-actions context menu (e.g. "Command for <item>:")
+            if (classifier && classifier.mode === 'item-actions') {
+                if (pending.verb) {
+                    getSendKey()(pending.verb);
+                }
+                clearPending();
+                return;
+            }
+
             // Engine responded with an item selection prompt (e.g. "Wear/Wield which item?")
             if (classifier && classifier.promptKind === 'select') {
-                // MENU-04 Fix: In live Vanilla Angband 4.2.6, if the user opened passive `i`/`e` browse
-                // (`!classifier.verbPrompt`) and picked a verb in the chooser, sending `verb` while inside
-                // the passive list leaves the engine on `!classifier.verbPrompt`. Exit passive list with
-                // Escape and re-dispatch `pending.verb` once so the engine enters `verbPrompt` cleanly.
+                // Fallback safety: if still on passive Angband list without verbPrompt, exit and retry once
                 if (realm === 'angband' && !classifier.verbPrompt && pending.fromPassiveAngbandList && !pending.sentEscapeRetry) {
                     if (pending.verb === 'I') {
                         getSendKey()(pending.item.key);
@@ -393,6 +426,7 @@
                         return;
                     }
                     pending.sentEscapeRetry = true;
+                    pending.awaitingVerbPrompt = true;
                     getSendKey()('Escape');
                     getSendKey()(pending.verb);
                     return;
@@ -421,6 +455,12 @@
                 return;
             }
             if (frame.ui && !frame.ui.overlay && frame.ui.awaiting_command) {
+                // When exiting passive Angband/FCB inventory via Escape + verb, the engine emits
+                // one transient awaiting_command frame after Escape before processing the verb key.
+                if (pending.awaitingVerbPrompt) {
+                    pending.awaitingVerbPrompt = false;
+                    return;
+                }
                 clearPending();
                 return;
             }
@@ -436,7 +476,10 @@
         const k = String(slotKey || '');
         if (!k) return v ? [v] : [];
         if (!v) return [k];
-        if (options && options.fromPassiveAngbandList) {
+        if (options && options.fromPassiveFcbList && (v === 'I' || v === 'x')) {
+            return [k];
+        }
+        if (options && (options.fromPassiveAngbandList || options.fromPassiveFcbList)) {
             return ['Escape', v, k];
         }
         return [v, k];

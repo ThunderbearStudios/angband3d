@@ -662,6 +662,8 @@ class SoundEngine {
         this.buffers['playerDeath'] = this.synthPlayerDeath();
         this.buffers['lowHp'] = this.synthLowHpHeartbeat();
         this.buffers['heal'] = this.synthHeal();
+        this.buffers['subtleRegenHp'] = this.synthSubtleRegen(false);
+        this.buffers['subtleRegenSp'] = this.synthSubtleRegen(true);
         this.buffers['levelUp'] = this.synthLevelUp();
 
         // 3. Creature acoustics by family/glyph
@@ -1000,6 +1002,25 @@ class SoundEngine {
             const tone1 = Math.sin(2 * Math.PI * 220.0 * t) * 0.45;
             const tone2 = Math.sin(2 * Math.PI * 330.0 * t) * 0.28;
             samples[i] = (tone1 + tone2) * env * 0.22;
+        }
+        return this.createBuffer(samples);
+    }
+
+    // Whisper-soft, non-invasive warm harmonic breath for over-time HP/SP recovery (L49 refinement)
+    synthSubtleRegen(isMana = false) {
+        const duration = isMana ? 0.15 : 0.14;
+        const totalSamples = Math.floor(this.sampleRate * duration);
+        const samples = new Float32Array(totalSamples);
+        const f1 = isMana ? 261.63 : 196.00; // C4 for Mana, G3 for HP
+        const f2 = isMana ? 392.00 : 293.66; // Soft fifth (G4 / D4)
+
+        for (let i = 0; i < totalSamples; i++) {
+            const t = i / this.sampleRate;
+            const attack = Math.sin(Math.min(1.0, t / 0.035) * (Math.PI * 0.5));
+            const env = attack * Math.exp(-t * 16.5);
+            const fundamental = Math.sin(2 * Math.PI * f1 * t) * 0.52;
+            const fifth = Math.sin(2 * Math.PI * f2 * t) * 0.24;
+            samples[i] = (fundamental + fifth) * env * 0.16;
         }
         return this.createBuffer(samples);
     }
@@ -1802,6 +1823,32 @@ class SoundEngine {
         this.unlock();
         if (this.playPoolSample('heal', 1.0, 0.25, 0.0, 0.10, 'heal')) return;
         this.playBuffer(this.buffers['heal'], 1.0, 0.25);
+    }
+
+    /**
+     * Plays a whisper-soft, non-invasive warm harmonic breath when HP or Mana recovers over time.
+     * Rate-limited with a strict >= 2200ms cooldown so resting ('R') or fast walking is soothing and never repetitive.
+     */
+    playSubtleRegen(kind = 'hp', isFull = false) {
+        const now = performance.now();
+        const cooldownMs = 2200;
+        const lastAny = this.lastStatusTimes['subtleRegenAny'] || 0;
+        const key = kind === 'sp' ? 'subtleRegenSp' : 'subtleRegenHp';
+        const lastKind = this.lastStatusTimes[key] || 0;
+
+        // Enforce 2200ms cooldown unless transitioning to 100% full after at least 650ms
+        if (now - lastKind < cooldownMs && !(isFull && now - lastKind > 650)) return;
+        if (now - lastAny < 450) return; // Prevent double-triggering on simultaneous HP+SP tick
+
+        this.lastStatusTimes[key] = now;
+        this.lastStatusTimes['subtleRegenAny'] = now;
+        this.unlock();
+
+        const buf = this.buffers[key] || this.buffers['subtleRegenHp'];
+        if (!buf) return;
+        const rate = isFull ? 1.06 : 1.0;
+        const gain = kind === 'sp' ? 0.032 : 0.036;
+        this.playBuffer(buf, rate, gain);
     }
 
     playLevelUp() {

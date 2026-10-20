@@ -78,46 +78,57 @@
     }
 
     function classifyItemCategory(desc) {
-        const lower = String(desc || '').toLowerCase();
-        if (/\b(sword|dagger|blade|rapier|sabre|cutlass|katana|wakizashi|tulwar|scimitar|bastard|claymore|zweihander|spear|lance|halberd|pike|glaive|axe|hatchet|mace|flail|hammer|maul|quarterstaff|staff of|whip|club)\b/.test(lower)) {
-            return { category: 'weapon', icon: '⚔️', rarity: detectRarity(desc) };
+        const raw = String(desc || '');
+        const lower = raw.toLowerCase();
+        if (/\b(potion|phial|draught|elixir|flask of)\b/.test(lower) ||
+            /(の薬|水薬|霊薬|フラスコ)/.test(raw)) {
+            return { category: 'potion', icon: '🧪', rarity: detectRarity(raw) };
         }
-        if (/\b(bow|longbow|shortbow|crossbow|sling|arrow|seeker|bolt|shot|pebble|ammunition)\b/.test(lower)) {
-            return { category: 'ranged', icon: '🏹', rarity: detectRarity(desc) };
+        if (/\b(scroll|parchment|card|trump)\b/.test(lower) ||
+            /(の巻物|巻物|カード)/.test(raw)) {
+            return { category: 'scroll', icon: '📜', rarity: detectRarity(raw) };
         }
-        if (/\b(armour|armor|mail|plate|hauberk|brigandine|leather|robe|cloak|shield|buckler|helm|helmet|crown|cap|gloves|gauntlets|cesti|boots|greaves|sandals)\b/.test(lower)) {
-            return { category: 'armor', icon: '🛡️', rarity: detectRarity(desc) };
+        if (/\b(wand|rod|staff)\b/.test(lower) ||
+            /(の魔法棒|のロッド|のスタッフ|の杖|魔法棒|ロッド|スタッフ)/.test(raw)) {
+            return { category: 'device', icon: '🪄', rarity: detectRarity(raw) };
         }
-        if (/\b(potion|phial|draught|elixir|flask of)\b/.test(lower)) {
-            return { category: 'potion', icon: '🧪', rarity: detectRarity(desc) };
+        if (/\b(book|tome|grimoire|manual|hymnal|songbook|scrolls of)\b/.test(lower) ||
+            /(の魔法書|の仙術書|の経典|魔法書|仙術書|経典|教本|\[[^\]]+の魔法書\])/.test(raw)) {
+            return { category: 'tome', icon: '📖', rarity: detectRarity(raw) };
         }
-        if (/\b(scroll|parchment|card|trump)\b/.test(lower)) {
-            return { category: 'scroll', icon: '📜', rarity: detectRarity(desc) };
+        if (/\b(ring|amulet|necklace|pendant|torque|brooch)\b/.test(lower) ||
+            /(の指輪|のアミュレット|指輪|アミュレット|首飾り|ペンダント)/.test(raw)) {
+            return { category: 'jewelry', icon: '💍', rarity: detectRarity(raw) };
         }
-        if (/\b(wand|rod|staff)\b/.test(lower)) {
-            return { category: 'device', icon: '🪄', rarity: detectRarity(desc) };
-        }
-        if (/\b(ring|amulet|necklace|pendant|torque|brooch)\b/.test(lower)) {
-            return { category: 'jewelry', icon: '💍', rarity: detectRarity(desc) };
-        }
-        if (/\b(book|tome|grimoire|manual|hymnal|songbook|scrolls of)\b/.test(lower)) {
-            return { category: 'tome', icon: '📖', rarity: detectRarity(desc) };
-        }
-        if (/\b(ration|food|bread|waybread|lembas|jerky|mushroom|slime mold| biscuit|pint of|strip of)\b/.test(lower)) {
+        if (/\b(ration|food|bread|waybread|lembas|jerky|mushroom|slime mold|biscuit|pint of|strip of)\b/.test(lower) ||
+            /(食料|レーション|ビスケット|干し肉|キノコ|スライムモールド|パン|エール|ワイン)/.test(raw)) {
             return { category: 'food', icon: '🍞', rarity: 'common' };
         }
-        if (/\b(torch|lantern|phial of galadriel|star of|aril|feanor|light)\b/.test(lower)) {
-            return { category: 'light', icon: '🕯️', rarity: detectRarity(desc) };
+        if (/\b(torch|lantern|phial of galadriel|star of|aril|feanor|light)\b/.test(lower) ||
+            /(松明|ランタン|ランプ|ガラドリエルの玻璃瓶|アルケン石|エアレンディルの星)/.test(raw)) {
+            return { category: 'light', icon: '🕯️', rarity: detectRarity(raw) };
         }
-        return { category: 'misc', icon: '🏺', rarity: detectRarity(desc) };
+        if (/\b(sword|dagger|blade|rapier|sabre|cutlass|katana|wakizashi|tulwar|scimitar|bastard|claymore|zweihander|spear|lance|halberd|pike|glaive|axe|hatchet|mace|flail|hammer|maul|quarterstaff|staff of|whip|club)\b/.test(lower) ||
+            /(剣|刀|脇差|短刀|ダガー|レイピア|サーベル|カトラス|シミター|クレイモア|ツヴァイハンダー|槍|ランス|ハルバード|パイク|グレイブ|斧|ハチェット|メイス|フレイル|ハンマー|戦槌|モール|クォータースタッフ|ムチ|棍棒)/.test(raw)) {
+            return { category: 'weapon', icon: '⚔️', rarity: detectRarity(raw) };
+        }
+        if (/\b(bow|longbow|shortbow|crossbow|sling|arrow|seeker|bolt|shot|pebble|ammunition)\b/.test(lower) ||
+            /(ショート・ボウ|ロング・ボウ|ライト・クロスボウ|ヘヴィ・クロスボウ|スリング|弓|矢|クロスボウの矢|弾|鉄弾|丸石)/.test(raw)) {
+            return { category: 'ranged', icon: '🏹', rarity: detectRarity(raw) };
+        }
+        if (/\b(armour|armor|mail|plate|hauberk|brigandine|leather|robe|cloak|shield|buckler|helm|helmet|crown|cap|gloves|gauntlets|cesti|boots|greaves|sandals)\b/.test(lower) ||
+            /(鎧|メイル|アーマー|プレート|ホーバーク|ブリガンディン|レザー|ローブ|クローク|外套|盾|シールド|バックラー|兜|ヘルム|ヘルメット|冠|クラウン|キャップ|帽子|グローブ|ガントレット|篭手|セスタス|ブーツ|靴|グリーヴ|サンダル)/.test(raw)) {
+            return { category: 'armor', icon: '🛡️', rarity: detectRarity(raw) };
+        }
+        return { category: 'misc', icon: '🏺', rarity: detectRarity(raw) };
     }
 
     function detectRarity(desc) {
         const text = String(desc || '');
-        if (/\{.*?(special|splendid|artifact|unmaker|morgoth|feanor|celebrimbor).*?\}/i.test(text) || /\bThe [A-Z][a-z]+ of [A-Z]/.test(text) || /'[A-Z][^']+'/.test(text)) {
+        if (/\{.*?(special|splendid|artifact|unmaker|morgoth|feanor|celebrimbor|特別|アーティファクト).*?\}/i.test(text) || /\bThe [A-Z][a-z]+ of [A-Z]/.test(text) || /'[A-Z][^']+'/.test(text) || /★/.test(text)) {
             return 'artifact';
         }
-        if (/\{.*?(excellent|ego|fine|masterwork).*?\}/i.test(text) || /\(\+\d+,\s*\+\d+\)\s*\[[^\]]+\]\s*\(\+\d+\)/.test(text) || /\bof (Slay|Execute|Westernesse|Gondolin|Noldor|Lothlorien|Fury|Speed|Extra Attacks|Resistance|Free Action|Immunity)\b/i.test(text)) {
+        if (/\{.*?(excellent|ego|fine|masterwork|良質|エゴ|高級).*?\}/i.test(text) || /\(\+\d+,\s*\+\d+\)\s*\[[^\]]+\]\s*\(\+\d+\)/.test(text) || /\bof (Slay|Execute|Westernesse|Gondolin|Noldor|Lothlorien|Fury|Speed|Extra Attacks|Resistance|Free Action|Immunity)\b/i.test(text) || /☆/.test(text)) {
             return 'ego';
         }
         if (/\(\+\d+|\[\d+,\s*\+\d+\]/.test(text)) {
@@ -133,7 +144,7 @@
         let stats = '';
         let cleanName = raw;
 
-        const weightMatch = cleanName.match(/\s+(\d+\.\d+\s*lb|\d+\s*lb)s?(?:\s+(\d+)\s*)$/i);
+        const weightMatch = cleanName.match(/\s+(\d+(?:\.\d+)?\s*(?:lb|kg))s?(?:\s+(\d+)\s*)?$/i);
         if (weightMatch) {
             weight = weightMatch[1];
             if (weightMatch[2]) price = weightMatch[2] + ' au';
@@ -153,8 +164,8 @@
         if (acMatch) statTokens.push(acMatch[0]);
         const manaMatch = cleanName.match(/\b(\d+)\s*(?:sp|mp|mana)\b/i);
         if (manaMatch) statTokens.push(manaMatch[0]);
-        const failMatch = cleanName.match(/\b(\d{1,3})%\s*(?:fail)?/i);
-        if (failMatch) statTokens.push(failMatch[1] + '% fail');
+        const failMatch = cleanName.match(/\b(\d{1,3})%\s*(?:fail|失敗)?/i);
+        if (failMatch) statTokens.push(failMatch[1] + '%');
 
         stats = statTokens.join(' · ');
         return { cleanName, weight, price, stats };
@@ -162,20 +173,25 @@
 
     function getAvailableVerbsForItem(category, realm, context) {
         const r = String(realm || 'angband').toLowerCase();
+        const isJp = r === 'hengband' && context && context.lang === 'jp';
+        const isBi = r === 'hengband' && context && context.lang === 'bilingual';
+        const lbl = (en, jp, bi) => isJp ? jp : (isBi ? (bi || `${en} (${jp.replace(/^[^\s]+\s*/, '')})`) : en);
+
         if (context && context.isStoreScreen) {
             return [
-                { id: 'buy', label: '🪙 Buy / Take', verb: 'p' },
-                { id: 'inspect', label: '🔍 Examine', verb: 'I' }
+                { id: 'buy', label: lbl('🪙 Buy / Take', '🪙 購入 / 受取', '🪙 Buy (購入)'), verb: 'p' },
+                { id: 'inspect', label: lbl('🔍 Examine', '🔍 調査', '🔍 Examine (調査)'), verb: 'I' }
             ];
         }
         if (context && (context.isSpellPowerChoice || (context.submenu && (context.submenu.isFcbPowerMenu || context.submenu.isHengbandMagicMenu)))) {
             return [
-                { id: 'invoke', label: '✨ Cast / Invoke', verb: '' }
+                { id: 'invoke', label: lbl('✨ Cast / Invoke', '✨ 詠唱 / 発動', '✨ Cast (詠唱)'), verb: '' },
+                { id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind (登録)'), verb: '__bind_spell__' }
             ];
         }
         if (context && context.isItemTargetPrompt) {
             return [
-                { id: 'select', label: '✓ Choose Slot', verb: '' }
+                { id: 'select', label: lbl('✓ Choose Slot', '✓ 選択', '✓ Select (選択)'), verb: '' }
             ];
         }
 
@@ -186,29 +202,38 @@
             }
             if (category === 'potion' || category === 'scroll' || category === 'device' || category === 'food' || category === 'light') {
                 verbs.push({ id: 'use', label: '✨ Use Item', verb: 'u' });
+                verbs.push({ id: 'bind', label: '⚡ Bind', verb: 'u', isBind: true });
             }
-            verbs.push({ id: 'inspect', label: '🔍 Inspect', verb: 'I' });
+            verbs.push({ id: 'inspect', label: '🔍 Inspect', verb: 'x' });
             verbs.push({ id: 'drop', label: '⬇️ Drop', verb: 'd' });
             return verbs;
         }
 
         if (category === 'weapon' || category === 'ranged' || category === 'armor' || category === 'jewelry' || category === 'light') {
-            verbs.push({ id: 'wield', label: '⚔️ Wield', verb: 'w' });
+            verbs.push({ id: 'wield', label: lbl('⚔️ Wield', '⚔️ 装備', '⚔️ Wield (装備)'), verb: 'w' });
+            if (category === 'ranged') {
+                verbs.push({ id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'f', isBind: true });
+            }
         }
         if (category === 'potion') {
-            verbs.push({ id: 'quaff', label: '🧪 Quaff', verb: 'q' });
+            verbs.push({ id: 'quaff', label: lbl('🧪 Quaff', '🧪 飲む', '🧪 Quaff (薬)'), verb: 'q' });
+            verbs.push({ id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'q', isBind: true });
         } else if (category === 'scroll') {
-            verbs.push({ id: 'read', label: '📜 Read', verb: 'r' });
+            verbs.push({ id: 'read', label: lbl('📜 Read', '📜 読む', '📜 Read (巻)'), verb: 'r' });
+            verbs.push({ id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'r', isBind: true });
         } else if (category === 'food') {
-            verbs.push({ id: 'eat', label: '🍞 Eat', verb: 'E' });
+            verbs.push({ id: 'eat', label: lbl('🍞 Eat', '🍞 食べる', '🍞 Eat (食)'), verb: 'E' });
         } else if (category === 'device') {
-            verbs.push({ id: 'use', label: '🪄 Use / Aim', verb: 'u' });
+            const devVerb = (r === 'hengband' || r === 'frogcomposband') ? 'a' : 'u';
+            verbs.push({ id: 'use', label: lbl('🪄 Use / Aim', '🪄 使う', '🪄 Use (使)'), verb: devVerb });
+            verbs.push({ id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: devVerb, isBind: true });
         } else if (category === 'tome') {
-            verbs.push({ id: 'browse', label: '📖 Browse', verb: 'b' });
-            verbs.push({ id: 'cast', label: '✨ Cast', verb: 'm' });
+            verbs.push({ id: 'browse', label: lbl('📖 Browse', '📖 閲覧', '📖 Browse (閲)'), verb: 'b' });
+            verbs.push({ id: 'cast', label: lbl('✨ Cast', '✨ 詠唱', '✨ Cast (呪)'), verb: 'm' });
+            verbs.push({ id: 'bind', label: lbl('⚡ Bind', '⚡ 登録', '⚡ Bind'), verb: 'm', isBind: true });
         }
-        verbs.push({ id: 'inspect', label: '🔍 Inspect', verb: 'I' });
-        verbs.push({ id: 'drop', label: '⬇️ Drop', verb: 'd' });
+        verbs.push({ id: 'inspect', label: lbl('🔍 Inspect', '🔍 調査', '🔍 Inspect (調)'), verb: 'I' });
+        verbs.push({ id: 'drop', label: lbl('⬇️ Drop', '⬇️ 落とす', '⬇️ Drop (落)'), verb: 'd' });
         return verbs;
     }
 
@@ -254,9 +279,40 @@
 
             const realm = String(options.realm || 'angband').toLowerCase();
             const heraldry = this.getHeraldry(realm);
-            const classifier = options.classifier || {};
+            const rawClassifier = options.classifier || {};
             const submenu = options.submenu || {};
             const items = Array.isArray(options.items) ? options.items : [];
+
+            const isInventoryScreen = Boolean(
+                rawClassifier.isInventoryScreen ||
+                (rawClassifier.mode === 'item-list' && rawClassifier.listKind === 'inven' && !rawClassifier.verbPrompt)
+            );
+            const isEquipScreen = Boolean(
+                rawClassifier.isEquipScreen ||
+                (rawClassifier.mode === 'item-list' && rawClassifier.listKind === 'equip' && !rawClassifier.verbPrompt)
+            );
+            const isStoreScreen = Boolean(
+                rawClassifier.isStoreScreen ||
+                rawClassifier.isStore ||
+                rawClassifier.mode === 'store'
+            );
+            const isSpellPowerChoice = Boolean(
+                rawClassifier.isSpellPowerChoice ||
+                rawClassifier.verbPrompt === 'cast' ||
+                rawClassifier.verbPrompt === 'browse' ||
+                rawClassifier.verbPrompt === 'study'
+            );
+            const isItemTargetPrompt = Boolean(
+                rawClassifier.isItemTargetPrompt ||
+                (rawClassifier.mode === 'item-list' && rawClassifier.promptKind === 'select' && Boolean(rawClassifier.verbPrompt) && !isSpellPowerChoice)
+            );
+            const classifier = Object.assign({}, rawClassifier, {
+                isInventoryScreen,
+                isEquipScreen,
+                isStoreScreen,
+                isSpellPowerChoice,
+                isItemTargetPrompt
+            });
 
             const isMenuActive = Boolean(
                 classifier.isInventoryScreen ||
@@ -275,32 +331,40 @@
                 return false;
             }
 
-            const itemSig = items.slice(0, 26).map((it) => `${it.key}:${it.row}:${it.col || 0}:${(it.desc || '').slice(0, 28)}`).join('|');
-            const sig = `${realm}::${this.mode}::${submenu.kind || 'none'}::${Boolean(classifier.isInventoryScreen)}:${Boolean(classifier.isEquipScreen)}:${Boolean(classifier.isStoreScreen)}:${Boolean(classifier.isSpellPowerChoice)}:${Boolean(classifier.isItemTargetPrompt)}:${Boolean(classifier.verbPrompt)}::${itemSig}`;
+            const lang = (realm === 'hengband')
+                ? String(options.lang || (typeof window !== 'undefined' && window.__langMode) || 'en').toLowerCase()
+                : 'en';
+            const isJp = realm === 'hengband' && lang === 'jp';
+            const isBi = realm === 'hengband' && lang === 'bilingual';
+
+            const itemSig = items.slice(0, 26).map((it) => `${it.key}:${it.row}:${it.col || it.startCol || 0}:${(it.desc || it.rawLabel || it.label || '').slice(0, 28)}`).join('|');
+            const sig = `${realm}:${lang}::${this.mode}::${submenu.kind || 'none'}::${Boolean(classifier.isInventoryScreen)}:${Boolean(classifier.isEquipScreen)}:${Boolean(classifier.isStoreScreen)}:${Boolean(classifier.isSpellPowerChoice)}:${Boolean(classifier.isItemTargetPrompt)}:${Boolean(classifier.verbPrompt)}::${itemSig}`;
 
             if (sig === this._lastSig && container.style.display !== 'none') {
                 return true;
             }
             this._lastSig = sig;
 
-            let viewKindLabel = 'ARMORY & PACK';
+            let viewKindLabel = isJp ? '武具・所持品' : (isBi ? 'ARMORY & PACK (所持品)' : 'ARMORY & PACK');
             if (submenu.isSilqAbilityTree) viewKindLabel = 'SIL-Q ABILITY TAPESTRY';
             else if (submenu.isSilqSmithing) viewKindLabel = 'NOLDORIN ANVIL FORGE';
             else if (submenu.isFcbPowerMenu) viewKindLabel = 'CHAOS & RACIAL POWERS';
-            else if (submenu.isHengbandMagicMenu) viewKindLabel = 'SCROLLS OF JUTSU & MIND';
-            else if (classifier.isStoreScreen) viewKindLabel = 'MERCHANT EMPORIUM';
-            else if (classifier.isEquipScreen) viewKindLabel = 'WIELDED PANOPLY';
-            else if (classifier.isSpellPowerChoice) viewKindLabel = 'ARCANE GRIMOIRE';
-            else if (classifier.isItemTargetPrompt) viewKindLabel = 'CHOOSE TARGET ITEM';
+            else if (submenu.isHengbandMagicMenu) viewKindLabel = isJp ? '術法・仙術の巻' : (isBi ? 'SCROLLS OF JUTSU (術法)' : 'SCROLLS OF JUTSU & MIND');
+            else if (classifier.isStoreScreen) viewKindLabel = isJp ? '街の商店・取引' : (isBi ? 'MERCHANT EMPORIUM (商店)' : 'MERCHANT EMPORIUM');
+            else if (classifier.isEquipScreen) viewKindLabel = isJp ? '装備中の武具' : (isBi ? 'WIELDED PANOPLY (装備品)' : 'WIELDED PANOPLY');
+            else if (classifier.isSpellPowerChoice) viewKindLabel = isJp ? '魔道書・秘伝書' : (isBi ? 'ARCANE GRIMOIRE (魔道書)' : 'ARCANE GRIMOIRE');
+            else if (classifier.isItemTargetPrompt) viewKindLabel = isJp ? '対象アイテムを選択' : (isBi ? 'CHOOSE ITEM (対象選択)' : 'CHOOSE TARGET ITEM');
 
             let switcherHtml = '';
             if (classifier.isInventoryScreen || classifier.isEquipScreen) {
                 const invActive = classifier.isInventoryScreen ? 'is-active' : '';
                 const eqActive = classifier.isEquipScreen ? 'is-active' : '';
+                const packLbl = isJp ? '🎒 所持品' : (isBi ? '🎒 Pack (所持)' : '🎒 Pack');
+                const eqLbl = isJp ? '🛡️ 装備品' : (isBi ? '🛡️ Equipped (装備)' : '🛡️ Equipped');
                 switcherHtml = `
                     <div class="grimoire-tab-group" role="tablist" aria-label="Pack and Equipment Tabs">
-                        <button type="button" class="grimoire-tab-btn ${invActive}" data-grimoire-cmd="switch-view" data-grimoire-key="i" title="Switch to Inventory Pack">🎒 Pack</button>
-                        <button type="button" class="grimoire-tab-btn ${eqActive}" data-grimoire-cmd="switch-view" data-grimoire-key="e" title="Switch to Wielded Equipment">🛡️ Equipped</button>
+                        <button type="button" class="grimoire-tab-btn ${invActive}" data-grimoire-cmd="switch-view" data-grimoire-key="i" title="Switch to Inventory Pack">${packLbl}</button>
+                        <button type="button" class="grimoire-tab-btn ${eqActive}" data-grimoire-cmd="switch-view" data-grimoire-key="e" title="Switch to Wielded Equipment">${eqLbl}</button>
                         ${realm === 'angband' ? '<button type="button" class="grimoire-tab-btn" data-grimoire-cmd="switch-view" data-grimoire-key="|" title="Switch to Quiver">🏹 Quiver</button>' : ''}
                     </div>
                 `;
@@ -337,24 +401,28 @@
             } else if (items.length > 0) {
                 const cards = items.slice(0, 18).map((item) => {
                     const key = String(item.key || '');
-                    const desc = String(item.desc || '');
+                    const desc = String(item.desc || item.rawLabel || item.label || '');
                     const cat = classifyItemCategory(desc);
                     const metrics = parseItemMetrics(desc);
                     const verbs = getAvailableVerbsForItem(cat.category, realm, {
+                        lang,
                         isStoreScreen: classifier.isStoreScreen,
                         isSpellPowerChoice: classifier.isSpellPowerChoice,
                         isItemTargetPrompt: classifier.isItemTargetPrompt,
                         submenu
                     });
 
-                    const primaryVerb = verbs[0] || { id: 'select', label: 'Select', verb: '' };
-                    const secondaryVerbs = verbs.slice(1, 4);
+                    const primaryVerb = verbs[0] || { id: 'select', label: isJp ? '選択' : 'Select', verb: '' };
+                    const secondaryVerbs = verbs.slice(1, 5);
 
                     const actionButtons = secondaryVerbs.map((v) => `
-                        <button type="button" class="grimoire-card-verb-btn"
-                            data-grimoire-cmd="item-verb"
+                        <button type="button" class="grimoire-card-verb-btn ${v.isBind || v.id === 'bind' ? 'grimoire-bind-btn' : ''}"
+                            data-grimoire-cmd="${v.isBind || v.id === 'bind' ? 'bind-quick-slot' : 'item-verb'}"
                             data-grimoire-key="${escapeHtml(key)}"
                             data-grimoire-verb="${escapeHtml(v.verb)}"
+                            data-grimoire-name="${escapeHtml(metrics.cleanName)}"
+                            data-grimoire-category="${escapeHtml(cat.category)}"
+                            data-grimoire-icon="${escapeHtml(cat.icon)}"
                             data-grimoire-row="${Number(item.row || 0)}"
                             data-grimoire-col="${Number(item.col || 0)}"
                             title="${escapeHtml(v.label)} (${escapeHtml(key)})">
@@ -391,14 +459,17 @@
                 bodyHtml = `<div class="grimoire-card-grid" role="list">${cards}</div>`;
             }
 
-            const modeBtnLabel = this.mode === 'classic' ? '📜 Show Grimoire Cards [F10]' : '📜 Classic Parchment Only [F10]';
+            const modeBtnLabel = this.mode === 'classic'
+                ? (isJp ? '📜 カード表示 [F10]' : (isBi ? '📜 Cards (カード) [F10]' : '📜 Show Grimoire Cards [F10]'))
+                : (isJp ? '📜 端末のみ [F10]' : (isBi ? '📜 Classic (端末) [F10]' : '📜 Classic Parchment Only [F10]'));
+            const crestTitleText = isJp ? '五輪書・変愚蛮怒' : heraldry.crestTitle;
 
             container.innerHTML = `
                 <div class="grimoire-deck-shell" data-realm="${escapeHtml(realm)}" data-mode="${escapeHtml(this.mode)}">
                     <div class="grimoire-deck-header">
                         <div class="grimoire-crest-banner">
                             <span class="grimoire-crest-icon" aria-hidden="true">${heraldry.svgCrest}</span>
-                            <span class="grimoire-crest-realm">${escapeHtml(heraldry.crestTitle)}</span>
+                            <span class="grimoire-crest-realm">${escapeHtml(crestTitleText)}</span>
                             <span class="grimoire-crest-sep">·</span>
                             <span class="grimoire-crest-view">${escapeHtml(viewKindLabel)}</span>
                         </div>
@@ -435,6 +506,9 @@
                             type: cmd,
                             key: target.getAttribute('data-grimoire-key') || '',
                             verb: target.getAttribute('data-grimoire-verb') || '',
+                            name: target.getAttribute('data-grimoire-name') || '',
+                            category: target.getAttribute('data-grimoire-category') || '',
+                            icon: target.getAttribute('data-grimoire-icon') || '',
                             row: Number(target.getAttribute('data-grimoire-row') || 0),
                             col: Number(target.getAttribute('data-grimoire-col') || 0),
                             pillarIndex: Number(target.getAttribute('data-pillar-index') || 0)

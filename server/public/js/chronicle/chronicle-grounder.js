@@ -2733,9 +2733,32 @@ class ChronicleGrounder {
     static answerGuideQuery(query = '', player = null, realmKey = null) {
         const q = (query || '').toLowerCase().trim();
         const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const isJpHeng = (rk === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
         const heroClass = (player && player.class) ? player.class.toLowerCase() : 'warrior';
-        const pName = (player && player.name) ? player.name : 'Hero';
+        const pName = (player && player.name) ? player.name : (isJpHeng ? '武芸者' : 'Hero');
         const pRace = (player && player.race) ? player.race.toLowerCase() : 'mortal';
+
+        if (isJpHeng) {
+            if (q.includes('potion') || q.includes('quaff') || q.includes('heal') || q.includes('drink') || q.includes('cure') || q.includes('薬') || q.includes('回復')) {
+                return `薬を服するには『q』キーを押すがよい。深手を負ってからでは遅い——城下町の錬金術店（5）にて致命傷の治癒の薬を常に蓄えよ。`;
+            }
+            if (q.includes('rest') || q.includes('sleep') || q.includes('recover') || q.includes('mana') || q.includes('休') || q.includes('眠')) {
+                return `広間で無防備に眠るは愚の骨頂なり。袋小路へ退き、扉を閉ざし（c）、『R』から『*』を押して体力と魔力が満ちるまで静養せよ。`;
+            }
+            if (q.includes('spell') || q.includes('magic') || q.includes('cast') || q.includes('pray') || q.includes('book') || q.includes('魔法') || q.includes('術')) {
+                return `変愚蛮怒の術法は多彩なり。『m』キーにて魔法書・仙術書・忍術を紐解き、己の流派の技を放て。`;
+            }
+            if (q.includes('shop') || q.includes('store') || q.includes('town') || q.includes('buy') || q.includes('sell') || q.includes('店') || q.includes('町')) {
+                return `城下町には雑貨屋（1）、防具屋（2）、武器屋（3）、寺院（4）、錬金術店（5）、魔法店（6）、ブラックマーケット（7）、我が家（8）が並ぶ。扉を踏んで入店せよ。`;
+            }
+            if (q.includes('escape') || q.includes('run') || q.includes('phase door') || q.includes('teleport') || q.includes('recall') || q.includes('逃') || q.includes('帰還')) {
+                return `退くもまた兵法なり。ショート・テレポートの巻物（r）やテレポートの巻物を常備し、帰還の巻物は発動まで十数ターンを要することを忘れるな。`;
+            }
+            if (q.includes('wield') || q.includes('equip') || q.includes('wear') || q.includes('armor') || q.includes('weapon') || q.includes('gear') || q.includes('装備') || q.includes('武器')) {
+                return `武具を装備するには『w』、外すには『t』、現在の装備を検めるには『e』を押すがよい。`;
+            }
+            return `宮本武蔵が授ける、${pName}よ。迷宮にて生き延びる要諦は、狭い一マスの通路に敵を誘い込み、常に退路と光源、そして帰還の巻物を絶やさぬことにある。心を静め、一太刀に魂を込めよ。`;
+        }
 
         // 1. POTIONS & HEALING
         if (q.includes('potion') || q.includes('quaff') || q.includes('heal') || q.includes('drink') || q.includes('cure')) {
@@ -2883,11 +2906,26 @@ class ChronicleGrounder {
      */
     static resolveObjectInspection(item, hero = null, depth = 0, realmKey = 'angband') {
         const rk = (realmKey || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : 'angband')).toLowerCase();
+        const isJpHeng = (rk === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
         const realmCtx = this.getRealmContext(rk);
-        const itemName = (item && (item.name || item.itemName)) ? (item.name || item.itemName) : 'Unidentified Object';
+        const itemName = (item && (item.name || item.itemName)) ? (item.name || item.itemName) : (isJpHeng ? '未鑑定の品' : 'Unidentified Object');
         const glyph = (item && item.glyph) ? item.glyph : '?';
-        const hName = (hero && hero.name) ? hero.name : 'the adventurer';
+        const hName = (hero && hero.name) ? hero.name : (isJpHeng ? '武芸者' : 'the adventurer');
         const lower = itemName.toLowerCase();
+
+        if (isJpHeng) {
+            const jpAppraisal = `「${itemName}」——迷宮の石畳に眠る品なり。『g』で拾い、『i』で持ち物を検め、『I』で詳細を見極めよ。`;
+            return {
+                title: `鑑定: ${itemName}`,
+                prose: `${hName}は足元の「${itemName}」に目を留め、宮本武蔵の鑑識を仰ぐ。`,
+                appraisal: jpAppraisal,
+                dialogue: jpAppraisal,
+                lorekeeperName: '宮本武蔵',
+                recommendedVoice: realmCtx.voice,
+                isArtifact: false,
+                realm: rk
+            };
+        }
 
         // 1. Check canonical artifact lore across realms
         let matchedArtifactLore = null;
@@ -3673,15 +3711,51 @@ class ChronicleGrounder {
      * Guarantees 0ms latency and 100% reliability everywhere.
      */
     static generateProceduralChapter(event, player, traditionKey = 'westmarch') {
+        const rk = (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const isJpHeng = (rk === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
         const tradition = this.TRADITIONS[traditionKey] || this.TRADITIONS.westmarch;
-        const name = (player && player.name) ? player.name : 'The Wanderer';
-        const race = (player && player.race) ? player.race : 'Hero';
+        const name = (player && player.name) ? player.name : (isJpHeng ? '放浪の武芸者' : 'The Wanderer');
+        const race = (player && player.race) ? player.race : (isJpHeng ? '武人' : 'Hero');
         const depth = (player && typeof player.depth === 'number') ? player.depth : (event.data && typeof event.data.depth === 'number' ? event.data.depth : 0);
         const depthFt = `${depth * 50}ft`;
         const rawWeap = (player && player.weapon_item) ? player.weapon_item : ((player && player.equipped && player.equipped.weapon) ? player.equipped.weapon : null);
-        const weapon = rawWeap ? rawWeap.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : 'bare fists';
+        const weapon = rawWeap ? rawWeap.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : (isJpHeng ? '己の拳' : 'bare fists');
         const bow = (player && player.bow_item) ? player.bow_item.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : null;
         const quiver = (player && player.quiver_item) ? player.quiver_item.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim() : null;
+
+        if (isJpHeng) {
+            const foe = (event && event.data && (event.data.monster || event.data.target || event.data.foe)) || '妖魔';
+            let jpTitle = '深淵の残響';
+            let jpProse = `${name}は地下${depth}階（${depthFt}）の闇を進み、${weapon}を構えて気配を探る。`;
+            let jpInsight = '狭い通路に敵を誘い込み、一対一の勝負に持ち込むべし。';
+            if (event && event.type === 'HERO_DEATH') {
+                const diedFrom = (event.data && event.data.diedFrom) || '致命傷';
+                jpTitle = `墓碑銘：${name}の最期`;
+                jpProse = `無念なり——${name}は${depth === 0 ? '城下町' : `地下${depth}階`}にて${diedFrom}により倒れた。されどその武勇は五輪の年代記に永く刻まれん。`;
+                jpInsight = '死もまた修行の一歩なり。次なる転生にて雪辱を果たせ。';
+            } else if (event && event.type === 'ONBOARDING_TOWN_ARRIVAL') {
+                jpTitle = '城下町への出立';
+                jpProse = `${name}は変愚蛮怒の城下町に立つ。深淵へ降りる前に雑貨屋（1）で松明と食料を整えよ。`;
+                jpInsight = '『1』の入り口を踏んで雑貨屋へ入り、松明と食料を買い求めよ。';
+            } else if (event && (event.type === 'BOSS_KILL' || event.type === 'MONSTER_KILL' || event.type === 'COMBAT_EXCHANGE')) {
+                jpTitle = `${foe}との死闘`;
+                jpProse = `${name}は${weapon}を一閃させ、立ち塞がる${foe}を斬り伏せた。`;
+            }
+            return {
+                id: 'ch_' + Date.now() + '_' + ((player && player.turn) || 0),
+                timestamp: new Date().toISOString(),
+                turn: (player && player.turn) || 0,
+                depth,
+                eventType: (event && event.type) || 'EXPLORATION',
+                tradition: tradition.name,
+                title: jpTitle,
+                prose: jpProse,
+                summary: jpTitle,
+                dialogue: null,
+                insight: jpInsight,
+                isProcedural: true
+            };
+        }
 
         let title = 'Echoes in the Deep';
         let prose = '';

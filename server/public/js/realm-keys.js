@@ -118,9 +118,9 @@
         { id: 'btn-quests', verb: 'quests', defaultTitle: 'Active Quests & Monster Bounties',
           labels: { hengband_jp: '📜 任務', default: '📜 Quests' } },
         { id: 'btn-browse', verb: 'browse', defaultTitle: 'Browse Spellbook',
-          labels: { default: '📖 Browse' } },
+          labels: { hengband_jp: '📖 閲覧', default: '📖 Browse' } },
         { id: 'btn-study', verb: 'study', defaultTitle: 'Study New Spells',
-          labels: { default: '✨ Study' } },
+          labels: { hengband_jp: '✨ 学習', default: '✨ Study' } },
         { id: 'btn-quaff', verb: 'quaff', defaultTitle: 'Drink / quaff potion',
           labels: { silq: '🧪 Draught', hengband_jp: '🧪 薬', default: '🧪 Potion' } },
         { id: 'btn-read', verb: 'read', defaultTitle: 'Read magical scroll',
@@ -159,10 +159,14 @@
             const key = cfg.defaultKey ? cfg.defaultKey : realmKey(cfg.verb, r);
             if (key === null) {
                 btn.hidden = true;
+                if (btn.dataset) btn.dataset.realmHidden = '1';
                 if (btn.style) btn.style.display = 'none';
             } else {
                 btn.hidden = false;
-                if (btn.style) btn.style.display = '';
+                if (btn.dataset) delete btn.dataset.realmHidden;
+                if (btn.style) {
+                    btn.style.display = (btn.dataset && btn.dataset.contextHidden === '1') ? 'none' : '';
+                }
                 const displayKey = (key === 'tab') ? 'Tab' : key;
 
                 const isJp = (r === 'hengband') && (effLang === 'jp');

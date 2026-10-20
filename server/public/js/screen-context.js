@@ -727,6 +727,7 @@
             /(?:^|\s+)([a-zA-Z0-9*@?])[\)\.\:\-]\s+([^\n\r]{1,70})/g,
             /(?:^|\s+)(\*)\s*(ランダム|random|Random)/gi
         ];
+        const suffixActionRe = /(?:^|\s{2,})(Inspect|Cast|Study|Browse|Aim|Zap|Use|Read|Quaff|Eat|Activate|Fire|Refill|Take off|Equip|Drop All|Drop|Sell|Pick up|Throw|Uninscribe|Inscribe|Unignore|Ignore)\s+\(([a-zA-Z\{\}])\)\s*$/g;
         const seenKeys = new Set();
         const items = [];
 
@@ -760,6 +761,17 @@
                         seenKeys.add(key);
                         items.push({ key, label, glyph, display: `[${key}]` });
                     }
+                }
+            }
+
+            suffixActionRe.lastIndex = 0;
+            let sm;
+            while ((sm = suffixActionRe.exec(line)) !== null) {
+                const actionLabel = (sm[1] || '').trim();
+                const actionKey = sm[2];
+                if (actionKey && actionLabel && !seenKeys.has(actionKey)) {
+                    seenKeys.add(actionKey);
+                    items.push({ key: actionKey, label: actionLabel, glyph: null, display: `[${actionKey}]` });
                 }
             }
         }
@@ -1055,6 +1067,32 @@
                 display: `[${cur.key}]`
             });
         }
+
+        if (regions.length === 0) {
+            const suffixActionRe = /(?:^|(\s{2,}))(Inspect|Cast|Study|Browse|Aim|Zap|Use|Read|Quaff|Eat|Activate|Fire|Refill|Take off|Equip|Drop All|Drop|Sell|Pick up|Throw|Uninscribe|Inscribe|Unignore|Ignore)\s+\(([a-zA-Z\{\}])\)\s*$/g;
+            let sm;
+            while ((sm = suffixActionRe.exec(line)) !== null) {
+                const leadSpaces = sm[1] ? sm[1].length : 0;
+                const startCol = sm.index + leadSpaces;
+                const actionLabel = (sm[2] || '').trim();
+                const actionKey = sm[3];
+                const endCol = sm.index + sm[0].trimEnd().length - 1;
+                if (actionKey && actionLabel) {
+                    regions.push({
+                        key: actionKey,
+                        label: actionLabel,
+                        rawLabel: `${actionLabel} (${actionKey})`,
+                        glyph: null,
+                        weight: null,
+                        price: null,
+                        startCol,
+                        endCol,
+                        display: `[${actionKey}]`
+                    });
+                }
+            }
+        }
+
         return regions;
     }
 

@@ -168,7 +168,7 @@ function runTests() {
     assert.ok(html.includes('data-verb="Escape"'), "HTML must include escape button");
     assert.ok(html.includes('is-suggested'), "HTML should highlight a suggested action for torch");
 
-    // Test 7: Offline / Vanilla Angband Real Inventory Fixture Routing (WS10.3)
+    // Test 7: Offline / Vanilla Angband Real Inventory Fixture Routing (WS10.3 / WS31)
     sentKeys = [];
     toasts = [];
     MenuRouter.clearPending();
@@ -194,10 +194,23 @@ function runTests() {
     assert.ok(angbandHtml.includes('data-verb="w"'), "Angband chooser HTML must include wear button");
     assert.ok(angbandHtml.includes('is-suggested'), "Torch should have suggested action highlighted");
 
-    // Choose verb 'w'
+    // Choose verb 'w' from passive Vanilla Angband inventory:
+    // Must exit passive 'Select Item:' with 'Escape' first so lowercase verbs ('d', 'a', 'w')
+    // never collide with item slot letters a-e or get ignored by the passive list.
     MenuRouter.chooseVerb('w');
-    assert.strictEqual(sentKeys.length, 1, "Verb 'w' should be sent");
-    assert.strictEqual(sentKeys[0], 'w');
+    assert.strictEqual(sentKeys.length, 2, "Escape + Verb 'w' should be sent from passive Angband inventory");
+    assert.deepStrictEqual(sentKeys, ['Escape', 'w']);
+
+    // Simulate transient awaiting_command frame emitted by C engine right after Escape
+    sentKeys = [];
+    MenuRouter.onFrame({
+        phase: 'play',
+        realm: 'angband',
+        map: angbandInvenFrame.map,
+        ui: { overlay: 0, awaiting_command: true, more: false },
+        term: { rows: [{ g: '' }] }
+    }, 'angband');
+    assert.ok(MenuRouter.getPending(), "Pending state must survive transient post-Escape frame");
 
     // Next frame: Wear/Wield prompt arrives
     sentKeys = [];
@@ -229,7 +242,203 @@ function runTests() {
     assert.strictEqual(localBridge._validateCommand('key a\nevil'), false, "Multiline injection must be blocked");
     assert.strictEqual(localBridge._validateCommand(''), false, "Empty command must be blocked");
 
-    console.log("All MenuRouter unit tests passed successfully!");
+    // Test 9: FrogComposBand passive gear_ui routing (Examine vs Wear verb)
+    sentKeys = [];
+    MenuRouter.clearPending();
+    const fcbInvenFrame = {
+        phase: 'play',
+        realm: 'frogcomposband',
+        map: { w: 10, h: 10, rows: [] },
+        ui: { overlay: 1, awaiting_command: false, more: false },
+        term: {
+            rows: [
+                { g: "                Inventory | Equipment" },
+                { g: "                a) 2 Rations of Food                 2.0 lbs" },
+                { g: "                b) a Dagger (1d4) (+0,+0)            1.2 lbs" },
+                { g: "                Examine which item (Esc to exit)?" }
+            ]
+        }
+    };
+    assert.strictEqual(MenuRouter.route('b', fcbInvenFrame, 'frogcomposband'), true, "FCB item 'b' must open chooser");
+    MenuRouter.chooseVerb('I');
+    assert.deepStrictEqual(sentKeys, ['b'], "FCB Inspect ('I') in gear_ui must send slot key directly without Escape");
+    assert.strictEqual(MenuRouter.getPending(), null);
+
+    sentKeys = [];
+    assert.strictEqual(MenuRouter.route('b', fcbInvenFrame, 'frogcomposband'), true);
+    MenuRouter.chooseVerb('w');
+    assert.deepStrictEqual(sentKeys, ['Escape', 'w'], "FCB Wear ('w') in gear_ui must exit passive list first");
+    sentKeys = [];
+    MenuRouter.onFrame({
+        phase: 'play',
+        realm: 'frogcomposband',
+        map: { w: 10, h: 10, rows: [] },
+        ui: { overlay: 0, awaiting_command: true, more: false },
+        term: { rows: [{ g: '' }] }
+    }, 'frogcomposband');
+    assert.ok(MenuRouter.getPending(), "FCB pending state must survive transient post-Escape frame");
+    MenuRouter.onFrame({
+        phase: 'play',
+        realm: 'frogcomposband',
+        map: { w: 10, h: 10, rows: [] },
+        ui: { overlay: 1, awaiting_command: false, more: false },
+        term: {
+            rows: [
+                { g: "  b) a Dagger (1d4) (+0,+0)            1.2 lbs" },
+                { g: "Wear/Wield which item?" }
+            ]
+        }
+    }, 'frogcomposband');
+    assert.deepStrictEqual(sentKeys, ['b'], "FCB Wear prompt must dispatch matched item key 'b'");
+    assert.strictEqual(MenuRouter.getPending(), null);
+
+    // Test 10: Vanilla Angband native Command for <item>: suffix action extraction
+    const cmdForRows = [
+        { g: "                      Inspect (I)" },
+        { g: "                      Equip (w)" },
+        { g: "                      Drop (d)" },
+        { g: "                      Inscribe ({)" },
+        { g: "                      Ignore (k)" },
+        { g: " (Enter to select, ESC) Command for a Wooden Torch (5000 turns):" }
+    ];
+    const extractedActions = global.ScreenContext.extractItems(cmdForRows, false);
+    assert.deepStrictEqual(
+        extractedActions.map(x => x.key),
+        ['I', 'w', 'd', '{', 'k'],
+        "extractItems must parse suffix action tags on Command for <item>: screens"
+    );
+    const rowRegions = global.ScreenContext.extractRowRegions("                      Equip (w)");
+    assert.strictEqual(rowRegions.length, 1);
+    assert.strictEqual(rowRegions[0].key, 'w');
+    assert.strictEqual(rowRegions[0].label, 'Equip');
+
+    // Test 11: QuickActionManager & RealmGrimoireDeck Japanese (JP) parity
+    const QuickActionManager = require('../server/public/js/quick-actions.js');
+    const RealmGrimoireDeck = require('../server/public/js/grimoire-deck.js');
+
+    assert.ok(QuickActionManager, "QuickActionManager must export cleanly");
+    assert.strictEqual(QuickActionManager.normalizeItemName("3 治癒の薬 (3.0 kg)"), "治癒の薬");
+    assert.strictEqual(QuickActionManager.normalizeItemName("5 Potions of Cure Critical Wounds {25% off}"), "potions of cure critical wounds");
+
+    const samplePackFrame = {
+        phase: 'play',
+        realm: 'hengband',
+        player: {
+            inventory: [
+                { slot: 0, label: 'a', name: '2 伝統的な松明', tval: 39, sval: 1, number: 2 },
+                { slot: 2, label: 'c', name: '4 致命傷の治癒の薬', tval: 71, sval: 38, number: 4 }
+            ],
+            equipment: []
+        }
+    };
+    const matchByTval = QuickActionManager.resolveSlot(
+        { type: 'item', verb: 'q', normalizedName: 'different', tval: 71, sval: 38 },
+        samplePackFrame,
+        'hengband',
+        'jp'
+    );
+    assert.ok(matchByTval && matchByTval.available && matchByTval.qtyText === 'x4' && matchByTval.sequence[1] === 'c', "QuickActionManager must resolve shifted slot 'c' via (tval, sval) and qtyText='x4'");
+
+    // Verify RealmGrimoireDeck Japanese (JP) categorization & rarity
+    assert.strictEqual(RealmGrimoireDeck.classifyItemCategory('3 致命傷の治癒の薬').category, 'potion');
+    assert.strictEqual(RealmGrimoireDeck.classifyItemCategory('2 ショート・テレポートの巻物').category, 'scroll');
+    assert.strictEqual(RealmGrimoireDeck.classifyItemCategory('魔法の矢の魔法棒 (8回)').category, 'device');
+    assert.strictEqual(RealmGrimoireDeck.classifyItemCategory('初歩の魔法書 [1冊目]').category, 'tome');
+    assert.strictEqual(RealmGrimoireDeck.classifyItemCategory('★名刀『村正』 (4d5) (+18,+18)').category, 'weapon');
+    assert.strictEqual(RealmGrimoireDeck.detectRarity('★名刀『村正』 (4d5) (+18,+18)'), 'artifact');
+
+    // Test 12: Vanilla Angband (tval 0..35) vs Variant (tval 16..115) disambiguation & fire_nearest sequence
+    assert.strictEqual(QuickActionManager.classifyInventoryEntry({ name: '3 Wooden Torches', tval: 19 }, 'angband').category, 'other',
+        'Vanilla Angband Torch (tval=19) must not be misclassified as ranged bow');
+    assert.strictEqual(QuickActionManager.classifyInventoryEntry({ name: 'Long Bow (x3)', tval: 19 }, 'hengband').category, 'ranged',
+        'Variant Long Bow (tval=19) must be classified as ranged');
+    assert.strictEqual(QuickActionManager.classifyInventoryEntry({ name: '青い薬', tval: 71 }, 'hengband').category, 'potion',
+        'Unidentified JP potion ending in 薬 must be classified as potion');
+
+    const vanillaRangedFrame = {
+        phase: 'play',
+        realm: 'angband',
+        player: {
+            equipment: [{ slot: 1, name: 'Short Bow (x2)', tval: 5 }],
+            quiver: [{ slot: 0, label: '0', name: '25 Arrows (1d4)', tval: 3, number: 25 }],
+            inventory: []
+        }
+    };
+    const vanillaShoot = QuickActionManager.resolveSlot({ type: 'fire_nearest' }, vanillaRangedFrame, 'angband', 'en');
+    assert.deepStrictEqual(vanillaShoot.sequence, ['f', '0', 't'], 'Vanilla Angband fire_nearest must include ammo slot key before t');
+
+    const silqRangedFrame = {
+        phase: 'play',
+        realm: 'silq',
+        player: {
+            equipment: [
+                { slot: 1, name: 'Shortbow', tval: 19 },
+                { slot: 12, name: '18 Arrows', tval: 17, number: 18 }
+            ],
+            inventory: []
+        }
+    };
+    const silqShoot = QuickActionManager.resolveSlot({ type: 'fire_nearest' }, silqRangedFrame, 'silq', 'en');
+    assert.strictEqual(silqShoot.available, true, 'Sil-Q fire_nearest must detect quiver arrows in equipment');
+    assert.deepStrictEqual(silqShoot.sequence, ['f', 't'], 'Sil-Q fire_nearest must dispatch [f, t] without ammo prompt');
+
+    // Test 13: MinimapNavigator row.l fog-of-war & closed door (feat=2) pathfinding
+    const { InputController } = require('../server/public/js/input.js');
+    const navDummy = Object.create(InputController.prototype);
+    navDummy.getFeatAt = (map, x, y) => {
+        const r = map.rows[y];
+        if (!r || !r.f) return 1;
+        return parseInt(r.f.substring(x * 2, x * 2 + 2), 16) || 1;
+    };
+    const navFrame = {
+        phase: 'play',
+        map: {
+            w: 5,
+            h: 3,
+            rows: [
+                { g: '#####', f: '1010101010', l: '22222' },
+                { g: '.+..#', f: '0102010110', l: '33220' },
+                { g: '#####', f: '1010101010', l: '22222' }
+            ]
+        }
+    };
+    const navPath = navDummy.computeMinimapPath(navFrame, 0, 1, 3, 1);
+    assert.strictEqual(navPath.length, 3, 'Minimap A* must find 3-step path across row.l explored tiles');
+    assert.strictEqual(navPath[0].isClosedDoor, true, 'Step onto feat=02 (+) must be flagged as isClosedDoor');
+    assert.strictEqual(navPath[1].isClosedDoor, false, 'Open floor tile must not be flagged as closed door');
+
+    // Test 14: Town (depth=0) auto-navigation routes around townspeople & supports live re-routing
+    const sentMoveKeys = [];
+    navDummy.network = { sendKey: (k) => sentMoveKeys.push(k) };
+    const townFrame = {
+        phase: 'play',
+        ui: { awaiting_command: true, overlay: 0, more: false },
+        player: { x: 0, y: 1, depth: 0, hp: 20, statuses: [] },
+        monsters: [{ x: 1, y: 1, name: 'Scrawny cat', glyph: 'f', visible: true }],
+        items: [],
+        map: {
+            w: 4,
+            h: 3,
+            rows: [
+                { g: '....', f: '01010101', l: '0000' },
+                { g: '....', f: '01010101', l: '0000' },
+                { g: '....', f: '01010101', l: '0000' }
+            ]
+        }
+    };
+    assert.strictEqual(navDummy.computeMinimapPath(townFrame, 0, 1, 1, 1).length, 0,
+        'Must not auto-navigate directly onto a creature tile');
+    const startedTownNav = navDummy.startMinimapAutoNav(2, 1, townFrame);
+    assert.strictEqual(startedTownNav, true, 'Town auto-navigation must succeed even when townspeople are in sight');
+    assert.strictEqual(sentMoveKeys.length, 1, 'First step must be dispatched immediately on startMinimapAutoNav');
+    assert.ok(navDummy._autoNav && navDummy._autoNav.path.every((s) => !(s.x === 1 && s.y === 1)),
+        'A* path must route around the townsperson at (1,1)');
+    const rerouted = navDummy.startMinimapAutoNav(3, 0, townFrame);
+    assert.strictEqual(rerouted, true, 'Clicking a new destination while auto-navigating must re-route immediately');
+    assert.strictEqual(navDummy._autoNav.goalX, 3, 'New goalX must be updated to 3');
+    navDummy.stopMinimapAutoNav('Cancelled');
+
+    console.log("All MenuRouter & WS32 unit tests passed successfully!");
 }
 
 try {

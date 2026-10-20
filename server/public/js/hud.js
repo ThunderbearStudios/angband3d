@@ -680,10 +680,10 @@ class WebHUD {
                 const label = this.describeMinimapCell(mx, my);
                 const hintEl = document.getElementById('minimap-hint-text');
                 if (hintEl && label) {
-                    hintEl.textContent = label;
+                    hintEl.textContent = `${label} • Click to Travel`;
                     hintEl.style.color = '#ffd700';
                 }
-                this.minimapCanvas.title = label || 'Minimap Radar';
+                this.minimapCanvas.title = label ? `${label} (Click to Auto-Navigate)` : 'Minimap Radar (Click to Auto-Navigate)';
             });
 
             this.minimapCanvas.addEventListener('mouseleave', () => {
@@ -693,6 +693,7 @@ class WebHUD {
             });
 
             this.minimapCanvas.addEventListener('click', (e) => {
+                e.stopPropagation();
                 if (!this.lastFrame || !this.lastFrame.map || !this.lastFrame.player) return;
                 const rect = this.minimapCanvas.getBoundingClientRect();
                 if (!rect.width || !rect.height) return;
@@ -702,13 +703,18 @@ class WebHUD {
                 const mx = (this._minimapOx || 0) + Math.floor(((e.clientX - rect.left) * scaleX) / cellSize);
                 const my = (this._minimapOy || 0) + Math.floor(((e.clientY - rect.top) * scaleY) / cellSize);
                 const monsters = Array.isArray(this.lastFrame.monsters) ? this.lastFrame.monsters : [];
-                const hitMon = monsters.find(m => m && m.x === mx && m.y === my);
+                const hitMon = monsters.find(m => m && m.visible !== false && m.x === mx && m.y === my);
                 if (hitMon) {
                     if (window.chronicleManager && typeof window.chronicleManager.interactWithCreature === 'function') {
                         window.chronicleManager.interactWithCreature(hitMon);
                     }
                     const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
                     this.updateTargetInspector({ target: { name: hitMon.name, glyph: hitMon.glyph, pct: hitMon.hp_max > 0 ? Math.round((hitMon.hp / hitMon.hp_max) * 100) : 100, visible: true } }, realm);
+                    return;
+                }
+                const inp = (window.__app && window.__app.input) || null;
+                if (inp && typeof inp.startMinimapAutoNav === 'function') {
+                    inp.startMinimapAutoNav(mx, my, this.lastFrame);
                 }
             });
         }
@@ -739,7 +745,7 @@ class WebHUD {
             return `Hero (${mx},${my})`;
         }
         const monsters = Array.isArray(frame.monsters) ? frame.monsters : [];
-        const mon = monsters.find(m => m && m.x === mx && m.y === my);
+        const mon = monsters.find(m => m && m.visible !== false && m.x === mx && m.y === my);
         if (mon) {
             return `⚔ ${mon.name || 'Creature'} (${mx},${my})`;
         }
@@ -751,7 +757,8 @@ class WebHUD {
         const row = map.rows && map.rows[my];
         if (!row || !row.g || mx >= row.g.length) return '';
         const flag = (row.l && mx < row.l.length) ? (parseInt(row.l[mx], 16) || 0) : 0;
-        if ((flag & 0x3) === 0) return `Unexplored (${mx},${my})`;
+        const outdoors = (frame.player && frame.player.depth === 0) || Boolean(frame.is_wild_mode);
+        if (!outdoors && (flag & 0x3) === 0) return `Unexplored (${mx},${my})`;
         const ch = row.g[mx];
         const feat = this.getFeatAt(map, mx, my);
         if (ch === '<' || feat === 5) return `⬆ Stairs Up (${mx},${my})`;
@@ -1472,6 +1479,22 @@ class WebHUD {
     /* -------------------------------------------------------------
      * Minimap Radar Rendering (Zoom, Direction Cone & Tiles)
      * ------------------------------------------------------------- */
+    updateMinimap(frame) {
+        const eff = frame || this.lastFrame;
+        if (!eff || !eff.map || !eff.player) return;
+        this.renderMinimap(eff.map, eff.player, eff.monsters || [], this.currentCameraYaw);
+    }
+
+    showToast(msg) {
+        if (!msg) return;
+        if (typeof window !== 'undefined' && window.__app && typeof window.__app.showToast === 'function') {
+            window.__app.showToast(msg);
+        } else if (typeof window !== 'undefined' && window.__app && typeof window.__app.showRealmToast === 'function') {
+            window.__app.showRealmToast(msg);
+        }
+        this.addMessage(msg, '#ffd166');
+    }
+
     renderMinimap(map, player, monsters, continuousYaw) {
         if (!this.minimapCtx || !this.minimapCanvas || !map || !player) return;
         const ctx = this.minimapCtx;
@@ -1610,6 +1633,39 @@ class WebHUD {
         ctx.beginPath();
         ctx.arc(cx, cy, coneDist, baseAngle - 0.58, baseAngle + 0.58);
         ctx.stroke();
+
+        // 2b. Minimap A* Auto-Navigation Trail & Destination Beacon (WS32)
+        const activeNav = (window.__app && window.__app.input && window.__app.input._autoNav && window.__app.input._autoNav.active)
+            ? window.__app.input._autoNav
+            : null;
+        if (activeNav && Array.isArray(activeNav.path) && activeNav.path.length > 0) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 215, 64, 0.88)';
+            ctx.lineWidth = Math.max(1.5, cellSize * 0.22);
+            ctx.setLineDash([Math.max(2, cellSize * 0.35), Math.max(2, cellSize * 0.25)]);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            for (const step of activeNav.path) {
+                const sx = (step.x - ox + 0.5) * cellSize;
+                const sy = (step.y - oy + 0.5) * cellSize;
+                ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const gx = (activeNav.goalX - ox + 0.5) * cellSize;
+            const gy = (activeNav.goalY - oy + 0.5) * cellSize;
+            const r = Math.max(3.5, cellSize * 0.45);
+            ctx.fillStyle = '#ffe066';
+            ctx.beginPath();
+            ctx.moveTo(gx, gy - r);
+            ctx.lineTo(gx + r, gy);
+            ctx.lineTo(gx, gy + r);
+            ctx.lineTo(gx - r, gy);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
 
         // 3. Monsters on Minimap
         monsters.forEach(m => {

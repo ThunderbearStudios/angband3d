@@ -6340,9 +6340,23 @@ class Dungeon3D {
                     if (heal >= minActiveHeal) {
                         this.spawnFloatingText(`+${heal}`, spawnInFront, '#33ff66', 1.15);
                     }
+                    if (this.audio && typeof this.audio.playSubtleRegen === 'function') {
+                        this.audio.playSubtleRegen('hp', curHp >= (frame.player.hp_max || curHp));
+                    }
                 }
             }
             this.lastPlayerHp = curHp;
+
+            const curSp = frame.player.sp !== undefined ? frame.player.sp : (frame.player.csp !== undefined ? frame.player.csp : null);
+            const maxSp = frame.player.sp_max !== undefined ? frame.player.sp_max : (frame.player.max_sp !== undefined ? frame.player.max_sp : (frame.player.msp || 0));
+            if (curSp !== null && this.lastPlayerSp !== undefined && this.lastPlayerSp !== null) {
+                if (curSp > this.lastPlayerSp && maxSp > 0) {
+                    if (this.audio && typeof this.audio.playSubtleRegen === 'function') {
+                        this.audio.playSubtleRegen('sp', curSp >= maxSp);
+                    }
+                }
+            }
+            this.lastPlayerSp = curSp;
         }
 
         // Track Active Status Conditions from Engine Bridge
@@ -13252,6 +13266,90 @@ class Dungeon3D {
         }
 
         return closestItem;
+    }
+
+    /**
+     * Raycasts a 2D screen coordinate (clientX, clientY) against the 3D dungeon floor (Y=0) and walls/doors
+     * to return the targeted grid coordinate `{ x, y, kind }`, or `null` if occluded by a wall or out of bounds.
+     */
+    getTileAtScreenCoords(clientX, clientY) {
+        if (!this.camera || !this.canvas || !this.lastFrame || !this.lastFrame.map || !this.lastFrame.player) return null;
+        const map = this.lastFrame.map;
+        const rows = map.rows;
+        if (!Array.isArray(rows) || rows.length === 0) return null;
+        const mapH = map.h || rows.length;
+        const mapW = map.w || (rows[0] && rows[0].g ? rows[0].g.length : 0);
+
+        const rect = this.canvas.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return null;
+
+        const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+        const ndcY = -((clientY - rect.top) / rect.height) * 2 + 1;
+        this._mouseVec2.set(ndcX, ndcY);
+        this._raycaster.setFromCamera(this._mouseVec2, this.camera);
+
+        const ray = this._raycaster.ray;
+        const cellSize = this.cellSize || 2.0;
+        const wallH = this.wallHeight || 3.0;
+        const maxDist = 24 * cellSize;
+        const dt = 0.12;
+
+        let lastCheckedKey = -1;
+        let lastOpenTile = null;
+
+        for (let t = 0.25; t <= maxDist; t += dt) {
+            const rx = ray.origin.x + ray.direction.x * t;
+            const ry = ray.origin.y + ray.direction.y * t;
+            const rz = ray.origin.z + ray.direction.z * t;
+
+            // Reached the floor plane (Y = 0) without hitting a solid wall
+            if (ry <= 0.02) {
+                const tFloor = ray.direction.y < -0.001 ? (-ray.origin.y / ray.direction.y) : t;
+                const fx = Math.round((ray.origin.x + ray.direction.x * tFloor) / cellSize);
+                const fy = Math.round((ray.origin.z + ray.direction.z * tFloor) / cellSize);
+                if (fx < 0 || fx >= mapW || fy < 0 || fy >= mapH) return null;
+                return { x: fx, y: fy, kind: 'floor' };
+            }
+
+            if (ry <= wallH) {
+                const gx = Math.round(rx / cellSize);
+                const gy = Math.round(rz / cellSize);
+                if (gx < 0 || gx >= mapW || gy < 0 || gy >= mapH) continue;
+                const cellKey = gy * mapW + gx;
+                if (cellKey === lastCheckedKey) continue;
+                lastCheckedKey = cellKey;
+
+                const row = rows[gy];
+                if (!row) continue;
+                const glyph = (row.g && gx < row.g.length) ? row.g[gx] : ' ';
+                const fIdx = gx * 2;
+                const feat = (row.f && fIdx + 1 < row.f.length)
+                    ? (parseInt(row.f.substring(fIdx, fIdx + 2), 16) || 0)
+                    : 0;
+
+                // Closed doors or Town store/building portals are valid click-to-move targets
+                const isClosedDoor = feat === 2 || glyph === '+';
+                const isStoreEntrance = (feat >= 7 && feat <= 14) || (feat >= 32 && feat <= 40);
+                if (isClosedDoor || isStoreEntrance) {
+                    return { x: gx, y: gy, kind: 'door' };
+                }
+
+                // Solid walls occlude the ray (prevent clicking through walls into unseen rooms)
+                const isSolidWall = feat === 0 || (feat >= 15 && feat <= 22) || feat === 30 ||
+                    (feat === 25 && glyph !== '.' && glyph !== ',' && glyph !== '\'') ||
+                    glyph === '#' || glyph === '%' || glyph === '*';
+                if (isSolidWall) {
+                    if (ry <= 1.25 && lastOpenTile) {
+                        return lastOpenTile;
+                    }
+                    return null;
+                }
+
+                lastOpenTile = { x: gx, y: gy, kind: 'floor' };
+            }
+        }
+
+        return null;
     }
 }
 

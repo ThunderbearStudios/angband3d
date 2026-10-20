@@ -300,7 +300,7 @@ function redactSecret(val, secret = '') {
 }
 
 // Proxies text-to-speech to Gemini Native Audio (gemini-3.1-flash-tts-preview) with directorial prompting
-function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm = 'angband', isRetry = false }) {
+function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm = 'angband', lang = 'en', isRetry = false }) {
     return new Promise((resolve, reject) => {
         if (!apiKey) {
             return reject(new Error('No Gemini API key provided'));
@@ -312,6 +312,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
         if (!isRetry) {
             let roleKey = role ? role.toLowerCase() : 'narrator';
             const isHeng = (realm === 'hengband');
+            const isJp = isHeng && (lang === 'jp' || /[\u3040-\u30ff\u4e00-\u9faf]/.test(String(text || '')));
             if (!isHeng) {
                 if (roleKey === 'samurai') roleKey = 'veteran';
                 else if (roleKey === 'ninja') roleKey = 'rogue';
@@ -322,7 +323,9 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             const cleanEmotion = emotion ? String(emotion).replace(/[\[\]]/g, '').trim() : '';
 
             let tagInner = '';
-            if (cleanGeminiTag) {
+            if (isJp) {
+                tagInner = 'Japanese language, dignified Sengoku samurai chronicler, calm and resonant';
+            } else if (cleanGeminiTag) {
                 tagInner = cleanGeminiTag;
                 if (!isHeng) {
                     tagInner = tagInner.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
@@ -1611,6 +1614,8 @@ const server = http.createServer((req, res) => {
         const directorNote = (urlObj.searchParams.get('director_note') || '').trim();
         const reqVoice = (urlObj.searchParams.get('voice') || '').trim();
         const reqRealm = (urlObj.searchParams.get('realm') || 'angband').toLowerCase().trim();
+        const reqLang = (urlObj.searchParams.get('lang') || 'en').toLowerCase().trim();
+        const isJpText = reqLang === 'jp' || /[\u3040-\u30ff\u4e00-\u9faf]/.test(String(text || ''));
         const reqGender = (urlObj.searchParams.get('gender') || '').toLowerCase().trim();
         const reqPitch = (urlObj.searchParams.get('pitch') || '').trim();
         const reqRate = (urlObj.searchParams.get('rate') || '').trim();
@@ -1684,7 +1689,7 @@ const server = http.createServer((req, res) => {
                 res.end(buffer);
             }
 
-            const geminiCacheKey = `gemini:${geminiVoice}:${role}:${emotion}:${geminiTag}:${directorNote}:${text}`;
+            const geminiCacheKey = `gemini:${geminiVoice}:${role}:${isJpText ? 'jp' : reqLang}:${emotion}:${geminiTag}:${directorNote}:${text}`;
             if (ttsAudioCache.has(geminiCacheKey)) {
                 sendWav(ttsAudioCache.get(geminiCacheKey), true);
                 return;
@@ -1717,7 +1722,8 @@ const server = http.createServer((req, res) => {
                 directorNote,
                 role,
                 apiKey: geminiApiKey,
-                realm: reqRealm
+                realm: reqRealm,
+                lang: isJpText ? 'jp' : reqLang
             }).then(wavBuffer => {
                 inFlightTTS.delete(geminiCacheKey);
                 if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {
@@ -1754,20 +1760,24 @@ const server = http.createServer((req, res) => {
         handleEdgeTTS();
 
         function handleEdgeTTS(fallbackReason = null) {
-            let voice = TTS_VOICE_MAP.default;
-            if (reqGender === 'female' && TTS_VOICE_MAP[`female_${role}`]) {
-                voice = TTS_VOICE_MAP[`female_${role}`];
-            } else if (reqGender === 'male' && TTS_VOICE_MAP[`male_${role}`]) {
-                voice = TTS_VOICE_MAP[`male_${role}`];
-            } else if (TTS_VOICE_MAP[role]) {
-                voice = TTS_VOICE_MAP[role];
+            let voice = isJpText
+                ? (reqGender === 'female' ? 'ja-JP-NanamiNeural' : 'ja-JP-KeitaNeural')
+                : TTS_VOICE_MAP.default;
+            if (!isJpText) {
+                if (reqGender === 'female' && TTS_VOICE_MAP[`female_${role}`]) {
+                    voice = TTS_VOICE_MAP[`female_${role}`];
+                } else if (reqGender === 'male' && TTS_VOICE_MAP[`male_${role}`]) {
+                    voice = TTS_VOICE_MAP[`male_${role}`];
+                } else if (TTS_VOICE_MAP[role]) {
+                    voice = TTS_VOICE_MAP[role];
+                }
             }
 
             if (reqVoice) {
                 const alias = reqVoice.toLowerCase();
-                if (TTS_VOICE_MAP[alias]) {
+                if (!isJpText && TTS_VOICE_MAP[alias]) {
                     voice = TTS_VOICE_MAP[alias];
-                } else if ((reqVoice.startsWith('en-') || reqVoice.startsWith('ga-')) && reqVoice.endsWith('Neural')) {
+                } else if ((reqVoice.startsWith('en-') || reqVoice.startsWith('ga-') || reqVoice.startsWith('ja-JP-')) && reqVoice.endsWith('Neural')) {
                     voice = reqVoice;
                 }
             }

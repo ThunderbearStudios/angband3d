@@ -49,6 +49,9 @@ class WebTerminal {
         this.userHasScrolled = false;
         this.isTouchDevice = false;
         this.lastMode = null;
+        this.selectableRegions = [];
+        this.selectedIndex = -1;
+        this.selectedKey = null;
 
         this.resize();
         window.addEventListener('resize', () => this.resize());
@@ -339,28 +342,28 @@ class WebTerminal {
         const mode = this.detectMode(this.lastTermData);
         this.currentMode = mode;
 
-        const isMobileScreen = window.innerWidth <= 768;
-        const isMenuMode = mode === 'store' || mode === 'item_prompt' || mode === 'birth';
-
-        // Responsive base scale that fits available viewport
+        // Anchor scale to stable outer #terminal-window bounds minus a fixed chrome reserve
+        // so opening/closing Grimoire cards or touch ribbons never causes the 80x24 canvas to jump in size.
         const viewport = document.getElementById('terminal-viewport');
-        const containerW = viewport ? viewport.clientWidth : window.innerWidth;
-        const containerH = viewport ? viewport.clientHeight : (window.innerHeight - 100);
+        const termWindow = document.getElementById('terminal-window');
+        const outerW = (termWindow && termWindow.clientWidth > 0)
+            ? (termWindow.clientWidth - 20)
+            : (viewport && viewport.clientWidth > 0 ? viewport.clientWidth : (window.innerWidth - 24));
+        const outerH = (termWindow && termWindow.clientHeight > 0)
+            ? (termWindow.clientHeight - 136)
+            : (window.innerHeight - 160);
 
-        const availW = Math.max(280, containerW || window.innerWidth);
-        const availH = Math.max(200, containerH || (window.innerHeight - 100));
+        const availW = Math.max(280, outerW || window.innerWidth);
+        const availH = Math.max(220, outerH || (window.innerHeight - 160));
 
+        // Keep logical 80x24 grid aspect uniform across all modes (classic_play, item_prompt, store, birth)
+        // so switching between menus and gameplay never triggers jarring zoom jumps.
+        const isMobileScreen = window.innerWidth <= 640;
         let baseScale;
-        if (isMenuMode && isMobileScreen) {
-            // For ASCII menus on phones, scale against active content width
-            // Birth wizard menus use cols 0-48, stores use cols 0-54
-            const activeCols = mode === 'birth' ? 48 : 54;
-            const activeContentWidth = activeCols * baseCellWidth;
-            const scaleToFitColumns = availW / activeContentWidth;
-            baseScale = Math.max(0.60, Math.min(scaleToFitColumns, 1.45));
+        if (isMobileScreen) {
+            baseScale = Math.max(0.58, Math.min(availW / logicalWidth, availH / logicalHeight, 1.35));
         } else {
-            // Fit full 80x24 terminal screen smoothly on desktop (up to 2.5x)
-            baseScale = Math.min(availW / logicalWidth, availH / logicalHeight, 2.5);
+            baseScale = Math.max(0.62, Math.min(availW / logicalWidth, availH / logicalHeight, 2.25));
         }
 
         const effectiveScale = baseScale * this.zoomLevel;
@@ -468,6 +471,9 @@ class WebTerminal {
         const rawLine = this.lastRows[row]?.g || '';
         const line = this.decodeText(rawLine);
         const sendKey = (key) => {
+            if (key && key !== 'enter' && key !== 'space') {
+                this.setSelectedKey(key);
+            }
             if (typeof window !== 'undefined' && window.sound && typeof window.sound.playParchmentTurn === 'function') {
                 window.sound.playParchmentTurn();
             }
@@ -541,6 +547,146 @@ class WebTerminal {
         return str;
     }
 
+    syncRibbonSelection() {
+        if (typeof document === 'undefined') return;
+        const ribbon = document.getElementById('term-letter-ribbon');
+        if (!ribbon) return;
+        const btns = ribbon.querySelectorAll('.term-letter-btn');
+        btns.forEach((btn) => {
+            const isMatch = Boolean(this.selectedKey && btn.dataset.key === this.selectedKey);
+            btn.classList.toggle('is-selected', isMatch);
+        });
+    }
+
+    setSelectedKey(key) {
+        if (!key) return;
+        this.selectedKey = key;
+        if (Array.isArray(this.selectableRegions) && this.selectableRegions.length > 0) {
+            const idx = this.selectableRegions.findIndex(r => r.key === key);
+            if (idx >= 0) this.selectedIndex = idx;
+        }
+        this.syncRibbonSelection();
+    }
+
+    getSelectedKey() {
+        if (this.selectedKey && Array.isArray(this.selectableRegions) && this.selectableRegions.some(r => r.key === this.selectedKey)) {
+            return this.selectedKey;
+        }
+        if (Array.isArray(this.selectableRegions) && this.selectableRegions.length > 0) {
+            const idx = (this.selectedIndex >= 0 && this.selectedIndex < this.selectableRegions.length) ? this.selectedIndex : 0;
+            return this.selectableRegions[idx].key;
+        }
+        return null;
+    }
+
+    moveSelection(delta) {
+        if (!Array.isArray(this.selectableRegions) || this.selectableRegions.length === 0) return null;
+        const len = this.selectableRegions.length;
+        const cur = (this.selectedIndex >= 0 && this.selectedIndex < len) ? this.selectedIndex : 0;
+        this.selectedIndex = (cur + delta + len) % len;
+        const active = this.selectableRegions[this.selectedIndex];
+        this.selectedKey = active ? active.key : null;
+
+        if (active && typeof window !== 'undefined' && window.MenuRouter && typeof window.MenuRouter.getPending === 'function') {
+            const pending = window.MenuRouter.getPending();
+            if (pending && pending.step === 'chooser') {
+                pending.item = {
+                    key: active.key,
+                    label: active.label || active.key,
+                    glyph: active.glyph || null,
+                    display: `[${active.key}]`
+                };
+            }
+        }
+
+        this.syncRibbonSelection();
+        if (this.lastTermData) {
+            this.render(this.lastTermData);
+        }
+        return this.selectedKey;
+    }
+
+    updateSelectableRegions(termData, mode) {
+        this.selectableRegions = [];
+        const isMenuMode = (mode === 'item_prompt' || mode === 'store' || mode === 'birth');
+        if (!isMenuMode || !termData || !Array.isArray(termData.rows)) {
+            this.selectedIndex = -1;
+            this.selectedKey = null;
+            this.syncRibbonSelection();
+            return;
+        }
+
+        const seenKeys = new Set();
+        let engineSelectedIdx = -1;
+
+        for (let r = 0; r < termData.rows.length && r < this.rows; r++) {
+            const rowObj = termData.rows[r];
+            const rawLine = rowObj?.g || '';
+            const line = this.decodeText(rawLine);
+            const regions = this.extractRowRegions(line);
+            for (const reg of regions) {
+                if (!reg || !reg.key || seenKeys.has(reg.key)) continue;
+                seenKeys.add(reg.key);
+                const attr0 = this.parseAttr(rowObj?.a || '', reg.startCol);
+                const attr1 = this.parseAttr(rowObj?.a || '', reg.startCol + 1);
+                const isEngineSelected = (attr0 === 14 || attr1 === 14);
+                const idx = this.selectableRegions.length;
+                if (isEngineSelected && engineSelectedIdx === -1) {
+                    engineSelectedIdx = idx;
+                }
+                this.selectableRegions.push({
+                    row: rowObj.y !== undefined ? rowObj.y : r,
+                    key: reg.key,
+                    label: reg.label,
+                    glyph: reg.glyph || null,
+                    startCol: reg.startCol,
+                    endCol: reg.endCol,
+                    isEngineSelected
+                });
+            }
+        }
+
+        if (this.selectableRegions.length === 0) {
+            this.selectedIndex = -1;
+            this.selectedKey = null;
+            this.syncRibbonSelection();
+            return;
+        }
+
+        const pending = (typeof window !== 'undefined' && window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
+            ? window.MenuRouter.getPending()
+            : null;
+        if (pending && pending.step === 'chooser' && pending.item && pending.item.key) {
+            const pIdx = this.selectableRegions.findIndex(r => r.key === pending.item.key);
+            if (pIdx >= 0) {
+                this.selectedIndex = pIdx;
+                this.selectedKey = pending.item.key;
+                this.syncRibbonSelection();
+                return;
+            }
+        }
+
+        if (engineSelectedIdx >= 0) {
+            this.selectedIndex = engineSelectedIdx;
+            this.selectedKey = this.selectableRegions[engineSelectedIdx].key;
+            this.syncRibbonSelection();
+            return;
+        }
+
+        if (this.selectedKey) {
+            const existingIdx = this.selectableRegions.findIndex(r => r.key === this.selectedKey);
+            if (existingIdx >= 0) {
+                this.selectedIndex = existingIdx;
+                this.syncRibbonSelection();
+                return;
+            }
+        }
+
+        this.selectedIndex = 0;
+        this.selectedKey = this.selectableRegions[0].key;
+        this.syncRibbonSelection();
+    }
+
     render(termData) {
         if (!termData) termData = this.lastTermData;
         if (!termData || !termData.rows) return;
@@ -567,6 +713,22 @@ class WebTerminal {
         bgGrad.addColorStop(1, '#070504');
         this.ctx.fillStyle = bgGrad;
         this.ctx.fillRect(0, 0, w, h);
+
+        this.updateSelectableRegions(termData, mode);
+
+        if (this.selectedIndex >= 0 && this.selectableRegions[this.selectedIndex]) {
+            const selReg = this.selectableRegions[this.selectedIndex];
+            const sx = Math.max(2, selReg.startCol * this.charWidth - 4);
+            const sw = Math.min(w - sx - 2, (selReg.endCol - selReg.startCol + 1) * this.charWidth + 8);
+            const sy = selReg.row * this.charHeight;
+            this.ctx.fillStyle = 'rgba(218, 172, 84, 0.22)';
+            this.ctx.fillRect(sx, sy, sw, this.charHeight);
+            this.ctx.strokeStyle = 'rgba(255, 215, 100, 0.68)';
+            this.ctx.lineWidth = 1.25;
+            this.ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, this.charHeight - 1);
+            this.ctx.fillStyle = '#ffd166';
+            this.ctx.fillRect(sx, sy + 2, 3, Math.max(4, this.charHeight - 4));
+        }
 
         if (this.hoverRow >= 0 && this.hoverRow < this.rows) {
             const rawHoverLine = this.lastRows[this.hoverRow]?.g || '';

@@ -212,10 +212,12 @@ class ChronicleLLMBridge {
             ? effectiveGrounder.getRealmContext(realmKey)
             : { chronicler: 'The Master Chronicler', setting: 'the realm', lorekeeperName: 'Elder Lorekeeper' };
 
+        const isJpHeng = (realmKey === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
+        const jpMandate = isJpHeng ? '\nCRITICAL JAPANESE LANGUAGE MANDATE: Write all JSON text values ("title", "prose", "summary", "dialogue.text") in 100% natural, literary Japanese (時代小説・五輪書風の簡潔な日本語のみ). Do NOT use English.' : '';
         const isFlowing = (event.isChapter === false);
         const depth = (player && typeof player.depth === 'number') ? player.depth : 0;
         const isTown = (depth === 0);
-        const systemPrompt = isFlowing
+        const systemPrompt = (isFlowing
             ? `You are ${realmCtx.chronicler}, continuing the active saga of ${player ? player.name : 'the hero'} in ${realmCtx.setting}, in the literary tradition: "${tradition.name}".
 Perspective: ${tradition.style}.
 Tone: Serious, atmospheric, legendary, razor-sharp, immediate.
@@ -255,7 +257,7 @@ Output: Respond with ONLY a raw JSON object (no markdown code blocks, no backtic
   "prose": "1-2 tight sentences (max 28 words) of atmospheric, direct prose.",
   "summary": "One short 8-word summary.",
   "dialogue": { "speaker": "Name or null", "text": "Short spoken line (max 12 words) or null" }
-}`;
+}`) + jpMandate;
 
         let locationText = isTown ? 'Town of Angband (surface streets, timber eaves, cobblestones)' : `Dungeon Depth ${depth * 50}ft (subterranean vaults, Iron Hell)`;
         if (realmKey === 'silq') {
@@ -414,6 +416,8 @@ CRITICAL INSTRUCTION:
         }
 
         const realmKey = (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
+        const isJpHeng = (realmKey === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
+        const jpMandate = isJpHeng ? '\n- CRITICAL JAPANESE MANDATE: Write "prose" and "dialogue" in 100% natural literary Japanese (時代劇・武士道風の簡潔な日本語のみ).' : '';
         const grounder = getGrounder();
         const realmCtx = (grounder && typeof grounder.getRealmContext === 'function')
             ? grounder.getRealmContext(realmKey)
@@ -432,7 +436,7 @@ ${combatGuidance}
 ${antiRep}
 Guidelines:
 - Scene prose: 1 brief sentence (maximum 15 words) describing ${prPoss} immediate physical gesture matching ${gender} presentation ("${prSub}", "${prPoss}").
-- Spoken dialogue: 1 punchy, vivid sentence (maximum 14 words) in character. ${dialogueStyle}. No quotes or modern slang.
+- Spoken dialogue: 1 punchy, vivid sentence (maximum 14 words) in character. ${dialogueStyle}. No quotes or modern slang.${jpMandate}
 - Return ONLY a raw JSON object (no markdown, no backticks):
 {
   "prose": "1 brief sentence (max 15 words) describing the creature's posture and gesture.",
@@ -480,13 +484,15 @@ Guidelines:
             ? ChronicleGrounder.getRealmContext(realmKey)
             : { lorekeeperName: 'Elder Lorekeeper', chronicler: 'the ancient Lorekeeper of Angband', setting: 'Middle-earth in the Third Age' };
 
+        const isJpHeng = (realmKey === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
+        const jpMandate = isJpHeng ? '\nCRITICAL JAPANESE MANDATE: Respond in 100% natural, literary Japanese (武士道・五輪書風の簡潔な日本語のみ). Do NOT use English.' : '';
         const systemPrompt = `You are ${realmCtx.lorekeeperName}, ${realmCtx.chronicler}.
 Setting: ${realmCtx.setting}.
 You know the complete body of mechanics, keybindings (roguelike and standard keysets), survival tactics, shop mechanics, item commands, and lore for this realm.
 Rules:
 - Be diegetically wise, warm, and immediately helpful.
 - When explaining game mechanics (keys, commands, inventory, resting, shops, terminal), cross the fourth wall gracefully (e.g. "To quaff a potion, press 'q'...").
-- Extreme Brevity: Keep answers razor-sharp and direct—1 to 2 short sentences (maximum 25 words total)!`;
+- Extreme Brevity: Keep answers razor-sharp and direct—1 to 2 short sentences (maximum 25 words total)!${jpMandate}`;
 
         try {
             const answer = await this.callLLM(systemPrompt, query);
@@ -520,13 +526,15 @@ Rules:
                 : ChronicleGrounder.resolveObjectInspection(item, hero, depth, realmKey);
         }
 
+        const isJpHeng = (realmKey === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
+        const jpMandate = isJpHeng ? '\nCRITICAL JAPANESE MANDATE: Respond in 100% natural, literary Japanese (武士道・五輪書風の簡潔な日本語のみ). Do NOT use English.' : '';
         const systemPrompt = `You are ${realmCtx.lorekeeperName}, ${realmCtx.chronicler}.
 Setting: ${realmCtx.setting}.
 The hero is inspecting an object lying in the dungeon: "${itemName}" at depth ${depth}ft.
 Rules:
 - Be diegetically wise, eloquent, and helpful.
 - When explaining game mechanics (wielding, quaffing, identifying, curses, keybindings), speak directly to the hero with graceful fourth-wall awareness.
-- Extreme Brevity: Keep answers crisp and direct—1 to 2 short sentences (maximum 24 words total)!`;
+- Extreme Brevity: Keep answers crisp and direct—1 to 2 short sentences (maximum 24 words total)!${jpMandate}`;
 
         const userPrompt = userQuery
             ? `The hero asks: "${userQuery}". Appraise this ${itemName}.`
@@ -717,6 +725,8 @@ Rules:
         const monsters = dungeonContext.nearbyMonsters || [];
         const lightTurns = typeof dungeonContext.lightTurns === 'number' ? dungeonContext.lightTurns : 500;
 
+        const isJpHeng = (rk === 'hengband' && (langMode === 'jp' || (typeof window !== 'undefined' && window.__langMode === 'jp')));
+        const jpMandate = isJpHeng ? '\n- CRITICAL JAPANESE MANDATE: Write all JSON values ("title", "prose", "summary") in 100% natural literary Japanese (時代小説・五輪書風の簡潔な日本語のみ).' : '';
         const systemPrompt = `You are ${realmCtx.lorekeeperName || realmCtx.chronicler}, weaver of sagas in ${realmCtx.setting}.
 Tradition & Style: ${realmCtx.style}.
 Story Guidelines:
@@ -727,7 +737,7 @@ Story Guidelines:
 - Adhere strictly to the lore, tone, and invariants of ${realmCtx.setting}.
 - For Sil-Q: Beleriand First Age, songs of power/stealth, iron gates of Angband, NEVER mention mana potions or surface shops.
 - For FrogComposBand: Amber & Chaos multiverse, cynical courtly wit, shifting corridors.
-- For Hengband: Sengoku Bushido discipline, feudal honor, samurai stoicism.
+- For Hengband: Sengoku Bushido discipline, feudal honor, samurai stoicism.${jpMandate}
 - Return ONLY a raw JSON object (no markdown, no backticks):
 {
   "title": "3-5 word poetic title",

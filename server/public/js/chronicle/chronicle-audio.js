@@ -1528,6 +1528,7 @@ class ChronicleAudioRouter {
                     engine,
                     voice: voice || '',
                     realm: this.activeRealm || 'angband',
+                    lang: (this.activeRealm === 'hengband') ? (this.langMode || 'en') : 'en',
                     emotion,
                     gemini_tag: geminiTag,
                     director_note: directorNote,
@@ -1841,7 +1842,7 @@ class ChronicleAudioRouter {
             this.speechRecognition = new SpeechRec();
             this.speechRecognition.continuous = false;
             this.speechRecognition.interimResults = true;
-            this.speechRecognition.lang = 'en-US';
+            this.speechRecognition.lang = (this.activeRealm === 'hengband' && this.langMode === 'jp') ? 'ja-JP' : 'en-US';
 
             this.isListeningMic = true;
 
@@ -1921,7 +1922,7 @@ class ChronicleAudioRouter {
         const directorNote = opts.directorNote || '';
         const pitch = opts.pitch || '';
         const gender = opts.gender || '';
-        const realm = this.activeRealm || 'angband';
+        const realm = (this.activeRealm === 'hengband' && this.langMode === 'jp') ? 'hengband:jp' : (this.activeRealm || 'angband');
 
         const currentSpeed = Math.max(0.5, Math.min(2.5, this.speed || 1.0));
         const speedRatePercent = Math.round((currentSpeed - 1.0) * 100);
@@ -1984,6 +1985,7 @@ class ChronicleAudioRouter {
                     engine,
                     voice: voice || '',
                     realm: this.activeRealm || 'angband',
+                    lang: (this.activeRealm === 'hengband') ? (this.langMode || 'en') : 'en',
                     emotion,
                     gemini_tag: geminiTag,
                     director_note: directorNote,

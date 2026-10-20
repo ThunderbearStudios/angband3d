@@ -234,11 +234,23 @@ window.addEventListener('DOMContentLoaded', () => {
     let forceTerminal = false;
     let currentPhase = 'setup';
 
-    const terminal = new WebTerminal('terminal-canvas', (key) => {
+    const dispatchTerminalKey = (key) => {
         if (audio) audio.unlock();
+        const effRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
+        if (terminal && typeof terminal.setSelectedKey === 'function' && key && key.length === 1) {
+            terminal.setSelectedKey(key);
+        }
+        if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
+            if (window.MenuRouter.route(key, lastFrame, effRealm)) {
+                updateTerminalToolbar(lastFrame);
+                if (lastFrame && lastFrame.term) terminal.render(lastFrame.term);
+                return;
+            }
+        }
         network.sendKey(key);
-    });
-    window.__sendTerminalKey = (key) => network.sendKey(key);
+    };
+    const terminal = new WebTerminal('terminal-canvas', dispatchTerminalKey);
+    window.__sendTerminalKey = dispatchTerminalKey;
 
     const setEngineMode = (mode) => {
         if (engineMode === mode && network) return;
@@ -771,6 +783,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const effRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
+            if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
+                if (window.MenuRouter.route('escape', lastFrame, effRealm)) {
+                    updateTerminalToolbar(lastFrame);
+                    if (lastFrame && lastFrame.term) terminal.render(lastFrame.term);
+                    return;
+                }
+            }
             if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
                 window.MenuRouter.clearPending();
             }
@@ -836,6 +856,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
             // Letter Ribbon option buttons (e.g. [a], [b], [*]) must strictly pass their key directly
             if (btn.classList.contains('term-letter-btn')) {
+                if (terminal && typeof terminal.setSelectedKey === 'function') {
+                    terminal.setSelectedKey(key);
+                }
                 if (btn.dataset.storeAutoBuy) {
                     const buyCmd = btn.dataset.storeAutoBuy;
                     if (network && typeof network.sendCommand === 'function') {
@@ -850,6 +873,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
                     if (window.MenuRouter.route(key, lastFrame, realm)) {
                         updateTerminalToolbar(lastFrame);
+                        if (lastFrame && lastFrame.term) terminal.render(lastFrame.term);
                         return;
                     }
                 }
@@ -857,6 +881,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const effRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
             const inPlay = Boolean(lastFrame && lastFrame.phase === 'play');
             const rawTouchScreenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
                 ? lastFrame.term.rows.map(r => r.g || '').join('\n')
@@ -890,6 +915,48 @@ window.addEventListener('DOMContentLoaded', () => {
                 screenText.includes("enter a name") || screenText.includes("choose your name")
             );
 
+            if ((key === 'up' || key === 'down') && terminal && typeof terminal.moveSelection === 'function') {
+                const pending = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
+                    ? window.MenuRouter.getPending()
+                    : null;
+                const scClass = (SC && typeof SC.classify === 'function' && lastFrame)
+                    ? SC.classify(lastFrame, effRealm, { decode: decodeHengbandText })
+                    : null;
+                if ((pending && pending.step === 'chooser') || (scClass && scClass.mode === 'item-list' && effRealm !== 'angband')) {
+                    const nextKey = terminal.moveSelection(key === 'up' ? -1 : 1);
+                    if (nextKey) {
+                        if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
+                        updateTerminalToolbar(lastFrame);
+                        return;
+                    }
+                }
+            }
+
+            if (key === 'enter' && inPlay) {
+                if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
+                    if (window.MenuRouter.route('Enter', lastFrame, effRealm)) {
+                        updateTerminalToolbar(lastFrame);
+                        if (lastFrame && lastFrame.term) terminal.render(lastFrame.term);
+                        return;
+                    }
+                }
+                const scClass = (SC && typeof SC.classify === 'function' && lastFrame)
+                    ? SC.classify(lastFrame, effRealm, { decode: decodeHengbandText })
+                    : null;
+                if (scClass && scClass.mode === 'item-list' && effRealm !== 'angband' && terminal && typeof terminal.getSelectedKey === 'function') {
+                    const selKey = terminal.getSelectedKey();
+                    if (selKey) {
+                        if (window.MenuRouter && typeof window.MenuRouter.route === 'function' && window.MenuRouter.route(selKey, lastFrame, effRealm)) {
+                            updateTerminalToolbar(lastFrame);
+                            if (lastFrame && lastFrame.term) terminal.render(lastFrame.term);
+                            return;
+                        }
+                        network.sendKey(selKey);
+                        return;
+                    }
+                }
+            }
+
             if (key === 'tab') {
                 // Return from Classic Mode to 3D View
                 forceTerminal = false;
@@ -905,6 +972,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (audio) audio.playMenuNav();
                 returnToMainMenu();
             } else if (key === 'escape') {
+                if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
+                    if (window.MenuRouter.route('escape', lastFrame, effRealm)) {
+                        updateTerminalToolbar(lastFrame);
+                        if (lastFrame && lastFrame.term) terminal.render(lastFrame.term);
+                        return;
+                    }
+                }
                 if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
                     window.MenuRouter.clearPending();
                 }
@@ -3593,6 +3667,15 @@ window.addEventListener('DOMContentLoaded', () => {
         if (hud && typeof hud.updateLanguageUI === 'function') {
             hud.updateLanguageUI(activeRealm, effLang);
         }
+        if (window.HengTranslate && typeof window.HengTranslate.setMode === 'function') {
+            window.HengTranslate.setMode(effLang);
+        }
+        if (window.chronicleManager && typeof window.chronicleManager.updateLanguageUI === 'function') {
+            window.chronicleManager.updateLanguageUI();
+        }
+        if (window.QuickActionManager && typeof window.QuickActionManager.renderBar === 'function') {
+            window.QuickActionManager.renderBar(lastFrame || window.__lastFrame || null, activeRealm, effLang);
+        }
 
         // Main Menu / Pause Menu Localization
         const continueLabel = document.getElementById('menu-continue-label');
@@ -4354,6 +4437,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     /(?:^|\s+)([a-zA-Z0-9*@?])[\)\.\:\-]\s+([^\n\r]{1,70})/g,
                     /(?:^|\s+)(\*)\s*(ランダム|random|Random)/gi
                 ];
+                const suffixActionRe = /(?:^|\s{2,})(Inspect|Cast|Study|Browse|Aim|Zap|Use|Read|Quaff|Eat|Activate|Fire|Refill|Take off|Equip|Drop All|Drop|Sell|Pick up|Throw|Uninscribe|Inscribe|Unignore|Ignore)\s+\(([a-zA-Z\{\}])\)\s*$/g;
                 const isHengCur = isHeng;
                 const seenKeys = new Set();
 
@@ -4420,6 +4504,17 @@ window.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     }
+
+                    suffixActionRe.lastIndex = 0;
+                    let sm;
+                    while ((sm = suffixActionRe.exec(line)) !== null) {
+                        const actionLabel = (sm[1] || '').trim();
+                        const actionKey = sm[2];
+                        if (actionKey && actionLabel && !seenKeys.has(actionKey)) {
+                            seenKeys.add(actionKey);
+                            options.push({ key: actionKey, display: `[${actionKey}] ${actionLabel}`, label: null });
+                        }
+                    }
                 }
                 // If yes/no is present in prompt, ensure y and n are available
                 if (screenText.includes('[y/n]') || screenText.includes('(y/n)') || (isHengCur && screenText.includes('よろしいですか'))) {
@@ -4430,6 +4525,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
             const letterKey = options.map(o => o.key + ':' + o.display + ':' + (o.label || '')).join(',');
             if (letterKey === lastPopulatedLetters) {
+                if (terminal && typeof terminal.syncRibbonSelection === 'function') {
+                    terminal.syncRibbonSelection();
+                }
                 return; // DOM stability: do not recreate buttons if options are unchanged
             }
             lastPopulatedLetters = letterKey;
@@ -4446,6 +4544,9 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                     return `<button type="button" class="term-letter-btn" data-key="${escapeHtml(opt.key)}">${iconHtml}${escapeHtml(opt.display)}</button>`;
                 }).join('');
+                if (terminal && typeof terminal.syncRibbonSelection === 'function') {
+                    terminal.syncRibbonSelection();
+                }
             } else {
                 termLetterRibbon.style.display = 'none';
                 termLetterRibbon.innerHTML = '';
@@ -4702,7 +4803,7 @@ window.addEventListener('DOMContentLoaded', () => {
             terminalTitle.textContent = isHeng
                 ? hengTitle(`🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`)
                 : `🎒 ${pending.item.key}) ${pending.item.label}`;
-            if (termDpad) termDpad.style.display = 'none';
+            if (termDpad) termDpad.style.display = 'grid';
             const chooserRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (effFrame && effFrame.realm) || 'angband';
             if (window.MenuRouter && typeof window.MenuRouter.renderChooserHtml === 'function') {
                 let chooserHtml = window.MenuRouter.renderChooserHtml(pending, chooserRealm);
@@ -4713,6 +4814,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 setCtxActions(chooserHtml);
+            }
+            populateLetterRibbon(effFrame && effFrame.term ? effFrame.term.rows : []);
+            if (terminal && typeof terminal.setSelectedKey === 'function') {
+                terminal.setSelectedKey(pending.item.key);
             }
             return;
         }
@@ -4923,11 +5028,17 @@ window.addEventListener('DOMContentLoaded', () => {
                 ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択')
                 : '⚔ CHOOSE ACTION FOR ITEM';
             if (termDpad) termDpad.style.display = 'grid';
-            setCtxActions(renderCtxButtons([
+            const actionRows = (effFrame && effFrame.term && Array.isArray(effFrame.term.rows)) ? effFrame.term.rows : [];
+            const extractedVerbs = (SC && typeof SC.extractItems === 'function')
+                ? SC.extractItems(actionRows, isHeng, decodeHengbandText)
+                : [];
+            const actionBtns = [
                 { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                ...extractedVerbs.map(v => ({ key: v.key, badge: `[${v.key}]`, label: v.label })),
                 { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '戻る') }
-            ]));
-            populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
+            ];
+            setCtxActions(renderCtxButtons(actionBtns));
+            populateLetterRibbon(actionRows);
         } else if (isTargeting) {
             // Target / Direction Aiming Mode
             terminalTitle.textContent = isHeng
@@ -5198,7 +5309,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (grimoireContainer && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.render === 'function') {
             const effRealm = activeRealm || (effFrame && effFrame.realm) || 'angband';
             const gClassifier = (SC && typeof SC.classify === 'function')
-                ? SC.classify(effFrame, { realm: effRealm, decode: decodeHengbandText })
+                ? SC.classify(effFrame, effRealm, { decode: decodeHengbandText })
                 : {};
             const gSubmenu = (SC && typeof SC.detectRealmSubmenu === 'function')
                 ? SC.detectRealmSubmenu(effFrame, effRealm, decodeHengbandText)
@@ -5208,6 +5319,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 : [];
             window.RealmGrimoireDeck.render(grimoireContainer, {
                 realm: effRealm,
+                lang: isHeng ? langMode : 'en',
                 classifier: gClassifier,
                 submenu: gSubmenu,
                 items: gItems,
@@ -5221,6 +5333,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                     if (act.type === 'toggle-mode') {
                         updateTerminalToolbar(effFrame);
+                        return;
+                    }
+                    if (act.type === 'bind-quick-slot') {
+                        if (window.QuickActionManager && typeof window.QuickActionManager.bindFromGrimoire === 'function') {
+                            window.QuickActionManager.bindFromGrimoire(act, effFrame, effRealm, showRealmToast);
+                        }
                         return;
                     }
                     if (act.type === 'switch-view' && act.key) {
@@ -5241,7 +5359,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                     if ((act.type === 'item-primary' || act.type === 'item-verb') && act.key) {
                         if (act.verb) {
-                            if (gClassifier.isStoreScreen) {
+                            const isStoreMenu = Boolean(gClassifier.isStore || gClassifier.isStoreScreen);
+                            if (isStoreMenu) {
                                 if (network && typeof network.sendCommand === 'function') {
                                     network.sendCommand('keys ' + act.verb + act.key);
                                 } else {
@@ -5251,12 +5370,17 @@ window.addEventListener('DOMContentLoaded', () => {
                                 return;
                             }
                             if (window.MenuRouter && typeof window.MenuRouter.buildInventoryVerbSequence === 'function') {
-                                const fromPassive = (effRealm === 'angband' || effRealm === 'silq') &&
-                                    !gClassifier.verbPrompt &&
-                                    Boolean(gClassifier.isInventoryScreen || gClassifier.isEquipScreen);
+                                const isInvenOrEquip = Boolean(
+                                    gClassifier.isInventoryScreen ||
+                                    gClassifier.isEquipScreen ||
+                                    (gClassifier.mode === 'item-list' && (gClassifier.listKind === 'inven' || gClassifier.listKind === 'equip'))
+                                );
+                                const fromPassiveAngband = (effRealm === 'angband') && !gClassifier.verbPrompt && isInvenOrEquip;
+                                const fromPassiveFcb = (effRealm === 'frogcomposband') && !gClassifier.verbPrompt && isInvenOrEquip;
                                 const seq = window.MenuRouter.buildInventoryVerbSequence(act.verb, act.key, {
                                     realm: effRealm,
-                                    fromPassiveAngbandList: fromPassive
+                                    fromPassiveAngbandList: fromPassiveAngband,
+                                    fromPassiveFcbList: fromPassiveFcb
                                 });
                                 if (seq.length > 0 && network && typeof network.sendCommand === 'function') {
                                     network.sendCommand('keys ' + seq.map(k => k === 'Escape' ? '\x1b' : k).join(''));
@@ -5267,6 +5391,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
                             if (window.MenuRouter.route(act.key, effFrame, effRealm)) {
                                 updateTerminalToolbar(effFrame);
+                                if (effFrame && effFrame.term) terminal.render(effFrame.term);
                                 return;
                             }
                         }
