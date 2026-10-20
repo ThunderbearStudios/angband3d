@@ -1,12 +1,12 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS22 — Universal Agentic Mastery, Silent Passive Regeneration Audio Hotfix, All-Client Sync & Live Deployment (`v9.9.2`) — COMPLETE**
+**WS23 — Authentic Open-License Artist 3D Bestiary & Arcane Item Assets (`v9.9.3`) — COMPLETE**
 
-- **Current Phase**: All workstreams `WS0–WS22` complete and verified (`19/19 fast`, `4/4 e2e`, `11/11 smoke`, `0 C# errors`, `tb_mastery.py audit` `0 errors / 0 warnings`).
+- **Current Phase**: All workstreams `WS0–WS23` complete and verified (`19/19 fast`, `4/4 e2e`, `11/11 smoke`, `0 C# errors`, `tb_mastery.py audit` `0 errors / 0 warnings`).
 - **Historical Log**: Full checklist and gate history for `WS0–WS21` are archived in [`docs/archive/STATE_HISTORY_WS0_WS21.md`](file:///c:/Dev/angband3d/docs/archive/STATE_HISTORY_WS0_WS21.md).
 
-## Completed Workstream Summary (`WS0–WS22`)
+## Completed Workstream Summary (`WS0–WS23`)
 
 | Workstream | Scope Summary | Status |
 | :--- | :--- | :--- |
@@ -14,10 +14,10 @@
 | **WS2 & WS6** | Declarative `MenuRouter`, `RealmKeys` cross-realm keymap registry, and Sil-Q Action Chooser | `[x] DONE` |
 | **WS3** | Upstream-driven atomic Hengband JP/EN translator (`HengTranslate`, `98.34%` coverage, lazy dictionary) | `[x] DONE` |
 | **WS4, WS7, WS8** | `http-guard.js`, `rate-limit.js`, TOFU save isolation, multi-realm container build, and Cloud Run deployment | `[x] DONE` |
-| **WS5, WS9, WS10** | Single version source (`version.json`), top-bar consolidation, HUD message pass, and Android SDK 34 sync (`501/501` SHA-1) | `[x] DONE` |
+| **WS5, WS9, WS10** | Single version source (`version.json`), top-bar consolidation, HUD message pass, and Android SDK 34 sync (`504/504` SHA-1) | `[x] DONE` |
 | **WS11–WS18** | Voiced Lorekeeper (`Enceladus` + 30 archetypes), 8-Pillar Ultra Realism 3D, Shockbolt 4096 HD atlases, Hero Action Sketch, and Skinned-Mesh Held Equipment (`L37–L40`) | `[x] DONE` |
 | **WS19–WS21** | 4-Realm 3D Bestiary (`.glb`), Studio Foley + Stone-Hall Convolution Reverb, Shared Singleton VFX (`L43`), and Vertical Apothecary Medicine Vials / Tattered-Scroll UI (`L41–L44`) | `[x] DONE` |
-| **WS22** | Universal Agentic Mastery Compliance & Audio Hotfix: Tier 1/2/4 Token Budgets (`L47`), Constant-Time Token Verification (`CWE-208` / `L45`), `/api/realms` CORS (`E17` / `L46`), Deterministic `npm ci` (`SLSA v1.0` / `L48`), Silent Passive HP/Mana Regen & Warm Restorative Audio (`L49`), and All-Client Sync (`v9.9.2`) | `[x] DONE` |
+| **WS22–WS23** | Universal Agentic Mastery (`L45–L49`), Silent Passive Regen Audio Hotfix, and Authentic Open-License Artist 3D Bestiary (16 creatures incl. `naga.glb` Cobra) & Arcane Items (`wand.glb`, `rod.glb`, `staff.glb`, `L50`, `v9.9.3`) | `[x] DONE` |
 
 ## Mandatory Verification Gate
 Server must be fresh (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }` then `cd server; node src/server.js`.
@@ -40,5 +40,5 @@ Server must be fresh (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Liste
 None
 
 ## Last Gate Results
-- **WS22 Universal Agentic Mastery, Silent Regen Audio Hotfix & All-Client Sync Gate (`v9.9.2`, 2026-10-19)**: `fast 19/19 PASS` (`test_http_guard` `E17`, `test_screen_context` `144/144`, `check_version_sync` `9.9.2`, `check_android_sync` SHA-1 matched, `test_static_invariants` `L45–L49`) | `e2e 4/4 PASS` | `smoke_test.py` `11/11 PASS` | `dotnet build` Godot & Desktop `0 warn / 0 err` | `tb_mastery.py audit` `0 errors / 0 warnings`.
+- **WS23 Authentic Artist 3D Bestiary & Arcane Items Gate (`v9.9.3`, 2026-10-19)**: `fast 19/19 PASS` (`test_bestiary_match_verification` 16 bestiary + 3 wand/rod/staff artist `.glb` models, `check_version_sync` `9.9.3`, `check_android_sync` SHA-1 matched) | `e2e 4/4 PASS` | `smoke_test.py` `11/11 PASS` | `dotnet build` Godot & Desktop `0 warn / 0 err` | `tb_mastery.py audit` `0 errors / 0 warnings`.
 - **Wave 21 HUD, Studio Audio & Release Gate (2026-10-19 11:48)**: `fast 19/19 PASS` | `test_audio_browser.js` `39/39 PASS` | `smoke_test.py` `11/11 PASS` | `dotnet build` Godot & Desktop `0 warn / 0 err`.

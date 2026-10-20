@@ -2037,7 +2037,10 @@ const POLYHAVEN_ITEM_GLTF_PATHS = {
     item_lembas: '/assets/models/items/lembas_wafer.glb',
     item_shovel: '/assets/polyhaven/models/rusted_spade_01/rusted_spade_01.gltf',
     item_pickaxe: '/assets/polyhaven/models/picke_dirty_01/picke_dirty_01.gltf',
-    item_staff_branch: '/assets/polyhaven/models/dead_quiver_branch_01/dead_quiver_branch_01.gltf',
+    item_wand: '/assets/models/items/wand.glb',
+    item_rod: '/assets/models/items/rod.glb',
+    item_staff: '/assets/models/items/staff.glb',
+    item_staff_branch: '/assets/models/items/staff.glb',
     item_book: '/assets/polyhaven/models/decorative_book_set_01/decorative_book_set_01.gltf',
     item_shield_wicker: '/assets/models/items/shield_wooden.glb',
     item_shield_leather: '/assets/models/items/shield_wooden.glb',
@@ -4351,7 +4354,9 @@ class Dungeon3D {
             sledgehammer: 'ph_sledgehammer',
             polearm: 'item_spear',
             staff: 'item_staff_branch',
-            wand: 'item_staff_branch',
+            staff: 'item_staff',
+            wand: 'item_wand',
+            rod: 'item_rod',
             shovel: 'item_shovel',
             pickaxe: 'item_pickaxe',
             whip: 'item_morningstar',
@@ -9446,7 +9451,7 @@ class Dungeon3D {
             return this._monster3DLoading.get(templateKey);
         }
 
-        if (templateKey === 'ph_chest' || templateKey === 'ph_sledgehammer' || templateKey === 'item_gold' || templateKey === 'item_greatsword' || templateKey === 'ph_potion_flask' || templateKey === 'ph_book' || templateKey === 'item_crown' || templateKey === 'item_plate_armor') {
+        if (templateKey === 'ph_chest' || templateKey === 'ph_sledgehammer' || templateKey === 'item_gold' || templateKey === 'item_greatsword' || templateKey === 'ph_potion_flask' || templateKey === 'ph_book' || templateKey === 'item_crown' || templateKey === 'item_plate_armor' || templateKey === 'item_wand' || templateKey === 'item_rod' || templateKey === 'item_staff' || templateKey === 'item_staff_branch') {
             const p = this._ensurePolyHavenFloorItem(templateKey).then(tmpl => {
                 this._monster3DTemplates.set(templateKey, tmpl);
                 this._monster3DLoading.delete(templateKey);
@@ -9481,6 +9486,9 @@ class Dungeon3D {
         };
 
         const normalizeWrapper = (content, targetHeight, isHeightOnly = true, yawOffset = 0, maxFootprint = 1.65) => {
+            if (templateKey.startsWith('bestiary_') || templateKey === 'env_fungi_cluster' || templateKey === 'env_ooze_mound') {
+                this._enhanceBestiaryMeshQuality(content, { smoothNormals: true, applyCreatureBump: true, roughness: 0.45 });
+            }
             const bbox = this._computeTrueSkinnedBoundingBox(content);
             const size = new THREE.Vector3();
             bbox.getSize(size);
@@ -11178,7 +11186,7 @@ class Dungeon3D {
             // picke_dirty_01: iron pick head is at +Y, prongs along X; rotate -90 deg Y so prongs point along +Z
             scene.rotation.set(0, -Math.PI * 0.5, 0);
             scene.position.set(0, 0.16, 0);
-        } else if (itemKey === 'item_staff_branch') {
+        } else if (itemKey === 'item_staff_branch' || itemKey === 'item_staff' || itemKey === 'item_wand' || itemKey === 'item_rod') {
             combatSpan = 1.12;
             const c = wClone._rawCenter || new THREE.Vector3();
             scene.position.set(-c.x, -c.y, -c.z);
@@ -11202,7 +11210,7 @@ class Dungeon3D {
         const s = (combatSpan / rawMaxDim) * scaleMult;
         innerPivot.scale.set(s, s, s);
         if (itemKey === 'item_staff_branch') {
-            innerPivot.scale.set(s * 0.28, s, s * 0.28);
+            innerPivot.scale.set(s, s, s);
         }
         if (itemKey === 'item_shield_wicker' || itemKey === 'ph_shield' || itemKey === 'item_shield_wooden' || itemKey === 'item_shield_raven' || itemKey === 'item_shield_leather' || itemKey === 'item_shield_metal') {
             innerPivot.position.z = 0.04;
@@ -11419,7 +11427,7 @@ class Dungeon3D {
                 } else if (cfg.weaponKey === 'ph_lantern') {
                     yChar = new THREE.Vector3(0.0, 1.0, 0.0);
                     zChar = new THREE.Vector3(0.35, 0.0, 0.94).normalize();
-                } else if (cfg.weaponKey === 'item_spear' || cfg.weaponKey === 'item_staff_branch') {
+                } else if (cfg.weaponKey === 'item_spear' || cfg.weaponKey === 'item_staff_branch' || cfg.weaponKey === 'item_staff' || cfg.weaponKey === 'item_wand' || cfg.weaponKey === 'item_rod') {
                     yChar = new THREE.Vector3(-0.12, 0.88, 0.46).normalize();
                     zChar = new THREE.Vector3(0.42, -0.40, 0.81).normalize();
                 } else {
@@ -11814,7 +11822,11 @@ class Dungeon3D {
 
         // Wands, Rods & Staves
         if (g === '_' || g === '-' || /\b(wand|staff|rod|quarterstaff)\b/.test(lower)) {
-            return 'item_staff_branch';
+            if (/\bwands?\b/.test(lower)) return 'item_wand';
+            if (/\brods?\b/.test(lower)) return 'item_rod';
+            if (/\b(staff|staves|quarterstaff)\b/.test(lower)) return 'item_staff';
+            if (g === '-') return 'item_wand';
+            return 'item_staff';
         }
 
         // Polearms
@@ -12010,7 +12022,7 @@ class Dungeon3D {
                 const isOpenMmoXWeapon = (key === 'item_goblin_sword' || key === 'item_longsword' || key === 'item_greatsword' || key === 'item_rune_blade' || key === 'item_morningstar' || key === 'item_greatclub' || key === 'item_spear' || key === 'item_bow' || key === 'item_torch');
                 const isShield = (key === 'ph_shield' || key === 'item_shield_wooden' || key === 'item_shield_raven' || key === 'item_shield_wicker' || key === 'item_shield_leather' || key === 'item_shield_metal');
                 const isArmor = (key === 'item_helmet' || key === 'item_plate_armor' || key === 'item_leather_armor' || key === 'item_boots' || key === 'item_gauntlets' || key === 'item_cloak' || key === 'item_chainmail' || key === 'item_crown');
-                const isWeapon = (key === 'ph_saber' || key === 'ph_estoc' || key === 'ph_katana' || key === 'ph_dagger' || key === 'ph_axe' || key === 'ph_hatchet' || key === 'ph_hammer' || key === 'ph_sledgehammer' || key === 'ph_mace' || isOpenMmoXWeapon || key === 'item_shovel' || key === 'item_pickaxe' || key === 'item_staff_branch' || key === 'item_arrow');
+        const isWeapon = (key === 'ph_saber' || key === 'ph_estoc' || key === 'ph_katana' || key === 'ph_dagger' || key === 'ph_axe' || key === 'ph_hatchet' || key === 'ph_hammer' || key === 'ph_sledgehammer' || key === 'ph_mace' || isOpenMmoXWeapon || key === 'item_shovel' || key === 'item_pickaxe' || key === 'item_wand' || key === 'item_rod' || key === 'item_staff' || key === 'item_staff_branch' || key === 'item_arrow');
 
                 if (isWeapon) {
                     targetSpan = 0.68;
@@ -12037,7 +12049,7 @@ class Dungeon3D {
                     innerPivot.rotation.set(-0.85, 0.25, 0.15);
                     innerPivot.position.y = 0.08;
                 } else if (isWeapon) {
-                    if (key === 'item_arrow' || key === 'item_shovel' || key === 'item_pickaxe' || key === 'item_staff_branch') {
+                    if (key === 'item_arrow' || key === 'item_shovel' || key === 'item_pickaxe' || key === 'item_wand' || key === 'item_rod' || key === 'item_staff' || key === 'item_staff_branch') {
                         innerPivot.rotation.set(0.66, 0.25, 0.72);
                         innerPivot.position.y = 0.18;
                     } else if (isOpenMmoXWeapon) {
@@ -12089,6 +12101,25 @@ class Dungeon3D {
                 }
             }
         });
+        if (colorHex && (key === 'item_wand' || key === 'item_rod' || key === 'item_staff' || key === 'item_staff_branch')) {
+            this._tintedMatPool = this._tintedMatPool || new Map();
+            const tintCol = new THREE.Color(colorHex);
+            clone.traverse((c) => {
+                if (c.isMesh && c.material && !Array.isArray(c.material)) {
+                    const mName = (c.material.name || '').toLowerCase();
+                    if (/core|crystal|orb|glow|tip|emerald/i.test(mName)) return;
+                    const pKey = `item_${c.material.uuid}_${colorHex}`;
+                    let pMat = this._tintedMatPool.get(pKey);
+                    if (!pMat) {
+                        pMat = c.material.clone();
+                        pMat._sharedMaterial = true;
+                        if (pMat.color) pMat.color.lerp(tintCol, 0.48);
+                        this._tintedMatPool.set(pKey, pMat);
+                    }
+                    c.material = pMat;
+                }
+            });
+        }
         clone.isReal3DItem = true;
         clone.phKey = key;
         clone._rawSize = template._rawSize;

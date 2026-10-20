@@ -258,8 +258,8 @@ public static class ItemModelResolver
         { ']', ("res://assets/models/items/plate_armor.glb", 0.45f) },
         { '(', ("res://assets/models/items/shield_wooden.glb", 0.48f) },
         { '/', ("res://assets/models/items/spear.glb", 0.32f) },
-        { '_', ("res://assets/polyhaven/models/dead_quiver_branch_01/dead_quiver_branch_01.gltf", 0.42f) },
-        { '-', ("res://assets/polyhaven/models/dead_quiver_branch_01/dead_quiver_branch_01.gltf", 0.42f) },
+        { '_', ("res://assets/models/items/staff.glb", 0.42f) },
+        { '-', ("res://assets/models/items/wand.glb", 0.42f) },
         { '|', ("res://assets/models/items/spear.glb", 0.32f) },
         { '\\', ("res://assets/polyhaven/models/rusted_spade_01/rusted_spade_01.gltf", 0.45f) },
         { ',', ("res://assets/models/items/bread.glb", 0.55f) },
@@ -530,7 +530,10 @@ public static class ItemModelResolver
             // Wands, Rods & Staves
             if (glyph == '-' || glyph == '_' || lower.Contains("wand") || lower.Contains("rod") || lower.Contains("staff") || lower.Contains("stave"))
             {
-                return ("res://assets/polyhaven/models/dead_quiver_branch_01/dead_quiver_branch_01.gltf", 0.42f);
+                if (lower.Contains("wand")) return ("res://assets/models/items/wand.glb", 0.42f);
+                if (lower.Contains("rod")) return ("res://assets/models/items/rod.glb", 0.42f);
+                if (lower.Contains("staff") || lower.Contains("stave") || glyph == '_') return ("res://assets/models/items/staff.glb", 0.42f);
+                return ("res://assets/models/items/wand.glb", 0.42f);
             }
             // Shields -> wicker: ("res://assets/polyhaven/models/carved_wooden_plate/carved_wooden_plate.gltf", 0.48f), round/buckler/targe/wooden: ("res://assets/models/items/shield_wooden.glb", 0.48f), heraldic/knight/dragon/mithril: ("res://assets/models/items/shield_raven.glb", 0.48f)
             if (lower.Contains("shield") || lower.Contains("buckler") || lower.Contains("targe"))

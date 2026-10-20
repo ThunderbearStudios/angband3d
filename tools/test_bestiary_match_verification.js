@@ -669,6 +669,17 @@ test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct 
     assert.strictEqual(resolve({ race: 'Phantom', glyph: 'w' }, 'w', 'silq').templateKey, 'bestiary_wraith');
     assert.strictEqual(resolve({ race: 'Nameless thing', glyph: 'N' }, 'N', 'silq').templateKey, 'bestiary_horror');
     assert(['env_bush_dead', 'env_tanglethorn'].includes(resolve({ race: 'Tanglethorn', glyph: '&' }, '&', 'silq').templateKey));
+
+    // Verify dedicated open-license artist wand.glb, rod.glb, staff.glb item models (no dead_quiver_branch_01 antler fallback)
+    const itemResolverSrc = read('client/scripts/ItemModelResolver.cs');
+    for (const itemGlb of ['wand.glb', 'rod.glb', 'staff.glb']) {
+        assert(fs.existsSync(path.join(ROOT, 'server/public/assets/models/items', itemGlb)), `Missing Web item GLB: ${itemGlb}`);
+        assert(fs.existsSync(path.join(ROOT, 'client/assets/models/items', itemGlb)), `Missing Godot item GLB: ${itemGlb}`);
+        assert(d3dSrc.includes(`/assets/models/items/${itemGlb}`), `dungeon3d.js must reference /assets/models/items/${itemGlb}`);
+        assert(itemResolverSrc.includes(`res://assets/models/items/${itemGlb}`), `ItemModelResolver.cs must reference ${itemGlb}`);
+    }
+    assert(!d3dSrc.includes('dead_quiver_branch_01'), 'dungeon3d.js must not map wands/staves to dead_quiver_branch_01 antler');
+    assert(!itemResolverSrc.includes('dead_quiver_branch_01'), 'ItemModelResolver.cs must not map wands/staves to dead_quiver_branch_01 antler');
 });
 
 console.log('test_bestiary_match_verification.js: ALL PASS');
