@@ -1461,7 +1461,7 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            const cacheKey = realm + ':' + prompt.slice(0, 800);
+            const cacheKey = crypto.createHash('sha256').update(realm + ':' + prompt).digest('hex');
             if (sketchCache.has(cacheKey)) {
                 res.writeHead(200, {
                     'Content-Type': 'application/json',
@@ -2221,6 +2221,12 @@ const server = http.createServer((req, res) => {
         safePath = '/assets/video/angband3d_demo.mp4';
     } else if (safePath.includes('angband3d_demo_') && safePath.endsWith('.webm')) {
         safePath = '/assets/video/angband3d_demo.webm';
+    } else if (safePath.replace(/\\/g, '/') === '/assets/models/items/Mineral.obj') {
+        safePath = '/assets/models/items/coin_pile_spill.glb';
+    } else if (safePath.replace(/\\/g, '/') === '/assets/models/items/Dart.obj') {
+        safePath = '/assets/models/items/bow.glb';
+    } else if (safePath.replace(/\\/g, '/') === '/assets/models/monsters/Spider.obj') {
+        safePath = '/assets/models/monsters/bestiary/giant_spider.glb';
     }
     const filePath = path.resolve(WEB_DIR, '.' + path.sep + safePath);
 
@@ -2302,6 +2308,9 @@ const server = http.createServer((req, res) => {
                 'ETag': etag,
                 'Accept-Ranges': 'bytes',
                 'Cross-Origin-Resource-Policy': 'cross-origin',
+                'X-Content-Type-Options': 'nosniff',
+                'Referrer-Policy': 'strict-origin-when-cross-origin',
+                'X-Frame-Options': 'SAMEORIGIN',
             };
             if (ext !== '.html') {
                 headers['Access-Control-Allow-Origin'] = '*';
@@ -2386,23 +2395,29 @@ const server = http.createServer((req, res) => {
                     res.end(cached);
                     return;
                 }
-                const rawBuffer = fs.readFileSync(filePath);
-                zlib.gzip(rawBuffer, { level: 6 }, (err, gzipped) => {
-                    if (!err && gzipped) {
-                        if (staticGzipCache.size >= MAX_STATIC_CACHE_ITEMS) {
-                            const oldest = staticGzipCache.keys().next().value;
-                            staticGzipCache.delete(oldest);
+                fs.promises.readFile(filePath).then((rawBuffer) => {
+                    zlib.gzip(rawBuffer, { level: 6 }, (err, gzipped) => {
+                        if (!err && gzipped) {
+                            if (staticGzipCache.size >= MAX_STATIC_CACHE_ITEMS) {
+                                const oldest = staticGzipCache.keys().next().value;
+                                staticGzipCache.delete(oldest);
+                            }
+                            staticGzipCache.set(cacheKey, gzipped);
+                            headers['Content-Length'] = gzipped.length;
+                            res.writeHead(200, headers);
+                            res.end(gzipped);
+                        } else {
+                            res.writeHead(200, headers);
+                            const fallbackStream = fs.createReadStream(filePath);
+                            res.on('close', () => { fallbackStream.destroy(); });
+                            fallbackStream.pipe(zlib.createGzip({ level: 6 })).pipe(res);
                         }
-                        staticGzipCache.set(cacheKey, gzipped);
-                        headers['Content-Length'] = gzipped.length;
-                        res.writeHead(200, headers);
-                        res.end(gzipped);
-                    } else {
-                        res.writeHead(200, headers);
-                        const fallbackStream = fs.createReadStream(filePath);
-                        res.on('close', () => { fallbackStream.destroy(); });
-                        fallbackStream.pipe(zlib.createGzip({ level: 6 })).pipe(res);
-                    }
+                    });
+                }).catch(() => {
+                    res.writeHead(200, headers);
+                    const fallbackStream = fs.createReadStream(filePath);
+                    res.on('close', () => { fallbackStream.destroy(); });
+                    fallbackStream.pipe(zlib.createGzip({ level: 6 })).pipe(res);
                 });
                 return;
             } catch (_) {
@@ -2761,7 +2776,7 @@ function attachWebSocketToSession(session, ws) {
     });
 }
 
-function spawnGameSession(ws, request) {
+async function spawnGameSession(ws, request) {
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
     const rawUser = urlObj.searchParams.get('user') || urlObj.searchParams.get('char') || null;
     const rawSave = urlObj.searchParams.get('save') || null;
@@ -2905,8 +2920,7 @@ function spawnGameSession(ws, request) {
         } catch (err) {
             spawnError = err;
             if ((err.code === 'EBUSY' || err.code === 'ETXTBSY') && attempt < 2) {
-                const sleepUntil = Date.now() + 150;
-                while (Date.now() < sleepUntil) {}
+                await new Promise(resolve => setTimeout(resolve, 150));
                 continue;
             }
             break;

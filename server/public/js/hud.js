@@ -2040,6 +2040,24 @@ class WebHUD {
         // Realm and Game System Differentiation
         const realm = (frame && frame.realm) || (window.__activeRealm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
         const isSilQ = realm === 'silq' || (player.stats && player.stats.gra !== undefined);
+        if (this._lastBodyRealm !== realm) {
+            this._lastBodyRealm = realm;
+            if (typeof document !== 'undefined' && document.body && document.body.dataset) {
+                document.body.dataset.realm = realm;
+            }
+            const crestEl = document.getElementById('char-realm-crest');
+            if (crestEl) {
+                const crestIcons = { angband: '⚔', silq: '👑', frogcomposband: '◈', hengband: '⛩' };
+                const crestTitles = {
+                    angband: 'Iron Crown of Morgoth (Angband 4.2.6)',
+                    silq: 'Silmaril & Lay of Leithian (Sil-Q)',
+                    frogcomposband: 'Courts of Chaos & Amber (FrogComposband)',
+                    hengband: 'Scrolls of the Five Rings (Hengband)'
+                };
+                crestEl.textContent = crestIcons[realm] || '⚔';
+                crestEl.title = crestTitles[realm] || crestTitles.angband;
+            }
+        }
         this.updateHengbandLanguageUI(realm, window.__langMode || 'en');
 
         // Character Name, Race, Class / House

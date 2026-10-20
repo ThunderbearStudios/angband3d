@@ -12746,12 +12746,13 @@ class Dungeon3D {
                     proj.jitterTimer = (proj.jitterTimer || 0) + delta;
                     if (proj.jitterTimer >= 0.035 && proj.lines) {
                         proj.jitterTimer = 0;
+                        const basePt = this._tmpLightningVec || (this._tmpLightningVec = new THREE.Vector3());
                         for (const line of proj.lines) {
                             const posAttr = line.geometry.attributes.position;
                             const count = posAttr.count;
                             for (let pIdx = 1; pIdx < count - 1; pIdx++) {
                                 const frac = pIdx / (count - 1);
-                                const basePt = new THREE.Vector3().lerpVectors(proj.startPos, proj.endPos, frac);
+                                basePt.lerpVectors(proj.startPos, proj.endPos, frac);
                                 basePt.x += (Math.random() - 0.5) * 0.36;
                                 basePt.y += (Math.random() - 0.5) * 0.36;
                                 basePt.z += (Math.random() - 0.5) * 0.36;
@@ -12858,29 +12859,36 @@ class Dungeon3D {
             if (entity._hitFlashTimer > 0) {
                 entity._hitFlashTimer -= delta;
                 const flashAmt = Math.max(0, entity._hitFlashTimer / 0.18);
-                entity.traverse(c => {
-                    if (c.isMesh && c.material) {
-                        const mats = Array.isArray(c.material) ? c.material : [c.material];
-                        for (const m of mats) {
-                            if (m.emissive) {
-                                if (!m._origEmissive) m._origEmissive = m.emissive.clone();
-                                m.emissive.setRGB(flashAmt * 0.85, flashAmt * 0.08, flashAmt * 0.08);
+                if (!entity._emissiveMaterials) {
+                    entity._emissiveMaterials = [];
+                    entity.traverse(c => {
+                        if (c.isMesh && c.material) {
+                            const mats = Array.isArray(c.material) ? c.material : [c.material];
+                            for (const m of mats) {
+                                if (m && m.emissive) {
+                                    if (!m._origEmissive) m._origEmissive = m.emissive.clone();
+                                    entity._emissiveMaterials.push(m);
+                                }
                             }
                         }
+                    });
+                }
+                for (let mIdx = 0; mIdx < entity._emissiveMaterials.length; mIdx++) {
+                    const m = entity._emissiveMaterials[mIdx];
+                    if (m && m.emissive) {
+                        m.emissive.setRGB(flashAmt * 0.85, flashAmt * 0.08, flashAmt * 0.08);
                     }
-                });
+                }
             } else if (entity._hitFlashTimer !== undefined && entity._hitFlashTimer <= 0 && entity._hitFlashTimer > -1) {
                 entity._hitFlashTimer = -1;
-                entity.traverse(c => {
-                    if (c.isMesh && c.material) {
-                        const mats = Array.isArray(c.material) ? c.material : [c.material];
-                        for (const m of mats) {
-                            if (m.emissive && m._origEmissive) {
-                                m.emissive.copy(m._origEmissive);
-                            }
+                if (entity._emissiveMaterials) {
+                    for (let mIdx = 0; mIdx < entity._emissiveMaterials.length; mIdx++) {
+                        const m = entity._emissiveMaterials[mIdx];
+                        if (m && m.emissive && m._origEmissive) {
+                            m.emissive.copy(m._origEmissive);
                         }
                     }
-                });
+                }
             }
 
             // Mixer state machine: idle vs walk vs sleep (distance-culled at 18m / 324m^2)

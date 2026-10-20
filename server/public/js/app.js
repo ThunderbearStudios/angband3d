@@ -838,10 +838,12 @@ window.addEventListener('DOMContentLoaded', () => {
             if (btn.classList.contains('term-letter-btn')) {
                 if (btn.dataset.storeAutoBuy) {
                     const buyCmd = btn.dataset.storeAutoBuy;
-                    network.sendKey(buyCmd);
-                    setTimeout(() => {
+                    if (network && typeof network.sendCommand === 'function') {
+                        network.sendCommand('keys ' + buyCmd + key);
+                    } else {
+                        network.sendKey(buyCmd);
                         network.sendKey(key);
-                    }, 45);
+                    }
                     return;
                 }
                 const realm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
@@ -856,9 +858,10 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             const inPlay = Boolean(lastFrame && lastFrame.phase === 'play');
-            const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
-                ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
+            const rawTouchScreenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
+                ? lastFrame.term.rows.map(r => r.g || '').join('\n')
                 : '';
+            const screenText = (rawTouchScreenText + '\n' + decodeHengbandText(rawTouchScreenText)).toLowerCase();
             const isChoiceMenu = !inPlay && (
                 screenText.includes("性別") || screenText.includes("種族") ||
                 screenText.includes("職業") || screenText.includes("性格") ||
@@ -4450,7 +4453,11 @@ window.addEventListener('DOMContentLoaded', () => {
         };
 
         // 3. Screen-Specific Layout & Controls Configuration
+        const grimoireContainer = document.getElementById('grimoire-deck-container');
         if (!inPlay) {
+            if (grimoireContainer && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.hide === 'function') {
+                window.RealmGrimoireDeck.hide(grimoireContainer);
+            }
             // --- CHARACTER CREATION / BIRTH SCREENS ---
             if (termExitMenuBtn) {
                 termExitMenuBtn.style.display = 'inline-flex';
@@ -5072,7 +5079,7 @@ window.addEventListener('DOMContentLoaded', () => {
             terminalTitle.textContent = isHeng
                 ? hengTitle('✨ GRIMOIRE & ABILITIES — Choose Spell or Power', '✨ GRIMOIRE / 呪文・技能の選択', '✨ 呪文・技能の選択')
                 : (activeRealm === 'silq' ? '✨ SONGS, ABILITIES & SMITHING' : '✨ GRIMOIRE & POWERS — Select Spell or Ability');
-            if (termDpad) termDpad.style.display = 'none';
+            if (termDpad) termDpad.style.display = activeRealm === 'silq' ? 'grid' : 'none';
             if (termCtxActions) {
                 setCtxActions(renderCtxButtons([
                     { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 戻る', '⎋ 戻る'), gold: true },
@@ -5186,6 +5193,87 @@ window.addEventListener('DOMContentLoaded', () => {
                     setCtxActions(renderCtxButtons(btns));
                 }
             }
+        }
+
+        if (grimoireContainer && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.render === 'function') {
+            const effRealm = activeRealm || (effFrame && effFrame.realm) || 'angband';
+            const gClassifier = (SC && typeof SC.classify === 'function')
+                ? SC.classify(effFrame, { realm: effRealm, decode: decodeHengbandText })
+                : {};
+            const gSubmenu = (SC && typeof SC.detectRealmSubmenu === 'function')
+                ? SC.detectRealmSubmenu(effFrame, effRealm, decodeHengbandText)
+                : {};
+            const gItems = (SC && typeof SC.extractMultiColumnItems === 'function' && effFrame && effFrame.term && Array.isArray(effFrame.term.rows))
+                ? SC.extractMultiColumnItems(effFrame.term.rows, isHeng, decodeHengbandText)
+                : [];
+            window.RealmGrimoireDeck.render(grimoireContainer, {
+                realm: effRealm,
+                classifier: gClassifier,
+                submenu: gSubmenu,
+                items: gItems,
+                onAction: (act) => {
+                    if (!act) return;
+                    if (audio && typeof audio.unlock === 'function') audio.unlock();
+                    if (audio && typeof audio.playParchmentTurn === 'function') {
+                        audio.playParchmentTurn();
+                    } else if (audio && typeof audio.playMenuNav === 'function') {
+                        audio.playMenuNav();
+                    }
+                    if (act.type === 'toggle-mode') {
+                        updateTerminalToolbar(effFrame);
+                        return;
+                    }
+                    if (act.type === 'switch-view' && act.key) {
+                        if (act.key === '|') {
+                            network.sendKey('|');
+                        } else {
+                            network.sendKey('/');
+                        }
+                        return;
+                    }
+                    if (act.type === 'raw-key' && act.key) {
+                        network.sendKey(act.key);
+                        return;
+                    }
+                    if (act.type === 'pillar-step') {
+                        network.sendKey('ArrowRight');
+                        return;
+                    }
+                    if ((act.type === 'item-primary' || act.type === 'item-verb') && act.key) {
+                        if (act.verb) {
+                            if (gClassifier.isStoreScreen) {
+                                if (network && typeof network.sendCommand === 'function') {
+                                    network.sendCommand('keys ' + act.verb + act.key);
+                                } else {
+                                    network.sendKey(act.verb);
+                                    network.sendKey(act.key);
+                                }
+                                return;
+                            }
+                            if (window.MenuRouter && typeof window.MenuRouter.buildInventoryVerbSequence === 'function') {
+                                const fromPassive = (effRealm === 'angband' || effRealm === 'silq') &&
+                                    !gClassifier.verbPrompt &&
+                                    Boolean(gClassifier.isInventoryScreen || gClassifier.isEquipScreen);
+                                const seq = window.MenuRouter.buildInventoryVerbSequence(act.verb, act.key, {
+                                    realm: effRealm,
+                                    fromPassiveAngbandList: fromPassive
+                                });
+                                if (seq.length > 0 && network && typeof network.sendCommand === 'function') {
+                                    network.sendCommand('keys ' + seq.map(k => k === 'Escape' ? '\x1b' : k).join(''));
+                                    return;
+                                }
+                            }
+                        }
+                        if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
+                            if (window.MenuRouter.route(act.key, effFrame, effRealm)) {
+                                updateTerminalToolbar(effFrame);
+                                return;
+                            }
+                        }
+                        network.sendKey(act.key);
+                    }
+                }
+            });
         }
     }
 

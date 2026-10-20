@@ -2058,11 +2058,35 @@ public partial class Overlay : Control
                             if (rowElem.TryGetProperty("g", out var gProp))
                             {
                                 var rowText = gProp.GetString() ?? "";
-                                var match = System.Text.RegularExpressions.Regex.Match(rowText, @"(?:^|\s)(?:\[([a-zA-Z])\]|([a-zA-Z])\s*[\)\:\-])");
-                                if (match.Success)
+                                float cellW = _cell.X > 0 ? _cell.X : (View.X / Mathf.Max(1f, w + 2f));
+                                float leftOffset = Mathf.Max(0f, (View.X - w * cellW) / 2f);
+                                int col = Mathf.Clamp((int)((mb.Position.X - leftOffset) / Mathf.Max(1f, cellW)), 0, Mathf.Max(0, w - 1));
+                                string matchedKey = null;
+                                var regionMatches = System.Text.RegularExpressions.Regex.Matches(rowText, @"(?:^|\s{1,})(?:\[([a-zA-Z0-9])\]|([a-zA-Z0-9])\s*[\)\:\-])\s+([^\s].*?)(?=\s{2,}(?:\[[a-zA-Z0-9]\]|[a-zA-Z0-9]\s*[\)\:\-])\s+|\s*$)");
+                                foreach (System.Text.RegularExpressions.Match rm in regionMatches)
                                 {
-                                    var keyStr = (match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value).ToLowerInvariant();
-                                    TerminalKeyClicked?.Invoke(keyStr);
+                                    if (col >= rm.Index && col <= rm.Index + rm.Length)
+                                    {
+                                        matchedKey = rm.Groups[1].Success ? rm.Groups[1].Value : rm.Groups[2].Value;
+                                        break;
+                                    }
+                                }
+                                if (matchedKey == null && regionMatches.Count == 1)
+                                {
+                                    var rm = regionMatches[0];
+                                    matchedKey = rm.Groups[1].Success ? rm.Groups[1].Value : rm.Groups[2].Value;
+                                }
+                                if (matchedKey == null)
+                                {
+                                    var fallbackMatch = System.Text.RegularExpressions.Regex.Match(rowText, @"(?:^|\s)(?:\[([a-zA-Z0-9])\]|([a-zA-Z0-9])\s*[\)\:\-])");
+                                    if (fallbackMatch.Success)
+                                    {
+                                        matchedKey = fallbackMatch.Groups[1].Success ? fallbackMatch.Groups[1].Value : fallbackMatch.Groups[2].Value;
+                                    }
+                                }
+                                if (!string.IsNullOrEmpty(matchedKey))
+                                {
+                                    TerminalKeyClicked?.Invoke(matchedKey);
                                 }
                                 else if (rowText.Contains("> "))
                                 {

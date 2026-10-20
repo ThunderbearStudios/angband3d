@@ -321,18 +321,24 @@
                 return false; // Pass escape through to engine to close inventory/equipment
             }
 
-            // Lowercase letters that match a listed item row open the Action Chooser
-            if (key.length === 1 && /[a-z]/.test(key) && classifier.items) {
-                const row = classifier.items.find(i => i.key === key);
-                if (row) {
-                    pending = {
-                        item: row,
-                        listKind: classifier.listKind,
-                        step: 'chooser',
-                        verb: null,
-                        deadline: 0
-                    };
-                    return true; // Intercepted! Action Chooser will render
+            // Letters/digits that match a listed item row open the Action Chooser
+            if (key.length === 1 && /[a-zA-Z0-9]/.test(key) && classifier.items) {
+                const isLower = /[a-z]/.test(key);
+                const verbsForRealm = VERBS[realm] || {};
+                const isVerbKey = Boolean(verbsForRealm[key]);
+                if (isLower || (!isVerbKey && realm === 'frogcomposband')) {
+                    const row = classifier.items.find(i => i.key === key);
+                    if (row) {
+                        pending = {
+                            item: row,
+                            listKind: classifier.listKind,
+                            step: 'chooser',
+                            verb: null,
+                            deadline: 0,
+                            fromPassiveAngbandList: isAngbandSelect
+                        };
+                        return true; // Intercepted! Action Chooser will render
+                    }
                 }
             }
 
@@ -376,6 +382,22 @@
 
             // Engine responded with an item selection prompt (e.g. "Wear/Wield which item?")
             if (classifier && classifier.promptKind === 'select') {
+                // MENU-04 Fix: In live Vanilla Angband 4.2.6, if the user opened passive `i`/`e` browse
+                // (`!classifier.verbPrompt`) and picked a verb in the chooser, sending `verb` while inside
+                // the passive list leaves the engine on `!classifier.verbPrompt`. Exit passive list with
+                // Escape and re-dispatch `pending.verb` once so the engine enters `verbPrompt` cleanly.
+                if (realm === 'angband' && !classifier.verbPrompt && pending.fromPassiveAngbandList && !pending.sentEscapeRetry) {
+                    if (pending.verb === 'I') {
+                        getSendKey()(pending.item.key);
+                        clearPending();
+                        return;
+                    }
+                    pending.sentEscapeRetry = true;
+                    getSendKey()('Escape');
+                    getSendKey()(pending.verb);
+                    return;
+                }
+
                 const normTarget = normalizeLabel(pending.item.label);
                 const match = classifier.items && classifier.items.find(i => normalizeLabel(i.label) === normTarget);
                 
@@ -409,6 +431,17 @@
         }
     }
 
+    function buildInventoryVerbSequence(verb, slotKey, options = {}) {
+        const v = String(verb || '');
+        const k = String(slotKey || '');
+        if (!k) return v ? [v] : [];
+        if (!v) return [k];
+        if (options && options.fromPassiveAngbandList) {
+            return ['Escape', v, k];
+        }
+        return [v, k];
+    }
+
     // Export public API
     exports.VERBS = VERBS;
     exports.route = route;
@@ -419,6 +452,7 @@
     exports.renderChooserHtml = renderChooserHtml;
     exports.normalizeLabel = normalizeLabel;
     exports.determineSuggestedVerb = determineSuggestedVerb;
+    exports.buildInventoryVerbSequence = buildInventoryVerbSequence;
     exports.setSendKey = setSendKey;
     exports.setToast = setToast;
 

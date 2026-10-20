@@ -187,3 +187,91 @@ Rather than rewriting game rules, each engine runs as a headless child process (
 3. **Targeted Replacements**: Use `replace_file_content` with 3 lines of context.
 4. **Check State**: Fast verify via `node tools/run_tests.js --tier fast`, `python tools/smoke_test.py` (0.5s), and `dotnet build client/angband3d.csproj` (1.3s).
 5. **Session Continuity**: Record gate outputs and progress in `docs/STATE.md` before concluding.
+
+---
+
+<!-- AUTO-SYMBOL-INDEX-START -->
+## Auto-Generated $O(1)$ Symbol Coordinate Index (`tb_mastery.py index`)
+| Symbol | Kind | File & Line Range (`StartLine..EndLine`) | Signature / Members |
+| :--- | :--- | :--- | :--- |
+| `EmscriptenEH` | `class` | `build-wasm/game/angband.js:448-508` | `class` |
+| `EmscriptenSjLj` | `class` | `build-wasm/game/angband.js:450-510` | `class` |
+| `ExitStatus` | `class` | `build-wasm/game/angband.js:872-932` | `class` |
+| `LazyUint8Array` | `class` | `build-wasm/game/angband.js:3967-4027` | `class` |
+| `SoundEngine` | `class` | `server/public/js/audio.js:9-69` | `class` |
+| `ChronicleAudioRouter` | `class` | `server/public/js/chronicle/chronicle-audio.js:7-67` | `class` |
+| `ChronicleFilter` | `class` | `server/public/js/chronicle/chronicle-filter.js:130-190` | `class` |
+| `ChronicleGrounder` | `class` | `server/public/js/chronicle/chronicle-grounder.js:15-75` | `class` |
+| `ChronicleLLMBridge` | `class` | `server/public/js/chronicle/chronicle-llm.js:33-93` | `class` |
+| `ChronicleManager` | `class` | `server/public/js/chronicle/chronicle-manager.js:17-77` | `class` |
+| `ChronicleStore` | `class` | `server/public/js/chronicle/chronicle-store.js:7-67` | `class` |
+| `DemoPlayer` | `class` | `server/public/js/demo-player.js:29-89` | `class` |
+| `DeviceProfile` | `class` | `server/public/js/device.js:7-67` | `class` |
+| `Dungeon3D` | `class` | `server/public/js/dungeon3d.js:2071-2131` | `class` |
+| `WebHUD` | `class` | `server/public/js/hud.js:6-66` | `class` |
+| `InputController` | `class` | `server/public/js/input.js:6-66` | `class` |
+| `LocalSaveManager` | `class` | `server/public/js/local_bridge.js:8-68` | `class` |
+| `LocalGameBridge` | `class` | `server/public/js/local_bridge.js:145-205` | `class` |
+| `MobileOverlay` | `class` | `server/public/js/mobile-overlay.js:7-67` | `class` |
+| `GameNetwork` | `class` | `server/public/js/network.js:7-67` | `class` |
+| `WebTerminal` | `class` | `server/public/js/terminal.js:7-67` | `class` |
+| `MockDungeon3D` | `class` | `tools/audit_variant_monsters.js:10-70` | `class` |
+| `BridgeError` | `class` | `tools/bridge.py:19-20` | `class` |
+| `Bridge` | `class` | `tools/bridge.py:23-240` | `methods: __init__, next_frame, seq, key, keys, set_map` |
+| `humanReadableVersionToPacked` | `function` | `build-wasm/game/angband.js:17-77` | `function` |
+| `loadPackage` | `function` | `build-wasm/game/angband.js:100-160` | `function` |
+| `fetchRemotePackage` | `function` | `build-wasm/game/angband.js:114-174` | `function` |
+| `runWithFS` | `function` | `build-wasm/game/angband.js:173-233` | `function` |
+| `assert` | `function` | `build-wasm/game/angband.js:175-235` | `function` |
+| `processPackageData` | `function` | `build-wasm/game/angband.js:191-251` | `function` |
+| `locateFile` | `function` | `build-wasm/game/angband.js:261-321` | `function` |
+| `assert` | `function` | `build-wasm/game/angband.js:430-490` | `function` |
+| `dbg` | `function` | `build-wasm/game/angband.js:457-517` | `function` |
+| `consumedModuleProp` | `function` | `build-wasm/game/angband.js:472-532` | `function` |
+| `makeInvalidEarlyAccess` | `function` | `build-wasm/game/angband.js:500-560` | `function` |
+| `ignoredModuleProp` | `function` | `build-wasm/game/angband.js:505-565` | `function` |
+| `isExportedByForceFilesystem` | `function` | `build-wasm/game/angband.js:512-572` | `function` |
+| `missingLibrarySymbol` | `function` | `build-wasm/game/angband.js:525-585` | `function` |
+| `unexportedRuntimeSymbol` | `function` | `build-wasm/game/angband.js:532-592` | `function` |
+| `writeStackCookie` | `function` | `build-wasm/game/angband.js:553-613` | `function` |
+| `u32ToHexString` | `function` | `build-wasm/game/angband.js:571-631` | `function` |
+| `checkStackCookie` | `function` | `build-wasm/game/angband.js:575-635` | `function` |
+| `getMemoryBuffer` | `function` | `build-wasm/game/angband.js:601-661` | `function` |
+| `updateMemoryViews` | `function` | `build-wasm/game/angband.js:605-665` | `function` |
+| `preRun` | `function` | `build-wasm/game/angband.js:628-688` | `function` |
+| `initRuntime` | `function` | `build-wasm/game/angband.js:640-700` | `function` |
+| `postRun` | `function` | `build-wasm/game/angband.js:660-720` | `function` |
+| `abort` | `function` | `build-wasm/game/angband.js:678-738` | `function` |
+| `createExportWrapper` | `function` | `build-wasm/game/angband.js:714-774` | `function` |
+| `findWasmBinary` | `function` | `build-wasm/game/angband.js:726-786` | `function` |
+| `getBinarySync` | `function` | `build-wasm/game/angband.js:730-790` | `function` |
+| `getWasmBinary` | `function` | `build-wasm/game/angband.js:739-799` | `function` |
+| `instantiateArrayBuffer` | `function` | `build-wasm/game/angband.js:755-815` | `function` |
+| `instantiateAsync` | `function` | `build-wasm/game/angband.js:771-831` | `function` |
+| `getWasmImports` | `function` | `build-wasm/game/angband.js:795-855` | `function` |
+| `createWasm` | `function` | `build-wasm/game/angband.js:810-870` | `function` |
+| `receiveInstance` | `function` | `build-wasm/game/angband.js:814-874` | `function` |
+| `receiveInstantiationResult` | `function` | `build-wasm/game/angband.js:831-891` | `function` |
+| `convert` | `function` | `build-wasm/game/angband.js:923-983` | `function` |
+| `ptrToString` | `function` | `build-wasm/game/angband.js:932-992` | `function` |
+| `trim` | `function` | `build-wasm/game/angband.js:1154-1214` | `function` |
+| `onPersistComplete` | `function` | `build-wasm/game/angband.js:1802-1862` | `function` |
+| `startPersist` | `function` | `build-wasm/game/angband.js:1809-1869` | `function` |
+| `isRealDir` | `function` | `build-wasm/game/angband.js:1947-2007` | `function` |
+| `toAbsolute` | `function` | `build-wasm/game/angband.js:1950-2010` | `function` |
+| `done` | `function` | `build-wasm/game/angband.js:2124-2184` | `function` |
+| `doCallback` | `function` | `build-wasm/game/angband.js:2926-2986` | `function` |
+| `done` | `function` | `build-wasm/game/angband.js:2932-2992` | `function` |
+| `writeChunks` | `function` | `build-wasm/game/angband.js:4089-4149` | `function` |
+| `checkIncomingModuleAPI` | `function` | `build-wasm/game/angband.js:5793-5853` | `function` |
+| `assignWasmExports` | `function` | `build-wasm/game/angband.js:5865-5925` | `function` |
+| `callMain` | `function` | `build-wasm/game/angband.js:6015-6075` | `function` |
+| `stackCheckInit` | `function` | `build-wasm/game/angband.js:6044-6104` | `function` |
+| `run` | `function` | `build-wasm/game/angband.js:6053-6113` | `function` |
+| `checkUnflushedContent` | `function` | `build-wasm/game/angband.js:6089-6149` | `function` |
+| `sleep` | `function` | `scratch/capture_birth_shot.js:8-68` | `function` |
+| `sendCDP` | `function` | `scratch/capture_birth_shot.js:10-70` | `function` |
+| `run` | `function` | `scratch/capture_birth_shot.js:27-82` | `function` |
+| `main` | `function` | `scratch/check_browser_runtime.js:3-19` | `function` |
+| `testErrors` | `function` | `scratch/check_console_errors.js:5-65` | `function` |
+<!-- AUTO-SYMBOL-INDEX-END -->

@@ -60,10 +60,12 @@ In traditional 2D roguelikes, turning your head is inseparable from taking a ste
 
 ---
 
-### 3. 🖥️ Dual-Reality Mode: Seamless 3D & Authentic CRT Canvas
+### 3. 🖥️ Dual-Reality Mode: Seamless 3D, Diegetic Grimoire Deck & Illuminated Vellum Terminal
 Transition seamlessly between modern 3D immersion and nostalgic terminal play with a single keystroke (`Tab`) or screen tap:
 
-* **Instant Zero-Turn View Toggling**: Press `Tab` at any millisecond to switch between the 3D first-person perspective and an authentically emulated 80×24 CRT canvas complete with amber/green phosphorus glow, scanlines, and CRT curvature.
+* **Instant Zero-Turn View Toggling**: Press `Tab` at any millisecond to switch between the 3D first-person perspective and an illuminated 80×24 obsidian-vellum terminal canvas with gilded selection highlights and smooth `grimoireUnfurl` transitions.
+* **Diegetic Dark-Fantasy Grimoire & Armory Deck (`grimoire-deck.js`)**: Opening inventory (`i`), equipment (`e`), stores, or Sil-Q ability/smithing (`Tab` / `0`) unfurls an interactive **Grimoire & Armory Deck** with rarity-bordered item cards, Pack/Equipped/Quiver tabs, Sil-Q 7-Pillar Ability Tapestry & Anvil Forge controls, and a **Classic / Hybrid** mode toggle.
+* **Multi-Column Variant Menu Hit-Testing & Passive Verb Routing**: Click any option across multi-column character birth tables, Sil-Q ability grids, Hengband `C` page 2, or FrogComposBand power menus (`extractRowRegions`), with automatic `['Escape', verb, slotKey]` routing when invoking action verbs from Vanilla Angband's passive inventory lists.
 * **Intelligent Auto-Routing (`needsTerminal`)**: The client automatically presents the terminal canvas during intricate multi-step interactions—such as rolling character birth attributes, inspecting your full equipment sheet (`e`), or bartering with shopkeepers in town—then drops you right back into first-person 3D the moment you return to the dungeon floor.
 * **3D Directional Targeting**: When aiming wands, staves, bows, or ball spells, Angband 3D keeps you in first-person 3D with a contextual targeting prompt. Aim with relative arrow keys, press `t` to snap to the nearest visible threat, and loose your missile with full line-of-sight clarity.
 
@@ -134,6 +136,9 @@ The classic dungeon crawl is transformed into an epic voiced chronicle. Angband 
   * Narrow escapes, legendary artifact discoveries, and boss triumphs receive full, dramatic narrative delivery ($> 90$ characters).
 * **On-Demand Contextual Saga Prompt (`Alt+T`)**:
   * Tap the **"🔮 Tale"** button in the HUD or Tome deck (or press `Alt+T`) to receive deep lore and survival counsel dynamically attuned to your current depth, gear, wounds, and surrounding foes.
+* **Non-Modal 3D Entity Popover, 4-Realm Story Architectures, Mythic Crossroads & Creature Parley**:
+  * Clicking 3D creatures or floor items opens `#entity-inspect-popover` (`popover="manual"`) without stealing keyboard focus from gameplay (`preemptForGameplay`).
+  * Structures chronicles into *Books of the Siege*, *Cantos of the Lay of Leithian*, *Shadow Walks & Arcana Readings*, and *Scrolls of the Five Rings*, with interactive **Mythic Crossroads** vows (`swearMythicVow`) and **Creature Parley** (`triggerCreatureParley`).
 * **Masterwork Hero Action Sketches (`Alt+K`)**:
   * Press `Alt+K` to generate an illuminated `800×600` canvas etching depicting your character at this exact turn, capturing weapons, armor, wounds, and chronicle deeds.
 * **Procedural Web Audio Synthesis & Zero-Robotic Fallbacks**:
@@ -233,7 +238,7 @@ For full native desktop compilation (Godot 4 C#) and Cloud Run Docker deployment
 |---|---|
 | 📡 **[Wire Protocol Specification (PROTOCOL.md)](PROTOCOL.md)** | Full specification of the JSON IPC format between engine and frontends. |
 | 🏛️ **[Client Architecture (ARCHITECTURE.md)](ARCHITECTURE.md)** | Multi-realm process isolation, Godot scene graph, and Three.js coordinate mapping. |
-| 🧠 **[Best Practices & Lessons Learned (BEST_PRACTICES_AND_LESSONS_LEARNED.md)](BEST_PRACTICES_AND_LESSONS_LEARNED.md)** | 34 master project invariants (`L1–L34`), GPU memory management, and anti-trap guidelines. |
+| 🧠 **[Best Practices & Lessons Learned (BEST_PRACTICES_AND_LESSONS_LEARNED.md)](BEST_PRACTICES_AND_LESSONS_LEARNED.md)** | 52 master project invariants (`L1–L52`), GPU memory management, and anti-trap guidelines. |
 | 🗺️ **[Generic Engine Integration Guide (GENERIC_ENGINE_INTEGRATION.md)](GENERIC_ENGINE_INTEGRATION.md)** | Step-by-step blueprint for porting classic ASCII engines into 3D. |
 | 💾 **[Save System & Universal Persistence (SAVE_SYSTEM.md)](SAVE_SYSTEM.md)** | Binary save formats, cloud storage, and cross-platform portability. |
 | 🎨 **[Hybrid Graphics Master Plan (HYBRID_GRAPHICS_MASTER_PLAN.md)](HYBRID_GRAPHICS_MASTER_PLAN.md)** | 4096 HD atlases, normal mapping, biomes, and lore audit proofs. |

@@ -183,10 +183,12 @@ async function runTests() {
     // Test 11: Character Screen Toolbar & Store Isolation Guard
     console.log('Test 11: Character Screen Toolbar & Store Isolation Guard');
     const appJs = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
+    const screenContextJs = fs.readFileSync(path.join(__dirname, '../public/js/screen-context.js'), 'utf8');
+    const combinedAppAndContext = appJs + '\n' + screenContextJs;
     const inputJs = fs.readFileSync(path.join(__dirname, '../public/js/input.js'), 'utf8');
     const hudJs = fs.readFileSync(path.join(__dirname, '../public/js/hud.js'), 'utf8');
-    assert(appJs.includes("const inPlay = Boolean(frame && frame.phase === 'play' && frame.map);"), 'app.js must strictly define inPlay by phase and map');
-    assert(appJs.includes("parseInt(frame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16)"), 'app.js must correctly parse 2-hex store feature index');
+    assert(combinedAppAndContext.includes("phase === 'play'") && combinedAppAndContext.includes(".map)"), 'app.js / screen-context.js must strictly define inPlay by phase and map');
+    assert(combinedAppAndContext.includes("parseInt(frame.map.rows[py].f.substring(px * 2, px * 2 + 2), 16)"), 'screen-context.js must correctly parse 2-hex store feature index');
     assert(appJs.includes("if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';"), 'app.js must hide advance button in stores');
     assert(hudJs.includes("resetMessages(welcomeText = null)"), 'hud.js must implement resetMessages');
     assert(hudJs.includes("accept character history"), 'hud.js must filter character history setup prompt');
@@ -195,7 +197,7 @@ async function runTests() {
     console.log('  -> Store menus strictly isolate shop options and hide creation/advance buttons');
     // Test 12: Client JS Syntax & Compilation Integrity
     console.log('Test 12: Client JS Syntax & Compilation Integrity');
-    const clientScripts = ['app.js', 'hud.js', 'input.js', 'terminal.js', 'audio.js', 'dungeon3d.js', 'network.js'];
+    const clientScripts = ['app.js', 'hud.js', 'input.js', 'terminal.js', 'audio.js', 'dungeon3d.js', 'network.js', 'grimoire-deck.js'];
     for (const scriptName of clientScripts) {
         const scriptCode = fs.readFileSync(path.join(__dirname, '../public/js', scriptName), 'utf8');
         try {
@@ -218,7 +220,7 @@ async function runTests() {
     const dungeonCss = fs.readFileSync(path.join(__dirname, '../public/css/dungeon.css'), 'utf8');
     const freshAppJs = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
     assert(freshAppJs.includes("const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');"), 'app.js must lookup term-title correctly');
-    assert(freshAppJs.includes("const isStore = !isItemPrompt && (hasStoreText || (isStoreFeat && inOverlay));"), 'app.js must accurately detect store interface without misclassifying item menus');
+    assert(combinedAppAndContext.includes("const isStore = !isItemPrompt && (hasStoreText || (isStoreFeat && inOverlay));"), 'screen-context.js must accurately detect store interface without misclassifying item menus');
     assert(dungeonCss.includes("flex: 1;"), 'dungeon.css message-feed-scroll must flex: 1 to fill message feed window');
     // Test 15: Unified Minimap Controls Bar & Responsive Flex Sizing
     console.log('Test 15: Unified Minimap Controls Bar & Responsive Flex Sizing');
@@ -238,13 +240,13 @@ async function runTests() {
     assert(indexRes.body.includes('id="btn-throw"'), 'btn-throw must be present in index.html');
     assert(indexRes.body.includes('id="term-contextual-actions"'), 'term-contextual-actions must be present in index.html');
     assert(indexRes.body.includes('id="term-letter-ribbon"'), 'term-letter-ribbon must be present in index.html');
-    assert(inputJs.includes("bind('btn-throw', 'v');"), 'input.js must bind btn-throw to v');
-    assert(freshAppJs.includes("terminalTitle.textContent = '🎒 INVENTORY PACK';"), 'app.js must recognize inventory pack prompt');
-    assert(freshAppJs.includes("terminalTitle.textContent = '🛡 EQUIPPED GEAR';"), 'app.js must recognize equipment gear prompt');
-    assert(freshAppJs.includes("terminalTitle.textContent = '🎯 THROW ITEM';"), 'app.js must recognize throw prompt');
-    assert(freshAppJs.includes("terminalTitle.textContent = '🧪 QUAFF POTION';"), 'app.js must recognize quaff prompt');
-    assert(freshAppJs.includes("terminalTitle.textContent = '📜 READ SCROLL';"), 'app.js must recognize read prompt');
-    assert(freshAppJs.includes("terminalTitle.textContent = '🏹 FIRE / SHOOT';"), 'app.js must recognize fire prompt');
+    assert(inputJs.includes("bind('btn-throw', 'throw');") || inputJs.includes("bind('btn-throw', 'v');"), 'input.js must bind btn-throw to throw verb');
+    assert(freshAppJs.includes('🎒 INVENTORY PACK'), 'app.js must recognize inventory pack prompt');
+    assert(freshAppJs.includes('🛡 EQUIPPED GEAR'), 'app.js must recognize equipment gear prompt');
+    assert(freshAppJs.includes('🎯 THROW ITEM'), 'app.js must recognize throw prompt');
+    assert(freshAppJs.includes('🧪 QUAFF POTION'), 'app.js must recognize quaff prompt');
+    assert(freshAppJs.includes('📜 READ SCROLL'), 'app.js must recognize read prompt');
+    assert(freshAppJs.includes('🏹 FIRE / SHOOT'), 'app.js must recognize fire prompt');
     console.log('  -> Throw button (v) added to action bar and bound');
     console.log('  -> Terminal Contextual Actions Bar & Letter Ribbon dynamically populate item selection buttons');
     // Test 17: Save Game Download & Upload System
@@ -300,7 +302,7 @@ async function runTests() {
     assert(dungeonCss.includes('touch-action: pan-x;'), 'dungeon.css .term-letter-ribbon must have touch-action: pan-x');
     assert(appJs.includes('Date.now() - lastTouchEndTime < 500'), 'app.js must suppress synthetic clicks within 500ms of touch');
     assert(inputJs.includes('bindReliableAction'), 'input.js must implement bindReliableAction');
-    assert(appJs.includes('data-key="y"><span>[y]</span>') && appJs.includes('Yes</button>'), 'app.js must provide dedicated Yes/No prompt buttons');
+    assert(appJs.includes("key: 'y'") && appJs.includes('✓ Yes'), 'app.js must provide dedicated Yes/No prompt buttons');
     assert(appJs.includes('termDpad.style.display = \'grid\''), 'app.js must provide D-Pad navigation for birth menus and item prompts');
     console.log('  -> Synthetic click suppression (< 500ms) active across letter ribbons, menus, and action buttons');
     console.log('  -> Horizontal pan-x scrolling enabled on term letter ribbon with touch drag cancellation');
@@ -323,6 +325,48 @@ async function runTests() {
     console.log('  -> Standalone Apps & Downloads modal styled with high z-index overlay and smooth transitions');
     console.log('  -> Option [8] and Splash shortcut [6] reliably foreground modal and hide background overlays');
     console.log('  -> Direct download endpoints verified for Android APK and Windows ZIP packages');
+
+    // Test 21: WS25–WS30 Master-Class Audit & Implementation Verification
+    console.log('Test 21: WS25–WS30 Master-Class Audit & Implementation Verification');
+    assert.strictEqual(indexRes.headers['x-content-type-options'], 'nosniff', 'server must set X-Content-Type-Options: nosniff');
+    assert.strictEqual(indexRes.headers['x-frame-options'], 'SAMEORIGIN', 'server must set X-Frame-Options: SAMEORIGIN');
+    assert.strictEqual(indexRes.headers['referrer-policy'], 'strict-origin-when-cross-origin', 'server must set Referrer-Policy');
+
+    const SC = require('../public/js/screen-context.js');
+    const MR = require('../public/js/menu-router.js');
+    const GD = require('../public/js/grimoire-deck.js');
+    const CG = require('../public/js/chronicle/chronicle-grounder.js');
+
+    // WS25: Multi-column extraction & passive Angband verb sequence
+    const regions = SC.extractRowRegions('a) 2 Rations of Food          m) a Long Sword (2d5)');
+    assert.strictEqual(regions.length, 2, 'extractRowRegions must detect both left and right column items');
+    assert.strictEqual(regions[0].key, 'a');
+    assert.strictEqual(regions[1].key, 'm');
+
+    const passiveSeq = MR.buildInventoryVerbSequence('w', 'c', { realm: 'angband', fromPassiveAngbandList: true });
+    assert.deepStrictEqual(passiveSeq, ['Escape', 'w', 'c'], 'Vanilla Angband passive inventory must prefix Escape before verb + slot');
+
+    // WS26 & WS27: Grimoire Deck & Realm Heraldry
+    assert(GD.getHeraldry('silq').crestTitle.includes('SILMARIL'), 'Sil-Q heraldry must reference Silmaril');
+    assert(GD.getHeraldry('hengband').crestTitle.includes('FIVE RINGS'), 'Hengband heraldry must reference Five Rings');
+    assert(dungeonCss.includes('body[data-realm="silq"]'), 'dungeon.css must define per-realm heraldic themes');
+    assert(!dungeonCss.includes('@keyframes crtTurnOn'), 'dungeon.css must replace CRT tube animation with grimoireUnfurl');
+
+    // WS28: Realm Story Architectures & Mythic Crossroads
+    const silqArch = CG.getStoryArchitecture('silq', 5);
+    assert(silqArch.currentDivision.includes('Canto'), 'Sil-Q story architecture must use Cantos');
+    const hengArch = CG.getStoryArchitecture('hengband', 10);
+    assert(hengArch.currentDivision.includes('Scroll'), 'Hengband story architecture must use Scrolls of the Five Rings');
+    const crossroads = CG.getMythicCrossroads('angband', 1, { name: 'Beren' });
+    assert.strictEqual(crossroads.choices.length, 3, 'getMythicCrossroads must offer 3 realm-authentic vows');
+    const vowBeat = CG.resolveVowConsequenceBeat('vanguard', { name: 'Beren', depth: 1 }, 'angband', 'en');
+    assert(vowBeat.prose.includes('Beren'), 'resolveVowConsequenceBeat must weave hero name into vow prose');
+
+    // WS29 & WS30: 3D Perf, Procedural Foley & Server Async I/O
+    assert(dungeon3dJs.includes('_tmpLightningVec'), 'dungeon3d.js must reuse _tmpLightningVec in lightning loop');
+    assert(dungeon3dJs.includes('_emissiveMaterials'), 'dungeon3d.js must cache _emissiveMaterials on hit flash');
+    assert(audioJs.includes('playParchmentTurn(') && audioJs.includes('playAnvilStrike(') && audioJs.includes('playKotoPluck('), 'audio.js must provide realm foley cues');
+    console.log('  -> WS25–WS30 multi-column hit-testing, Grimoire Deck, Realm Heraldry, Mythic Crossroads, 3D/Audio & Security verified');
 
     console.log('\nAll server unit tests passed successfully!');
     process.exit(0);

@@ -983,6 +983,181 @@
         return true;
     }
 
+    /**
+     * Scans a single decoded 80-col terminal line and returns all selectable option regions
+     * across 1, 2, or 3 columns with exact [startCol, endCol] bounds (WS25.1 / MENU-02).
+     * @param {string} line
+     * @returns {Array<{key: string, label: string, rawLabel: string, glyph: string|null, weight: string|null, price: string|null, startCol: number, endCol: number, display: string}>}
+     */
+    function extractRowRegions(line) {
+        if (!line || typeof line !== 'string') return [];
+        if (line.includes('選んで下さい') || line.includes('初期オプション設定') || line.includes('注意：')) return [];
+
+        const tagRe = /(?:^|(\s{1,}))(?:\(([a-zA-Z0-9*@?])\)|\[([a-zA-Z0-9*@?])\]|([a-zA-Z0-9*@?])[\)\.\:\-]|(\*)\s*(?=ランダム|random|Random))\s+/g;
+        const matches = [];
+        let m;
+        while ((m = tagRe.exec(line)) !== null) {
+            const leadSpaces = m[1] ? m[1].length : 0;
+            const startCol = m.index + leadSpaces;
+            // Require at least 2 spaces before mid-row column tags so "(a)" inside prose like "potion (a)" is not split
+            if (startCol > 4 && leadSpaces < 2) continue;
+            const key = m[2] || m[3] || m[4] || m[5];
+            const contentStart = m.index + m[0].length;
+            if (key) {
+                matches.push({ key, startCol, contentStart });
+            }
+        }
+
+        const regions = [];
+        for (let i = 0; i < matches.length; i++) {
+            const cur = matches[i];
+            const nextStart = (i + 1 < matches.length) ? matches[i + 1].startCol : line.length;
+            const rawSlice = line.slice(cur.contentStart, nextStart);
+            const rawTrim = rawSlice.trim();
+            if (!rawTrim || rawTrim === '(nothing)' || rawTrim.includes('(nothing)') || rawTrim === 'なし') continue;
+
+            let label = rawTrim;
+            let glyph = null;
+            const glyphMatch = label.match(/^([)\]}>~!=?,_/\-\\|&"'])\s+(.+)$/);
+            if (glyphMatch) {
+                glyph = glyphMatch[1];
+                label = glyphMatch[2];
+            }
+
+            let weight = null;
+            const weightMatch = label.match(/(\d+(?:\.\d+)?\s*(?:lb|kg|g))\b/i);
+            if (weightMatch) {
+                weight = weightMatch[1];
+            }
+
+            let price = null;
+            const priceMatch = rawSlice.match(/\s+(\d+)\s*(?:au|gp|gold)?\s*$/i);
+            if (priceMatch && (!weightMatch || !weightMatch[0].includes(priceMatch[1]))) {
+                price = priceMatch[1];
+            }
+
+            let cleanLabel = label.replace(/^[^:]{1,20}:\s*/, '');
+            cleanLabel = cleanLabel.replace(/\s+\d+(\.\d+)?\s*(lb|kg|g).*$/i, '');
+            cleanLabel = cleanLabel.replace(/\s{3,}\d+\s*$/, '');
+            cleanLabel = cleanLabel.replace(/\s{2,}.*$/, '');
+            cleanLabel = cleanLabel.replace(/[(\[\{]+$/, '').trim();
+            if (!cleanLabel) cleanLabel = rawTrim;
+
+            regions.push({
+                key: cur.key,
+                label: cleanLabel,
+                rawLabel: rawTrim,
+                glyph,
+                weight,
+                price,
+                startCol: cur.startCol,
+                endCol: nextStart - 1,
+                display: `[${cur.key}]`
+            });
+        }
+        return regions;
+    }
+
+    /**
+     * Multi-column aware item/option extractor across all terminal rows (WS25.2).
+     */
+    function extractMultiColumnItems(rows, isHeng, decode) {
+        if (!rows || !Array.isArray(rows)) return [];
+        const seenKeys = new Set();
+        const items = [];
+        for (let r = 0; r < rows.length; r++) {
+            const rawLine = rows[r] && rows[r].g ? rows[r].g : '';
+            const line = isHeng && typeof decode === 'function' ? decode(rawLine) : rawLine;
+            const regions = extractRowRegions(line);
+            for (let c = 0; c < regions.length; c++) {
+                const reg = regions[c];
+                if (reg.key && !seenKeys.has(reg.key)) {
+                    seenKeys.add(reg.key);
+                    items.push(Object.assign({ row: r, colIndex: c, colCount: regions.length }, reg));
+                }
+            }
+        }
+        return items;
+    }
+
+    /**
+     * Detects rich realm-specific submenus (Sil-Q Ability Tree, Sil-Q Smithing, Sil-Q Song,
+     * FrogComposBand/Hengband Unified Gear Tabs, Multi-Column Grids) (WS25.2 / WS26).
+     */
+    function detectRealmSubmenu(frame, realm, decode) {
+        realm = (realm || (frame && frame.realm) || 'angband').toLowerCase();
+        const isHeng = realm === 'hengband';
+        const screenText = screenTextOf(frame, decode);
+        const rows = (frame && frame.term && Array.isArray(frame.term.rows)) ? frame.term.rows : [];
+
+        const silqSkillColumns = ['Melee', 'Archery', 'Evasion', 'Stealth', 'Perception', 'Will', 'Smithing', 'Song'];
+        const isSilqAbilityTree = Boolean(
+            realm === 'silq' &&
+            screenText.includes('melee') &&
+            screenText.includes('archery') &&
+            screenText.includes('evasion') &&
+            screenText.includes('stealth') &&
+            (screenText.includes('will') || screenText.includes('perception') || screenText.includes('smithing') || screenText.includes('song'))
+        );
+
+        let activeSilqSkillCol = 0;
+        if (isSilqAbilityTree) {
+            for (let i = 0; i < silqSkillColumns.length; i++) {
+                const colLower = silqSkillColumns[i].toLowerCase();
+                if (screenText.includes(`(${colLower})`) || screenText.includes(`[${colLower}]`) || screenText.includes(`${colLower} abilities`)) {
+                    activeSilqSkillCol = i;
+                    break;
+                }
+            }
+        }
+
+        const isSilqSmithing = Boolean(
+            realm === 'silq' &&
+            (screenText.includes('smithing') || screenText.includes('forge') || screenText.includes('anvil')) &&
+            (screenText.includes('weaponsmith') || screenText.includes('armoursmith') || screenText.includes('jeweller') ||
+             (screenText.includes('weapon') && screenText.includes('armour') && screenText.includes('ring')))
+        );
+
+        const isSilqSongMenu = Boolean(
+            realm === 'silq' &&
+            (/sing\s+which\s+song|songs?\s+known|stop\s+singing/i.test(screenText))
+        );
+
+        const isCharSheet = isCharacterSheet(screenText);
+        const isSpellMenu = !isSilqAbilityTree && !isSilqSmithing && isSpellOrAbilityMenu(screenText);
+
+        let multiColRows = 0;
+        for (let r = 0; r < rows.length; r++) {
+            const rawLine = rows[r] && rows[r].g ? rows[r].g : '';
+            const line = isHeng && typeof decode === 'function' ? decode(rawLine) : rawLine;
+            if (extractRowRegions(line).length >= 2) multiColRows++;
+        }
+        const isMultiColumnMenu = multiColRows >= 2;
+
+        const isInven = screenText.includes('(inventory)') || screenText.includes('inven:') || screenText.includes('inventory |') || screenText.includes('持ち物：');
+        const isEquip = screenText.includes('(equipment)') || screenText.includes('equip:') || screenText.includes('| equipment') || screenText.includes('装備：');
+        const isQuiver = screenText.includes('quiver:') || screenText.includes('| quiver');
+        const hasGearModeTabs = Boolean(isInven || isEquip || isQuiver);
+        const gearActiveTab = isEquip ? 'equip' : (isQuiver ? 'quiver' : (isInven ? 'inven' : null));
+        const gearSwitchKey = (realm === 'frogcomposband' || realm === 'silq' || realm === 'hengband') ? '/' : (isEquip ? 'i' : 'e');
+
+        return {
+            realm,
+            isSilqAbilityTree,
+            silqSkillColumns,
+            activeSilqSkillCol,
+            isSilqSmithing,
+            isSilqSongMenu,
+            isCharacterSheet: isCharSheet,
+            isSpellBookOrPowerMenu: isSpellMenu,
+            isMultiColumnMenu,
+            hasGearModeTabs,
+            gearActiveTab,
+            gearSwitchKey,
+            multiColumnItems: extractMultiColumnItems(rows, isHeng, decode)
+        };
+    }
+
     return {
         KEYS,
         VARIANT_REGISTRY,
@@ -1005,6 +1180,9 @@
         inputTargetingPrompt,
         terminalDetectMode,
         extractItems,
+        extractRowRegions,
+        extractMultiColumnItems,
+        detectRealmSubmenu,
         classify,
         classifyScreen: classify,
         decodeSjis,

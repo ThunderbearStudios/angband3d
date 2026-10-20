@@ -2860,6 +2860,155 @@ class SoundEngine {
             });
         }
     }
+
+    // --- WS29: Diegetic Dark-Fantasy & Realm-Specific Procedural Foley ---
+    playParchmentTurn(pan = 0.0) {
+        if (!this.enabled) return;
+        this.unlock();
+        if (!this.ctx || typeof this.ctx.createBiquadFilter !== 'function') {
+            this.playMenuNav();
+            return;
+        }
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const noiseBuf = this._getNoiseBuffer ? this._getNoiseBuffer(0.16) : null;
+        if (!noiseBuf) {
+            this.playMenuNav();
+            return;
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = noiseBuf;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1150, now);
+        filter.frequency.exponentialRampToValueAtTime(820, now + 0.14);
+        filter.Q.setValueAtTime(2.4, now);
+        const gain = ctx.createGain();
+        const vol = Math.max(0.01, this.masterVolume * this.sfxVolume * 0.28);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(vol, now + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain || ctx.destination);
+        src.start(now);
+        src.stop(now + 0.16);
+    }
+
+    playIronLatch(pan = 0.0) {
+        if (!this.enabled) return;
+        this.unlock();
+        if (!this.ctx || typeof this.ctx.createOscillator !== 'function') return;
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const vol = Math.max(0.01, this.masterVolume * this.sfxVolume * 0.22);
+        [185, 640].forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = idx === 0 ? 'triangle' : 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            osc.frequency.exponentialRampToValueAtTime(freq * 0.65, now + 0.075);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.linearRampToValueAtTime(vol * (idx === 0 ? 1.0 : 0.45), now + 0.006);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+            osc.connect(gain);
+            gain.connect(this.masterGain || ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.085);
+        });
+    }
+
+    playAnvilStrike(pan = 0.0) {
+        if (!this.enabled) return;
+        this.unlock();
+        if (!this.ctx || typeof this.ctx.createOscillator !== 'function') return;
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const vol = Math.max(0.01, this.masterVolume * this.sfxVolume * 0.25);
+        [880, 1320, 2640].forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.linearRampToValueAtTime(vol / (idx + 1), now + 0.004);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45 / (idx + 1));
+            osc.connect(gain);
+            gain.connect(this.masterGain || ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.46);
+        });
+    }
+
+    playHarpChord(pan = 0.0) {
+        if (!this.enabled) return;
+        this.unlock();
+        if (!this.ctx || typeof this.ctx.createOscillator !== 'function') return;
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const vol = Math.max(0.01, this.masterVolume * this.sfxVolume * 0.16);
+        [293.66, 369.99, 440.00, 587.33].forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const start = now + idx * 0.035;
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, start);
+            gain.gain.setValueAtTime(0.0001, start);
+            gain.gain.linearRampToValueAtTime(vol, start + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.42);
+            osc.connect(gain);
+            gain.connect(this.masterGain || ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.44);
+        });
+    }
+
+    playTrumpSnap(pan = 0.0) {
+        if (!this.enabled) return;
+        this.unlock();
+        if (!this.ctx || typeof this.ctx.createOscillator !== 'function') return;
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const vol = Math.max(0.01, this.masterVolume * this.sfxVolume * 0.18);
+        [528.0, 1056.0].forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = idx === 0 ? 'triangle' : 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            osc.frequency.exponentialRampToValueAtTime(freq * 1.25, now + 0.18);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.linearRampToValueAtTime(vol * (idx === 0 ? 1.0 : 0.5), now + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.19);
+            osc.connect(gain);
+            gain.connect(this.masterGain || ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.20);
+        });
+    }
+
+    playKotoPluck(pan = 0.0) {
+        if (!this.enabled) return;
+        this.unlock();
+        if (!this.ctx || typeof this.ctx.createOscillator !== 'function') return;
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+        const vol = Math.max(0.01, this.masterVolume * this.sfxVolume * 0.20);
+        [329.63, 493.88].forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const start = now + idx * 0.04;
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq * 1.02, start);
+            osc.frequency.exponentialRampToValueAtTime(freq, start + 0.03);
+            gain.gain.setValueAtTime(0.0001, start);
+            gain.gain.linearRampToValueAtTime(vol, start + 0.008);
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.32);
+            osc.connect(gain);
+            gain.connect(this.masterGain || ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.34);
+        });
+    }
 }
 
 const SoundManager = SoundEngine;

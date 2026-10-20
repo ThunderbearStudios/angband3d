@@ -202,17 +202,19 @@ class WebTerminal {
             }
         }, { passive: false });
 
-        // Mouse Drag to Pan (Strictly manages view, NEVER interacts with game/menu)
+        // Mouse Drag to Pan (Strictly manages view when dragged >= 6px, preserving crisp cell clicks)
         viewport.addEventListener('mousedown', (e) => {
             if (e.button === 0) { // Primary / Left Click
                 isMouseDragging = true;
+                this._mouseDidDrag = false;
                 mouseStartX = e.clientX;
                 mouseStartY = e.clientY;
                 mouseStartScrollLeft = viewport.scrollLeft;
                 mouseStartScrollTop = viewport.scrollTop;
-                viewport.style.cursor = 'grabbing';
-                if (this.canvas) this.canvas.style.cursor = 'grabbing';
-                e.preventDefault();
+                if (this.zoomLevel > 1.02) {
+                    viewport.style.cursor = 'grabbing';
+                    if (this.canvas) this.canvas.style.cursor = 'grabbing';
+                }
             }
         });
 
@@ -220,24 +222,29 @@ class WebTerminal {
             if (!isMouseDragging) return;
             const dx = e.clientX - mouseStartX;
             const dy = e.clientY - mouseStartY;
-            viewport.scrollLeft = mouseStartScrollLeft - dx;
-            viewport.scrollTop = mouseStartScrollTop - dy;
-            this.userHasScrolled = true;
+            if (Math.hypot(dx, dy) >= 6) {
+                this._mouseDidDrag = true;
+                viewport.style.cursor = 'grabbing';
+                if (this.canvas) this.canvas.style.cursor = 'grabbing';
+            }
+            if (this._mouseDidDrag) {
+                viewport.scrollLeft = mouseStartScrollLeft - dx;
+                viewport.scrollTop = mouseStartScrollTop - dy;
+                this.userHasScrolled = true;
+            }
         });
 
         const stopMouseDrag = () => {
             if (isMouseDragging) {
                 isMouseDragging = false;
-                viewport.style.cursor = 'grab';
-                if (this.canvas) this.canvas.style.cursor = 'grab';
+                viewport.style.cursor = this.zoomLevel > 1.02 ? 'grab' : 'default';
+                if (this.canvas) this.canvas.style.cursor = 'pointer';
             }
         };
 
         window.addEventListener('mouseup', stopMouseDrag);
 
         // Hardware-accelerated Touch Gestures: Pinch-to-Zoom & 1-Finger Pan
-        // CRITICAL INVARIANT: Any touch in the classic viewport ONLY impacts the view (zoom & pan),
-        // and is NEVER interpreted as a game command or row click!
         viewport.addEventListener('touchstart', (e) => {
             this.isTouchDevice = true;
             if (e.touches.length === 2) {
@@ -287,10 +294,12 @@ class WebTerminal {
                 const dy = touch.clientY - touchStartY;
                 if (Math.hypot(dx, dy) < 12 && (Date.now() - touchStartTime) < 300) {
                     const rect = this.canvas.getBoundingClientRect();
-                    if (rect.height && this.charHeight) {
+                    if (rect.height && this.charHeight && rect.width && this.charWidth) {
                         const offsetY = (touch.clientY - rect.top) * ((this.rows * this.charHeight) / rect.height);
+                        const offsetX = (touch.clientX - rect.left) * ((this.cols * this.charWidth) / rect.width);
                         const r = Math.floor(offsetY / this.charHeight);
-                        this.handleRowClick(r);
+                        const c = Math.floor(offsetX / this.charWidth);
+                        this.handleRowClick(r, c);
                     }
                 }
             }
@@ -389,27 +398,33 @@ class WebTerminal {
 
     setupMouseEvents() {
         this.hoverRow = -1;
+        this.hoverCol = -1;
         if (!this.canvas) return;
 
         this.canvas.addEventListener('mousemove', (e) => {
             const rect = this.canvas.getBoundingClientRect();
-            if (!rect.height || !this.charHeight) return;
+            if (!rect.height || !this.charHeight || !rect.width || !this.charWidth) return;
             const offsetY = (e.clientY - rect.top) * ((this.rows * this.charHeight) / rect.height);
+            const offsetX = (e.clientX - rect.left) * ((this.cols * this.charWidth) / rect.width);
             const row = Math.floor(offsetY / this.charHeight);
-            if (row >= 0 && row < this.rows) {
-                if (this.hoverRow !== row) {
+            const col = Math.floor(offsetX / this.charWidth);
+            if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
+                if (this.hoverRow !== row || this.hoverCol !== col) {
                     this.hoverRow = row;
+                    this.hoverCol = col;
                     if (this.lastTermData) this.render(this.lastTermData);
                 }
-            } else if (this.hoverRow !== -1) {
+            } else if (this.hoverRow !== -1 || this.hoverCol !== -1) {
                 this.hoverRow = -1;
+                this.hoverCol = -1;
                 if (this.lastTermData) this.render(this.lastTermData);
             }
         });
 
         this.canvas.addEventListener('mouseleave', () => {
-            if (this.hoverRow !== -1) {
+            if (this.hoverRow !== -1 || this.hoverCol !== -1) {
                 this.hoverRow = -1;
+                this.hoverCol = -1;
                 if (this.lastTermData) this.render(this.lastTermData);
             }
         });
@@ -417,11 +432,17 @@ class WebTerminal {
         this.canvas.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            if (this._mouseDidDrag) {
+                this._mouseDidDrag = false;
+                return;
+            }
             const rect = this.canvas.getBoundingClientRect();
-            if (!rect.height || !this.charHeight) return;
+            if (!rect.height || !this.charHeight || !rect.width || !this.charWidth) return;
             const offsetY = (e.clientY - rect.top) * ((this.rows * this.charHeight) / rect.height);
+            const offsetX = (e.clientY !== undefined ? (e.clientX - rect.left) * ((this.cols * this.charWidth) / rect.width) : 0);
             const row = Math.floor(offsetY / this.charHeight);
-            this.handleRowClick(row);
+            const col = Math.floor(offsetX / this.charWidth);
+            this.handleRowClick(row, col);
         });
 
         this.canvas.addEventListener('contextmenu', (e) => {
@@ -429,11 +450,27 @@ class WebTerminal {
         });
     }
 
-    handleRowClick(row) {
+    extractRowRegions(line) {
+        if (typeof window !== 'undefined' && window.ScreenContext && typeof window.ScreenContext.extractRowRegions === 'function') {
+            return window.ScreenContext.extractRowRegions(line);
+        }
+        if (!line) return [];
+        const tagMatch = line.match(/(?:^|\s+)(?:\[([a-zA-Z0-9*@?])\]|\(([a-zA-Z0-9*@?])\)|([a-zA-Z0-9*@?])[\)\.\:\-])\s+\S/);
+        if (tagMatch) {
+            const key = tagMatch[1] || tagMatch[2] || tagMatch[3];
+            if (key) return [{ key, startCol: 0, endCol: this.cols - 1 }];
+        }
+        return [];
+    }
+
+    handleRowClick(row, col = -1) {
         if (row < 0 || row >= this.rows || !this.lastRows || !this.lastRows[row]) return;
         const rawLine = this.lastRows[row]?.g || '';
         const line = this.decodeText(rawLine);
         const sendKey = (key) => {
+            if (typeof window !== 'undefined' && window.sound && typeof window.sound.playParchmentTurn === 'function') {
+                window.sound.playParchmentTurn();
+            }
             const btn = document.querySelector(`.term-letter-btn[data-key="${key}"]`);
             if (btn) {
                 btn.click();
@@ -447,6 +484,23 @@ class WebTerminal {
                 window.network.sendKey(key);
             }
         };
+
+        // Multi-column spatial hit-testing (WS25.1 / MENU-02)
+        const regions = this.extractRowRegions(line);
+        if (regions.length > 0) {
+            if (col >= 0 && regions.length > 1) {
+                const matchedRegion = regions.find(r => col >= r.startCol && col <= r.endCol) ||
+                                      regions.reduce((best, r) => (col >= r.startCol ? r : best), regions[0]);
+                if (matchedRegion && matchedRegion.key) {
+                    sendKey(matchedRegion.key);
+                    return;
+                }
+            }
+            if (regions[0] && regions[0].key) {
+                sendKey(regions[0].key);
+                return;
+            }
+        }
 
         const tagMatch = line.match(/(?:^|\s+)(?:\[([a-zA-Z0-9*@?])\]|\(([a-zA-Z0-9*@?])\)|([a-zA-Z0-9*@?])[\)\.\:\-])\s+\S/);
         if (tagMatch) {
@@ -506,19 +560,42 @@ class WebTerminal {
         const w = this.cols * this.charWidth;
         const h = this.rows * this.charHeight;
 
-        // Clear canvas with deep dark background
-        this.ctx.fillStyle = '#080a0f';
+        // Illuminated Dark Obsidian-Vellum Grimoire Surface (replaces cold CRT black)
+        const bgGrad = this.ctx.createRadialGradient(w * 0.5, h * 0.45, w * 0.08, w * 0.5, h * 0.5, w * 0.75);
+        bgGrad.addColorStop(0, '#130e0a');
+        bgGrad.addColorStop(0.65, '#0c0906');
+        bgGrad.addColorStop(1, '#070504');
+        this.ctx.fillStyle = bgGrad;
         this.ctx.fillRect(0, 0, w, h);
 
         if (this.hoverRow >= 0 && this.hoverRow < this.rows) {
-            this.ctx.fillStyle = 'rgba(212, 175, 55, 0.14)';
-            this.ctx.fillRect(2, this.hoverRow * this.charHeight, w - 4, this.charHeight);
+            const rawHoverLine = this.lastRows[this.hoverRow]?.g || '';
+            const hoverLine = this.decodeText(rawHoverLine);
+            const regions = this.extractRowRegions(hoverLine);
+            let highlightX = 2;
+            let highlightW = w - 4;
+            if (regions.length > 1 && this.hoverCol >= 0) {
+                const activeReg = regions.find(r => this.hoverCol >= r.startCol && this.hoverCol <= r.endCol);
+                if (activeReg) {
+                    highlightX = Math.max(2, activeReg.startCol * this.charWidth - 4);
+                    highlightW = Math.min(w - highlightX - 2, (activeReg.endCol - activeReg.startCol + 1) * this.charWidth + 8);
+                }
+            }
+            const hy = this.hoverRow * this.charHeight;
+            this.ctx.fillStyle = 'rgba(218, 172, 84, 0.16)';
+            this.ctx.fillRect(highlightX, hy, highlightW, this.charHeight);
+            this.ctx.strokeStyle = 'rgba(245, 204, 122, 0.42)';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(highlightX + 0.5, hy + 0.5, highlightW - 1, this.charHeight - 1);
         }
 
-        // Ornate border
-        this.ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+        // Gilded Sanctuary Double-Bevel Border
+        this.ctx.strokeStyle = 'rgba(218, 172, 84, 0.52)';
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(1, 1, w - 2, h - 2);
+        this.ctx.strokeStyle = 'rgba(255, 232, 175, 0.16)';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(4, 4, w - 8, h - 8);
 
         this.ctx.textBaseline = 'top';
 

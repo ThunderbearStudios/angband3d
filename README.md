@@ -74,18 +74,22 @@ In traditional 2D roguelikes, turning your head is inseparable from taking a ste
 
 ---
 
-### 3. 🖥️ Dual-Reality Mode: Seamless 3D & Authentic CRT Canvas
+### 3. 🖥️ Dual-Reality Mode: Seamless 3D, Diegetic Grimoire Deck & Illuminated Vellum Terminal
 Transition seamlessly between modern 3D immersion and nostalgic terminal play with a single keystroke (`Tab`) or screen tap:
 
-* **Instant Zero-Turn View Toggling**: Press `Tab` at any millisecond to switch between the 3D first-person perspective and an authentically emulated 80×24 CRT canvas complete with amber/green phosphorus glow, scanlines, and CRT curvature.
+* **Instant Zero-Turn View Toggling**: Press `Tab` at any millisecond to switch between the 3D first-person perspective and an illuminated 80×24 obsidian-vellum terminal canvas with gilded selection highlights and smooth `grimoireUnfurl` transitions.
+* **Diegetic Dark-Fantasy Grimoire & Armory Deck (`grimoire-deck.js`)**: Opening inventory (`i`), equipment (`e`), stores, or Sil-Q ability/smithing (`Tab` / `0`) unfurls an interactive **Grimoire & Armory Deck** featuring rarity-bordered item cards, Pack/Equipped/Quiver tabs, Sil-Q 7-Pillar Ability Tapestry & Anvil Forge controls, and a 1-click **Classic / Hybrid** mode toggle.
+* **Multi-Column Variant Menu Hit-Testing & Passive Verb Routing**: Click any option across multi-column character birth tables, Sil-Q ability grids, Hengband `C` page 2, or FrogComposBand power menus (`extractRowRegions`), with automatic `['Escape', verb, slotKey]` routing when invoking action verbs from Vanilla Angband's passive inventory lists.
 * **Intelligent Auto-Routing (`needsTerminal`)**: The client automatically presents the terminal canvas during intricate multi-step interactions—such as rolling character birth attributes, inspecting your full equipment sheet (`e`), or bartering with shopkeepers in town—then drops you right back into first-person 3D the moment you return to the dungeon floor.
 * **3D Directional Targeting**: When aiming wands, staves, bows, or ball spells, Angband 3D keeps you in first-person 3D with a contextual targeting prompt. Aim with relative arrow keys, press `t` to snap to the nearest visible threat, and loose your missile with full line-of-sight clarity.
 
 ---
 
-### 4. 🎛️ Universal Movable HUD & Ergonomic Controls
+### 4. 🎛️ Universal Movable HUD, 4-Realm Heraldry & Ergonomic Controls
 Every adventurer plays differently. Angband 3D features a complete, zero-lag draggable HUD system where **every major interface widget can be repositioned and customized**:
 
+* **4-Realm Heraldic Themes & Crests (`body[data-realm]`, `#char-realm-crest`)**:
+  * Dynamically adapts HUD heraldry, metallic borders, and typography to each realm: **Morgoth's Iron Crown** (`angband`), **The Three Silmarils of Fëanor** (`silq`), **The Sign of the Logrus & Unicorn** (`frogcomposband`), and **The Five Elemental Rings** (`hengband`).
 * **Twin Vertical Apothecary Medicine Vials & Tattered-Scroll / Charred-Wood Chrome**:
   * Graduated vertical glass medicine vials (`#hp-fill` crimson tincture & `#sp-fill` sapphire elixir) topped by hammered brass & cork neck collars, etched apothecary graduation marks (`apothecary_vial_overlay.svg`), and side-mounted tabular telemetry readouts (`#hp-text`, `#sp-text`).
   * Structural HUD docks (`#char-panel`, `#action-bar`, `#hud-footer`, `#minimap-container`, `#touch-controls`) are forged in **Charred Iron-Bound Wood** (`charred_wood.png`), while lore windows and menus (`#message-feed-window`, `#chronicle-window`, modals) are rendered on **Tattered Parchment Scrolls** (`tattered_scroll.png`).
@@ -178,6 +182,11 @@ Dungeon combat is fast and perilous; narrators should never get you killed:
 Need guidance or desire an epic retelling of your current situation? Tap the **"🔮 Tale"** button in the HUD or Tome deck (or press `Alt+T`):
 * The AI engine reads your hero's exact character race, class, dungeon depth, remaining HP/SP, current gear, active wounds/blessings, and surrounding monsters.
 * It weaves a personalized, realm-attuned saga passage providing deep immersion alongside tactical survival counsel tailored to the immediate danger.
+
+### ⚖️ Non-Modal 3D Entity Popover, 4-Realm Story Architectures, Mythic Crossroads & Creature Parley
+* **Zero-Focus-Steal 3D Inspection (`#entity-inspect-popover`, `popover="manual"`)**: Clicking any 3D creature or floor item opens a floating inspection card with `[🗣️ Converse in Tome]`, `[⚖️ Parley]`, and `[🕯️ Swear Vow]` actions while keeping 100% keyboard focus on dungeon movement and combat (`preemptForGameplay`).
+* **4-Realm Literary Story Architectures**: Organizes your chronicle into realm-authentic divisions: *Books of the Siege of Angband* (`angband`), *Cantos of the Lay of Leithian* (`silq`), *Shadow Walks & Arcana Readings* (`frogcomposband`), and *Scrolls of the Five Rings* (`hengband`).
+* **Interactive Mythic Crossroads & Parley**: Swear realm-specific oaths (`swearMythicVow`) that weave dynamic narrative consequence beats into your saga, or attempt in-character creature parley (`triggerCreatureParley`) while preserving 100% C-engine mechanical authority.
 
 ### 🎨 Masterwork Hero Action Sketches (`Alt+K`)
 Capture your legend in living ink:

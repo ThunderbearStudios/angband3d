@@ -4,6 +4,27 @@ All notable changes to `angband3d` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v9.9.5] — 2026-10-20
+
+### 👑 Master-Class Overhaul: Diegetic Grimoire & Armory Deck, Multi-Column Variant Menu Routing, 4-Realm Heraldic HUD, Mythic Crossroads, 60fps Allocation Zeroing & Security Hardening (`WS23–WS30`)
+
+- **Multi-Column Terminal Hit-Testing & Variant Menu Routing (`WS25`, `screen-context.js`, `terminal.js`, `menu-router.js`, `Overlay.cs`)**:
+  - Added `extractRowRegions(line)`, `extractMultiColumnItems(rows, isHeng, decode)`, and `detectRealmSubmenu(frame, realm, decode)` (`silq_ability_tree`, `silq_smithing_anvil`, `heng_char_sheet_p1/p2/p3`, `fcb_chaos_patron_contract`) so clicking columns 2 and 3 of character birth tables, Sil-Q `Tab` ability grids, Hengband `C` page 2, and FCB power menus dispatches the exact option key across both Web and Godot 4 C#.
+  - Added `buildInventoryVerbSequence(verb, slotKey, options)` to emit `['Escape', verb, slotKey]` when executing action verbs (`w`, `d`, `k`, `I`) from Vanilla Angband's passive `i`/`e` screens (`MENU-02`).
+  - Added a `6px` drag-threshold guard (`_mouseDidDrag`) on terminal `mouseup`, Shift-JIS decoding in `executeTouchAction` (`MENU-07`), and atomic `keys ` store purchases (`MENU-08`).
+- **Diegetic Dark-Fantasy Grimoire & Armory Deck (`WS26`, `grimoire-deck.js`, `index.html`, `app.js`)**:
+  - Built `RealmGrimoireDeck` with dirty-signature gating (`_lastSig`), rendering interactive rarity-bordered item cards, spell/ability tiles, Pack/Equipped/Quiver tabs, Sil-Q 7-Pillar Ability Tapestry & Anvil Forge controls, and a `Classic / Hybrid` toggle.
+- **4-Realm Heraldic HUD Crests & Illuminated Obsidian-Vellum Terminal (`WS27`, `dungeon.css`, `hud.js`, `terminal.js`)**:
+  - Replaced retro sci-fi CRT scanlines and `crtTurnOn` tube squash with `grimoireUnfurl` and an illuminated obsidian-vellum frame.
+  - Added dynamic `body[data-realm]` heraldic palettes and crests (`#char-realm-crest`) for Morgoth's Iron Crown (`angband`), the Three Silmarils (`silq`), the Sign of the Logrus & Unicorn (`fcb`), and the Five Elemental Rings (`hengband`).
+- **Non-Modal 3D Entity Inspection Popover, 4-Realm Story Architectures, Mythic Crossroads & Creature Parley (`WS24 & WS28`, `chronicle-grounder.js`, `chronicle-manager.js`, `chronicle.css`)**:
+  - Clicking 3D creatures or floor items opens a non-modal popover (`#entity-inspect-popover`, `popover="manual"`) with zero keyboard focus stealing (`L51`), preempted immediately on any gameplay input (`preemptForGameplay`).
+  - Added realm-authentic narrative divisions (*Books of the Siege*, *Cantos of the Lay of Leithian*, *Shadow Walks & Arcana Readings*, *Scrolls of the Five Rings*), interactive **Mythic Crossroads** vows (`swearMythicVow`), and **Creature Parley** (`triggerCreatureParley`).
+- **Authentic Open-License Artist 3D Bestiary, 60fps Zero-Allocation Loops, Acoustic Foley & Server Hardening (`WS23, WS29, WS30`)**:
+  - Upgraded bestiary and arcane item `.glb` models from curated open-license (`CC0`/`CC-BY`) artist sculptures via non-destructive `upgradeGlbBuffer` (`L50`).
+  - Reused `_tmpLightningVec` in the 60fps lightning loop, cached `entity._emissiveMaterials` on monster hit flashes, and added 6 procedural WebAudio foley cues (`playParchmentTurn`, `playIronLatch`, `playAnvilStrike`, `playHarpChord`, `playTrumpSnap`, `playKotoPluck`).
+  - Replaced synchronous `Atomics.wait` and `fs.readFileSync` on hot server paths with async `setTimeout` / `fs.promises.readFile`, upgraded `sketchCache` keys to full SHA-256 digests, and enforced `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, and `Referrer-Policy: strict-origin-when-cross-origin`.
+
 ## [v9.9.0] — 2026-10-19
 
 ### 🏰 Complete 4-Realm 3D Bestiary Overhaul, Studio Foley & Convolution Reverb, Next-Gen 3D Action VFX, Vertical Apothecary Medicine Vials & Tattered-Scroll / Charred-Wood HUD (`Waves 19–21`)

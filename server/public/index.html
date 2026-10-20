@@ -63,8 +63,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=9.9.4">
-    <link rel="stylesheet" href="/css/chronicle.css?v=9.9.4">
+    <link rel="stylesheet" href="/css/dungeon.css?v=9.9.5">
+    <link rel="stylesheet" href="/css/chronicle.css?v=9.9.5">
 </head>
 <body>
     <div id="app-container">
@@ -107,6 +107,8 @@
             <div id="inspect-popover-tactics" class="inspect-popover-tactics"></div>
             <div class="inspect-popover-actions">
                 <button id="inspect-popover-chat-btn" class="inspect-popover-btn primary" type="button">🗣️ Converse in Tome</button>
+                <button id="inspect-popover-parley-btn" class="inspect-popover-btn secondary" type="button" title="Parley, challenge, or study tactical weakness">⚔️ Parley</button>
+                <button id="inspect-popover-vow-btn" class="inspect-popover-btn secondary" type="button" title="Swear a Mythic Vow in the Living Chronicle">🕯️ Vow</button>
                 <button id="inspect-popover-voice-btn" class="inspect-popover-btn secondary" type="button" title="Listen aloud">🔊 Listen</button>
             </div>
         </div>
@@ -169,6 +171,7 @@
                         <button id="btn-term-exit-menu" class="btn-gold-outline" style="display: none;" title="Exit to Main Menu">✕ Main Menu</button>
                     </div>
                 </div>
+                <div id="grimoire-deck-container" class="grimoire-deck-container" style="display: none;" aria-live="polite"></div>
                 <div id="terminal-viewport" class="terminal-viewport">
                     <canvas id="terminal-canvas"></canvas>
                 </div>
@@ -446,6 +449,7 @@
             <!-- Character Status & Vitals (Gauges & Attributes) -->
             <div id="char-panel" class="hud-panel">
                 <div class="char-panel-header" id="char-drag-handle" title="Drag to move Hero Status Card • Click title for Character Sheet [C]">
+                    <span id="char-realm-crest" class="char-realm-crest" aria-hidden="true">⚔</span>
                     <div class="char-header-main">
                         <div id="char-title" class="char-title">Hero of Angband</div>
                         <div id="char-sub-meta" class="char-sub-meta">Lv.1 Adventurer • Town</div>
@@ -1607,28 +1611,29 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/safe-html.js?v=9.9.4"></script>
-    <script src="/js/screen-context.js?v=9.9.4"></script>
-    <script src="/js/menu-router.js?v=9.9.4"></script>
-    <script src="/js/device.js?v=9.9.4"></script>
-    <script src="/js/realm-keys.js?v=9.9.4"></script>
-    <script src="/js/mobile-overlay.js?v=9.9.4"></script>
-    <script src="/js/audio.js?v=9.9.4"></script>
-    <script src="/js/terminal.js?v=9.9.4"></script>
-    <script src="/js/dungeon3d.js?v=9.9.4"></script>
-    <script src="/js/hud.js?v=9.9.4"></script>
-    <script src="/js/network.js?v=9.9.4"></script>
-    <script src="/js/local_bridge.js?v=9.9.4"></script>
-    <script src="/js/input.js?v=9.9.4"></script>
-    <script src="/js/demo-player.js?v=9.9.4"></script>
+    <script src="/js/safe-html.js?v=9.9.5"></script>
+    <script src="/js/screen-context.js?v=9.9.5"></script>
+    <script src="/js/menu-router.js?v=9.9.5"></script>
+    <script src="/js/grimoire-deck.js?v=9.9.5"></script>
+    <script src="/js/device.js?v=9.9.5"></script>
+    <script src="/js/realm-keys.js?v=9.9.5"></script>
+    <script src="/js/mobile-overlay.js?v=9.9.5"></script>
+    <script src="/js/audio.js?v=9.9.5"></script>
+    <script src="/js/terminal.js?v=9.9.5"></script>
+    <script src="/js/dungeon3d.js?v=9.9.5"></script>
+    <script src="/js/hud.js?v=9.9.5"></script>
+    <script src="/js/network.js?v=9.9.5"></script>
+    <script src="/js/local_bridge.js?v=9.9.5"></script>
+    <script src="/js/input.js?v=9.9.5"></script>
+    <script src="/js/demo-player.js?v=9.9.5"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=9.9.4"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=9.9.4"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=9.9.4"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=9.9.4"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=9.9.4"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=9.9.4"></script>
-    <script src="/js/app.js?v=9.9.4"></script>
-    <script src="/js/boot.js?v=9.9.4"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=9.9.5"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=9.9.5"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=9.9.5"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=9.9.5"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=9.9.5"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=9.9.5"></script>
+    <script src="/js/app.js?v=9.9.5"></script>
+    <script src="/js/boot.js?v=9.9.5"></script>
 </body>
 </html>

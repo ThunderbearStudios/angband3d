@@ -5514,6 +5514,8 @@ class ChronicleGrounder {
         }
 
         const prose = `${opening}${threatClause} ${adviceClause}`.trim();
+        const arch = this.getStoryArchitecture(rk, depth);
+        const crossroads = this.getMythicCrossroads(rk, depth, hero);
 
         return {
             title: title,
@@ -5521,8 +5523,239 @@ class ChronicleGrounder {
             dialogue: null,
             isStoryPrompt: true,
             depth: depth,
+            storyArcBadge: arch ? arch.currentDivision : null,
+            crossroads: crossroads,
             recommendedVoice: this.getLorekeeperVoice(rk),
             summary: prose.substring(0, 160) + '...'
+        };
+    }
+
+    static REALM_STORY_ARCHITECTURES = {
+        angband: {
+            realm: 'angband',
+            collectionTitle: 'Books of the Siege of Angband',
+            divisionUnit: 'Book',
+            divisions: [
+                { maxDepth: 0, badge: 'Book I • Frontier of Men', title: 'Book I: The Vigil Above the Iron Pits' },
+                { maxDepth: 25, badge: 'Book II • The Upper Delvings', title: 'Book II: Echoes in the Goblin Fastness' },
+                { maxDepth: 60, badge: 'Book III • Vaults of Thangorodrim', title: 'Book III: Where Ancient Wyrms Slumber' },
+                { maxDepth: 999, badge: 'Book IV • The Throne of Bauglir', title: 'Book IV: The Last Descent to Morgoth' }
+            ]
+        },
+        silq: {
+            realm: 'silq',
+            collectionTitle: 'Cantos of the Lay of Leithian',
+            divisionUnit: 'Canto',
+            divisions: [
+                { maxDepth: 3, badge: 'Canto I • Gates of Doriath', title: 'Canto I: Beneath the Eaves of Beleriand' },
+                { maxDepth: 10, badge: 'Canto II • Shadows of Taur-nu-Fuin', title: 'Canto II: The Whispering Stair & Silent Blade' },
+                { maxDepth: 17, badge: 'Canto III • Forges of Angband', title: 'Canto III: Anvils of the Fallen Noldor' },
+                { maxDepth: 999, badge: 'Canto IV • The Iron Crown', title: 'Canto IV: The Silmaril in the Dark' }
+            ]
+        },
+        frogcomposband: {
+            realm: 'frogcomposband',
+            collectionTitle: 'Shadow Walks & Arcana Readings',
+            divisionUnit: 'Arcana',
+            divisions: [
+                { maxDepth: 0, badge: 'Arcana I • Outpost of Shadows', title: 'Arcana I: The Crossroads of the Multiverse' },
+                { maxDepth: 30, badge: 'Arcana II • Shifting Courts', title: 'Arcana II: Walking the Broken Pattern' },
+                { maxDepth: 65, badge: 'Arcana III • The Logrus Flux', title: 'Arcana III: Lords of Chaos & Wyrd' },
+                { maxDepth: 999, badge: 'Arcana IV • The Serpent of the Abyss', title: 'Arcana IV: Twilight of the Elder Gods' }
+            ]
+        },
+        hengband: {
+            realm: 'hengband',
+            collectionTitle: 'Scrolls of the Five Rings (五輪書)',
+            divisionUnit: 'Scroll',
+            divisions: [
+                { maxDepth: 0, badge: '地之巻 • Scroll of Earth', title: 'Scroll of Earth (地之巻): Foundation of the Way' },
+                { maxDepth: 20, badge: '水之巻 • Scroll of Water', title: 'Scroll of Water (水之巻): Flowing Steel in the Dark' },
+                { maxDepth: 45, badge: '火之巻 • Scroll of Fire', title: 'Scroll of Fire (火之巻): Clash of Sengoku Spirits' },
+                { maxDepth: 75, badge: '風之巻 • Scroll of Wind', title: 'Scroll of Wind (風之巻): Secrets of the Ten Realms' },
+                { maxDepth: 999, badge: '空之巻 • Scroll of the Void', title: 'Scroll of the Void (空之巻): Beyond Life and Death' }
+            ]
+        }
+    };
+
+    static MYTHIC_VOWS_BY_REALM = {
+        angband: [
+            {
+                id: 'vanguard',
+                label: '⚔️ Oath of the Iron Vanguard',
+                epithet: 'Iron-Sworn of the West',
+                summary: 'Stand unyielding in narrow corridors and meet Morgoth’s captains blade to blade.',
+                counsel: 'Hold 1-tile choke points; keep Phase Door & Cure Critical Wounds at the ready.'
+            },
+            {
+                id: 'flame',
+                label: '🔥 Covenant of the Secret Fire',
+                epithet: 'Keeper of the Unquenched Flame',
+                summary: 'Wield arcane light, rods, and high-magic wands to purge the subterranean dark.',
+                counsel: 'Preserve mana and device charges for high-threat breeders and summoner uniques.'
+            },
+            {
+                id: 'warden',
+                label: '🛡️ Warden of the Shadowed Stair',
+                epithet: 'Wayfarer of the Deep Stairs',
+                summary: 'Prioritize survival, detection, and measured retreats over reckless glory.',
+                counsel: 'Never fight blind; detect monsters on every new floor and retreat before HP drops below 40%.'
+            }
+        ],
+        silq: [
+            {
+                id: 'finrod',
+                label: '🎵 Oath of Finrod’s Harp',
+                epithet: 'Singer in the Deep Gloom',
+                summary: 'Weave Songs of Elbereth, Silence, and Staying to master the unseen vaults.',
+                counsel: 'Chant Songs of Silence near sleeping packs; conserve Voice for dire encounters.'
+            },
+            {
+                id: 'beren',
+                label: '🌑 Vow of Beren’s Quiet Step',
+                epithet: 'Shadow-Walker of Taur-nu-Fuin',
+                summary: 'Pass unseen past Balrogs and sleeping legions to claim the Silmaril by guile.',
+                counsel: 'Avoid waking Orc patrols; close doors behind you and strike only isolated sentries.'
+            },
+            {
+                id: 'celebrimbor',
+                label: '🔨 Anvil-Oath of Celebrimbor',
+                epithet: 'Rune-Smith of Eregion',
+                summary: 'Seek the subterranean anvils to forge masterwork Noldorin arms and mithril mail.',
+                counsel: 'Invest Grace into Smithing early and craft slaying or protection runes at the first anvil.'
+            }
+        ],
+        frogcomposband: [
+            {
+                id: 'pattern',
+                label: '🧭 Walker of the Pattern of Amber',
+                epithet: 'Scion of the True Pattern',
+                summary: 'Impose order upon the chaotic wilderness and master tactical positioning.',
+                counsel: 'Use wilderness towns and quest citadels to gear up before diving past 1500ft.'
+            },
+            {
+                id: 'logrus',
+                label: '🔮 Initiate of the Courts of Chaos',
+                epithet: 'Channeler of the Wyrd Flux',
+                summary: 'Embrace eldritch mutations, patron boons, and high-variance arcane power.',
+                counsel: 'Monitor mutation side-effects and keep resistance gear swapped for elemental breathers.'
+            },
+            {
+                id: 'trump',
+                label: '🃏 Dealer of the Shifting Trumps',
+                epithet: 'Master of the Painted Arcana',
+                summary: 'Bend space, teleportation, and dimensional summons to outmaneuver deadly foes.',
+                counsel: 'Use Trump and dimensional translocation to control line-of-sight against ranged casters.'
+            }
+        ],
+        hengband: [
+            {
+                id: 'niten',
+                label: '⚔️ Way of the Two Heavens (二天一流)',
+                epithet: 'Seeker of the Empty Sky',
+                summary: 'Walk Miyamoto Musashi’s path of decisive, unhesitating martial mastery.',
+                counsel: 'Lure dangerousoni and wyrms to pillar corners to prevent breath crossfire.'
+            },
+            {
+                id: 'shinobi',
+                label: '🌑 Scroll of the Unseen Shadow (忍法帳)',
+                epithet: 'Walker in the Moonless Mist',
+                summary: 'Strike from darkness with Kawarimi escapes, speed, and lethal precision.',
+                counsel: 'Keep escape scrolls and teleportation ready before engaging fast Sengoku uniques.'
+            },
+            {
+                id: 'onmyo',
+                label: '⛩️ Seal of the Onmyōji (陰陽道)',
+                epithet: 'Diviner of the Five Elements',
+                summary: 'Harmonize Yin and Yang through talismans, divination, and elemental warding.',
+                counsel: 'Layer elemental resistances and enlightenment before descending into quest citadels.'
+            }
+        ]
+    };
+
+    static getStoryArchitecture(realmKey = 'angband', depth = 0) {
+        const rk = String(realmKey || 'angband').toLowerCase();
+        const arch = this.REALM_STORY_ARCHITECTURES[rk] || this.REALM_STORY_ARCHITECTURES.angband;
+        const d = Math.max(0, Number(depth) || 0);
+        const div = arch.divisions.find(item => d <= item.maxDepth) || arch.divisions[arch.divisions.length - 1];
+        return {
+            realm: arch.realm,
+            collectionTitle: arch.collectionTitle,
+            divisionUnit: arch.divisionUnit,
+            currentDivision: div.badge,
+            currentTitle: div.title
+        };
+    }
+
+    static getMythicCrossroads(realmKey = 'angband', depth = 0, hero = null) {
+        const rk = String(realmKey || 'angband').toLowerCase();
+        const vows = this.MYTHIC_VOWS_BY_REALM[rk] || this.MYTHIC_VOWS_BY_REALM.angband;
+        const arch = this.getStoryArchitecture(rk, depth);
+        const heroName = (hero && hero.name) ? hero.name : 'Adventurer';
+        return {
+            realm: rk,
+            heading: `${arch.currentDivision} — Mythic Crossroads`,
+            prompt: `How shall ${heroName} inscribe their vow upon the ${arch.collectionTitle}?`,
+            choices: vows
+        };
+    }
+
+    static resolveVowConsequenceBeat(vowId, hero = null, realmKey = 'angband', langMode = 'en') {
+        const rk = String(realmKey || 'angband').toLowerCase();
+        const vows = this.MYTHIC_VOWS_BY_REALM[rk] || this.MYTHIC_VOWS_BY_REALM.angband;
+        const chosen = vows.find(v => v.id === vowId) || vows[0];
+        const name = (hero && hero.name) ? hero.name : 'the hero';
+        const depth = (hero && typeof hero.depth === 'number') ? hero.depth : 0;
+        const arch = this.getStoryArchitecture(rk, depth);
+
+        const prose = `Under the seal of ${arch.currentDivision}, ${name} swears the ${chosen.label.replace(/^[^\w\u3000-\u9fff]+\s*/, '')}, asumir the mantle of ${chosen.epithet}. ${chosen.summary}`.replace('asumir', 'assuming');
+        return {
+            title: `${chosen.label} — ${chosen.epithet}`,
+            prose,
+            insight: chosen.counsel,
+            depth,
+            isVowBeat: true,
+            vowId: chosen.id,
+            epithet: chosen.epithet,
+            storyArcBadge: arch.currentDivision,
+            recommendedVoice: this.getLorekeeperVoice(rk)
+        };
+    }
+
+    static resolveParleyOutcome(monster, stance = 'parley', hero = null, realmKey = 'angband', langMode = 'en') {
+        const rk = String(realmKey || 'angband').toLowerCase();
+        const mName = (monster && monster.name) ? monster.name : 'the creature';
+        const heroName = (hero && hero.name) ? hero.name : 'the traveler';
+        const tactics = this.resolveTacticalMonsterInsight(mName);
+        const stateObj = this.resolveCreatureState(monster, []);
+
+        let prose = '';
+        let reply = '';
+        if (stance === 'challenge') {
+            prose = `${heroName} raises drawn steel and issues a ringing challenge to ${mName} across the shadowed flagstones!`;
+            reply = stateObj.canSpeak
+                ? `Thy bold words shall be carved upon thy tomb, ${heroName}!`
+                : `*${mName} bristles with fury, baring fangs in the torchlight!*`;
+        } else if (stance === 'study') {
+            prose = `${heroName} studies the footwork, breathing, and armor seams of ${mName} with a veteran's eye.`;
+            reply = tactics;
+        } else {
+            prose = `${heroName} stays their blade for a heartbeat, offering words of parley to ${mName} in the deep.`;
+            reply = stateObj.canSpeak
+                ? `Speak quickly, surface-dweller, before the shadows claim us both.`
+                : `*${mName} tilts its head warily, watching every twitch of thy lantern.*`;
+        }
+
+        return {
+            title: `⚔️ Parley & Stance: ${mName}`,
+            prose,
+            dialogue: {
+                speaker: stance === 'study' ? 'Lorekeeper' : mName,
+                text: reply,
+                isNoise: !stateObj.canSpeak && stance !== 'study'
+            },
+            insight: tactics,
+            recommendedVoice: this.getLorekeeperVoice(rk)
         };
     }
 }

@@ -1,23 +1,21 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS24 — Non-Modal 3D Entity Inspection Popover, Gameplay Precedence & Concise Anti-Repetition Dialogue (`v9.9.4`) — COMPLETE**
+**WS25–WS30 — Master-Class Audit, Multi-Client Parity & Live Production Release (`v9.9.5`) — COMPLETE**
 
-- **Current Phase**: All workstreams `WS0–WS24` complete and verified (`19/19 fast`, `4/4 e2e`, `11/11 smoke`, `0 C# errors`, `tb_mastery.py audit` `0 errors / 0 warnings`).
+- **Current Phase**: All workstreams `WS0–WS30` complete, packaged across all clients (`v9.9.5`), and live on `https://angband3d.com` (`19/19 fast`, `21/21 server_test`, `11/11 smoke`, `0 C# errors`, `tb_mastery.py audit` `0 errors / 0 warnings`).
 - **Historical Log**: Full checklist and gate history for `WS0–WS21` are archived in [`docs/archive/STATE_HISTORY_WS0_WS21.md`](file:///c:/Dev/angband3d/docs/archive/STATE_HISTORY_WS0_WS21.md).
 
-## Completed Workstream Summary (`WS0–WS24`)
+## Completed Workstream Summary (`WS0–WS30`)
 
 | Workstream | Scope Summary | Status |
 | :--- | :--- | :--- |
-| **WS0–WS1** | Baseline harness, tiered runner (`tools/run_tests.js`), and pure UMD `ScreenContext.classify(frame)` (`144/144` fixtures) | `[x] DONE` |
-| **WS2 & WS6** | Declarative `MenuRouter`, `RealmKeys` cross-realm keymap registry, and Sil-Q Action Chooser | `[x] DONE` |
-| **WS3** | Upstream-driven atomic Hengband JP/EN translator (`HengTranslate`, `98.34%` coverage, lazy dictionary) | `[x] DONE` |
-| **WS4, WS7, WS8** | `http-guard.js`, `rate-limit.js`, TOFU save isolation, multi-realm container build, and Cloud Run deployment | `[x] DONE` |
-| **WS5, WS9, WS10** | Single version source (`version.json`), top-bar consolidation, HUD message pass, and Android SDK 34 sync (`504/504` SHA-1) | `[x] DONE` |
-| **WS11–WS18** | Voiced Lorekeeper (`Enceladus` + 30 archetypes), 8-Pillar Ultra Realism 3D, Shockbolt 4096 HD atlases, Hero Action Sketch, and Skinned-Mesh Held Equipment (`L37–L40`) | `[x] DONE` |
-| **WS19–WS21** | 4-Realm 3D Bestiary (`.glb`), Studio Foley + Stone-Hall Convolution Reverb, Shared Singleton VFX (`L43`), and Vertical Apothecary Medicine Vials / Tattered-Scroll UI (`L41–L44`) | `[x] DONE` |
-| **WS22–WS24** | Universal Agentic Mastery (`L45–L49`), Authentic Artist 3D Bestiary & Arcane Items (`L50`), Non-Modal 3D Entity Popover (`#entity-inspect-popover`), Gameplay Precedence & Concise 12-Slot Anti-Repetition Dialogue (`L51`, `v9.9.4`) | `[x] DONE` |
+| **WS0–WS3** | Baseline harness, `ScreenContext.classify(frame)` (`144/144`), `MenuRouter`, `RealmKeys`, and `HengTranslate` (`98.34%` coverage) | `[x] DONE` |
+| **WS4–WS10** | `http-guard.js`, `rate-limit.js`, TOFU isolation, single version source (`version.json`), HUD pass, Android SDK 34 sync (`504/504` SHA-1) | `[x] DONE` |
+| **WS11–WS21** | Voiced Lorekeeper (`Enceladus` + 30 archetypes), 8-Pillar 3D, Shockbolt 4096 HD, 4-Realm `.glb` Bestiary, Studio Foley, Apothecary Vials (`L37–L44`) | `[x] DONE` |
+| **WS22–WS24** | Universal Agentic Mastery (`L45–L49`), Authentic Artist 3D Bestiary & Arcane Items (`L50`), Non-Modal 3D Entity Popover & Anti-Repetition Dialogue (`L51`) | `[x] DONE` |
+| **WS25–WS27** | Multi-Column Terminal Hit-Testing (`extractRowRegions`), Passive Inventory Verb Escape (`buildInventoryVerbSequence`), Diegetic `RealmGrimoireDeck` (`grimoire-deck.js`), 4-Realm Heraldic HUD & Illuminated Vellum Terminal (`L52`) | `[x] DONE` |
+| **WS28–WS30** | 4-Realm Narrative Architectures, Interactive Mythic Vows & Creature Parley, Zero-Allocation 60fps Lightning/Hit-Flash Cache, Procedural Acoustic Foley, Async `EBUSY`/Gzip & SHA-256 Cache Hardening (`L52`) | `[x] DONE` |
 
 ## Mandatory Verification Gate
 Server must be fresh (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }` then `cd server; node src/server.js`.

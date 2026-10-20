@@ -1669,8 +1669,19 @@ class ChronicleManager {
             : (this.currentHero ? this.currentHero.depth : 0);
         const depthLabel = depth === 0 ? 'Town' : `${depth * 50}ft`;
         let headerBadge = isDeath ? `⚰️ ${depthLabel} • Requiem` : depthLabel;
+        if (entry.storyArcBadge) {
+            headerBadge = `${entry.storyArcBadge} • ${headerBadge}`;
+        } else if (this.grounder && typeof this.grounder.getStoryArchitecture === 'function') {
+            const arch = this.grounder.getStoryArchitecture(this.getActiveRealm(), depth);
+            if (arch && arch.currentDivision) {
+                headerBadge = `${arch.currentDivision} • ${headerBadge}`;
+            }
+        }
+        if (this.activeMythicVow && this.activeMythicVow.epithet && !isDeath) {
+            headerBadge += ` • 🕯️ ${this.activeMythicVow.epithet}`;
+        }
         if (entry.isStoryPrompt) {
-            headerBadge = `🔮 ${depthLabel} • Tale`;
+            headerBadge = `🔮 ${headerBadge} • Tale`;
         } else if (entry.isCatchUp && entry.actionBreakdown && entry.actionBreakdown.summaryText) {
             headerBadge = `⚡ ${depthLabel} • Caught Up (+${entry.actionBreakdown.summaryText})`;
         } else if (entry.isCatchUp) {
@@ -1722,7 +1733,34 @@ class ChronicleManager {
             `;
         }
 
+        if (entry.crossroads && Array.isArray(entry.crossroads.choices) && entry.crossroads.choices.length > 0) {
+            const choicesHtml = entry.crossroads.choices.map(c => `
+                <button type="button" class="chronicle-vow-choice-btn ${this.activeMythicVow && this.activeMythicVow.id === c.id ? 'is-sworn' : ''}" data-vow-id="${this.escapeHtml(c.id)}" title="${this.escapeHtml(c.summary)}">
+                    <span class="vow-choice-label">${this.escapeHtml(c.label)}</span>
+                    <span class="vow-choice-epithet">${this.escapeHtml(c.epithet)}</span>
+                </button>
+            `).join('');
+            html += `
+                <div class="chronicle-crossroads-box">
+                    <div class="chronicle-crossroads-header">🕯️ ${this.escapeHtml(entry.crossroads.heading || 'Mythic Crossroads')}</div>
+                    <div class="chronicle-crossroads-prompt">${this.escapeHtml(entry.crossroads.prompt || '')}</div>
+                    <div class="chronicle-vow-choices">${choicesHtml}</div>
+                </div>
+            `;
+        }
+
         block.innerHTML = html;
+
+        const vowBtns = block.querySelectorAll('.chronicle-vow-choice-btn');
+        if (vowBtns && vowBtns.length > 0) {
+            vowBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const vowId = btn.getAttribute('data-vow-id');
+                    if (vowId) this.swearMythicVow(vowId);
+                });
+            });
+        }
 
         // Play from here & selection click handlers
         const playBtn = block.querySelector('.flow-play-btn');
@@ -2467,6 +2505,78 @@ class ChronicleManager {
                 if (tomeBtn) tomeBtn.classList.remove('is-voicing');
             }, 1200);
         }
+    }
+
+    async swearMythicVow(vowId) {
+        if (!vowId || !this.grounder || typeof this.grounder.resolveVowConsequenceBeat !== 'function') return null;
+        const hero = this.currentHero || (this.lastFrame && this.lastFrame.player) || { name: 'Adventurer', depth: 0 };
+        const realmKey = this.getActiveRealm();
+        const langMode = this.getLanguageMode();
+        const beat = this.grounder.resolveVowConsequenceBeat(vowId, hero, realmKey, langMode);
+        if (!beat) return null;
+
+        this.activeMythicVow = {
+            id: beat.vowId || vowId,
+            epithet: beat.epithet || '',
+            title: beat.title || ''
+        };
+
+        if (this.listEl) {
+            const buttons = this.listEl.querySelectorAll('.chronicle-vow-choice-btn');
+            buttons.forEach(btn => {
+                btn.classList.toggle('is-sworn', btn.getAttribute('data-vow-id') === vowId);
+            });
+        }
+
+        if (!this.activeChronicle && this.store) {
+            this.startFreshChronicle(hero);
+        }
+        if (this.store && this.activeChronicle) {
+            this.store.appendChapter(this.activeChronicle, beat);
+        }
+        this.renderStoryEntry(beat, true);
+        this.showHudToast(`🕯️ Sworn: ${this.escapeHtml(beat.title || vowId)}`);
+
+        if (this.audio && !this._isAudioMuted()) {
+            const narrProfile = this.grounder.resolveVoiceProfile(null, hero, 'vow', this.tradition);
+            await this.audio.speak(beat.prose, null, null, null, 0, {
+                narrator: narrProfile,
+                engine: this.audio.ttsEngine,
+                seamless: false
+            });
+            this._highlightActiveCard(beat);
+        }
+        return beat;
+    }
+
+    async triggerCreatureParley(monster, stance = 'parley') {
+        if (!monster || !this.grounder || typeof this.grounder.resolveParleyOutcome !== 'function') return null;
+        this.dismissEntityPopover();
+        this.showWindow();
+        const hero = this.currentHero || (this.lastFrame && this.lastFrame.player) || { name: 'Adventurer', depth: 0 };
+        const realmKey = this.getActiveRealm();
+        const langMode = this.getLanguageMode();
+        const outcome = this.grounder.resolveParleyOutcome(monster, stance, hero, realmKey, langMode);
+        if (!outcome) return null;
+
+        if (!this.activeChronicle && this.store) {
+            this.startFreshChronicle(hero);
+        }
+        if (this.store && this.activeChronicle) {
+            this.store.appendChapter(this.activeChronicle, outcome);
+        }
+        this.renderStoryEntry(outcome, true);
+
+        if (this.audio && !this._isAudioMuted()) {
+            const narrProfile = this.grounder.resolveVoiceProfile(null, hero, 'parley', this.tradition);
+            await this.audio.speak(outcome.prose, outcome.dialogue, null, null, 0, {
+                narrator: narrProfile,
+                engine: this.audio.ttsEngine,
+                seamless: false
+            });
+            this._highlightActiveCard(outcome);
+        }
+        return outcome;
     }
 
     escapeHtml(str) {
@@ -4161,6 +4271,27 @@ class ChronicleManager {
                     const fullText = `${details.appraisal.prose} ${mentorName} speaks: "${details.appraisal.dialogue}"`;
                     this.audio.speakUtterance(fullText, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
                 }
+            };
+        }
+
+        const parleyBtn = document.getElementById('inspect-popover-parley-btn');
+        if (parleyBtn) {
+            parleyBtn.style.display = type === 'monster' ? 'inline-flex' : 'none';
+            parleyBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.triggerCreatureParley(entity, 'parley');
+            };
+        }
+
+        const vowBtn = document.getElementById('inspect-popover-vow-btn');
+        if (vowBtn) {
+            vowBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.dismissEntityPopover();
+                this.showWindow();
+                this.requestStoryPrompt();
             };
         }
 
