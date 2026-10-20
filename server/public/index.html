@@ -63,8 +63,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=9.9.3">
-    <link rel="stylesheet" href="/css/chronicle.css?v=9.9.3">
+    <link rel="stylesheet" href="/css/dungeon.css?v=9.9.4">
+    <link rel="stylesheet" href="/css/chronicle.css?v=9.9.4">
 </head>
 <body>
     <div id="app-container">
@@ -84,6 +84,31 @@
                 <div id="target-card-hp-fill" class="target-card-hp-fill" style="width: 100%;"></div>
             </div>
             <div id="target-card-affinities" class="target-card-affinities"></div>
+        </div>
+
+        <!-- Non-Modal 3D Entity Inspection Popover (Popover API, zero focus stealing, instant light-dismiss) -->
+        <div id="entity-inspect-popover" class="entity-inspect-popover hidden" popover="manual" role="region" aria-label="3D Entity Details">
+            <div class="inspect-popover-header">
+                <span id="inspect-popover-badge" class="inspect-popover-badge">o</span>
+                <div class="inspect-popover-title-wrap">
+                    <span id="inspect-popover-name" class="inspect-popover-name">Creature</span>
+                    <span id="inspect-popover-pill" class="inspect-popover-pill">Awake</span>
+                </div>
+                <button id="inspect-popover-close" class="inspect-popover-close" type="button" title="Dismiss [Esc]" aria-label="Close details">✕</button>
+            </div>
+            <div id="inspect-popover-hp-wrap" class="inspect-popover-hp-wrap">
+                <div class="inspect-popover-hp-track">
+                    <div id="inspect-popover-hp-fill" class="inspect-popover-hp-fill" style="width: 100%;"></div>
+                </div>
+                <span id="inspect-popover-hp-text" class="inspect-popover-hp-text">Uninjured</span>
+            </div>
+            <p id="inspect-popover-prose" class="inspect-popover-prose"></p>
+            <div id="inspect-popover-quote" class="inspect-popover-quote hidden"></div>
+            <div id="inspect-popover-tactics" class="inspect-popover-tactics"></div>
+            <div class="inspect-popover-actions">
+                <button id="inspect-popover-chat-btn" class="inspect-popover-btn primary" type="button">🗣️ Converse in Tome</button>
+                <button id="inspect-popover-voice-btn" class="inspect-popover-btn secondary" type="button" title="Listen aloud">🔊 Listen</button>
+            </div>
         </div>
 
         <!-- Diegetic Center Reticle (Clean crosshair, zero center popups) -->
@@ -1582,28 +1607,28 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/safe-html.js?v=9.9.3"></script>
-    <script src="/js/screen-context.js?v=9.9.3"></script>
-    <script src="/js/menu-router.js?v=9.9.3"></script>
-    <script src="/js/device.js?v=9.9.3"></script>
-    <script src="/js/realm-keys.js?v=9.9.3"></script>
-    <script src="/js/mobile-overlay.js?v=9.9.3"></script>
-    <script src="/js/audio.js?v=9.9.3"></script>
-    <script src="/js/terminal.js?v=9.9.3"></script>
-    <script src="/js/dungeon3d.js?v=9.9.3"></script>
-    <script src="/js/hud.js?v=9.9.3"></script>
-    <script src="/js/network.js?v=9.9.3"></script>
-    <script src="/js/local_bridge.js?v=9.9.3"></script>
-    <script src="/js/input.js?v=9.9.3"></script>
-    <script src="/js/demo-player.js?v=9.9.3"></script>
+    <script src="/js/safe-html.js?v=9.9.4"></script>
+    <script src="/js/screen-context.js?v=9.9.4"></script>
+    <script src="/js/menu-router.js?v=9.9.4"></script>
+    <script src="/js/device.js?v=9.9.4"></script>
+    <script src="/js/realm-keys.js?v=9.9.4"></script>
+    <script src="/js/mobile-overlay.js?v=9.9.4"></script>
+    <script src="/js/audio.js?v=9.9.4"></script>
+    <script src="/js/terminal.js?v=9.9.4"></script>
+    <script src="/js/dungeon3d.js?v=9.9.4"></script>
+    <script src="/js/hud.js?v=9.9.4"></script>
+    <script src="/js/network.js?v=9.9.4"></script>
+    <script src="/js/local_bridge.js?v=9.9.4"></script>
+    <script src="/js/input.js?v=9.9.4"></script>
+    <script src="/js/demo-player.js?v=9.9.4"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=9.9.3"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=9.9.3"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=9.9.3"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=9.9.3"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=9.9.3"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=9.9.3"></script>
-    <script src="/js/app.js?v=9.9.3"></script>
-    <script src="/js/boot.js?v=9.9.3"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=9.9.4"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=9.9.4"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=9.9.4"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=9.9.4"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=9.9.4"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=9.9.4"></script>
+    <script src="/js/app.js?v=9.9.4"></script>
+    <script src="/js/boot.js?v=9.9.4"></script>
 </body>
 </html>

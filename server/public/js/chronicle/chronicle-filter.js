@@ -231,9 +231,11 @@ class ChronicleFilter {
         }
         this.lastSp = (typeof player.sp === 'number') ? player.sp : null;
 
-        const curHp = (player.hp ?? player.chp ?? 0);
-        const maxHp = (player.hp_max ?? player.mhp ?? 1);
-        const hpPercent = (maxHp > 0) ? (curHp / maxHp) : 1.0;
+        const rawCurHp = (typeof player.hp === 'number') ? player.hp : ((typeof player.chp === 'number') ? player.chp : null);
+        const rawMaxHp = (typeof player.hp_max === 'number') ? player.hp_max : ((typeof player.mhp === 'number') ? player.mhp : null);
+        const curHp = rawCurHp ?? 0;
+        const maxHp = rawMaxHp ?? 1;
+        const hpPercent = (rawCurHp !== null && rawMaxHp !== null && rawMaxHp > 0) ? (rawCurHp / rawMaxHp) : 1.0;
         const depth = (frame.map && typeof frame.map.depth === 'number')
             ? frame.map.depth
             : (player.depth || 0);

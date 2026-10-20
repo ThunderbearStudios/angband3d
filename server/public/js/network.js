@@ -412,6 +412,9 @@ class GameNetwork {
     }
 
     sendKey(spec) {
+        if (typeof window !== 'undefined' && window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
+            window.chronicleManager.preemptForGameplay('network_action');
+        }
         if (!this.connected || this.ws.readyState !== WebSocket.OPEN) return;
         this.lastSentKey = spec;
         this.sentKeyCount = (this.sentKeyCount || 0) + 1;
@@ -419,6 +422,9 @@ class GameNetwork {
     }
 
     sendCommand(cmd) {
+        if (typeof window !== 'undefined' && window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
+            window.chronicleManager.preemptForGameplay('network_action');
+        }
         if (!this.connected || this.ws.readyState !== WebSocket.OPEN) return;
         this.ws.send(cmd);
     }

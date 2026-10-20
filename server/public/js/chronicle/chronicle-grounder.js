@@ -397,7 +397,7 @@ class ChronicleGrounder {
         const chosen = available[Math.abs(seed) % available.length];
         if (!options.dryRun) {
             history.push(chosen);
-            if (history.length > 8) history.shift();
+            if (history.length > 12) history.shift();
         }
         return chosen;
     }
@@ -756,7 +756,7 @@ class ChronicleGrounder {
                 // Master Chronicler / Narrator attunement: Realm-contextual standard high quality Gemini voice
                 const rk = (realmKey) || (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
                 const realmCtx = this.getRealmContext(rk);
-                edgeVoice = (realmCtx && realmCtx.recommendedVoice) || 'en-GB-RyanNeural';
+                edgeVoice = (rk === 'angband' || !rk) ? 'en-GB-RyanNeural' : ((realmCtx && realmCtx.recommendedVoice) || 'en-GB-RyanNeural');
                 geminiVoice = this.getLorekeeperVoice(rk, 'male');
                 gender = 'male';
                 isF = false;
@@ -796,7 +796,7 @@ class ChronicleGrounder {
             const rk = (realmKey) || (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
             geminiVoice = this.getLorekeeperVoice(rk, 'male');
             const realmCtx = this.getRealmContext(rk);
-            edgeVoice = (realmCtx && realmCtx.recommendedVoice) || 'en-GB-RyanNeural';
+            edgeVoice = (rk === 'angband' || !rk) ? 'en-GB-RyanNeural' : ((realmCtx && realmCtx.recommendedVoice) || 'en-GB-RyanNeural');
 
             if (eventType === 'HERO_DEATH') {
                 emotion = 'mournful';
@@ -1910,47 +1910,57 @@ class ChronicleGrounder {
 
             if (profile.category === 'veteran') {
                 const vetSleepList = [
-                    `The scarred veteran slumps in the quiet timber shadow, jaw relaxed in heavy slumber, ${prPoss} calloused hand still resting instinctively upon the pommel of ${prPoss} sheathed blade.`,
-                    `The weathered veteran leans back against the wall, snoring softly with a woolen cloak pulled tight over ${prPoss} mail, resting from long years of frontier vigils.`,
-                    `The grizzled soldier is deep in exhausted slumber, breath wheezing through an old battle scar across ${prPoss} chest, undisturbed by the town bustle.`,
-                    `Curled beside a stack of seasoned firewood, the veteran sleeps with one eye half-open, soldier instincts guarding ${prPoss} rest even in dreams.`
+                    `The scarred veteran slumps in the shadow, ${prPoss} hand resting upon ${prPoss} blade.`,
+                    `The weathered veteran leans against the timber wall, snoring beneath ${prPoss} woolen cloak.`,
+                    `The grizzled soldier sleeps deeply, ${prPoss} calloused thumb hooked over ${prPoss} sword belt.`,
+                    `Curled beside seasoned firewood, the veteran guards ${prPoss} rest even in dreams.`,
+                    `Chin tucked against ${prPoss} mail collar, the veteran breathes in slow, rhythmic slumber.`,
+                    `The frontier soldier dozes upright, ${prPoss} notched longsword balanced across ${prPoss} knees.`
                 ];
                 prose = vetSleepList[sSeed % vetSleepList.length];
             } else if (profile.category === 'townsperson') {
                 if (name.toLowerCase().includes('merchant')) {
                     const merchSleepList = [
-                        `The ${name} slumps heavily against a timber wall upon a stack of empty crates, ${prPoss} eyes shut and soft snores whistling through ${prPoss} teeth. ${prCap} is fast asleep and cannot converse.`,
-                        `Dozing peacefully behind a locked strongbox, the merchant slumps with ${prPoss} chin resting upon a fur collar, undisturbed by footsteps along the lane.`
+                        `The ${name} slumps against a stack of crates, ${prPoss} eyes shut in heavy slumber.`,
+                        `Dozing behind a locked strongbox, the ${name} slumps with ${prPoss} chin on ${prPoss} collar.`,
+                        `The ${name} slumps over a ledger of tallow and iron, fast asleep.`,
+                        `Resting beside bound packs, the ${name} slumps in quiet, undisturbed sleep.`
                     ];
                     prose = merchSleepList[sSeed % merchSleepList.length];
                 } else {
                     const townSleepList = [
-                        `The ${name} lies sprawled against the tavern wall in exhausted slumber, chest rising and falling in rhythmic peace.`,
-                        `Wrapped in a coarse wool blanket, the ${name} slumbers deeply in the alcove, resting weary limbs from the day's labor.`,
-                        `The ${name} rests head against hand in a quiet doorway, breathing gently in undisturbed slumber.`
+                        `The ${name} slumps against the tavern wall in deep, rhythmic slumber.`,
+                        `Wrapped in coarse wool, the ${name} slumbers deeply inside the quiet alcove.`,
+                        `The ${name} rests head against hand in a shadowed doorway, fast asleep.`,
+                        `Breathing softly, the ${name} sleeps off the day's labor beside the hearth.`,
+                        `The ${name} dozes peacefully on a low timber bench, oblivious to footsteps.`
                     ];
                     prose = townSleepList[sSeed % townSleepList.length];
                 }
             } else if (profile.category === 'beggar') {
                 const beggarSleepList = [
-                    `Curled in a threadbare mantle upon the cold cobblestones, the ${name} shivers softly in sleep, an empty wooden bowl tucked beneath ${prPoss} arm.`,
-                    `The ${name} sleeps fitfully in the alley corner, wheezing softly against the damp stones with chin tucked into ragged wool.`
+                    `Curled on cold cobblestones, the ${name} shivers in sleep beside ${prPoss} wooden bowl.`,
+                    `The ${name} sleeps fitfully in the alley corner, chin tucked into ragged wool.`,
+                    `Huddled beneath threadbare sackcloth, the ${name} breathes in shallow, exhausted sleep.`,
+                    `The ${name} slumps against damp masonry, dreaming of warm hearth-bread.`
                 ];
                 prose = beggarSleepList[sSeed % beggarSleepList.length];
             } else if (profile.category === 'rogue') {
                 const rogueSleepList = [
-                    `The ${name} lies slumped in the shadow of an ale barrel, snoring heavily with one hand still resting across ${prPoss} notched dagger.`,
-                    `With a hood pulled low over ${prPoss} brow, the cutpurse dozes lightly against the brickwork, blade hidden beneath ${prPoss} cloak.`
+                    `The ${name} slumps beside an ale barrel, one hand still gripping ${prPoss} dagger.`,
+                    `Hood pulled low over ${prPoss} brow, the cutpurse dozes lightly in the shadow.`,
+                    `The ${name} sleeps with boots braced to bolt, blade tucked under ${prPoss} cloak.`,
+                    `Leaning in a dark doorway, the ${name} catches a thief's shallow nap.`
                 ];
                 prose = rogueSleepList[sSeed % rogueSleepList.length];
             } else if (!profile.isVocal) {
                 prose = `The ${name} ${profile.sleepNoise}`;
             } else {
-                prose = `The ${name} ${profile.sleepNoise} It slumbers deeply and cannot converse.`;
+                prose = `The ${name} ${profile.sleepNoise} It slumbers deeply.`;
             }
 
             if (query) {
-                prose += ` You speak to the ${name}, but your words fall upon deaf ears; ${prSub} only stirs slightly in slumber, unaware of your presence.`;
+                prose += ` Your words fall upon deaf ears; ${prSub} stirs slightly without waking.`;
             }
 
             return {
@@ -1973,31 +1983,69 @@ class ChronicleGrounder {
 
             if (stateObj.state.includes('combat') || stateObj.state.includes('wounded')) {
                 if (profile.category === 'canine') {
-                    prose = `Snarling through bared yellow fangs, the wounded ${name} thrashes with feral aggression, pacing the bloodstained stones with bristling fur.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('canine_combat_prose', [
+                        `Yellow fangs bared, the wounded ${name} lunges across the bloodstained stones.`,
+                        `Hackles raised, the ${name} snaps viciously at your throat.`,
+                        `Pacing low, the bloodied ${name} snarls and circles for your heels.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'rodent') {
-                    prose = `The ${name} skitters frantically back and forth along the masonry, chittering shrilly with rabid fury as it snaps at the air.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('rodent_combat_prose', [
+                        `The ${name} skitters frantically along the stone, snapping with rabid fury.`,
+                        `Whiskers flecked with foam, the ${name} leaps and gnashes red incisors.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'arachnid') {
-                    prose = `Rearing back on twitching, chitinous legs, the ${name} clicks its dripping mandibles in agitation, venom pooling upon the dungeon floor.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('arachnid_combat_prose', [
+                        `Rearing on chitinous legs, the ${name} clicks venom-dripping mandibles.`,
+                        `The ${name} hisses from the dark, venomous fangs poised to strike.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'slime') {
-                    prose = `The ${name} quivers and bulges with noxious digestive acids, acidic pseudopods lashing aggressively toward your boots!`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('slime_combat_prose', [
+                        `The ${name} quivers violently, lashing caustic pseudopods toward your boots.`,
+                        `Hissing with digestive acid, the ${name} surges across the flagstones.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'skeleton') {
-                    prose = `Bone splinters under the impact, yet the animated skeleton marches forward without heed, dry joints clicking in hollow menace.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('skeleton_combat_prose', [
+                        `Splintered bone clatters as the ${name} advances with hollow menace.`,
+                        `Dry joints clicking, the ${name} swings with tireless undead malice.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else {
-                    prose = `The ${name} recoils from the blow, thrashing aggressively in the dark as black ichor drips onto the flagstones.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('beast_combat_prose', [
+                        `The ${name} recoils and thrashes wildly as dark ichor hits the stone.`,
+                        `Wounded and cornered, the ${name} lashes out with feral savagery.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 }
             } else {
                 if (profile.category === 'canine') {
-                    prose = `The ${name} pads warily across the flagstones, ears cocked and black snout sniffing the air for blood.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('canine_ambient_prose', [
+                        `The ${name} pads warily across the stone, black snout testing the air.`,
+                        `Ears pricked forward, the ${name} watches your stride with hungry eyes.`,
+                        `The ${name} paces the corridor shadow, a low rumble in its chest.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'rodent') {
-                    prose = `The ${name} scuttles along the damp floor, whiskers twitching nervously as it clutches a scrap of refuse.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('rodent_ambient_prose', [
+                        `The ${name} scuttles along the damp wall, whiskers twitching in the gloom.`,
+                        `Nosing through cold rubble, the ${name} freezes as your light nears.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'arachnid') {
-                    prose = `The ${name} clings motionlessly to the stone ceiling, multi-faceted dark eyes glittering in your torchlight.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('arachnid_ambient_prose', [
+                        `The ${name} clings motionless to the stone, dark eyes glinting in torchlight.`,
+                        `Poised upon a dusty web, the ${name} tracks the vibrations of your boots.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'slime') {
-                    prose = `The ${name} undulates across the floor, leaving a glistening acidic sheen upon the cobblestones.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('slime_ambient_prose', [
+                        `The ${name} undulates slowly, leaving an acidic sheen across the stone.`,
+                        `A gelatinous mass quivers in the damp corner, dissolving stray bone.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else if (profile.category === 'skeleton') {
-                    prose = `The ancient skeletal sentry stands rigid in the cold hall, hollow eye sockets staring blankly through the darkness.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('skeleton_ambient_prose', [
+                        `The skeletal sentry stands rigid, hollow sockets fixed upon the dark hall.`,
+                        `Rusted mail hangs from bleached ribs as the ${name} guards the passage.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 } else {
-                    prose = `The ${name} watches your movements with primitive instinct, shifting restlessly in the shadows.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('beast_ambient_prose', [
+                        `The ${name} watches your movements with predatory stillness.`,
+                        `Shifting in the cold gloom, the ${name} tracks your torchlight.`
+                    ], encounterSeed, { dryRun: isDryRun });
                 }
             }
 
@@ -2018,62 +2066,62 @@ class ChronicleGrounder {
         if (stateObj.state === 'fleeing' || stateObj.state === 'cowering_idiot') {
             let prose = '';
             let text = '';
-            const vSeed = Math.abs(interactionTurn + (monster.id || 0) * 7);
+            const vSeed = Math.abs(interactionTurn + (monster.id || 0) * 7 + encounterIdx);
 
             if (profile.category === 'idiot' || name.toLowerCase().includes('idiot')) {
-                const idiotFleeProse = [
-                    `Slobbering in sheer panic, the blubbering idiot scrambles backward on all fours through the street dirt, frantically shielding ${prPoss} head with dirty sleeves!`,
-                    `The blubbering idiot weeps and cowers against the damp masonry, blubbering and pointing trembling fingers at ${pName}!`,
-                    `Frantically wiping tears across ${prPoss} grime-streaked face, the blubbering idiot scuttles away like a terrified animal, howling for mercy!`,
-                    `The blubbering idiot curls into a tight ball upon the cobblestones, whimpering and covering ${prPoss} ears as tears stream down ${prPoss} chin.`
-                ];
-                const idiotFleeBarks = [
-                    'Waaaah! Hurts, hurts! Mommy, why you hit?! Leave poor me alone!',
-                    'Screams and slobbers: No hit! Poor Gaffer got no coins, only pretty stones! Don\'t hit poor me!',
-                    'Waaah! Town watch, save me! Murder! The stranger is beating poor me! Help!',
-                    'Please, don\'t hurt! Look, I give you shiny beetle, just don\'t hit! Mommy! Waaah!'
-                ];
-                prose = idiotFleeProse[vSeed % idiotFleeProse.length];
-                text = idiotFleeBarks[vSeed % idiotFleeBarks.length];
+                prose = ChronicleGrounder.pickNonRepeatingBark('idiot_flee_prose', [
+                    `The blubbering idiot scrambles backward in the dirt, shielding ${prPoss} head.`,
+                    `Weeping in panic, the blubbering idiot cowers against the damp masonry.`,
+                    `Tears streaking ${prPoss} face, the blubbering idiot scuttles away in terror.`,
+                    `The blubbering idiot curls on the cobblestones, whimpering with hands over ${prPoss} ears.`
+                ], vSeed, { dryRun: isDryRun });
+                text = ChronicleGrounder.pickNonRepeatingBark('idiot_flee_bark', [
+                    'Waaaah! Hurts! Leave poor me alone!',
+                    'No hit! Poor Gaffer only got pretty stones!',
+                    'Town watch, save me! The stranger is beating poor me!',
+                    'Please don\'t hit! Take my shiny beetle, just stop!',
+                    'Ow, ow! Bad traveler! Gaffer wants his mommy!'
+                ], vSeed, { dryRun: isDryRun });
             } else if (profile.category === 'townsperson') {
-                const pr = (profile.gender === 'female') ? 'she' : 'he';
-                const prObj = (profile.gender === 'female') ? 'her' : 'him';
-                const townFleeProse = [
-                    `Bleeding and reeling from the assault, the ${name} clutches a painful wound and shrieks in panic, frantic eyes darting for the Town Watch!`,
-                    `Terror-stricken, the ${name} stumbles backward into the alley shadows, shrieking at the top of their lungs for the town guards!`,
-                    `Backing away with trembling hands held up in surrender, the ${name} gasps for breath, blood dripping onto the cobblestones!`
-                ];
-                const townFleeBarks = [
-                    'Madman! Murder in the streets! Help, town guards, murder! Why do you attack an unarmed citizen?!',
-                    'Mercy! I yield! Take my purse, take my boots, only spare my life!',
-                    'Town Watch! Murder! Someone stop this mad butcher!'
-                ];
-                prose = townFleeProse[vSeed % townFleeProse.length];
-                text = townFleeBarks[vSeed % townFleeBarks.length];
+                prose = ChronicleGrounder.pickNonRepeatingBark('town_flee_prose', [
+                    `Clutching a wound, the ${name} stumbles back and shrieks for the Watch!`,
+                    `Terror-stricken, the ${name} bolts toward the alley shadows!`,
+                    `Hands raised in panic, the bleeding ${name} backs away across the stones!`
+                ], vSeed, { dryRun: isDryRun });
+                text = ChronicleGrounder.pickNonRepeatingBark('town_flee_bark', [
+                    'Madman! Murder in the streets! Town guards, help!',
+                    'Mercy! Take my purse, only spare my life!',
+                    'Town Watch! Murder! Stop this mad butcher!',
+                    'Spare me! I am unarmed—call the guards!'
+                ], vSeed, { dryRun: isDryRun });
             } else if (profile.category === 'beggar') {
-                prose = `Dropping ${prPoss} grimy begging bowl with a tin rattle, the ${name} cowers against the wall, weeping for mercy!`;
+                prose = `Dropping ${prPoss} tin bowl, the ${name} cowers against the wall in tears.`;
                 text = ChronicleGrounder.pickNonRepeatingBark('beggar_flee', [
-                    'Mercy! I yield! I have no silver, only rags! Spare an unarmed beggar!',
-                    'Why do you strike an unarmed wretch?! Have pity! I have done you no harm!',
-                    'Guards! Mercy! I am but a poor beggar! Do not slay me!',
-                    'Take my crust! Take my bowl! Only spare my miserable life!'
-                ], vSeed);
+                    'Mercy! I have only rags—spare a poor beggar!',
+                    'Why strike a starving wretch?! Have pity!',
+                    'Guards! Mercy! Do not slay an unarmed beggar!',
+                    'Take my bowl, take my crust—only spare my life!',
+                    'Pity, traveler! My blood is worth nothing!'
+                ], vSeed, { dryRun: isDryRun });
             } else if (profile.category === 'orc') {
-                prose = `Spitting black blood, the terrified ${name} breaks away and scrambles toward the dark tunnels, shrieking in fear!`;
+                prose = `Spitting black blood, the terrified ${name} scrambles for the dark tunnels.`;
                 text = ChronicleGrounder.pickNonRepeatingBark('orc_flee', [
-                    'Mercy! The iron devil! Run for the pits, the surface scum is mad!',
-                    'The blade burns! Run, whelps! Back into the darkness!',
-                    'Gaaah! Don\'t skin me alive! Back to the warrens!',
-                    'Too strong! The intruder has iron magic! Scatter into the tunnels!'
-                ], vSeed);
+                    'Mercy! The iron devil! Run for the pits!',
+                    'The blade burns! Back into the dark, whelps!',
+                    'Gaaah! Back to the warrens!',
+                    'Too strong! Scatter into the tunnels!',
+                    'Sound the retreat! This one fights like a demon!',
+                    'Drop the loot and run! Save your hides!'
+                ], vSeed, { dryRun: isDryRun });
             } else {
-                prose = `Reeling in terror from ${pName}'s relentless assault, the ${name} scrambles backward into the gloom, seeking flight!`;
+                prose = `Reeling from ${pName}'s assault, the ${name} scrambles backward into the gloom.`;
                 text = ChronicleGrounder.pickNonRepeatingBark('general_flee', [
-                    'Curse your steel! Stay back, stay away!',
-                    'Back, monster! The dark will swallow you yet!',
-                    'I yield the corridor! Let me pass into the shadows!',
-                    'No more! The wounds run too deep!'
-                ], vSeed);
+                    'Curse your steel! Stay back!',
+                    'Back, fiend! The dark will swallow you yet!',
+                    'I yield the hall! Let me pass!',
+                    'No more! The wounds run too deep!',
+                    'Quarter! Hold your hand!'
+                ], vSeed, { dryRun: isDryRun });
             }
 
             return {
@@ -2097,110 +2145,126 @@ class ChronicleGrounder {
             let text = '';
 
             if (profile.category === 'idiot' || name.toLowerCase().includes('idiot')) {
-                prose = `Slobbering in sheer panic, the blubbering idiot weeps and cowers in the dirt, frantically waving hands to ward off ${pName}'s blows!`;
+                prose = `The blubbering idiot cowers in the dirt, waving trembling hands against ${pName}'s blows.`;
                 text = (hpPercent <= 0.35)
                     ? ChronicleGrounder.pickNonRepeatingBark('idiot_combat_low', [
-                        'Mommy! Mercy! Hurts so bad! Leave poor Gaffer alone!',
-                        'Hurts! Red juice coming out! Don\'t hit poor me no more!',
-                        'Waaah! Why you so mean?! Gaffer just wants to go home!'
+                        'Mommy! Mercy! Leave poor Gaffer alone!',
+                        'Hurts! Red juice coming out—stop hitting me!',
+                        'Waaah! Gaffer just wants to go home!',
+                        'Don\'t kill poor me! I didn\'t take nothing!'
                     ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('idiot_combat_high', [
-                        'Waaaah! Why you hit poor me?! Bad man! Don\'t hit!',
-                        'Ow, ow, ow! Mean traveler with the sharp stick! Stop it!',
-                        'No hit! Look, I got no pennies! Go hit the rocks!'
+                        'Waaaah! Why you hit poor me?! Stop it!',
+                        'Ow, ow! Mean stranger with the sharp stick!',
+                        'No hit! I got no pennies—go hit the rocks!',
+                        'Help! The mean traveler is hitting Gaffer!'
                     ], encounterSeed, { dryRun: isDryRun });
             } else if (profile.category === 'beggar' || stateObj.state === 'cowering_beggar') {
-                prose = `Cowering in terror, the ${name} clutches threadbare rags and cowers against the damp stones, weeping for mercy!`;
+                prose = `The ${name} clutches threadbare rags against the damp stones, weeping for mercy.`;
                 text = (hpPercent <= 0.35)
                     ? ChronicleGrounder.pickNonRepeatingBark('beggar_combat_low', [
-                        'Mercy! I yield! I have no silver, only rags! Spare an unarmed beggar!',
-                        'I am bleeding out on the cold stone... have you no pity on a beggar?',
-                        'Spare me, noble traveler! I will leave town forever, only spare my life!'
+                        'Mercy! I have only rags—spare an unarmed beggar!',
+                        'I bleed out on cold stone... have you no pity?',
+                        'Spare me! I will leave town forever!',
+                        'No more, I beg you! My ribs are broken!'
                     ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('beggar_combat_high', [
-                        'Why do you strike an unarmed wretch?! Guards, murder! Have mercy!',
-                        'Please! I have nothing! Take my bowl, take my rags, only spare my life!',
-                        'I only asked for a copper bit! Why draw cold steel on a starving soul?!'
+                        'Why strike an unarmed wretch?! Guards, murder!',
+                        'Please! Take my bowl, only spare my life!',
+                        'Cold steel on a starving soul?! Have mercy!',
+                        'Help! Watchmen! A lunatic slaughters the poor!'
                     ], encounterSeed, { dryRun: isDryRun });
             } else if (profile.category === 'veteran' || stateObj.state === 'veteran_in_combat') {
-                prose = `The scarred ${name} parries your steel with a sharp clang of metal, ${prPoss} face hardening as ${prSub} steps into a fighting crouch!`;
+                prose = `Sparks fly as the scarred ${name} parries and drops into a lethal crouch.`;
                 text = (hpPercent <= 0.35)
                     ? ChronicleGrounder.pickNonRepeatingBark('veteran_combat_low', [
                         `Curse your blade! A soldier dies with ${prPoss} boots on!`,
-                        `You have drawn blood, but my blade still thirsts! Stand and die!`,
-                        `The frontier has tested me harder than you! To me, then!`,
-                        `Steel breaks, but a veteran never yields! Face me!`,
-                        `Grave wounds won't stop a seasoned blade! Draw your last breath!`
+                        `You drew blood, but my steel still bites!`,
+                        `The frontier tested me harder than this! Come on!`,
+                        `Bone breaks, but a veteran never yields!`,
+                        `A red day, then! Step in and finish it!`,
+                        `Still standing, whelp! Guard your throat!`
                     ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('veteran_combat_high', [
-                        'You want a taste of veteran steel, fool?! Stand and fight!',
-                        'I have broken fiercer warriors than you in the deep trenches!',
-                        'Your guard is open and your footwork sloppy! Yield or fall!',
-                        'Iron and blood! You picked the wrong soldier to cross!',
-                        'Let us see if your armor is as stout as your temper!',
-                        'A soldier does not flinch before raw steel! Back to the dirt with you!'
+                        'Want a taste of veteran steel, fool?! Stand fast!',
+                        'I broke fiercer blades than yours in the trenches!',
+                        'Your footwork is sloppy! Yield or fall!',
+                        'Iron and blood! You crossed the wrong soldier!',
+                        'Let us test the temper of your mail!',
+                        'A veteran never flinches! Back to the dirt!',
+                        'Mind your left flank, rookie—too slow!',
+                        'Five winters on the border taught me this thrust!'
                     ], encounterSeed, { dryRun: isDryRun });
             } else if (profile.category === 'townsperson') {
-                prose = `Bleeding and reeling from the assault, the ${name} clutches a painful wound and shrieks in panic, frantic eyes darting for the town watch!`;
+                prose = `Reeling from the blow, the ${name} clutches a wound and shouts for the Watch.`;
                 text = (hpPercent <= 0.35)
                     ? ChronicleGrounder.pickNonRepeatingBark('town_combat_low', [
-                        'Mercy! I yield! Take my purse, take my boots, only spare my life!',
-                        'Town Watch! Murder! Someone stop this mad butcher before I bleed dry!',
-                        'Mercy! I have a family! Take everything, only put away the steel!'
+                        'Mercy! I yield! Take my purse, only spare my life!',
+                        'Town Watch! Murder! Stop this butcher before I bleed dry!',
+                        'Mercy! Put away the steel—take everything I have!',
+                        'Murder in the square! Somebody call the Watch!'
                     ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('town_combat_high', [
-                        'Madman! Murder in the streets! Help, town guards, murder! Why do you attack me?!',
-                        'Madman! Keep away from me, butcher! Guards! Someone stop this maniac!',
-                        'Murder! Assault! The town watch will have your head on a pike for this!'
+                        'Madman! Murder in the streets! Town guards, help!',
+                        'Madman! Keep back, butcher! Guards!',
+                        'Murder! The Town Watch will hang you for this!',
+                        'Mercy! Why draw steel on an honest citizen?!'
                     ], encounterSeed, { dryRun: isDryRun });
             } else if (profile.category === 'rogue') {
-                prose = `${prPoss.charAt(0).toUpperCase() + prPoss.slice(1)} blade parries yours with a harsh shriek of metal! The ${name} sneers through gritted teeth, blood dripping from ${prPoss} knuckles as ${prSub} circles you in the alley gloom.`;
+                prose = `Blades shriek as the ${name} parries and circles you through the alley gloom.`;
                 text = (hpPercent <= 0.35)
                     ? ChronicleGrounder.pickNonRepeatingBark('rogue_combat_low', [
-                        'Curse your steel! I will see you in the barrows before I die alone!',
-                        'Bleeding... but I will still slip a blade between your ribs!',
-                        'Curse this town... you won\'t take my boots while I draw breath!',
-                        'A pox on your sword! The shadows will swallow you whole!',
-                        'You haven\'t won yet, dog! Cold steel bites both ways!'
+                        'Curse your steel! I will drag you to the barrows with me!',
+                        'Bleeding... but I can still slip steel between your ribs!',
+                        'You won\'t take my boots while I draw breath!',
+                        'A pox on your blade! The shadows aren\'t done with you!',
+                        'Cold steel bites both ways, dog!',
+                        'Backed into a corner? That\'s when a cutthroat bites hardest!'
                     ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('rogue_combat_high', [
-                        'You think your steel frightens me, fool? I will carve the liver out of you!',
-                        'Die, surface scum! I will pick your bones clean before the watch arrives!',
-                        'Quick hands, cold steel! Let us see what spills from your purse!',
-                        'You should have handed over the silver when you had the chance!',
-                        'One slip in the cobblestone dark, and you are meat for the alley crows!'
+                        'Think your steel scares me? I\'ll carve your purse free!',
+                        'I\'ll pick your bones clean before the Watch arrives!',
+                        'Quick hands, cold steel! Let\'s see what you bleed!',
+                        'Should have dropped your silver while you had the chance!',
+                        'One slip on the cobbles and you\'re crow meat!',
+                        'Step into the shadow—my dagger knows the way!',
+                        'Too slow with that heavy guard, traveler!'
                     ], encounterSeed, { dryRun: isDryRun });
             } else if (profile.category === 'orc') {
-                prose = `Dark black blood spatters the stones as the ${name} snarls in bloodthirsty fury, hacking violently at your guard!`;
+                prose = `Black blood spatters the stone as the ${name} hacks savagely at your guard.`;
                 if (rk === 'silq') {
                     text = (hpPercent <= 0.35)
                         ? ChronicleGrounder.pickNonRepeatingBark('orc_silq_low', [
                             'By the Iron Crown, Morgoth Bauglir shall break your bones upon Thangorodrim!',
-                            'Black blood in my eyes... but Boldog\'s wrath will consume your soul!',
-                            'The Great Darkness will blot out your star, Noldor scum!',
-                            'You bleed on the stones of Angband! None escape the Iron Hell!'
+                            'Black blood in my eyes... Boldog\'s wrath claims you in Angband!',
+                            'Morgoth\'s shadow covers Beleriand—die in the Iron Hell!',
+                            'You bleed on the stones of Angband! Bauglir sees all!',
+                            'Thangorodrim\'s fires will turn your mail to slag!'
                         ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('orc_silq_high', [
                             'Thralls of Angband, slay the intruder!',
-                            'Morgoth Bauglir holds the Silmarils—none escape his darkness!',
-                            'Die in the shadow of the Iron Mountains!',
-                            'Curse your elven steel! Slice the pink flesh!',
-                            'Iron and ash! Your skull will pave the Throne of Thangorodrim!'
+                            'Morgoth Bauglir holds the Iron Crown—none escape his dark!',
+                            'Die beneath the shadow of Thangorodrim!',
+                            'Curse your elven steel! Flesh for the pits of Angband!',
+                            'Your skull shall pave the gates of Morgoth!',
+                            'For the Iron Crown! Tear the trespasser down!'
                         ], encounterSeed, { dryRun: isDryRun });
                 } else if (rk === 'frogcomposband') {
                     text = (hpPercent <= 0.35)
                         ? ChronicleGrounder.pickNonRepeatingBark('orc_fcb_low', [
                             'The Pattern will not save you, shadow-walker!',
-                            'Curse your blade! Blood for the Logrus!',
-                            'The Courts of Chaos will devour your reality!',
-                            'Bleeding out... but the multiverse will swallow you whole!'
+                            'Curse your blade! Blood for the Courts of Chaos!',
+                            'Chaos will devour your shadow across the multiverse!',
+                            'No Trump card can pull you from this abyss!',
+                            'Even Amber falls before the tide of Chaos!'
                         ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('orc_fcb_high', [
-                            'The multiverse belongs to the strong! Die, Outpost dog!',
-                            'No Trump can pull you from my grasp!',
-                            'Your shadow ends in this gutter!',
-                            'Feel the raw chaotic power of the wilderness!',
-                            'We butcher knights and evolving beasts alike!'
+                            'The multiverse belongs to Chaos! Die, Amber dog!',
+                            'No Trump can rescue you from this wilderness!',
+                            'Your shadow ends in this chaotic gutter!',
+                            'Feel the raw fury of the wilderness!',
+                            'Neither Pattern nor Trump will spare your throat!',
+                            'We butcher shadow-walkers and knights alike!'
                         ], encounterSeed, { dryRun: isDryRun });
                 } else if (rk === 'hengband') {
                     if (effLang === 'jp') {
@@ -2221,62 +2285,68 @@ class ChronicleGrounder {
                     } else {
                         text = (hpPercent <= 0.35)
                             ? ChronicleGrounder.pickNonRepeatingBark('orc_heng_low_en', [
-                                'By the cold iron of our steel, we die together in the blood mud!',
-                                'No warrior flinches before death! A warrior\'s spirit is eternal!',
-                                'You have pierced my armor, but the dark lords of this realm will avenge me!',
+                                'Cold steel in the blood mud—we die together!',
+                                'No warrior flinches before death! My blade still strikes!',
+                                'My armor breaks, but the mountain spirits will avenge me!',
+                                'Oni fury burns to the last drop of blood!',
                                 'My blade still thirsts for your heart!'
                             ], encounterSeed, { dryRun: isDryRun })
                             : ChronicleGrounder.pickNonRepeatingBark('orc_heng_high_en', [
-                                'Face the fury of the mountain lords!',
-                                'The shrine bells will sing no prayers for you!',
-                                'Oni and beasts feast upon intruders!',
-                                'Taste the edge of dishonor and steel!',
-                                'By the fallen cherry blossoms, draw your last breath!'
+                                'Face the fury of the mountain lords and cold steel!',
+                                'The shrine bells toll no mercy for your blade!',
+                                'Oni and dark spirits feast upon intruders!',
+                                'Taste the edge of ruthless steel!',
+                                'Beneath the falling blossoms, draw your last breath!',
+                                'No wandering warrior survives these demon halls!'
                             ], encounterSeed, { dryRun: isDryRun });
                     }
                 } else {
                     text = (hpPercent <= 0.35)
                         ? ChronicleGrounder.pickNonRepeatingBark('orc_combat_low', [
-                            'Curse your blade! The Eye of the Deeps will tear your soul to shreds!',
-                            'Black blood in my eyes... but my scimitar will taste your throat!',
-                            'The master\'s lash was worse than your steel! Die, surface scum!',
-                            'You bleed too, dog! We die together on the cold rock!'
+                            'Curse your blade! The Deep Eye will shred your soul!',
+                            'Black blood in my eyes... my scimitar still bites!',
+                            'The whip was worse than your steel! Die, surface scum!',
+                            'You bleed too, dog! We die together on cold rock!',
+                            'Choke on my blood, pink-skin!',
+                            'The warren pack will gnaw your bones for this!'
                         ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('orc_combat_high', [
-                            'Fresh meat bleeds! Hack the surface scum to ribbons!',
-                            'I will gnaw the marrow from your bones, worm!',
-                            'What is this? A soft-skinned intruder to feed to the drakes! Slay!',
-                            'Chop the legs off! Make the pink-skin crawl in the dirt!',
-                            'Iron and ash! Your skull will hang from the warren gate!'
+                            'Fresh meat bleeds! Hack the surface scum down!',
+                            'I\'ll crack your ribs and drink the marrow, worm!',
+                            'Feed the intruder to the cave drakes! Slay!',
+                            'Chop the legs! Make the pink-skin crawl!',
+                            'Iron and ash! Your skull goes on the warren spike!',
+                            'Snaga and Uruk—gut the surface rat!',
+                            'Notched steel cuts deepest! Bleed for the pits!'
                         ], encounterSeed, { dryRun: isDryRun });
                 }
             } else if (profile.category === 'spellcaster') {
-                prose = `Dark sorcerous fire crackles across the robes of the ${name} as he recoils from your steel, hissing ancient incantations in fury!`;
+                prose = `Arcane fire crackles across the ${name}'s robes as ${prSub} hisses a counter-hex.`;
                 if (rk === 'silq') {
                     text = (hpPercent <= 0.35)
                         ? ChronicleGrounder.pickNonRepeatingBark('caster_silq_low', [
-                            'The Iron Hell never yields! Morgoth\'s shadow covers all Beleriand!',
-                            'My song falters... but the doom of Mandos claims your soul!',
-                            'Curse your song! Even in death, the black frost shall wither you!'
+                            'The Iron Hell never yields! Morgoth\'s shadow covers Beleriand!',
+                            'My song falters... yet Angband claims your doom!',
+                            'Even in death, the frost of Thangorodrim withers you!'
                         ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('caster_silq_high', [
-                            'Tremble before the will of the Iron Crown!',
-                            'No song of Elbereth can kindle light in this abyss!',
-                            'Dissolve in the subterranean black flame of Udûn!',
-                            'The Will of the Great Enemy crushes mortal clay!'
+                            'Tremble before the dark will of the Iron Crown!',
+                            'No song of Elbereth kindles light in Angband!',
+                            'Wither in the black flame of Thangorodrim!',
+                            'Morgoth Bauglir crushes mortal clay!'
                         ], encounterSeed, { dryRun: isDryRun });
                 } else if (rk === 'frogcomposband') {
                     text = (hpPercent <= 0.35)
                         ? ChronicleGrounder.pickNonRepeatingBark('caster_fcb_low', [
-                            'My body unravels into shadow... but the Logrus will claim you!',
-                            'The Trump of Doom was already drawn for your fate!',
-                            'Curse your steel! Chaos dissolves all boundaries!'
+                            'My form unravels into shadow... Chaos claims you!',
+                            'The Trump of Doom is already drawn for you!',
+                            'Chaos dissolves all Pattern boundaries!'
                         ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('caster_fcb_high', [
-                            'I twist the probabilities of the Pattern against you!',
-                            'Burn in the cold chaos of the Abyss!',
-                            'Reality warps at my command—witness true sorcery!',
-                            'Your existence is but a flickering shadow!'
+                            'I twist the Pattern\'s probabilities against you!',
+                            'Burn in the raw chaos of the multiverse!',
+                            'Shadow warps at my command—witness true sorcery!',
+                            'Your Amber blood is a flickering shadow!'
                         ], encounterSeed, { dryRun: isDryRun });
                 } else if (rk === 'hengband') {
                     if (effLang === 'jp') {
@@ -2295,44 +2365,48 @@ class ChronicleGrounder {
                     } else {
                         text = (hpPercent <= 0.35)
                             ? ChronicleGrounder.pickNonRepeatingBark('caster_heng_low_en', [
-                                'Nine secret strikes... my spirit ascends to the heavens!',
-                                'The wheel of karmic retribution will crush you in your next life!',
-                                'The curse of the fox spirit shall cling to your shadow!'
+                                'Nine secret seals... my spirit ascends beyond your blade!',
+                                'The wheel of karmic doom will crush your next life!',
+                                'The fox spirit\'s curse clings to your steel!'
                             ], encounterSeed, { dryRun: isDryRun })
                             : ChronicleGrounder.pickNonRepeatingBark('caster_heng_high_en', [
-                                'Spirits of earth and sky, banish the intruder!',
-                                'Mystic flame of the mountain, reduce this fool to cinders!',
-                                'Taste karmic annihilation!',
-                                'The ancient spirits reject your corrupted presence!'
+                                'Spirits of mountain and shrine, banish this blade!',
+                                'Mystic fire, reduce this intruder to cinders!',
+                                'Taste karmic annihilation before the ancient spirits!',
+                                'Oni and shrine guardians reject your presence!'
                             ], encounterSeed, { dryRun: isDryRun });
                     }
                 } else {
                     text = (hpPercent <= 0.35)
                         ? ChronicleGrounder.pickNonRepeatingBark('caster_combat_low', [
-                            'The Dark Masters will avenge my blood! The Shadow never ends!',
-                            'My flesh perishes... but the Nether will consume your soul!',
-                            'Curse your iron! Even in death, the dark runes shall wither you!'
+                            'The Dark Masters will avenge my blood!',
+                            'My flesh fails... but the Nether claims your soul!',
+                            'Even in death, my dark runes wither your heart!',
+                            'Blood feeds the hex—choke on the void!'
                         ], encounterSeed, { dryRun: isDryRun })
                         : ChronicleGrounder.pickNonRepeatingBark('caster_combat_high', [
-                            'Feel the freezing hand of the Void! Burn in dark fire!',
+                            'Feel the freezing grip of the Void!',
                             'Mortal clay, dissolve before the black flame!',
-                            'Your feeble armor cannot turn the wrath of the ancient arts!',
-                            'The deeps hunger for your soul—wither into ashes!'
+                            'Cold iron cannot turn the ancient arts!',
+                            'The deeps hunger—wither into ash!',
+                            'One syllable of unmaking will shatter your bones!'
                         ], encounterSeed, { dryRun: isDryRun });
                 }
             } else {
-                prose = `Gravely engaged in combat, the ${name} trades savage blows with ${pName}, blades clashing in the dark!`;
+                prose = `Blades clash in the dark as the ${name} trades fierce blows with ${pName}.`;
                 text = (hpPercent <= 0.35)
                     ? ChronicleGrounder.pickNonRepeatingBark('general_combat_low', [
-                        'Curse your steel! You will not leave these deeps alive!',
-                        'Bleeding upon the rock... but I will drag you down with me!',
-                        'No mercy in the dark! Fall with me!'
+                        'Curse your steel! You won\'t leave these deeps alive!',
+                        'Bleeding on the stone... I\'ll drag you down with me!',
+                        'No mercy in the dark—fall with me!',
+                        'A mortal blow? Then let us trade graves!'
                     ], encounterSeed, { dryRun: isDryRun })
                     : ChronicleGrounder.pickNonRepeatingBark('general_combat_high', [
                         'Die on the cold stone, mortal!',
-                        'You dare step into the deeps? Pave these stones with your bones!',
-                        'Steel answers steel! Let us see what you are made of!',
-                        'No light reaches these depths—only our blades!'
+                        'Pave these dark halls with your bones!',
+                        'Steel answers steel—show your mettle!',
+                        'No light reaches here—only cold blades!',
+                        'Step closer and taste the dark!'
                     ], encounterSeed, { dryRun: isDryRun });
             }
 
@@ -2354,167 +2428,181 @@ class ChronicleGrounder {
         let text = '';
 
         if (profile.category === 'idiot' || name.toLowerCase().includes('idiot')) {
-            const vSeed = Math.abs(interactionTurn + (monster.id || 0) * 11);
-            const idiotAmbientProse = [
-                `The blubbering idiot sits in the town dirt, drooling softly onto ${prPoss} collar while turning a smooth river pebble over and over in filthy hands.`,
-                `The blubbering idiot blinks with wide, vacant eyes, pointing a grubby finger toward a passing town dog with a bubbly giggle.`,
-                `The blubbering idiot scratches behind ${prPoss} ear with a grimy knuckle, humming a discordant, nonsensical tune to ${isF ? 'herself' : 'himself'}.`,
-                `The blubbering idiot looks up at ${pName} with an innocent, crooked grin, wiping a trail of drool from ${prPoss} chin with the back of ${prPoss} hand.`
-            ];
-            const idiotAmbientBarks = [
-                'Hehe! Look at the pretty shiny rock! It stays cool when you put it in your mouth! Hehe...',
-                'Stars in the sky, bugs in the dirt... don\'t step on the squishy bugs, noble traveler! They got tiny boots too!',
-                'Drool... buttons! Your coat has shiny brass buttons! Can I touch the buttons? Just one tap? Hehehe...',
-                'Cold cobblestones, warm porridge... nobody gives poor Gaffer no porridge today... *sniffle*... but I found a nice snail!',
-                'Hehehe! Did you come from the big hole in the ground? Down there is dark and noisy! Old rats have red teeth!'
-            ];
-            prose = idiotAmbientProse[vSeed % idiotAmbientProse.length];
-            text = idiotAmbientBarks[vSeed % idiotAmbientBarks.length];
+            const vSeed = Math.abs(interactionTurn + (monster.id || 0) * 11 + encounterIdx);
+            prose = ChronicleGrounder.pickNonRepeatingBark('idiot_ambient_prose', [
+                `The blubbering idiot sits in the dirt, turning a smooth pebble in grimy hands.`,
+                `Wide-eyed, the blubbering idiot points at a stray dog with a bubbly giggle.`,
+                `The blubbering idiot scratches ${prPoss} ear, humming a crooked tune.`,
+                `Grinning crookedly, the blubbering idiot wipes drool from ${prPoss} chin.`,
+                `The blubbering idiot stacks three mud pebbles like a tiny tower.`,
+                `Squinting at your boots, the blubbering idiot rocks happily on ${prPoss} heels.`
+            ], vSeed, { dryRun: isDryRun });
+            text = ChronicleGrounder.pickNonRepeatingBark('idiot_ambient_bark', [
+                'Hehe! Pretty shiny rock stays cool in your mouth!',
+                'Mind the squishy bugs, traveler—they got tiny boots too!',
+                'Shiny brass buttons! Can Gaffer tap just one? Hehe!',
+                'Cold cobbles, no porridge today... but I found a snail!',
+                'Going down the dark hole? The rats down there got red teeth!',
+                'Gaffer saw a ghost in the well once—it was only a bucket!',
+                'Do clouds taste like sheep wool, or salted turnips?',
+                'Don\'t tell the Watch, I hid a copper penny in my boot!'
+            ], vSeed, { dryRun: isDryRun });
         } else if (stateObj.state === 'begging' || profile.category === 'beggar') {
-            // Dialogue handling for beggars and urchins
             if (query.includes('dungeon') || query.includes('stair') || query.includes('down') || query.includes('deep')) {
-                prose = `The ${name} shivers, pointing a filthy, trembling finger toward the archway leading down to the iron stairs.`;
-                text = 'The cellar stairs are straight ahead, noble traveler... but stay clear of the dark steps at night. I once peered through the iron grating and smelled sulfur and burnt bone.';
+                prose = `The ${name} points a trembling finger toward the iron stair archway.`;
+                text = 'The cellar stairs lie ahead—I smelled sulfur and charred bone rising through the grate.';
             } else if (query.includes('shop') || query.includes('store') || query.includes('bread') || query.includes('food') || query.includes('ration') || query.includes('potion')) {
-                prose = `${prCap} gazes toward the town square with hungry, hollow eyes.`;
-                text = 'The General Store sells rations and warm oil, kind sir. A copper bit from a generous hand is all I need for a stale crust from the bakery...';
+                prose = `${prCap} gazes toward the market square with hollow eyes.`;
+                text = 'The General Store sells rations and oil; one copper buys me a stale crust.';
             } else if (query.includes('gold') || query.includes('coin') || query.includes('silver') || query.includes('money')) {
-                prose = `${prCap}'s eyes widen with desperate hope as ${prSub} clutches ${prPoss} grimy begging bowl with both hands.`;
-                text = 'Bless your generous heart, traveler! Just a few copper coins to keep the frost away... may the High Powers preserve your life in the deep places!';
+                prose = `${prCap} clutches ${prPoss} wooden begging bowl with sudden hope.`;
+                text = 'Bless your generous hand! May the High Powers guard you in the deep!';
             } else if (query.includes('who') || query.includes('help') || query.includes('key')) {
-                prose = `${prCap} leans in close, whispering with a conspiratorial rasp.`;
-                text = 'To open doors, bump right against them. To drink healing draughts, press "q". And watch your back in the dark alleys—the cutpurses take what little copper we have.';
+                prose = `${prCap} leans close, whispering in a dry rasp.`;
+                text = 'Bump closed doors to open them, press "q" to quaff potions, and watch the dark alleys.';
             } else {
-                const bSeed = Math.abs(interactionTurn + (monster.id || 0) * 17);
-                const beggarProseList = [
-                    `A ${name} hobbles forward through the chill frontier wind, extending a trembling, cupped hand toward ${pName}, eyes hollow with hunger.`,
-                    `${prCap} clasps ${prPoss} thin, dirt-stained hands together in gratitude as ${pName} lingers, glancing nervously over ${prPoss} shoulder toward the dark corners.`,
-                    `${prCap} shivers under ${prPoss} threadbare rags, leaning in to whisper an old street rumor.`,
-                    `${prCap} bows ${prPoss} head in quiet reverence, touching ${prPoss} grimy forehead.`
-                ];
-                const beggarBarkList = [
-                    'Alms, noble traveler! Just one copper bit to buy a stale crust from the baker... the nights here are cold and cruel to the destitute.',
-                    'Bless you, traveler! If you delve into the deep cellar stairs, beware the dark alleys near the tavern—the cutpurses lurk where the town watch cannot see.',
-                    'They say the old armorer keeps a cache of iron rations behind the forge, but the deep tunnels below are full of things that hunger for more than bread.',
-                    'May the Lords of Light guide your footsteps in the dark below. Few in this border town have mercy for the fallen.'
-                ];
-                prose = beggarProseList[bSeed % beggarProseList.length];
-                text = beggarBarkList[bSeed % beggarBarkList.length];
+                const bSeed = Math.abs(interactionTurn + (monster.id || 0) * 17 + encounterIdx);
+                prose = ChronicleGrounder.pickNonRepeatingBark('beggar_ambient_prose', [
+                    `The ${name} hobbles forward, extending a cupped, trembling hand.`,
+                    `${prCap} shivers beneath threadbare rags, glancing nervously down the lane.`,
+                    `${prCap} taps a dented tin bowl, hollow eyes fixed on your coinpurse.`,
+                    `Huddled against the wind, the ${name} murmurs a quiet street warning.`,
+                    `${prCap} pulls a torn wool shawl tighter against the mountain chill.`,
+                    `Leaning on a knotted stick, the ${name} bows ${prPoss} head respectfully.`
+                ], bSeed, { dryRun: isDryRun });
+                text = ChronicleGrounder.pickNonRepeatingBark('beggar_ambient_bark', [
+                    'Alms, traveler? One copper bit for a crust of baker\'s bread.',
+                    'Watch the dark lanes by the tavern—cutpurses prowl where the Watch won\'t look.',
+                    'The deep cellars below hunger for more than bread, friend.',
+                    'May the Lords of Light guide your lantern in the dark.',
+                    'Spare a copper? The frost bites hard on empty ribs tonight.',
+                    'Many proud swords go down those iron steps; few climb back up.',
+                    'Keep a Phase Door scroll handy—the upper vaults are full of traps.',
+                    'Even a dry rind or a drop of lantern oil is a blessing here.'
+                ], bSeed, { dryRun: isDryRun });
             }
         } else if (stateObj.state === 'insulting') {
-            prose = `The ${name} spits upon the flagstones, sneering at ${pName} with contemptuous mockery.`;
-            if (interactionTurn <= 1) {
-                text = 'Think that shiny blade makes you a warrior, soft-skin? The rats down below will pick your teeth for toothpicks!';
-            } else {
-                text = 'Move along, runt! You haven\'t got the stomach for the deeps, and your armor looks like tin!';
-            }
+            prose = `The ${name} spits on the flagstones, sizing ${pName} up with a sneer.`;
+            text = ChronicleGrounder.pickNonRepeatingBark('insult_ambient_bark', [
+                'Think that blade makes you a hero, soft-skin? The rats below will pick your bones!',
+                'Move along, runt! Your armor looks like hammered tin!',
+                'Another fresh fool for the deeps—leave your boots at the stairs!',
+                'Save your swagger for the tavern, greenhorn!'
+            ], encounterSeed, { dryRun: isDryRun });
         } else if (profile.category === 'veteran') {
             if (query.includes('dungeon') || query.includes('tactic') || query.includes('fight') || query.includes('combat')) {
-                prose = `The scarred ${name} rests a calloused hand upon the pommel of ${prPoss} longsword, speaking with seasoned authority.`;
-                text = 'Never fight in open rooms. Step back into narrow 1-tile corridors so only one beast can face you at a time. And carry Phase Door scrolls for when the breathers arrive.';
+                prose = `The scarred ${name} rests a hand on ${prPoss} pommel with grim authority.`;
+                text = 'Never fight in open halls—back into a narrow corridor and carry Phase Door scrolls.';
             } else {
-                const vSeed = Math.abs(interactionTurn + (monster.id || 0) * 19 + (monster.x || 0) * 11);
-                const vetProseList = [
-                    `The ${name} leans against a wooden post, eye scarred and jaw set as ${prSub} appraises ${pName}'s stance.`,
-                    `${prCap} taps the hilt of ${prPoss} notched blade with a scarred thumb, looking toward the northern horizon.`,
-                    `${prCap} nods with curt respect, ${prPoss} weathered leather armor creaking softly.`,
-                    `The ${name} runs a whetstone along the bevel of a steel shortsword, inspecting the edge against the gray sky.`,
-                    `${prCap} adjusts the iron buckles of ${prPoss} mail hauberk, scarred knuckles bearing the marks of a hundred border skirmishes.`,
-                    `The seasoned soldier stands vigilant beside the alley corner, ${prPoss} gaze piercing the frontier fog.`
-                ];
-                const vetBarkList = [
-                    'Delving into the pits, recruit? Keep your shield high, check every corridor twice, and never let yourself get surrounded.',
-                    'The upper halls are crawling with cave orcs and kobold snipers. Stock up on cure potions before you step onto the stairs.',
-                    'Fight smart and don\'t get greedy. No hoard of gold is worth staying in the deeps when your torch is burning low.',
-                    'Iron discipline is what keeps you alive below. Learn the range of enemy archers, and lure them around solid stone corners.',
-                    'Carry oil flasks and spare torches, traveler. The dark below eats your courage the moment your light sputters out.',
-                    'A warrior\'s greatest weapon is patience. Let the orcs rush your doorway one by one, and strike when they stumble over their own shields.'
-                ];
-                prose = vetProseList[vSeed % vetProseList.length];
-                text = vetBarkList[vSeed % vetBarkList.length];
+                const vSeed = Math.abs(interactionTurn + (monster.id || 0) * 19 + (monster.x || 0) * 11 + encounterIdx);
+                prose = ChronicleGrounder.pickNonRepeatingBark('vet_ambient_prose', [
+                    `The ${name} leans against a timber post, appraising ${pName}'s stance.`,
+                    `${prCap} taps ${prPoss} notched hilt with a scarred thumb.`,
+                    `${prCap} nods curtly, weathered leather creaking as ${prSub} shifts weight.`,
+                    `The ${name} draws a whetstone along a steel blade with practiced rhythm.`,
+                    `${prCap} tightens a mail buckle, eyes scanning the frontier fog.`,
+                    `Resting a boot on a crate, the ${name} studies your weapon balance.`,
+                    `${prCap} rolls a silver coin across scarred knuckles without looking down.`,
+                    `The grizzled soldier checks the fletching on a bundle of heavy bolts.`
+                ], vSeed, { dryRun: isDryRun });
+                text = ChronicleGrounder.pickNonRepeatingBark('vet_ambient_bark', [
+                    'Delving today? Keep your shield high and check every corridor twice.',
+                    'Cave orcs and kobold snipers swarm the upper halls—pack cure potions.',
+                    'Don\'t get greedy down there; turn back before your torch burns low.',
+                    'Lure archers around solid corners—never charge down a long hall.',
+                    'Pack spare oil flasks; the dark eats your nerve when the lantern dies.',
+                    'Let the pack rush your doorway one by one, then cleave them down.',
+                    'Identify your scrolls before you need them in a life-or-death pinch.',
+                    'Acid hounds will ruin good mail—strike them from range if you can.',
+                    'Never fight paralyzed; one ghoul touch in the dark ends a saga fast.',
+                    'A cheap cloak and a scroll of Word of Recall beat a heavy shroud.'
+                ], vSeed, { dryRun: isDryRun });
             }
         } else if (profile.category === 'townsperson') {
-            const isF = (profile.gender === 'female');
-            const prSub = isF ? 'she' : 'he';
-            const prCap = isF ? 'She' : 'He';
-            const prPoss = isF ? 'her' : 'his';
-            const prObj = isF ? 'her' : 'him';
-
-            // Dialogue handling based on user query or turn progression
             if (query.includes('dungeon') || query.includes('stair') || query.includes('down') || query.includes('depth') || query.includes('deep')) {
-                prose = `The ${name} points a weathered finger toward the dark stone archway leading down to the iron stairs.`;
-                text = 'The dungeon stairs lie straight ahead. The first hundred feet are treacherous with cutpurses and cave spiders; stay alert and mind your footing.';
+                prose = `The ${name} points toward the dark stone archway leading to the iron stairs.`;
+                text = 'The dungeon stairs lie ahead—mind the cave spiders and cutpurses on the first level.';
             } else if (query.includes('shop') || query.includes('store') || query.includes('buy') || query.includes('sell') || query.includes('potion') || query.includes('food') || query.includes('scroll')) {
-                prose = `${prCap} nods toward the town market buildings lining the cobblestone square.`;
-                text = 'The General Store stocks rations and flasks; the Alchemist carries healing draughts. Step into their entrance and press the item letter to purchase.';
+                prose = `${prCap} nods toward the timber storefronts lining the square.`;
+                text = 'The General Store stocks rations and oil; the Alchemist sells healing draughts.';
             } else if (query.includes('weapon') || query.includes('armor') || query.includes('sword') || query.includes('shield') || query.includes('bow')) {
-                prose = `${prCap} inspects your armaments with an appreciative nod.`;
-                text = 'Good forged steel will keep your ribs intact. Do not descend without stout armor, or the first cave orc you meet will make short work of you.';
+                prose = `${prCap} inspects your gear with an approving nod.`;
+                text = 'Good forged steel keeps your ribs whole—don\'t descend without stout mail.';
             } else if (query.includes('who') || query.includes('help') || query.includes('key') || query.includes('how')) {
-                prose = `The ${name} leans in, speaking in a low, conspiratorial whisper.`;
-                text = 'Use the arrow keys or bump into closed doors to open them. To quaff a healing potion, press "q", or "r" to read an enchanted scroll.';
+                prose = `The ${name} leans in with a helpful nod.`;
+                text = 'Bump closed doors to open them; press "q" to quaff a potion or "r" to read a scroll.';
             } else {
-                // Rotating anti-repetition conversational options
-                const tSeed = Math.abs(interactionTurn + (monster.id || 0) * 23);
-                const townProseList = [
-                    `The ${name} brushes dust from ${prPoss} sleeves and looks over ${pName}'s gear with a keen, calculating eye.`,
-                    `${prCap} leans against a stack of crates, lowering ${prPoss} voice as ${prSub} glances toward the northern gate.`,
-                    `${prCap} checks the bindings on a travel pack, pausing to share a word of frontier caution.`,
-                    `${prCap} glances up at the chill sky, wrapping a woolen cloak tighter against the mountain draft.`,
-                    `The ${name} nods politely in greeting as ${pName} approaches along the cobblestone lane.`,
-                    `${prCap} glances toward the tavern entrance with a weary, knowing smile.`
-                ];
-                const townBarkList = [
-                    'Hail, traveler. Looking for supplies or seeking the dungeon? The frontier has been restless of late.',
-                    'Word in the tavern is that goblins have crept into the upper halls. Mind your footing, and never delve without torches and Phase Door scrolls.',
-                    'Check the General Store or the Armory before you descend. Once you cross the threshold below, town silver will not buy you fresh bandages.',
-                    'The mountain air grows colder by the hour. Keep your flask filled with oil—light is life down in the dark.',
-                    'Greetings, adventurer. If you meet the town watch, mind your manners; cutpurses have made everyone wary on the square.',
-                    'A warm fire and a mug of bitter ale wait in the tavern when you climb back up from the deeps.'
-                ];
-                prose = townProseList[tSeed % townProseList.length];
-                text = townBarkList[tSeed % townBarkList.length];
+                const tSeed = Math.abs(interactionTurn + (monster.id || 0) * 23 + encounterIdx);
+                prose = ChronicleGrounder.pickNonRepeatingBark('town_ambient_prose', [
+                    `The ${name} brushes dust from ${prPoss} sleeves and eyes ${pName}'s gear.`,
+                    `${prCap} leans by a stack of crates, glancing toward the northern gate.`,
+                    `${prCap} tightens the straps on a travel pack, pausing to nod.`,
+                    `${prCap} wraps a woolen cloak tighter against the mountain draft.`,
+                    `The ${name} offers a polite nod along the cobblestone lane.`,
+                    `${prCap} glances toward the tavern door with a weary smile.`,
+                    `Warming hands over a brazier, the ${name} watches the square.`,
+                    `${prCap} balances a crate of lantern oil upon ${prPoss} hip.`
+                ], tSeed, { dryRun: isDryRun });
+                text = ChronicleGrounder.pickNonRepeatingBark('town_ambient_bark', [
+                    'Hail, traveler. Stocking up, or bound for the deep stairs?',
+                    'Goblins crept into the upper cellars last night—carry torches and Phase Door scrolls.',
+                    'Visit the Armory before you descend; silver buys no bandages below.',
+                    'The mountain wind bites cold today—keep your lantern flask full of oil.',
+                    'Mind your purse near the alleys; cutpurses prowl when the Watch turns.',
+                    'A warm fire and bitter ale wait in the tavern if you make it back.',
+                    'Always carry a scroll of Word of Recall once you pass five hundred feet.',
+                    'The Temple blesses worn blades and cures black poison for a fair tithe.',
+                    'Strange tremors shook the well-stones at dawn; something stirs below.',
+                    'Travel light enough to run—heavy gold has drowned many a greedy delver.'
+                ], tSeed, { dryRun: isDryRun });
             }
         } else if (profile.category === 'rogue') {
-            // Dialogue handling for rogues
             if (query) {
-                prose = `The ${name} sneers dismissively at your words, taking another menacing step closer as the dagger flips between ${prPoss} fingers.`;
-                text = 'I do not care about your questions, stranger. Talk is cheap, but silver buys passage. Hand over your coin, now!';
+                prose = `The ${name} flips a notched dagger between ${prPoss} fingers with a cold sneer.`;
+                text = 'Save your breath, stranger—silver buys passage here, not questions!';
             } else {
-                // Progressive conversation turns
                 if (interactionTurn <= 1) {
                     let raceFlavor = '';
-                    if (pRace.includes('elf')) raceFlavor = 'Another haughty elf from the western woods... your silver spends just like a mortal\'s. ';
-                    else if (pRace.includes('dwarf')) raceFlavor = 'Heavy boots and deep pockets... gold weighs you down, dwarf. ';
-                    prose = `A ${name} steps out from the damp alley shadow, tossing a notched dagger hand-to-hand with practiced, deadly ease.`;
-                    text = raceFlavor + 'Heh... looking for trouble in the dark alleys, stranger? Your purse, now. Hand over the silver before things get messy.';
+                    if (pRace.includes('elf')) raceFlavor = 'Elven silver spends just fine. ';
+                    else if (pRace.includes('dwarf')) raceFlavor = 'Heavy pockets, dwarf. ';
+                    prose = `A ${name} steps from the alley shadow, tossing a notched dagger hand-to-hand.`;
+                    text = raceFlavor + 'Looking for trouble, stranger? Your purse, now—before things get messy.';
                 } else if (interactionTurn === 2) {
-                    prose = `${prCap} steps forward to block your path, blade leveled directly at your throat with a cruel smirk.`;
-                    text = 'Did you think I was making polite conversation? Cough up thirty gold coins, or I will see what you have in your boots once you are cold on the stones.';
+                    prose = `${prCap} blocks your path, leveling the blade at your throat with a smirk.`;
+                    text = 'Cough up thirty gold coins, or I\'ll check your boots once you\'re cold on the stones.';
                 } else {
-                    prose = `${prCap}'s eyes narrow and ${prPoss} fingers tighten around the leather-wrapped hilt.`;
-                    text = 'That is enough stalling. Your purse or your life—make your choice right now!';
+                    prose = `${prCap} narrows ${prPoss} eyes, thumb testing the dagger's point.`;
+                    text = ChronicleGrounder.pickNonRepeatingBark('rogue_ambient_turn3', [
+                        'Enough stalling—your purse or your life, right now!',
+                        'Last chance, traveler: drop the coinpurse or bleed on the cobbles!',
+                        'My blade is thirsty and the Watch is far away—pay up!',
+                        'Talk is done. Hand over the silver or draw your steel!'
+                    ], encounterSeed, { dryRun: isDryRun });
                 }
             }
         } else if (profile.category === 'orc') {
             if (rk === 'silq') {
-                prose = `The ${name} hefts a notched scimitar, yellow fangs bared in a cruel sneer beneath the black smoke of Thangorodrim.`;
+                prose = `The ${name} hefts a notched scimitar beneath the dark smoke of Thangorodrim.`;
                 text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_silq', [
-                    'Thralls of Morgoth, seize the elf-friend! Slay him upon the gate!',
-                    'You dare enter Angband unchained? Bauglir will break your spirit!',
-                    'The Iron Crown holds all! Flesh for the pits of Thangorodrim!',
-                    'Smell that? An unbranded trespasser! Boldog will feast on your marrow!'
+                    'Thralls of Morgoth, seize the trespasser at the gate!',
+                    'You dare enter Angband unchained? Bauglir will break you!',
+                    'The Iron Crown holds all! Flesh for Thangorodrim!',
+                    'An unbranded spy! Morgoth\'s pits await your bones!',
+                    'No light of Valinor reaches the vaults of Angband!',
+                    'By the Iron Crown, strip the intruder\'s mail!'
                 ], encounterSeed, { dryRun: isDryRun });
             } else if (rk === 'frogcomposband') {
-                prose = `The ${name} snarls with wild chaotic frenzy, eye twitching as he stalks across the multiversal dust.`;
+                prose = `The ${name} snarls with chaotic frenzy, stalking across the shadow dust.`;
                 text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_fcb', [
-                    'A traveler wandering off the Pattern road! Hack the shadow-walker down!',
-                    'The Courts of Chaos await fresh meat! Blood for the Logrus!',
-                    'No Trump card will save you out here in the wilderness!',
-                    'Look what crawled out of the Outpost! Strip his gold and boots!'
+                    'Strayed off the Pattern road? Hack the shadow-walker down!',
+                    'The Courts of Chaos hunger! Blood for the abyss!',
+                    'No Trump card will save you in this wilderness!',
+                    'Fresh meat from the Amber Outpost—strip those boots!',
+                    'Across the multiverse, only Chaos endures!',
+                    'Your shadow stops right here in the dust!'
                 ], encounterSeed, { dryRun: isDryRun });
             } else if (rk === 'hengband') {
-                prose = `The ${name} bares fangs beneath a jagged mempo mask, clutching a rusty naginata with demonic ferocity.`;
+                prose = `The ${name} glares through an iron war-mask, gripping a curved glaive.`;
                 if (effLang === 'jp') {
                     text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_heng_jp', [
                         '異境の侵入者め！戦国諸将の領地に土足で踏み入るとは！',
@@ -2524,44 +2612,56 @@ class ChronicleGrounder {
                     ], encounterSeed, { dryRun: isDryRun });
                 } else {
                     text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient_heng_en', [
-                        'Intruder! You step uninvited into the lands of the mountain lords!',
-                        'The shrine bells toll for your demise! Taste cold iron!',
-                        'Oni blood stirs in these veins! Draw your blade or die like a dog!',
-                        'No ronin or wanderer leaves this mountain alive!'
+                        'Intruder! You trespass upon the mountain lords\' domain!',
+                        'The shrine bells toll your doom—taste cold steel!',
+                        'Oni blood boils in my veins—draw your blade!',
+                        'No wandering ronin leaves this dark mountain alive!',
+                        'Yokai and iron await you in these halls!',
+                        'Test your steel against the fury of theoni clans!'
                     ], encounterSeed, { dryRun: isDryRun });
                 }
             } else {
-                prose = `The ${name} hefts a notched scimitar, yellow fangs bared in a wicked sneer as he stomps against the flagstones.`;
+                prose = `The ${name} hefts a jagged scimitar, yellow fangs bared in a sneer.`;
                 text = ChronicleGrounder.pickNonRepeatingBark('orc_ambient', [
-                    'What is this? A tender morsel walking straight into the jaws! Slay the surface scum!',
-                    'Your skull will make a fine cup for the captain\'s ale! Stand still and die!',
-                    'Sniff the air... soft-skin smells of fear and town bread! Get him!',
-                    'No one leaves the warrens alive! Hack the stranger down!'
+                    'Fresh meat walking straight into our jaws! Slay the surface scum!',
+                    'Your skull will make a fine mug for the captain\'s ale!',
+                    'Smells of fear and town bread—get the soft-skin!',
+                    'No one leaves the warrens alive! Hack the stranger down!',
+                    'Drop your steel and crawl, worm—the pits are hungry!',
+                    'Look boys, shiny mail and fat boots for the taking!',
+                    'The Deep Eye watches—spill the trespasser\'s blood!',
+                    'Back to the sun-world in pieces, pink-skin!'
                 ], encounterSeed, { dryRun: isDryRun });
             }
         } else if (profile.category === 'dragon') {
-            prose = `The ancient wyrm regards ${pName} with smoldering golden eyes, sulfurous smoke drifting lazily from slit nostrils.`;
+            prose = `Golden eyes smoldering, the wyrm exhales a lazy curl of sulfurous smoke.`;
             text = ChronicleGrounder.pickNonRepeatingBark('dragon_ambient', [
-                'Who dares disturb the ancient slumber of the Fire-Drake? Crawl before me, worm of clay, before I turn your bones to ash!',
-                'You bring your frail spark of life before the mountain fire? Kneel and burn, mortal!',
-                'Generations of heroes have melted beneath my breath. You will be no different.',
-                'The hoard beneath my talons was bought in blood. You shall add yours to the gold.'
+                'Who disturbs my slumber? Kneel before I turn your bones to ash!',
+                'You bring a frail spark before mountain fire? Burn, mortal!',
+                'Generations of heroes melted beneath my breath; you are next.',
+                'This hoard was bought in blood—yours will gild the scales.',
+                'Flee while your lungs still hold unburned air, little thief.',
+                'Your enchanted steel is mere kindling to an ancient wyrm.'
             ], encounterSeed, { dryRun: isDryRun });
         } else if (profile.category === 'high_undead') {
-            prose = `A sepulchral chill sweeps the chamber as the ${name} hovers in the gloom, ethereal robes fluttering without wind.`;
+            prose = `Frost rims the stone as the ${name} drifts closer on windless robes.`;
             text = ChronicleGrounder.pickNonRepeatingBark('undead_ambient', [
-                '...join us in the cold... surrender your warmth to the grave...',
-                '...the living have no dominion in these silent halls... sleep eternal...',
-                '...flesh withers, steel rusts... only the crypt endures...',
-                '...give your breath to the dust... surrender your light...'
+                '...surrender your fleeting warmth to the cold grave...',
+                '...the living hold no dominion in these silent halls...',
+                '...flesh withers and steel rusts; only the crypt endures...',
+                '...yield your breath to the dust and sleep forever...',
+                '...your heartbeat echoes too loudly in our quiet dark...',
+                '...centuries pass like dust; lay down your heavy blade...'
             ], encounterSeed, { dryRun: isDryRun });
         } else {
-            prose = `The ${name} stands poised in the gloom, watching your movements with wary calculation.`;
+            prose = `The ${name} stands poised in the gloom, watching your every step.`;
             text = ChronicleGrounder.pickNonRepeatingBark('general_ambient', [
-                'You dare step into the deeps? Turn back, or pave these stones with your bones.',
-                'Steel will decide our fate if you take one step closer.',
-                'The shadows watch you, stranger. Watch your back.',
-                'Draw no blade here unless you intend to use it.'
+                'Turn back now, or pave these dark stones with your bones.',
+                'One step closer and cold steel decides our fate.',
+                'The shadows watch you, stranger—guard your flank.',
+                'Draw no blade in this hall unless you mean to blood it.',
+                'Many enter these vaults; few ever see the sun again.',
+                'Walk softly, mortal—deeper horrors wake below.'
             ], encounterSeed, { dryRun: isDryRun });
         }
 
@@ -3679,22 +3779,24 @@ class ChronicleGrounder {
                 const bEnc = this.getNextEncounterIndex(`beg_${bMon}`);
                 title = `The Beggar's Plea`;
 
-                const begLines = [
-                    `"Alms, noble traveler! A copper bit for bread, I beg of you! May the stars guide your blade!"`,
-                    `"The frontier wind freezes my old bones, kind ${bPronouns.honorific}... spare a crust of bread for a wretched soul!"`,
-                    `"Just a penny to buy a bowl of warm broth at the tavern, traveler! May your shield never splinter!"`,
-                    `"A silver bit for old memories... I once bore steel into the pit too, before the shadows broke me!"`,
-                    `"Mercy, traveler! The night grows bitter and cold... spare a copper so I might rest beneath dry roof-timbers!"`,
-                    `"Blessings upon your journey, kind soul! But heed an old wretch: never step past dungeon stairs without three torches!"`
-                ];
-                const bText = begLines[(bEnc + (player ? player.turn || 0 : 0)) % begLines.length];
+                const bText = ChronicleGrounder.pickNonRepeatingBark('chap_beg_bark', [
+                    `Alms, traveler? One copper bit for bread!`,
+                    `The wind freezes my old bones, ${bPronouns.honorific}—spare a crust!`,
+                    `Just a penny for warm tavern broth, kind soul!`,
+                    `I once bore steel into the pit too, before the dark broke me.`,
+                    `Spare a copper so I might sleep beneath dry timbers tonight!`,
+                    `Bless your journey—never descend those iron steps without three torches!`,
+                    `A crust or a copper bit, traveler? Hunger gnaws sharper than frost.`,
+                    `May the High Powers guard your shield if you spare a coin!`
+                ], bEnc + (player ? player.turn || 0 : 0));
 
-                const begProse = [
-                    `A ${bMon} hobbles through the chill frontier wind, extending a trembling, grime-caked hand toward ${name}, eyes hollow with hunger.`,
-                    `Shivering beneath tattered wool in the alley shadows, the ${bMon} bows low before ${name}, pleading with a raspy whisper.`,
-                    `Cowering against the damp timber wall, the ${bMon} reaches out with calloused, dirt-stained fingers as ${name} passes.`
-                ];
-                prose = begProse[bEnc % begProse.length];
+                prose = ChronicleGrounder.pickNonRepeatingBark('chap_beg_prose', [
+                    `A ${bMon} hobbles forward, extending a trembling, grime-caked hand toward ${name}.`,
+                    `Shivering in tattered wool, the ${bMon} bows low and pleads in a dry whisper.`,
+                    `Huddled by the damp timber wall, the ${bMon} reaches out with hollow eyes.`,
+                    `Rattling a dented tin bowl, the ${bMon} steps into ${name}'s lantern light.`,
+                    `Leaning on a knotted staff, the ${bMon} murmurs a plea from the cold cobbles.`
+                ], bEnc);
                 dialogue = {
                     speaker: bMon,
                     text: bText.replace(/"/g, ''),
@@ -3712,22 +3814,24 @@ class ChronicleGrounder {
                 const iEnc = this.getNextEncounterIndex(`insult_${iMon}`);
                 title = `Derision in the Street`;
 
-                const insultLines = [
-                    `"Look at the bold adventurer! The first cave orc you meet will feed your ears to the hounds!"`,
-                    `"Think that shiny steel makes you a hero, greenhorn? The pit will use your ribs for kindling!"`,
-                    `"Keep your hand on your hilt, pup. Around here, hesitating for two breaths gets your throat opened!"`,
-                    `"Swaggering through the streets with that toy blade? The deep levels do not forgive foolish pride!"`,
-                    `"Turn back to the tavern while you still have both eyes, runt! You haven't got the stomach for the dark!"`,
-                    `"Hah! Another doomed soul marching toward a shallow pit. Place your bets on how long this one lasts!"`
-                ];
-                const iText = insultLines[(iEnc + (player ? player.turn || 0 : 0)) % insultLines.length];
+                const iText = ChronicleGrounder.pickNonRepeatingBark('chap_insult_bark', [
+                    `The first cave orc you meet will feed your ears to the hounds!`,
+                    `Think that shiny blade makes you a hero, greenhorn?`,
+                    `Keep a hand on your hilt, pup—hesitate down there and you're dead!`,
+                    `Swaggering with that toy weapon? The deep levels chew up fools!`,
+                    `Head back to the tavern, runt—you haven't the stomach for the dark!`,
+                    `Place your bets, boys—another fresh delver marching to a shallow grave!`,
+                    `Polished boots and untested mail! The rats below will feast tonight!`,
+                    `Mind where you step, rookie, or leave your purse at the stairs!`
+                ], iEnc + (player ? player.turn || 0 : 0));
 
-                const insultProse = [
-                    `The ${iPronouns.veteranTitle} spits insolently upon the flagstones, sneering with open mockery as ${name} passes. ${iPronouns.he.toUpperCase()} rests a calloused hand upon ${iPronouns.his} scarred pommel.`,
-                    `Leaning against the tavern wall with cold, appraising eyes, the ${iPronouns.veteranTitle} smirks at ${name}'s equipment with seasoned contempt.`,
-                    `Blocking the alley path with brawny confidence, the ${iPronouns.soldier} looks ${name} up and down before laughing in harsh derision.`
-                ];
-                prose = insultProse[iEnc % insultProse.length];
+                prose = ChronicleGrounder.pickNonRepeatingBark('chap_insult_prose', [
+                    `The ${iPronouns.veteranTitle} spits on the flagstones, resting a hand on ${iPronouns.his} pommel.`,
+                    `Leaning against the tavern wall, the ${iPronouns.veteranTitle} eyes ${name}'s gear with a smirk.`,
+                    `Blocking the lane, the ${iPronouns.soldier} laughs in harsh, seasoned derision.`,
+                    `Thumb hooked in ${iPronouns.his} belt, the ${iPronouns.veteranTitle} sizes ${name} up with open scorn.`,
+                    `Sharpening a notched dagger, the ${iPronouns.soldier} jeers as ${name} strides past.`
+                ], iEnc);
                 dialogue = {
                     speaker: iMon,
                     text: iText.replace(/"/g, ''),
@@ -3745,17 +3849,18 @@ class ChronicleGrounder {
                 const tEnc = this.getNextEncounterIndex(`theft_${tMon}`);
                 title = `Theft in the Shadow`;
 
-                const theftLines = [
-                    `"A fair toll for passing through my alleys, fool! Keep your boots, I will take the silver!"`,
-                    `"Your purse was hanging far too loose, traveler! Consider it an expensive lesson in street vigilance!"`,
-                    `"Heh... faster hands make for richer pockets! Better luck keeping your coin next time!"`,
-                    `"A little guild donation! Don't look so sour, you weren't using that silver anyway!"`,
-                    `"Thanks for the coins, stranger! I'll drink a hearty flagon of ale in your name tonight!"`,
-                    `"Light on your feet, but careless with your belt! Catch me if you can, slowpoke!"`
-                ];
-                const tText = theftLines[(tEnc + (player ? player.turn || 0 : 0)) % theftLines.length];
+                const tText = ChronicleGrounder.pickNonRepeatingBark('chap_theft_bark', [
+                    `A fair toll for my alley, fool—I'll take that silver!`,
+                    `Your purse hung far too loose, traveler!`,
+                    `Faster hands make richer pockets—catch me if you can!`,
+                    `A little guild donation! You weren't spending it anyway!`,
+                    `Thanks for the coin—I'll drink an ale to your health tonight!`,
+                    `Mind your belt next time, slowpoke!`,
+                    `Too easy! Keep your eyes on your pouch in this town!`,
+                    `Silver weighs a delver down—I'm doing you a favor!`
+                ], tEnc + (player ? player.turn || 0 : 0));
 
-                prose = `With lightning stealth, the ${tPronouns.person} slices through the purse-strings at ${name}'s belt, darting into the misty shadows with clinking stolen coin!`;
+                prose = `With a quick flick of steel, the ${tPronouns.person} cuts ${name}'s purse-strings and darts into the mist!`;
                 dialogue = {
                     speaker: tMon,
                     text: tText.replace(/"/g, ''),
@@ -4936,36 +5041,49 @@ class ChronicleGrounder {
                 title = 'Echoes in the Deep';
                 const turnSeed = Math.abs((player ? player.turn || 0 : 0) + (depth * 23) + (name ? name.length * 11 : 0));
                 if (depth === 0) {
-                    const townPassages = [
-                        `The chill frontier wind sweeps down from the mountains, whistling past weather-beaten timber storefronts as ${name} walks with a hand resting upon ${weapon}.`,
-                        `Peat smoke and the rich scent of roasting meats drift from tavern eaves into the cobblestone square, offering brief warmth before the looming abyss.`,
-                        `The rhythmic clanging of the armorer's anvil rings out across the town as ${name} patrols the settlement under a gray, watchful sky.`,
-                        `Passing through the quiet town lanes, ${name} gathers wits and readies supplies, casting a wary glance toward the dark cellar-grates leading into the pit.`
-                    ];
-                    prose = townPassages[turnSeed % townPassages.length];
+                    prose = ChronicleGrounder.pickNonRepeatingBark('exp_town', [
+                        `Chill mountain wind whistles past timber eaves as ${name} strides the square, hand near ${weapon}.`,
+                        `Peat smoke and roasting boar drift from the tavern across the cold cobblestones.`,
+                        `The armorer's hammer rings out across town as ${name} patrols beneath a gray sky.`,
+                        `Walking the frontier lanes, ${name} casts a wary glance toward the dark cellar-grates.`,
+                        `Lanterns sway outside the General Store as ${name} checks pack straps and supplies.`,
+                        `Frost rims the town well-stones while ${name} readies gear for the descent below.`,
+                        `Seasoned mercenaries nod from the inn porch as ${name} crosses the market square.`,
+                        `A cold draft rises from the iron stair archway, carrying the scent of deep stone.`
+                    ], turnSeed);
                 } else if (depth <= 5) {
-                    const upperPassages = [
-                        `Treading cautiously past cracked pillars at ${depthFt}, ${name} scouts the perimeter of the damp vault, eyes searching the shadows for lurking ambushes and hidden treasures.`,
-                        `Torchlight flickers against rough-hewn granite walls at ${depthFt}, throwing long, dancing shadows across cracked flagstones and ancient goblin graffiti.`,
-                        `Water drips with hollow, echoing rhythm from unseen ceiling fissures at ${depthFt} as ${name} advances, testing every stone for treacherous pit-traps.`,
-                        `A chill subterranean draft carries the dry smell of dust and the faint musk of lurking beasts through the corridors at ${depthFt}.`
-                    ];
-                    prose = upperPassages[turnSeed % upperPassages.length];
+                    prose = ChronicleGrounder.pickNonRepeatingBark('exp_upper', [
+                        `Past cracked pillars at ${depthFt}, ${name} scouts the damp vault for ambushes.`,
+                        `Torchlight flickers across rough granite and goblin scratchings at ${depthFt}.`,
+                        `Water drips from unseen fissures at ${depthFt} as ${name} tests the flagstones for traps.`,
+                        `A chill draft carries old dust and beast-musk through the halls at ${depthFt}.`,
+                        `Bootsteps echo softly down a narrow stone corridor at ${depthFt}.`,
+                        `Rusted iron sconces line the damp passage at ${depthFt}, long stripped of torches.`,
+                        `Crushed bone and splintered shields litter a forgotten junction at ${depthFt}.`,
+                        `Shadows stretch long across the cold masonry as ${name} advances at ${depthFt}.`
+                    ], turnSeed);
                 } else if (depth <= 15) {
-                    const midPassages = [
-                        `Ancient dwarven masonry lines the subterranean corridors at ${depthFt}, its proud geometric runes long blackened by soot and chipped by crude orc-picks.`,
-                        `At ${depthFt}, massive colonnades of dark basalt rise into gloom, their vaulted arches swallowed by an oppressive darkness that torchlight barely pierces.`,
-                        `The air at ${depthFt} grows heavy with the metallic tang of subterranean iron; far in the distance, faint vibrations hum through the bedrock like restless machinery.`,
-                        `Navigating the labyrinthine stone vaults at ${depthFt}, ${name} keeps close to the wall, listening intently for the hiss of serpents or the scrape of steel.`
-                    ];
-                    prose = midPassages[turnSeed % midPassages.length];
+                    prose = ChronicleGrounder.pickNonRepeatingBark('exp_mid', [
+                        `Soot-blackened dwarven runes line the carved halls at ${depthFt}.`,
+                        `At ${depthFt}, dark basalt columns rise into oppressive, unbroken gloom.`,
+                        `The air at ${depthFt} tastes of cold iron as distant tremors hum through the rock.`,
+                        `Hugging the stone wall at ${depthFt}, ${name} listens for the scrape of steel.`,
+                        `Frost and damp moss cling to ancient vault doors at ${depthFt}.`,
+                        `A draft from deeper chasms sets ${name}'s light wavering at ${depthFt}.`,
+                        `Chipped statues of forgotten kings stare blindly across the hall at ${depthFt}.`,
+                        `Every archway at ${depthFt} breathes the cold silence of deep earth.`
+                    ], turnSeed);
                 } else {
-                    const deepPassages = [
-                        `The immense weight of the earth presses down at ${depthFt}; subterranean heat radiates from cracks in the basalt, smelling of brimstone and primeval malice.`,
-                        `In the suffocating gloom of ${depthFt}, every nerve screams vigilance—the deep pits of Angband breathe with ancient evil that chills the stoutest heart.`,
-                        `At ${depthFt}, shadows seem alive and predatory, coiling just beyond the flickering ring of light as ${name} treads deeper into the Enemy's dark domain.`
-                    ];
-                    prose = deepPassages[turnSeed % deepPassages.length];
+                    prose = ChronicleGrounder.pickNonRepeatingBark('exp_deep', [
+                        `Immense subterranean heat and brimstone rise through cracked basalt at ${depthFt}.`,
+                        `In the crushing gloom of ${depthFt}, ancient malice presses against the light.`,
+                        `Predatory shadows coil just beyond the torch-ring at ${depthFt}.`,
+                        `The black stone at ${depthFt} thrums with the heartbeat of the Iron Hell.`,
+                        `Sulfurous vapor curls along the vault floor at ${depthFt} as ${name} presses on.`,
+                        `Even the silence at ${depthFt} feels watchful, heavy with primeval dread.`,
+                        `Scars of ancient dragon-fire blacken the Cyclopean walls at ${depthFt}.`,
+                        `At ${depthFt}, only cold resolve keeps ${name}'s stride steady in the abyss.`
+                    ], turnSeed);
                 }
                 break;
             }
@@ -4988,29 +5106,36 @@ class ChronicleGrounder {
 
                 if (isDescent) {
                     if (traditionKey === 'khazad') {
-                        const khazadDescent = [
-                            `Down the stone stairwell ${name} treads into ${d * 50} feet. The bedrock rings beneath stout boots—ancient granite hewn by crude goblin picks and ancient slave-gangs of the Iron Hell.`,
-                            `Descending into ${d * 50} feet of rock, ${name} appraises the ancient stone-strata; the mountain roots run deep here, bearing scars of primeval fires.`,
-                            `The iron-bound steps lead down into the deep halls of ${d * 50} feet. ${name} adjusts weapon and shield, ready to claim vengeance for fallen ancestors.`
-                        ];
-                        prose = khazadDescent[turnSeed % khazadDescent.length];
+                        prose = ChronicleGrounder.pickNonRepeatingBark('floor_khazad', [
+                            `Down the stone stair ${name} treads to ${d * 50} feet, where ancient granite rings under stout boots.`,
+                            `At ${d * 50} feet, ${name} reads the deep mountain strata scarred by primeval fire.`,
+                            `Iron-bound steps lead down to ${d * 50} feet; ${name} readies shield and steel.`,
+                            `The air grows heavier at ${d * 50} feet, smelling of deep ore and goblin soot.`,
+                            `Stepping off the stair at ${d * 50} feet, ${name} murmurs a grim Khuzdul ward.`
+                        ], turnSeed);
                     } else if (traditionKey === 'noldor') {
-                        const noldorDescent = [
-                            `Down the damp stone stairwell ${name} treads deeper into the black earth at ${d * 50} feet. The masonry grows older here, hewn by crude goblin picks and ancient slave-gangs of the Iron Hell.`,
-                            `Stepping past the threshold onto the stair at ${d * 50} feet, the darkness thickens like black velvet as ${name} descends deeper into the Enemy's subterranean kingdom.`,
-                            `The memory of starlight fades behind as ${name} descends into ${d * 50} feet, hand firm upon the hilt of ${weapon} amidst the creeping gloom.`
-                        ];
-                        prose = noldorDescent[turnSeed % noldorDescent.length];
+                        prose = ChronicleGrounder.pickNonRepeatingBark('floor_noldor', [
+                            `Down the damp stairwell ${name} descends to ${d * 50} feet, into masonry hewn by thralls.`,
+                            `Darkness thickens like black velvet as ${name} steps into ${d * 50} feet.`,
+                            `Starlight fades to memory at ${d * 50} feet, ${name}'s hand firm upon ${weapon}.`,
+                            `A cold sigh rises from the vaults of ${d * 50} feet as ${name} crosses the threshold.`,
+                            `At ${d * 50} feet, the shadow of the Iron Crown weighs heavier upon the stone.`
+                        ], turnSeed);
                     } else {
-                        const westmarchDescent = [
-                            `Down the damp stone stairwell ${name} treads deeper into the black earth. The masonry grows older here at ${d * 50} feet, hewn by crude goblin picks and ancient slave-gangs of the Iron Hell.`,
-                            `The iron stairs groan behind as ${name} descends to ${d * 50} feet. The air chills noticeably, carrying the dry rattle of old bones and the metallic tang of subterranean iron.`,
-                            `Descending through broken vaults to ${d * 50} feet, the ancient stone gives way to primeval basalt, the immense weight of the earth humming in the silence.`
-                        ];
-                        prose = westmarchDescent[turnSeed % westmarchDescent.length];
+                        prose = ChronicleGrounder.pickNonRepeatingBark('floor_westmarch', [
+                            `Down the worn stone stair ${name} descends to ${d * 50} feet, into older, darker masonry.`,
+                            `The iron steps groan behind as ${name} reaches ${d * 50} feet, where cold iron scents the air.`,
+                            `Through broken vaults at ${d * 50} feet, rough stone gives way to primeval basalt.`,
+                            `At ${d * 50} feet, the torch flame shrinks against the pressing subterranean cold.`,
+                            `Stepping from the stairwell at ${d * 50} feet, ${name} listens to the deep silence.`
+                        ], turnSeed);
                     }
                 } else {
-                    prose = `Climbing the worn stone stairs toward ${d === 0 ? 'the surface' : `${d * 50} feet`}, ${name} feels the oppressive subterranean pressure ease, ascending toward lighter air.`;
+                    prose = ChronicleGrounder.pickNonRepeatingBark('floor_ascent', [
+                        `Climbing the worn stairs to ${d === 0 ? 'the surface' : `${d * 50} feet`}, ${name} breathes lighter air.`,
+                        `Up the stone steps toward ${d === 0 ? 'town' : `${d * 50} feet`}, the crushing weight of the deep eases.`,
+                        `Ascending to ${d === 0 ? 'the frontier sky' : `${d * 50} feet`}, ${name} leaves the deeper shadows behind.`
+                    ], turnSeed);
                 }
                 break;
             }

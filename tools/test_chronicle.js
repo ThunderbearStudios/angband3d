@@ -547,8 +547,8 @@ async function runTest() {
     const witchVoice = ChronicleGrounder.pickCreatureVoice({ name: 'Novice Witch', id: 101 }, 'spellcaster');
     const veteranVoice = ChronicleGrounder.pickCreatureVoice({ name: 'Veteran swordsman', id: 202 }, 'veteran');
     const idiotVoice = ChronicleGrounder.pickCreatureVoice({ name: 'Blubbering idiot', id: 303 }, 'idiot');
-    const femalePool = ['Maisie', 'Emily', 'Jenny', 'Aria', 'Sonia', 'Clara', 'Libby', 'Natasha'];
-    const malePool = ['Brian', 'Eric', 'Christopher', 'Roger', 'Guy', 'Connor', 'Thomas', 'William', 'Liam'];
+    const femalePool = ['Maisie', 'Emily', 'Jenny', 'Aria', 'Sonia', 'Clara', 'Libby', 'Natasha', 'Despina', 'Aoede', 'Kore', 'Leda', 'Sadaltager'];
+    const malePool = ['Brian', 'Eric', 'Christopher', 'Roger', 'Guy', 'Connor', 'Thomas', 'William', 'Liam', 'Orus', 'Algenib', 'Gacrux', 'Sulafat', 'Puck', 'Zephyr', 'Charon', 'Fenrir'];
 
     if (!witchVoice || !femalePool.some(v => witchVoice.includes(v))) {
         throw new Error(`Unexpected witch voice (expected female pool): ${witchVoice}`);
@@ -621,7 +621,7 @@ async function runTest() {
         throw new Error(`Expected female gender for 'Female veteran', got: ${femaleVeteranGender}`);
     }
     const femaleVeteranVoice = ChronicleGrounder.pickCreatureVoice({ name: femaleVeteranName, id: 105 }, 'veteran');
-    if (!femaleVeteranVoice || (!femaleVeteranVoice.includes('Natasha') && !femaleVeteranVoice.includes('Aria') && !femaleVeteranVoice.includes('Sonia'))) {
+    if (!femaleVeteranVoice || !femalePool.some(v => femaleVeteranVoice.includes(v))) {
         throw new Error(`Expected female neural voice for female veteran, got: ${femaleVeteranVoice}`);
     }
 
@@ -632,7 +632,7 @@ async function runTest() {
         throw new Error(`Expected modelKey: casual to drive female gender detection, got: ${casualModelGender}`);
     }
     const casualModelVoice = ChronicleGrounder.pickCreatureVoice(veteranCasualModel, 'veteran');
-    if (!casualModelVoice.includes('Natasha') && !casualModelVoice.includes('Aria') && !casualModelVoice.includes('Sonia')) {
+    if (!femalePool.some(v => casualModelVoice.includes(v))) {
         throw new Error(`Expected female neural voice for casual model veteran, got: ${casualModelVoice}`);
     }
     const veteranPronouns = ChronicleGrounder.getPronouns('female');
@@ -3103,7 +3103,133 @@ async function runTest() {
 
     context.document.createElement = origCreateElement;
 
-    console.log('\n[Chronicle Test] ✅ ALL 36 VERIFICATION PHASES PASSED WITH ZERO ERRORS!\n');
+    // --- Phase 37: Non-Modal 3D Entity Popover, Zero Focus Steal, Gameplay Preemption & Dialogue Brevity ---
+    console.log('\n--- Phase 37: Non-Modal 3D Entity Popover, Zero Focus Steal, Gameplay Preemption & Dialogue Brevity ---');
+    const makeMockClassList = (initialHidden = true) => {
+        const set = new Set(initialHidden ? ['hidden'] : []);
+        return {
+            add: (...cls) => cls.forEach(c => set.add(c)),
+            remove: (...cls) => cls.forEach(c => set.delete(c)),
+            toggle: (c, force) => {
+                if (force === true) set.add(c);
+                else if (force === false) set.delete(c);
+                else if (set.has(c)) set.delete(c);
+                else set.add(c);
+            },
+            contains: (c) => set.has(c)
+        };
+    };
+
+    let focusStealCount = 0;
+    let blurCount = 0;
+    const mockInputEl = {
+        value: '',
+        placeholder: '',
+        focus: () => { focusStealCount++; },
+        blur: () => { blurCount++; }
+    };
+    const mockPopoverEl = {
+        classList: makeMockClassList(true),
+        style: {},
+        getBoundingClientRect: () => ({ width: 320, height: 180 })
+    };
+    const mockWindowEl = {
+        classList: makeMockClassList(true),
+        style: {}
+    };
+    const mockBannerEl = {
+        classList: makeMockClassList(true),
+        style: {}
+    };
+
+    testP36Mgr.inspectPopover = mockPopoverEl;
+    testP36Mgr.inspectBadge = { textContent: '' };
+    testP36Mgr.inspectName = { textContent: '' };
+    testP36Mgr.inspectPill = { textContent: '', className: '' };
+    testP36Mgr.inspectHpWrap = { style: {}, classList: makeMockClassList(true) };
+    testP36Mgr.inspectHpFill = { style: {} };
+    testP36Mgr.inspectHpText = { textContent: '' };
+    testP36Mgr.inspectProse = { textContent: '' };
+    testP36Mgr.inspectQuote = { textContent: '', classList: makeMockClassList(true) };
+    testP36Mgr.inspectTactics = { textContent: '', classList: makeMockClassList(true) };
+    testP36Mgr.inspectChatBtn = { textContent: '' };
+    testP36Mgr.inspectVoiceBtn = { textContent: '' };
+    testP36Mgr.windowEl = mockWindowEl;
+    testP36Mgr.inputQuery = mockInputEl;
+    testP36Mgr.targetBanner = mockBannerEl;
+    testP36Mgr.visible = false;
+
+    // 37a. Clicking creature in 3D with { mode: 'popover' } opens popover without opening Tome or stealing focus
+    const inspectVeteran = { id: 901, name: 'Battle-scarred veteran', glyph: 'p', hp: 32, hp_max: 40, x: 12, y: 8 };
+    await testP36Mgr.interactWithCreature(inspectVeteran, { mode: 'popover', clientX: 400, clientY: 300 });
+    if (mockPopoverEl.classList.contains('hidden')) {
+        throw new Error('Expected #entity-inspect-popover to become visible on popover creature click');
+    }
+    if (testP36Mgr.visible || mockWindowEl.classList.contains('active')) {
+        throw new Error('Expected Tome (#chronicle-window) to remain closed on 3D popover click');
+    }
+    if (focusStealCount !== 0) {
+        throw new Error(`Expected zero focus steals on 3D creature click, got ${focusStealCount}`);
+    }
+    console.log('  ✓ 3D creature click opens non-modal popover with zero focus steal and Tome kept closed.');
+
+    // 37b. Clicking floor item in 3D with { mode: 'popover' } opens popover without stealing focus
+    const inspectPotion = { name: 'Potion of Cure Critical Wounds', glyph: '!' };
+    await testP36Mgr.inspectObject(inspectPotion, { mode: 'popover', clientX: 420, clientY: 320 });
+    if (mockPopoverEl.classList.contains('hidden')) {
+        throw new Error('Expected #entity-inspect-popover to remain visible on popover object click');
+    }
+    if (focusStealCount !== 0) {
+        throw new Error(`Expected zero focus steals on 3D object click, got ${focusStealCount}`);
+    }
+    console.log('  ✓ 3D floor item click opens non-modal popover with zero focus steal.');
+
+    // 37c. Gameplay preemption immediately dismisses popover, blurs input, clears targets, and stops interactive voice
+    context.document.activeElement = mockInputEl;
+    testP36Mgr.targetedCreature = inspectVeteran;
+    testP36Mgr._isInteractiveVoiceActive = true;
+    testP36Mgr._openedTransiently = true;
+    testP36Mgr.visible = true;
+    mockWindowEl.classList.add('active');
+    let audioStopped = false;
+    const origStopSpeaking = testP36Mgr.audio.stopSpeaking.bind(testP36Mgr.audio);
+    testP36Mgr.audio.stopSpeaking = () => { audioStopped = true; origStopSpeaking(); };
+
+    testP36Mgr.preemptForGameplay('world_key');
+    if (!mockPopoverEl.classList.contains('hidden')) {
+        throw new Error('Expected preemptForGameplay to immediately hide #entity-inspect-popover');
+    }
+    if (blurCount === 0) {
+        throw new Error('Expected preemptForGameplay to blur #chronicle-query-input when focused');
+    }
+    if (testP36Mgr.targetedCreature !== null || testP36Mgr.targetedObject !== null) {
+        throw new Error('Expected preemptForGameplay to clear active conversation targets');
+    }
+    if (testP36Mgr.visible || mockWindowEl.classList.contains('active')) {
+        throw new Error('Expected preemptForGameplay to close transiently opened Tome window');
+    }
+    if (!audioStopped) {
+        throw new Error('Expected preemptForGameplay to halt active interactive voice playback');
+    }
+    console.log('  ✓ Gameplay preemption verified: popover dismissed, input blurred, Tome closed, and interactive voice halted.');
+
+    // 37d. Multi-turn dialogue brevity and non-repetition across 8 consecutive turns
+    const seenVetBarks = new Set();
+    for (let t = 1; t <= 8; t++) {
+        const res = ChronicleGrounder.resolveCreatureEncounter(inspectVeteran, hero1, [], t, '');
+        if (!res.text) throw new Error(`Expected spoken bark on turn ${t}`);
+        const wordCount = res.text.trim().split(/\s+/).length;
+        if (wordCount > 20) {
+            throw new Error(`Expected concise spoken bark (<= 20 words), got ${wordCount} words: "${res.text}"`);
+        }
+        seenVetBarks.add(res.text);
+    }
+    if (seenVetBarks.size < 8) {
+        throw new Error(`Expected 8 unique non-repeating barks across 8 consecutive turns, got ${seenVetBarks.size}`);
+    }
+    console.log(`  ✓ Dialogue brevity (<= 20 words) and 100% non-repetition across 8 consecutive turns verified.`);
+
+    console.log('\n[Chronicle Test] ✅ ALL 37 VERIFICATION PHASES PASSED WITH ZERO ERRORS!\n');
     }
 }
 

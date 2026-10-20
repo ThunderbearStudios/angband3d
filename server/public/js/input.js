@@ -554,11 +554,32 @@ class InputController {
                 : 'game';
 
             // If typing in a text input or textarea (e.g. character name entry), don't intercept typing
+            // Exception: In #chronicle-query-input, Escape or movement/navigation keys take gameplay precedence!
             if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
                 if (e.key === 'Escape') {
                     e.target.blur();
+                    if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
+                        window.chronicleManager.preemptForGameplay('escape');
+                    }
+                    return;
                 }
-                return;
+                if (e.target.id === 'chronicle-query-input') {
+                    const isNavMoveKey = e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
+                        e.key === 'PageUp' || e.key === 'PageDown' || e.key === 'Home' || e.key === 'End' ||
+                        (e.code && e.code.startsWith('Numpad')) ||
+                        (!e.target.value && (e.key === 'ArrowLeft' || e.key === 'ArrowRight'));
+                    if (isNavMoveKey) {
+                        e.target.blur();
+                        if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
+                            window.chronicleManager.preemptForGameplay('movement_key');
+                        }
+                        // Fall through so gameplay movement executes immediately!
+                    } else {
+                        return;
+                    }
+                } else {
+                    return;
+                }
             }
 
             // Global Sound Mute Toggle (Ctrl+M or Cmd+M) available at any game state or menu
@@ -1156,6 +1177,17 @@ class InputController {
                 e.preventDefault();
                 if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
 
+                // If entity inspection popover is open, Escape dismisses it first without opening Pause Menu
+                const inspectPopover = document.getElementById('entity-inspect-popover');
+                if (inspectPopover && !inspectPopover.classList.contains('hidden')) {
+                    if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
+                        window.chronicleManager.preemptForGameplay('escape');
+                    } else {
+                        inspectPopover.classList.add('hidden');
+                    }
+                    return;
+                }
+
                 if (window.__app && window.__app.cancelQuickBirth) {
                     window.__app.cancelQuickBirth();
                 }
@@ -1399,6 +1431,11 @@ class InputController {
     handleWorldKey(e) {
         // Alt key combos are UI/application shortcuts (e.g. Alt+C toggle chronicle, Alt+P play/pause, Alt+[, Alt+]); ignore in world
         if (e.altKey) return;
+
+        // Gameplay takes absolute precedence over entity inspection popovers and interactive Tome conversation
+        if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
+            window.chronicleManager.preemptForGameplay('world_key');
+        }
 
         // Minimap controls: Screen size ([ / ]) and Grid scale zoom (+ / -)
         if (e.key === '[') {
@@ -3026,6 +3063,12 @@ class InputController {
             lastX = clientX;
             lastY = clientY;
 
+            if (Math.hypot(clientX - startX, clientY - startY) > 8) {
+                if (window.chronicleManager && typeof window.chronicleManager.dismissEntityPopover === 'function') {
+                    window.chronicleManager.dismissEntityPopover();
+                }
+            }
+
             if (this.dungeon && typeof this.dungeon.rotateFreelook === 'function') {
                 // Smooth 360-degree rotation horizontally (always normal) and clamped vertical pitch (Y-axis invert toggle)
                 const deltaYaw = -1 * dx * 0.0055;
@@ -3048,6 +3091,9 @@ class InputController {
 
             // Fast horizontal swipe completed within 450ms (always normal turn direction)
             if (elapsed < 450 && Math.abs(totalDx) > 40 && Math.abs(totalDx) > Math.abs(totalDy) * 1.5) {
+                if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
+                    window.chronicleManager.preemptForGameplay('swipe_turn');
+                }
                 if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
                     window.DeviceProfile.triggerHaptic('light');
                 }
@@ -3056,16 +3102,20 @@ class InputController {
                     this.dungeon.turn(turnDir);
                 }
             } else if (elapsed < 380 && Math.abs(totalDx) < 18 && Math.abs(totalDy) < 18) {
-                // Single Click / Tap in 3D: Raycast against creatures for voice interaction or items for afar inspection
+                // Single Click / Tap in 3D: Open non-modal entity inspection popover without stealing focus
                 if (this.dungeon && typeof this.dungeon.getMonsterAtScreenCoords === 'function') {
                     const monster = this.dungeon.getMonsterAtScreenCoords(finalX, finalY);
                     if (monster && window.chronicleManager) {
-                        window.chronicleManager.interactWithCreature(monster);
+                        window.chronicleManager.interactWithCreature(monster, { mode: 'popover', clientX: finalX, clientY: finalY });
                     } else if (typeof this.dungeon.getItemAtScreenCoords === 'function') {
                         const item = this.dungeon.getItemAtScreenCoords(finalX, finalY);
                         if (item && window.chronicleManager && typeof window.chronicleManager.inspectObject === 'function') {
-                            window.chronicleManager.inspectObject(item);
+                            window.chronicleManager.inspectObject(item, { mode: 'popover', clientX: finalX, clientY: finalY });
+                        } else if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
+                            window.chronicleManager.preemptForGameplay('canvas_click');
                         }
+                    } else if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
+                        window.chronicleManager.preemptForGameplay('canvas_click');
                     }
                 }
             }

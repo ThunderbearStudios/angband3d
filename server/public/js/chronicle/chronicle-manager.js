@@ -111,6 +111,22 @@ class ChronicleManager {
         this.targetPill = null;
         this.targetLabel = null;
         this.btnClearTarget = null;
+        this.inspectPopover = null;
+        this.inspectBadge = null;
+        this.inspectName = null;
+        this.inspectPill = null;
+        this.inspectCloseBtn = null;
+        this.inspectHpWrap = null;
+        this.inspectHpFill = null;
+        this.inspectHpText = null;
+        this.inspectProse = null;
+        this.inspectQuote = null;
+        this.inspectTactics = null;
+        this.inspectChatBtn = null;
+        this.inspectVoiceBtn = null;
+        this.inspectedEntity = null;
+        this._openedTransiently = false;
+        this._isInteractiveVoiceActive = false;
 
         // Footer Actions
         this.btnExportJson = null;
@@ -249,6 +265,21 @@ class ChronicleManager {
         this.targetPill = document.getElementById('chronicle-target-pill');
         this.targetLabel = document.getElementById('chronicle-target-label');
         this.btnClearTarget = document.getElementById('btn-chronicle-clear-target');
+
+        // Cache Non-Modal 3D Entity Inspection Popover
+        this.inspectPopover = document.getElementById('entity-inspect-popover');
+        this.inspectBadge = document.getElementById('inspect-popover-badge');
+        this.inspectName = document.getElementById('inspect-popover-name');
+        this.inspectPill = document.getElementById('inspect-popover-pill');
+        this.inspectCloseBtn = document.getElementById('inspect-popover-close');
+        this.inspectHpWrap = document.getElementById('inspect-popover-hp-wrap');
+        this.inspectHpFill = document.getElementById('inspect-popover-hp-fill');
+        this.inspectHpText = document.getElementById('inspect-popover-hp-text');
+        this.inspectProse = document.getElementById('inspect-popover-prose');
+        this.inspectQuote = document.getElementById('inspect-popover-quote');
+        this.inspectTactics = document.getElementById('inspect-popover-tactics');
+        this.inspectChatBtn = document.getElementById('inspect-popover-chat-btn');
+        this.inspectVoiceBtn = document.getElementById('inspect-popover-voice-btn');
 
         // Cache Footer Buttons
         this.btnExportJson = document.getElementById('btn-chronicle-export-json');
@@ -798,6 +829,38 @@ class ChronicleManager {
             });
         }
 
+        // Non-Modal 3D Entity Inspection Popover Close & Light-Dismiss
+        if (this.inspectCloseBtn) {
+            this.inspectCloseBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.dismissEntityPopover();
+            });
+        }
+        if (typeof document !== 'undefined') {
+            document.addEventListener('pointerdown', (e) => {
+                const target = e.target;
+                if (this.inspectPopover && !this.inspectPopover.classList.contains('hidden')) {
+                    if (!this.inspectPopover.contains(target)) {
+                        this.dismissEntityPopover();
+                    }
+                }
+                if (this.windowEl && this.visible && !this.windowEl.contains(target)) {
+                    const isChronicleToggle = (this.navBtn && this.navBtn.contains(target)) ||
+                        (this.pauseNavBtn && this.pauseNavBtn.contains(target)) ||
+                        (this.inspectPopover && this.inspectPopover.contains(target));
+                    if (!isChronicleToggle) {
+                        if (this.inputQuery && document.activeElement === this.inputQuery) {
+                            try { this.inputQuery.blur(); } catch (_) {}
+                        }
+                        if (this._openedTransiently) {
+                            this.preemptForGameplay('outside_click');
+                        }
+                    }
+                }
+            }, { passive: true });
+        }
+
         // Export Actions
         if (this.btnExportJson) {
             this.btnExportJson.addEventListener('click', () => this.exportChronicle('json'));
@@ -890,6 +953,10 @@ class ChronicleManager {
     }
 
     hideWindow() {
+        this._openedTransiently = false;
+        if (this.inputQuery && typeof document !== 'undefined' && document.activeElement === this.inputQuery) {
+            try { this.inputQuery.blur(); } catch (_) {}
+        }
         if (this.windowEl) {
             this.windowEl.classList.remove('active');
             this.visible = false;
@@ -899,6 +966,7 @@ class ChronicleManager {
     }
 
     toggleWindow() {
+        this._openedTransiently = false;
         if (this.visible) this.hideWindow();
         else this.showWindow();
     }
@@ -1339,6 +1407,7 @@ class ChronicleManager {
     }
 
     onAudioPlaybackEnded() {
+        this._isInteractiveVoiceActive = false;
         this._updateCardStates();
         this.updatePlayButtonUI();
         if (this.statusTextEl && this.storyPlaylist && this.storyPlaylist.length > 0) {
@@ -3878,11 +3947,259 @@ class ChronicleManager {
     }
 
     /**
-     * Interacts with a creature clicked in 3D:
-     * Greets the player in character or emits creature noise, opens the chat bar, and speaks aloud if vocal.
+     * Dismisses the non-modal 3D entity inspection popover without affecting keyboard focus.
      */
-    async interactWithCreature(monster) {
+    dismissEntityPopover() {
+        this.inspectedEntity = null;
+        if (!this.inspectPopover) return;
+        this.inspectPopover.classList.add('hidden');
+        try {
+            if (typeof this.inspectPopover.hidePopover === 'function' && this.inspectPopover.matches(':popover-open')) {
+                this.inspectPopover.hidePopover();
+            }
+        } catch (_) {}
+    }
+
+    /**
+     * Absolute Gameplay Precedence:
+     * Called whenever the player moves, turns, clicks elsewhere in the dungeon, or issues any command.
+     * Immediately dismisses the 3D inspection popover, blurs the Tome chat input, clears transient
+     * conversation locks, hides transiently-opened Tome windows, and interrupts interactive conversation audio.
+     */
+    preemptForGameplay(reason = 'gameplay') {
+        this.dismissEntityPopover();
+        if (this.inputQuery && typeof document !== 'undefined' && document.activeElement === this.inputQuery) {
+            try { this.inputQuery.blur(); } catch (_) {}
+        }
+        if (this.targetedCreature || this.targetedObject) {
+            this.clearTargetCreature();
+        }
+        if (this._openedTransiently && this.visible) {
+            this.hideWindow();
+        }
+        if (this._isInteractiveVoiceActive) {
+            this._isInteractiveVoiceActive = false;
+            if (this.audio) {
+                this.audio.stopSpeaking();
+            }
+            this.stopStoryPlayback();
+            this.onVocalStateChanged('interrupted', { reason: reason || 'gameplay' });
+        }
+    }
+
+    /**
+     * Opens the non-modal 3D Entity Inspection Popover near the clicked screen coordinates.
+     * Strictly guarantees ZERO focus stealing (never focuses any input or opens the Tome window).
+     * Provides an optional button to open the Tome and converse if the player chooses.
+     */
+    showEntityPopover(type, entity, clientX = null, clientY = null) {
+        if (!entity) return null;
+        this.inspectedEntity = { type, entity };
+
+        const depth = (this.currentHero && typeof this.currentHero.depth === 'number') ? this.currentHero.depth : 0;
+        const realm = this.getActiveRealm();
+        const lang = this.getLanguageMode();
+
+        let details = null;
+
+        if (type === 'monster') {
+            this.targetedObject = null;
+            this.targetedCreature = entity;
+            const stateObj = this.grounder
+                ? this.grounder.resolveCreatureState(entity, this.lastSeenMessages)
+                : { state: 'awake', canSpeak: true, observation: 'Watching your movements.' };
+            const enc = (entity._prewarmedEncounter && (!entity.state || entity._prewarmedState === stateObj.state))
+                ? entity._prewarmedEncounter
+                : (this.grounder
+                    ? this.grounder.resolveCreatureEncounter(entity, this.currentHero, this.lastSeenMessages, (entity._interactTurn || 0) + 1, '', realm, lang, { dryRun: true })
+                    : { prose: stateObj.observation || 'A creature of the deep.', text: null, isDialogue: false });
+            const tactics = (this.grounder && typeof this.grounder.resolveTacticalMonsterInsight === 'function')
+                ? this.grounder.resolveTacticalMonsterInsight(entity.name || '')
+                : 'Funnel foes into 1-tile corridors.';
+
+            const curHp = typeof entity.hp === 'number' ? entity.hp : (typeof entity.chp === 'number' ? entity.chp : 10);
+            const maxHp = typeof entity.hp_max === 'number' ? entity.hp_max : (typeof entity.mhp === 'number' ? entity.mhp : Math.max(1, curHp));
+            const hpPct = Math.max(0, Math.min(100, Math.round((curHp / Math.max(1, maxHp)) * 100)));
+            let condLabel = 'Uninjured';
+            if (stateObj.state === 'sleeping') condLabel = 'Asleep';
+            else if (hpPct <= 25) condLabel = 'Critically Wounded';
+            else if (hpPct <= 60) condLabel = 'Wounded';
+            else if (hpPct < 100) condLabel = 'Lightly Wounded';
+
+            let distSuffix = '';
+            if (this.currentHero && typeof this.currentHero.x === 'number' && typeof entity.x === 'number') {
+                const dist = Math.max(1, Math.round(Math.hypot(entity.x - this.currentHero.x, entity.y - this.currentHero.y)));
+                distSuffix = ` • ${dist} tile${dist === 1 ? '' : 's'}`;
+            }
+
+            let pillText = 'Hostile';
+            let pillClass = 'inspect-popover-pill hostile';
+            if (stateObj.state === 'sleeping') {
+                pillText = 'Asleep';
+                pillClass = 'inspect-popover-pill sleeping';
+            } else if (stateObj.state === 'fleeing') {
+                pillText = 'Fleeing';
+                pillClass = 'inspect-popover-pill';
+            } else if (stateObj.state === 'begging') {
+                pillText = 'Peaceful / Alms';
+                pillClass = 'inspect-popover-pill';
+            } else if (!stateObj.canSpeak) {
+                pillText = 'Beast / Non-vocal';
+                pillClass = 'inspect-popover-pill';
+            }
+
+            details = {
+                type: 'monster',
+                badge: entity.glyph || 'm',
+                name: entity.name || 'Creature',
+                pillText,
+                pillClass,
+                showHp: true,
+                hpPct,
+                hpText: `${condLabel} (${hpPct}%)${distSuffix}`,
+                prose: enc.prose || stateObj.observation || '',
+                quote: enc.text ? (enc.isDialogue ? `"${enc.text.replace(/^["']|["']$/g, '')}"` : enc.text) : '',
+                tactics,
+                chatBtnLabel: stateObj.state === 'sleeping' ? '📖 Observe in Tome' : (stateObj.canSpeak ? '🗣️ Converse in Tome' : '📖 Inspect in Tome'),
+                enc,
+                stateObj
+            };
+        } else {
+            this.targetedCreature = null;
+            this.targetedObject = entity;
+            const itemName = entity.name || entity.itemName || 'Dungeon Object';
+            const appraisal = (this.grounder && typeof this.grounder.resolveObjectInspection === 'function')
+                ? this.grounder.resolveObjectInspection(entity, this.currentHero, depth, realm)
+                : {
+                    title: `Appraisal: ${itemName}`,
+                    prose: `A dungeon object resting upon the flagstones.`,
+                    dialogue: `Inspect with care before equipping.`,
+                    appraisal: `Press 'g' to pick up, 'w' to wield, or 'i' for inventory.`
+                };
+
+            details = {
+                type: 'item',
+                badge: entity.glyph || '?',
+                name: itemName,
+                pillText: appraisal.isArtifact ? 'Legendary Relic' : 'Floor Item',
+                pillClass: 'inspect-popover-pill item',
+                showHp: false,
+                hpPct: 100,
+                hpText: '',
+                prose: appraisal.prose || '',
+                quote: appraisal.dialogue ? `"${appraisal.dialogue.replace(/^["']|["']$/g, '')}"` : '',
+                tactics: appraisal.appraisal || "Press 'g' to pick up • 'w' to wield • 'd' to drop",
+                chatBtnLabel: '🔍 Ask Lorekeeper in Tome',
+                appraisal
+            };
+        }
+
+        if (!this.inspectPopover) return details;
+
+        if (this.inspectBadge) this.inspectBadge.textContent = details.badge;
+        if (this.inspectName) this.inspectName.textContent = details.name;
+        if (this.inspectPill) {
+            this.inspectPill.className = details.pillClass;
+            this.inspectPill.textContent = details.pillText;
+        }
+        if (this.inspectHpWrap) {
+            this.inspectHpWrap.style.display = details.showHp ? 'flex' : 'none';
+        }
+        if (this.inspectHpFill) {
+            this.inspectHpFill.style.width = `${details.hpPct}%`;
+            this.inspectHpFill.style.background = details.hpPct <= 30
+                ? 'linear-gradient(90deg, #ef4444, #f87171)'
+                : (details.hpPct <= 65 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #22c55e, #4ade80)');
+        }
+        if (this.inspectHpText) this.inspectHpText.textContent = details.hpText;
+        if (this.inspectProse) this.inspectProse.textContent = details.prose;
+        if (this.inspectQuote) {
+            if (details.quote) {
+                this.inspectQuote.textContent = details.quote;
+                this.inspectQuote.classList.remove('hidden');
+            } else {
+                this.inspectQuote.textContent = '';
+                this.inspectQuote.classList.add('hidden');
+            }
+        }
+        if (this.inspectTactics) this.inspectTactics.textContent = details.tactics;
+
+        if (this.inspectChatBtn) {
+            this.inspectChatBtn.textContent = details.chatBtnLabel;
+            this.inspectChatBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const wasVisible = this.visible;
+                this.dismissEntityPopover();
+                this._openedTransiently = !wasVisible;
+                if (type === 'monster') {
+                    this.interactWithCreature(entity, { mode: 'tome', openWindow: true, focusInput: true });
+                } else {
+                    this.inspectObject(entity, { mode: 'tome', openWindow: true, focusInput: true });
+                }
+            };
+        }
+
+        if (this.inspectVoiceBtn) {
+            this.inspectVoiceBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!this.audio || this._isAudioMuted()) return;
+                this._isInteractiveVoiceActive = true;
+                if (type === 'monster' && details.enc) {
+                    const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(entity, this.currentHero, details.stateObj.state, this.tradition, false, realm, lang) : null;
+                    const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, details.stateObj.state, this.tradition, false, realm, lang) : null;
+                    const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
+                    if (details.enc.isDialogue && details.enc.text) {
+                        this.audio.speak(details.enc.prose, { text: details.enc.text, speaker: entity.name, recommendedVoice: details.enc.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
+                    } else if (details.enc.prose) {
+                        this.audio.speakUtterance(details.enc.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
+                    }
+                } else if (type === 'item' && details.appraisal) {
+                    const mentorName = this.getLorekeeperName();
+                    const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
+                    const fullText = `${details.appraisal.prose} ${mentorName} speaks: "${details.appraisal.dialogue}"`;
+                    this.audio.speakUtterance(fullText, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
+                }
+            };
+        }
+
+        this.inspectPopover.classList.remove('hidden');
+        try {
+            if (typeof this.inspectPopover.showPopover === 'function' && !this.inspectPopover.matches(':popover-open')) {
+                this.inspectPopover.showPopover();
+            }
+        } catch (_) {}
+
+        if (typeof window !== 'undefined') {
+            const vw = window.innerWidth || 1280;
+            const vh = window.innerHeight || 720;
+            const popW = 310;
+            const popH = 215;
+            const rawX = (typeof clientX === 'number' && clientX > 0) ? (clientX + 16) : Math.round((vw - popW) * 0.5);
+            const rawY = (typeof clientY === 'number' && clientY > 0) ? (clientY - 24) : 90;
+            const clampedX = Math.max(12, Math.min(vw - popW - 12, rawX));
+            const clampedY = Math.max(52, Math.min(vh - popH - 12, rawY));
+            this.inspectPopover.style.left = `${clampedX}px`;
+            this.inspectPopover.style.top = `${clampedY}px`;
+        }
+
+        return details;
+    }
+
+    /**
+     * Interacts with a creature clicked in 3D:
+     * When options.mode === 'popover', opens the lightweight non-modal popover without stealing focus.
+     * Otherwise, greets the player in character, posts the encounter card to the Tome, and only focuses input if explicitly requested.
+     */
+    async interactWithCreature(monster, options = {}) {
         if (!monster) return;
+        options = (options && typeof options === 'object') ? options : {};
+        if (options.mode === 'popover') {
+            return this.showEntityPopover('monster', monster, options.clientX, options.clientY);
+        }
+
+        this.dismissEntityPopover();
         this.targetedObject = null;
         this.targetedCreature = monster;
         monster._interactTurn = (monster._interactTurn || 0) + 1;
@@ -3895,11 +4212,13 @@ class ChronicleManager {
             }
         }
 
-        // Ensure Chronicle window is visible and unminimized
-        this.showWindow();
-        if (this.windowEl && this.windowEl.classList.contains('minimized')) {
-            this.windowEl.classList.remove('minimized');
-            if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+        // Ensure Chronicle window is visible and unminimized when opening Tome conversation
+        if (options.openWindow !== false) {
+            this.showWindow();
+            if (this.windowEl && this.windowEl.classList.contains('minimized')) {
+                this.windowEl.classList.remove('minimized');
+                if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+            }
         }
 
         const stateObj = this.grounder.resolveCreatureState(monster, this.lastSeenMessages);
@@ -3927,7 +4246,9 @@ class ChronicleManager {
             } else {
                 this.inputQuery.placeholder = `Talk to ${monster.name}...`;
             }
-            this.inputQuery.focus();
+            if (options.focusInput === true) {
+                try { this.inputQuery.focus(); } catch (_) {}
+            }
         }
 
         // Initial Greeting / Reaction from the creature with full scene prose
@@ -3985,6 +4306,7 @@ class ChronicleManager {
             if (replayBtn) {
                 replayBtn.addEventListener('click', () => {
                     if (this.audio) {
+                        this._isInteractiveVoiceActive = true;
                         const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(monster, this.currentHero, stateObj.state, this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
                         const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, stateObj.state, this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
                         const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
@@ -4002,6 +4324,7 @@ class ChronicleManager {
 
         // Voice playback upon encounter: speak aloud for ALL entities with contextual casting
         if (this.audio && !this._isAudioMuted() && res) {
+            this._isInteractiveVoiceActive = true;
             const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(monster, this.currentHero, stateObj.state, this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
             const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, stateObj.state, this.tradition, false, this.getActiveRealm(), this.getLanguageMode()) : null;
             const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
@@ -4017,18 +4340,27 @@ class ChronicleManager {
 
     /**
      * Inspects a 3D floor item or object clicked from afar:
-     * Focuses the target pill, generates Lorekeeper appraisal, posts an appraisal card to Chronicle, and voices it aloud.
+     * When options.mode === 'popover', opens the lightweight non-modal popover without stealing focus.
+     * Otherwise, posts an appraisal card to Chronicle and only focuses input if explicitly requested.
      */
-    async inspectObject(item) {
+    async inspectObject(item, options = {}) {
         if (!item) return;
+        options = (options && typeof options === 'object') ? options : {};
+        if (options.mode === 'popover') {
+            return this.showEntityPopover('item', item, options.clientX, options.clientY);
+        }
+
+        this.dismissEntityPopover();
         this.targetedCreature = null;
         this.targetedObject = item;
 
-        // Ensure Chronicle window is visible and unminimized
-        this.showWindow();
-        if (this.windowEl && this.windowEl.classList.contains('minimized')) {
-            this.windowEl.classList.remove('minimized');
-            if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+        // Ensure Chronicle window is visible and unminimized when opening Tome appraisal
+        if (options.openWindow !== false) {
+            this.showWindow();
+            if (this.windowEl && this.windowEl.classList.contains('minimized')) {
+                this.windowEl.classList.remove('minimized');
+                if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+            }
         }
 
         const itemName = item.name || 'Unknown Artifact';
@@ -4042,7 +4374,9 @@ class ChronicleManager {
         }
         if (this.inputQuery) {
             this.inputQuery.placeholder = `Ask ${this.getLorekeeperName()} about ${itemName}...`;
-            this.inputQuery.focus();
+            if (options.focusInput === true) {
+                try { this.inputQuery.focus(); } catch (_) {}
+            }
         }
 
         // Generate Lorekeeper Appraisal
@@ -4081,6 +4415,7 @@ class ChronicleManager {
             if (replayBtn) {
                 replayBtn.addEventListener('click', () => {
                     if (this.audio) {
+                        this._isInteractiveVoiceActive = true;
                         const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
                         const fullText = `${appraisal.prose}\n\n${mentorName} speaks: "${appraisal.dialogue}"`;
                         this.audio.speakUtterance(fullText, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
@@ -4094,6 +4429,7 @@ class ChronicleManager {
 
         // Voiced Audio Playback
         if (this.audio && !this._isAudioMuted() && appraisal) {
+            this._isInteractiveVoiceActive = true;
             const mentorName = this.getLorekeeperName();
             const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
             const fullText = `${appraisal.prose}\n\n${mentorName} speaks: "${appraisal.dialogue}"`;
@@ -4115,6 +4451,7 @@ class ChronicleManager {
         const text = this.inputQuery.value.trim();
         if (!text) return;
         this.inputQuery.value = '';
+        this._isInteractiveVoiceActive = true;
 
         if (this.targetedCreature) {
             // Player talking directly to targeted creature

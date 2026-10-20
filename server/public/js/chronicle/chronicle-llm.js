@@ -32,7 +32,7 @@ const getGrounder = () => (typeof ChronicleGrounder !== 'undefined')
 
 class ChronicleLLMBridge {
     constructor() {
-        this.provider = 'gemini';
+        this.provider = 'offline';
         this.model = '';
 
         // Free Tier Cost Protection & Sliding Window Rate Limiter
@@ -52,13 +52,14 @@ class ChronicleLLMBridge {
     }
 
     async fetchServerKeyIfEmpty() {
-        if (typeof window === 'undefined') return;
+        if (typeof window === 'undefined' || typeof fetch !== 'function') return;
         try {
             const r = await fetch('/api/config/llm');
-            if (r.ok) {
+            if (r && r.ok) {
                 const d = await r.json();
                 if (d && (d.hasKey || d.hasServerKey)) {
                     this.hasServerKey = true;
+                    this.provider = 'gemini';
                     this.model = d.defaultModel || 'gemini-3.8-flash';
                     // Clean up any stale client-side key from localStorage since server key is active
                     if (window.localStorage) {
@@ -86,6 +87,9 @@ class ChronicleLLMBridge {
     loadSettings() {
         if (typeof window === 'undefined' || !window.localStorage) return;
         try {
+            const savedProvider = localStorage.getItem('angband_llm_provider');
+            if (savedProvider) this.provider = savedProvider;
+
             const savedEnforce = localStorage.getItem('angband_llm_enforce_free');
             if (savedEnforce !== null) this.enforceFreeTier = (savedEnforce === 'true');
 
@@ -103,12 +107,15 @@ class ChronicleLLMBridge {
     }
 
     saveSettings(settings = {}) {
+        if (settings.provider !== undefined) this.provider = settings.provider.trim();
+        if (settings.apiKey !== undefined) this.apiKey = settings.apiKey.trim();
         if (settings.model !== undefined) this.model = settings.model.trim();
         // Rate limiting is permanently enforced (never optional)
         this.enforceFreeTier = true;
 
         if (typeof window !== 'undefined' && window.localStorage) {
             try {
+                localStorage.setItem('angband_llm_provider', this.provider);
                 localStorage.setItem('angband_llm_model', this.model);
                 localStorage.setItem('angband_llm_enforce_free', 'true');
             } catch (_) {}
@@ -183,7 +190,7 @@ class ChronicleLLMBridge {
     }
 
     isConfigured() {
-        return this.hasServerKey;
+        return this.provider !== 'offline' && (this.hasServerKey || Boolean(this.apiKey && this.apiKey.length > 5));
     }
 
     /**
@@ -211,29 +218,28 @@ class ChronicleLLMBridge {
         const systemPrompt = isFlowing
             ? `You are ${realmCtx.chronicler}, continuing the active saga of ${player ? player.name : 'the hero'} in ${realmCtx.setting}, in the literary tradition: "${tradition.name}".
 Perspective: ${tradition.style}.
-Tone: Serious, atmospheric, legendary, direct, descriptive of perilous exploration and heroic struggle.
+Tone: Serious, atmospheric, legendary, razor-sharp, immediate.
 Critical Story Guidelines:
-- Direct Brevity: Exactly 1 to 2 concise, punchy sentences. Cut excessive purple prose; keep the pacing swift and engaging.
-- Coalesced Combat & Blow-by-Blow: When multiple strikes or combat messages occur concurrently, weave them into one unified, cohesive exchange (e.g., "twin strikes in rapid succession", "parrying one blow only to catch a blade to the shoulder").
+- Extreme Direct Brevity: Maximum 1 crisp sentence (12-18 words max). Zero purple prose, zero filler adverbs, zero repetitive openers ("In the gloom...", "Down in the dark..."). Start mid-action or on a sharp sensory detail.
+- Coalesced Combat & Blow-by-Blow: Weave multiple strikes into one swift, visceral clause.
 - Tactical Weapon & Method Accuracy: Strictly honor the exact method and weapon of combat provided in event details:
   * Spells: Depict arcane incantations and elemental eruptions (fire, cold, lightning, acid, holy, arcane)—never swords or drawn steel!
   * Devices: Depict aiming and channeling magical wands, staves, or rods.
   * Ranged: Depict arrows, quarrels/bolts, or slingstones launched from bows, crossbows, or slings.
   * Melee: Accurately match the weapon archetype (blunt impacts for hammers/maces, cleaving chops for axes, piercing thrusts for daggers/spears, or bare-knuckle blows for unarmed)—NEVER use generic "drawn steel" if the hero fights with fists, blunt clubs, staves, or spells!
-- Integrated Status Ailments: If player status effects (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) are present, integrate them directly into the hero's physical struggle.
-- Character Psychology: Reveal the hero's internal thoughts, racial heritage (${player ? player.race : 'Mortal'}), and tactical justification (fear, ruthless survival, or duty).
-- Moral & Lore Judgment: Frame the deed in accordance with ${tradition.name}. Slaying innocents or beggars in town is a dark, tragic deed.
-Length: Exactly 1 to 2 sentences of high-impact flowing prose. Do NOT write a chapter title or header.
+- Integrated Status Ailments: If player status effects (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) are present, weave them into a 3-4 word visceral phrase.
+- Spoken Dialogue: If included, keep spoken dialogue under 12 words, punchy and immediate.
+Length: 1 crisp sentence (max 18 words). Do NOT write a chapter title or header.
 Output: Respond with ONLY a raw JSON object (no markdown, no code blocks):
 {
-  "prose": "1-2 sentences of direct, punchy flowing narrative continuing the active scene.",
-  "dialogue": { "speaker": "Name or null", "text": "Short spoken line or null" }
+  "prose": "1 razor-sharp sentence (max 18 words) continuing the active scene.",
+  "dialogue": { "speaker": "Name or null", "text": "Short spoken line (max 12 words) or null" }
 }`
             : `You are ${realmCtx.chronicler}, recording the saga of ${player ? player.name : 'the hero'} in ${realmCtx.setting}, in strict accordance with the literary tradition: "${tradition.name}".
 Perspective: ${tradition.style}.
 Tone: Serious, atmospheric, legendary, never modern slang, never fourth-wall breaking in chapter prose.
 Critical Story Guidelines:
-- Direct Brevity: Exactly 1 to 2 concise, punchy sentences. Cut rambling prose; make every word count while retaining Tolkien gravitas.
+- Direct Brevity: 1 to 2 crisp, high-impact sentences (max 28 words total). Cut rambling prose; make every word count while retaining mythic gravitas.
 - Coalesced Combat & Blow-by-Blow: Synthesize concurrent strikes, counter-attacks, and lethal blows into one unified tactical exchange.
 - Tactical Weapon & Method Accuracy: Strictly honor the exact method and weapon of combat provided in event details:
   * Spells: Depict arcane incantations and elemental forces (fire, cold, lightning, acid, holy, arcane)—never blades or drawn steel!
@@ -241,15 +247,14 @@ Critical Story Guidelines:
   * Ranged: Depict arrows, bolts, or slingstones loosed from bows, crossbows, or slings.
   * Melee: Accurately reflect the weapon archetype (crushing hammer/mace impacts, cleaving axe chops, impaling dagger/spear thrusts, or bone-cracking bare fists)—NEVER mention generic "drawn steel" if the hero fights unarmed, casts spells, or wields blunt maces!
 - Integrated Status Ailments: Weave status conditions (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) directly into the sensory peril of the scene.
-- Justification & Internal Narrative: Contextualize why the hero acted according to their race (${player ? player.race : 'Mortal'}) and class (${player ? player.class : 'Warrior'}).
 - Moral Weight: Reflect the reality of the situation (e.g. street violence vs dungeon orc slaying).
-Length: Exactly 1 to 2 sentences of high-impact narrative prose.
+Length: 1 to 2 tight sentences (max 28 words total).
 Output: Respond with ONLY a raw JSON object (no markdown code blocks, no backticks, no preamble) with these keys:
 {
   "title": "Short poetic title (3-5 words)",
-  "prose": "1-2 sentences of atmospheric, direct prose describing the event.",
-  "summary": "One short sentence summary.",
-  "dialogue": { "speaker": "Name or null", "text": "Short spoken line or null" }
+  "prose": "1-2 tight sentences (max 28 words) of atmospheric, direct prose.",
+  "summary": "One short 8-word summary.",
+  "dialogue": { "speaker": "Name or null", "text": "Short spoken line (max 12 words) or null" }
 }`;
 
         let locationText = isTown ? 'Town of Angband (surface streets, timber eaves, cobblestones)' : `Dungeon Depth ${depth * 50}ft (subterranean vaults, Iron Hell)`;
@@ -263,8 +268,8 @@ Output: Respond with ONLY a raw JSON object (no markdown code blocks, no backtic
         
         let antiRepetition = '';
         if (this.recentUtterances && this.recentUtterances.length > 0) {
-            const sample = this.recentUtterances.slice(-4).map(u => `"${u.slice(0, 70)}..."`).join(' | ');
-            antiRepetition = `\nCRITICAL ANTI-REPETITION MANDATE:\nDo NOT repeat or closely mirror recently recorded phrases:\n${sample}\nEvery sentence must be completely fresh, unique, and attuned to this exact moment.`;
+            const sample = this.recentUtterances.slice(-12).map(u => `"${u.slice(0, 65)}"`).join(' | ');
+            antiRepetition = `\nCRITICAL ANTI-REPETITION MANDATE:\nNEVER repeat or paraphrase any of these recent lines or sentence structures:\n${sample}\nVary your opening verb, cadence, and imagery completely.`;
         }
 
         const backstory = (grounder || ChronicleGrounder).formatBackstorySummary ? (grounder || ChronicleGrounder).formatBackstorySummary(player) : '';
@@ -335,8 +340,8 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}. (For new instance starts a
         // Anti-repetition context
         let antiRep = '';
         if (this.recentUtterances && this.recentUtterances.length > 0) {
-            const sample = this.recentUtterances.slice(-4).map(u => `"${u.slice(0, 60)}..."`).join(' | ');
-            antiRep = `\nCRITICAL ANTI-REPETITION MANDATE:\nDo NOT reuse recent phrases or static cliches:\n${sample}\nEvery line must be fresh, unexpected, and completely unique to this situation.`;
+            const sample = this.recentUtterances.slice(-12).map(u => `"${u.slice(0, 60)}"`).join(' | ');
+            antiRep = `\nCRITICAL ANTI-REPETITION MANDATE:\nDo NOT reuse recent phrases, opening verbs, or static cliches:\n${sample}\nEvery line must be fresh, brief, and completely unique to this situation.`;
         }
 
         // 1. SLEEPING OR NON-VOCAL ENTITIES: Generate rich scene prose (dialogue is null)
@@ -359,12 +364,12 @@ Status: ${stateDesc}.
 Hero: "${player ? player.name : 'The traveler'}", a ${player ? player.race : 'mortal'} ${player ? player.class : 'adventurer'}.
 ${antiRep}
 Rules:
-- Write exactly 1 to 2 sentences of evocative scene prose describing the creature's resting posture, breathing, gear, and atmospheric presence.
+- Write 1 crisp sentence (maximum 16 words) describing the creature's posture, breathing, or gear.
 - You MUST respect the creature's visual gender presentation: use "${prSub}", "${prPoss}", and "${prObj}" consistently.
 - Spoken dialogue MUST be null!
 - Return ONLY a raw JSON object (no markdown, no backticks):
 {
-  "prose": "1-2 sentences of atmospheric scene prose.",
+  "prose": "1 crisp sentence (max 16 words) of atmospheric scene prose.",
   "dialogue": null
 }`;
 
@@ -426,12 +431,12 @@ Player: "${player ? player.name : 'Adventurer'}", a ${player ? player.race : ''}
 ${combatGuidance}
 ${antiRep}
 Guidelines:
-- Scene prose must describe ${prPoss} posture and actions matching ${gender} presentation ("${prSub}", "${prPoss}").
-- Spoken dialogue: exactly 1 sentence in character. ${dialogueStyle}. No quotes or modern slang.
+- Scene prose: 1 brief sentence (maximum 15 words) describing ${prPoss} immediate physical gesture matching ${gender} presentation ("${prSub}", "${prPoss}").
+- Spoken dialogue: 1 punchy, vivid sentence (maximum 14 words) in character. ${dialogueStyle}. No quotes or modern slang.
 - Return ONLY a raw JSON object (no markdown, no backticks):
 {
-  "prose": "1-2 sentences of atmospheric scene prose describing the creature's posture and actions.",
-  "dialogue": "1 spoken sentence in character."
+  "prose": "1 brief sentence (max 15 words) describing the creature's posture and gesture.",
+  "dialogue": "1 punchy spoken sentence (max 14 words) in character."
 }`;
 
         try {
@@ -479,9 +484,9 @@ Guidelines:
 Setting: ${realmCtx.setting}.
 You know the complete body of mechanics, keybindings (roguelike and standard keysets), survival tactics, shop mechanics, item commands, and lore for this realm.
 Rules:
-- Be diegetically wise, warm, and helpful.
+- Be diegetically wise, warm, and immediately helpful.
 - When explaining game mechanics (keys, commands, inventory, resting, shops, terminal), cross the fourth wall gracefully (e.g. "To quaff a potion, press 'q'...").
-- Keep answers concise and direct: 2 to 3 sentences maximum!`;
+- Extreme Brevity: Keep answers razor-sharp and direct—1 to 2 short sentences (maximum 25 words total)!`;
 
         try {
             const answer = await this.callLLM(systemPrompt, query);
@@ -521,7 +526,7 @@ The hero is inspecting an object lying in the dungeon: "${itemName}" at depth ${
 Rules:
 - Be diegetically wise, eloquent, and helpful.
 - When explaining game mechanics (wielding, quaffing, identifying, curses, keybindings), speak directly to the hero with graceful fourth-wall awareness.
-- Keep answers concise and direct: 2 to 3 sentences maximum!`;
+- Extreme Brevity: Keep answers crisp and direct—1 to 2 short sentences (maximum 24 words total)!`;
 
         const userPrompt = userQuery
             ? `The hero asks: "${userQuery}". Appraise this ${itemName}.`
@@ -630,6 +635,9 @@ Rules:
         let res;
         // Route request securely through local server backend proxy.
         const headers = { 'Content-Type': 'application/json' };
+        if (this.apiKey) {
+            headers['x-goog-api-key'] = this.apiKey;
+        }
         res = await fetch('/api/llm/generate', {
             method: 'POST',
             headers,
@@ -763,10 +771,15 @@ Weave the saga reflection for this exact moment.`;
     /**
      * Verifies API Key and model with a quick ping
      */
-    async testConnection(overrideModel = null) {
-        const original = { model: this.model };
+    async testConnection(overrideModel = null, apiKey = '', model = '') {
+        if (overrideModel === 'offline' || (this.provider === 'offline' && !overrideModel)) {
+            return { ok: true, message: 'Using offline procedural engine (ready).' };
+        }
+        const original = { model: this.model, apiKey: this.apiKey };
         try {
-            if (overrideModel) this.model = overrideModel;
+            if (overrideModel && overrideModel !== 'gemini') this.model = overrideModel;
+            else if (model) this.model = model;
+            if (apiKey) this.apiKey = apiKey;
 
             const reply = await this.callLLM('You are a test probe.', 'Respond with the single word: READY');
             if (reply && reply.toLowerCase().includes('ready')) {
@@ -778,6 +791,7 @@ Weave the saga reflection for this exact moment.`;
             return { ok: false, error: err.message };
         } finally {
             this.model = original.model;
+            this.apiKey = original.apiKey;
         }
     }
 }

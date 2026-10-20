@@ -188,11 +188,15 @@ test('Dungeon3D and InputController support afar 3D floor item click inspection'
     const inputSrc = fs.readFileSync(path.join(__dirname, '../server/public/js/input.js'), 'utf8');
     assert(inputSrc.includes('getItemAtScreenCoords'), 'InputController must call getItemAtScreenCoords on click');
     assert(inputSrc.includes('chronicleManager.inspectObject'), 'InputController must dispatch to chronicleManager.inspectObject');
+    assert(inputSrc.includes("mode: 'popover'"), 'InputController must open 3D click inspections in non-modal popover mode');
+    assert(inputSrc.includes('preemptForGameplay'), 'InputController must preempt Chronicle/Popover on gameplay input');
 
     const managerSrc = fs.readFileSync(path.join(__dirname, '../server/public/js/chronicle/chronicle-manager.js'), 'utf8');
-    assert(managerSrc.includes('inspectObject(item)'), 'ChronicleManager must implement inspectObject');
+    assert(managerSrc.includes('inspectObject(item'), 'ChronicleManager must implement inspectObject');
     assert(managerSrc.includes('this.targetedObject'), 'ChronicleManager must track targetedObject');
     assert(managerSrc.includes('weaveObjectCounsel'), 'ChronicleManager must implement weaveObjectCounsel');
+    assert(managerSrc.includes('showEntityPopover'), 'ChronicleManager must implement showEntityPopover');
+    assert(managerSrc.includes('preemptForGameplay'), 'ChronicleManager must implement preemptForGameplay');
 });
 
 console.log('All realm chronicles and inspection unit tests passed successfully!');
