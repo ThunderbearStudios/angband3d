@@ -285,6 +285,49 @@ class InputController {
     }
 
     /**
+     * Fast Bresenham line-of-sight raycaster stepping from (px, py) to (mx, my) on frame.map.
+     * Returns false if any intermediate tile is a solid wall or closed door.
+     */
+    _hasClearLOS(px, py, mx, my, map) {
+        if (!map) return true;
+        let x0 = Math.round(px);
+        let y0 = Math.round(py);
+        const x1 = Math.round(mx);
+        const y1 = Math.round(my);
+
+        const dx = Math.abs(x1 - x0);
+        const dy = Math.abs(y1 - y0);
+        const sx = x0 < x1 ? 1 : -1;
+        const sy = y0 < y1 ? 1 : -1;
+        let err = dx - dy;
+
+        while (true) {
+            if (!(x0 === px && y0 === py) && !(x0 === x1 && y0 === y1)) {
+                const feat = (this.getFeatAt && map) ? this.getFeatAt(map, x0, y0) : 0;
+                let ch = ' ';
+                if (map.rows && map.rows[y0] && map.rows[y0].g && x0 >= 0 && x0 < map.rows[y0].g.length) {
+                    ch = map.rows[y0].g[x0];
+                }
+                const isWall = (feat >= 15 && feat <= 22) || feat === 30 || ch === '#' || ch === '%';
+                const isClosedDoor = feat === 2 || ch === '+';
+                if (isWall || isClosedDoor) return false;
+            }
+
+            if (x0 === x1 && y0 === y1) break;
+            const e2 = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                x0 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Context-filters `#action-bar` buttons so only possible actions are shown,
      * highlights contextually recommended actions with `.is-suggested`, and
      * updates the 4-button `#quick-slot-bar` (gated on state signature per L25).
@@ -370,8 +413,6 @@ class InputController {
         // 2. Scan adjacent map tiles & monster distances
         let adjClosedDoors = 0;
         let adjAnyDoors = 0;
-        let adjMonsters = 0;
-        let rangedMonsters = 0;
         const standingOnItem = Boolean(px !== undefined && py !== undefined && items.some((it) => it && it.x === px && it.y === py));
         const currentFeat = (this.getFeatAt && map && px !== undefined) ? this.getFeatAt(map, px, py) : 0;
         const standingStair = (currentFeat === 5 || currentFeat === 6 || (currentFeat >= 7 && currentFeat <= 14) || (currentFeat >= 32 && currentFeat <= 40));
@@ -396,13 +437,35 @@ class InputController {
             }
         }
 
+        // 2b. Hostile Monster vs Peaceful Town NPC Filter
+        const isHostile = (m) => {
+            if (!m || m.ml === false || m.friendly || m.pet || m.peaceful) return false;
+            const depth = frame.player?.depth || 0;
+            if (depth === 0 && r !== 'silq') {
+                if (typeof m.hp === 'number' && typeof m.hp_max === 'number' && m.hp < m.hp_max) return true;
+                if (m.hostile || m.is_hostile) return true;
+                const nm = (m.name || '').toLowerCase();
+                if (/towns|citizen|urchin|mercenary|drunk|blubbering|idiot|pitiful|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran|battle-scarred|mean-looking|tamer|bard|cat|dog|leper|squint-eyed|farmer|maggot|町人|市民|酔っ払い|乞食|傭兵|浮浪児|村人|野良猫|野良犬/.test(nm)) return false;
+                if (m.glyph === 't' || m.glyph === '@' || m.glyph === 'p' || m.glyph === 'h') return false;
+            }
+            return true;
+        };
+
+        const hostileMonsters = monsters.filter(isHostile);
+        let adjHostiles = 0;
         if (px !== undefined && py !== undefined) {
-            for (const m of monsters) {
+            for (const m of hostileMonsters) {
                 const dist = Math.max(Math.abs(m.x - px), Math.abs(m.y - py));
-                if (dist === 1) adjMonsters++;
-                else if (dist > 1 && dist <= 12) rangedMonsters++;
+                if (dist === 1) adjHostiles++;
             }
         }
+
+        const rangedHostilesInLOS = (px !== undefined && py !== undefined && frame.map)
+            ? hostileMonsters.filter(m => {
+                const d = Math.max(Math.abs(m.x - px), Math.abs(m.y - py));
+                return d >= 2 && d <= 10 && this._hasClearLOS(px, py, m.x, m.y, frame.map);
+            }).length
+            : 0;
 
         // 3. Player vitals & status conditions
         const curHp = Number(player.hp ?? 0);
@@ -413,11 +476,46 @@ class InputController {
         const spPct = maxSp > 0 ? Math.round((curSp / maxSp) * 100) : 100;
         const studyCount = Number(player.study || 0);
         const statuses = Array.isArray(player.statuses) ? player.statuses : [];
-        const hasBadStatus = statuses.some((st) => st && st.name && /(poison|confus|blind|cut|bleed|stun|afraid|fear|halluc|paralyz|毒|混乱|盲目|切傷|朦朧|恐怖|幻覚)/i.test(st.name));
+        const hasBadStatus = statuses.some((st) => {
+            const nm = String((st && (st.name || st)) || '');
+            return /(poison|confus|blind|cut|bleed|stun|afraid|fear|halluc|paralyz|毒|混乱|盲目|切傷|朦朧|恐怖|幻覚)/i.test(nm);
+        });
+
+        // 3b. Class and spell matching heuristics
+        const pClass = String(player.class || '').toLowerCase();
+        const isNonCaster = /warrior|berserker|archer|cavalry|sniper|ninja|smith|weaponsmith|戦士|狂戦士|アーチャー|騎兵|鍛冶師/.test(pClass) || (pClass.includes('samurai') && maxSp === 0);
+        const canCastFromTome = !isNonCaster || maxSp > 0;
+
+        if (Array.isArray(frame.messages)) {
+            const hasZeroSpellsMsg = frame.messages.some(m => {
+                const text = String((m && (m.text || m)) || '');
+                return /don't know any spells|cannot cast|no spells|呪文を覚えていない|呪文を唱えられない/i.test(text);
+            });
+            if (hasZeroSpellsMsg) {
+                this._zeroSpellsSeq = player.study || 0;
+                this._zeroSpellsLevel = player.level || 1;
+                this._zeroSpellsFlag = true;
+            }
+        }
+        if (this._zeroSpellsFlag) {
+            if ((player.study || 0) < (this._zeroSpellsSeq || 0) || (player.level || 1) > (this._zeroSpellsLevel || 1)) {
+                this._zeroSpellsFlag = false;
+            }
+        }
+        if (curSp < maxSp) {
+            this._hasCastSuccess = true;
+        }
+
+        const isFreshL1WithSlots = (player.level || 1) === 1 && studyCount > 0 && curSp === maxSp && !this._hasCastSuccess;
+        const hasKnownSpells = canCastFromTome && !this._zeroSpellsFlag && !(isFreshL1WithSlots && (r === 'angband' || r === 'frogcomposband' || r === 'hengband'));
+        const isDisablingStatus = statuses.some(s => {
+            const name = String((s && (s.name || s)) || '');
+            return /blind|confus|paralyz|stun|hallucinat|盲目|混乱|麻痺|朦朧|幻覚/i.test(name);
+        });
 
         // 4. Compute compact state signature (L25)
         const hasFullData = player.inventory !== undefined || player.hp_max !== undefined;
-        const stateSig = `${r}:${lang}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${tomeCount}:${deviceCount}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors}:${adjAnyDoors}:${adjMonsters}:${rangedMonsters}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${studyCount}:${hasBadStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
+        const stateSig = `${r}:${lang}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${tomeCount}:${deviceCount}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors}:${adjAnyDoors}:${adjHostiles}:${rangedHostilesInLOS}:${hostileMonsters.length}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${curSp}:${studyCount}:${hasBadStatus ? 1 : 0}:${hasKnownSpells ? 1 : 0}:${isDisablingStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
 
         if (stateSig === this._lastActionBarContextSig) return;
         this._lastActionBarContextSig = stateSig;
@@ -427,23 +525,24 @@ class InputController {
 
         const rules = {
             'btn-attack': {
-                show: adjMonsters > 0 && (!heroActive || heroAction.id !== 'attack'),
-                suggest: adjMonsters > 0,
+                show: adjHostiles > 0 && (!heroActive || heroAction.id !== 'attack'),
+                suggest: adjHostiles > 0,
                 reason: isJp ? '隣接する敵を攻撃！' : 'Adjacent enemy in melee range!'
             },
             'btn-fire': {
                 show: (!hasInvTelemetry || (hasBowEquipped && hasAmmo)) && (!heroActive || heroAction.id !== 'shoot'),
-                suggest: hasBowEquipped && hasAmmo && rangedMonsters > 0 && adjMonsters === 0,
+                suggest: hasBowEquipped && hasAmmo && rangedHostilesInLOS > 0 && adjHostiles === 0 && !isDisablingStatus,
                 reason: isJp ? '射程内に敵 — 射撃推奨' : 'Enemy in range — Shoot!'
             },
             'btn-throw': {
                 show: !hasInvTelemetry || (inv.length > 0 && (monsters.length > 0 || r === 'silq')),
-                suggest: r === 'silq' && rangedInPack > 0 && rangedMonsters > 0 && adjMonsters === 0,
+                suggest: r === 'silq' && rangedInPack > 0 && rangedHostilesInLOS > 0 && adjHostiles === 0,
                 reason: 'Throw weapon at ranged target'
             },
             'btn-cast': {
                 show: !hasInvTelemetry || (r === 'silq' ? maxSp > 0 : (maxSp > 0 && tomeCount > 0)),
-                suggest: maxSp > 0 && (r === 'silq' || tomeCount > 0) && monsters.length > 0 && curSp >= Math.max(1, maxSp * 0.25),
+                dim: hasInvTelemetry && (!hasKnownSpells || curSp <= 0 || isDisablingStatus),
+                suggest: hasKnownSpells && !isDisablingStatus && maxSp > 0 && (r === 'silq' || tomeCount > 0) && (adjHostiles > 0 || rangedHostilesInLOS > 0) && curSp >= Math.max(1, maxSp * 0.20),
                 reason: isJp ? '魔力あり — 呪文詠唱' : 'Mana available — Cast spell'
             },
             'btn-browse': {
@@ -452,17 +551,17 @@ class InputController {
             },
             'btn-study': {
                 show: r !== 'silq' && (studyCount > 0 || (!hasInvTelemetry && r !== 'silq') || (tomeCount > 0 && maxSp > 0)),
-                suggest: studyCount > 0 && adjMonsters === 0,
+                suggest: studyCount > 0 && adjHostiles === 0,
                 reason: isJp ? `新しい呪文を学習可能 (${studyCount})` : `Learn new spell (${studyCount} ready)!`
             },
             'btn-skills': {
                 show: r === 'silq',
-                suggest: r === 'silq' && Number(player.exp || 0) >= 500 && monsters.length === 0,
+                suggest: r === 'silq' && Number(player.exp || 0) >= 500 && hostileMonsters.length === 0,
                 reason: 'Spend XP on Sil-Q Abilities [Tab]'
             },
             'btn-power': {
                 show: r === 'frogcomposband' || r === 'hengband',
-                suggest: (r === 'frogcomposband' || r === 'hengband') && monsters.length > 0 && hpPct < 70,
+                suggest: (r === 'frogcomposband' || r === 'hengband') && (adjHostiles > 0 || rangedHostilesInLOS > 0) && hpPct < 70,
                 reason: isJp ? '特殊能力・レイシャル発動' : 'Invoke Racial/Class Power'
             },
             'btn-quaff': {
@@ -472,12 +571,12 @@ class InputController {
             },
             'btn-read': {
                 show: r !== 'silq' && (!hasInvTelemetry || scrollCount > 0),
-                suggest: scrollCount > 0 && ((hpPct < 35 && monsters.length > 0) || adjMonsters >= 2),
+                suggest: scrollCount > 0 && !isDisablingStatus && ((hpPct < 35 && hostileMonsters.length > 0) || adjHostiles >= 2),
                 reason: isJp ? '危険 — 巻物で脱出・対処！' : 'Danger — Read Scroll!'
             },
             'btn-door': {
                 show: adjAnyDoors > 0 && (!heroActive || heroAction.id !== 'open-door'),
-                suggest: adjClosedDoors > 0 && adjMonsters === 0,
+                suggest: adjClosedDoors > 0 && adjHostiles === 0,
                 reason: isJp ? '隣接する扉を開閉' : 'Open/close adjacent door'
             },
             'btn-pickup': {
@@ -487,12 +586,12 @@ class InputController {
             },
             'btn-stair': {
                 show: standingStair && (!heroActive || (heroAction.id !== 'stair-down' && heroAction.id !== 'stair-up')),
-                suggest: standingStair && adjMonsters === 0,
+                suggest: standingStair && adjHostiles === 0,
                 reason: isJp ? '階段・入口を使用' : 'Use stairs / entrance underfoot'
             },
             'btn-rest': {
-                show: !hasInvTelemetry || ((hpPct < 100 || (maxSp > 0 && spPct < 100) || hasBadStatus) && adjMonsters === 0),
-                suggest: (hpPct < 75 || (maxSp > 0 && spPct < 45) || hasBadStatus) && monsters.length === 0,
+                show: !hasInvTelemetry || ((hpPct < 100 || (maxSp > 0 && spPct < 100) || hasBadStatus) && adjHostiles === 0),
+                suggest: (hpPct < 75 || spPct < 45 || hasBadStatus) && hostileMonsters.length === 0,
                 reason: isJp ? '周囲安全 — 休憩して回復' : 'Area clear — Rest to recover HP/Mana'
             },
             'btn-inventory': {
@@ -526,6 +625,35 @@ class InputController {
             }
         };
 
+        const SUGGEST_PRIORITY = [
+            'btn-quaff',
+            'btn-read',
+            'btn-attack',
+            'btn-cast',
+            'btn-fire',
+            'btn-power',
+            'btn-pickup',
+            'btn-stair',
+            'btn-door',
+            'btn-study',
+            'btn-wield',
+            'btn-skills',
+            'btn-rest'
+        ];
+
+        const candidateSuggested = [];
+        for (const id of SUGGEST_PRIORITY) {
+            const rule = rules[id];
+            if (rule && rule.show && rule.suggest) {
+                const btn = document.getElementById(id);
+                const visible = Boolean(rule.show) && (!btn || btn.dataset.realmHidden !== '1');
+                if (visible) {
+                    candidateSuggested.push(id);
+                }
+            }
+        }
+        const activeSuggested = new Set(candidateSuggested.slice(0, 2));
+
         let visMask = '';
         for (const [id, rule] of Object.entries(rules)) {
             const btn = document.getElementById(id);
@@ -542,7 +670,7 @@ class InputController {
                 btn.style.display = 'none';
             }
 
-            const isSuggested = Boolean(visible && rule.suggest);
+            const isSuggested = Boolean(visible && activeSuggested.has(id));
             btn.classList.toggle('is-suggested', isSuggested);
             if (isSuggested && rule.reason) {
                 btn.setAttribute('data-suggest-reason', rule.reason);
@@ -552,6 +680,8 @@ class InputController {
                 btn.removeAttribute('data-suggest-reason');
                 if (btn._baseTitle) btn.title = btn._baseTitle;
             }
+
+            btn.classList.toggle('is-contextual-dim', Boolean(visible && rule.dim));
         }
 
         if (visMask !== this._lastActionBarVisMask) {
@@ -3501,8 +3631,19 @@ class InputController {
         });
 
         canvas.addEventListener('pointermove', (e) => {
+            if (!isDragging) {
+                if (!this.inTerminal && this.dungeon && typeof this.dungeon.setHoverScreenCoords === 'function') {
+                    this.dungeon.setHoverScreenCoords(e.clientX, e.clientY, this);
+                }
+            }
             if (!isDragging || (activePointerId !== null && e.pointerId !== activePointerId)) return;
             onMove(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('pointerleave', () => {
+            if (!this.inTerminal && this.dungeon && typeof this.dungeon.setHoverScreenCoords === 'function') {
+                this.dungeon.setHoverScreenCoords(-1, -1, this);
+            }
         });
 
         const finishPointer = (e) => {
@@ -3660,9 +3801,19 @@ class InputController {
     /**
      * Computes an 8-way Octile A* path from (startX, startY) to (goalX, goalY) over explored map tiles.
      * Routes around visible creatures/townspeople and known traps.
+     * Supports both (frame, startX, startY, goalX, goalY) and (startX, startY, goalX, goalY, frame).
      * Returns an array of `{ x, y, isClosedDoor, isTrap }` steps (excluding start tile), or `[]` if unreachable.
      */
-    computeMinimapPath(frame, startX, startY, goalX, goalY) {
+    computeMinimapPath(arg1, arg2, arg3, arg4, arg5) {
+        let frame, startX, startY, goalX, goalY;
+        if (arg1 && typeof arg1 === 'object' && arg1.map) {
+            frame = arg1; startX = arg2; startY = arg3; goalX = arg4; goalY = arg5;
+        } else if (arg5 && typeof arg5 === 'object' && arg5.map) {
+            startX = arg1; startY = arg2; goalX = arg3; goalY = arg4; frame = arg5;
+        } else {
+            frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+            startX = arg1; startY = arg2; goalX = arg3; goalY = arg4;
+        }
         if (!frame || !frame.map || !Array.isArray(frame.map.rows)) return [];
         const map = frame.map;
         const outdoors = Boolean((frame.player && frame.player.depth === 0) || frame.is_wild_mode);
@@ -3817,6 +3968,50 @@ class InputController {
     _itemSignatureOf(frame) {
         const items = (frame && Array.isArray(frame.items)) ? frame.items : ((frame && Array.isArray(frame.objects)) ? frame.objects : []);
         return items.map((it) => `${it.x},${it.y}:${it.name || it.glyph || ''}`).sort().join('|');
+    }
+
+    get _minimapNavPath() {
+        return (this._autoNav && this._autoNav.active && Array.isArray(this._autoNav.path)) ? this._autoNav.path : null;
+    }
+
+    canEngageStreetViewNav(frame = null) {
+        if (this.dungeon && typeof this.dungeon.canEngageStreetViewNav === 'function') {
+            return this.dungeon.canEngageStreetViewNav(frame);
+        }
+        const effFrame = frame || (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+        if (!effFrame || !effFrame.player) return false;
+        const player = effFrame.player;
+        const curHp = Number(player.hp ?? 0);
+        const maxHp = Math.max(1, Number(player.hp_max ?? 1));
+        if (curHp < maxHp * 0.22) return false;
+
+        const statuses = Array.isArray(player.statuses) ? player.statuses : [];
+        const isDisabling = statuses.some(s => {
+            const name = typeof s === 'string' ? s : (s && s.name ? s.name : '');
+            return /blind|confus|paralyz|stun|afraid|hallucinat|盲目|混乱|麻痺|朦朧|恐怖|幻覚/i.test(name);
+        });
+        if (isDisabling) return false;
+
+        const px = player.x;
+        const py = player.y;
+        if (px === undefined || py === undefined) return false;
+
+        const monsters = Array.isArray(effFrame.monsters) ? effFrame.monsters : [];
+        const r = (this.realm || (effFrame && effFrame.realm) || 'angband').toLowerCase();
+        const depth = player.depth || 0;
+
+        for (const m of monsters) {
+            if (!m || m.visible === false || m.ml === false || m.friendly || m.pet || m.peaceful) continue;
+            if (depth === 0 && r !== 'silq') {
+                const isDamaged = (typeof m.hp === 'number' && typeof m.hp_max === 'number' && m.hp < m.hp_max);
+                const hasHostileFlag = Boolean(m.hostile || m.is_hostile || (m.status && /hostile|anger|alert/i.test(m.status)));
+                if (!isDamaged && !hasHostileFlag) continue;
+            }
+            const d = Math.max(Math.abs(m.x - px), Math.abs(m.y - py));
+            if (d <= 14) return false;
+        }
+
+        return true;
     }
 
     startMinimapAutoNav(goalX, goalY, frameOverride = null) {

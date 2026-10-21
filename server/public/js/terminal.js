@@ -210,6 +210,7 @@ class WebTerminal {
             if (e.button === 0) { // Primary / Left Click
                 isMouseDragging = true;
                 this._mouseDidDrag = false;
+                this._panDragDist = 0;
                 mouseStartX = e.clientX;
                 mouseStartY = e.clientY;
                 mouseStartScrollLeft = viewport.scrollLeft;
@@ -225,7 +226,8 @@ class WebTerminal {
             if (!isMouseDragging) return;
             const dx = e.clientX - mouseStartX;
             const dy = e.clientY - mouseStartY;
-            if (Math.hypot(dx, dy) >= 6) {
+            this._panDragDist = Math.hypot(dx, dy);
+            if (this._panDragDist >= 6) {
                 this._mouseDidDrag = true;
                 viewport.style.cursor = 'grabbing';
                 if (this.canvas) this.canvas.style.cursor = 'grabbing';
@@ -411,6 +413,35 @@ class WebTerminal {
             const offsetX = (e.clientX - rect.left) * ((this.cols * this.charWidth) / rect.width);
             const row = Math.floor(offsetY / this.charHeight);
             const col = Math.floor(offsetX / this.charWidth);
+
+            const app = (typeof window !== 'undefined' && (window.app || window.__app)) || null;
+            const f = app?.currentFrame || app?.getLastFrame?.() || (typeof window !== 'undefined' && window.__lastFrame) || null;
+            const inPlay = Boolean(f && f.phase === 'play' && (f.ui?.overlay || 0) === 0 && f.ui?.awaiting_command && !f.ui?.more);
+            const inputMgr = app?.input || (typeof window !== 'undefined' && window.input) || null;
+
+            if (inPlay && inputMgr && f && f.player && f.map && this.lastTermData) {
+                this._findPlayerTermCoords(this.lastTermData, f.player);
+                const tx = (this._vpOx !== undefined ? this._vpOx : 0) + col;
+                const ty = (this._vpOy !== undefined ? this._vpOy : 0) + row;
+                const tileKey = `${tx},${ty}`;
+                if (this._hoverTileKey !== tileKey) {
+                    this._hoverTileKey = tileKey;
+                    const canNav = typeof inputMgr.canEngageStreetViewNav === 'function' ? inputMgr.canEngageStreetViewNav(f) : true;
+                    if (canNav && tx >= 0 && ty >= 0 && tx < f.map.w && ty < f.map.h) {
+                        this._hoverMapPath = typeof inputMgr.computeMinimapPath === 'function'
+                            ? (inputMgr.computeMinimapPath.length >= 5 ? inputMgr.computeMinimapPath(f, f.player.x, f.player.y, tx, ty) : inputMgr.computeMinimapPath(f.player.x, f.player.y, tx, ty, f))
+                            : [];
+                    } else {
+                        this._hoverMapPath = null;
+                    }
+                    if (this.lastTermData) this.render(this.lastTermData);
+                }
+            } else if (this._hoverMapPath) {
+                this._hoverMapPath = null;
+                this._hoverTileKey = null;
+                if (this.lastTermData) this.render(this.lastTermData);
+            }
+
             if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
                 if (this.hoverRow !== row || this.hoverCol !== col) {
                     this.hoverRow = row;
@@ -425,24 +456,33 @@ class WebTerminal {
         });
 
         this.canvas.addEventListener('mouseleave', () => {
+            let rerender = false;
             if (this.hoverRow !== -1 || this.hoverCol !== -1) {
                 this.hoverRow = -1;
                 this.hoverCol = -1;
-                if (this.lastTermData) this.render(this.lastTermData);
+                rerender = true;
             }
+            if (this._hoverMapPath || this._hoverTileKey) {
+                this._hoverMapPath = null;
+                this._hoverTileKey = null;
+                rerender = true;
+            }
+            if (rerender && this.lastTermData) this.render(this.lastTermData);
         });
 
         this.canvas.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (this._mouseDidDrag) {
+            if (this._mouseDidDrag || (this._panDragDist && this._panDragDist > 6)) {
                 this._mouseDidDrag = false;
+                this._panDragDist = 0;
                 return;
             }
+            this._panDragDist = 0;
             const rect = this.canvas.getBoundingClientRect();
             if (!rect.height || !this.charHeight || !rect.width || !this.charWidth) return;
             const offsetY = (e.clientY - rect.top) * ((this.rows * this.charHeight) / rect.height);
-            const offsetX = (e.clientY !== undefined ? (e.clientX - rect.left) * ((this.cols * this.charWidth) / rect.width) : 0);
+            const offsetX = (e.clientX - rect.left) * ((this.cols * this.charWidth) / rect.width);
             const row = Math.floor(offsetY / this.charHeight);
             const col = Math.floor(offsetX / this.charWidth);
             this.handleRowClick(row, col);
@@ -511,12 +551,76 @@ class WebTerminal {
         const tagMatch = line.match(/(?:^|\s+)(?:\[([a-zA-Z0-9*@?])\]|\(([a-zA-Z0-9*@?])\)|([a-zA-Z0-9*@?])[\)\.\:\-])\s+\S/);
         if (tagMatch) {
             const key = tagMatch[1] || tagMatch[2] || tagMatch[3];
-            if (key) sendKey(key);
-        } else if (line.includes('> ')) {
+            if (key) {
+                sendKey(key);
+                return;
+            }
+        }
+
+        // Click-to-Move on Tab Classic Map in play mode when no menu tag was clicked
+        const app = (typeof window !== 'undefined' && (window.app || window.__app)) || null;
+        const f = app?.currentFrame || app?.getLastFrame?.() || (typeof window !== 'undefined' && window.__lastFrame) || null;
+        const inputMgr = app?.input || (typeof window !== 'undefined' && window.input) || null;
+        const isPlayState = Boolean(f && f.phase === 'play' && (f.ui?.overlay || 0) === 0 && f.ui?.awaiting_command && !f.ui?.more);
+
+        if (isPlayState && inputMgr && f && f.player && f.map && this.lastTermData) {
+            this._findPlayerTermCoords(this.lastTermData, f.player);
+            const tx = (this._vpOx !== undefined ? this._vpOx : 0) + col;
+            const ty = (this._vpOy !== undefined ? this._vpOy : 0) + row;
+            if (tx >= 0 && ty >= 0 && tx < f.map.w && ty < f.map.h) {
+                if (typeof inputMgr.startMinimapAutoNav === 'function') {
+                    inputMgr.startMinimapAutoNav(tx, ty, f);
+                    return;
+                }
+            }
+        }
+
+        if (line.includes('> ')) {
             sendKey('enter');
         } else if (line.includes('-more-') || line.includes('-続く-')) {
             sendKey('space');
         }
+    }
+
+    _findPlayerTermCoords(termData, player) {
+        if (!termData || !termData.rows) return null;
+        const rows = termData.rows;
+        const centerCol = (this.cols || 80) / 2;
+        const centerRow = (this.rows || 24) / 2;
+        let bestCol = -1;
+        let bestRow = -1;
+        let bestDist = Infinity;
+
+        for (let r = 1; r < rows.length - 1; r++) {
+            const rowObj = rows[r];
+            const text = rowObj ? (rowObj.g || '') : '';
+            for (let c = 0; c < text.length; c++) {
+                if (text[c] === '@') {
+                    const d = Math.hypot(c - centerCol, r - centerRow);
+                    if (d < bestDist) {
+                        bestDist = d;
+                        bestCol = c;
+                        bestRow = rowObj.y !== undefined ? rowObj.y : r;
+                    }
+                }
+            }
+        }
+
+        const px = (player && typeof player.x === 'number') ? player.x : (bestCol >= 0 ? bestCol : 0);
+        const py = (player && typeof player.y === 'number') ? player.y : (bestRow >= 0 ? bestRow : 0);
+
+        if (bestCol >= 0 && bestRow >= 0) {
+            this._vpOx = px - bestCol;
+            this._vpOy = py - bestRow;
+            this._playerTermCol = bestCol;
+            this._playerTermRow = bestRow;
+        } else {
+            this._vpOx = 0;
+            this._vpOy = 0;
+            this._playerTermCol = px;
+            this._playerTermRow = py;
+        }
+        return { col: this._playerTermCol, row: this._playerTermRow, ox: this._vpOx, oy: this._vpOy };
     }
 
     parseAttr(aStr, cellIdx) {
@@ -826,6 +930,47 @@ class WebTerminal {
             }
         }
 
+        // Sleek translucent gold A* path overlay on Tab Classic Map
+        const app = (typeof window !== 'undefined' && (window.app || window.__app)) || null;
+        const effFrame = app?.currentFrame || app?.getLastFrame?.() || (typeof window !== 'undefined' && window.__lastFrame) || null;
+        if (effFrame && effFrame.player) {
+            this._findPlayerTermCoords(termData, effFrame.player);
+        }
+
+        const inputMgr = app?.input || (typeof window !== 'undefined' && window.input) || null;
+        const navPath = (this._hoverMapPath && this._hoverMapPath.length > 0)
+            ? this._hoverMapPath
+            : ((inputMgr && inputMgr._minimapNavPath && inputMgr._minimapNavPath.length > 0) ? inputMgr._minimapNavPath : null);
+
+        const currentOverlay = effFrame?.ui?.overlay ?? (termData.ui?.overlay || 0);
+        if (navPath && navPath.length > 0 && currentOverlay === 0 && this._vpOx !== undefined && this._vpOy !== undefined) {
+            this.ctx.save();
+            for (let i = 0; i < navPath.length; i++) {
+                const step = navPath[i];
+                const scCol = step.x - this._vpOx;
+                const scRow = step.y - this._vpOy;
+                if (scCol >= 0 && scCol < this.cols && scRow >= 0 && scRow < this.rows) {
+                    const cx = (scCol + 0.5) * this.charWidth;
+                    const cy = (scRow + 0.5) * this.charHeight;
+                    if (i === navPath.length - 1) {
+                        const bx = scCol * this.charWidth;
+                        const by = scRow * this.charHeight;
+                        this.ctx.strokeStyle = '#ffd700';
+                        this.ctx.lineWidth = 1.5;
+                        this.ctx.strokeRect(bx + 1, by + 1, this.charWidth - 2, this.charHeight - 2);
+                        this.ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+                        this.ctx.fillRect(bx + 1, by + 1, this.charWidth - 2, this.charHeight - 2);
+                    } else {
+                        this.ctx.fillStyle = 'rgba(255, 215, 0, 0.38)';
+                        this.ctx.beginPath();
+                        this.ctx.arc(cx, cy, Math.max(2.5, this.charWidth * 0.18), 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                }
+            }
+            this.ctx.restore();
+        }
+
         // Draw 3D Camera Vision Cone & Direction Indicator when player '@' is present
         this.drawVisionCone(termData);
 
@@ -986,4 +1131,5 @@ class WebTerminal {
     }
 }
 
-window.WebTerminal = WebTerminal;
+if (typeof window !== 'undefined') window.WebTerminal = WebTerminal;
+if (typeof module !== 'undefined' && module.exports) module.exports = { WebTerminal };

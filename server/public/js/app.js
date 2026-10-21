@@ -383,13 +383,28 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let wasInStore = false;
 
+    const _sjisDecodeCache = new Map();
     function decodeHengbandText(str) {
         if (!str) return '';
-        if (/[\u3000-\u9faf]/.test(str)) return str;
-        if (terminal && typeof terminal.decodeText === 'function') {
-            return terminal.decodeText(str);
+        const cache = (this && typeof this === 'object' && this !== window)
+            ? (this._sjisDecodeCache = this._sjisDecodeCache || new Map())
+            : _sjisDecodeCache;
+        const cached = cache.get(str);
+        if (cached !== undefined) return cached;
+
+        let res = str;
+        if (/[\u3000-\u9faf]/.test(str)) {
+            res = str;
+        } else if (terminal && typeof terminal.decodeText === 'function') {
+            res = terminal.decodeText(str);
         }
-        return str;
+
+        if (cache.size >= 512) {
+            const oldest = cache.keys().next().value;
+            cache.delete(oldest);
+        }
+        cache.set(str, res);
+        return res;
     }
 
     function stepQuickBirth(frame) {
@@ -4294,6 +4309,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     let lastPopulatedLetters = '';
+    let _lastToolbarSig = null;
 
     function updateTerminalToolbar(frame) {
         const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
@@ -4310,8 +4326,30 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (!terminalTitle || !termEscapeBtn) return;
 
-        const effFrame = frame || lastFrame || window.__lastFrame || (window.__app && window.__app.getLastFrame && window.__app.getLastFrame());
+        const effFrame = frame || (this && this.currentFrame) || lastFrame || window.__lastFrame || (window.__app && window.__app.getLastFrame && window.__app.getLastFrame());
+        if (!effFrame || !effFrame.term || !effFrame.term.rows) return;
+        const ui = effFrame.ui || {};
+        const inTermView = Boolean((this && this.forceTerminal !== undefined ? this.forceTerminal : forceTerminal) || ((this && typeof this.needsTerminal === 'function') ? this.needsTerminal(effFrame) : needsTerminal(effFrame)));
+        const curRealm = (this && this.currentRealm) || (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (effFrame && effFrame.realm) || 'angband';
+        const gMode = (window.RealmGrimoireDeck && window.RealmGrimoireDeck.mode) || 'hybrid';
+        const mrPendObj = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function') ? window.MenuRouter.getPending() : null;
+        const mrPending = mrPendObj ? `${mrPendObj.step}:${mrPendObj.item?.key || ''}` : 'none';
+        const row0 = effFrame.term.rows[0]?.g || '';
+        const row23 = effFrame.term.rows[effFrame.term.rows.length - 1]?.g || '';
+        const toolbarSig = `${effFrame.seq || 0}_${inTermView ? 1 : 0}_${ui.overlay || 0}_${ui.awaiting_command ? 1 : 0}_${ui.more ? 1 : 0}_${curRealm}_${gMode}_${mrPending}_${row0}_${row23}`;
+        if ((this && this._lastToolbarSig === toolbarSig) || _lastToolbarSig === toolbarSig) return;
+        if (this && typeof this === 'object') this._lastToolbarSig = toolbarSig;
+        _lastToolbarSig = toolbarSig;
+
         const inPlay = Boolean(effFrame && effFrame.phase === 'play' && effFrame.map);
+        const skipScraping = !inTermView && inPlay && (ui.overlay || 0) === 0 && ui.awaiting_command && !ui.more && !mrPendObj;
+        if (skipScraping) {
+            const gc = document.getElementById('grimoire-deck-container');
+            if (gc && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.hide === 'function') {
+                window.RealmGrimoireDeck.hide(gc);
+            }
+            return;
+        }
         const rawScreenText = (effFrame && effFrame.term && effFrame.term.rows)
             ? effFrame.term.rows.map(r => r.g || '').join('\n')
             : '';
@@ -4426,6 +4464,11 @@ window.addEventListener('DOMContentLoaded', () => {
         // Helper to populate letter ribbon (supports single & multi-column menus, excludes item description stats)
         const populateLetterRibbon = (rows, explicitLetters = null) => {
             if (!termLetterRibbon) return;
+            if (skipScraping) {
+                termLetterRibbon.style.display = 'none';
+                termLetterRibbon.innerHTML = '';
+                return;
+            }
             let options = [];
             if (explicitLetters && Array.isArray(explicitLetters)) {
                 options = explicitLetters.map(lt => ({ key: lt, display: `[${lt}]`, label: null }));
@@ -5306,24 +5349,29 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (grimoireContainer && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.render === 'function') {
-            const effRealm = activeRealm || (effFrame && effFrame.realm) || 'angband';
-            const gClassifier = (SC && typeof SC.classify === 'function')
-                ? SC.classify(effFrame, effRealm, { decode: decodeHengbandText })
-                : {};
-            const gSubmenu = (SC && typeof SC.detectRealmSubmenu === 'function')
-                ? SC.detectRealmSubmenu(effFrame, effRealm, decodeHengbandText)
-                : {};
-            const gItems = (SC && typeof SC.extractMultiColumnItems === 'function' && effFrame && effFrame.term && Array.isArray(effFrame.term.rows))
-                ? SC.extractMultiColumnItems(effFrame.term.rows, isHeng, decodeHengbandText)
-                : [];
-            window.RealmGrimoireDeck.render(grimoireContainer, {
-                realm: effRealm,
-                lang: isHeng ? langMode : 'en',
-                classifier: gClassifier,
-                submenu: gSubmenu,
-                items: gItems,
-                onAction: (act) => {
+        if (grimoireContainer && window.RealmGrimoireDeck) {
+            if (skipScraping) {
+                if (typeof window.RealmGrimoireDeck.hide === 'function') {
+                    window.RealmGrimoireDeck.hide(grimoireContainer);
+                }
+            } else if (typeof window.RealmGrimoireDeck.render === 'function') {
+                const effRealm = activeRealm || (effFrame && effFrame.realm) || 'angband';
+                const gClassifier = (SC && typeof SC.classify === 'function')
+                    ? SC.classify(effFrame, effRealm, { decode: decodeHengbandText })
+                    : {};
+                const gSubmenu = (SC && typeof SC.detectRealmSubmenu === 'function')
+                    ? SC.detectRealmSubmenu(effFrame, effRealm, decodeHengbandText)
+                    : {};
+                const gItems = (SC && typeof SC.extractMultiColumnItems === 'function' && effFrame && effFrame.term && Array.isArray(effFrame.term.rows))
+                    ? SC.extractMultiColumnItems(effFrame.term.rows, isHeng, decodeHengbandText)
+                    : [];
+                window.RealmGrimoireDeck.render(grimoireContainer, {
+                    realm: effRealm,
+                    lang: isHeng ? langMode : 'en',
+                    classifier: gClassifier,
+                    submenu: gSubmenu,
+                    items: gItems,
+                    onAction: (act) => {
                     if (!act) return;
                     if (audio && typeof audio.unlock === 'function') audio.unlock();
                     if (audio && typeof audio.playParchmentTurn === 'function') {
@@ -5399,6 +5447,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
+            }
         }
     }
 
@@ -5475,7 +5524,11 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
             terminalContainer.classList.add('hidden');
             terminalContainer.classList.remove('in-game-modal');
-            document.body.classList.remove('terminal-mode-active');
+            document.body.classList.remove('terminal-mode-active', 'grimoire-primary-open');
+            const gc = document.getElementById('grimoire-deck-container');
+            if (gc && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.hide === 'function') {
+                window.RealmGrimoireDeck.hide(gc);
+            }
             if (hudOverlay) hudOverlay.style.display = 'flex';
 
             // Respect user closed preference for minimap radar

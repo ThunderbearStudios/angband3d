@@ -1,12 +1,12 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS32 — Cross-Realm UI/UX Refinements, Quick-Action Bar, Minimap & 3D Click-to-Auto-Navigate & Hengband JP Parity (`v9.9.8`) — COMPLETE**
+**WS33 — Open-World Performance, 3D StreetView & Tab-Map Navigation, Context Command Refinement, HUD/Grimoire Mobile & Desktop Redesign & Photorealistic Alchemical Vials (`v9.9.9`) — COMPLETE**
 
-- **Current Phase**: All workstreams `WS0–WS32` complete (`v9.9.8`, `19/19 fast`, `144/144 screen_context`, `14/14 menu_router`, `11/11 smoke`, `0 C# errors`, `tb_mastery.py audit` `0 errors / 0 warnings`).
+- **Current Phase**: All workstreams `WS0–WS33` complete (`v9.9.9`, `19/19 fast`, `144/144 screen_context`, `15/15 menu_router`, `11/11 smoke`, `0 C# errors`, `tb_mastery.py audit` `0 errors / 0 warnings`).
 - **Historical Log**: Full checklist and gate history for `WS0–WS21` are archived in [`docs/archive/STATE_HISTORY_WS0_WS21.md`](file:///c:/Dev/angband3d/docs/archive/STATE_HISTORY_WS0_WS21.md).
 
-## Completed Workstream Summary (`WS0–WS32`)
+## Completed Workstream Summary (`WS0–WS33`)
 
 | Workstream | Scope Summary | Status |
 | :--- | :--- | :--- |
@@ -15,7 +15,8 @@
 | **WS11–WS21** | Voiced Lorekeeper (`Enceladus` + 30 archetypes), 8-Pillar 3D, Shockbolt 4096 HD, 4-Realm `.glb` Bestiary, Studio Foley, Apothecary Vials (`L37–L44`) | `[x] DONE` |
 | **WS22–WS24** | Universal Agentic Mastery (`L45–L49`), Authentic Artist 3D Bestiary & Arcane Items (`L50`), Non-Modal 3D Entity Popover & Anti-Repetition Dialogue (`L51`) | `[x] DONE` |
 | **WS25–WS31** | Multi-Col Hit-Testing (`extractRowRegions`), `RealmGrimoireDeck`, 4-Realm Narrative Vows/Parley, Zero-Alloc 60fps Cache, Cross-Realm Unified Command/Menu/Inventory System (`L52–L53`) | `[x] DONE` |
-| **WS32** | Viewport-Budget Locked Terminal/Grimoire Scaling, Context-Filtered & Suggested `#action-bar`, Subtle Over-Time HP/SP Regen Audio, 4-Slot Bindable `#quick-slot-bar` (`QuickActionManager`), Minimap & 3D Viewport Click-to-Auto-Navigate (`getTileAtScreenCoords` + Octile A* + creature detouring & interrupts), & Hengband `JP` End-to-End Voice/Tome/Menu Parity (`L54`) | `[x] DONE` |
+| **WS32** | Viewport-Budget Locked Terminal/Grimoire Scaling, Context-Filtered `#action-bar`, Over-Time Regen Audio, 4-Slot `#quick-slot-bar`, Minimap & 3D Click Auto-Nav, Hengband `JP` Parity (`L54`) | `[x] DONE` |
+| **WS33** | Sliding Outdoor Terrain Anchor & Entity Culling, 3D StreetView Chevrons & Grid Reticle, `Tab` Classic Map Click-to-Move, Bresenham LOS & Level-1 Cast Recommender Fix, Responsive `RealmGrimoireDeck` & Photorealistic Alchemical Vessels (`v9.9.9`) | `[x] DONE` |
 
 ## Mandatory Verification Gate
 Server must be fresh (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }` then `cd server; node src/server.js`.
@@ -41,5 +42,5 @@ None
 - **WS-NH1..WS-NH6 — UnNetHack (5th Realm) Full Integration (`~2.5–4.0 hrs` / `~110–145 turns`)**: Complete architectural spec, `win/bridge/winbridge.c` `window_procs` design, `SaveUNHK` multi-file save bundler, and 6 pre-solved NetHack technical gotchas documented in [`docs/plan/UNNETHACK_INTEGRATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/UNNETHACK_INTEGRATION_PLAN.md).
 
 ## Last Gate Results
-- **WS32 UI/UX Refinements, Quick-Action Bar, Minimap & 3D Auto-Nav & Hengband JP Parity Gate (`v9.9.8`, 2026-10-20)**: `fast 19/19 PASS` (`test_screen_context` 144/144, `test_menu_router` 14/14, `check_version_sync` `9.9.8`, `check_android_sync` SHA-1 matched) | `smoke_test.py` `11/11 PASS` | `dotnet build` Godot `0 warn / 0 err` | `tb_mastery.py audit` `0 errors / 0 warnings`.
-- **WS31 Cross-Realm Unified Command, Menu & Inventory Redesign Gate (`v9.9.6`, 2026-10-20)**: `fast 19/19 PASS` (`test_screen_context` 144/144, `test_menu_router` 10/10, `check_version_sync` `9.9.6`, `check_android_sync` SHA-1 matched) | `smoke_test.py` `11/11 PASS` | `dotnet build` Godot `0 warn / 0 err` | `tb_mastery.py audit` `0 errors / 0 warnings`.
+- **WS33 Open-World Performance, 3D StreetView & Tab-Map Auto-Nav, Command Recommender, Responsive Grimoire/HUD & Photorealistic Vials Gate (`v9.9.9`, 2026-10-20)**: `fast 19/19 PASS` (`test_screen_context` 144/144, `test_menu_router` 15/15, `check_version_sync` `9.9.9`, `check_android_sync` SHA-1 matched) | `smoke_test.py` `11/11 PASS` | `dotnet build` Godot `0 warn / 0 err` | `tb_mastery.py audit` `0 errors / 0 warnings`.
+- **WS32 UI/UX Refinements, Quick-Action Bar, Minimap & 3D Auto-Nav & Hengband JP Parity Gate (`v9.9.8`, 2026-10-20)**: `fast 19/19 PASS` | `smoke_test.py` `11/11 PASS` | `dotnet build` Godot `0 warn / 0 err` | `tb_mastery.py audit` `0 errors / 0 warnings`.

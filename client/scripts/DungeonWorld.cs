@@ -3831,10 +3831,11 @@ void fragment() {
 
         // Bounding box around player for active sightline (MAX_SIGHT in Angband is 20)
         const int sightRange = 32;
-        var minX = _outdoors ? 0 : Math.Max(0, px - sightRange);
-        var maxX = _outdoors ? w - 1 : Math.Min(w - 1, px + sightRange);
-        var minY = _outdoors ? 0 : Math.Max(0, py - sightRange);
-        var maxY = _outdoors ? h - 1 : Math.Min(h - 1, py + sightRange);
+        var effRange = _outdoors ? 32 : sightRange;
+        var minX = Math.Max(0, px - effRange);
+        var maxX = Math.Min(w - 1, px + effRange);
+        var minY = Math.Max(0, py - effRange);
+        var maxY = Math.Min(h - 1, py + effRange);
 
         for (var y = minY; y <= maxY; y++)
         {
@@ -4199,10 +4200,11 @@ void fragment() {
         var stairsList = new List<(Vector3 Pos, string Name)>();
 
         const int labelRange = 32;
-        var minX = _outdoors ? 0 : Math.Max(0, px - labelRange);
-        var maxX = _outdoors ? w - 1 : Math.Min(w - 1, px + labelRange);
-        var minY = _outdoors ? 0 : Math.Max(0, py - labelRange);
-        var maxY = _outdoors ? h - 1 : Math.Min(h - 1, py + labelRange);
+        var effRange = _outdoors ? 32 : labelRange;
+        var minX = Math.Max(0, px - effRange);
+        var maxX = Math.Min(w - 1, px + effRange);
+        var minY = Math.Max(0, py - effRange);
+        var maxY = Math.Min(h - 1, py + effRange);
 
         for (var y = minY; y <= maxY; y++)
         {

@@ -438,7 +438,35 @@ function runTests() {
     assert.strictEqual(navDummy._autoNav.goalX, 3, 'New goalX must be updated to 3');
     navDummy.stopMinimapAutoNav('Cancelled');
 
-    console.log("All MenuRouter & WS32 unit tests passed successfully!");
+    // Test 15: WS33 StreetView safety gate, Bresenham LOS, Tab Classic Map viewport offset & Grimoire progressive disclosure
+    assert.strictEqual(typeof navDummy.canEngageStreetViewNav, 'function', 'InputController must expose canEngageStreetViewNav');
+    assert.strictEqual(typeof navDummy._hasClearLOS, 'function', 'InputController must expose _hasClearLOS');
+    assert.strictEqual(navDummy.canEngageStreetViewNav(townFrame), true, 'Peaceful town frame must allow StreetView nav');
+    const blindFrame = JSON.parse(JSON.stringify(townFrame));
+    blindFrame.player.statuses = [{ name: 'Blind' }];
+    assert.strictEqual(navDummy.canEngageStreetViewNav(blindFrame), false, 'Blind status must block StreetView nav');
+    const hostileDungeonFrame = JSON.parse(JSON.stringify(townFrame));
+    hostileDungeonFrame.player.depth = 3;
+    hostileDungeonFrame.monsters = [{ x: 2, y: 1, name: 'Cave orc', glyph: 'o', ml: true }];
+    assert.strictEqual(navDummy.canEngageStreetViewNav(hostileDungeonFrame), false, 'Visible hostile monster in dungeon must block StreetView nav');
+    assert.strictEqual(navDummy._hasClearLOS(0, 1, 3, 1, navFrame.map), false, 'Closed door on (1,1) must block ranged LOS');
+    assert.strictEqual(navDummy._hasClearLOS(0, 1, 3, 1, townFrame.map), true, 'Open floor must have clear ranged LOS');
+
+    const { WebTerminal } = require('../server/public/js/terminal.js');
+    const termDummy = Object.create(WebTerminal.prototype);
+    termDummy._findPlayerTermCoords({
+        rows: [
+            { g: 'Level 1' },
+            { g: '....@....' },
+            { g: '.........' }
+        ]
+    }, { x: 24, y: 15 });
+    assert.strictEqual(termDummy._playerTermCol, 4, 'TerminalRenderer must locate @ column');
+    assert.strictEqual(termDummy._playerTermRow, 1, 'TerminalRenderer must locate @ row');
+    assert.strictEqual(termDummy._vpOx, 20, 'Viewport X offset must equal player.x - @col');
+    assert.strictEqual(termDummy._vpOy, 14, 'Viewport Y offset must equal player.y - @row');
+
+    console.log("All MenuRouter, WS32 & WS33 unit tests passed successfully!");
 }
 
 try {

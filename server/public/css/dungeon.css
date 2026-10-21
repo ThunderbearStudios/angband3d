@@ -357,11 +357,13 @@ body[data-realm="hengband"] {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 6px;
+    gap: 8px;
     background: linear-gradient(135deg, rgba(30, 24, 18, 0.92) 0%, rgba(17, 14, 10, 0.95) 100%);
     border: 1px solid rgba(212, 175, 55, 0.28);
     border-radius: 6px;
-    padding: 5px 8px;
+    padding: 7px 10px;
+    min-height: 46px;
+    position: relative;
     transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
@@ -411,18 +413,21 @@ body[data-realm="hengband"] {
 }
 
 .grimoire-item-copy {
-    flex: 1;
-    min-width: 0;
+    flex: 1 1 auto;
+    min-width: 110px;
 }
 
 .grimoire-item-title {
     font-family: var(--font-ui);
-    font-size: 11.5px;
+    font-size: clamp(12px, 3.2cqi, 13.5px);
     font-weight: 600;
     color: #f3ead8;
-    white-space: nowrap;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.25;
     overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .grimoire-item-meta {
@@ -439,25 +444,72 @@ body[data-realm="hengband"] {
 
 .grimoire-card-actions {
     display: inline-flex;
-    gap: 3px;
+    align-items: center;
+    gap: 4px;
     flex-shrink: 0;
 }
 
-.grimoire-card-verb-btn {
+.grimoire-card-verb-btn,
+.grimoire-act-btn {
     background: rgba(212, 175, 55, 0.14);
     border: 1px solid rgba(212, 175, 55, 0.36);
     color: #fce7a1;
     font-family: var(--font-ui);
-    font-size: 10px;
+    font-size: 10.5px;
     font-weight: 600;
+    padding: 3px 7px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+
+.grimoire-card-verb-btn:hover,
+.grimoire-act-btn:hover {
+    background: rgba(212, 175, 55, 0.32);
+    border-color: var(--gold-bright);
+    color: #ffffff;
+}
+
+.grimoire-act-btn.is-primary-verb {
+    display: inline-flex !important;
+}
+
+.grimoire-act-btn.is-secondary-verb {
+    display: none;
+}
+
+.grimoire-item-card:hover .grimoire-act-btn.is-secondary-verb,
+.grimoire-item-card:focus-within .grimoire-act-btn.is-secondary-verb,
+.grimoire-item-card.actions-expanded .grimoire-act-btn.is-secondary-verb {
+    display: inline-flex !important;
+}
+
+.grimoire-more-verbs-btn {
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.32);
+    color: #fce7a1;
+    font-size: 13px;
     padding: 2px 6px;
     border-radius: 4px;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    min-width: 24px;
+    min-height: 24px;
+    transition: all 0.12s ease;
 }
 
-.grimoire-card-verb-btn:hover {
-    background: rgba(212, 175, 55, 0.32);
+.grimoire-more-verbs-btn:hover {
+    background: rgba(212, 175, 55, 0.3);
     border-color: var(--gold-bright);
+    color: #ffffff;
+}
+
+.grimoire-item-card.actions-expanded .grimoire-more-verbs-btn {
+    background: rgba(212, 175, 55, 0.38);
+    border-color: #ffd700;
     color: #ffffff;
 }
 
@@ -8558,10 +8610,11 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 
 /* 2. Twin Vertical Apothecary Medicine Vials */
 #char-panel {
-    width: 228px !important;
-    min-width: 228px !important;
-    max-width: 228px !important;
-    padding: 7px 8px !important;
+    width: 208px !important;
+    min-width: 208px !important;
+    max-width: 208px !important;
+    padding: 6px 7px !important;
+    font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
@@ -8605,24 +8658,23 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 #char-panel .gauge-hp .gauge-track,
 #char-panel .gauge-sp .gauge-track {
     order: 1 !important;
-    width: 26px !important;
-    height: 76px !important;
+    width: 30px !important;
+    height: 78px !important;
     flex-shrink: 0 !important;
-    border-radius: 5px 5px 11px 11px !important;
+    border-radius: 6px 6px 12px 12px !important;
     position: relative !important;
     overflow: hidden !important;
     background: linear-gradient(90deg, rgba(8, 6, 6, 0.98) 0%, rgba(28, 22, 18, 0.94) 40%, rgba(6, 5, 8, 0.99) 100%) !important;
+    box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.95), 0 1px 0 rgba(255, 215, 140, 0.22) !important;
     margin: 0 !important;
 }
 
 #char-panel .gauge-hp .gauge-track {
     border: 2px solid #c89b4b !important;
-    box-shadow: 0 0 0 1px #140c06, 0 4px 10px rgba(0, 0, 0, 0.95), inset 0 0 10px rgba(0, 0, 0, 0.92) !important;
 }
 
 #char-panel .gauge-sp .gauge-track {
     border: 2px solid #689fd4 !important;
-    box-shadow: 0 0 0 1px #140c06, 0 4px 10px rgba(0, 0, 0, 0.95), inset 0 0 10px rgba(0, 0, 0, 0.92) !important;
 }
 
 #char-panel #hp-fill,
@@ -8637,21 +8689,49 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 #char-panel #hp-fill {
-    background: linear-gradient(90deg, #52050a 0%, #d41922 30%, #ff5a5a 52%, #9e0c15 82%, #3d0206 100%) !important;
-    border-top: 2px solid #ffd4c4 !important;
-    box-shadow: inset 0 3px 8px rgba(255, 190, 170, 0.85), 0 -2px 10px rgba(255, 45, 45, 0.8) !important;
+    background: radial-gradient(ellipse at 38% 30%, rgba(255, 120, 120, 0.95) 0%, rgba(220, 28, 38, 0.92) 45%, rgba(115, 12, 22, 0.98) 100%) !important;
+    box-shadow: inset 0 2px 5px rgba(255, 190, 190, 0.65), inset -3px 0 6px rgba(60, 0, 10, 0.85), 0 0 12px rgba(220, 38, 38, 0.45) !important;
+    border-top: 1px solid rgba(255, 220, 220, 0.9) !important;
 }
 
 #char-panel #sp-fill {
-    background: linear-gradient(90deg, #051638 0%, #1668c4 30%, #70ecff 52%, #0e4694 82%, #030e26 100%) !important;
-    border-top: 2px solid #dcffff !important;
-    box-shadow: inset 0 3px 8px rgba(200, 248, 255, 0.88), 0 -2px 10px rgba(55, 185, 255, 0.8) !important;
+    background: radial-gradient(ellipse at 38% 30%, rgba(147, 197, 253, 0.95) 0%, rgba(37, 99, 235, 0.92) 45%, rgba(23, 37, 84, 0.98) 100%) !important;
+    box-shadow: inset 0 2px 5px rgba(219, 234, 254, 0.7), inset -3px 0 6px rgba(10, 20, 60, 0.85), 0 0 12px rgba(59, 130, 246, 0.45) !important;
+    border-top: 1px solid rgba(210, 240, 255, 0.9) !important;
+}
+
+#char-panel #hp-fill::before,
+#char-panel #sp-fill::before {
+    content: '' !important;
+    position: absolute !important;
+    top: -2px !important;
+    left: 1px !important;
+    right: 1px !important;
+    height: 4px !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.65) !important;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.8) !important;
+    pointer-events: none !important;
+}
+
+#char-panel #hp-fill::after,
+#char-panel #sp-fill::after {
+    content: '' !important;
+    position: absolute !important;
+    bottom: 4px !important;
+    left: 20% !important;
+    width: 3px !important;
+    height: 3px !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.45) !important;
+    box-shadow: 6px -12px 0 -0.5px rgba(255, 255, 255, 0.35), 11px -28px 0 -0.8px rgba(255, 255, 255, 0.3) !important;
+    pointer-events: none !important;
 }
 
 .vial-glass-gloss {
     position: absolute !important;
     inset: 0 !important;
-    border-radius: 4px 4px 10px 10px !important;
+    border-radius: 6px 6px 12px 12px !important;
     pointer-events: none !important;
     z-index: 4 !important;
     background: url('/assets/ui/apothecary_vial_overlay.svg') no-repeat center / 100% 100% !important;
@@ -8663,12 +8743,13 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     top: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    height: 9px !important;
+    height: 10px !important;
     z-index: 5 !important;
     pointer-events: none !important;
-    background: linear-gradient(90deg, #4a3014 0%, #d8ab54 28%, #fff0b8 50%, #9c6e28 78%, #3b240d 100%) !important;
-    border-bottom: 2px solid #241406 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 245, 200, 0.65) !important;
+    background: linear-gradient(90deg, #3d250d 0%, #b88a38 22%, #fff2b0 48%, #8e621e 76%, #2e1a07 100%) !important;
+    border-bottom: 2px solid #1c0e04 !important;
+    border-top: 1px solid rgba(255, 235, 170, 0.7) !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 245, 200, 0.65) !important;
 }
 
 #char-panel .gauge-hp .gauge-header,
@@ -9087,25 +9168,72 @@ body.wasd-mode-active .wasd-toggle-pill {
 }
 
 /* ==============================================================================
-   WS32: Locked Terminal/Grimoire Scaling, Contextual Suggested Actions & 4-Slot Quick Bar
+   WS33 Track C: Grimoire Deck Primary Workspace Expansion & Responsive Scaling
    ============================================================================== */
 #grimoire-deck-container {
     flex: 0 0 auto !important;
-    max-height: 184px !important;
     overflow: hidden !important;
     margin-bottom: 4px !important;
 }
 
-.grimoire-deck-shell {
-    max-height: 182px !important;
+#terminal-window.grimoire-primary-open #grimoire-deck-container,
+#terminal-card.grimoire-primary-open #grimoire-deck-container,
+#terminal-container.grimoire-primary-open #grimoire-deck-container,
+body.grimoire-primary-open #grimoire-deck-container {
+    flex: 1 1 auto !important;
+    max-height: min(64vh, 580px) !important;
+    min-height: 220px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+#terminal-window.grimoire-primary-open .grimoire-deck-shell,
+#terminal-card.grimoire-primary-open .grimoire-deck-shell,
+#terminal-container.grimoire-primary-open .grimoire-deck-shell,
+body.grimoire-primary-open .grimoire-deck-shell {
+    flex: 1 1 auto !important;
+    max-height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
     padding: 6px 10px !important;
     gap: 6px !important;
 }
 
-.grimoire-card-grid {
-    max-height: 132px !important;
+#terminal-window.grimoire-primary-open .grimoire-card-grid,
+#terminal-card.grimoire-primary-open .grimoire-card-grid,
+#terminal-container.grimoire-primary-open .grimoire-card-grid,
+body.grimoire-primary-open .grimoire-card-grid {
+    flex: 1 1 auto !important;
+    max-height: 100% !important;
     overflow-y: auto !important;
+    container-type: inline-size;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 275px), 1fr)) !important;
+    gap: 8px !important;
+    padding: 4px 2px !important;
     scrollbar-width: thin !important;
+}
+
+/* While Grimoire is primary (and not in skill-tree mode), collapse viewport below it */
+#terminal-window.grimoire-primary-open:not(.skill-tree) #terminal-viewport,
+#terminal-card.grimoire-primary-open:not(.skill-tree) #terminal-viewport,
+#terminal-container.grimoire-primary-open:not(.skill-tree) #terminal-viewport,
+body.grimoire-primary-open:not(.skill-tree) #terminal-viewport {
+    max-height: 54px !important;
+    min-height: 38px !important;
+    flex: 0 0 44px !important;
+    opacity: 0.88 !important;
+}
+
+/* When collapsed via [F10], restore viewport to full height */
+#terminal-window.grimoire-collapsed-f10 #terminal-viewport,
+#terminal-card.grimoire-collapsed-f10 #terminal-viewport,
+#terminal-container.grimoire-collapsed-f10 #terminal-viewport,
+body.grimoire-collapsed-f10 #terminal-viewport {
+    max-height: none !important;
+    flex: 1 1 auto !important;
+    opacity: 1 !important;
 }
 
 .grimoire-bind-btn {
@@ -9358,6 +9486,103 @@ body.wasd-mode-active .wasd-toggle-pill {
     background: rgba(212, 165, 78, 0.18);
     border-color: #ffd268;
 }
+
+/* ==============================================================================
+   WS33 Track C: Grimoire Mobile Portrait & Landscape Responsive Profiles
+   ============================================================================== */
+@media (max-width: 640px) {
+    .grimoire-deck-header {
+        height: 32px !important;
+        min-height: 32px !important;
+        flex-wrap: nowrap !important;
+        gap: 4px !important;
+        padding-bottom: 2px !important;
+        overflow-x: auto !important;
+        scrollbar-width: none !important;
+    }
+
+    .grimoire-crest-sub {
+        display: none !important;
+    }
+
+    .grimoire-crest-banner {
+        flex-shrink: 0 !important;
+        font-size: 10px !important;
+        gap: 3px !important;
+    }
+
+    .grimoire-header-controls {
+        flex-wrap: nowrap !important;
+        gap: 3px !important;
+    }
+
+    .grimoire-tab-btn,
+    .grimoire-mode-toggle-btn {
+        padding: 2px 6px !important;
+        font-size: 10px !important;
+    }
+
+    .grimoire-card-grid {
+        grid-template-columns: 1fr !important;
+        gap: 6px !important;
+    }
+
+    .grimoire-item-card {
+        min-height: 44px !important;
+        padding: 6px 8px !important;
+    }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+    body.grimoire-primary-open #terminal-touch-controls,
+    body.grimoire-primary-open #term-letter-ribbon {
+        display: none !important;
+    }
+
+    body.grimoire-primary-open #grimoire-deck-container,
+    #terminal-window.grimoire-primary-open #grimoire-deck-container,
+    #terminal-card.grimoire-primary-open #grimoire-deck-container,
+    #terminal-container.grimoire-primary-open #grimoire-deck-container {
+        height: calc(100dvh - 82px) !important;
+        max-height: calc(100dvh - 82px) !important;
+    }
+
+    body.grimoire-primary-open .grimoire-card-grid,
+    #terminal-window.grimoire-primary-open .grimoire-card-grid,
+    #terminal-card.grimoire-primary-open .grimoire-card-grid,
+    #terminal-container.grimoire-primary-open .grimoire-card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+    }
+}
+
+/* ==============================================================================
+   WS33 Track C: Contextual Action Button Dimming & Desktop Touch Guard
+   ============================================================================== */
+#action-bar .action-btn.is-contextual-dim,
+#action-bar-popover .action-btn.is-contextual-dim {
+    opacity: 0.42 !important;
+    filter: saturate(0.35) !important;
+}
+
+html.device-desktop #btn-action-more,
+html.device-desktop #btn-action-more.is-needed {
+    display: none !important;
+}
+
+/* ==============================================================================
+   WS33 Track C: Compact Message Feed Window (Viewport Reclamation)
+   ============================================================================== */
+#hud-overlay #message-feed-window {
+    height: 60px !important;
+    min-height: 52px !important;
+}
+
+#hud-overlay #message-feed-window.expanded {
+    height: 220px !important;
+    max-height: 80vh !important;
+}
+
 
 
 

@@ -1152,14 +1152,20 @@ public partial class Overlay : Control
         var rows = map.GetProperty("rows");
         var h = map.GetProperty("h").GetInt32();
         var w = map.GetProperty("w").GetInt32();
+        var px = player.TryGetProperty("x", out var pX) ? pX.GetInt32() : 0;
+        var py = player.TryGetProperty("y", out var pY) ? pY.GetInt32() : 0;
+        var minY = Mathf.Max(0, py - 36);
+        var maxY = Mathf.Min(h - 1, py + 36);
+        var minX = Mathf.Max(0, px - 36);
+        var maxX = Mathf.Min(w - 1, px + 36);
 
-        for (var y = 0; y < h && y < rows.GetArrayLength(); y++)
+        for (var y = minY; y <= maxY && y < rows.GetArrayLength(); y++)
         {
             var r = rows[y];
             var glyphs = r.GetProperty("g").GetString() ?? "";
             var flags = r.GetProperty("l").GetString() ?? "";
 
-            for (var x = 0; x < w && x < glyphs.Length; x++)
+            for (var x = minX; x <= maxX && x < glyphs.Length; x++)
             {
                 var ch = glyphs[x];
                 var flag = x < flags.Length ? AngbandColors.HexVal(flags[x]) : 0;

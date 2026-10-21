@@ -2215,6 +2215,9 @@ class Dungeon3D {
         this.scene.add(this.terrainLabelsGroup);
         this.lastTerrainLabelsSignature = '';
 
+        // 3D StreetView Ground Chevrons & Interactive 3D Grid Tile Targeter
+        this.initStreetViewNavigation();
+
         // Camera must be added to scene so camera children (torch, viewmodel) are in scene graph
         this.scene.add(this.camera);
 
@@ -6464,28 +6467,47 @@ class Dungeon3D {
         let chasmVoidIdx = 0;
         const shopCounts = [0, 0, 0, 0, 0, 0, 0, 0];
 
-        const sightRange = outdoors ? 40 : 22;
-        const minX = Math.max(0, px - sightRange);
-        const maxX = Math.min(w - 1, px + sightRange);
-        const minY = Math.max(0, py - sightRange);
-        const maxY = Math.min(h - 1, py + sightRange);
+        if (outdoors) {
+            if (this._terrainAnchorDepth !== depth ||
+                this._terrainAnchorRealm !== this.realm ||
+                this._terrainAnchorX === undefined ||
+                this._terrainAnchorY === undefined ||
+                Math.abs(px - this._terrainAnchorX) > 6 ||
+                Math.abs(py - this._terrainAnchorY) > 6) {
+                this._terrainAnchorX = px;
+                this._terrainAnchorY = py;
+                this._terrainAnchorDepth = depth;
+                this._terrainAnchorRealm = this.realm;
+            }
+        }
 
-        const sig = this._computeTerrainSig(px, py, depth, this.torchRadius, this.realm, map, minY, maxY, minX, maxX);
+        const anchorX = outdoors ? this._terrainAnchorX : px;
+        const anchorY = outdoors ? this._terrainAnchorY : py;
+        const sightRange = outdoors ? 30 : 22;
+        const minX = Math.max(0, anchorX - sightRange);
+        const maxX = Math.min(w - 1, anchorX + sightRange);
+        const minY = Math.max(0, anchorY - sightRange);
+        const maxY = Math.min(h - 1, anchorY + sightRange);
+
+        const sig = this._computeTerrainSig(anchorX, anchorY, depth, this.torchRadius, this.realm, map, minY, maxY, minX, maxX);
+        this.playerGridX = px;
+        this.playerGridY = py;
+        this.updateStreetViewAndCursor(frame);
+
         if (this._lastTerrainSig === sig) {
             this.updateMonsters(frame.monsters || [], frame.player);
             this.updateItems(frame.objects || frame.items || [], frame.player);
+            this.updateTerrainLabels(map, w, h, depth, px, py);
             return;
         }
         this._lastTerrainSig = sig;
-        this.playerGridX = px;
-        this.playerGridY = py;
         this.markShadowsDirty();
 
         for (let y = minY; y <= maxY; y++) {
             for (let x = minX; x <= maxX; x++) {
-                const dx = x - px, dy = y - py;
+                const dx = x - anchorX, dy = y - anchorY;
                 const distSq = dx * dx + dy * dy;
-                if (distSq > (outdoors ? 441 : 324)) continue; // 21-tile circular horizon outdoors, 18-tile indoors
+                if (distSq > (outdoors ? 784 : 324)) continue; // 28m radius around anchor outdoors, 18-tile indoors
 
                 let feat = this.getFeatAt(map, x, y);
                 const glyph = this.getGlyphAt(map, x, y);
@@ -7354,12 +7376,34 @@ class Dungeon3D {
             'Home'
         ];
 
+        if (this._lastTerrainLabelsDepth !== depth) {
+            this._lastTerrainLabelsDepth = depth;
+            if (this._terrainLabelSprites) {
+                for (const sprite of this._terrainLabelSprites.values()) {
+                    if (sprite.parent) sprite.parent.remove(sprite);
+                    if (sprite.material) {
+                        if (sprite.material.map) sprite.material.map.dispose();
+                        sprite.material.dispose();
+                    }
+                }
+                this._terrainLabelSprites.clear();
+            }
+        }
+
+        this._terrainLabelSprites = this._terrainLabelSprites || new Map();
+
         const storePositions = new Map();
         const stairsList = [];
         const pitList = [];
 
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
+        const labelRange = 28;
+        const lMinY = Math.max(0, py - labelRange);
+        const lMaxY = Math.min(h - 1, py + labelRange);
+        const lMinX = Math.max(0, px - labelRange);
+        const lMaxX = Math.min(w - 1, px + labelRange);
+
+        for (let y = lMinY; y <= lMaxY; y++) {
+            for (let x = lMinX; x <= lMaxX; x++) {
                 const flag = this.getFlagAt(map, x, y);
                 const known = outdoors || (flag & 0x1) !== 0;
                 const inView = outdoors || (flag & 0x2) !== 0;
@@ -7380,39 +7424,20 @@ class Dungeon3D {
                     storePositions.get(feat).push({ x: x * this.cellSize, z: y * this.cellSize });
                 } else if (feat === 5) {
                     const upText = depth === 1 ? '[<] Up to Town' : `[<] Up to ${(depth - 1) * 50}ft`;
-                    stairsList.push({ x: x * this.cellSize, y: 1.1, z: y * this.cellSize, name: upText });
+                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.1, z: y * this.cellSize, name: upText });
                 } else if (feat === 6) {
-                    const downText = depth === 0 ? '[>] Down to Dungeon (50\')' : `[>] Down to ${(depth + 1) * 50}ft`;
-                    stairsList.push({ x: x * this.cellSize, y: 1.1, z: y * this.cellSize, name: downText });
+                    const downText = depth === 0 ? "[>] Down to Dungeon (50')" : `[>] Down to ${(depth + 1) * 50}ft`;
+                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.1, z: y * this.cellSize, name: downText });
                 } else if (feat === 41) {
                     const playerX = px !== undefined ? px : (this.playerGridX !== undefined ? this.playerGridX : 0);
                     const playerY = py !== undefined ? py : (this.playerGridY !== undefined ? this.playerGridY : 0);
                     const pdx = x - playerX;
                     const pdy = y - playerY;
                     if (pdx * pdx + pdy * pdy <= 36) { // Within 6 tiles of player
-                        pitList.push({ x: x * this.cellSize, y: 0.45, z: y * this.cellSize, name: 'Bottomless Pit' });
+                        pitList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 0.45, z: y * this.cellSize, name: 'Bottomless Pit' });
                     }
                 }
             }
-        }
-
-        // Signature check to avoid recreating sprites every frame
-        let sig = `d${depth};`;
-        for (const [feat, pts] of storePositions.entries()) {
-            sig += `${feat}:${pts.length};`;
-        }
-        for (const s of stairsList) {
-            sig += `${s.name}:${s.x},${s.z};`;
-        }
-        for (const p of pitList) {
-            sig += `pit:${p.x},${p.z};`;
-        }
-
-        if (sig === this.lastTerrainLabelsSignature) return;
-        this.lastTerrainLabelsSignature = sig;
-
-        while (this.terrainLabelsGroup.children.length > 0) {
-            this.terrainLabelsGroup.remove(this.terrainLabelsGroup.children[0]);
         }
 
         const createCaption = (text, pos, colorHex, isStore = false) => {
@@ -7447,6 +7472,8 @@ class Dungeon3D {
             return sprite;
         };
 
+        const activeLabelKeys = new Set();
+
         // Shop Labels at Centroid (1:1 with Godot DungeonWorld.cs:2648-2670)
         for (const [feat, points] of storePositions.entries()) {
             const storeIdx = feat - 7;
@@ -7463,20 +7490,52 @@ class Dungeon3D {
             avgX /= points.length;
             avgZ /= points.length;
 
-            const sprite = createCaption(labelText, { x: avgX, y: this.wallHeight + 0.55, z: avgZ }, col, true);
-            this.terrainLabelsGroup.add(sprite);
+            const gx = Math.round(avgX / this.cellSize);
+            const gy = Math.round(avgZ / this.cellSize);
+            const key = `${gx},${gy},${labelText}`;
+            activeLabelKeys.add(key);
+
+            if (!this._terrainLabelSprites.has(key)) {
+                const sprite = createCaption(labelText, { x: avgX, y: this.wallHeight + 0.55, z: avgZ }, col, true);
+                this.terrainLabelsGroup.add(sprite);
+                this._terrainLabelSprites.set(key, sprite);
+            }
         }
 
         // Stairs Labels
         for (const s of stairsList) {
-            const sprite = createCaption(s.name, { x: s.x, y: s.y, z: s.z }, '#88ccff', false);
-            this.terrainLabelsGroup.add(sprite);
+            const key = `${s.gridX},${s.gridY},${s.name}`;
+            activeLabelKeys.add(key);
+
+            if (!this._terrainLabelSprites.has(key)) {
+                const sprite = createCaption(s.name, { x: s.x, y: s.y, z: s.z }, '#88ccff', false);
+                this.terrainLabelsGroup.add(sprite);
+                this._terrainLabelSprites.set(key, sprite);
+            }
         }
 
         // Bottomless Pit Labels (within 6 tiles of player)
         for (const p of pitList) {
-            const sprite = createCaption(p.name, { x: p.x, y: p.y, z: p.z }, '#8899aa', false);
-            this.terrainLabelsGroup.add(sprite);
+            const key = `${p.gridX},${p.gridY},${p.name}`;
+            activeLabelKeys.add(key);
+
+            if (!this._terrainLabelSprites.has(key)) {
+                const sprite = createCaption(p.name, { x: p.x, y: p.y, z: p.z }, '#8899aa', false);
+                this.terrainLabelsGroup.add(sprite);
+                this._terrainLabelSprites.set(key, sprite);
+            }
+        }
+
+        // Dispose and remove sprites that are no longer active in window
+        for (const [key, sprite] of this._terrainLabelSprites.entries()) {
+            if (!activeLabelKeys.has(key)) {
+                this.terrainLabelsGroup.remove(sprite);
+                if (sprite.material) {
+                    if (sprite.material.map) sprite.material.map.dispose();
+                    sprite.material.dispose();
+                }
+                this._terrainLabelSprites.delete(key);
+            }
         }
     }
 
@@ -11604,16 +11663,26 @@ class Dungeon3D {
         const py = player ? player.y : 0;
         const depth = player && player.depth !== undefined ? player.depth : 0;
         const outdoors = depth === 0;
+        let monstersChanged = false;
 
         monsters.forEach(m => {
+            const id = m.id !== undefined ? m.id.toString() : `${m.x}_${m.y}_${m.glyph}`;
+            const mDistSq = (m.x - px) * (m.x - px) + (m.y - py) * (m.y - py);
+            if (mDistSq > 1225 && !this.monsters.has(id)) return;
+            if (mDistSq > 1444 && this.monsters.has(id)) {
+                activeIds.add(id);
+                const entity = this.monsters.get(id);
+                entity.visible = false;
+                return;
+            }
+            activeIds.add(id);
+
             m.name = m.name || m.race || 'creature';
             m.asleep = !!(m.asleep || m.is_asleep || m.sleeping || (m.csleep > 0));
             m.afraid = !!(m.afraid || m.is_fleeing);
             m.confused = !!(m.confused || m.is_confused);
             m.stunned = !!(m.stunned || m.is_stunned);
 
-            const id = m.id !== undefined ? m.id.toString() : `${m.x}_${m.y}_${m.glyph}`;
-            activeIds.add(id);
             const isTargeted = (targetId && targetId === id);
             let entity = this.monsters.get(id);
 
@@ -11622,8 +11691,8 @@ class Dungeon3D {
             const baseY = 0.0;
 
             // Sensed / Invisible / Darkness Visibility Logic:
-            let isTileLit = outdoors;
-            if (!isTileLit && this.lastMap) {
+            let isTileLit = true;
+            if (!outdoors && this.lastMap) {
                 const flag = this.getFlagAt(this.lastMap, m.x, m.y);
                 const inView = (flag & 0x2) !== 0;
                 const lighting = (flag >> 2) & 0x3;
@@ -11633,6 +11702,7 @@ class Dungeon3D {
             const isSensed = !isTileLit || !!m.invisible;
 
             if (!entity) {
+                monstersChanged = true;
                 entity = this.createMonster3DEntity(m, isTargeted, isSensed);
                 entity.position.set(wx, baseY, wz);
                 entity.rotation.y = Math.atan2(px * this.cellSize - wx, py * this.cellSize - wz);
@@ -11648,6 +11718,9 @@ class Dungeon3D {
                 this.scene.add(entity);
                 this.monsters.set(id, entity);
             } else {
+                if (entity.position.x !== wx || entity.position.z !== wz || (entity.targetPos && (entity.targetPos.x !== wx || entity.targetPos.z !== wz))) {
+                    monstersChanged = true;
+                }
                 entity.targetPos.set(wx, baseY, wz);
                 entity.isAsleep = !!m.asleep;
                 if (entity.config) {
@@ -11764,6 +11837,7 @@ class Dungeon3D {
 
         for (const [id, entity] of this.monsters.entries()) {
             if (!activeIds.has(id)) {
+                monstersChanged = true;
                 if (entity.visible && this.audio) {
                     const pan = this.calculateStereoPan(entity.position.x, entity.position.z);
                     this.audio.playMonsterDeath(entity.glyph, pan);
@@ -11772,7 +11846,7 @@ class Dungeon3D {
                 this.monsters.delete(id);
             }
         }
-        this.markShadowsDirty();
+        if (monstersChanged) this.markShadowsDirty();
     }
 
     refreshMonsterNameplates() {
@@ -12414,14 +12488,14 @@ class Dungeon3D {
             }
 
             // Strict Subterranean Visibility Invariant:
-            // Items are only visible in 3D if outdoors, or if within player's lit field of view or torchlight
-            let isVisible = outdoors;
-            if (!isVisible && this.lastMap) {
+            // Items are only visible in 3D if outdoors within 28m, or if within player's lit field of view or torchlight
+            const itemDistSq = (it.x - px) * (it.x - px) + (it.y - py) * (it.y - py);
+            let isVisible = outdoors ? (itemDistSq <= 784) : false;
+            if (!isVisible && !outdoors && this.lastMap) {
                 const flag = this.getFlagAt(this.lastMap, it.x, it.y);
                 const inView = (flag & 0x2) !== 0;
                 const lighting = (flag >> 2) & 0x3;
-                const distSq = (it.x - px) ** 2 + (it.y - py) ** 2;
-                isVisible = inView && (lighting < 3 || distSq <= (this.torchRadius + 1) ** 2);
+                isVisible = inView && (lighting < 3 || itemDistSq <= (this.torchRadius + 1) ** 2);
             }
             entity.visible = isVisible;
 
@@ -12808,6 +12882,85 @@ class Dungeon3D {
             }
         }
 
+        // 3D StreetView Interactive Ground Cursor & A* Breadcrumbs Hover Update (throttled to 50ms)
+        if (this._hoverDirty && this.lastFrame && this.canEngageStreetViewNav(this.lastFrame)) {
+            if (tNow - (this._lastHoverRaycastMs || 0) > 50) {
+                this._lastHoverRaycastMs = tNow;
+                this._hoverDirty = false;
+                const px = this.lastFrame.player ? this.lastFrame.player.x : 0;
+                const py = this.lastFrame.player ? this.lastFrame.player.y : 0;
+                const hit = this.getTileAtScreenCoords(this._pendingHoverX, this._pendingHoverY);
+                if (hit && (hit.x !== px || hit.y !== py)) {
+                    this._hoveredTile = { x: hit.x, y: hit.y };
+                    const path = (this._hoverInputRef && typeof this._hoverInputRef.computeMinimapPath === 'function')
+                        ? this._hoverInputRef.computeMinimapPath(px, py, hit.x, hit.y, this.lastFrame)
+                        : null;
+                    if (this.navCursorGroup && this.navCursorMesh) {
+                        this.navCursorGroup.visible = true;
+                        this.navCursorMesh.visible = true;
+                        this.navCursorMesh.position.set(hit.x * this.cellSize, 0.032, hit.y * this.cellSize);
+                        if (path && path.length > 0 && path.length <= 36) {
+                            const isDoor = hit.kind === 'door';
+                            this.navCursorMesh.material.color.setHex(isDoor ? 0xff9f1c : 0xffd700);
+                            this.navCursorMesh.material.opacity = 0.75;
+                            if (this.navBreadcrumbsMesh) {
+                                if (!this._scratchNavMatrix) this._scratchNavMatrix = new THREE.Matrix4();
+                                if (!this._scratchNavPos) this._scratchNavPos = new THREE.Vector3();
+                                for (let pIdx = 0; pIdx < path.length; pIdx++) {
+                                    const step = path[pIdx];
+                                    this._scratchNavPos.set(step.x * this.cellSize, 0.028, step.y * this.cellSize);
+                                    this._scratchNavMatrix.makeTranslation(this._scratchNavPos.x, this._scratchNavPos.y, this._scratchNavPos.z);
+                                    this.navBreadcrumbsMesh.setMatrixAt(pIdx, this._scratchNavMatrix);
+                                }
+                                this.navBreadcrumbsMesh.count = path.length;
+                                this.navBreadcrumbsMesh.instanceMatrix.needsUpdate = true;
+                            }
+                        } else {
+                            if (this.navBreadcrumbsMesh) this.navBreadcrumbsMesh.count = 0;
+                            this.navCursorMesh.material.color.setHex(0xef4444);
+                            this.navCursorMesh.material.opacity = 0.30;
+                        }
+                    }
+                } else {
+                    this._hoveredTile = null;
+                    if (this.navCursorGroup) this.navCursorGroup.visible = false;
+                }
+            }
+        }
+
+        // 3D StreetView Ground Chevrons Forward Alignment & Modulation
+        if (this.streetViewGroup && this.streetViewGroup.visible && this._streetChevrons && this.camera) {
+            if (!this._scratchCamDir) this._scratchCamDir = new THREE.Vector3();
+            this.camera.getWorldDirection(this._scratchCamDir);
+            const fwdLen = Math.hypot(this._scratchCamDir.x, this._scratchCamDir.z);
+            const fwdX = fwdLen > 0.001 ? this._scratchCamDir.x / fwdLen : 0;
+            const fwdZ = fwdLen > 0.001 ? this._scratchCamDir.z / fwdLen : -1;
+
+            const px = (this.lastFrame && this.lastFrame.player) ? this.lastFrame.player.x : (this.playerGridX || 0);
+            const py = (this.lastFrame && this.lastFrame.player) ? this.lastFrame.player.y : (this.playerGridY || 0);
+
+            for (let i = 0; i < this._streetChevrons.length; i++) {
+                const chevron = this._streetChevrons[i];
+                if (!chevron.visible) continue;
+                const d = chevron.userData;
+                const len = Math.hypot(d.dx, d.dy);
+                const cDirX = d.dx / len;
+                const cDirZ = d.dy / len;
+                const forwardDot = fwdX * cDirX + fwdZ * cDirZ;
+
+                let baseOpacity = forwardDot > 0.7 ? 0.72 : (forwardDot > 0.1 ? 0.36 : 0.16);
+                let scale = 1.0;
+
+                const isHovered = this._hoveredTile && this._hoveredTile.x === (px + d.dx) && this._hoveredTile.y === (py + d.dy);
+                if (isHovered) {
+                    baseOpacity = 0.95;
+                    scale = 1.22;
+                }
+                chevron.material.opacity = baseOpacity;
+                chevron.scale.set(scale, 1.0, scale);
+            }
+        }
+
         // Monsters gentle hover, walking lerp & facing
         const monTime = tNow * 0.003;
         const camPos = this.camera ? this.camera.position : null;
@@ -12816,6 +12969,10 @@ class Dungeon3D {
         for (const entity of this.monsters.values()) {
             const entityDistSq = camPos ? ((entity.position.x - camPos.x) ** 2 + (entity.position.z - camPos.z) ** 2) : 0;
             entity.visible = (entityDistSq <= 1225);
+            if (!entity.visible) {
+                if (entity.nameplate) entity.nameplate.visible = false;
+                continue;
+            }
 
             if (camPos && entity.nameplate) {
                 const dx = entity.position.x - camPos.x;
@@ -12946,7 +13103,7 @@ class Dungeon3D {
                     const bh = entity.creatureMesh.baseHeight || 1.70;
                     entity.creatureMesh.scale.set(bw * (1.0 - breath * 0.5), bh * (1.0 + breath), 1.0);
                 }
-            } else if (!entity._mixer && entity.creatureMesh && (entity.creatureMesh._rigBoneSets || entity.creatureMesh._rigBones)) {
+            } else if (entityDistSq <= 400 && !entity._mixer && entity.creatureMesh && (entity.creatureMesh._rigBoneSets || entity.creatureMesh._rigBones)) {
                 const boneSets = entity.creatureMesh._rigBoneSets || [entity.creatureMesh._rigBones];
                 const isMoving = Boolean(entity.targetPos && entity.position.distanceTo(entity.targetPos) > 0.02);
                 const breath = Math.sin(monTime * 1.8 + entity.position.x * 3.1) * 0.035;
@@ -13004,6 +13161,12 @@ class Dungeon3D {
         // Apply line-of-sight angular de-overlap (14m max distance, suppress only when directly behind a closer creature)
         if (candidateNameplates.length > 0) {
             candidateNameplates.sort((a, b) => a.dist - b.dist);
+            if (candidateNameplates.length > 12) {
+                for (let k = 12; k < candidateNameplates.length; k++) {
+                    candidateNameplates[k].entity.nameplate.visible = false;
+                }
+                candidateNameplates.length = 12;
+            }
             const accepted = [];
             for (let i = 0; i < candidateNameplates.length; i++) {
                 const item = candidateNameplates[i];
@@ -13032,6 +13195,7 @@ class Dungeon3D {
 
         // Items continuous gentle hover kinematics, cylindrical facing & contact shadow modulation
         for (const entity of this.items.values()) {
+            if (!entity.visible) continue;
             if (entity.itemMesh) {
                 const seed = entity.seed || 0;
                 if (entity.isItemBillboard) {
@@ -13350,6 +13514,212 @@ class Dungeon3D {
         }
 
         return null;
+    }
+
+    initStreetViewNavigation() {
+        if (this.streetViewGroup) return;
+
+        this.streetViewGroup = new THREE.Group();
+        this.streetViewGroup.name = 'StreetViewChevrons';
+        this.streetViewGroup.visible = false;
+        this.scene.add(this.streetViewGroup);
+
+        const geo = new THREE.BufferGeometry();
+        const positions = [];
+        const addChevron = (z0) => {
+            const to = [0, 0, z0 - 0.20];
+            const ti = [0, 0, z0 - 0.10];
+            const lo = [-0.28, 0, z0 + 0.08];
+            const li = [-0.18, 0, z0 + 0.11];
+            const ro = [0.28, 0, z0 + 0.08];
+            const ri = [0.18, 0, z0 + 0.11];
+
+            // Left wing: to, lo, li and to, li, ti
+            positions.push(...to, ...lo, ...li);
+            positions.push(...to, ...li, ...ti);
+            // Right wing: to, ti, ri and to, ri, ro
+            positions.push(...to, ...ti, ...ri);
+            positions.push(...to, ...ri, ...ro);
+        };
+        addChevron(-0.10);
+        addChevron(0.18);
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geo.computeVertexNormals();
+        geo._sharedGeometry = true;
+        this._sharedChevronGeo = geo;
+
+        this._streetChevrons = [];
+        const deltas = [
+            { dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 },
+            { dx: 0, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }
+        ];
+
+        for (const d of deltas) {
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0xffdf80,
+                transparent: true,
+                opacity: 0.35,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            mat._sharedMaterial = true;
+            const mesh = new THREE.Mesh(this._sharedChevronGeo, mat);
+            mesh.visible = false;
+            mesh.userData = { dx: d.dx, dy: d.dy };
+            this.streetViewGroup.add(mesh);
+            this._streetChevrons.push(mesh);
+        }
+
+        this.navCursorGroup = new THREE.Group();
+        this.navCursorGroup.name = 'NavCursorGroup';
+        this.navCursorGroup.visible = false;
+        this.scene.add(this.navCursorGroup);
+
+        const ringGeo = new THREE.RingGeometry(0.36, 0.45, 8);
+        ringGeo.rotateX(-Math.PI / 2);
+        ringGeo._sharedGeometry = true;
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0xffd700,
+            transparent: true,
+            opacity: 0.75,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        ringMat._sharedMaterial = true;
+        this.navCursorMesh = new THREE.Mesh(ringGeo, ringMat);
+        this.navCursorMesh.name = 'NavCursorMesh';
+        this.navCursorGroup.add(this.navCursorMesh);
+
+        const crumbGeo = new THREE.CylinderGeometry(0.10, 0.10, 0.015, 12);
+        crumbGeo._sharedGeometry = true;
+        const crumbMat = new THREE.MeshBasicMaterial({
+            color: 0xffdf80,
+            transparent: true,
+            opacity: 0.65,
+            depthWrite: false
+        });
+        crumbMat._sharedMaterial = true;
+        this.navBreadcrumbsMesh = new THREE.InstancedMesh(crumbGeo, crumbMat, 36);
+        this.navBreadcrumbsMesh.name = 'NavBreadcrumbsMesh';
+        this.navBreadcrumbsMesh.count = 0;
+        this.navCursorGroup.add(this.navBreadcrumbsMesh);
+    }
+
+    canEngageStreetViewNav(frame) {
+        if (!frame || frame.phase !== 'play' || !frame.player || !frame.map) return false;
+        if ((frame.ui?.overlay || 0) > 0 || (!frame.ui?.awaiting_command && !frame.ui?.more)) return false;
+
+        const statusRegex = /blind|confus|paralyz|stun|afraid|fear|hallucinat|image|狂乱|盲目|混乱|麻痺|朦朧|恐怖|幻覚/i;
+        if (frame.player.statuses) {
+            if (Array.isArray(frame.player.statuses)) {
+                for (let i = 0; i < frame.player.statuses.length; i++) {
+                    const st = frame.player.statuses[i];
+                    const name = typeof st === 'string' ? st : (st?.name || st?.type || '');
+                    if (statusRegex.test(name)) return false;
+                }
+            } else if (typeof frame.player.statuses === 'object') {
+                for (const key of Object.keys(frame.player.statuses)) {
+                    if (statusRegex.test(key)) return false;
+                }
+            }
+        }
+
+        const hp = frame.player.hp !== undefined ? frame.player.hp : 1;
+        const maxHp = frame.player.hp_max || frame.player.mhp || 1;
+        if (hp < maxHp * 0.22) return false;
+
+        const depth = frame.player.depth !== undefined ? frame.player.depth : 0;
+        const px = frame.player.x !== undefined ? frame.player.x : 0;
+        const py = frame.player.y !== undefined ? frame.player.y : 0;
+
+        if (Array.isArray(frame.monsters)) {
+            for (let i = 0; i < frame.monsters.length; i++) {
+                const m = frame.monsters[i];
+                if (m.ml === false) continue;
+                const mdx = m.x - px;
+                const mdy = m.y - py;
+                if (mdx * mdx + mdy * mdy <= 196) {
+                    if (depth > 0) {
+                        if (!m.friendly && !m.pet) return false;
+                    } else {
+                        const isDamaged = (m.hp !== undefined && m.hp_max !== undefined && m.hp < m.hp_max);
+                        const hasHostileFlag = Boolean(m.hostile || m.is_hostile || (m.status && /hostile|anger|alert/i.test(m.status)));
+                        if (isDamaged || hasHostileFlag) return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    updateStreetViewAndCursor(frame) {
+        if (!this.streetViewGroup) this.initStreetViewNavigation();
+
+        if (!this.canEngageStreetViewNav(frame)) {
+            if (this.streetViewGroup) this.streetViewGroup.visible = false;
+            if (this.navCursorGroup) this.navCursorGroup.visible = false;
+            return;
+        }
+
+        this.streetViewGroup.visible = true;
+        const map = frame.map;
+        const w = map.w || (map.rows && map.rows[0] && map.rows[0].f ? map.rows[0].f.length / 2 : 0);
+        const h = map.h || (map.rows ? map.rows.length : 0);
+        const px = frame.player.x !== undefined ? frame.player.x : 0;
+        const py = frame.player.y !== undefined ? frame.player.y : 0;
+
+        for (let i = 0; i < this._streetChevrons.length; i++) {
+            const chevron = this._streetChevrons[i];
+            const d = chevron.userData;
+            const tx = px + d.dx;
+            const ty = py + d.dy;
+
+            if (tx < 0 || tx >= w || ty < 0 || ty >= h) {
+                chevron.visible = false;
+                continue;
+            }
+
+            const feat = this.getFeatAt(map, tx, ty);
+            const glyph = this.getGlyphAt(map, tx, ty);
+
+            const isSolidWall = feat === 0 || (feat >= 15 && feat <= 22) || feat === 30 || glyph === '#' || glyph === '%' || glyph === '*';
+            const isTree = (feat === 25 && glyph !== '.' && glyph !== ',' && glyph !== "'");
+            const isLava = feat === 23;
+            const isDeepWater = feat === 24;
+            const isChasm = feat === 41;
+            const isTrap = glyph === '^';
+
+            let hasMonster = false;
+            if (Array.isArray(frame.monsters)) {
+                for (let mIdx = 0; mIdx < frame.monsters.length; mIdx++) {
+                    const m = frame.monsters[mIdx];
+                    if (m.x === tx && m.y === ty) {
+                        hasMonster = true;
+                        break;
+                    }
+                }
+            }
+
+            const isPassable = !isSolidWall && !isTree && !isLava && !isDeepWater && !isChasm && !isTrap && !hasMonster;
+
+            if (isPassable) {
+                chevron.visible = true;
+                chevron.position.set((px + d.dx * 0.62) * this.cellSize, 0.035, (py + d.dy * 0.62) * this.cellSize);
+                chevron.rotation.y = Math.atan2(-d.dx, -d.dy);
+                chevron.userData.tx = tx;
+                chevron.userData.ty = ty;
+            } else {
+                chevron.visible = false;
+            }
+        }
+    }
+
+    setHoverScreenCoords(clientX, clientY, inputManager) {
+        this._pendingHoverX = clientX;
+        this._pendingHoverY = clientY;
+        this._hoverInputRef = inputManager;
+        this._hoverDirty = true;
     }
 }
 

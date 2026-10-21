@@ -240,6 +240,7 @@
     class GrimoireDeckController {
         constructor() {
             this.mode = 'hybrid'; // 'hybrid' | 'classic'
+            this.manualTerminalMode = false;
             this._lastSig = '';
             this._boundContainer = null;
             this._onActionCallback = null;
@@ -250,20 +251,43 @@
             return REALM_HERALDRY[key] || REALM_HERALDRY.angband;
         }
 
+        _syncPrimaryOpenClass() {
+            if (typeof document === 'undefined') return;
+            const container = this._boundContainer || document.getElementById('grimoire-deck-container');
+            const isVisible = Boolean(container && container.style.display !== 'none' && !this.manualTerminalMode && this.mode !== 'classic');
+            if (document.body) {
+                document.body.classList.toggle('grimoire-primary-open', isVisible);
+            }
+            const termWindow = document.getElementById('terminal-window') || document.getElementById('terminal-card') || document.getElementById('terminal-container');
+            if (termWindow) {
+                termWindow.classList.toggle('grimoire-primary-open', isVisible);
+            }
+            const termWinDirect = document.getElementById('terminal-window');
+            if (termWinDirect && termWinDirect !== termWindow) {
+                termWinDirect.classList.toggle('grimoire-primary-open', isVisible);
+            }
+        }
+
         toggleMode() {
             this.mode = this.mode === 'classic' ? 'hybrid' : 'classic';
+            this.manualTerminalMode = (this.mode === 'classic');
             this._lastSig = '';
+            this._syncPrimaryOpenClass();
             return this.mode;
         }
 
         hide(container) {
             const el = container || this._boundContainer;
-            if (!el) return;
+            if (!el) {
+                this._syncPrimaryOpenClass();
+                return;
+            }
             if (el.style.display !== 'none') {
                 el.style.display = 'none';
                 el.innerHTML = '';
             }
             this._lastSig = '';
+            this._syncPrimaryOpenClass();
         }
 
         /**
@@ -341,6 +365,7 @@
             const sig = `${realm}:${lang}::${this.mode}::${submenu.kind || 'none'}::${Boolean(classifier.isInventoryScreen)}:${Boolean(classifier.isEquipScreen)}:${Boolean(classifier.isStoreScreen)}:${Boolean(classifier.isSpellPowerChoice)}:${Boolean(classifier.isItemTargetPrompt)}:${Boolean(classifier.verbPrompt)}::${itemSig}`;
 
             if (sig === this._lastSig && container.style.display !== 'none') {
+                this._syncPrimaryOpenClass();
                 return true;
             }
             this._lastSig = sig;
@@ -415,8 +440,23 @@
                     const primaryVerb = verbs[0] || { id: 'select', label: isJp ? '選択' : 'Select', verb: '' };
                     const secondaryVerbs = verbs.slice(1, 5);
 
-                    const actionButtons = secondaryVerbs.map((v) => `
-                        <button type="button" class="grimoire-card-verb-btn ${v.isBind || v.id === 'bind' ? 'grimoire-bind-btn' : ''}"
+                    const primaryActionBtn = `
+                        <button type="button" class="grimoire-card-verb-btn grimoire-act-btn is-primary-verb ${primaryVerb.isBind || primaryVerb.id === 'bind' ? 'grimoire-bind-btn' : ''}"
+                            data-grimoire-cmd="item-primary"
+                            data-grimoire-key="${escapeHtml(key)}"
+                            data-grimoire-verb="${escapeHtml(primaryVerb.verb)}"
+                            data-grimoire-name="${escapeHtml(metrics.cleanName)}"
+                            data-grimoire-category="${escapeHtml(cat.category)}"
+                            data-grimoire-icon="${escapeHtml(cat.icon)}"
+                            data-grimoire-row="${Number(item.row || 0)}"
+                            data-grimoire-col="${Number(item.col || 0)}"
+                            title="${escapeHtml(primaryVerb.label)} (${escapeHtml(key)})">
+                            ${escapeHtml(primaryVerb.label)}
+                        </button>
+                    `;
+
+                    const secActionButtons = secondaryVerbs.map((v) => `
+                        <button type="button" class="grimoire-card-verb-btn grimoire-act-btn is-secondary-verb ${v.isBind || v.id === 'bind' ? 'grimoire-bind-btn' : ''}"
                             data-grimoire-cmd="${v.isBind || v.id === 'bind' ? 'bind-quick-slot' : 'item-verb'}"
                             data-grimoire-key="${escapeHtml(key)}"
                             data-grimoire-verb="${escapeHtml(v.verb)}"
@@ -429,6 +469,16 @@
                             ${escapeHtml(v.label)}
                         </button>
                     `).join('');
+
+                    const moreVerbsBtn = secondaryVerbs.length > 0 ? `
+                        <button type="button" class="grimoire-more-verbs-btn"
+                            data-grimoire-cmd="toggle-card-verbs"
+                            title="More Actions (⋯)">
+                            ⋯
+                        </button>
+                    ` : '';
+
+                    const actionButtons = `<div class="grimoire-card-actions">${primaryActionBtn}${secActionButtons}${moreVerbsBtn}</div>`;
 
                     return `
                         <div class="grimoire-item-card rarity-${escapeHtml(cat.rarity)}" data-slot-key="${escapeHtml(key)}">
@@ -452,7 +502,7 @@
                                     </div>
                                 </div>
                             </div>
-                            ${actionButtons ? `<div class="grimoire-card-actions">${actionButtons}</div>` : ''}
+                            ${actionButtons}
                         </div>
                     `;
                 }).join('');
@@ -472,6 +522,7 @@
                             <span class="grimoire-crest-realm">${escapeHtml(crestTitleText)}</span>
                             <span class="grimoire-crest-sep">·</span>
                             <span class="grimoire-crest-view">${escapeHtml(viewKindLabel)}</span>
+                            <span class="grimoire-crest-sub">${escapeHtml(heraldry.subtitle)}</span>
                         </div>
                         <div class="grimoire-header-controls">
                             ${switcherHtml}
@@ -484,6 +535,7 @@
                 </div>
             `;
             container.style.display = 'block';
+            this._syncPrimaryOpenClass();
 
             if (!container._grimoireListenerBound) {
                 container._grimoireListenerBound = true;
@@ -494,6 +546,13 @@
                     ev.stopPropagation();
 
                     const cmd = target.getAttribute('data-grimoire-cmd');
+                    if (cmd === 'toggle-card-verbs') {
+                        const card = target.closest('.grimoire-item-card');
+                        if (card) {
+                            card.classList.toggle('actions-expanded');
+                        }
+                        return;
+                    }
                     if (cmd === 'toggle-mode') {
                         this.toggleMode();
                         if (this._onActionCallback) {
