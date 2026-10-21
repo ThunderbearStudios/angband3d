@@ -21,6 +21,8 @@ if (!globalThis.crypto) globalThis.crypto = crypto;
 
 const llmLimiter = createLimiter({ perMinute: +process.env.LLM_RPM || 20, perDay: +process.env.LLM_RPD || 500 });
 const ttsLimiter = createLimiter({ perMinute: +process.env.TTS_RPM || 30, perDay: +process.env.TTS_RPD || 500 });
+const sketchLimiter = createLimiter({ perMinute: +process.env.SKETCH_RPM || 6, perDay: +process.env.SKETCH_RPD || 60 });
+const uploadLimiter = createLimiter({ perMinute: +process.env.UPLOAD_RPM || 20, perDay: +process.env.UPLOAD_RPD || 200 });
 
 const ALLOWED_MODELS = [
     'gemini-3.8-flash',
@@ -53,9 +55,11 @@ function invalidateSavesCache() {
     savesCacheMap.clear();
 }
 
-// In-Memory Neural TTS Audio Cache (LRU up to 250 items to keep RAM tiny ~5MB)
+// In-Memory Neural TTS Audio Cache (LRU up to 250 items or 48MB)
 const ttsAudioCache = new Map();
 const MAX_TTS_CACHE_ITEMS = 250;
+let ttsAudioCacheBytes = 0;
+const MAX_TTS_CACHE_BYTES = 48 * 1024 * 1024;
 
 // In-Flight TTS Request Deduplication (prevents redundant API syntheses during traffic spikes)
 const inFlightTTS = new Map();
@@ -539,6 +543,33 @@ if (!fs.existsSync(WEB_DIR)) {
     try { fs.mkdirSync(WEB_DIR, { recursive: true }); } catch (_) {}
 }
 
+function readAppVersion() {
+    let appVersion = '9.9.1';
+    try {
+        const vFile = path.join(WEB_DIR, 'version.json');
+        if (fs.existsSync(vFile)) {
+            appVersion = JSON.parse(fs.readFileSync(vFile, 'utf8')).v || appVersion;
+        }
+    } catch (_) {}
+    return appVersion;
+}
+const CACHED_APP_VERSION = readAppVersion();
+
+const CSP_DIRECTIVES = [
+    "default-src 'self'",
+    "script-src 'self' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https://angband3d.com https://fonts.gstatic.com",
+    "media-src 'self' data: blob: https://angband3d.com",
+    "connect-src 'self' blob: data: ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com https://generativelanguage.googleapis.com",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'self'"
+].join('; ');
+
 function getSaveDirs() {
     const dirs = new Set();
     if (SAVE_DIR) dirs.add(path.resolve(SAVE_DIR));
@@ -697,7 +728,9 @@ function getSaveDirsForRealm(realmId = 'angband') {
 
 function isReservedFilename(name) {
     if (!name) return true;
-    const base = name.split('.')[0].trim();
+    const trimmed = String(name).trim();
+    if (trimmed.startsWith('.') || /\.(owner|realm)\.json$/i.test(trimmed)) return true;
+    const base = trimmed.split('.')[0].trim();
     return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(base);
 }
 
@@ -969,21 +1002,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Modern Content Security Policy (permits WebGL Three.js, local shaders, Web Audio, Cloudflare Insights, and Google Fonts)
-    const cspDirectives = [
-        "default-src 'self'",
-        "script-src 'self' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "font-src 'self' https://fonts.gstatic.com data:",
-        "img-src 'self' data: blob: https://angband3d.com https://fonts.gstatic.com",
-        "media-src 'self' data: blob: https://angband3d.com",
-        "connect-src 'self' blob: data: ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com https://generativelanguage.googleapis.com",
-        "worker-src 'self' blob:",
-        "manifest-src 'self'",
-        "object-src 'none'",
-        "base-uri 'self'",
-        "frame-ancestors 'self'"
-    ].join('; ');
-    res.setHeader('Content-Security-Policy', cspDirectives);
+    res.setHeader('Content-Security-Policy', CSP_DIRECTIVES);
 
     if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -993,13 +1012,7 @@ const server = http.createServer((req, res) => {
 
     // Health & Liveness Probes (/health and /healthz for Cloud Run / Kubernetes)
     if ((pathname === '/health' || pathname === '/healthz') && req.method === 'GET') {
-        let appVersion = '9.9.1';
-        try {
-            const vFile = path.join(WEB_DIR, 'version.json');
-            if (fs.existsSync(vFile)) {
-                appVersion = JSON.parse(fs.readFileSync(vFile, 'utf8')).v || appVersion;
-            }
-        } catch (_) {}
+        const appVersion = CACHED_APP_VERSION;
         res.writeHead(200, {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -1149,7 +1162,7 @@ const server = http.createServer((req, res) => {
                 if (!fs.existsSync(sDir)) continue;
                 const files = fs.readdirSync(sDir);
                 for (const file of files) {
-                    if (file.startsWith('.') || file.endsWith('.realm.json') || seenFiles.has(file)) continue;
+                    if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json') || seenFiles.has(file)) continue;
                     const fullPath = path.join(sDir, file);
                     try {
                         const stat = fs.statSync(fullPath);
@@ -1244,13 +1257,7 @@ const server = http.createServer((req, res) => {
 
     // REST: Server Capacity & Telemetry Status
     if (pathname === '/api/status' && req.method === 'GET') {
-        let appVersion = '9.9.1';
-        try {
-            const vFile = path.join(WEB_DIR, 'version.json');
-            if (fs.existsSync(vFile)) {
-                appVersion = JSON.parse(fs.readFileSync(vFile, 'utf8')).v || appVersion;
-            }
-        } catch (_) {}
+        const appVersion = CACHED_APP_VERSION;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
             status: 'online',
@@ -1424,7 +1431,7 @@ const server = http.createServer((req, res) => {
             return;
         }
 
-        const wait = llmLimiter(clientIp(req));
+        const wait = sketchLimiter(clientIp(req));
         if (wait > 0) {
             res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
             res.end(JSON.stringify({ error: { message: 'Rate limit' } }));
@@ -1691,7 +1698,10 @@ const server = http.createServer((req, res) => {
 
             const geminiCacheKey = `gemini:${geminiVoice}:${role}:${isJpText ? 'jp' : reqLang}:${emotion}:${geminiTag}:${directorNote}:${text}`;
             if (ttsAudioCache.has(geminiCacheKey)) {
-                sendWav(ttsAudioCache.get(geminiCacheKey), true);
+                const hitBuf = ttsAudioCache.get(geminiCacheKey);
+                ttsAudioCache.delete(geminiCacheKey);
+                ttsAudioCache.set(geminiCacheKey, hitBuf);
+                sendWav(hitBuf, true);
                 return;
             }
 
@@ -1726,11 +1736,19 @@ const server = http.createServer((req, res) => {
                 lang: isJpText ? 'jp' : reqLang
             }).then(wavBuffer => {
                 inFlightTTS.delete(geminiCacheKey);
-                if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {
+                if (ttsAudioCache.has(geminiCacheKey)) {
+                    const old = ttsAudioCache.get(geminiCacheKey);
+                    if (old) ttsAudioCacheBytes -= old.length;
+                    ttsAudioCache.delete(geminiCacheKey);
+                }
+                while (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS || (ttsAudioCacheBytes + wavBuffer.length > MAX_TTS_CACHE_BYTES && ttsAudioCache.size > 0)) {
                     const oldestKey = ttsAudioCache.keys().next().value;
+                    const oldBuf = ttsAudioCache.get(oldestKey);
+                    if (oldBuf) ttsAudioCacheBytes -= oldBuf.length;
                     ttsAudioCache.delete(oldestKey);
                 }
                 ttsAudioCache.set(geminiCacheKey, wavBuffer);
+                ttsAudioCacheBytes += wavBuffer.length;
                 return wavBuffer;
             }).catch(geminiErr => {
                 inFlightTTS.delete(geminiCacheKey);
@@ -1824,7 +1842,10 @@ const server = http.createServer((req, res) => {
             }
 
             if (ttsAudioCache.has(edgeCacheKey)) {
-                sendEdgeMp3(ttsAudioCache.get(edgeCacheKey), true);
+                const hitBuf = ttsAudioCache.get(edgeCacheKey);
+                ttsAudioCache.delete(edgeCacheKey);
+                ttsAudioCache.set(edgeCacheKey, hitBuf);
+                sendEdgeMp3(hitBuf, true);
                 return;
             }
 
@@ -1856,11 +1877,19 @@ const server = http.createServer((req, res) => {
                         audioStream.on('data', chunk => chunks.push(chunk));
                         audioStream.on('end', () => {
                             const buffer = Buffer.concat(chunks);
-                            if (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS) {
+                            if (ttsAudioCache.has(edgeCacheKey)) {
+                                const old = ttsAudioCache.get(edgeCacheKey);
+                                if (old) ttsAudioCacheBytes -= old.length;
+                                ttsAudioCache.delete(edgeCacheKey);
+                            }
+                            while (ttsAudioCache.size >= MAX_TTS_CACHE_ITEMS || (ttsAudioCacheBytes + buffer.length > MAX_TTS_CACHE_BYTES && ttsAudioCache.size > 0)) {
                                 const oldestKey = ttsAudioCache.keys().next().value;
+                                const oldBuf = ttsAudioCache.get(oldestKey);
+                                if (oldBuf) ttsAudioCacheBytes -= oldBuf.length;
                                 ttsAudioCache.delete(oldestKey);
                             }
                             ttsAudioCache.set(edgeCacheKey, buffer);
+                            ttsAudioCacheBytes += buffer.length;
                             resolve(buffer);
                         });
 
@@ -1901,7 +1930,7 @@ const server = http.createServer((req, res) => {
             if (!fs.existsSync(sDir)) continue;
             const files = fs.readdirSync(sDir);
             for (const file of files) {
-                if (file.startsWith('.')) continue;
+                if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json')) continue;
                 const fullPath = path.join(sDir, file);
                 try {
                     const stat = fs.statSync(fullPath);
@@ -1944,7 +1973,7 @@ const server = http.createServer((req, res) => {
                 if (!fs.existsSync(sDir)) continue;
                 const files = fs.readdirSync(sDir);
                 for (const file of files) {
-                    if (file.startsWith('.')) continue;
+                    if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json')) continue;
                     const fullPath = path.join(sDir, file);
                     try {
                         const stat = fs.statSync(fullPath);
@@ -2013,6 +2042,12 @@ const server = http.createServer((req, res) => {
 
     // REST: Upload save
     if (pathname === '/api/saves/upload' && req.method === 'POST') {
+        const wait = uploadLimiter(clientIp(req));
+        if (wait > 0) {
+            res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
+            res.end(JSON.stringify({ error: 'Rate limit' }));
+            return;
+        }
         const chunks = [];
         let totalSize = 0;
         const maxLimit = 10 * 1024 * 1024; // 10 MB limit
@@ -2064,7 +2099,7 @@ const server = http.createServer((req, res) => {
             }
             let targetName = cleanHeaderName || ('upload_' + Date.now());
 
-            const tempFile = path.join(targetDir, '.tmp_' + Date.now());
+            const tempFile = path.join(targetDir, '.tmp_' + crypto.randomUUID());
             try {
                 fs.writeFileSync(tempFile, buf);
                 try {
@@ -2925,7 +2960,7 @@ async function spawnGameSession(ws, request) {
         ownerToken = createOwnerToken(savePath);
     }
 
-    const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
+    const sessionId = crypto.randomUUID();
     ws.send(JSON.stringify({
         t: 'hello',
         sessionId,
@@ -2981,17 +3016,19 @@ async function spawnGameSession(ws, request) {
     let spawnError = null;
     for (let attempt = 0; attempt < 3; attempt++) {
         try {
+            const childEnv = {
+                ...process.env,
+                ...engineInfo.env,
+                LANG: process.env.LANG || 'C.UTF-8',
+                LC_ALL: process.env.LC_ALL || 'C.UTF-8',
+                LC_CTYPE: 'C.UTF-8',
+                TERM: 'xterm-256color',
+                HOME: process.env.HOME || '/app',
+            };
+            delete childEnv.GEMINI_API_KEY;
             child = spawn(engineInfo.exe, args, {
                 cwd: engineDir,
-                env: {
-                    ...process.env,
-                    ...engineInfo.env,
-                    LANG: process.env.LANG || 'C.UTF-8',
-                    LC_ALL: process.env.LC_ALL || 'C.UTF-8',
-                    LC_CTYPE: 'C.UTF-8',
-                    TERM: 'xterm-256color',
-                    HOME: process.env.HOME || '/app',
-                },
+                env: childEnv,
                 stdio: ['pipe', 'pipe', 'pipe']
             });
             spawnError = null;
@@ -3026,6 +3063,7 @@ async function spawnGameSession(ws, request) {
         lastActivityTime: Date.now(),
         user: targetSlot,
         save: targetSlot,
+        savePath,
         realm,
         engineInfo,
         phase: 'setup',
@@ -3047,10 +3085,11 @@ async function spawnGameSession(ws, request) {
     child.stdout.on('data', chunk => {
         lineBuffer += stdoutDecoder.decode(chunk, { stream: true });
         if (lineBuffer.length > 524288 && lineBuffer.indexOf('\n') === -1) { lineBuffer = ''; return; }
+        let startIdx = 0;
         let newlineIdx;
-        while ((newlineIdx = lineBuffer.indexOf('\n')) !== -1) {
-            let line = lineBuffer.substring(0, newlineIdx).trim(); // let: realm tag is spliced in below (E1 fix)
-            lineBuffer = lineBuffer.substring(newlineIdx + 1);
+        while ((newlineIdx = lineBuffer.indexOf('\n', startIdx)) !== -1) {
+            let line = lineBuffer.substring(startIdx, newlineIdx).trim(); // let: realm tag is spliced in below (E1 fix)
+            startIdx = newlineIdx + 1;
             if (line.length > 0) {
                 if (line.startsWith('{"t":"frame"')) {
                     if (session.realm) {
@@ -3066,10 +3105,10 @@ async function spawnGameSession(ws, request) {
                         const prevPhase = session.phase;
                         const phaseMatch = headSlice.match(/"phase":"([^"]+)"/);
                         if (phaseMatch) session.phase = phaseMatch[1];
-                        if (line.includes('"dead":true') || /"hp":(?:0|-\d+),"hp_max":[1-9]/.test(line)) {
+                        if (headSlice.includes('"dead":true') || /"hp":-\d+,"hp_max":[1-9]/.test(headSlice)) {
                             session.isDead = true;
                         }
-                        const depthMatch = line.match(/"depth":(-?\d+)/);
+                        const depthMatch = headSlice.match(/"depth":(-?\d+)/);
                         const curDepth = depthMatch ? parseInt(depthMatch[1], 10) : null;
                         const depthChanged = curDepth !== null && session.lastDepth !== null && curDepth !== session.lastDepth;
                         if (curDepth !== null) session.lastDepth = curDepth;
@@ -3120,6 +3159,7 @@ async function spawnGameSession(ws, request) {
                 }
             }
         }
+        if (startIdx > 0) lineBuffer = lineBuffer.substring(startIdx);
     });
 
     child.stderr.on('data', chunk => {
@@ -3191,6 +3231,7 @@ wss.on('connection', (ws, request) => {
     const rawSave = urlObj.searchParams.get('save') || null;
     const rawSession = urlObj.searchParams.get('session') || null;
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
+    const reqToken = urlObj.searchParams.get('owner') || '';
 
     const rawRealm = urlObj.searchParams.get('realm') || 'angband';
     const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';
@@ -3268,6 +3309,11 @@ wss.on('connection', (ws, request) => {
                     const candUser = normalizeSessionKey(candidate.user);
                     const candEngineSave = candidate.engineSavefile ? normalizeSessionKey(path.basename(candidate.engineSavefile)) : '';
                     if (candSave === targetKey || candUser === targetKey || candEngineSave === targetKey) {
+                        if (candidate.ws && candidate.ws.readyState === 1 && candidate.savePath && fs.existsSync(getOwnerTokenPath(candidate.savePath))) {
+                            if (!verifyOwnerToken(candidate.savePath, reqToken)) {
+                                continue;
+                            }
+                        }
                         existingSession = candidate;
                         break;
                     }
@@ -3317,6 +3363,10 @@ wss.on('connection', (ws, request) => {
                 if (candRealm === reqRealm) {
                     const candKey = normalizeSessionKey(cand.save || cand.user || (cand.engineSavefile ? path.basename(cand.engineSavefile) : null));
                     if (candKey === targetKey) {
+                        const candSavePath = cand.savePath || path.join(engineInfo.saveDir || SAVE_DIR, cand.save || cand.user || '');
+                        if (candSavePath && fs.existsSync(getOwnerTokenPath(candSavePath)) && !verifyOwnerToken(candSavePath, reqToken)) {
+                            continue;
+                        }
                         console.log(`[WebSocket] Terminating existing session ${sId} in realm ${candRealm} to begin fresh hero for ${targetKey}`);
                         gracefulSessionSaveAndExit(sId, 'Starting new character.');
                     }

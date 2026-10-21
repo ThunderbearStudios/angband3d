@@ -24,7 +24,9 @@ child.stderr.on('data', d => { log += d; });
 const fails = [];
 const req = (opts, body) => new Promise(resolve => {
     const r = http.request(Object.assign({ host: '127.0.0.1', port }, opts), res => {
-        res.resume(); res.on('end', () => resolve(res));
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => { res.body = data; resolve(res); });
     });
     r.on('error', e => resolve({ statusCode: 0, headers: {}, error: e }));
     if (body) r.write(body);
@@ -97,11 +99,44 @@ async function waitUp() {
 
         const secTxt = await req({ path: '/.well-known/security.txt', method: 'GET' });
         if (secTxt.statusCode !== 200) fails.push('GET /.well-known/security.txt not 200 (got ' + secTxt.statusCode + ')');
+
+        // WS41.2 Sidecar & Owner Token protection tests
+        const delOwner = await req({ path: '/api/saves/Hero.sav.owner.json', method: 'DELETE' });
+        if (delOwner.statusCode !== 400) fails.push('DELETE /api/saves/Hero.sav.owner.json not 400 (got ' + delOwner.statusCode + ')');
+
+        const getOwner = await req({ path: '/api/saves/Hero.sav.owner.json', method: 'GET' });
+        if (getOwner.statusCode !== 400) fails.push('GET /api/saves/Hero.sav.owner.json not 400 (got ' + getOwner.statusCode + ')');
+
+        fs.writeFileSync(path.join(saveDir, 'Fake.owner.json'), JSON.stringify({ fake: true }), 'utf8');
+        const listSaves = await req({ path: '/api/saves', method: 'GET' });
+        try {
+            const parsed = JSON.parse(listSaves.body || '{}');
+            const saves = parsed.saves || [];
+            if (saves.some(s => s.filename === 'Fake.owner.json' || (s.characterName && s.characterName.includes('Fake.owner.json')))) {
+                fails.push('GET /api/saves included Fake.owner.json in save list');
+            }
+        } catch (e) {
+            fails.push('Failed to parse GET /api/saves response: ' + e.message);
+        }
+
+        const validSaveBuf = Buffer.alloc(40);
+        validSaveBuf.write('SaveVNLA', 0, 8, 'ascii');
+        await req({
+            path: '/api/saves/upload',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/octet-stream',
+                'X-Character-Name': 'Hero.sav.owner.json'
+            }
+        }, validSaveBuf);
+        if (fs.existsSync(path.join(saveDir, 'Hero.sav.owner.json'))) {
+            fails.push('POST /api/saves/upload wrote reserved Hero.sav.owner.json to disk');
+        }
     } finally {
         child.kill();
         try { fs.rmSync(saveDir, { recursive: true, force: true }); } catch (_) {}
         if (fails.length) { console.error('FAIL\n' + fails.join('\n')); process.exit(1); }
-        console.log('PASS http guard (CORS allowlist, WS origin, recording upload dev-only, X-Forwarded-Host spoof guard, robots/security.txt)');
+        console.log('PASS http guard (CORS allowlist, WS origin, recording upload dev-only, X-Forwarded-Host spoof guard, robots/security.txt, sidecar guards)');
         process.exit(0);
     }
 })();

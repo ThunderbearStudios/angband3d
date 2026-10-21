@@ -22,8 +22,10 @@ function createLimiter({ perMinute, perDay, maxEntries = 10000 }) {
 }
 function clientIp(req) {
     if (process.env.TRUST_PROXY === '1') {                 // set on Cloud Run (behind Google Front End)
-        const cfIp = String(req.headers['cf-connecting-ip'] || '').trim();
-        if (cfIp) return cfIp;
+        if (process.env.TRUST_CLOUDFLARE === '1') {
+            const cfIp = String(req.headers['cf-connecting-ip'] || '').trim();
+            if (cfIp) return cfIp;
+        }
         const xff = String(req.headers['x-forwarded-for'] || '');
         const parts = xff.split(',').map(s => s.trim()).filter(Boolean);
         if (parts.length > 0) return parts[parts.length - 1];

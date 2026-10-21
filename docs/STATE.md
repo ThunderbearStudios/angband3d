@@ -6,7 +6,7 @@
 - **Current Phase**: Executing atomic turnkey cards `WS41.1` $\rightarrow$ `WS41.5` defined in [`docs/plan/master_audit_and_execution_plan.md`](file:///c:/Dev/angband3d/docs/plan/master_audit_and_execution_plan.md#L166).
 - **Active Checklist**:
   - [x] **`WS41.1`**: Workspace Bloat Purge (`~1.98 GB` temp profiles) & Test Suite Hermeticity (`os.tmpdir()`, dynamic ports)
-  - [ ] **`WS41.2`**: Server Ownership Hardening (`C1`/`C2`), Rate-Limit Isolation (`H1`/`H4`/`H5`) & O(1) Relay/False-Death Fix (`H2`/`H3`/`P3`)
+  - [x] **`WS41.2`**: Server Ownership Hardening (`C1`/`C2`), Rate-Limit Isolation (`H1`/`H4`/`H5`) & O(1) Relay/False-Death Fix (`H2`/`H3`/`P3`)
   - [ ] **`WS41.3`**: 60 FPS Client Render, HUD & Terminal Pipeline Gating (`dungeon3d.js`, `hud.js`, `terminal.js`, `chronicle-*`)
   - [ ] **`WS41.4`**: Service Worker Install Diet (`-9.02 MB`), Cache-First Static Assets, Script `defer` & Version Sync (`v10.7.0`)
   - [ ] **`WS41.5`**: Native Bridge UTF-8 Decoding (`H8`), Godot Input Encoding/Badge Gating & CI/Docker Hardening (`H6`/`H7`)
@@ -44,4 +44,4 @@ None
 - **WS-NH1..WS-NH6 — UnNetHack (5th Realm) Full Integration**: Full spec in [`docs/plan/UNNETHACK_INTEGRATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/UNNETHACK_INTEGRATION_PLAN.md).
 
 ## Last Gate Results
-- **WS41.1 Workspace Bloat Purge & Hermeticity Gate (2026-10-21)**: `fast 19/19 PASS` | `test_proxy_limits.js PASS` | `test_server_boot.js PASS` | `server_test.js 21/21 PASS` | 1.98GB temp profiles purged.
+- **WS41.2 Server Hardening & Relay Optimization Gate (2026-10-21)**: `fast 19/19 PASS` | `test_http_guard.js PASS` | `test_relay_guard.js PASS` | `test_proxy_limits.js PASS` | `server_test.js 21/21 PASS` | sidecars guarded | O(1) relay cursor active.
