@@ -457,16 +457,55 @@ function runTests() {
     termDummy._findPlayerTermCoords({
         rows: [
             { g: 'Level 1' },
-            { g: '....@....' },
-            { g: '.........' }
+            { g: 'STR:     18 ....@....' },
+            { g: 'INT:     12 .........' }
         ]
     }, { x: 24, y: 15 });
-    assert.strictEqual(termDummy._playerTermCol, 4, 'TerminalRenderer must locate @ column');
+    assert.strictEqual(termDummy._playerTermCol, 16, 'TerminalRenderer must locate @ column in map region (c >= 12)');
     assert.strictEqual(termDummy._playerTermRow, 1, 'TerminalRenderer must locate @ row');
-    assert.strictEqual(termDummy._vpOx, 20, 'Viewport X offset must equal player.x - @col');
+    assert.strictEqual(termDummy._vpOx, 8, 'Viewport X offset must equal player.x - @col');
     assert.strictEqual(termDummy._vpOy, 14, 'Viewport Y offset must equal player.y - @row');
 
-    console.log("All MenuRouter, WS32 & WS33 unit tests passed successfully!");
+    // Test 16: WS34 Classic View (Tab) sidebar colon immunity, 3D StreetView distant monster allowance & Rosette delta mapping
+    const distantMonsterFrame = JSON.parse(JSON.stringify(townFrame));
+    distantMonsterFrame.player.depth = 3;
+    distantMonsterFrame.monsters = [{ x: 8, y: 1, name: 'Cave orc', glyph: 'o', ml: true }];
+    assert.strictEqual(navDummy.canEngageStreetViewNav(distantMonsterFrame), true,
+        'Monsters > 2 tiles away must NOT lock out 3D StreetView or hover routing');
+
+    navDummy.dungeon = { yaw: 0 };
+    const fwdDelta = navDummy.getRelativeWorldDelta(8);
+    assert.deepStrictEqual(fwdDelta, { dx: 0, dy: -1 }, 'North-facing StreetView forward chevron (8) must map to (0, -1)');
+    const neDelta = navDummy.getRelativeWorldDelta(9);
+    assert.deepStrictEqual(neDelta, { dx: 1, dy: -1 }, 'North-facing StreetView NE chevron (9) must map to (1, -1)');
+
+    let tabClickedTarget = null;
+    global.window = global.window || {};
+    global.window.__app = {
+        lastFrame: townFrame,
+        input: {
+            startMinimapAutoNav: (tx, ty) => {
+                tabClickedTarget = { tx, ty };
+                return true;
+            }
+        }
+    };
+    termDummy.rows = 24;
+    termDummy.cols = 80;
+    termDummy.decodeText = (s) => s;
+    termDummy.lastTermData = {
+        rows: [
+            { g: '' },
+            { g: 'STR:     18 @...      ' },
+            { g: 'HP:   24/24 ....      ' }
+        ]
+    };
+    termDummy.lastRows = termDummy.lastTermData.rows;
+    termDummy.handleRowClick(1, 15);
+    assert.deepStrictEqual(tabClickedTarget, { tx: 3, ty: 1 },
+        'Clicking Classic View map row with sidebar "STR: 18" must route via startMinimapAutoNav instead of matching "R:"');
+
+    console.log("All MenuRouter, WS32, WS33 & WS34 unit tests passed successfully!");
 }
 
 try {

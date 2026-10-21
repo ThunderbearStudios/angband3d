@@ -5991,6 +5991,15 @@ window.addEventListener('DOMContentLoaded', () => {
             // Update View Mode Visibility first so layouts and modes are synced
             updateViewMode(frame);
 
+            // Update Smart Contextual Controls (D-Pad Center Action, Staircase, Doors, Auto-Nav)
+            if (input && input.updateContextualControls) {
+                try {
+                    input.updateContextualControls(frame);
+                } catch (err) {
+                    console.error('[InputContext Error]', err);
+                }
+            }
+
             // Render Terminal if active or in setup phase
             const needsTerm = needsTerminal(frame) || forceTerminal;
             if (frame.term && (needsTerm || currentPhase !== 'play')) {
@@ -6011,15 +6020,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 hud.update(frame);
             } catch (err) {
                 console.error('[HUD Error]', err);
-            }
-
-            // Update Smart Contextual Controls (D-Pad Center Action, Staircase, Doors)
-            if (input && input.updateContextualControls) {
-                try {
-                    input.updateContextualControls(frame);
-                } catch (err) {
-                    console.error('[InputContext Error]', err);
-                }
             }
 
             // Update Terminal Toolbar & Context

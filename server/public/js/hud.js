@@ -27,8 +27,10 @@ class WebHUD {
 
         // Left Panel (Health, Mana, Attributes)
         this.hpFill = document.getElementById('hp-fill');
+        this.hpGhostFill = document.getElementById('hp-ghost-fill');
         this.hpText = document.getElementById('hp-text');
         this.spFill = document.getElementById('sp-fill');
+        this.spGhostFill = document.getElementById('sp-ghost-fill');
         this.spText = document.getElementById('sp-text');
         this.charTitle = document.getElementById('char-title');
 
@@ -714,7 +716,61 @@ class WebHUD {
                 }
                 const inp = (window.__app && window.__app.input) || null;
                 if (inp && typeof inp.startMinimapAutoNav === 'function') {
+                    this._hoverMinimapPath = null;
+                    this._lastHoverMx = null;
+                    this._lastHoverMy = null;
                     inp.startMinimapAutoNav(mx, my, this.lastFrame);
+                }
+            });
+
+            this.minimapCanvas.addEventListener('mousemove', (e) => {
+                if (!this.lastFrame || !this.lastFrame.player) {
+                    if (this._hoverMinimapPath) {
+                        this._hoverMinimapPath = null;
+                        this._lastHoverMx = null;
+                        this._lastHoverMy = null;
+                        this.renderMinimap(this.lastFrame);
+                    }
+                    return;
+                }
+                const inp = (window.__app && window.__app.input) || null;
+                if (!inp || (inp._autoNav && inp._autoNav.active)) {
+                    if (this._hoverMinimapPath) {
+                        this._hoverMinimapPath = null;
+                        this._lastHoverMx = null;
+                        this._lastHoverMy = null;
+                        this.renderMinimap(this.lastFrame);
+                    }
+                    return;
+                }
+                const rect = this.minimapCanvas.getBoundingClientRect();
+                const scaleX = this.minimapCanvas.width / rect.width;
+                const scaleY = this.minimapCanvas.height / rect.height;
+                const cellSize = this._minimapCellSize || Math.max(4, Math.min(48, Math.round(12 * this.minimapZoom)));
+                const mx = (this._minimapOx || 0) + Math.floor(((e.clientX - rect.left) * scaleX) / cellSize);
+                const my = (this._minimapOy || 0) + Math.floor(((e.clientY - rect.top) * scaleY) / cellSize);
+
+                if (this._lastHoverMx === mx && this._lastHoverMy === my) {
+                    return;
+                }
+                this._lastHoverMx = mx;
+                this._lastHoverMy = my;
+
+                if (typeof inp.computeMinimapPath === 'function') {
+                    const newPath = inp.computeMinimapPath(this.lastFrame, this.lastFrame.player.x, this.lastFrame.player.y, mx, my);
+                    this._hoverMinimapPath = (newPath && newPath.length > 0) ? newPath : null;
+                    this.renderMinimap(this.lastFrame);
+                }
+            });
+
+            this.minimapCanvas.addEventListener('mouseleave', () => {
+                this._lastHoverMx = null;
+                this._lastHoverMy = null;
+                if (this._hoverMinimapPath) {
+                    this._hoverMinimapPath = null;
+                    if (this.lastFrame) {
+                        this.renderMinimap(this.lastFrame);
+                    }
                 }
             });
         }
@@ -1665,6 +1721,35 @@ class WebHUD {
             ctx.closePath();
             ctx.fill();
             ctx.restore();
+        } else if (!activeNav && this._hoverMinimapPath && this._hoverMinimapPath.length > 0) {
+            // Minimap Hover Route Preview (WS34)
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 215, 64, 0.55)';
+            ctx.lineWidth = Math.max(1.5, cellSize * 0.22);
+            ctx.setLineDash([Math.max(2, cellSize * 0.35), Math.max(2, cellSize * 0.25)]);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            for (const step of this._hoverMinimapPath) {
+                const sx = (step.x - ox + 0.5) * cellSize;
+                const sy = (step.y - oy + 0.5) * cellSize;
+                ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const lastStep = this._hoverMinimapPath[this._hoverMinimapPath.length - 1];
+            const gx = (lastStep.x - ox + 0.5) * cellSize;
+            const gy = (lastStep.y - oy + 0.5) * cellSize;
+            const r = Math.max(3.5, cellSize * 0.45);
+            ctx.fillStyle = 'rgba(255, 224, 102, 0.70)';
+            ctx.beginPath();
+            ctx.moveTo(gx, gy - r);
+            ctx.lineTo(gx + r, gy);
+            ctx.lineTo(gx, gy + r);
+            ctx.lineTo(gx - r, gy);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
         }
 
         // 3. Monsters on Minimap
@@ -2157,6 +2242,16 @@ class WebHUD {
             if (typeof this.hpFill.style.setProperty === 'function') {
                 this.hpFill.style.setProperty('--vial-pct', `${hpPct}%`);
             }
+            if (this.hpFill.classList) {
+                this.hpFill.classList.toggle('hp-caution', hpPct <= 50 && hpPct > 25);
+                this.hpFill.classList.toggle('hp-critical', hpPct <= 25);
+            }
+        }
+        if (this.hpGhostFill) {
+            this.hpGhostFill.style.width = `${hpPct}%`;
+            if (typeof this.hpGhostFill.style.setProperty === 'function') {
+                this.hpGhostFill.style.setProperty('--vial-pct', `${hpPct}%`);
+            }
         }
         this.hpText.textContent = `${curHp} / ${maxHp}`;
 
@@ -2179,6 +2274,12 @@ class WebHUD {
             this.spFill.style.height = `${spPct}%`;
             if (typeof this.spFill.style.setProperty === 'function') {
                 this.spFill.style.setProperty('--vial-pct', `${spPct}%`);
+            }
+        }
+        if (this.spGhostFill) {
+            this.spGhostFill.style.width = `${spPct}%`;
+            if (typeof this.spGhostFill.style.setProperty === 'function') {
+                this.spGhostFill.style.setProperty('--vial-pct', `${spPct}%`);
             }
         }
         this.spText.textContent = `${curSp} / ${maxSp}`;

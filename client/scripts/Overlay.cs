@@ -1710,7 +1710,7 @@ public partial class Overlay : Control
         DrawLine(new Vector2(0, View.Y - barH), new Vector2(View.X, View.Y - barH), new Color(0.76f, 0.56f, 0.26f, 0.92f), 1.5f);
 
         var spRatio = (hasSp && spMax > 0) ? (float)sp / spMax : 0f;
-        DrawVerticalMedicineVials(hpRatio, hp, hpMax, hasSp, spRatio, sp, spMax, isSilQ);
+        DrawSleekVitalsBars(hpRatio, hp, hpMax, hasSp, spRatio, sp, spMax, isSilQ);
 
         // Row 1: Keybindings & contextual stairs hint
         var row1Y = View.Y - barH + _font.GetAscent(_fontSize) + 2;
@@ -1879,86 +1879,85 @@ public partial class Overlay : Control
 
     private void DrawVerticalMedicineVials(float hpRatio, int hp, int hpMax, bool hasSp, float spRatio, int sp, int spMax, bool isSilQ)
     {
+        DrawSleekVitalsBars(hpRatio, hp, hpMax, hasSp, spRatio, sp, spMax, isSilQ);
+    }
+
+    private void DrawSleekVitalsBars(float hpRatio, int hp, int hpMax, bool hasSp, float spRatio, int sp, int spMax, bool isSilQ)
+    {
         var barH = _cell.Y * 3 + 12f;
         var startX = 14f;
-        var startY = View.Y - barH - 82f;
+        var startY = View.Y - barH - (hasSp ? 48f : 30f);
+        var dockH = hasSp ? 42f : 24f;
 
-        // Charred-wood dock backplate for twin apothecary vials
-        var dockW = hasSp ? 60f : 32f;
-        DrawRect(new Rect2(startX - 5f, startY - 5f, dockW, 74f), new Color(0.08f, 0.05f, 0.03f, 0.92f));
-        DrawRect(new Rect2(startX - 5f, startY - 5f, dockW, 74f), new Color(0.62f, 0.45f, 0.20f, 0.75f), false, 1.2f);
+        // Compact obsidian & gold dock
+        DrawRect(new Rect2(startX, startY, 184f, dockH), new Color(0.06f, 0.04f, 0.03f, 0.94f));
+        DrawRect(new Rect2(startX, startY, 184f, dockH), new Color(0.72f, 0.52f, 0.24f, 0.78f), false, 1.2f);
 
-        // 1. HP Vertical Apothecary Medicine Vial (22px x 64px)
-        var hpX = startX;
-        var hpY = startY;
+        var barX = startX + 6f;
+        var hpBarY = startY + 5f;
+        var barW = 172f;
+        var barInnerW = 170f;
+        var barInnerH = 12f;
+        var vitalsFontSize = 10;
 
-        // Interior glass cylinder dark background
-        DrawRect(new Rect2(hpX, hpY, 22f, 64f), new Color(0.05f, 0.03f, 0.03f, 0.96f));
+        // 1. Full-width horizontal HP bar (172px x 14px)
+        DrawRect(new Rect2(barX, hpBarY, barW, 14f), new Color(0.04f, 0.02f, 0.02f, 0.95f));
 
-        // Crimson vertical liquid column with meniscus highlight
         var hpClamped = Mathf.Clamp(hpRatio, 0f, 1f);
-        var hpColH = hpClamped * 54f; // 64px total, upper 10px reserved for brass cork collar and air
-        if (hpColH > 0f)
+        if (hpClamped > 0f)
         {
-            var liqY = hpY + 64f - hpColH;
-            DrawRect(new Rect2(hpX + 1f, liqY, 20f, hpColH), new Color(0.82f, 0.10f, 0.15f, 0.92f));
-            // Meniscus highlight line
-            DrawLine(new Vector2(hpX + 2f, liqY), new Vector2(hpX + 20f, liqY), new Color(1.0f, 0.82f, 0.78f, 0.95f), 1.5f);
+            var fillW = hpClamped * barInnerW;
+            DrawRect(new Rect2(barX + 1f, hpBarY + 1f, fillW, barInnerH), new Color(0.82f, 0.12f, 0.16f, 0.92f));
+            if (hpClamped > 0.01f)
+            {
+                var edgeX = barX + 1f + fillW;
+                DrawLine(new Vector2(edgeX, hpBarY + 1f), new Vector2(edgeX, hpBarY + 13f), new Color(1.0f, 0.88f, 0.82f, 0.95f), 1.5f);
+            }
         }
 
-        // Etched graduation ticks
+        // Etched graduation ticks at 25%, 50%, 75%
         foreach (var frac in new[] { 0.25f, 0.50f, 0.75f })
         {
-            var tickY = hpY + 64f - (frac * 54f);
-            DrawLine(new Vector2(hpX + 2f, tickY), new Vector2(hpX + 6f, tickY), new Color(0.85f, 0.75f, 0.45f, 0.45f), 1f);
+            var tickX = barX + frac * barW;
+            DrawLine(new Vector2(tickX, hpBarY + 2f), new Vector2(tickX, hpBarY + 12f), new Color(0.85f, 0.75f, 0.45f, 0.40f), 1f);
         }
 
-        // Vertical specular glass shine
-        DrawLine(new Vector2(hpX + 3f, hpY + 10f), new Vector2(hpX + 3f, hpY + 58f), new Color(1f, 1f, 1f, 0.24f), 1f);
+        // Gilded border
+        DrawRect(new Rect2(barX, hpBarY, barW, 14f), new Color(0.82f, 0.64f, 0.32f, 0.88f), false, 1.2f);
 
-        // Glass cylinder border
-        DrawRect(new Rect2(hpX, hpY, 22f, 64f), new Color(0.78f, 0.60f, 0.30f, 0.88f), false, 1.2f);
+        // Crisp inline HP text
+        var hpTextY = hpBarY + (14f - vitalsFontSize) / 2f + _font.GetAscent(vitalsFontSize);
+        DrawString(_font, new Vector2(barX + 6f, hpTextY), $"HP {hp}/{hpMax}", HorizontalAlignment.Left, -1, vitalsFontSize, new Color(1f, 0.96f, 0.92f));
 
-        // Brass cork collar at top
-        DrawRect(new Rect2(hpX - 1f, hpY - 2f, 24f, 8f), new Color(0.85f, 0.66f, 0.32f, 0.98f));
-        DrawRect(new Rect2(hpX - 1f, hpY - 2f, 24f, 8f), new Color(0.24f, 0.14f, 0.05f, 0.95f), false, 1f);
-
-        // 2. SP/Voice Vertical Apothecary Medicine Vial (22px x 64px)
+        // 2. SP / Voice Bar (172px x 14px directly below at startY + 23f)
         if (hasSp)
         {
-            var spX = startX + 28f;
-            var spY = startY;
+            var spBarY = startY + 23f;
+            DrawRect(new Rect2(barX, spBarY, barW, 14f), new Color(0.02f, 0.03f, 0.06f, 0.95f));
 
-            // Interior glass cylinder dark background
-            DrawRect(new Rect2(spX, spY, 22f, 64f), new Color(0.02f, 0.03f, 0.06f, 0.96f));
-
-            // Sapphire vertical liquid column with meniscus highlight
             var spClamped = Mathf.Clamp(spRatio, 0f, 1f);
-            var spColH = spClamped * 54f;
-            if (spColH > 0f)
+            if (spClamped > 0f)
             {
-                var liqY = spY + 64f - spColH;
-                DrawRect(new Rect2(spX + 1f, liqY, 20f, spColH), new Color(0.10f, 0.48f, 0.88f, 0.92f));
-                // Meniscus highlight line
-                DrawLine(new Vector2(spX + 2f, liqY), new Vector2(spX + 20f, liqY), new Color(0.82f, 0.94f, 1.0f, 0.95f), 1.5f);
+                var spFillW = spClamped * barInnerW;
+                DrawRect(new Rect2(barX + 1f, spBarY + 1f, spFillW, barInnerH), new Color(0.14f, 0.42f, 0.88f, 0.92f));
+                if (spClamped > 0.01f)
+                {
+                    var edgeX = barX + 1f + spFillW;
+                    DrawLine(new Vector2(edgeX, spBarY + 1f), new Vector2(edgeX, spBarY + 13f), new Color(0.82f, 0.95f, 1.0f, 0.95f), 1.5f);
+                }
             }
 
-            // Etched graduation ticks
             foreach (var frac in new[] { 0.25f, 0.50f, 0.75f })
             {
-                var tickY = spY + 64f - (frac * 54f);
-                DrawLine(new Vector2(spX + 2f, tickY), new Vector2(spX + 6f, tickY), new Color(0.55f, 0.75f, 0.95f, 0.45f), 1f);
+                var tickX = barX + frac * barW;
+                DrawLine(new Vector2(tickX, spBarY + 2f), new Vector2(tickX, spBarY + 12f), new Color(0.55f, 0.75f, 0.95f, 0.40f), 1f);
             }
 
-            // Vertical specular glass shine
-            DrawLine(new Vector2(spX + 3f, spY + 10f), new Vector2(spX + 3f, spY + 58f), new Color(1f, 1f, 1f, 0.24f), 1f);
+            DrawRect(new Rect2(barX, spBarY, barW, 14f), new Color(0.42f, 0.65f, 0.92f, 0.88f), false, 1.2f);
 
-            // Glass cylinder border
-            DrawRect(new Rect2(spX, spY, 22f, 64f), new Color(0.42f, 0.64f, 0.88f, 0.88f), false, 1.2f);
-
-            // Brass cork collar at top
-            DrawRect(new Rect2(spX - 1f, spY - 2f, 24f, 8f), new Color(0.85f, 0.66f, 0.32f, 0.98f));
-            DrawRect(new Rect2(spX - 1f, spY - 2f, 24f, 8f), new Color(0.24f, 0.14f, 0.05f, 0.95f), false, 1f);
+            var spLabel = isSilQ ? "VOICE" : "SP";
+            var spTextY = spBarY + (14f - vitalsFontSize) / 2f + _font.GetAscent(vitalsFontSize);
+            DrawString(_font, new Vector2(barX + 6f, spTextY), $"{spLabel} {sp}/{spMax}", HorizontalAlignment.Left, -1, vitalsFontSize, new Color(0.92f, 0.96f, 1.0f));
         }
     }
 

@@ -8626,178 +8626,279 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 .vitals-vials-row {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 5px !important;
-    margin: 4px 0 8px 0 !important;
-    padding: 6px 5px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    margin: 3px 0 6px 0 !important;
+    padding: 5px 6px !important;
     background: linear-gradient(180deg, rgba(14, 9, 6, 0.94) 0%, rgba(6, 4, 3, 0.98) 100%), url('/assets/ui/charred_wood.png') repeat !important;
     background-size: auto, 128px 128px !important;
     border: 1px solid rgba(198, 152, 74, 0.48) !important;
-    border-radius: 6px !important;
-    box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.96), 0 1px 4px rgba(0, 0, 0, 0.75) !important;
+    border-radius: 5px !important;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.95) !important;
 }
 
 #char-panel .gauge-hp,
 #char-panel .gauge-sp {
     position: relative !important;
-    width: auto !important;
-    height: 86px !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 5px !important;
+    width: 100% !important;
+    height: 20px !important;
+    display: block !important;
     margin: 0 !important;
-    padding: 4px 4px !important;
-    background: linear-gradient(180deg, rgba(28, 19, 12, 0.78) 0%, rgba(11, 7, 5, 0.90) 100%) !important;
-    border: 1px solid rgba(182, 134, 62, 0.38) !important;
-    border-radius: 5px !important;
+    padding: 0 !important;
+    background: none !important;
+    border: none !important;
+    border-radius: 4px !important;
+}
+
+#char-panel .gauge-sp {
+    height: 18px !important;
 }
 
 #char-panel .gauge-hp .gauge-track,
 #char-panel .gauge-sp .gauge-track {
-    order: 1 !important;
-    width: 30px !important;
-    height: 78px !important;
-    flex-shrink: 0 !important;
-    border-radius: 6px 6px 12px 12px !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 4px !important;
     position: relative !important;
     overflow: hidden !important;
-    background: linear-gradient(90deg, rgba(8, 6, 6, 0.98) 0%, rgba(28, 22, 18, 0.94) 40%, rgba(6, 5, 8, 0.99) 100%) !important;
-    box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.95), 0 1px 0 rgba(255, 215, 140, 0.22) !important;
+    background: linear-gradient(180deg, #060404 0%, #140f0c 55%, #090605 100%) !important;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.96), 0 1px 0 rgba(255, 220, 150, 0.16) !important;
     margin: 0 !important;
 }
 
 #char-panel .gauge-hp .gauge-track {
-    border: 2px solid #c89b4b !important;
+    border: 1px solid rgba(212, 162, 76, 0.72) !important;
 }
 
 #char-panel .gauge-sp .gauge-track {
-    border: 2px solid #689fd4 !important;
+    border: 1px solid rgba(104, 159, 212, 0.72) !important;
+}
+
+#char-panel .gauge-ghost-fill {
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    height: 100% !important;
+    width: var(--vial-pct, 100%) !important;
+    background: linear-gradient(180deg, rgba(255, 236, 179, 0.85) 0%, rgba(245, 158, 11, 0.75) 100%) !important;
+    transition: width 0.68s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
 }
 
 #char-panel #hp-fill,
 #char-panel #sp-fill {
     position: absolute !important;
+    top: 0 !important;
     bottom: 0 !important;
     left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    height: calc(var(--vial-pct, 100%) * 0.88) !important;
-    transition: height 0.32s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    height: 100% !important;
+    width: var(--vial-pct, 100%) !important;
+    transition: width 0.16s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    z-index: 2 !important;
 }
 
 #char-panel #hp-fill {
-    background: radial-gradient(ellipse at 38% 30%, rgba(255, 120, 120, 0.95) 0%, rgba(220, 28, 38, 0.92) 45%, rgba(115, 12, 22, 0.98) 100%) !important;
-    box-shadow: inset 0 2px 5px rgba(255, 190, 190, 0.65), inset -3px 0 6px rgba(60, 0, 10, 0.85), 0 0 12px rgba(220, 38, 38, 0.45) !important;
-    border-top: 1px solid rgba(255, 220, 220, 0.9) !important;
+    background: linear-gradient(180deg, #ff7070 0%, #dc1e28 45%, #8f0c16 88%, #4a0409 100%) !important;
+    box-shadow: inset 0 1px 2px rgba(255, 205, 205, 0.65), 0 0 10px rgba(220, 38, 38, 0.45) !important;
+    border-right: 1.5px solid rgba(255, 232, 220, 0.95) !important;
+    border-top: none !important;
+}
+
+#char-panel #hp-fill.hp-caution {
+    background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 45%, #b45309 88%, #451a03 100%) !important;
+    box-shadow: inset 0 1px 2px rgba(254, 243, 199, 0.65), 0 0 10px rgba(245, 158, 11, 0.5) !important;
+    border-right: 1.5px solid #fef3c7 !important;
+}
+
+#char-panel #hp-fill.hp-critical {
+    background: linear-gradient(180deg, #ff4d4d 0%, #b91c1c 45%, #7f1d1d 88%, #450a0a 100%) !important;
+    box-shadow: inset 0 1px 2px rgba(254, 202, 202, 0.75), 0 0 14px rgba(239, 68, 68, 0.75) !important;
+    border-right: 1.5px solid #fee2e2 !important;
+    animation: hp-critical-pulse 1.2s ease-in-out infinite alternate !important;
+}
+
+@keyframes hp-critical-pulse {
+    0% { filter: brightness(1); }
+    100% { filter: brightness(1.35) drop-shadow(0 0 6px rgba(239, 68, 68, 0.8)); }
 }
 
 #char-panel #sp-fill {
-    background: radial-gradient(ellipse at 38% 30%, rgba(147, 197, 253, 0.95) 0%, rgba(37, 99, 235, 0.92) 45%, rgba(23, 37, 84, 0.98) 100%) !important;
-    box-shadow: inset 0 2px 5px rgba(219, 234, 254, 0.7), inset -3px 0 6px rgba(10, 20, 60, 0.85), 0 0 12px rgba(59, 130, 246, 0.45) !important;
-    border-top: 1px solid rgba(210, 240, 255, 0.9) !important;
-}
-
-#char-panel #hp-fill::before,
-#char-panel #sp-fill::before {
-    content: '' !important;
-    position: absolute !important;
-    top: -2px !important;
-    left: 1px !important;
-    right: 1px !important;
-    height: 4px !important;
-    border-radius: 50% !important;
-    background: rgba(255, 255, 255, 0.65) !important;
-    box-shadow: 0 0 6px rgba(255, 255, 255, 0.8) !important;
-    pointer-events: none !important;
-}
-
-#char-panel #hp-fill::after,
-#char-panel #sp-fill::after {
-    content: '' !important;
-    position: absolute !important;
-    bottom: 4px !important;
-    left: 20% !important;
-    width: 3px !important;
-    height: 3px !important;
-    border-radius: 50% !important;
-    background: rgba(255, 255, 255, 0.45) !important;
-    box-shadow: 6px -12px 0 -0.5px rgba(255, 255, 255, 0.35), 11px -28px 0 -0.8px rgba(255, 255, 255, 0.3) !important;
-    pointer-events: none !important;
+    background: linear-gradient(180deg, #93c5fd 0%, #2563eb 45%, #1d4ed8 88%, #0f172a 100%) !important;
+    box-shadow: inset 0 1px 2px rgba(219, 234, 254, 0.70), 0 0 10px rgba(59, 130, 246, 0.45) !important;
+    border-right: 1.5px solid rgba(224, 242, 254, 0.95) !important;
+    border-top: none !important;
 }
 
 .vial-glass-gloss {
     position: absolute !important;
     inset: 0 !important;
-    border-radius: 6px 6px 12px 12px !important;
+    border-radius: 3px !important;
     pointer-events: none !important;
     z-index: 4 !important;
     background: url('/assets/ui/apothecary_vial_overlay.svg') no-repeat center / 100% 100% !important;
+    opacity: 0.85 !important;
 }
 
 .vial-neck-collar {
     display: block !important;
     position: absolute !important;
     top: 0 !important;
+    bottom: 0 !important;
     left: 0 !important;
-    right: 0 !important;
-    height: 10px !important;
+    width: 3px !important;
+    height: 100% !important;
     z-index: 5 !important;
     pointer-events: none !important;
-    background: linear-gradient(90deg, #3d250d 0%, #b88a38 22%, #fff2b0 48%, #8e621e 76%, #2e1a07 100%) !important;
-    border-bottom: 2px solid #1c0e04 !important;
-    border-top: 1px solid rgba(255, 235, 170, 0.7) !important;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 245, 200, 0.65) !important;
+    background: linear-gradient(180deg, #fff2b0 0%, #c89b4b 50%, #3d250d 100%) !important;
+    border-right: 1px solid rgba(28, 14, 4, 0.85) !important;
 }
 
 #char-panel .gauge-hp .gauge-header,
 #char-panel .gauge-sp .gauge-header {
-    order: 2 !important;
-    position: static !important;
-    inset: auto !important;
+    position: absolute !important;
+    inset: 0 !important;
     z-index: 6 !important;
     display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    justify-content: center !important;
-    gap: 4px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 7px 0 8px !important;
     pointer-events: none !important;
-    width: auto !important;
-    height: auto !important;
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
     margin: 0 !important;
 }
 
 #char-panel #hp-label,
 #char-panel #sp-label {
-    order: 1 !important;
-    background: linear-gradient(180deg, #382614 0%, #1c1209 100%) !important;
-    border: 1px solid #b88b44 !important;
-    border-radius: 3px !important;
-    padding: 1px 5px !important;
+    font-size: 9.5px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.07em !important;
+    color: #f6e6c2 !important;
+    text-shadow: 0 1px 2px #000, 0 0 5px #000 !important;
     font-family: 'Cinzel', serif !important;
-    font-size: 8px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.08em !important;
-    color: #f5d488 !important;
-    margin: 0 !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
     text-transform: uppercase !important;
+    margin: 0 !important;
 }
 
 #char-panel #hp-text,
 #char-panel #sp-text {
-    order: 2 !important;
     font-size: 11px !important;
     font-weight: 800 !important;
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px #000, 0 0 5px #000 !important;
     font-variant-numeric: tabular-nums !important;
-    color: #fff9ec !important;
-    text-shadow: 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, 0.95) !important;
     line-height: 1.15 !important;
     white-space: nowrap !important;
+    margin: 0 !important;
+}
+
+/* 3D StreetView Ground-Perspective Directional Chevron Ring (WS34) */
+.streetview-nav-rosette {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 0 auto 4px auto;
+    pointer-events: auto;
+    user-select: none;
+    z-index: 25;
+}
+
+body.terminal-active .streetview-nav-rosette,
+body.grimoire-primary-open .streetview-nav-rosette {
+    display: none !important;
+}
+
+.sv-chevron-disc {
+    display: grid;
+    grid-template-columns: repeat(3, 30px);
+    grid-template-rows: repeat(3, 24px);
+    gap: 3px;
+    padding: 5px 7px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(18, 13, 9, 0.86) 0%, rgba(8, 6, 4, 0.92) 100%);
+    border: 1.5px solid rgba(218, 172, 84, 0.68);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.85), inset 0 0 10px rgba(255, 215, 110, 0.18);
+    transform: perspective(320px) rotateX(36deg);
+    transform-origin: center bottom;
+}
+
+.sv-chevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 24px;
+    border-radius: 5px;
+    background: rgba(34, 24, 15, 0.88);
+    border: 1px solid rgba(218, 172, 84, 0.55);
+    color: #ffe8a3;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    opacity: 0.90;
+    transition: transform 0.1s ease, opacity 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    text-shadow: 0 1px 3px #000;
+    padding: 0;
+}
+
+.sv-chevron:hover,
+.sv-chevron:active {
+    background: rgba(218, 172, 84, 0.32);
+    border-color: #ffd700;
+    color: #ffffff;
+    transform: scale(1.12);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.55);
+    opacity: 1;
+}
+
+.sv-chevron.is-blocked {
+    opacity: 0.22;
+    color: #78716c;
+    border-color: rgba(120, 113, 108, 0.25);
+    background: rgba(12, 10, 9, 0.55);
+}
+
+.sv-chevron.is-interactive {
+    border-color: #fbbf24;
+    color: #fde68a;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.45);
+}
+
+.sv-turn-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(22, 16, 10, 0.88);
+    border: 1px solid rgba(218, 172, 84, 0.58);
+    color: #f6e09e;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.75);
+    transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+    padding: 0;
+}
+
+.sv-turn-btn:hover,
+.sv-turn-btn:active {
+    background: rgba(218, 172, 84, 0.32);
+    border-color: #ffd700;
+    color: #ffffff;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+    .streetview-nav-rosette {
+        transform: perspective(280px) rotateX(38deg) scale(0.86);
+        margin-bottom: 2px;
+    }
 }
 
 /* Legacy globe dimensions compatibility */

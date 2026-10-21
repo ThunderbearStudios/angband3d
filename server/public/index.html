@@ -63,8 +63,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=9.9.9">
-    <link rel="stylesheet" href="/css/chronicle.css?v=9.9.9">
+    <link rel="stylesheet" href="/css/dungeon.css?v=10.0.0">
+    <link rel="stylesheet" href="/css/chronicle.css?v=10.0.0">
 </head>
 <body>
     <div id="app-container">
@@ -465,6 +465,7 @@
                             <span id="hp-val" class="vial-val-mirror" style="display: none;">100 / 100</span>
                         </div>
                         <div class="gauge-track">
+                            <div id="hp-ghost-fill" class="gauge-ghost-fill" style="width: 100%;" aria-hidden="true"></div>
                             <div id="hp-fill" class="gauge-fill" style="width: 100%;"></div>
                             <div class="vial-glass-gloss" aria-hidden="true"></div>
                             <div class="vial-neck-collar" aria-hidden="true"></div>
@@ -477,6 +478,7 @@
                             <span id="sp-val" class="vial-val-mirror" style="display: none;">0 / 0</span>
                         </div>
                         <div class="gauge-track">
+                            <div id="sp-ghost-fill" class="gauge-ghost-fill" style="width: 0%;" aria-hidden="true"></div>
                             <div id="sp-fill" class="gauge-fill" style="width: 0%;"></div>
                             <div class="vial-glass-gloss" aria-hidden="true"></div>
                             <div class="vial-neck-collar" aria-hidden="true"></div>
@@ -503,6 +505,23 @@
                 <!-- Action Overflow Popover / Drawer (WS9.1) -->
                 <div id="action-more-popover" class="action-more-popover" role="region" aria-label="Additional Actions"></div>
                 <div id="quick-slot-popover" class="quick-slot-popover" role="dialog" aria-label="Bind Quick-Action Slots"></div>
+
+                <!-- 3D StreetView Ground-Perspective Directional Chevron Ring (WS34) -->
+                <div id="streetview-nav-rosette" class="streetview-nav-rosette" role="group" aria-label="3D StreetView Navigation Chevrons">
+                    <button type="button" id="sv-turn-left" class="sv-turn-btn sv-turn-left" data-sv-turn="-1" title="Turn Camera Left [Q / Shift+Left]">↺</button>
+                    <div class="sv-chevron-disc">
+                        <button type="button" id="sv-dir-7" class="sv-chevron sv-dir-nw" data-sv-dir="7" title="Step Forward-Left [Home / Numpad 7]">◤</button>
+                        <button type="button" id="sv-dir-8" class="sv-chevron sv-dir-n" data-sv-dir="8" title="Step Forward [Up / Numpad 8]">▲</button>
+                        <button type="button" id="sv-dir-9" class="sv-chevron sv-dir-ne" data-sv-dir="9" title="Step Forward-Right [PgUp / Numpad 9]">◥</button>
+                        <button type="button" id="sv-dir-4" class="sv-chevron sv-dir-w" data-sv-dir="4" title="Sidestep Left [Left / Numpad 4]">◀</button>
+                        <button type="button" id="sv-dir-5" class="sv-chevron sv-dir-center" data-sv-dir="5" title="Context Action / Wait in Place [Space / ,]">•</button>
+                        <button type="button" id="sv-dir-6" class="sv-chevron sv-dir-e" data-sv-dir="6" title="Sidestep Right [Right / Numpad 6]">▶</button>
+                        <button type="button" id="sv-dir-1" class="sv-chevron sv-dir-sw" data-sv-dir="1" title="Step Back-Left [End / Numpad 1]">◣</button>
+                        <button type="button" id="sv-dir-2" class="sv-chevron sv-dir-s" data-sv-dir="2" title="Step Backward [Down / Numpad 2]">▼</button>
+                        <button type="button" id="sv-dir-3" class="sv-chevron sv-dir-se" data-sv-dir="3" title="Step Back-Right [PgDn / Numpad 3]">◢</button>
+                    </div>
+                    <button type="button" id="sv-turn-right" class="sv-turn-btn sv-turn-right" data-sv-turn="1" title="Turn Camera Right [E / Shift+Right]">↻</button>
+                </div>
 
                 <!-- Quick Action Bar -->
                 <div id="action-bar" class="hud-panel">
@@ -1620,30 +1639,30 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/safe-html.js?v=9.9.9"></script>
-    <script src="/js/screen-context.js?v=9.9.9"></script>
-    <script src="/js/menu-router.js?v=9.9.9"></script>
-    <script src="/js/grimoire-deck.js?v=9.9.9"></script>
-    <script src="/js/quick-actions.js?v=9.9.9"></script>
-    <script src="/js/device.js?v=9.9.9"></script>
-    <script src="/js/realm-keys.js?v=9.9.9"></script>
-    <script src="/js/mobile-overlay.js?v=9.9.9"></script>
-    <script src="/js/audio.js?v=9.9.9"></script>
-    <script src="/js/terminal.js?v=9.9.9"></script>
-    <script src="/js/dungeon3d.js?v=9.9.9"></script>
-    <script src="/js/hud.js?v=9.9.9"></script>
-    <script src="/js/network.js?v=9.9.9"></script>
-    <script src="/js/local_bridge.js?v=9.9.9"></script>
-    <script src="/js/input.js?v=9.9.9"></script>
-    <script src="/js/demo-player.js?v=9.9.9"></script>
+    <script src="/js/safe-html.js?v=10.0.0"></script>
+    <script src="/js/screen-context.js?v=10.0.0"></script>
+    <script src="/js/menu-router.js?v=10.0.0"></script>
+    <script src="/js/grimoire-deck.js?v=10.0.0"></script>
+    <script src="/js/quick-actions.js?v=10.0.0"></script>
+    <script src="/js/device.js?v=10.0.0"></script>
+    <script src="/js/realm-keys.js?v=10.0.0"></script>
+    <script src="/js/mobile-overlay.js?v=10.0.0"></script>
+    <script src="/js/audio.js?v=10.0.0"></script>
+    <script src="/js/terminal.js?v=10.0.0"></script>
+    <script src="/js/dungeon3d.js?v=10.0.0"></script>
+    <script src="/js/hud.js?v=10.0.0"></script>
+    <script src="/js/network.js?v=10.0.0"></script>
+    <script src="/js/local_bridge.js?v=10.0.0"></script>
+    <script src="/js/input.js?v=10.0.0"></script>
+    <script src="/js/demo-player.js?v=10.0.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=9.9.9"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=9.9.9"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=9.9.9"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=9.9.9"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=9.9.9"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=9.9.9"></script>
-    <script src="/js/app.js?v=9.9.9"></script>
-    <script src="/js/boot.js?v=9.9.9"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=10.0.0"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=10.0.0"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=10.0.0"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=10.0.0"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=10.0.0"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=10.0.0"></script>
+    <script src="/js/app.js?v=10.0.0"></script>
+    <script src="/js/boot.js?v=10.0.0"></script>
 </body>
 </html>

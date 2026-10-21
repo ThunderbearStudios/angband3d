@@ -2890,7 +2890,7 @@ class InputController {
 
         // Clicking anywhere in world exploration while -more- prompt is up dismisses prompt
         window.addEventListener('click', (e) => {
-            if (e.target && e.target.closest && e.target.closest('#quick-slot-bar, #quick-slot-popover, #minimap-canvas, #grimoire-deck-container')) {
+            if (e.target && e.target.closest && e.target.closest('#quick-slot-bar, #quick-slot-popover, #minimap-canvas, #grimoire-deck-container, #streetview-nav-rosette')) {
                 return;
             }
             const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
@@ -3009,18 +3009,31 @@ class InputController {
 
         // Smart Multifunction Center D-Pad Action
         bindTouch('dpad-center', () => {
-            const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
-            if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
-                this.network.sendKey('space');
+            this.triggerContextCenterAction();
+        }, false);
+
+        // 3D StreetView Ground Navigation Rosette Buttons (#streetview-nav-rosette)
+        bindTouch('sv-turn-left', () => {
+            if (this.dungeon && typeof this.dungeon.turn === 'function') this.dungeon.turn(-1);
+        }, false);
+
+        bindTouch('sv-turn-right', () => {
+            if (this.dungeon && typeof this.dungeon.turn === 'function') this.dungeon.turn(1);
+        }, false);
+
+        for (const dir of [8, 9, 6, 3, 2, 1, 4, 7]) {
+            bindTouch('sv-dir-' + dir, () => {
+                if (this.isAutoNavigating()) this.stopMinimapAutoNav('Cancelled');
+                sendDirectionalMove(dir);
+            }, true);
+        }
+
+        bindTouch('sv-dir-5', () => {
+            if (this.isAutoNavigating()) {
+                this.stopMinimapAutoNav('Cancelled');
                 return;
             }
-            if (this.smartAction) {
-                this.executeSmartAction(this.smartAction);
-                return;
-            }
-            this.dungeon.triggerAttackAnimation();
-            if (this.audio) this.audio.playWhoosh();
-            this.network.sendKey('enter');
+            this.triggerContextCenterAction();
         }, false);
 
         // Diagonal Touch D-Pad buttons with hold-to-repeat
@@ -3120,6 +3133,65 @@ class InputController {
         }
     }
 
+    triggerContextCenterAction() {
+        const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : (this.app ? this.app.lastFrame : null);
+        if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
+            this.network.sendKey('space');
+            return;
+        }
+        if (this.smartAction) {
+            this.executeSmartAction(this.smartAction);
+            return;
+        }
+        if (this.dungeon && typeof this.dungeon.triggerAttackAnimation === 'function') {
+            this.dungeon.triggerAttackAnimation();
+        }
+        if (this.audio && typeof this.audio.playWhoosh === 'function') {
+            this.audio.playWhoosh();
+        }
+        this.network.sendKey('enter');
+    }
+
+    getRelativeWorldDelta(dir) {
+        const wk = this.getRelativeDirectionKey(dir);
+        if (!wk) return { dx: 0, dy: 0 };
+        switch (wk) {
+            case 'up': return { dx: 0, dy: -1 };
+            case 'pageup': return { dx: 1, dy: -1 };
+            case 'right': return { dx: 1, dy: 0 };
+            case 'pagedown': return { dx: 1, dy: 1 };
+            case 'down': return { dx: 0, dy: 1 };
+            case 'end': return { dx: -1, dy: 1 };
+            case 'left': return { dx: -1, dy: 0 };
+            case 'home': return { dx: -1, dy: -1 };
+            default: return { dx: 0, dy: 0 };
+        }
+    }
+
+    updateStreetViewRosette(frame) {
+        if (!frame || !frame.player || !frame.map) return;
+        const px = frame.player.x;
+        const py = frame.player.y;
+        if (px === undefined || py === undefined) return;
+
+        const outdoors = Boolean((frame.player && frame.player.depth === 0) || frame.is_wild_mode);
+        const monsters = Array.isArray(frame.monsters) ? frame.monsters : [];
+
+        for (const dir of [8, 9, 6, 3, 2, 1, 4, 7]) {
+            const btn = document.getElementById('sv-dir-' + dir);
+            if (!btn) continue;
+            const { dx, dy } = this.getRelativeWorldDelta(dir);
+            const tx = px + dx;
+            const ty = py + dy;
+            const info = this._isTileWalkableForNav(frame.map, tx, ty, true, outdoors);
+            const hasMonster = monsters.some(m => m && m.visible !== false && m.x === tx && m.y === ty);
+
+            btn.classList.toggle('is-blocked', !info.walkable);
+            btn.classList.toggle('is-interactive', Boolean(info.isClosedDoor || info.isStore || hasMonster));
+            btn.classList.toggle('is-passable', Boolean(info.walkable));
+        }
+    }
+
     updateContextualControls(frame) {
         if (this.isAutoNavigating && this.isAutoNavigating() && frame && frame.seq !== this._lastAutoNavSeq) {
             this._lastAutoNavSeq = frame.seq;
@@ -3130,6 +3202,8 @@ class InputController {
         const px = player.x;
         const py = player.y;
         if (px === undefined || py === undefined) return;
+
+        this.updateStreetViewRosette(frame);
 
         // Elements
         const dpadCenter = document.getElementById('dpad-center');
@@ -3626,6 +3700,7 @@ class InputController {
 
         canvas.addEventListener('pointerdown', (e) => {
             if (e.isPrimary === false || (e.pointerType === 'mouse' && e.button !== 0)) return;
+            if (e.target && e.target.closest && e.target.closest('#quick-slot-bar, #quick-slot-popover, #minimap-canvas, #grimoire-deck-container, #streetview-nav-rosette')) return;
             try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
             onStart(e.clientX, e.clientY, e.pointerId);
         });
@@ -3975,16 +4050,17 @@ class InputController {
     }
 
     canEngageStreetViewNav(frame = null) {
-        if (this.dungeon && typeof this.dungeon.canEngageStreetViewNav === 'function') {
-            return this.dungeon.canEngageStreetViewNav(frame);
-        }
         const effFrame = frame || (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
-        if (!effFrame || !effFrame.player) return false;
-        const player = effFrame.player;
-        const curHp = Number(player.hp ?? 0);
-        const maxHp = Math.max(1, Number(player.hp_max ?? 1));
-        if (curHp < maxHp * 0.22) return false;
+        if (this.dungeon && this.dungeon.canEngageStreetViewNav !== this._boundDungeonCanEngage) {
+            this._boundDungeonCanEngage = (f) => this.canEngageStreetViewNav(f);
+            this.dungeon.canEngageStreetViewNav = this._boundDungeonCanEngage;
+        }
+        if (!effFrame || !effFrame.player || !effFrame.map) return false;
+        if (effFrame.phase !== 'play') return false;
+        if ((effFrame.ui?.overlay || 0) > 0) return false;
+        if (!effFrame.ui?.awaiting_command && !effFrame.ui?.more) return false;
 
+        const player = effFrame.player;
         const statuses = Array.isArray(player.statuses) ? player.statuses : [];
         const isDisabling = statuses.some(s => {
             const name = typeof s === 'string' ? s : (s && s.name ? s.name : '');
@@ -4008,7 +4084,7 @@ class InputController {
                 if (!isDamaged && !hasHostileFlag) continue;
             }
             const d = Math.max(Math.abs(m.x - px), Math.abs(m.y - py));
-            if (d <= 14) return false;
+            if (d <= 2) return false;
         }
 
         return true;
@@ -4039,6 +4115,13 @@ class InputController {
         const hud = (this.app && this.app.hud) || (winApp && winApp.hud);
 
         if (!path || path.length === 0) {
+            if (Math.abs(rxGoal - px) <= 1 && Math.abs(ryGoal - py) <= 1 && (rxGoal !== px || ryGoal !== py)) {
+                const wk = this.getWorldDirectionKey(rxGoal - px, ryGoal - py);
+                if (wk) {
+                    this.sendMovementKey(wk);
+                    return true;
+                }
+            }
             if (this.audio && typeof this.audio.playWallBump === 'function') {
                 this.audio.playWallBump(0.45);
             }
@@ -4076,6 +4159,10 @@ class InputController {
             hud._lastMinimapSig = '';
             hud.updateMinimap(frame);
         }
+        const term = this.terminal || (this.app && this.app.terminal) || (winApp && winApp.terminal);
+        if (term && typeof term.render === 'function' && frame && frame.term) {
+            term.render(frame.term);
+        }
 
         this.stepMinimapAutoNav(frame, true);
         return true;
@@ -4096,6 +4183,10 @@ class InputController {
         if (hud && frame && typeof hud.updateMinimap === 'function') {
             hud._lastMinimapSig = '';
             hud.updateMinimap(frame);
+        }
+        const term = this.terminal || (this.app && this.app.terminal) || (winApp && winApp.terminal);
+        if (term && typeof term.render === 'function' && frame && frame.term) {
+            term.render(frame.term);
         }
         if (reason && reason !== 'Reached destination' && reason !== 'Cancelled' && hud && typeof hud.showToast === 'function') {
             hud.showToast(`Auto-travel stopped: ${reason}`);

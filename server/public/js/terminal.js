@@ -531,6 +531,23 @@ class WebTerminal {
             }
         };
 
+        const app = (typeof window !== 'undefined' && (window.app || window.__app)) || null;
+        const f = app?.currentFrame || app?.lastFrame || app?.getLastFrame?.() || (typeof window !== 'undefined' && window.__lastFrame) || null;
+        const inputMgr = app?.input || (typeof window !== 'undefined' && window.input) || null;
+        const isPlayState = Boolean(f && f.phase === 'play' && (f.ui?.overlay || 0) === 0 && f.ui?.awaiting_command && !f.ui?.more);
+
+        if (isPlayState && inputMgr && f && f.player && f.map && this.lastTermData && col >= 12 && row >= 1 && row < this.rows - 1) {
+            this._findPlayerTermCoords(this.lastTermData, f.player);
+            const tx = (this._vpOx !== undefined ? this._vpOx : 0) + col;
+            const ty = (this._vpOy !== undefined ? this._vpOy : 0) + row;
+            if (tx >= 0 && ty >= 0 && tx < f.map.w && ty < f.map.h) {
+                if (typeof inputMgr.startMinimapAutoNav === 'function') {
+                    inputMgr.startMinimapAutoNav(tx, ty, f);
+                    return;
+                }
+            }
+        }
+
         // Multi-column spatial hit-testing (WS25.1 / MENU-02)
         const regions = this.extractRowRegions(line);
         if (regions.length > 0) {
@@ -557,24 +574,6 @@ class WebTerminal {
             }
         }
 
-        // Click-to-Move on Tab Classic Map in play mode when no menu tag was clicked
-        const app = (typeof window !== 'undefined' && (window.app || window.__app)) || null;
-        const f = app?.currentFrame || app?.getLastFrame?.() || (typeof window !== 'undefined' && window.__lastFrame) || null;
-        const inputMgr = app?.input || (typeof window !== 'undefined' && window.input) || null;
-        const isPlayState = Boolean(f && f.phase === 'play' && (f.ui?.overlay || 0) === 0 && f.ui?.awaiting_command && !f.ui?.more);
-
-        if (isPlayState && inputMgr && f && f.player && f.map && this.lastTermData) {
-            this._findPlayerTermCoords(this.lastTermData, f.player);
-            const tx = (this._vpOx !== undefined ? this._vpOx : 0) + col;
-            const ty = (this._vpOy !== undefined ? this._vpOy : 0) + row;
-            if (tx >= 0 && ty >= 0 && tx < f.map.w && ty < f.map.h) {
-                if (typeof inputMgr.startMinimapAutoNav === 'function') {
-                    inputMgr.startMinimapAutoNav(tx, ty, f);
-                    return;
-                }
-            }
-        }
-
         if (line.includes('> ')) {
             sendKey('enter');
         } else if (line.includes('-more-') || line.includes('-続く-')) {
@@ -594,13 +593,31 @@ class WebTerminal {
         for (let r = 1; r < rows.length - 1; r++) {
             const rowObj = rows[r];
             const text = rowObj ? (rowObj.g || '') : '';
-            for (let c = 0; c < text.length; c++) {
+            for (let c = 12; c < text.length; c++) {
                 if (text[c] === '@') {
                     const d = Math.hypot(c - centerCol, r - centerRow);
                     if (d < bestDist) {
                         bestDist = d;
                         bestCol = c;
                         bestRow = rowObj.y !== undefined ? rowObj.y : r;
+                    }
+                }
+            }
+        }
+
+        if (bestCol < 0) {
+            for (let r = 1; r < rows.length - 1; r++) {
+                const rowObj = rows[r];
+                const text = rowObj ? (rowObj.g || '') : '';
+                const limit = Math.min(12, text.length);
+                for (let c = 0; c < limit; c++) {
+                    if (text[c] === '@') {
+                        const d = Math.hypot(c - centerCol, r - centerRow);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            bestCol = c;
+                            bestRow = rowObj.y !== undefined ? rowObj.y : r;
+                        }
                     }
                 }
             }
@@ -797,6 +814,9 @@ class WebTerminal {
         this.lastTermData = termData;
         this.lastRows = termData.rows;
 
+        const app = (typeof window !== 'undefined' && (window.app || window.__app)) || null;
+        const effFrame = app?.currentFrame || app?.lastFrame || app?.getLastFrame?.() || (typeof window !== 'undefined' && window.__lastFrame) || null;
+
         const mode = this.detectMode(termData);
         if (mode !== this.currentMode) {
             this.currentMode = mode;
@@ -834,7 +854,7 @@ class WebTerminal {
             this.ctx.fillRect(sx, sy + 2, 3, Math.max(4, this.charHeight - 4));
         }
 
-        if (this.hoverRow >= 0 && this.hoverRow < this.rows) {
+        if ((mode !== 'classic_play' || (effFrame?.ui?.overlay || 0) > 0) && this.hoverRow >= 0 && this.hoverRow < this.rows) {
             const rawHoverLine = this.lastRows[this.hoverRow]?.g || '';
             const hoverLine = this.decodeText(rawHoverLine);
             const regions = this.extractRowRegions(hoverLine);
@@ -931,8 +951,6 @@ class WebTerminal {
         }
 
         // Sleek translucent gold A* path overlay on Tab Classic Map
-        const app = (typeof window !== 'undefined' && (window.app || window.__app)) || null;
-        const effFrame = app?.currentFrame || app?.getLastFrame?.() || (typeof window !== 'undefined' && window.__lastFrame) || null;
         if (effFrame && effFrame.player) {
             this._findPlayerTermCoords(termData, effFrame.player);
         }
@@ -943,8 +961,29 @@ class WebTerminal {
             : ((inputMgr && inputMgr._minimapNavPath && inputMgr._minimapNavPath.length > 0) ? inputMgr._minimapNavPath : null);
 
         const currentOverlay = effFrame?.ui?.overlay ?? (termData.ui?.overlay || 0);
-        if (navPath && navPath.length > 0 && currentOverlay === 0 && this._vpOx !== undefined && this._vpOy !== undefined) {
+        if (navPath && navPath.length > 0 && currentOverlay === 0 && this._vpOx !== undefined && this._vpOy !== undefined && effFrame && effFrame.player) {
+            const isActiveTravel = Boolean(inputMgr && inputMgr._minimapNavPath && inputMgr._minimapNavPath.length > 0);
+            const pCol = (this._playerTermCol !== undefined) ? this._playerTermCol : (effFrame.player.x - this._vpOx);
+            const pRow = (this._playerTermRow !== undefined) ? this._playerTermRow : (effFrame.player.y - this._vpOy);
+            const startCx = (pCol + 0.5) * this.charWidth;
+            const startCy = (pRow + 0.5) * this.charHeight;
+
             this.ctx.save();
+
+            // 1. Dashed Gold Route Polyline (exact Minimap parity)
+            this.ctx.strokeStyle = isActiveTravel ? 'rgba(255, 215, 64, 0.92)' : 'rgba(255, 215, 64, 0.68)';
+            this.ctx.lineWidth = Math.max(2.0, this.charWidth * 0.16);
+            this.ctx.setLineDash([5, 3]);
+            this.ctx.beginPath();
+            this.ctx.moveTo(startCx, startCy);
+            for (let i = 0; i < navPath.length; i++) {
+                const step = navPath[i];
+                this.ctx.lineTo((step.x - this._vpOx + 0.5) * this.charWidth, (step.y - this._vpOy + 0.5) * this.charHeight);
+            }
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+
+            // 2. Waypoint Dots & Destination Diamond Beacon + Tile Reticle
             for (let i = 0; i < navPath.length; i++) {
                 const step = navPath[i];
                 const scCol = step.x - this._vpOx;
@@ -960,8 +999,18 @@ class WebTerminal {
                         this.ctx.strokeRect(bx + 1, by + 1, this.charWidth - 2, this.charHeight - 2);
                         this.ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
                         this.ctx.fillRect(bx + 1, by + 1, this.charWidth - 2, this.charHeight - 2);
+
+                        const r = Math.max(3.5, this.charWidth * 0.35);
+                        this.ctx.fillStyle = isActiveTravel ? '#ffe066' : 'rgba(255, 224, 102, 0.85)';
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(cx, cy - r);
+                        this.ctx.lineTo(cx + r, cy);
+                        this.ctx.lineTo(cx, cy + r);
+                        this.ctx.lineTo(cx - r, cy);
+                        this.ctx.closePath();
+                        this.ctx.fill();
                     } else {
-                        this.ctx.fillStyle = 'rgba(255, 215, 0, 0.38)';
+                        this.ctx.fillStyle = isActiveTravel ? 'rgba(255, 215, 0, 0.75)' : 'rgba(255, 215, 0, 0.45)';
                         this.ctx.beginPath();
                         this.ctx.arc(cx, cy, Math.max(2.5, this.charWidth * 0.18), 0, Math.PI * 2);
                         this.ctx.fill();

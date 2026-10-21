@@ -12882,48 +12882,87 @@ class Dungeon3D {
             }
         }
 
-        // 3D StreetView Interactive Ground Cursor & A* Breadcrumbs Hover Update (throttled to 50ms)
-        if (this._hoverDirty && this.lastFrame && this.canEngageStreetViewNav(this.lastFrame)) {
-            if (tNow - (this._lastHoverRaycastMs || 0) > 50) {
-                this._lastHoverRaycastMs = tNow;
-                this._hoverDirty = false;
-                const px = this.lastFrame.player ? this.lastFrame.player.x : 0;
-                const py = this.lastFrame.player ? this.lastFrame.player.y : 0;
-                const hit = this.getTileAtScreenCoords(this._pendingHoverX, this._pendingHoverY);
-                if (hit && (hit.x !== px || hit.y !== py)) {
-                    this._hoveredTile = { x: hit.x, y: hit.y };
-                    const path = (this._hoverInputRef && typeof this._hoverInputRef.computeMinimapPath === 'function')
-                        ? this._hoverInputRef.computeMinimapPath(px, py, hit.x, hit.y, this.lastFrame)
-                        : null;
-                    if (this.navCursorGroup && this.navCursorMesh) {
-                        this.navCursorGroup.visible = true;
-                        this.navCursorMesh.visible = true;
-                        this.navCursorMesh.position.set(hit.x * this.cellSize, 0.032, hit.y * this.cellSize);
-                        if (path && path.length > 0 && path.length <= 36) {
-                            const isDoor = hit.kind === 'door';
-                            this.navCursorMesh.material.color.setHex(isDoor ? 0xff9f1c : 0xffd700);
-                            this.navCursorMesh.material.opacity = 0.75;
-                            if (this.navBreadcrumbsMesh) {
-                                if (!this._scratchNavMatrix) this._scratchNavMatrix = new THREE.Matrix4();
-                                if (!this._scratchNavPos) this._scratchNavPos = new THREE.Vector3();
-                                for (let pIdx = 0; pIdx < path.length; pIdx++) {
-                                    const step = path[pIdx];
-                                    this._scratchNavPos.set(step.x * this.cellSize, 0.028, step.y * this.cellSize);
-                                    this._scratchNavMatrix.makeTranslation(this._scratchNavPos.x, this._scratchNavPos.y, this._scratchNavPos.z);
-                                    this.navBreadcrumbsMesh.setMatrixAt(pIdx, this._scratchNavMatrix);
-                                }
-                                this.navBreadcrumbsMesh.count = path.length;
-                                this.navBreadcrumbsMesh.instanceMatrix.needsUpdate = true;
-                            }
-                        } else {
-                            if (this.navBreadcrumbsMesh) this.navBreadcrumbsMesh.count = 0;
-                            this.navCursorMesh.material.color.setHex(0xef4444);
-                            this.navCursorMesh.material.opacity = 0.30;
-                        }
+        // 3D StreetView Interactive Ground Cursor & A* Breadcrumbs (Active Travel + Hover Preview)
+        const activeNavPath = (this._hoverInputRef && this._hoverInputRef._minimapNavPath) ||
+            (typeof window !== 'undefined' && window.__app && window.__app.input && window.__app.input._minimapNavPath) ||
+            null;
+
+        if (activeNavPath && activeNavPath.length > 0 && this.lastFrame && this.canEngageStreetViewNav(this.lastFrame)) {
+            this._hadActiveNavPath = true;
+            if (this.navCursorGroup && this.navCursorMesh) {
+                this.navCursorGroup.visible = true;
+                this.navCursorMesh.visible = true;
+                const goal = activeNavPath[activeNavPath.length - 1];
+                this.navCursorMesh.position.set(goal.x * this.cellSize, 0.036, goal.y * this.cellSize);
+                this.navCursorMesh.material.color.setHex(0xffe066);
+                this.navCursorMesh.material.opacity = 0.72 + Math.sin(tNow * 0.008) * 0.20;
+                if (this.navBreadcrumbsMesh) {
+                    if (!this._scratchNavMatrix) this._scratchNavMatrix = new THREE.Matrix4();
+                    if (!this._scratchNavPos) this._scratchNavPos = new THREE.Vector3();
+                    const count = Math.min(activeNavPath.length, 64);
+                    for (let pIdx = 0; pIdx < count; pIdx++) {
+                        const step = activeNavPath[pIdx];
+                        this._scratchNavPos.set(step.x * this.cellSize, 0.030, step.y * this.cellSize);
+                        this._scratchNavMatrix.makeTranslation(this._scratchNavPos.x, this._scratchNavPos.y, this._scratchNavPos.z);
+                        this.navBreadcrumbsMesh.setMatrixAt(pIdx, this._scratchNavMatrix);
                     }
-                } else {
-                    this._hoveredTile = null;
-                    if (this.navCursorGroup) this.navCursorGroup.visible = false;
+                    this.navBreadcrumbsMesh.count = count;
+                    this.navBreadcrumbsMesh.instanceMatrix.needsUpdate = true;
+                }
+            }
+        } else {
+            if (this._hadActiveNavPath) {
+                this._hadActiveNavPath = false;
+                if (!this._hoveredTile && this.navCursorGroup) {
+                    this.navCursorGroup.visible = false;
+                    if (this.navBreadcrumbsMesh) this.navBreadcrumbsMesh.count = 0;
+                }
+            }
+            if (this._hoverDirty && this.lastFrame && this.canEngageStreetViewNav(this.lastFrame)) {
+                if (tNow - (this._lastHoverRaycastMs || 0) > 50) {
+                    this._lastHoverRaycastMs = tNow;
+                    this._hoverDirty = false;
+                    const px = this.lastFrame.player ? this.lastFrame.player.x : 0;
+                    const py = this.lastFrame.player ? this.lastFrame.player.y : 0;
+                    const hit = (this._pendingHoverX >= 0 && this._pendingHoverY >= 0)
+                        ? this.getTileAtScreenCoords(this._pendingHoverX, this._pendingHoverY)
+                        : null;
+                    if (hit && (hit.x !== px || hit.y !== py)) {
+                        this._hoveredTile = { x: hit.x, y: hit.y };
+                        const path = (this._hoverInputRef && typeof this._hoverInputRef.computeMinimapPath === 'function')
+                            ? this._hoverInputRef.computeMinimapPath(px, py, hit.x, hit.y, this.lastFrame)
+                            : null;
+                        if (this.navCursorGroup && this.navCursorMesh) {
+                            this.navCursorGroup.visible = true;
+                            this.navCursorMesh.visible = true;
+                            this.navCursorMesh.position.set(hit.x * this.cellSize, 0.035, hit.y * this.cellSize);
+                            if (path && path.length > 0 && path.length <= 64) {
+                                const isDoor = hit.kind === 'door';
+                                this.navCursorMesh.material.color.setHex(isDoor ? 0xff9f1c : 0xffd700);
+                                this.navCursorMesh.material.opacity = 0.82;
+                                if (this.navBreadcrumbsMesh) {
+                                    if (!this._scratchNavMatrix) this._scratchNavMatrix = new THREE.Matrix4();
+                                    if (!this._scratchNavPos) this._scratchNavPos = new THREE.Vector3();
+                                    const count = Math.min(path.length, 64);
+                                    for (let pIdx = 0; pIdx < count; pIdx++) {
+                                        const step = path[pIdx];
+                                        this._scratchNavPos.set(step.x * this.cellSize, 0.028, step.y * this.cellSize);
+                                        this._scratchNavMatrix.makeTranslation(this._scratchNavPos.x, this._scratchNavPos.y, this._scratchNavPos.z);
+                                        this.navBreadcrumbsMesh.setMatrixAt(pIdx, this._scratchNavMatrix);
+                                    }
+                                    this.navBreadcrumbsMesh.count = count;
+                                    this.navBreadcrumbsMesh.instanceMatrix.needsUpdate = true;
+                                }
+                            } else {
+                                if (this.navBreadcrumbsMesh) this.navBreadcrumbsMesh.count = 0;
+                                this.navCursorMesh.material.color.setHex(0xef4444);
+                                this.navCursorMesh.material.opacity = 0.32;
+                            }
+                        }
+                    } else {
+                        this._hoveredTile = null;
+                        if (this.navCursorGroup) this.navCursorGroup.visible = false;
+                    }
                 }
             }
         }
@@ -12936,25 +12975,31 @@ class Dungeon3D {
             const fwdX = fwdLen > 0.001 ? this._scratchCamDir.x / fwdLen : 0;
             const fwdZ = fwdLen > 0.001 ? this._scratchCamDir.z / fwdLen : -1;
 
-            const px = (this.lastFrame && this.lastFrame.player) ? this.lastFrame.player.x : (this.playerGridX || 0);
-            const py = (this.lastFrame && this.lastFrame.player) ? this.lastFrame.player.y : (this.playerGridY || 0);
-
             for (let i = 0; i < this._streetChevrons.length; i++) {
                 const chevron = this._streetChevrons[i];
-                if (!chevron.visible) continue;
                 const d = chevron.userData;
+                if (!d.passable) {
+                    chevron.visible = false;
+                    continue;
+                }
                 const len = Math.hypot(d.dx, d.dy);
                 const cDirX = d.dx / len;
                 const cDirZ = d.dy / len;
                 const forwardDot = fwdX * cDirX + fwdZ * cDirZ;
 
-                let baseOpacity = forwardDot > 0.7 ? 0.72 : (forwardDot > 0.1 ? 0.36 : 0.16);
-                let scale = 1.0;
+                if (forwardDot < 0.20) {
+                    chevron.visible = false;
+                    continue;
+                }
+                chevron.visible = true;
 
-                const isHovered = this._hoveredTile && this._hoveredTile.x === (px + d.dx) && this._hoveredTile.y === (py + d.dy);
+                let baseOpacity = forwardDot > 0.65 ? (d.ring === 1 ? 0.84 : 0.68) : 0.45;
+                let scale = d.ring === 1 ? 1.08 : 0.96;
+
+                const isHovered = this._hoveredTile && this._hoveredTile.x === d.tx && this._hoveredTile.y === d.ty;
                 if (isHovered) {
-                    baseOpacity = 0.95;
-                    scale = 1.22;
+                    baseOpacity = 0.98;
+                    scale = 1.28;
                 }
                 chevron.material.opacity = baseOpacity;
                 chevron.scale.set(scale, 1.0, scale);
@@ -13446,17 +13491,37 @@ class Dungeon3D {
 
         const rect = this.canvas.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return null;
+        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+
+        if (!this._mouseVec2) this._mouseVec2 = new THREE.Vector2();
+        if (!this._raycaster) this._raycaster = new THREE.Raycaster();
 
         const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
         const ndcY = -((clientY - rect.top) / rect.height) * 2 + 1;
         this._mouseVec2.set(ndcX, ndcY);
         this._raycaster.setFromCamera(this._mouseVec2, this.camera);
 
+        // 1. Direct intersection against visible 3D StreetView floor chevrons
+        if (this.streetViewGroup && this.streetViewGroup.visible && this._streetChevrons && this._streetChevrons.length > 0) {
+            const visibleChevrons = this._streetChevrons.filter(c => c.visible && c.userData && c.userData.passable);
+            if (visibleChevrons.length > 0) {
+                const hits = this._raycaster.intersectObjects(visibleChevrons, false);
+                if (hits.length > 0 && hits[0].object && hits[0].object.userData) {
+                    const ud = hits[0].object.userData;
+                    if (ud.tx !== undefined && ud.ty !== undefined) {
+                        return { x: ud.tx, y: ud.ty, kind: 'chevron', dx: ud.dx, dy: ud.dy };
+                    }
+                }
+            }
+        }
+
         const ray = this._raycaster.ray;
         const cellSize = this.cellSize || 2.0;
         const wallH = this.wallHeight || 3.0;
-        const maxDist = 24 * cellSize;
+        const maxDist = 36 * cellSize;
         const dt = 0.12;
+        const px = this.lastFrame.player.x;
+        const py = this.lastFrame.player.y;
 
         let lastCheckedKey = -1;
         let lastOpenTile = null;
@@ -13471,7 +13536,7 @@ class Dungeon3D {
                 const tFloor = ray.direction.y < -0.001 ? (-ray.origin.y / ray.direction.y) : t;
                 const fx = Math.round((ray.origin.x + ray.direction.x * tFloor) / cellSize);
                 const fy = Math.round((ray.origin.z + ray.direction.z * tFloor) / cellSize);
-                if (fx < 0 || fx >= mapW || fy < 0 || fy >= mapH) return null;
+                if (fx < 0 || fx >= mapW || fy < 0 || fy >= mapH) return lastOpenTile;
                 return { x: fx, y: fy, kind: 'floor' };
             }
 
@@ -13479,9 +13544,10 @@ class Dungeon3D {
                 const gx = Math.round(rx / cellSize);
                 const gy = Math.round(rz / cellSize);
                 if (gx < 0 || gx >= mapW || gy < 0 || gy >= mapH) continue;
-                const cellKey = gy * mapW + gx;
-                if (cellKey === lastCheckedKey) continue;
-                lastCheckedKey = cellKey;
+                if (gx === px && gy === py) {
+                    lastOpenTile = { x: px, y: py, kind: 'floor' };
+                    continue;
+                }
 
                 const row = rows[gy];
                 if (!row) continue;
@@ -13498,22 +13564,31 @@ class Dungeon3D {
                     return { x: gx, y: gy, kind: 'door' };
                 }
 
-                // Solid walls occlude the ray (prevent clicking through walls into unseen rooms)
+                // Solid walls occlude the ray (chamfer-aware 0.44 * cellSize footprint)
                 const isSolidWall = feat === 0 || (feat >= 15 && feat <= 22) || feat === 30 ||
                     (feat === 25 && glyph !== '.' && glyph !== ',' && glyph !== '\'') ||
                     glyph === '#' || glyph === '%' || glyph === '*';
                 if (isSolidWall) {
-                    if (ry <= 1.25 && lastOpenTile) {
+                    const localX = Math.abs(rx - gx * cellSize);
+                    const localZ = Math.abs(rz - gy * cellSize);
+                    if (localX > 0.44 * cellSize || localZ > 0.44 * cellSize) {
+                        continue;
+                    }
+                    if (lastOpenTile && (lastOpenTile.x !== px || lastOpenTile.y !== py)) {
                         return lastOpenTile;
                     }
                     return null;
                 }
 
-                lastOpenTile = { x: gx, y: gy, kind: 'floor' };
+                const cellKey = gy * mapW + gx;
+                if (cellKey !== lastCheckedKey) {
+                    lastCheckedKey = cellKey;
+                    lastOpenTile = { x: gx, y: gy, kind: 'floor' };
+                }
             }
         }
 
-        return null;
+        return lastOpenTile;
     }
 
     initStreetViewNavigation() {
@@ -13527,12 +13602,12 @@ class Dungeon3D {
         const geo = new THREE.BufferGeometry();
         const positions = [];
         const addChevron = (z0) => {
-            const to = [0, 0, z0 - 0.20];
-            const ti = [0, 0, z0 - 0.10];
-            const lo = [-0.28, 0, z0 + 0.08];
-            const li = [-0.18, 0, z0 + 0.11];
-            const ro = [0.28, 0, z0 + 0.08];
-            const ri = [0.18, 0, z0 + 0.11];
+            const to = [0, 0, z0 - 0.34];
+            const ti = [0, 0, z0 - 0.16];
+            const lo = [-0.46, 0, z0 + 0.14];
+            const li = [-0.30, 0, z0 + 0.19];
+            const ro = [0.46, 0, z0 + 0.14];
+            const ri = [0.30, 0, z0 + 0.19];
 
             // Left wing: to, lo, li and to, li, ti
             positions.push(...to, ...lo, ...li);
@@ -13541,8 +13616,8 @@ class Dungeon3D {
             positions.push(...to, ...ti, ...ri);
             positions.push(...to, ...ri, ...ro);
         };
-        addChevron(-0.10);
-        addChevron(0.18);
+        addChevron(-0.16);
+        addChevron(0.24);
         geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geo.computeVertexNormals();
         geo._sharedGeometry = true;
@@ -13554,20 +13629,22 @@ class Dungeon3D {
             { dx: 0, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }
         ];
 
-        for (const d of deltas) {
-            const mat = new THREE.MeshBasicMaterial({
-                color: 0xffdf80,
-                transparent: true,
-                opacity: 0.35,
-                depthWrite: false,
-                side: THREE.DoubleSide
-            });
-            mat._sharedMaterial = true;
-            const mesh = new THREE.Mesh(this._sharedChevronGeo, mat);
-            mesh.visible = false;
-            mesh.userData = { dx: d.dx, dy: d.dy };
-            this.streetViewGroup.add(mesh);
-            this._streetChevrons.push(mesh);
+        for (const ring of [1, 2]) {
+            for (const d of deltas) {
+                const mat = new THREE.MeshBasicMaterial({
+                    color: ring === 1 ? 0xffe066 : 0xffd166,
+                    transparent: true,
+                    opacity: ring === 1 ? 0.82 : 0.65,
+                    depthWrite: false,
+                    side: THREE.DoubleSide
+                });
+                mat._sharedMaterial = true;
+                const mesh = new THREE.Mesh(this._sharedChevronGeo, mat);
+                mesh.visible = false;
+                mesh.userData = { dx: d.dx, dy: d.dy, ring, passable: false };
+                this.streetViewGroup.add(mesh);
+                this._streetChevrons.push(mesh);
+            }
         }
 
         this.navCursorGroup = new THREE.Group();
@@ -13575,13 +13652,13 @@ class Dungeon3D {
         this.navCursorGroup.visible = false;
         this.scene.add(this.navCursorGroup);
 
-        const ringGeo = new THREE.RingGeometry(0.36, 0.45, 8);
+        const ringGeo = new THREE.RingGeometry(0.40, 0.54, 16);
         ringGeo.rotateX(-Math.PI / 2);
         ringGeo._sharedGeometry = true;
         const ringMat = new THREE.MeshBasicMaterial({
             color: 0xffd700,
             transparent: true,
-            opacity: 0.75,
+            opacity: 0.82,
             depthWrite: false,
             side: THREE.DoubleSide
         });
@@ -13590,16 +13667,16 @@ class Dungeon3D {
         this.navCursorMesh.name = 'NavCursorMesh';
         this.navCursorGroup.add(this.navCursorMesh);
 
-        const crumbGeo = new THREE.CylinderGeometry(0.10, 0.10, 0.015, 12);
+        const crumbGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.025, 16);
         crumbGeo._sharedGeometry = true;
         const crumbMat = new THREE.MeshBasicMaterial({
-            color: 0xffdf80,
+            color: 0xffe066,
             transparent: true,
-            opacity: 0.65,
+            opacity: 0.78,
             depthWrite: false
         });
         crumbMat._sharedMaterial = true;
-        this.navBreadcrumbsMesh = new THREE.InstancedMesh(crumbGeo, crumbMat, 36);
+        this.navBreadcrumbsMesh = new THREE.InstancedMesh(crumbGeo, crumbMat, 64);
         this.navBreadcrumbsMesh.name = 'NavBreadcrumbsMesh';
         this.navBreadcrumbsMesh.count = 0;
         this.navCursorGroup.add(this.navBreadcrumbsMesh);
@@ -13608,48 +13685,26 @@ class Dungeon3D {
     canEngageStreetViewNav(frame) {
         if (!frame || frame.phase !== 'play' || !frame.player || !frame.map) return false;
         if ((frame.ui?.overlay || 0) > 0 || (!frame.ui?.awaiting_command && !frame.ui?.more)) return false;
+        return true;
+    }
 
-        const statusRegex = /blind|confus|paralyz|stun|afraid|fear|hallucinat|image|狂乱|盲目|混乱|麻痺|朦朧|恐怖|幻覚/i;
-        if (frame.player.statuses) {
-            if (Array.isArray(frame.player.statuses)) {
-                for (let i = 0; i < frame.player.statuses.length; i++) {
-                    const st = frame.player.statuses[i];
-                    const name = typeof st === 'string' ? st : (st?.name || st?.type || '');
-                    if (statusRegex.test(name)) return false;
-                }
-            } else if (typeof frame.player.statuses === 'object') {
-                for (const key of Object.keys(frame.player.statuses)) {
-                    if (statusRegex.test(key)) return false;
-                }
-            }
-        }
-
-        const hp = frame.player.hp !== undefined ? frame.player.hp : 1;
-        const maxHp = frame.player.hp_max || frame.player.mhp || 1;
-        if (hp < maxHp * 0.22) return false;
-
-        const depth = frame.player.depth !== undefined ? frame.player.depth : 0;
-        const px = frame.player.x !== undefined ? frame.player.x : 0;
-        const py = frame.player.y !== undefined ? frame.player.y : 0;
-
+    _isStreetViewTilePassable(frame, map, w, h, tx, ty) {
+        if (tx < 0 || tx >= w || ty < 0 || ty >= h) return false;
+        const feat = this.getFeatAt(map, tx, ty);
+        const glyph = this.getGlyphAt(map, tx, ty);
+        const isSolidWall = feat === 0 || (feat >= 15 && feat <= 22) || feat === 30 || glyph === '#' || glyph === '%' || glyph === '*';
+        const isTree = (feat === 25 && glyph !== '.' && glyph !== ',' && glyph !== "'");
+        const isLava = feat === 23;
+        const isDeepWater = feat === 24;
+        const isChasm = feat === 41;
+        const isTrap = glyph === '^';
+        if (isSolidWall || isTree || isLava || isDeepWater || isChasm || isTrap) return false;
         if (Array.isArray(frame.monsters)) {
-            for (let i = 0; i < frame.monsters.length; i++) {
-                const m = frame.monsters[i];
-                if (m.ml === false) continue;
-                const mdx = m.x - px;
-                const mdy = m.y - py;
-                if (mdx * mdx + mdy * mdy <= 196) {
-                    if (depth > 0) {
-                        if (!m.friendly && !m.pet) return false;
-                    } else {
-                        const isDamaged = (m.hp !== undefined && m.hp_max !== undefined && m.hp < m.hp_max);
-                        const hasHostileFlag = Boolean(m.hostile || m.is_hostile || (m.status && /hostile|anger|alert/i.test(m.status)));
-                        if (isDamaged || hasHostileFlag) return false;
-                    }
-                }
+            for (let mIdx = 0; mIdx < frame.monsters.length; mIdx++) {
+                const m = frame.monsters[mIdx];
+                if (m && m.visible !== false && m.x === tx && m.y === ty) return false;
             }
         }
-
         return true;
     }
 
@@ -13672,44 +13727,30 @@ class Dungeon3D {
         for (let i = 0; i < this._streetChevrons.length; i++) {
             const chevron = this._streetChevrons[i];
             const d = chevron.userData;
-            const tx = px + d.dx;
-            const ty = py + d.dy;
+            const ring = d.ring || 1;
+            const tx1 = px + d.dx;
+            const ty1 = py + d.dy;
+            const tx2 = px + d.dx * 2;
+            const ty2 = py + d.dy * 2;
 
-            if (tx < 0 || tx >= w || ty < 0 || ty >= h) {
-                chevron.visible = false;
-                continue;
-            }
+            const step1Passable = this._isStreetViewTilePassable(frame, map, w, h, tx1, ty1);
+            const step2Passable = step1Passable && this._isStreetViewTilePassable(frame, map, w, h, tx2, ty2);
 
-            const feat = this.getFeatAt(map, tx, ty);
-            const glyph = this.getGlyphAt(map, tx, ty);
-
-            const isSolidWall = feat === 0 || (feat >= 15 && feat <= 22) || feat === 30 || glyph === '#' || glyph === '%' || glyph === '*';
-            const isTree = (feat === 25 && glyph !== '.' && glyph !== ',' && glyph !== "'");
-            const isLava = feat === 23;
-            const isDeepWater = feat === 24;
-            const isChasm = feat === 41;
-            const isTrap = glyph === '^';
-
-            let hasMonster = false;
-            if (Array.isArray(frame.monsters)) {
-                for (let mIdx = 0; mIdx < frame.monsters.length; mIdx++) {
-                    const m = frame.monsters[mIdx];
-                    if (m.x === tx && m.y === ty) {
-                        hasMonster = true;
-                        break;
-                    }
-                }
-            }
-
-            const isPassable = !isSolidWall && !isTree && !isLava && !isDeepWater && !isChasm && !isTrap && !hasMonster;
-
-            if (isPassable) {
-                chevron.visible = true;
-                chevron.position.set((px + d.dx * 0.62) * this.cellSize, 0.035, (py + d.dy * 0.62) * this.cellSize);
+            if (ring === 1 && step1Passable) {
+                d.passable = true;
+                const visualDist = step2Passable ? 1.68 : 1.32;
+                chevron.position.set((px + d.dx * visualDist) * this.cellSize, 0.045, (py + d.dy * visualDist) * this.cellSize);
                 chevron.rotation.y = Math.atan2(-d.dx, -d.dy);
-                chevron.userData.tx = tx;
-                chevron.userData.ty = ty;
+                d.tx = tx1;
+                d.ty = ty1;
+            } else if (ring === 2 && step2Passable) {
+                d.passable = true;
+                chevron.position.set((px + d.dx * 2.68) * this.cellSize, 0.045, (py + d.dy * 2.68) * this.cellSize);
+                chevron.rotation.y = Math.atan2(-d.dx, -d.dy);
+                d.tx = tx2;
+                d.ty = ty2;
             } else {
+                d.passable = false;
                 chevron.visible = false;
             }
         }

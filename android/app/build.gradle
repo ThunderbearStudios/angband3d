@@ -7,8 +7,8 @@ android {
         applicationId "com.angband3d.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 90909
-        versionName "9.9.9"
+        versionCode 100000
+        versionName "10.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

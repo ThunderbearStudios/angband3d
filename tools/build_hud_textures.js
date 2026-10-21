@@ -156,106 +156,46 @@ function generateCharredWoodPng(w = 256, h = 256) {
 }
 
 function generateApothecaryVialSvg() {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 160" fill="none">
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 24" preserveAspectRatio="none" fill="none">
   <defs>
-    <!-- Multi-stop Forged Antique-Brass Gradient for Collar & Ferrule -->
-    <linearGradient id="brassCollar" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#2a1b0c"/>
-      <stop offset="12%" stop-color="#64421b"/>
+    <!-- Top Specular Glaze Gradient -->
+    <linearGradient id="topSpecular" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0"/>
+    </linearGradient>
+    <!-- Forged Antique Gold Gradient for End-Cap Brackets -->
+    <linearGradient id="goldEndCap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff2be"/>
       <stop offset="28%" stop-color="#d4aa4c"/>
-      <stop offset="46%" stop-color="#fff2be"/>
-      <stop offset="62%" stop-color="#b68936"/>
-      <stop offset="84%" stop-color="#e0be68"/>
+      <stop offset="70%" stop-color="#8a5e1e"/>
       <stop offset="100%" stop-color="#3b2510"/>
-    </linearGradient>
-    <linearGradient id="brassCup" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#221508"/>
-      <stop offset="15%" stop-color="#553715"/>
-      <stop offset="32%" stop-color="#c99e40"/>
-      <stop offset="50%" stop-color="#ffe8a8"/>
-      <stop offset="72%" stop-color="#9a712a"/>
-      <stop offset="88%" stop-color="#d1ae58"/>
-      <stop offset="100%" stop-color="#2c1a0a"/>
-    </linearGradient>
-    <!-- Thick Glass Wall Fresnel Shading Gradients -->
-    <linearGradient id="fresnelLeft" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45"/>
-      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.16"/>
-      <stop offset="75%" stop-color="#000000" stop-opacity="0.08"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.0"/>
-    </linearGradient>
-    <linearGradient id="fresnelRight" x1="1" y1="0" x2="0" y2="0">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.38"/>
-      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.12"/>
-      <stop offset="75%" stop-color="#000000" stop-opacity="0.15"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.0"/>
-    </linearGradient>
-    <!-- Cylindrical Glass Body Ambient Highlight -->
-    <linearGradient id="glassBodyShading" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
-      <stop offset="18%" stop-color="#ffffff" stop-opacity="0.38"/>
-      <stop offset="32%" stop-color="#ffffff" stop-opacity="0.04"/>
-      <stop offset="72%" stop-color="#000000" stop-opacity="0.26"/>
-      <stop offset="88%" stop-color="#ffeac2" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.48"/>
     </linearGradient>
   </defs>
 
-  <!-- Hand-blown Borosilicate Cylindrical Glass Body Overlay -->
-  <rect x="2" y="14" width="60" height="132" rx="10" fill="url(#glassBodyShading)"/>
+  <!-- Top Specular Highlight Band -->
+  <rect x="2" y="1" width="196" height="4" rx="1.5" fill="url(#topSpecular)" />
 
-  <!-- Left & Right Glass Fresnel Edges -->
-  <rect x="2" y="18" width="12" height="124" fill="url(#fresnelLeft)" rx="4"/>
-  <rect x="50" y="18" width="12" height="124" fill="url(#fresnelRight)" rx="4"/>
+  <!-- Bottom Recessed Shadow Band -->
+  <rect x="2" y="19" width="196" height="4" fill="rgba(0,0,0,0.45)" />
 
-  <!-- Curved High-Contrast Studio Window Reflection Ribbon -->
-  <path d="M11,22 Q9,80 12,138" stroke="rgba(255,255,255,0.72)" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-
-  <!-- Secondary Internal Cylindrical Refraction Streak -->
-  <path d="M16,26 Q14,80 17,134" stroke="rgba(255,255,255,0.28)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-
-  <!-- Crisp Acid-Etched Gold/Ivory Volumetric Graduation Marks (7 Ticks: 10%, 25%, 35%, 50%, 60%, 75%, 90%) -->
-  <g stroke="rgba(255,242,200,0.78)" stroke-linecap="round">
-    <!-- 90% (y = 30) -->
-    <line x1="47" y1="30" x2="57" y2="30" stroke-width="1.4"/>
-    <!-- 75% Major (y = 49) -->
-    <line x1="39" y1="49" x2="57" y2="49" stroke-width="1.9"/>
-    <!-- 60% (y = 68) -->
-    <line x1="47" y1="68" x2="57" y2="68" stroke-width="1.4"/>
-    <!-- 50% Major Center (y = 80) -->
-    <line x1="36" y1="80" x2="57" y2="80" stroke-width="2.2" stroke="rgba(255,248,220,0.92)"/>
-    <!-- 35% (y = 99) -->
-    <line x1="47" y1="99" x2="57" y2="99" stroke-width="1.4"/>
-    <!-- 25% Major (y = 111) -->
-    <line x1="39" y1="111" x2="57" y2="111" stroke-width="1.9"/>
-    <!-- 10% (y = 130) -->
-    <line x1="47" y1="130" x2="57" y2="130" stroke-width="1.4"/>
+  <!-- Crisp Acid-Etched Vertical Micro-Graduation Ticks (25%, 50%, 75%) -->
+  <g stroke="rgba(255,242,200,0.45)" stroke-linecap="round">
+    <!-- 25% Tick (x = 50) -->
+    <line x1="50" y1="3" x2="50" y2="21" stroke-width="1" stroke="rgba(255,242,200,0.35)"/>
+    <!-- 50% Center Major Tick (x = 100) -->
+    <line x1="100" y1="2" x2="100" y2="22" stroke-width="1.5" stroke="rgba(255,248,220,0.65)"/>
+    <!-- 75% Tick (x = 150) -->
+    <line x1="150" y1="3" x2="150" y2="21" stroke-width="1" stroke="rgba(255,242,200,0.35)"/>
   </g>
 
-  <!-- Multi-stop Forged Antique-Brass Top Neck Collar (y=0..18) -->
-  <g id="topBrassCollar">
-    <rect x="3" y="1" width="58" height="17" rx="3" fill="url(#brassCollar)"/>
-    <!-- Top & Bottom Metallic Bevel Lines -->
-    <line x1="4" y1="2" x2="60" y2="2" stroke="rgba(255,245,210,0.85)" stroke-width="1.2"/>
-    <line x1="3" y1="18" x2="61" y2="18" stroke="#160e06" stroke-width="1.6"/>
-    <!-- Antique Iron Rivets / Studs -->
-    <circle cx="11" cy="9.5" r="1.6" fill="#ffe9a0" stroke="#331e08" stroke-width="0.8"/>
-    <circle cx="23" cy="9.5" r="1.6" fill="#ffe9a0" stroke="#331e08" stroke-width="0.8"/>
-    <circle cx="41" cy="9.5" r="1.6" fill="#ffe9a0" stroke="#331e08" stroke-width="0.8"/>
-    <circle cx="53" cy="9.5" r="1.6" fill="#ffe9a0" stroke="#331e08" stroke-width="0.8"/>
-  </g>
+  <!-- Forged Gold Left End-Cap Bracket (x=0..4) -->
+  <rect x="0" y="0" width="4" height="24" rx="1" fill="url(#goldEndCap)" />
+  <line x1="4" y1="0" x2="4" y2="24" stroke="rgba(0,0,0,0.65)" stroke-width="0.8" />
 
-  <!-- Matching Brass Bottom Ferrule Cup (y=142..160) -->
-  <g id="bottomBrassCup">
-    <path d="M3,142 L61,142 L61,150 Q61,159 50,159 L14,159 Q3,159 3,150 Z" fill="url(#brassCup)"/>
-    <!-- Top Dark-Iron Bevel & Bottom Specular Highlight -->
-    <line x1="3" y1="142" x2="61" y2="142" stroke="#160e06" stroke-width="1.8"/>
-    <path d="M7,156 Q32,160 57,156" stroke="rgba(255,242,190,0.82)" stroke-width="1.3" fill="none"/>
-    <!-- Studs on Bottom Cup -->
-    <circle cx="14" cy="149" r="1.5" fill="#ffe9a0" stroke="#331e08" stroke-width="0.8"/>
-    <circle cx="32" cy="150" r="1.5" fill="#ffe9a0" stroke="#331e08" stroke-width="0.8"/>
-    <circle cx="50" cy="149" r="1.5" fill="#ffe9a0" stroke="#331e08" stroke-width="0.8"/>
-  </g>
+  <!-- Forged Gold Right End-Cap Bracket (x=196..200) -->
+  <rect x="196" y="0" width="4" height="24" rx="1" fill="url(#goldEndCap)" />
+  <line x1="196" y1="0" x2="196" y2="24" stroke="rgba(0,0,0,0.65)" stroke-width="0.8" />
 </svg>
 `;
 }
