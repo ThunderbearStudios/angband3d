@@ -8,7 +8,7 @@
   - [x] **`WS41.1`**: Workspace Bloat Purge (`~1.98 GB` temp profiles) & Test Suite Hermeticity (`os.tmpdir()`, dynamic ports)
   - [x] **`WS41.2`**: Server Ownership Hardening (`C1`/`C2`), Rate-Limit Isolation (`H1`/`H4`/`H5`) & O(1) Relay/False-Death Fix (`H2`/`H3`/`P3`)
   - [x] **`WS41.3`**: 60 FPS Client Render, HUD & Terminal Pipeline Gating (`dungeon3d.js`, `hud.js`, `terminal.js`, `chronicle-*`)
-  - [ ] **`WS41.4`**: Service Worker Install Diet (`-9.02 MB`), Cache-First Static Assets, Script `defer` & Version Sync (`v10.7.0`)
+  - [x] **`WS41.4`**: Service Worker Install Diet (`-9.02 MB`), Cache-First Static Assets, Script `defer` & Version Sync (`v10.7.0`)
   - [ ] **`WS41.5`**: Native Bridge UTF-8 Decoding (`H8`), Godot Input Encoding/Badge Gating & CI/Docker Hardening (`H6`/`H7`)
 - **Historical Log**: Full checklist and gate history for `WS0–WS21` are archived in [`docs/archive/STATE_HISTORY_WS0_WS21.md`](file:///c:/Dev/angband3d/docs/archive/STATE_HISTORY_WS0_WS21.md).
 
@@ -44,4 +44,4 @@ None
 - **WS-NH1..WS-NH6 — UnNetHack (5th Realm) Full Integration**: Full spec in [`docs/plan/UNNETHACK_INTEGRATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/UNNETHACK_INTEGRATION_PLAN.md).
 
 ## Last Gate Results
-- **WS41.3 Client 60 FPS Pipeline Gating Gate (2026-10-21)**: `fast 19/19 PASS` | `test_static_invariants.js PASS` | `test_ui_surface_integrity.js PASS` | Android synced | 60fps DOM/canvas gating active.
+- **WS41.4 Service Worker Install Diet & Script Defer Gate (2026-10-21)**: `fast 19/19 PASS` | `check_version_sync.js PASS` | `check_android_sync.js PASS` | `test_static_invariants.js PASS` | v10.7.0 synced.
