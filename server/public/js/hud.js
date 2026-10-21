@@ -15,9 +15,9 @@ class WebHUD {
             { cls: 'standard', name: 'Standard', w: 260, h: 260 },
             { cls: 'expanded', name: 'Expanded', w: 360, h: 360 },
             { cls: 'tactical', name: 'Tactical', w: 460, h: 460 },
-            { cls: 'compact', name: 'Compact', w: 220, h: 220 }
+            { cls: 'compact', name: 'Compact', w: 168, h: 168 }
         ];
-        this.minimapSizeIndex = 0;
+        this.minimapSizeIndex = 3;
         this.minimapZoom = 1.0;
         this.currentCameraYaw = 0;
         this.lastFrame = null;
@@ -119,7 +119,8 @@ class WebHUD {
         this.minimapCanvas.height = size.h;
 
         if (this.minimapContainer) {
-            this.minimapContainer.classList.remove('compact', 'standard', 'expanded', 'tactical', 'command');
+            this.minimapContainer.classList.remove('compact', 'standard', 'expanded', 'tactical', 'command', 'minimap-size-compact');
+            if (size.cls === 'compact') this.minimapContainer.classList.add('minimap-size-compact');
             this.minimapContainer.classList.add(size.cls);
             this.minimapContainer.style.width = `${size.w}px`;
             this.minimapContainer.style.height = 'auto';
@@ -565,8 +566,8 @@ class WebHUD {
 
     setCustomMinimapSize(w, h) {
         if (!this.minimapCanvas) return;
-        const validW = Math.max(200, Math.min(800, Math.round(w)));
-        const validH = Math.max(200, Math.min(800, Math.round(h)));
+        const validW = Math.max(168, Math.min(800, Math.round(w)));
+        const validH = Math.max(168, Math.min(800, Math.round(h)));
         if (this.minimapContainer) {
             this.minimapContainer.style.width = `${validW}px`;
             this.minimapContainer.style.height = `${validH}px`;
@@ -1365,11 +1366,11 @@ class WebHUD {
                 for (const m of monsters) {
                     if (!m || !m.name) continue;
                     if (/townsperson|shopkeeper|citizen|villager|guide/i.test(m.name)) continue;
-                    if (m.visible === false) continue;
+                    if (m.visible === false || m.asleep || m.csleep) continue;
                     const dx = m.x - px;
                     const dy = m.y - py;
                     const dist = Math.hypot(dx, dy);
-                    if (dist <= 10 && dist < closestDist) {
+                    if (dist <= 1.5 && dist < closestDist) {
                         closestDist = dist;
                         fallbackMonster = m;
                     }
@@ -1984,9 +1985,9 @@ class WebHUD {
                 jp: '❓ 案内 <kbd>?</kbd>'
             },
             'btn-command-palette': {
-                en: '⌨ Cmds <kbd>Ctrl+K</kbd>',
-                bi: '⌨ Cmds (指令) <kbd>Ctrl+K</kbd>',
-                jp: '⌨ 指令 <kbd>Ctrl+K</kbd>'
+                en: '<span class="btn-icon">▤</span><span class="btn-label">Actions ▾</span><kbd>Ctrl+K</kbd>',
+                bi: '<span class="btn-icon">▤</span><span class="btn-label">Actions (指令) ▾</span><kbd>Ctrl+K</kbd>',
+                jp: '<span class="btn-icon">▤</span><span class="btn-label">指令 ▾</span><kbd>Ctrl+K</kbd>'
             },
             'btn-action-more': {
                 en: '⋯ More',

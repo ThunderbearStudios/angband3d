@@ -241,6 +241,7 @@
         constructor() {
             this.mode = 'hybrid'; // 'hybrid' | 'classic'
             this.manualTerminalMode = false;
+            this._menuActive = false;
             this._lastSig = '';
             this._boundContainer = null;
             this._onActionCallback = null;
@@ -266,6 +267,15 @@
             if (termWinDirect && termWinDirect !== termWindow) {
                 termWinDirect.classList.toggle('grimoire-primary-open', isVisible);
             }
+            const gToggleBtn = document.getElementById('btn-term-grimoire-toggle');
+            if (gToggleBtn) {
+                if (this._menuActive) {
+                    gToggleBtn.style.display = 'inline-flex';
+                    gToggleBtn.textContent = (this.mode === 'classic') ? '✨ Grimoire [F10]' : '📜 Classic [F10]';
+                } else {
+                    gToggleBtn.style.display = 'none';
+                }
+            }
         }
 
         toggleMode() {
@@ -277,6 +287,7 @@
         }
 
         hide(container) {
+            this._menuActive = false;
             const el = container || this._boundContainer;
             if (!el) {
                 this._syncPrimaryOpenClass();
@@ -350,9 +361,20 @@
                 submenu.isHengbandMagicMenu
             );
 
+            this._menuActive = isMenuActive;
             if (!isMenuActive) {
                 this.hide(container);
                 return false;
+            }
+
+            if (this.mode === 'classic') {
+                if (container.style.display !== 'none') {
+                    container.style.display = 'none';
+                    container.innerHTML = '';
+                }
+                this._lastSig = `classic:${realm}`;
+                this._syncPrimaryOpenClass();
+                return true;
             }
 
             const lang = (realm === 'hengband')
@@ -360,9 +382,10 @@
                 : 'en';
             const isJp = realm === 'hengband' && lang === 'jp';
             const isBi = realm === 'hengband' && lang === 'bilingual';
+            const promptText = String(options.promptText || (rawClassifier && rawClassifier.row0) || '').trim();
 
             const itemSig = items.slice(0, 26).map((it) => `${it.key}:${it.row}:${it.col || it.startCol || 0}:${(it.desc || it.rawLabel || it.label || '').slice(0, 28)}`).join('|');
-            const sig = `${realm}:${lang}::${this.mode}::${submenu.kind || 'none'}::${Boolean(classifier.isInventoryScreen)}:${Boolean(classifier.isEquipScreen)}:${Boolean(classifier.isStoreScreen)}:${Boolean(classifier.isSpellPowerChoice)}:${Boolean(classifier.isItemTargetPrompt)}:${Boolean(classifier.verbPrompt)}::${itemSig}`;
+            const sig = `${realm}:${lang}::${this.mode}::${submenu.kind || 'none'}::${Boolean(classifier.isInventoryScreen)}:${Boolean(classifier.isEquipScreen)}:${Boolean(classifier.isStoreScreen)}:${Boolean(classifier.isSpellPowerChoice)}:${Boolean(classifier.isItemTargetPrompt)}:${Boolean(classifier.verbPrompt)}::${promptText.slice(0, 48)}::${itemSig}`;
 
             if (sig === this._lastSig && container.style.display !== 'none') {
                 this._syncPrimaryOpenClass();
@@ -522,7 +545,7 @@
                             <span class="grimoire-crest-realm">${escapeHtml(crestTitleText)}</span>
                             <span class="grimoire-crest-sep">·</span>
                             <span class="grimoire-crest-view">${escapeHtml(viewKindLabel)}</span>
-                            <span class="grimoire-crest-sub">${escapeHtml(heraldry.subtitle)}</span>
+                            ${promptText ? `<span class="grimoire-prompt-subtitle">${escapeHtml(promptText)}</span>` : `<span class="grimoire-crest-sub">${escapeHtml(heraldry.subtitle)}</span>`}
                         </div>
                         <div class="grimoire-header-controls">
                             ${switcherHtml}

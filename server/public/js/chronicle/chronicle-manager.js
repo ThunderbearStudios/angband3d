@@ -4133,6 +4133,11 @@ class ChronicleManager {
         }
         if (this._openedTransiently && this.visible) {
             this.hideWindow();
+        } else if (this.windowEl && this.windowEl.classList.contains('active') && !this.windowEl.classList.contains('minimized')) {
+            this.windowEl.classList.add('minimized');
+            if (this.btnExpand) this.btnExpand.textContent = '▼ Show';
+            const minBtn = typeof document !== 'undefined' ? document.getElementById('chronicle-minimize-btn') : null;
+            if (minBtn) minBtn.textContent = '▼ Expand';
         }
         if (this._isInteractiveVoiceActive) {
             this._isInteractiveVoiceActive = false;

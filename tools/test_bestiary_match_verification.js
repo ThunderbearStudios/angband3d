@@ -637,6 +637,12 @@ test('Wave 19 dedicated 3D .glb bestiary assets, UV/normal attributes, distinct 
     assert.strictEqual(floatingEye.isFloating, true);
 
     // Additional taxonomic families across Vanilla, FCB, Hengband & Sil-Q:
+    assert.strictEqual(resolve({ race: 'Large white snake', glyph: 'J' }, 'J', 'angband').templateKey, 'obj_snake');
+    assert(['env_fungi_cluster', 'env_mushroom_patch'].includes(resolve({ race: 'Gray mold', glyph: 'm' }, 'm', 'angband').templateKey));
+    assert(['obj_frog', 'bestiary_frog'].includes(resolve({ race: 'Bullfrog', glyph: 'q' }, 'q', 'frogcomposband').templateKey));
+    assert.strictEqual(resolve({ race: 'Demonic quylthulg', glyph: 'Q' }, 'Q', 'angband').templateKey, 'bestiary_quylthulg');
+    assert.strictEqual(resolve({ race: 'Draconic quylthulg', glyph: 'Q' }, 'Q', 'angband').templateKey, 'bestiary_quylthulg');
+    assert.strictEqual(resolve({ race: 'Floating skull', glyph: 's' }, 's', 'angband').templateKey, 'bestiary_skull');
     assert.strictEqual(resolve({ race: 'Scuttling scorpion', glyph: 'S' }, 'S', 'angband').templateKey, 'bestiary_scorpion');
     assert.strictEqual(resolve({ race: 'Quylthulg', glyph: 'Q' }, 'Q', 'angband').templateKey, 'bestiary_quylthulg');
     assert.strictEqual(resolve({ race: 'Fire vortex', glyph: 'v' }, 'v', 'angband').templateKey, 'bestiary_vortex');

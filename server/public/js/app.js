@@ -250,6 +250,22 @@ window.addEventListener('DOMContentLoaded', () => {
         network.sendKey(key);
     };
     const terminal = new WebTerminal('terminal-canvas', dispatchTerminalKey);
+    const _origTermResize = terminal.resize.bind(terminal);
+    terminal.resize = function () {
+        _origTermResize();
+        if (this.canvas && this.zoomLevel === 1.0 && window.innerWidth > 0 && window.innerHeight > 0) {
+            const curW = parseInt(this.canvas.style.width, 10) || 0;
+            const curH = parseInt(this.canvas.style.height, 10) || 0;
+            const maxW = Math.max(240, window.innerWidth - 16);
+            const maxH = Math.max(180, window.innerHeight - 110);
+            if (curW > maxW || curH > maxH) {
+                const ratio = Math.min(maxW / Math.max(1, curW), maxH / Math.max(1, curH));
+                this.canvas.style.width = `${Math.floor(curW * ratio)}px`;
+                this.canvas.style.height = `${Math.floor(curH * ratio)}px`;
+            }
+        }
+    };
+    terminal.resize();
     window.__sendTerminalKey = dispatchTerminalKey;
 
     const setEngineMode = (mode) => {
@@ -1161,8 +1177,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     if (typeof sz.width === 'number' && typeof sz.height === 'number') {
                         const minW = storageKey === 'angband_msg' ? 260 : 140;
                         const minH = storageKey === 'angband_msg' ? 90 : 80;
-                        const w = Math.max(minW, Math.min(window.innerWidth - 20, sz.width));
-                        const h = Math.max(minH, Math.min(window.innerHeight - 20, sz.height));
+                        const maxW = storageKey === 'angband_map' ? 200 : (window.innerWidth - 20);
+                        const w = Math.max(minW, Math.min(maxW, sz.width));
+                        const maxH = storageKey === 'angband_map' ? 200 : (window.innerHeight - 20);
+                        const h = Math.max(minH, Math.min(maxH, sz.height));
                         winEl.style.width = `${w}px`;
                         winEl.style.height = `${h}px`;
                         if (onResize) onResize(w, h);
@@ -2769,7 +2787,24 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     const btnCommandPalette = document.getElementById('btn-command-palette');
-    if (btnCommandPalette) bindFastTap(btnCommandPalette, () => showCommandPalette('game'));
+    if (btnCommandPalette) {
+        bindFastTap(btnCommandPalette, () => {
+            if (typeof window.__toggleCategorizedActionPopover === 'function') {
+                window.__toggleCategorizedActionPopover();
+            } else {
+                showCommandPalette('game');
+            }
+        });
+    }
+    const btnTermGrimoireToggle = document.getElementById('btn-term-grimoire-toggle');
+    if (btnTermGrimoireToggle) {
+        bindFastTap(btnTermGrimoireToggle, () => {
+            if (window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.toggleMode === 'function') {
+                window.RealmGrimoireDeck.toggleMode();
+                updateTerminalToolbar(lastFrame);
+            }
+        });
+    }
 
     // Audio Volume & Mute Control Synchronization
     function syncAudioUI() {
@@ -5353,6 +5388,8 @@ window.addEventListener('DOMContentLoaded', () => {
             if (skipScraping) {
                 if (typeof window.RealmGrimoireDeck.hide === 'function') {
                     window.RealmGrimoireDeck.hide(grimoireContainer);
+                    const gToggleBtn = document.getElementById('btn-term-grimoire-toggle');
+                    if (gToggleBtn) gToggleBtn.style.display = 'none';
                 }
             } else if (typeof window.RealmGrimoireDeck.render === 'function') {
                 const effRealm = activeRealm || (effFrame && effFrame.realm) || 'angband';
@@ -5365,7 +5402,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 const gItems = (SC && typeof SC.extractMultiColumnItems === 'function' && effFrame && effFrame.term && Array.isArray(effFrame.term.rows))
                     ? SC.extractMultiColumnItems(effFrame.term.rows, isHeng, decodeHengbandText)
                     : [];
-                window.RealmGrimoireDeck.render(grimoireContainer, {
+                const gActive = window.RealmGrimoireDeck.render(grimoireContainer, {
+                    promptText: (effFrame && effFrame.term && effFrame.term.rows && effFrame.term.rows[0] && effFrame.term.rows[0].g) ? decodeHengbandText(effFrame.term.rows[0].g).trim() : '',
                     realm: effRealm,
                     lang: isHeng ? langMode : 'en',
                     classifier: gClassifier,
@@ -5504,7 +5542,21 @@ window.addEventListener('DOMContentLoaded', () => {
         if (needsTerm) {
             terminalContainer.classList.remove('hidden');
             terminalContainer.classList.remove('in-game-modal');
-            document.body.classList.add('terminal-mode-active');
+            document.body.classList.add('terminal-mode-active', 'terminal-active');
+            const rtc = document.getElementById('reticle-target-card');
+            if (rtc) { rtc.style.display = 'none'; rtc.classList.add('hidden'); }
+            const eip = document.getElementById('entity-inspect-popover');
+            if (eip) { eip.style.display = 'none'; eip.classList.add('hidden'); }
+            const amp = document.getElementById('action-more-popover');
+            if (amp) amp.classList.remove('is-open');
+            const qsp = document.getElementById('quick-slot-popover');
+            if (qsp) qsp.classList.remove('is-open');
+            const cw = document.getElementById('chronicle-window');
+            if (cw && cw.classList.contains('active')) {
+                cw.classList.add('minimized');
+                const expBtn = document.getElementById('btn-chronicle-expand');
+                if (expBtn) expBtn.textContent = '▼ Show';
+            }
             if (hudOverlay) hudOverlay.style.display = 'none';
             if (minimapContainer) minimapContainer.style.display = 'none';
             if (messageFeedWindow) messageFeedWindow.style.display = 'none';
@@ -5524,7 +5576,7 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
             terminalContainer.classList.add('hidden');
             terminalContainer.classList.remove('in-game-modal');
-            document.body.classList.remove('terminal-mode-active', 'grimoire-primary-open');
+            document.body.classList.remove('terminal-mode-active', 'terminal-active', 'grimoire-primary-open');
             const gc = document.getElementById('grimoire-deck-container');
             if (gc && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.hide === 'function') {
                 window.RealmGrimoireDeck.hide(gc);
@@ -5581,7 +5633,10 @@ window.addEventListener('DOMContentLoaded', () => {
             wasInStore = inStore;
 
             // D-Pad: Enabled by default across both desktop and mobile/touchscreens, togglable at will
-            const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
+            const isDesktopTier = (typeof DeviceProfile !== 'undefined' && typeof DeviceProfile.getTier === 'function')
+                ? DeviceProfile.getTier() === 'desktop'
+                : (typeof window !== 'undefined' && window.innerWidth >= 1024 && !window.matchMedia?.('(pointer: coarse)')?.matches);
+            const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : !isDesktopTier;
             if (touchControls) touchControls.style.display = showTouch ? 'flex' : 'none';
 
             // Update top bar toggle indicators
@@ -5646,7 +5701,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnToggleDpad = document.getElementById('btn-toggle-dpad');
     if (btnToggleDpad) {
         btnToggleDpad.addEventListener('click', () => {
-            const currentlyVisible = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
+            const isDesktopTier = (typeof DeviceProfile !== 'undefined' && typeof DeviceProfile.getTier === 'function')
+                ? DeviceProfile.getTier() === 'desktop'
+                : (typeof window !== 'undefined' && window.innerWidth >= 1024 && !window.matchMedia?.('(pointer: coarse)')?.matches);
+            const currentlyVisible = window.__dpadVisible !== undefined ? window.__dpadVisible : !isDesktopTier;
             window.__dpadVisible = !currentlyVisible;
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
             updateViewMode();

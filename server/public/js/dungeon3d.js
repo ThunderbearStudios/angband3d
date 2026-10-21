@@ -1942,7 +1942,7 @@ function applyWallVertexAO(geo, wallHeight) {
             factor = 0.60 + Math.pow((1.0 - t) / 0.20, 0.85) * 0.40;
         }
         if (Math.abs(x) > 0.55 && Math.abs(z) > 0.55) {
-            factor *= 0.86;
+            factor *= 0.97;
         }
         colors[i * 3 + 0] = factor;
         colors[i * 3 + 1] = factor;
@@ -2710,6 +2710,7 @@ class Dungeon3D {
             metalness: 0.02,
             vertexColors: true
         });
+        this._applyWorldSpaceOrganicShader(this.wallMaterial, 'wall');
 
         this.floorMaterial = new THREE.MeshStandardMaterial({
             map: this.floorTex,
@@ -2720,14 +2721,17 @@ class Dungeon3D {
             side: THREE.DoubleSide,
             vertexColors: true
         });
+        this._applyWorldSpaceOrganicShader(this.floorMaterial, 'floor');
 
         this.ceilingMaterial = new THREE.MeshStandardMaterial({
             map: this.ceilingTex,
+            normalScale: new THREE.Vector2(1.35, 1.35),
             roughness: 0.95,
             metalness: 0.0,
             side: THREE.DoubleSide,
             vertexColors: true
         });
+        this._applyWorldSpaceOrganicShader(this.ceilingMaterial, 'ceiling');
 
         this.doorMaterial = new THREE.MeshStandardMaterial({
             map: this.doorTex,
@@ -2949,6 +2953,7 @@ class Dungeon3D {
             metalness: 0.05,
             vertexColors: true
         });
+        this._applyWorldSpaceOrganicShader(this.permWallMaterial, 'wall');
 
         // Separate town PBR textures from subterranean dungeon procedural textures
         this.townWallTex = null;
@@ -3016,11 +3021,6 @@ class Dungeon3D {
             this.townPermWallTex = e.diff || this.townPermWallTex;
             this.townPermWallNormal = e.nor || this.townPermWallNormal;
             this.townPermWallRoughness = e.arm || this.townPermWallRoughness;
-            if (this.ceilingMaterial) {
-                if (e.diff) this.ceilingMaterial.map = e.diff;
-                if (e.nor) this.ceilingMaterial.normalMap = e.nor;
-                this.ceilingMaterial.needsUpdate = true;
-            }
         });
 
         // Doors
@@ -3104,6 +3104,56 @@ class Dungeon3D {
         });
     }
 
+    _applyWorldSpaceOrganicShader(material, surfaceType = 'wall') {
+        if (!material) return;
+        material.customProgramCacheKey = () => 'ws35_organic_' + surfaceType;
+        material.onBeforeCompile = (shader) => {
+            shader.vertexShader = shader.vertexShader.replace(
+                '#include <common>',
+                `#include <common>\nvarying vec3 vWs35WorldPos;\nvarying vec3 vWs35WorldNormal;`
+            );
+            const uvExpr = surfaceType === 'wall'
+                ? `vec2 wsUv = abs(vWs35WorldNormal.x) > abs(vWs35WorldNormal.z)
+                    ? vec2(vWs35WorldPos.z * 0.36, vWs35WorldPos.y * 0.38)
+                    : (abs(vWs35WorldNormal.z) > 0.82
+                        ? vec2(vWs35WorldPos.x * 0.36, vWs35WorldPos.y * 0.38)
+                        : vec2((vWs35WorldPos.x + vWs35WorldPos.z) * 0.34, vWs35WorldPos.y * 0.38));`
+                : `vec2 wsUv = vWs35WorldPos.xz * 0.28 + 0.03 * vec2(sin(vWs35WorldPos.z * 0.7), cos(vWs35WorldPos.x * 0.7));`;
+            shader.vertexShader = shader.vertexShader.replace(
+                '#include <worldpos_vertex>',
+                `#include <worldpos_vertex>
+vec4 ws35Wp = vec4(transformed, 1.0);
+#ifdef USE_INSTANCING
+  ws35Wp = instanceMatrix * ws35Wp;
+#endif
+ws35Wp = modelMatrix * ws35Wp;
+vWs35WorldPos = ws35Wp.xyz;
+vec3 ws35Wn = objectNormal;
+#ifdef USE_INSTANCING
+  ws35Wn = mat3(instanceMatrix) * ws35Wn;
+#endif
+vWs35WorldNormal = normalize(mat3(modelMatrix) * ws35Wn);
+${uvExpr}
+#ifdef USE_UV
+  vUv = wsUv;
+#endif`
+            );
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <common>',
+                `#include <common>\nvarying vec3 vWs35WorldPos;\nvarying vec3 vWs35WorldNormal;`
+            );
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <map_fragment>',
+                `#include <map_fragment>
+float wsMacro1 = sin(vWs35WorldPos.x * 0.55 + cos(vWs35WorldPos.z * 0.48) * 1.6) * cos(vWs35WorldPos.z * 0.52 - sin(vWs35WorldPos.x * 0.43) * 1.4);
+float wsMacro2 = sin(vWs35WorldPos.x * 1.35 + vWs35WorldPos.z * 1.15 + vWs35WorldPos.y * 0.9);
+float wsShade = 0.94 + 0.08 * wsMacro1 + 0.04 * wsMacro2;
+float wsBaseDamp = smoothstep(0.0, 0.55, vWs35WorldPos.y) * (1.0 - 0.14 * smoothstep(2.6, 3.3, vWs35WorldPos.y));
+diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
+            );
+        };
+    }
+
     getContextualTextureSet(theme, outdoors) {
         if (!this.contextualTextureCache) this.contextualTextureCache = new Map();
         const ph = this.polyHavenSets || this.polyhavenSets || new Map();
@@ -3111,7 +3161,7 @@ class Dungeon3D {
         let wallPhId = 'medieval_blocks_05';
         let floorPhId = 'monastery_stone_floor';
         let permPhId = 'medieval_blocks_05';
-        let ceilPhId = 'medieval_blocks_05';
+        let ceilPhId = 'rock_wall_10';
 
         const tid = (theme && theme.id) ? theme.id : 'angband_town';
         const isHeng = (this.realm === 'hengband' || (typeof window !== 'undefined' && window.__activeRealm === 'hengband'));
@@ -3121,27 +3171,39 @@ class Dungeon3D {
             const isWild = tid.includes('wild') || (this.currentBiome && (this.currentBiome.id === 'wilderness' || this.currentBiome.id === 'grassland'));
             floorPhId = isWild ? 'aerial_grass_rock' : 'cobblestone_floor_08';
             permPhId = 'medieval_blocks_05';
-            ceilPhId = 'medieval_blocks_05';
+            ceilPhId = 'rock_wall_10';
         } else {
             // Dungeon depths > 0
-            if (isHeng || tid.includes('heng')) {
+            if (isHeng || tid.includes('heng') || tid.includes('eastern')) {
                 wallPhId = 'japanese_stone_wall';
                 floorPhId = 'monastery_stone_floor';
-            } else if (tid.includes('chasm') || tid.includes('cliff') || tid.includes('torment') || tid.includes('mountain')) {
+                ceilPhId = 'japanese_stone_wall';
+            } else if (tid.includes('chasm') || tid.includes('cliff') || tid.includes('torment') || tid.includes('mountain') || tid.includes('mine') || tid.includes('nether')) {
                 wallPhId = 'cliff_side';
                 floorPhId = 'rock_embedded_floor';
-            } else if (tid.includes('cavern') || tid.includes('slag') || tid.includes('nether') || tid.includes('crystal') || tid.includes('magma') || tid.includes('abyss')) {
+                ceilPhId = 'cliff_side';
+            } else if (tid.includes('abyss') || tid.includes('magma') || tid.includes('inferno') || tid.includes('throne')) {
                 wallPhId = 'rock_wall_10';
                 floorPhId = 'rock_embedded_floor';
+                ceilPhId = 'rock_boulder_cracked';
+            } else if (tid.includes('cavern') || tid.includes('slag') || tid.includes('crystal')) {
+                wallPhId = 'rock_wall_10';
+                floorPhId = 'rock_embedded_floor';
+                ceilPhId = 'cliff_side';
+            } else if (tid.includes('labyrinth') || tid.includes('sepulchre')) {
+                wallPhId = 'medieval_blocks_05';
+                floorPhId = 'monastery_stone_floor';
+                ceilPhId = 'plastered_stone_wall';
             } else if (tid.includes('swamp') || tid.includes('mud')) {
                 wallPhId = 'rock_wall_10';
                 floorPhId = 'brown_mud_rocks_01';
+                ceilPhId = 'rock_wall_10';
             } else {
-                wallPhId = 'castle_brick_broken_06';
+                wallPhId = 'medieval_blocks_05';
                 floorPhId = 'monastery_stone_floor';
+                ceilPhId = 'rock_wall_10';
             }
             permPhId = 'medieval_blocks_05';
-            ceilPhId = 'medieval_blocks_05';
         }
 
         const wSet = ph.get(wallPhId);
@@ -3161,7 +3223,8 @@ class Dungeon3D {
                 permWallNormal: (pSet && pSet.nor) ? pSet.nor : (this.townPermWallNormal || this.permWallNormal),
                 permWallRoughness: (pSet && pSet.arm) ? pSet.arm : (this.townPermWallRoughness || null),
                 ceilingTex: (cSet && cSet.diff) ? cSet.diff : this.ceilingTex,
-                ceilingNormal: (cSet && cSet.nor) ? cSet.nor : null
+                ceilingNormal: (cSet && cSet.nor) ? cSet.nor : null,
+                ceilingRoughness: (cSet && cSet.arm) ? cSet.arm : null
             };
         }
 
@@ -3234,7 +3297,14 @@ class Dungeon3D {
         if (texSet.ceilingNormal) {
             this.ceilingMaterial.normalMap = texSet.ceilingNormal;
         }
+        this.ceilingMaterial.roughnessMap = texSet.ceilingRoughness || null;
+        if (this.ceilingMaterial.normalScale) {
+            this.ceilingMaterial.normalScale.set(1.35, 1.35);
+        }
         this.ceilingMaterial.needsUpdate = true;
+        if (this.wallJointMesh) {
+            this.wallJointMesh.material = this.wallMaterial;
+        }
 
         this.stairsMaterial.map = texSet.wallTex;
         this.stairsMaterial.normalMap = texSet.wallNormal;
@@ -3256,18 +3326,34 @@ class Dungeon3D {
 
     initMeshes() {
         this.maxInstances = 8192;
+        this.createChamferedWallGeometry = createChamferedWallGeometry;
+        this.applyWallVertexAO = applyWallVertexAO;
         // 45-degree chamfered geometry creates a visible 0.57m aperture between diagonal blocks
         const wallGeo = createChamferedWallGeometry(this.cellSize, this.wallHeight + 0.10, 0.40);
         applyWallVertexAO(wallGeo, this.wallHeight + 0.10);
+
+        // Seamless orthogonal wall joint geometry to bridge adjacent chamfered wall blocks into flush masonry
+        const wallJointGeo = new THREE.BoxGeometry(0.82, this.wallHeight + 0.10, this.cellSize);
+        applyWallVertexAO(wallJointGeo, this.wallHeight + 0.10);
+        wallJointGeo._sharedGeometry = true;
 
         // Subdivided floor with baked edge contact ambient occlusion
         const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize, 2, 2);
         floorGeo.rotateX(-Math.PI / 2);
         applyFloorVertexAO(floorGeo, this.cellSize);
 
-        // Subdivided ceiling with subtle perimeter shadow
+        // Subdivided ceiling with subtle vaulted subterranean stone arch & perimeter shadow
         const ceilingGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize, 2, 2);
         ceilingGeo.rotateX(Math.PI / 2);
+        const ceilPos = ceilingGeo.attributes.position;
+        for (let i = 0; i < ceilPos.count; i++) {
+            const x = ceilPos.getX(i);
+            const z = ceilPos.getZ(i);
+            if (Math.abs(x) < 0.05 && Math.abs(z) < 0.05) {
+                ceilPos.setY(i, 0.14);
+            }
+        }
+        ceilingGeo.computeVertexNormals();
         applyCeilingVertexAO(ceilingGeo, this.cellSize);
 
         // Soft contact shadow disc for grounded 3D item pickups
@@ -3439,6 +3525,12 @@ class Dungeon3D {
         this.wallMesh = new THREE.InstancedMesh(wallGeo, this.wallMaterial, this.maxInstances);
         this.wallMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.wallMesh);
+
+        this.wallJointMesh = new THREE.InstancedMesh(wallJointGeo, this.wallMaterial, this.maxInstances * 2);
+        this.wallJointMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.wallJointMesh.castShadow = true;
+        this.wallJointMesh.receiveShadow = true;
+        this.scene.add(this.wallJointMesh);
 
         // Cyclopean Permanent Bedrock & Outer Fortress Ramparts (feat 22)
         this.permWallMesh = new THREE.InstancedMesh(wallGeo, this.permWallMaterial, this.maxInstances);
@@ -3651,6 +3743,7 @@ class Dungeon3D {
             mesh.count = 0; // Initialize to 0 so unpopulated instances are never drawn
         };
         initInstancedColors(this.wallMesh, this.maxInstances);
+        initInstancedColors(this.wallJointMesh, this.maxInstances * 2);
         initInstancedColors(this.permWallMesh, this.maxInstances);
         initInstancedColors(this.floorMesh, this.maxInstances);
         initInstancedColors(this.ceilingMesh, this.maxInstances);
@@ -6438,6 +6531,8 @@ class Dungeon3D {
         // MultiMesh instance counts reset
         let wallCount = 0;
         let permWallCount = 0;
+        let wallJointIdx = 0;
+        const maxWallJoints = this.wallJointMesh ? this.wallJointMesh.instanceMatrix.count : 0;
         let floorCount = 0;
         let ceilingCount = 0;
         let doorFrameCount = 0;
@@ -6769,9 +6864,11 @@ class Dungeon3D {
                     this.dummy.position.set(wx, wallYCenter, wz);
                     this.dummy.rotation.set(0, 0, 0); // Wall masonry running-bond courses must ALWAYS remain horizontal!
                     this.dummy.updateMatrix();
+                    let activeWallShade = wallShade;
                     if (feat === 22) {
                         if (permWallCount < this.maxInstances) {
                             const permShade = this.computeTileShade(this._scratchPermWallColor, this.getBaseColour(22, biome), inView, outdoors, lighting, x, y, isRoom, depth);
+                            activeWallShade = permShade;
                             this.permWallMesh.setMatrixAt(permWallCount, this.dummy.matrix);
                             this.permWallMesh.setColorAt(permWallCount, permShade);
                             permWallCount++;
@@ -6781,6 +6878,39 @@ class Dungeon3D {
                             this.wallMesh.setMatrixAt(wallCount, this.dummy.matrix);
                             this.wallMesh.setColorAt(wallCount, wallShade);
                             wallCount++;
+                        }
+                    }
+
+                    if (this.wallJointMesh && wallJointIdx < maxWallJoints) {
+                        const isSolidMasonryWallAt = (gx, gy) => {
+                            if (gx < minX || gx > maxX || gy < minY || gy > maxY) return false;
+                            const nFlag = this.getFlagAt(map, gx, gy);
+                            if (!outdoors && (nFlag & 0x3) === 0) return false;
+                            const nFeat = this.getFeatAt(map, gx, gy);
+                            const nGlyph = this.getGlyphAt(map, gx, gy);
+                            const nAttr = this.getAttrAt(map, gx, gy);
+                            if (this.realm === 'frogcomposband' && nGlyph === '#' && (nAttr === 2 || nAttr === 8 || nAttr === 9 || nFeat === 41)) {
+                                return false;
+                            }
+                            return nFeat === 15 || (nFeat >= 17 && nFeat <= 22);
+                        };
+                        if (isSolidMasonryWallAt(x + 1, y) && wallJointIdx < maxWallJoints) {
+                            this.dummy.position.set(wx + this.cellSize * 0.5, this.wallHeight / 2 - 0.05, wz);
+                            this.dummy.rotation.set(0, 0, 0);
+                            this.dummy.scale.set(1, 1, 1);
+                            this.dummy.updateMatrix();
+                            this.wallJointMesh.setMatrixAt(wallJointIdx, this.dummy.matrix);
+                            this.wallJointMesh.setColorAt(wallJointIdx, activeWallShade);
+                            wallJointIdx++;
+                        }
+                        if (isSolidMasonryWallAt(x, y + 1) && wallJointIdx < maxWallJoints) {
+                            this.dummy.position.set(wx, this.wallHeight / 2 - 0.05, wz + this.cellSize * 0.5);
+                            this.dummy.rotation.set(0, Math.PI / 2, 0);
+                            this.dummy.scale.set(1, 1, 1);
+                            this.dummy.updateMatrix();
+                            this.wallJointMesh.setMatrixAt(wallJointIdx, this.dummy.matrix);
+                            this.wallJointMesh.setColorAt(wallJointIdx, activeWallShade);
+                            wallJointIdx++;
                         }
                     }
 
@@ -7316,6 +7446,7 @@ class Dungeon3D {
         };
 
         updateMesh(this.wallMesh, wallCount);
+        if (this.wallJointMesh) updateMesh(this.wallJointMesh, wallJointIdx);
         updateMesh(this.permWallMesh, permWallCount);
         updateMesh(this.floorMesh, floorCount);
         updateMesh(this.ceilingMesh, ceilingCount);
@@ -10053,7 +10184,7 @@ class Dungeon3D {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, roughness: 0.42 });
                 return normalizeWrapper(scene, 0.78, true, 0.35, 1.15);
             });
-        } else if (templateKey === 'obj_frog') {
+        } else if (templateKey === 'obj_frog' || templateKey === 'bestiary_frog') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/frog.glb', '/assets/models/monsters/Frog.obj').then(scene => {
                 this._enhanceBestiaryMeshQuality(scene, { smoothNormals: true, applyCreatureBump: true, roughness: 0.38 });
                 return normalizeWrapper(scene, 0.48, true, 0.25, 0.95);
@@ -10066,7 +10197,7 @@ class Dungeon3D {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/worm_mass.glb', () => loadGltf('/assets/models/monsters/bestiary/snake.glb', '/assets/models/monsters/Snake_angry.obj')).then(scene => {
                 return normalizeWrapper(scene, 0.42, true, 0.20, 1.25);
             });
-        } else if (templateKey === 'env_fungi_cluster') {
+        } else if (templateKey === 'env_fungi_cluster' || templateKey === 'env_mushroom_patch') {
             loadPromise = loadGltf('/assets/models/monsters/bestiary/mushroom_cluster.glb', () => loadGltf('/assets/polyhaven/models/crystalline_iceplant/crystalline_iceplant.gltf', () => loadGltf('/assets/polyhaven/models/moon_rock_02/moon_rock_02.gltf'))).then(scene => {
                 return normalizeWrapper(scene, 0.56, true, 0.15, 0.95);
             });
@@ -10319,7 +10450,7 @@ class Dungeon3D {
         }
 
         // 3. Hengband Realm or Japanese/Eastern Archetypes
-        if (realm === 'hengband' || /samurai|ronin|kensei|ninja|shinobi|yakuza|orochi|shuten|oni|tengu|kappa|kitsune|酒呑童子|八岐大蛇|天狗|河童|九尾/.test(lowerName)) {
+        if (realm === 'hengband' || /samurai|ronin|kensei|ninja|shinobi|yakuza|orochi|shuten|\boni\b|tengu|kappa|kitsune|酒呑童子|八岐大蛇|天狗|河童|九尾/.test(lowerName)) {
             if (/samurai|ronin|kensei|ninja|shinobi|yakuza|サムライ|ニンジャ/.test(lowerName)) {
                 return {
                     templateKey: 'char_male_ranger',
@@ -10336,7 +10467,7 @@ class Dungeon3D {
                     seed
                 };
             }
-            if (/shuten|oni|ooe-mountain|酒呑童子|鬼/.test(lowerName)) {
+            if (/shuten|\boni\b|ooe-mountain|酒呑童子|鬼/.test(lowerName)) {
                 return {
                     templateKey: 'bestiary_yeti',
                     scale: 1.55,
@@ -10403,7 +10534,10 @@ class Dungeon3D {
             };
         }
 
-        // Skeletons / Druj
+        // Skeletons / Druj / Floating Skulls
+        if (/\b(skull druj|floating skull|flaming skull|demilich|burning skull)\b/i.test(lower) && !/hand/i.test(lower)) {
+            return { templateKey: 'bestiary_skull', scale: 1.05, weaponKey: null, seed };
+        }
         if (g === 's' || /\b(skeleton|druj)\b/.test(lowerName)) {
             return {
                 templateKey: /knight|warrior|lord|champion|king|druj/.test(lowerName) ? 'bestiary_skeleton_knight' : 'bestiary_skeleton_warrior',
@@ -10630,8 +10764,8 @@ class Dungeon3D {
             };
         }
 
-        // Vortices & Elementals (g === 'E' or vortex/elemental/plasma/whirlwind, when g !== 'C')
-        if (g !== 'C' && (g === 'E' || /vortex|elemental|whirlwind|water spirit|fire spirit|air spirit|earth spirit|plasma|hound of tindalos/i.test(lower))) {
+        // Vortices & Elementals (g === 'E' or g === 'v' or vortex/elemental/plasma/whirlwind, when g !== 'C')
+        if (g !== 'C' && (g === 'E' || g === 'v' || /vortex|elemental|whirlwind|water spirit|fire spirit|air spirit|earth spirit|plasma|hound of tindalos/i.test(lower))) {
             return {
                 templateKey: 'bestiary_vortex',
                 scale: /elemental|lord/i.test(lower) ? 1.22 : 0.95,
@@ -10664,6 +10798,12 @@ class Dungeon3D {
                 isFloating: false,
                 seed
             };
+        }
+
+        // 6c. Snakes & Serpents (J)
+        if (g === 'J' || /\b(snake|serpent|viper|cobra|asp|python|boa|mamba|adder|rattlesnake|sidewinder|constrictor|anaconda|copperhead|krait)\b/i.test(lower)) {
+            const isLargeSnake = /\b(large|giant|king|emperor|titan|anaconda|python|boa|great)\b/i.test(lower);
+            return { templateKey: 'obj_snake', scale: isLargeSnake ? 1.15 : 0.92, tintHex: colorHex, weaponKey: null, seed };
         }
 
         // Hydras (g === 'M' or hydra, when not Yamata-no-Orochi/八岐大蛇 and not Sil-Q)
@@ -10734,34 +10874,49 @@ class Dungeon3D {
             };
         }
 
-        // Bears, Boars & Heavy Quadrupeds vs Equines (g === 'q' or bear/boar/etc.)
-        if (g === 'q' || /\bbear\b|werebear|grizzly|beorn|\bboar\b|catoblepas|mumak|mûmak|mastodon|elephant|rhino|triceratops|hippo|bison|ox|bull|yak|tapir|pig|swine|hog/i.test(lower)) {
-            if (/horse|pony|stallion|mare|unicorn|pegasus|steed|kirin|nightmare|sleipnir|kelpie|zebra|donkey|mule|camel|deer|stag|elk|moose|goat|sheep|ram/i.test(lower)) {
+        // 10b. Frogs & Toads (evaluated before Quadrupeds so Bullfrog matches frog instead of bull)
+        if (/\b(frog|toad|bullfrog|peeper|newt|amphibian|axolotl|tadpole)\b/i.test(lower)) {
+            return {
+                templateKey: 'obj_frog',
+                scale: 0.88,
+                tintHex: colorHex,
+                weaponKey: null,
+                seed
+            };
+        }
+
+        if (/shoggoth/i.test(lower)) {
+            return {
+                templateKey: 'env_ooze_mound',
+                scale: 1.35,
+                tintHex: colorHex,
+                weaponKey: null,
+                seed
+            };
+        }
+
+        // 9. Bears, Boars & Heavy Quadrupeds vs Equines (g === 'q' or bear/boar/etc.)
+        if (g !== 'C' && g !== 'K' && g !== 'a' && (g === 'q' || /\b(bear|werebear|grizzly|beorn|boar|catoblepas|mumak|mûmak|mastodon|elephant|rhino|triceratops|hippo|bison|ox|bull|yak|tapir|pig|swine|hog|horse|warhorse|pony|stallion|mare|steed|unicorn|camel|deer|elk|stag|goat|sheep|ram|giraffe|zebra|ibex|antelope)\b/i.test(lower))) {
+            if (/\b(horse|warhorse|pony|stallion|mare|steed|unicorn|camel|deer|elk|stag|goat|sheep|ram|giraffe|zebra|ibex|antelope)\b/i.test(lower)) {
                 return {
                     templateKey: 'bestiary_horse',
-                    scale: 1.0,
+                    scale: 1.05,
+                    weaponKey: null,
                     seed
                 };
             }
             return {
                 templateKey: 'bestiary_bear',
-                scale: /mumak|mûmak|elephant|mastodon|beorn|grizzly/i.test(lower) ? 1.28 : 1.0,
+                scale: /\b(mumak|mûmak|elephant|mastodon|beorn|grizzly)\b/i.test(lower) ? 1.28 : 1.12,
                 tintHex: colorHex,
                 isFloating: false,
+                weaponKey: null,
                 seed
             };
         }
 
-        // Lizards, Salamanders, Basilisks & Reptiles vs Frogs (g === 'R' or lizard/salamander/etc.)
-        if (g === 'R' || /lizard|salamander|basilisk|alligator|crocodile|iguana|chameleon|gecko|komodo|dinosaur|raptor|ankylosaur|pterosaur|monitor/i.test(lower)) {
-            if (/frog|toad|newt|amphibian|axolotl|tadpole/i.test(lower)) {
-                return {
-                    templateKey: 'obj_frog',
-                    scale: 0.88,
-                    tintHex: colorHex,
-                    seed
-                };
-            }
+        // 10. Lizards, Salamanders, Basilisks & Reptiles (g === 'R' or lizard/salamander/etc.)
+        if (g === 'R' || /\b(lizard|salamander|basilisk|alligator|crocodile|iguana|chameleon|gecko|komodo|dinosaur|raptor|ankylosaur|pterosaur|monitor)\b/i.test(lower)) {
             return {
                 templateKey: 'bestiary_lizard',
                 scale: /basilisk|alligator|crocodile|dinosaur|salamander/i.test(lower) ? 1.15 : 0.92,
@@ -10771,18 +10926,8 @@ class Dungeon3D {
             };
         }
 
-        // Frogs & Toads
-        if (/frog|toad|newt|amphibian|axolotl|tadpole/i.test(lower)) {
-            return {
-                templateKey: 'obj_frog',
-                scale: 0.88,
-                tintHex: colorHex,
-                seed
-            };
-        }
-
-        // Aquatic Creatures vs Trees (g === 'l')
-        if (g === 'l' || /piranha|shark|barracuda|swordfish|fish|kraken|eel|octopus|squid|whale|dolphin|manta|ray|crab|lobster|shrimp|jellyfish|seahorse|nautilus|ixitxachitl/i.test(lower)) {
+        // 11. Aquatic Creatures vs Trees (g === 'l')
+        if (g !== 'C' && !/\b(gray|grey|silverfish|betray|pray|stray|xray)\b/i.test(lower) && (g === 'l' || /\b(piranha|shark|barracuda|swordfish|fish|starfish|jellyfish|kraken|eel|eels|octopus|squid|whale|dolphin|manta|stingray|ray|crab|lobster|shrimp|seahorse|nautilus|ixitxachitl)\b/i.test(lower))) {
             if (/tree|ent|huorn|willow|pine|oak|bush|shrub|vine|kelp|plant|sapling/i.test(lower) || (g === 'l' && realm === 'angband' && !/fish|shark|piranha|eel|kraken|squid|octopus|crab/i.test(lower))) {
                 if (g === 'l' && realm === 'angband' && !/tree|ent|huorn|bush|plant/i.test(lower)) {
                     return {
@@ -10809,9 +10954,9 @@ class Dungeon3D {
             };
         }
 
-        // Hybrids (g === 'H')
-        if (g === 'H' || /harpy|griffon|hippogriff|roc|siren|garuda|cockatrice|chickatrice|pegasus|sphinx|minotaur|centaur|satyr|faun|owlbear/i.test(lower)) {
-            if (/harpy|griffon|hippogriff|roc|siren|garuda|cockatrice|chickatrice|pegasus|sphinx/i.test(lower)) {
+        // 13. Hybrids (g === 'H')
+        if (g === 'H' || /harpy|griffon|hippogriff|\broc\b|siren|garuda|cockatrice|chickatrice|pegasus|sphinx|minotaur|centaur|satyr|faun|owlbear/i.test(lower)) {
+            if (/harpy|griffon|hippogriff|\broc\b|siren|garuda|cockatrice|chickatrice|pegasus|sphinx/i.test(lower)) {
                 return {
                     templateKey: 'bestiary_owl',
                     scale: 1.18,
@@ -10840,6 +10985,13 @@ class Dungeon3D {
                     seed
                 };
             }
+            return {
+                templateKey: 'bestiary_lion',
+                scale: 1.15,
+                tintHex: colorHex,
+                weaponKey: null,
+                seed
+            };
         }
 
         // Felines & Horrors
@@ -11106,6 +11258,41 @@ class Dungeon3D {
                 shieldKey: 'item_shield_raven',
                 seed
             };
+        }
+
+        // 16b. Non-Humanoid Glyph Safety Fallback (ensures non-humanoid glyphs never fall through to char_male_ranger)
+        if (/^[abcefijlmqrvwxBCEFHIJKMQRSXZ,]$/.test(g)) {
+            if (g === 'x' || g === 'a' || g === 'c' || g === 'K') {
+                return { templateKey: 'bestiary_beetle', scale: 0.85, tintHex: colorHex, weaponKey: null, seed };
+            }
+            if (g === 'b' || g === 'B' || g === 'F' || g === 'I') {
+                return { templateKey: 'bestiary_bat', scale: 0.88, tintHex: colorHex, isFloating: true, weaponKey: null, seed };
+            }
+            if (g === 'e' || g === 'i' || g === 'j' || g === 'm' || g === 'v' || g === 'E' || g === 'Q' || g === ',') {
+                return { templateKey: 'env_ooze_mound', scale: 0.90, tintHex: colorHex, weaponKey: null, seed };
+            }
+            if (g === 'J' || g === 'w' || g === 'R') {
+                return { templateKey: 'obj_snake', scale: 0.92, tintHex: colorHex, weaponKey: null, seed };
+            }
+            if (g === 'S') {
+                return { templateKey: 'obj_spider', scale: 0.95, tintHex: colorHex, weaponKey: null, seed };
+            }
+            if (g === 'C' || g === 'Z') {
+                return { templateKey: 'bestiary_wolf', scale: 0.95, tintHex: colorHex, weaponKey: null, seed };
+            }
+            if (g === 'f' || g === 'H') {
+                return { templateKey: 'bestiary_lion', scale: 1.0, tintHex: colorHex, weaponKey: null, seed };
+            }
+            if (g === 'q') {
+                return { templateKey: 'bestiary_bear', scale: 1.0, tintHex: colorHex, weaponKey: null, seed };
+            }
+            if (g === 'r') {
+                return { templateKey: 'ph_street_rat', scale: 1.0, weaponKey: null, seed };
+            }
+            if (g === 'l') {
+                return { templateKey: 'bestiary_aquatic', scale: 0.95, tintHex: colorHex, isFloating: true, weaponKey: null, seed };
+            }
+            return { templateKey: 'bestiary_horror', scale: 1.05, tintHex: colorHex, weaponKey: null, seed };
         }
 
         // 17. Humanoids & default
@@ -12993,15 +13180,15 @@ class Dungeon3D {
                 }
                 chevron.visible = true;
 
-                let baseOpacity = forwardDot > 0.65 ? (d.ring === 1 ? 0.84 : 0.68) : 0.45;
-                let scale = d.ring === 1 ? 1.08 : 0.96;
+                let targetOp = forwardDot >= 0.72 ? 0.42 : (forwardDot >= 0.35 ? 0.28 : 0.16);
+                let scale = 1.0;
 
                 const isHovered = this._hoveredTile && this._hoveredTile.x === d.tx && this._hoveredTile.y === d.ty;
                 if (isHovered) {
-                    baseOpacity = 0.98;
-                    scale = 1.28;
+                    targetOp = 0.90;
+                    scale = 1.22;
                 }
-                chevron.material.opacity = baseOpacity;
+                chevron.material.opacity = targetOp;
                 chevron.scale.set(scale, 1.0, scale);
             }
         }
@@ -13616,8 +13803,7 @@ class Dungeon3D {
             positions.push(...to, ...ti, ...ri);
             positions.push(...to, ...ri, ...ro);
         };
-        addChevron(-0.16);
-        addChevron(0.24);
+        addChevron(0.0);
         geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geo.computeVertexNormals();
         geo._sharedGeometry = true;
@@ -13629,22 +13815,21 @@ class Dungeon3D {
             { dx: 0, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }
         ];
 
-        for (const ring of [1, 2]) {
-            for (const d of deltas) {
-                const mat = new THREE.MeshBasicMaterial({
-                    color: ring === 1 ? 0xffe066 : 0xffd166,
-                    transparent: true,
-                    opacity: ring === 1 ? 0.82 : 0.65,
-                    depthWrite: false,
-                    side: THREE.DoubleSide
-                });
-                mat._sharedMaterial = true;
-                const mesh = new THREE.Mesh(this._sharedChevronGeo, mat);
-                mesh.visible = false;
-                mesh.userData = { dx: d.dx, dy: d.dy, ring, passable: false };
-                this.streetViewGroup.add(mesh);
-                this._streetChevrons.push(mesh);
-            }
+        const ring = 1;
+        for (const d of deltas) {
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0xffe066,
+                transparent: true,
+                opacity: 0.42,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            mat._sharedMaterial = true;
+            const mesh = new THREE.Mesh(this._sharedChevronGeo, mat);
+            mesh.visible = false;
+            mesh.userData = { dx: d.dx, dy: d.dy, ring, passable: false };
+            this.streetViewGroup.add(mesh);
+            this._streetChevrons.push(mesh);
         }
 
         this.navCursorGroup = new THREE.Group();
@@ -13725,33 +13910,23 @@ class Dungeon3D {
         const py = frame.player.y !== undefined ? frame.player.y : 0;
 
         for (let i = 0; i < this._streetChevrons.length; i++) {
-            const chevron = this._streetChevrons[i];
-            const d = chevron.userData;
-            const ring = d.ring || 1;
+            const c = this._streetChevrons[i];
+            const d = c.userData;
             const tx1 = px + d.dx;
             const ty1 = py + d.dy;
-            const tx2 = px + d.dx * 2;
-            const ty2 = py + d.dy * 2;
-
             const step1Passable = this._isStreetViewTilePassable(frame, map, w, h, tx1, ty1);
-            const step2Passable = step1Passable && this._isStreetViewTilePassable(frame, map, w, h, tx2, ty2);
 
-            if (ring === 1 && step1Passable) {
+            if (step1Passable) {
                 d.passable = true;
-                const visualDist = step2Passable ? 1.68 : 1.32;
-                chevron.position.set((px + d.dx * visualDist) * this.cellSize, 0.045, (py + d.dy * visualDist) * this.cellSize);
-                chevron.rotation.y = Math.atan2(-d.dx, -d.dy);
+                const visualDist = 1.0;
+                c.visible = true;
+                c.position.set((px + d.dx * visualDist) * this.cellSize, 0.042, (py + d.dy * visualDist) * this.cellSize);
+                c.rotation.y = Math.atan2(-d.dx, -d.dy);
                 d.tx = tx1;
                 d.ty = ty1;
-            } else if (ring === 2 && step2Passable) {
-                d.passable = true;
-                chevron.position.set((px + d.dx * 2.68) * this.cellSize, 0.045, (py + d.dy * 2.68) * this.cellSize);
-                chevron.rotation.y = Math.atan2(-d.dx, -d.dy);
-                d.tx = tx2;
-                d.ty = ty2;
             } else {
                 d.passable = false;
-                chevron.visible = false;
+                c.visible = false;
             }
         }
     }

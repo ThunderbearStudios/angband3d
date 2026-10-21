@@ -653,6 +653,12 @@ class InputController {
             }
         }
         const activeSuggested = new Set(candidateSuggested.slice(0, 2));
+        const nestedUnlessSuggested = new Set([
+            'btn-throw', 'btn-fire', 'btn-skills', 'btn-power', 'btn-overland',
+            'btn-quests', 'btn-browse', 'btn-study', 'btn-quaff', 'btn-read',
+            'btn-equipment', 'btn-wield', 'btn-drop', 'btn-search',
+            'btn-run-toggle', 'btn-guide-hud'
+        ]);
 
         let visMask = '';
         for (const [id, rule] of Object.entries(rules)) {
@@ -682,9 +688,14 @@ class InputController {
             }
 
             btn.classList.toggle('is-contextual-dim', Boolean(visible && rule.dim));
+            btn.classList.toggle('is-nested-action', Boolean(nestedUnlessSuggested.has(id) && !isSuggested));
         }
 
         if (visMask !== this._lastActionBarVisMask) {
+            for (const staticNestedId of ['btn-run-toggle', 'btn-guide-hud']) {
+                const sBtn = document.getElementById(staticNestedId);
+                if (sBtn) sBtn.classList.add('is-nested-action');
+            }
             this._lastActionBarVisMask = visMask;
             if (typeof window !== 'undefined' && typeof window.__updateActionBarOverflow === 'function') {
                 window.__updateActionBarOverflow();
@@ -961,6 +972,17 @@ class InputController {
                 return;
             }
 
+            if (e.key === 'F10' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                if (typeof window !== 'undefined' && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.toggleMode === 'function') {
+                    e.preventDefault();
+                    window.RealmGrimoireDeck.toggleMode();
+                    if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') {
+                        const lf = typeof window.__app.getLastFrame === 'function' ? window.__app.getLastFrame() : null;
+                        window.__app.updateTerminalToolbar(lf);
+                    }
+                    return;
+                }
+            }
             // Toggle Fullscreen (F11 or Alt+Enter)
             if (e.key === 'F11' || (e.key === 'Enter' && e.altKey)) {
                 e.preventDefault();
@@ -2768,6 +2790,10 @@ class InputController {
             bindReliableAction(actionMoreBtn, toggleDrawer);
 
             const closeDrawer = () => {
+                if (actionPopover && actionPopover.classList.contains('is-categorized-menu')) {
+                    actionPopover.classList.remove('is-categorized-menu');
+                    actionPopover.innerHTML = '';
+                }
                 if (actionPopover) actionPopover.classList.remove('is-open');
                 actionBar.classList.remove('drawer-open');
                 actionMoreBtn.textContent = '⋯ More';
@@ -2775,6 +2801,29 @@ class InputController {
 
             if (actionPopover) {
                 actionPopover.addEventListener('click', (ev) => {
+                    const proxyBtn = ev.target ? ev.target.closest('[data-proxy-for]') : null;
+                    if (proxyBtn) {
+                        const targetId = proxyBtn.getAttribute('data-proxy-for');
+                        closeDrawer();
+                        const orig = targetId ? document.getElementById(targetId) : null;
+                        if (orig) orig.click();
+                        return;
+                    }
+                    const openModalBtn = ev.target ? ev.target.closest('[data-open-cmd-modal]') : null;
+                    if (openModalBtn) {
+                        closeDrawer();
+                        if (window.__app && typeof window.__app.showCommandPalette === 'function') {
+                            window.__app.showCommandPalette('game');
+                        }
+                        return;
+                    }
+                    const toggleInlineBtn = ev.target ? ev.target.closest('[data-toggle-inline-drawer]') : null;
+                    if (toggleInlineBtn) {
+                        const nextOpen = !actionBar.classList.contains('drawer-open');
+                        closeDrawer();
+                        actionBar.classList.toggle('drawer-open', nextOpen);
+                        return;
+                    }
                     const target = ev.target ? ev.target.closest('.action-btn') : null;
                     if (target) closeDrawer();
                 });
@@ -2797,6 +2846,50 @@ class InputController {
             }
             window.addEventListener('resize', updateActionBarOverflow);
             window.__updateActionBarOverflow = updateActionBarOverflow;
+            for (const initNestedId of ['btn-throw', 'btn-fire', 'btn-skills', 'btn-power', 'btn-overland', 'btn-quests', 'btn-browse', 'btn-study', 'btn-quaff', 'btn-read', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-search', 'btn-run-toggle', 'btn-guide-hud']) {
+                const nb = document.getElementById(initNestedId);
+                if (nb) nb.classList.add('is-nested-action');
+            }
+            window.__toggleCategorizedActionPopover = () => {
+                const isSmallOrCoarse = window.innerWidth <= 900 || window.matchMedia('(pointer: coarse)').matches;
+                if (isSmallOrCoarse || !actionPopover) {
+                    if (window.__app && typeof window.__app.showCommandPalette === 'function') {
+                        window.__app.showCommandPalette('game');
+                    }
+                    return;
+                }
+                if (actionPopover.classList.contains('is-open') && actionPopover.classList.contains('is-categorized-menu')) {
+                    closeDrawer();
+                    return;
+                }
+                const groups = [
+                    { title: '⚔ Combat & Magic', ids: ['btn-attack', 'btn-cast', 'btn-fire', 'btn-throw', 'btn-power', 'btn-skills', 'btn-browse', 'btn-study'] },
+                    { title: '🎒 Pack & Items', ids: ['btn-quaff', 'btn-read', 'btn-inventory', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-pickup'] },
+                    { title: '🧭 Explore & System', ids: ['btn-door', 'btn-stair', 'btn-search', 'btn-rest', 'btn-run-toggle', 'btn-overland', 'btn-quests', 'btn-guide-hud'] }
+                ];
+                let html = '';
+                for (const g of groups) {
+                    const itemsHtml = [];
+                    for (const id of g.ids) {
+                        const b = document.getElementById(id);
+                        if (!b || b.dataset.realmHidden === '1' || b.dataset.contextHidden === '1') continue;
+                        const sugCls = b.classList.contains('is-suggested') ? 'is-suggested' : '';
+                        const dimCls = b.classList.contains('is-contextual-dim') ? 'is-contextual-dim' : '';
+                        const ttl = String(b.title || '').replace(/"/g, '&quot;');
+                        itemsHtml.push(`<button type="button" class="action-btn action-cat-proxy-btn ${sugCls} ${dimCls}" data-proxy-for="${id}" title="${ttl}">${b.innerHTML}</button>`);
+                    }
+                    if (itemsHtml.length > 0) {
+                        html += `<div class="action-cat-group"><div class="action-cat-title">${g.title}</div><div class="action-cat-grid">${itemsHtml.join('')}</div></div>`;
+                    }
+                }
+                const inlineExpanded = actionBar.classList.contains('drawer-open');
+                html += `<div class="action-cat-footer">
+                    <button type="button" class="action-btn action-cat-all-btn" data-open-cmd-modal="1" title="Open Full Searchable Command Palette [Ctrl+K]">🔍 Search All Commands... <kbd>Ctrl+K</kbd></button>
+                    <button type="button" class="action-btn action-cat-expand-btn" data-toggle-inline-drawer="1">${inlineExpanded ? '▴ Collapse Inline Bar' : '▾ Expand All Inline'}</button>
+                </div>`;
+                actionPopover.innerHTML = html;
+                actionPopover.classList.add('is-open', 'is-categorized-menu');
+            };
             setTimeout(updateActionBarOverflow, 100);
         }
 

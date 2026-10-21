@@ -63,8 +63,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=10.0.0">
-    <link rel="stylesheet" href="/css/chronicle.css?v=10.0.0">
+    <link rel="stylesheet" href="/css/dungeon.css?v=10.1.0">
+    <link rel="stylesheet" href="/css/chronicle.css?v=10.1.0">
 </head>
 <body>
     <div id="app-container">
@@ -163,6 +163,7 @@
                         <button type="button" id="btn-term-zoom-in" class="term-zoom-btn" title="Zoom In Classic Terminal [ + ]">🔍 +</button>
                     </div>
                     <div class="terminal-actions">
+                        <button type="button" id="btn-term-grimoire-toggle" class="btn-gold-outline" style="display: none;" title="Toggle between Grimoire Cards and Classic Terminal [F10]">✨ Grimoire [F10]</button>
                         <button id="btn-quick-birth" class="btn-gold" style="display: none;" title="Quickly create a random hero and jump straight into the 3D dungeon!">⚔ Quick Start Hero (@)</button>
                         <button id="btn-term-reroll" class="btn-gold-outline" style="display: none;" title="Reroll this character with new random attributes">🎲 Reroll Hero (R)</button>
                         <button id="btn-term-custom" class="btn-gold-outline" style="display: none;" title="Customize your character by choosing race, class, and stats">🛠 Custom Hero (C)</button>
@@ -363,14 +364,14 @@
         </div>
 
         <!-- 2D Minimap & Camera Tilt Bar -->
-        <div id="minimap-container" class="standard">
+        <div id="minimap-container" class="compact minimap-size-compact">
             <div class="minimap-header" id="minimap-header" title="Drag header to move • Use [ ] or Size button to resize • Mouse wheel or - / + to zoom">
                 <span id="minimap-title-text">MINIMAP</span>
                 <span id="minimap-hint-text" class="minimap-hint">[ ] Size  +/- Zoom</span>
                 <span id="val-depth" style="color:#ffd700;">Town</span>
                 <button id="btn-minimap-close" class="map-close-btn" title="Close Minimap">✕</button>
             </div>
-            <canvas id="minimap-canvas"></canvas>
+            <canvas id="minimap-canvas" width="168" height="168"></canvas>
             <!-- Mobile Minimap Floating Quick-Zoom Bar -->
             <div id="mobile-map-zoom-group" class="mobile-map-zoom-group">
                 <button id="btn-mobile-map-zoom-in" class="mobile-map-btn" title="Zoom In Minimap">+</button>
@@ -565,7 +566,7 @@
                     <button id="btn-run-toggle" class="action-btn action-run-pill" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="action-run-icon">🚶</span> <span id="action-run-text">Walk</span> <kbd>Alt+R</kbd></button>
                     <button id="btn-terminal" class="action-btn" title="Toggle 80x24 classic CRT terminal view [Tab]">📜 Classic <kbd>Tab</kbd></button>
                     <button id="btn-guide-hud" class="action-btn" title="View Complete Controls &amp; Commands Guide [?]">❓ Help <kbd>?</kbd></button>
-                    <button id="btn-command-palette" class="action-btn action-cmd-btn" title="Search all Roguelike Commands [Ctrl+K or ?]">⌨ Cmds <kbd>Ctrl+K</kbd></button>
+                    <button id="btn-command-palette" class="action-btn action-cmd-btn" title="Categorized Action Drawer &amp; Command Palette [Ctrl+K]"><span class="btn-icon">▤</span><span class="btn-label">Actions ▾</span><kbd>Ctrl+K</kbd></button>
                     <button id="btn-action-more" class="action-btn action-more-btn" title="Toggle All Action Commands">⋯ More</button>
                 </div>
 
@@ -1639,30 +1640,30 @@
     <script src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script src="/js/safe-html.js?v=10.0.0"></script>
-    <script src="/js/screen-context.js?v=10.0.0"></script>
-    <script src="/js/menu-router.js?v=10.0.0"></script>
-    <script src="/js/grimoire-deck.js?v=10.0.0"></script>
-    <script src="/js/quick-actions.js?v=10.0.0"></script>
-    <script src="/js/device.js?v=10.0.0"></script>
-    <script src="/js/realm-keys.js?v=10.0.0"></script>
-    <script src="/js/mobile-overlay.js?v=10.0.0"></script>
-    <script src="/js/audio.js?v=10.0.0"></script>
-    <script src="/js/terminal.js?v=10.0.0"></script>
-    <script src="/js/dungeon3d.js?v=10.0.0"></script>
-    <script src="/js/hud.js?v=10.0.0"></script>
-    <script src="/js/network.js?v=10.0.0"></script>
-    <script src="/js/local_bridge.js?v=10.0.0"></script>
-    <script src="/js/input.js?v=10.0.0"></script>
-    <script src="/js/demo-player.js?v=10.0.0"></script>
+    <script src="/js/safe-html.js?v=10.1.0"></script>
+    <script src="/js/screen-context.js?v=10.1.0"></script>
+    <script src="/js/menu-router.js?v=10.1.0"></script>
+    <script src="/js/grimoire-deck.js?v=10.1.0"></script>
+    <script src="/js/quick-actions.js?v=10.1.0"></script>
+    <script src="/js/device.js?v=10.1.0"></script>
+    <script src="/js/realm-keys.js?v=10.1.0"></script>
+    <script src="/js/mobile-overlay.js?v=10.1.0"></script>
+    <script src="/js/audio.js?v=10.1.0"></script>
+    <script src="/js/terminal.js?v=10.1.0"></script>
+    <script src="/js/dungeon3d.js?v=10.1.0"></script>
+    <script src="/js/hud.js?v=10.1.0"></script>
+    <script src="/js/network.js?v=10.1.0"></script>
+    <script src="/js/local_bridge.js?v=10.1.0"></script>
+    <script src="/js/input.js?v=10.1.0"></script>
+    <script src="/js/demo-player.js?v=10.1.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script src="/js/chronicle/chronicle-store.js?v=10.0.0"></script>
-    <script src="/js/chronicle/chronicle-grounder.js?v=10.0.0"></script>
-    <script src="/js/chronicle/chronicle-filter.js?v=10.0.0"></script>
-    <script src="/js/chronicle/chronicle-audio.js?v=10.0.0"></script>
-    <script src="/js/chronicle/chronicle-llm.js?v=10.0.0"></script>
-    <script src="/js/chronicle/chronicle-manager.js?v=10.0.0"></script>
-    <script src="/js/app.js?v=10.0.0"></script>
-    <script src="/js/boot.js?v=10.0.0"></script>
+    <script src="/js/chronicle/chronicle-store.js?v=10.1.0"></script>
+    <script src="/js/chronicle/chronicle-grounder.js?v=10.1.0"></script>
+    <script src="/js/chronicle/chronicle-filter.js?v=10.1.0"></script>
+    <script src="/js/chronicle/chronicle-audio.js?v=10.1.0"></script>
+    <script src="/js/chronicle/chronicle-llm.js?v=10.1.0"></script>
+    <script src="/js/chronicle/chronicle-manager.js?v=10.1.0"></script>
+    <script src="/js/app.js?v=10.1.0"></script>
+    <script src="/js/boot.js?v=10.1.0"></script>
 </body>
 </html>
