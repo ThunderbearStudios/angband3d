@@ -4,18 +4,29 @@ Angband3D implements a **decoupled, cloud-native architecture**:
 - **Authoritative Engine Service (`server/`)**: Runs a headless, single-binary C Angband 4.2.6 engine compiled with the JSON Bridge protocol (`-mbridge`).
 - **WebSocket Gateway (`/ws`)**: A lightweight Node.js daemon manages client sessions, spawns isolated child engine processes per player session, and pipes stdin/stdout streams to/from WebSocket JSON frames in real-time.
 - **Save Game Storage (`/data/save`)**: Persistent volume or cloud storage mount preserving binary character save files (`SaveVNLA` format). Fully cross-compatible between Web and Desktop clients.
-- **Three.js WebGL 3D Client (`server/public/`)**: Delivers an immersive, zero-install 3D dungeon crawler directly in modern desktop, tablet, and mobile browsers (iOS Safari, Android Chrome, Desktop Edge/Chrome/Firefox/Safari). Features PBR materials, dynamic character scaling, procedural 3D creatures, first-person viewmodel, and collision-free mobile touch controls.
-- **Canonical Live Production Deployment**: [https://angband3d-cloud-iuawf47jqa-uc.a.run.app](https://angband3d-cloud-iuawf47jqa-uc.a.run.app)
+- **Three.js WebGL 3D Client (`server/public/`)**: Delivers an immersive, zero-install 3D dungeon crawler directly in modern desktop, tablet, and mobile browsers (iOS Safari, Android Chrome, Desktop Edge/Chrome/Firefox/Safari). Features PBR materials, dynamic character scaling, curated 3D bestiary models, first-person viewmodel, Living Chronicle & Voiced Lorekeeper, and collision-free mobile touch controls.
+- **Canonical Live Production Deployment (`v10.7.0`)**:
+  - Custom Domain: [https://angband3d.com](https://angband3d.com)
+  - Cloud Run Services (`resonant-1679933304535`):
+    - `angband3d` (`us-central1`): `https://angband3d-564958309282.us-central1.run.app`
+    - `angband3d-cloud` (`us-central1`): `https://angband3d-cloud-564958309282.us-central1.run.app`
+    - `angband3d-web` (`us-central1`): `https://angband3d-web-564958309282.us-central1.run.app`
+    - `angband3d-cloud` (`us-east1`): `https://angband3d-cloud-564958309282.us-east1.run.app`
 
 ---
 
 ## Container Deployment
 
-### 1. Docker Build
+### 1. Docker / Cloud Build (`node:22-bookworm-slim` Runtime)
 
-Build the multi-stage Linux container:
+Build the multi-stage Linux container locally (`.dockerignore` and `.gcloudignore` exclude non-server/IDE directories):
 ```bash
 docker build -t angband3d-cloud:latest -f server/Dockerfile .
+```
+
+Or build remotely via Google Cloud Build (`E2_HIGHCPU_8`):
+```powershell
+gcloud.cmd builds submit --config cloudbuild.yaml .
 ```
 
 ### 2. Docker Compose (Local or VPS)
