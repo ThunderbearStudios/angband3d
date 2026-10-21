@@ -1065,12 +1065,28 @@ class WebHUD {
         // Wire Extended Character Details Drawer
         const btnCharDetails = document.getElementById('btn-char-details-toggle');
         const charDrawer = document.getElementById('char-extended-drawer');
+        const charPanelEl = document.getElementById('char-panel');
         if (btnCharDetails && charDrawer) {
             btnCharDetails.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isHidden = charDrawer.classList.toggle('hidden');
+                if (charPanelEl) charPanelEl.classList.toggle('char-details-open', !isHidden);
                 btnCharDetails.textContent = isHidden ? '▾' : '▴';
                 btnCharDetails.setAttribute('aria-expanded', String(!isHidden));
+            });
+        }
+        const charHeaderEl = document.getElementById('char-panel-header');
+        if (charHeaderEl && charPanelEl) {
+            charHeaderEl.addEventListener('click', (e) => {
+                if (this._hudWasDragged || e.target.closest('button')) return;
+                if (typeof window !== 'undefined' && window.innerWidth <= 600) {
+                    const open = charPanelEl.classList.toggle('char-details-open');
+                    if (charDrawer) charDrawer.classList.toggle('hidden', !open);
+                    if (btnCharDetails) {
+                        btnCharDetails.textContent = open ? '▴' : '▾';
+                        btnCharDetails.setAttribute('aria-expanded', String(open));
+                    }
+                }
             });
         }
 

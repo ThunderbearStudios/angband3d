@@ -4201,9 +4201,285 @@ class ChronicleManager {
     }
 
     /**
+     * Builds 100% pure core-game monster inspection data (zero Lorekeeper/Chronicle fiction).
+     */
+    _buildCoreMonsterInspection(entity, depth = 0, realm = 'angband') {
+        const name = (entity && entity.name) ? String(entity.name).trim() : 'Creature';
+        const lower = name.toLowerCase();
+        const g = (entity && entity.glyph) ? String(entity.glyph).charAt(0) : 'm';
+
+        const stateObj = this.grounder
+            ? this.grounder.resolveCreatureState(entity, this.lastSeenMessages)
+            : { state: 'awake', canSpeak: false };
+
+        const curHp = typeof entity.hp === 'number' ? entity.hp : (typeof entity.chp === 'number' ? entity.chp : 10);
+        const maxHp = typeof entity.hp_max === 'number' ? entity.hp_max : (typeof entity.mhp === 'number' ? entity.mhp : Math.max(1, curHp));
+        const hpPct = Math.max(0, Math.min(100, Math.round((curHp / Math.max(1, maxHp)) * 100)));
+
+        const GLYPH_TYPE_MAP = {
+            'a': 'Ant / Insectoid', 'b': 'Bat', 'B': 'Bird', 'c': 'Centipede',
+            'C': 'Canine / Hound', 'd': 'Young Dragon', 'D': 'Ancient Dragon',
+            'e': 'Floating Eye', 'E': 'Elemental / Stalker', 'f': 'Feline',
+            'F': 'Dragon Fly / Insect', 'g': 'Golem (Construct)', 'G': 'Ghost (Undead)',
+            'h': 'Humanoid', 'H': 'Hybrid Beast', 'i': 'Icky Thing', 'I': 'Insect',
+            'j': 'Jelly / Ooze', 'J': 'Snake / Serpent', 'k': 'Kobold',
+            'K': 'Killer Beetle', 'l': 'Aquatic Creature', 'L': 'Lich (Undead)',
+            'm': 'Mold', 'M': 'Multi-Headed Hydra', 'n': 'Naga', 'N': 'Demon / Nexus',
+            'o': 'Orc', 'O': 'Ogre', 'p': 'Human', 'P': 'Giant',
+            'q': 'Quadruped Beast', 'Q': 'Quylthulg', 'r': 'Rodent',
+            'R': 'Reptile / Amphibian', 's': 'Skeleton (Undead)', 'S': 'Spider / Arachnid',
+            't': 'Townsperson', 'T': 'Troll', 'u': 'Minor Demon', 'U': 'Major Demon',
+            'v': 'Elemental Vortex', 'V': 'Vampire (Undead)', 'w': 'Worm / Crawler',
+            'W': 'Wight / Wraith (Undead)', 'x': 'Xorn / Umber Hulk', 'X': 'Extradimensional',
+            'y': 'Yeek', 'Y': 'Yeti / Ape', 'z': 'Zombie / Mummy (Undead)',
+            'Z': 'Zephyr Hound', ',': 'Mushroom Patch', '$': 'Creeping Coins'
+        };
+        let coreType = GLYPH_TYPE_MAP[g] || 'Dungeon Creature';
+        if (/snake|viper|cobra|asp|python|boa|mamba|adder|serpent/i.test(lower)) coreType = 'Snake / Serpent';
+        else if (/spider|tarantula|scorpion|arachnid|ungoliant|shelob/i.test(lower)) coreType = 'Spider / Arachnid';
+        else if (/skeleton|zombie|mummy|lich|wraith|wight|vampire|ghost|spectre|phantom|shade|undead/i.test(lower)) coreType = 'Undead';
+        else if (/demon|balrog|fiend|imp|quasit|marilith|pit fiend/i.test(lower)) coreType = 'Demon';
+        else if (/dragon|drake|wyrm/i.test(lower)) coreType = 'Dragon';
+        else if (/towns|citizen|urchin|mercenary|drunk|idiot|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran|tamer|bard/i.test(lower) && depth === 0) coreType = 'Townsperson';
+
+        const isTownNpc = coreType === 'Townsperson' || (depth === 0 && realm !== 'silq' && (g === 't' || /towns|citizen|urchin|mercenary|drunk|idiot|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran/i.test(lower)) && curHp >= maxHp);
+        const isUndead = /Undead/.test(coreType) || ['s', 'z', 'G', 'W', 'V', 'L'].includes(g);
+        const isDemon = /Demon/.test(coreType) || ['u', 'U'].includes(g);
+        const isNaturalAnimal = ['a', 'b', 'B', 'c', 'C', 'f', 'F', 'I', 'J', 'K', 'l', 'q', 'r', 'R', 'S', 'w', 'Z'].includes(g);
+        const isMindless = ['e', 'g', 'i', 'j', 'm', 'Q', 'v', ',', '$'].includes(g);
+
+        let alignment = 'Evil';
+        if (isTownNpc) alignment = 'Neutral (Town)';
+        else if (g === 'A' || /angel|archon|seraph|cherub|unicorn|gold dragon|silver dragon|bronze dragon/i.test(lower)) alignment = 'Good';
+        else if (isNaturalAnimal || isMindless) alignment = 'Neutral';
+        else if (isUndead || isDemon || ['o', 'O', 'T', 'P', 'k', 'n', 'd', 'D'].includes(g) || /orc|troll|ogre|goblin|kobold|uruk|thief|bandit|brigand|necromancer|warlock|dark elf|easterling|cultist/i.test(lower)) {
+            alignment = 'Evil';
+        } else {
+            alignment = 'Neutral / Hostile';
+        }
+
+        const activeStatuses = [];
+        if (entity.asleep || stateObj.state === 'sleeping') activeStatuses.push('Asleep');
+        if (entity.afraid || stateObj.state === 'fleeing') activeStatuses.push('Afraid / Fleeing');
+        if (entity.stunned || stateObj.state === 'stunned') activeStatuses.push('Stunned');
+        if (entity.confused || stateObj.state === 'confused') activeStatuses.push('Confused');
+        if (entity.poisoned) activeStatuses.push('Poisoned');
+        if (entity.slowed) activeStatuses.push('Slowed');
+        if (entity.fast || entity.hasted) activeStatuses.push('Fast');
+        if (activeStatuses.length === 0) {
+            activeStatuses.push(isTownNpc ? 'Peaceful' : 'Awake');
+        }
+
+        let condLabel = 'Uninjured';
+        if (activeStatuses.includes('Asleep')) condLabel = 'Asleep';
+        else if (hpPct <= 25) condLabel = 'Critically Wounded';
+        else if (hpPct <= 60) condLabel = 'Wounded';
+        else if (hpPct < 100) condLabel = 'Lightly Wounded';
+
+        let distSuffix = '';
+        if (this.currentHero && typeof this.currentHero.x === 'number' && typeof entity.x === 'number') {
+            const dist = Math.max(1, Math.round(Math.hypot(entity.x - this.currentHero.x, entity.y - this.currentHero.y)));
+            distSuffix = ` • ${dist} tile${dist === 1 ? '' : 's'}`;
+        }
+
+        let pillText = 'Hostile';
+        let pillClass = 'inspect-popover-pill hostile';
+        if (activeStatuses.includes('Asleep')) {
+            pillText = 'Asleep';
+            pillClass = 'inspect-popover-pill sleeping';
+        } else if (activeStatuses.includes('Afraid / Fleeing')) {
+            pillText = 'Afraid';
+            pillClass = 'inspect-popover-pill';
+        } else if (isTownNpc || entity.friendly || entity.pet || entity.peaceful) {
+            pillText = 'Peaceful';
+            pillClass = 'inspect-popover-pill';
+        }
+
+        // Known core affinities, resistances & weaknesses based strictly on core Angband monster flags
+        const coreAffinities = [];
+        if (isUndead) {
+            coreAffinities.push('Vulnerable: Slay Undead, Slay Evil, Light/Fire');
+            coreAffinities.push('Resists: Poison, Cold, Nether, Sleep, Fear');
+        } else if (isDemon) {
+            coreAffinities.push('Vulnerable: Slay Demon, Slay Evil');
+            coreAffinities.push('Resists: Fire, Poison, Confusion, Sleep');
+        } else if (g === 'o') {
+            coreAffinities.push('Vulnerable: Slay Orc, Slay Evil, Bright Light');
+        } else if (g === 'T') {
+            coreAffinities.push('Vulnerable: Slay Troll, Slay Evil, Fire/Acid • Regenerates HP');
+        } else if (g === 'P' || g === 'O') {
+            coreAffinities.push('Vulnerable: Slay Giant, Slay Evil');
+        } else if (g === 'd' || g === 'D') {
+            coreAffinities.push('Vulnerable: Slay Dragon, Slay Evil');
+        } else if (isNaturalAnimal) {
+            coreAffinities.push('Vulnerable: Slay Animal');
+        }
+
+        if (/white|ice|frost|cold|yeti|snow/i.test(lower)) {
+            coreAffinities.push('Affinity: Cold (Resists Cold • Weak to Fire)');
+        } else if (/red|fire|flame|lava|hell|magma/i.test(lower)) {
+            coreAffinities.push('Affinity: Fire (Resists Fire • Weak to Cold)');
+        } else if (/blue|lightning|storm|electric|volt/i.test(lower)) {
+            coreAffinities.push('Affinity: Lightning (Resists Lightning)');
+        } else if (/green|poison|venom|viper|cobra|adder|mamba|acid/i.test(lower)) {
+            coreAffinities.push('Affinity: Poison / Acid (Resists Poison)');
+        } else if (/black|acid/i.test(lower)) {
+            coreAffinities.push('Affinity: Acid (Resists Acid)');
+        }
+
+        if (g === 'J' || g === 'b' || g === 'F') {
+            coreAffinities.push('Movement: Erratic');
+        } else if (g === 'm' || g === ',' || g === 'Q') {
+            coreAffinities.push('Movement: Stationary (0 speed)');
+        }
+        if (isMindless) {
+            coreAffinities.push('Mindless: Immune to Fear, Confusion & Sleep');
+        }
+        if (isTownNpc) {
+            coreAffinities.push('Town NPC (Depth 0) • Harmless unless provoked; yields 0 XP');
+        }
+
+        const primarySummary = `Type: ${coreType} • Align: ${alignment} • Status: ${activeStatuses.join(', ')}`;
+        const detailSummary = coreAffinities.length > 0
+            ? coreAffinities.join(' • ')
+            : `Core Symbol: '${g}' (${coreType}) • Press [l] in-game to recall full Monster Memory.`;
+
+        return {
+            type: 'monster',
+            badge: g,
+            name,
+            pillText,
+            pillClass,
+            showHp: true,
+            hpPct,
+            hpText: `HP: ${curHp} / ${maxHp} (${hpPct}%) • ${condLabel}${distSuffix}`,
+            prose: primarySummary,
+            quote: '',
+            tactics: detailSummary,
+            chatBtnLabel: '💬 Chronicle',
+            stateObj
+        };
+    }
+
+    /**
+     * Builds 100% pure core-game item inspection data (zero Lorekeeper/Chronicle fiction).
+     */
+    _buildCoreItemInspection(entity, depth = 0, realm = 'angband') {
+        const itemName = (entity && (entity.name || entity.itemName)) ? String(entity.name || entity.itemName).trim() : 'Dungeon Object';
+        const g = (entity && entity.glyph) ? String(entity.glyph).charAt(0) : '?';
+
+        const ITEM_GLYPH_MAP = {
+            ')': 'Melee Weapon', '|': 'Edged / Polearm Weapon',
+            '}': 'Missile Launcher (Bow / Sling / Crossbow)',
+            '{': 'Ammunition (Arrows / Bolts / Shots)',
+            '[': 'Body Armour', '(': 'Soft Body Armour',
+            ']': 'Protective Gear (Shield / Helm / Boots / Gloves / Cloak)',
+            '=': 'Ring', '"': 'Amulet', '~': 'Light Source / Tool / Chest',
+            '!': 'Potion', '?': 'Scroll', '_': 'Staff', '-': 'Wand / Rod',
+            ':': 'Spellbook / Tome', ',': 'Food / Mushroom', '$': 'Gold / Treasure'
+        };
+        let coreCategory = ITEM_GLYPH_MAP[g] || 'Dungeon Object';
+        const lower = itemName.toLowerCase();
+        if (/potion|phial of|draught/i.test(lower) && g === '!') coreCategory = 'Potion (Quaff [q])';
+        else if (/scroll/i.test(lower) || g === '?') coreCategory = 'Scroll (Read [r])';
+        else if (/wand/i.test(lower)) coreCategory = 'Wand (Aim [a])';
+        else if (/rod/i.test(lower)) coreCategory = 'Rod (Zap [z])';
+        else if (/staff/i.test(lower) || g === '_') coreCategory = 'Staff (Use [u])';
+        else if (/book|tome|prayer|magic|song/i.test(lower) || g === ':') coreCategory = 'Spellbook (Browse [b] / Cast [m])';
+        else if (/torch|lantern|phial|star|stone/i.test(lower) && g === '~') coreCategory = 'Light Source (Equip [w] / Fuel [F])';
+        else if (/arrow|bolt|pebble|shot|seeker/i.test(lower)) coreCategory = 'Ammunition (Fire [f])';
+        else if (/bow|crossbow|sling/i.test(lower) || g === '}') coreCategory = 'Launcher (Equip [w] / Fire [f])';
+        else if (/food|ration|waybread|mushroom|jerky|biscuit|pint|ale|wine/i.test(lower) || g === ',') coreCategory = 'Food / Sustenance (Eat [E])';
+        else if (/gold|silver|copper|mithril|adamantite|gems|diamonds|emeralds|sapphires|rubies|coins/i.test(lower) || g === '$') coreCategory = 'Treasure / Currency';
+
+        // Extract authentic core stats directly from the item name string
+        const parsedStats = [];
+        const diceMatch = itemName.match(/\((\d+d\d+)\)/i);
+        if (diceMatch) parsedStats.push(`Damage: ${diceMatch[1]}`);
+
+        const combatBonusMatch = itemName.match(/\(([+-]\d+)\s*,\s*([+-]\d+)\)/);
+        if (combatBonusMatch) {
+            parsedStats.push(`Hit/Dam: (${combatBonusMatch[1]}, ${combatBonusMatch[2]})`);
+        }
+
+        const acFullMatch = itemName.match(/\[(\d+)\s*,\s*([+-]\d+)\]/);
+        const acBaseMatch = !acFullMatch ? itemName.match(/\[(\d+)\]/) : null;
+        if (acFullMatch) {
+            parsedStats.push(`AC: [${acFullMatch[1]}, ${acFullMatch[2]}]`);
+        } else if (acBaseMatch) {
+            parsedStats.push(`Base AC: [${acBaseMatch[1]}]`);
+        }
+
+        const chargesMatch = itemName.match(/\((\d+)\s*(charges?|turns?)\)/i);
+        if (chargesMatch) {
+            parsedStats.push(`${chargesMatch[1]} ${chargesMatch[2]}`);
+        }
+
+        const qtyMatch = itemName.match(/^(\d+)\s+/);
+        if (qtyMatch) {
+            parsedStats.push(`Qty: ${qtyMatch[1]}`);
+        }
+
+        const inscrMatch = itemName.match(/\{([^}]+)\}/);
+        if (inscrMatch) {
+            parsedStats.push(`Tag: {${inscrMatch[1]}}`);
+        }
+
+        let distSuffix = '';
+        let distTiles = null;
+        if (this.currentHero && typeof this.currentHero.x === 'number' && typeof entity.x === 'number') {
+            distTiles = Math.round(Math.hypot(entity.x - this.currentHero.x, entity.y - this.currentHero.y));
+            distSuffix = distTiles === 0 ? ' • Underfoot (0 tiles)' : ` • ${distTiles} tile${distTiles === 1 ? '' : 's'} away`;
+        }
+
+        const isIdentifiedArtifact = /^(?:the\s+)?['"]?[A-Z]/.test(itemName) && (/\sof\s[A-Z]/.test(itemName) || /'[A-Za-z]+'/i.test(itemName)) && (combatBonusMatch || acFullMatch);
+        const pillText = isIdentifiedArtifact ? 'Known Ego / Artifact' : coreCategory.split(' (')[0];
+
+        const knownProps = [];
+        if (/slay\s+([a-z]+)/i.test(itemName)) {
+            const m = itemName.match(/slay\s+([a-z]+)/i);
+            knownProps.push(`Brand: Slay ${m[1]}`);
+        }
+        if (/\b(?:of|brand)\s+(?:flame|fire|frost|cold|venom|poison|acid|lightning|elec|westernesse|gondolin|numenor|fëanor|feanor)/i.test(lower)) {
+            knownProps.push('Known Elemental / Lineage Brand');
+        }
+        if (/resist\s+([a-z]+)/i.test(itemName) || /free action|see invisible|regeneration|speed|stealth|telepathy/i.test(lower)) {
+            knownProps.push('Grants Intrinsic Resistance / Ability');
+        }
+        if (/cure\s+(?:light|serious|critical|mortal)|healing|restore|neutralize\s+poison/i.test(lower)) {
+            knownProps.push('Effect: Restores HP / Cures Status');
+        } else if (/phase\s+door|teleport|word\s+of\s+recall/i.test(lower)) {
+            knownProps.push('Effect: Tactical Translocation / Escape');
+        } else if (/identify/i.test(lower)) {
+            knownProps.push('Effect: Reveals Unknown Item Properties');
+        }
+
+        const primarySummary = `Type: ${coreCategory}${parsedStats.length > 0 ? ' • ' + parsedStats.join(' • ') : ''}${distSuffix}`;
+        const detailSummary = knownProps.length > 0
+            ? `${knownProps.join(' • ')} • Actions: [g] Pick Up • [w] Wield/Equip • [I] Inspect`
+            : `Core Symbol: '${g}' • Actions: [g] Pick Up • [w] Wield/Equip • [d] Drop • [I] Inspect in Pack`;
+
+        return {
+            type: 'item',
+            badge: g,
+            name: itemName,
+            pillText,
+            pillClass: 'inspect-popover-pill item',
+            showHp: false,
+            hpPct: 100,
+            hpText: '',
+            prose: primarySummary,
+            quote: '',
+            tactics: detailSummary,
+            chatBtnLabel: '💬 Chronicle'
+        };
+    }
+
+    /**
      * Opens the non-modal 3D Entity Inspection Popover near the clicked screen coordinates.
-     * Strictly guarantees ZERO focus stealing (never focuses any input or opens the Tome window).
-     * Provides an optional button to open the Tome and converse if the player chooses.
+     * Strictly guarantees ZERO focus stealing and displays 100% pure core-game telemetry
+     * (hitpoints, status, type, alignment, known core stats/affinities).
+     * All Lorekeeper/Chronicle fictional narrative is reserved strictly for the Web Chronicle Tome.
      */
     showEntityPopover(type, entity, clientX = null, clientY = null) {
         if (!entity) return null;
@@ -4211,100 +4487,17 @@ class ChronicleManager {
 
         const depth = (this.currentHero && typeof this.currentHero.depth === 'number') ? this.currentHero.depth : 0;
         const realm = this.getActiveRealm();
-        const lang = this.getLanguageMode();
 
         let details = null;
 
         if (type === 'monster') {
             this.targetedObject = null;
             this.targetedCreature = entity;
-            const stateObj = this.grounder
-                ? this.grounder.resolveCreatureState(entity, this.lastSeenMessages)
-                : { state: 'awake', canSpeak: true, observation: 'Watching your movements.' };
-            const enc = (entity._prewarmedEncounter && (!entity.state || entity._prewarmedState === stateObj.state))
-                ? entity._prewarmedEncounter
-                : (this.grounder
-                    ? this.grounder.resolveCreatureEncounter(entity, this.currentHero, this.lastSeenMessages, (entity._interactTurn || 0) + 1, '', realm, lang, { dryRun: true })
-                    : { prose: stateObj.observation || 'A creature of the deep.', text: null, isDialogue: false });
-            const tactics = (this.grounder && typeof this.grounder.resolveTacticalMonsterInsight === 'function')
-                ? this.grounder.resolveTacticalMonsterInsight(entity.name || '')
-                : 'Funnel foes into 1-tile corridors.';
-
-            const curHp = typeof entity.hp === 'number' ? entity.hp : (typeof entity.chp === 'number' ? entity.chp : 10);
-            const maxHp = typeof entity.hp_max === 'number' ? entity.hp_max : (typeof entity.mhp === 'number' ? entity.mhp : Math.max(1, curHp));
-            const hpPct = Math.max(0, Math.min(100, Math.round((curHp / Math.max(1, maxHp)) * 100)));
-            let condLabel = 'Uninjured';
-            if (stateObj.state === 'sleeping') condLabel = 'Asleep';
-            else if (hpPct <= 25) condLabel = 'Critically Wounded';
-            else if (hpPct <= 60) condLabel = 'Wounded';
-            else if (hpPct < 100) condLabel = 'Lightly Wounded';
-
-            let distSuffix = '';
-            if (this.currentHero && typeof this.currentHero.x === 'number' && typeof entity.x === 'number') {
-                const dist = Math.max(1, Math.round(Math.hypot(entity.x - this.currentHero.x, entity.y - this.currentHero.y)));
-                distSuffix = ` • ${dist} tile${dist === 1 ? '' : 's'}`;
-            }
-
-            let pillText = 'Hostile';
-            let pillClass = 'inspect-popover-pill hostile';
-            if (stateObj.state === 'sleeping') {
-                pillText = 'Asleep';
-                pillClass = 'inspect-popover-pill sleeping';
-            } else if (stateObj.state === 'fleeing') {
-                pillText = 'Fleeing';
-                pillClass = 'inspect-popover-pill';
-            } else if (stateObj.state === 'begging') {
-                pillText = 'Peaceful / Alms';
-                pillClass = 'inspect-popover-pill';
-            } else if (!stateObj.canSpeak) {
-                pillText = 'Beast / Non-vocal';
-                pillClass = 'inspect-popover-pill';
-            }
-
-            details = {
-                type: 'monster',
-                badge: entity.glyph || 'm',
-                name: entity.name || 'Creature',
-                pillText,
-                pillClass,
-                showHp: true,
-                hpPct,
-                hpText: `${condLabel} (${hpPct}%)${distSuffix}`,
-                prose: enc.prose || stateObj.observation || '',
-                quote: enc.text ? (enc.isDialogue ? `"${enc.text.replace(/^["']|["']$/g, '')}"` : enc.text) : '',
-                tactics,
-                chatBtnLabel: '💬 Interact',
-                enc,
-                stateObj
-            };
+            details = this._buildCoreMonsterInspection(entity, depth, realm);
         } else {
             this.targetedCreature = null;
             this.targetedObject = entity;
-            const itemName = entity.name || entity.itemName || 'Dungeon Object';
-            const appraisal = (this.grounder && typeof this.grounder.resolveObjectInspection === 'function')
-                ? this.grounder.resolveObjectInspection(entity, this.currentHero, depth, realm)
-                : {
-                    title: `Appraisal: ${itemName}`,
-                    prose: `A dungeon object resting upon the flagstones.`,
-                    dialogue: `Inspect with care before equipping.`,
-                    appraisal: `Press 'g' to pick up, 'w' to wield, or 'i' for inventory.`
-                };
-
-            details = {
-                type: 'item',
-                badge: entity.glyph || '?',
-                name: itemName,
-                pillText: appraisal.isArtifact ? 'Legendary Relic' : 'Floor Item',
-                pillClass: 'inspect-popover-pill item',
-                showHp: false,
-                hpPct: 100,
-                hpText: '',
-                prose: appraisal.prose || '',
-                quote: appraisal.dialogue ? `"${appraisal.dialogue.replace(/^["']|["']$/g, '')}"` : '',
-                tactics: appraisal.appraisal || "Press 'g' to pick up • 'w' to wield • 'd' to drop",
-                chatBtnLabel: '💬 Interact',
-                appraisal
-            };
+            details = this._buildCoreItemInspection(entity, depth, realm);
         }
 
         if (!this.inspectPopover) return details;
@@ -4327,13 +4520,8 @@ class ChronicleManager {
         if (this.inspectHpText) this.inspectHpText.textContent = details.hpText;
         if (this.inspectProse) this.inspectProse.textContent = details.prose;
         if (this.inspectQuote) {
-            if (details.quote) {
-                this.inspectQuote.textContent = details.quote;
-                this.inspectQuote.classList.remove('hidden');
-            } else {
-                this.inspectQuote.textContent = '';
-                this.inspectQuote.classList.add('hidden');
-            }
+            this.inspectQuote.textContent = '';
+            this.inspectQuote.classList.add('hidden');
         }
         if (this.inspectTactics) {
             this.inspectTactics.textContent = details.tactics;
@@ -4346,14 +4534,14 @@ class ChronicleManager {
             ? document.getElementById('inspect-popover-detail-btn')
             : null;
         if (detailBtn) {
-            detailBtn.textContent = '🔍 Inspect';
+            detailBtn.textContent = '🔍 More Info';
             detailBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (this.inspectTactics && this.inspectTactics.classList) {
                     const expanded = this.inspectTactics.classList.toggle('is-expanded');
                     this.inspectTactics.classList.toggle('hidden', !expanded);
-                    detailBtn.textContent = expanded ? '▴ Hide Detail' : '🔍 Inspect';
+                    detailBtn.textContent = expanded ? '▴ Hide Info' : '🔍 More Info';
                 }
             };
         }
@@ -4377,49 +4565,22 @@ class ChronicleManager {
             };
         }
 
-        if (this.inspectVoiceBtn) {
-            this.inspectVoiceBtn.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!this.audio || this._isAudioMuted()) return;
-                this._isInteractiveVoiceActive = true;
-                if (type === 'monster' && details.enc) {
-                    const cVoiceProfile = this.grounder ? this.grounder.resolveVoiceProfile(entity, this.currentHero, details.stateObj.state, this.tradition, false, realm, lang) : null;
-                    const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, this.currentHero, details.stateObj.state, this.tradition, false, realm, lang) : null;
-                    const speakOpts = { narrator: narrProfile, engine: this.audio.ttsEngine };
-                    if (details.enc.isDialogue && details.enc.text) {
-                        this.audio.speak(details.enc.prose, { text: details.enc.text, speaker: entity.name, recommendedVoice: details.enc.recommendedVoice, voiceProfile: cVoiceProfile }, null, null, 0, speakOpts);
-                    } else if (details.enc.prose) {
-                        this.audio.speakUtterance(details.enc.prose, 'narrator', '', null, narrProfile || { engine: this.audio.ttsEngine });
-                    }
-                } else if (type === 'item' && details.appraisal) {
-                    const mentorName = this.getLorekeeperName();
-                    const mentorProfile = this.grounder ? this.grounder.resolveVoiceProfile({ name: mentorName, race: 'Human' }, this.currentHero, 'counsel', this.tradition) : null;
-                    const fullText = `${details.appraisal.prose} ${mentorName} speaks: "${details.appraisal.dialogue}"`;
-                    this.audio.speakUtterance(fullText, 'mentor', mentorName, null, mentorProfile || { engine: this.audio.ttsEngine });
-                }
-            };
+        if (this.inspectVoiceBtn && this.inspectVoiceBtn.style) {
+            this.inspectVoiceBtn.style.display = 'none';
         }
 
-        const parleyBtn = document.getElementById('inspect-popover-parley-btn');
-        if (parleyBtn) {
-            parleyBtn.style.display = type === 'monster' ? 'inline-flex' : 'none';
-            parleyBtn.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.triggerCreatureParley(entity, 'parley');
-            };
+        const parleyBtn = (typeof document !== 'undefined' && typeof document.getElementById === 'function')
+            ? document.getElementById('inspect-popover-parley-btn')
+            : null;
+        if (parleyBtn && parleyBtn.style) {
+            parleyBtn.style.display = 'none';
         }
 
-        const vowBtn = document.getElementById('inspect-popover-vow-btn');
-        if (vowBtn) {
-            vowBtn.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.dismissEntityPopover();
-                this.showWindow();
-                this.requestStoryPrompt();
-            };
+        const vowBtn = (typeof document !== 'undefined' && typeof document.getElementById === 'function')
+            ? document.getElementById('inspect-popover-vow-btn')
+            : null;
+        if (vowBtn && vowBtn.style) {
+            vowBtn.style.display = 'none';
         }
 
         this.inspectPopover.style.display = 'flex';
@@ -5202,4 +5363,7 @@ class ChronicleManager {
 
 if (typeof window !== 'undefined') {
     window.ChronicleManager = ChronicleManager;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ChronicleManager;
 }

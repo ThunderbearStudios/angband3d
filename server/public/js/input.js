@@ -555,17 +555,17 @@ class InputController {
                 reason: 'Throw weapon at ranged target'
             },
             'btn-cast': {
-                show: !hasInvTelemetry || (r === 'silq' ? (maxSp > 0 && hasKnownSpells) : (maxSp > 0 && matchingTomeCount > 0 && hasKnownSpells)),
-                dim: hasInvTelemetry && (!hasKnownSpells || curSp <= 0 || isDisablingStatus),
+                show: maxSp > 0 && hasKnownSpells && (!hasInvTelemetry || r === 'silq' || matchingTomeCount > 0),
+                dim: !hasKnownSpells || curSp <= 0 || isDisablingStatus,
                 suggest: hasKnownSpells && !isDisablingStatus && maxSp > 0 && (r === 'silq' || matchingTomeCount > 0) && (adjHostiles > 0 || rangedHostilesInLOS > 0) && curSp >= Math.max(1, maxSp * 0.20),
                 reason: isJp ? '魔力あり — 呪文詠唱' : 'Mana available — Cast spell'
             },
             'btn-browse': {
-                show: r !== 'silq' && (!hasInvTelemetry || matchingTomeCount > 0),
+                show: r !== 'silq' && maxSp > 0 && (!hasInvTelemetry || matchingTomeCount > 0),
                 suggest: false
             },
             'btn-study': {
-                show: r !== 'silq' && (!hasInvTelemetry || (effectiveStudyCount > 0 && matchingTomeCount > 0)),
+                show: r !== 'silq' && maxSp > 0 && effectiveStudyCount > 0 && (!hasInvTelemetry || matchingTomeCount > 0),
                 suggest: effectiveStudyCount > 0 && matchingTomeCount > 0 && adjHostiles === 0,
                 reason: isJp ? `新しい呪文を学習可能 (${effectiveStudyCount})` : `Learn new spell (${effectiveStudyCount} ready)!`
             },
@@ -606,7 +606,7 @@ class InputController {
             },
             'btn-rest': {
                 show: !hasInvTelemetry || ((hpPct < 100 || (maxSp > 0 && spPct < 100) || hasBadStatus) && adjHostiles === 0),
-                suggest: (hpPct < 75 || spPct < 45 || hasBadStatus) && hostileMonsters.length === 0,
+                suggest: (hpPct < 75 || (maxSp > 0 && spPct < 45) || hasBadStatus) && hostileMonsters.length === 0,
                 reason: isJp ? '周囲安全 — 休憩して回復' : 'Area clear — Rest to recover HP/Mana'
             },
             'btn-inventory': {

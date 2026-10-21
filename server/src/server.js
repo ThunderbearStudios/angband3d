@@ -500,7 +500,7 @@ loadEnv();
 // Configuration
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const IS_WIN = process.platform === 'win32';
-const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${20 * 60 * 1000}`, 10); // 20 minutes
+const IDLE_TIMEOUT_MS = parseInt(process.env.IDLE_TIMEOUT_MS || `${2 * 60 * 60 * 1000}`, 10); // 2 hours
 const MAX_CONCURRENT_GAMES = parseInt(process.env.MAX_CONCURRENT_GAMES || '50', 10);
 const MAX_WS_PER_IP = parseInt(process.env.MAX_WS_PER_IP || '8', 10);
 const MAX_QUEUE_SIZE = parseInt(process.env.MAX_QUEUE_SIZE || '100', 10);
@@ -2057,7 +2057,7 @@ const server = http.createServer((req, res) => {
             }
 
             const targetDir = getSaveDirsForRealm(detectedRealm)[0] || SAVE_DIR;
-            const headerName = req.headers['x-character-name'];
+            const headerName = req.headers['x-save-slot'] || req.headers['x-character-name'];
             let cleanHeaderName = headerName ? sanitizeFilename(headerName) : null;
             if (cleanHeaderName && isReservedFilename(cleanHeaderName)) {
                 cleanHeaderName = null;
@@ -2080,8 +2080,8 @@ const server = http.createServer((req, res) => {
 
                 let finalName = targetName;
                 let destPath = path.join(targetDir, finalName);
+                const reqToken = req.headers['x-owner-token'] || '';
                 if (fs.existsSync(destPath)) {
-                    const reqToken = req.headers['x-owner-token'] || '';
                     if (!verifyOwnerToken(destPath, reqToken)) {
                         let n = 1;
                         while (fs.existsSync(path.join(targetDir, `${targetName}_${n}`))) {
@@ -2092,7 +2092,25 @@ const server = http.createServer((req, res) => {
                     }
                 }
 
+                // If there is a stale setup-phase or disconnected session holding this save slot, close it before replacing save on disk
+                const normFinal = normalizeSessionKey(finalName);
+                for (const [sId, cand] of activeSessions.entries()) {
+                    if ((cand.realm || 'angband') === detectedRealm) {
+                        const candKey = normalizeSessionKey(cand.save || cand.user);
+                        if (candKey === normFinal && (cand.phase === 'setup' || !cand.ws)) {
+                            try {
+                                if (cand.child && !cand.child.killed) cand.child.kill();
+                            } catch (_) {}
+                            activeSessions.delete(sId);
+                        }
+                    }
+                }
+
                 fs.renameSync(tempFile, destPath);
+                let newOwnerToken = undefined;
+                if (!fs.existsSync(getOwnerTokenPath(destPath))) {
+                    try { newOwnerToken = createOwnerToken(destPath); } catch (_) {}
+                }
                 try {
                     fs.writeFileSync(destPath + '.realm.json', JSON.stringify({ realm: detectedRealm }), 'utf8');
                 } catch (_) {}
@@ -2102,6 +2120,7 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({
                     status: 'saved',
                     filename: finalName,
+                    ownerToken: newOwnerToken,
                     metadata: readSaveMetadata(destPath)
                 }));
             } finally {
@@ -2595,7 +2614,12 @@ function gracefulSessionSaveAndExit(sessionId, byeMessage = null) {
     if (ws && ws.readyState === 1 /* OPEN */) {
         try {
             if (byeMessage) {
-                ws.send(JSON.stringify({ t: 'bye', detail: byeMessage }));
+                ws.send(JSON.stringify({
+                    t: 'bye',
+                    detail: byeMessage,
+                    preservedSave: Boolean(!session.isDead && session.phase === 'play'),
+                    saveSlot: session.save || session.user || null
+                }));
             }
             ws.close();
         } catch (_) {}
@@ -2749,6 +2773,33 @@ function attachWebSocketToSession(session, ws) {
                     }
                     return;
                 }
+                if (parsed.t === 'sync_client_state') {
+                    if (Array.isArray(parsed.commands) && session.child && session.child.stdin && session.child.stdin.writable) {
+                        const replayCmds = parsed.commands.slice(0, 128);
+                        let replayed = 0;
+                        for (const rawCmd of replayCmds) {
+                            const safeCmd = sanitizeEngineCommand(rawCmd);
+                            if (safeCmd) {
+                                session.child.stdin.write(safeCmd + '\n');
+                                replayed++;
+                            }
+                        }
+                        if (!session.isDead && session.phase === 'play') {
+                            session.child.stdin.write('save\n');
+                            invalidateSavesCache();
+                        }
+                        session.child.stdin.write('frame\n');
+                        if (ws.readyState === ws.OPEN) {
+                            ws.send(JSON.stringify({
+                                t: 'ok',
+                                detail: 'client_state_synced',
+                                replayed,
+                                saveSlot: session.save || session.user || null
+                            }));
+                        }
+                    }
+                    return;
+                }
                 if (parsed.t === 'quit' || parsed.t === 'cancel') {
                     console.log(`[WebSocket] Client explicitly ended session ${session.sessionId}`);
                     gracefulSessionSaveAndExit(session.sessionId, 'Client requested exit.');
@@ -2773,6 +2824,16 @@ function attachWebSocketToSession(session, ws) {
         if (!safe) return; // silently drop: never forward unknown, JSON, or multi-line input to engine stdin
         if (session.child && session.child.stdin && session.child.stdin.writable) {
             session.child.stdin.write(safe + '\n');
+            if (!session.isDead && session.phase === 'play' && (safe.startsWith('key ') || safe.startsWith('keys '))) {
+                session.commandsSinceSave = (session.commandsSinceSave || 0) + 1;
+                if (session.commandsSinceSave >= 15) {
+                    session.commandsSinceSave = 0;
+                    try {
+                        session.child.stdin.write('save\n');
+                        invalidateSavesCache();
+                    } catch (_) {}
+                }
+            }
         }
     });
 
@@ -2863,6 +2924,7 @@ async function spawnGameSession(ws, request) {
         sessionId,
         version: '1.0.0',
         realm,
+        saveSlot: targetSlot,
         engineName: engineInfo.name || engineInfo.targetName,
         isFallback: false,
         ownerToken: ownerToken
@@ -2955,11 +3017,14 @@ async function spawnGameSession(ws, request) {
         ws,
         startTime: Date.now(),
         lastActivityTime: Date.now(),
-        user,
-        save,
+        user: targetSlot,
+        save: targetSlot,
         realm,
         engineInfo,
         phase: 'setup',
+        hasSavedInitialPlay: false,
+        commandsSinceSave: 0,
+        lastDepth: null,
         isDead: false,
         disconnectedAt: null,
         disconnectTimer: null,
@@ -2991,9 +3056,26 @@ async function spawnGameSession(ws, request) {
                     session.lastFrame = line;
                     try {
                         const parsed = JSON.parse(line);
+                        const prevPhase = session.phase;
                         if (parsed.phase) session.phase = parsed.phase;
                         if (parsed.player && (parsed.player.dead || (parsed.player.hp !== undefined && parsed.player.hp <= 0 && parsed.player.hp_max > 0))) {
                             session.isDead = true;
+                        }
+                        const curDepth = parsed.player && typeof parsed.player.depth === 'number' ? parsed.player.depth : null;
+                        const depthChanged = curDepth !== null && session.lastDepth !== null && curDepth !== session.lastDepth;
+                        if (curDepth !== null) session.lastDepth = curDepth;
+
+                        // Auto-flush save immediately when character finishes birth and enters 'play', or on dungeon depth change
+                        if (!session.isDead && session.phase === 'play' && (!session.hasSavedInitialPlay || prevPhase !== 'play' || depthChanged)) {
+                            session.hasSavedInitialPlay = true;
+                            setTimeout(() => {
+                                try {
+                                    if (!session.isDead && session.phase === 'play' && session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
+                                        session.child.stdin.write('save\n');
+                                        invalidateSavesCache();
+                                    }
+                                } catch (_) {}
+                            }, 180).unref();
                         }
                     } catch (_) {}
                 }
@@ -3003,6 +3085,7 @@ async function spawnGameSession(ws, request) {
                         if (parsed.savefile) session.engineSavefile = parsed.savefile;
                         parsed.sessionId = session.sessionId;
                         parsed.realm = session.realm || 'angband';
+                        parsed.saveSlot = session.save || session.user || targetSlot;
                         if (session.engineInfo) {
                             parsed.engineName = session.engineInfo.name || session.engineInfo.targetName;
                             parsed.isFallback = !!session.engineInfo.isFallback;
@@ -3194,6 +3277,7 @@ wss.on('connection', (ws, request) => {
                     sessionId: existingSession.sessionId,
                     version: '1.0.0',
                     realm: existingSession.realm || 'angband',
+                    saveSlot: existingSession.save || existingSession.user || null,
                     engineName: existingSession.engineInfo?.name || existingSession.engineInfo?.targetName,
                     isFallback: false,
                     resumed: true

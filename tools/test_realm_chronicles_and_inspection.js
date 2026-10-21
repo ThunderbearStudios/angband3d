@@ -197,6 +197,31 @@ test('Dungeon3D and InputController support afar 3D floor item click inspection'
     assert(managerSrc.includes('weaveObjectCounsel'), 'ChronicleManager must implement weaveObjectCounsel');
     assert(managerSrc.includes('showEntityPopover'), 'ChronicleManager must implement showEntityPopover');
     assert(managerSrc.includes('preemptForGameplay'), 'ChronicleManager must implement preemptForGameplay');
+    assert(managerSrc.includes('_buildCoreMonsterInspection('), 'ChronicleManager must implement _buildCoreMonsterInspection for pure core-game monster inspect');
+    assert(managerSrc.includes('_buildCoreItemInspection('), 'ChronicleManager must implement _buildCoreItemInspection for pure core-game item inspect');
+
+    const ChronicleManager = require('../server/public/js/chronicle/chronicle-manager.js');
+    const trollInspect = ChronicleManager.prototype._buildCoreMonsterInspection(
+        { name: 'Cave troll', glyph: 'T', hp: 36, hp_max: 45, asleep: false },
+        10,
+        'angband'
+    );
+    assert(trollInspect.prose.includes('Type: Troll'), 'Troll core inspection prose must report Type: Troll');
+    assert(trollInspect.prose.includes('Align: Evil'), 'Troll core inspection prose must report Align: Evil');
+    assert.strictEqual(trollInspect.quote, '', 'Monster core inspection must have zero fictional quote');
+    assert(trollInspect.hpText.includes('HP: 36 / 45 (80%)'), 'Troll core inspection must report exact core HP');
+    assert(trollInspect.tactics.includes('Light') || trollInspect.tactics.includes('Fire'), 'Troll core inspection must report authentic core weaknesses');
+
+    const swordInspect = ChronicleManager.prototype._buildCoreItemInspection(
+        { name: 'a Long Sword of Westernesse (2d5) (+10,+12) (+2)', glyph: ')' },
+        15,
+        'angband'
+    );
+    assert(swordInspect.prose.includes('Melee Weapon'), 'Sword core inspection must report Melee Weapon category');
+    assert(swordInspect.prose.includes('Damage: 2d5'), 'Sword core inspection must extract damage dice');
+    assert(swordInspect.prose.includes('Hit/Dam: (+10, +12)'), 'Sword core inspection must extract combat bonuses');
+    assert.strictEqual(swordInspect.quote, '', 'Item core inspection must have zero fictional quote');
+    assert(swordInspect.tactics.includes('Brand'), 'Sword core inspection must extract known core properties');
 });
 
 console.log('All realm chronicles and inspection unit tests passed successfully!');

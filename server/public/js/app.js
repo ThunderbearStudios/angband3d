@@ -2317,10 +2317,130 @@ window.addEventListener('DOMContentLoaded', () => {
         return `${base}_${Math.floor(100 + Math.random() * 900)}`;
     }
 
+    let hasEnteredPlay = false;
+    let lastClientSnapshotMs = 0;
+    let lastSnapshotDepth = null;
+    let restoreSaveInFlight = false;
+
+    async function snapshotClientSaveToIndexedDB(slotName, realmKey) {
+        if (!slotName || engineMode === 'local' || typeof window === 'undefined' || !window.LocalSaveManager) return;
+        const cleanSlot = String(slotName).replace(/\.sav$/i, '').trim();
+        if (!cleanSlot) return;
+        const effRealm = realmKey || activeRealm || 'angband';
+        try {
+            const resp = await fetch(`/api/saves/${encodeURIComponent(cleanSlot)}?realm=${encodeURIComponent(effRealm)}`);
+            if (!resp.ok) return;
+            const buf = await resp.arrayBuffer();
+            if (buf && buf.byteLength >= 36) {
+                const bytes = new Uint8Array(buf);
+                await window.LocalSaveManager.putSaveData(`${effRealm}:${cleanSlot}`, bytes);
+                await window.LocalSaveManager.putSaveData(cleanSlot, bytes);
+            }
+        } catch (_) {}
+    }
+
+    async function restoreClientSaveToServer(slotName, realmKey) {
+        if (restoreSaveInFlight || !slotName || typeof window === 'undefined' || !window.LocalSaveManager) return false;
+        const cleanSlot = String(slotName).replace(/\.sav$/i, '').trim();
+        if (!cleanSlot) return false;
+        const effRealm = realmKey || activeRealm || 'angband';
+        restoreSaveInFlight = true;
+        try {
+            let bytes = await window.LocalSaveManager.getSaveData(`${effRealm}:${cleanSlot}`);
+            if (!bytes) {
+                bytes = await window.LocalSaveManager.getSaveData(cleanSlot);
+            }
+            if (!bytes || bytes.byteLength < 36) return false;
+            const ownerToken = localStorage.getItem(`angband3d_owner_${cleanSlot}`) ||
+                               (network && network.currentChar ? localStorage.getItem(`angband3d_owner_${network.currentChar}`) : '') || '';
+            const res = await fetch(`/api/saves/upload?realm=${encodeURIComponent(effRealm)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/octet-stream',
+                    'X-Save-Slot': cleanSlot,
+                    'X-Character-Name': cleanSlot,
+                    'X-Realm': effRealm,
+                    'X-Owner-Token': ownerToken
+                },
+                body: bytes
+            });
+            if (res.ok) {
+                const data = await res.json().catch(() => ({}));
+                if (data && data.ownerToken) {
+                    try { localStorage.setItem(`angband3d_owner_${cleanSlot}`, data.ownerToken); } catch (_) {}
+                }
+                const resolvedSlot = (data && data.filename) ? data.filename : cleanSlot;
+                if (network) {
+                    network.sessionId = null;
+                    network.currentSave = resolvedSlot;
+                    try {
+                        localStorage.removeItem('angband3d_session_id');
+                        localStorage.setItem('angband3d_session_save', resolvedSlot);
+                    } catch (_) {}
+                    network.connect(network.currentChar || resolvedSlot, false, resolvedSlot, effRealm);
+                }
+                return true;
+            }
+        } catch (err) {
+            console.warn('[Angband3D] Failed to restore client save to server:', err);
+        } finally {
+            setTimeout(() => { restoreSaveInFlight = false; }, 2500);
+        }
+        return false;
+    }
+
+    function stepOfflineClientPrediction(cmd) {
+        if (!lastFrame || lastFrame.phase !== 'play' || !lastFrame.map || !lastFrame.player) return;
+        const keySpec = cmd.startsWith('key ') ? cmd.slice(4).trim().toLowerCase() : (cmd.startsWith('keys .') ? cmd.slice(6).trim() : null);
+        if (!keySpec) return;
+        const dirDeltaMap = {
+            'up': { dx: 0, dy: -1 }, '8': { dx: 0, dy: -1 }, 'k': { dx: 0, dy: -1 },
+            'down': { dx: 0, dy: 1 }, '2': { dx: 0, dy: 1 }, 'j': { dx: 0, dy: 1 },
+            'left': { dx: -1, dy: 0 }, '4': { dx: -1, dy: 0 }, 'h': { dx: -1, dy: 0 },
+            'right': { dx: 1, dy: 0 }, '6': { dx: 1, dy: 0 }, 'l': { dx: 1, dy: 0 },
+            'home': { dx: -1, dy: -1 }, '7': { dx: -1, dy: -1 }, 'y': { dx: -1, dy: -1 },
+            'pageup': { dx: 1, dy: -1 }, '9': { dx: 1, dy: -1 }, 'u': { dx: 1, dy: -1 },
+            'end': { dx: -1, dy: 1 }, '1': { dx: -1, dy: 1 }, 'b': { dx: -1, dy: 1 },
+            'pagedown': { dx: 1, dy: 1 }, '3': { dx: 1, dy: 1 }, 'n': { dx: 1, dy: 1 }
+        };
+        const delta = dirDeltaMap[keySpec];
+        if (!delta) return;
+        const px = lastFrame.player.x;
+        const py = lastFrame.player.y;
+        const nx = px + delta.dx;
+        const ny = py + delta.dy;
+        const rows = lastFrame.map.rows || [];
+        if (ny < 0 || ny >= rows.length || nx < 0 || nx >= (lastFrame.map.w || 80)) return;
+        const rowObj = rows[ny];
+        if (!rowObj) return;
+        const feat = rowObj.f ? parseInt(rowObj.f.substring(nx * 2, nx * 2 + 2), 16) : 0;
+        const glyph = rowObj.g ? rowObj.g.charAt(nx) : ' ';
+        const isWall = (feat >= 15 && feat <= 22) || feat === 30 || feat === 2 || glyph === '#' || glyph === '%' || glyph === '+';
+        if (isWall) return;
+        const hasMonster = Array.isArray(lastFrame.monsters) && lastFrame.monsters.some(m => m && m.x === nx && m.y === ny && m.ml !== false);
+        if (hasMonster) return;
+
+        lastFrame.player.x = nx;
+        lastFrame.player.y = ny;
+        lastFrame.seq = (lastFrame.seq || 0) + 1;
+        try {
+            if (dungeon && typeof dungeon.updateDungeon === 'function') {
+                dungeon.updateDungeon(lastFrame);
+            }
+            if (hud && typeof hud.update === 'function') {
+                hud.update(lastFrame);
+            }
+            if (terminal && lastFrame.term && (needsTerminal(lastFrame) || forceTerminal)) {
+                terminal.render(lastFrame.term);
+            }
+        } catch (_) {}
+    }
+
     function startNewRandomHero() {
         const heroName = generateHeroName(activeRealm);
         startGame({
             charName: heroName,
+            saveFile: heroName,
             isNew: true,
             autoBirth: true
         });
@@ -2330,6 +2450,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const heroName = generateHeroName(activeRealm);
         startGame({
             charName: heroName,
+            saveFile: heroName,
             isNew: true,
             autoBirth: false
         });
@@ -2337,6 +2458,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
     async function startGame(options) {
         appState = 'game';
+        hasEnteredPlay = false;
+        lastClientSnapshotMs = 0;
+        lastSnapshotDepth = null;
         if (splashOverlay) splashOverlay.classList.add('hidden');
         if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
         if (guideModal) guideModal.classList.add('hidden');
@@ -5890,6 +6014,17 @@ window.addEventListener('DOMContentLoaded', () => {
             hud.setPing(ms);
         };
 
+        network.onOfflineCommand = (cmd) => {
+            stepOfflineClientPrediction(cmd);
+        };
+
+        network.onSave = () => {
+            const slot = network.currentSave || network.currentChar;
+            if (slot && currentPhase === 'play') {
+                setTimeout(() => snapshotClientSaveToIndexedDB(slot, activeRealm), 350);
+            }
+        };
+
         network.onFrame = (frame) => {
             if (window.__startWatchdog) {
                 clearTimeout(window.__startWatchdog);
@@ -5909,6 +6044,18 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // STRICT ANTI-REROLL GUARD: Once a session has entered active play (hasEnteredPlay === true),
+            // NEVER allow a mid-game reconnect to drop into character creation / re-roll (phase === 'setup')!
+            if (hasEnteredPlay && frame.phase === 'setup') {
+                quickBirthActive = false;
+                birthConfirming = false;
+                birthReviewActive = false;
+                const slot = network.currentSave || network.currentChar;
+                console.warn(`[Angband3D] Anti-Reroll Guard: Intercepted unexpected 'setup' frame during active play for slot "${slot}". Restoring client save...`);
+                restoreClientSaveToServer(slot, activeRealm);
+                return;
+            }
+
             lastFrame = frame;
             window.__lastFrame = frame;
             if (window.__dungeonRenderer && window.__dungeonRenderer.userPitchOffset) {
@@ -5920,6 +6067,23 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             if (window.__app) window.__app.lastFrame = frame;
             currentPhase = frame.phase || 'play';
+
+            if (currentPhase === 'play' && frame.map && frame.player) {
+                const firstPlayTransition = !hasEnteredPlay;
+                hasEnteredPlay = true;
+                quickBirthActive = false;
+                const curDepth = typeof frame.player.depth === 'number' ? frame.player.depth : 0;
+                const depthChanged = lastSnapshotDepth !== null && curDepth !== lastSnapshotDepth;
+                lastSnapshotDepth = curDepth;
+                const nowMs = Date.now();
+                if (firstPlayTransition || depthChanged || (nowMs - lastClientSnapshotMs > 45000)) {
+                    lastClientSnapshotMs = nowMs;
+                    const slot = network.currentSave || network.currentChar;
+                    if (slot) {
+                        setTimeout(() => snapshotClientSaveToIndexedDB(slot, activeRealm), firstPlayTransition ? 900 : 300);
+                    }
+                }
+            }
 
             // Synchronize active character name with network client so reconnections never default to 'Adventurer'
             if (frame.player && frame.player.name && frame.player.name !== 'PLAYER') {
@@ -6103,23 +6267,29 @@ window.addEventListener('DOMContentLoaded', () => {
                 hud.pingBadge.textContent = engineMode === 'local' ? 'Local [Stopped]' : 'Cloud [Disconnected]';
             }
             if (detail) {
-                showRealmToast(`⚠️ ${detail}`);
+                const isHibernated = /saved|inactivity|timeout|disconnected/i.test(detail);
+                if (!isHibernated) {
+                    showRealmToast(`⚠️ ${detail}`);
+                }
                 const topBanner = document.getElementById('top-message-banner');
                 const topText = document.getElementById('message-text');
                 if (topBanner && topText) {
-                    topText.textContent = `⏳ ${detail} Click or tap anywhere to resume.`;
+                    topText.textContent = isHibernated
+                        ? `⚡ Standby (Progress Saved) • Move or tap anywhere to continue`
+                        : `⏳ ${detail} Click or tap anywhere to resume.`;
                     topBanner.classList.remove('hidden');
                     topBanner.style.cursor = 'pointer';
                     const resumeHandler = () => {
                         topBanner.removeEventListener('click', resumeHandler);
                         topBanner.style.cursor = 'default';
                         network.manualDisconnect = false;
+                        network.sessionHibernated = false;
                         network.connect(network.currentChar, false, network.currentSave, network.currentRealm || activeRealm);
                     };
                     topBanner.addEventListener('click', resumeHandler, { once: true });
                 }
             }
-            if (appState === 'game' && !lastFrame) {
+            if (appState === 'game' && !lastFrame && !hasEnteredPlay) {
                 returnToMainMenu();
             }
         };
@@ -6133,8 +6303,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 loadingOverlay.classList.add('hidden');
             }
             console.error('[Angband3D] Network Error:', errMsg);
-            showRealmToast(`❌ Engine Error: ${errMsg}`);
-            if (appState === 'game' && !lastFrame) {
+            if (!hasEnteredPlay) {
+                showRealmToast(`❌ Engine Error: ${errMsg}`);
+            }
+            if (appState === 'game' && !lastFrame && !hasEnteredPlay) {
                 returnToMainMenu();
             }
         };

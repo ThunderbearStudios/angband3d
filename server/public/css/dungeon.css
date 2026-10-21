@@ -5441,7 +5441,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     /* Primary tactile thumb actions - Always include Get (g) */
     #action-bar:not(.drawer-open) #btn-attack,
     #action-bar:not(.drawer-open) #btn-pickup,
-    #action-bar:not(.drawer-open) #btn-cast,
+    #action-bar:not(.drawer-open) #btn-cast:not([style*="display: none"]):not([style*="display:none"]),
     #action-bar:not(.drawer-open) #btn-inventory,
     #action-bar:not(.drawer-open) #btn-quaff,
     #action-bar:not(.drawer-open) #btn-terminal,
@@ -6174,7 +6174,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     /* Primary tactile thumb actions - Always include Get (g) */
     #action-bar:not(.drawer-open) #btn-attack,
     #action-bar:not(.drawer-open) #btn-pickup,
-    #action-bar:not(.drawer-open) #btn-cast,
+    #action-bar:not(.drawer-open) #btn-cast:not([style*="display: none"]):not([style*="display:none"]),
     #action-bar:not(.drawer-open) #btn-inventory,
     #action-bar:not(.drawer-open) #btn-quaff,
     #action-bar:not(.drawer-open) #btn-terminal,
@@ -10112,4 +10112,253 @@ body.terminal-active .viewport-edge-turn,
 body.terminal-mode-active .viewport-edge-turn,
 body.grimoire-primary-open .viewport-edge-turn {
     display: none !important;
+}
+
+/* ==============================================================================
+   WS39: Mobile Portrait & Landscape Scaling Overhaul (Zero Collision, Full D-Pad)
+   ============================================================================== */
+@media (max-width: 600px) and (orientation: portrait) {
+    #char-panel {
+        position: fixed !important;
+        top: calc(78px + var(--safe-top)) !important;
+        left: max(6px, var(--safe-left)) !important;
+        right: auto !important;
+        bottom: auto !important;
+        width: calc(100vw - 134px) !important;
+        max-width: calc(100vw - 134px) !important;
+        padding: 4px 6px !important;
+        z-index: 42 !important;
+    }
+
+    #char-panel:not(.char-details-open) #stats-strip {
+        display: none !important;
+    }
+
+    #char-panel .vitals-vials-row {
+        margin: 2px 0 !important;
+        padding: 3px 4px !important;
+        gap: 3px !important;
+    }
+
+    #minimap-container {
+        top: calc(78px + var(--safe-top)) !important;
+        right: max(6px, var(--safe-right)) !important;
+        left: auto !important;
+        width: 108px !important;
+        height: 108px !important;
+    }
+
+    #minimap-canvas {
+        width: 108px !important;
+        height: 108px !important;
+    }
+
+    .mobile-map-zoom-group {
+        top: auto !important;
+        bottom: -14px !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        flex-direction: row !important;
+        gap: 6px !important;
+        z-index: 56 !important;
+    }
+
+    .mobile-map-zoom-btn {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
+        font-size: 13px !important;
+    }
+
+    #hud-footer,
+    #hud-footer.hud-status-bar {
+        max-width: 100vw !important;
+        padding: 2px 4px !important;
+        gap: 3px !important;
+        overflow-x: auto !important;
+    }
+
+    #hud-footer #btn-hud-reset-layout,
+    #hud-footer .pill-reset-hud,
+    #hud-footer #footer-gear {
+        display: none !important;
+    }
+
+    #hud-footer .status-pill:not(.pill-reset-hud) {
+        padding: 0 4px 0 0 !important;
+        margin-right: 2px !important;
+        font-size: 9px !important;
+    }
+
+    .streetview-nav-rosette {
+        display: none !important;
+    }
+
+    .viewport-edge-turn {
+        width: 24px !important;
+        height: 84px !important;
+        opacity: 0.12;
+    }
+}
+
+@media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
+    #touch-controls {
+        width: 136px !important;
+        height: auto !important;
+        max-height: none !important;
+        padding: 4px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 3px !important;
+        overflow: visible !important;
+    }
+
+    #touch-controls .dpad-header-bar,
+    #touch-controls #dpad-drag-handle {
+        display: none !important;
+    }
+
+    #touch-controls .dpad-turn-wings {
+        display: grid !important;
+        grid-template-columns: 1fr 1.15fr 1fr !important;
+        gap: 3px !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    #touch-controls .dpad-turn-btn,
+    #touch-controls .dpad-mode-pill {
+        height: 26px !important;
+        min-height: 26px !important;
+        font-size: 9.5px !important;
+        padding: 0 2px !important;
+        min-width: 0 !important;
+    }
+
+    #touch-controls .dpad-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        grid-template-rows: repeat(3, 32px) !important;
+        gap: 3px !important;
+        width: 100% !important;
+    }
+
+    #touch-controls .dpad-btn {
+        width: 100% !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
+        padding: 0 !important;
+        font-size: 13px !important;
+    }
+
+    #touch-controls .dpad-btn .dpad-sub {
+        font-size: 7px !important;
+    }
+
+    #action-bar:not(.drawer-open) {
+        width: 158px !important;
+        max-width: 46vw !important;
+        padding: 4px !important;
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 4px !important;
+        overflow: visible !important;
+    }
+
+    #action-bar:not(.drawer-open) #action-bar-drag-handle {
+        display: none !important;
+    }
+
+    #action-bar:not(.drawer-open) #quick-slot-bar.quick-slot-bar {
+        grid-column: 1 / -1 !important;
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) 22px !important;
+        width: 100% !important;
+        gap: 2px !important;
+        padding: 0 0 3px 0 !important;
+        margin: 0 0 1px 0 !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(212, 165, 78, 0.35) !important;
+    }
+
+    #action-bar:not(.drawer-open) .quick-slot-btn {
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        height: 24px !important;
+        min-height: 24px !important;
+        padding: 0 2px !important;
+        justify-content: center !important;
+    }
+
+    #action-bar:not(.drawer-open) .quick-slot-btn .qs-hotkey,
+    #action-bar:not(.drawer-open) .quick-slot-btn .qs-label {
+        display: none !important;
+    }
+
+    #action-bar:not(.drawer-open) .quick-slot-config-btn {
+        width: 22px !important;
+        height: 24px !important;
+        min-height: 24px !important;
+        padding: 0 !important;
+    }
+
+    #action-bar:not(.drawer-open) .action-btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        padding: 2px 3px !important;
+        font-size: 9.5px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+    #char-panel {
+        top: calc(34px + var(--safe-top)) !important;
+        left: max(6px, var(--safe-left)) !important;
+        width: 156px !important;
+        max-width: 156px !important;
+        padding: 3px 5px !important;
+    }
+
+    #char-panel:not(.char-details-open) #stats-strip {
+        display: none !important;
+    }
+
+    #touch-controls {
+        bottom: max(28px, var(--safe-bottom)) !important;
+        left: max(6px, var(--safe-left)) !important;
+        width: 132px !important;
+    }
+
+    #touch-controls .dpad-grid {
+        grid-template-rows: repeat(3, 28px) !important;
+    }
+
+    #touch-controls .dpad-btn {
+        height: 28px !important;
+        min-height: 28px !important;
+    }
+
+    #action-bar:not(.drawer-open) {
+        bottom: max(28px, var(--safe-bottom)) !important;
+        right: max(6px, var(--safe-right)) !important;
+        width: 154px !important;
+    }
+
+    #action-bar:not(.drawer-open) .action-btn {
+        height: 30px !important;
+        min-height: 30px !important;
+    }
+
+    .streetview-nav-rosette {
+        display: none !important;
+    }
 }
