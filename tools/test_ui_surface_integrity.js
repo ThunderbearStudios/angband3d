@@ -27,7 +27,7 @@ const EXPECTED_BUTTON_IDS = [
     // Message Feed Window
     'btn-msg-size-toggle', 'btn-msg-scroll-top', 'btn-msg-scroll-bottom', 'btn-msg-clear', 'btn-msg-close',
     // Living Chronicle Window
-    'btn-chronicle-expand', 'btn-chronicle-close', 'btn-chronicle-rewind', 'btn-chronicle-play', 'btn-chronicle-stop',
+    'btn-chronicle-pin', 'btn-chronicle-expand', 'btn-chronicle-close', 'btn-chronicle-rewind', 'btn-chronicle-play', 'btn-chronicle-stop',
     'btn-chronicle-forward', 'btn-chronicle-mute', 'btn-chronicle-speed', 'btn-chronicle-clear-target',
     'btn-chronicle-mic', 'btn-chronicle-send', 'btn-chronicle-export-json', 'btn-chronicle-export-html', 'btn-chronicle-import',
     // Top-Right Toolbar
@@ -39,7 +39,8 @@ const EXPECTED_BUTTON_IDS = [
     'btn-minimap-close', 'btn-mobile-map-zoom-in', 'btn-mobile-map-zoom-out',
     'btn-map-zoom-out', 'btn-map-zoom-in', 'btn-map-toggle-size', 'btn-map-recenter', 'btn-map-close-bar',
     'btn-tilt-up', 'btn-tilt-reset', 'btn-tilt-down',
-    // Virtual Touch D-Pad
+    // Virtual Touch D-Pad & Viewport Edge Turn Chevrons
+    'edge-turn-left', 'edge-turn-right',
     'dpad-turn-left', 'dpad-turn-right',
     'dpad-ul', 'dpad-up', 'dpad-ur',
     'dpad-left', 'dpad-center', 'dpad-right',

@@ -117,6 +117,8 @@ class WebHUD {
 
         this.minimapCanvas.width = size.w;
         this.minimapCanvas.height = size.h;
+        this.minimapCanvas.style.width = '';
+        this.minimapCanvas.style.height = '';
 
         if (this.minimapContainer) {
             this.minimapContainer.classList.remove('compact', 'standard', 'expanded', 'tactical', 'command', 'minimap-size-compact');
@@ -204,6 +206,7 @@ class WebHUD {
             btnToggleSize.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (this.messageFeedWindow) {
+                    this.messageFeedWindow.style.height = '';
                     this.messageFeedWindow.classList.toggle('expanded');
                     const isExpanded = this.messageFeedWindow.classList.contains('expanded');
                     btnToggleSize.textContent = isExpanded ? '▼ Compact' : '▲ Expand';
@@ -569,13 +572,16 @@ class WebHUD {
         const validW = Math.max(168, Math.min(800, Math.round(w)));
         const validH = Math.max(168, Math.min(800, Math.round(h)));
         if (this.minimapContainer) {
+            this.minimapContainer.classList.remove('compact', 'standard', 'expanded', 'tactical', 'command', 'minimap-size-compact');
             this.minimapContainer.style.width = `${validW}px`;
             this.minimapContainer.style.height = `${validH}px`;
         }
-        // Deduct ~76px for header, controls bar, and tilt bar so canvas never clips
-        const canvasH = Math.max(120, validH - 76);
+        // Deduct ~64px for header, controls bar, and tilt bar so canvas fills the container cleanly
+        const canvasH = Math.max(110, validH - 64);
         this.minimapCanvas.width = validW;
         this.minimapCanvas.height = canvasH;
+        this.minimapCanvas.style.width = `${validW}px`;
+        this.minimapCanvas.style.height = `${canvasH}px`;
         this.updateMinimapHeader();
         if (this.lastFrame && this.lastFrame.map && this.lastFrame.player) {
             this.renderMinimap(this.lastFrame.map, this.lastFrame.player, this.lastFrame.monsters || [], this.currentCameraYaw);
@@ -730,7 +736,7 @@ class WebHUD {
                         this._hoverMinimapPath = null;
                         this._lastHoverMx = null;
                         this._lastHoverMy = null;
-                        this.renderMinimap(this.lastFrame);
+                        this.updateMinimap(this.lastFrame);
                     }
                     return;
                 }
@@ -740,7 +746,7 @@ class WebHUD {
                         this._hoverMinimapPath = null;
                         this._lastHoverMx = null;
                         this._lastHoverMy = null;
-                        this.renderMinimap(this.lastFrame);
+                        this.updateMinimap(this.lastFrame);
                     }
                     return;
                 }
@@ -760,7 +766,7 @@ class WebHUD {
                 if (typeof inp.computeMinimapPath === 'function') {
                     const newPath = inp.computeMinimapPath(this.lastFrame, this.lastFrame.player.x, this.lastFrame.player.y, mx, my);
                     this._hoverMinimapPath = (newPath && newPath.length > 0) ? newPath : null;
-                    this.renderMinimap(this.lastFrame);
+                    this.updateMinimap(this.lastFrame);
                 }
             });
 
@@ -770,7 +776,7 @@ class WebHUD {
                 if (this._hoverMinimapPath) {
                     this._hoverMinimapPath = null;
                     if (this.lastFrame) {
-                        this.renderMinimap(this.lastFrame);
+                        this.updateMinimap(this.lastFrame);
                     }
                 }
             });

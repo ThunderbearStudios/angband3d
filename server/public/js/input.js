@@ -258,13 +258,13 @@ class InputController {
         if (itemOnTile) {
             return { id: 'pickup', label: 'Get', icon: '🎒', key: 'g', item: itemOnTile };
         }
-        if (rayTarget && rayTarget.type === 'door' && rayTarget.dist === 1) {
+        if (rayTarget && rayTarget.type === 'door' && rayTarget.dist === 1 && rayTarget.feat === 2) {
             return { id: 'open-door', label: 'Open', icon: '🚪', key: 'o' };
         }
-        if (rayTarget && rayTarget.type === 'wall' && rayTarget.dist === 1 && rayTarget.feat !== 22) {
+        if (rayTarget && rayTarget.type === 'wall' && rayTarget.dist === 1 && (rayTarget.feat === 16 || rayTarget.feat === 17 || rayTarget.feat === 18)) {
             return { id: 'tunnel', label: 'Tunnel', icon: '⛏️', key: 'Shift+T' };
         }
-        if (rayTarget && rayTarget.type === 'monster' && rayTarget.dist > 1) {
+        if (rayTarget && rayTarget.type === 'monster' && rayTarget.dist > 1 && this.canPlayerShootRanged && this.canPlayerShootRanged(frame)) {
             return { id: 'shoot', label: 'Shoot', icon: '🏹', key: 'f', target: rayTarget.data };
         }
         const realm = (this.app && typeof this.app.getActiveRealm === 'function')
@@ -360,12 +360,17 @@ class InputController {
         let potionCount = 0;
         let scrollCount = 0;
         let tomeCount = 0;
+        let matchingTomeCount = 0;
         let deviceCount = 0;
         let rangedInPack = 0;
         let wearableInPack = 0;
         let weaponInPack = 0;
 
         const isVanilla = r === 'angband';
+        const pClassEarly = String(player.class || '').toLowerCase();
+        const isPriestClass = /priest|paladin|monk|僧侶|パラディン/.test(pClassEarly);
+        const isMageClass = /mage|wizard|sorcer|rogue|ranger|necromancer|魔道士|メイジ|レンジャー|盗賊/.test(pClassEarly);
+
         for (const it of inv) {
             const name = String((it && it.name) || '');
             const lower = name.toLowerCase();
@@ -374,7 +379,7 @@ class InputController {
             const isScrollTval = isVanilla ? (tval === 25) : (tval === 70 || tval === 50);
             const isTomeTval = isVanilla ? (tval >= 30 && tval <= 34) : (tval >= 90 && tval <= 115);
             const isDeviceTval = isVanilla ? (tval >= 22 && tval <= 24) : (tval === 55 || tval === 65 || tval === 66);
-            const isRangedTval = isVanilla ? (tval >= 2 && tval <= 5) : (tval >= 16 && tval <= 19);
+            const isAmmoTval = isVanilla ? (tval >= 2 && tval <= 4) : (tval >= 16 && tval <= 18);
             const isWeaponTval = isVanilla ? (tval >= 6 && tval <= 9) : (tval >= 20 && tval <= 23);
             const isArmorTval = isVanilla ? (tval >= 10 && tval <= 21) : (tval >= 30 && tval <= 45);
 
@@ -384,10 +389,16 @@ class InputController {
                 scrollCount++;
             } else if (/\b(book|tome|grimoire|manual|hymnal|songbook)\b/.test(lower) || /(魔法書|仙術書|経典|教本|『[^』]+』|\[[^\]]+の魔法書\])/.test(name) || isTomeTval) {
                 tomeCount++;
+                let matchesClass = true;
+                if (isVanilla) {
+                    if (isPriestClass && (tval === 30 || /magic|arcane|sorcery/.test(lower))) matchesClass = false;
+                    if (isMageClass && (tval === 31 || /prayer|holy|piety/.test(lower))) matchesClass = false;
+                }
+                if (matchesClass) matchingTomeCount++;
             } else if (/\b(wand|rod|staff)\b/.test(lower) || /(魔法棒|ロッド|スタッフ|の杖)/.test(name) || isDeviceTval) {
                 deviceCount++;
             }
-            if (/\b(bow|crossbow|sling|arrow|bolt|shot|pebble|seeker|sheaf)\b/.test(lower) || /(ボウ|スリング|弓|矢|弾|丸石)/.test(name) || isRangedTval) {
+            if ((/\b(arrow|bolt|shot|pebble|seeker|sheaf)\b/.test(lower) && !/\b(bow|crossbow|sling)\b/.test(lower)) || /(矢|弾|丸石)/.test(name) || isAmmoTval) {
                 rangedInPack++;
             }
             if (/\b(sword|dagger|blade|rapier|sabre|katana|spear|lance|halberd|axe|mace|flail|hammer|whip|club)\b/.test(lower) ||
@@ -395,8 +406,8 @@ class InputController {
                 isWeaponTval) {
                 weaponInPack++;
                 wearableInPack++;
-            } else if (/\b(armour|armor|mail|plate|robe|cloak|shield|helm|crown|cap|gloves|gauntlets|boots|ring|amulet|torch|lantern)\b/.test(lower) ||
-                       /(鎧|メイル|ローブ|クローク|盾|兜|冠|帽子|篭手|靴|指輪|アミュレット|松明|ランタン)/.test(name) ||
+            } else if (/\b(armour|armor|mail|plate|robe|cloak|shield|helm|crown|cap|gloves|gauntlets|boots|ring|amulet|torch|lantern|bow|crossbow|sling)\b/.test(lower) ||
+                       /(鎧|メイル|ローブ|クローク|盾|兜|冠|帽子|篭手|靴|指輪|アミュレット|松明|ランタン|ボウ|スリング|弓)/.test(name) ||
                        isArmorTval) {
                 wearableInPack++;
             }
@@ -484,7 +495,9 @@ class InputController {
         // 3b. Class and spell matching heuristics
         const pClass = String(player.class || '').toLowerCase();
         const isNonCaster = /warrior|berserker|archer|cavalry|sniper|ninja|smith|weaponsmith|戦士|狂戦士|アーチャー|騎兵|鍛冶師/.test(pClass) || (pClass.includes('samurai') && maxSp === 0);
-        const canCastFromTome = !isNonCaster || maxSp > 0;
+        const canCastFromTome = !isNonCaster && maxSp > 0;
+        const hasStudyStatus = statuses.some((s) => /\bstudy\b|学習/i.test(String((s && (s.name || s)) || '')));
+        const effectiveStudyCount = studyCount || (hasStudyStatus ? 1 : 0);
 
         if (Array.isArray(frame.messages)) {
             const hasZeroSpellsMsg = frame.messages.some(m => {
@@ -492,22 +505,24 @@ class InputController {
                 return /don't know any spells|cannot cast|no spells|呪文を覚えていない|呪文を唱えられない/i.test(text);
             });
             if (hasZeroSpellsMsg) {
-                this._zeroSpellsSeq = player.study || 0;
+                this._zeroSpellsSeq = effectiveStudyCount;
                 this._zeroSpellsLevel = player.level || 1;
                 this._zeroSpellsFlag = true;
             }
         }
         if (this._zeroSpellsFlag) {
-            if ((player.study || 0) < (this._zeroSpellsSeq || 0) || (player.level || 1) > (this._zeroSpellsLevel || 1)) {
+            if (effectiveStudyCount < (this._zeroSpellsSeq || 0) || (player.level || 1) > (this._zeroSpellsLevel || 1)) {
                 this._zeroSpellsFlag = false;
             }
         }
-        if (curSp < maxSp) {
+        if (curSp < maxSp && maxSp > 0) {
             this._hasCastSuccess = true;
         }
 
-        const isFreshL1WithSlots = (player.level || 1) === 1 && studyCount > 0 && curSp === maxSp && !this._hasCastSuccess;
-        const hasKnownSpells = canCastFromTome && !this._zeroSpellsFlag && !(isFreshL1WithSlots && (r === 'angband' || r === 'frogcomposband' || r === 'hengband'));
+        const isFreshL1WithSlots = (player.level || 1) === 1 && effectiveStudyCount > 0 && curSp === maxSp && !this._hasCastSuccess;
+        const hasKnownSpells = r === 'silq'
+            ? Boolean(this._hasCastSuccess || Number(player.songs_known || 0) > 0)
+            : (canCastFromTome && matchingTomeCount > 0 && !this._zeroSpellsFlag && !isFreshL1WithSlots);
         const isDisablingStatus = statuses.some(s => {
             const name = String((s && (s.name || s)) || '');
             return /blind|confus|paralyz|stun|hallucinat|盲目|混乱|麻痺|朦朧|幻覚/i.test(name);
@@ -515,7 +530,7 @@ class InputController {
 
         // 4. Compute compact state signature (L25)
         const hasFullData = player.inventory !== undefined || player.hp_max !== undefined;
-        const stateSig = `${r}:${lang}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${tomeCount}:${deviceCount}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors}:${adjAnyDoors}:${adjHostiles}:${rangedHostilesInLOS}:${hostileMonsters.length}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${curSp}:${studyCount}:${hasBadStatus ? 1 : 0}:${hasKnownSpells ? 1 : 0}:${isDisablingStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
+        const stateSig = `${r}:${lang}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${tomeCount}:${matchingTomeCount}:${deviceCount}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors}:${adjAnyDoors}:${adjHostiles}:${rangedHostilesInLOS}:${hostileMonsters.length}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${curSp}:${effectiveStudyCount}:${hasBadStatus ? 1 : 0}:${hasKnownSpells ? 1 : 0}:${isDisablingStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
 
         if (stateSig === this._lastActionBarContextSig) return;
         this._lastActionBarContextSig = stateSig;
@@ -535,24 +550,24 @@ class InputController {
                 reason: isJp ? '射程内に敵 — 射撃推奨' : 'Enemy in range — Shoot!'
             },
             'btn-throw': {
-                show: !hasInvTelemetry || (inv.length > 0 && (monsters.length > 0 || r === 'silq')),
+                show: !hasInvTelemetry || (inv.length > 0 && (hostileMonsters.length > 0 || r === 'silq')),
                 suggest: r === 'silq' && rangedInPack > 0 && rangedHostilesInLOS > 0 && adjHostiles === 0,
                 reason: 'Throw weapon at ranged target'
             },
             'btn-cast': {
-                show: !hasInvTelemetry || (r === 'silq' ? maxSp > 0 : (maxSp > 0 && tomeCount > 0)),
+                show: !hasInvTelemetry || (r === 'silq' ? (maxSp > 0 && hasKnownSpells) : (maxSp > 0 && matchingTomeCount > 0 && hasKnownSpells)),
                 dim: hasInvTelemetry && (!hasKnownSpells || curSp <= 0 || isDisablingStatus),
-                suggest: hasKnownSpells && !isDisablingStatus && maxSp > 0 && (r === 'silq' || tomeCount > 0) && (adjHostiles > 0 || rangedHostilesInLOS > 0) && curSp >= Math.max(1, maxSp * 0.20),
+                suggest: hasKnownSpells && !isDisablingStatus && maxSp > 0 && (r === 'silq' || matchingTomeCount > 0) && (adjHostiles > 0 || rangedHostilesInLOS > 0) && curSp >= Math.max(1, maxSp * 0.20),
                 reason: isJp ? '魔力あり — 呪文詠唱' : 'Mana available — Cast spell'
             },
             'btn-browse': {
-                show: r !== 'silq' && (!hasInvTelemetry || tomeCount > 0),
+                show: r !== 'silq' && (!hasInvTelemetry || matchingTomeCount > 0),
                 suggest: false
             },
             'btn-study': {
-                show: r !== 'silq' && (studyCount > 0 || (!hasInvTelemetry && r !== 'silq') || (tomeCount > 0 && maxSp > 0)),
-                suggest: studyCount > 0 && adjHostiles === 0,
-                reason: isJp ? `新しい呪文を学習可能 (${studyCount})` : `Learn new spell (${studyCount} ready)!`
+                show: r !== 'silq' && (!hasInvTelemetry || (effectiveStudyCount > 0 && matchingTomeCount > 0)),
+                suggest: effectiveStudyCount > 0 && matchingTomeCount > 0 && adjHostiles === 0,
+                reason: isJp ? `新しい呪文を学習可能 (${effectiveStudyCount})` : `Learn new spell (${effectiveStudyCount} ready)!`
             },
             'btn-skills': {
                 show: r === 'silq',
@@ -561,7 +576,7 @@ class InputController {
             },
             'btn-power': {
                 show: r === 'frogcomposband' || r === 'hengband',
-                suggest: (r === 'frogcomposband' || r === 'hengband') && (adjHostiles > 0 || rangedHostilesInLOS > 0) && hpPct < 70,
+                suggest: false,
                 reason: isJp ? '特殊能力・レイシャル発動' : 'Invoke Racial/Class Power'
             },
             'btn-quaff': {
@@ -575,9 +590,9 @@ class InputController {
                 reason: isJp ? '危険 — 巻物で脱出・対処！' : 'Danger — Read Scroll!'
             },
             'btn-door': {
-                show: adjAnyDoors > 0 && (!heroActive || heroAction.id !== 'open-door'),
+                show: adjClosedDoors > 0 && (!heroActive || heroAction.id !== 'open-door'),
                 suggest: adjClosedDoors > 0 && adjHostiles === 0,
-                reason: isJp ? '隣接する扉を開閉' : 'Open/close adjacent door'
+                reason: isJp ? '隣接する扉を開ける' : 'Open adjacent closed door'
             },
             'btn-pickup': {
                 show: standingOnItem && (!heroActive || heroAction.id !== 'pickup'),
@@ -1504,7 +1519,8 @@ class InputController {
             const isFKeySlot = false; // WS37: Removed F1-F4 interception to prevent browser hotkey conflicts
             const isAltNumSlot = e.altKey && !e.ctrlKey && !e.metaKey && (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4' || e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3' || e.code === 'Digit4');
             const isGameActive = !window.__app || (typeof window.__app.getAppState === 'function' ? window.__app.getAppState() === 'game' : (!window.__app.state || window.__app.state === 'playing' || window.__app.state === 'game'));
-            if ((isFKeySlot || isAltNumSlot) && isGameActive && !this.inTerminal) {
+            const inClassicPlay = Boolean(window.__app && window.__app.lastFrame && window.__app.lastFrame.phase === 'play' && (window.__app.lastFrame.ui?.overlay || 0) === 0 && window.__app.lastFrame.ui?.awaiting_command);
+            if ((isFKeySlot || isAltNumSlot) && isGameActive && (!this.inTerminal || inClassicPlay)) {
                 e.preventDefault();
                 const slotDigit = (e.code && e.code.startsWith('Digit')) ? parseInt(e.code.slice(5), 10) : parseInt(e.key, 10);
                 const slotIdx = Math.max(0, Math.min(3, (slotDigit || 1) - 1));
@@ -2937,12 +2953,7 @@ class InputController {
             }
         };
 
-        bindClick('btn-map-zoom-out', () => {
-            if (window.__app && window.__app.hud) window.__app.hud.adjustMinimapZoom(-0.25);
-        });
-        bindClick('btn-map-zoom-in', () => {
-            if (window.__app && window.__app.hud) window.__app.hud.adjustMinimapZoom(0.25);
-        });
+        // Minimap zoom buttons are bound in hud.js setupMinimapControls
 
         // Camera Head Tilt Buttons
         bindClick('btn-tilt-up', () => {
@@ -2984,6 +2995,11 @@ class InputController {
         if (qsConfigBtn) {
             bindReliableAction(qsConfigBtn, (ev) => {
                 if (ev && ev.stopPropagation) ev.stopPropagation();
+                const pop = document.getElementById('quick-slot-popover');
+                if (pop && pop.classList.contains('is-open')) {
+                    pop.classList.remove('is-open');
+                    return;
+                }
                 const curRealm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
                 const curFrame = (window.__app && window.__app.lastFrame) || null;
                 if (window.QuickActionManager) {
@@ -2994,7 +3010,7 @@ class InputController {
 
         // Clicking anywhere in world exploration while -more- prompt is up dismisses prompt
         window.addEventListener('click', (e) => {
-            if (e.target && e.target.closest && e.target.closest('#quick-slot-bar, #quick-slot-popover, #minimap-canvas, #grimoire-deck-container, #streetview-nav-rosette')) {
+            if (e.target && e.target.closest && e.target.closest('#quick-slot-bar, #quick-slot-popover, #minimap-canvas, #grimoire-deck-container, #streetview-nav-rosette, #edge-turn-left, #edge-turn-right')) {
                 return;
             }
             const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
@@ -3125,6 +3141,15 @@ class InputController {
             if (this.dungeon && typeof this.dungeon.turn === 'function') this.dungeon.turn(1);
         }, false);
 
+        // Far-Left & Far-Right Viewport Edge Mouseover/Click Turn Chevrons (#edge-turn-left, #edge-turn-right)
+        bindTouch('edge-turn-left', () => {
+            if (this.dungeon && typeof this.dungeon.turn === 'function') this.dungeon.turn(-1);
+        }, true);
+
+        bindTouch('edge-turn-right', () => {
+            if (this.dungeon && typeof this.dungeon.turn === 'function') this.dungeon.turn(1);
+        }, true);
+
         for (const dir of [8, 9, 6, 3, 2, 1, 4, 7]) {
             bindTouch('sv-dir-' + dir, () => {
                 if (this.isAutoNavigating()) this.stopMinimapAutoNav('Cancelled');
@@ -3169,6 +3194,46 @@ class InputController {
         return (hi << 4) | lo;
     }
 
+    isHostileMonster(m, frame) {
+        if (!m || m.visible === false || m.ml === false || m.friendly || m.pet || m.peaceful) return false;
+        const depth = (frame && frame.player && frame.player.depth !== undefined) ? frame.player.depth : 0;
+        const r = String((frame && frame.realm) || (this.app && this.app.getActiveRealm && this.app.getActiveRealm()) || (typeof window !== 'undefined' && window.__app && window.__app.getActiveRealm && window.__app.getActiveRealm()) || 'angband').toLowerCase();
+        if (depth === 0 && r !== 'silq') {
+            if (typeof m.hp === 'number' && typeof m.hp_max === 'number' && m.hp < m.hp_max) return true;
+            if (m.hostile || m.is_hostile) return true;
+            const nm = String(m.name || '').toLowerCase();
+            if (/towns|citizen|urchin|mercenary|drunk|blubbering|idiot|pitiful|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran|battle-scarred|mean-looking|tamer|bard|cat|dog|leper|squint-eyed|farmer|maggot|町人|市民|酔っ払い|乞食|傭兵|浮浪児|村人|野良猫|野良犬/.test(nm)) return false;
+            if (m.glyph === 't' || m.glyph === '@' || m.glyph === 'p' || m.glyph === 'h') return false;
+        }
+        return true;
+    }
+
+    canPlayerShootRanged(frame) {
+        if (!frame || !frame.player) return false;
+        const player = frame.player;
+        const r = String(frame.realm || (this.app && this.app.getActiveRealm && this.app.getActiveRealm()) || (typeof window !== 'undefined' && window.__app && window.__app.getActiveRealm && window.__app.getActiveRealm()) || 'angband').toLowerCase();
+        const isVanilla = r === 'angband';
+        const inv = Array.isArray(player.inventory) ? player.inventory : [];
+        const eq = Array.isArray(player.equipment) ? player.equipment : [];
+        const quiv = Array.isArray(player.quiver) ? player.quiver : [];
+        const statuses = Array.isArray(player.statuses) ? player.statuses : [];
+        const isDisabling = statuses.some((s) => /blind|confus|paralyz|stun|hallucinat|盲目|混乱|麻痺|朦朧|幻覚/i.test(String((s && (s.name || s)) || '')));
+        if (isDisabling) return false;
+
+        const hasBow = Boolean(player.bow_item) || eq.some((it) => /\b(bow|longbow|shortbow|crossbow|sling)\b/i.test(String((it && it.name) || '')) || /(ボウ|スリング|弓)/.test(String((it && it.name) || '')) || Number(it && it.tval) === (isVanilla ? 5 : 19));
+        if (!hasBow) return false;
+
+        const hasEquipAmmo = eq.some((it) => /\b(arrow|bolt|shot|pebble|seeker|sheaf)\b/i.test(String((it && it.name) || '')) || (!isVanilla && (Number(it && it.tval) >= 16 && Number(it && it.tval) <= 18)));
+        const hasInvAmmo = inv.some((it) => {
+            const nm = String((it && it.name) || '');
+            const lower = nm.toLowerCase();
+            const tv = Number(it && it.tval) || 0;
+            const isAmmoTv = isVanilla ? (tv >= 2 && tv <= 4) : (tv >= 16 && tv <= 18);
+            return (/\b(arrow|bolt|shot|pebble|seeker|sheaf)\b/.test(lower) && !/\b(bow|crossbow|sling)\b/.test(lower)) || /(矢|弾|丸石)/.test(nm) || isAmmoTv;
+        });
+        return quiv.length > 0 || Boolean(player.quiver_item) || hasEquipAmmo || hasInvAmmo;
+    }
+
     raycastTargetAhead(frame, px, py, fwd) {
         if (!frame || !frame.map) return null;
         for (let d = 1; d <= 8; d++) {
@@ -3176,18 +3241,21 @@ class InputController {
             const ry = py + fwd.dy * d;
 
             if (frame.monsters && Array.isArray(frame.monsters)) {
-                const m = frame.monsters.find(mon => mon.x === rx && mon.y === ry);
-                if (m) {
+                const m = frame.monsters.find(mon => mon && mon.x === rx && mon.y === ry);
+                if (m && this.isHostileMonster(m, frame)) {
                     return { type: 'monster', data: m, dist: d, x: rx, y: ry };
                 }
             }
 
             const feat = this.getFeatAt(frame.map, rx, ry);
-            if (feat === 2 || feat === 3 || feat === 4) {
+            if (feat === 2) {
                 return { type: 'door', feat, dist: d, x: rx, y: ry };
             }
-            if (feat === 16 || (feat >= 17 && feat <= 22)) {
+            if (feat === 16 || feat === 17 || feat === 18) {
                 return { type: 'wall', feat, dist: d, x: rx, y: ry };
+            }
+            if (feat === 1 || (feat >= 15 && feat <= 22) || feat === 30) {
+                break;
             }
         }
         return null;
@@ -3444,7 +3512,7 @@ class InputController {
             cTierCls = 'badge-door';
             cHpPct = 100;
             cAffinityHtml = '<span class="target-affinity-chip">🚪 Open [o]</span>';
-        } else if (rayTarget && rayTarget.type === 'wall' && rayTarget.dist === 1 && rayTarget.feat !== 22) {
+        } else if (rayTarget && rayTarget.type === 'wall' && rayTarget.dist === 1 && (rayTarget.feat === 16 || rayTarget.feat === 17 || rayTarget.feat === 18)) {
             // Tunnelable wall / mineral vein / rubble
             action = 'tunnel';
             icon = '⛏️';
@@ -3459,7 +3527,7 @@ class InputController {
             cTierCls = 'badge-wall';
             cHpPct = 100;
             cAffinityHtml = '<span class="target-affinity-chip">⛏️ Tunnel [T]</span>';
-        } else if (rayTarget && rayTarget.type === 'monster' && rayTarget.dist > 1) {
+        } else if (rayTarget && rayTarget.type === 'monster' && rayTarget.dist > 1 && this.canPlayerShootRanged(frame)) {
             // Ranged monster in line of sight
             const m = rayTarget.data;
             action = 'shoot';

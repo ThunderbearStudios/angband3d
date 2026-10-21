@@ -252,9 +252,16 @@ class ChronicleManager {
         this.btnForwardStory = document.getElementById('btn-chronicle-forward');
         this.btnMute = document.getElementById('btn-chronicle-mute');
         this.btnSpeed = document.getElementById('btn-chronicle-speed');
+        this.btnPin = document.getElementById('btn-chronicle-pin');
         this.btnExpand = document.getElementById('btn-chronicle-expand');
         this.btnSettings = document.getElementById('btn-chronicle-settings');
         this.btnClose = document.getElementById('btn-chronicle-close');
+        this.isPinned = false;
+        try {
+            if (typeof localStorage !== 'undefined') {
+                this.isPinned = localStorage.getItem('angband3d_chronicle_pinned') === '1';
+            }
+        } catch (_) {}
         this.statusTextEl = document.getElementById('chronicle-status-text');
 
         // Cache Q&A Bar & Target Pill
@@ -339,6 +346,7 @@ class ChronicleManager {
         }
 
         // Update UI Button states
+        this.updatePinUI();
         this.updateAudioControlsUI();
         this.updateLanguageUI();
 
@@ -480,6 +488,14 @@ class ChronicleManager {
 
         if (this.btnClose) {
             this.btnClose.addEventListener('click', () => this.hideWindow());
+        }
+
+        if (this.btnPin) {
+            this.btnPin.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.togglePin();
+            });
         }
 
         if (this.btnExpand) {
@@ -4106,6 +4122,38 @@ class ChronicleManager {
     /**
      * Dismisses the non-modal 3D entity inspection popover without affecting keyboard focus.
      */
+    updatePinUI() {
+        if (this.windowEl) {
+            this.windowEl.classList.toggle('is-pinned', Boolean(this.isPinned));
+        }
+        if (this.btnPin) {
+            this.btnPin.classList.toggle('is-pinned', Boolean(this.isPinned));
+            this.btnPin.setAttribute('aria-pressed', this.isPinned ? 'true' : 'false');
+            this.btnPin.textContent = this.isPinned ? '📌 Pinned' : '📌 Pin';
+            this.btnPin.title = this.isPinned
+                ? 'Tome Pinned Open (Click to unpin and allow auto-minimizing)'
+                : 'Pin Tome Open (Prevent auto-minimizing or closing during gameplay)';
+        }
+    }
+
+    togglePin(forceState = null) {
+        this.isPinned = typeof forceState === 'boolean' ? forceState : !this.isPinned;
+        try {
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('angband3d_chronicle_pinned', this.isPinned ? '1' : '0');
+            }
+        } catch (_) {}
+        if (this.isPinned) {
+            this._openedTransiently = false;
+            if (this.windowEl && this.windowEl.classList.contains('minimized')) {
+                this.windowEl.classList.remove('minimized');
+                if (this.btnExpand) this.btnExpand.textContent = '▲ Min';
+            }
+        }
+        this.updatePinUI();
+        return this.isPinned;
+    }
+
     dismissEntityPopover() {
         this.inspectedEntity = null;
         if (!this.inspectPopover) return;
@@ -4132,13 +4180,15 @@ class ChronicleManager {
         if (this.targetedCreature || this.targetedObject) {
             this.clearTargetCreature();
         }
-        if (this._openedTransiently && this.visible) {
-            this.hideWindow();
-        } else if (this.windowEl && this.windowEl.classList.contains('active') && !this.windowEl.classList.contains('minimized')) {
-            this.windowEl.classList.add('minimized');
-            if (this.btnExpand) this.btnExpand.textContent = '▼ Show';
-            const minBtn = typeof document !== 'undefined' ? document.getElementById('chronicle-minimize-btn') : null;
-            if (minBtn) minBtn.textContent = '▼ Expand';
+        if (!this.isPinned) {
+            if (this._openedTransiently && this.visible) {
+                this.hideWindow();
+            } else if (this.windowEl && this.windowEl.classList.contains('active') && !this.windowEl.classList.contains('minimized')) {
+                this.windowEl.classList.add('minimized');
+                if (this.btnExpand) this.btnExpand.textContent = '▼ Show';
+                const minBtn = typeof document !== 'undefined' ? document.getElementById('chronicle-minimize-btn') : null;
+                if (minBtn) minBtn.textContent = '▼ Expand';
+            }
         }
         if (this._isInteractiveVoiceActive) {
             this._isInteractiveVoiceActive = false;

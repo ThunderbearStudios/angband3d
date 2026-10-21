@@ -1177,9 +1177,9 @@ window.addEventListener('DOMContentLoaded', () => {
                     if (typeof sz.width === 'number' && typeof sz.height === 'number') {
                         const minW = storageKey === 'angband_msg' ? 260 : 140;
                         const minH = storageKey === 'angband_msg' ? 90 : 80;
-                        const maxW = storageKey === 'angband_map' ? 200 : (window.innerWidth - 20);
+                        const maxW = storageKey === 'angband_map' ? Math.min(640, window.innerWidth - 20) : (window.innerWidth - 20);
                         const w = Math.max(minW, Math.min(maxW, sz.width));
-                        const maxH = storageKey === 'angband_map' ? 200 : (window.innerHeight - 20);
+                        const maxH = storageKey === 'angband_map' ? Math.min(640, window.innerHeight - 20) : (window.innerHeight - 20);
                         const h = Math.max(minH, Math.min(maxH, sz.height));
                         winEl.style.width = `${w}px`;
                         winEl.style.height = `${h}px`;
@@ -5552,7 +5552,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const qsp = document.getElementById('quick-slot-popover');
             if (qsp) qsp.classList.remove('is-open');
             const cw = document.getElementById('chronicle-window');
-            if (cw && cw.classList.contains('active')) {
+            if (cw && cw.classList.contains('active') && !cw.classList.contains('is-pinned')) {
                 cw.classList.add('minimized');
                 const expBtn = document.getElementById('btn-chronicle-expand');
                 if (expBtn) expBtn.textContent = '▼ Show';

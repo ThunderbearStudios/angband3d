@@ -9534,7 +9534,8 @@ body.grimoire-collapsed-f10 #terminal-viewport {
 }
 
 .quick-slot-popover.is-open {
-    display: flex;
+    display: flex !important;
+    pointer-events: auto !important;
 }
 
 .qs-popover-header {
@@ -9736,12 +9737,12 @@ html.device-desktop #btn-action-more.is-needed {
 
 #minimap-container.compact,
 #minimap-container.minimap-size-compact {
-    width: 168px !important;
+    width: 168px;
 }
 
 @media (min-width: 769px) and (pointer: fine) {
-    #minimap-container:not(:hover):not(:focus-within) #minimap-controls-bar,
-    #minimap-container:not(:hover):not(:focus-within) #camera-tilt-bar {
+    #minimap-container.auto-hide-bars-disabled #minimap-controls-bar,
+    #minimap-container.auto-hide-bars-disabled #camera-tilt-bar {
         max-height: 0 !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
@@ -9755,13 +9756,13 @@ html.device-desktop #btn-action-more.is-needed {
 
 #app-container #message-feed-window:not(.expanded):not(.mobile-expanded),
 #hud-overlay #message-feed-window:not(.expanded):not(.mobile-expanded) {
-    top: 38px !important;
-    left: 204px !important;
-    width: min(460px, calc(100vw - 420px)) !important;
-    min-width: 260px !important;
-    height: 106px !important;
-    max-height: 112px !important;
-    min-height: 96px !important;
+    top: 38px;
+    left: 204px;
+    width: min(460px, calc(100vw - 420px));
+    min-width: 240px;
+    height: 106px;
+    max-height: 80vh;
+    min-height: 84px;
 }
 
 @media (max-width: 960px) {
@@ -9884,13 +9885,18 @@ body.grimoire-primary-open #entity-inspect-popover {
 }
 
 #hud-overlay #message-feed-window {
-    height: 106px !important;
-    min-height: 96px !important;
+    top: 38px;
+    left: 204px;
+    width: min(460px, calc(100vw - 420px));
+    min-width: 240px;
+    height: 106px;
+    min-height: 84px;
+    max-height: 80vh;
 }
 
 #hud-overlay #message-feed-window.expanded {
-    height: 220px !important;
-    max-height: 80vh !important;
+    height: 180px;
+    max-height: 80vh;
 }
 
 /* ==============================================================================
@@ -10026,6 +10032,84 @@ body.grimoire-primary-open #entity-inspect-popover {
     border-radius: 3px !important;
 }
 
+/* ==============================================================================
+   WS38: Far-Left/Right Viewport Edge Turn Chevrons & Tome Pin Toggle
+   ============================================================================== */
+#btn-chronicle-pin.is-pinned {
+    background: linear-gradient(180deg, rgba(212, 165, 78, 0.36) 0%, rgba(146, 102, 28, 0.48) 100%) !important;
+    border-color: #ffd700 !important;
+    color: #fff8dc !important;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.42) !important;
+}
 
+.viewport-edge-turn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 132px;
+    z-index: 18;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 0;
+    background: radial-gradient(ellipse at center, rgba(20, 14, 9, 0.52) 0%, rgba(10, 7, 4, 0.18) 100%);
+    border: 1px solid rgba(218, 172, 84, 0.28);
+    color: #ffe8a3;
+    cursor: pointer;
+    user-select: none;
+    pointer-events: auto !important;
+    opacity: 0.14;
+    transition: opacity 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, width 0.15s ease;
+}
 
+.viewport-edge-turn.edge-turn-left {
+    left: 0;
+    border-left: none;
+    border-radius: 0 14px 14px 0;
+}
 
+.viewport-edge-turn.edge-turn-right {
+    right: 0;
+    border-right: none;
+    border-radius: 14px 0 0 14px;
+}
+
+.viewport-edge-turn .edge-turn-chevron {
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1;
+    color: #ffd700;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 10px rgba(255, 215, 0, 0.45);
+}
+
+.viewport-edge-turn .edge-turn-sub {
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    color: #fde68a;
+    opacity: 0.85;
+    text-shadow: 0 1px 3px #000;
+}
+
+.viewport-edge-turn:hover,
+.viewport-edge-turn:focus-visible {
+    opacity: 0.86;
+    width: 42px;
+    background: radial-gradient(ellipse at center, rgba(38, 27, 15, 0.88) 0%, rgba(16, 11, 7, 0.78) 100%);
+    border-color: #ffd700;
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.42), inset 0 0 10px rgba(255, 215, 110, 0.22);
+}
+
+.viewport-edge-turn:active {
+    opacity: 0.98;
+    background: rgba(218, 172, 84, 0.34);
+}
+
+body.terminal-active .viewport-edge-turn,
+body.terminal-mode-active .viewport-edge-turn,
+body.grimoire-primary-open .viewport-edge-turn {
+    display: none !important;
+}

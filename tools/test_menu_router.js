@@ -523,7 +523,60 @@ function runTests() {
     assert.strictEqual(tabClickedTarget, null, 'Clicking an inventory menu row in col >= 12 must NOT trigger startMinimapAutoNav');
     assert.strictEqual(dispatchedMenuKey, 'a', 'Clicking an inventory menu row in col >= 12 must dispatch menu letter "a"');
 
-    console.log("All MenuRouter, WS32, WS33, WS34, WS35 & WS36 unit tests passed successfully!");
+    // Test 18: WS38 Final Polish Guard (Unstudied Spell Safety, Ranged/Door/Wall Precision, Message Log Default Expanded)
+    const unstudiedCasterFrame = {
+        phase: 'play',
+        realm: 'frogcomposband',
+        player: {
+            level: 1,
+            class: 'Mage',
+            sp: 6,
+            sp_max: 6,
+            statuses: [{ name: 'Study' }],
+            inventory: [{ slot: 0, label: 'a', name: 'a Book of Magic Spells [Beginner\'s Handbook]', tval: 90, sval: 0 }],
+            equipment: []
+        }
+    };
+    const unstudiedSlot = QuickActionManager.resolveSlot({ type: 'smart_magic' }, unstudiedCasterFrame, 'frogcomposband', 'en');
+    assert.strictEqual(unstudiedSlot.available, false, 'Unstudied L1 caster with Study status must not mark smart_magic available');
+    assert.deepStrictEqual(unstudiedSlot.sequence, [], 'Unstudied L1 caster must never dispatch [m, a, a, t]');
+
+    assert.strictEqual(navDummy.canPlayerShootRanged({
+        realm: 'angband',
+        player: {
+            equipment: [],
+            quiver: [],
+            inventory: [{ slot: 0, label: 'a', name: 'a Short Bow (x2)', tval: 5 }]
+        }
+    }), false, 'Unequipped bow with 0 ammo must not enable ranged shoot recommendation');
+
+    assert.strictEqual(navDummy.canPlayerShootRanged(vanillaRangedFrame), true,
+        'Equipped bow with arrows in quiver must enable ranged shoot recommendation');
+
+    const doorWallMap = {
+        w: 4,
+        h: 3,
+        rows: [
+            { g: '####', f: '13131313' },
+            { g: '@\'+#', f: '01030213' },
+            { g: '@:..', f: '01100101' }
+        ]
+    };
+    assert.strictEqual(navDummy.raycastTargetAhead({ map: doorWallMap, monsters: [] }, 0, 1, { dx: 1, dy: 0 }).type, 'door',
+        'raycastTargetAhead must skip open door (feat=3) and detect closed door (feat=2)');
+    assert.strictEqual(navDummy.raycastTargetAhead({ map: doorWallMap, monsters: [] }, 0, 0, { dx: 1, dy: 0 }), null,
+        'raycastTargetAhead must stop at ordinary granite wall (feat=19) without recommending tunnel');
+    assert.strictEqual(navDummy.raycastTargetAhead({ map: doorWallMap, monsters: [] }, 0, 2, { dx: 1, dy: 0 }).type, 'wall',
+        'raycastTargetAhead must detect rubble (feat=16) as tunnelable');
+
+    const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'server', 'public', 'index.html'), 'utf8');
+    assert.ok(indexHtml.includes('id="message-feed-window" class="message-feed-window expanded"'),
+        'Message feed window must default expanded at startup');
+    assert.ok(indexHtml.includes('id="btn-chronicle-pin"'), 'Living Chronicle Tome must include #btn-chronicle-pin');
+    assert.ok(indexHtml.includes('id="edge-turn-left"') && indexHtml.includes('id="edge-turn-right"'),
+        '3D HUD must include far-left and far-right viewport turn chevrons');
+
+    console.log("All MenuRouter, WS32, WS33, WS34, WS35, WS36 & WS38 unit tests passed successfully!");
 }
 
 try {

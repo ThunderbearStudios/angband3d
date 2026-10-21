@@ -252,38 +252,89 @@
 
             // 2. Smart Magic / Power (smart_magic)
             if (slotDef.type === 'smart_magic') {
+                const statuses = Array.isArray(player.statuses) ? player.statuses : [];
+                const isDisabling = statuses.some((s) => /blind|confus|paralyz|stun|hallucinat|盲目|混乱|麻痺|朦朧|幻覚/i.test(String((s && (s.name || s)) || '')));
+                const curSp = Number(player.sp ?? player.csp ?? 0);
+                const spMax = Number(player.sp_max ?? player.max_sp ?? player.msp ?? 0);
+                const inp = (typeof window !== 'undefined' && window.__app && window.__app.input) ? window.__app.input : null;
+
                 if (r === 'silq') {
                     const songKey = (realmKeyFn ? realmKeyFn('cast') : 's') || 's';
-                    const spMax = Number(player.sp_max ?? player.max_sp ?? player.msp ?? 0);
+                    const hasSong = Boolean(Number(player.songs_known || 0) > 0 || (inp && inp._hasCastSuccess));
+                    const canSing = spMax > 0 && curSp > 0 && !isDisabling && (!Array.isArray(player.inventory) || hasSong);
                     return {
-                        available: spMax > 0,
+                        available: canSing,
                         icon: '🎵',
-                        label: 'Song',
-                        qtyText: '',
-                        sequence: [songKey],
-                        tooltip: `Sing Song of Power [${songKey}]`
+                        label: hasSong ? 'Song' : 'No Song',
+                        qtyText: canSing ? `${curSp}v` : '',
+                        sequence: canSing ? [songKey] : [],
+                        tooltip: canSing ? `Sing Song of Power [${songKey}]` : 'Learn a Song of Power in Skills [Tab] first'
                     };
                 }
-                const books = inv.filter((it) => classifyInventoryEntry(it, r).category === 'tome');
-                const spMax = Number(player.sp_max ?? player.max_sp ?? player.msp ?? 0);
-                if (books.length > 0 && spMax > 0) {
+
+                const pClass = String(player.class || '').toLowerCase();
+                const isNonCaster = /warrior|berserker|archer|cavalry|sniper|ninja|smith|weaponsmith|戦士|狂戦士|アーチャー|騎兵|鍛冶師/.test(pClass) || (pClass.includes('samurai') && spMax === 0);
+                const isPriestClass = /priest|paladin|monk|僧侶|パラディン/.test(pClass);
+                const isMageClass = /mage|wizard|sorcer|rogue|ranger|necromancer|魔道士|メイジ|レンジャー|盗賊/.test(pClass);
+
+                const books = inv.filter((it) => {
+                    if (classifyInventoryEntry(it, r).category !== 'tome') return false;
+                    if (r === 'angband') {
+                        const tv = Number(it && it.tval) || 0;
+                        const nm = String((it && it.name) || '').toLowerCase();
+                        if (isPriestClass && (tv === 30 || /magic|arcane|sorcery/.test(nm))) return false;
+                        if (isMageClass && (tv === 31 || /prayer|holy|piety/.test(nm))) return false;
+                    }
+                    return true;
+                });
+
+                const hasStudyStatus = statuses.some((s) => /\bstudy\b|学習/i.test(String((s && (s.name || s)) || '')));
+                const studyCount = Number(player.study || 0) || (hasStudyStatus ? 1 : 0);
+                const zeroSpellsFlag = Boolean(inp && inp._zeroSpellsFlag);
+                const hasCastSuccess = Boolean(inp && inp._hasCastSuccess) || (curSp < spMax && spMax > 0);
+                const isUnstudiedL1 = (Number(player.level || 1) === 1) && studyCount > 0 && !hasCastSuccess;
+
+                if (books.length > 0 && spMax > 0 && !isNonCaster) {
+                    if (isUnstudiedL1 || zeroSpellsFlag) {
+                        return {
+                            available: false,
+                            icon: '✨',
+                            label: isUnstudiedL1 ? (isJp ? '未学習' : 'Study 1st') : (isJp ? '呪文なし' : 'No Spell'),
+                            qtyText: '',
+                            sequence: [],
+                            tooltip: isUnstudiedL1 ? 'Study a spell first [G] before casting' : 'No spells learned yet — press [G] to Study'
+                        };
+                    }
+                    if (curSp <= 0 || isDisabling) {
+                        return {
+                            available: false,
+                            icon: slotDef.icon || '✨',
+                            label: curSp <= 0 ? (isJp ? 'MP不足' : 'Low MP') : (isJp ? '詠唱不可' : 'Disabled'),
+                            qtyText: `${curSp}sp`,
+                            sequence: [],
+                            tooltip: curSp <= 0 ? 'Not enough mana to cast' : 'Cannot cast while blind/confused/stunned'
+                        };
+                    }
                     const firstBook = books[0];
                     const bookKey = firstBook.label || String.fromCharCode(97 + (Number(firstBook.slot) || 0));
                     const castKey = (realmKeyFn ? realmKeyFn('cast') : 'm') || 'm';
-                    const spellKey = slotDef.spellKey || 'a';
+                    const hasExplicitSpell = Boolean(slotDef.spellKey);
+                    const seq = hasExplicitSpell
+                        ? (slotDef.isOffensiveSpell ? [castKey, bookKey, slotDef.spellKey, 't'] : [castKey, bookKey, slotDef.spellKey])
+                        : [castKey, bookKey];
                     const label = slotDef.spellName
                         ? shortItemLabel(slotDef.spellName, 10)
-                        : (isJp ? '呪文詠唱' : 'Cast 1st');
+                        : (hasExplicitSpell ? `Spell [${slotDef.spellKey}]` : (isJp ? '呪文詠唱' : 'Cast'));
                     return {
                         available: true,
                         icon: slotDef.icon || '✨',
                         label,
-                        qtyText: `${Number(player.sp ?? player.csp ?? 0)}sp`,
-                        sequence: slotDef.targetNearest !== false ? [castKey, bookKey, spellKey, 't'] : [castKey, bookKey, spellKey],
-                        tooltip: `Cast from ${firstBook.name || 'Book'} [${castKey}${bookKey}${spellKey}]`
+                        qtyText: `${curSp}sp`,
+                        sequence: seq,
+                        tooltip: `Cast from ${firstBook.name || 'Book'} [${seq.join(' → ')}]`
                     };
                 }
-                if (r === 'frogcomposband' || r === 'hengband') {
+                if (slotDef.allowPowerFallback && (r === 'frogcomposband' || r === 'hengband')) {
                     const pwrKey = (realmKeyFn ? realmKeyFn('power') : 'U') || 'U';
                     const label = isJp ? '特殊能力' : 'Power';
                     return {
@@ -301,7 +352,7 @@
                     label: isJp ? '呪文なし' : 'No Spell',
                     qtyText: '',
                     sequence: [],
-                    tooltip: 'No spellbooks or powers available'
+                    tooltip: 'No usable spellbooks or learned spells available (Right-click or click ⚙ to rebind)'
                 };
             }
 
@@ -477,7 +528,7 @@
                 btn.classList.toggle('is-depleted', !res.available);
                 btn.title = `${res.tooltip} • Hotkey: Alt+${i + 1} (Right-click to bind)`;
                 btn.innerHTML = `
-                    <span class="qs-hotkey">A${i + 1}</span>
+                    <span class="qs-hotkey">Alt+${i + 1}</span>
                     <span class="qs-icon" aria-hidden="true">${escapeHtml(res.icon)}</span>
                     <span class="qs-label">${escapeHtml(res.label)}</span>
                     ${res.qtyText ? `<span class="qs-qty">${escapeHtml(res.qtyText)}</span>` : ''}
@@ -577,8 +628,24 @@
                     def: { type: 'auto_category', category: 'potion', preferSub: 'heal', icon: '🧪', labelEn: 'Heal', labelJp: '回復薬' }
                 },
                 {
-                    label: isJp ? '✨ 主力呪文 / 特殊能力 (Primary Spell / Power)' : '✨ Primary Spell / Racial Power',
-                    def: { type: 'smart_magic', icon: r === 'silq' ? '🎵' : '✨', labelEn: r === 'silq' ? 'Song' : 'Spell/Pwr', labelJp: '呪文/能力', targetNearest: true }
+                    label: isJp ? '✨ 魔法書を開く / 詠唱 (Open Spellbook)' : '✨ Open Primary Spellbook (m → Book)',
+                    def: { type: 'smart_magic', icon: r === 'silq' ? '🎵' : '✨', labelEn: r === 'silq' ? 'Song' : 'Cast', labelJp: '呪文詠唱', targetNearest: false }
+                },
+                {
+                    label: isJp ? '✨ 呪文 [a] で最寄りの敵を攻撃 (Spell a → Target)' : '✨ Cast Spell [a] at Nearest Enemy (m → Book → a → t)',
+                    def: { type: 'smart_magic', icon: '✨', spellKey: 'a', spellName: isJp ? '呪文[a]攻撃' : 'Spell [a]', isOffensiveSpell: true, targetNearest: true }
+                },
+                {
+                    label: isJp ? '✨ 呪文 [a] を詠唱・補助 (Spell a Self/Utility)' : '✨ Cast Spell [a] Self / Utility (m → Book → a)',
+                    def: { type: 'smart_magic', icon: '✨', spellKey: 'a', spellName: isJp ? '呪文[a]' : 'Spell [a]', isOffensiveSpell: false, targetNearest: false }
+                },
+                {
+                    label: isJp ? '✨ 呪文 [b] を詠唱 (Cast Spell b)' : '✨ Cast Spell [b] (m → Book → b)',
+                    def: { type: 'smart_magic', icon: '✨', spellKey: 'b', spellName: isJp ? '呪文[b]' : 'Spell [b]', isOffensiveSpell: false, targetNearest: false }
+                },
+                {
+                    label: isJp ? '✨ 呪文 [c] を詠唱 (Cast Spell c)' : '✨ Cast Spell [c] (m → Book → c)',
+                    def: { type: 'smart_magic', icon: '✨', spellKey: 'c', spellName: isJp ? '呪文[c]' : 'Spell [c]', isOffensiveSpell: false, targetNearest: false }
                 },
                 {
                     label: isJp ? '📜 脱出・テレポートの巻物 (Escape Scroll)' : '📜 Read Escape / Phase Door Scroll',
@@ -587,21 +654,49 @@
                 {
                     label: isJp ? '⏳ 安全まで休憩 (Rest Until Healed)' : '⏳ Rest Until Healed (R)',
                     def: { type: 'command', key: r === 'silq' ? 'z' : 'R', icon: '⏳', label: 'Rest', labelJp: '休憩' }
+                },
+                {
+                    label: isJp ? '🔍 周囲を探索 (Search Adjacent [s])' : '🔍 Search Adjacent Walls / Traps (s)',
+                    def: { type: 'command', key: 's', icon: '🔍', label: 'Search', labelJp: '探索' }
+                },
+                {
+                    label: isJp ? '🚪 扉・箱を開ける (Open Door [o])' : '🚪 Open Door or Chest (o)',
+                    def: { type: 'command', key: 'o', icon: '🚪', label: 'Open', labelJp: '開ける' }
+                },
+                {
+                    label: isJp ? '🎒 足元のアイテムを拾う (Pick Up [g])' : '🎒 Pick Up Item Underfoot (g)',
+                    def: { type: 'command', key: 'g', icon: '🎒', label: 'Get', labelJp: '拾う' }
+                },
+                {
+                    label: isJp ? '🍞 食料を食べる (Eat Food [E])' : '🍞 Eat Food / Ration (E)',
+                    def: { type: 'command', key: r === 'silq' ? 'u' : 'E', icon: '🍞', label: 'Eat', labelJp: '食事' }
+                },
+                {
+                    label: isJp ? '🔦 光源に燃料補給 (Refuel Light [F])' : '🔦 Refuel Torch / Lantern (F)',
+                    def: { type: 'command', key: 'F', icon: '🔦', label: 'Refuel', labelJp: '燃料' }
+                },
+                {
+                    label: isJp ? '✨ 新しい呪文を学習 (Study Spell [G])' : '✨ Study / Learn New Spell (G)',
+                    def: { type: 'command', key: 'G', icon: '✨', label: 'Study', labelJp: '学習' }
+                },
+                {
+                    label: isJp ? '🔮 レイシャル・特殊能力 (Use Power [U])' : '🔮 Use Racial / Class Power (U)',
+                    def: { type: 'command', key: 'U', icon: '🔮', label: 'Power', labelJp: '能力' }
                 }
             ];
 
             for (const it of inv) {
                 const info = classifyInventoryEntry(it, r);
-                if (info.category === 'other') continue;
                 const verbMap = {
                     potion: r === 'silq' ? 'u' : 'q',
                     scroll: r === 'silq' ? 'u' : 'r',
                     device: r === 'silq' ? 'u' : ((r === 'hengband' || r === 'frogcomposband') ? 'a' : 'u'),
                     tome: 'm',
                     ranged: 'f',
-                    food: r === 'silq' ? 'u' : 'E'
+                    food: r === 'silq' ? 'u' : 'E',
+                    other: 'w'
                 };
-                const verb = verbMap[info.category] || 'u';
+                const verb = verbMap[info.category] || 'w';
                 candidates.push({
                     label: `${info.icon} [${it.label || 'a'}] ${it.name}`,
                     def: {
@@ -642,6 +737,13 @@
 
             if (!popover._boundEvents) {
                 popover._boundEvents = true;
+                if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+                    document.addEventListener('click', (docEv) => {
+                        if (!popover.classList.contains('is-open')) return;
+                        if (docEv.target && docEv.target.closest && docEv.target.closest('#quick-slot-popover, #quick-slot-bar')) return;
+                        popover.classList.remove('is-open');
+                    });
+                }
                 popover.addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     const closeBtn = ev.target.closest('[data-qs-action="close"]');
