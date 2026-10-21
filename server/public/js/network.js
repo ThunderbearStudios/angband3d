@@ -257,12 +257,18 @@ class GameNetwork {
                                 this.currentSave = this.currentChar || msg.player.name;
                             }
                             this.currentChar = msg.player.name;
-                            try {
-                                localStorage.setItem('angband3d_session_char', msg.player.name);
-                                if (this.currentSave) {
+                            if (this._lastStoredChar !== msg.player.name) {
+                                this._lastStoredChar = msg.player.name;
+                                try {
+                                    localStorage.setItem('angband3d_session_char', msg.player.name);
+                                } catch (_) {}
+                            }
+                            if (this.currentSave && this._lastStoredSave !== this.currentSave) {
+                                this._lastStoredSave = this.currentSave;
+                                try {
                                     localStorage.setItem('angband3d_session_save', this.currentSave);
-                                }
-                            } catch (_) {}
+                                } catch (_) {}
+                            }
                         }
                         if (msg.player.dead || (msg.player.hp !== undefined && msg.player.hp <= 0 && msg.player.hp_max > 0)) {
                             this.isDead = true;

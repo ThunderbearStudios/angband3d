@@ -6200,12 +6200,19 @@ class Dungeon3D {
                     h = Math.imul(h ^ fStr.charCodeAt(i), 16777619) >>> 0;
                 }
             }
-            if (row.flags) {
+            if (row.flags && depth !== 0) {
                 const flgStr = row.flags;
                 const startIdx = minX * 2;
                 const endIdx = Math.min(flgStr.length - 1, (maxX + 1) * 2);
                 for (let i = startIdx; i <= endIdx; i += 4) {
                     h = Math.imul(h ^ flgStr.charCodeAt(i), 16777619) >>> 0;
+                }
+            } else if (row.g && depth === 0) {
+                const gStr = row.g;
+                const startIdx = minX;
+                const endIdx = Math.min(gStr.length - 1, maxX);
+                for (let i = startIdx; i <= endIdx; i += 2) {
+                    h = Math.imul(h ^ gStr.charCodeAt(i), 16777619) >>> 0;
                 }
             }
         }
@@ -6231,22 +6238,6 @@ class Dungeon3D {
         const px = frame.player ? frame.player.x : Math.floor(w / 2);
         const py = frame.player ? frame.player.y : Math.floor(h / 2);
         const depth = (frame.player && frame.player.depth !== undefined) ? frame.player.depth : 0;
-        let hasWilderness = false;
-        if (map && map.rows) {
-            for (let r = 0; r < Math.min(map.rows.length, 12); r++) {
-                const row = map.rows[r];
-                if (row && row.f) {
-                    for (let c = 0; c < row.f.length; c += 2) {
-                        const fVal = parseInt(row.f.substring(c, c + 2), 16);
-                        if (fVal >= 25 && fVal <= 31) {
-                            hasWilderness = true;
-                            break;
-                        }
-                    }
-                }
-                if (hasWilderness) break;
-            }
-        }
         // Strict Invariant: Outdoors is ONLY depth 0 (Town or Wilderness). Subterranean dungeons (depth > 0)
         // are always indoors with solid stone ceilings, preventing sunlight tiles/vaults from stripping ceilings.
         const outdoors = (depth === 0);

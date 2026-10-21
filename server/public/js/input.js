@@ -2738,28 +2738,19 @@ class InputController {
                 const allButtons = ACTION_PRIORITY.map(id => document.getElementById(id)).filter(Boolean);
 
                 if (isSmallOrCoarse) {
-                    // Mobile / coarse pointer: collapse to 6 primary buttons plus More
-                    let kept = 0;
+                    // Mobile / coarse pointer: keep all buttons inside #action-bar (before #btn-action-more)
+                    // so mobile CSS (#action-bar:not(.drawer-open) vs #action-bar.drawer-open) always displays
+                    // the 6 primary thumb buttons (Attack, Get, Potion, Pack, Classic, More) and expands cleanly.
                     for (const btn of allButtons) {
-                        const isHiddenByRule = btn.dataset.realmHidden === '1' || btn.dataset.contextHidden === '1' || (btn.style.display === 'none' && !btn.dataset.overflowHidden);
-                        if (isHiddenByRule) {
-                            btn.style.display = 'none';
-                            continue;
+                        if (btn.parentElement !== actionBar) {
+                            actionBar.insertBefore(btn, actionMoreBtn);
                         }
-
-                        if (kept < 6) {
-                            if (btn.parentElement !== actionBar) {
-                                actionBar.insertBefore(btn, actionMoreBtn);
-                            }
-                            btn.removeAttribute('data-overflow-hidden');
-                            kept++;
-                        } else {
-                            if (actionPopover && btn.parentElement !== actionPopover) {
-                                actionPopover.appendChild(btn);
-                            }
-                            btn.setAttribute('data-overflow-hidden', '1');
+                        btn.removeAttribute('data-overflow-hidden');
+                        if (btn.dataset.realmHidden === '1' || btn.dataset.contextHidden === '1') {
+                            btn.style.display = 'none';
                         }
                     }
+                    if (actionPopover) actionPopover.classList.remove('is-open');
                     actionMoreBtn.classList.add('is-needed');
                     actionMoreBtn.style.display = 'inline-flex';
                 } else {
@@ -2810,8 +2801,15 @@ class InputController {
                 if (ev && ev.target && typeof ev.target.blur === 'function') ev.target.blur();
                 if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
 
-                const isOpen = actionPopover ? actionPopover.classList.toggle('is-open') : actionBar.classList.toggle('drawer-open');
-                actionBar.classList.toggle('drawer-open', isOpen);
+                const isSmallOrCoarse = window.innerWidth <= 900 || window.innerHeight <= 500 || window.matchMedia('(pointer: coarse)').matches;
+                let isOpen;
+                if (isSmallOrCoarse) {
+                    isOpen = actionBar.classList.toggle('drawer-open');
+                    if (actionPopover) actionPopover.classList.remove('is-open');
+                } else {
+                    isOpen = actionPopover ? actionPopover.classList.toggle('is-open') : actionBar.classList.toggle('drawer-open');
+                    actionBar.classList.toggle('drawer-open', isOpen);
+                }
                 actionMoreBtn.textContent = isOpen ? '✕ Close' : '⋯ More';
             };
             bindReliableAction(actionMoreBtn, toggleDrawer);

@@ -2511,9 +2511,10 @@ const server = http.createServer((req, res) => {
 
 // WebSocket Server attached to HTTP server.
 // maxPayload: client messages are tiny ("key left", JSON ping); 64 KB is generous (E22).
-const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
+const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024, perMessageDeflate: false });
 
 server.on('upgrade', (request, socket, head) => {
+    try { socket.setNoDelay(true); } catch (_) {}
     let fwdHost = '';
     if (process.env.TRUST_PROXY === '1' && request.headers['x-forwarded-host']) {
         const firstFwd = request.headers['x-forwarded-host'].split(',')[0].trim();
@@ -2826,12 +2827,18 @@ function attachWebSocketToSession(session, ws) {
             session.child.stdin.write(safe + '\n');
             if (!session.isDead && session.phase === 'play' && (safe.startsWith('key ') || safe.startsWith('keys '))) {
                 session.commandsSinceSave = (session.commandsSinceSave || 0) + 1;
-                if (session.commandsSinceSave >= 15) {
-                    session.commandsSinceSave = 0;
-                    try {
-                        session.child.stdin.write('save\n');
-                        invalidateSavesCache();
-                    } catch (_) {}
+                if (session.autoSaveTimer) clearTimeout(session.autoSaveTimer);
+                if (session.commandsSinceSave >= 8) {
+                    session.autoSaveTimer = setTimeout(() => {
+                        session.autoSaveTimer = null;
+                        if (!session.isDead && session.phase === 'play' && session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
+                            session.commandsSinceSave = 0;
+                            try {
+                                session.child.stdin.write('save\n');
+                                invalidateSavesCache();
+                            } catch (_) {}
+                        }
+                    }, 3500).unref();
                 }
             }
         }
@@ -3055,13 +3062,15 @@ async function spawnGameSession(ws, request) {
                     }
                     session.lastFrame = line;
                     try {
-                        const parsed = JSON.parse(line);
+                        const headSlice = line.slice(0, 420);
                         const prevPhase = session.phase;
-                        if (parsed.phase) session.phase = parsed.phase;
-                        if (parsed.player && (parsed.player.dead || (parsed.player.hp !== undefined && parsed.player.hp <= 0 && parsed.player.hp_max > 0))) {
+                        const phaseMatch = headSlice.match(/"phase":"([^"]+)"/);
+                        if (phaseMatch) session.phase = phaseMatch[1];
+                        if (line.includes('"dead":true') || /"hp":(?:0|-\d+),"hp_max":[1-9]/.test(line)) {
                             session.isDead = true;
                         }
-                        const curDepth = parsed.player && typeof parsed.player.depth === 'number' ? parsed.player.depth : null;
+                        const depthMatch = line.match(/"depth":(-?\d+)/);
+                        const curDepth = depthMatch ? parseInt(depthMatch[1], 10) : null;
                         const depthChanged = curDepth !== null && session.lastDepth !== null && curDepth !== session.lastDepth;
                         if (curDepth !== null) session.lastDepth = curDepth;
 

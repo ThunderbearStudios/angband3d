@@ -1012,10 +1012,27 @@ class WebHUD {
         // Re-apply saved positions on load
         this.applySavedHudLayout();
 
-        // Responsive window resize clamping
+        // Responsive window resize & mobile orientation-switch clamping
         if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-            window.addEventListener('resize', () => {
-                const ids = ['touch-controls', 'char-panel', 'hud-center-column', 'compass-container'];
+            const onViewportChange = () => {
+                const isMobileViewport = window.innerWidth <= 900 || window.innerHeight <= 500;
+                const ids = ['touch-controls', 'char-panel', 'hud-center-column', 'compass-container', 'minimap-container'];
+                if (isMobileViewport) {
+                    for (const id of ids) {
+                        const el = document.getElementById(id);
+                        if (!el) continue;
+                        el.style.position = '';
+                        el.style.left = '';
+                        el.style.top = '';
+                        el.style.right = '';
+                        el.style.bottom = '';
+                        el.style.margin = '';
+                        if (id === 'touch-controls') {
+                            el.classList.remove('dpad-collapsed');
+                        }
+                    }
+                    return;
+                }
                 for (const id of ids) {
                     const el = document.getElementById(id);
                     if (!el || el.style.position !== 'fixed') continue;
@@ -1031,7 +1048,9 @@ class WebHUD {
                     el.style.left = `${clampedX}px`;
                     el.style.top = `${clampedY}px`;
                 }
-            });
+            };
+            window.addEventListener('resize', onViewportChange);
+            window.addEventListener('orientationchange', () => setTimeout(onViewportChange, 60));
         }
 
         // Wire D-Pad Scale Cycle (1.0 -> 1.15 -> 0.85)
@@ -1148,6 +1167,12 @@ class WebHUD {
     }
 
     applySavedHudLayout() {
+        const isMobileViewport = typeof window !== 'undefined' && (window.innerWidth <= 900 || window.innerHeight <= 500);
+        if (isMobileViewport) {
+            const tc = document.getElementById('touch-controls');
+            if (tc) tc.classList.remove('dpad-collapsed');
+            return;
+        }
         let layout = null;
         try {
             const raw = localStorage.getItem('angband3d_hud_layout_v2');

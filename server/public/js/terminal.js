@@ -283,12 +283,14 @@ class WebTerminal {
                 const factor = currentDist / initialPinchDist;
                 this.setZoom(initialZoom * factor, pinchCenterViewportX, pinchCenterViewportY);
             } else if (e.touches.length === 1 && isTouchDragging) {
-                if (e.cancelable) e.preventDefault();
                 const dx = e.touches[0].clientX - touchStartX;
                 const dy = e.touches[0].clientY - touchStartY;
-                viewport.scrollLeft = touchStartScrollLeft - dx;
-                viewport.scrollTop = touchStartScrollTop - dy;
-                this.userHasScrolled = true;
+                if (Math.hypot(dx, dy) >= 8) {
+                    if (e.cancelable) e.preventDefault();
+                    viewport.scrollLeft = touchStartScrollLeft - dx;
+                    viewport.scrollTop = touchStartScrollTop - dy;
+                    this.userHasScrolled = true;
+                }
             }
         }, { passive: false });
 
@@ -297,7 +299,8 @@ class WebTerminal {
                 const touch = e.changedTouches[0];
                 const dx = touch.clientX - touchStartX;
                 const dy = touch.clientY - touchStartY;
-                if (Math.hypot(dx, dy) < 12 && (Date.now() - touchStartTime) < 300) {
+                if (Math.hypot(dx, dy) < 14 && (Date.now() - touchStartTime) < 550) {
+                    this._lastTouchTapMs = Date.now();
                     const rect = this.canvas.getBoundingClientRect();
                     if (rect.height && this.charHeight && rect.width && this.charWidth) {
                         const offsetY = (touch.clientY - rect.top) * ((this.rows * this.charHeight) / rect.height);
@@ -347,13 +350,15 @@ class WebTerminal {
         // Anchor scale to stable outer #terminal-window bounds minus a fixed chrome reserve
         // so opening/closing Grimoire cards or touch ribbons never causes the 80x24 canvas to jump in size.
         const viewport = document.getElementById('terminal-viewport');
-        const termWindow = document.getElementById('terminal-window');
+        const termWindow = document.getElementById('terminal-window') || document.getElementById('terminal-card');
+        const isLandscapePhone = window.innerHeight <= 500 && window.innerWidth > window.innerHeight;
+        const chromeReserveH = isLandscapePhone ? 112 : 136;
         const outerW = (termWindow && termWindow.clientWidth > 0)
-            ? (termWindow.clientWidth - 20)
-            : (viewport && viewport.clientWidth > 0 ? viewport.clientWidth : (window.innerWidth - 24));
+            ? (termWindow.clientWidth - 16)
+            : (viewport && viewport.clientWidth > 0 ? viewport.clientWidth : (window.innerWidth - 16));
         const outerH = (termWindow && termWindow.clientHeight > 0)
-            ? (termWindow.clientHeight - 136)
-            : (window.innerHeight - 160);
+            ? (termWindow.clientHeight - chromeReserveH)
+            : (window.innerHeight - chromeReserveH);
 
         const availW = Math.max(280, outerW || window.innerWidth);
         const availH = Math.max(220, outerH || (window.innerHeight - 160));
@@ -473,6 +478,9 @@ class WebTerminal {
         this.canvas.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            if (this._lastTouchTapMs && (Date.now() - this._lastTouchTapMs) < 450) {
+                return;
+            }
             if (this._mouseDidDrag || (this._panDragDist && this._panDragDist > 6)) {
                 this._mouseDidDrag = false;
                 this._panDragDist = 0;

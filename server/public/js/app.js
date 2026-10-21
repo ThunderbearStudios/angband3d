@@ -825,10 +825,13 @@ window.addEventListener('DOMContentLoaded', () => {
             if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
                 window.MenuRouter.clearPending();
             }
-            network.sendKey('escape');
+            const ui = (lastFrame && lastFrame.ui) || {};
+            if ((ui.overlay || 0) > 0 || !ui.awaiting_command || ui.more) {
+                network.sendKey('escape');
+            }
             forceTerminal = false;
-            terminalContainer.classList.add('hidden');
-            input.setTerminalMode(false);
+            window.__manualTerminalOpen = false;
+            updateViewMode(lastFrame);
         });
     }
 
@@ -2322,11 +2325,14 @@ window.addEventListener('DOMContentLoaded', () => {
     let lastSnapshotDepth = null;
     let restoreSaveInFlight = false;
 
+    let snapshotInFlight = false;
+    let snapshotIdleTimer = null;
     async function snapshotClientSaveToIndexedDB(slotName, realmKey) {
-        if (!slotName || engineMode === 'local' || typeof window === 'undefined' || !window.LocalSaveManager) return;
+        if (snapshotInFlight || !slotName || engineMode === 'local' || typeof window === 'undefined' || !window.LocalSaveManager) return;
         const cleanSlot = String(slotName).replace(/\.sav$/i, '').trim();
         if (!cleanSlot) return;
         const effRealm = realmKey || activeRealm || 'angband';
+        snapshotInFlight = true;
         try {
             const resp = await fetch(`/api/saves/${encodeURIComponent(cleanSlot)}?realm=${encodeURIComponent(effRealm)}`);
             if (!resp.ok) return;
@@ -2334,9 +2340,11 @@ window.addEventListener('DOMContentLoaded', () => {
             if (buf && buf.byteLength >= 36) {
                 const bytes = new Uint8Array(buf);
                 await window.LocalSaveManager.putSaveData(`${effRealm}:${cleanSlot}`, bytes);
-                await window.LocalSaveManager.putSaveData(cleanSlot, bytes);
             }
-        } catch (_) {}
+        } catch (_) {
+        } finally {
+            snapshotInFlight = false;
+        }
     }
 
     async function restoreClientSaveToServer(slotName, realmKey) {
@@ -5433,6 +5441,10 @@ window.addEventListener('DOMContentLoaded', () => {
             terminalTitle.textContent = isHeng
                 ? hengTitle('🎴 HENGBAND CLASSIC TERMINAL', '🎴 HENGBAND — Classic View / クラシック端末', '🎴 変愚蛮怒 — クラシック端末')
                 : (realmTitles[activeRealm] || '⚔ ANGBAND CLASSIC TERMINAL');
+            if (termEscapeBtn) {
+                termEscapeBtn.style.display = 'inline-flex';
+                termEscapeBtn.textContent = isHeng ? hengLabel('🎮 3D View', '🎮 3D View / 3D画面', '🎮 3D画面') : '🎮 3D View';
+            }
             if (termDpad) termDpad.style.display = 'grid'; // 8-way movement
             if (termLetterRibbon) termLetterRibbon.style.display = 'none';
 
@@ -5452,7 +5464,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
                     const btns = [
                         { key: 'tab', badge: '⛶', label: hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)'), gold: true, extraCls: 'term-action-key' },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー'), extraCls: 'term-action-key' }
+                        { key: 'g', badge: '[g]', label: hengLabel('🤚 Get', '🤚 Get / 拾う', '🤚 拾う'), extraCls: 'term-action-key' }
                     ];
 
                     const packKey = keyFor('inven') || 'i';
@@ -5460,6 +5472,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
                     const equipKey = keyFor('equip') || 'e';
                     btns.push({ key: equipKey, label: hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備'), extraCls: 'term-action-key' });
+
+                    btns.push({ key: '>', badge: '[>]', label: hengLabel('⬇ Stairs', '⬇ Stairs / 階段', '⬇ 階段'), extraCls: 'term-action-key' });
+                    btns.push({ key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー'), extraCls: 'term-action-key' });
 
                     if (effRealm === 'silq') {
                         btns.push({ key: 'w', label: '⚔ Wield', extraCls: 'term-action-key' });
@@ -6021,7 +6036,12 @@ window.addEventListener('DOMContentLoaded', () => {
         network.onSave = () => {
             const slot = network.currentSave || network.currentChar;
             if (slot && currentPhase === 'play') {
-                setTimeout(() => snapshotClientSaveToIndexedDB(slot, activeRealm), 350);
+                if (snapshotIdleTimer) clearTimeout(snapshotIdleTimer);
+                snapshotIdleTimer = setTimeout(() => {
+                    snapshotIdleTimer = null;
+                    lastClientSnapshotMs = Date.now();
+                    snapshotClientSaveToIndexedDB(slot, activeRealm);
+                }, 4000);
             }
         };
 
@@ -6076,21 +6096,37 @@ window.addEventListener('DOMContentLoaded', () => {
                 const depthChanged = lastSnapshotDepth !== null && curDepth !== lastSnapshotDepth;
                 lastSnapshotDepth = curDepth;
                 const nowMs = Date.now();
-                if (firstPlayTransition || depthChanged || (nowMs - lastClientSnapshotMs > 45000)) {
+                if (firstPlayTransition || depthChanged) {
                     lastClientSnapshotMs = nowMs;
                     const slot = network.currentSave || network.currentChar;
                     if (slot) {
-                        setTimeout(() => snapshotClientSaveToIndexedDB(slot, activeRealm), firstPlayTransition ? 900 : 300);
+                        if (snapshotIdleTimer) clearTimeout(snapshotIdleTimer);
+                        snapshotIdleTimer = setTimeout(() => {
+                            snapshotIdleTimer = null;
+                            snapshotClientSaveToIndexedDB(slot, activeRealm);
+                        }, firstPlayTransition ? 1200 : 600);
+                    }
+                } else if (nowMs - lastClientSnapshotMs > 90000) {
+                    const slot = network.currentSave || network.currentChar;
+                    if (slot) {
+                        if (snapshotIdleTimer) clearTimeout(snapshotIdleTimer);
+                        snapshotIdleTimer = setTimeout(() => {
+                            snapshotIdleTimer = null;
+                            lastClientSnapshotMs = Date.now();
+                            snapshotClientSaveToIndexedDB(slot, activeRealm);
+                        }, 4500);
                     }
                 }
             }
 
             // Synchronize active character name with network client so reconnections never default to 'Adventurer'
             if (frame.player && frame.player.name && frame.player.name !== 'PLAYER') {
-                network.currentChar = frame.player.name;
-                try {
-                    localStorage.setItem('angband3d_session_char', frame.player.name);
-                } catch (_) {}
+                if (network.currentChar !== frame.player.name) {
+                    network.currentChar = frame.player.name;
+                    try {
+                        localStorage.setItem('angband3d_session_char', frame.player.name);
+                    } catch (_) {}
+                }
             }
 
             // Dispatch to The Living Chronicle & Voiced Lorekeeper
