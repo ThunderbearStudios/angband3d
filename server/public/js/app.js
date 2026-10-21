@@ -4366,7 +4366,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const ui = effFrame.ui || {};
         const inTermView = Boolean((this && this.forceTerminal !== undefined ? this.forceTerminal : forceTerminal) || ((this && typeof this.needsTerminal === 'function') ? this.needsTerminal(effFrame) : needsTerminal(effFrame)));
         const curRealm = (this && this.currentRealm) || (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (effFrame && effFrame.realm) || 'angband';
-        const gMode = (window.RealmGrimoireDeck && window.RealmGrimoireDeck.mode) || 'hybrid';
+        const gMode = (window.RealmGrimoireDeck && window.RealmGrimoireDeck.mode) || 'classic';
         const mrPendObj = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function') ? window.MenuRouter.getPending() : null;
         const mrPending = mrPendObj ? `${mrPendObj.step}:${mrPendObj.item?.key || ''}` : 'none';
         const row0 = effFrame.term.rows[0]?.g || '';
@@ -5546,7 +5546,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const rtc = document.getElementById('reticle-target-card');
             if (rtc) { rtc.style.display = 'none'; rtc.classList.add('hidden'); }
             const eip = document.getElementById('entity-inspect-popover');
-            if (eip) { eip.style.display = 'none'; eip.classList.add('hidden'); }
+            if (eip) { eip.classList.add('hidden'); eip.style.display = ''; }
             const amp = document.getElementById('action-more-popover');
             if (amp) amp.classList.remove('is-open');
             const qsp = document.getElementById('quick-slot-popover');
@@ -5636,7 +5636,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const isDesktopTier = (typeof DeviceProfile !== 'undefined' && typeof DeviceProfile.getTier === 'function')
                 ? DeviceProfile.getTier() === 'desktop'
                 : (typeof window !== 'undefined' && window.innerWidth >= 1024 && !window.matchMedia?.('(pointer: coarse)')?.matches);
-            const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : !isDesktopTier;
+            const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
             if (touchControls) touchControls.style.display = showTouch ? 'flex' : 'none';
 
             // Update top bar toggle indicators

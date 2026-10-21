@@ -239,8 +239,8 @@
 
     class GrimoireDeckController {
         constructor() {
-            this.mode = 'hybrid'; // 'hybrid' | 'classic'
-            this.manualTerminalMode = false;
+            this.mode = 'classic'; // 'hybrid' | 'classic' — Classic Terminal always visible by default (WS36)
+            this.manualTerminalMode = true;
             this._menuActive = false;
             this._lastSig = '';
             this._boundContainer = null;
@@ -613,6 +613,8 @@
         getAvailableVerbsForItem,
         GrimoireDeckController,
         getInstance: () => singleton,
+        get mode() { return singleton.mode; },
+        get manualTerminalMode() { return singleton.manualTerminalMode; },
         getHeraldry: (realm) => singleton.getHeraldry(realm),
         render: (container, options) => singleton.render(container, options),
         hide: (container) => singleton.hide(container),

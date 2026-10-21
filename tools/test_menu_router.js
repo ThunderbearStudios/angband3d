@@ -505,7 +505,25 @@ function runTests() {
     assert.deepStrictEqual(tabClickedTarget, { tx: 3, ty: 1 },
         'Clicking Classic View map row with sidebar "STR: 18" must route via startMinimapAutoNav instead of matching "R:"');
 
-    console.log("All MenuRouter, WS32, WS33 & WS34 unit tests passed successfully!");
+    // Test 17: WS36 Always-Visible Classic Terminal default & Menu vs Map click disambiguation
+    assert.strictEqual(RealmGrimoireDeck.mode, 'classic', 'RealmGrimoireDeck must default to classic mode so #terminal-viewport is always visible');
+    assert.strictEqual(RealmGrimoireDeck.manualTerminalMode, true, 'RealmGrimoireDeck.manualTerminalMode must default to true');
+    let dispatchedMenuKey = null;
+    termDummy.onKeyClick = (k) => { dispatchedMenuKey = k; };
+    tabClickedTarget = null;
+    termDummy.lastTermData = {
+        rows: [
+            { g: 'Inventory:' },
+            { g: 'STR:     18  a) a Potion of Cure Light Wounds' },
+            { g: 'HP:   24/24  b) a Scroll of Phase Door       ' }
+        ]
+    };
+    termDummy.lastRows = termDummy.lastTermData.rows;
+    termDummy.handleRowClick(1, 20);
+    assert.strictEqual(tabClickedTarget, null, 'Clicking an inventory menu row in col >= 12 must NOT trigger startMinimapAutoNav');
+    assert.strictEqual(dispatchedMenuKey, 'a', 'Clicking an inventory menu row in col >= 12 must dispatch menu letter "a"');
+
+    console.log("All MenuRouter, WS32, WS33, WS34, WS35 & WS36 unit tests passed successfully!");
 }
 
 try {

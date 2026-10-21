@@ -1278,7 +1278,9 @@ class WebHUD {
     }
 
     updateTargetInspector(player, realm, frameOpt) {
-        const reticleCard = this.reticleTargetCard || document.getElementById('reticle-target-card');
+        const rawReticleCard = this.reticleTargetCard || document.getElementById('reticle-target-card');
+        if (rawReticleCard) { rawReticleCard.style.display = 'none'; rawReticleCard.classList.add('hidden'); }
+        const reticleCard = null;
         const targetCardName = document.getElementById('target-card-name');
         const targetCardTier = document.getElementById('target-card-tier');
         const targetCardHpFill = document.getElementById('target-card-hp-fill');

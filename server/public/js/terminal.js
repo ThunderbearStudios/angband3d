@@ -517,7 +517,7 @@ class WebTerminal {
             if (typeof window !== 'undefined' && window.sound && typeof window.sound.playParchmentTurn === 'function') {
                 window.sound.playParchmentTurn();
             }
-            const btn = document.querySelector(`.term-letter-btn[data-key="${key}"]`);
+            const btn = (typeof document !== 'undefined' && document.querySelector) ? document.querySelector(`.term-letter-btn[data-key="${key}"]`) : null;
             if (btn) {
                 btn.click();
             } else if (typeof this.onKeyClick === 'function') {
@@ -534,7 +534,12 @@ class WebTerminal {
         const app = (typeof window !== 'undefined' && (window.app || window.__app)) || null;
         const f = app?.currentFrame || app?.lastFrame || app?.getLastFrame?.() || (typeof window !== 'undefined' && window.__lastFrame) || null;
         const inputMgr = app?.input || (typeof window !== 'undefined' && window.input) || null;
-        const isPlayState = Boolean(f && f.phase === 'play' && (f.ui?.overlay || 0) === 0 && f.ui?.awaiting_command && !f.ui?.more);
+        const isTerminalMenuOpen = Boolean(
+            (typeof window !== 'undefined' && window.ScreenContext && typeof window.ScreenContext.needsTerminal === 'function' && window.ScreenContext.needsTerminal(f, { forceTerminal: false })) ||
+            (typeof window !== 'undefined' && window.MenuRouter && typeof window.MenuRouter.getPending === 'function' && window.MenuRouter.getPending())
+        );
+        const hasMenuTagInMapCols = /(?:^|\s+)(?:\[([a-zA-Z0-9*@?])\]|\(([a-zA-Z0-9*@?])\)|([a-zA-Z0-9*@?])[\)\.\-])\s+\S/.test(line.slice(12));
+        const isPlayState = Boolean(f && f.phase === 'play' && (f.ui?.overlay || 0) === 0 && f.ui?.awaiting_command && !f.ui?.more && !isTerminalMenuOpen && !hasMenuTagInMapCols);
 
         if (isPlayState && inputMgr && f && f.player && f.map && this.lastTermData && col >= 12 && row >= 1 && row < this.rows - 1) {
             this._findPlayerTermCoords(this.lastTermData, f.player);

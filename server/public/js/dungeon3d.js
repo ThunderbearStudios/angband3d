@@ -2710,7 +2710,6 @@ class Dungeon3D {
             metalness: 0.02,
             vertexColors: true
         });
-        this._applyWorldSpaceOrganicShader(this.wallMaterial, 'wall');
 
         this.floorMaterial = new THREE.MeshStandardMaterial({
             map: this.floorTex,
@@ -2721,7 +2720,6 @@ class Dungeon3D {
             side: THREE.DoubleSide,
             vertexColors: true
         });
-        this._applyWorldSpaceOrganicShader(this.floorMaterial, 'floor');
 
         this.ceilingMaterial = new THREE.MeshStandardMaterial({
             map: this.ceilingTex,
@@ -2731,7 +2729,6 @@ class Dungeon3D {
             side: THREE.DoubleSide,
             vertexColors: true
         });
-        this._applyWorldSpaceOrganicShader(this.ceilingMaterial, 'ceiling');
 
         this.doorMaterial = new THREE.MeshStandardMaterial({
             map: this.doorTex,
@@ -2953,7 +2950,6 @@ class Dungeon3D {
             metalness: 0.05,
             vertexColors: true
         });
-        this._applyWorldSpaceOrganicShader(this.permWallMaterial, 'wall');
 
         // Separate town PBR textures from subterranean dungeon procedural textures
         this.townWallTex = null;
@@ -3104,56 +3100,6 @@ class Dungeon3D {
         });
     }
 
-    _applyWorldSpaceOrganicShader(material, surfaceType = 'wall') {
-        if (!material) return;
-        material.customProgramCacheKey = () => 'ws35_organic_' + surfaceType;
-        material.onBeforeCompile = (shader) => {
-            shader.vertexShader = shader.vertexShader.replace(
-                '#include <common>',
-                `#include <common>\nvarying vec3 vWs35WorldPos;\nvarying vec3 vWs35WorldNormal;`
-            );
-            const uvExpr = surfaceType === 'wall'
-                ? `vec2 wsUv = abs(vWs35WorldNormal.x) > abs(vWs35WorldNormal.z)
-                    ? vec2(vWs35WorldPos.z * 0.36, vWs35WorldPos.y * 0.38)
-                    : (abs(vWs35WorldNormal.z) > 0.82
-                        ? vec2(vWs35WorldPos.x * 0.36, vWs35WorldPos.y * 0.38)
-                        : vec2((vWs35WorldPos.x + vWs35WorldPos.z) * 0.34, vWs35WorldPos.y * 0.38));`
-                : `vec2 wsUv = vWs35WorldPos.xz * 0.28 + 0.03 * vec2(sin(vWs35WorldPos.z * 0.7), cos(vWs35WorldPos.x * 0.7));`;
-            shader.vertexShader = shader.vertexShader.replace(
-                '#include <worldpos_vertex>',
-                `#include <worldpos_vertex>
-vec4 ws35Wp = vec4(transformed, 1.0);
-#ifdef USE_INSTANCING
-  ws35Wp = instanceMatrix * ws35Wp;
-#endif
-ws35Wp = modelMatrix * ws35Wp;
-vWs35WorldPos = ws35Wp.xyz;
-vec3 ws35Wn = objectNormal;
-#ifdef USE_INSTANCING
-  ws35Wn = mat3(instanceMatrix) * ws35Wn;
-#endif
-vWs35WorldNormal = normalize(mat3(modelMatrix) * ws35Wn);
-${uvExpr}
-#ifdef USE_UV
-  vUv = wsUv;
-#endif`
-            );
-            shader.fragmentShader = shader.fragmentShader.replace(
-                '#include <common>',
-                `#include <common>\nvarying vec3 vWs35WorldPos;\nvarying vec3 vWs35WorldNormal;`
-            );
-            shader.fragmentShader = shader.fragmentShader.replace(
-                '#include <map_fragment>',
-                `#include <map_fragment>
-float wsMacro1 = sin(vWs35WorldPos.x * 0.55 + cos(vWs35WorldPos.z * 0.48) * 1.6) * cos(vWs35WorldPos.z * 0.52 - sin(vWs35WorldPos.x * 0.43) * 1.4);
-float wsMacro2 = sin(vWs35WorldPos.x * 1.35 + vWs35WorldPos.z * 1.15 + vWs35WorldPos.y * 0.9);
-float wsShade = 0.94 + 0.08 * wsMacro1 + 0.04 * wsMacro2;
-float wsBaseDamp = smoothstep(0.0, 0.55, vWs35WorldPos.y) * (1.0 - 0.14 * smoothstep(2.6, 3.3, vWs35WorldPos.y));
-diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
-            );
-        };
-    }
-
     getContextualTextureSet(theme, outdoors) {
         if (!this.contextualTextureCache) this.contextualTextureCache = new Map();
         const ph = this.polyHavenSets || this.polyhavenSets || new Map();
@@ -3167,10 +3113,10 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
         const isHeng = (this.realm === 'hengband' || (typeof window !== 'undefined' && window.__activeRealm === 'hengband'));
 
         if (outdoors) {
-            wallPhId = isHeng ? 'japanese_stone_wall' : 'castle_brick_broken_06';
+            wallPhId = isHeng ? 'japanese_stone_wall' : 'medieval_blocks_05';
             const isWild = tid.includes('wild') || (this.currentBiome && (this.currentBiome.id === 'wilderness' || this.currentBiome.id === 'grassland'));
             floorPhId = isWild ? 'aerial_grass_rock' : 'cobblestone_floor_08';
-            permPhId = 'medieval_blocks_05';
+            permPhId = isHeng ? 'japanese_stone_wall' : 'medieval_blocks_05';
             ceilPhId = 'rock_wall_10';
         } else {
             // Dungeon depths > 0
@@ -3302,9 +3248,6 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
             this.ceilingMaterial.normalScale.set(1.35, 1.35);
         }
         this.ceilingMaterial.needsUpdate = true;
-        if (this.wallJointMesh) {
-            this.wallJointMesh.material = this.wallMaterial;
-        }
 
         this.stairsMaterial.map = texSet.wallTex;
         this.stairsMaterial.normalMap = texSet.wallNormal;
@@ -3331,11 +3274,6 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
         // 45-degree chamfered geometry creates a visible 0.57m aperture between diagonal blocks
         const wallGeo = createChamferedWallGeometry(this.cellSize, this.wallHeight + 0.10, 0.40);
         applyWallVertexAO(wallGeo, this.wallHeight + 0.10);
-
-        // Seamless orthogonal wall joint geometry to bridge adjacent chamfered wall blocks into flush masonry
-        const wallJointGeo = new THREE.BoxGeometry(0.82, this.wallHeight + 0.10, this.cellSize);
-        applyWallVertexAO(wallJointGeo, this.wallHeight + 0.10);
-        wallJointGeo._sharedGeometry = true;
 
         // Subdivided floor with baked edge contact ambient occlusion
         const floorGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize, 2, 2);
@@ -3525,12 +3463,6 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
         this.wallMesh = new THREE.InstancedMesh(wallGeo, this.wallMaterial, this.maxInstances);
         this.wallMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.wallMesh);
-
-        this.wallJointMesh = new THREE.InstancedMesh(wallJointGeo, this.wallMaterial, this.maxInstances * 2);
-        this.wallJointMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        this.wallJointMesh.castShadow = true;
-        this.wallJointMesh.receiveShadow = true;
-        this.scene.add(this.wallJointMesh);
 
         // Cyclopean Permanent Bedrock & Outer Fortress Ramparts (feat 22)
         this.permWallMesh = new THREE.InstancedMesh(wallGeo, this.permWallMaterial, this.maxInstances);
@@ -3743,7 +3675,6 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
             mesh.count = 0; // Initialize to 0 so unpopulated instances are never drawn
         };
         initInstancedColors(this.wallMesh, this.maxInstances);
-        initInstancedColors(this.wallJointMesh, this.maxInstances * 2);
         initInstancedColors(this.permWallMesh, this.maxInstances);
         initInstancedColors(this.floorMesh, this.maxInstances);
         initInstancedColors(this.ceilingMesh, this.maxInstances);
@@ -6531,8 +6462,6 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
         // MultiMesh instance counts reset
         let wallCount = 0;
         let permWallCount = 0;
-        let wallJointIdx = 0;
-        const maxWallJoints = this.wallJointMesh ? this.wallJointMesh.instanceMatrix.count : 0;
         let floorCount = 0;
         let ceilingCount = 0;
         let doorFrameCount = 0;
@@ -6862,13 +6791,13 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
                     }
 
                     this.dummy.position.set(wx, wallYCenter, wz);
-                    this.dummy.rotation.set(0, 0, 0); // Wall masonry running-bond courses must ALWAYS remain horizontal!
+                    // Alternate 0 and PI yaw across adjacent blocks to sample opposite faces of the 8-sided perimeter UV map while keeping stone courses 100% horizontal
+                    const wallYaw = ((x + y) & 1) * Math.PI;
+                    this.dummy.rotation.set(0, wallYaw, 0);
                     this.dummy.updateMatrix();
-                    let activeWallShade = wallShade;
                     if (feat === 22) {
                         if (permWallCount < this.maxInstances) {
                             const permShade = this.computeTileShade(this._scratchPermWallColor, this.getBaseColour(22, biome), inView, outdoors, lighting, x, y, isRoom, depth);
-                            activeWallShade = permShade;
                             this.permWallMesh.setMatrixAt(permWallCount, this.dummy.matrix);
                             this.permWallMesh.setColorAt(permWallCount, permShade);
                             permWallCount++;
@@ -6878,39 +6807,6 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
                             this.wallMesh.setMatrixAt(wallCount, this.dummy.matrix);
                             this.wallMesh.setColorAt(wallCount, wallShade);
                             wallCount++;
-                        }
-                    }
-
-                    if (this.wallJointMesh && wallJointIdx < maxWallJoints) {
-                        const isSolidMasonryWallAt = (gx, gy) => {
-                            if (gx < minX || gx > maxX || gy < minY || gy > maxY) return false;
-                            const nFlag = this.getFlagAt(map, gx, gy);
-                            if (!outdoors && (nFlag & 0x3) === 0) return false;
-                            const nFeat = this.getFeatAt(map, gx, gy);
-                            const nGlyph = this.getGlyphAt(map, gx, gy);
-                            const nAttr = this.getAttrAt(map, gx, gy);
-                            if (this.realm === 'frogcomposband' && nGlyph === '#' && (nAttr === 2 || nAttr === 8 || nAttr === 9 || nFeat === 41)) {
-                                return false;
-                            }
-                            return nFeat === 15 || (nFeat >= 17 && nFeat <= 22);
-                        };
-                        if (isSolidMasonryWallAt(x + 1, y) && wallJointIdx < maxWallJoints) {
-                            this.dummy.position.set(wx + this.cellSize * 0.5, this.wallHeight / 2 - 0.05, wz);
-                            this.dummy.rotation.set(0, 0, 0);
-                            this.dummy.scale.set(1, 1, 1);
-                            this.dummy.updateMatrix();
-                            this.wallJointMesh.setMatrixAt(wallJointIdx, this.dummy.matrix);
-                            this.wallJointMesh.setColorAt(wallJointIdx, activeWallShade);
-                            wallJointIdx++;
-                        }
-                        if (isSolidMasonryWallAt(x, y + 1) && wallJointIdx < maxWallJoints) {
-                            this.dummy.position.set(wx, this.wallHeight / 2 - 0.05, wz + this.cellSize * 0.5);
-                            this.dummy.rotation.set(0, Math.PI / 2, 0);
-                            this.dummy.scale.set(1, 1, 1);
-                            this.dummy.updateMatrix();
-                            this.wallJointMesh.setMatrixAt(wallJointIdx, this.dummy.matrix);
-                            this.wallJointMesh.setColorAt(wallJointIdx, activeWallShade);
-                            wallJointIdx++;
                         }
                     }
 
@@ -7446,7 +7342,6 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
         };
 
         updateMesh(this.wallMesh, wallCount);
-        if (this.wallJointMesh) updateMesh(this.wallJointMesh, wallJointIdx);
         updateMesh(this.permWallMesh, permWallCount);
         updateMesh(this.floorMesh, floorCount);
         updateMesh(this.ceilingMesh, ceilingCount);
@@ -10129,9 +10024,22 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
                 return normalizeWrapper(scene, 0.95, true, 0.42, 1.45);
             });
         } else if (templateKey === 'bestiary_owl') {
-            loadPromise = loadGltf('/assets/models/monsters/bestiary/Owl.glb', () => this._ensureMonster3DTemplate('bestiary_bird')).then(scene => {
+            // Use the winged flying bird mesh (Parrot.glb, with Owl.glb fallback) re-tinted to dark corvid/raptor plumage
+            loadPromise = loadGltf('/assets/models/monsters/bestiary/Parrot.glb', '/assets/models/monsters/bestiary/Owl.glb').then(scene => {
+                scene.traverse(c => {
+                    if ((c.isMesh || c.isSkinnedMesh) && c.geometry && c.geometry.attributes && c.geometry.attributes.color) {
+                        c.geometry = c.geometry.clone();
+                        c.geometry._sharedGeometry = true;
+                        const col = c.geometry.attributes.color;
+                        for (let i = 0; i < col.count; i++) {
+                            const r = col.getX(i), g = col.getY(i), b = col.getZ(i);
+                            col.setXYZ(i, r * 0.14 + 0.08, g * 0.15 + 0.09, b * 0.18 + 0.12);
+                        }
+                        col.needsUpdate = true;
+                    }
+                });
                 this._enhanceBestiaryMeshQuality(scene);
-                return normalizeWrapper(scene, 0.68, true, 0, 0.95);
+                return normalizeWrapper(scene, 0.68, true, 0.35, 0.95);
             });
         } else if (templateKey === 'bestiary_stork') {
             loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Stork.glb').then(scene => {
@@ -13584,11 +13492,16 @@ diffuseColor.rgb *= clamp(wsShade * (0.86 + 0.14 * wsBaseDamp), 0.74, 1.12);`
 
         for (const entity of this.monsters.values()) {
             if (!entity.visible || !entity.monsterData) continue;
+            const mHeight = entity.modelHeight || 1.2;
             this._tempVec3.copy(entity.position);
-            this._tempVec3.y += (entity.modelHeight || 1.6) * 0.5;
-            const distToRay = ray.distanceToPoint(this._tempVec3);
-            if (distToRay < 0.95) { // Within creature interaction sphere
-                const distAlongRay = ray.origin.distanceTo(this._tempVec3);
+            this._tempVec3.y += mHeight * 0.45;
+            const distMid = ray.distanceToPoint(this._tempVec3);
+            this._tempVec3.copy(entity.position);
+            this._tempVec3.y += 0.25;
+            const distLow = ray.distanceToPoint(this._tempVec3);
+            const distToRay = Math.min(distMid, distLow);
+            if (distToRay < 1.25) { // Generous creature interaction sphere for small/flying models
+                const distAlongRay = ray.origin.distanceTo(entity.position);
                 if (distAlongRay < minRayDist) {
                     minRayDist = distAlongRay;
                     const mData = entity.monsterData;

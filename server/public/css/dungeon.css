@@ -9297,9 +9297,9 @@ body.wasd-mode-active .wasd-toggle-pill {
 #terminal-card.grimoire-primary-open #grimoire-deck-container,
 #terminal-container.grimoire-primary-open #grimoire-deck-container,
 body.grimoire-primary-open #grimoire-deck-container {
-    flex: 1 1 auto !important;
-    max-height: min(64vh, 580px) !important;
-    min-height: 220px !important;
+    flex: 0 0 auto !important;
+    max-height: min(26vh, 175px) !important;
+    min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
@@ -9332,15 +9332,13 @@ body.grimoire-primary-open .grimoire-card-grid {
     scrollbar-width: thin !important;
 }
 
-/* While Grimoire is primary (and not in skill-tree mode), collapse viewport below it */
-#terminal-window.grimoire-primary-open:not(.skill-tree) #terminal-viewport,
-#terminal-card.grimoire-primary-open:not(.skill-tree) #terminal-viewport,
-#terminal-container.grimoire-primary-open:not(.skill-tree) #terminal-viewport,
-body.grimoire-primary-open:not(.skill-tree) #terminal-viewport {
-    max-height: 54px !important;
-    min-height: 38px !important;
-    flex: 0 0 44px !important;
-    opacity: 0.88 !important;
+/* WS36: Always keep Classic Terminal (#terminal-viewport) 100% visible */
+#terminal-window #terminal-viewport,
+#terminal-card #terminal-viewport,
+#terminal-container #terminal-viewport {
+    max-height: none !important;
+    flex: 1 1 auto !important;
+    opacity: 1 !important;
 }
 
 /* When collapsed via [F10], restore viewport to full height */
@@ -9693,12 +9691,9 @@ html.device-desktop #btn-action-more.is-needed {
 /* ==============================================================================
    WS33 Track C & WS35 Track 2: HUD Footprint Minimization & Zero Overlap
    ============================================================================== */
+/* WS36: Hide duplicate DOM 3x3 chevron grid at bottom-center; 3D floor chevrons + MOVE PAD handle steps, leaving only faded-opaque Left/Right turn paddles */
 .streetview-nav-rosette .sv-chevron-disc {
-    background: radial-gradient(circle, rgba(14, 10, 7, 0.34) 0%, rgba(8, 6, 4, 0.18) 100%) !important;
-    border: 1px solid rgba(218, 172, 84, 0.22) !important;
-    box-shadow: none !important;
-    opacity: 0.56;
-    transition: opacity 0.16s ease;
+    display: none !important;
 }
 
 .streetview-nav-rosette:hover .sv-chevron-disc {
@@ -9762,11 +9757,11 @@ html.device-desktop #btn-action-more.is-needed {
 #hud-overlay #message-feed-window:not(.expanded):not(.mobile-expanded) {
     top: 38px !important;
     left: 204px !important;
-    width: min(430px, calc(100vw - 420px)) !important;
+    width: min(460px, calc(100vw - 420px)) !important;
     min-width: 260px !important;
-    height: 54px !important;
-    max-height: 54px !important;
-    min-height: 48px !important;
+    height: 106px !important;
+    max-height: 112px !important;
+    min-height: 96px !important;
 }
 
 @media (max-width: 960px) {
@@ -9779,13 +9774,9 @@ html.device-desktop #btn-action-more.is-needed {
     }
 }
 
-.reticle-target-card {
-    top: 96px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    min-width: 210px !important;
-    max-width: 310px !important;
-    padding: 4px 10px !important;
+.reticle-target-card,
+#reticle-target-card {
+    display: none !important;
 }
 
 .quick-slot-btn {
@@ -9860,15 +9851,7 @@ html.device-desktop #action-bar:not(.drawer-open) .action-btn.is-nested-action {
     border-top: 1px solid rgba(218, 172, 84, 0.25);
 }
 
-#terminal-window.grimoire-primary-open:not(.skill-tree) #terminal-viewport,
-#terminal-card.grimoire-primary-open:not(.skill-tree) #terminal-viewport,
-#terminal-container.grimoire-primary-open:not(.skill-tree) #terminal-viewport,
-body.grimoire-primary-open:not(.skill-tree) #terminal-viewport,
-body.grimoire-primary-open:not(.skill-tree) #terminal-touch-controls,
-body.grimoire-primary-open:not(.skill-tree) #term-letter-ribbon,
-body.grimoire-primary-open:not(.skill-tree) .terminal-footer {
-    display: none !important;
-}
+/* WS36: Never hide #terminal-viewport or classic terminal controls */
 
 .grimoire-prompt-subtitle {
     font-size: 11.5px;
@@ -9901,8 +9884,8 @@ body.grimoire-primary-open #entity-inspect-popover {
 }
 
 #hud-overlay #message-feed-window {
-    height: 60px !important;
-    min-height: 52px !important;
+    height: 106px !important;
+    min-height: 96px !important;
 }
 
 #hud-overlay #message-feed-window.expanded {

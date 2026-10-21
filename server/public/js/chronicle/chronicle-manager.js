@@ -4109,6 +4109,7 @@ class ChronicleManager {
     dismissEntityPopover() {
         this.inspectedEntity = null;
         if (!this.inspectPopover) return;
+        this.inspectPopover.style.display = '';
         this.inspectPopover.classList.add('hidden');
         try {
             if (typeof this.inspectPopover.hidePopover === 'function' && this.inspectPopover.matches(':popover-open')) {
@@ -4347,6 +4348,7 @@ class ChronicleManager {
             };
         }
 
+        this.inspectPopover.style.display = 'flex';
         this.inspectPopover.classList.remove('hidden');
         try {
             if (typeof this.inspectPopover.showPopover === 'function' && !this.inspectPopover.matches(':popover-open')) {
