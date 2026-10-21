@@ -1,17 +1,22 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
 async function testDeath() {
     const port = 9224;
+    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-chrome-'));
+    process.on('exit', () => {
+        try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (_) {}
+    });
     const chrome = spawn('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', [
         '--headless=new',
         '--remote-debugging-port=' + port,
         '--window-size=1280,800',
         '--no-first-run',
         '--no-default-browser-check',
-        '--user-data-dir=' + path.join(__dirname, 'temp_death_test_' + Date.now())
+        '--user-data-dir=' + profileDir
     ], { stdio: 'ignore' });
 
     await new Promise(r => setTimeout(r, 1500));
@@ -83,6 +88,7 @@ async function testDeath() {
         const outPath = path.join(__dirname, 'death_modal_capture.png');
         fs.writeFileSync(outPath, Buffer.from(shot.data, 'base64'));
         console.log('Death screenshot captured to', outPath);
+        chrome.kill();
         process.exit(0);
     });
 }

@@ -2,7 +2,15 @@ const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const WebSocket = require(path.join(__dirname, '../server/node_modules/ws'));
+
+const tempDirs = [];
+process.on('exit', () => {
+    for (const d of tempDirs) {
+        try { fs.rmSync(d, { recursive: true, force: true }); } catch (_) {}
+    }
+});
 
 async function getJson(url) {
     return new Promise((resolve, reject) => {
@@ -19,13 +27,18 @@ async function testRealmStart(realm, port = 9222) {
     console.log(`TESTING REALM BROWSER START: ${realm} (Port ${port})`);
     console.log(`========================================`);
 
-    const chrome = spawn('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', [
-        `--remote-debugging-port=${port}`,
-        '--headless=new',
-        '--disable-gpu',
-        '--user-data-dir=' + path.resolve('.chrome-debug-profile-' + realm),
-        `http://localhost:8080/?realm=${realm}`
-    ]);
+    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-chrome-'));
+    tempDirs.push(profileDir);
+    let ws = null;
+    let chrome = null;
+    try {
+        chrome = spawn('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', [
+            `--remote-debugging-port=${port}`,
+            '--headless=new',
+            '--disable-gpu',
+            '--user-data-dir=' + profileDir,
+            `http://localhost:8080/?realm=${realm}`
+        ]);
 
     let tabs = null;
     for (let i = 0; i < 20; i++) {
@@ -175,9 +188,14 @@ async function testRealmStart(realm, port = 9222) {
     fs.writeFileSync(`tools/realm_${realm}_play.png`, Buffer.from(shot.data, 'base64'));
     console.log(`Saved screenshot to tools/realm_${realm}_play.png`);
 
-    ws.close();
-    chrome.kill();
     return finalSt;
+    } finally {
+        if (ws) try { ws.close(); } catch (_) {}
+        if (chrome) try { chrome.kill(); } catch (_) {}
+        try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (_) {}
+        const idx = tempDirs.indexOf(profileDir);
+        if (idx !== -1) tempDirs.splice(idx, 1);
+    }
 }
 
 async function run() {

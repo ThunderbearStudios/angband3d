@@ -2,6 +2,7 @@ const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
 async function getJson(url) {
@@ -17,8 +18,10 @@ async function getJson(url) {
 async function main() {
     console.log('[Test] Running diagonal aperture and movement verification...');
     const port = 9229;
-    const profileDir = path.resolve('.chrome-debug-profile-diag-test');
-    try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (e) {}
+    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-chrome-'));
+    process.on('exit', () => {
+        try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (e) {}
+    });
 
     const chrome = spawn('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', [
         `--remote-debugging-port=${port}`,

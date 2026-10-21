@@ -2,12 +2,17 @@ const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
 async function main() {
     const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
     const port = 9222;
     const targetUrl = 'https://angband3d-cloud-564958309282.us-central1.run.app/?char=Hero_' + Date.now();
+    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-chrome-'));
+    process.on('exit', () => {
+        try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (_) {}
+    });
 
     console.log('[Capture] Launching Chrome headless on port ' + port + '...');
     const chrome = spawn(chromePath, [
@@ -17,7 +22,7 @@ async function main() {
         '--window-size=1280,800',
         '--no-first-run',
         '--no-default-browser-check',
-        '--user-data-dir=' + path.join(__dirname, 'temp_chrome_profile_' + Date.now())
+        '--user-data-dir=' + profileDir
     ], { stdio: 'ignore' });
 
     // Give Chrome 1.5s to start listening

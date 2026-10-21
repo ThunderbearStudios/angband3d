@@ -1,7 +1,10 @@
 const http = require('http');
 const { spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
-const TEST_PORT = process.env.TEST_PORT || 8089;
+const TEST_PORT = process.env.TEST_PORT ? parseInt(process.env.TEST_PORT, 10) : (20000 + Math.floor(Math.random() * 20000));
 
 async function fetchAPI(path, method, body, headers = {}) {
     return new Promise((resolve, reject) => {
@@ -23,9 +26,14 @@ async function fetchAPI(path, method, body, headers = {}) {
 
 async function runTest() {
     console.log(`Starting server on port ${TEST_PORT} for proxy limits test...`);
+    const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-save-'));
+    process.on('exit', () => {
+        try { fs.rmSync(saveDir, { recursive: true, force: true }); } catch (_) {}
+    });
     const env = Object.assign({}, process.env);
     Object.keys(env).forEach(k => { if (k.toUpperCase() === 'GEMINI_API_KEY') delete env[k]; });
     env.PORT = String(TEST_PORT);
+    env.SAVE_DIR = saveDir;
     env.LLM_RPM = '3';
     env.TTS_RPM = '3';
 
@@ -34,7 +42,23 @@ async function runTest() {
         stdio: 'inherit'
     });
 
-    await new Promise(r => setTimeout(r, 2000));
+    let healthy = false;
+    for (let i = 0; i < 40; i++) {
+        try {
+            const h = await fetchAPI('/health', 'GET');
+            if (h.status === 200) {
+                healthy = true;
+                break;
+            }
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, 100));
+    }
+    if (!healthy) {
+        server.kill();
+        try { fs.rmSync(saveDir, { recursive: true, force: true }); } catch (_) {}
+        console.error('FAIL: Server failed to start or pass /health readiness check on port ' + TEST_PORT);
+        process.exit(1);
+    }
 
     let failed = false;
     function assert(cond, msg) {
@@ -111,6 +135,7 @@ async function runTest() {
         }
     } finally {
         server.kill();
+        try { fs.rmSync(saveDir, { recursive: true, force: true }); } catch (_) {}
         process.exit(failed ? 1 : 0);
     }
 }

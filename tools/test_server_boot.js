@@ -1,11 +1,18 @@
 const { spawn } = require('child_process');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
 async function run() {
-    const port = 18080;
+    const port = 20000 + Math.floor(Math.random() * 20000);
+    const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-save-'));
+    process.on('exit', () => {
+        try { fs.rmSync(saveDir, { recursive: true, force: true }); } catch (_) {}
+    });
     const child = spawn('node', ['server/src/server.js'], {
-        env: { ...process.env, PORT: port },
+        env: { ...process.env, PORT: String(port), SAVE_DIR: saveDir },
         stdio: 'ignore'
     });
 

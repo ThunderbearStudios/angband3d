@@ -1,11 +1,17 @@
 const { spawn } = require('child_process');
+const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
 async function main() {
     const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
     const port = 9223;
     const targetUrl = 'https://angband3d-cloud-564958309282.us-central1.run.app';
+    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-chrome-'));
+    process.on('exit', () => {
+        try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (_) {}
+    });
 
     console.log('Launching Chrome...');
     const chrome = spawn(chromePath, [
@@ -14,7 +20,7 @@ async function main() {
         '--window-size=1280,800',
         '--no-first-run',
         '--no-default-browser-check',
-        '--user-data-dir=' + path.join(__dirname, 'temp_chrome_profile2')
+        '--user-data-dir=' + profileDir
     ], { stdio: 'ignore' });
 
     await new Promise(r => setTimeout(r, 1500));

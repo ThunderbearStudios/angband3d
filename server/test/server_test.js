@@ -12,8 +12,15 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 8081;
+const os = require('os');
+
+const PORT = 20000 + Math.floor(Math.random() * 20000);
+const SAVE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-save-'));
 process.env.PORT = PORT.toString();
+process.env.SAVE_DIR = SAVE_DIR;
+process.on('exit', () => {
+    try { fs.rmSync(SAVE_DIR, { recursive: true, force: true }); } catch (_) {}
+});
 
 // Start the server
 require('../src/server.js');
@@ -49,11 +56,19 @@ function post(pathStr, bodyBuffer, headers = {}) {
 
 async function runTests() {
     console.log('Testing server endpoints on port', PORT);
-    await new Promise(r => setTimeout(r, 500));
+    let healthOk = false;
+    let health;
+    for (let i = 0; i < 40; i++) {
+        try {
+            health = await get('/health');
+            if (health.status === 200) { healthOk = true; break; }
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, 100));
+    }
+    assert(healthOk, 'Server /health readiness check failed on port ' + PORT);
 
     // Test 1: Health check
     console.log('Test 1: Health check');
-    const health = await get('/health');
     assert.strictEqual(health.status, 200);
     const healthJson = JSON.parse(health.body);
     assert.strictEqual(healthJson.status, 'ok');
@@ -91,10 +106,15 @@ async function runTests() {
     console.log('  -> Valid SaveVNLA upload accepted and saved:', uploadJson.filename);
 
     // Clean up test file
-    const testSavePath = path.join(__dirname, '../../engine/build/game/lib/save/TestHero');
-    if (fs.existsSync(testSavePath)) {
-        fs.unlinkSync(testSavePath);
-        console.log('  -> Cleaned up test save file');
+    const testSavePaths = [
+        path.join(SAVE_DIR, 'TestHero'),
+        path.join(__dirname, '../../engine/build/game/lib/save/TestHero')
+    ];
+    for (const tsp of testSavePaths) {
+        if (fs.existsSync(tsp)) {
+            fs.unlinkSync(tsp);
+            console.log('  -> Cleaned up test save file');
+        }
     }
 
     // Test 5: Static web client delivery
@@ -294,9 +314,9 @@ async function runTests() {
     // Test 19: Mobile Touch Sensitivity & Menu Interface Integrity
     console.log('Test 19: Mobile Touch Sensitivity & Menu Interface Integrity');
     const swJs = fs.readFileSync(path.join(__dirname, '../public/sw.js'), 'utf8');
-    assert(swJs.includes("angband3d-v9") || swJs.includes("angband3d-v8") || swJs.includes("angband3d-v7.9") || swJs.includes("angband3d-v7.8") || swJs.includes("angband3d-v7.7") || swJs.includes("angband3d-v7.6"), 'sw.js must be bumped to angband3d-v7.9 or higher');
-    assert(indexRes.body.includes('/css/dungeon.css?v=9.') || indexRes.body.includes('/css/dungeon.css?v=8.') || indexRes.body.includes('/css/dungeon.css?v=7.8') || indexRes.body.includes('/css/dungeon.css?v=7.7'), 'index.html must load dungeon.css');
-    assert(indexRes.body.includes('/js/app.js?v=9.') || indexRes.body.includes('/js/app.js?v=8.') || indexRes.body.includes('/js/app.js?v=7.8') || indexRes.body.includes('/js/app.js?v=7.7'), 'index.html must load app.js');
+    assert(swJs.includes("angband3d-v10") || swJs.includes("angband3d-v9") || swJs.includes("angband3d-v8") || swJs.includes("angband3d-v7.9") || swJs.includes("angband3d-v7.8") || swJs.includes("angband3d-v7.7") || swJs.includes("angband3d-v7.6"), 'sw.js must be bumped to angband3d-v7.9 or higher');
+    assert(indexRes.body.includes('/css/dungeon.css?v=10.') || indexRes.body.includes('/css/dungeon.css?v=9.') || indexRes.body.includes('/css/dungeon.css?v=8.') || indexRes.body.includes('/css/dungeon.css?v=7.8') || indexRes.body.includes('/css/dungeon.css?v=7.7'), 'index.html must load dungeon.css');
+    assert(indexRes.body.includes('/js/app.js?v=10.') || indexRes.body.includes('/js/app.js?v=9.') || indexRes.body.includes('/js/app.js?v=8.') || indexRes.body.includes('/js/app.js?v=7.8') || indexRes.body.includes('/js/app.js?v=7.7'), 'index.html must load app.js');
     assert(indexRes.body.includes('id="quick-volume-popover"'), 'index.html must contain #quick-volume-popover');
     assert(dungeonCss.includes('.quick-volume-popover'), 'dungeon.css must style .quick-volume-popover');
     assert(dungeonCss.includes('touch-action: pan-x;'), 'dungeon.css .term-letter-ribbon must have touch-action: pan-x');
@@ -369,10 +389,12 @@ async function runTests() {
     console.log('  -> WS25–WS30 multi-column hit-testing, Grimoire Deck, Realm Heraldry, Mythic Crossroads, 3D/Audio & Security verified');
 
     console.log('\nAll server unit tests passed successfully!');
+    try { fs.rmSync(SAVE_DIR, { recursive: true, force: true }); } catch (_) {}
     process.exit(0);
 }
 
 runTests().catch(err => {
+    try { fs.rmSync(SAVE_DIR, { recursive: true, force: true }); } catch (_) {}
     console.error('Test failed:', err);
     process.exit(1);
 });

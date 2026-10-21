@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
 async function main() {
@@ -18,7 +19,10 @@ async function main() {
     const targetUrl = 'http://localhost:8093/?char=ChamferHero_' + Date.now();
 
     console.log('[Test] Launching Chrome CDP on port ' + port + '...');
-    const profileDir = path.join(__dirname, 'temp_chamfer_profile_' + Date.now());
+    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-chrome-'));
+    process.on('exit', () => {
+        try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (_) {}
+    });
     const chrome = spawn(chromePath, [
         '--headless=new',
         `--remote-debugging-port=${port}`,

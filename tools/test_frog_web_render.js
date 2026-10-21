@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
 async function run() {
@@ -9,7 +10,10 @@ async function run() {
     const targetUrl = `http://localhost:8080/?char=Hero_FrogLive&realm=frogcomposband&play=1`;
 
     console.log(`[TestFrogWeb] Launching Chrome headless on port ${port}...`);
-    const tempDir = path.join(__dirname, 'temp_chrome_frog_' + Date.now());
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-chrome-'));
+    process.on('exit', () => {
+        try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+    });
     const chrome = spawn(chromePath, [
         '--headless=new',
         `--remote-debugging-port=${port}`,

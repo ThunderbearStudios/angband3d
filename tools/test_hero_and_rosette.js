@@ -2,6 +2,7 @@ const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const WebSocket = require('../server/node_modules/ws');
 
 async function sleep(ms) {
@@ -12,7 +13,10 @@ async function run() {
     const SERVER_PORT = 8096;
     const CDP_PORT = 9238;
     const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-    const profileDir = path.join(__dirname, 'temp_chrome_hero_' + Date.now());
+    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'a3d-chrome-'));
+    process.on('exit', () => {
+        try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (_) {}
+    });
 
     console.log(`[Test] 1. Launching local Angband3D server on port ${SERVER_PORT}...`);
     const serverProcess = spawn('node', ['server/src/server.js'], {
