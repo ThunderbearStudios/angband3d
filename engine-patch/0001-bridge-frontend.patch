@@ -74,10 +74,10 @@ index cae25e554..55d525dea 100644
  	$(STATSMAINFILES) \
 diff --git a/src/bridge-json.c b/src/bridge-json.c
 new file mode 100644
-index 000000000..5bb8ec3ad
+index 000000000..bcc704105
 --- /dev/null
 +++ b/src/bridge-json.c
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,117 @@
 +/**
 + * \file bridge-json.c
 + * \brief Minimal JSON output helpers for the "bridge" front end.
@@ -124,8 +124,36 @@ index 000000000..5bb8ec3ad
 +{
 +	fputc('"', fp);
 +	if (s) {
-+		while (*s) {
-+			bj_codepoint(fp, (uint32_t)(unsigned char)*s++);
++		const unsigned char *p = (const unsigned char *)s;
++		while (*p) {
++			uint32_t cp = 0;
++			if (*p < 0x80) {
++				cp = *p++;
++			} else if ((*p & 0xe0) == 0xc0) {
++				if ((p[1] & 0xc0) == 0x80) {
++					cp = ((uint32_t)(p[0] & 0x1f) << 6) | (uint32_t)(p[1] & 0x3f);
++					p += 2;
++				} else {
++					cp = *p++;
++				}
++			} else if ((*p & 0xf0) == 0xe0) {
++				if ((p[1] & 0xc0) == 0x80 && (p[2] & 0xc0) == 0x80) {
++					cp = ((uint32_t)(p[0] & 0x0f) << 12) | ((uint32_t)(p[1] & 0x3f) << 6) | (uint32_t)(p[2] & 0x3f);
++					p += 3;
++				} else {
++					cp = *p++;
++				}
++			} else if ((*p & 0xf8) == 0xf0) {
++				if ((p[1] & 0xc0) == 0x80 && (p[2] & 0xc0) == 0x80 && (p[3] & 0xc0) == 0x80) {
++					cp = ((uint32_t)(p[0] & 0x07) << 18) | ((uint32_t)(p[1] & 0x3f) << 12) | ((uint32_t)(p[2] & 0x3f) << 6) | (uint32_t)(p[3] & 0x3f);
++					p += 4;
++				} else {
++					cp = *p++;
++				}
++			} else {
++				cp = *p++;
++			}
++			bj_codepoint(fp, cp);
 +		}
 +	}
 +	fputc('"', fp);
@@ -254,10 +282,10 @@ index 000000000..86bc4945d
 +endmacro()
 diff --git a/src/main-bridge.c b/src/main-bridge.c
 new file mode 100644
-index 000000000..f2063cfe3
+index 000000000..fe89b3cf9
 --- /dev/null
 +++ b/src/main-bridge.c
-@@ -0,0 +1,1331 @@
+@@ -0,0 +1,1332 @@
 +/**
 + * \file main-bridge.c
 + * \brief JSON state bridge front end, for driving Angband from an external client.
@@ -1331,6 +1359,7 @@ index 000000000..f2063cfe3
 +static int bridge_handle(char *line)
 +{
 +	char *cmd, *rest;
++	bool is_json_save = (line && strstr(line, "\"t\":\"save\"") != NULL);
 +
 +	cmd = strtok(line, " \t");
 +	if (!cmd) return 0;
@@ -1379,7 +1408,7 @@ index 000000000..f2063cfe3
 +		return 0;
 +	}
 +
-+	if (streq(cmd, "save") || (line && strstr(line, "\"t\":\"save\""))) {
++	if (streq(cmd, "save") || is_json_save) {
 +		if (bridge_in_play() && (!player || !player->is_dead) && savefile[0]) {
 +			bool ok = savefile_save(savefile);
 +			emit_event("ok", ok ? "saved" : "save_failed");

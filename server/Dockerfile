@@ -64,7 +64,7 @@ RUN find . -type f \( -name "*.ac" -o -name "*.am" -o -name "*.m4" -o -name "*.s
     make -j$(nproc)
 
 # Stage 2: Runtime Image with Node.js WebSocket Daemon
-FROM node:18-slim AS runtime
+FROM node:22-bookworm-slim AS runtime
 
 # Install runtime libraries and UTF-8 locale support
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -130,6 +130,8 @@ ENV NODE_ENV=production
 ENV TRUST_PROXY=1
 
 EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "src/server.js"]
 

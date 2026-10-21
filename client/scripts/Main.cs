@@ -16,6 +16,7 @@ public partial class Main : Node
     private BridgeClient _localBridge;
     private WebSocketBridgeClient _cloudBridge;
     private bool _cloudMode;
+    private int _lastCloudPingMs = -1;
     private string _cloudUrl = "ws://localhost:8080/ws";
     private string _downloadUrl = "http://localhost:8080/download/angband3d-standalone.zip";
     private DungeonWorld _world;
@@ -1955,14 +1956,21 @@ public partial class Main : Node
 
         if (_cloudMode && _cloudBridge != null && _cloudBridge.Connected)
         {
-            _overlay.NetworkBadge = $"Cloud [{_cloudBridge.PingMs}ms]";
+            int ping = _cloudBridge.PingMs;
+            if (ping != _lastCloudPingMs)
+            {
+                _lastCloudPingMs = ping;
+                _overlay.NetworkBadge = $"Cloud [{ping}ms]";
+            }
         }
         else if (_cloudMode)
         {
+            _lastCloudPingMs = -1;
             _overlay.NetworkBadge = "Cloud [Connecting...]";
         }
         else
         {
+            _lastCloudPingMs = -1;
             _overlay.NetworkBadge = null;
         }
 

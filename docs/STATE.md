@@ -1,24 +1,25 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS41 — Deep Security, 60fps Render Pipeline Gating, Bloat Reclaim & Wire Efficiency Pass (`v10.7.0`) — IN PROGRESS**
+**WS41 — Deep Security, 60fps Render Pipeline Gating, Bloat Reclaim & Wire Efficiency Pass (v10.7.0) — COMPLETE**
 
-- **Current Phase**: Executing atomic turnkey cards `WS41.1` $\rightarrow$ `WS41.5` defined in [`docs/plan/master_audit_and_execution_plan.md`](file:///c:/Dev/angband3d/docs/plan/master_audit_and_execution_plan.md#L166).
+- **Current Phase**: All atomic turnkey cards `WS41.1` $\rightarrow$ `WS41.5` defined in [`docs/plan/master_audit_and_execution_plan.md`](file:///c:/Dev/angband3d/docs/plan/master_audit_and_execution_plan.md#L166) are complete.
 - **Active Checklist**:
   - [x] **`WS41.1`**: Workspace Bloat Purge (`~1.98 GB` temp profiles) & Test Suite Hermeticity (`os.tmpdir()`, dynamic ports)
   - [x] **`WS41.2`**: Server Ownership Hardening (`C1`/`C2`), Rate-Limit Isolation (`H1`/`H4`/`H5`) & O(1) Relay/False-Death Fix (`H2`/`H3`/`P3`)
   - [x] **`WS41.3`**: 60 FPS Client Render, HUD & Terminal Pipeline Gating (`dungeon3d.js`, `hud.js`, `terminal.js`, `chronicle-*`)
   - [x] **`WS41.4`**: Service Worker Install Diet (`-9.02 MB`), Cache-First Static Assets, Script `defer` & Version Sync (`v10.7.0`)
-  - [ ] **`WS41.5`**: Native Bridge UTF-8 Decoding (`H8`), Godot Input Encoding/Badge Gating & CI/Docker Hardening (`H6`/`H7`)
+  - [x] **`WS41.5`**: Native Bridge UTF-8 Decoding (`H8`), Godot Input Encoding/Badge Gating & CI/Docker Hardening (`H6`/`H7`)
 - **Historical Log**: Full checklist and gate history for `WS0–WS21` are archived in [`docs/archive/STATE_HISTORY_WS0_WS21.md`](file:///c:/Dev/angband3d/docs/archive/STATE_HISTORY_WS0_WS21.md).
 
-## Completed Workstream Summary (`WS0–WS40`)
+## Completed Workstream Summary (`WS0–WS41`)
 
 | Workstream | Scope Summary | Status |
 | :--- | :--- | :--- |
 | **WS0–WS21** | Baseline harness, ScreenContext (`144/144`), MenuRouter, RealmKeys, HengTranslate (`98.34%`), guards, Lorekeeper, 8-Pillar 3D, Foley (`L37–L44`) | `[x] DONE` |
 | **WS22–WS36** | Mastery (`L45–L53`), Grimoire Deck, Viewport Budget, Sliding Anchor, LOS, Horizontal Vitals, Classic Terminal (`v10.2.0`) | `[x] DONE` |
 | **WS37–WS40** | Popover, Story Chronicle, `Alt+1..4` Slots, Minimap, Offline Continuity, Mobile Layout, Zero-Parse WS Relay (`TCP_NODELAY`, `v10.6.0`) | `[x] DONE` |
+| **WS41** | Security audit (`C1`/`C2`, `H1`/`H4`/`H5`, `H6`–`H8`), 60fps render/HUD gating, SW diet (`-9.02 MB`), C bridge UTF-8 (`v10.7.0`) | `[x] DONE` |
 
 ## Mandatory Verification Gate
 Server must be fresh (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }` then `cd server; node src/server.js`.
@@ -44,4 +45,4 @@ None
 - **WS-NH1..WS-NH6 — UnNetHack (5th Realm) Full Integration**: Full spec in [`docs/plan/UNNETHACK_INTEGRATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/UNNETHACK_INTEGRATION_PLAN.md).
 
 ## Last Gate Results
-- **WS41.4 Service Worker Install Diet & Script Defer Gate (2026-10-21)**: `fast 19/19 PASS` | `check_version_sync.js PASS` | `check_android_sync.js PASS` | `test_static_invariants.js PASS` | v10.7.0 synced.
+- **WS41.5 Native Bridge UTF-8, Godot Stdin & CI Hardening Gate (2026-10-21)**: `fast 19/19 PASS` | `smoke_test.py 11/11 PASS` | `dotnet build 0 warn / 0 err` | `tb_mastery.py audit 0 err / 0 warn` | v10.7.0 verified.

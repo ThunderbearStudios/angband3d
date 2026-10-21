@@ -151,6 +151,7 @@ public partial class BridgeClient : Node, IGameEngineBridge
             UseShellExecute = false,
             CreateNoWindow = true,
             StandardOutputEncoding = new UTF8Encoding(false),
+            StandardInputEncoding = new UTF8Encoding(false),
         };
 
         var libDir = System.IO.Path.Combine(workDir, "lib");
