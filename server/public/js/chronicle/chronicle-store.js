@@ -187,6 +187,9 @@ class ChronicleStore {
                 summary: combinedSummary.substring(0, 500) + '...',
                 timestamp: Date.now()
             });
+            if (chronicle.epochs.length > 30) {
+                chronicle.epochs.splice(0, chronicle.epochs.length - 30);
+            }
         }
     }
 

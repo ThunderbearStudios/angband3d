@@ -1733,7 +1733,7 @@ class ChronicleManager {
         const depthLabel = depth === 0 ? 'Town' : `${depth * 50}ft`;
         let headerBadge = isDeath ? `⚰️ ${depthLabel} • Requiem` : depthLabel;
         if (entry.storyArcBadge) {
-            headerBadge = `${entry.storyArcBadge} • ${headerBadge}`;
+            headerBadge = `${this.escapeHtml(entry.storyArcBadge)} • ${headerBadge}`;
         } else if (this.grounder && typeof this.grounder.getStoryArchitecture === 'function') {
             const arch = this.grounder.getStoryArchitecture(this.getActiveRealm(), depth);
             if (arch && arch.currentDivision) {
@@ -1741,12 +1741,12 @@ class ChronicleManager {
             }
         }
         if (this.activeMythicVow && this.activeMythicVow.epithet && !isDeath) {
-            headerBadge += ` • 🕯️ ${this.activeMythicVow.epithet}`;
+            headerBadge += ` • 🕯️ ${this.escapeHtml(this.activeMythicVow.epithet)}`;
         }
         if (entry.isStoryPrompt) {
             headerBadge = `🔮 ${headerBadge} • Tale`;
         } else if (entry.isCatchUp && entry.actionBreakdown && entry.actionBreakdown.summaryText) {
-            headerBadge = `⚡ ${depthLabel} • Caught Up (+${entry.actionBreakdown.summaryText})`;
+            headerBadge = `⚡ ${depthLabel} • Caught Up (+${this.escapeHtml(entry.actionBreakdown.summaryText)})`;
         } else if (entry.isCatchUp) {
             headerBadge = `⚡ ${depthLabel} • Caught Up`;
         }
@@ -1762,7 +1762,7 @@ class ChronicleManager {
             html += `
                 <div class="catchup-context-banner">
                     <span class="catchup-badge">⚡ Action Flurry</span>
-                    <span class="catchup-breakdown">${entry.actionBreakdown.total} buffered events synthesized: ${entry.actionBreakdown.summaryText}</span>
+                    <span class="catchup-breakdown">${entry.actionBreakdown.total} buffered events synthesized: ${this.escapeHtml(entry.actionBreakdown.summaryText)}</span>
                 </div>
             `;
         }

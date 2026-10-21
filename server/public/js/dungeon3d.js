@@ -7405,7 +7405,12 @@ class Dungeon3D {
                 }
                 this._terrainLabelSprites.clear();
             }
+            this._lastTerrainLabelsSig = null;
         }
+
+        const labelSig = `${this._lastTerrainSig || ''}:${depth}:${px}:${py}:${this.realm || 'angband'}`;
+        if (this._lastTerrainLabelsSig === labelSig) return;
+        this._lastTerrainLabelsSig = labelSig;
 
         this._terrainLabelSprites = this._terrainLabelSprites || new Map();
 
@@ -11488,7 +11493,7 @@ class Dungeon3D {
                     const poolKey = `${oldMat.uuid}_${cfg.tintHex}_${Boolean(cfg.isOrcish)}_${Boolean(cfg.tunicOnlyTint)}`;
                     let pooledMat = this._tintedMatPool.get(poolKey);
                     if (!pooledMat) {
-                        if (this._tintedMatPool.size >= 64) {
+                        if (this._tintedMatPool.size >= 256) {
                             const firstKey = this._tintedMatPool.keys().next().value;
                             this._tintedMatPool.delete(firstKey);
                         }
@@ -12285,6 +12290,10 @@ class Dungeon3D {
                     const pKey = `item_${c.material.uuid}_${colorHex}`;
                     let pMat = this._tintedMatPool.get(pKey);
                     if (!pMat) {
+                        if (this._tintedMatPool.size >= 256) {
+                            const firstKey = this._tintedMatPool.keys().next().value;
+                            this._tintedMatPool.delete(firstKey);
+                        }
                         pMat = c.material.clone();
                         pMat._sharedMaterial = true;
                         if (pMat.color) pMat.color.lerp(tintCol, 0.48);
@@ -12606,8 +12615,8 @@ class Dungeon3D {
         const tNow = performance.now();
 
         // When terminal or death modal completely covers the screen, throttle 3D rendering to 5 FPS
-        const termContainer = document.getElementById('terminal-container');
-        const deathModal = document.getElementById('death-modal');
+        const termContainer = this._termContainerEl || (this._termContainerEl = document.getElementById('terminal-container'));
+        const deathModal = this._deathModalEl || (this._deathModalEl = document.getElementById('death-modal'));
         const isCovered = (termContainer && !termContainer.classList.contains('hidden')) ||
                           (deathModal && !deathModal.classList.contains('hidden'));
         const isRecording = typeof window !== 'undefined' && window.location.search && window.location.search.includes('record_walkthrough=1');
@@ -13095,7 +13104,8 @@ class Dungeon3D {
         // Monsters gentle hover, walking lerp & facing
         const monTime = tNow * 0.003;
         const camPos = this.camera ? this.camera.position : null;
-        const candidateNameplates = [];
+        const candidateNameplates = this._candidateNameplates || (this._candidateNameplates = []);
+        candidateNameplates.length = 0;
 
         for (const entity of this.monsters.values()) {
             const entityDistSq = camPos ? ((entity.position.x - camPos.x) ** 2 + (entity.position.z - camPos.z) ** 2) : 0;
@@ -13165,6 +13175,20 @@ class Dungeon3D {
                     entity._emissiveMaterials = [];
                     entity.traverse(c => {
                         if (c.isMesh && c.material) {
+                            if (Array.isArray(c.material)) {
+                                c.material = c.material.map(m => {
+                                    if (m && m.emissive && !m._isInstanceFlashClone) {
+                                        const cloned = m.clone();
+                                        cloned._isInstanceFlashClone = true;
+                                        return cloned;
+                                    }
+                                    return m;
+                                });
+                            } else if (c.material.emissive && !c.material._isInstanceFlashClone) {
+                                const cloned = c.material.clone();
+                                cloned._isInstanceFlashClone = true;
+                                c.material = cloned;
+                            }
                             const mats = Array.isArray(c.material) ? c.material : [c.material];
                             for (const m of mats) {
                                 if (m && m.emissive) {

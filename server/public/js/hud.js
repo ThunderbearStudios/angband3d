@@ -2285,54 +2285,62 @@ class WebHUD {
         // HP Bar
         const curHp = player.hp !== undefined ? player.hp : (player.chp !== undefined ? player.chp : 100);
         const maxHp = player.hp_max !== undefined ? player.hp_max : (player.max_hp !== undefined ? player.max_hp : (player.mhp !== undefined ? player.mhp : 100));
-        const hpPct = Math.max(0, Math.min(100, (curHp / Math.max(1, maxHp)) * 100));
-        if (this.hpFill) {
-            this.hpFill.style.width = `${hpPct}%`;
-            this.hpFill.style.height = `${hpPct}%`;
-            if (typeof this.hpFill.style.setProperty === 'function') {
-                this.hpFill.style.setProperty('--vial-pct', `${hpPct}%`);
+        const hpSig = `${curHp}/${maxHp}`;
+        if (this._lastHpSig !== hpSig) {
+            this._lastHpSig = hpSig;
+            const hpPct = Math.max(0, Math.min(100, (curHp / Math.max(1, maxHp)) * 100));
+            if (this.hpFill) {
+                this.hpFill.style.width = `${hpPct}%`;
+                this.hpFill.style.height = `${hpPct}%`;
+                if (typeof this.hpFill.style.setProperty === 'function') {
+                    this.hpFill.style.setProperty('--vial-pct', `${hpPct}%`);
+                }
+                if (this.hpFill.classList) {
+                    this.hpFill.classList.toggle('hp-caution', hpPct <= 50 && hpPct > 25);
+                    this.hpFill.classList.toggle('hp-critical', hpPct <= 25);
+                }
             }
-            if (this.hpFill.classList) {
-                this.hpFill.classList.toggle('hp-caution', hpPct <= 50 && hpPct > 25);
-                this.hpFill.classList.toggle('hp-critical', hpPct <= 25);
+            if (this.hpGhostFill) {
+                this.hpGhostFill.style.width = `${hpPct}%`;
+                if (typeof this.hpGhostFill.style.setProperty === 'function') {
+                    this.hpGhostFill.style.setProperty('--vial-pct', `${hpPct}%`);
+                }
             }
+            this.hpText.textContent = `${curHp} / ${maxHp}`;
         }
-        if (this.hpGhostFill) {
-            this.hpGhostFill.style.width = `${hpPct}%`;
-            if (typeof this.hpGhostFill.style.setProperty === 'function') {
-                this.hpGhostFill.style.setProperty('--vial-pct', `${hpPct}%`);
-            }
-        }
-        this.hpText.textContent = `${curHp} / ${maxHp}`;
 
         // SP / Voice Bar
-        if (this.spLabel) {
-            const lang = window.__langMode || 'en';
-            if (realm === 'hengband' && lang === 'jp') {
-                this.spLabel.textContent = '魔力';
-            } else if (realm === 'hengband' && lang === 'bilingual') {
-                this.spLabel.textContent = 'MANA (魔力)';
-            } else {
-                this.spLabel.textContent = isSilQ ? 'VOICE' : 'MANA';
-            }
-        }
         const curSp = player.sp !== undefined ? player.sp : (player.csp !== undefined ? player.csp : 0);
         const maxSp = player.sp_max !== undefined ? player.sp_max : (player.max_sp !== undefined ? player.max_sp : (player.msp !== undefined ? player.msp : 0));
-        const spPct = maxSp > 0 ? Math.max(0, Math.min(100, (curSp / maxSp) * 100)) : 0;
-        if (this.spFill) {
-            this.spFill.style.width = `${spPct}%`;
-            this.spFill.style.height = `${spPct}%`;
-            if (typeof this.spFill.style.setProperty === 'function') {
-                this.spFill.style.setProperty('--vial-pct', `${spPct}%`);
+        const spSig = `${curSp}/${maxSp}:${realm}:${window.__langMode || 'en'}:${isSilQ}`;
+        if (this._lastSpSig !== spSig) {
+            this._lastSpSig = spSig;
+            if (this.spLabel) {
+                const lang = window.__langMode || 'en';
+                if (realm === 'hengband' && lang === 'jp') {
+                    this.spLabel.textContent = '魔力';
+                } else if (realm === 'hengband' && lang === 'bilingual') {
+                    this.spLabel.textContent = 'MANA (魔力)';
+                } else {
+                    this.spLabel.textContent = isSilQ ? 'VOICE' : 'MANA';
+                }
             }
-        }
-        if (this.spGhostFill) {
-            this.spGhostFill.style.width = `${spPct}%`;
-            if (typeof this.spGhostFill.style.setProperty === 'function') {
-                this.spGhostFill.style.setProperty('--vial-pct', `${spPct}%`);
+            const spPct = maxSp > 0 ? Math.max(0, Math.min(100, (curSp / maxSp) * 100)) : 0;
+            if (this.spFill) {
+                this.spFill.style.width = `${spPct}%`;
+                this.spFill.style.height = `${spPct}%`;
+                if (typeof this.spFill.style.setProperty === 'function') {
+                    this.spFill.style.setProperty('--vial-pct', `${spPct}%`);
+                }
             }
+            if (this.spGhostFill) {
+                this.spGhostFill.style.width = `${spPct}%`;
+                if (typeof this.spGhostFill.style.setProperty === 'function') {
+                    this.spGhostFill.style.setProperty('--vial-pct', `${spPct}%`);
+                }
+            }
+            this.spText.textContent = `${curSp} / ${maxSp}`;
         }
-        this.spText.textContent = `${curSp} / ${maxSp}`;
 
         // Left Panel Stats
         const getStat = s => (s && typeof s === 'object') ? (s.use || s.top || '10') : (s || '10');
@@ -2393,7 +2401,7 @@ class WebHUD {
 
         // Sub-meta: Level, Race, Class & Depth (Wave 10 Track B)
         const depthLabel = depth === 0 ? (player.wilderness ? 'Wilderness' : 'Town') : `${depth * 50}ft`;
-        const charSubMetaEl = document.getElementById('char-sub-meta');
+        const charSubMetaEl = this._charSubMetaEl || (this._charSubMetaEl = document.getElementById('char-sub-meta'));
         if (charSubMetaEl) {
             const pLev = player.lev || player.level || 1;
             const pRace = player.race || '';
@@ -2404,17 +2412,21 @@ class WebHUD {
                 charSubMetaEl.textContent = subMetaStr;
             }
         }
-        if (this.goldVal) {
-            this.goldVal.textContent = (player.gold || 0).toLocaleString();
-            this.goldVal.title = `Gold: ${(player.gold || 0).toLocaleString()} AU`;
-        }
-        if (this.acVal) {
-            const acTotal = player.ac !== undefined ? player.ac : 0;
-            const acToA = player.ac_to_a || 0;
-            this.acVal.textContent = acToA !== 0 ? `${acTotal} (${acToA > 0 ? '+' : ''}${acToA})` : `${acTotal}`;
-            this.acVal.title = isSilQ
-                ? `Evasion & Protection: ${acTotal}`
-                : `Armor Class: ${acTotal} (Base: ${player.ac_base || 0}, Bonus: ${acToA >= 0 ? '+' : ''}${acToA})`;
+        const goldAcSig = `${player.gold || 0}:${player.ac || 0}:${player.ac_to_a || 0}:${player.ac_base || 0}:${isSilQ}`;
+        if (this._lastGoldAcSig !== goldAcSig) {
+            this._lastGoldAcSig = goldAcSig;
+            if (this.goldVal) {
+                this.goldVal.textContent = (player.gold || 0).toLocaleString();
+                this.goldVal.title = `Gold: ${(player.gold || 0).toLocaleString()} AU`;
+            }
+            if (this.acVal) {
+                const acTotal = player.ac !== undefined ? player.ac : 0;
+                const acToA = player.ac_to_a || 0;
+                this.acVal.textContent = acToA !== 0 ? `${acTotal} (${acToA > 0 ? '+' : ''}${acToA})` : `${acTotal}`;
+                this.acVal.title = isSilQ
+                    ? `Evasion & Protection: ${acTotal}`
+                    : `Armor Class: ${acTotal} (Base: ${player.ac_base || 0}, Bonus: ${acToA >= 0 ? '+' : ''}${acToA})`;
+            }
         }
         const yaw = (window.__app && window.__app.dungeon) ? window.__app.dungeon.yaw : (this.currentCameraYaw || 0);
         const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
@@ -2428,11 +2440,15 @@ class WebHUD {
 
         // Minimap Header (Overlay.cs:1404)
         if (player.x !== undefined && player.y !== undefined) {
-            const titleEl = document.getElementById('minimap-title-text');
+            const titleEl = this._minimapTitleEl || (this._minimapTitleEl = document.getElementById('minimap-title-text'));
             if (titleEl) {
-                const lang = window.__langMode || 'en';
-                const prefix = (realm === 'hengband' && lang === 'jp') ? '地図' : ((realm === 'hengband' && lang === 'bilingual') ? 'MAP (地図)' : 'MAP');
-                titleEl.innerHTML = `<span style="white-space:nowrap;">${escapeHtml(prefix)} (${player.x},${player.y})</span> <span style="color:#ffd700; white-space:nowrap;">[${escapeHtml(arrowChar)} ${escapeHtml(facingName)}]</span>`;
+                const mmTitleSig = `${realm}:${window.__langMode || 'en'}:${player.x}:${player.y}:${arrowChar}:${facingName}`;
+                if (this._lastMmTitleSig !== mmTitleSig) {
+                    this._lastMmTitleSig = mmTitleSig;
+                    const lang = window.__langMode || 'en';
+                    const prefix = (realm === 'hengband' && lang === 'jp') ? '地図' : ((realm === 'hengband' && lang === 'bilingual') ? 'MAP (地図)' : 'MAP');
+                    titleEl.innerHTML = `<span style="white-space:nowrap;">${escapeHtml(prefix)} (${player.x},${player.y})</span> <span style="color:#ffd700; white-space:nowrap;">[${escapeHtml(arrowChar)} ${escapeHtml(facingName)}]</span>`;
+                }
             }
         }
 
@@ -3316,11 +3332,11 @@ class WebHUD {
                 const getStat = s => (s && typeof s === 'object') ? (s.use || s.top || '10') : (s || '10');
                 const stats = player.stats || {};
                 container.innerHTML = `
-                    <div class="death-stat-card"><div class="stat-name">STRENGTH</div><div class="stat-num">${getStat(stats.str)}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">INTELLIGENCE</div><div class="stat-num">${getStat(stats.int)}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">WISDOM</div><div class="stat-num">${getStat(stats.wis)}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">DEXTERITY</div><div class="stat-num">${getStat(stats.dex)}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">CONSTITUTION</div><div class="stat-num">${getStat(stats.con)}</div></div>
+                    <div class="death-stat-card"><div class="stat-name">STRENGTH</div><div class="stat-num">${escapeHtml(String(getStat(stats.str)))}</div></div>
+                    <div class="death-stat-card"><div class="stat-name">INTELLIGENCE</div><div class="stat-num">${escapeHtml(String(getStat(stats.int)))}</div></div>
+                    <div class="death-stat-card"><div class="stat-name">WISDOM</div><div class="stat-num">${escapeHtml(String(getStat(stats.wis)))}</div></div>
+                    <div class="death-stat-card"><div class="stat-name">DEXTERITY</div><div class="stat-num">${escapeHtml(String(getStat(stats.dex)))}</div></div>
+                    <div class="death-stat-card"><div class="stat-name">CONSTITUTION</div><div class="stat-num">${escapeHtml(String(getStat(stats.con)))}</div></div>
                     <div class="death-stat-card"><div class="stat-name">ARMOR CLASS</div><div class="stat-num">${player.ac || 0}</div></div>
                     <div class="death-stat-card"><div class="stat-name">SPEED</div><div class="stat-num">${player.speed || 110}</div></div>
                     <div class="death-stat-card"><div class="stat-name">DEEP LEVEL</div><div class="stat-num">${player.max_depth || player.depth || 0} (${(player.max_depth || player.depth || 0) * 50}ft)</div></div>

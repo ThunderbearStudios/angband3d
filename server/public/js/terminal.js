@@ -844,11 +844,16 @@ class WebTerminal {
         const h = this.rows * this.charHeight;
 
         // Illuminated Dark Obsidian-Vellum Grimoire Surface (replaces cold CRT black)
-        const bgGrad = this.ctx.createRadialGradient(w * 0.5, h * 0.45, w * 0.08, w * 0.5, h * 0.5, w * 0.75);
-        bgGrad.addColorStop(0, '#130e0a');
-        bgGrad.addColorStop(0.65, '#0c0906');
-        bgGrad.addColorStop(1, '#070504');
-        this.ctx.fillStyle = bgGrad;
+        if (!this._cachedBgGrad || this._cachedBgW !== w || this._cachedBgH !== h) {
+            const bgGrad = this.ctx.createRadialGradient(w * 0.5, h * 0.45, w * 0.08, w * 0.5, h * 0.5, w * 0.75);
+            bgGrad.addColorStop(0, '#130e0a');
+            bgGrad.addColorStop(0.65, '#0c0906');
+            bgGrad.addColorStop(1, '#070504');
+            this._cachedBgGrad = bgGrad;
+            this._cachedBgW = w;
+            this._cachedBgH = h;
+        }
+        this.ctx.fillStyle = this._cachedBgGrad;
         this.ctx.fillRect(0, 0, w, h);
 
         this.updateSelectableRegions(termData, mode);
@@ -906,6 +911,9 @@ class WebTerminal {
              (this.lastTermData && this.lastTermData.realm === 'hengband'));
         const langMode = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
 
+        let lastFillStyle = '';
+        let lastFont = '';
+
         for (let r = 0; r < termData.rows.length && r < this.rows; r++) {
             const rowObj = termData.rows[r];
             let text = rowObj.g || '';
@@ -938,8 +946,16 @@ class WebTerminal {
                 if (isFullWidthCJK) {
                     const kanji = String.fromCodePoint(code);
                     const colorIdx = this.parseAttr(attrs, screenCol);
-                    this.ctx.fillStyle = this.palette[colorIdx] || '#ffffff';
-                    this.ctx.font = this.cjkFont || `bold 25px 'BIZ UDGothic', 'MS Gothic', 'Noto Sans CJK JP', 'Meiryo', sans-serif`;
+                    const nextFill = this.palette[colorIdx] || '#ffffff';
+                    if (nextFill !== lastFillStyle) {
+                        this.ctx.fillStyle = nextFill;
+                        lastFillStyle = nextFill;
+                    }
+                    const nextFont = this.cjkFont || `bold 25px 'BIZ UDGothic', 'MS Gothic', 'Noto Sans CJK JP', 'Meiryo', sans-serif`;
+                    if (nextFont !== lastFont) {
+                        this.ctx.font = nextFont;
+                        lastFont = nextFont;
+                    }
                     // Center the CJK character horizontally in its 2-cell slot (28px) and vertically in the row (28px)
                     const kx = screenCol * this.charWidth + Math.max(0, Math.floor((this.charWidth * 2 - (this.cjkFontSize || 25)) / 2));
                     const ky = y + Math.max(0, Math.floor((this.charHeight - (this.cjkFontSize || 25)) / 2));
@@ -952,8 +968,16 @@ class WebTerminal {
                 const ch = text[c];
                 if (ch !== ' ' && ch !== '\0') {
                     const colorIdx = this.parseAttr(attrs, screenCol);
-                    this.ctx.fillStyle = this.palette[colorIdx] || '#ffffff';
-                    this.ctx.font = this.asciiFont || `bold 20px 'Fira Code', 'BIZ UDGothic', monospace`;
+                    const nextFill = this.palette[colorIdx] || '#ffffff';
+                    if (nextFill !== lastFillStyle) {
+                        this.ctx.fillStyle = nextFill;
+                        lastFillStyle = nextFill;
+                    }
+                    const nextFont = this.asciiFont || `bold 20px 'Fira Code', 'BIZ UDGothic', monospace`;
+                    if (nextFont !== lastFont) {
+                        this.ctx.font = nextFont;
+                        lastFont = nextFont;
+                    }
                     // Center ASCII character horizontally in its 1-cell slot (14px) and vertically in the row (28px)
                     const ax = screenCol * this.charWidth + 1;
                     const ay = y + Math.max(0, Math.floor((this.charHeight - (this.fontSize || 20)) / 2));
