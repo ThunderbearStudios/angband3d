@@ -45,4 +45,4 @@ None
 - **WS-NH1..WS-NH6 — UnNetHack (5th Realm) Full Integration**: Full spec in [`docs/plan/UNNETHACK_INTEGRATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/UNNETHACK_INTEGRATION_PLAN.md).
 
 ## Last Gate Results
-- **WS41.5 Native Bridge UTF-8, Godot Stdin & CI Hardening Gate (2026-10-21)**: `fast 19/19 PASS` | `smoke_test.py 11/11 PASS` | `dotnet build 0 warn / 0 err` | `tb_mastery.py audit 0 err / 0 warn` | v10.7.0 verified.
+- **WS41 (`v10.7.0`) Live Cloud & Full Gate (2026-10-21)**: `fast 19/19 PASS` | `smoke_test.py 11/11 PASS` | `dotnet build 0 warn / 0 err` | `tb_mastery.py audit 0 err / 0 warn` | `test_cloud_live.js PASS (angband3d.com v10.7.0)`.
