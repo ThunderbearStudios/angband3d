@@ -475,9 +475,9 @@
                 if (!btn) continue;
                 const res = resolvedList[i];
                 btn.classList.toggle('is-depleted', !res.available);
-                btn.title = `${res.tooltip} • Hotkey: F${i + 1} or Alt+${i + 1} (Right-click to bind)`;
+                btn.title = `${res.tooltip} • Hotkey: Alt+${i + 1} (Right-click to bind)`;
                 btn.innerHTML = `
-                    <span class="qs-hotkey">F${i + 1}</span>
+                    <span class="qs-hotkey">A${i + 1}</span>
                     <span class="qs-icon" aria-hidden="true">${escapeHtml(res.icon)}</span>
                     <span class="qs-label">${escapeHtml(res.label)}</span>
                     ${res.qtyText ? `<span class="qs-qty">${escapeHtml(res.qtyText)}</span>` : ''}
@@ -540,7 +540,7 @@
             this.activeBindSlot = (slotIdx + 1) % 4;
             this.renderBar(frame, r, (typeof window !== 'undefined' && window.__langMode) || 'en');
             if (typeof toastFn === 'function') {
-                toastFn(`⚡ Bound "${shortItemLabel(name, 18)}" to Quick Slot F${slotIdx + 1} (Alt+${slotIdx + 1})`);
+                toastFn(`⚡ Bound "${shortItemLabel(name, 18)}" to Quick Slot ${slotIdx + 1} (Alt+${slotIdx + 1})`);
             }
             return { slotIdx, slotDef };
         }
@@ -564,7 +564,7 @@
             const tabsHtml = [0, 1, 2, 3].map((idx) => {
                 const res = this.resolveSlot(slots[idx], frame, r, lang);
                 const activeCls = idx === this.activeBindSlot ? 'is-active' : '';
-                return `<button type="button" class="qs-slot-tab ${activeCls}" data-qs-select-slot="${idx}">F${idx + 1}: ${escapeHtml(res.icon)} ${escapeHtml(res.label)}</button>`;
+                return `<button type="button" class="qs-slot-tab ${activeCls}" data-qs-select-slot="${idx}">Alt+${idx + 1}: ${escapeHtml(res.icon)} ${escapeHtml(res.label)}</button>`;
             }).join('');
 
             const candidates = [
@@ -629,7 +629,7 @@
             popover._candidates = candidates;
             popover.innerHTML = `
                 <div class="qs-popover-header">
-                    <span>⚡ ${isJp ? 'クイックスロット設定 (F1〜F4 / Alt+1〜4)' : 'Bind Quick-Action Slots (F1–F4 / Alt+1–4)'}</span>
+                    <span>⚡ ${isJp ? 'クイックスロット設定 (Alt+1〜4)' : 'Bind Quick-Action Slots (Alt+1–4)'}</span>
                     <div style="display:flex;gap:6px;">
                         <button type="button" class="grimoire-tab-btn" data-qs-action="reset">${isJp ? '初期化' : 'Reset'}</button>
                         <button type="button" class="grimoire-tab-btn" data-qs-action="close">✕</button>

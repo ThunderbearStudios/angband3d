@@ -2603,7 +2603,7 @@ class ChronicleManager {
         const hero = this.currentHero || (this.lastFrame && this.lastFrame.player) || { name: 'Adventurer', depth: 0 };
         const realmKey = this.getActiveRealm();
         const langMode = this.getLanguageMode();
-        const outcome = this.grounder.resolveParleyOutcome(monster, stance, hero, realmKey, langMode);
+        const outcome = this.grounder.resolveParleyOutcome(monster, stance, hero, realmKey, langMode, this.lastSeenMessages);
         if (!outcome) return null;
 
         if (!this.activeChronicle && this.store) {
@@ -4223,7 +4223,7 @@ class ChronicleManager {
                 prose: enc.prose || stateObj.observation || '',
                 quote: enc.text ? (enc.isDialogue ? `"${enc.text.replace(/^["']|["']$/g, '')}"` : enc.text) : '',
                 tactics,
-                chatBtnLabel: stateObj.state === 'sleeping' ? '📖 Observe in Tome' : (stateObj.canSpeak ? '🗣️ Converse in Tome' : '📖 Inspect in Tome'),
+                chatBtnLabel: '💬 Interact',
                 enc,
                 stateObj
             };
@@ -4252,7 +4252,7 @@ class ChronicleManager {
                 prose: appraisal.prose || '',
                 quote: appraisal.dialogue ? `"${appraisal.dialogue.replace(/^["']|["']$/g, '')}"` : '',
                 tactics: appraisal.appraisal || "Press 'g' to pick up • 'w' to wield • 'd' to drop",
-                chatBtnLabel: '🔍 Ask Lorekeeper in Tome',
+                chatBtnLabel: '💬 Interact',
                 appraisal
             };
         }
@@ -4285,10 +4285,34 @@ class ChronicleManager {
                 this.inspectQuote.classList.add('hidden');
             }
         }
-        if (this.inspectTactics) this.inspectTactics.textContent = details.tactics;
+        if (this.inspectTactics) {
+            this.inspectTactics.textContent = details.tactics;
+            if (this.inspectTactics.classList) {
+                this.inspectTactics.classList.remove('is-expanded');
+                this.inspectTactics.classList.add('hidden');
+            }
+        }
+        const detailBtn = (typeof document !== 'undefined' && typeof document.getElementById === 'function')
+            ? document.getElementById('inspect-popover-detail-btn')
+            : null;
+        if (detailBtn) {
+            detailBtn.textContent = '🔍 Inspect';
+            detailBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.inspectTactics && this.inspectTactics.classList) {
+                    const expanded = this.inspectTactics.classList.toggle('is-expanded');
+                    this.inspectTactics.classList.toggle('hidden', !expanded);
+                    detailBtn.textContent = expanded ? '▴ Hide Detail' : '🔍 Inspect';
+                }
+            };
+        }
 
         if (this.inspectChatBtn) {
             this.inspectChatBtn.textContent = details.chatBtnLabel;
+            if (this.inspectChatBtn.style) {
+                this.inspectChatBtn.style.display = this.isStandalone ? 'none' : '';
+            }
             this.inspectChatBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -4359,8 +4383,9 @@ class ChronicleManager {
         if (typeof window !== 'undefined') {
             const vw = window.innerWidth || 1280;
             const vh = window.innerHeight || 720;
-            const popW = 310;
-            const popH = 215;
+            const popW = 244;
+            const popH = 128;
+
             const rawX = (typeof clientX === 'number' && clientX > 0) ? (clientX + 16) : Math.round((vw - popW) * 0.5);
             const rawY = (typeof clientY === 'number' && clientY > 0) ? (clientY - 24) : 90;
             const clampedX = Math.max(12, Math.min(vw - popW - 12, rawX));
@@ -4456,7 +4481,22 @@ class ChronicleManager {
             const card = document.createElement('div');
             card.className = 'chapter-card creature-chat-card';
 
-            let bodyHtml = '';
+            const heroRef = this.currentHero || {};
+            const hDepth = typeof heroRef.depth === 'number' ? heroRef.depth : 0;
+            const locBadge = hDepth <= 0 ? 'Town Surface' : `Depth ${hDepth * 50}ft (Lv.${hDepth})`;
+            const mCur = typeof monster.hp === 'number' ? monster.hp : 10;
+            const mMax = typeof monster.hp_max === 'number' && monster.hp_max > 0 ? monster.hp_max : Math.max(1, mCur);
+            const mPct = Math.max(0, Math.min(100, Math.round((mCur / mMax) * 100)));
+            const tacNote = (this.grounder && typeof this.grounder.resolveTacticalMonsterInsight === 'function')
+                ? this.grounder.resolveTacticalMonsterInsight(monster.name || '')
+                : '';
+            let bodyHtml = `
+                <div class="chronicle-context-ribbon">
+                    <span class="chronicle-context-pill">📍 ${escapeHtml(locBadge)}</span>
+                    <span class="chronicle-context-pill">❤️ ${mPct}% HP • ${escapeHtml(stateObj.state || 'awake')}</span>
+                    ${heroRef.race || heroRef.class ? `<span class="chronicle-context-pill">🛡 ${escapeHtml((heroRef.race || '') + ' ' + (heroRef.class || heroRef.cls || ''))}</span>` : ''}
+                </div>
+            `;
             if (res.prose) {
                 bodyHtml += `<p class="chapter-prose" style="margin-bottom: 6px;">${escapeHtml(res.prose)}</p>`;
             }
@@ -4486,7 +4526,29 @@ class ChronicleManager {
                     <button class="chapter-replay-btn" title="Listen to narration">▶ Play</button>
                 </div>
                 ${bodyHtml}
+                ${tacNote ? `<p class="chapter-insight" style="margin-top: 6px; font-size: 0.82rem; color: #93c5fd; opacity: 0.95;"><b>Lorekeeper Insight:</b> ${escapeHtml(tacNote)}</p>` : ''}
+                <div class="chronicle-encounter-actions">
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="parley" title="Parley or question creature in character">🗣️ Parley</button>
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="challenge" title="Issue a martial challenge">⚔️ Challenge</button>
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="study" title="Request deep Lorekeeper tactical study">📜 Tactics</button>
+                    <button type="button" class="chronicle-enc-btn" data-enc-act="vow" title="Swear a Mythic Vow in the Living Chronicle">🕯️ Swear Vow</button>
+                </div>
             `;
+            if (typeof card.querySelectorAll === 'function') {
+                const actBtns = card.querySelectorAll('[data-enc-act]');
+                for (const b of actBtns) {
+                    b.addEventListener('click', (ev) => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        const act = b.getAttribute('data-enc-act');
+                        if (act === 'vow') {
+                            this.requestStoryPrompt();
+                        } else if (act) {
+                            this.triggerCreatureParley(monster, act);
+                        }
+                    });
+                }
+            }
             const replayBtn = card.querySelector('.chapter-replay-btn');
             if (replayBtn) {
                 replayBtn.addEventListener('click', () => {

@@ -736,7 +736,7 @@ body.is-standalone #chronicle-window {
 .quick-topic-chip:hover {
     background: rgba(212, 175, 55, 0.15);
     border-color: rgba(212, 175, 55, 0.5);
-    color: #fef08a;
+    color: #f8fafc;
 }
 
 /* Footer / Action Bar */
@@ -1317,9 +1317,14 @@ body.is-standalone #chronicle-window {
     top: 80px;
     left: 80px;
     z-index: 48;
-    width: min(310px, calc(100vw - 24px));
+    width: min(244px, calc(100vw - 24px));
+    max-width: 244px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden !important;
     margin: 0;
-    padding: 11px 13px;
+    padding: 8px 10px;
     background: linear-gradient(180deg, rgba(16, 21, 32, 0.96) 0%, rgba(10, 14, 22, 0.96) 100%);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -1340,7 +1345,7 @@ body.is-standalone #chronicle-window {
     display: flex;
     align-items: center;
     gap: 9px;
-    margin-bottom: 7px;
+    margin-bottom: 0;
 }
 
 .inspect-popover-badge {
@@ -1432,7 +1437,7 @@ body.is-standalone #chronicle-window {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 7px;
+    margin-bottom: 0;
 }
 
 .inspect-popover-hp-track {
@@ -1527,6 +1532,80 @@ body.is-standalone #chronicle-window {
 
 .inspect-popover-btn.secondary:hover {
     border-color: rgba(212, 175, 55, 0.5);
+    color: #f8fafc;
+}
+
+.inspect-popover-prose,
+.inspect-popover-quote,
+#inspect-popover-parley-btn,
+#inspect-popover-vow-btn,
+#inspect-popover-voice-btn {
+    display: none !important;
+}
+
+.inspect-popover-tactics {
+    display: none;
+    font-size: 10.5px;
+    line-height: 1.35;
+    color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.78);
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    padding: 5px 7px;
+    border-radius: 4px;
+    margin: 0;
+}
+
+.inspect-popover-tactics.is-expanded {
+    display: block;
+}
+
+.chronicle-context-ribbon {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    margin: 4px 0 6px 0;
+}
+
+.chronicle-context-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    color: #fde68a;
+}
+
+.chronicle-encounter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(212, 175, 55, 0.22);
+}
+
+.chronicle-enc-btn {
+    font-family: var(--font-ui, system-ui, sans-serif);
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(30, 41, 59, 0.88);
+    border: 1px solid rgba(212, 175, 55, 0.42);
+    color: #fef08a;
+    cursor: pointer;
+    transition: all 0.14s ease;
+}
+
+.chronicle-enc-btn:hover {
+    background: rgba(212, 175, 55, 0.25);
+    border-color: #ffd700;
+    color: #ffffff;
     color: #f8fafc;
 }
 

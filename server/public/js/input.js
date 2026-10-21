@@ -924,7 +924,7 @@ class InputController {
             // If typing in a text input or textarea (e.g. character name entry), don't intercept typing
             // Exception: In #chronicle-query-input, Escape or movement/navigation keys take gameplay precedence!
             if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                     e.target.blur();
                     if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
                         window.chronicleManager.preemptForGameplay('escape');
@@ -1202,7 +1202,7 @@ class InputController {
 
             // 2. Main Menu Mode
             if (appState === 'mainMenu') {
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                     e.preventDefault();
                     if (window.__app) window.__app.showSplash();
                     return;
@@ -1259,7 +1259,7 @@ class InputController {
 
             // Demo Showcase Modal Keyboard Routing
             if (appState === 'demoModal') {
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                     e.preventDefault();
                     if (window.__app && window.__app.hideDemoModal) window.__app.hideDemoModal();
                     return;
@@ -1357,7 +1357,7 @@ class InputController {
 
             // Command Palette Modal Keyboard Routing
             if (appState === 'cmdPaletteModal') {
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                     e.preventDefault();
                     if (window.__app && window.__app.hideCommandPalette) window.__app.hideCommandPalette();
                     return;
@@ -1367,7 +1367,7 @@ class InputController {
 
             // 3. Load Saved Game Menu Mode
             if (appState === 'loadMenu') {
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                     e.preventDefault();
                     if (window.__app) window.__app.hideLoadMenu();
                     return;
@@ -1412,7 +1412,7 @@ class InputController {
 
             // 4. In-Game Pause Menu Mode (Game Menu)
             if (appState === 'pauseMenu') {
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                     e.preventDefault();
                     if (window.__app) window.__app.resumeGame();
                     return;
@@ -1494,19 +1494,20 @@ class InputController {
             }
             if (this.isAutoNavigating && this.isAutoNavigating()) {
                 this.stopMinimapAutoNav('Manual key press');
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                     e.preventDefault();
                     return;
                 }
             }
 
             // F1–F4 or Alt+1–Alt+4: Trigger 4-Slot Bindable Quick-Action Bar (only during active 3D gameplay)
-            const isFKeySlot = (e.key === 'F1' || e.key === 'F2' || e.key === 'F3' || e.key === 'F4') && !e.ctrlKey && !e.altKey && !e.metaKey;
-            const isAltNumSlot = e.altKey && !e.ctrlKey && !e.metaKey && (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4');
+            const isFKeySlot = false; // WS37: Removed F1-F4 interception to prevent browser hotkey conflicts
+            const isAltNumSlot = e.altKey && !e.ctrlKey && !e.metaKey && (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4' || e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3' || e.code === 'Digit4');
             const isGameActive = !window.__app || (typeof window.__app.getAppState === 'function' ? window.__app.getAppState() === 'game' : (!window.__app.state || window.__app.state === 'playing' || window.__app.state === 'game'));
             if ((isFKeySlot || isAltNumSlot) && isGameActive && !this.inTerminal) {
                 e.preventDefault();
-                const slotIdx = isFKeySlot ? (parseInt(e.key.slice(1), 10) - 1) : (parseInt(e.key, 10) - 1);
+                const slotDigit = (e.code && e.code.startsWith('Digit')) ? parseInt(e.code.slice(5), 10) : parseInt(e.key, 10);
+                const slotIdx = Math.max(0, Math.min(3, (slotDigit || 1) - 1));
                 this.triggerQuickSlot(slotIdx);
                 return;
             }
@@ -1570,11 +1571,21 @@ class InputController {
             }
 
             // Escape: reliably cancel prompts, dismiss menus/overlays, or open Pause Menu (1:1 with Godot Main.cs:1820-1835)
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                 e.preventDefault();
                 if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
 
                 // If entity inspection popover is open, Escape dismisses it first without opening Pause Menu
+                const qsPopover = document.getElementById('quick-slot-popover');
+                if (qsPopover && qsPopover.classList.contains('is-open')) {
+                    qsPopover.classList.remove('is-open');
+                    return;
+                }
+                const morePopover = document.getElementById('action-more-popover');
+                if (morePopover && morePopover.classList.contains('is-open')) {
+                    morePopover.classList.remove('is-open');
+                    return;
+                }
                 const inspectPopover = document.getElementById('entity-inspect-popover');
                 if (inspectPopover && !inspectPopover.classList.contains('hidden')) {
                     if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
@@ -3850,7 +3861,11 @@ class InputController {
         try {
             if (!isFs) {
                 if (elem.requestFullscreen) {
-                    elem.requestFullscreen().catch(() => {});
+                    elem.requestFullscreen().then(() => {
+                        if (typeof navigator !== 'undefined' && navigator.keyboard && typeof navigator.keyboard.lock === 'function') {
+                            navigator.keyboard.lock(['Escape']).catch(() => {});
+                        }
+                    }).catch(() => {});
                 } else if (elem.webkitRequestFullscreen) {
                     try {
                         const p = elem.webkitRequestFullscreen();
@@ -3863,6 +3878,9 @@ class InputController {
                 }
             } else {
                 if (doc.exitFullscreen) {
+                    if (typeof navigator !== 'undefined' && navigator.keyboard && typeof navigator.keyboard.unlock === 'function') {
+                        try { navigator.keyboard.unlock(); } catch (_) {}
+                    }
                     doc.exitFullscreen().catch(() => {});
                 } else if (doc.webkitExitFullscreen) {
                     try {

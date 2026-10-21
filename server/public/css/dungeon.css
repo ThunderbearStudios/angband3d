@@ -9893,6 +9893,139 @@ body.grimoire-primary-open #entity-inspect-popover {
     max-height: 80vh !important;
 }
 
+/* ==============================================================================
+   WS37: Sleek Bottom Command Dock, Quick-Slot Sockets & Telemetry Footer
+   ============================================================================== */
+#hud-center-column {
+    gap: 3px !important;
+}
+
+@media (min-width: 901px) {
+    #action-bar {
+        padding: 3px 6px !important;
+        gap: 3px !important;
+        border-width: 1px !important;
+        border-radius: 6px !important;
+    }
+
+    #action-bar .action-btn,
+    #action-bar .act-btn {
+        height: 28px !important;
+        min-height: 28px !important;
+        min-width: 0 !important;
+        padding: 0 7px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        font-size: 10px !important;
+        line-height: 1 !important;
+        border-radius: 4px !important;
+    }
+
+    #action-bar .action-btn kbd,
+    #action-bar .act-btn kbd {
+        font-size: 8.5px !important;
+        padding: 1px 3px !important;
+        line-height: 1.1 !important;
+    }
+
+    .hud-dock-drag-handle {
+        height: 26px !important;
+        padding: 0 3px !important;
+        font-size: 12px !important;
+    }
+}
+
+#quick-slot-bar.quick-slot-bar {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    padding: 0 6px 0 2px !important;
+    margin-right: 3px !important;
+    background: transparent !important;
+    border: none !important;
+    border-right: 1px solid rgba(212, 165, 78, 0.38) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.quick-slot-btn {
+    height: 28px !important;
+    min-height: 28px !important;
+    max-width: 86px !important;
+    padding: 0 6px !important;
+    gap: 3px !important;
+    border-radius: 4px !important;
+    background: linear-gradient(180deg, rgba(34, 25, 16, 0.95) 0%, rgba(15, 11, 7, 0.98) 100%) !important;
+    border: 1px solid rgba(212, 165, 78, 0.52) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 232, 175, 0.2), 0 1px 4px rgba(0, 0, 0, 0.75) !important;
+}
+
+.quick-slot-btn .qs-hotkey {
+    font-size: 8.5px !important;
+    padding: 0 3px !important;
+    line-height: 1.3 !important;
+    border-radius: 2px !important;
+    color: #fde68a !important;
+    background: rgba(0, 0, 0, 0.65) !important;
+    border: 1px solid rgba(212, 165, 78, 0.42) !important;
+}
+
+.quick-slot-btn .qs-icon {
+    font-size: 11.5px !important;
+}
+
+.quick-slot-btn .qs-label {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    max-width: 50px !important;
+}
+
+.quick-slot-config-btn {
+    width: 24px !important;
+    height: 28px !important;
+    border-radius: 4px !important;
+}
+
+@media (max-width: 900px) {
+    .quick-slot-btn {
+        max-width: 42px !important;
+        padding: 0 4px !important;
+    }
+}
+
+#hud-footer.hud-status-bar {
+    min-height: 24px !important;
+    padding: 2px 8px !important;
+    gap: 6px !important;
+    border-width: 1px !important;
+    border-radius: 5px !important;
+}
+
+#hud-footer .status-pill:not(.pill-reset-hud) {
+    background: transparent !important;
+    border: none !important;
+    border-right: 1px solid rgba(212, 165, 78, 0.25) !important;
+    border-radius: 0 !important;
+    padding: 0 7px 0 0 !important;
+    margin-right: 4px !important;
+    font-size: 10.5px !important;
+}
+
+#hud-footer .status-pill:last-child {
+    border-right: none !important;
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+}
+
+#hud-footer .pill-reset-hud {
+    padding: 1px 6px !important;
+    font-size: 10px !important;
+    border: 1px solid rgba(212, 175, 55, 0.42) !important;
+    border-radius: 3px !important;
+}
+
 
 
 

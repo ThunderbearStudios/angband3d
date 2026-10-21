@@ -5796,32 +5796,76 @@ class ChronicleGrounder {
         };
     }
 
-    static resolveParleyOutcome(monster, stance = 'parley', hero = null, realmKey = 'angband', langMode = 'en') {
+    static resolveParleyOutcome(monster, stance = 'parley', hero = null, realmKey = 'angband', langMode = 'en', recentMessages = []) {
         const rk = String(realmKey || 'angband').toLowerCase();
+        const realmCtx = this.getRealmContext(rk);
         const mName = (monster && monster.name) ? monster.name : 'the creature';
         const heroName = (hero && hero.name) ? hero.name : 'the traveler';
+        const heroRace = (hero && hero.race) ? hero.race : 'Adventurer';
+        const heroClass = (hero && (hero.class || hero.cls)) ? (hero.class || hero.cls) : 'Wayfarer';
+        const depth = (hero && typeof hero.depth === 'number') ? hero.depth : 0;
+        const curHp = (hero && typeof hero.hp === 'number') ? hero.hp : 20;
+        const maxHp = (hero && typeof hero.hp_max === 'number' && hero.hp_max > 0) ? hero.hp_max : 20;
+        const heroHpPct = Math.round((curHp / maxHp) * 100);
+        const heroStanceDesc = heroHpPct <= 35 ? 'bloodied yet unbroken' : (heroHpPct <= 70 ? 'battle-tested and watchful' : 'stalwart and unscathed');
+
+        const mCurHp = (monster && typeof monster.hp === 'number') ? monster.hp : 10;
+        const mMaxHp = (monster && typeof monster.hp_max === 'number' && monster.hp_max > 0) ? monster.hp_max : Math.max(1, mCurHp);
+        const mHpPct = Math.round((mCurHp / mMaxHp) * 100);
+        const mWoundDesc = mHpPct <= 30 ? ' reeling from grievous wounds' : (mHpPct < 95 ? ' bearing fresh battle-scars' : '');
+
+        const locationDesc = depth <= 0
+            ? (rk === 'silq' ? 'the threshold of the Iron Gates' : (rk === 'hengband' ? 'the lantern-lit town thoroughfare' : (rk === 'frogcomposband' ? 'the crossroads of the Outpost' : 'the cobblestone town square')))
+            : `the ${depth * 50}-foot stratum (${realmCtx.setting.split(',')[0]})`;
+
         const tactics = this.resolveTacticalMonsterInsight(mName);
-        const stateObj = this.resolveCreatureState(monster, []);
+        const stateObj = this.resolveCreatureState(monster, Array.isArray(recentMessages) ? recentMessages : []);
+        const isTownNpc = depth === 0 && (stateObj.state === 'begging' || /veteran|towns|citizen|villager|mercenary|sailor|agent|farmer|mayor|urchin|shopkeeper/i.test(mName));
 
         let prose = '';
         let reply = '';
+        let titlePrefix = '⚔️ Parley & Stance';
+
         if (stance === 'challenge') {
-            prose = `${heroName} raises drawn steel and issues a ringing challenge to ${mName} across the shadowed flagstones!`;
-            reply = stateObj.canSpeak
-                ? `Thy bold words shall be carved upon thy tomb, ${heroName}!`
-                : `*${mName} bristles with fury, baring fangs in the torchlight!*`;
+            titlePrefix = '⚔️ Martial Challenge';
+            prose = `Standing ${heroStanceDesc} in ${locationDesc}, ${heroName} the ${heroRace} ${heroClass} levels drawn steel toward ${mName}${mWoundDesc} and issues a ringing challenge!`;
+            if (stateObj.state === 'sleeping') {
+                reply = `*Startled from slumber by ${heroName}'s challenge, ${mName} stirs in the gloom!*`;
+            } else if (isTownNpc) {
+                reply = `Easy with that blade, ${heroName}! Save thy wrath for the horrors waiting below the stairs.`;
+            } else if (stateObj.canSpeak) {
+                reply = rk === 'hengband'
+                    ? `A worthy tachiai, ${heroRace}! Let our steel judge who walks from ${locationDesc} alive!`
+                    : (rk === 'silq'
+                        ? `By the Iron Crown of Bauglir, thy song ends here in the dark, ${heroName}!`
+                        : `Thy bold words shall be carved upon thy tomb at ${depth > 0 ? `${depth * 50} feet` : 'the gates'}, ${heroName}!`);
+            } else {
+                reply = `*${mName} bristles with primal fury${mWoundDesc}, baring fangs and coiling to strike!*`;
+            }
         } else if (stance === 'study') {
-            prose = `${heroName} studies the footwork, breathing, and armor seams of ${mName} with a veteran's eye.`;
-            reply = tactics;
+            titlePrefix = '📜 Lorekeeper Tactical Assessment';
+            prose = `${heroName} studies the footwork, breathing, and vital seams of ${mName}${mWoundDesc} across ${locationDesc} (${mHpPct}% vitality, state: ${stateObj.state}).`;
+            reply = `${tactics} [Lorekeeper ${realmCtx.lorekeeperName}: "${stateObj.state === 'sleeping' ? 'The foe slumbers—strike from stealth or slip past unseen.' : (mHpPct <= 35 ? 'Its strength falters; press the advantage while guarding your flanks.' : 'Control the sightline and never let multiple foes surround you.')}"]`;
         } else {
-            prose = `${heroName} stays their blade for a heartbeat, offering words of parley to ${mName} in the deep.`;
-            reply = stateObj.canSpeak
-                ? `Speak quickly, surface-dweller, before the shadows claim us both.`
-                : `*${mName} tilts its head warily, watching every twitch of thy lantern.*`;
+            titlePrefix = isTownNpc ? '🗣️ Town Counsel' : '🗣️ Parley in the Deep';
+            prose = `${heroName} the ${heroRace} ${heroClass} (${heroHpPct}% HP) stays their hand in ${locationDesc}, addressing ${mName}${mWoundDesc}.`;
+            if (stateObj.state === 'sleeping') {
+                reply = `*${mName} breathes heavily in deep slumber, oblivious to ${heroName}'s quiet presence.*`;
+            } else if (isTownNpc) {
+                reply = `Watch thy step below, ${heroName}. Keep healing draughts and a scroll of Phase Door on thy belt before descending the stairs.`;
+            } else if (stateObj.canSpeak) {
+                reply = rk === 'frogcomposband'
+                    ? `Shadows shift fast in these courts, ${heroName}. Speak your piece before steel settles the wager.`
+                    : (rk === 'hengband'
+                        ? `Even amidst karma and bloodshed, a warrior pauses to parley. Speak quickly, ${heroName}.`
+                        : `Speak quickly, ${heroRace}, before the shadows of ${locationDesc} claim us both.`);
+            } else {
+                reply = `*${mName} tilts its head warily in ${locationDesc}, watching every flicker of ${heroName}'s lantern.*`;
+            }
         }
 
         return {
-            title: `⚔️ Parley & Stance: ${mName}`,
+            title: `${titlePrefix}: ${mName}`,
             prose,
             dialogue: {
                 speaker: stance === 'study' ? 'Lorekeeper' : mName,
