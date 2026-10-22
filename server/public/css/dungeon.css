@@ -89,10 +89,7 @@ html, body {
     transition: opacity 0.6s ease-out;
 }
 
-.dungeon-vignette.danger-pulse {
-    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 48%, rgba(180, 20, 20, 0.42) 100%);
-    animation: vignette-danger-pulse 1.4s ease-in-out infinite alternate;
-}
+.dungeon-vignette.danger-pulse { background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 48%, rgba(180, 20, 20, 0.42) 100%); animation: vignette-danger-pulse 1.4s ease-in-out infinite alternate; }
 
 @keyframes vignette-danger-pulse {
     0% { opacity: 0.25; }
@@ -132,15 +129,9 @@ html, body {
     padding-left: 4px;
 }
 
-.top-message-banner.prompt {
-    background: rgba(40, 26, 4, 0.96);
-    border-bottom-color: rgba(255, 215, 0, 0.85);
-}
+.top-message-banner.prompt { background: rgba(40, 26, 4, 0.96); border-bottom-color: rgba(255, 215, 0, 0.85); }
 
-.top-message-banner.prompt .top-message-text {
-    color: #ffd700;
-    font-weight: bold;
-}
+.top-message-banner.prompt .top-message-text { color: #ffd700; font-weight: bold; }
 
 /* Terminal Container Layer (Character creation, stores, help, death disclosure, and menus) */
 #terminal-container {
@@ -197,19 +188,11 @@ html, body {
     opacity: 0.9;
 }
 
-#terminal-container:not(.hidden) .terminal-card {
-    animation: grimoireUnfurl 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
+#terminal-container:not(.hidden) .terminal-card { animation: grimoireUnfurl 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
 @keyframes grimoireUnfurl {
-    0% {
-        transform: translateY(6px) scale(0.985);
-        opacity: 0;
-    }
-    100% {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
+0% { transform: translateY(6px) scale(0.985); opacity: 0; }
+100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 /* Per-Realm Heraldic Material Themes (WS27) */
@@ -296,19 +279,11 @@ body[data-realm="hengband"] {
     color: var(--realm-crest-color, #ffd700);
 }
 
-.grimoire-crest-icon {
-    display: inline-flex;
-    align-items: center;
-}
+.grimoire-crest-icon { display: inline-flex; align-items: center; }
 
-.grimoire-crest-sep {
-    opacity: 0.5;
-}
+.grimoire-crest-sep { opacity: 0.5; }
 
-.grimoire-crest-view {
-    color: #efe6d5;
-    font-weight: 600;
-}
+.grimoire-crest-view { color: #efe6d5; font-weight: 600; }
 
 .grimoire-header-controls {
     display: flex;
@@ -317,10 +292,7 @@ body[data-realm="hengband"] {
     gap: 6px;
 }
 
-.grimoire-tab-group {
-    display: inline-flex;
-    gap: 4px;
-}
+.grimoire-tab-group { display: inline-flex; gap: 4px; }
 
 .grimoire-tab-btn,
 .grimoire-mode-toggle-btn {
@@ -373,18 +345,11 @@ body[data-realm="hengband"] {
     transform: translateY(-1px);
 }
 
-.grimoire-item-card.rarity-artifact {
-    border-color: rgba(255, 190, 46, 0.85);
-    background: linear-gradient(135deg, rgba(52, 36, 12, 0.94) 0%, rgba(24, 16, 8, 0.96) 100%);
-}
+.grimoire-item-card.rarity-artifact { border-color: rgba(255, 190, 46, 0.85); background: linear-gradient(135deg, rgba(52, 36, 12, 0.94) 0%, rgba(24, 16, 8, 0.96) 100%); }
 
-.grimoire-item-card.rarity-ego {
-    border-color: rgba(130, 190, 255, 0.68);
-}
+.grimoire-item-card.rarity-ego { border-color: rgba(130, 190, 255, 0.68); }
 
-.grimoire-item-card.rarity-enchanted {
-    border-color: rgba(110, 231, 183, 0.55);
-}
+.grimoire-item-card.rarity-enchanted { border-color: rgba(110, 231, 183, 0.55); }
 
 .grimoire-card-main {
     display: flex;
@@ -407,15 +372,9 @@ body[data-realm="hengband"] {
     flex-shrink: 0;
 }
 
-.grimoire-item-icon {
-    font-size: 14px;
-    flex-shrink: 0;
-}
+.grimoire-item-icon { font-size: 14px; flex-shrink: 0; }
 
-.grimoire-item-copy {
-    flex: 1 1 auto;
-    min-width: 110px;
-}
+.grimoire-item-copy { flex: 1 1 auto; min-width: 110px; }
 
 .grimoire-item-title {
     font-family: var(--font-ui);
@@ -438,9 +397,7 @@ body[data-realm="hengband"] {
     color: #b8ab93;
 }
 
-.grimoire-meta-price {
-    color: #ffd166;
-}
+.grimoire-meta-price { color: #ffd166; }
 
 .grimoire-card-actions {
     display: inline-flex;
@@ -470,19 +427,13 @@ body[data-realm="hengband"] {
     color: #ffffff;
 }
 
-.grimoire-act-btn.is-primary-verb {
-    display: inline-flex !important;
-}
+.grimoire-act-btn.is-primary-verb { display: inline-flex !important; }
 
-.grimoire-act-btn.is-secondary-verb {
-    display: none;
-}
+.grimoire-act-btn.is-secondary-verb { display: none; }
 
 .grimoire-item-card:hover .grimoire-act-btn.is-secondary-verb,
 .grimoire-item-card:focus-within .grimoire-act-btn.is-secondary-verb,
-.grimoire-item-card.actions-expanded .grimoire-act-btn.is-secondary-verb {
-    display: inline-flex !important;
-}
+.grimoire-item-card.actions-expanded .grimoire-act-btn.is-secondary-verb { display: inline-flex !important; }
 
 .grimoire-more-verbs-btn {
     background: rgba(212, 175, 55, 0.12);
@@ -533,10 +484,7 @@ body[data-realm="hengband"] {
     text-align: left;
 }
 
-.grimoire-pillar-card:hover {
-    border-color: #a8d5e5;
-    background: rgba(28, 44, 58, 0.92);
-}
+.grimoire-pillar-card:hover { border-color: #a8d5e5; background: rgba(28, 44, 58, 0.92); }
 
 .grimoire-pillar-title {
     font-family: var(--font-fantasy);
@@ -569,10 +517,7 @@ body[data-realm="hengband"] {
     color: var(--gold-bright);
 }
 
-.terminal-actions {
-    display: flex;
-    gap: 10px;
-}
+.terminal-actions { display: flex; gap: 10px; }
 
 .btn-gold {
     background: linear-gradient(180deg, #d4af37, #997a15);
@@ -606,10 +551,7 @@ body[data-realm="hengband"] {
     transition: all 0.15s ease;
 }
 
-.btn-gold-outline:hover {
-    background: rgba(212, 175, 55, 0.15);
-    color: #fff;
-}
+.btn-gold-outline:hover { background: rgba(212, 175, 55, 0.15); color: #fff; }
 
 /* Engine Realm / Mode Selector (Offline Wasm vs Cloud Realm) */
 .engine-mode-selector {
@@ -642,10 +584,7 @@ body[data-realm="hengband"] {
     gap: 6px;
 }
 
-.engine-toggle-btn:hover {
-    color: #f1f5f9;
-    background: rgba(255, 255, 255, 0.06);
-}
+.engine-toggle-btn:hover { color: #f1f5f9; background: rgba(255, 255, 255, 0.06); }
 
 .engine-toggle-btn.active {
     background: linear-gradient(180deg, rgba(212, 175, 55, 0.28), rgba(212, 175, 55, 0.08));
@@ -688,14 +627,10 @@ body[data-realm="hengband"] {
 }
 
 /* After 6s without a new message or hover, fade to 0.35 opacity (WS9.4) */
-#message-feed-window.is-idle:not(:hover):not(.expanded) {
-    opacity: 0.35;
-}
+#message-feed-window.is-idle:not(:hover):not(.expanded) { opacity: 0.35; }
 
 @media (prefers-reduced-motion: reduce) {
-    #message-feed-window {
-        transition: none !important;
-    }
+#message-feed-window { transition: none !important; }
 }
 
 @media (max-width: 960px) {
@@ -722,9 +657,7 @@ body[data-realm="hengband"] {
     user-select: none;
 }
 
-.message-feed-header:active {
-    cursor: grabbing;
-}
+.message-feed-header:active { cursor: grabbing; }
 
 .message-feed-title-wrap {
     display: flex;
@@ -767,10 +700,7 @@ body[data-realm="hengband"] {
     }
 }
 
-.message-feed-controls {
-    display: flex;
-    gap: 5px;
-}
+.message-feed-controls { display: flex; gap: 5px; }
 
 .msg-ctrl-btn {
     background: #171d2b;
@@ -806,27 +736,15 @@ body[data-realm="hengband"] {
     scrollbar-color: #3a4459 #0d111a;
 }
 
-#message-feed-window.expanded {
-    height: 320px;
-    max-height: 85vh;
-}
+#message-feed-window.expanded { height: 320px; max-height: 85vh; }
 
-.message-feed-scroll::-webkit-scrollbar {
-    width: 6px;
-}
+.message-feed-scroll::-webkit-scrollbar { width: 6px; }
 
-.message-feed-scroll::-webkit-scrollbar-track {
-    background: #0d111a;
-}
+.message-feed-scroll::-webkit-scrollbar-track { background: #0d111a; }
 
-.message-feed-scroll::-webkit-scrollbar-thumb {
-    background: #3a4459;
-    border-radius: 3px;
-}
+.message-feed-scroll::-webkit-scrollbar-thumb { background: #3a4459; border-radius: 3px; }
 
-.message-feed-scroll::-webkit-scrollbar-thumb:hover {
-    background: var(--gold-primary);
-}
+.message-feed-scroll::-webkit-scrollbar-thumb:hover { background: var(--gold-primary); }
 
 .message-feed-list {
     display: flex;
@@ -852,14 +770,8 @@ body[data-realm="hengband"] {
 }
 
 @keyframes feedLinePop {
-    from {
-        opacity: 0.2;
-        transform: translateY(2px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+from { opacity: 0.2; transform: translateY(2px); }
+to { opacity: 1; transform: translateY(0); }
 }
 
 /* Top Telemetry & Controls */
@@ -932,12 +844,8 @@ body[data-realm="hengband"] {
 }
 
 @keyframes voiceLoadingPulse {
-    0%, 100% {
-        box-shadow: 0 0 6px rgba(255, 215, 0, 0.3);
-    }
-    50% {
-        box-shadow: 0 0 14px rgba(255, 215, 0, 0.7);
-    }
+0%, 100% { box-shadow: 0 0 6px rgba(255, 215, 0, 0.3); }
+50% { box-shadow: 0 0 14px rgba(255, 215, 0, 0.7); }
 }
 
 #btn-chronicle-prompt-tale.is-voicing {
@@ -1029,10 +937,7 @@ body[data-realm="hengband"] {
     transition: all 0.2s ease;
 }
 
-.sound-control-group:hover {
-    border-color: var(--gold-primary);
-    background: rgba(212, 175, 55, 0.08);
-}
+.sound-control-group:hover { border-color: var(--gold-primary); background: rgba(212, 175, 55, 0.08); }
 
 .sound-control-group .icon-btn {
     background: transparent;
@@ -1066,9 +971,7 @@ body[data-realm="hengband"] {
     transition: background 0.15s ease;
 }
 
-.volume-range-slider:hover {
-    background: rgba(255, 255, 255, 0.35);
-}
+.volume-range-slider:hover { background: rgba(255, 255, 255, 0.35); }
 
 .volume-range-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -1083,9 +986,7 @@ body[data-realm="hengband"] {
     transition: transform 0.15s ease;
 }
 
-.volume-range-slider::-webkit-slider-thumb:hover {
-    transform: scale(1.2);
-}
+.volume-range-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
 
 .volume-range-slider::-moz-range-thumb {
     width: 12px;
@@ -1098,9 +999,7 @@ body[data-realm="hengband"] {
     transition: transform 0.15s ease;
 }
 
-.volume-range-slider::-moz-range-thumb:hover {
-    transform: scale(1.2);
-}
+.volume-range-slider::-moz-range-thumb:hover { transform: scale(1.2); }
 
 .volume-label {
     font-family: var(--font-terminal);
@@ -1184,9 +1083,7 @@ body[data-realm="hengband"] {
     transition: color 0.15s ease;
 }
 
-.quick-volume-popover .popover-close-btn:hover {
-    color: #ff7b72;
-}
+.quick-volume-popover .popover-close-btn:hover { color: #ff7b72; }
 
 .quick-volume-popover .popover-slider-row {
     display: flex;
@@ -1216,10 +1113,7 @@ body[data-realm="hengband"] {
     color: #ff7b72;
 }
 
-.quick-volume-popover .popover-mute-toggle:hover {
-    border-color: #ffd700;
-    background: rgba(45, 36, 16, 0.95);
-}
+.quick-volume-popover .popover-mute-toggle:hover { border-color: #ffd700; background: rgba(45, 36, 16, 0.95); }
 
 .quick-volume-popover .touch-slider {
     flex: 1;
@@ -1356,10 +1250,7 @@ body[data-realm="hengband"] {
     transform: rotate(30deg);
 }
 
-#btn-sound.muted {
-    border-color: rgba(239, 68, 68, 0.6) !important;
-    color: #ff7b72 !important;
-}
+#btn-sound.muted { border-color: rgba(239, 68, 68, 0.6) !important; color: #ff7b72 !important; }
 
 /* Bottom HUD (Health, Mana, Depth, Gold, Quick stats) */
 #hud-overlay {
@@ -1437,20 +1328,11 @@ body[data-realm="hengband"] {
     overflow: hidden;
 }
 
-.gauge-fill {
-    height: 100%;
-    transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-}
+.gauge-fill { height: 100%; transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
 
-.gauge-hp .gauge-fill {
-    background: linear-gradient(180deg, #ff5252 0%, #b9151b 50%, #5c0609 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 190, 190, 0.45), 0 0 8px rgba(220, 38, 38, 0.45);
-}
+.gauge-hp .gauge-fill { background: linear-gradient(180deg, #ff5252 0%, #b9151b 50%, #5c0609 100%); box-shadow: inset 0 1px 0 rgba(255, 190, 190, 0.45), 0 0 8px rgba(220, 38, 38, 0.45); }
 
-.gauge-sp .gauge-fill {
-    background: linear-gradient(180deg, #56b4ff 0%, #1c58d8 50%, #0b2268 100%);
-    box-shadow: inset 0 1px 0 rgba(190, 230, 255, 0.45), 0 0 8px rgba(37, 99, 235, 0.45);
-}
+.gauge-sp .gauge-fill { background: linear-gradient(180deg, #56b4ff 0%, #1c58d8 50%, #0b2268 100%); box-shadow: inset 0 1px 0 rgba(190, 230, 255, 0.45), 0 0 8px rgba(37, 99, 235, 0.45); }
 
 /* Middle Stats Strip */
 #stats-strip {
@@ -1483,10 +1365,7 @@ body[data-realm="hengband"] {
     letter-spacing: 1px;
 }
 
-.stat-value {
-    color: var(--gold-primary);
-    font-weight: bold;
-}
+.stat-value { color: var(--gold-primary); font-weight: bold; }
 
 /* Center Column: Quick Action Bar & Detailed 3-Row Telemetry Footer */
 #hud-center-column {
@@ -1538,17 +1417,11 @@ body[data-realm="hengband"] {
     pointer-events: auto;
 }
 
-#action-more-popover.is-open {
-    display: flex;
-}
+#action-more-popover.is-open { display: flex; }
 
-#btn-action-more {
-    display: none;
-}
+#btn-action-more { display: none; }
 
-#btn-action-more.is-needed {
-    display: inline-flex !important;
-}
+#btn-action-more.is-needed { display: inline-flex !important; }
 
 .action-btn {
     background: linear-gradient(180deg, #211c27 0%, #100d14 100%);
@@ -1588,9 +1461,7 @@ body[data-realm="hengband"] {
     transform: translateY(-2px);
 }
 
-.action-btn:active {
-    transform: translateY(0);
-}
+.action-btn:active { transform: translateY(0); }
 
 .action-btn.stair-btn {
     background: rgba(212, 175, 55, 0.25);
@@ -1660,15 +1531,9 @@ body[data-realm="hengband"] {
     background: rgba(255, 215, 0, 0.4);
 }
 
-.reticle-crosshair::before {
-    width: 14px;
-    height: 1px;
-}
+.reticle-crosshair::before { width: 14px; height: 1px; }
 
-.reticle-crosshair::after {
-    width: 1px;
-    height: 14px;
-}
+.reticle-crosshair::after { width: 1px; height: 14px; }
 
 /* Top-Center Monster Target Plaque (Path of Exile / Gothic Dark-Fantasy) */
 .reticle-target-card {
@@ -1690,9 +1555,7 @@ body[data-realm="hengband"] {
     box-shadow: inset 0 1px 0 rgba(255, 232, 175, 0.25), inset 0 0 18px rgba(0, 0, 0, 0.85), 0 8px 26px rgba(0, 0, 0, 0.92);
 }
 
-.reticle-target-card.hidden {
-    display: none !important;
-}
+.reticle-target-card.hidden { display: none !important; }
 
 .target-card-header {
     display: flex;
@@ -1817,9 +1680,7 @@ body[data-realm="hengband"] {
 }
 
 .diegetic-reticle.reticle-targeted .reticle-crosshair::before,
-.diegetic-reticle.reticle-targeted .reticle-crosshair::after {
-    background: rgba(255, 51, 68, 0.85);
-}
+.diegetic-reticle.reticle-targeted .reticle-crosshair::after { background: rgba(255, 51, 68, 0.85); }
 
 .diegetic-reticle.reticle-interactive .reticle-dot {
     background: var(--gold-bright, #ffd700);
@@ -1829,15 +1690,7 @@ body[data-realm="hengband"] {
 }
 
 .diegetic-reticle.reticle-interactive .reticle-crosshair::before,
-.diegetic-reticle.reticle-interactive .reticle-crosshair::after {
-    background: rgba(255, 215, 0, 0.75);
-}
-
-/* Non-Intrusive Context Action: Docked in HUD Action Bar & Status Bar (Zero Line-of-Sight Obstruction) */
-.context-action-cue {
-    /* Completely removed from 3D viewport to ensure line of sight is 100% clean and unobstructed */
-    display: none !important;
-}
+.diegetic-reticle.reticle-interactive .reticle-crosshair::after { background: rgba(255, 215, 0, 0.75); }
 
 .action-hero-btn {
     border-color: rgba(255, 215, 0, 0.55);
@@ -1855,14 +1708,8 @@ body[data-realm="hengband"] {
 }
 
 @keyframes heroActionGlow {
-    0%, 100% {
-        box-shadow: 0 0 10px rgba(255, 215, 0, 0.35), inset 0 0 4px rgba(255, 215, 0, 0.15);
-        border-color: rgba(255, 215, 0, 0.85);
-    }
-    50% {
-        box-shadow: 0 0 24px rgba(255, 215, 0, 0.85), inset 0 0 12px rgba(255, 215, 0, 0.45);
-        border-color: #ffffff;
-    }
+0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.35), inset 0 0 4px rgba(255, 215, 0, 0.15); border-color: rgba(255, 215, 0, 0.85); }
+50% { box-shadow: 0 0 24px rgba(255, 215, 0, 0.85), inset 0 0 12px rgba(255, 215, 0, 0.45); border-color: #ffffff; }
 }
 
 /* Multilingual Language Toggle Ribbon Pill */
@@ -1904,9 +1751,7 @@ body[data-realm="hengband"] {
     justify-content: center;
 }
 
-.directional-aim-rosette.hidden {
-    display: none;
-}
+.directional-aim-rosette.hidden { display: none; }
 
 .rosette-backdrop {
     position: fixed;
@@ -1961,10 +1806,7 @@ body[data-realm="hengband"] {
     color: #ffaaaa;
 }
 
-.rosette-sector.active-yaw {
-    border-color: #00e5ff;
-    box-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
-}
+.rosette-sector.active-yaw { border-color: #00e5ff; box-shadow: 0 0 8px rgba(0, 229, 255, 0.6); }
 
 .rosette-hint {
     margin-top: 8px;
@@ -2007,9 +1849,7 @@ body[data-realm="hengband"] {
     flex-wrap: nowrap;
 }
 
-.status-left {
-    justify-content: flex-start;
-}
+.status-left { justify-content: flex-start; }
 
 .status-center {
     justify-content: center;
@@ -2027,9 +1867,7 @@ body[data-realm="hengband"] {
     white-space: nowrap;
 }
 
-.status-right {
-    justify-content: flex-end;
-}
+.status-right { justify-content: flex-end; }
 
 .status-pill {
     padding: 2px 7px 2px 7px;
@@ -2064,18 +1902,11 @@ body[data-realm="hengband"] {
     border-color: rgba(192, 132, 252, 0.30);
 }
 
-.pill-facing {
-    color: #38bdf8;
-    font-weight: 600;
-}
+.pill-facing { color: #38bdf8; font-weight: 600; }
 
-.pill-light {
-    color: #fde047;
-}
+.pill-light { color: #fde047; }
 
-.pill-speed {
-    color: #a7f3d0;
-}
+.pill-speed { color: #a7f3d0; }
 
 .pill-gear {
     color: #e2e8f0;
@@ -2109,10 +1940,7 @@ body[data-realm="hengband"] {
     box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
 }
 
-.diagonal-hint {
-    color: #fbbf24;
-    font-size: 11px;
-}
+.diagonal-hint { color: #fbbf24; font-size: 11px; }
 
 .pill-help-trigger {
     background: rgba(255, 255, 255, 0.06);
@@ -2150,20 +1978,11 @@ body[data-realm="hengband"] {
     white-space: nowrap;
 }
 
-.badge-study {
-    color: #ffd700;
-    border-color: rgba(255, 215, 0, 0.4);
-}
+.badge-study { color: #ffd700; border-color: rgba(255, 215, 0, 0.4); }
 
-.badge-resting {
-    color: #60d0e6;
-    border-color: rgba(96, 208, 230, 0.4);
-}
+.badge-resting { color: #60d0e6; border-color: rgba(96, 208, 230, 0.4); }
 
-.badge-recall {
-    color: #d880ff;
-    border-color: rgba(216, 128, 255, 0.4);
-}
+.badge-recall { color: #d880ff; border-color: rgba(216, 128, 255, 0.4); }
 
 /* Minimap Radar */
 #minimap-container {
@@ -2188,9 +2007,7 @@ body[data-realm="hengband"] {
     user-select: none;
 }
 
-.minimap-header:active {
-    cursor: grabbing;
-}
+.minimap-header:active { cursor: grabbing; }
 
 /* Floating Window Resize Grip */
 .window-resize-handle {
@@ -2205,9 +2022,7 @@ body[data-realm="hengband"] {
     z-index: 10;
 }
 
-.window-resize-handle:hover {
-    background: linear-gradient(135deg, transparent 50%, rgba(255, 215, 0, 0.7) 50%, rgba(255, 215, 0, 1.0) 100%);
-}
+.window-resize-handle:hover { background: linear-gradient(135deg, transparent 50%, rgba(255, 215, 0, 0.7) 50%, rgba(255, 215, 0, 1.0) 100%); }
 
 /* Store Actions Toolbar */
 .store-actions-bar {
@@ -2237,25 +2052,15 @@ body[data-realm="hengband"] {
     transform: translateY(-1px);
 }
 
-#minimap-container.compact {
-    width: 220px;
-}
+#minimap-container.compact { width: 220px; }
 
-#minimap-container.standard {
-    width: 260px;
-}
+#minimap-container.standard { width: 260px; }
 
-#minimap-container.expanded {
-    width: 360px;
-}
+#minimap-container.expanded { width: 360px; }
 
-#minimap-container.tactical {
-    width: 460px;
-}
+#minimap-container.tactical { width: 460px; }
 
-#minimap-container.command {
-    width: 580px;
-}
+#minimap-container.command { width: 580px; }
 
 #minimap-canvas {
     width: 100%;
@@ -2314,14 +2119,9 @@ body[data-realm="hengband"] {
     box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
 }
 
-.btn-quiver-summary {
-    background: rgba(30, 42, 65, 0.95);
-    border-color: rgba(255, 215, 0, 0.6);
-}
+.btn-quiver-summary { background: rgba(30, 42, 65, 0.95); border-color: rgba(255, 215, 0, 0.6); }
 
-.btn-quiver-summary .item-key-letter {
-    color: #48cae4;
-}
+.btn-quiver-summary .item-key-letter { color: #48cae4; }
 
 .btn-item-pill .item-key-letter {
     color: var(--gold-bright);
@@ -2377,9 +2177,7 @@ body[data-realm="hengband"] {
     transition: background 0.15s ease;
 }
 
-.minimap-header:hover {
-    background: rgba(212, 175, 55, 0.15);
-}
+.minimap-header:hover { background: rgba(212, 175, 55, 0.15); }
 
 .minimap-hint {
     font-size: 9px;
@@ -2473,10 +2271,7 @@ body[data-realm="hengband"] {
     background: rgba(212, 175, 55, 0.2);
 }
 
-.map-btn-hide {
-    color: #ff7b72 !important;
-    border-color: rgba(255, 123, 114, 0.45) !important;
-}
+.map-btn-hide { color: #ff7b72 !important; border-color: rgba(255, 123, 114, 0.45) !important; }
 
 .map-btn-hide:hover {
     background: rgba(239, 68, 68, 0.28) !important;
@@ -2485,9 +2280,7 @@ body[data-realm="hengband"] {
 }
 
 /* Mobile Minimap Floating Zoom Buttons (Hidden on desktop) */
-.mobile-map-zoom-group {
-    display: none;
-}
+.mobile-map-zoom-group { display: none; }
 
 /* Camera Head Tilt Bar */
 .camera-tilt-bar {
@@ -2605,14 +2398,9 @@ body[data-realm="hengband"] {
     transform: scale(0.96);
 }
 
-.dpad-turn-symbol {
-    font-size: 16px;
-}
+.dpad-turn-symbol { font-size: 16px; }
 
-.dpad-turn-text {
-    font-size: 11px;
-    letter-spacing: 0.5px;
-}
+.dpad-turn-text { font-size: 11px; letter-spacing: 0.5px; }
 
 .dpad-run-toggle {
     flex: 1;
@@ -2633,10 +2421,7 @@ body[data-realm="hengband"] {
     transition: all 0.15s ease;
 }
 
-.dpad-run-toggle:hover {
-    border-color: #ffd700;
-    color: #ffd700;
-}
+.dpad-run-toggle:hover { border-color: #ffd700; color: #ffd700; }
 
 .dpad-run-toggle.dpad-run-active {
     background: linear-gradient(135deg, rgba(239, 68, 68, 0.35), rgba(220, 38, 38, 0.25));
@@ -2645,10 +2430,7 @@ body[data-realm="hengband"] {
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.5), inset 0 0 6px rgba(239, 68, 68, 0.25);
 }
 
-.dpad-run-icon {
-    font-size: 14px;
-    line-height: 1;
-}
+.dpad-run-icon { font-size: 14px; line-height: 1; }
 
 .dpad-run-text {
     font-size: 11px;
@@ -2709,10 +2491,7 @@ body[data-realm="hengband"] {
     font-size: 18px;
 }
 
-.dpad-strafe {
-    font-size: 15px;
-    gap: 1px;
-}
+.dpad-strafe { font-size: 15px; gap: 1px; }
 
 .dpad-sub-lbl {
     font-size: 8px;
@@ -2800,10 +2579,7 @@ body[data-realm="hengband"] {
     transition: opacity 0.5s ease;
 }
 
-#loading-overlay.hidden {
-    opacity: 0;
-    pointer-events: none;
-}
+#loading-overlay.hidden { opacity: 0; pointer-events: none; }
 
 .spinner {
     width: 48px;
@@ -2925,10 +2701,7 @@ body[data-realm="hengband"] {
     text-align: center;
 }
 
-.death-tab:hover {
-    color: #ffd770;
-    background: rgba(255, 255, 255, 0.03);
-}
+.death-tab:hover { color: #ffd770; background: rgba(255, 255, 255, 0.03); }
 
 .death-tab.active {
     color: #ffe8aa;
@@ -2945,14 +2718,9 @@ body[data-realm="hengband"] {
     background: rgba(10, 4, 6, 0.9);
 }
 
-.death-tab-content {
-    display: none;
-    height: 100%;
-}
+.death-tab-content { display: none; height: 100%; }
 
-.death-tab-content.active {
-    display: block;
-}
+.death-tab-content.active { display: block; }
 
 #death-terminal-container {
     display: flex;
@@ -2999,15 +2767,9 @@ body[data-realm="hengband"] {
     min-width: 160px;
 }
 
-.death-list-item .item-name {
-    color: #e0e0e0;
-    flex: 1;
-}
+.death-list-item .item-name { color: #e0e0e0; flex: 1; }
 
-.death-list-item .item-weight {
-    color: #8899aa;
-    font-size: 11px;
-}
+.death-list-item .item-weight { color: #8899aa; font-size: 11px; }
 
 .death-list-empty {
     text-align: center;
@@ -3078,30 +2840,21 @@ body[data-realm="hengband"] {
     border: 1px solid #e67e22;
     color: #ffd8a8;
 }
-.btn-reload:hover {
-    background: linear-gradient(180deg, #5c2014, #360d08);
-    box-shadow: 0 0 12px rgba(230, 126, 34, 0.5);
-}
+.btn-reload:hover { background: linear-gradient(180deg, #5c2014, #360d08); box-shadow: 0 0 12px rgba(230, 126, 34, 0.5); }
 
 .btn-reroll {
     background: linear-gradient(180deg, #183820, #0c2012);
     border: 1px solid #2ecc71;
     color: #b8f2cb;
 }
-.btn-reroll:hover {
-    background: linear-gradient(180deg, #204c2c, #102a18);
-    box-shadow: 0 0 12px rgba(46, 204, 113, 0.5);
-}
+.btn-reroll:hover { background: linear-gradient(180deg, #204c2c, #102a18); box-shadow: 0 0 12px rgba(46, 204, 113, 0.5); }
 
 .btn-menu {
     background: linear-gradient(180deg, #281e3c, #161022);
     border: 1px solid #9b59b6;
     color: #e3c9f2;
 }
-.btn-menu:hover {
-    background: linear-gradient(180deg, #362952, #1e152e);
-    box-shadow: 0 0 12px rgba(155, 89, 182, 0.5);
-}
+.btn-menu:hover { background: linear-gradient(180deg, #362952, #1e152e); box-shadow: 0 0 12px rgba(155, 89, 182, 0.5); }
 
 /* ==============================================================================
    Splash Screen & Thunderbear Studios Presentation (Overlay.cs:236-324)
@@ -3200,14 +2953,8 @@ body[data-realm="hengband"] {
 }
 
 @keyframes splashLogoPulse {
-    0% {
-        filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.45)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8));
-        transform: scale(1.0);
-    }
-    100% {
-        filter: drop-shadow(0 0 22px rgba(255, 215, 0, 0.85)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.95));
-        transform: scale(1.04);
-    }
+0% { filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.45)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8)); transform: scale(1.0); }
+100% { filter: drop-shadow(0 0 22px rgba(255, 215, 0, 0.85)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.95)); transform: scale(1.04); }
 }
 
 .splash-presentation {
@@ -3280,17 +3027,11 @@ body[data-realm="hengband"] {
 }
 
 @media (max-width: 860px) {
-    .splash-realm-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-    }
+.splash-realm-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 }
 
 @media (max-width: 520px) {
-    .splash-realm-grid {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
+.splash-realm-grid { grid-template-columns: 1fr; gap: 8px; }
 }
 
 /* Hide in-game HUD chrome when Splash or Main Menu is active so only the 3D Celestial Diorama shines behind the menu */
@@ -3303,10 +3044,7 @@ body[data-realm="hengband"] {
 #hud-overlay:has(#main-menu-overlay:not(.hidden)) #char-panel,
 #hud-overlay:has(#main-menu-overlay:not(.hidden)) #hud-footer,
 #hud-overlay:has(#main-menu-overlay:not(.hidden)) #touch-controls,
-#hud-overlay:has(#main-menu-overlay:not(.hidden)) #message-feed-window {
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
+#hud-overlay:has(#main-menu-overlay:not(.hidden)) #message-feed-window { opacity: 0 !important; pointer-events: none !important; }
 
 .splash-realm-card {
     position: relative;
@@ -3333,9 +3071,7 @@ body[data-realm="hengband"] {
 }
 
 /* Distinct realm-accented heraldic borders and glow states */
-.splash-realm-card[data-realm="angband"] {
-    border-color: rgba(212, 175, 55, 0.38);
-}
+.splash-realm-card[data-realm="angband"] { border-color: rgba(212, 175, 55, 0.38); }
 .splash-realm-card[data-realm="angband"]:hover,
 .splash-realm-card[data-realm="angband"].active {
     border: 1.5px solid #d4af37 !important;
@@ -3343,9 +3079,7 @@ body[data-realm="hengband"] {
     box-shadow: 0 0 24px rgba(212, 175, 55, 0.42), inset 0 0 15px rgba(212, 175, 55, 0.12) !important;
 }
 
-.splash-realm-card[data-realm="silq"] {
-    border-color: rgba(126, 200, 227, 0.38);
-}
+.splash-realm-card[data-realm="silq"] { border-color: rgba(126, 200, 227, 0.38); }
 .splash-realm-card[data-realm="silq"]:hover,
 .splash-realm-card[data-realm="silq"].active {
     border: 1.5px solid #7ec8e3 !important;
@@ -3353,9 +3087,7 @@ body[data-realm="hengband"] {
     box-shadow: 0 0 24px rgba(126, 200, 227, 0.38), inset 0 0 15px rgba(126, 200, 227, 0.12) !important;
 }
 
-.splash-realm-card[data-realm="frogcomposband"] {
-    border-color: rgba(155, 114, 207, 0.38);
-}
+.splash-realm-card[data-realm="frogcomposband"] { border-color: rgba(155, 114, 207, 0.38); }
 .splash-realm-card[data-realm="frogcomposband"]:hover,
 .splash-realm-card[data-realm="frogcomposband"].active {
     border: 1.5px solid #9b72cf !important;
@@ -3363,9 +3095,7 @@ body[data-realm="hengband"] {
     box-shadow: 0 0 24px rgba(155, 114, 207, 0.4), inset 0 0 15px rgba(74, 222, 128, 0.12) !important;
 }
 
-.splash-realm-card[data-realm="hengband"] {
-    border-color: rgba(224, 90, 71, 0.38);
-}
+.splash-realm-card[data-realm="hengband"] { border-color: rgba(224, 90, 71, 0.38); }
 .splash-realm-card[data-realm="hengband"]:hover,
 .splash-realm-card[data-realm="hengband"].active {
     border: 1.5px solid #e05a47 !important;
@@ -3387,18 +3117,11 @@ body[data-realm="hengband"] {
     box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
 }
 
-.splash-realm-card[data-realm="frogcomposband"] .splash-realm-badge {
-    background: #4ade80;
-}
+.splash-realm-card[data-realm="frogcomposband"] .splash-realm-badge { background: #4ade80; }
 
-.splash-realm-card[data-realm="hengband"] .splash-realm-badge {
-    background: #f43f5e;
-    color: #ffffff;
-}
+.splash-realm-card[data-realm="hengband"] .splash-realm-badge { background: #f43f5e; color: #ffffff; }
 
-.splash-realm-card[data-realm="silq"] .splash-realm-badge {
-    background: #38bdf8;
-}
+.splash-realm-card[data-realm="silq"] .splash-realm-badge { background: #38bdf8; }
 
 .splash-realm-header {
     display: flex;
@@ -3407,10 +3130,7 @@ body[data-realm="hengband"] {
     margin-bottom: 2px;
 }
 
-.splash-realm-icon {
-    font-size: 22px;
-    line-height: 1;
-}
+.splash-realm-icon { font-size: 22px; line-height: 1; }
 
 .splash-realm-title-group {
     display: flex;
@@ -3434,9 +3154,7 @@ body[data-realm="hengband"] {
     letter-spacing: 0.4px;
 }
 
-.splash-realm-card.active .splash-realm-name {
-    color: #ffd700;
-}
+.splash-realm-card.active .splash-realm-name { color: #ffd700; }
 
 .splash-realm-tagline {
     font-size: 11.5px;
@@ -3509,10 +3227,7 @@ body[data-realm="hengband"] {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
-.splash-lore-icon {
-    font-size: 16px;
-    flex-shrink: 0;
-}
+.splash-lore-icon { font-size: 16px; flex-shrink: 0; }
 
 .splash-lore-title {
     color: #ffd700;
@@ -3538,10 +3253,7 @@ body[data-realm="hengband"] {
 }
 
 @media (max-width: 768px) {
-    .splash-primary-cta-row {
-        flex-direction: column;
-        gap: 8px;
-    }
+.splash-primary-cta-row { flex-direction: column; gap: 8px; }
 }
 
 .btn-splash-start {
@@ -3597,10 +3309,7 @@ body[data-realm="hengband"] {
     text-align: left;
 }
 
-.btn-splash-action-icon {
-    font-size: 22px;
-    flex-shrink: 0;
-}
+.btn-splash-action-icon { font-size: 22px; flex-shrink: 0; }
 
 .btn-splash-action-col {
     display: flex;
@@ -3624,9 +3333,7 @@ body[data-realm="hengband"] {
     gap: 4px;
 }
 
-.btn-splash-action-sub kbd {
-    color: #ffd700;
-}
+.btn-splash-action-sub kbd { color: #ffd700; }
 
 .btn-splash-quick-start {
     background: linear-gradient(180deg, rgba(48, 36, 12, 0.88) 0%, rgba(24, 18, 6, 0.94) 100%);
@@ -3684,10 +3391,7 @@ body[data-realm="hengband"] {
     transition: all 0.15s ease;
 }
 
-.splash-shortcut-btn kbd {
-    font-family: var(--font-terminal, monospace);
-    color: #ffd700;
-}
+.splash-shortcut-btn kbd { font-family: var(--font-terminal, monospace); color: #ffd700; }
 
 .splash-shortcut-btn:hover {
     background: rgba(30, 40, 60, 0.85);
@@ -3789,15 +3493,9 @@ body[data-realm="hengband"] {
     color: #e2e8f0;
 }
 
-.main-menu-realm-badge {
-    font-size: 12px;
-    color: #cbd5e1;
-}
+.main-menu-realm-badge { font-size: 12px; color: #cbd5e1; }
 
-.menu-realm-highlight {
-    color: #ffd700;
-    font-weight: 700;
-}
+.menu-realm-highlight { color: #ffd700; font-weight: 700; }
 
 .main-menu-realm-pills {
     display: flex;
@@ -3859,9 +3557,7 @@ body[data-realm="hengband"] {
 }
 
 @media (max-width: 640px) {
-    .main-menu-options {
-        grid-template-columns: 1fr;
-    }
+.main-menu-options { grid-template-columns: 1fr; }
 }
 
 .menu-option-btn {
@@ -3922,21 +3618,13 @@ body[data-realm="hengband"] {
     transform: translateX(3px);
 }
 
-.menu-option-btn:hover .menu-bullet, .menu-option-btn.selected .menu-bullet {
-    color: #ffd700;
-}
+.menu-option-btn:hover .menu-bullet, .menu-option-btn.selected .menu-bullet { color: #ffd700; }
 
-.menu-option-btn:hover .menu-num, .menu-option-btn.selected .menu-num {
-    color: #ffd700;
-}
+.menu-option-btn:hover .menu-num, .menu-option-btn.selected .menu-num { color: #ffd700; }
 
-.menu-option-btn:hover .menu-label, .menu-option-btn.selected .menu-label {
-    color: #ffffff;
-}
+.menu-option-btn:hover .menu-label, .menu-option-btn.selected .menu-label { color: #ffffff; }
 
-.menu-option-btn:hover .menu-desc, .menu-option-btn.selected .menu-desc {
-    color: #cbd5e1;
-}
+.menu-option-btn:hover .menu-desc, .menu-option-btn.selected .menu-desc { color: #cbd5e1; }
 
 /* Main Menu Integrated Saved Chronicles Panel */
 .main-menu-saves-panel {
@@ -3950,9 +3638,7 @@ body[data-realm="hengband"] {
     flex-direction: column;
 }
 
-.main-menu-saves-panel.hidden {
-    display: none !important;
-}
+.main-menu-saves-panel.hidden { display: none !important; }
 
 .saves-panel-header {
     display: flex;
@@ -3985,10 +3671,7 @@ body[data-realm="hengband"] {
     transition: all 0.15s ease;
 }
 
-.btn-panel-action:hover {
-    border-color: #ffd700;
-    color: #ffffff;
-}
+.btn-panel-action:hover { border-color: #ffd700; color: #ffffff; }
 
 .btn-panel-action.close {
     background: rgba(48, 16, 16, 0.8);
@@ -4036,10 +3719,7 @@ body[data-realm="hengband"] {
     color: #ffffff;
 }
 
-.dock-icon {
-    font-size: 18px;
-    line-height: 1;
-}
+.dock-icon { font-size: 18px; line-height: 1; }
 
 .dock-label {
     font-family: var(--font-fantasy, serif);
@@ -4067,69 +3747,33 @@ body[data-realm="hengband"] {
 
 /* Responsive Scaling Across Screen Sizes */
 @media (max-height: 760px) {
-    .splash-card, .main-menu-card {
-        padding: 10px 16px;
-    }
+.splash-card, .main-menu-card { padding: 10px 16px; }
     .splash-logo {
         width: 44px;
         height: 44px;
         margin-bottom: 2px;
     }
-    .splash-title {
-        font-size: 24px;
-    }
-    .splash-presentation {
-        font-size: 11px;
-    }
-    .splash-instructions {
-        margin: 2px 0 6px;
-    }
-    .splash-realm-grid {
-        margin-bottom: 6px;
-    }
-    .splash-realm-card {
-        padding: 8px 6px;
-    }
-    .splash-realm-desc {
-        display: none;
-    }
-    .splash-lore-banner {
-        margin-bottom: 6px;
-        padding: 4px 10px;
-    }
+.splash-title { font-size: 24px; }
+.splash-presentation { font-size: 11px; }
+.splash-instructions { margin: 2px 0 6px; }
+.splash-realm-grid { margin-bottom: 6px; }
+.splash-realm-card { padding: 8px 6px; }
+.splash-realm-desc { display: none; }
+.splash-lore-banner { margin-bottom: 6px; padding: 4px 10px; }
 }
 
 @media (max-width: 768px) {
-    .splash-card {
-        width: 96vw;
-        padding: 12px 10px;
-    }
-    .splash-feature-pills {
-        gap: 4px;
-    }
-    .splash-pill {
-        font-size: 10px;
-        padding: 2px 6px;
-    }
+.splash-card { width: 96vw; padding: 12px 10px; }
+.splash-feature-pills { gap: 4px; }
+.splash-pill { font-size: 10px; padding: 2px 6px; }
 }
 
 @media (max-height: 500px) and (orientation: landscape) {
-    .splash-card, .main-menu-card {
-        max-height: 96dvh;
-        padding: 6px 10px;
-    }
-    .splash-logo-wrap, .splash-presentation, .splash-feature-pills, .splash-instructions {
-        display: none;
-    }
-    .splash-realm-desc {
-        display: none;
-    }
-    .splash-realm-chips {
-        display: none;
-    }
-    .splash-lore-banner {
-        display: none;
-    }
+.splash-card, .main-menu-card { max-height: 96dvh; padding: 6px 10px; }
+.splash-logo-wrap, .splash-presentation, .splash-feature-pills, .splash-instructions { display: none; }
+.splash-realm-desc { display: none; }
+.splash-realm-chips { display: none; }
+.splash-lore-banner { display: none; }
 }
 
 /* ==============================================================================
@@ -4196,9 +3840,7 @@ body[data-realm="hengband"] {
     transition: color 0.15s ease;
     padding: 0 4px;
 }
-.btn-guide-close:hover {
-    color: #ff5555;
-}
+.btn-guide-close:hover { color: #ff5555; }
 
 .guide-tabs {
     display: flex;
@@ -4222,10 +3864,7 @@ body[data-realm="hengband"] {
     transition: all 0.15s ease;
 }
 
-.guide-tab:hover {
-    color: #ffffff;
-    background: rgba(32, 40, 60, 0.85);
-}
+.guide-tab:hover { color: #ffffff; background: rgba(32, 40, 60, 0.85); }
 
 .guide-tab.active {
     background: linear-gradient(180deg, rgba(61, 43, 14, 0.9) 0%, rgba(20, 24, 36, 0.95) 100%);
@@ -4247,9 +3886,7 @@ body[data-realm="hengband"] {
     flex-direction: column;
     gap: 12px;
 }
-.guide-tab-content.active {
-    display: flex;
-}
+.guide-tab-content.active { display: flex; }
 
 .guide-section-header {
     font-size: 16px;
@@ -4435,9 +4072,7 @@ body[data-realm="hengband"] {
     width: 14px;
 }
 
-.save-item-card:hover .save-bullet, .save-item-card.selected .save-bullet {
-    color: #ffd700;
-}
+.save-item-card:hover .save-bullet, .save-item-card.selected .save-bullet { color: #ffd700; }
 
 .save-item-details {
     display: flex;
@@ -4470,15 +4105,9 @@ body[data-realm="hengband"] {
     gap: 10px;
 }
 
-.btn-save-load {
-    padding: 6px 14px;
-    font-size: 12px;
-}
+.btn-save-load { padding: 6px 14px; font-size: 12px; }
 
-.btn-save-download {
-    padding: 6px 12px;
-    font-size: 12px;
-}
+.btn-save-download { padding: 6px 12px; font-size: 12px; }
 
 .load-toolbar {
     display: flex;
@@ -4533,9 +4162,7 @@ body[data-realm="hengband"] {
     color: #8c9ba5;
 }
 
-.save-empty-icon {
-    font-size: 36px;
-}
+.save-empty-icon { font-size: 36px; }
 
 .save-empty-title {
     font-family: var(--font-fantasy);
@@ -4588,9 +4215,7 @@ body[data-realm="hengband"] {
     pointer-events: none;
 }
 
-.pause-card {
-    max-width: 680px;
-}
+.pause-card { max-width: 680px; }
 
 .pause-audio-toolbar {
     display: flex;
@@ -4730,9 +4355,7 @@ body[data-realm="hengband"] {
 }
 
 /* Guide Modal Enhancements */
-.guide-tab-content strong {
-    color: #ffd700;
-}
+.guide-tab-content strong { color: #ffd700; }
 
 .guide-list li {
     padding-left: 4px;
@@ -4740,10 +4363,7 @@ body[data-realm="hengband"] {
     transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
-.guide-list li:hover {
-    border-left-color: #ffd700;
-    padding-left: 8px;
-}
+.guide-list li:hover { border-left-color: #ffd700; padding-left: 8px; }
 
 /* ==============================================================================
    RESPONSIVE DESIGN SYSTEM: Tablet & Phone Adaptive Architecture
@@ -4752,14 +4372,10 @@ body[data-realm="hengband"] {
    ============================================================================== */
 
 /* Default Desktop: Action drawer toggle button is hidden */
-#btn-action-more {
-    display: none !important;
-}
+#btn-action-more { display: none !important; }
 
 /* Action button active mechanical micro-scale */
-.action-btn:active, .dpad-btn:active {
-    transform: scale(0.94);
-}
+.action-btn:active, .dpad-btn:active { transform: scale(0.94); }
 
 /* Contextual Action Button Pulses */
 .action-btn.stair-btn {
@@ -4792,14 +4408,8 @@ body[data-realm="hengband"] {
 }
 
 @keyframes smartPulseEmerald {
-    0%, 100% {
-        box-shadow: 0 0 6px rgba(52, 211, 153, 0.4);
-        transform: scale(1.0);
-    }
-    50% {
-        box-shadow: 0 0 16px rgba(52, 211, 153, 0.85);
-        transform: scale(1.03);
-    }
+0%, 100% { box-shadow: 0 0 6px rgba(52, 211, 153, 0.4); transform: scale(1.0); }
+50% { box-shadow: 0 0 16px rgba(52, 211, 153, 0.85); transform: scale(1.03); }
 }
 
 /* Universal Tactile Button & Touch Optimization */
@@ -4822,9 +4432,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     }
     #top-right-bar #ping-badge,
     #top-right-bar #btn-controls,
-    #top-right-bar .volume-slider-wrap {
-        display: none !important;
-    }
+#top-right-bar .volume-slider-wrap { display: none !important; }
     #top-right-bar .chronicle-label,
     #top-right-bar .story-label,
     #top-right-bar .msg-label,
@@ -4835,9 +4443,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #top-right-bar .ctrl-label,
     #top-right-bar .fs-label,
     #top-right-bar .dpad-label,
-    #top-right-bar .invert-label {
-        display: none !important;
-    }
+#top-right-bar .invert-label { display: none !important; }
     #top-right-bar #btn-toggle-chronicle,
     #top-right-bar #btn-toggle-msg-feed,
     #top-right-bar #btn-toggle-minimap,
@@ -4866,9 +4472,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #top-right-bar #btn-toggle-msg-feed[style*="display: none"],
     #top-right-bar #btn-toggle-minimap[style*="display: none"],
     #top-right-bar #btn-toggle-dpad[style*="display: none"],
-    #top-right-bar #btn-toggle-invert[style*="display: none"] {
-        display: none !important;
-    }
+#top-right-bar #btn-toggle-invert[style*="display: none"] { display: none !important; }
     #top-right-bar #btn-toggle-chronicle.active,
     #top-right-bar #btn-toggle-msg-feed.active,
     #top-right-bar #btn-toggle-minimap.active,
@@ -4885,10 +4489,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         touch-action: manipulation !important;
         pointer-events: auto !important;
     }
-    #top-right-bar #btn-sound {
-        touch-action: manipulation !important;
-        pointer-events: auto !important;
-    }
+#top-right-bar #btn-sound { touch-action: manipulation !important; pointer-events: auto !important; }
     #top-right-bar #btn-sound.muted {
         border-color: rgba(239, 68, 68, 0.7) !important;
         background: rgba(36, 16, 20, 0.95) !important;
@@ -4922,18 +4523,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         -webkit-overflow-scrolling: touch !important;
         box-sizing: border-box !important;
     }
-    .splash-card {
-        padding: 16px 14px 18px !important;
-        width: min(94vw, 460px) !important;
-    }
-    .splash-logo {
-        width: clamp(75px, 18vw, 115px) !important;
-        height: auto !important;
-    }
-    .splash-presentation, .splash-presents {
-        font-size: 10px !important;
-        letter-spacing: 2px !important;
-    }
+.splash-card { padding: 16px 14px 18px !important; width: min(94vw, 460px) !important; }
+.splash-logo { width: clamp(75px, 18vw, 115px) !important; height: auto !important; }
+.splash-presentation, .splash-presents { font-size: 10px !important; letter-spacing: 2px !important; }
     .splash-title {
         font-size: clamp(18px, 5.2vw, 28px) !important;
         letter-spacing: clamp(1.5px, 1vw, 4px) !important;
@@ -4966,34 +4558,22 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         width: 100% !important;
         min-height: 44px !important;
     }
-    .splash-shortcuts {
-        margin-top: 14px !important;
-        gap: 6px !important;
-    }
+.splash-shortcuts { margin-top: 14px !important; gap: 6px !important; }
     .splash-shortcut-btn {
         min-height: 44px !important;
         padding: 8px 10px !important;
         font-size: 12px !important;
     }
-    .menu-option-btn {
-        min-height: 48px !important;
-        padding: 8px 12px !important;
-    }
-    .menu-label {
-        font-size: 13px !important;
-    }
-    .menu-desc {
-        font-size: 10.5px !important;
-    }
+.menu-option-btn { min-height: 48px !important; padding: 8px 12px !important; }
+.menu-label { font-size: 13px !important; }
+.menu-desc { font-size: 10.5px !important; }
 }
 
 /* ------------------------------------------------------------------------------
    TABLET RESPONSIVE TIER (600px - 1023px)
    ------------------------------------------------------------------------------ */
 @media (max-width: 1023px) {
-    .top-message-banner {
-        padding-right: calc(min(45vw, 420px) + var(--safe-right)) !important;
-    }
+.top-message-banner { padding-right: calc(min(45vw, 420px) + var(--safe-right)) !important; }
 }
 
 @media (max-width: 768px) {
@@ -5034,14 +4614,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         gap: 6px;
     }
 
-    #stats-strip {
-        font-size: 11px;
-        gap: 4px;
-    }
+#stats-strip { font-size: 11px; gap: 4px; }
 
-    .stat-label {
-        font-size: 9px;
-    }
+.stat-label { font-size: 9px; }
 
     #btn-action-more {
         display: inline-flex !important;
@@ -5055,9 +4630,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #action-bar:not(.drawer-open) #btn-fire,
     #action-bar:not(.drawer-open) #btn-read,
     #action-bar:not(.drawer-open) #btn-equipment,
-    #action-bar:not(.drawer-open) #btn-guide-hud {
-        display: none;
-    }
+#action-bar:not(.drawer-open) #btn-guide-hud { display: none; }
 
     /* Expanded Drawer State (Floating Grid Overlay) */
     #action-bar.drawer-open {
@@ -5131,25 +4704,14 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         scrollbar-width: none !important;
         -webkit-overflow-scrolling: touch !important;
     }
-    #hud-footer::-webkit-scrollbar {
-        display: none !important;
-    }
-    #hud-footer .status-group {
-        flex-shrink: 0 !important;
-    }
+#hud-footer::-webkit-scrollbar { display: none !important; }
+#hud-footer .status-group { flex-shrink: 0 !important; }
 
-    .status-pill {
-        font-size: 11px;
-        padding: 2px 6px;
-    }
+.status-pill { font-size: 11px; padding: 2px 6px; }
 
-    .pill-exp, .pill-light {
-        display: none !important;
-    }
+.pill-exp, .pill-light { display: none !important; }
 
-    #compass-container {
-        display: none !important;
-    }
+#compass-container { display: none !important; }
 }
 
 /* Tablet Portrait Movement D-Pad Quarantine (Keeps D-pad on bottom-left thumb) */
@@ -5212,13 +4774,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         max-width: 195px !important;
     }
 
-    .gauge-header {
-        font-size: 9.5px !important;
-    }
+.gauge-header { font-size: 9.5px !important; }
 
-    .gauge-track {
-        height: 6px !important;
-    }
+.gauge-track { height: 6px !important; }
 
     #stats-strip {
         display: grid !important;
@@ -5249,9 +4807,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         font-weight: 600 !important;
     }
 
-    #stats-strip .stat-divider {
-        display: none !important;
-    }
+#stats-strip .stat-divider { display: none !important; }
 
     #hud-center-column {
         position: static !important;
@@ -5279,9 +4835,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #minimap-header,
     #minimap-controls-bar,
     #camera-tilt-bar,
-    #map-resize-handle {
-        display: none !important;
-    }
+#map-resize-handle { display: none !important; }
 
     #minimap-canvas {
         width: 100% !important;
@@ -5321,10 +4875,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         -webkit-user-select: none !important;
     }
 
-    .mobile-map-btn:active {
-        background: rgba(212, 175, 55, 0.4) !important;
-        transform: scale(0.92) !important;
-    }
+.mobile-map-btn:active { background: rgba(212, 175, 55, 0.4) !important; transform: scale(0.92) !important; }
 
     /* Bottom Left Thumb: Movement & Orientation D-Pad */
     #touch-controls {
@@ -5347,10 +4898,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         -webkit-backdrop-filter: blur(8px) !important;
     }
 
-    .dpad-turn-wings {
-        display: flex !important;
-        gap: 4px !important;
-    }
+.dpad-turn-wings { display: flex !important; gap: 4px !important; }
 
     .dpad-turn-btn {
         height: 40px !important;
@@ -5358,17 +4906,11 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         font-size: 11px !important;
     }
 
-    .dpad-turn-symbol {
-        font-size: 13px !important;
-    }
+.dpad-turn-symbol { font-size: 13px !important; }
 
-    .dpad-turn-text {
-        font-size: 9.5px !important;
-    }
+.dpad-turn-text { font-size: 9.5px !important; }
 
-    .dpad-grid {
-        gap: 3px !important;
-    }
+.dpad-grid { gap: 3px !important; }
 
     .dpad-btn {
         width: 100% !important;
@@ -5379,25 +4921,15 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         border-radius: 6px !important;
     }
 
-    .dpad-cardinal {
-        font-size: 16px !important;
-    }
+.dpad-cardinal { font-size: 16px !important; }
 
-    .dpad-strafe {
-        font-size: 13px !important;
-    }
+.dpad-strafe { font-size: 13px !important; }
 
-    .dpad-sub-lbl {
-        font-size: 7px !important;
-    }
+.dpad-sub-lbl { font-size: 7px !important; }
 
-    .dpad-diag {
-        font-size: 11px !important;
-    }
+.dpad-diag { font-size: 11px !important; }
 
-    .diag-num {
-        font-size: 7.5px !important;
-    }
+.diag-num { font-size: 7.5px !important; }
 
     /* Bottom Right Thumb: 2-Column Action Bar Cluster */
     #action-bar:not(.drawer-open) {
@@ -5434,9 +4966,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
     }
 
-    #action-bar:not(.drawer-open) .action-btn kbd {
-        display: none !important;
-    }
+#action-bar:not(.drawer-open) .action-btn kbd { display: none !important; }
 
     /* Primary tactile thumb actions - Always include Get (g) */
     #action-bar:not(.drawer-open) #btn-attack,
@@ -5445,19 +4975,13 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #action-bar:not(.drawer-open) #btn-inventory,
     #action-bar:not(.drawer-open) #btn-quaff,
     #action-bar:not(.drawer-open) #btn-terminal,
-    #action-bar:not(.drawer-open) #btn-action-more {
-        display: inline-flex !important;
-    }
+#action-bar:not(.drawer-open) #btn-action-more { display: inline-flex !important; }
 
-    #action-bar:not(.drawer-open) #btn-stair.stair-active {
-        display: inline-flex !important;
-    }
+#action-bar:not(.drawer-open) #btn-stair.stair-active { display: inline-flex !important; }
 
     #action-bar.drawer-open #btn-stair:not(.stair-active),
     #action-bar #btn-stair:not(.stair-active),
-    #btn-stair:not(.stair-active) {
-        display: none !important;
-    }
+#btn-stair:not(.stair-active) { display: none !important; }
 
     /* Action Drawer on Phone (Expanded state) */
     #action-bar.drawer-open {
@@ -5520,9 +5044,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     }
 
     /* Hide Desktop Message Feed Window on Phone by default */
-    #message-feed-window:not(.mobile-expanded) {
-        display: none !important;
-    }
+#message-feed-window:not(.mobile-expanded) { display: none !important; }
 
     /* Message Feed Drawer on Phone when opened */
     #message-feed-window.mobile-expanded {
@@ -5546,12 +5068,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 @keyframes slideUpSheet {
-    from {
-        transform: translateY(100%);
-    }
-    to {
-        transform: translateY(0);
-    }
+from { transform: translateY(100%); }
+to { transform: translateY(0); }
 }
 
 /* ------------------------------------------------------------------------------
@@ -5605,9 +5123,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 .terminal-viewport:active,
-.terminal-viewport.is-dragging {
-    cursor: grabbing;
-}
+.terminal-viewport.is-dragging { cursor: grabbing; }
 
 #terminal-canvas {
     display: block;
@@ -5617,23 +5133,13 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     -webkit-user-select: none;
 }
 
-#terminal-canvas:active {
-    cursor: grabbing;
-}
+#terminal-canvas:active { cursor: grabbing; }
 
-.terminal-viewport::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
+.terminal-viewport::-webkit-scrollbar { width: 6px; height: 6px; }
 
-.terminal-viewport::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.4);
-}
+.terminal-viewport::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.4); }
 
-.terminal-viewport::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.4);
-    border-radius: 3px;
-}
+.terminal-viewport::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.4); border-radius: 3px; }
 
 .terminal-zoom-controls {
     display: inline-flex;
@@ -5660,10 +5166,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 .term-zoom-btn:hover,
-.term-zoom-btn:active {
-    background: rgba(212, 175, 55, 0.2);
-    color: #fff;
-}
+.term-zoom-btn:active { background: rgba(212, 175, 55, 0.2); color: #fff; }
 
 /* Unified Intelligent Contextual Mobile Controls Dock */
 .terminal-touch-controls {
@@ -5696,14 +5199,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     touch-action: pan-x;
 }
 
-.term-letter-ribbon::-webkit-scrollbar {
-    height: 4px;
-}
+.term-letter-ribbon::-webkit-scrollbar { height: 4px; }
 
-.term-letter-ribbon::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.4);
-    border-radius: 2px;
-}
+.term-letter-ribbon::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.4); border-radius: 2px; }
 
 .term-letter-btn {
     min-width: 38px;
@@ -5750,9 +5248,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     gap: 8px;
 }
 
-.term-touch-dpad-col {
-    flex-shrink: 0;
-}
+.term-touch-dpad-col { flex-shrink: 0; }
 
 .term-dpad-header {
     display: flex;
@@ -5779,10 +5275,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     transition: all 0.15s ease;
 }
 
-.term-run-toggle:hover {
-    border-color: #ffd700;
-    color: #ffd700;
-}
+.term-run-toggle:hover { border-color: #ffd700; color: #ffd700; }
 
 .term-run-toggle.active {
     background: linear-gradient(135deg, rgba(239, 68, 68, 0.45), rgba(220, 38, 38, 0.32));
@@ -5849,10 +5342,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     100% { box-shadow: 0 0 18px rgba(255, 215, 0, 0.95), inset 0 0 10px rgba(255, 215, 0, 0.6); }
 }
 
-.term-touch-actions-col {
-    flex: 1;
-    min-width: 0;
-}
+.term-touch-actions-col { flex: 1; min-width: 0; }
 
 .term-contextual-actions {
     display: grid;
@@ -5927,10 +5417,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     box-sizing: border-box;
 }
 
-.birth-name-input:focus {
-    border-color: #ffd700;
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
-}
+.birth-name-input:focus { border-color: #ffd700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); }
 
 /* ------------------------------------------------------------------------------
    PHONE LANDSCAPE ORIENTATION REFINEMENTS
@@ -5962,10 +5449,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         max-height: calc(100vh - 8px) !important;
     }
 
-    .splash-title {
-        font-size: clamp(20px, 4vw, 26px) !important;
-        margin-bottom: 2px !important;
-    }
+.splash-title { font-size: clamp(20px, 4vw, 26px) !important; margin-bottom: 2px !important; }
 
     .menu-options {
         display: grid !important;
@@ -5973,10 +5457,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         gap: 6px !important;
     }
 
-    .menu-option-btn {
-        min-height: 40px !important;
-        padding: 4px 8px !important;
-    }
+.menu-option-btn { min-height: 40px !important; padding: 4px 8px !important; }
 
     /* Top Left: Ultra-Slim Horizontal Character Status Capsule */
     #char-panel {
@@ -5997,9 +5478,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         border-radius: 6px !important;
     }
 
-    #char-panel .char-title {
-        display: none !important;
-    }
+#char-panel .char-title { display: none !important; }
 
     #char-panel .gauge-container {
         display: flex !important;
@@ -6009,23 +5488,13 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         min-width: 55px !important;
     }
 
-    #char-panel .gauge-track {
-        display: none !important;
-    }
+#char-panel .gauge-track { display: none !important; }
 
-    #char-panel .gauge-header {
-        font-size: 10px !important;
-        gap: 2px !important;
-    }
+#char-panel .gauge-header { font-size: 10px !important; gap: 2px !important; }
 
-    #char-panel #stats-strip {
-        font-size: 9.5px !important;
-        gap: 3px !important;
-    }
+#char-panel #stats-strip { font-size: 9.5px !important; gap: 3px !important; }
 
-    #char-panel .stat-divider {
-        display: none !important;
-    }
+#char-panel .stat-divider { display: none !important; }
 
     /* Top Live Banner fills top screen under toolbar options */
     .top-message-banner {
@@ -6066,9 +5535,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         padding: 0 !important;
     }
 
-    #top-right-bar .sound-control-group {
-        height: 28px !important;
-    }
+#top-right-bar .sound-control-group { height: 28px !important; }
 
     /* Compact 70px Circular Minimap Radar docked below message banner on right */
     #minimap-container {
@@ -6089,9 +5556,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #minimap-header,
     #minimap-controls-bar,
     #camera-tilt-bar,
-    #map-resize-handle {
-        display: none !important;
-    }
+#map-resize-handle { display: none !important; }
 
     #minimap-canvas {
         width: 100% !important;
@@ -6167,9 +5632,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
     }
 
-    #action-bar:not(.drawer-open) .action-btn kbd {
-        display: none !important;
-    }
+#action-bar:not(.drawer-open) .action-btn kbd { display: none !important; }
 
     /* Primary tactile thumb actions - Always include Get (g) */
     #action-bar:not(.drawer-open) #btn-attack,
@@ -6178,13 +5641,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     #action-bar:not(.drawer-open) #btn-inventory,
     #action-bar:not(.drawer-open) #btn-quaff,
     #action-bar:not(.drawer-open) #btn-terminal,
-    #action-bar:not(.drawer-open) #btn-action-more {
-        display: inline-flex !important;
-    }
+#action-bar:not(.drawer-open) #btn-action-more { display: inline-flex !important; }
 
-    #action-bar:not(.drawer-open) #btn-stair.stair-active {
-        display: inline-flex !important;
-    }
+#action-bar:not(.drawer-open) #btn-stair.stair-active { display: inline-flex !important; }
 
     #hud-center-column {
         position: static !important;
@@ -6220,9 +5679,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         pointer-events: auto !important;
     }
 
-    #hud-footer::-webkit-scrollbar {
-        display: none !important;
-    }
+#hud-footer::-webkit-scrollbar { display: none !important; }
 
     #hud-footer .status-group {
         display: flex !important;
@@ -6240,9 +5697,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         border-radius: 4px !important;
     }
 
-    #hud-footer #btn-quick-help {
-        display: none !important;
-    }
+#hud-footer #btn-quick-help { display: none !important; }
 
     /* Action Drawer on Phone Landscape (Expanded state) */
     #action-bar.drawer-open {
@@ -6283,9 +5738,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 
     /* Terminal Isolation & Sizing in Landscape */
     #terminal-container:not(.hidden) ~ #top-right-bar,
-    body.terminal-mode-active #top-right-bar {
-        display: none !important;
-    }
+body.terminal-mode-active #top-right-bar { display: none !important; }
 
     .terminal-card {
         padding: 3px 6px !important;
@@ -6300,14 +5753,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         gap: 6px !important;
     }
 
-    .terminal-title {
-        font-size: 11px !important;
-    }
+.terminal-title { font-size: 11px !important; }
 
-    .term-direction-indicator {
-        font-size: 10px !important;
-        padding: 2px 6px !important;
-    }
+.term-direction-indicator { font-size: 10px !important; padding: 2px 6px !important; }
 
     .term-zoom-btn {
         height: 24px !important;
@@ -6316,9 +5764,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         padding: 0 5px !important;
     }
 
-    .term-zoom-reset {
-        font-size: 10px !important;
-    }
+.term-zoom-reset { font-size: 10px !important; }
 
     #terminal-viewport {
         height: calc(100vh - 120px) !important;
@@ -6335,10 +5781,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         flex-shrink: 0 !important;
     }
 
-    .term-touch-dpad-col {
-        width: 82px !important;
-        flex-shrink: 0 !important;
-    }
+.term-touch-dpad-col { width: 82px !important; flex-shrink: 0 !important; }
 
     .term-dpad-grid {
         grid-template-columns: repeat(3, 26px) !important;
@@ -6346,20 +5789,11 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         gap: 2px !important;
     }
 
-    .term-dpad-btn {
-        font-size: 11px !important;
-        border-radius: 4px !important;
-    }
+.term-dpad-btn { font-size: 11px !important; border-radius: 4px !important; }
 
-    .term-touch-actions-col {
-        flex: 1 !important;
-        min-width: 0 !important;
-    }
+.term-touch-actions-col { flex: 1 !important; min-width: 0 !important; }
 
-    .term-contextual-actions {
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 3px !important;
-    }
+.term-contextual-actions { grid-template-columns: repeat(3, 1fr) !important; gap: 3px !important; }
 
     .term-ctx-btn {
         min-height: 28px !important;
@@ -6381,15 +5815,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         font-size: 11px !important;
     }
 
-    .birth-name-bar {
-        height: 32px !important;
-        gap: 4px !important;
-    }
+.birth-name-bar { height: 32px !important; gap: 4px !important; }
 
-    .birth-name-input {
-        height: 28px !important;
-        font-size: 12px !important;
-    }
+.birth-name-input { height: 28px !important; font-size: 12px !important; }
 
     .btn-birth-action {
         height: 28px !important;
@@ -6423,9 +5851,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 
 /* Hide duplicate desktop terminal toolbar buttons when mobile hero card is active */
 #terminal-card.mobile-card-active .terminal-toolbar,
-#terminal-card:has(#mobile-hero-card:not([style*="display: none"])) .terminal-toolbar {
-    display: none !important;
-}
+#terminal-card:has(#mobile-hero-card:not([style*="display: none"])) .terminal-toolbar { display: none !important; }
 
 #terminal-card.mobile-card-active,
 #terminal-card:has(#mobile-hero-card:not([style*="display: none"])) {
@@ -6667,9 +6093,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     transition: transform 0.1s ease, background 0.15s ease;
 }
 
-.m-action-btn:active {
-    transform: scale(0.96);
-}
+.m-action-btn:active { transform: scale(0.96); }
 
 .m-btn-accept {
     background: linear-gradient(135deg, #1b4332, #2d6a4f);
@@ -6714,9 +6138,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     z-index: 9500;
 }
 
-#queue-modal.hidden {
-    display: none !important;
-}
+#queue-modal.hidden { display: none !important; }
 
 .queue-card {
     border: 1px solid rgba(212, 175, 55, 0.4);
@@ -6725,14 +6147,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 @keyframes queue-fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(12px) scale(0.98);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+from { opacity: 0; transform: translateY(12px) scale(0.98); }
+to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .queue-spinner-wrap {
@@ -6757,9 +6173,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     100% { transform: rotate(360deg); }
 }
 
-.queue-lore-box {
-    transition: opacity 0.3s ease;
-}
+.queue-lore-box { transition: opacity 0.3s ease; }
 
 /* ==============================================================================
    Gameplay Demo & Commercial Showcase Modal — YouTube-Grade Theater Player
@@ -6780,9 +6194,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     box-sizing: border-box;
 }
 
-#demo-modal.hidden {
-    display: none !important;
-}
+#demo-modal.hidden { display: none !important; }
 
 .demo-backdrop {
     position: absolute;
@@ -6808,14 +6220,8 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 @keyframes demo-fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(16px) scale(0.97);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+from { opacity: 0; transform: translateY(16px) scale(0.97); }
+to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .demo-ambient-glow {
@@ -6884,9 +6290,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     background: #000;
 }
 
-#demo-canvas-stage {
-    display: none !important;
-}
+#demo-canvas-stage { display: none !important; }
 
 .demo-center-play {
     position: absolute;
@@ -6908,14 +6312,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     z-index: 15;
 }
 
-.demo-center-play:hover {
-    transform: translate(-50%, -50%) scale(1.1);
-    background: #ffd700;
-}
+.demo-center-play:hover { transform: translate(-50%, -50%) scale(1.1); background: #ffd700; }
 
-.demo-center-play.hidden {
-    display: none !important;
-}
+.demo-center-play.hidden { display: none !important; }
 
 .demo-center-play svg {
     width: 32px;
@@ -6936,9 +6335,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     transition: opacity 0.2s ease;
 }
 
-.demo-captions-overlay:not(.visible) {
-    display: none;
-}
+.demo-captions-overlay:not(.visible) { display: none; }
 
 .demo-caption-bubble {
     background: rgba(8, 11, 20, 0.92);
@@ -6955,10 +6352,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     line-height: 1.45;
 }
 
-.demo-caption-speaker {
-    font-weight: 700;
-    margin-right: 6px;
-}
+.demo-caption-speaker { font-weight: 700; margin-right: 6px; }
 
 .speaker-bard { color: var(--gold-bright); }
 .speaker-lorekeeper { color: #38bdf8; }
@@ -7034,9 +6428,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     transition: height 0.15s ease;
 }
 
-.demo-scrubber-track:hover {
-    height: 10px;
-}
+.demo-scrubber-track:hover { height: 10px; }
 
 /* Expanded invisible hit area: 32px total vertical clickable height */
 .demo-scrubber-track::before {
@@ -7086,9 +6478,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     transition: transform 0.1s ease;
 }
 
-.demo-scrubber-track:hover .demo-scrubber-handle {
-    transform: translate(-50%, -50%) scale(1.25);
-}
+.demo-scrubber-track:hover .demo-scrubber-handle { transform: translate(-50%, -50%) scale(1.25); }
 
 .demo-chapter-pip {
     position: absolute;
@@ -7117,9 +6507,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     white-space: nowrap;
 }
 
-.demo-scrubber-tooltip.visible {
-    display: block;
-}
+.demo-scrubber-tooltip.visible { display: block; }
 
 .demo-controls-row {
     display: flex;
@@ -7148,15 +6536,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     justify-content: center;
 }
 
-.demo-ctrl-btn:hover {
-    color: var(--gold-bright);
-    background: rgba(212, 175, 55, 0.15);
-}
+.demo-ctrl-btn:hover { color: var(--gold-bright); background: rgba(212, 175, 55, 0.15); }
 
-.demo-ctrl-btn.active {
-    color: var(--gold-bright);
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
-}
+.demo-ctrl-btn.active { color: var(--gold-bright); text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
 
 .demo-timecode {
     font-family: var(--font-terminal);
@@ -7205,23 +6587,13 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     -webkit-overflow-scrolling: touch;
 }
 
-.demo-chapter-ribbon::-webkit-scrollbar {
-    height: 5px;
-}
+.demo-chapter-ribbon::-webkit-scrollbar { height: 5px; }
 
-.demo-chapter-ribbon::-webkit-scrollbar-track {
-    background: rgba(10, 15, 26, 0.6);
-    border-radius: 3px;
-}
+.demo-chapter-ribbon::-webkit-scrollbar-track { background: rgba(10, 15, 26, 0.6); border-radius: 3px; }
 
-.demo-chapter-ribbon::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.45);
-    border-radius: 3px;
-}
+.demo-chapter-ribbon::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.45); border-radius: 3px; }
 
-.demo-chapter-ribbon::-webkit-scrollbar-thumb:hover {
-    background: var(--gold-bright);
-}
+.demo-chapter-ribbon::-webkit-scrollbar-thumb:hover { background: var(--gold-bright); }
 
 .demo-chapter-pill {
     background: rgba(15, 23, 42, 0.85);
@@ -7254,9 +6626,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
 }
 
-.demo-chapter-pill:active {
-    transform: scale(0.96) !important;
-}
+.demo-chapter-pill:active { transform: scale(0.96) !important; }
 
 .demo-chapter-pill.active {
     background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%) !important;
@@ -7301,15 +6671,11 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 
 .demo-theater-container:fullscreen .demo-ambient-glow,
 .demo-theater-container:-webkit-full-screen .demo-ambient-glow,
-.demo-theater-container.is-fullscreen .demo-ambient-glow {
-    display: none !important;
-}
+.demo-theater-container.is-fullscreen .demo-ambient-glow { display: none !important; }
 
 .demo-theater-container:fullscreen .demo-footer-strip,
 .demo-theater-container:-webkit-full-screen .demo-footer-strip,
-.demo-theater-container.is-fullscreen .demo-footer-strip {
-    display: none !important;
-}
+.demo-theater-container.is-fullscreen .demo-footer-strip { display: none !important; }
 
 .demo-theater-container:fullscreen .demo-video-wrapper,
 .demo-theater-container:-webkit-full-screen .demo-video-wrapper,
@@ -7414,9 +6780,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 /* Auto-Hide HUD on Mouse Inactivity */
-.demo-theater-container.is-fullscreen.hud-hidden {
-    cursor: none !important;
-}
+.demo-theater-container.is-fullscreen.hud-hidden { cursor: none !important; }
 
 .demo-theater-container.is-fullscreen.hud-hidden .demo-transport-bar,
 .demo-theater-container.is-fullscreen.hud-hidden .demo-chapter-ribbon {
@@ -7431,9 +6795,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     transform: translateY(-20px) !important;
 }
 
-.demo-theater-container.is-fullscreen.hud-hidden .demo-captions-overlay {
-    bottom: 36px !important;
-}
+.demo-theater-container.is-fullscreen.hud-hidden .demo-captions-overlay { bottom: 36px !important; }
 
 @media (max-width: 768px) {
     .demo-theater-container:fullscreen .demo-transport-bar,
@@ -7452,10 +6814,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     }
     .demo-theater-container:fullscreen .demo-close-btn,
     .demo-theater-container:-webkit-full-screen .demo-close-btn,
-    .demo-theater-container.is-fullscreen .demo-close-btn {
-        top: 12px !important;
-        right: 12px !important;
-    }
+.demo-theater-container.is-fullscreen .demo-close-btn { top: 12px !important; right: 12px !important; }
 }
 
 /* ==============================================================================
@@ -7564,9 +6923,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     margin: 0 auto;
 }
 
-.demo-standalone-main .demo-theater-container {
-    max-width: 1040px;
-}
+.demo-standalone-main .demo-theater-container { max-width: 1040px; }
 
 .demo-highlights-strip {
     margin-top: 14px;
@@ -7592,15 +6949,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     text-align: center;
 }
 
-.demo-highlight-chip strong {
-    color: var(--gold-bright, #ffd700);
-    font-size: 12px;
-}
+.demo-highlight-chip strong { color: var(--gold-bright, #ffd700); font-size: 12px; }
 
-.demo-highlight-chip span {
-    color: #94a3b8;
-    font-size: 11px;
-}
+.demo-highlight-chip span { color: #94a3b8; font-size: 11px; }
 
 @media (max-width: 768px) {
     .demo-site-header { padding: 8px 14px; }
@@ -7640,10 +6991,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
-.splash-active-realm-strip strong {
-    color: #ffd700;
-    font-family: var(--font-title);
-}
+.splash-active-realm-strip strong { color: #ffd700; font-family: var(--font-title); }
 
 .splash-realm-badge-btn {
     background: rgba(56, 189, 248, 0.15);
@@ -7706,9 +7054,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     text-align: center;
 }
 
-.realm-voice-audit-banner strong {
-    color: #ffd700;
-}
+.realm-voice-audit-banner strong { color: #ffd700; }
 
 .realm-grid {
     display: grid;
@@ -7759,10 +7105,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     box-shadow: 0 2px 8px rgba(56, 189, 248, 0.5);
 }
 
-.realm-card-icon {
-    font-size: 28px;
-    line-height: 1;
-}
+.realm-card-icon { font-size: 28px; line-height: 1; }
 
 .realm-card-title {
     font-family: var(--font-title);
@@ -7772,9 +7115,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     margin: 0;
 }
 
-.realm-card.active .realm-card-title {
-    color: #ffd700;
-}
+.realm-card.active .realm-card-title { color: #ffd700; }
 
 .realm-card-tagline {
     font-size: 12.5px;
@@ -7840,10 +7181,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     max-width: 90vw;
 }
 
-.realm-toast.show {
-    transform: translateX(-50%) translateY(0);
-    opacity: 1;
-}
+.realm-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
 /* Roguelike Command Palette Modal */
 #command-palette-modal {
@@ -7897,15 +7235,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     margin-bottom: 10px;
 }
 
-.cmd-search-wrap:focus-within {
-    border-color: #ffd700;
-    box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
-}
+.cmd-search-wrap:focus-within { border-color: #ffd700; box-shadow: 0 0 12px rgba(255, 215, 0, 0.3); }
 
-.cmd-search-icon {
-    font-size: 16px;
-    color: #94a3b8;
-}
+.cmd-search-icon { font-size: 16px; color: #94a3b8; }
 
 .cmd-search-input {
     flex: 1;
@@ -7917,9 +7249,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     font-size: 15px;
 }
 
-.cmd-search-input::placeholder {
-    color: #64748b;
-}
+.cmd-search-input::placeholder { color: #64748b; }
 
 .cmd-esc-badge {
     background: rgba(51, 65, 85, 0.8);
@@ -7951,10 +7281,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     transition: all 0.2s ease;
 }
 
-.cmd-cat-pill:hover {
-    color: #f8fafc;
-    border-color: rgba(212, 175, 55, 0.5);
-}
+.cmd-cat-pill:hover { color: #f8fafc; border-color: rgba(212, 175, 55, 0.5); }
 
 .cmd-cat-pill.active {
     background: rgba(212, 175, 55, 0.2);
@@ -8028,10 +7355,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     vertical-align: middle;
 }
 
-.cmd-row-desc {
-    font-size: 11.5px;
-    color: #8892b0;
-}
+.cmd-row-desc { font-size: 11.5px; color: #8892b0; }
 
 .cmd-row-right {
     display: flex;
@@ -8061,10 +7385,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 /* Action Bar Command Button & HUD Realm Pill */
-.action-cmd-btn {
-    border-color: #38bdf8 !important;
-    color: #e0f2fe !important;
-}
+.action-cmd-btn { border-color: #38bdf8 !important; color: #e0f2fe !important; }
 
 .realm-hud-pill {
     border-color: rgba(56, 189, 248, 0.5) !important;
@@ -8090,25 +7411,14 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 /* WS9.1 Touch Target Minimums (min 40x40px for coarse pointer) */
 @media (pointer: coarse) {
     .dpad-turn-btn,
-    .dpad-run-toggle {
-        min-height: 40px !important;
-        height: 40px !important;
-    }
+.dpad-run-toggle { min-height: 40px !important; height: 40px !important; }
 
-    .dpad-btn {
-        min-width: 40px !important;
-        min-height: 40px !important;
-    }
+.dpad-btn { min-width: 40px !important; min-height: 40px !important; }
 
-    .action-btn {
-        min-width: 40px !important;
-        min-height: 40px !important;
-    }
+.action-btn { min-width: 40px !important; min-height: 40px !important; }
 
     #touch-controls,
-    #action-bar {
-        transform: none !important;
-    }
+#action-bar { transform: none !important; }
 }
 
 /* WS9.1 Action More Popover (Mobile / Drawer / Bottom Sheet) */
@@ -8260,9 +7570,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     padding: 20px;
 }
 
-#chronicle-sketch-modal.hidden {
-    display: none !important;
-}
+#chronicle-sketch-modal.hidden { display: none !important; }
 
 /* Cross-Realm HUD, Minimap & Character Info Ergonomics (v9.5.1) */
 #minimap-title-text {
@@ -8271,15 +7579,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     font-variant-numeric: tabular-nums;
 }
 
-.minimap-header {
-    flex-wrap: nowrap;
-    gap: 4px;
-}
+.minimap-header { flex-wrap: nowrap; gap: 4px; }
 
-.minimap-hint {
-    max-width: 150px;
-    font-variant-numeric: tabular-nums;
-}
+.minimap-hint { max-width: 150px; font-variant-numeric: tabular-nums; }
 
 .stat-value,
 #hp-text,
@@ -8291,27 +7593,17 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 #footer-ac,
 #footer-gold,
 #footer-exp,
-#footer-level {
-    font-variant-numeric: tabular-nums;
-}
+#footer-level { font-variant-numeric: tabular-nums; }
 
-#char-panel {
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
+#char-panel { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
 
-#char-panel:hover {
-    border-color: rgba(255, 215, 0, 0.65);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85), 0 0 12px rgba(212, 175, 55, 0.22);
-}
+#char-panel:hover { border-color: rgba(255, 215, 0, 0.65); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85), 0 0 12px rgba(212, 175, 55, 0.22); }
 
 /* ==========================================================================
    Wave 10 Track B: Universal Moveable HUD, D-Pad Grip & Extended Hero Context
    ========================================================================== */
 
-#touch-controls {
-    transform: scale(var(--dpad-scale, 1));
-    transform-origin: bottom right;
-}
+#touch-controls { transform: scale(var(--dpad-scale, 1)); transform-origin: bottom right; }
 
 .dpad-header-bar {
     display: flex;
@@ -8328,9 +7620,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     box-shadow: inset 0 1px 0 rgba(255, 230, 150, 0.15);
 }
 
-.dpad-header-bar:active {
-    cursor: grabbing;
-}
+.dpad-header-bar:active { cursor: grabbing; }
 
 .dpad-grip-label {
     font-family: var(--font-fantasy, 'Cinzel', serif);
@@ -8373,9 +7663,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     box-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
 }
 
-#touch-controls.dpad-collapsed .dpad-grid {
-    display: none !important;
-}
+#touch-controls.dpad-collapsed .dpad-grid { display: none !important; }
 
 /* Character Panel Header & Extended Context Drawer */
 .char-panel-header {
@@ -8392,9 +7680,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     margin-bottom: 2px;
 }
 
-.char-panel-header:active {
-    cursor: grabbing;
-}
+.char-panel-header:active { cursor: grabbing; }
 
 .char-header-main {
     display: flex;
@@ -8451,19 +7737,11 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     animation: drawerSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.char-extended-drawer.hidden {
-    display: none !important;
-}
+.char-extended-drawer.hidden { display: none !important; }
 
 @keyframes drawerSlideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-6px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+from { opacity: 0; transform: translateY(-6px); }
+to { opacity: 1; transform: translateY(0); }
 }
 
 .char-ext-grid {
@@ -8522,14 +7800,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     flex-shrink: 0;
 }
 
-.hud-dock-drag-handle:hover {
-    color: #ffd700;
-    background: rgba(212, 175, 55, 0.12);
-}
+.hud-dock-drag-handle:hover { color: #ffd700; background: rgba(212, 175, 55, 0.12); }
 
-.hud-dock-drag-handle:active {
-    cursor: grabbing;
-}
+.hud-dock-drag-handle:active { cursor: grabbing; }
 
 .pill-reset-hud {
     cursor: pointer;
@@ -8592,9 +7865,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
         inset 0 0 26px rgba(0, 0, 0, 0.88) !important;
 }
 
-.top-message-banner {
-    cursor: pointer;
-}
+.top-message-banner { cursor: pointer; }
 
 /* Hammered Bronze Crest Headers */
 .char-panel-header,
@@ -8651,9 +7922,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     border-radius: 4px !important;
 }
 
-#char-panel .gauge-sp {
-    height: 18px !important;
-}
+#char-panel .gauge-sp { height: 18px !important; }
 
 #char-panel .gauge-hp .gauge-track,
 #char-panel .gauge-sp .gauge-track {
@@ -8667,13 +7936,9 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
     margin: 0 !important;
 }
 
-#char-panel .gauge-hp .gauge-track {
-    border: 1px solid rgba(212, 162, 76, 0.72) !important;
-}
+#char-panel .gauge-hp .gauge-track { border: 1px solid rgba(212, 162, 76, 0.72) !important; }
 
-#char-panel .gauge-sp .gauge-track {
-    border: 1px solid rgba(104, 159, 212, 0.72) !important;
-}
+#char-panel .gauge-sp .gauge-track { border: 1px solid rgba(104, 159, 212, 0.72) !important; }
 
 #char-panel .gauge-ghost-fill {
     position: absolute !important;
@@ -8823,65 +8088,7 @@ button, .action-btn, .menu-option-btn, .splash-shortcut-btn, .dpad-btn, .icon-bt
 }
 
 body.terminal-active .streetview-nav-rosette,
-body.grimoire-primary-open .streetview-nav-rosette {
-    display: none !important;
-}
-
-.sv-chevron-disc {
-    display: grid;
-    grid-template-columns: repeat(3, 30px);
-    grid-template-rows: repeat(3, 24px);
-    gap: 3px;
-    padding: 5px 7px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(18, 13, 9, 0.86) 0%, rgba(8, 6, 4, 0.92) 100%);
-    border: 1.5px solid rgba(218, 172, 84, 0.68);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.85), inset 0 0 10px rgba(255, 215, 110, 0.18);
-    transform: perspective(320px) rotateX(36deg);
-    transform-origin: center bottom;
-}
-
-.sv-chevron {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 24px;
-    border-radius: 5px;
-    background: rgba(34, 24, 15, 0.88);
-    border: 1px solid rgba(218, 172, 84, 0.55);
-    color: #ffe8a3;
-    font-size: 13px;
-    font-weight: 900;
-    cursor: pointer;
-    opacity: 0.90;
-    transition: transform 0.1s ease, opacity 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-    text-shadow: 0 1px 3px #000;
-    padding: 0;
-}
-
-.sv-chevron:hover,
-.sv-chevron:active {
-    background: rgba(218, 172, 84, 0.32);
-    border-color: #ffd700;
-    color: #ffffff;
-    transform: scale(1.12);
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.55);
-    opacity: 1;
-}
-
-.sv-chevron.is-blocked {
-    opacity: 0.22;
-    color: #78716c;
-    border-color: rgba(120, 113, 108, 0.25);
-    background: rgba(12, 10, 9, 0.55);
-}
-
-.sv-chevron.is-interactive {
-    border-color: #fbbf24;
-    color: #fde68a;
-    box-shadow: 0 0 8px rgba(251, 191, 36, 0.45);
-}
+body.grimoire-primary-open .streetview-nav-rosette { display: none !important; }
 
 .sv-turn-btn {
     width: 28px;
@@ -8911,17 +8118,11 @@ body.grimoire-primary-open .streetview-nav-rosette {
 }
 
 @media (max-width: 768px), (pointer: coarse) {
-    .streetview-nav-rosette {
-        transform: perspective(280px) rotateX(38deg) scale(0.86);
-        margin-bottom: 2px;
-    }
+.streetview-nav-rosette { transform: perspective(280px) rotateX(38deg) scale(0.86); margin-bottom: 2px; }
 }
 
 /* Legacy globe dimensions compatibility */
-.crystal-globe-legacy {
-    width: 76px !important;
-    height: 76px !important;
-}
+.crystal-globe-legacy { width: 76px !important; height: 76px !important; }
 
 /* 3. 2-Row Engraved Dwarven Runestone Attribute Grid */
 #char-panel #stats-strip {
@@ -8946,9 +8147,7 @@ body.grimoire-primary-open .streetview-nav-rosette {
 }
 
 #char-panel #stats-strip .stat-item[style*="display: none"],
-#char-panel #stats-strip .stat-item[style*="display:none"] {
-    display: none !important;
-}
+#char-panel #stats-strip .stat-item[style*="display:none"] { display: none !important; }
 
 #char-panel #stats-strip .stat-label {
     font-family: 'Cinzel', serif !important;
@@ -8966,9 +8165,7 @@ body.grimoire-primary-open .streetview-nav-rosette {
     line-height: 1.2 !important;
 }
 
-#char-panel #stats-strip .stat-divider {
-    display: none !important;
-}
+#char-panel #stats-strip .stat-divider { display: none !important; }
 
 #char-panel #stats-strip #stat-item-ac,
 #char-panel #stats-strip #stat-item-gold {
@@ -8982,9 +8179,7 @@ body.grimoire-primary-open .streetview-nav-rosette {
 
 /* 4. Recessed Forged-Iron & Brass Skill Hotbar Sockets & Engraved Brass Status Ledger */
 @media (min-width: 1024px) {
-    #hud-center-column {
-        max-width: calc(100vw - 468px) !important;
-    }
+#hud-center-column { max-width: calc(100vw - 468px) !important; }
 }
 
 #action-bar {
@@ -8998,9 +8193,7 @@ body.grimoire-primary-open .streetview-nav-rosette {
     padding: 5px 8px !important;
 }
 
-#action-bar::-webkit-scrollbar {
-    display: none !important;
-}
+#action-bar::-webkit-scrollbar { display: none !important; }
 
 #action-bar .action-btn,
 #action-bar .act-btn {
@@ -9043,9 +8236,7 @@ body.grimoire-primary-open .streetview-nav-rosette {
 }
 
 /* Compact quick-command sockets (#btn-wield, #btn-drop, #btn-search) & WASD support */
-body:not(.wasd-mode-active) #action-bar .act-wasd-socket {
-    display: none !important;
-}
+body:not(.wasd-mode-active) #action-bar .act-wasd-socket { display: none !important; }
 
 body.wasd-mode-active #action-bar .act-wasd-socket,
 .act-wasd-socket.wasd-remapped-highlight {
@@ -9072,10 +8263,7 @@ body.wasd-mode-active #action-bar .act-wasd-socket,
     box-shadow: 0 0 8px rgba(255, 210, 104, 0.4) !important;
 }
 
-.act-wasd-socket .act-icon {
-    font-size: 13px !important;
-    line-height: 1 !important;
-}
+.act-wasd-socket .act-icon { font-size: 13px !important; line-height: 1 !important; }
 
 .act-wasd-socket .act-label {
     font-size: 11px !important;
@@ -9095,10 +8283,7 @@ body.wasd-mode-active #action-bar .act-wasd-socket,
 }
 
 body.wasd-mode-active #action-bar .act-wasd-socket,
-#action-bar .act-wasd-socket.wasd-remapped-highlight {
-    border-color: #f5c458 !important;
-    box-shadow: 0 0 12px rgba(245, 196, 88, 0.48), inset 0 1px 0 rgba(255, 240, 190, 0.45) !important;
-}
+#action-bar .act-wasd-socket.wasd-remapped-highlight { border-color: #f5c458 !important; box-shadow: 0 0 12px rgba(245, 196, 88, 0.48), inset 0 1px 0 rgba(255, 240, 190, 0.45) !important; }
 
 /* Engraved Brass Status Ledger (#hud-footer) */
 #hud-footer {
@@ -9113,9 +8298,7 @@ body.wasd-mode-active #action-bar .act-wasd-socket,
     margin-right: 8px !important;
 }
 
-#hud-footer .status-pill:last-child {
-    border-right: none !important;
-}
+#hud-footer .status-pill:last-child { border-right: none !important; }
 
 #hud-footer .footer-badge {
     background: rgba(42, 28, 14, 0.92) !important;
@@ -9228,9 +8411,7 @@ body.wasd-mode-active .wasd-toggle-pill {
 .load-card::-webkit-scrollbar,
 .guide-card::-webkit-scrollbar,
 .cmd-palette-card::-webkit-scrollbar,
-.mco-sheet::-webkit-scrollbar {
-    width: 8px !important;
-}
+.mco-sheet::-webkit-scrollbar { width: 8px !important; }
 
 .splash-card::-webkit-scrollbar-track,
 .main-menu-card::-webkit-scrollbar-track,
@@ -9238,10 +8419,7 @@ body.wasd-mode-active .wasd-toggle-pill {
 .load-card::-webkit-scrollbar-track,
 .guide-card::-webkit-scrollbar-track,
 .cmd-palette-card::-webkit-scrollbar-track,
-.mco-sheet::-webkit-scrollbar-track {
-    background: #120b06 !important;
-    border-left: 1px solid rgba(194, 145, 70, 0.28) !important;
-}
+.mco-sheet::-webkit-scrollbar-track { background: #120b06 !important; border-left: 1px solid rgba(194, 145, 70, 0.28) !important; }
 
 .splash-card::-webkit-scrollbar-thumb,
 .main-menu-card::-webkit-scrollbar-thumb,
@@ -9351,10 +8529,7 @@ body.grimoire-collapsed-f10 #terminal-viewport {
     opacity: 1 !important;
 }
 
-.grimoire-bind-btn {
-    border-color: rgba(110, 231, 183, 0.55) !important;
-    color: #a7f3d0 !important;
-}
+.grimoire-bind-btn { border-color: rgba(110, 231, 183, 0.55) !important; color: #a7f3d0 !important; }
 .grimoire-bind-btn:hover {
     background: rgba(16, 185, 129, 0.25) !important;
     border-color: #34d399 !important;
@@ -9403,12 +8578,8 @@ body.grimoire-collapsed-f10 #terminal-viewport {
 }
 
 @keyframes suggestedActionPulse {
-    0% {
-        box-shadow: 0 0 6px rgba(255, 215, 0, 0.35), inset 0 1px 0 rgba(255, 242, 180, 0.35);
-    }
-    100% {
-        box-shadow: 0 0 14px rgba(255, 215, 0, 0.78), inset 0 1px 0 rgba(255, 242, 180, 0.65);
-    }
+0% { box-shadow: 0 0 6px rgba(255, 215, 0, 0.35), inset 0 1px 0 rgba(255, 242, 180, 0.35); }
+100% { box-shadow: 0 0 14px rgba(255, 215, 0, 0.78), inset 0 1px 0 rgba(255, 242, 180, 0.65); }
 }
 
 /* 4-Button Bindable Quick-Action Bar (#quick-slot-bar) */
@@ -9453,10 +8624,7 @@ body.grimoire-collapsed-f10 #terminal-viewport {
     box-shadow: 0 0 8px rgba(255, 210, 104, 0.4);
 }
 
-.quick-slot-btn.is-depleted {
-    opacity: 0.48;
-    border-style: dashed;
-}
+.quick-slot-btn.is-depleted { opacity: 0.48; border-style: dashed; }
 
 .quick-slot-btn .qs-hotkey {
     font-family: var(--font-terminal, monospace);
@@ -9469,10 +8637,7 @@ body.grimoire-collapsed-f10 #terminal-viewport {
     color: #f5c458;
 }
 
-.quick-slot-btn .qs-icon {
-    font-size: 12.5px;
-    line-height: 1;
-}
+.quick-slot-btn .qs-icon { font-size: 12.5px; line-height: 1; }
 
 .quick-slot-btn .qs-label {
     max-width: 74px;
@@ -9533,10 +8698,7 @@ body.grimoire-collapsed-f10 #terminal-viewport {
     color: #f3e8d2;
 }
 
-.quick-slot-popover.is-open {
-    display: flex !important;
-    pointer-events: auto !important;
-}
+.quick-slot-popover.is-open { display: flex !important; pointer-events: auto !important; }
 
 .qs-popover-header {
     display: flex;
@@ -9598,10 +8760,7 @@ body.grimoire-collapsed-f10 #terminal-viewport {
     text-align: left;
 }
 
-.qs-candidate-item:hover {
-    background: rgba(212, 165, 78, 0.18);
-    border-color: #ffd268;
-}
+.qs-candidate-item:hover { background: rgba(212, 165, 78, 0.18); border-color: #ffd268; }
 
 /* ==============================================================================
    WS33 Track C: Grimoire Mobile Portrait & Landscape Responsive Profiles
@@ -9617,9 +8776,7 @@ body.grimoire-collapsed-f10 #terminal-viewport {
         scrollbar-width: none !important;
     }
 
-    .grimoire-crest-sub {
-        display: none !important;
-    }
+.grimoire-crest-sub { display: none !important; }
 
     .grimoire-crest-banner {
         flex-shrink: 0 !important;
@@ -9627,64 +8784,39 @@ body.grimoire-collapsed-f10 #terminal-viewport {
         gap: 3px !important;
     }
 
-    .grimoire-header-controls {
-        flex-wrap: nowrap !important;
-        gap: 3px !important;
-    }
+.grimoire-header-controls { flex-wrap: nowrap !important; gap: 3px !important; }
 
     .grimoire-tab-btn,
-    .grimoire-mode-toggle-btn {
-        padding: 2px 6px !important;
-        font-size: 10px !important;
-    }
+.grimoire-mode-toggle-btn { padding: 2px 6px !important; font-size: 10px !important; }
 
-    .grimoire-card-grid {
-        grid-template-columns: 1fr !important;
-        gap: 6px !important;
-    }
+.grimoire-card-grid { grid-template-columns: 1fr !important; gap: 6px !important; }
 
-    .grimoire-item-card {
-        min-height: 44px !important;
-        padding: 6px 8px !important;
-    }
+.grimoire-item-card { min-height: 44px !important; padding: 6px 8px !important; }
 }
 
 @media (max-height: 520px) and (orientation: landscape) {
     body.grimoire-primary-open #terminal-touch-controls,
-    body.grimoire-primary-open #term-letter-ribbon {
-        display: none !important;
-    }
+body.grimoire-primary-open #term-letter-ribbon { display: none !important; }
 
     body.grimoire-primary-open #grimoire-deck-container,
     #terminal-window.grimoire-primary-open #grimoire-deck-container,
     #terminal-card.grimoire-primary-open #grimoire-deck-container,
-    #terminal-container.grimoire-primary-open #grimoire-deck-container {
-        height: calc(100dvh - 82px) !important;
-        max-height: calc(100dvh - 82px) !important;
-    }
+#terminal-container.grimoire-primary-open #grimoire-deck-container { height: calc(100dvh - 82px) !important; max-height: calc(100dvh - 82px) !important; }
 
     body.grimoire-primary-open .grimoire-card-grid,
     #terminal-window.grimoire-primary-open .grimoire-card-grid,
     #terminal-card.grimoire-primary-open .grimoire-card-grid,
-    #terminal-container.grimoire-primary-open .grimoire-card-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 6px !important;
-    }
+#terminal-container.grimoire-primary-open .grimoire-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 6px !important; }
 }
 
 /* ==============================================================================
    WS33 Track C: Contextual Action Button Dimming & Desktop Touch Guard
    ============================================================================== */
 #action-bar .action-btn.is-contextual-dim,
-#action-bar-popover .action-btn.is-contextual-dim {
-    opacity: 0.42 !important;
-    filter: saturate(0.35) !important;
-}
+#action-bar-popover .action-btn.is-contextual-dim { opacity: 0.42 !important; filter: saturate(0.35) !important; }
 
 html.device-desktop #btn-action-more,
-html.device-desktop #btn-action-more.is-needed {
-    display: none !important;
-}
+html.device-desktop #btn-action-more.is-needed { display: none !important; }
 
 /* ==============================================================================
    WS33 Track C: Compact Message Feed Window (Viewport Reclamation)
@@ -9692,20 +8824,6 @@ html.device-desktop #btn-action-more.is-needed {
 /* ==============================================================================
    WS33 Track C & WS35 Track 2: HUD Footprint Minimization & Zero Overlap
    ============================================================================== */
-/* WS36: Hide duplicate DOM 3x3 chevron grid at bottom-center; 3D floor chevrons + MOVE PAD handle steps, leaving only faded-opaque Left/Right turn paddles */
-.streetview-nav-rosette .sv-chevron-disc {
-    display: none !important;
-}
-
-.streetview-nav-rosette:hover .sv-chevron-disc {
-    opacity: 0.94;
-}
-
-.streetview-nav-rosette .sv-chevron.is-blocked {
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
 .streetview-nav-rosette .sv-turn-btn {
     width: 36px !important;
     height: 32px !important;
@@ -9736,9 +8854,7 @@ html.device-desktop #btn-action-more.is-needed {
 }
 
 #minimap-container.compact,
-#minimap-container.minimap-size-compact {
-    width: 168px;
-}
+#minimap-container.minimap-size-compact { width: 168px; }
 
 @media (min-width: 769px) and (pointer: fine) {
     #minimap-container.auto-hide-bars-disabled #minimap-controls-bar,
@@ -9776,9 +8892,7 @@ html.device-desktop #btn-action-more.is-needed {
 }
 
 .reticle-target-card,
-#reticle-target-card {
-    display: none !important;
-}
+#reticle-target-card { display: none !important; }
 
 .quick-slot-btn {
     max-width: 72px;
@@ -9788,23 +8902,14 @@ html.device-desktop #btn-action-more.is-needed {
 }
 
 @media (max-width: 900px) {
-    .quick-slot-btn {
-        max-width: 38px;
-        padding: 2px 4px;
-    }
-    .quick-slot-btn .qs-label {
-        display: none !important;
-    }
+.quick-slot-btn { max-width: 38px; padding: 2px 4px; }
+.quick-slot-btn .qs-label { display: none !important; }
 }
 
-html.device-desktop #action-bar:not(.drawer-open) .action-btn.is-nested-action {
-    display: none !important;
-}
+html.device-desktop #action-bar:not(.drawer-open) .action-btn.is-nested-action { display: none !important; }
 
 @media (min-width: 901px) and (pointer: fine) {
-    #action-bar:not(.drawer-open) .action-btn.is-nested-action {
-        display: none !important;
-    }
+#action-bar:not(.drawer-open) .action-btn.is-nested-action { display: none !important; }
 }
 
 #action-more-popover.is-categorized-menu {
@@ -9880,9 +8985,7 @@ body.terminal-mode-active #action-more-popover,
 body.terminal-active #quick-slot-popover,
 body.terminal-mode-active #quick-slot-popover,
 body.grimoire-primary-open #reticle-target-card,
-body.grimoire-primary-open #entity-inspect-popover {
-    display: none !important;
-}
+body.grimoire-primary-open #entity-inspect-popover { display: none !important; }
 
 #hud-overlay #message-feed-window {
     top: 38px;
@@ -9894,17 +8997,12 @@ body.grimoire-primary-open #entity-inspect-popover {
     max-height: 80vh;
 }
 
-#hud-overlay #message-feed-window.expanded {
-    height: 180px;
-    max-height: 80vh;
-}
+#hud-overlay #message-feed-window.expanded { height: 180px; max-height: 80vh; }
 
 /* ==============================================================================
    WS37: Sleek Bottom Command Dock, Quick-Slot Sockets & Telemetry Footer
    ============================================================================== */
-#hud-center-column {
-    gap: 3px !important;
-}
+#hud-center-column { gap: 3px !important; }
 
 @media (min-width: 901px) {
     #action-bar {
@@ -9978,9 +9076,7 @@ body.grimoire-primary-open #entity-inspect-popover {
     border: 1px solid rgba(212, 165, 78, 0.42) !important;
 }
 
-.quick-slot-btn .qs-icon {
-    font-size: 11.5px !important;
-}
+.quick-slot-btn .qs-icon { font-size: 11.5px !important; }
 
 .quick-slot-btn .qs-label {
     font-size: 10px !important;
@@ -9995,10 +9091,7 @@ body.grimoire-primary-open #entity-inspect-popover {
 }
 
 @media (max-width: 900px) {
-    .quick-slot-btn {
-        max-width: 42px !important;
-        padding: 0 4px !important;
-    }
+.quick-slot-btn { max-width: 42px !important; padding: 0 4px !important; }
 }
 
 #hud-footer.hud-status-bar {
@@ -10103,16 +9196,11 @@ body.grimoire-primary-open #entity-inspect-popover {
     box-shadow: 0 0 16px rgba(255, 215, 0, 0.42), inset 0 0 10px rgba(255, 215, 110, 0.22);
 }
 
-.viewport-edge-turn:active {
-    opacity: 0.98;
-    background: rgba(218, 172, 84, 0.34);
-}
+.viewport-edge-turn:active { opacity: 0.98; background: rgba(218, 172, 84, 0.34); }
 
 body.terminal-active .viewport-edge-turn,
 body.terminal-mode-active .viewport-edge-turn,
-body.grimoire-primary-open .viewport-edge-turn {
-    display: none !important;
-}
+body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
 
 /* ==============================================================================
    WS39: Mobile Portrait & Landscape Scaling Overhaul (Zero Collision, Full D-Pad)
@@ -10130,9 +9218,7 @@ body.grimoire-primary-open .viewport-edge-turn {
         z-index: 42 !important;
     }
 
-    #char-panel:not(.char-details-open) #stats-strip {
-        display: none !important;
-    }
+#char-panel:not(.char-details-open) #stats-strip { display: none !important; }
 
     #char-panel .vitals-vials-row {
         margin: 2px 0 !important;
@@ -10148,10 +9234,7 @@ body.grimoire-primary-open .viewport-edge-turn {
         height: 108px !important;
     }
 
-    #minimap-canvas {
-        width: 108px !important;
-        height: 108px !important;
-    }
+#minimap-canvas { width: 108px !important; height: 108px !important; }
 
     .mobile-map-zoom-group {
         top: auto !important;
@@ -10182,9 +9265,7 @@ body.grimoire-primary-open .viewport-edge-turn {
 
     #hud-footer #btn-hud-reset-layout,
     #hud-footer .pill-reset-hud,
-    #hud-footer #footer-gear {
-        display: none !important;
-    }
+#hud-footer #footer-gear { display: none !important; }
 
     #hud-footer .status-pill:not(.pill-reset-hud) {
         padding: 0 4px 0 0 !important;
@@ -10192,9 +9273,7 @@ body.grimoire-primary-open .viewport-edge-turn {
         font-size: 9px !important;
     }
 
-    .streetview-nav-rosette {
-        display: none !important;
-    }
+.streetview-nav-rosette { display: none !important; }
 
     .viewport-edge-turn {
         width: 24px !important;
@@ -10205,9 +9284,7 @@ body.grimoire-primary-open .viewport-edge-turn {
 
 @media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
     #top-right-bar #btn-hud-realm,
-    #top-right-bar #btn-sound-config {
-        display: none !important;
-    }
+#top-right-bar #btn-sound-config { display: none !important; }
 
     #touch-controls,
     #touch-controls.dpad-collapsed {
@@ -10222,9 +9299,7 @@ body.grimoire-primary-open .viewport-edge-turn {
     }
 
     #touch-controls .dpad-header-bar,
-    #touch-controls #dpad-drag-handle {
-        display: none !important;
-    }
+#touch-controls #dpad-drag-handle { display: none !important; }
 
     #touch-controls .dpad-turn-wings {
         display: grid !important;
@@ -10261,9 +9336,7 @@ body.grimoire-primary-open .viewport-edge-turn {
         font-size: 13px !important;
     }
 
-    #touch-controls .dpad-btn .dpad-sub {
-        font-size: 7px !important;
-    }
+#touch-controls .dpad-btn .dpad-sub { font-size: 7px !important; }
 
     #action-bar:not(.drawer-open) {
         width: 158px !important;
@@ -10275,9 +9348,7 @@ body.grimoire-primary-open .viewport-edge-turn {
         overflow: visible !important;
     }
 
-    #action-bar:not(.drawer-open) #action-bar-drag-handle {
-        display: none !important;
-    }
+#action-bar:not(.drawer-open) #action-bar-drag-handle { display: none !important; }
 
     #action-bar:not(.drawer-open) #quick-slot-bar.quick-slot-bar {
         grid-column: 1 / -1 !important;
@@ -10302,9 +9373,7 @@ body.grimoire-primary-open .viewport-edge-turn {
     }
 
     #action-bar:not(.drawer-open) .quick-slot-btn .qs-hotkey,
-    #action-bar:not(.drawer-open) .quick-slot-btn .qs-label {
-        display: none !important;
-    }
+#action-bar:not(.drawer-open) .quick-slot-btn .qs-label { display: none !important; }
 
     #action-bar:not(.drawer-open) .quick-slot-config-btn {
         width: 22px !important;
@@ -10397,18 +9466,12 @@ body.grimoire-primary-open .viewport-edge-turn {
     }
 
     #char-panel #hp-label,
-    #char-panel #sp-label {
-        font-size: 8px !important;
-    }
+#char-panel #sp-label { font-size: 8px !important; }
 
     #char-panel #hp-text,
-    #char-panel #sp-text {
-        font-size: 9.5px !important;
-    }
+#char-panel #sp-text { font-size: 9.5px !important; }
 
-    #char-panel:not(.char-details-open) #stats-strip {
-        display: none !important;
-    }
+#char-panel:not(.char-details-open) #stats-strip { display: none !important; }
 
     #minimap-container {
         position: fixed !important;
@@ -10429,15 +9492,9 @@ body.grimoire-primary-open .viewport-edge-turn {
     }
 
     #touch-controls .dpad-grid,
-    #touch-controls.dpad-collapsed .dpad-grid {
-        display: grid !important;
-        grid-template-rows: repeat(3, 27px) !important;
-    }
+#touch-controls.dpad-collapsed .dpad-grid { display: grid !important; grid-template-rows: repeat(3, 27px) !important; }
 
-    #touch-controls .dpad-btn {
-        height: 27px !important;
-        min-height: 27px !important;
-    }
+#touch-controls .dpad-btn { height: 27px !important; min-height: 27px !important; }
 
     #action-bar:not(.drawer-open) {
         bottom: max(4px, var(--safe-bottom)) !important;
@@ -10447,10 +9504,7 @@ body.grimoire-primary-open .viewport-edge-turn {
         width: 152px !important;
     }
 
-    #action-bar:not(.drawer-open) .action-btn {
-        height: 28px !important;
-        min-height: 28px !important;
-    }
+#action-bar:not(.drawer-open) .action-btn { height: 28px !important; min-height: 28px !important; }
 
     #hud-footer,
     #hud-footer.hud-status-bar {
@@ -10470,13 +9524,9 @@ body.grimoire-primary-open .viewport-edge-turn {
     #hud-footer #btn-hud-reset-layout,
     #hud-footer .pill-reset-hud,
     #hud-footer #footer-gear,
-    #hud-footer #footer-light {
-        display: none !important;
-    }
+#hud-footer #footer-light { display: none !important; }
 
-    #message-feed-window:not(.mobile-expanded) {
-        display: none !important;
-    }
+#message-feed-window:not(.mobile-expanded) { display: none !important; }
 
     #message-feed-window.mobile-expanded {
         display: flex !important;
@@ -10488,7 +9538,160 @@ body.grimoire-primary-open .viewport-edge-turn {
         z-index: 100 !important;
     }
 
-    .streetview-nav-rosette {
-        display: none !important;
+.streetview-nav-rosette { display: none !important; }
+}
+
+/* ==============================================================================
+   WS42.5A Surfaces: Prompt Mirror, Item Sheet, Entity Menu, Dock Presets
+   ============================================================================== */
+#prompt-mirror {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 560px;
+    width: min(560px, calc(100vw - 32px));
+    max-height: 38dvh;
+    overflow-y: auto;
+    margin: 0 auto 6px;
+    padding: 10px 14px;
+    background: rgba(14, 18, 28, 0.94);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), 0 0 10px rgba(212, 175, 55, 0.15);
+    color: #e2e8f0;
+    pointer-events: auto;
+    z-index: 30;
+}
+#prompt-mirror[hidden] { display: none !important; }
+
+#item-sheet {
+    position: fixed;
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 8px;
+    background: rgba(11, 16, 28, 0.96);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    color: #e2e8f0;
+    padding: 14px;
+    overflow-y: auto;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85);
+    z-index: 45;
+}
+#item-sheet::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+}
+@media (min-width: 1024px) {
+    #item-sheet {
+        top: 52px;
+        bottom: 28dvh;
+        right: 12px;
+        left: auto;
+        width: min(400px, 32vw);
+        max-height: calc(100dvh - 52px - 28dvh);
+    }
+}
+@media (max-width: 767px), (pointer: coarse) {
+    #item-sheet {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-height: 70dvh;
+        border-radius: 12px 12px 0 0;
+        padding-bottom: max(14px, var(--safe-bottom));
+    }
+}
+
+.entity-context-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(212, 175, 55, 0.2);
+}
+.entity-context-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: var(--font-ui);
+    color: var(--hud-text);
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+}
+.entity-context-actions button:hover {
+    background: rgba(212, 175, 55, 0.2);
+    border-color: var(--gold-bright);
+}
+
+.radial-menu-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: auto;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+.radial-menu-overlay[hidden] { display: none !important; }
+
+#action-bar[data-dock-preset="compact"] > .action-btn:not(#btn-hero-action):not(#btn-inventory):not(#btn-cast):not(#btn-fire):not(#btn-throw):not(#btn-rest):not(#btn-overland):not(#btn-action-more):not(#btn-command-palette) {
+    display: none !important;
+}
+#action-bar[data-dock-preset="wasd"] > .action-btn:not(#btn-hero-action):not(#btn-inventory):not(#btn-cast):not(#btn-fire):not(#btn-throw):not(#btn-rest):not(#btn-overland):not(#btn-wield):not(#btn-drop):not(#btn-search):not(#btn-action-more):not(#btn-command-palette) {
+    display: none !important;
+}
+#action-bar[data-dock-preset="wasd"] .act-wasd-socket {
+    display: inline-flex !important;
+}
+
+:focus-visible {
+    outline: 2px solid var(--gold-bright, #ffd700);
+    outline-offset: 2px;
+}
+@media (forced-colors: active) {
+    :focus-visible {
+        outline: 2px solid Highlight;
+        outline-offset: 2px;
+    }
+}
+@media (pointer: coarse) {
+    button, [role="button"], .action-btn, .quick-slot-btn, .menu-dock-btn, .sv-turn-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+dialog[open], [popover]:popover-open {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.15s ease, transform 0.15s ease, overlay 0.15s ease allow-discrete, display 0.15s ease allow-discrete;
+}
+@starting-style {
+    dialog[open], [popover]:popover-open {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    dialog[open], [popover]:popover-open {
+        transform: none !important;
     }
 }

@@ -63,8 +63,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=10.7.2">
-    <link rel="stylesheet" href="/css/chronicle.css?v=10.7.2">
+    <link rel="stylesheet" href="/css/dungeon.css?v=10.7.3">
+    <link rel="stylesheet" href="/css/chronicle.css?v=10.7.3">
 </head>
 <body>
     <div id="app-container">
@@ -105,6 +105,7 @@
             <p id="inspect-popover-prose" class="inspect-popover-prose"></p>
             <div id="inspect-popover-quote" class="inspect-popover-quote hidden"></div>
             <div id="inspect-popover-tactics" class="inspect-popover-tactics"></div>
+            <div id="entity-context-actions" class="entity-context-actions" role="toolbar" aria-label="Entity Actions"></div>
             <div class="inspect-popover-actions">
                 <button id="inspect-popover-detail-btn" class="inspect-popover-btn secondary" type="button" title="Inspect creature status &amp; tactical profile">🔍 Inspect</button>
                 <button id="inspect-popover-chat-btn" class="inspect-popover-btn primary" type="button" title="Interact with creature in the Living Chronicle">💬 Interact</button>
@@ -119,13 +120,6 @@
             <div class="reticle-crosshair">
                 <span class="reticle-dot"></span>
             </div>
-        </div>
-
-        <!-- Non-Intrusive Context Action Cue (Bottom-Center, completely clear of central viewport) -->
-        <div id="context-action-cue" class="context-action-cue hidden" role="button" tabindex="0" title="Click or press key to perform action">
-            <span id="action-cue-icon" class="action-cue-icon">⚔</span>
-            <kbd id="action-cue-key" class="action-cue-key">Space</kbd>
-            <span id="action-cue-text" class="action-cue-text">Attack</span>
         </div>
 
         <!-- 8-Way Directional Aim Rosette -->
@@ -186,9 +180,7 @@
                         <!-- 8-Way Directional D-Pad (with 3D forward highlight indicator & Run Mode Toggle) -->
                         <div class="term-touch-dpad-col">
                             <div class="term-dpad-header">
-                                <button type="button" id="term-run-toggle" class="term-run-toggle" data-key="toggle-run" title="Toggle Run / Sprint Mode [Alt+R]">
-                                    <span class="term-run-icon">🚶</span> <span class="term-run-text">Walk</span>
-                                </button>
+                                <button type="button" id="term-run-toggle" class="term-run-toggle" data-key="toggle-run" title="Toggle Run / Sprint Mode [Alt+R]"><span class="term-run-icon">🚶</span> <span class="term-run-text">Walk</span></button>
                             </div>
                             <div class="term-dpad term-dpad-grid" id="term-dpad-grid">
                                 <button type="button" class="term-dpad-btn term-dpad-ul" data-key="home" title="North-West [7]">↖</button>
@@ -417,18 +409,9 @@
             </div>
             <!-- Top Turning Shoulder Wings -->
             <div class="dpad-turn-wings">
-                <button type="button" id="dpad-turn-left" class="dpad-btn dpad-turn-btn" title="Turn Camera Left 90° [Left Arrow]">
-                    <span class="dpad-turn-symbol">↺</span>
-                    <span class="dpad-turn-text">Turn L</span>
-                </button>
-                <button type="button" id="dpad-run-toggle" class="dpad-btn dpad-run-toggle" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]">
-                    <span id="dpad-run-icon" class="dpad-run-icon">🚶</span>
-                    <span id="dpad-run-text" class="dpad-run-text">Walk</span>
-                </button>
-                <button type="button" id="dpad-turn-right" class="dpad-btn dpad-turn-btn" title="Turn Camera Right 90° [Right Arrow]">
-                    <span class="dpad-turn-symbol">↻</span>
-                    <span class="dpad-turn-text">Turn R</span>
-                </button>
+                <button type="button" id="dpad-turn-left" class="dpad-btn dpad-turn-btn" title="Turn Camera Left 90° [Left Arrow]"><span class="dpad-turn-symbol">↺</span> <span class="dpad-turn-text">Turn L</span></button>
+                <button type="button" id="dpad-run-toggle" class="dpad-btn dpad-run-toggle" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="dpad-run-icon" class="dpad-run-icon">🚶</span> <span id="dpad-run-text" class="dpad-run-text">Walk</span></button>
+                <button type="button" id="dpad-turn-right" class="dpad-btn dpad-turn-btn" title="Turn Camera Right 90° [Right Arrow]"><span class="dpad-turn-symbol">↻</span> <span class="dpad-turn-text">Turn R</span></button>
             </div>
 
             <!-- Directional Movement & Strafe Grid -->
@@ -436,11 +419,9 @@
                 <button type="button" id="dpad-ul" class="dpad-btn dpad-diag dpad-ul" title="Step North-West [7]">↖<span class="diag-num">7</span></button>
                 <button type="button" id="dpad-up" class="dpad-btn dpad-cardinal dpad-up" title="Move Forward [8 / Up]">▲</button>
                 <button type="button" id="dpad-ur" class="dpad-btn dpad-diag dpad-ur" title="Step North-East [9]">↗<span class="diag-num">9</span></button>
-
                 <button type="button" id="dpad-left" class="dpad-btn dpad-cardinal dpad-strafe dpad-left" title="Strafe Left [4]">⇦<span class="dpad-sub-lbl">Strafe</span></button>
                 <button type="button" id="dpad-center" class="dpad-btn dpad-center" title="Attack / Wait [5 / Space]">⚔</button>
                 <button type="button" id="dpad-right" class="dpad-btn dpad-cardinal dpad-strafe dpad-right" title="Strafe Right [6]">⇨<span class="dpad-sub-lbl">Strafe</span></button>
-
                 <button type="button" id="dpad-dl" class="dpad-btn dpad-diag dpad-dl" title="Step South-West [1]">↙<span class="diag-num">1</span></button>
                 <button type="button" id="dpad-down" class="dpad-btn dpad-cardinal dpad-down" title="Move Backward [2 / Down]">▼</button>
                 <button type="button" id="dpad-dr" class="dpad-btn dpad-diag dpad-dr" title="Step South-East [3]">↘<span class="diag-num">3</span></button>
@@ -508,6 +489,7 @@
 
             <!-- Center Column: Quick Action Bar + Detailed 3-Row Telemetry Footer -->
             <div id="hud-center-column">
+                <div id="prompt-mirror" class="prompt-mirror" aria-live="polite" hidden></div>
                 <!-- Action Overflow Popover / Drawer (WS9.1) -->
                 <div id="action-more-popover" class="action-more-popover" role="region" aria-label="Additional Actions"></div>
                 <div id="quick-slot-popover" class="quick-slot-popover" role="dialog" aria-label="Bind Quick-Action Slots"></div>
@@ -515,22 +497,11 @@
                 <!-- 3D StreetView Ground-Perspective Directional Chevron Ring (WS34) -->
                 <div id="streetview-nav-rosette" class="streetview-nav-rosette" role="group" aria-label="3D StreetView Navigation Chevrons">
                     <button type="button" id="sv-turn-left" class="sv-turn-btn sv-turn-left" data-sv-turn="-1" title="Turn Camera Left [Q / Shift+Left]">↺</button>
-                    <div class="sv-chevron-disc">
-                        <button type="button" id="sv-dir-7" class="sv-chevron sv-dir-nw" data-sv-dir="7" title="Step Forward-Left [Home / Numpad 7]">◤</button>
-                        <button type="button" id="sv-dir-8" class="sv-chevron sv-dir-n" data-sv-dir="8" title="Step Forward [Up / Numpad 8]">▲</button>
-                        <button type="button" id="sv-dir-9" class="sv-chevron sv-dir-ne" data-sv-dir="9" title="Step Forward-Right [PgUp / Numpad 9]">◥</button>
-                        <button type="button" id="sv-dir-4" class="sv-chevron sv-dir-w" data-sv-dir="4" title="Sidestep Left [Left / Numpad 4]">◀</button>
-                        <button type="button" id="sv-dir-5" class="sv-chevron sv-dir-center" data-sv-dir="5" title="Context Action / Wait in Place [Space / ,]">•</button>
-                        <button type="button" id="sv-dir-6" class="sv-chevron sv-dir-e" data-sv-dir="6" title="Sidestep Right [Right / Numpad 6]">▶</button>
-                        <button type="button" id="sv-dir-1" class="sv-chevron sv-dir-sw" data-sv-dir="1" title="Step Back-Left [End / Numpad 1]">◣</button>
-                        <button type="button" id="sv-dir-2" class="sv-chevron sv-dir-s" data-sv-dir="2" title="Step Backward [Down / Numpad 2]">▼</button>
-                        <button type="button" id="sv-dir-3" class="sv-chevron sv-dir-se" data-sv-dir="3" title="Step Back-Right [PgDn / Numpad 3]">◢</button>
-                    </div>
                     <button type="button" id="sv-turn-right" class="sv-turn-btn sv-turn-right" data-sv-turn="1" title="Turn Camera Right [E / Shift+Right]">↻</button>
                 </div>
 
                 <!-- Quick Action Bar -->
-                <div id="action-bar" class="hud-panel">
+                <div id="action-bar" class="hud-panel" data-dock-preset="full">
                     <div id="action-bar-drag-handle" class="hud-dock-drag-handle" title="Drag to move Action Bar &amp; Status Dock • Double-click to reset">⋮⋮</div>
                     <!-- 4-Button Cross-Realm Bindable Quick-Action Strip (WS32) -->
                     <div id="quick-slot-bar" class="quick-slot-bar" role="group" aria-label="Bindable Quick Actions">
@@ -558,15 +529,9 @@
                     <button id="btn-rest" class="action-btn" title="Rest until fully healed [R]">⏳ Rest <kbd>R</kbd></button>
                     <button id="btn-inventory" class="action-btn" title="Open inventory pack [i]">🎒 Pack <kbd>i</kbd></button>
                     <button id="btn-equipment" class="action-btn" title="Inspect worn equipment [e]">🛡 Gear <kbd>e</kbd></button>
-                    <button id="btn-wield" class="act-btn act-wasd-socket action-btn" title="Wield / Equip Item (w)">
-                        <span class="act-icon">🗡</span><span class="act-label">Wield</span><span class="act-key">w</span>
-                    </button>
-                    <button id="btn-drop" class="act-btn act-wasd-socket action-btn" title="Drop Item (d)">
-                        <span class="act-icon">📤</span><span class="act-label">Drop</span><span class="act-key">d</span>
-                    </button>
-                    <button id="btn-search" class="act-btn act-wasd-socket action-btn" title="Search / Perception (s)">
-                        <span class="act-icon">🔍</span><span class="act-label">Search</span><span class="act-key">s</span>
-                    </button>
+                    <button id="btn-wield" class="act-btn act-wasd-socket action-btn" title="Wield / Equip Item (w)"><span class="act-icon">🗡</span><span class="act-label">Wield</span><span class="act-key">w</span></button>
+                    <button id="btn-drop" class="act-btn act-wasd-socket action-btn" title="Drop Item (d)"><span class="act-icon">📤</span><span class="act-label">Drop</span><span class="act-key">d</span></button>
+                    <button id="btn-search" class="act-btn act-wasd-socket action-btn" title="Search / Perception (s)"><span class="act-icon">🔍</span><span class="act-label">Search</span><span class="act-key">s</span></button>
                     <button id="btn-stair" class="action-btn stair-btn" style="display: none;" title="Use stairs [&gt; or &lt;]">⬇ Descend <kbd>&gt;</kbd></button>
                     <button id="btn-run-toggle" class="action-btn action-run-pill" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="action-run-icon">🚶</span> <span id="action-run-text">Walk</span> <kbd>Alt+R</kbd></button>
                     <button id="btn-terminal" class="action-btn" title="Toggle 80x24 classic CRT terminal view [Tab]">📜 Classic <kbd>Tab</kbd></button>
@@ -602,8 +567,6 @@
                     </div>
                 </div>
             </div>
-
-
 
             <!-- Compass Widget (1:1 with Godot Overlay.cs:1750-1791) -->
             <div id="compass-container" class="hud-panel" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2px 8px; min-width: 44px;">
@@ -780,28 +743,13 @@
                 <!-- Ergonomic Primary CTA Row -->
                 <div class="splash-primary-cta-row">
                     <!-- Primary Button: Enter Realm -->
-                    <button id="btn-splash-start" class="btn-splash-start" title="Enter attuned realm [Enter]">
-                        <span class="btn-splash-start-text">⚔ ENTER REALM: <strong id="splash-cta-realm-name">Vanilla Angband 4.2.6</strong> ➔</span>
-                        <span class="btn-splash-start-sub"><kbd>[ENTER]</kbd> Open Realm Command Deck</span>
-                    </button>
+                    <button id="btn-splash-start" class="btn-splash-start" title="Enter attuned realm [Enter]"><span class="btn-splash-start-text">⚔ ENTER REALM: <strong id="splash-cta-realm-name">Vanilla Angband 4.2.6</strong> ➔</span> <span class="btn-splash-start-sub"><kbd>[ENTER]</kbd> Open Realm Command Deck</span></button>
 
                     <!-- Direct 1-Click Quick Start Button -->
-                    <button id="btn-splash-quick-start" class="btn-splash-action btn-splash-quick-start" title="Quick Start Random Hero [Q]">
-                        <span class="btn-splash-action-icon">⚡</span>
-                        <div class="btn-splash-action-col">
-                            <span class="btn-splash-action-label">Quick Start</span>
-                            <span class="btn-splash-action-sub"><kbd>[Q]</kbd> Instant Hero</span>
-                        </div>
-                    </button>
+                    <button id="btn-splash-quick-start" class="btn-splash-action btn-splash-quick-start" title="Quick Start Random Hero [Q]"><span class="btn-splash-action-icon">⚡</span> <div class="btn-splash-action-col"> <span class="btn-splash-action-label">Quick Start</span> <span class="btn-splash-action-sub"><kbd>[Q]</kbd> Instant Hero</span> </div></button>
 
                     <!-- Direct 1-Click Saved Chronicles Button -->
-                    <button id="btn-splash-load-save" class="btn-splash-action btn-splash-load-save" title="Saved Chronicles &amp; Archives [L]">
-                        <span class="btn-splash-action-icon">📂</span>
-                        <div class="btn-splash-action-col">
-                            <span class="btn-splash-action-label">Saved Chronicles</span>
-                            <span class="btn-splash-action-sub"><kbd>[L]</kbd> Load Hero</span>
-                        </div>
-                    </button>
+                    <button id="btn-splash-load-save" class="btn-splash-action btn-splash-load-save" title="Saved Chronicles &amp; Archives [L]"><span class="btn-splash-action-icon">📂</span> <div class="btn-splash-action-col"> <span class="btn-splash-action-label">Saved Chronicles</span> <span class="btn-splash-action-sub"><kbd>[L]</kbd> Load Hero</span> </div></button>
                 </div>
 
                 <!-- Clean, Elegant Secondary Action Bar -->
@@ -846,38 +794,10 @@
 
                 <!-- Primary Gameplay Options -->
                 <div class="main-menu-options" id="main-menu-options">
-                    <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[1]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label" id="menu-continue-label">Continue Adventure</span>
-                            <span class="menu-desc" id="menu-continue-desc">Checking saved adventurers...</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-menu-load" data-index="1">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[2]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Load Saved Character...</span>
-                            <span class="menu-desc">Choose an adventurer from your realm archive or upload a .sav file.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-menu-random" data-index="2">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[3]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Quick Start (Random Hero)</span>
-                            <span class="menu-desc">Generate a ready-to-play random adventurer and enter the 3D town immediately!</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-menu-custom" data-index="3">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[4]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Custom Hero (Character Wizard)</span>
-                            <span class="menu-desc">Choose race, class, and roll stats step-by-step in the classic terminal wizard.</span>
-                        </div>
-                    </button>
+                    <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0"><span class="menu-bullet">►</span> <span class="menu-num">[1]</span> <div class="menu-text-col"> <span class="menu-label" id="menu-continue-label">Continue Adventure</span> <span class="menu-desc" id="menu-continue-desc">Checking saved adventurers...</span> </div></button>
+                    <button class="menu-option-btn" id="btn-menu-load" data-index="1"><span class="menu-bullet">►</span> <span class="menu-num">[2]</span> <div class="menu-text-col"> <span class="menu-label">Load Saved Character...</span> <span class="menu-desc">Choose an adventurer from your realm archive or upload a .sav file.</span> </div></button>
+                    <button class="menu-option-btn" id="btn-menu-random" data-index="2"><span class="menu-bullet">►</span> <span class="menu-num">[3]</span> <div class="menu-text-col"> <span class="menu-label">Quick Start (Random Hero)</span> <span class="menu-desc">Generate a ready-to-play random adventurer and enter the 3D town immediately!</span> </div></button>
+                    <button class="menu-option-btn" id="btn-menu-custom" data-index="3"><span class="menu-bullet">►</span> <span class="menu-num">[4]</span> <div class="menu-text-col"> <span class="menu-label">Custom Hero (Character Wizard)</span> <span class="menu-desc">Choose race, class, and roll stats step-by-step in the classic terminal wizard.</span> </div></button>
 
                     <!-- Preserved compatibility aliases for tests querying alternative ID schemes -->
                     <button id="btn-menu-load-save" class="hidden-test-alias" style="display:none;" aria-hidden="true">Load Save</button>
@@ -905,22 +825,10 @@
 
                 <!-- Secondary Utilities Dock (Clean 4-column row) -->
                 <div class="main-menu-secondary-dock">
-                    <button class="menu-dock-btn" id="btn-menu-guide" data-index="4" title="Game Guide &amp; Lore [5]">
-                        <span class="dock-icon">📖</span>
-                        <span class="dock-label"><kbd>[5]</kbd> Guide</span>
-                    </button>
-                    <button class="menu-dock-btn" id="btn-menu-pwa" data-index="5" title="Standalone PC &amp; Android Downloads [6]">
-                        <span class="dock-icon">📱</span>
-                        <span class="dock-label"><kbd>[6]</kbd> Downloads</span>
-                    </button>
-                    <button class="menu-dock-btn" id="btn-menu-demo" data-index="6" title="Gameplay Walkthrough Video [7]">
-                        <span class="dock-icon">🎬</span>
-                        <span class="dock-label"><kbd>[7]</kbd> Demo</span>
-                    </button>
-                    <button class="menu-dock-btn" id="btn-menu-credits" data-index="7" title="Summary &amp; Credits [8]">
-                        <span class="dock-icon">📜</span>
-                        <span class="dock-label"><kbd>[8]</kbd> Credits</span>
-                    </button>
+                    <button class="menu-dock-btn" id="btn-menu-guide" data-index="4" title="Game Guide &amp; Lore [5]"><span class="dock-icon">📖</span> <span class="dock-label"><kbd>[5]</kbd> Guide</span></button>
+                    <button class="menu-dock-btn" id="btn-menu-pwa" data-index="5" title="Standalone PC &amp; Android Downloads [6]"><span class="dock-icon">📱</span> <span class="dock-label"><kbd>[6]</kbd> Downloads</span></button>
+                    <button class="menu-dock-btn" id="btn-menu-demo" data-index="6" title="Gameplay Walkthrough Video [7]"><span class="dock-icon">🎬</span> <span class="dock-label"><kbd>[7]</kbd> Demo</span></button>
+                    <button class="menu-dock-btn" id="btn-menu-credits" data-index="7" title="Summary &amp; Credits [8]"><span class="dock-icon">📜</span> <span class="dock-label"><kbd>[8]</kbd> Credits</span></button>
                     <button class="menu-dock-btn" id="btn-menu-wiki" style="display:none;" aria-hidden="true">Wiki</button>
                 </div>
 
@@ -1002,78 +910,15 @@
                 </div>
 
                 <div class="main-menu-options" id="pause-menu-options">
-                    <button class="menu-option-btn selected" id="btn-pause-resume" data-index="0">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[1]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Resume Game</span>
-                            <span class="menu-desc">Return to the first-person 3D dungeon.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-pause-save" data-index="1">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[2]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Save Game Now (Ctrl-S)</span>
-                            <span class="menu-desc">Commit your hero's progress immediately to the server.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-pause-download" data-index="2">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[3]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Download Current Save (.sav)</span>
-                            <span class="menu-desc">Export and download a local copy of your current character.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-pause-load" data-index="3">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[4]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Load Other Character...</span>
-                            <span class="menu-desc">Switch to an alternate adventurer or previous checkpoint.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-pause-random" data-index="4">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[5]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Start Over (Random Hero)</span>
-                            <span class="menu-desc">Roll a brand-new ready-to-play adventurer from scratch.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-pause-custom" data-index="5">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[6]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Start Over (Custom Hero)</span>
-                            <span class="menu-desc">Choose race, class, and roll stats in the classic wizard.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-pause-guide" data-index="6">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[7]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Game Guide, Primer &amp; Credits</span>
-                            <span class="menu-desc">Controls, combat handbook, open-asset attribution &amp; licenses.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-pause-fullscreen" data-index="7">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[8]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Toggle Fullscreen (F11)</span>
-                            <span class="menu-desc">Expand viewport to fill your display.</span>
-                        </div>
-                    </button>
-                    <button class="menu-option-btn" id="btn-pause-quit" data-index="8">
-                        <span class="menu-bullet">►</span>
-                        <span class="menu-num">[9]</span>
-                        <div class="menu-text-col">
-                            <span class="menu-label">Save &amp; Quit to Main Menu</span>
-                            <span class="menu-desc">Safely save your adventurer and return to the main title screen.</span>
-                        </div>
-                    </button>
+                    <button class="menu-option-btn selected" id="btn-pause-resume" data-index="0"><span class="menu-bullet">►</span> <span class="menu-num">[1]</span> <div class="menu-text-col"> <span class="menu-label">Resume Game</span> <span class="menu-desc">Return to the first-person 3D dungeon.</span> </div></button>
+                    <button class="menu-option-btn" id="btn-pause-save" data-index="1"><span class="menu-bullet">►</span> <span class="menu-num">[2]</span> <div class="menu-text-col"> <span class="menu-label">Save Game Now (Ctrl-S)</span> <span class="menu-desc">Commit your hero's progress immediately to the server.</span> </div></button>
+                    <button class="menu-option-btn" id="btn-pause-download" data-index="2"><span class="menu-bullet">►</span> <span class="menu-num">[3]</span> <div class="menu-text-col"> <span class="menu-label">Download Current Save (.sav)</span> <span class="menu-desc">Export and download a local copy of your current character.</span> </div></button>
+                    <button class="menu-option-btn" id="btn-pause-load" data-index="3"><span class="menu-bullet">►</span> <span class="menu-num">[4]</span> <div class="menu-text-col"> <span class="menu-label">Load Other Character...</span> <span class="menu-desc">Switch to an alternate adventurer or previous checkpoint.</span> </div></button>
+                    <button class="menu-option-btn" id="btn-pause-random" data-index="4"><span class="menu-bullet">►</span> <span class="menu-num">[5]</span> <div class="menu-text-col"> <span class="menu-label">Start Over (Random Hero)</span> <span class="menu-desc">Roll a brand-new ready-to-play adventurer from scratch.</span> </div></button>
+                    <button class="menu-option-btn" id="btn-pause-custom" data-index="5"><span class="menu-bullet">►</span> <span class="menu-num">[6]</span> <div class="menu-text-col"> <span class="menu-label">Start Over (Custom Hero)</span> <span class="menu-desc">Choose race, class, and roll stats in the classic wizard.</span> </div></button>
+                    <button class="menu-option-btn" id="btn-pause-guide" data-index="6"><span class="menu-bullet">►</span> <span class="menu-num">[7]</span> <div class="menu-text-col"> <span class="menu-label">Game Guide, Primer &amp; Credits</span> <span class="menu-desc">Controls, combat handbook, open-asset attribution &amp; licenses.</span> </div></button>
+                    <button class="menu-option-btn" id="btn-pause-fullscreen" data-index="7"><span class="menu-bullet">►</span> <span class="menu-num">[8]</span> <div class="menu-text-col"> <span class="menu-label">Toggle Fullscreen (F11)</span> <span class="menu-desc">Expand viewport to fill your display.</span> </div></button>
+                    <button class="menu-option-btn" id="btn-pause-quit" data-index="8"><span class="menu-bullet">►</span> <span class="menu-num">[9]</span> <div class="menu-text-col"> <span class="menu-label">Save &amp; Quit to Main Menu</span> <span class="menu-desc">Safely save your adventurer and return to the main title screen.</span> </div></button>
                 </div>
 
                 <div class="main-menu-footer" style="display: flex; flex-direction: column; gap: 4px;">
@@ -1586,6 +1431,8 @@
             </div>
         </div>
 
+        <dialog id="item-sheet" class="item-sheet-dialog" aria-label="Inventory & Equipment Item Sheet"></dialog>
+
         <!-- Roguelike Command Palette & Searchable Action Drawer -->
         <div id="command-palette-modal" class="hidden" role="dialog" aria-label="Command Palette">
             <div class="cmd-palette-card">
@@ -1645,33 +1492,38 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=10.7.2"></script>
-    <script defer src="/js/screen-context.js?v=10.7.2"></script>
-    <script defer src="/js/menu-router.js?v=10.7.2"></script>
-    <script defer src="/js/grimoire-deck.js?v=10.7.2"></script>
-    <script defer src="/js/quick-actions.js?v=10.7.2"></script>
-    <script defer src="/js/device.js?v=10.7.2"></script>
-    <script defer src="/js/action-catalog.js?v=10.7.2"></script>
-    <script defer src="/js/realm-keys.js?v=10.7.2"></script>
-    <script defer src="/js/command-dispatcher.js?v=10.7.2"></script>
-    <script defer src="/js/command-palette.js?v=10.7.2"></script>
-    <script defer src="/js/mobile-overlay.js?v=10.7.2"></script>
-    <script defer src="/js/audio.js?v=10.7.2"></script>
-    <script defer src="/js/terminal.js?v=10.7.2"></script>
-    <script defer src="/js/dungeon3d.js?v=10.7.2"></script>
-    <script defer src="/js/hud.js?v=10.7.2"></script>
-    <script defer src="/js/network.js?v=10.7.2"></script>
-    <script defer src="/js/local_bridge.js?v=10.7.2"></script>
-    <script defer src="/js/input.js?v=10.7.2"></script>
-    <script defer src="/js/demo-player.js?v=10.7.2"></script>
+    <script defer src="/js/safe-html.js?v=10.7.3"></script>
+    <script defer src="/js/screen-context.js?v=10.7.3"></script>
+    <script defer src="/js/menu-router.js?v=10.7.3"></script>
+    <script defer src="/js/grimoire-deck.js?v=10.7.3"></script>
+    <script defer src="/js/quick-actions.js?v=10.7.3"></script>
+    <script defer src="/js/device.js?v=10.7.3"></script>
+    <script defer src="/js/action-catalog.js?v=10.7.3"></script>
+    <script defer src="/js/realm-keys.js?v=10.7.3"></script>
+    <script defer src="/js/command-dispatcher.js?v=10.7.3"></script>
+    <script defer src="/js/command-palette.js?v=10.7.3"></script>
+    <script defer src="/js/prompt-mirror.js?v=10.7.3"></script>
+    <script defer src="/js/item-sheet.js?v=10.7.3"></script>
+    <script defer src="/js/entity-menu.js?v=10.7.3"></script>
+    <script defer src="/js/gamepad.js?v=10.7.3"></script>
+    <script defer src="/js/radial-menu.js?v=10.7.3"></script>
+    <script defer src="/js/mobile-overlay.js?v=10.7.3"></script>
+    <script defer src="/js/audio.js?v=10.7.3"></script>
+    <script defer src="/js/terminal.js?v=10.7.3"></script>
+    <script defer src="/js/dungeon3d.js?v=10.7.3"></script>
+    <script defer src="/js/hud.js?v=10.7.3"></script>
+    <script defer src="/js/network.js?v=10.7.3"></script>
+    <script defer src="/js/local_bridge.js?v=10.7.3"></script>
+    <script defer src="/js/input.js?v=10.7.3"></script>
+    <script defer src="/js/demo-player.js?v=10.7.3"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=10.7.2"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=10.7.2"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=10.7.2"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=10.7.2"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=10.7.2"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=10.7.2"></script>
-    <script defer src="/js/app.js?v=10.7.2"></script>
-    <script defer src="/js/boot.js?v=10.7.2"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=10.7.3"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=10.7.3"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=10.7.3"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=10.7.3"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=10.7.3"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=10.7.3"></script>
+    <script defer src="/js/app.js?v=10.7.3"></script>
+    <script defer src="/js/boot.js?v=10.7.3"></script>
 </body>
 </html>
