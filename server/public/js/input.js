@@ -41,6 +41,7 @@ class InputController {
         this.dpadRunMode = (function() {
             try { return localStorage.getItem('angband3d_dpad_run') === '1'; } catch (_) { return false; }
         })();
+        this._wasdLiteralNext = false;
         this.setupKeyboardEvents();
         this.setupActionButtons();
         this.setupTouchEvents();
@@ -67,30 +68,7 @@ class InputController {
     }
 
     setupTouchControls() {
-        const btnWield = document.getElementById('btn-wield');
-        if (btnWield && !btnWield.dataset.boundWield) {
-            btnWield.dataset.boundWield = '1';
-            btnWield.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.openContextualMenu('wield');
-            });
-        }
-        const btnDrop = document.getElementById('btn-drop');
-        if (btnDrop && !btnDrop.dataset.boundDrop) {
-            btnDrop.dataset.boundDrop = '1';
-            btnDrop.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.openContextualMenu('drop');
-            });
-        }
-        const btnSearch = document.getElementById('btn-search');
-        if (btnSearch && !btnSearch.dataset.boundSearch) {
-            btnSearch.dataset.boundSearch = '1';
-            btnSearch.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.openContextualMenu('search');
-            });
-        }
+        // Touch controls are bound via bind() in initDungeonControls / setupMobileControls (CMD-P1-01)
     }
 
     toggleWasdMode(forceState) {
@@ -137,7 +115,7 @@ class InputController {
         if (strafeL) strafeL.textContent = active ? '⇧A' : 'Strafe';
         const strafeR = document.querySelector('#dpad-right .dpad-sub-lbl');
         if (strafeR) strafeR.textContent = active ? '⇧D' : 'Strafe';
-        const remappedBtnIds = ['btn-wield', 'btn-drop', 'btn-search', 'btn-use', 'btn-fire', 'btn-cast', 'btn-inventory', 'btn-equipment'];
+        const remappedBtnIds = ['btn-wield', 'btn-drop', 'btn-search', 'btn-fire', 'btn-cast', 'btn-inventory', 'btn-equipment'];
         for (const id of remappedBtnIds) {
             const b = document.getElementById(id);
             if (b) {
@@ -191,9 +169,9 @@ class InputController {
                 this.audio.playItemDrop();
             }
         } else if (actionName === 'search') {
-            keyToSend = (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla)
-                ? RealmKeys.fromVanilla('s', realm)
-                : 's';
+            keyToSend = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                ? RealmKeys.realmKey('search', realm)
+                : null;
         }
         if (keyToSend) {
             const lastFrame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
@@ -236,7 +214,7 @@ class InputController {
         const items = frame.items || frame.objects || [];
         const itemOnTile = items.find(it => it.x === px && it.y === py);
 
-        const yaw = (this.dungeon && typeof this.dungeon.yaw === 'number') ? this.dungeon.yaw : 0;
+        const yaw = -(this.dungeon && typeof this.dungeon.yaw === 'number' ? this.dungeon.yaw : 0);
         const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
         const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
         const forwardOffsets = [
@@ -448,19 +426,8 @@ class InputController {
             }
         }
 
-        // 2b. Hostile Monster vs Peaceful Town NPC Filter
-        const isHostile = (m) => {
-            if (!m || m.ml === false || m.friendly || m.pet || m.peaceful) return false;
-            const depth = frame.player?.depth || 0;
-            if (depth === 0 && r !== 'silq') {
-                if (typeof m.hp === 'number' && typeof m.hp_max === 'number' && m.hp < m.hp_max) return true;
-                if (m.hostile || m.is_hostile) return true;
-                const nm = (m.name || '').toLowerCase();
-                if (/towns|citizen|urchin|mercenary|drunk|blubbering|idiot|pitiful|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran|battle-scarred|mean-looking|tamer|bard|cat|dog|leper|squint-eyed|farmer|maggot|町人|市民|酔っ払い|乞食|傭兵|浮浪児|村人|野良猫|野良犬/.test(nm)) return false;
-                if (m.glyph === 't' || m.glyph === '@' || m.glyph === 'p' || m.glyph === 'h') return false;
-            }
-            return true;
-        };
+        // 2b. Hostile Monster vs Peaceful Town NPC Filter (unified with isHostileMonster)
+        const isHostile = (m) => this.isHostileMonster(m, frame);
 
         const hostileMonsters = monsters.filter(isHostile);
         let adjHostiles = 0;
@@ -627,7 +594,9 @@ class InputController {
                 suggest: false
             },
             'btn-search': {
-                show: r !== 'silq',
+                show: (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                    ? RealmKeys.realmKey('search', r) !== null
+                    : (r === 'frogcomposband' || r === 'hengband'),
                 suggest: false
             },
             'btn-overland': {
@@ -728,12 +697,21 @@ class InputController {
         const keyBadges = {
             'btn-wield': (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) ? RealmKeys.fromVanilla('w', activeRealm) : 'w',
             'btn-drop': (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) ? RealmKeys.fromVanilla('d', activeRealm) : 'd',
-            'btn-search': (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) ? RealmKeys.fromVanilla('s', activeRealm) : 's'
+            'btn-search': (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? RealmKeys.realmKey('search', activeRealm) : null
         };
 
         for (const [id, key] of Object.entries(keyBadges)) {
             const btn = document.getElementById(id);
             if (!btn) continue;
+            if (id === 'btn-search') {
+                const searchKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? RealmKeys.realmKey('search', activeRealm) : null;
+                if (!searchKey) {
+                    btn.classList.add('hidden');
+                    continue;
+                } else {
+                    btn.classList.remove('hidden');
+                }
+            }
             let kbd = btn.querySelector('kbd');
             if (!kbd) {
                 kbd = document.createElement('kbd');
@@ -1587,7 +1565,9 @@ class InputController {
             }
 
             // Escape: reliably cancel prompts, dismiss menus/overlays, or open Pause Menu (1:1 with Godot Main.cs:1820-1835)
-            if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
+            const lastFrameEarly = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+            const inPlayEarly = Boolean(lastFrameEarly && lastFrameEarly.phase === 'play' && (lastFrameEarly.map || (lastFrameEarly.player && lastFrameEarly.player.name)));
+            if (e.key === 'Escape' || (!inPlayEarly && e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
                 e.preventDefault();
                 if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
 
@@ -1615,11 +1595,26 @@ class InputController {
                 if (window.__app && window.__app.cancelQuickBirth) {
                     window.__app.cancelQuickBirth();
                 }
-                if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
-                    window.MenuRouter.clearPending();
+
+                const lastFrame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+                const realm = (this.app && this.app.realm) || (window.__app && window.__app.getActiveRealm ? window.__app.getActiveRealm() : 'angband');
+
+                if (typeof MenuRouter !== 'undefined' && MenuRouter && typeof MenuRouter.getPending === 'function' && MenuRouter.getPending()) {
+                    if (MenuRouter.route('escape', lastFrame, realm, (k) => this.network.sendKey(k))) {
+                        if (this.app && typeof this.app.updateTerminalToolbar === 'function' && lastFrame) {
+                            this.app.updateTerminalToolbar(lastFrame);
+                        }
+                        return;
+                    }
+                } else if (typeof window !== 'undefined' && window.MenuRouter && typeof window.MenuRouter.getPending === 'function' && window.MenuRouter.getPending()) {
+                    if (window.MenuRouter.route('escape', lastFrame, realm, (k) => this.network.sendKey(k))) {
+                        if (this.app && typeof this.app.updateTerminalToolbar === 'function' && lastFrame) {
+                            this.app.updateTerminalToolbar(lastFrame);
+                        }
+                        return;
+                    }
                 }
 
-                const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
                 const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && (lastFrame.map || (lastFrame.player && lastFrame.player.name)));
                 const screenText = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function')
                     ? window.ScreenContext.screenTextOf(lastFrame)
@@ -1909,6 +1904,19 @@ class InputController {
             window.chronicleManager.preemptForGameplay('world_key');
         }
 
+        let skipWasdRemap = false;
+        if (this._wasdLiteralNext) {
+            this._wasdLiteralNext = false;
+            skipWasdRemap = true;
+        }
+
+        if (this.wasdMode && !skipWasdRemap && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === '\\') {
+            e.preventDefault();
+            this._wasdLiteralNext = true;
+            this.network.sendKey('\\');
+            return;
+        }
+
         // Minimap controls: Screen size ([ / ]) and Grid scale zoom (+ / -)
         if (e.key === '[') {
             e.preventDefault();
@@ -2121,7 +2129,23 @@ class InputController {
         }
 
         const isMore = Boolean(ui && ui.more);
-        if (this.wasdMode && !isTargeting && !isMore && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const isTopLevelCommandPrompt = Boolean(
+            ui && ui.awaiting_command && !ui.more && (ui.overlay || 0) === 0
+        );
+        let isPromptActive = false;
+        if (window.ScreenContext) {
+            if (typeof window.ScreenContext.promptFlags === 'function') {
+                const pf = window.ScreenContext.promptFlags(screenText);
+                if (pf && (pf.isYesNoPrompt || pf.isQuantityPrompt)) isPromptActive = true;
+            }
+            if (typeof window.ScreenContext.classify === 'function') {
+                const cls = window.ScreenContext.classify(lastFrame, realm);
+                if (cls && (cls.isItemPrompt || cls.isStore || cls.isYesNoPrompt || cls.isQuantityPrompt || cls.isChoiceMenu || cls.isNamePrompt || cls.isMenuOrInteractive)) {
+                    isPromptActive = true;
+                }
+            }
+        }
+        if (this.wasdMode && !skipWasdRemap && !isTargeting && !isMore && isTopLevelCommandPrompt && !isPromptActive && !e.ctrlKey && !e.altKey && !e.metaKey) {
             const lowerK = e.key.toLowerCase();
             if (lowerK === 'w' || lowerK === 's' || lowerK === 'a' || lowerK === 'd') {
                 e.preventDefault();
@@ -2362,7 +2386,7 @@ class InputController {
     getRelativeDirectionKey(numpadDir) {
         if (numpadDir === 5) {
             const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
-            return (typeof RealmKeys !== 'undefined' && typeof RealmKeys.get === 'function') ? (RealmKeys.get('hold', realm) || ',') : ',';
+            return (typeof RealmKeys !== 'undefined' && typeof RealmKeys.realmKey === 'function') ? (RealmKeys.realmKey('hold', realm) || ',') : ',';
         }
         const localIndexMap = {
             8: 0,
@@ -2453,7 +2477,7 @@ class InputController {
             const btn = document.getElementById(id);
             if (btn) {
                 let lastTriggerTime = 0;
-                const fire = (ev) => {
+                const fire = (ev, attempt = 0) => {
                     const now = Date.now();
                     if (now - lastTriggerTime < 280) return; // Debounce rapid triggers
                     lastTriggerTime = now;
@@ -2464,11 +2488,13 @@ class InputController {
 
                     const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
                     if (lastFrame && lastFrame.ui && lastFrame.ui.more) {
-                        this.network.sendKey(' ');
-                        lastTriggerTime = 0;
-                        setTimeout(() => {
-                            fire(ev);
-                        }, 45);
+                        this.network.sendKey('space');
+                        if (attempt < 3) {
+                            lastTriggerTime = 0;
+                            setTimeout(() => {
+                                fire(ev, attempt + 1);
+                            }, 45);
+                        }
                         return;
                     }
 
@@ -2480,8 +2506,52 @@ class InputController {
                     } else if (verb === 'attack') {
                         this.dungeon.triggerAttackAnimation();
                         if (this.audio) this.audio.playWhoosh();
-                        const fwdKey = this.getRelativeDirectionKey(8) || 'up';
-                        this.network.sendKey(fwdKey);
+                        const lastFrame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+                        const px = lastFrame?.player?.x;
+                        const py = lastFrame?.player?.y;
+                        const yaw = -(this.dungeon && typeof this.dungeon.yaw === 'number' ? this.dungeon.yaw : 0);
+                        const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+                        const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
+                        const forwardOffsets = [
+                            { dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 },
+                            { dx: 0, dy: 1 },  { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }
+                        ];
+                        const fwd = forwardOffsets[sector] || { dx: 0, dy: -1 };
+                        const deltaToDirKey = (dx, dy) => {
+                            if (dx === 0 && dy === -1) return 'up';
+                            if (dx === 1 && dy === -1) return 'pageup';
+                            if (dx === 1 && dy === 0) return 'right';
+                            if (dx === 1 && dy === 1) return 'pagedown';
+                            if (dx === 0 && dy === 1) return 'down';
+                            if (dx === -1 && dy === 1) return 'end';
+                            if (dx === -1 && dy === 0) return 'left';
+                            if (dx === -1 && dy === -1) return 'home';
+                            return null;
+                        };
+                        let targetDirKey = null;
+                        const monsters = (lastFrame && Array.isArray(lastFrame.monsters)) ? lastFrame.monsters : [];
+                        if (px !== undefined && py !== undefined) {
+                            const facingMonster = monsters.find(m => m && m.x === px + fwd.dx && m.y === py + fwd.dy && this.isHostileMonster(m, lastFrame));
+                            if (facingMonster) {
+                                targetDirKey = deltaToDirKey(fwd.dx, fwd.dy);
+                            } else {
+                                const neighbors = [
+                                    { dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 },
+                                    { dx: 0, dy: 1 },  { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }
+                                ];
+                                for (const n of neighbors) {
+                                    const m = monsters.find(mon => mon && mon.x === px + n.dx && mon.y === py + n.dy && this.isHostileMonster(mon, lastFrame));
+                                    if (m) {
+                                        targetDirKey = deltaToDirKey(n.dx, n.dy);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (!targetDirKey) {
+                            targetDirKey = this.getRelativeDirectionKey(8) || 'up';
+                        }
+                        this.network.sendKey(targetDirKey);
                         return;
                     } else if (verb === 'terminal') {
                         if (this.toggleTerminalView) this.toggleTerminalView();
@@ -2493,10 +2563,12 @@ class InputController {
                         this.openContextualMenu('drop');
                         return;
                     } else if (verb === 'search') {
-                        const sKey = (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla)
-                            ? RealmKeys.fromVanilla('s', realm)
-                            : 's';
-                        this.network.sendKey(sKey);
+                        const sKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                            ? RealmKeys.realmKey('search', realm)
+                            : null;
+                        if (sKey) {
+                            this.network.sendKey(sKey);
+                        }
                         return;
                     }
 
@@ -2538,14 +2610,61 @@ class InputController {
                         }
                         return;
                     } else if (verb === 'open') {
-                        // Open door in front of camera facing
+                        // Open door in front of camera facing or adjacent closed door
                         if (this.audio) this.audio.playDoor();
-                        const fwdKey = this.getRelativeDirectionKey(8) || 'up';
+                        const lastFrame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+                        const px = lastFrame?.player?.x;
+                        const py = lastFrame?.player?.y;
+                        const yaw = -(this.dungeon && typeof this.dungeon.yaw === 'number' ? this.dungeon.yaw : 0);
+                        const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+                        const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
+                        const forwardOffsets = [
+                            { dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 },
+                            { dx: 0, dy: 1 },  { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }
+                        ];
+                        const fwd = forwardOffsets[sector] || { dx: 0, dy: -1 };
+                        const deltaToDirKey = (dx, dy) => {
+                            if (dx === 0 && dy === -1) return 'up';
+                            if (dx === 1 && dy === -1) return 'pageup';
+                            if (dx === 1 && dy === 0) return 'right';
+                            if (dx === 1 && dy === 1) return 'pagedown';
+                            if (dx === 0 && dy === 1) return 'down';
+                            if (dx === -1 && dy === 1) return 'end';
+                            if (dx === -1 && dy === 0) return 'left';
+                            if (dx === -1 && dy === -1) return 'home';
+                            return null;
+                        };
+                        let doorDirKey = null;
+                        if (lastFrame && lastFrame.map && px !== undefined && py !== undefined) {
+                            const isClosedDoor = (x, y) => {
+                                const feat = this.getFeatAt ? this.getFeatAt(lastFrame.map, x, y) : 0;
+                                const row = lastFrame.map.rows && lastFrame.map.rows[y];
+                                const ch = (row && row.g && x >= 0 && x < row.g.length) ? row.g[x] : ' ';
+                                return feat === 2 || ch === '+';
+                            };
+                            if (isClosedDoor(px + fwd.dx, py + fwd.dy)) {
+                                doorDirKey = deltaToDirKey(fwd.dx, fwd.dy);
+                            } else {
+                                const neighbors = [
+                                    { dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 },
+                                    { dx: 0, dy: 1 },  { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }
+                                ];
+                                for (const n of neighbors) {
+                                    if (isClosedDoor(px + n.dx, py + n.dy)) {
+                                        doorDirKey = deltaToDirKey(n.dx, n.dy);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (!doorDirKey) {
+                            doorDirKey = this.getRelativeDirectionKey(8) || 'up';
+                        }
                         this.network.sendKey(effKey);
                         setTimeout(() => {
-                            const lf = window.__app && window.__app.lastFrame;
+                            const lf = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame);
                             if (!lf || lf.phase !== 'play') return;
-                            this.network.sendKey(fwdKey);
+                            this.network.sendKey(doorDirKey);
                         }, 80);
                         return;
                     }
@@ -3403,7 +3522,7 @@ class InputController {
         const itemOnTile = items.find(it => it.x === px && it.y === py);
 
         // Check 3: Camera facing yaw and 8-way directional sector
-        const yaw = (this.dungeon && typeof this.dungeon.yaw === 'number') ? this.dungeon.yaw : 0;
+        const yaw = -(this.dungeon && typeof this.dungeon.yaw === 'number' ? this.dungeon.yaw : 0);
         const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
         const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
         const forwardOffsets = [
