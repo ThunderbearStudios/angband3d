@@ -237,6 +237,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const dispatchTerminalKey = (key) => {
         if (audio) audio.unlock();
         const effRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
+        if (key === '10') {
+            network.sendKey('1');
+            network.sendKey('0');
+            return;
+        }
         if (terminal && typeof terminal.setSelectedKey === 'function' && key && key.length === 1) {
             terminal.setSelectedKey(key);
         }
@@ -890,6 +895,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
             // Letter Ribbon option buttons (e.g. [a], [b], [*]) must strictly pass their key directly
             if (btn.classList.contains('term-letter-btn')) {
+                if (key === '10') {
+                    network.sendKey('1');
+                    network.sendKey('0');
+                    return;
+                }
                 if (terminal && typeof terminal.setSelectedKey === 'function') {
                     terminal.setSelectedKey(key);
                 }
@@ -4077,29 +4087,49 @@ window.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     function getRealmCommandRegistry(realmKey, lang) {
         const r = (realmKey || activeRealm || 'angband').toLowerCase();
-        const isJp = (r === 'hengband') && (lang === 'jp' || langMode === 'jp' || window.__langMode === 'jp');
+        const isJp = (r === 'hengband') && (lang === 'jp' || (typeof langMode !== 'undefined' && langMode === 'jp') || (typeof window !== 'undefined' && window.__langMode === 'jp'));
 
         // Universal Base Commands
         const base = [
             { id: 'attack', cat: 'tactical', icon: '⚔️', name: isJp ? '攻撃 / Melee Attack' : 'Context Hero Action / Attack', key: ' ', keyDisplay: 'Space', desc: isJp ? '正面の敵を攻撃します。' : 'Perform physical melee strike or context action against facing tile.' },
             { id: 'throw', cat: 'tactical', icon: '🎯', name: (r === 'silq') ? 'Throw Weapon / Flask' : (isJp ? '投擲 / Throw Item' : 'Throw Item'), key: (r === 'silq') ? 't' : 'v', keyDisplay: (r === 'silq') ? 't' : 'v', desc: (r === 'silq') ? 'Throw a weapon, stone, flask, or potion towards aimed target.' : (isJp ? 'アイテムを狙った方向に投げます。' : 'Throw a weapon, stone, flask, or potion towards aimed direction.') },
             { id: 'fire', cat: 'tactical', icon: '🏹', name: isJp ? '射撃 / Fire Missile' : 'Fire Ranged Weapon', key: 'f', keyDisplay: 'f', desc: isJp ? '装備した弓、スリング、クロスボウから射撃します。' : 'Shoot arrows, bolts, or shot from wielded bow/crossbow/sling.' },
+            { id: 'target', cat: 'tactical', icon: '🎯', name: isJp ? 'ターゲット選択 / Target' : 'Target / Aim Cursor', key: '*', keyDisplay: '*', desc: isJp ? '目標タイルまたはモンスターを選択します。' : 'Select a target monster or grid for ranged attacks and spells.' },
+            { id: 'look', cat: 'tactical', icon: '👁️', name: isJp ? '周囲を見渡す / Look Target' : 'Inspect / Look at Target', key: 'l', keyDisplay: 'l', desc: isJp ? '目標のタイルやモンスターを観察します。' : 'Target and inspect distant tiles, monsters, and objects.' },
             { id: 'tunnel', cat: 'exploration', icon: '⛏️', name: isJp ? '壁を掘る / Tunnel' : 'Tunnel through Wall / Rubble', key: 'T', keyDisplay: 'Shift+T', desc: isJp ? 'つるはし等で壁や瓦礫を掘削します。' : 'Dig through adjacent granite, quartz, or rubble with wielded pick/digger.' },
             { id: 'disarm', cat: 'exploration', icon: '🖐️', name: isJp ? '罠解除 / Disarm Trap' : 'Disarm Trap', key: 'D', keyDisplay: 'Shift+D', desc: isJp ? '発見した床の罠や宝箱を解除します。' : 'Carefully disarm a spotted dungeon floor trap or chest mechanism.' },
             { id: 'bash', cat: 'tactical', icon: '💥', name: isJp ? '扉を破壊 / Bash Door' : 'Bash / Break Door', key: 'B', keyDisplay: 'Shift+B', desc: isJp ? '体当たりで扉を打ち破ります。' : 'Slam with body and shield to smash open jammed or locked doors.' },
-            { id: 'rest', cat: 'tactical', icon: '⏳', name: (r === 'silq') ? 'Rest & Recover Voice' : (isJp ? '休憩 / Rest' : 'Rest & Recover'), key: (r === 'silq') ? '%' : 'R', keyDisplay: (r === 'silq') ? '%' : 'Shift+R', desc: (r === 'silq') ? 'Rest until Voice and Health are recovered.' : (isJp ? 'HPとMPが回復するまで休憩します。' : 'Rest until HP and Mana are fully restored, or until disturbed.') },
-            { id: 'close', cat: 'exploration', icon: '🚪', name: isJp ? '扉を閉める / Close Door' : 'Close Door', key: 'c', keyDisplay: 'c', desc: isJp ? '開いている扉を閉めます。' : 'Close an adjacent open door to block line of sight and funnel foes.' },
+            { id: 'spike', cat: 'exploration', icon: '🔩', name: isJp ? '扉をくさびで留める / Spike Door' : 'Jam / Spike Door', key: 'j', keyDisplay: 'j', desc: isJp ? '鉄のくさびで扉を固定します。' : 'Jam an adjacent door with iron spikes to prevent passage.' },
             { id: 'open', cat: 'exploration', icon: '🔑', name: isJp ? '扉を開ける / Open Door' : 'Open Door or Chest', key: 'o', keyDisplay: 'o', desc: isJp ? '閉じた扉や宝箱を開けます。' : 'Open an adjacent closed door or unopened dungeon chest.' },
+            { id: 'close', cat: 'exploration', icon: '🚪', name: isJp ? '扉を閉める / Close Door' : 'Close Door', key: 'c', keyDisplay: 'c', desc: isJp ? '開いている扉を閉めます。' : 'Close an adjacent open door to block line of sight and funnel foes.' },
+            { id: 'rest', cat: 'tactical', icon: '⏳', name: (r === 'silq') ? 'Rest & Recover Voice' : (isJp ? '休憩 / Rest' : 'Rest & Recover'), key: (r === 'silq') ? '%' : 'R', keyDisplay: (r === 'silq') ? '%' : 'Shift+R', desc: (r === 'silq') ? 'Rest until Voice and Health are recovered.' : (isJp ? 'HPとMPが回復するまで休憩します。' : 'Rest until HP and Mana are fully restored, or until disturbed.') },
+            { id: 'hold', cat: 'tactical', icon: '⏸️', name: (r === 'silq') ? 'Hold 1 Turn (z)' : (isJp ? '待機 (1ターン) / Wait' : 'Stay / Wait 1 Turn'), key: (r === 'silq') ? 'z' : ',', keyDisplay: (r === 'silq') ? 'z' : ',', desc: isJp ? 'その場で1ターン待機します。' : 'Pass one single game turn in place without moving.' },
+            { id: 'run', cat: 'exploration', icon: '🏃', name: isJp ? '走る / Run' : 'Run / Sprint', key: '.', keyDisplay: '.', desc: isJp ? '何かに遭遇するまで走り続けます。' : 'Run in a direction until an obstacle or disturbance appears.' },
+            { id: 'walk', cat: 'exploration', icon: '🚶', name: isJp ? '慎重に歩く / Walk' : 'Walk (No Attack)', key: ';', keyDisplay: ';', desc: isJp ? '攻撃せず安全に移動します。' : 'Walk into a grid without initiating a physical attack.' },
             { id: 'quaff', cat: 'magic', icon: '🧪', name: (r === 'silq') ? 'Quaff Draught' : (isJp ? '薬を飲む / Quaff Potion' : 'Quaff Potion'), key: 'q', keyDisplay: 'q', desc: (r === 'silq') ? 'Drink a healing or herbal draught from your pack.' : (isJp ? '所持している薬を飲みます。' : 'Drink a magical potion or elixir from your backpack.') },
             { id: 'read', cat: 'magic', icon: '📜', name: isJp ? '巻物を読む / Read Scroll' : 'Read Magical Scroll', key: 'r', keyDisplay: 'r', desc: isJp ? '魔力の巻物を読みます。' : 'Read and unleash the incantation from an arcane parchment scroll.' },
             { id: 'eat', cat: 'magic', icon: '🍖', name: isJp ? '食料を食べる / Eat Food' : 'Eat Food / Ration', key: 'E', keyDisplay: 'Shift+E', desc: isJp ? '携帯食糧などを食べて空腹を満たします。' : 'Consume iron ration, lembas, or mushroom to stave off starvation.' },
+            { id: 'refill', cat: 'exploration', icon: '🔦', name: isJp ? '光源に給油 / Refuel Light' : 'Refuel Light Source', key: 'F', keyDisplay: 'Shift+F', desc: isJp ? 'ランタンや松明に油を補充します。' : 'Fuel your lantern with oil or light another torch.' },
             { id: 'descend', cat: 'exploration', icon: '⬇️', name: isJp ? '階段を下りる / Descend Stairs' : 'Descend Staircase', key: '>', keyDisplay: '>', desc: isJp ? '深いフロアへ下ります。' : 'Descend down staircase or ladder into a deeper dungeon floor.' },
             { id: 'ascend', cat: 'exploration', icon: '⬆️', name: isJp ? '階段を上る / Ascend Stairs' : 'Ascend Staircase', key: '<', keyDisplay: '<', desc: isJp ? '浅いフロアや地上へ戻ります。' : 'Ascend up staircase to shallower depths or return to Town.' },
             { id: 'pickup', cat: 'exploration', icon: '💎', name: isJp ? 'アイテムを拾う / Pick Up' : 'Pick Up Item', key: 'g', keyDisplay: 'g', desc: isJp ? '足元のアイテムや金を拾います。' : 'Retrieve item, gold, weapon, or armor from current floor tile.' },
-            { id: 'look', cat: 'tactical', icon: '👁️', name: isJp ? '周囲を見渡す / Look Target' : 'Inspect / Look at Target', key: 'l', keyDisplay: 'l', desc: isJp ? '目標のタイルやモンスターを観察します。' : 'Target and inspect distant tiles, monsters, and objects.' },
-            { id: 'inventory', cat: 'system', icon: '🎒', name: isJp ? '所持品一覧 / Inventory' : 'Inventory Pack', key: 'i', keyDisplay: 'i', desc: isJp ? 'ザックの中のアイテム一覧を確認します。' : 'View all items carried in backpack with weights and charges.' },
-            { id: 'equipment', cat: 'system', icon: '🛡️', name: isJp ? '装備品一覧 / Equipment' : 'Worn Equipment', key: 'e', keyDisplay: 'e', desc: isJp ? '現在装備している武器や防具を確認します。' : 'Inspect equipped weapons, shield, armor, rings, amulet, and light.' },
-            { id: 'character', cat: 'system', icon: '👤', name: isJp ? 'キャラクター情報 / Character' : 'Character Sheet', key: 'C', keyDisplay: 'Shift+C', desc: isJp ? 'ステータスや耐性などの詳細情報を表示します。' : 'Detailed view of stats, resists, speed, stealth, infravision, and history.' },
+            { id: 'drop', cat: 'system', icon: '📦', name: isJp ? 'アイテムを落とす / Drop' : 'Drop Item', key: 'd', keyDisplay: 'd', desc: isJp ? '所持品を足元に落とします。' : 'Drop an item from your backpack onto the floor.' },
+            { id: 'wield', cat: 'system', icon: '🗡️', name: isJp ? '装備する / Wield' : 'Wear / Wield Equipment', key: 'w', keyDisplay: 'w', desc: isJp ? '武器や防具、指輪などを装備します。' : 'Wear armor, wield weapon, or put on rings and amulets.' },
+            { id: 'takeoff', cat: 'system', icon: '🛡️', name: (r === 'silq') ? 'Remove Equipment (r)' : (isJp ? '装備を外す / Take Off' : 'Take Off / Unequip'), key: (r === 'silq') ? 'r' : 't', keyDisplay: (r === 'silq') ? 'r' : 't', desc: isJp ? '装備している武具を外します。' : 'Remove a currently equipped piece of armor, weapon, or jewelry.' },
+            { id: 'inven', cat: 'system', icon: '🎒', name: isJp ? '所持品一覧 / Inventory' : 'Inventory Pack', key: 'i', keyDisplay: 'i', desc: isJp ? 'ザックの中のアイテム一覧を確認します。' : 'View all items carried in backpack with weights and charges.' },
+            { id: 'equip', cat: 'system', icon: '🛡️', name: isJp ? '装備品一覧 / Equipment' : 'Worn Equipment', key: 'e', keyDisplay: 'e', desc: isJp ? '現在装備している武器や防具を確認します。' : 'Inspect equipped weapons, shield, armor, rings, amulet, and light.' },
+            { id: 'examine', cat: 'system', icon: '🔍', name: (r === 'silq') ? 'Examine Item (x)' : (isJp ? 'アイテム鑑定・調査 / Examine' : 'Examine / Inspect Item'), key: (r === 'silq') ? 'x' : 'I', keyDisplay: (r === 'silq') ? 'x' : 'Shift+I', desc: isJp ? 'アイテムの性質や能力を詳しく調査します。' : 'Inspect known powers, inscriptions, and details of an item.' },
+            { id: 'inscribe', cat: 'system', icon: '✍️', name: isJp ? '銘を刻む / Inscribe' : 'Inscribe Object', key: '{', keyDisplay: '{', desc: isJp ? 'アイテムに銘やショートカット番号を刻みます。' : 'Inscribe an item with a custom label or auto-macro key.' },
+            { id: 'uninscribe', cat: 'system', icon: '✂️', name: isJp ? '銘を消す / Uninscribe' : 'Uninscribe Object', key: '}', keyDisplay: '}', desc: isJp ? 'アイテムの銘を消去します。' : 'Remove an existing inscription from an item.' },
+            { id: 'destroy', cat: 'system', icon: '🗑️', name: isJp ? 'アイテム破壊 / Destroy' : 'Destroy / Trash Item', key: 'k', keyDisplay: 'k', desc: isJp ? '不要なアイテムを破棄します。' : 'Permanently destroy an unwanted item in your inventory or floor.' },
+            { id: 'char_sheet', cat: 'system', icon: '👤', name: (r === 'silq') ? 'Character Sheet (@)' : (isJp ? 'キャラクター情報 / Character' : 'Character Sheet'), key: (r === 'silq') ? '@' : 'C', keyDisplay: (r === 'silq') ? '@' : 'Shift+C', desc: isJp ? 'ステータスや耐性などの詳細情報を表示します。' : 'Detailed view of stats, resists, speed, stealth, infravision, and history.' },
+            { id: 'messages', cat: 'system', icon: '📜', name: isJp ? 'メッセージ履歴 / Message Log' : 'Review Message History', key: '^p', keyDisplay: 'Ctrl+P', desc: isJp ? '最近のメッセージ履歴を表示します。' : 'Recall recent in-game messages and combat log notices.' },
+            { id: 'locate', cat: 'exploration', icon: '📍', name: isJp ? '現在位置確認 / Locate' : 'Locate Self on Map', key: 'L', keyDisplay: 'Shift+L', desc: isJp ? 'マップ上でプレイヤーの位置を確認します。' : 'Center map display on current player location.' },
+            { id: 'repeat', cat: 'system', icon: '🔁', name: isJp ? '直前行動の繰り返し / Repeat' : 'Repeat Previous Command', key: 'n', keyDisplay: 'n', desc: isJp ? '直前に行った行動をもう一度繰り返します。' : 'Repeat the last executed action or movement command.' },
+            { id: 'feel', cat: 'exploration', icon: '🔮', name: isJp ? '階層の気配 / Feeling' : 'Sense Level Feeling', key: '^f', keyDisplay: 'Ctrl+F', desc: isJp ? '現在の階層の雰囲気や危険度を感じ取ります。' : 'Recall the danger and treasure feeling of the current dungeon depth.' },
+            { id: 'save', cat: 'system', icon: '💾', name: isJp ? 'セーブして終了 / Save' : 'Save Game & Retain Session', key: '^s', keyDisplay: 'Ctrl+S', desc: isJp ? '現在の進行状況を保存します。' : 'Save game character and persist state.' },
+            { id: 'options', cat: 'system', icon: '⚙️', name: (r === 'silq') ? 'Game Options (O)' : (isJp ? 'オプション設定 / Options' : 'Game Options & Settings'), key: (r === 'silq') ? 'O' : '=', keyDisplay: (r === 'silq') ? 'Shift+O' : '=', desc: isJp ? 'ゲーム設定や操作オプションを変更します。' : 'Configure interface, prompts, display, and audio options.' },
+            { id: 'help', cat: 'system', icon: '❓', name: isJp ? 'ヘルプ / In-game Help' : 'Help & Manual', key: '?', keyDisplay: '?', desc: isJp ? 'ゲーム内マニュアルと操作説明を表示します。' : 'Browse comprehensive in-game documentation and guide files.' },
             { id: 'terminal', cat: 'system', icon: '🖥️', name: isJp ? '端末表示切替 / Classic CRT' : 'Toggle CRT Terminal', key: 'Tab', keyDisplay: 'Tab', desc: isJp ? '3D視点と伝統の80x24クラシック端末を切り替えます。' : 'Switch instantly between immersive 3D first-person and classic 80x24 CRT.' }
         ];
 
@@ -4158,21 +4188,43 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         let allCmds = [...realmCmds, ...base];
-        if (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) {
-            allCmds = allCmds.filter(cmd => {
-                if (cmd.id) {
-                    const k = RealmKeys.realmKey(cmd.id, r);
-                    if (k === null) return false;
-                    if (k) {
-                        cmd.key = k;
-                        cmd.keyDisplay = (k === 'tab') ? 'Tab' : k;
-                    }
+        const silqOverrides = {
+            takeoff: 'r',
+            examine: 'x',
+            char_sheet: '@',
+            character: '@',
+            options: 'O',
+            hold: 'z',
+            throw: 't',
+            use: 'u',
+            use_staff: 'a',
+            staff: 'a',
+            rest: '%'
+        };
+
+        allCmds = allCmds.filter(cmd => {
+            if (cmd.realms && Array.isArray(cmd.realms) && !cmd.realms.includes(r)) {
+                return false;
+            }
+            if (typeof RealmKeys !== 'undefined' && RealmKeys && RealmKeys.TABLE && Object.prototype.hasOwnProperty.call(RealmKeys.TABLE, cmd.id)) {
+                const k = RealmKeys.realmKey(cmd.id, r);
+                if (k === null) {
+                    return false;
                 }
+                cmd.key = k;
+                cmd.keyDisplay = (k === 'tab') ? 'Tab' : k;
                 return true;
-            });
-        }
+            }
+            if (r === 'silq' && silqOverrides[cmd.id]) {
+                cmd.key = silqOverrides[cmd.id];
+                cmd.keyDisplay = silqOverrides[cmd.id];
+            }
+            return true;
+        });
         return allCmds;
     }
+
+    const getCommandPaletteCommands = getRealmCommandRegistry;
 
     let activeCmdCategory = 'all';
     let cmdPaletteFilter = '';
@@ -4225,10 +4277,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function executePaletteCommand(cmd) {
         hideCommandPalette();
-        if (input && typeof input.handleDirectKey === 'function') {
-            input.handleDirectKey(cmd.key);
-        } else if (network && typeof network.sendKey === 'function') {
+        if (typeof network !== 'undefined' && network && typeof network.sendKey === 'function') {
             network.sendKey(cmd.key);
+        } else if (typeof input !== 'undefined' && input && typeof input.handleDirectKey === 'function') {
+            input.handleDirectKey(cmd.key);
         }
     }
 
@@ -5503,7 +5555,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     const skillsKey = keyFor('skills');
                     if (skillsKey) {
                         const skillsDisplay = (skillsKey === 'tab') ? 'Tab' : skillsKey;
-                        const dataKeyVal = (skillsKey === 'tab') ? '\t' : skillsKey;
+                        const dataKeyVal = (skillsKey === 'tab') ? 'tab' : skillsKey;
                         btns.push({ key: dataKeyVal, badge: `[${skillsDisplay}]`, label: '🌳 Skills', extraCls: 'term-action-key' });
                     }
 
@@ -5579,7 +5631,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                     if (act.type === 'pillar-step') {
-                        network.sendKey('ArrowRight');
+                        network.sendKey('right');
                         return;
                     }
                     if ((act.type === 'item-primary' || act.type === 'item-verb') && act.key) {
@@ -5642,6 +5694,7 @@ window.addEventListener('DOMContentLoaded', () => {
             getAppState: () => appState,
             getLastFrame: () => lastFrame,
             getActiveRealm,
+            getCommandPaletteCommands,
             showToast: showRealmToast,
             showUpdateToast
         });
@@ -5650,6 +5703,14 @@ window.addEventListener('DOMContentLoaded', () => {
     // View routing (AGENTS.md §3.3). Logic lives in screen-context.js needsTerminal (verbatim move, WS2);
     // app state is passed explicitly so the classifier stays pure and testable in Node.
     function needsTerminal(frame) {
+        if (!frame) return true;
+        if (!frame.player) return true;
+        if (frame.phase && frame.phase !== 'play') return true;
+        const isDead = Boolean(frame.player.dead || (frame.player.hp !== undefined && frame.player.hp <= 0 && frame.player.hp_max > 0));
+        if (isDead) return false;
+        const isVictory = Boolean(frame.player.winner || frame.player.total_winner);
+        if (isVictory) return false;
+
         if (window.MenuRouter && typeof window.MenuRouter.getPending === 'function' && window.MenuRouter.getPending()) {
             return true;
         }

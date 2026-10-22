@@ -12,15 +12,49 @@
  *      availability, stack counts, realm, or language actually change.
  */
 (function (root, factory) {
+    const exported = factory();
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.QuickActionManager = factory();
+        module.exports = exported;
+    }
+    if (root) {
+        root.QuickActionManager = exported;
+        root.QuickActions = exported;
     }
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
     const STORAGE_PREFIX = 'angband3d_quick_slots_v1_';
+
+    function vanillaLetter(i) {
+        return "abcdefgimnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"[i] || String.fromCharCode(97 + i);
+    }
+
+    function getDeviceVerb(it, realm = 'angband') {
+        const r = String(realm || 'angband').toLowerCase();
+        const tval = Number(it && it.tval) || 0;
+        const name = String((it && it.name) || '').toLowerCase();
+
+        if (r === 'silq') {
+            if (/\bhorn\b/.test(name) || tval === 54) {
+                return 'p';
+            }
+            return 'a';
+        }
+
+        // Wand: Vanilla tval 23, variants 66
+        if (tval === 23 || tval === 66 || /\b(wand)\b/.test(name) || /魔法棒/.test(name)) {
+            return 'a';
+        }
+        // Rod: Vanilla tval 24, variants 65
+        if (tval === 24 || tval === 65 || /\b(rod)\b/.test(name) || /ロッド/.test(name)) {
+            return 'z';
+        }
+        // Staff: Vanilla tval 22, variants 55
+        if (tval === 22 || tval === 55 || /\b(staff|staves)\b/.test(name) || /(スタッフ|の杖)/.test(name)) {
+            return 'u';
+        }
+        return 'u';
+    }
 
     function escapeHtml(str) {
         return String(str || '')
@@ -137,55 +171,104 @@
             this.activeBindSlot = 0;
             this._lastRenderSig = '';
             this._boundListeners = false;
+            this._currentCharName = '';
+            this._hasCastSuccess = false;
+            this._zeroSpellsFlag = false;
         }
 
-        _storageKey(realm) {
-            return `${STORAGE_PREFIX}${String(realm || 'angband').toLowerCase()}`;
-        }
-
-        getSlots(realm) {
+        _storageKey(realm, charName) {
             const r = String(realm || 'angband').toLowerCase();
-            if (this.slotsByRealm[r]) return this.slotsByRealm[r];
+            const cn = charName ? String(charName).trim().toLowerCase() : '';
+            return cn ? `${STORAGE_PREFIX}${r}_${cn}` : `${STORAGE_PREFIX}${r}`;
+        }
+
+        resetForCharacter(realm, charName) {
+            this._currentCharName = charName ? String(charName).trim() : '';
+            this._hasCastSuccess = false;
+            this._zeroSpellsFlag = false;
+            const inp = (typeof window !== 'undefined' && window.__app && window.__app.input) ? window.__app.input : null;
+            if (inp) {
+                inp._hasCastSuccess = false;
+                inp._zeroSpellsFlag = false;
+            }
+            this._lastRenderSig = '';
+            if (realm) {
+                return this.getSlots(realm, this._currentCharName);
+            }
+        }
+
+        getSlots(realm, charName) {
+            const r = String(realm || 'angband').toLowerCase();
+            const cn = (charName !== undefined && charName !== null)
+                ? String(charName).trim().toLowerCase()
+                : (this._currentCharName ? String(this._currentCharName).trim().toLowerCase() : '');
+            const cacheKey = cn ? `${r}_${cn}` : r;
+            if (this.slotsByRealm[cacheKey]) return this.slotsByRealm[cacheKey];
 
             let loaded = null;
             if (typeof localStorage !== 'undefined') {
                 try {
-                    const raw = localStorage.getItem(this._storageKey(r));
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        if (Array.isArray(parsed) && parsed.length === 4) {
-                            loaded = parsed;
+                    if (cn) {
+                        const charRaw = localStorage.getItem(this._storageKey(r, cn));
+                        if (charRaw) {
+                            const parsed = JSON.parse(charRaw);
+                            if (Array.isArray(parsed) && parsed.length === 4) {
+                                loaded = parsed;
+                            }
+                        }
+                    }
+                    if (!loaded) {
+                        // Fallback & auto-migration from realm-only key
+                        const realmRaw = localStorage.getItem(this._storageKey(r));
+                        if (realmRaw) {
+                            const parsed = JSON.parse(realmRaw);
+                            if (Array.isArray(parsed) && parsed.length === 4) {
+                                loaded = parsed;
+                                if (cn) {
+                                    try {
+                                        localStorage.setItem(this._storageKey(r, cn), realmRaw);
+                                    } catch (_) {}
+                                }
+                            }
                         }
                     }
                 } catch (_) {}
             }
-            this.slotsByRealm[r] = loaded || getDefaultSlots(r);
-            return this.slotsByRealm[r];
+            this.slotsByRealm[cacheKey] = loaded || getDefaultSlots(r);
+            return this.slotsByRealm[cacheKey];
         }
 
-        saveSlots(realm, slots) {
+        saveSlots(realm, slots, charName) {
             const r = String(realm || 'angband').toLowerCase();
-            this.slotsByRealm[r] = slots;
+            const cn = (charName !== undefined && charName !== null)
+                ? String(charName).trim().toLowerCase()
+                : (this._currentCharName ? String(this._currentCharName).trim().toLowerCase() : '');
+            const cacheKey = cn ? `${r}_${cn}` : r;
+            this.slotsByRealm[cacheKey] = slots;
             this._lastRenderSig = '';
             if (typeof localStorage !== 'undefined') {
                 try {
-                    localStorage.setItem(this._storageKey(r), JSON.stringify(slots));
+                    const data = JSON.stringify(slots);
+                    if (cn) {
+                        localStorage.setItem(this._storageKey(r, cn), data);
+                    }
+                    localStorage.setItem(this._storageKey(r), data);
                 } catch (_) {}
             }
         }
 
-        resetRealmSlots(realm) {
+        resetRealmSlots(realm, charName) {
             const r = String(realm || 'angband').toLowerCase();
             const defaults = getDefaultSlots(r);
-            this.saveSlots(r, defaults);
+            this.saveSlots(r, defaults, charName);
             return defaults;
         }
 
-        setSlot(realm, slotIdx, slotDef) {
+        setSlot(realm, slotIdx, slotDef, charName) {
             const idx = Math.max(0, Math.min(3, Number(slotIdx) || 0));
-            const slots = this.getSlots(realm).slice();
+            const slots = this.getSlots(realm, charName).slice();
             slots[idx] = Object.assign({ slotIndex: idx }, slotDef);
-            this.saveSlots(realm, slots);
+            this.saveSlots(realm, slots, charName);
             return slots[idx];
         }
 
@@ -196,6 +279,9 @@
             const r = String(realm || 'angband').toLowerCase();
             const isJp = r === 'hengband' && lang === 'jp';
             const player = (frame && frame.player) ? frame.player : {};
+            if (player && player.name) {
+                this._currentCharName = player.name;
+            }
             const inv = Array.isArray(player.inventory) ? player.inventory : [];
             const eq = Array.isArray(player.equipment) ? player.equipment : [];
             const quiv = Array.isArray(player.quiver) ? player.quiver : [];
@@ -232,7 +318,10 @@
                         const c = classifyInventoryEntry(it, r);
                         if (c.category === 'ranged' && !/\b(bow|longbow|shortbow|crossbow|sling)\b/i.test(it.name || '')) {
                             ammoCount += (Number(it.number || it.count) || 1);
-                            if (!ammoKey) ammoKey = it.label || String.fromCharCode(97 + (Number(it.slot) || 0));
+                            if (!ammoKey) {
+                                const itIdx = (it.slot !== undefined && it.slot !== null) ? Number(it.slot) : inv.indexOf(it);
+                                ammoKey = it.letter || it.label || (r === 'angband' ? vanillaLetter(itIdx >= 0 ? itIdx : 0) : String.fromCharCode(97 + (itIdx >= 0 ? itIdx : 0)));
+                            }
                         }
                     }
                 }
@@ -260,7 +349,7 @@
 
                 if (r === 'silq') {
                     const songKey = (realmKeyFn ? realmKeyFn('cast') : 's') || 's';
-                    const hasSong = Boolean(Number(player.songs_known || 0) > 0 || (inp && inp._hasCastSuccess));
+                    const hasSong = Boolean(Number(player.songs_known || 0) > 0 || this._hasCastSuccess || (inp && inp._hasCastSuccess));
                     const canSing = spMax > 0 && curSp > 0 && !isDisabling && (!Array.isArray(player.inventory) || hasSong);
                     return {
                         available: canSing,
@@ -290,8 +379,8 @@
 
                 const hasStudyStatus = statuses.some((s) => /\bstudy\b|学習/i.test(String((s && (s.name || s)) || '')));
                 const studyCount = Number(player.study || 0) || (hasStudyStatus ? 1 : 0);
-                const zeroSpellsFlag = Boolean(inp && inp._zeroSpellsFlag);
-                const hasCastSuccess = Boolean(inp && inp._hasCastSuccess) || (curSp < spMax && spMax > 0);
+                const zeroSpellsFlag = Boolean(this._zeroSpellsFlag || (inp && inp._zeroSpellsFlag));
+                const hasCastSuccess = Boolean(this._hasCastSuccess || (inp && inp._hasCastSuccess)) || (curSp < spMax && spMax > 0);
                 const isUnstudiedL1 = (Number(player.level || 1) === 1) && studyCount > 0 && !hasCastSuccess;
 
                 if (books.length > 0 && spMax > 0 && !isNonCaster) {
@@ -316,11 +405,14 @@
                         };
                     }
                     const firstBook = books[0];
-                    const bookKey = firstBook.label || String.fromCharCode(97 + (Number(firstBook.slot) || 0));
+                    const firstBookIdx = (firstBook.slot !== undefined && firstBook.slot !== null) ? Number(firstBook.slot) : inv.indexOf(firstBook);
+                    const bookLetter = firstBook.letter || firstBook.label || (r === 'angband' ? vanillaLetter(firstBookIdx >= 0 ? firstBookIdx : 0) : String.fromCharCode(97 + (firstBookIdx >= 0 ? firstBookIdx : 0)));
+                    const bookKey = slotDef.book || bookLetter;
                     const castKey = (realmKeyFn ? realmKeyFn('cast') : 'm') || 'm';
                     const hasExplicitSpell = Boolean(slotDef.spellKey);
+                    const isOffensive = slotDef.isOffensiveSpell !== undefined ? slotDef.isOffensiveSpell : slotDef.targetNearest;
                     const seq = hasExplicitSpell
-                        ? (slotDef.isOffensiveSpell ? [castKey, bookKey, slotDef.spellKey, 't'] : [castKey, bookKey, slotDef.spellKey])
+                        ? (isOffensive ? [castKey, bookKey, slotDef.spellKey, 't'] : [castKey, bookKey, slotDef.spellKey])
                         : [castKey, bookKey];
                     const label = slotDef.spellName
                         ? shortItemLabel(slotDef.spellName, 10)
@@ -372,7 +464,8 @@
                 const defaultVerb = r === 'silq' ? 'u' : (targetCat === 'potion' ? 'q' : 'r');
                 const verbKey = (realmKeyFn ? realmKeyFn(verbName) : defaultVerb) || defaultVerb;
                 if (match) {
-                    const slotKey = match.label || String.fromCharCode(97 + (Number(match.slot) || 0));
+                    const matchIdx = (match.slot !== undefined && match.slot !== null) ? Number(match.slot) : inv.indexOf(match);
+                    const slotKey = match.letter || match.label || (r === 'angband' ? vanillaLetter(matchIdx >= 0 ? matchIdx : 0) : String.fromCharCode(97 + (matchIdx >= 0 ? matchIdx : 0)));
                     const count = Number(match.number || match.count) || 1;
                     const label = shortItemLabel(match.name, 10);
                     return {
@@ -398,19 +491,32 @@
             // 4. Specific Bound Item or Tome Spell (type === 'item' || type === 'spell')
             if (slotDef.type === 'item' || slotDef.type === 'spell') {
                 let matchedItem = null;
+                const allItems = [...inv, ...eq, ...quiv];
                 // First match by (tval, sval) — 100% invariant across EN <-> JP language switches!
                 if (slotDef.tval > 0 && slotDef.sval !== undefined && slotDef.sval !== null) {
-                    matchedItem = inv.find((it) => Number(it.tval) === Number(slotDef.tval) && Number(it.sval) === Number(slotDef.sval));
+                    matchedItem = allItems.find((it) => Number(it.tval) === Number(slotDef.tval) && Number(it.sval) === Number(slotDef.sval));
                 }
                 // Next match by normalized item name
                 if (!matchedItem && slotDef.normalizedName) {
-                    matchedItem = inv.find((it) => normalizeItemName(it.name) === slotDef.normalizedName) ||
-                                  inv.find((it) => normalizeItemName(it.name).includes(slotDef.normalizedName));
+                    matchedItem = allItems.find((it) => normalizeItemName(it.name) === slotDef.normalizedName) ||
+                                  allItems.find((it) => normalizeItemName(it.name).includes(slotDef.normalizedName));
                 }
 
-                const verbKey = slotDef.verb || (r === 'silq' ? 'u' : 'q');
+                const itemCategory = matchedItem ? classifyInventoryEntry(matchedItem, r).category : (slotDef.category || 'item');
+                let verbKey;
+                if (itemCategory === 'device' || slotDef.category === 'device') {
+                    verbKey = matchedItem ? getDeviceVerb(matchedItem, r) : (slotDef.verb || (r === 'silq' ? 'a' : 'u'));
+                } else {
+                    verbKey = slotDef.verb || (r === 'silq' ? 'u' : 'q');
+                }
+
                 if (matchedItem) {
-                    const slotKey = matchedItem.label || String.fromCharCode(97 + (Number(matchedItem.slot) || 0));
+                    let slotKey = matchedItem.letter || matchedItem.label;
+                    if (!slotKey) {
+                        const invIdx = inv.indexOf(matchedItem);
+                        const idx = (matchedItem.slot !== undefined && matchedItem.slot !== null) ? Number(matchedItem.slot) : (invIdx >= 0 ? invIdx : 0);
+                        slotKey = (r === 'angband') ? vanillaLetter(idx) : String.fromCharCode(97 + idx);
+                    }
                     const count = Number(matchedItem.number || matchedItem.count) || 1;
                     const seq = [verbKey, slotKey];
                     if (slotDef.type === 'spell' && slotDef.spellKey) {
@@ -437,7 +543,7 @@
                     if (slotDef.type === 'spell' && slotDef.spellKey) seq.push(slotDef.spellKey);
                     if (slotDef.targetNearest) seq.push('t');
                     return {
-                        available: inv.length > 0,
+                        available: inv.length > 0 || eq.length > 0,
                         icon: slotDef.icon || '⚡',
                         label: shortItemLabel(slotDef.name || 'Bound', 10),
                         qtyText: '',
@@ -456,10 +562,22 @@
             }
 
             // 5. Direct Repeatable Command (type === 'command')
-            const cmdKey = slotDef.key || 'R';
-            const seq = slotDef.targetNearest ? [cmdKey, 't'] : [cmdKey];
+            let seq = slotDef.sequence ? slotDef.sequence.slice() : null;
+            if (!seq) {
+                if (slotDef.key === 'R' || slotDef.label === 'Rest') {
+                    seq = (r === 'silq') ? ['%'] : ['R', 'enter'];
+                } else if (slotDef.key === 'z' && slotDef.label === 'Rest' && r === 'silq') {
+                    seq = ['%'];
+                } else if (slotDef.key === 's' && slotDef.label === 'Search') {
+                    if (r === 'frogcomposband' || r === 'hengband') seq = ['S'];
+                    else seq = [];
+                } else {
+                    const cmdKey = slotDef.key || (r === 'silq' ? '%' : 'R');
+                    seq = slotDef.targetNearest ? [cmdKey, 't'] : [cmdKey];
+                }
+            }
             return {
-                available: true,
+                available: seq.length > 0,
                 icon: slotDef.icon || '⚡',
                 label: isJp ? (slotDef.labelJp || slotDef.label || '行動') : (slotDef.label || 'Action'),
                 qtyText: '',
@@ -491,8 +609,11 @@
             }
 
             if (typeof sendKeyFn === 'function') {
-                const inOverlay = Boolean(frame && frame.ui && (frame.ui.overlay || 0) > 0) ||
-                                  Boolean(typeof window !== 'undefined' && window.MenuRouter && window.MenuRouter.isDrawerOpen);
+                const mr = (typeof MenuRouter !== 'undefined' && MenuRouter)
+                    ? MenuRouter
+                    : ((typeof window !== 'undefined' && window.MenuRouter) ? window.MenuRouter : null);
+                const isDrawerOpen = Boolean(mr && typeof mr.isDrawerOpen === 'function' && mr.isDrawerOpen());
+                const inOverlay = Boolean(frame && frame.ui && (frame.ui.overlay || 0) > 0) || isDrawerOpen;
                 const fullSeq = inOverlay ? ['Escape', ...resolved.sequence] : resolved.sequence;
                 fullSeq.forEach((k, stepIdx) => {
                     if (stepIdx === 0) {
@@ -514,10 +635,14 @@
             if (!bar) return;
 
             const r = String(realm || 'angband').toLowerCase();
+            const player = (frame && frame.player) ? frame.player : {};
+            if (player && player.name) {
+                this._currentCharName = player.name;
+            }
             const slots = this.getSlots(r);
             const resolvedList = slots.map((s) => this.resolveSlot(s, frame, r, lang));
 
-            const sig = `${r}:${lang}:` + resolvedList.map((res, i) => `${i}:${res.available ? 1 : 0}:${res.icon}:${res.label}:${res.qtyText}`).join('|');
+            const sig = `${r}:${lang}:${this._currentCharName}:` + resolvedList.map((res, i) => `${i}:${res.available ? 1 : 0}:${res.icon}:${res.label}:${res.qtyText}`).join('|');
             if (sig === this._lastRenderSig) return;
             this._lastRenderSig = sig;
 
@@ -543,6 +668,9 @@
             if (!payload) return null;
             const r = String(realm || 'angband').toLowerCase();
             const player = (frame && frame.player) ? frame.player : {};
+            if (player && player.name) {
+                this._currentCharName = player.name;
+            }
             const inv = Array.isArray(player.inventory) ? player.inventory : [];
             const key = String(payload.key || 'a');
             const name = String(payload.name || 'Bound Action');
@@ -564,18 +692,32 @@
                 const castKey = (typeof window !== 'undefined' && window.RealmKeys && window.RealmKeys.realmKey)
                     ? (window.RealmKeys.realmKey('cast', r) || 'm')
                     : 'm';
+                const isOffensive = payload.isOffensiveSpell !== undefined
+                    ? Boolean(payload.isOffensiveSpell)
+                    : (payload.targetNearest !== undefined ? Boolean(payload.targetNearest) : true);
                 slotDef = {
                     type: 'smart_magic',
                     verb: castKey,
+                    book: payload.book || 'a',
                     spellKey: key,
                     spellName: name,
-                    icon: '✨',
-                    targetNearest: true
+                    icon: payload.icon || '✨',
+                    isOffensiveSpell: isOffensive,
+                    targetNearest: isOffensive
                 };
             } else {
+                let verb = payload.verb;
+                if (!verb || verb === 'u' || verb === 'a') {
+                    if (payload.category === 'device' && invItem) {
+                        verb = getDeviceVerb(invItem, r);
+                    }
+                }
+                if (!verb) {
+                    verb = (r === 'silq' ? 'u' : 'q');
+                }
                 slotDef = {
                     type: 'item',
-                    verb: payload.verb || (r === 'silq' ? 'u' : 'q'),
+                    verb,
                     name,
                     normalizedName: normName,
                     tval: invItem ? Number(invItem.tval) || 0 : 0,
@@ -609,6 +751,9 @@
             const lang = (typeof window !== 'undefined' && window.__langMode) ? window.__langMode : 'en';
             const isJp = r === 'hengband' && lang === 'jp';
             const player = (frame && frame.player) ? frame.player : {};
+            if (player && player.name) {
+                this._currentCharName = player.name;
+            }
             const inv = Array.isArray(player.inventory) ? player.inventory : [];
             const slots = this.getSlots(r);
 
@@ -652,13 +797,13 @@
                     def: { type: 'auto_category', category: 'scroll', preferSub: 'escape', icon: '📜', labelEn: 'Escape', labelJp: '脱出巻' }
                 },
                 {
-                    label: isJp ? '⏳ 安全まで休憩 (Rest Until Healed)' : '⏳ Rest Until Healed (R)',
-                    def: { type: 'command', key: r === 'silq' ? 'z' : 'R', icon: '⏳', label: 'Rest', labelJp: '休憩' }
+                    label: isJp ? '⏳ 安全まで休憩 (Rest Until Healed)' : (r === 'silq' ? '⏳ Rest Until Healed (%)' : '⏳ Rest Until Healed (R → Enter)'),
+                    def: { type: 'command', key: r === 'silq' ? '%' : 'R', sequence: r === 'silq' ? ['%'] : ['R', 'enter'], icon: '⏳', label: 'Rest', labelJp: '休憩' }
                 },
-                {
-                    label: isJp ? '🔍 周囲を探索 (Search Adjacent [s])' : '🔍 Search Adjacent Walls / Traps (s)',
-                    def: { type: 'command', key: 's', icon: '🔍', label: 'Search', labelJp: '探索' }
-                },
+                ...(r === 'frogcomposband' || r === 'hengband' ? [{
+                    label: isJp ? '🔍 周囲を探索 (Search Mode [S])' : '🔍 Toggle Search Mode (S)',
+                    def: { type: 'command', key: 'S', sequence: ['S'], icon: '🔍', label: 'Search', labelJp: '探索' }
+                }] : []),
                 {
                     label: isJp ? '🚪 扉・箱を開ける (Open Door [o])' : '🚪 Open Door or Chest (o)',
                     def: { type: 'command', key: 'o', icon: '🚪', label: 'Open', labelJp: '開ける' }
@@ -690,13 +835,13 @@
                 const verbMap = {
                     potion: r === 'silq' ? 'u' : 'q',
                     scroll: r === 'silq' ? 'u' : 'r',
-                    device: r === 'silq' ? 'u' : ((r === 'hengband' || r === 'frogcomposband') ? 'a' : 'u'),
+                    device: getDeviceVerb(it, r),
                     tome: 'm',
                     ranged: 'f',
                     food: r === 'silq' ? 'u' : 'E',
                     other: 'w'
                 };
-                const verb = verbMap[info.category] || 'w';
+                const verb = (info.category === 'device') ? getDeviceVerb(it, r) : (verbMap[info.category] || 'w');
                 candidates.push({
                     label: `${info.icon} [${it.label || 'a'}] ${it.name}`,
                     def: {
@@ -785,16 +930,23 @@
     }
 
     const singleton = new QuickActionController();
+    QuickActionController.vanillaLetter = vanillaLetter;
+    QuickActionController.prototype.vanillaLetter = vanillaLetter;
+
     return {
         QuickActionController,
+        QuickActions: QuickActionController,
+        vanillaLetter,
         normalizeItemName,
         shortItemLabel,
         classifyInventoryEntry,
         getDefaultSlots,
+        getDeviceVerb,
         getInstance: () => singleton,
-        getSlots: (realm) => singleton.getSlots(realm),
-        setSlot: (realm, idx, def) => singleton.setSlot(realm, idx, def),
-        resetRealmSlots: (realm) => singleton.resetRealmSlots(realm),
+        getSlots: (realm, charName) => singleton.getSlots(realm, charName),
+        setSlot: (realm, idx, def, charName) => singleton.setSlot(realm, idx, def, charName),
+        resetRealmSlots: (realm, charName) => singleton.resetRealmSlots(realm, charName),
+        resetForCharacter: (realm, charName) => singleton.resetForCharacter(realm, charName),
         resolveSlot: (slotDef, frame, realm, lang) => singleton.resolveSlot(slotDef, frame, realm, lang),
         executeSlot: (idx, frame, realm, sendKeyFn, toastFn) => singleton.executeSlot(idx, frame, realm, sendKeyFn, toastFn),
         renderBar: (frame, realm, lang) => singleton.renderBar(frame, realm, lang),

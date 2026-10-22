@@ -1,12 +1,12 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS42 — Cross-Realm Command, Action & Menu Unification — IN PROGRESS (Wave 1)**
+**WS42 — Cross-Realm Command, Action & Menu Unification — IN PROGRESS (Wave 2)**
 
 - **Plan of record**: [`docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md) (audit §2, cards §8, decisions §10). Index: `master_audit_and_execution_plan.md` §9.
 - **Checklist** (one commit per card, red test first):
   - [x] `WS42.0` Recorder + fixtures + red contracts (`8/8 RED` proven, `146/146` screen-context)
-  - [ ] `WS42.1A–D` Hot-fixes: key-spec case (P0-01), Escape (P0-02), FCB select (P0-03), chooser letters (P0-04), Vanilla `nohjkl` letters (P0-05), palette, quick slots
+  - [x] `WS42.1A–D` Hot-fixes: key-spec case (P0-01), Escape (P0-02), FCB select (P0-03), chooser letters (P0-04), Vanilla `nohjkl` letters (P0-05), palette, quick slots (`7/7` contracts PASS, `19/19` fast PASS)
   - [ ] `WS42.2A–E` Bridge `ui.prompt`/`letter`/`verbs`/`commands` + Protocol vNext
   - [ ] `WS42.3A–C` ActionCatalog, ScreenModel, CommandDispatcher
   - [ ] `WS42.4A–C` InputRouter, app wiring, terminal fidelity

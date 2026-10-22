@@ -17,28 +17,46 @@
 
     // Canonical keymaps for all four supported variants.
     // Probed and verified by tools/probe_realm_keys.js.
-    const REALM_KEYS = Object.freeze({
-        angband: Object.freeze({
-            cast: 'm', throw: 'v', fire: 'f', quaff: 'q', read: 'r', rest: 'R',
-            open: 'o', pickup: 'g', inven: 'i', equip: 'e', use: 'U', hold: ',',
-            browse: 'b', study: null, power: null, skills: null, quests: null, overland: null
-        }),
-        silq: Object.freeze({
-            cast: 's', throw: 't', fire: 'f', quaff: 'q', read: null, rest: '%',
-            open: 'o', pickup: 'g', inven: 'i', equip: 'e', use: 'a', hold: ',',
-            browse: null, study: null, power: null, skills: 'tab', quests: null, overland: null
-        }),
-        frogcomposband: Object.freeze({
-            cast: 'm', throw: 'v', fire: 'f', quaff: 'q', read: 'r', rest: 'R',
-            open: 'o', pickup: 'g', inven: 'i', equip: 'e', use: 'U', hold: ',',
-            browse: 'b', study: null, power: 'U', skills: null, quests: null, overland: null
-        }),
-        hengband: Object.freeze({
-            cast: 'm', throw: 'v', fire: 'f', quaff: 'q', read: 'r', rest: 'R',
-            open: 'o', pickup: 'g', inven: 'i', equip: 'e', use: 'U', hold: ',',
-            browse: 'b', study: 'G', power: 'U', skills: null, quests: null, overland: null
-        })
+    const TABLE = Object.freeze({
+        cast: Object.freeze({ angband: 'm', silq: 's', frogcomposband: 'm', hengband: 'm' }),
+        throw: Object.freeze({ angband: 'v', silq: 't', frogcomposband: 'v', hengband: 'v' }),
+        fire: Object.freeze({ angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f' }),
+        quaff: Object.freeze({ angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q' }),
+        read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r' }),
+        rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R' }),
+        open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o' }),
+        pickup: Object.freeze({ angband: 'g', silq: 'g', frogcomposband: 'g', hengband: 'g' }),
+        inven: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i' }),
+        equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e' }),
+        use: Object.freeze({ angband: 'U', silq: 'u', frogcomposband: null, hengband: null }),
+        use_staff: Object.freeze({ angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u' }),
+        hold: Object.freeze({ angband: ',', silq: 'z', frogcomposband: ',', hengband: ',' }),
+        browse: Object.freeze({ angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b' }),
+        study: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: 'G' }),
+        power: Object.freeze({ angband: null, silq: null, frogcomposband: 'U', hengband: 'U' }),
+        skills: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null }),
+        quests: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null }),
+        overland: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null }),
+        search: Object.freeze({ angband: null, silq: null, frogcomposband: 'S', hengband: 'S' }),
+        steal: Object.freeze({ angband: 's', silq: null, frogcomposband: null, hengband: null }),
+        search_mode: Object.freeze({ angband: null, silq: 'S', frogcomposband: 'S', hengband: 'S' }),
+        takeoff: Object.freeze({ angband: 't', silq: 'r', frogcomposband: 't', hengband: 't' }),
+        examine: Object.freeze({ angband: 'I', silq: 'x', frogcomposband: 'I', hengband: 'I' }),
+        char_sheet: Object.freeze({ angband: 'C', silq: '@', frogcomposband: 'C', hengband: 'C' }),
+        options: Object.freeze({ angband: '=', silq: 'O', frogcomposband: '=', hengband: '=' })
     });
+
+    const REALMS = ['angband', 'silq', 'frogcomposband', 'hengband'];
+    const REALM_KEYS = Object.freeze(
+        REALMS.reduce((acc, r) => {
+            acc[r] = {};
+            for (const [verb, map] of Object.entries(TABLE)) {
+                acc[r][verb] = (map[r] !== undefined) ? map[r] : null;
+            }
+            Object.freeze(acc[r]);
+            return acc;
+        }, {})
+    );
 
     const REALM_TEXT = Object.freeze({
         angband: Object.freeze({ town: 'the Town', depthUnit: 'ft', feetPerLevel: 50 }),
@@ -187,6 +205,7 @@
     }
 
     return Object.freeze({
+        TABLE,
         REALM_KEYS,
         REALM_TEXT,
         realmKey,

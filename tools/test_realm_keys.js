@@ -71,6 +71,28 @@ test('REALM_TEXT defines town and depth metrics for all 4 realms', () => {
     assert.strictEqual(RealmKeys.REALM_TEXT.hengband.town, 'the Outpost');
 });
 
+test('CMD-P1-12/13: search, use, and hold accuracy across variants', () => {
+    assert.strictEqual(RealmKeys.realmKey('search', 'angband'), null, 'Vanilla has no search mode');
+    assert.strictEqual(RealmKeys.realmKey('search', 'silq'), null, 'Sil-Q has no search mode');
+    assert.strictEqual(RealmKeys.realmKey('search', 'frogcomposband'), 'S', 'FCB search mode is S');
+    assert.strictEqual(RealmKeys.realmKey('search', 'hengband'), 'S', 'Hengband search mode is S');
+
+    assert.strictEqual(RealmKeys.realmKey('use', 'angband'), 'U', 'Vanilla use is U');
+    assert.strictEqual(RealmKeys.realmKey('use', 'silq'), 'u', 'Sil-Q use is u');
+    assert.strictEqual(RealmKeys.realmKey('use', 'frogcomposband'), null, 'FCB has no generic use command');
+    assert.strictEqual(RealmKeys.realmKey('use', 'hengband'), null, 'Hengband has no generic use command');
+
+    assert.strictEqual(RealmKeys.realmKey('hold', 'angband'), ',', 'Vanilla hold is ,');
+    assert.strictEqual(RealmKeys.realmKey('hold', 'silq'), 'z', 'Sil-Q hold is z');
+    assert.strictEqual(RealmKeys.realmKey('hold', 'frogcomposband'), ',', 'FCB hold is ,');
+    assert.strictEqual(RealmKeys.realmKey('hold', 'hengband'), ',', 'Hengband hold is ,');
+
+    assert.strictEqual(RealmKeys.realmKey('takeoff', 'silq'), 'r', 'Sil-Q takeoff is r');
+    assert.strictEqual(RealmKeys.realmKey('examine', 'silq'), 'x', 'Sil-Q examine is x');
+    assert.strictEqual(RealmKeys.realmKey('char_sheet', 'silq'), '@', 'Sil-Q char sheet is @');
+    assert.strictEqual(RealmKeys.realmKey('options', 'silq'), 'O', 'Sil-Q options is O');
+});
+
 test('every non-null key in REALM_KEYS is backed by the probed fixture', () => {
     for (const r of REALMS) {
         const fixturePath = path.join(FIXTURES_DIR, `${r}.json`);
