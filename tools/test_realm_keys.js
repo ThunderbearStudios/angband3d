@@ -217,4 +217,23 @@ test('WS6.3: app.js runs RealmKeys.applyLabels on realm select', () => {
     assert(appJs.includes('RealmKeys.applyLabels'), 'app.js must call RealmKeys.applyLabels on realm selection');
 });
 
+test('WS42.3A: RealmKeys facade exports ActionCatalog integration, BUTTON_TO_VERB, getLabel, getIcon', () => {
+    assert(RealmKeys.ActionCatalog, 'RealmKeys must expose ActionCatalog facade reference');
+    assert(RealmKeys.BUTTON_TO_VERB, 'BUTTON_TO_VERB map must exist');
+    assert.strictEqual(RealmKeys.BUTTON_TO_VERB['btn-cast'], 'cast');
+    assert.strictEqual(RealmKeys.BUTTON_TO_VERB['btn-quaff'], 'quaff');
+    assert.strictEqual(RealmKeys.BUTTON_TO_VERB['btn-rest'], 'rest');
+
+    assert.strictEqual(typeof RealmKeys.getLabel, 'function');
+    assert.strictEqual(typeof RealmKeys.getIcon, 'function');
+
+    const quaffLabelEn = RealmKeys.getLabel('quaff', 'angband', 'en');
+    assert.ok(quaffLabelEn.length > 0, 'Quaff EN label should be non-empty');
+    const quaffLabelJp = RealmKeys.getLabel('quaff', 'hengband', 'jp');
+    assert.ok(/飲|薬/.test(quaffLabelJp), 'Quaff JP label should contain kanji');
+
+    const quaffIcon = RealmKeys.getIcon('quaff');
+    assert.strictEqual(quaffIcon, 'potion', 'Quaff icon should be potion');
+});
+
 console.log('All realm key unit tests passed!');

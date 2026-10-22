@@ -17,6 +17,7 @@ const SHELL_ASSETS = [
   '/js/dungeon3d.js',
   '/js/audio.js',
   '/js/network.js',
+  '/js/action-catalog.js',
   '/js/realm-keys.js',
   '/js/grimoire-deck.js',
   '/js/quick-actions.js',

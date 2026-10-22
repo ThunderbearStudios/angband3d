@@ -29,6 +29,7 @@ const JS_FILES = [
     'server/public/js/input.js',
     'server/public/js/screen-context.js',
     'server/public/js/menu-router.js',
+    'server/public/js/action-catalog.js',
     'server/public/js/realm-keys.js',
     'server/public/js/grimoire-deck.js',
     'server/public/js/quick-actions.js',

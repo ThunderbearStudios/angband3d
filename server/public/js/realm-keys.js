@@ -1,19 +1,41 @@
 /**
  * realm-keys.js — Single source of truth for realm-specific command keys and realm text.
  *
- * WS6.2 (language_gui_platform_spec.md §6.2).
+ * WS6.2 / WS42.3A (language_gui_platform_spec.md §6.2, WS42 Plan §6.4).
  * Every non-null value is backed by real engine probe output in tools/fixtures/realm_keys/<realm>.json.
+ * Facade over ActionCatalog when available, maintaining 100% backwards-compatible API.
  * UMD: browser -> window.RealmKeys; Node -> module.exports.
  */
 (function (root, factory) {
     'use strict';
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
+        let catalog = null;
+        try {
+            catalog = require('./action-catalog.js');
+        } catch (e) {
+            catalog = null;
+        }
+        module.exports = factory(catalog);
     } else {
-        root.RealmKeys = factory();
+        root.RealmKeys = factory(root.ActionCatalog);
     }
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (ActionCatalogRef) {
     'use strict';
+
+    let _catalog = ActionCatalogRef || (typeof window !== 'undefined' ? window.ActionCatalog : null);
+
+    function getCatalog() {
+        if (_catalog) return _catalog;
+        if (typeof window !== 'undefined' && window.ActionCatalog) {
+            _catalog = window.ActionCatalog;
+            return _catalog;
+        }
+        if (typeof global !== 'undefined' && global.ActionCatalog) {
+            _catalog = global.ActionCatalog;
+            return _catalog;
+        }
+        return null;
+    }
 
     // Canonical keymaps for all four supported variants.
     // Probed and verified by tools/probe_realm_keys.js.
@@ -85,12 +107,36 @@
 
     /**
      * Look up the command key for a verb in a realm.
+     * Delegates to ActionCatalog when available, falling back to legacy REALM_KEYS.
      * @param {string} verb - e.g. 'cast', 'throw', 'rest'
      * @param {string} [realm] - Defaults to active realm
      * @returns {string|null} Key character/spec, or null if verb doesn't exist
      */
     function realmKey(verb, realm) {
         const r = realm || getActiveRealm();
+
+        // Legacy action-bar verb overrides
+        if (verb === 'skills') {
+            return (r === 'silq') ? 'tab' : null;
+        }
+
+        const catalog = getCatalog();
+        if (catalog && typeof catalog.keyFor === 'function') {
+            // Sil-Q backward-compatibility: 'cast' in Sil-Q maps to 'song' ('s') on the UI action button
+            if (verb === 'cast' && r === 'silq') {
+                const songKey = catalog.keyFor('song', r);
+                if (songKey !== null) return songKey;
+            }
+            const key = catalog.keyFor(verb, r);
+            if (key !== null) return key;
+            // If catalog returned null, check if TABLE explicitly defines it (e.g. legacy verbs)
+            const map = REALM_KEYS[r];
+            if (map && map[verb] !== undefined) {
+                return map[verb];
+            }
+            return null;
+        }
+
         const map = REALM_KEYS[r];
         if (!map) return null;
         return map[verb] !== undefined ? map[verb] : null;
@@ -99,6 +145,7 @@
     /**
      * Map a Vanilla Angband key to the corresponding key in the given realm.
      * Only applied when at top-level command prompt in play.
+     * Delegates to ActionCatalog.fromVanillaKey when available.
      * @param {string} vanillaKey
      * @param {string} [realm]
      * @returns {string|null}
@@ -106,6 +153,12 @@
     function fromVanilla(vanillaKey, realm) {
         const r = realm || getActiveRealm();
         if (r === 'angband') return vanillaKey;
+
+        const catalog = getCatalog();
+        if (catalog && typeof catalog.fromVanillaKey === 'function') {
+            return catalog.fromVanillaKey(vanillaKey, r);
+        }
+
         const angMap = REALM_KEYS.angband;
         const targetMap = REALM_KEYS[r];
         if (!targetMap) return vanillaKey;
@@ -159,6 +212,60 @@
           labels: { hengband_jp: '❓ ヘルプ', default: '❓ Help' }, defaultKey: '?' }
     ];
 
+    const BUTTON_TO_VERB = Object.freeze(
+        BUTTON_CONFIG.reduce((acc, cfg) => {
+            acc[cfg.id] = cfg.verb;
+            return acc;
+        }, {})
+    );
+
+    /**
+     * Get user-facing label for a verb or button ID.
+     * @param {string} verbOrId
+     * @param {string} [realm]
+     * @param {string} [lang='en']
+     * @returns {string}
+     */
+    function getLabel(verbOrId, realm, lang) {
+        const effLang = lang || (typeof window !== 'undefined' ? (window.__langMode || 'en') : 'en');
+        const r = realm || getActiveRealm();
+        const catalog = getCatalog();
+
+        if (catalog && typeof catalog.get === 'function') {
+            const cmd = catalog.get(verbOrId);
+            if (cmd && cmd.labels) {
+                if (effLang === 'jp' && cmd.labels.jp) return cmd.labels.jp;
+                return cmd.labels.en || '';
+            }
+        }
+
+        // Fallback to BUTTON_CONFIG
+        for (const cfg of BUTTON_CONFIG) {
+            if (cfg.id === verbOrId || cfg.verb === verbOrId) {
+                const isJp = (r === 'hengband') && (effLang === 'jp');
+                if (isJp && cfg.labels && cfg.labels.hengband_jp) return cfg.labels.hengband_jp;
+                if (cfg.labels && cfg.labels[r]) return cfg.labels[r];
+                if (cfg.labels && cfg.labels.default) return cfg.labels.default;
+            }
+        }
+
+        return verbOrId;
+    }
+
+    /**
+     * Get icon name for a verb or button ID.
+     * @param {string} verbOrId
+     * @returns {string}
+     */
+    function getIcon(verbOrId) {
+        const catalog = getCatalog();
+        if (catalog && typeof catalog.get === 'function') {
+            const cmd = catalog.get(verbOrId);
+            if (cmd && cmd.icon) return cmd.icon;
+        }
+        return '';
+    }
+
     /**
      * Apply realm-specific keys, tooltips, and visibility to action bar buttons in DOM.
      * @param {Document} doc
@@ -208,11 +315,17 @@
         TABLE,
         REALM_KEYS,
         REALM_TEXT,
+        BUTTON_TO_VERB,
         realmKey,
         key: realmKey, // alias
         fromVanilla,
         applyLabels,
+        getLabel,
+        getIcon,
         getActiveRealm,
-        setActiveRealm
+        setActiveRealm,
+        get ActionCatalog() {
+            return getCatalog();
+        }
     });
 });
