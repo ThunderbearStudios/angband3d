@@ -33,5 +33,8 @@
     "test_story_prompt_cdp.js"
   ],
   "cloud": [],
-  "legacy": []
+  "legacy": [],
+  "ws42": [
+    "test_ws42_contracts.js"
+  ]
 }
