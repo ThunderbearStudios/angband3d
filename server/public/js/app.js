@@ -286,6 +286,9 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch (_) {}
         network = (mode === 'cloud' && window.GameNetwork) ? new GameNetwork() : new LocalGameBridge();
         window.__app.network = network;
+        if (typeof dispatcher !== 'undefined' && dispatcher) {
+            dispatcher.sendKey = (k) => network && network.sendKey(k);
+        }
         bindNetworkEventHandlers();
         updateEngineModeUI();
         checkSaves();
@@ -862,6 +865,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const executeTouchAction = (btn, ev) => {
             if (!btn || btn.id === 'btn-birth-name-submit' || btn.id === 'btn-birth-name-rand') return;
+            if (typeof btn.blur === 'function') btn.blur();
             const now = Date.now();
             if (now - lastActionTime < 140) return; // Debounce rapid physical button jitter
             lastActionTime = now;
@@ -905,8 +909,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
                 if (btn.dataset.storeAutoBuy) {
                     const buyCmd = btn.dataset.storeAutoBuy;
-                    if (network && typeof network.sendCommand === 'function') {
-                        network.sendCommand('keys ' + buyCmd + key);
+                    if (dispatcher && typeof dispatcher.run === 'function') {
+                        dispatcher.run({ verb: 'store_buy', item: key, qty: 1 });
                     } else {
                         network.sendKey(buyCmd);
                         network.sendKey(key);
@@ -1058,7 +1062,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     };
                     const d = dirDigits[key];
                     if (d) {
-                        network.sendCommand(`keys .${d}`);
+                        if (dispatcher && typeof dispatcher.run === 'function') {
+                            dispatcher.run({ keys: ['.', String(d)] });
+                        } else {
+                            network.sendKey('.');
+                            network.sendKey(String(d));
+                        }
                         return;
                     }
                 }
@@ -1383,9 +1392,29 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     let lastFrame = null;
+    let lastScreenModel = null;
+    let lastSpells = [];
     const input = new InputController(network, dungeon, terminal, audio, toggleTerminalView);
+
+    let dispatcher = null;
+    if (typeof CommandDispatcher !== 'undefined') {
+        dispatcher = new CommandDispatcher({
+            sendKey: (k) => network && network.sendKey(k),
+            getRealm: () => (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || 'angband',
+            getLastFrame: () => lastFrame,
+            ScreenModel: (typeof ScreenContext !== 'undefined' && ScreenContext.ScreenModel) || null,
+            ActionCatalog: (typeof ActionCatalog !== 'undefined') ? ActionCatalog : null,
+            onToast: (msg) => (typeof showRealmToast === 'function') ? showRealmToast(msg) : null
+        });
+    }
+
     window.__app = {
         network,
+        dispatcher,
+        get realm() { return (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || 'angband'; },
+        get lastScreenModel() { return lastScreenModel; },
+        get lastSpells() { return lastSpells; },
+        set lastSpells(v) { lastSpells = v; },
         dungeon,
         hud,
         terminal,
@@ -4083,293 +4112,46 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================
-    // Roguelike Command Reference & Palette Registry (v8.9.3)
+    // Roguelike Command Reference & Palette Registry (Card WS42.4B, §6.8 #4)
+    // Delegated 100% to CommandPalette (server/public/js/command-palette.js)
     // =========================================================================
     function getRealmCommandRegistry(realmKey, lang) {
-        const r = (realmKey || activeRealm || 'angband').toLowerCase();
-        const isJp = (r === 'hengband') && (lang === 'jp' || (typeof langMode !== 'undefined' && langMode === 'jp') || (typeof window !== 'undefined' && window.__langMode === 'jp'));
-
-        // Universal Base Commands
-        const base = [
-            { id: 'attack', cat: 'tactical', icon: '⚔️', name: isJp ? '攻撃 / Melee Attack' : 'Context Hero Action / Attack', key: ' ', keyDisplay: 'Space', desc: isJp ? '正面の敵を攻撃します。' : 'Perform physical melee strike or context action against facing tile.' },
-            { id: 'throw', cat: 'tactical', icon: '🎯', name: (r === 'silq') ? 'Throw Weapon / Flask' : (isJp ? '投擲 / Throw Item' : 'Throw Item'), key: (r === 'silq') ? 't' : 'v', keyDisplay: (r === 'silq') ? 't' : 'v', desc: (r === 'silq') ? 'Throw a weapon, stone, flask, or potion towards aimed target.' : (isJp ? 'アイテムを狙った方向に投げます。' : 'Throw a weapon, stone, flask, or potion towards aimed direction.') },
-            { id: 'fire', cat: 'tactical', icon: '🏹', name: isJp ? '射撃 / Fire Missile' : 'Fire Ranged Weapon', key: 'f', keyDisplay: 'f', desc: isJp ? '装備した弓、スリング、クロスボウから射撃します。' : 'Shoot arrows, bolts, or shot from wielded bow/crossbow/sling.' },
-            { id: 'target', cat: 'tactical', icon: '🎯', name: isJp ? 'ターゲット選択 / Target' : 'Target / Aim Cursor', key: '*', keyDisplay: '*', desc: isJp ? '目標タイルまたはモンスターを選択します。' : 'Select a target monster or grid for ranged attacks and spells.' },
-            { id: 'look', cat: 'tactical', icon: '👁️', name: isJp ? '周囲を見渡す / Look Target' : 'Inspect / Look at Target', key: 'l', keyDisplay: 'l', desc: isJp ? '目標のタイルやモンスターを観察します。' : 'Target and inspect distant tiles, monsters, and objects.' },
-            { id: 'tunnel', cat: 'exploration', icon: '⛏️', name: isJp ? '壁を掘る / Tunnel' : 'Tunnel through Wall / Rubble', key: 'T', keyDisplay: 'Shift+T', desc: isJp ? 'つるはし等で壁や瓦礫を掘削します。' : 'Dig through adjacent granite, quartz, or rubble with wielded pick/digger.' },
-            { id: 'disarm', cat: 'exploration', icon: '🖐️', name: isJp ? '罠解除 / Disarm Trap' : 'Disarm Trap', key: 'D', keyDisplay: 'Shift+D', desc: isJp ? '発見した床の罠や宝箱を解除します。' : 'Carefully disarm a spotted dungeon floor trap or chest mechanism.' },
-            { id: 'bash', cat: 'tactical', icon: '💥', name: isJp ? '扉を破壊 / Bash Door' : 'Bash / Break Door', key: 'B', keyDisplay: 'Shift+B', desc: isJp ? '体当たりで扉を打ち破ります。' : 'Slam with body and shield to smash open jammed or locked doors.' },
-            { id: 'spike', cat: 'exploration', icon: '🔩', name: isJp ? '扉をくさびで留める / Spike Door' : 'Jam / Spike Door', key: 'j', keyDisplay: 'j', desc: isJp ? '鉄のくさびで扉を固定します。' : 'Jam an adjacent door with iron spikes to prevent passage.' },
-            { id: 'open', cat: 'exploration', icon: '🔑', name: isJp ? '扉を開ける / Open Door' : 'Open Door or Chest', key: 'o', keyDisplay: 'o', desc: isJp ? '閉じた扉や宝箱を開けます。' : 'Open an adjacent closed door or unopened dungeon chest.' },
-            { id: 'close', cat: 'exploration', icon: '🚪', name: isJp ? '扉を閉める / Close Door' : 'Close Door', key: 'c', keyDisplay: 'c', desc: isJp ? '開いている扉を閉めます。' : 'Close an adjacent open door to block line of sight and funnel foes.' },
-            { id: 'rest', cat: 'tactical', icon: '⏳', name: (r === 'silq') ? 'Rest & Recover Voice' : (isJp ? '休憩 / Rest' : 'Rest & Recover'), key: (r === 'silq') ? '%' : 'R', keyDisplay: (r === 'silq') ? '%' : 'Shift+R', desc: (r === 'silq') ? 'Rest until Voice and Health are recovered.' : (isJp ? 'HPとMPが回復するまで休憩します。' : 'Rest until HP and Mana are fully restored, or until disturbed.') },
-            { id: 'hold', cat: 'tactical', icon: '⏸️', name: (r === 'silq') ? 'Hold 1 Turn (z)' : (isJp ? '待機 (1ターン) / Wait' : 'Stay / Wait 1 Turn'), key: (r === 'silq') ? 'z' : ',', keyDisplay: (r === 'silq') ? 'z' : ',', desc: isJp ? 'その場で1ターン待機します。' : 'Pass one single game turn in place without moving.' },
-            { id: 'run', cat: 'exploration', icon: '🏃', name: isJp ? '走る / Run' : 'Run / Sprint', key: '.', keyDisplay: '.', desc: isJp ? '何かに遭遇するまで走り続けます。' : 'Run in a direction until an obstacle or disturbance appears.' },
-            { id: 'walk', cat: 'exploration', icon: '🚶', name: isJp ? '慎重に歩く / Walk' : 'Walk (No Attack)', key: ';', keyDisplay: ';', desc: isJp ? '攻撃せず安全に移動します。' : 'Walk into a grid without initiating a physical attack.' },
-            { id: 'quaff', cat: 'magic', icon: '🧪', name: (r === 'silq') ? 'Quaff Draught' : (isJp ? '薬を飲む / Quaff Potion' : 'Quaff Potion'), key: 'q', keyDisplay: 'q', desc: (r === 'silq') ? 'Drink a healing or herbal draught from your pack.' : (isJp ? '所持している薬を飲みます。' : 'Drink a magical potion or elixir from your backpack.') },
-            { id: 'read', cat: 'magic', icon: '📜', name: isJp ? '巻物を読む / Read Scroll' : 'Read Magical Scroll', key: 'r', keyDisplay: 'r', desc: isJp ? '魔力の巻物を読みます。' : 'Read and unleash the incantation from an arcane parchment scroll.' },
-            { id: 'eat', cat: 'magic', icon: '🍖', name: isJp ? '食料を食べる / Eat Food' : 'Eat Food / Ration', key: 'E', keyDisplay: 'Shift+E', desc: isJp ? '携帯食糧などを食べて空腹を満たします。' : 'Consume iron ration, lembas, or mushroom to stave off starvation.' },
-            { id: 'refill', cat: 'exploration', icon: '🔦', name: isJp ? '光源に給油 / Refuel Light' : 'Refuel Light Source', key: 'F', keyDisplay: 'Shift+F', desc: isJp ? 'ランタンや松明に油を補充します。' : 'Fuel your lantern with oil or light another torch.' },
-            { id: 'descend', cat: 'exploration', icon: '⬇️', name: isJp ? '階段を下りる / Descend Stairs' : 'Descend Staircase', key: '>', keyDisplay: '>', desc: isJp ? '深いフロアへ下ります。' : 'Descend down staircase or ladder into a deeper dungeon floor.' },
-            { id: 'ascend', cat: 'exploration', icon: '⬆️', name: isJp ? '階段を上る / Ascend Stairs' : 'Ascend Staircase', key: '<', keyDisplay: '<', desc: isJp ? '浅いフロアや地上へ戻ります。' : 'Ascend up staircase to shallower depths or return to Town.' },
-            { id: 'pickup', cat: 'exploration', icon: '💎', name: isJp ? 'アイテムを拾う / Pick Up' : 'Pick Up Item', key: 'g', keyDisplay: 'g', desc: isJp ? '足元のアイテムや金を拾います。' : 'Retrieve item, gold, weapon, or armor from current floor tile.' },
-            { id: 'drop', cat: 'system', icon: '📦', name: isJp ? 'アイテムを落とす / Drop' : 'Drop Item', key: 'd', keyDisplay: 'd', desc: isJp ? '所持品を足元に落とします。' : 'Drop an item from your backpack onto the floor.' },
-            { id: 'wield', cat: 'system', icon: '🗡️', name: isJp ? '装備する / Wield' : 'Wear / Wield Equipment', key: 'w', keyDisplay: 'w', desc: isJp ? '武器や防具、指輪などを装備します。' : 'Wear armor, wield weapon, or put on rings and amulets.' },
-            { id: 'takeoff', cat: 'system', icon: '🛡️', name: (r === 'silq') ? 'Remove Equipment (r)' : (isJp ? '装備を外す / Take Off' : 'Take Off / Unequip'), key: (r === 'silq') ? 'r' : 't', keyDisplay: (r === 'silq') ? 'r' : 't', desc: isJp ? '装備している武具を外します。' : 'Remove a currently equipped piece of armor, weapon, or jewelry.' },
-            { id: 'inven', cat: 'system', icon: '🎒', name: isJp ? '所持品一覧 / Inventory' : 'Inventory Pack', key: 'i', keyDisplay: 'i', desc: isJp ? 'ザックの中のアイテム一覧を確認します。' : 'View all items carried in backpack with weights and charges.' },
-            { id: 'equip', cat: 'system', icon: '🛡️', name: isJp ? '装備品一覧 / Equipment' : 'Worn Equipment', key: 'e', keyDisplay: 'e', desc: isJp ? '現在装備している武器や防具を確認します。' : 'Inspect equipped weapons, shield, armor, rings, amulet, and light.' },
-            { id: 'examine', cat: 'system', icon: '🔍', name: (r === 'silq') ? 'Examine Item (x)' : (isJp ? 'アイテム鑑定・調査 / Examine' : 'Examine / Inspect Item'), key: (r === 'silq') ? 'x' : 'I', keyDisplay: (r === 'silq') ? 'x' : 'Shift+I', desc: isJp ? 'アイテムの性質や能力を詳しく調査します。' : 'Inspect known powers, inscriptions, and details of an item.' },
-            { id: 'inscribe', cat: 'system', icon: '✍️', name: isJp ? '銘を刻む / Inscribe' : 'Inscribe Object', key: '{', keyDisplay: '{', desc: isJp ? 'アイテムに銘やショートカット番号を刻みます。' : 'Inscribe an item with a custom label or auto-macro key.' },
-            { id: 'uninscribe', cat: 'system', icon: '✂️', name: isJp ? '銘を消す / Uninscribe' : 'Uninscribe Object', key: '}', keyDisplay: '}', desc: isJp ? 'アイテムの銘を消去します。' : 'Remove an existing inscription from an item.' },
-            { id: 'destroy', cat: 'system', icon: '🗑️', name: isJp ? 'アイテム破壊 / Destroy' : 'Destroy / Trash Item', key: 'k', keyDisplay: 'k', desc: isJp ? '不要なアイテムを破棄します。' : 'Permanently destroy an unwanted item in your inventory or floor.' },
-            { id: 'char_sheet', cat: 'system', icon: '👤', name: (r === 'silq') ? 'Character Sheet (@)' : (isJp ? 'キャラクター情報 / Character' : 'Character Sheet'), key: (r === 'silq') ? '@' : 'C', keyDisplay: (r === 'silq') ? '@' : 'Shift+C', desc: isJp ? 'ステータスや耐性などの詳細情報を表示します。' : 'Detailed view of stats, resists, speed, stealth, infravision, and history.' },
-            { id: 'messages', cat: 'system', icon: '📜', name: isJp ? 'メッセージ履歴 / Message Log' : 'Review Message History', key: '^p', keyDisplay: 'Ctrl+P', desc: isJp ? '最近のメッセージ履歴を表示します。' : 'Recall recent in-game messages and combat log notices.' },
-            { id: 'locate', cat: 'exploration', icon: '📍', name: isJp ? '現在位置確認 / Locate' : 'Locate Self on Map', key: 'L', keyDisplay: 'Shift+L', desc: isJp ? 'マップ上でプレイヤーの位置を確認します。' : 'Center map display on current player location.' },
-            { id: 'repeat', cat: 'system', icon: '🔁', name: isJp ? '直前行動の繰り返し / Repeat' : 'Repeat Previous Command', key: 'n', keyDisplay: 'n', desc: isJp ? '直前に行った行動をもう一度繰り返します。' : 'Repeat the last executed action or movement command.' },
-            { id: 'feel', cat: 'exploration', icon: '🔮', name: isJp ? '階層の気配 / Feeling' : 'Sense Level Feeling', key: '^f', keyDisplay: 'Ctrl+F', desc: isJp ? '現在の階層の雰囲気や危険度を感じ取ります。' : 'Recall the danger and treasure feeling of the current dungeon depth.' },
-            { id: 'save', cat: 'system', icon: '💾', name: isJp ? 'セーブして終了 / Save' : 'Save Game & Retain Session', key: '^s', keyDisplay: 'Ctrl+S', desc: isJp ? '現在の進行状況を保存します。' : 'Save game character and persist state.' },
-            { id: 'options', cat: 'system', icon: '⚙️', name: (r === 'silq') ? 'Game Options (O)' : (isJp ? 'オプション設定 / Options' : 'Game Options & Settings'), key: (r === 'silq') ? 'O' : '=', keyDisplay: (r === 'silq') ? 'Shift+O' : '=', desc: isJp ? 'ゲーム設定や操作オプションを変更します。' : 'Configure interface, prompts, display, and audio options.' },
-            { id: 'help', cat: 'system', icon: '❓', name: isJp ? 'ヘルプ / In-game Help' : 'Help & Manual', key: '?', keyDisplay: '?', desc: isJp ? 'ゲーム内マニュアルと操作説明を表示します。' : 'Browse comprehensive in-game documentation and guide files.' },
-            { id: 'terminal', cat: 'system', icon: '🖥️', name: isJp ? '端末表示切替 / Classic CRT' : 'Toggle CRT Terminal', key: 'Tab', keyDisplay: 'Tab', desc: isJp ? '3D視点と伝統の80x24クラシック端末を切り替えます。' : 'Switch instantly between immersive 3D first-person and classic 80x24 CRT.' }
-        ];
-
-        // Realm-Specific Actions
-        let realmCmds = [];
-        if (r === 'silq') {
-            realmCmds = [
-                { id: 'skills', cat: 'tactical', icon: '🌳', name: 'Learn Ability & Skill Tree', key: 'Tab', keyDisplay: 'Tab', badge: 'Sil-Q', desc: 'Open the Skill and Ability Tree to allocate experience and master powers.' },
-                { id: 'cast', cat: 'magic', icon: '🎵', name: 'Sing Song of Power', key: 's', keyDisplay: 's', badge: 'Sil-Q', desc: 'Begin singing Songs of Power (Elbereth, Slaying, Lorien, Freedom, Staying, Sharpness).' },
-                { id: 'wait', cat: 'tactical', icon: '⏳', name: 'Wait / Rest 1 Turn', key: '.', keyDisplay: '.', badge: 'Sil-Q', desc: 'Pass 1 turn in place conserving stealth and observing foes.' },
-                { id: 'stance', cat: 'tactical', icon: '🥷', name: 'Stance & Stealth Mode', key: 'S', keyDisplay: 'Shift+S', badge: 'Sil-Q', desc: 'Toggle between standard stance and careful stealth mode.' },
-                { id: 'cycle_target', cat: 'tactical', icon: '🎯', name: 'Cycle Target Foes', key: '*', keyDisplay: '*', badge: 'Sil-Q', desc: 'Cycle target cursor across visible Morgoth servants.' },
-                { id: 'prev_target', cat: 'tactical', icon: '📍', name: 'Target Previous Monster', key: '^', keyDisplay: '^', badge: 'Sil-Q', desc: 'Lock target onto previously aimed monster.' },
-                { id: 'smith', cat: 'tactical', icon: '🔨', name: 'Smithing Forge & Artifacts', key: 'a', keyDisplay: 'a', badge: 'Sil-Q', desc: 'Forge items at subterranean smithies or play harps.' }
-            ];
-        } else if (r === 'frogcomposband') {
-            realmCmds = [
-                { id: 'power', cat: 'magic', icon: '🔮', name: 'Use Racial/Class Power or Mutation', key: 'U', keyDisplay: 'Shift+U', badge: 'FrogComposBand', desc: 'Invoke your innate racial ability, class talent, or chaos mutation.' },
-                { id: 'overland', cat: 'exploration', icon: '🗺️', name: 'Overland Wilderness Map', key: 'O', keyDisplay: 'Shift+O', badge: 'FrogComposBand', desc: 'View the overland world map to travel across the continent.' },
-                { id: 'quests', cat: 'system', icon: '📜', name: 'Active Quests & Monster Bounties', key: 'Q', keyDisplay: 'Shift+Q', badge: 'FrogComposBand', desc: 'Check royal quests, finished tasks, and bounty targets.' },
-                { id: 'pet', cat: 'tactical', icon: '🐕', name: 'Pet & Minion Command', key: 'p', keyDisplay: 'p', badge: 'FrogComposBand', desc: 'Issue orders to loyal pets, summons, and mounts.' },
-                { id: 'cast', cat: 'magic', icon: '✨', name: 'Cast Spell or Prayer', key: 'm', keyDisplay: 'm', badge: 'FrogComposBand', desc: 'Invoke known spells from your chosen magic realms.' },
-                { id: 'browse', cat: 'magic', icon: '📖', name: 'Browse Spellbook', key: 'b', keyDisplay: 'b', badge: 'FrogComposBand', desc: 'Inspect spells and requirements in carried books.' },
-                { id: 'gain', cat: 'magic', icon: '✨', name: 'Gain New Spells', key: 'G', keyDisplay: 'Shift+G', badge: 'FrogComposBand', desc: 'Study and memorize newly unlocked realm spells.' },
-                { id: 'activate', cat: 'magic', icon: '⚡', name: 'Activate Equipment / Artifact', key: 'A', keyDisplay: 'Shift+A', badge: 'FrogComposBand', desc: 'Trigger the power of an equipped magical artifact or device.' },
-                { id: 'knowledge', cat: 'system', icon: '📚', name: 'Knowledge Menu', key: '~', keyDisplay: '~', badge: 'FrogComposBand', desc: 'Check monster recall, ego items, and artifacts.' }
-            ];
-        } else if (r === 'hengband') {
-            realmCmds = [
-                { id: 'power', cat: 'magic', icon: '🔮', name: isJp ? '特殊能力を使用' : 'Use Special Power / 特殊能力', key: 'U', keyDisplay: 'Shift+U', badge: 'Hengband', desc: isJp ? '種族・職業・変異の特殊能力を使用します。' : 'Activate racial power, class technique, or mutation.' },
-                { id: 'overland', cat: 'exploration', icon: '🗺️', name: isJp ? '広域マップ表示' : 'Overland Map / 広域マップ', key: 'O', keyDisplay: 'Shift+O', badge: 'Hengband', desc: isJp ? '地上世界の広域マップを表示します。' : 'View the overland Amber wilderness map.' },
-                { id: 'quests', cat: 'system', icon: '📜', name: isJp ? 'クエスト情報確認' : 'Quest Information / クエスト情報', key: 'Q', keyDisplay: 'Shift+Q', badge: 'Hengband', desc: isJp ? '現在のクエストの進行状況を確認します。' : 'Review ongoing castle and wilderness quests.' },
-                { id: 'pet', cat: 'tactical', icon: '🐕', name: isJp ? 'ペットへの指示' : 'Pet Command / ペット指示', key: 'p', keyDisplay: 'p', badge: 'Hengband', desc: isJp ? 'ペットや仲間に命令を下します。' : 'Command pets and summoned allies in battle.' },
-                { id: 'cast', cat: 'magic', icon: '✨', name: isJp ? '呪文詠唱' : 'Cast Spell / 呪文詠唱', key: 'm', keyDisplay: 'm', badge: 'Hengband', desc: isJp ? '習得した呪文を詠唱します。' : 'Cast a learned realm spell or Amber incantation.' },
-                { id: 'browse', cat: 'magic', icon: '📖', name: isJp ? '呪文の閲覧' : 'Browse Spellbook / 呪文閲覧', key: 'b', keyDisplay: 'b', badge: 'Hengband', desc: isJp ? '所持している魔道書の呪文を閲覧します。' : 'Browse spell details in carried spellbooks.' },
-                { id: 'gain', cat: 'magic', icon: '✨', name: isJp ? '新しい呪文の習得' : 'Gain Spell / 呪文習得', key: 'G', keyDisplay: 'Shift+G', badge: 'Hengband', desc: isJp ? '魔道書から新しい呪文を習得します。' : 'Study new spells from realm spellbooks.' },
-                { id: 'activate', cat: 'magic', icon: '⚡', name: isJp ? 'アーティファクトの発動' : 'Activate Artifact / 発動', key: 'A', keyDisplay: 'Shift+A', badge: 'Hengband', desc: isJp ? '装備品やアーティファクトを発動します。' : 'Trigger the power of an equipped artifact.' },
-                { id: 'staff', cat: 'magic', icon: '🦯', name: isJp ? '杖を振る' : 'Use Staff / 杖', key: 'u', keyDisplay: 'u', badge: 'Hengband', desc: isJp ? '杖を使用します。' : 'Invoke charges from a magical staff.' },
-                { id: 'wand', cat: 'magic', icon: '🪄', name: isJp ? '魔法棒を使用' : 'Aim Wand / 魔法棒', key: 'a', keyDisplay: 'a', badge: 'Hengband', desc: isJp ? '魔法棒を目標に向けて振ります。' : 'Aim a magical wand towards a target.' },
-                { id: 'rod', cat: 'magic', icon: '⚡', name: isJp ? 'ロッドを使用' : 'Zap Rod / ロッド', key: 'z', keyDisplay: 'z', badge: 'Hengband', desc: isJp ? 'ロッドの魔力を放ちます。' : 'Zap a rechargeable magical rod.' },
-                { id: 'knowledge', cat: 'system', icon: '📚', name: isJp ? '知識メニュー' : 'Knowledge Menu / 知識', key: '~', keyDisplay: '~', badge: 'Hengband', desc: isJp ? 'モンスター情報、アーティファクトの知識。' : 'Check monster memory, artifacts, and dungeon lore.' }
-            ];
-        } else {
-            // Vanilla Angband
-            realmCmds = [
-                { id: 'cast', cat: 'magic', icon: '✨', name: 'Cast Spell or Prayer', key: 'm', keyDisplay: 'm', badge: 'Vanilla', desc: 'Invoke known arcane spell or holy prayer.' },
-                { id: 'browse', cat: 'magic', icon: '📖', name: 'Browse Spellbook', key: 'b', keyDisplay: 'b', badge: 'Vanilla', desc: 'Inspect spells in your carried magical books.' },
-                { id: 'gain', cat: 'magic', icon: '✨', name: 'Gain New Spells', key: 'G', keyDisplay: 'Shift+G', badge: 'Vanilla', desc: 'Study newly available spells or prayers.' },
-                { id: 'activate', cat: 'magic', icon: '⚡', name: 'Activate Equipment / Artifact', key: 'A', keyDisplay: 'Shift+A', badge: 'Vanilla', desc: 'Activate the magical property of worn armor, ring, or weapon.' },
-                { id: 'staff', cat: 'magic', icon: '🦯', name: 'Use Staff', key: 'u', keyDisplay: 'u', badge: 'Vanilla', desc: 'Discharge charges from a magical staff.' },
-                { id: 'wand', cat: 'magic', icon: '🪄', name: 'Aim Wand', key: 'a', keyDisplay: 'a', badge: 'Vanilla', desc: 'Aim a beam or ball wand at a target.' },
-                { id: 'rod', cat: 'magic', icon: '⚡', name: 'Zap Rod', key: 'z', keyDisplay: 'z', badge: 'Vanilla', desc: 'Discharge a rechargeable rod.' },
-                { id: 'knowledge', cat: 'system', icon: '📚', name: 'Check Knowledge', key: '~', keyDisplay: '~', badge: 'Vanilla', desc: 'Access monster recall, ego items, artifacts, and dungeon lore.' },
-                { id: 'quiver', cat: 'tactical', icon: '🏹', name: 'Inspect Quiver', key: '|', keyDisplay: '|', badge: 'Vanilla', desc: 'View ammunition currently carried in your quiver.' }
-            ];
+        if (typeof CommandPalette !== 'undefined' && typeof CommandPalette.listForRealm === 'function') {
+            return CommandPalette.listForRealm(realmKey, lang);
         }
-
-        let allCmds = [...realmCmds, ...base];
-        const silqOverrides = {
-            takeoff: 'r',
-            examine: 'x',
-            char_sheet: '@',
-            character: '@',
-            options: 'O',
-            hold: 'z',
-            throw: 't',
-            use: 'u',
-            use_staff: 'a',
-            staff: 'a',
-            rest: '%'
-        };
-
-        allCmds = allCmds.filter(cmd => {
-            if (cmd.realms && Array.isArray(cmd.realms) && !cmd.realms.includes(r)) {
-                return false;
-            }
-            if (typeof RealmKeys !== 'undefined' && RealmKeys && RealmKeys.TABLE && Object.prototype.hasOwnProperty.call(RealmKeys.TABLE, cmd.id)) {
-                const k = RealmKeys.realmKey(cmd.id, r);
-                if (k === null) {
-                    return false;
-                }
-                cmd.key = k;
-                cmd.keyDisplay = (k === 'tab') ? 'Tab' : k;
-                return true;
-            }
-            if (r === 'silq' && silqOverrides[cmd.id]) {
-                cmd.key = silqOverrides[cmd.id];
-                cmd.keyDisplay = silqOverrides[cmd.id];
-            }
-            return true;
-        });
-        return allCmds;
+        return [];
     }
 
     const getCommandPaletteCommands = getRealmCommandRegistry;
 
-    let activeCmdCategory = 'all';
-    let cmdPaletteFilter = '';
-    let selectedCmdIndex = 0;
-
     function renderCommandPalette() {
-        const list = document.getElementById('cmd-palette-list');
-        if (!list) return;
-        const filter = cmdPaletteFilter.toLowerCase().trim();
-        const currentCommands = getRealmCommandRegistry(activeRealm, langMode);
-        const items = currentCommands.filter((cmd) => {
-            const matchesCat = activeCmdCategory === 'all' || cmd.cat === activeCmdCategory;
-            const matchesText = !filter ||
-                cmd.name.toLowerCase().includes(filter) ||
-                cmd.desc.toLowerCase().includes(filter) ||
-                cmd.keyDisplay.toLowerCase().includes(filter) ||
-                (cmd.badge && cmd.badge.toLowerCase().includes(filter));
-            return matchesCat && matchesText;
-        });
-
-        if (selectedCmdIndex >= items.length) selectedCmdIndex = Math.max(0, items.length - 1);
-
-        list.innerHTML = '';
-        if (items.length === 0) {
-            list.innerHTML = `<div style="text-align:center; padding:24px; color:#64748b;">No matching commands found. Type another query.</div>`;
-            return;
+        if (typeof CommandPalette !== 'undefined' && typeof CommandPalette.render === 'function') {
+            CommandPalette.render();
         }
-
-        items.forEach((cmd, idx) => {
-            const row = document.createElement('div');
-            row.className = `cmd-row ${idx === selectedCmdIndex ? 'selected' : ''}`;
-            row.innerHTML = `
-                <div class="cmd-row-left">
-                    <span class="cmd-row-icon">${escapeHtml(cmd.icon)}</span>
-                    <div class="cmd-row-text">
-                        <span class="cmd-row-name">${escapeHtml(cmd.name)} ${cmd.badge ? `<span class="cmd-badge">${escapeHtml(cmd.badge)}</span>` : ''}</span>
-                        <span class="cmd-row-desc">${escapeHtml(cmd.desc)}</span>
-                    </div>
-                </div>
-                <div class="cmd-row-right">
-                    <kbd class="cmd-kbd">${escapeHtml(cmd.keyDisplay)}</kbd>
-                </div>
-            `;
-            row.addEventListener('click', () => {
-                executePaletteCommand(cmd);
-            });
-            list.appendChild(row);
-        });
     }
 
     function executePaletteCommand(cmd) {
-        hideCommandPalette();
-        if (typeof network !== 'undefined' && network && typeof network.sendKey === 'function') {
-            network.sendKey(cmd.key);
-        } else if (typeof input !== 'undefined' && input && typeof input.handleDirectKey === 'function') {
-            input.handleDirectKey(cmd.key);
+        if (typeof CommandPalette !== 'undefined' && typeof CommandPalette.execute === 'function') {
+            CommandPalette.execute(cmd);
         }
     }
 
     function showCommandPalette(fromState = 'game') {
-        cmdPalettePreviousState = fromState;
-        appState = 'cmdPaletteModal';
-        cmdPaletteFilter = '';
-        selectedCmdIndex = 0;
-        const inputEl = document.getElementById('cmd-search-input');
-        if (inputEl) {
-            inputEl.value = '';
-            setTimeout(() => inputEl.focus(), 50);
+        if (typeof CommandPalette !== 'undefined' && typeof CommandPalette.show === 'function') {
+            CommandPalette.show(fromState);
         }
-        renderCommandPalette();
-        if (cmdPaletteModal) cmdPaletteModal.classList.remove('hidden');
-        if (audio) audio.playMenuOpen();
     }
 
     function hideCommandPalette() {
-        if (cmdPaletteModal) cmdPaletteModal.classList.add('hidden');
-        if (audio) audio.playMenuNav();
-        if (cmdPalettePreviousState === 'splash') {
-            showSplash();
-        } else if (cmdPalettePreviousState === 'mainMenu') {
-            showMainMenu();
-        } else {
-            appState = 'game';
+        if (typeof CommandPalette !== 'undefined' && typeof CommandPalette.hide === 'function') {
+            CommandPalette.hide();
         }
     }
 
     function setupCommandPaletteEvents() {
-        const btnClose = document.getElementById('btn-cmd-palette-close');
-        if (btnClose) bindFastTap(btnClose, () => hideCommandPalette());
-
-        if (cmdPaletteModal) {
-            cmdPaletteModal.addEventListener('click', (e) => {
-                if (e.target === cmdPaletteModal) hideCommandPalette();
-            });
+        if (typeof CommandPalette !== 'undefined' && typeof CommandPalette.setupEvents === 'function') {
+            CommandPalette.setupEvents();
         }
-
-        const inputEl = document.getElementById('cmd-search-input');
-        if (inputEl) {
-            inputEl.addEventListener('input', (e) => {
-                cmdPaletteFilter = e.target.value;
-                selectedCmdIndex = 0;
-                renderCommandPalette();
-            });
-            inputEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    hideCommandPalette();
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const filter = cmdPaletteFilter.toLowerCase().trim();
-                    const currentCommands = getRealmCommandRegistry(activeRealm, langMode);
-                    const items = currentCommands.filter((cmd) => {
-                        const matchesCat = activeCmdCategory === 'all' || cmd.cat === activeCmdCategory;
-                        const matchesText = !filter ||
-                            cmd.name.toLowerCase().includes(filter) ||
-                            cmd.desc.toLowerCase().includes(filter) ||
-                            cmd.keyDisplay.toLowerCase().includes(filter);
-                        return matchesCat && matchesText;
-                    });
-                    if (items.length > 0) {
-                        const target = items[selectedCmdIndex] || items[0];
-                        executePaletteCommand(target);
-                    }
-                } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    selectedCmdIndex++;
-                    renderCommandPalette();
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (selectedCmdIndex > 0) selectedCmdIndex--;
-                    renderCommandPalette();
-                }
-            });
-        }
-
-        const catPills = document.querySelectorAll('.cmd-cat-pill');
-        catPills.forEach((pill) => {
-            bindFastTap(pill, () => {
-                catPills.forEach(p => p.classList.remove('active'));
-                pill.classList.add('active');
-                activeCmdCategory = pill.dataset.cat || 'all';
-                selectedCmdIndex = 0;
-                renderCommandPalette();
-            });
-        });
     }
 
     // Gameplay Demo & Commercial Showcase Modal Handlers
@@ -4469,40 +4251,6 @@ window.addEventListener('DOMContentLoaded', () => {
         // Native Angband 80x24 terminal zoom & cursor navigation replaced artificial choice chips
     }
 
-    function extractActiveMenuChoices(rows) {
-        if (!rows || rows.length === 0) return [];
-        const allMatches = [];
-        let maxCol = 0;
-
-        for (const row of rows) {
-            const text = row.g || '';
-            const re = /(?:^|\s{2,})([a-zA-Z0-9@*?])[\)\.\:]\s*([A-Za-z0-9\-\']+(?: [A-Za-z0-9\-\']+)?)/g;
-            let m;
-            while ((m = re.exec(text)) !== null) {
-                const key = m[1];
-                const keyCharIdx = m.index + m[0].indexOf(key);
-                const label = m[2].trim();
-                if (['str', 'int', 'wis', 'dex', 'con', 'hit', 'xp', 'hp', 'sp'].includes(label.toLowerCase())) {
-                    continue;
-                }
-                allMatches.push({ col: keyCharIdx, key, label });
-                if (keyCharIdx > maxCol) {
-                    maxCol = keyCharIdx;
-                }
-            }
-        }
-
-        const activeChoices = [];
-        for (const item of allMatches) {
-            if (Math.abs(item.col - maxCol) <= 4) {
-                if (!activeChoices.some(c => c.key === item.key)) {
-                    activeChoices.push({ key: item.key, label: item.label });
-                }
-            }
-        }
-        return activeChoices;
-    }
-
     let lastCtxActionsHtml = '';
     function setCtxActions(html) {
         const termCtxActions = document.getElementById('term-contextual-actions');
@@ -4530,12 +4278,691 @@ window.addEventListener('DOMContentLoaded', () => {
     let lastPopulatedLetters = '';
     let _lastToolbarSig = null;
 
+    // Japanese-to-English translation mapping for Hengband character creation & HUD
+    const JP_TERM_TRANSLATIONS = {
+        '女性': 'Female', '男性': 'Male',
+        '人間': 'Human', 'ハーフエルフ': 'Half-Elf', 'エルフ': 'Elf', 'ホビット': 'Hobbit', 'ノーム': 'Gnome',
+        'ドワーフ': 'Dwarf', 'ハーフオーク': 'Half-Orc', 'ハーフトロル': 'Half-Troll', 'ハーフトロール': 'Half-Troll',
+        'アンバライト': 'Amberite', 'ハイエルフ': 'High-Elf', '野蛮人': 'Barbarian', 'ハーフオーガ': 'Half-Ogre',
+        '半巨人': 'Half-Giant', '半タイタン': 'Half-Titan', 'サイクロプス': 'Cyclops', 'イーク': 'Yeek',
+        'クラッコン': 'Klackon', 'コボルド': 'Kobold', 'ニーベルング': 'Nibelung', 'ダークエルフ': 'Dark-Elf',
+        'ドラコニアン': 'Draconian', 'マインドフレア': 'Mindflayer', 'インプ': 'Imp', 'ゴーレム': 'Golem',
+        '骸骨': 'Skeleton', 'ゾンビ': 'Zombie', '吸血鬼': 'Vampire', '幽霊': 'Spectre', '妖精': 'Sprite',
+        '獣人': 'Beastman', 'エント': 'Ent', 'アルコン': 'Archon', 'バルログ': 'Balrog', 'ドゥナダン': 'Dúnadan',
+        '影フェアリー': 'Shadow-Fairy', 'クター': 'Kutar', 'アンドロイド': 'Android', 'マーフォーク': 'Merfolk',
+        '戦士': 'Warrior', 'メイジ': 'Mage', 'プリースト': 'Priest', '盗賊': 'Rogue', 'レンジャー': 'Ranger',
+        'パラディン': 'Paladin', '魔法戦士': 'Warrior-Mage', '混沌の戦士': 'Chaos-Warrior', '修行僧': 'Monk',
+        '超能力者': 'Mindcrafter', 'ハイ=メイジ': 'High-Mage', 'ハイメイジ': 'High-Mage', '観光客': 'Tourist',
+        'ものまね師': 'Imitator', '魔獣使い': 'Beastmaster', 'スペルマスター': 'Sorcerer', 'アーチャー': 'Archer',
+        '魔道具術師': 'Magic-Eater', '吟遊詩人': 'Bard', '赤魔道師': 'Red-Mage', '剣術家': 'Swordsman',
+        '練気術師': 'Ki-Master', '青魔道師': 'Blue-Mage', '騎兵': 'Cavalry', '狂戦士': 'Berserker',
+        '鍛冶師': 'Weaponsmith', '鏡使い': 'Mirror-Master', '忍者': 'Ninja', 'スナイパー': 'Sniper',
+        '元素使い': 'Elementalist',
+        'ふつう': 'Ordinary', 'ちからじまん': 'Strong', 'きれもの': 'Clever', 'しあわせもの': 'Lucky',
+        'すばしっこい': 'Nimble', 'いのちしらず': 'Fearless', 'コンバット': 'Combatant', 'なまけもの': 'Lazy',
+        'セクシーギャル': 'Sexy', 'がまんづよい': 'Patient', 'いかさま': 'Trickster', 'チャージマン': 'Chargeman',
+        '生命': 'Life', '仙術': 'Sorcery', '自然': 'Nature', 'カオス': 'Chaos', '暗黒': 'Death',
+        'トランプ': 'Trump', '秘術': 'Arcane', '匠': 'Craft', '悪魔': 'Daemon', '破邪': 'Crusade',
+        'ランダム': 'Random', '決定': 'Accept', 'やり直し': 'Reroll'
+    };
+    window.__JP_TERM_TRANSLATIONS = JP_TERM_TRANSLATIONS;
+    if (!window.__EN_TO_JP_TRANSLATIONS) {
+        window.__EN_TO_JP_TRANSLATIONS = {};
+        for (const [jp, en] of Object.entries(JP_TERM_TRANSLATIONS)) {
+            window.__EN_TO_JP_TRANSLATIONS[en] = jp;
+        }
+    }
+
+    /**
+     * renderTerminalMirrors — Renders terminal contextual buttons and ribbon
+     * from unified ScreenModel (WS42.4B, §6.5, §6.9).
+     */
+    function renderTerminalMirrors(model, ctx) {
+        const {
+            terminalTitle, termAdvanceBtn, termEscapeBtn, termExitMenuBtn, termRerollBtn,
+            termDpad, birthNameBar, birthNameInput, termLetterRibbon,
+            effFrame, curRealm, isHeng, effLang, inPlay,
+            hengLabel, hengTitle, populateLetterRibbon, setCtxActions, renderCtxButtons
+        } = ctx;
+
+        const legacy = (model && model.legacy) || (SC && typeof SC.classify === 'function' ? SC.classify(effFrame, curRealm, { decode: decodeHengbandText }) : {});
+        const prompt = (model && model.prompt) || {};
+        const rawScreenText = (effFrame && effFrame.term && effFrame.term.rows)
+            ? effFrame.term.rows.map(r => r.g || '').join('\n')
+            : '';
+        const decodedScreenText = decodeHengbandText(rawScreenText);
+        const screenText = (rawScreenText + '\n' + decodedScreenText).toLowerCase();
+
+        if (!inPlay) {
+            // --- CHARACTER CREATION / BIRTH SCREENS ---
+            if (termExitMenuBtn) {
+                termExitMenuBtn.style.display = 'inline-flex';
+                termExitMenuBtn.textContent = isHeng ? hengLabel('🏠 Main Menu', '🏠 Main Menu (主献立)', '🏠 メインメニュー') : 'Main Menu';
+            }
+            if (termAdvanceBtn) {
+                termAdvanceBtn.style.display = 'inline-flex';
+                termAdvanceBtn.textContent = isHeng ? hengLabel('Advance (Enter)', 'Advance / 決定 (Enter)', '決定 (Enter)') : 'Advance (Enter)';
+            }
+            if (termRerollBtn) termRerollBtn.style.display = 'none';
+            termEscapeBtn.textContent = isHeng ? hengLabel('Back (Esc)', 'Back / 戻る (Esc)', '戻る (Esc)') : 'Back (Esc)';
+
+            const bf = legacy.birthFlags || (SC.birthFlags ? SC.birthFlags(screenText, isHeng) : {});
+            if (bf.isChoiceMenu || bf.isNamePrompt) {
+                birthReviewActive = false;
+            }
+
+            if (bf.isHengInitialOpt) {
+                terminalTitle.textContent = hengTitle(
+                    '🎴 HENGBAND — Options Setup [Esc to Accept]',
+                    '🎴 HENGBAND — 初期オプション / Options [Esc to Accept]',
+                    '🎴 HENGBAND — 初期オプション設定 [Escで終了]'
+                );
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Accept Options', '⎋ 終了 (Accept Options)', '⎋ 終了'), gold: true },
+                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                ]));
+            } else if (bf.isHengStatDecide) {
+                terminalTitle.textContent = hengTitle(
+                    '🎴 HENGBAND — Review Stats [Enter]',
+                    '🎴 HENGBAND — 能力値決定 / Review Stats [Enter]',
+                    '🎴 HENGBAND — 能力値決定 [Enter]'
+                );
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept Stats', '✓ 決定 (Accept Stats)', '✓ 決定'), gold: true },
+                    { key: 'r', badge: '[r]', label: hengLabel('🔄 Next Roll', '🔄 次の数値 (Next Roll)', '🔄 次の数値') },
+                    { key: 'p', badge: '[p]', label: hengLabel('⏪ Previous Roll', '⏪ 前の数値 (Previous Roll)', '⏪ 前の数値') },
+                    { key: 'S', badge: '[S]', label: hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから') },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ 戻る (Back)', '⎋ 戻る') },
+                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                ]));
+            } else if (bf.isTitleScreen) {
+                terminalTitle.textContent = '⚔ WELCOME TO ANGBAND';
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: 'Continue (Enter)', gold: true },
+                    { key: 'mainmenu', badge: '🏠', label: 'Main Menu' }
+                ]));
+            } else if (bf.isNamePrompt) {
+                terminalTitle.textContent = isHeng
+                    ? hengTitle('🎴 HENGBAND — Enter Character Name', '🎴 HENGBAND — 名前入力 / Enter Name', '🎴 HENGBAND — キャラクターの名前を入力')
+                    : '⚔ NAME YOUR ADVENTURER';
+                if (termDpad) termDpad.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                if (birthNameBar) {
+                    birthNameBar.style.display = 'flex';
+                    if (birthNameInput && document.activeElement !== birthNameInput && !birthNameInput.value) {
+                        const nameMatch = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0])
+                            ? (effFrame.term.rows[0].g || '').match(/:\s*([A-Za-z0-9_\-]+)/)
+                            : null;
+                        if (nameMatch) birthNameInput.value = nameMatch[1].trim();
+                    }
+                }
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
+                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                ]));
+            } else if (bf.isHistoryPrompt) {
+                terminalTitle.textContent = isHeng
+                    ? hengTitle('🎴 HENGBAND — Character Background', '🎴 HENGBAND — 生い立ち / Background', '🎴 HENGBAND — キャラクターの生い立ち')
+                    : '⚔ CHARACTER HISTORY';
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
+                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                ]));
+            } else if (bf.isStatRoller) {
+                terminalTitle.textContent = isHeng
+                    ? hengTitle('🎴 HENGBAND — Stat Roller', '🎴 HENGBAND — 能力値抽選 / Stat Roller', '🎴 HENGBAND — 能力値抽選')
+                    : '⚔ ATTRIBUTE ALLOCATION';
+                if (termDpad) termDpad.style.display = 'grid';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true },
+                    { key: 'r', badge: '[r]', label: hengLabel('🔄 Reset Stats', '🔄 Reset / 再抽選', '🔄 再抽選') },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
+                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                ]));
+            } else if (bf.isBackgroundEdit) {
+                terminalTitle.textContent = isHeng
+                    ? hengTitle('📜 CHARACTER BACKGROUND — Enter to Continue', '📜 生い立ち / BACKGROUND — Enter', '📜 キャラクターの生い立ち — Enter')
+                    : '📜 CHARACTER BACKGROUND — Enter to Continue';
+                if (termDpad) termDpad.style.display = 'grid';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: hengLabel('Continue (Enter)', 'Continue / 決定 (Enter)', '決定 (Enter)'), gold: true },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
+                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                ]));
+            } else if (bf.isReadyPrompt) {
+                terminalTitle.textContent = isHeng
+                    ? hengTitle('🎴 HENGBAND — Begin Game / Embark', '🎴 HENGBAND — ゲーム開始 / Embark', '🎴 HENGBAND — ゲーム開始')
+                    : '⚔ READY TO EMBARK — Enter to Begin';
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: hengLabel('⚔ Enter Realm', '⚔ ゲーム開始 (Enter Realm)', '⚔ ゲーム開始'), gold: true },
+                    { key: 'S', badge: '[S]', label: hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから') },
+                    { key: 'Q', badge: '[Q]', label: hengLabel('⎋ Quit', '⎋ 終了 (Quit)', '⎋ 終了') }
+                ]));
+            } else if (bf.isReviewScreen) {
+                const hasPrevRoll = screenText.includes("previous roll") || screenText.includes("前の数値") || screenText.includes("for previous");
+                terminalTitle.textContent = isHeng
+                    ? hengTitle('🎴 HENGBAND — Review Hero', '🎴 HENGBAND — キャラクター確認 / Review Hero', '🎴 HENGBAND — キャラクター確認')
+                    : '⚔ REVIEW YOUR HERO';
+                if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
+                if (termAdvanceBtn) termAdvanceBtn.textContent = hengLabel('⚔ Accept & Play (Enter)', '⚔ Accept & Play (決定)', '⚔ 決定して開始 (Enter)');
+                if (termDpad) termDpad.style.display = 'none';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                const reviewBtns = [
+                    { key: 'enter', badge: '⏎', label: hengLabel('⚔ Accept & Play', '⚔ Accept & Play (決定)', '⚔ 決定して開始'), gold: true },
+                    { key: 'r', badge: '[r]', label: hengLabel('🎲 Reroll Hero', '🎲 Reroll (再生成)', '🎲 英雄再生成') }
+                ];
+                if (hasPrevRoll) {
+                    reviewBtns.push({ key: 'p', badge: '[p]', label: hengLabel('⏪ Previous Roll', '⏪ Previous Roll (前の数値)', '⏪ 前の数値') });
+                }
+                reviewBtns.push(
+                    { key: 's', badge: '[s]', label: hengLabel('🛠 Custom Create', '🛠 Custom (作成)', '🛠 英雄作成') },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
+                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                );
+                setCtxActions(renderCtxButtons(reviewBtns));
+            } else {
+                // Choice menu (Sex, Race, Class, Personality, Realm, Traits)
+                if (bf.isHengSex) {
+                    terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Sex [a-b, *]', '🎴 HENGBAND — 性別 / Choose Sex [a-b, *]', '🎴 HENGBAND — 性別を選んで下さい [a-b, *]');
+                } else if (bf.isHengRace) {
+                    terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Race [a-L, *]', '🎴 HENGBAND — 種族 / Choose Race [a-L, *]', '🎴 HENGBAND — 種族を選んで下さい [a-L, *]');
+                } else if (bf.isHengClass) {
+                    terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Class [a-C, *]', '🎴 HENGBAND — 職業 / Choose Class [a-C, *]', '🎴 HENGBAND — 職業を選んで下さい [a-C, *]');
+                } else if (bf.isHengPersonality) {
+                    terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Personality [a-m, *]', '🎴 HENGBAND — 性格 / Choose Personality [a-m, *]', '🎴 HENGBAND — 性格を選んで下さい [a-m, *]');
+                } else if (bf.isHengRealm) {
+                    terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Realm [a-j]', '🎴 HENGBAND — 魔法領域 / Choose Realm [a-j]', '🎴 HENGBAND — 魔法領域を選んで下さい [a-j]');
+                } else if (screenText.includes('race affects stats')) {
+                    terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
+                } else if (screenText.includes('class affects stats')) {
+                    terminalTitle.textContent = '⚔ CHOOSE CHARACTER CLASS';
+                } else {
+                    terminalTitle.textContent = '⚔ CHARACTER CREATION';
+                }
+                if (termDpad) termDpad.style.display = 'grid';
+                if (birthNameBar) birthNameBar.style.display = 'none';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定'), gold: true },
+                    { key: '*', badge: '[*]', label: hengLabel('🎲 Random', '🎲 Random / ランダム', '🎲 ランダム') },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') },
+                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                ]));
+                populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
+            }
+            return;
+        }
+
+        // --- ACTIVE GAMEPLAY ---
+        if (termExitMenuBtn) termExitMenuBtn.style.display = 'none';
+        if (termRerollBtn) termRerollBtn.style.display = 'none';
+        if (birthNameBar) birthNameBar.style.display = 'none';
+
+        // Check for Action Chooser (MenuRouter pending selection)
+        const pendingState = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
+            ? window.MenuRouter.getPending()
+            : null;
+
+        if (pendingState && pendingState.step === 'chooser' && pendingState.item) {
+            const pending = pendingState;
+            terminalTitle.textContent = isHeng
+                ? hengTitle(`🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`)
+                : `🎒 ${pending.item.key}) ${pending.item.label}`;
+            if (termDpad) termDpad.style.display = 'grid';
+            const chooserRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (effFrame && effFrame.realm) || 'angband';
+            if (window.MenuRouter && typeof window.MenuRouter.renderChooserHtml === 'function') {
+                let chooserHtml = window.MenuRouter.renderChooserHtml(pending, chooserRealm);
+                if (typeof window.getShockboltSpriteCss === 'function') {
+                    const iconStyle = window.getShockboltSpriteCss('item', pending.item.label, pending.item.glyph, 32);
+                    if (iconStyle) {
+                        chooserHtml = chooserHtml.replace(/(<div class="term-chooser-header"[^>]*>)/, `$1<span class="sb-sprite-icon term-chooser-portrait" style="${iconStyle}"></span> `);
+                    }
+                }
+                setCtxActions(chooserHtml);
+            }
+            populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
+            if (terminal && typeof terminal.setSelectedKey === 'function') {
+                terminal.setSelectedKey(pending.item.key);
+            }
+            return;
+        }
+
+        const promptKind = prompt.kind || '';
+        const mirror = model ? model.mirror : null;
+        const isPressAnyKey = Boolean(legacy.isPressAnyKey || promptKind === 'more' || mirror === 'more' || (effFrame.ui && effFrame.ui.more));
+        const isYesNoPrompt = Boolean(legacy.isYesNoPrompt || promptKind === 'yesno' || mirror === 'yesno');
+        const isQuantityPrompt = Boolean(legacy.isQuantityPrompt || promptKind === 'quantity' || promptKind === 'count' || mirror === 'quantity' || mirror === 'count');
+        const isTargeting = Boolean(legacy.isTargeting || promptKind === 'direction' || promptKind === 'target' || mirror === 'direction');
+        const isStore = Boolean(legacy.isStore);
+        const isItemActions = Boolean(legacy.isItemActions || promptKind === 'menu' || mirror === 'item-menu');
+        const isItemPrompt = Boolean(legacy.isItemPrompt || promptKind === 'item' || mirror === 'item');
+
+        if (isPressAnyKey) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('📜 MESSAGE / PROMPT', '📜 MESSAGE / メッセージ', '📜 メッセージ')
+                : '📜 MESSAGE / PROMPT';
+            if (termDpad) termDpad.style.display = 'none';
+            setCtxActions(renderCtxButtons([
+                { key: 'space', badge: '[␣]', label: hengLabel('Continue', 'Continue / 続ける', '続ける'), gold: true },
+                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる') }
+            ]));
+            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+        } else if (isYesNoPrompt) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('🎴 CONFIRM ACTION [y/n]', '🎴 CONFIRM ACTION / 確認 [y/n]', '🎴 確認 [y/n]')
+                : '⚔ CONFIRM ACTION [y/n]';
+            if (termDpad) termDpad.style.display = 'none';
+            setCtxActions(renderCtxButtons([
+                { key: 'y', badge: '[y]', label: hengLabel('✓ Yes', '✓ Yes / はい', '✓ はい'), gold: true },
+                { key: 'n', badge: '[n]', label: hengLabel('✕ No', '✕ No / いいえ', '✕ いいえ'), outline: true },
+                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 取消', '⎋ 取消') }
+            ]));
+            populateLetterRibbon(null, ['y', 'n']);
+        } else if (isQuantityPrompt) {
+            terminalTitle.textContent = '📦 ENTER QUANTITY';
+            if (termDpad) termDpad.style.display = 'grid';
+            setCtxActions(renderCtxButtons([
+                { key: 'enter', badge: '⏎', label: 'All (Default)', gold: true },
+                { key: '1', badge: '[1]', label: 'Just 1' },
+                { key: '5', badge: '[5]', label: '5' },
+                { key: 'escape', badge: '[Esc]', label: '⎋ Cancel' }
+            ]));
+            populateLetterRibbon(null, ['1', '2', '3', '5', '10', 'enter']);
+        } else if (legacy.isPopupCommandMenu) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('📜 COMMAND MENU', '📜 COMMAND MENU / コマンド', '📜 コマンドメニュー')
+                : '📜 COMMAND MENU';
+            if (termDpad) termDpad.style.display = 'none';
+            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+            setCtxActions(renderCtxButtons([
+                { key: 'up', badge: '[▲]', label: '▲ Up' },
+                { key: 'down', badge: '[▼]', label: '▼ Down' },
+                { key: 'left', badge: '[◀]', label: '◀ Left' },
+                { key: 'right', badge: '[▶]', label: '▶ Right' },
+                { key: 'enter', badge: '[⏎]', label: '✓ Select (Enter)', gold: true },
+                { key: 'escape', badge: '[Esc]', label: '✕ Close (Esc)', gold: true }
+            ]));
+        } else if (isStore) {
+            if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
+            let storeName = 'STORE';
+            if (effFrame.term && effFrame.term.rows) {
+                for (let r = 0; r < Math.min(5, effFrame.term.rows.length); r++) {
+                    const line = (effFrame.term.rows[r].g || '').trim();
+                    const sm = line.match(/(General Store|Armoury|Armory|Weaponsmith|Weapon Smith|Temple|Alchemy Shop|Alchemist|Magic Shop|Magic User's|Black Market|Your Home|雑貨屋|万屋|防具屋|武器屋|寺院|錬金術の店|魔術師の店|ブラック・マーケット|我が家|博物館)/i);
+                    if (sm) {
+                        const matched = sm[1].trim();
+                        const jpToEn = {
+                            '雑貨屋': 'General Store', '万屋': 'General Store', '防具屋': 'Armoury', '武器屋': 'Weaponsmith',
+                            '寺院': 'Temple', '錬金術の店': 'Alchemy Shop', '魔術師の店': 'Magic Shop',
+                            'ブラック・マーケット': 'Black Market', '我が家': 'Your Home', '博物館': 'Museum'
+                        };
+                        storeName = jpToEn[matched] || matched;
+                        break;
+                    }
+                }
+            }
+            const sf = legacy.storeFlags || (SC.storeFlags ? SC.storeFlags(effFrame, screenText, isHeng) : {});
+            if (termDpad) termDpad.style.display = 'grid';
+
+            if (sf.isStoreContextMenu) {
+                terminalTitle.textContent = isHeng
+                    ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択')
+                    : '⚔ CHOOSE ACTION FOR ITEM';
+                const examineKey = isHeng ? 'x' : 'l';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                    { key: 'p', badge: '[p]', label: hengLabel('💰 Buy All', '💰 Buy All / 全て購入', '💰 全て購入'), gold: true },
+                    { key: 'o', badge: '[o]', label: hengLabel('🛒 Buy One', '🛒 Buy One / 1つ購入', '🛒 1つ購入') },
+                    { key: examineKey, badge: `[${examineKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') }
+                ]));
+                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+            } else if (sf.isStoreBuy) {
+                terminalTitle.textContent = isHeng
+                    ? hengTitle('💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)', '💰 BUY WHICH ITEM? / 購入 (Tap letter or Enter)', '💰 何を買いますか？ (文字か方向キー+Enter)')
+                    : '💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                    { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Buy', '⎋ Cancel / 取消', '⎋ 取消') }
+                ]));
+                populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
+            } else if (sf.isStoreSell) {
+                terminalTitle.textContent = isHeng
+                    ? hengTitle('🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)', '🏷 SELL WHICH ITEM? / 売却 (Tap letter or Enter)', '🏷 どれを売りますか？ (文字か方向キー+Enter)')
+                    : '🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                    { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Sell', '⎋ Cancel / 取消', '⎋ 取消') }
+                ]));
+                populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
+            } else if (sf.isStoreExamine) {
+                terminalTitle.textContent = isHeng
+                    ? hengTitle('🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)', '🔍 EXAMINE WHICH ITEM? / 調査 (Tap letter or Enter)', '🔍 どれを調べますか？ (文字か方向キー+Enter)')
+                    : '🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)';
+                setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                    { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Examine', '⎋ Cancel / 取消', '⎋ 取消') }
+                ]));
+                populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
+            } else {
+                // Top-Level Store Browsing View
+                const jpStoreNames = {
+                    'GENERAL STORE': '雑貨屋', 'ARMOURY': '防具屋', 'ARMORY': '防具屋',
+                    'WEAPONSMITH': '武器屋', 'TEMPLE': '寺院', 'ALCHEMY SHOP': '錬金術の店',
+                    'MAGIC SHOP': '魔術師の店', 'BLACK MARKET': 'ブラック・マーケット',
+                    'YOUR HOME': '我が家', 'MUSEUM': '博物館', 'STORE': '店舗'
+                };
+                const jpName = jpStoreNames[storeName.toUpperCase()] || storeName;
+                terminalTitle.textContent = isHeng
+                    ? hengTitle(`⚔ ${storeName.toUpperCase()} — BROWSE INVENTORY`, `⚔ ${storeName.toUpperCase()} (${jpName}) — INVENTORY`, `⚔ ${jpName} — 店頭の品物`)
+                    : '⚔ ' + storeName.toUpperCase() + ' — BROWSE INVENTORY';
+                const examineKey = isHeng ? 'x' : 'l';
+                const storeBtns = [];
+                if (sf.hasMore) {
+                    storeBtns.push({ key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true });
+                }
+                storeBtns.push(
+                    { key: 'p', badge: '[p]', label: hengLabel('💰 Buy', '💰 Buy / 購入', '💰 購入'), gold: true },
+                    { key: 's', badge: '[s]', label: hengLabel('🏷 Sell', '🏷 Sell / 売却', '🏷 売却') },
+                    { key: examineKey, badge: `[${examineKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
+                    { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('🚪 Exit Store', '🚪 Exit Store / 店を出る', '🚪 店を出る') }
+                );
+                setCtxActions(renderCtxButtons(storeBtns));
+                populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
+                const promptLine = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0]) ? (effFrame.term.rows[0].g || '') : screenText;
+                if (!/which item|examine which|buy which|purchase which|sell which|how many|accept/i.test(promptLine)) {
+                    if (termLetterRibbon) {
+                        const buyCmd = (screenText.includes('g) Get') || screenText.includes('g) Purchase') || screenText.includes('g) get') || screenText.includes('g) purchase')) ? 'g' : 'p';
+                        const btns = termLetterRibbon.querySelectorAll('.term-letter-btn');
+                        btns.forEach(b => {
+                            const k = b.dataset.key;
+                            if (k && /^[a-l]$/i.test(k)) {
+                                b.dataset.storeAutoBuy = buyCmd;
+                            }
+                        });
+                    }
+                }
+            }
+        } else if (isItemActions) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択')
+                : '⚔ CHOOSE ACTION FOR ITEM';
+            if (termDpad) termDpad.style.display = 'grid';
+            const actionRows = (effFrame.term && Array.isArray(effFrame.term.rows)) ? effFrame.term.rows : [];
+            const extractedVerbs = (SC && typeof SC.extractItems === 'function')
+                ? SC.extractItems(actionRows, isHeng, decodeHengbandText)
+                : [];
+            const actionBtns = [
+                { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
+                ...extractedVerbs.map(v => ({ key: v.key, badge: `[${v.key}]`, label: v.label })),
+                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '戻る') }
+            ];
+            setCtxActions(renderCtxButtons(actionBtns));
+            populateLetterRibbon(actionRows);
+        } else if (isTargeting) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('🎯 TARGETING & AIMING', '🎯 TARGETING / 照準・位置指定', '🎯 照準・位置指定')
+                : '🎯 TARGETING & AIMING';
+            if (termDpad) termDpad.style.display = 'grid';
+            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+            setCtxActions(renderCtxButtons([
+                { key: '5', badge: '[5/⏎]', label: hengLabel('🎯 Fire / Select', '🎯 Fire / 発射・選択', '🎯 発射・選択'), gold: true },
+                { key: '*', badge: '[*]', label: hengLabel('🔍 Next Target', '🔍 Next Target / 次の対象', '🔍 次の対象') },
+                { key: 't', badge: '[t]', label: hengLabel('📍 Nearest', '📍 Nearest / 最寄りの対象', '📍 最寄りの対象') },
+                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Aiming', '⎋ Cancel / 取消', '⎋ 取消') }
+            ]));
+        } else if (isItemPrompt) {
+            const iflags = legacy.itemFlags || (SC.itemFlags ? SC.itemFlags(screenText, activeRealm) : {});
+            const isSpellPrompt = Boolean(legacy.isSpellOrAbilityMenu || promptKind === 'spell');
+            const promptLine = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0]) ? (effFrame.term.rows[0].g || '') : screenText;
+
+            if (iflags.isSilqInvenCmd) {
+                terminalTitle.textContent = '🎒 INVENTORY PACK (Choose action)';
+            } else if (iflags.isSilqEquipCmd) {
+                terminalTitle.textContent = '🛡 EQUIPPED GEAR (Choose action)';
+            } else if (iflags.isSilqWear || screenText.includes('wear') || screenText.includes('wield') || screenText.includes('どれを装備')) {
+                terminalTitle.textContent = isHeng ? hengTitle('⚔ WEAR / WIELD ITEM', '⚔ WEAR/WIELD / 装備', '⚔ アイテムを装備') : '⚔ WEAR / WIELD ITEM';
+            } else if (iflags.isSilqRemove || screenText.includes('take off') || screenText.includes('どれを外しますか')) {
+                terminalTitle.textContent = isHeng ? hengTitle('🔄 TAKE OFF GEAR', '🔄 TAKE OFF / 装備を外す', '🔄 装備を外す') : (iflags.isSilq ? '🔄 REMOVE GEAR' : '🔄 TAKE OFF GEAR');
+            } else if (iflags.isSilqThrow || screenText.includes('throw which item?') || screenText.includes('どれを投げますか')) {
+                terminalTitle.textContent = isHeng ? hengTitle('🎯 THROW ITEM', '🎯 THROW ITEM / 投擲', '🎯 アイテムを投げる') : '🎯 THROW ITEM';
+            } else if (iflags.isSilqFire || screenText.includes('fire which item?') || screenText.includes('fire') || screenText.includes('shoot') || screenText.includes('どのアイテムを発射')) {
+                terminalTitle.textContent = isHeng ? hengTitle('🏹 FIRE / SHOOT', '🏹 FIRE / 射撃', '🏹 射撃') : '🏹 FIRE / SHOOT';
+            } else if (iflags.isSilqExamine || screenText.includes('examine which item') || screenText.includes('どれを調べますか')) {
+                terminalTitle.textContent = isHeng ? hengTitle('🔍 EXAMINE ITEM', '🔍 EXAMINE / 調査', '🔍 アイテムを調べる') : '🔍 EXAMINE ITEM';
+            } else if (iflags.isSilqDrop || screenText.includes('drop which') || screenText.includes('どれを落としますか')) {
+                terminalTitle.textContent = isHeng ? hengTitle('📦 DROP ITEM', '📦 DROP / アイテムを落とす', '📦 アイテムを落とす') : '📦 DROP ITEM';
+            } else if (screenText.includes('quaff which potion?') || screenText.includes('quaff') || screenText.includes('どの薬を飲みますか')) {
+                terminalTitle.textContent = isHeng ? hengTitle('🧪 QUAFF POTION', '🧪 QUAFF POTION / 飲む', '🧪 薬を飲む') : '🧪 QUAFF POTION';
+            } else if (screenText.includes('read which scroll?') || screenText.includes('read') || screenText.includes('どの巻物を読みますか')) {
+                terminalTitle.textContent = isHeng ? hengTitle('📜 READ SCROLL', '📜 READ SCROLL / 読む', '📜 巻物を読む') : '📜 READ SCROLL';
+            } else if (screenText.includes('which spell?') || screenText.includes('which prayer?') || screenText.includes('which book?') || screenText.includes('どの呪文') || screenText.includes('どの本')) {
+                terminalTitle.textContent = isHeng ? hengTitle('✨ CAST SPELL / PRAYER', '✨ CAST SPELL / 呪文詠唱', '✨ 呪文詠唱') : '✨ CAST SPELL / PRAYER';
+            } else if (iflags.isQuiverView) {
+                terminalTitle.textContent = isHeng ? hengTitle('🏹 QUIVER MISSILES', '🏹 QUIVER / 矢筒', '🏹 矢筒') : '🏹 QUIVER MISSILES';
+            } else if (iflags.isEquipView) {
+                terminalTitle.textContent = isHeng ? hengTitle('🛡 EQUIPPED GEAR', '🛡 EQUIPPED GEAR / 装備品一覧', '🛡 装備品一覧') : '🛡 EQUIPPED GEAR';
+            } else {
+                terminalTitle.textContent = isHeng ? hengTitle('🎒 INVENTORY PACK', '🎒 INVENTORY / 所持品一覧', '🎒 所持品一覧') : '🎒 INVENTORY PACK';
+            }
+
+            if (termDpad) termDpad.style.display = 'grid';
+
+            if (iflags.isSilqInvenCmd) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
+                    { key: 'w', badge: '[w]', label: '⚔ Wear/Wield', gold: true },
+                    { key: 'e', badge: '[e]', label: '🛡 View Gear' },
+                    { key: 'x', badge: '[x]', label: '🔍 Examine' },
+                    { key: 'd', badge: '[d]', label: '📦 Drop' },
+                    { key: 'k', badge: '[k]', label: '🗑 Destroy' },
+                    { key: 'space', badge: '[␣]', label: 'Next Page' }
+                ]));
+            } else if (iflags.isSilqEquipCmd) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
+                    { key: 'r', badge: '[r]', label: '🔄 Take Off', gold: true },
+                    { key: 'i', badge: '[i]', label: '🎒 View Pack' },
+                    { key: 'x', badge: '[x]', label: '🔍 Examine' },
+                    { key: 'd', badge: '[d]', label: '📦 Drop' },
+                    { key: 'space', badge: '[␣]', label: 'Next Page' }
+                ]));
+            } else if (iflags.isSilqWear) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
+                    { key: '/', badge: '[/]', label: '🛡 Switch to Gear' },
+                    { key: '-', badge: '[-]', label: '📍 Floor' }
+                ]));
+            } else if (iflags.isSilqRemove) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
+                    { key: '/', badge: '[/]', label: '🎒 Switch to Pack' }
+                ]));
+            } else if (iflags.isSilq) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
+                    { key: '/', badge: '[/]', label: 'Switch Inven/Gear' },
+                    { key: 'space', badge: '[␣]', label: 'Next Page' }
+                ]));
+            } else if (isSpellPrompt || /spell|prayer|book|magic|power|mindcraft|invocation|song/i.test(promptLine)) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
+                    { key: 'space', badge: '[␣]', label: '📖 Show Choices' },
+                    { key: '?', badge: '[?]', label: '❓ Spell Help' }
+                ]));
+            } else if (isHeng) {
+                const packLabel = iflags.isEquipView
+                    ? hengLabel('🎒 View Pack', '🎒 View Pack / 所持品', '🎒 所持品')
+                    : hengLabel('🛡 View Gear', '🛡 View Gear / 装備品', '🛡 装備品');
+                const quiverLabel = iflags.isQuiverView
+                    ? hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品')
+                    : hengLabel('🏹 Quiver', '🏹 Quiver / 矢筒', '🏹 矢筒');
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる'), gold: true },
+                    { key: '/', badge: '[/]', label: packLabel },
+                    { key: '|', badge: '[|]', label: quiverLabel },
+                    { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') }
+                ]));
+            } else {
+                setCtxActions(renderCtxButtons([
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
+                    { key: '/', badge: '[/]', label: iflags.isEquipView ? '🎒 View Pack' : '🛡 View Gear' },
+                    { key: '|', badge: '[|]', label: iflags.isQuiverView ? '🎒 Pack' : '🏹 Quiver' },
+                    { key: 'space', badge: '[␣]', label: 'Next Page' }
+                ]));
+            }
+            populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
+        } else if (legacy.isCharacterSheet || (SC && SC.isCharacterSheet(screenText))) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('📜 CHARACTER SHEET — Hero Status', '📜 CHARACTER SHEET / キャラクター情報', '📜 キャラクター情報')
+                : '📜 CHARACTER SHEET — Hero Status & Attributes';
+            if (termDpad) termDpad.style.display = 'none';
+            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+            const charBtns = [
+                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Return to 3D', '⎋ Return / 戻る', '⎋ 戻る'), gold: true },
+                { key: 'h', badge: '[h]', label: hengLabel('📖 History / Mode', '📖 History / 履歴切替', '📖 履歴 / 画面切替'), gold: true },
+                { key: 'f', badge: '[f]', label: hengLabel('💾 Dump Char File', '💾 Dump / ファイル出力', '💾 ファイル出力') },
+                { key: activeRealm === 'silq' ? 'n' : 'c', badge: activeRealm === 'silq' ? '[n]' : '[c]', label: hengLabel('✎ Change Name', '✎ Name / 名前変更', '✎ 名前変更') }
+            ];
+            if (activeRealm === 'silq') {
+                charBtns.push({ key: 'tab', badge: '[Tab]', label: '🌟 Ability Tree', gold: true });
+            }
+            setCtxActions(renderCtxButtons(charBtns));
+        } else if (legacy.isSpellOrAbilityMenu || promptKind === 'spell' || (SC && SC.isSpellOrAbilityMenu(screenText))) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('✨ GRIMOIRE & ABILITIES — Choose Spell or Power', '✨ GRIMOIRE / 呪文・技能の選択', '✨ 呪文・技能の選択')
+                : (activeRealm === 'silq' ? '✨ SONGS, ABILITIES & SMITHING' : '✨ GRIMOIRE & POWERS — Select Spell or Ability');
+            if (termDpad) termDpad.style.display = activeRealm === 'silq' ? 'grid' : 'none';
+            setCtxActions(renderCtxButtons([
+                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 戻る', '⎋ 戻る'), gold: true },
+                { key: 'up', badge: '[↑]', label: '▲ Up' },
+                { key: 'down', badge: '[↓]', label: '▼ Down' },
+                { key: 'left', badge: '[←]', label: '◀ Prev' },
+                { key: 'right', badge: '[→]', label: '▶ Next' },
+                { key: 'enter', badge: '[↵]', label: hengLabel('✓ Confirm / Select', '✓ Select / 決定', '✓ 決定'), gold: true },
+                { key: 'space', badge: '[␣]', label: hengLabel('Page / Info', 'Page / 次頁', '次頁') }
+            ]));
+            populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
+        } else if (legacy.isKnowledgeOrOptions || (SC && SC.isKnowledgeOrOptions(screenText))) {
+            terminalTitle.textContent = isHeng
+                ? hengTitle('📚 KNOWLEDGE, OPTIONS & ARCHIVES', '📚 ARCHIVES / 知識・オプション', '📚 知識・オプション設定')
+                : '📚 KNOWLEDGE, OPTIONS & ARCHIVES';
+            if (termDpad) termDpad.style.display = 'none';
+            setCtxActions(renderCtxButtons([
+                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back / Exit', '⎋ Back / 戻る', '⎋ 戻る'), gold: true },
+                { key: 'up', badge: '[↑]', label: '▲ Up' },
+                { key: 'down', badge: '[↓]', label: '▼ Down' },
+                { key: 'enter', badge: '[↵]', label: hengLabel('✓ Select / Toggle', '✓ Select / 選択', '✓ 選択'), gold: true },
+                { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次頁') },
+                { key: 'y', badge: '[y]', label: 'Yes / On' },
+                { key: 'n', badge: '[n]', label: 'No / Off' }
+            ]));
+            populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
+        } else {
+            // Classic Dungeon View
+            const realmTitles = {
+                'silq': '💍 SIL-Q CLASSIC TERMINAL',
+                'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL',
+                'hengband': '🎴 HENGBAND CLASSIC TERMINAL',
+                'angband': '⚔ ANGBAND CLASSIC TERMINAL'
+            };
+            terminalTitle.textContent = isHeng
+                ? hengTitle('🎴 HENGBAND CLASSIC TERMINAL', '🎴 HENGBAND — Classic View / クラシック端末', '🎴 変愚蛮怒 — クラシック端末')
+                : (realmTitles[activeRealm] || '⚔ ANGBAND CLASSIC TERMINAL');
+            if (termEscapeBtn) {
+                termEscapeBtn.style.display = 'inline-flex';
+                termEscapeBtn.textContent = isHeng ? hengLabel('🎮 3D View', '🎮 3D View / 3D画面', '🎮 3D画面') : '🎮 3D View';
+            }
+            if (termDpad) termDpad.style.display = 'grid';
+            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+
+            const hasMore = Boolean(effFrame.ui && effFrame.ui.more) || screenText.includes('-more-');
+            if (hasMore) {
+                setCtxActions(renderCtxButtons([
+                    { key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Dismiss', '⎋ Dismiss / 閉じる', '⎋ 閉じる') }
+                ]));
+            } else {
+                const effRealm = activeRealm || 'angband';
+                const keyFor = (v) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+                    ? RealmKeys.realmKey(v, effRealm)
+                    : null;
+
+                const btns = [
+                    { key: 'tab', badge: '⛶', label: hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)'), gold: true, extraCls: 'term-action-key' },
+                    { key: 'g', badge: '[g]', label: hengLabel('🤚 Get', '🤚 Get / 拾う', '🤚 拾う'), extraCls: 'term-action-key' }
+                ];
+                const packKey = keyFor('inven') || 'i';
+                btns.push({ key: packKey, label: hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品'), extraCls: 'term-action-key' });
+                const equipKey = keyFor('equip') || 'e';
+                btns.push({ key: equipKey, label: hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備'), extraCls: 'term-action-key' });
+                btns.push({ key: '>', badge: '[>]', label: hengLabel('⬇ Stairs', '⬇ Stairs / 階段', '⬇ 階段'), extraCls: 'term-action-key' });
+                btns.push({ key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー'), extraCls: 'term-action-key' });
+
+                if (effRealm === 'silq') {
+                    btns.push({ key: 'w', label: '⚔ Wield', extraCls: 'term-action-key' });
+                    btns.push({ key: 'r', label: '🔄 Take Off', extraCls: 'term-action-key' });
+                    const throwKey = keyFor('throw');
+                    if (throwKey) btns.push({ key: throwKey, label: '🎯 Throw', extraCls: 'term-action-key' });
+                    const fireKey = keyFor('fire');
+                    if (fireKey) btns.push({ key: fireKey, label: '🏹 Fire', extraCls: 'term-action-key' });
+                }
+
+                const powerKey = keyFor('power');
+                if (powerKey) btns.push({ key: powerKey, label: hengLabel('🔮 Power', '🔮 Power / 特殊能力', '🔮 特殊能力'), extraCls: 'term-action-key' });
+                const overlandKey = keyFor('overland');
+                if (overlandKey) btns.push({ key: overlandKey, label: hengLabel('🗺️ Map', '🗺️ Map / 広域', '🗺️ 広域'), extraCls: 'term-action-key' });
+                const questsKey = keyFor('quests');
+                if (questsKey) btns.push({ key: questsKey, label: hengLabel('📜 Quests', '📜 Quests / クエスト', '📜 クエスト'), extraCls: 'term-action-key' });
+                const skillsKey = keyFor('skills');
+                if (skillsKey) {
+                    const skillsDisplay = (skillsKey === 'tab') ? 'Tab' : skillsKey;
+                    btns.push({ key: skillsKey, badge: `[${skillsDisplay}]`, label: '🌳 Skills', extraCls: 'term-action-key' });
+                }
+                const castKey = keyFor('cast');
+                if (castKey) {
+                    const castName = (effRealm === 'silq') ? '🎵 Song' : hengLabel('✨ Cast', '✨ Cast / 呪文', '✨ 呪文');
+                    btns.push({ key: castKey, label: castName, extraCls: 'term-action-key' });
+                }
+                const restKey = keyFor('rest');
+                if (restKey) btns.push({ key: restKey, label: hengLabel('⏳ Rest', '⏳ Rest / 休息', '⏳ 休息'), extraCls: 'term-action-key' });
+
+                setCtxActions(renderCtxButtons(btns));
+            }
+        }
+    }
+
     function updateTerminalToolbar(frame) {
         const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
         const termFacingBadge = document.getElementById('term-facing-badge');
         const termAdvanceBtn = document.getElementById('btn-term-advance');
         const termEscapeBtn = document.getElementById('btn-term-escape');
         const termExitMenuBtn = document.getElementById('btn-term-exit-menu');
+        const termRerollBtn = document.getElementById('btn-term-reroll');
         const termTouchControls = document.getElementById('terminal-touch-controls');
         const termCtxActions = document.getElementById('term-contextual-actions');
         const termLetterRibbon = document.getElementById('term-letter-ribbon');
@@ -4569,13 +4996,8 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-        const rawScreenText = (effFrame && effFrame.term && effFrame.term.rows)
-            ? effFrame.term.rows.map(r => r.g || '').join('\n')
-            : '';
-        const decodedScreenText = decodeHengbandText(rawScreenText);
-        const screenText = (rawScreenText + '\n' + decodedScreenText).toLowerCase();
 
-        const isHeng = (activeRealm === 'hengband') || (window.activeRealm === 'hengband') || (window.__activeRealm === 'hengband') || (effFrame && effFrame.realm === 'hengband');
+        const isHeng = (curRealm === 'hengband') || (activeRealm === 'hengband') || (window.activeRealm === 'hengband') || (window.__activeRealm === 'hengband');
         const effLang = isHeng ? (window.__langMode || langMode || 'en') : 'en';
         const hengLabel = (en, bilingual, jp) => {
             if (!isHeng || effLang === 'en') return en;
@@ -4588,12 +5010,9 @@ window.addEventListener('DOMContentLoaded', () => {
             return bilingual;
         };
 
-        // Always display external navigation dock so classic interactions can be performed via navigation keys outside the view on all devices
-        if (termTouchControls) {
-            termTouchControls.style.display = 'flex';
-        }
+        if (termTouchControls) termTouchControls.style.display = 'flex';
 
-        // 1. Camera Facing & Direction Highlight Sync
+        // Camera Facing & Direction Highlight Sync
         const cameraYaw = (dungeon && dungeon.camera)
             ? -dungeon.camera.rotation.y
             : (dungeon ? (dungeon.facing * (Math.PI / 2)) : 0);
@@ -4617,15 +5036,16 @@ window.addEventListener('DOMContentLoaded', () => {
             fwdKey = 'left';
         }
 
-        // Inform classic terminal canvas of 3D camera facing
         terminal.setCameraFacing(cameraYaw);
 
-        // 2. Identify Current Mode & Screen (classification lives in screen-context.js toolbarFlags)
-        const { playerFeat, isStoreFeat, inOverlay, hasStoreText, isTargeting, isItemPrompt, isStore } =
-            SC.toolbarFlags(effFrame, screenText, isHeng);
+        const model = (SC && SC.ScreenModel && typeof SC.ScreenModel.of === 'function')
+            ? SC.ScreenModel.of(effFrame, curRealm, { decode: decodeHengbandText, lang: effLang, forceTerminal })
+            : null;
+
+        const isStore = Boolean(model && model.legacy && model.legacy.isStore);
+        const isTargeting = Boolean(model && (model.mirror === 'direction' || (model.legacy && model.legacy.isTargeting)));
         terminal.setTargetingMode(isTargeting);
 
-        // Update Facing Badge & D-Pad Highlight
         if (termFacingBadge) {
             if (inPlay && !isStore) {
                 termFacingBadge.style.display = 'inline-flex';
@@ -4645,42 +5065,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Japanese-to-English translation mapping for Hengband character creation & HUD
-        const JP_TERM_TRANSLATIONS = {
-            '女性': 'Female', '男性': 'Male',
-            '人間': 'Human', 'ハーフエルフ': 'Half-Elf', 'エルフ': 'Elf', 'ホビット': 'Hobbit', 'ノーム': 'Gnome',
-            'ドワーフ': 'Dwarf', 'ハーフオーク': 'Half-Orc', 'ハーフトロル': 'Half-Troll', 'ハーフトロール': 'Half-Troll',
-            'アンバライト': 'Amberite', 'ハイエルフ': 'High-Elf', '野蛮人': 'Barbarian', 'ハーフオーガ': 'Half-Ogre',
-            '半巨人': 'Half-Giant', '半タイタン': 'Half-Titan', 'サイクロプス': 'Cyclops', 'イーク': 'Yeek',
-            'クラッコン': 'Klackon', 'コボルド': 'Kobold', 'ニーベルング': 'Nibelung', 'ダークエルフ': 'Dark-Elf',
-            'ドラコニアン': 'Draconian', 'マインドフレア': 'Mindflayer', 'インプ': 'Imp', 'ゴーレム': 'Golem',
-            '骸骨': 'Skeleton', 'ゾンビ': 'Zombie', '吸血鬼': 'Vampire', '幽霊': 'Spectre', '妖精': 'Sprite',
-            '獣人': 'Beastman', 'エント': 'Ent', 'アルコン': 'Archon', 'バルログ': 'Balrog', 'ドゥナダン': 'Dúnadan',
-            '影フェアリー': 'Shadow-Fairy', 'クター': 'Kutar', 'アンドロイド': 'Android', 'マーフォーク': 'Merfolk',
-            '戦士': 'Warrior', 'メイジ': 'Mage', 'プリースト': 'Priest', '盗賊': 'Rogue', 'レンジャー': 'Ranger',
-            'パラディン': 'Paladin', '魔法戦士': 'Warrior-Mage', '混沌の戦士': 'Chaos-Warrior', '修行僧': 'Monk',
-            '超能力者': 'Mindcrafter', 'ハイ=メイジ': 'High-Mage', 'ハイメイジ': 'High-Mage', '観光客': 'Tourist',
-            'ものまね師': 'Imitator', '魔獣使い': 'Beastmaster', 'スペルマスター': 'Sorcerer', 'アーチャー': 'Archer',
-            '魔道具術師': 'Magic-Eater', '吟遊詩人': 'Bard', '赤魔道師': 'Red-Mage', '剣術家': 'Swordsman',
-            '練気術師': 'Ki-Master', '青魔道師': 'Blue-Mage', '騎兵': 'Cavalry', '狂戦士': 'Berserker',
-            '鍛冶師': 'Weaponsmith', '鏡使い': 'Mirror-Master', '忍者': 'Ninja', 'スナイパー': 'Sniper',
-            '元素使い': 'Elementalist',
-            'ふつう': 'Ordinary', 'ちからじまん': 'Strong', 'きれもの': 'Clever', 'しあわせもの': 'Lucky',
-            'すばしっこい': 'Nimble', 'いのちしらず': 'Fearless', 'コンバット': 'Combatant', 'なまけもの': 'Lazy',
-            'セクシーギャル': 'Sexy', 'がまんづよい': 'Patient', 'いかさま': 'Trickster', 'チャージマン': 'Chargeman',
-            '生命': 'Life', '仙術': 'Sorcery', '自然': 'Nature', 'カオス': 'Chaos', '暗黒': 'Death',
-            'トランプ': 'Trump', '秘術': 'Arcane', '匠': 'Craft', '悪魔': 'Daemon', '破邪': 'Crusade',
-            'ランダム': 'Random', '決定': 'Accept', 'やり直し': 'Reroll'
-        };
-        window.__JP_TERM_TRANSLATIONS = JP_TERM_TRANSLATIONS;
-        if (!window.__EN_TO_JP_TRANSLATIONS) {
-            window.__EN_TO_JP_TRANSLATIONS = {};
-            for (const [jp, en] of Object.entries(JP_TERM_TRANSLATIONS)) {
-                window.__EN_TO_JP_TRANSLATIONS[en] = jp;
-            }
-        }
-
-        // Helper to populate letter ribbon (supports single & multi-column menus, excludes item description stats)
+        // Helper to populate letter ribbon
         const populateLetterRibbon = (rows, explicitLetters = null) => {
             if (!termLetterRibbon) return;
             if (skipScraping) {
@@ -4692,7 +5077,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (explicitLetters && Array.isArray(explicitLetters)) {
                 options = explicitLetters.map(lt => ({ key: lt, display: `[${lt}]`, label: null }));
             } else if (rows) {
-                // Unified option tag extraction across all variants (Angband 4.2.6, Hengband 3.0.1, Sil-Q, FrogComposBand)
                 const regexes = [
                     /(?:^|\s+)\(([a-zA-Z0-9*@?])\)\s+([^\n\r]{1,70})/g,
                     /(?:^|\s+)\[([a-zA-Z0-9*@?])\]\s+([^\n\r]{1,70})/g,
@@ -4714,16 +5098,11 @@ window.addEventListener('DOMContentLoaded', () => {
                         while ((m = re.exec(line)) !== null) {
                             const key = m[1];
                             let label = (m[2] || '').trim();
-                            // If equipment slot prefix present (e.g. "Wielding : ", "Left ring : ", "武器 : "), strip it to get the item
                             label = label.replace(/^[^:]{1,20}:\s*/, '');
-                            // Stop at multi-space gap before weight/price/turn columns
                             label = label.replace(/\s{2,}.*$/, '');
-                            // Strip trailing weight specs (e.g. 2.5 lb, 4.0 lb)
                             label = label.replace(/\s+\d+(\.\d+)?\s*(lb|kg|g)$/i, '');
-                            // Clean up unclosed parentheses or brackets at end
                             label = label.replace(/[(\[\{]+$/, '').trim();
 
-                            // Skip empty slots like "(nothing)" or "なし"
                             if (!label || label === '(nothing)' || label.includes('(nothing)') || label === 'なし') {
                                 continue;
                             }
@@ -4778,7 +5157,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }
-                // If yes/no is present in prompt, ensure y and n are available
+                const screenText = (rawLine => decodeHengbandText(rawLine).toLowerCase())(rows.map(r => r.g || '').join('\n'));
                 if (screenText.includes('[y/n]') || screenText.includes('(y/n)') || (isHengCur && screenText.includes('よろしいですか'))) {
                     if (!seenKeys.has('y')) options.unshift({ key: 'y', display: '[y] ✓ Yes', label: null });
                     if (!seenKeys.has('n')) options.push({ key: 'n', display: '[n] ✕ No', label: null });
@@ -4790,7 +5169,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (terminal && typeof terminal.syncRibbonSelection === 'function') {
                     terminal.syncRibbonSelection();
                 }
-                return; // DOM stability: do not recreate buttons if options are unchanged
+                return;
             }
             lastPopulatedLetters = letterKey;
 
@@ -4815,766 +5194,16 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // 3. Screen-Specific Layout & Controls Configuration
         const grimoireContainer = document.getElementById('grimoire-deck-container');
-        if (!inPlay) {
-            if (grimoireContainer && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.hide === 'function') {
-                window.RealmGrimoireDeck.hide(grimoireContainer);
-            }
-            // --- CHARACTER CREATION / BIRTH SCREENS ---
-            if (termExitMenuBtn) {
-                termExitMenuBtn.style.display = 'inline-flex';
-                termExitMenuBtn.textContent = isHeng ? hengLabel('🏠 Main Menu', '🏠 Main Menu (主献立)', '🏠 メインメニュー') : 'Main Menu';
-            }
-            if (termAdvanceBtn) {
-                termAdvanceBtn.style.display = 'inline-flex';
-                termAdvanceBtn.textContent = isHeng ? hengLabel('Advance (Enter)', 'Advance / 決定 (Enter)', '決定 (Enter)') : 'Advance (Enter)';
-            }
-            if (termRerollBtn) termRerollBtn.style.display = 'none';
-            termEscapeBtn.textContent = isHeng ? hengLabel('Back (Esc)', 'Back / 戻る (Esc)', '戻る (Esc)') : 'Back (Esc)';
 
-            // Birth/setup classification lives in screen-context.js birthFlags (verbatim move, WS2).
-            const {
-                isTitleScreen, isHengInitialOpt, isHengSex, isHengRace, isHengClass, isHengPersonality,
-                isHengRealm, isHengStatRoller, isHengStatDecide, isHengName, isHengHistory, isHengEmbark,
-                isNamePrompt, isHistoryPrompt, isStatRoller, isBackgroundEdit, isReadyPrompt, isChoiceMenu,
-                isReviewScreen
-            } = SC.birthFlags(screenText, isHeng);
+        renderTerminalMirrors(model, {
+            terminalTitle, termFacingBadge, termAdvanceBtn, termEscapeBtn, termExitMenuBtn,
+            termRerollBtn, termTouchControls, termCtxActions, termLetterRibbon, birthNameBar,
+            birthNameInput, termDpad, effFrame, curRealm, isHeng, effLang, inPlay,
+            hengLabel, hengTitle, populateLetterRibbon, setCtxActions, renderCtxButtons
+        });
 
-            if (isChoiceMenu || isNamePrompt) {
-                birthReviewActive = false;
-            }
-
-
-            if (isHengInitialOpt) {
-                terminalTitle.textContent = hengTitle(
-                    '🎴 HENGBAND — Options Setup [Esc to Accept]',
-                    '🎴 HENGBAND — 初期オプション / Options [Esc to Accept]',
-                    '🎴 HENGBAND — 初期オプション設定 [Escで終了]'
-                );
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Accept Options', '⎋ 終了 (Accept Options)', '⎋ 終了'), gold: true },
-                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                    ]));
-                }
-            } else if (isHengStatDecide) {
-                terminalTitle.textContent = hengTitle(
-                    '🎴 HENGBAND — Review Stats [Enter]',
-                    '🎴 HENGBAND — 能力値決定 / Review Stats [Enter]',
-                    '🎴 HENGBAND — 能力値決定 [Enter]'
-                );
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept Stats', '✓ 決定 (Accept Stats)', '✓ 決定'), gold: true },
-                        { key: 'r', badge: '[r]', label: hengLabel('🔄 Next Roll', '🔄 次の数値 (Next Roll)', '🔄 次の数値') },
-                        { key: 'p', badge: '[p]', label: hengLabel('⏪ Previous Roll', '⏪ 前の数値 (Previous Roll)', '⏪ 前の数値') },
-                        { key: 'S', badge: '[S]', label: hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから') },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ 戻る (Back)', '⎋ 戻る') },
-                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                    ]));
-                }
-            } else if (isTitleScreen) {
-                terminalTitle.textContent = '⚔ WELCOME TO ANGBAND';
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: 'Continue (Enter)', gold: true },
-                        { key: 'mainmenu', badge: '🏠', label: 'Main Menu' }
-                    ]));
-                }
-            } else if (isNamePrompt) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🎴 HENGBAND — Enter Character Name', '🎴 HENGBAND — 名前入力 / Enter Name', '🎴 HENGBAND — キャラクターの名前を入力')
-                    : '⚔ NAME YOUR ADVENTURER';
-                if (termDpad) termDpad.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                if (birthNameBar) {
-                    birthNameBar.style.display = 'flex';
-                    if (birthNameInput && document.activeElement !== birthNameInput && !birthNameInput.value) {
-                        const nameMatch = (frame && frame.term && frame.term.rows && frame.term.rows[0])
-                            ? (frame.term.rows[0].g || '').match(/:\s*([A-Za-z0-9_\-]+)/)
-                            : null;
-                        if (nameMatch) {
-                            birthNameInput.value = nameMatch[1].trim();
-                        }
-                    }
-                }
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
-                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                    ]));
-                }
-            } else if (isHistoryPrompt) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🎴 HENGBAND — Character Background', '🎴 HENGBAND — 生い立ち / Background', '🎴 HENGBAND — キャラクターの生い立ち')
-                    : '⚔ CHARACTER HISTORY';
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
-                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                    ]));
-                }
-            } else if (isStatRoller) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🎴 HENGBAND — Stat Roller', '🎴 HENGBAND — 能力値抽選 / Stat Roller', '🎴 HENGBAND — 能力値抽選')
-                    : '⚔ ATTRIBUTE ALLOCATION';
-                if (termDpad) termDpad.style.display = 'grid'; // Left/Right modifies stats
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true },
-                        { key: 'r', badge: '[r]', label: hengLabel('🔄 Reset Stats', '🔄 Reset / 再抽選', '🔄 再抽選') },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
-                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                    ]));
-                }
-            } else if (isBackgroundEdit) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('📜 CHARACTER BACKGROUND — Enter to Continue', '📜 生い立ち / BACKGROUND — Enter', '📜 キャラクターの生い立ち — Enter')
-                    : '📜 CHARACTER BACKGROUND — Enter to Continue';
-                if (termDpad) termDpad.style.display = 'grid';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: hengLabel('Continue (Enter)', 'Continue / 決定 (Enter)', '決定 (Enter)'), gold: true },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
-                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                    ]));
-                }
-            } else if (isReadyPrompt) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🎴 HENGBAND — Begin Game / Embark', '🎴 HENGBAND — ゲーム開始 / Embark', '🎴 HENGBAND — ゲーム開始')
-                    : '⚔ READY TO EMBARK — Enter to Begin';
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: hengLabel('⚔ Enter Realm', '⚔ ゲーム開始 (Enter Realm)', '⚔ ゲーム開始'), gold: true },
-                        { key: 'S', badge: '[S]', label: hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから') },
-                        { key: 'Q', badge: '[Q]', label: hengLabel('⎋ Quit', '⎋ 終了 (Quit)', '⎋ 終了') }
-                    ]));
-                }
-            } else if (isReviewScreen) {
-                const hasPrevRoll = screenText.includes("previous roll") || screenText.includes("前の数値") || screenText.includes("for previous");
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🎴 HENGBAND — Review Hero', '🎴 HENGBAND — キャラクター確認 / Review Hero', '🎴 HENGBAND — キャラクター確認')
-                    : '⚔ REVIEW YOUR HERO';
-                if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
-                if (termAdvanceBtn) termAdvanceBtn.textContent = hengLabel('⚔ Accept & Play (Enter)', '⚔ Accept & Play (決定)', '⚔ 決定して開始 (Enter)');
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                if (termCtxActions) {
-                    const reviewBtns = [
-                        { key: 'enter', badge: '⏎', label: hengLabel('⚔ Accept & Play', '⚔ Accept & Play (決定)', '⚔ 決定して開始'), gold: true },
-                        { key: 'r', badge: '[r]', label: hengLabel('🎲 Reroll Hero', '🎲 Reroll (再生成)', '🎲 英雄再生成') }
-                    ];
-                    if (hasPrevRoll) {
-                        reviewBtns.push({ key: 'p', badge: '[p]', label: hengLabel('⏪ Previous Roll', '⏪ Previous Roll (前の数値)', '⏪ 前の数値') });
-                    }
-                    reviewBtns.push(
-                        { key: 's', badge: '[s]', label: hengLabel('🛠 Custom Create', '🛠 Custom (作成)', '🛠 英雄作成') },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
-                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                    );
-                    setCtxActions(renderCtxButtons(reviewBtns));
-                }
-            } else {
-                // Choice menu (Sex, Race, Class, Personality, Realm, Traits)
-                if (isHengSex) {
-                    terminalTitle.textContent = hengTitle(
-                        '🎴 HENGBAND — Choose Sex [a-b, *]',
-                        '🎴 HENGBAND — 性別 / Choose Sex [a-b, *]',
-                        '🎴 HENGBAND — 性別を選んで下さい [a-b, *]'
-                    );
-                } else if (isHengRace) {
-                    terminalTitle.textContent = hengTitle(
-                        '🎴 HENGBAND — Choose Race [a-L, *]',
-                        '🎴 HENGBAND — 種族 / Choose Race [a-L, *]',
-                        '🎴 HENGBAND — 種族を選んで下さい [a-L, *]'
-                    );
-                } else if (isHengClass) {
-                    terminalTitle.textContent = hengTitle(
-                        '🎴 HENGBAND — Choose Class [a-C, *]',
-                        '🎴 HENGBAND — 職業 / Choose Class [a-C, *]',
-                        '🎴 HENGBAND — 職業を選んで下さい [a-C, *]'
-                    );
-                } else if (isHengPersonality) {
-                    terminalTitle.textContent = hengTitle(
-                        '🎴 HENGBAND — Choose Personality [a-m, *]',
-                        '🎴 HENGBAND — 性格 / Choose Personality [a-m, *]',
-                        '🎴 HENGBAND — 性格を選んで下さい [a-m, *]'
-                    );
-                } else if (isHengRealm) {
-                    terminalTitle.textContent = hengTitle(
-                        '🎴 HENGBAND — Choose Realm [a-j]',
-                        '🎴 HENGBAND — 魔法領域 / Choose Realm [a-j]',
-                        '🎴 HENGBAND — 魔法領域を選んで下さい [a-j]'
-                    );
-                } else if (screenText.includes('race affects stats')) {
-                    terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
-                } else if (screenText.includes('class affects stats')) {
-                    terminalTitle.textContent = '⚔ CHOOSE CHARACTER CLASS';
-                } else {
-                    terminalTitle.textContent = '⚔ CHARACTER CREATION';
-                }
-                if (termDpad) termDpad.style.display = 'grid'; // D-pad Up/Down navigates highlight, Enter selects
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定'), gold: true },
-                        { key: '*', badge: '[*]', label: hengLabel('🎲 Random', '🎲 Random / ランダム', '🎲 ランダム') },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') },
-                        { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                    ]));
-                }
-                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
-            }
-            return;
-        }
-
-        // --- ACTIVE GAMEPLAY (Town or Dungeon) ---
-        if (termExitMenuBtn) termExitMenuBtn.style.display = 'none';
-        if (termRerollBtn) termRerollBtn.style.display = 'none';
-        if (birthNameBar) birthNameBar.style.display = 'none';
-
-        // Check for Action Chooser (MenuRouter pending selection)
-        const pendingState = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
-            ? window.MenuRouter.getPending()
-            : null;
-
-        if (pendingState && pendingState.step === 'chooser' && pendingState.item) {
-            const pending = pendingState;
-            terminalTitle.textContent = isHeng
-                ? hengTitle(`🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`)
-                : `🎒 ${pending.item.key}) ${pending.item.label}`;
-            if (termDpad) termDpad.style.display = 'grid';
-            const chooserRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (effFrame && effFrame.realm) || 'angband';
-            if (window.MenuRouter && typeof window.MenuRouter.renderChooserHtml === 'function') {
-                let chooserHtml = window.MenuRouter.renderChooserHtml(pending, chooserRealm);
-                if (typeof window.getShockboltSpriteCss === 'function') {
-                    const iconStyle = window.getShockboltSpriteCss('item', pending.item.label, pending.item.glyph, 32);
-                    if (iconStyle) {
-                        chooserHtml = chooserHtml.replace(/(<div class="term-chooser-header"[^>]*>)/, `$1<span class="sb-sprite-icon term-chooser-portrait" style="${iconStyle}"></span> `);
-                    }
-                }
-                setCtxActions(chooserHtml);
-            }
-            populateLetterRibbon(effFrame && effFrame.term ? effFrame.term.rows : []);
-            if (terminal && typeof terminal.setSelectedKey === 'function') {
-                terminal.setSelectedKey(pending.item.key);
-            }
-            return;
-        }
-
-        // Check for universal Yes/No prompts or Quantity prompts in active play or stores (screen-context.js promptFlags)
-        const { isYesNoPrompt, isQuantityPrompt } = SC.promptFlags(screenText);
-
-        const isPressAnyKey = screenText.includes('press any key') ||
-
-                              screenText.includes('[press any key to continue]') ||
-
-                              screenText.includes('何かキーを押して');
-
-        const isItemActions = screenText.includes('command for ') ||
-
-                              (screenText.includes('(enter to select') && screenText.includes('examine')) ||
-
-                              (isHeng && screenText.includes('に対するコマンド'));
-
-        
-
-        if (isPressAnyKey) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('📜 MESSAGE / PROMPT', '📜 MESSAGE / メッセージ', '📜 メッセージ')
-                : '📜 MESSAGE / PROMPT';
-            if (termDpad) termDpad.style.display = 'none';
-            setCtxActions(renderCtxButtons([
-                { key: 'space', badge: '[␣]', label: hengLabel('Continue', 'Continue / 続ける', '続ける'), gold: true },
-                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる') }
-            ]));
-            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-        } else if (isYesNoPrompt) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('🎴 CONFIRM ACTION [y/n]', '🎴 CONFIRM ACTION / 確認 [y/n]', '🎴 確認 [y/n]')
-                : '⚔ CONFIRM ACTION [y/n]';
-            if (termDpad) termDpad.style.display = 'none';
-            if (termCtxActions) {
-                setCtxActions(renderCtxButtons([
-                    { key: 'y', badge: '[y]', label: hengLabel('✓ Yes', '✓ Yes / はい', '✓ はい'), gold: true },
-                    { key: 'n', badge: '[n]', label: hengLabel('✕ No', '✕ No / いいえ', '✕ いいえ'), outline: true },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 取消', '⎋ 取消') }
-                ]));
-            }
-            populateLetterRibbon(null, ['y', 'n']);
-        } else if (isQuantityPrompt) {
-            terminalTitle.textContent = '📦 ENTER QUANTITY';
-            if (termDpad) termDpad.style.display = 'grid';
-            if (termCtxActions) {
-                setCtxActions(renderCtxButtons([
-                    { key: 'enter', badge: '⏎', label: 'All (Default)', gold: true },
-                    { key: '1', badge: '[1]', label: 'Just 1' },
-                    { key: '5', badge: '[5]', label: '5' },
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Cancel' }
-                ]));
-            }
-            populateLetterRibbon(null, ['1', '2', '3', '5', '10', 'enter']);
-        } else if (SC.isPopupCommandMenu && SC.isPopupCommandMenu(screenText)) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('📜 COMMAND MENU', '📜 COMMAND MENU / コマンド', '📜 コマンドメニュー')
-                : '📜 COMMAND MENU';
-            if (termDpad) termDpad.style.display = 'none';
-            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-            if (termCtxActions) {
-                setCtxActions(renderCtxButtons([
-                    { key: 'up', badge: '[▲]', label: '▲ Up' },
-                    { key: 'down', badge: '[▼]', label: '▼ Down' },
-                    { key: 'left', badge: '[◀]', label: '◀ Left' },
-                    { key: 'right', badge: '[▶]', label: '▶ Right' },
-                    { key: 'enter', badge: '[⏎]', label: '✓ Select (Enter)', gold: true },
-                    { key: 'escape', badge: '[Esc]', label: '✕ Close (Esc)', gold: true }
-                ]));
-            }
-        } else if (isStore) {
-            // Player is inside a classic store
-            if (termAdvanceBtn) termAdvanceBtn.style.display = 'none';
-            let storeName = 'STORE';
-            if (frame.term && frame.term.rows) {
-                for (let r = 0; r < Math.min(5, frame.term.rows.length); r++) {
-                    const line = (frame.term.rows[r].g || '').trim();
-                    const sm = line.match(/(General Store|Armoury|Armory|Weaponsmith|Weapon Smith|Temple|Alchemy Shop|Alchemist|Magic Shop|Magic User's|Black Market|Your Home|雑貨屋|万屋|防具屋|武器屋|寺院|錬金術の店|魔術師の店|ブラック・マーケット|我が家|博物館)/i);
-                    if (sm) {
-                        const matched = sm[1].trim();
-                        const jpToEn = {
-                            '雑貨屋': 'General Store',
-                            '万屋': 'General Store',
-                            '防具屋': 'Armoury',
-                            '武器屋': 'Weaponsmith',
-                            '寺院': 'Temple',
-                            '錬金術の店': 'Alchemy Shop',
-                            '魔術師の店': 'Magic Shop',
-                            'ブラック・マーケット': 'Black Market',
-                            '我が家': 'Your Home',
-                            '博物館': 'Museum'
-                        };
-                        storeName = jpToEn[matched] || matched;
-                        break;
-                    }
-                }
-            }
-            if (storeName === 'STORE' && isStoreFeat) {
-                const storeNames = {
-                    7: 'GENERAL STORE', 8: 'ARMOURY', 9: 'WEAPONSMITH', 10: 'TEMPLE',
-                    11: 'ALCHEMY SHOP', 12: 'MAGIC SHOP', 13: 'BLACK MARKET', 14: 'YOUR HOME'
-                };
-                if (storeNames[playerFeat]) storeName = storeNames[playerFeat];
-            }
-
-            // Store sub-state classification (screen-context.js storeFlags)
-            const { hasMore, isStoreContextMenu, isStoreBuy, isStoreSell, isStoreExamine } = SC.storeFlags(frame, screenText, isHeng);
-
-            if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling and navigating store inventory
-
-            if (isStoreContextMenu) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択')
-                    : '⚔ CHOOSE ACTION FOR ITEM';
-                const examineKey = isHeng ? 'x' : 'l';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
-                        { key: 'p', badge: '[p]', label: hengLabel('💰 Buy All', '💰 Buy All / 全て購入', '💰 全て購入'), gold: true },
-                        { key: 'o', badge: '[o]', label: hengLabel('🛒 Buy One', '🛒 Buy One / 1つ購入', '🛒 1つ購入') },
-                        { key: examineKey, badge: `[${examineKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') }
-                    ]));
-                }
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-            } else if (isStoreBuy) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)', '💰 BUY WHICH ITEM? / 購入 (Tap letter or Enter)', '💰 何を買いますか？ (文字か方向キー+Enter)')
-                    : '💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
-                        { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Buy', '⎋ Cancel / 取消', '⎋ 取消') }
-                    ]));
-                }
-                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
-            } else if (isStoreSell) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)', '🏷 SELL WHICH ITEM? / 売却 (Tap letter or Enter)', '🏷 どれを売りますか？ (文字か方向キー+Enter)')
-                    : '🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
-                        { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Sell', '⎋ Cancel / 取消', '⎋ 取消') }
-                    ]));
-                }
-                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
-            } else if (isStoreExamine) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)', '🔍 EXAMINE WHICH ITEM? / 調査 (Tap letter or Enter)', '🔍 どれを調べますか？ (文字か方向キー+Enter)')
-                    : '🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)';
-                if (termCtxActions) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
-                        { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Examine', '⎋ Cancel / 取消', '⎋ 取消') }
-                    ]));
-                }
-                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
-            } else {
-                // Top-Level Store Browsing View
-                const jpStoreNames = {
-                    'GENERAL STORE': '雑貨屋', 'ARMOURY': '防具屋', 'ARMORY': '防具屋',
-                    'WEAPONSMITH': '武器屋', 'TEMPLE': '寺院', 'ALCHEMY SHOP': '錬金術の店',
-                    'MAGIC SHOP': '魔術師の店', 'BLACK MARKET': 'ブラック・マーケット',
-                    'YOUR HOME': '我が家', 'MUSEUM': '博物館', 'STORE': '店舗'
-                };
-                const jpName = jpStoreNames[storeName.toUpperCase()] || storeName;
-                terminalTitle.textContent = isHeng
-                    ? hengTitle(`⚔ ${storeName.toUpperCase()} — BROWSE INVENTORY`, `⚔ ${storeName.toUpperCase()} (${jpName}) — INVENTORY`, `⚔ ${jpName} — 店頭の品物`)
-                    : '⚔ ' + storeName.toUpperCase() + ' — BROWSE INVENTORY';
-                const examineKey = isHeng ? 'x' : 'l';
-                if (termCtxActions) {
-                    const storeBtns = [];
-                    if (hasMore) {
-                        storeBtns.push({ key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true });
-                    }
-                    storeBtns.push(
-                        { key: 'p', badge: '[p]', label: hengLabel('💰 Buy', '💰 Buy / 購入', '💰 購入'), gold: true },
-                        { key: 's', badge: '[s]', label: hengLabel('🏷 Sell', '🏷 Sell / 売却', '🏷 売却') },
-                        { key: examineKey, badge: `[${examineKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
-                        { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('🚪 Exit Store', '🚪 Exit Store / 店を出る', '🚪 店を出る') }
-                    );
-                    setCtxActions(renderCtxButtons(storeBtns));
-                }
-                populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
-                const promptLine = (frame && frame.term && frame.term.rows && frame.term.rows[0]) ? (frame.term.rows[0].g || '') : screenText;
-                if (!/which item|examine which|buy which|purchase which|sell which|how many|accept/i.test(promptLine)) {
-                    if (termLetterRibbon) {
-                        const buyCmd = (screenText.includes('g) Get') || screenText.includes('g) Purchase') || screenText.includes('g) get') || screenText.includes('g) purchase')) ? 'g' : 'p';
-                        const btns = termLetterRibbon.querySelectorAll('.term-letter-btn');
-                        btns.forEach(b => {
-                            const k = b.dataset.key;
-                            if (k && /^[a-l]$/i.test(k)) {
-                                b.dataset.storeAutoBuy = buyCmd;
-                            }
-                        });
-                    }
-                }
-            }
-        } else if (isItemActions) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択')
-                : '⚔ CHOOSE ACTION FOR ITEM';
-            if (termDpad) termDpad.style.display = 'grid';
-            const actionRows = (effFrame && effFrame.term && Array.isArray(effFrame.term.rows)) ? effFrame.term.rows : [];
-            const extractedVerbs = (SC && typeof SC.extractItems === 'function')
-                ? SC.extractItems(actionRows, isHeng, decodeHengbandText)
-                : [];
-            const actionBtns = [
-                { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
-                ...extractedVerbs.map(v => ({ key: v.key, badge: `[${v.key}]`, label: v.label })),
-                { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '戻る') }
-            ];
-            setCtxActions(renderCtxButtons(actionBtns));
-            populateLetterRibbon(actionRows);
-        } else if (isTargeting) {
-            // Target / Direction Aiming Mode
-            terminalTitle.textContent = isHeng
-                ? hengTitle('🎯 TARGETING & AIMING', '🎯 TARGETING / 照準・位置指定', '🎯 照準・位置指定')
-                : '🎯 TARGETING & AIMING';
-            if (termDpad) termDpad.style.display = 'grid'; // 8-way directional aiming
-            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-
-            if (termCtxActions) {
-                setCtxActions(renderCtxButtons([
-                    { key: '5', badge: '[5/⏎]', label: hengLabel('🎯 Fire / Select', '🎯 Fire / 発射・選択', '🎯 発射・選択'), gold: true },
-                    { key: '*', badge: '[*]', label: hengLabel('🔍 Next Target', '🔍 Next Target / 次の対象', '🔍 次の対象') },
-                    { key: 't', badge: '[t]', label: hengLabel('📍 Nearest', '📍 Nearest / 最寄りの対象', '📍 最寄りの対象') },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Aiming', '⎋ Cancel / 取消', '⎋ 取消') }
-                ]));
-            }
-        } else if (isItemPrompt) {
-            // Item selection / inventory / equipment prompts across all realms
-            // Item sub-state classification (screen-context.js itemFlags)
-            const {
-                isSilq, isSilqInvenCmd, isSilqEquipCmd, isSilqWear, isSilqRemove, isSilqExamine,
-                isSilqDrop, isSilqThrow, isSilqFire, isEquipView, isQuiverView
-            } = SC.itemFlags(screenText, activeRealm);
-            const isSpellPrompt = Boolean(SC && SC.isSpellOrAbilityMenu && SC.isSpellOrAbilityMenu(screenText));
-            const promptLine = (frame && frame.term && frame.term.rows && frame.term.rows[0]) ? (frame.term.rows[0].g || '') : screenText;
-
-            if (isSilqInvenCmd) {
-                terminalTitle.textContent = '🎒 INVENTORY PACK (Choose action)';
-            } else if (isSilqEquipCmd) {
-                terminalTitle.textContent = '🛡 EQUIPPED GEAR (Choose action)';
-            } else if (isSilqWear || screenText.includes('wear') || screenText.includes('wield') || screenText.includes('どれを装備')) {
-                terminalTitle.textContent = isHeng ? hengTitle('⚔ WEAR / WIELD ITEM', '⚔ WEAR/WIELD / 装備', '⚔ アイテムを装備') : '⚔ WEAR / WIELD ITEM';
-            } else if (isSilqRemove || screenText.includes('take off') || screenText.includes('どれを外しますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🔄 TAKE OFF GEAR', '🔄 TAKE OFF / 装備を外す', '🔄 装備を外す') : (isSilq ? '🔄 REMOVE GEAR' : '🔄 TAKE OFF GEAR');
-            } else if (isSilqThrow || screenText.includes('throw which item?') || screenText.includes('どれを投げますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🎯 THROW ITEM', '🎯 THROW ITEM / 投擲', '🎯 アイテムを投げる') : '🎯 THROW ITEM';
-            } else if (isSilqFire || screenText.includes('fire which item?') || screenText.includes('fire') || screenText.includes('shoot') || screenText.includes('どのアイテムを発射')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🏹 FIRE / SHOOT', '🏹 FIRE / 射撃', '🏹 射撃') : '🏹 FIRE / SHOOT';
-            } else if (isSilqExamine || screenText.includes('examine which item') || screenText.includes('どれを調べますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🔍 EXAMINE ITEM', '🔍 EXAMINE / 調査', '🔍 アイテムを調べる') : '🔍 EXAMINE ITEM';
-            } else if (isSilqDrop || screenText.includes('drop which') || screenText.includes('どれを落としますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('📦 DROP ITEM', '📦 DROP / アイテムを落とす', '📦 アイテムを落とす') : '📦 DROP ITEM';
-            } else if (screenText.includes('quaff which potion?') || screenText.includes('quaff') || screenText.includes('どの薬を飲みますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🧪 QUAFF POTION', '🧪 QUAFF POTION / 飲む', '🧪 薬を飲む') : '🧪 QUAFF POTION';
-            } else if (screenText.includes('read which scroll?') || screenText.includes('read') || screenText.includes('どの巻物を読みますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('📜 READ SCROLL', '📜 READ SCROLL / 読む', '📜 巻物を読む') : '📜 READ SCROLL';
-            } else if (screenText.includes('which spell?') || screenText.includes('which prayer?') || screenText.includes('which book?') || screenText.includes('どの呪文') || screenText.includes('どの本')) {
-                terminalTitle.textContent = isHeng ? hengTitle('✨ CAST SPELL / PRAYER', '✨ CAST SPELL / 呪文詠唱', '✨ 呪文詠唱') : '✨ CAST SPELL / PRAYER';
-            } else if (isQuiverView) {
-                terminalTitle.textContent = isHeng ? hengTitle('🏹 QUIVER MISSILES', '🏹 QUIVER / 矢筒', '🏹 矢筒') : '🏹 QUIVER MISSILES';
-            } else if (isEquipView) {
-                terminalTitle.textContent = isHeng ? hengTitle('🛡 EQUIPPED GEAR', '🛡 EQUIPPED GEAR / 装備品一覧', '🛡 装備品一覧') : '🛡 EQUIPPED GEAR';
-            } else {
-                terminalTitle.textContent = isHeng ? hengTitle('🎒 INVENTORY PACK', '🎒 INVENTORY / 所持品一覧', '🎒 所持品一覧') : '🎒 INVENTORY PACK';
-            }
-
-            if (termDpad) termDpad.style.display = 'grid'; // D-pad active for scrolling and selecting items
-
-            if (termCtxActions) {
-                if (isSilqInvenCmd) {
-                    // Sil-Q Inventory Main Command Prompt: (Inventory) Command:
-                    setCtxActions(renderCtxButtons([
-                        { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
-                        { key: 'w', badge: '[w]', label: '⚔ Wear/Wield', gold: true },
-                        { key: 'e', badge: '[e]', label: '🛡 View Gear' },
-                        { key: 'x', badge: '[x]', label: '🔍 Examine' },
-                        { key: 'd', badge: '[d]', label: '📦 Drop' },
-                        { key: 'k', badge: '[k]', label: '🗑 Destroy' },
-                        { key: 'space', badge: '[␣]', label: 'Next Page' }
-                    ]));
-                } else if (isSilqEquipCmd) {
-                    // Sil-Q Equipment Main Command Prompt: (Equipment) Command:
-                    setCtxActions(renderCtxButtons([
-                        { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
-                        { key: 'r', badge: '[r]', label: '🔄 Take Off', gold: true },
-                        { key: 'i', badge: '[i]', label: '🎒 View Pack' },
-                        { key: 'x', badge: '[x]', label: '🔍 Examine' },
-                        { key: 'd', badge: '[d]', label: '📦 Drop' },
-                        { key: 'space', badge: '[␣]', label: 'Next Page' }
-                    ]));
-                } else if (isSilqWear) {
-                    // Sil-Q Wield Prompt: Wear/Wield which item?
-                    setCtxActions(renderCtxButtons([
-                        { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
-                        { key: '/', badge: '[/]', label: '🛡 Switch to Gear' },
-                        { key: '-', badge: '[-]', label: '📍 Floor' }
-                    ]));
-                } else if (isSilqRemove) {
-                    // Sil-Q Remove Prompt: Remove which item?
-                    setCtxActions(renderCtxButtons([
-                        { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
-                        { key: '/', badge: '[/]', label: '🎒 Switch to Pack' }
-                    ]));
-                } else if (isSilq) {
-                    // Other Sil-Q item selection prompts (drop, throw, examine)
-                    setCtxActions(renderCtxButtons([
-                        { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
-                        { key: '/', badge: '[/]', label: 'Switch Inven/Gear' },
-                        { key: 'space', badge: '[␣]', label: 'Next Page' }
-                    ]));
-                } else if (isSpellPrompt || /spell|prayer|book|magic|power|mindcraft|invocation|song/i.test(promptLine)) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
-                        { key: 'space', badge: '[␣]', label: '📖 Show Choices' },
-                        { key: '?', badge: '[?]', label: '❓ Spell Help' }
-                    ]));
-                } else if (isHeng) {
-                    const packLabel = isEquipView
-                        ? hengLabel('🎒 View Pack', '🎒 View Pack / 所持品', '🎒 所持品')
-                        : hengLabel('🛡 View Gear', '🛡 View Gear / 装備品', '🛡 装備品');
-                    const quiverLabel = isQuiverView
-                        ? hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品')
-                        : hengLabel('🏹 Quiver', '🏹 Quiver / 矢筒', '🏹 矢筒');
-                    setCtxActions(renderCtxButtons([
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる'), gold: true },
-                        { key: '/', badge: '[/]', label: packLabel },
-                        { key: '|', badge: '[|]', label: quiverLabel },
-                        { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') }
-                    ]));
-                } else {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
-                        { key: '/', badge: '[/]', label: isEquipView ? '🎒 View Pack' : '🛡 View Gear' },
-                        { key: '|', badge: '[|]', label: isQuiverView ? '🎒 Pack' : '🏹 Quiver' },
-                        { key: 'space', badge: '[␣]', label: 'Next Page' }
-                    ]));
-                }
-            }
-            populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
-        } else if (SC && SC.isCharacterSheet && SC.isCharacterSheet(screenText)) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('📜 CHARACTER SHEET — Hero Status', '📜 CHARACTER SHEET / キャラクター情報', '📜 キャラクター情報')
-                : '📜 CHARACTER SHEET — Hero Status & Attributes';
-            if (termDpad) termDpad.style.display = 'none';
-            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-            if (termCtxActions) {
-                const charBtns = [
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Return to 3D', '⎋ Return / 戻る', '⎋ 戻る'), gold: true },
-                    { key: 'h', badge: '[h]', label: hengLabel('📖 History / Mode', '📖 History / 履歴切替', '📖 履歴 / 画面切替'), gold: true },
-                    { key: 'f', badge: '[f]', label: hengLabel('💾 Dump Char File', '💾 Dump / ファイル出力', '💾 ファイル出力') },
-                    { key: activeRealm === 'silq' ? 'n' : 'c', badge: activeRealm === 'silq' ? '[n]' : '[c]', label: hengLabel('✎ Change Name', '✎ Name / 名前変更', '✎ 名前変更') }
-                ];
-                if (activeRealm === 'silq') {
-                    charBtns.push({ key: 'tab', badge: '[Tab]', label: '🌟 Ability Tree', gold: true });
-                }
-                setCtxActions(renderCtxButtons(charBtns));
-            }
-        } else if (SC && SC.isSpellOrAbilityMenu && SC.isSpellOrAbilityMenu(screenText)) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('✨ GRIMOIRE & ABILITIES — Choose Spell or Power', '✨ GRIMOIRE / 呪文・技能の選択', '✨ 呪文・技能の選択')
-                : (activeRealm === 'silq' ? '✨ SONGS, ABILITIES & SMITHING' : '✨ GRIMOIRE & POWERS — Select Spell or Ability');
-            if (termDpad) termDpad.style.display = activeRealm === 'silq' ? 'grid' : 'none';
-            if (termCtxActions) {
-                setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 戻る', '⎋ 戻る'), gold: true },
-                    { key: 'up', badge: '[↑]', label: '▲ Up' },
-                    { key: 'down', badge: '[↓]', label: '▼ Down' },
-                    { key: 'left', badge: '[←]', label: '◀ Prev' },
-                    { key: 'right', badge: '[→]', label: '▶ Next' },
-                    { key: 'enter', badge: '[↵]', label: hengLabel('✓ Confirm / Select', '✓ Select / 決定', '✓ 決定'), gold: true },
-                    { key: 'space', badge: '[␣]', label: hengLabel('Page / Info', 'Page / 次頁', '次頁') }
-                ]));
-            }
-            populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
-        } else if (SC && SC.isKnowledgeOrOptions && SC.isKnowledgeOrOptions(screenText)) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('📚 KNOWLEDGE, OPTIONS & ARCHIVES', '📚 ARCHIVES / 知識・オプション', '📚 知識・オプション設定')
-                : '📚 KNOWLEDGE, OPTIONS & ARCHIVES';
-            if (termDpad) termDpad.style.display = 'none';
-            if (termCtxActions) {
-                setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back / Exit', '⎋ Back / 戻る', '⎋ 戻る'), gold: true },
-                    { key: 'up', badge: '[↑]', label: '▲ Up' },
-                    { key: 'down', badge: '[↓]', label: '▼ Down' },
-                    { key: 'enter', badge: '[↵]', label: hengLabel('✓ Select / Toggle', '✓ Select / 選択', '✓ 選択'), gold: true },
-                    { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次頁') },
-                    { key: 'y', badge: '[y]', label: 'Yes / On' },
-                    { key: 'n', badge: '[n]', label: 'No / Off' }
-                ]));
-            }
-            populateLetterRibbon(frame && frame.term ? frame.term.rows : []);
-        } else {
-            // Classic Dungeon View (Walking around in 2D classic grid)
-            const realmTitles = {
-                'silq': '💍 SIL-Q CLASSIC TERMINAL',
-                'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL',
-                'hengband': '🎴 HENGBAND CLASSIC TERMINAL',
-                'angband': '⚔ ANGBAND CLASSIC TERMINAL'
-            };
-            terminalTitle.textContent = isHeng
-                ? hengTitle('🎴 HENGBAND CLASSIC TERMINAL', '🎴 HENGBAND — Classic View / クラシック端末', '🎴 変愚蛮怒 — クラシック端末')
-                : (realmTitles[activeRealm] || '⚔ ANGBAND CLASSIC TERMINAL');
-            if (termEscapeBtn) {
-                termEscapeBtn.style.display = 'inline-flex';
-                termEscapeBtn.textContent = isHeng ? hengLabel('🎮 3D View', '🎮 3D View / 3D画面', '🎮 3D画面') : '🎮 3D View';
-            }
-            if (termDpad) termDpad.style.display = 'grid'; // 8-way movement
-            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-
-            const hasMore = Boolean(frame && frame.ui && frame.ui.more) || screenText.includes('-more-');
-
-            if (termCtxActions) {
-                if (hasMore) {
-                    setCtxActions(renderCtxButtons([
-                        { key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true },
-                        { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Dismiss', '⎋ Dismiss / 閉じる', '⎋ 閉じる') }
-                    ]));
-                } else {
-                    const effRealm = activeRealm || 'angband';
-                    const keyFor = (v) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
-                        ? RealmKeys.realmKey(v, effRealm)
-                        : null;
-
-                    const btns = [
-                        { key: 'tab', badge: '⛶', label: hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)'), gold: true, extraCls: 'term-action-key' },
-                        { key: 'g', badge: '[g]', label: hengLabel('🤚 Get', '🤚 Get / 拾う', '🤚 拾う'), extraCls: 'term-action-key' }
-                    ];
-
-                    const packKey = keyFor('inven') || 'i';
-                    btns.push({ key: packKey, label: hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品'), extraCls: 'term-action-key' });
-
-                    const equipKey = keyFor('equip') || 'e';
-                    btns.push({ key: equipKey, label: hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備'), extraCls: 'term-action-key' });
-
-                    btns.push({ key: '>', badge: '[>]', label: hengLabel('⬇ Stairs', '⬇ Stairs / 階段', '⬇ 階段'), extraCls: 'term-action-key' });
-                    btns.push({ key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー'), extraCls: 'term-action-key' });
-
-                    if (effRealm === 'silq') {
-                        btns.push({ key: 'w', label: '⚔ Wield', extraCls: 'term-action-key' });
-                        btns.push({ key: 'r', label: '🔄 Take Off', extraCls: 'term-action-key' });
-                        const throwKey = keyFor('throw');
-                        if (throwKey) btns.push({ key: throwKey, label: '🎯 Throw', extraCls: 'term-action-key' });
-                        const fireKey = keyFor('fire');
-                        if (fireKey) btns.push({ key: fireKey, label: '🏹 Fire', extraCls: 'term-action-key' });
-                    }
-
-                    const powerKey = keyFor('power');
-                    if (powerKey) {
-                        btns.push({ key: powerKey, label: hengLabel('🔮 Power', '🔮 Power / 特殊能力', '🔮 特殊能力'), extraCls: 'term-action-key' });
-                    }
-
-                    const overlandKey = keyFor('overland');
-                    if (overlandKey) {
-                        btns.push({ key: overlandKey, label: hengLabel('🗺️ Map', '🗺️ Map / 広域', '🗺️ 広域'), extraCls: 'term-action-key' });
-                    }
-
-                    const questsKey = keyFor('quests');
-                    if (questsKey) {
-                        btns.push({ key: questsKey, label: hengLabel('📜 Quests', '📜 Quests / クエスト', '📜 クエスト'), extraCls: 'term-action-key' });
-                    }
-
-                    const skillsKey = keyFor('skills');
-                    if (skillsKey) {
-                        const skillsDisplay = (skillsKey === 'tab') ? 'Tab' : skillsKey;
-                        const dataKeyVal = (skillsKey === 'tab') ? 'tab' : skillsKey;
-                        btns.push({ key: dataKeyVal, badge: `[${skillsDisplay}]`, label: '🌳 Skills', extraCls: 'term-action-key' });
-                    }
-
-                    const castKey = keyFor('cast');
-                    if (castKey) {
-                        const castName = (effRealm === 'silq') ? '🎵 Song' : hengLabel('✨ Cast', '✨ Cast / 呪文', '✨ 呪文');
-                        btns.push({ key: castKey, label: castName, extraCls: 'term-action-key' });
-                    }
-
-                    const restKey = keyFor('rest');
-                    if (restKey) {
-                        btns.push({ key: restKey, label: hengLabel('⏳ Rest', '⏳ Rest / 休息', '⏳ 休息'), extraCls: 'term-action-key' });
-                    }
-
-                    setCtxActions(renderCtxButtons(btns));
-                }
-            }
-        }
-
+        // Grimoire Deck Rendering
         if (grimoireContainer && window.RealmGrimoireDeck) {
             if (skipScraping) {
                 if (typeof window.RealmGrimoireDeck.hide === 'function') {
@@ -5583,99 +5212,99 @@ window.addEventListener('DOMContentLoaded', () => {
                     if (gToggleBtn) gToggleBtn.style.display = 'none';
                 }
             } else if (typeof window.RealmGrimoireDeck.render === 'function') {
-                const effRealm = activeRealm || (effFrame && effFrame.realm) || 'angband';
-                const gClassifier = (SC && typeof SC.classify === 'function')
-                    ? SC.classify(effFrame, effRealm, { decode: decodeHengbandText })
-                    : {};
+                const gClassifier = (model && model.legacy) || ((SC && typeof SC.classify === 'function')
+                    ? SC.classify(effFrame, curRealm, { decode: decodeHengbandText })
+                    : {});
                 const gSubmenu = (SC && typeof SC.detectRealmSubmenu === 'function')
-                    ? SC.detectRealmSubmenu(effFrame, effRealm, decodeHengbandText)
+                    ? SC.detectRealmSubmenu(effFrame, curRealm, decodeHengbandText)
                     : {};
-                const gItems = (SC && typeof SC.extractMultiColumnItems === 'function' && effFrame && effFrame.term && Array.isArray(effFrame.term.rows))
+                const gItems = (model && model.regions && model.regions.length) ? model.regions :
+                    ((SC && typeof SC.extractMultiColumnItems === 'function' && effFrame.term && Array.isArray(effFrame.term.rows))
                     ? SC.extractMultiColumnItems(effFrame.term.rows, isHeng, decodeHengbandText)
-                    : [];
-                const gActive = window.RealmGrimoireDeck.render(grimoireContainer, {
-                    promptText: (effFrame && effFrame.term && effFrame.term.rows && effFrame.term.rows[0] && effFrame.term.rows[0].g) ? decodeHengbandText(effFrame.term.rows[0].g).trim() : '',
-                    realm: effRealm,
+                    : []);
+                window.RealmGrimoireDeck.render(grimoireContainer, {
+                    promptText: (effFrame.term && effFrame.term.rows && effFrame.term.rows[0] && effFrame.term.rows[0].g) ? decodeHengbandText(effFrame.term.rows[0].g).trim() : '',
+                    realm: curRealm,
                     lang: isHeng ? langMode : 'en',
                     classifier: gClassifier,
                     submenu: gSubmenu,
                     items: gItems,
                     onAction: (act) => {
-                    if (!act) return;
-                    if (audio && typeof audio.unlock === 'function') audio.unlock();
-                    if (audio && typeof audio.playParchmentTurn === 'function') {
-                        audio.playParchmentTurn();
-                    } else if (audio && typeof audio.playMenuNav === 'function') {
-                        audio.playMenuNav();
-                    }
-                    if (act.type === 'toggle-mode') {
-                        updateTerminalToolbar(effFrame);
-                        return;
-                    }
-                    if (act.type === 'bind-quick-slot') {
-                        if (window.QuickActionManager && typeof window.QuickActionManager.bindFromGrimoire === 'function') {
-                            window.QuickActionManager.bindFromGrimoire(act, effFrame, effRealm, showRealmToast);
+                        if (!act) return;
+                        if (audio && typeof audio.unlock === 'function') audio.unlock();
+                        if (audio && typeof audio.playParchmentTurn === 'function') {
+                            audio.playParchmentTurn();
+                        } else if (audio && typeof audio.playMenuNav === 'function') {
+                            audio.playMenuNav();
                         }
-                        return;
-                    }
-                    if (act.type === 'switch-view' && act.key) {
-                        if (act.key === '|') {
-                            network.sendKey('|');
-                        } else {
-                            network.sendKey('/');
+                        if (act.type === 'toggle-mode') {
+                            updateTerminalToolbar(effFrame);
+                            return;
                         }
-                        return;
-                    }
-                    if (act.type === 'raw-key' && act.key) {
-                        network.sendKey(act.key);
-                        return;
-                    }
-                    if (act.type === 'pillar-step') {
-                        network.sendKey('right');
-                        return;
-                    }
-                    if ((act.type === 'item-primary' || act.type === 'item-verb') && act.key) {
-                        if (act.verb) {
-                            const isStoreMenu = Boolean(gClassifier.isStore || gClassifier.isStoreScreen);
-                            if (isStoreMenu) {
-                                if (network && typeof network.sendCommand === 'function') {
-                                    network.sendCommand('keys ' + act.verb + act.key);
-                                } else {
-                                    network.sendKey(act.verb);
-                                    network.sendKey(act.key);
-                                }
-                                return;
+                        if (act.type === 'bind-quick-slot') {
+                            if (window.QuickActionManager && typeof window.QuickActionManager.bindFromGrimoire === 'function') {
+                                window.QuickActionManager.bindFromGrimoire(act, effFrame, curRealm, showRealmToast);
                             }
-                            if (window.MenuRouter && typeof window.MenuRouter.buildInventoryVerbSequence === 'function') {
-                                const isInvenOrEquip = Boolean(
-                                    gClassifier.isInventoryScreen ||
-                                    gClassifier.isEquipScreen ||
-                                    (gClassifier.mode === 'item-list' && (gClassifier.listKind === 'inven' || gClassifier.listKind === 'equip'))
-                                );
-                                const fromPassiveAngband = (effRealm === 'angband') && !gClassifier.verbPrompt && isInvenOrEquip;
-                                const fromPassiveFcb = (effRealm === 'frogcomposband') && !gClassifier.verbPrompt && isInvenOrEquip;
-                                const seq = window.MenuRouter.buildInventoryVerbSequence(act.verb, act.key, {
-                                    realm: effRealm,
-                                    fromPassiveAngbandList: fromPassiveAngband,
-                                    fromPassiveFcbList: fromPassiveFcb
-                                });
-                                if (seq.length > 0 && network && typeof network.sendCommand === 'function') {
-                                    network.sendCommand('keys ' + seq.map(k => k === 'Escape' ? '\x1b' : k).join(''));
+                            return;
+                        }
+                        if (act.type === 'switch-view' && act.key) {
+                            network.sendKey(act.key === '|' ? '|' : '/');
+                            return;
+                        }
+                        if (act.type === 'raw-key' && act.key) {
+                            network.sendKey(act.key);
+                            return;
+                        }
+                        if (act.type === 'pillar-step') {
+                            network.sendKey('right');
+                            return;
+                        }
+                        if ((act.type === 'item-primary' || act.type === 'item-verb') && act.key) {
+                            if (act.verb) {
+                                const isStoreMenu = Boolean(gClassifier.isStore || gClassifier.isStoreScreen);
+                                if (isStoreMenu) {
+                                    if (dispatcher && typeof dispatcher.run === 'function') {
+                                        dispatcher.run({ verb: 'store_buy', item: act.key, qty: 1 });
+                                    } else {
+                                        network.sendKey(act.verb);
+                                        network.sendKey(act.key);
+                                    }
+                                    return;
+                                }
+                                if (window.MenuRouter && typeof window.MenuRouter.buildInventoryVerbSequence === 'function') {
+                                    const isInvenOrEquip = Boolean(
+                                        gClassifier.isInventoryScreen ||
+                                        gClassifier.isEquipScreen ||
+                                        (gClassifier.mode === 'item-list' && (gClassifier.listKind === 'inven' || gClassifier.listKind === 'equip'))
+                                    );
+                                    const fromPassiveAngband = (curRealm === 'angband') && !gClassifier.verbPrompt && isInvenOrEquip;
+                                    const fromPassiveFcb = (curRealm === 'frogcomposband') && !gClassifier.verbPrompt && isInvenOrEquip;
+                                    const seq = window.MenuRouter.buildInventoryVerbSequence(act.verb, act.key, {
+                                        realm: curRealm,
+                                        fromPassiveAngbandList: fromPassiveAngband,
+                                        fromPassiveFcbList: fromPassiveFcb
+                                    });
+                                    if (seq.length > 0) {
+                                        if (dispatcher && typeof dispatcher.run === 'function') {
+                                            dispatcher.run({ keys: seq });
+                                        } else {
+                                            seq.forEach(k => network.sendKey(k === 'Escape' ? 'escape' : k));
+                                        }
+                                        return;
+                                    }
+                                }
+                            }
+                            if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
+                                if (window.MenuRouter.route(act.key, effFrame, curRealm)) {
+                                    updateTerminalToolbar(effFrame);
+                                    if (effFrame.term) terminal.render(effFrame.term);
                                     return;
                                 }
                             }
+                            network.sendKey(act.key);
                         }
-                        if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
-                            if (window.MenuRouter.route(act.key, effFrame, effRealm)) {
-                                updateTerminalToolbar(effFrame);
-                                if (effFrame && effFrame.term) terminal.render(effFrame.term);
-                                return;
-                            }
-                        }
-                        network.sendKey(act.key);
                     }
-                }
-            });
+                });
             }
         }
     }
