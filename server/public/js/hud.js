@@ -101,6 +101,7 @@ class WebHUD {
         this.setupDeathModal();
         this.setupMessageFeed();
         this.initUniversalMovableHud();
+        this.setDockPreset();
 
         // Offscreen canvas cache for static minimap tiles (eliminates hundreds of fillText calls per frame on turn)
         this.minimapTileCanvas = document.createElement('canvas');
@@ -1282,6 +1283,101 @@ class WebHUD {
     }
 
     /* -------------------------------------------------------------
+     * Action Dock Presets (WS42.5D: 'full', 'compact', 'wasd')
+     * ------------------------------------------------------------- */
+    setDockPreset(preset) {
+        const VALID = ['full', 'compact', 'wasd'];
+        let target = preset;
+        if (!VALID.includes(target)) {
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    const saved = localStorage.getItem('angband3d_dock_preset');
+                    if (VALID.includes(saved)) target = saved;
+                }
+            } catch (_) {}
+        }
+        if (!VALID.includes(target)) {
+            let hasExisting = false;
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    hasExisting = Boolean(
+                        localStorage.getItem('angband3d_active_realm') ||
+                        localStorage.getItem('angband3d_lang_mode') ||
+                        localStorage.getItem('angband3d_hud_layout_v2') ||
+                        localStorage.getItem('angband3d_session_id') ||
+                        localStorage.getItem('angband3d_wasd_mode') ||
+                        localStorage.getItem('angband3d_volume')
+                    );
+                }
+            } catch (_) {}
+            target = hasExisting ? 'full' : 'compact';
+        }
+
+        this.dockPreset = target;
+        try {
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('angband3d_dock_preset', target);
+            }
+        } catch (_) {}
+
+        const actionBar = document.getElementById('action-bar');
+        if (actionBar) {
+            actionBar.dataset.dockPreset = target;
+            actionBar.classList.remove('dock-preset-full', 'dock-preset-compact', 'dock-preset-wasd');
+            actionBar.classList.add('dock-preset-' + target);
+
+            const wasdActive = Boolean(
+                target === 'wasd' ||
+                (window.__app && window.__app.input && window.__app.input.wasdMode) ||
+                (typeof localStorage !== 'undefined' && localStorage.getItem('angband3d_wasd_mode') === '1')
+            );
+
+            const wasdSockets = ['btn-wield', 'btn-drop', 'btn-search'];
+            const nonCore = ['btn-door', 'btn-pickup', 'btn-equipment', 'btn-browse', 'btn-study', 'btn-quests'];
+
+            if (target === 'full') {
+                for (const id of [...nonCore, ...wasdSockets]) {
+                    const btn = document.getElementById(id);
+                    if (btn && btn.dataset && btn.dataset.dockHidden) {
+                        delete btn.dataset.dockHidden;
+                        if (btn.style && btn.style.display === 'none' && !btn.dataset.contextHidden && !btn.dataset.realmHidden) {
+                            btn.style.display = '';
+                        }
+                    }
+                }
+            } else {
+                for (const id of nonCore) {
+                    const btn = document.getElementById(id);
+                    if (btn) {
+                        if (btn.dataset) btn.dataset.dockHidden = '1';
+                        if (btn.style) btn.style.display = 'none';
+                    }
+                }
+                for (const id of wasdSockets) {
+                    const btn = document.getElementById(id);
+                    if (btn) {
+                        if (wasdActive) {
+                            if (btn.dataset) delete btn.dataset.dockHidden;
+                            if (btn.style && !btn.dataset.contextHidden && !btn.dataset.realmHidden) btn.style.display = '';
+                        } else {
+                            if (btn.dataset) btn.dataset.dockHidden = '1';
+                            if (btn.style) btn.style.display = 'none';
+                        }
+                    }
+                }
+            }
+
+            const cluster = document.getElementById('wasd-shadow-cluster');
+            if (cluster) cluster.style.display = wasdActive ? 'flex' : 'none';
+        }
+
+        if (typeof window !== 'undefined' && typeof window.__updateActionBarOverflow === 'function') {
+            window.__updateActionBarOverflow();
+        }
+        return target;
+    }
+
+    /* -------------------------------------------------------------
      * Continuous 60 FPS Camera Yaw Integration (Compass & Minimap)
      * ------------------------------------------------------------- */
     onCameraTurn(yaw) {
@@ -1327,11 +1423,6 @@ class WebHUD {
     updateTargetInspector(player, realm, frameOpt) {
         const rawReticleCard = this.reticleTargetCard || document.getElementById('reticle-target-card');
         if (rawReticleCard) { rawReticleCard.style.display = 'none'; rawReticleCard.classList.add('hidden'); }
-        const reticleCard = null;
-        const targetCardName = document.getElementById('target-card-name');
-        const targetCardTier = document.getElementById('target-card-tier');
-        const targetCardHpFill = document.getElementById('target-card-hp-fill');
-        const targetCardAffinities = document.getElementById('target-card-affinities');
 
         const frame = frameOpt || this.lastFrame;
         const pl = player || (frame ? frame.player : null);
@@ -1358,135 +1449,14 @@ class WebHUD {
                 if (typeof window.getShockboltSpriteCss === 'function') {
                     const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
                     if (iconStyle) {
-                        portraitHtml = `<span class="sb-sprite-icon hud-target-portrait" style="${iconStyle}"></span> `;
+                        portraitHtml = '<span class="sb-sprite-icon hud-target-portrait" style="' + iconStyle + '"></span> ';
                     }
                 }
-                this.footerTarget.innerHTML = `${portraitHtml}⚔ ${esc(tName)} (${pct}%)`;
-            }
-
-            if (reticleCard) {
-                reticleCard.style.display = 'block';
-                reticleCard.classList.remove('hidden');
-
-                if (targetCardName) {
-                    let portraitHtml = '';
-                    if (typeof window.getShockboltSpriteCss === 'function') {
-                        const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
-                        if (iconStyle) {
-                            portraitHtml = `<span class="sb-sprite-icon hud-target-portrait" style="${iconStyle}"></span> `;
-                        }
-                    }
-                    targetCardName.innerHTML = `${portraitHtml}${esc(tName)}`;
-                }
-
-                if (targetCardTier) {
-                    const isUnique = !!(t.unique || (t.tier && String(t.tier).toLowerCase() === 'unique') || (t.flags && t.flags.unique));
-                    const tierText = isUnique ? 'Unique' : (t.tier || 'Monster');
-                    targetCardTier.textContent = tierText;
-                    targetCardTier.className = `target-card-tier ${isUnique ? 'badge-unique' : 'badge-monster'}`;
-                }
-
-                if (targetCardHpFill) {
-                    targetCardHpFill.style.width = `${pct}%`;
-                    targetCardHpFill.style.setProperty('--target-hp-pct', `${pct}%`);
-                }
-
-                if (targetCardAffinities) {
-                    let affHtml = '';
-                    if (Array.isArray(t.affinities) && t.affinities.length > 0) {
-                        affHtml = t.affinities.map(a => `<span class="target-affinity-chip">${esc(String(a))}</span>`).join('');
-                    } else if (t.status) {
-                        affHtml = `<span class="target-affinity-chip">${esc(String(t.status))}</span>`;
-                    } else if (t.speed !== undefined && t.speed !== 0) {
-                        affHtml = `<span class="target-affinity-chip">Spd ${t.speed > 0 ? '+' : ''}${esc(String(t.speed))}</span>`;
-                    }
-                    targetCardAffinities.innerHTML = affHtml;
-                }
+                this.footerTarget.innerHTML = portraitHtml + '⚔ ' + esc(tName) + ' (' + pct + '%)';
             }
         } else {
-            // When t is null/empty or not valid, before hiding, check if frame.monsters has any visible hostile monster within 10 tiles of player
-            let fallbackMonster = null;
-            const px = pl ? pl.x : (frame && frame.player ? frame.player.x : undefined);
-            const py = pl ? pl.y : (frame && frame.player ? frame.player.y : undefined);
-            const monsters = (frame && Array.isArray(frame.monsters)) ? frame.monsters : null;
-
-            if (px !== undefined && py !== undefined && monsters && monsters.length > 0) {
-                let closestDist = Infinity;
-                for (const m of monsters) {
-                    if (!m || !m.name) continue;
-                    if (/townsperson|shopkeeper|citizen|villager|guide/i.test(m.name)) continue;
-                    if (m.visible === false || m.asleep || m.csleep) continue;
-                    const dx = m.x - px;
-                    const dy = m.y - py;
-                    const dist = Math.hypot(dx, dy);
-                    if (dist <= 1.5 && dist < closestDist) {
-                        closestDist = dist;
-                        fallbackMonster = m;
-                    }
-                }
-            }
-
-            if (fallbackMonster) {
-                const m = fallbackMonster;
-                const hp_pct = (m.maxhp > 0 ? Math.round((m.hp / m.maxhp) * 100) : (m.hp_pct !== undefined ? m.hp_pct : (m.pct !== undefined ? m.pct : 100)));
-                const synthTarget = {
-                    active: true,
-                    x: m.x,
-                    y: m.y,
-                    name: m.name,
-                    hp_pct: hp_pct,
-                    pct: hp_pct,
-                    status: m.status || m.desc || 'Nearby Threat',
-                    glyph: m.c || m.glyph,
-                    attr: m.a || m.attr,
-                    unique: m.unique
-                };
-
-                let tName = synthTarget.name;
-                const lang = window.__langMode || 'en';
-                if (realm === 'hengband' && typeof window.getLocalizedMonsterName === 'function') {
-                    tName = window.getLocalizedMonsterName(tName, 'hengband', lang);
-                }
-
-                if (reticleCard) {
-                    reticleCard.style.display = 'block';
-                    reticleCard.classList.remove('hidden');
-
-                    if (targetCardName) {
-                        let portraitHtml = '';
-                        if (typeof window.getShockboltSpriteCss === 'function') {
-                            const iconStyle = window.getShockboltSpriteCss('monster', synthTarget.name, synthTarget.glyph || null, 36);
-                            if (iconStyle) {
-                                portraitHtml = `<span class="sb-sprite-icon hud-target-portrait" style="${iconStyle}"></span> `;
-                            }
-                        }
-                        targetCardName.innerHTML = `${portraitHtml}${esc(tName)}`;
-                    }
-
-                    if (targetCardTier) {
-                        const isUnique = !!(synthTarget.unique);
-                        const tierText = isUnique ? 'Unique' : 'Monster';
-                        targetCardTier.textContent = tierText;
-                        targetCardTier.className = `target-card-tier ${isUnique ? 'badge-unique' : 'badge-monster'}`;
-                    }
-
-                    if (targetCardHpFill) {
-                        targetCardHpFill.style.width = `${hp_pct}%`;
-                        targetCardHpFill.style.setProperty('--target-hp-pct', `${hp_pct}%`);
-                    }
-
-                    if (targetCardAffinities) {
-                        targetCardAffinities.innerHTML = `<span class="target-affinity-chip">${esc(synthTarget.status)}</span>`;
-                    }
-                }
-            } else {
-                if (this.footerTarget) {
-                    this.footerTarget.style.display = 'none';
-                }
-                if (reticleCard) {
-                    reticleCard.style.display = 'none';
-                    reticleCard.classList.add('hidden');
-                }
+            if (this.footerTarget) {
+                this.footerTarget.style.display = 'none';
             }
         }
     }
@@ -1916,153 +1886,10 @@ class WebHUD {
             if (this.spLabel) this.spLabel.textContent = defaultSp;
         }
 
-        // 3. Quick Action Bar Buttons
-        const actionButtons = {
-            'btn-attack': {
-                en: '⚔ Attack <kbd>Space</kbd>',
-                bi: '⚔ Attack (攻撃) <kbd>Space</kbd>',
-                jp: '⚔ 攻撃 <kbd>Space</kbd>'
-            },
-            'btn-throw': {
-                en: '🎯 Throw <kbd>v</kbd>',
-                bi: '🎯 Throw (投擲) <kbd>v</kbd>',
-                jp: '🎯 投擲 <kbd>v</kbd>'
-            },
-            'btn-fire': {
-                en: '🏹 Shoot <kbd>f</kbd>',
-                bi: '🏹 Shoot (射撃) <kbd>f</kbd>',
-                jp: '🏹 射撃 <kbd>f</kbd>'
-            },
-            'btn-cast': {
-                en: '✨ Cast <kbd>m</kbd>',
-                bi: '✨ Cast (呪文) <kbd>m</kbd>',
-                jp: '✨ 呪文 <kbd>m</kbd>'
-            },
-            'btn-skills': {
-                en: '📜 Skills <kbd>N</kbd>',
-                bi: '📜 Skills (特技) <kbd>N</kbd>',
-                jp: '📜 特技 <kbd>N</kbd>'
-            },
-            'btn-power': {
-                en: '🔮 Power <kbd>U</kbd>',
-                bi: '🔮 Power (能力) <kbd>U</kbd>',
-                jp: '🔮 能力 <kbd>U</kbd>'
-            },
-            'btn-overland': {
-                en: '🗺️ Map <kbd>O</kbd>',
-                bi: '🗺️ Map (地図) <kbd>O</kbd>',
-                jp: '🗺️ 地図 <kbd>O</kbd>'
-            },
-            'btn-quests': {
-                en: '📜 Quests <kbd>Q</kbd>',
-                bi: '📜 Quests (任務) <kbd>Q</kbd>',
-                jp: '📜 任務 <kbd>Q</kbd>'
-            },
-            'btn-browse': {
-                en: '📖 Browse <kbd>b</kbd>',
-                bi: '📖 Browse (閲覧) <kbd>b</kbd>',
-                jp: '📖 閲覧 <kbd>b</kbd>'
-            },
-            'btn-study': {
-                en: '✨ Study <kbd>G</kbd>',
-                bi: '✨ Study (学習) <kbd>G</kbd>',
-                jp: '✨ 学習 <kbd>G</kbd>'
-            },
-            'btn-quaff': {
-                en: '🧪 Potion <kbd>q</kbd>',
-                bi: '🧪 Potion (薬飲) <kbd>q</kbd>',
-                jp: '🧪 薬飲 <kbd>q</kbd>'
-            },
-            'btn-read': {
-                en: '📜 Scroll <kbd>r</kbd>',
-                bi: '📜 Scroll (巻読) <kbd>r</kbd>',
-                jp: '📜 巻読 <kbd>r</kbd>'
-            },
-            'btn-door': {
-                en: '🚪 Door <kbd>o</kbd>',
-                bi: '🚪 Door (開閉) <kbd>o</kbd>',
-                jp: '🚪 開閉 <kbd>o</kbd>'
-            },
-            'btn-pickup': {
-                en: '💎 Get <kbd>g</kbd>',
-                bi: '💎 Get (拾う) <kbd>g</kbd>',
-                jp: '💎 拾う <kbd>g</kbd>'
-            },
-            'btn-rest': {
-                en: '⏳ Rest <kbd>R</kbd>',
-                bi: '⏳ Rest (休息) <kbd>R</kbd>',
-                jp: '⏳ 休息 <kbd>R</kbd>'
-            },
-            'btn-inventory': {
-                en: '🎒 Pack <kbd>i</kbd>',
-                bi: '🎒 Pack (持物) <kbd>i</kbd>',
-                jp: '🎒 持物 <kbd>i</kbd>'
-            },
-            'btn-equipment': {
-                en: '🛡 Gear <kbd>e</kbd>',
-                bi: '🛡 Gear (装備) <kbd>e</kbd>',
-                jp: '🛡 装備 <kbd>e</kbd>'
-            },
-            'btn-wield': {
-                en: '⚔ Wield <kbd>w</kbd>',
-                bi: '⚔ Wield (装備) <kbd>w</kbd>',
-                jp: '⚔ 装備 <kbd>w</kbd>'
-            },
-            'btn-drop': {
-                en: '📦 Drop <kbd>d</kbd>',
-                bi: '📦 Drop (落とす) <kbd>d</kbd>',
-                jp: '📦 落とす <kbd>d</kbd>'
-            },
-            'btn-search': {
-                en: '🔍 Search <kbd>s</kbd>',
-                bi: '🔍 Search (探索) <kbd>s</kbd>',
-                jp: '🔍 探索 <kbd>s</kbd>'
-            },
-            'btn-wasd-toggle': {
-                en: '⌨ WASD',
-                bi: '⌨ WASD',
-                jp: '⌨ WASD'
-            },
-            'btn-terminal': {
-                en: '📜 Classic <kbd>Tab</kbd>',
-                bi: '📜 Classic (端末) <kbd>Tab</kbd>',
-                jp: '📜 端末 <kbd>Tab</kbd>'
-            },
-            'btn-guide-hud': {
-                en: '❓ Help <kbd>?</kbd>',
-                bi: '❓ Help (案内) <kbd>?</kbd>',
-                jp: '❓ 案内 <kbd>?</kbd>'
-            },
-            'btn-command-palette': {
-                en: '<span class="btn-icon">▤</span><span class="btn-label">Actions ▾</span><kbd>Ctrl+K</kbd>',
-                bi: '<span class="btn-icon">▤</span><span class="btn-label">Actions (指令) ▾</span><kbd>Ctrl+K</kbd>',
-                jp: '<span class="btn-icon">▤</span><span class="btn-label">指令 ▾</span><kbd>Ctrl+K</kbd>'
-            },
-            'btn-action-more': {
-                en: '⋯ More',
-                bi: '⋯ More (他)',
-                jp: '⋯ 他'
-            }
-        };
-
-        const isSilq = realm === 'silq';
-        for (const [id, trans] of Object.entries(actionButtons)) {
-            const btn = document.getElementById(id);
-            if (btn) {
-                if (isSilq) {
-                    if (id === 'btn-throw') btn.innerHTML = '🎯 Throw <kbd>t</kbd>';
-                    else if (id === 'btn-cast') btn.innerHTML = '🎵 Song <kbd>s</kbd>';
-                    else if (id === 'btn-skills') btn.innerHTML = '📜 Skills <kbd>Tab</kbd>';
-                    else if (id === 'btn-rest') btn.innerHTML = '⏳ Rest <kbd>%</kbd>';
-                    else btn.innerHTML = trans.en;
-                } else if (isHeng && lang === 'jp') {
-                    btn.innerHTML = trans.jp;
-                } else if (isHeng && lang === 'bilingual') {
-                    btn.innerHTML = trans.bi;
-                } else {
-                    btn.innerHTML = trans.en;
-                }
-            }
+        // 3. Quick Action Bar Buttons (CMD-P2-07: delegated to RealmKeys.applyLabels)
+        const realmKeys = (typeof RealmKeys !== 'undefined' ? RealmKeys : (typeof window !== 'undefined' ? window.RealmKeys : null));
+        if (realmKeys && typeof realmKeys.applyLabels === 'function') {
+            realmKeys.applyLabels(document, realm, lang);
         }
 
         // 4. Run Mode Toggle Button Texts
@@ -2080,31 +1907,11 @@ class WebHUD {
 
         // 5. Terminal Toolbar Buttons
         const termButtons = {
-            'btn-term-advance': {
-                en: 'Advance (Enter)',
-                bi: 'Advance (決定)',
-                jp: '決定 (Enter)'
-            },
-            'btn-term-escape': {
-                en: 'Back (Esc)',
-                bi: 'Back (戻る)',
-                jp: '戻る (Esc)'
-            },
-            'btn-term-reroll': {
-                en: '🎲 Reroll Hero (R)',
-                bi: '🎲 Reroll (再生成)',
-                jp: '🎲 英雄再生成 (R)'
-            },
-            'btn-term-custom': {
-                en: '🛠 Custom Hero (C)',
-                bi: '🛠 Custom (作成)',
-                jp: '🛠 英雄作成 (C)'
-            },
-            'btn-term-exit-menu': {
-                en: '✕ Main Menu',
-                bi: '✕ Main Menu (主献立)',
-                jp: '✕ メインメニュー'
-            }
+            'btn-term-advance': { en: 'Advance (Enter)', bi: 'Advance (決定)', jp: '決定 (Enter)' },
+            'btn-term-escape': { en: 'Back (Esc)', bi: 'Back (戻る)', jp: '戻る (Esc)' },
+            'btn-term-reroll': { en: '🎲 Reroll Hero (R)', bi: '🎲 Reroll (再生成)', jp: '🎲 英雄再生成 (R)' },
+            'btn-term-custom': { en: '🛠 Custom Hero (C)', bi: '🛠 Custom (作成)', jp: '🛠 英雄作成 (C)' },
+            'btn-term-exit-menu': { en: '✕ Main Menu', bi: '✕ Main Menu (主献立)', jp: '✕ メインメニュー' }
         };
         for (const [id, trans] of Object.entries(termButtons)) {
             const btn = document.getElementById(id);
@@ -2136,21 +1943,9 @@ class WebHUD {
         }
 
         const deathActionButtons = {
-            'btn-death-reload': {
-                en: '<kbd>[R]</kbd> Load Last Saved Game',
-                bi: '<kbd>[R]</kbd> Load Game (再読込)',
-                jp: '<kbd>[R]</kbd> セーブデータを読込'
-            },
-            'btn-death-reroll': {
-                en: '<kbd>[N]</kbd> Re-Roll / New Character',
-                bi: '<kbd>[N]</kbd> New Hero (新キャラ)',
-                jp: '<kbd>[N]</kbd> 新規キャラクター'
-            },
-            'btn-death-menu': {
-                en: '<kbd>[M / Esc]</kbd> Main Menu',
-                bi: '<kbd>[M / Esc]</kbd> Main Menu (主献立)',
-                jp: '<kbd>[M / Esc]</kbd> メインメニュー'
-            }
+            'btn-death-reload': { en: '<kbd>[R]</kbd> Load Last Saved Game', bi: '<kbd>[R]</kbd> Load Game (再読込)', jp: '<kbd>[R]</kbd> セーブデータを読込' },
+            'btn-death-reroll': { en: '<kbd>[N]</kbd> Re-Roll / New Character', bi: '<kbd>[N]</kbd> New Hero (新キャラ)', jp: '<kbd>[N]</kbd> 新規キャラクター' },
+            'btn-death-menu': { en: '<kbd>[M / Esc]</kbd> Main Menu', bi: '<kbd>[M / Esc]</kbd> Main Menu (主献立)', jp: '<kbd>[M / Esc]</kbd> メインメニュー' }
         };
         for (const [id, trans] of Object.entries(deathActionButtons)) {
             const btn = document.getElementById(id);
@@ -2497,45 +2292,14 @@ class WebHUD {
             this.footerDiagonalHint.style.display = diagText ? 'inline' : 'none';
         }
 
-        // Contextual Stairs Hint (Row 1) & Dynamic Action Button
-        const btnStair = document.getElementById('btn-stair');
+        // Contextual Stairs Hint (Row 1) (CMD-P2-08, CMD-P2-09: btn-stair button writer delegated to input.js in 3D play)
         if (frame.map && player.x !== undefined && player.y !== undefined) {
             const currentFeat = this.getFeatAt(frame.map, player.x, player.y);
             let stairsText = '';
-            const lang = window.__langMode || 'en';
-            if (currentFeat === 6) { // Downstairs
+            if (currentFeat === 6) {
                 stairsText = depth === 0 ? `[>] Down to Dungeon (50')` : `[>] Down to ${(depth + 1) * 50}ft`;
-                if (btnStair) {
-                    btnStair.style.display = 'inline-flex';
-                    btnStair.classList.add('stair-active');
-                    let stairHtml = depth === 0 ? '⬇ Enter Dungeon <kbd>&gt;</kbd>' : '⬇ Descend <kbd>&gt;</kbd>';
-                    if (realm === 'hengband') {
-                        if (lang === 'jp') stairHtml = depth === 0 ? '⬇ ダンジョンに入る <kbd>&gt;</kbd>' : '⬇ 降りる <kbd>&gt;</kbd>';
-                        else if (lang === 'bilingual') stairHtml = depth === 0 ? '⬇ Enter Dungeon (入山) <kbd>&gt;</kbd>' : '⬇ Descend (降りる) <kbd>&gt;</kbd>';
-                    }
-                    btnStair.innerHTML = stairHtml;
-                    if (btnStair.dataset) btnStair.dataset.key = '>';
-                    btnStair.setAttribute('data-key', '>');
-                }
-            } else if (currentFeat === 5) { // Upstairs
+            } else if (currentFeat === 5) {
                 stairsText = depth === 1 ? `[<] Up to Town` : `[<] Up to ${(depth - 1) * 50}ft`;
-                if (btnStair) {
-                    btnStair.style.display = 'inline-flex';
-                    btnStair.classList.add('stair-active');
-                    let stairHtml = depth === 1 ? '⬆ Return to Town <kbd>&lt;</kbd>' : '⬆ Ascend <kbd>&lt;</kbd>';
-                    if (realm === 'hengband') {
-                        if (lang === 'jp') stairHtml = depth === 1 ? '⬆ 街へ戻る <kbd>&lt;</kbd>' : '⬆ 登る <kbd>&lt;</kbd>';
-                        else if (lang === 'bilingual') stairHtml = depth === 1 ? '⬆ Return to Town (帰還) <kbd>&lt;</kbd>' : '⬆ Ascend (登る) <kbd>&lt;</kbd>';
-                    }
-                    btnStair.innerHTML = stairHtml;
-                    if (btnStair.dataset) btnStair.dataset.key = '<';
-                    btnStair.setAttribute('data-key', '<');
-                }
-            } else {
-                if (btnStair) {
-                    btnStair.style.display = 'none';
-                    btnStair.classList.remove('stair-active');
-                }
             }
             if (this.footerStairsHint) {
                 this.footerStairsHint.textContent = stairsText;
