@@ -2784,10 +2784,72 @@ function attachWebSocketToSession(session, ws) {
     // 'quit' stays out on purpose: the JSON {t:'quit'} path saves gracefully first.
     // LESSON L1: never shrink this list without grepping every sender ('save' was nearly dropped once).
     const ENGINE_VERBS = new Set(['key', 'keys', 'frame', 'map', 'save', 'ping']);
+    const CANONICAL_KEY_MAP = {
+        escape: 'escape',
+        esc: 'escape',
+        enter: 'enter',
+        return: 'return',
+        tab: 'tab',
+        space: 'space',
+        spacebar: 'space',
+        backspace: 'backspace',
+        delete: 'delete',
+        del: 'delete',
+        arrowleft: 'left',
+        left: 'left',
+        arrowright: 'right',
+        right: 'right',
+        arrowup: 'up',
+        up: 'up',
+        arrowdown: 'down',
+        down: 'down',
+        home: 'home',
+        end: 'end',
+        pageup: 'pageup',
+        pgup: 'pageup',
+        pagedown: 'pagedown',
+        pgdn: 'pagedown'
+    };
     const sanitizeEngineCommand = (raw) => {
         if (typeof raw !== 'string') return null;
+        if (!raw || raw.length > 64 || raw.includes('\0')) return null;
+
+        const trimmedStart = raw.trimStart();
+        if (trimmedStart.startsWith('key ')) {
+            let payload = trimmedStart.slice(4);
+            if (payload === ' ') {
+                payload = 'space';
+            } else if (payload === '\t') {
+                payload = 'tab';
+            } else if (payload === '\n' || payload === '\r' || payload === '\r\n') {
+                payload = 'enter';
+            } else {
+                payload = payload.trim();
+            }
+            if (!payload || /[\r\n\0]/.test(payload)) return null;
+
+            if (payload.length === 1) {
+                return `key ${payload}`;
+            }
+
+            const lower = payload.toLowerCase();
+            if (CANONICAL_KEY_MAP[lower]) {
+                return `key ${CANONICAL_KEY_MAP[lower]}`;
+            }
+
+            if (/^C-[a-zA-Z0-9_[\]\\^@]$/.test(payload)) {
+                return `key ${payload}`;
+            }
+            const cMatch = payload.match(/^c-([a-zA-Z0-9_[\]\\^@])$/);
+            if (cMatch) {
+                return `key C-${cMatch[1]}`;
+            }
+
+            return null; // Reject unknown multi-char spec (e.g. "key Foo")
+        }
+
         const cmd = raw.trim();
-        if (!cmd || cmd.length > 64 || /[\r\n\0]/.test(cmd)) return null;
+        if (!cmd || /[\r\n\0]/.test(cmd)) return null;
         const sp = cmd.indexOf(' ');
         const verb = sp === -1 ? cmd : cmd.slice(0, sp);
         if (!ENGINE_VERBS.has(verb)) return null;

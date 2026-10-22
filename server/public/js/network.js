@@ -4,6 +4,59 @@
  * and queues user key commands.
  */
 
+const CANONICAL_KEY_MAP = {
+    escape: 'escape',
+    esc: 'escape',
+    enter: 'enter',
+    return: 'return',
+    tab: 'tab',
+    space: 'space',
+    spacebar: 'space',
+    backspace: 'backspace',
+    delete: 'delete',
+    del: 'delete',
+    arrowleft: 'left',
+    left: 'left',
+    arrowright: 'right',
+    right: 'right',
+    arrowup: 'up',
+    up: 'up',
+    arrowdown: 'down',
+    down: 'down',
+    home: 'home',
+    end: 'end',
+    pageup: 'pageup',
+    pgup: 'pageup',
+    pagedown: 'pagedown',
+    pgdn: 'pagedown'
+};
+
+const VANILLA_LETTERS = 'abcdefgimnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+const KeySpec = {
+    normalize(spec) {
+        if (typeof spec !== 'string') return null;
+        if (spec === ' ') return 'space';
+        if (spec === '\t') return 'tab';
+        if (spec === '\n' || spec === '\r' || spec === '\r\n') return 'enter';
+        if (spec.length === 1) return spec;
+
+        const trimmed = spec.trim();
+        const lower = trimmed.toLowerCase();
+        if (CANONICAL_KEY_MAP[lower]) return CANONICAL_KEY_MAP[lower];
+
+        const cMatch = trimmed.match(/^[Cc]-([a-zA-Z0-9_[\]\\^@])$/);
+        if (cMatch) return 'C-' + cMatch[1];
+
+        return null;
+    },
+
+    vanillaLetter(i) {
+        if (typeof i !== 'number' || isNaN(i) || i < 0 || i >= VANILLA_LETTERS.length) return null;
+        return VANILLA_LETTERS[Math.floor(i)];
+    }
+};
+
 class GameNetwork {
     constructor() {
         this.ws = null;
@@ -517,17 +570,22 @@ class GameNetwork {
     }
 
     sendKey(spec) {
+        const normalized = KeySpec.normalize(spec);
+        if (normalized === null) {
+            console.warn(`[Network] Dropping unrecognised key spec: ${JSON.stringify(spec)}`);
+            return;
+        }
         if (typeof window !== 'undefined' && window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
             window.chronicleManager.preemptForGameplay('network_action');
         }
-        this.lastSentKey = spec;
+        this.lastSentKey = normalized;
         this.sentKeyCount = (this.sentKeyCount || 0) + 1;
         if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            this.queueOfflineCommand(`key ${spec}`);
+            this.queueOfflineCommand(`key ${normalized}`);
             this.ensureConnected();
             return;
         }
-        this.ws.send(`key ${spec}`);
+        this.ws.send(`key ${normalized}`);
     }
 
     sendCommand(cmd) {
@@ -543,4 +601,18 @@ class GameNetwork {
     }
 }
 
-window.GameNetwork = GameNetwork;
+GameNetwork.KeySpec = KeySpec;
+GameNetwork.prototype.KeySpec = KeySpec;
+
+if (typeof window !== 'undefined') {
+    window.GameNetwork = GameNetwork;
+    window.Network = GameNetwork;
+    window.KeySpec = KeySpec;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = GameNetwork;
+    module.exports.Network = GameNetwork;
+    module.exports.GameNetwork = GameNetwork;
+    module.exports.KeySpec = KeySpec;
+}
