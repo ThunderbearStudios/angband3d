@@ -1,7 +1,7 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS42 — Cross-Realm Command, Action & Menu Unification (`v10.8.0`) — COMPLETE**
+**WS42 — Cross-Realm Command, Action & Menu Unification (`v10.8.1`) — COMPLETE**
 
 - **Plan of record**: [`docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md) (audit §2, cards §8, decisions §10). Index: `master_audit_and_execution_plan.md` §9.
 - **Checklist** (one commit per card, red test first):
@@ -21,7 +21,7 @@
 | WS22–WS36 | Mastery, Grimoire, Viewport, LOS, Vitals, Classic Terminal (`v10.2.0`) | `[x]` |
 | WS37–WS40 | Popover, Chronicle, `Alt+1..4`, Minimap, Mobile, Zero-Parse Relay (`v10.6.0`) | `[x]` |
 | WS41 | Security, 60fps gating, SW diet, C bridge UTF-8 (`v10.7.0`) | `[x]` |
-| WS42 | Cross-Realm Command, Action & Menu Unification (`v10.8.0`) | `[x]` |
+| WS42 | Cross-Realm Command, Action & Menu Unification (`v10.8.1`) | `[x]` |
 
 ## Mandatory Verification Gate
 Fresh server (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`; `cd server; node src/server.js`.
@@ -38,4 +38,4 @@ K1 FCB welcome `-more-` opens terminal · K2 Heng JP binary, client `lang` trans
 
 ## Last Gate Results
 - **WS41 (`v10.7.0`, 2026-10-21)**: fast `19/19` · smoke `11/11` · dotnet `0/0` · mastery `0/0` · `test_cloud_live.js` PASS.
-- **WS42 (`v10.8.0`, 2026-10-22)**: fast `29/29` · contracts `8/8` · LOC budgets `17/17` · capability ledger `29/29` · smoke `11/11` · dotnet `0/0` · mastery `0/0`.
+- **WS42 (`v10.8.1`, 2026-10-22)**: fast `29/29` · contracts `8/8` · LOC budgets `17/17` · capability ledger `29/29` · smoke `11/11` · dotnet `0/0` · mastery `0/0`.
