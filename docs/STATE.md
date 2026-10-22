@@ -1,7 +1,7 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS42 — Cross-Realm Command, Action & Menu Unification — IN PROGRESS (Wave 5)**
+**WS42 — Cross-Realm Command, Action & Menu Unification — IN PROGRESS (Waves 6 & 8)**
 
 - **Plan of record**: [`docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md) (audit §2, cards §8, decisions §10). Index: `master_audit_and_execution_plan.md` §9.
 - **Checklist** (one commit per card, red test first):
@@ -10,8 +10,8 @@
   - [x] `WS42.2A–E` Bridge `ui.prompt`/`letter`/`verbs`/`commands` + Protocol vNext (`21/21` schema PASS, wire `+2.66%`)
   - [x] `WS42.3A–C` ActionCatalog (`9/9`), ScreenModel (`151/151`), CommandDispatcher (`74/74` replay PASS)
   - [x] `WS42.4A–C` InputRouter (`3,473L`), app wiring & palette extraction, terminal fidelity (`1,149L`, `8/8` contracts PASS)
-  - [ ] `WS42.5A–D` Mirrors, Item Sheet, Palette, Entity menu, Dock
-  - [ ] `WS42.6` Archive + contract migration · [ ] `WS42.7` (opt.) Radial/Gamepad · [ ] `WS42.8` Verify + docs + `v10.8.0`
+  - [x] `WS42.5A–D` Mirrors (`70/70`), Item Sheet (`372L`), Palette (`13/13`), Entity menu (`202L`), Dock (`hud.js` `3,113L`)
+  - [ ] `WS42.6` Archive + contract migration · [x] `WS42.7` Radial/Gamepad (`ALL PASS`) · [ ] `WS42.8` Verify + docs + `v10.8.0`
 - **History**: WS0–WS21 in [`docs/archive/STATE_HISTORY_WS0_WS21.md`](file:///c:/Dev/angband3d/docs/archive/STATE_HISTORY_WS0_WS21.md).
 
 ## Completed Workstreams
