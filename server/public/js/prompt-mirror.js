@@ -155,11 +155,12 @@
 
     function ensureContainer() {
         if (typeof document === 'undefined') return null;
-        let c = document.getElementById('prompt-mirror-container');
+        let c = document.getElementById('prompt-mirror') || document.getElementById('prompt-mirror-container');
         if (!c) {
             c = document.createElement('div');
-            c.id = 'prompt-mirror-container';
-            c.className = 'prompt-mirror-container hidden';
+            c.id = 'prompt-mirror';
+            c.className = 'prompt-mirror hidden';
+            c.hidden = true;
             c.setAttribute('role', 'region');
             c.setAttribute('aria-label', '3D Engine Prompt Mirror');
             document.body.appendChild(c);
@@ -210,6 +211,7 @@
         _lastSig = sig;
 
         container.textContent = '';
+        container.hidden = false;
         container.classList.remove('hidden');
 
         // Header / Title
@@ -300,8 +302,9 @@
 
     function hide(container) {
         _lastSig = null;
-        const c = container || (typeof document !== 'undefined' ? document.getElementById('prompt-mirror-container') : null);
+        const c = container || (typeof document !== 'undefined' ? (document.getElementById('prompt-mirror') || document.getElementById('prompt-mirror-container')) : null);
         if (c) {
+            c.hidden = true;
             c.classList.add('hidden');
             c.textContent = '';
         }

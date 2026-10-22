@@ -184,14 +184,19 @@
 
     function ensureContainer() {
         if (typeof document === 'undefined') return null;
-        let c = document.getElementById('item-sheet-drawer');
+        let c = document.getElementById('item-sheet') || document.getElementById('item-sheet-drawer');
         if (!c) {
-            c = document.createElement('div');
-            c.id = 'item-sheet-drawer';
-            c.className = 'item-sheet-drawer hidden';
-            c.setAttribute('role', 'dialog');
+            c = document.createElement('dialog');
+            c.id = 'item-sheet';
+            c.className = 'item-sheet-dialog hidden';
+            c.hidden = true;
             c.setAttribute('aria-label', 'Inventory and Equipment Sheet');
             document.body.appendChild(c);
+        }
+        if (!c._hasSheetListeners) {
+            c._hasSheetListeners = true;
+            c.addEventListener('click', (e) => { if (e.target === c) hide(); });
+            c.addEventListener('cancel', (e) => { e.preventDefault(); hide(); });
         }
         return c;
     }
@@ -341,7 +346,13 @@
         _invokerEl = invokerEl || null;
         const c = ensureContainer();
         if (c) {
+            c.hidden = false;
             c.classList.remove('hidden');
+            if (typeof c.showModal === 'function' && !c.open) {
+                try { c.showModal(); } catch (_) { c.setAttribute('open', ''); }
+            } else {
+                c.setAttribute('open', '');
+            }
             _lastSig = null;
             render(frame, realm, { container: c, tab: _activeTab });
         }
@@ -349,8 +360,14 @@
 
     function hide() {
         _lastSig = null;
-        const c = (typeof document !== 'undefined') ? document.getElementById('item-sheet-drawer') : null;
+        const c = (typeof document !== 'undefined') ? (document.getElementById('item-sheet') || document.getElementById('item-sheet-drawer')) : null;
         if (c) {
+            if (typeof c.close === 'function' && c.open) {
+                try { c.close(); } catch (_) { c.removeAttribute('open'); }
+            } else {
+                c.removeAttribute('open');
+            }
+            c.hidden = true;
             c.classList.add('hidden');
             c.textContent = '';
         }
@@ -360,6 +377,12 @@
         }
     }
 
+    function toggle(frame, realm, invokerEl) {
+        const c = (typeof document !== 'undefined') ? (document.getElementById('item-sheet') || document.getElementById('item-sheet-drawer')) : null;
+        if (c && (c.open || (!c.hidden && !c.classList.contains('hidden')))) hide();
+        else show(frame, realm, invokerEl);
+    }
+
     return Object.freeze({
         buildItemViewModel,
         bindQuickSlot,
@@ -367,6 +390,7 @@
         executeVerb,
         render,
         show,
-        hide
+        hide,
+        toggle
     });
 });

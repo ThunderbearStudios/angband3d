@@ -1304,6 +1304,7 @@ window.addEventListener('DOMContentLoaded', () => {
         hideRealmSelector,
         showCommandPalette,
         hideCommandPalette,
+        toggleItemSheet: (invokerEl) => itemSheet && typeof itemSheet.toggle === 'function' ? itemSheet.toggle(lastFrame, (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm), invokerEl) : null,
         getActiveRealm,
         setActiveRealm,
         selectRealm,
@@ -4841,10 +4842,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
                 window.__lastWarningHp = frame.player.hp;
             }
-            // MenuRouter advances pending two-phase dispatch before view mode is evaluated
+            // MenuRouter & CommandDispatcher advance pending plans before view mode is evaluated
+            const realmForRouter = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (frame && frame.realm) || 'angband';
+            lastScreenModel = (SC && SC.ScreenModel && typeof SC.ScreenModel.of === 'function')
+                ? SC.ScreenModel.of(frame, realmForRouter, { lang: window.__langMode || 'en', decode: decodeHengbandText, forceTerminal })
+                : null;
+            if (dispatcher && typeof dispatcher.onFrame === 'function') {
+                try { dispatcher.onFrame(frame); } catch (err) { console.error('[Dispatcher Error]', err); }
+            }
+            if (input && input.quickActions && typeof input.quickActions.onFrame === 'function') {
+                try { input.quickActions.onFrame(frame); } catch (err) { console.error('[QuickActions Error]', err); }
+            }
             if (window.MenuRouter && typeof window.MenuRouter.onFrame === 'function') {
                 try {
-                    const realmForRouter = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (frame && frame.realm) || 'angband';
                     window.MenuRouter.onFrame(frame, realmForRouter);
                 } catch (err) {
                     console.error('[MenuRouter Error]', err);
@@ -4862,6 +4872,13 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             // Render Terminal if active or in setup phase
             const needsTerm = needsTerminal(frame) || forceTerminal;
+            if (promptMirror && typeof promptMirror.render === 'function') {
+                try {
+                    promptMirror.render(frame, (!needsTerm && currentPhase === 'play') ? lastScreenModel : null, realmForRouter, { sendKey: (k) => network && network.sendKey(k) });
+                } catch (err) {
+                    console.error('[PromptMirror Error]', err);
+                }
+            }
             if (frame.term && (needsTerm || currentPhase !== 'play')) {
                 terminal.render(frame.term);
             }

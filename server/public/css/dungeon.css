@@ -9564,7 +9564,8 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
     pointer-events: auto;
     z-index: 30;
 }
-#prompt-mirror[hidden] { display: none !important; }
+#prompt-mirror[hidden], #prompt-mirror.hidden, #prompt-mirror-container[hidden], #prompt-mirror-container.hidden { display: none !important; }
+#item-sheet:not([open]), #item-sheet[hidden], #item-sheet.hidden, #item-sheet-drawer[hidden], #item-sheet-drawer.hidden { display: none !important; }
 
 #item-sheet {
     position: fixed;
@@ -9645,7 +9646,7 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
 }
-.radial-menu-overlay[hidden] { display: none !important; }
+.radial-menu-overlay[hidden], .radial-menu-overlay.hidden { display: none !important; }
 
 #action-bar[data-dock-preset="compact"] > .action-btn:not(#btn-hero-action):not(#btn-inventory):not(#btn-cast):not(#btn-fire):not(#btn-throw):not(#btn-rest):not(#btn-overland):not(#btn-action-more):not(#btn-command-palette) {
     display: none !important;

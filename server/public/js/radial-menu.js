@@ -133,8 +133,13 @@
                 root = document.createElement('div');
                 root.id = 'radial-menu-overlay';
                 root.className = 'radial-menu-overlay hidden';
+                root.hidden = true;
                 root.innerHTML = '<div class="radial-menu-disc" id="radial-menu-disc"></div>';
+                root.addEventListener('click', (e) => { if (e.target === root) this.close(); });
                 document.body.appendChild(root);
+            } else if (!this.isOpen) {
+                root.hidden = true;
+                root.classList.add('hidden');
             }
             this.el = root;
         }
@@ -144,6 +149,7 @@
             this.isOpen = true;
             this.selectedIndex = null;
             if (this.el) {
+                this.el.hidden = false;
                 this.el.classList.remove('hidden');
                 this.render();
             }
@@ -152,7 +158,10 @@
         close() {
             this.isOpen = false;
             this.selectedIndex = null;
-            if (this.el) this.el.classList.add('hidden');
+            if (this.el) {
+                this.el.hidden = true;
+                this.el.classList.add('hidden');
+            }
         }
 
         toggle(ring) {
