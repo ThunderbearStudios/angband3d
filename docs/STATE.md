@@ -1,15 +1,15 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS42 — Cross-Realm Command, Action & Menu Unification — IN PROGRESS (Wave 4 + WS42.2E)**
+**WS42 — Cross-Realm Command, Action & Menu Unification — IN PROGRESS (Wave 5)**
 
 - **Plan of record**: [`docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md) (audit §2, cards §8, decisions §10). Index: `master_audit_and_execution_plan.md` §9.
 - **Checklist** (one commit per card, red test first):
   - [x] `WS42.0` Recorder + fixtures + red contracts (`8/8 RED` proven, `146/146` screen-context)
   - [x] `WS42.1A–D` Hot-fixes: key-spec case (P0-01), Escape (P0-02), FCB select (P0-03), chooser letters (P0-04), Vanilla `nohjkl` letters (P0-05), palette, quick slots (`7/7` contracts PASS, `19/19` fast PASS)
-  - [ ] `WS42.2A–E` Bridge `ui.prompt`/`letter`/`verbs`/`commands` (`2A–D` built; `2E` Protocol vNext + schema test in flight)
+  - [x] `WS42.2A–E` Bridge `ui.prompt`/`letter`/`verbs`/`commands` + Protocol vNext (`21/21` schema PASS, wire `+2.66%`)
   - [x] `WS42.3A–C` ActionCatalog (`9/9`), ScreenModel (`151/151`), CommandDispatcher (`74/74` replay PASS)
-  - [ ] `WS42.4A–C` InputRouter, app wiring, terminal fidelity
+  - [x] `WS42.4A–C` InputRouter (`3,473L`), app wiring & palette extraction, terminal fidelity (`1,149L`, `8/8` contracts PASS)
   - [ ] `WS42.5A–D` Mirrors, Item Sheet, Palette, Entity menu, Dock
   - [ ] `WS42.6` Archive + contract migration · [ ] `WS42.7` (opt.) Radial/Gamepad · [ ] `WS42.8` Verify + docs + `v10.8.0`
 - **History**: WS0–WS21 in [`docs/archive/STATE_HISTORY_WS0_WS21.md`](file:///c:/Dev/angband3d/docs/archive/STATE_HISTORY_WS0_WS21.md).

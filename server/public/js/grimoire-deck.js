@@ -384,7 +384,15 @@
             const isBi = realm === 'hengband' && lang === 'bilingual';
             const promptText = String(options.promptText || (rawClassifier && rawClassifier.row0) || '').trim();
 
-            const itemSig = items.slice(0, 26).map((it) => `${it.key}:${it.row}:${it.col || it.startCol || 0}:${(it.desc || it.rawLabel || it.label || '').slice(0, 28)}`).join('|');
+            const isVanilla = (realm === 'angband');
+            const itemSig = items.slice(0, 26).map((it, idx) => {
+                const k = isVanilla
+                    ? (it.letter || ((typeof QuickActions !== 'undefined' && typeof QuickActions.vanillaLetter === 'function')
+                        ? QuickActions.vanillaLetter(idx)
+                        : (it.key || String.fromCharCode(97 + idx))))
+                    : (it.key || it.letter || '');
+                return `${k}:${it.row}:${it.col || it.startCol || 0}:${(it.desc || it.rawLabel || it.label || '').slice(0, 28)}`;
+            }).join('|');
             const sig = `${realm}:${lang}::${this.mode}::${submenu.kind || 'none'}::${Boolean(classifier.isInventoryScreen)}:${Boolean(classifier.isEquipScreen)}:${Boolean(classifier.isStoreScreen)}:${Boolean(classifier.isSpellPowerChoice)}:${Boolean(classifier.isItemTargetPrompt)}:${Boolean(classifier.verbPrompt)}::${promptText.slice(0, 48)}::${itemSig}`;
 
             if (sig === this._lastSig && container.style.display !== 'none') {
@@ -447,8 +455,15 @@
                 `).join('');
                 bodyHtml = `<div class="grimoire-pillar-grid">${pills}</div>`;
             } else if (items.length > 0) {
-                const cards = items.slice(0, 18).map((item) => {
-                    const key = String(item.key || '');
+                const cards = items.slice(0, 18).map((item, idx) => {
+                    const fallbackLetter = isVanilla
+                        ? ((typeof QuickActions !== 'undefined' && typeof QuickActions.vanillaLetter === 'function')
+                            ? QuickActions.vanillaLetter(idx)
+                            : ((typeof window !== 'undefined' && window.QuickActions && typeof window.QuickActions.vanillaLetter === 'function')
+                                ? window.QuickActions.vanillaLetter(idx)
+                                : ('abcdefgimnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'[idx] || String.fromCharCode(97 + idx))))
+                        : String.fromCharCode(97 + idx);
+                    const key = String(isVanilla ? (item.letter || fallbackLetter) : (item.key || item.letter || fallbackLetter || ''));
                     const desc = String(item.desc || item.rawLabel || item.label || '');
                     const cat = classifyItemCategory(desc);
                     const metrics = parseItemMetrics(desc);

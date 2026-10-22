@@ -1,8 +1,3 @@
-/**
- * Angband3D Web Terminal — High-DPI Vector Canvas Terminal
- * Renders Angband's 80x24 character grid with 100% pixel-perfect crispness at any resolution.
- * Supports exact 2-hex attribute color parsing and mouse-click selection.
- */
 
 class WebTerminal {
     constructor(canvasId, onSelectKey) {
@@ -16,24 +11,7 @@ class WebTerminal {
         this.rows = 24;
 
         // Accurate Angband 16-color palette
-        this.palette = [
-            '#1a1d24', // 0: Dark Black/Background
-            '#ffffff', // 1: White
-            '#9ea3ad', // 2: Grey / Slate
-            '#ff9900', // 3: Orange (peaks / flames)
-            '#e63946', // 4: Red
-            '#2a9d8f', // 5: Green
-            '#457b9d', // 6: Blue
-            '#a3704c', // 7: Umber / Brown
-            '#555a64', // 8: Dark Grey
-            '#c8d1dc', // 9: Light Slate
-            '#b5179e', // 10: Violet
-            '#ffd166', // 11: Yellow
-            '#ff6b6b', // 12: Light Red
-            '#06d6a0', // 13: Light Green
-            '#4cc9f0', // 14: Light Blue
-            '#e0a96d'  // 15: Light Umber
-        ];
+        this.palette = ['#1a1d24','#ffffff','#9ea3ad','#ff9900','#e63946','#2a9d8f','#457b9d','#a3704c','#555a64','#c8d1dc','#b5179e','#ffd166','#ff6b6b','#06d6a0','#4cc9f0','#e0a96d'];
 
         this.lastRows = [];
         this.tdSjis = (typeof TextDecoder !== 'undefined') ? new TextDecoder('shift-jis') : null;
@@ -596,60 +574,27 @@ class WebTerminal {
 
     _findPlayerTermCoords(termData, player) {
         if (!termData || !termData.rows) return null;
-        const rows = termData.rows;
-        const centerCol = (this.cols || 80) / 2;
-        const centerRow = (this.rows || 24) / 2;
-        let bestCol = -1;
-        let bestRow = -1;
-        let bestDist = Infinity;
-
-        for (let r = 1; r < rows.length - 1; r++) {
-            const rowObj = rows[r];
-            const text = rowObj ? (rowObj.g || '') : '';
-            for (let c = 12; c < text.length; c++) {
-                if (text[c] === '@') {
-                    const d = Math.hypot(c - centerCol, r - centerRow);
-                    if (d < bestDist) {
-                        bestDist = d;
-                        bestCol = c;
-                        bestRow = rowObj.y !== undefined ? rowObj.y : r;
-                    }
-                }
-            }
-        }
-
-        if (bestCol < 0) {
+        const rows = termData.rows, centerCol = (this.cols || 80) / 2, centerRow = (this.rows || 24) / 2;
+        let bestCol = -1, bestRow = -1, bestDist = Infinity;
+        const scan = (c0, c1Fn) => {
             for (let r = 1; r < rows.length - 1; r++) {
-                const rowObj = rows[r];
-                const text = rowObj ? (rowObj.g || '') : '';
-                const limit = Math.min(12, text.length);
-                for (let c = 0; c < limit; c++) {
+                const rowObj = rows[r], text = rowObj ? (rowObj.g || '') : '', lim = c1Fn(text.length);
+                for (let c = c0; c < lim; c++) {
                     if (text[c] === '@') {
                         const d = Math.hypot(c - centerCol, r - centerRow);
-                        if (d < bestDist) {
-                            bestDist = d;
-                            bestCol = c;
-                            bestRow = rowObj.y !== undefined ? rowObj.y : r;
-                        }
+                        if (d < bestDist) { bestDist = d; bestCol = c; bestRow = rowObj.y !== undefined ? rowObj.y : r; }
                     }
                 }
             }
-        }
-
-        const px = (player && typeof player.x === 'number') ? player.x : (bestCol >= 0 ? bestCol : 0);
-        const py = (player && typeof player.y === 'number') ? player.y : (bestRow >= 0 ? bestRow : 0);
-
-        if (bestCol >= 0 && bestRow >= 0) {
-            this._vpOx = px - bestCol;
-            this._vpOy = py - bestRow;
-            this._playerTermCol = bestCol;
-            this._playerTermRow = bestRow;
-        } else {
-            this._vpOx = 0;
-            this._vpOy = 0;
-            this._playerTermCol = px;
-            this._playerTermRow = py;
-        }
+        };
+        scan(12, len => len);
+        if (bestCol < 0) scan(0, len => Math.min(12, len));
+        const px = (player && typeof player.x === 'number') ? player.x : Math.max(0, bestCol);
+        const py = (player && typeof player.y === 'number') ? player.y : Math.max(0, bestRow);
+        this._vpOx = (bestCol >= 0 && bestRow >= 0) ? (px - bestCol) : 0;
+        this._vpOy = (bestCol >= 0 && bestRow >= 0) ? (py - bestRow) : 0;
+        this._playerTermCol = bestCol >= 0 ? bestCol : px;
+        this._playerTermRow = bestRow >= 0 ? bestRow : py;
         return { col: this._playerTermCol, row: this._playerTermRow, ox: this._vpOx, oy: this._vpOy };
     }
 
@@ -706,9 +651,8 @@ class WebTerminal {
         if (this.selectedKey && Array.isArray(this.selectableRegions) && this.selectableRegions.some(r => r.key === this.selectedKey)) {
             return this.selectedKey;
         }
-        if (Array.isArray(this.selectableRegions) && this.selectableRegions.length > 0) {
-            const idx = (this.selectedIndex >= 0 && this.selectedIndex < this.selectableRegions.length) ? this.selectedIndex : 0;
-            return this.selectableRegions[idx].key;
+        if (Array.isArray(this.selectableRegions) && this.selectedIndex >= 0 && this.selectedIndex < this.selectableRegions.length) {
+            return this.selectableRegions[this.selectedIndex].key;
         }
         return null;
     }
@@ -720,18 +664,6 @@ class WebTerminal {
         this.selectedIndex = (cur + delta + len) % len;
         const active = this.selectableRegions[this.selectedIndex];
         this.selectedKey = active ? active.key : null;
-
-        if (active && typeof window !== 'undefined' && window.MenuRouter && typeof window.MenuRouter.getPending === 'function') {
-            const pending = window.MenuRouter.getPending();
-            if (pending && pending.step === 'chooser') {
-                pending.item = {
-                    key: active.key,
-                    label: active.label || active.key,
-                    glyph: active.glyph || null,
-                    display: `[${active.key}]`
-                };
-            }
-        }
 
         this.syncRibbonSelection();
         if (this.lastTermData) {
@@ -1103,12 +1035,7 @@ class WebTerminal {
         }
     }
 
-    /**
-     * Draw 3D Camera Vision Cone & Orientation Indicators on the Classic Terminal Canvas.
-     * Overcomes mental orientation confusion by projecting the player's 3D field of view
-     * directly out from the '@' symbol across the 2D dungeon grid.
-     */
-    drawVisionCone(termData) {
+        drawVisionCone(termData) {
         if (!termData || !termData.rows) return;
         const mode = this.currentMode || 'classic_play';
         // Only draw cone in dungeon play or targeting (never in birth setup or store menus)
