@@ -1,48 +1,40 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS41 — Deep Security, 60fps Render Pipeline Gating, Bloat Reclaim & Wire Efficiency Pass (v10.7.0) — COMPLETE**
+**WS42 — Cross-Realm Command, Action & Menu Unification — PLANNED Rev 3 (44/44 findings verified ✔; D22 resolved: keep WASD; D18–D21/D23/D24 pending)**
 
-- **Current Phase**: All atomic turnkey cards `WS41.1` $\rightarrow$ `WS41.5` defined in [`docs/plan/master_audit_and_execution_plan.md`](file:///c:/Dev/angband3d/docs/plan/master_audit_and_execution_plan.md#L166) are complete.
-- **Active Checklist**:
-  - [x] **`WS41.1`**: Workspace Bloat Purge (`~1.98 GB` temp profiles) & Test Suite Hermeticity (`os.tmpdir()`, dynamic ports)
-  - [x] **`WS41.2`**: Server Ownership Hardening (`C1`/`C2`), Rate-Limit Isolation (`H1`/`H4`/`H5`) & O(1) Relay/False-Death Fix (`H2`/`H3`/`P3`)
-  - [x] **`WS41.3`**: 60 FPS Client Render, HUD & Terminal Pipeline Gating (`dungeon3d.js`, `hud.js`, `terminal.js`, `chronicle-*`)
-  - [x] **`WS41.4`**: Service Worker Install Diet (`-9.02 MB`), Cache-First Static Assets, Script `defer` & Version Sync (`v10.7.0`)
-  - [x] **`WS41.5`**: Native Bridge UTF-8 Decoding (`H8`), Godot Input Encoding/Badge Gating & CI/Docker Hardening (`H6`/`H7`)
-- **Historical Log**: Full checklist and gate history for `WS0–WS21` are archived in [`docs/archive/STATE_HISTORY_WS0_WS21.md`](file:///c:/Dev/angband3d/docs/archive/STATE_HISTORY_WS0_WS21.md).
+- **Plan of record**: [`docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md) (audit §2, cards §8, decisions §10). Index: `master_audit_and_execution_plan.md` §9.
+- **Checklist** (one commit per card, red test first):
+  - [ ] `WS42.0` Recorder + fixtures + red contracts
+  - [ ] `WS42.1A–D` Hot-fixes: key-spec case (P0-01), Escape (P0-02), FCB select (P0-03), chooser letters (P0-04), Vanilla `nohjkl` letters (P0-05), palette, quick slots
+  - [ ] `WS42.2A–E` Bridge `ui.prompt`/`letter`/`verbs`/`commands` + Protocol vNext
+  - [ ] `WS42.3A–C` ActionCatalog, ScreenModel, CommandDispatcher
+  - [ ] `WS42.4A–C` InputRouter, app wiring, terminal fidelity
+  - [ ] `WS42.5A–D` Mirrors, Item Sheet, Palette, Entity menu, Dock
+  - [ ] `WS42.6` Archive + contract migration · [ ] `WS42.7` (opt.) Radial/Gamepad · [ ] `WS42.8` Verify + docs + `v10.8.0`
+- **History**: WS0–WS21 in [`docs/archive/STATE_HISTORY_WS0_WS21.md`](file:///c:/Dev/angband3d/docs/archive/STATE_HISTORY_WS0_WS21.md).
 
-## Completed Workstream Summary (`WS0–WS41`)
-
-| Workstream | Scope Summary | Status |
+## Completed Workstreams
+| WS | Scope | Status |
 | :--- | :--- | :--- |
-| **WS0–WS21** | Baseline harness, ScreenContext (`144/144`), MenuRouter, RealmKeys, HengTranslate (`98.34%`), guards, Lorekeeper, 8-Pillar 3D, Foley (`L37–L44`) | `[x] DONE` |
-| **WS22–WS36** | Mastery (`L45–L53`), Grimoire Deck, Viewport Budget, Sliding Anchor, LOS, Horizontal Vitals, Classic Terminal (`v10.2.0`) | `[x] DONE` |
-| **WS37–WS40** | Popover, Story Chronicle, `Alt+1..4` Slots, Minimap, Offline Continuity, Mobile Layout, Zero-Parse WS Relay (`TCP_NODELAY`, `v10.6.0`) | `[x] DONE` |
-| **WS41** | Security audit (`C1`/`C2`, `H1`/`H4`/`H5`, `H6`–`H8`), 60fps render/HUD gating, SW diet (`-9.02 MB`), C bridge UTF-8 (`v10.7.0`) | `[x] DONE` |
+| WS0–WS21 | Harness, ScreenContext, MenuRouter, RealmKeys, HengTranslate, 8-Pillar 3D, Foley | `[x]` |
+| WS22–WS36 | Mastery, Grimoire, Viewport, LOS, Vitals, Classic Terminal (`v10.2.0`) | `[x]` |
+| WS37–WS40 | Popover, Chronicle, `Alt+1..4`, Minimap, Mobile, Zero-Parse Relay (`v10.6.0`) | `[x]` |
+| WS41 | Security, 60fps gating, SW diet, C bridge UTF-8 (`v10.7.0`) | `[x]` |
 
 ## Mandatory Verification Gate
-Server must be fresh (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }` then `cd server; node src/server.js`.
-1. `node --check server/src/server.js` (if server touched)
-2. `node tools/run_tests.js --tier fast` $\rightarrow$ `19/19 PASS` (`--tier all` when UI/protocol/routes change)
-3. `python tools/smoke_test.py` $\rightarrow$ `11/11 PASS`
-4. `dotnet build client/angband3d.csproj` $\rightarrow$ `0 warnings / 0 errors`
-5. `python c:\Dev\thunderbear-agentic-mastery\tools\tb_mastery.py audit c:\Dev\angband3d` $\rightarrow$ `0 errors / 0 warnings`
-6. Any `server/public` change $\rightarrow$ bump via `node tools/bump_version.js <v>`.
+Fresh server (`L13`): `Get-NetTCPConnection -LocalPort 8080 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`; `cd server; node src/server.js`.
+1. `node --check server/src/server.js` (if touched) 2. `node tools/run_tests.js --tier fast` → `19/19` (`--tier all` for UI/protocol) 3. `python tools/smoke_test.py` → `11/11` 4. `dotnet build client/angband3d.csproj` → `0/0` 5. `tb_mastery.py audit c:\Dev\angband3d` → `0/0` 6. `server/public` change → `node tools/bump_version.js <v>` + `npm run android:sync`.
 
-## Known Upstream Issues (Pre-existing at `0ae16a2`, Not Regressions)
-- **K1 (FCB)**: Welcome `-more-` opens terminal instead of 3D banner; gate presses Space.
-- **K2 (Hengband)**: Server spawns JP binary; client `lang` controls translation (`HengTranslate`).
-- **K3 (FCB/Hengband)**: Engine emits harmless `{"t":"error"}` during boot.
-- **K4 (`cdp.js`)**: Always allocate Chrome profiles in `os.tmpdir()` (`L15/L43`).
-- **K5 (E2E)**: Restart local server before running CDP suite after heavy E2E runs.
-- **K6 (Vanilla `ui-input.c:1527`)**: Direction prompt routes via row-0 prompt matching (`test_screen_context.js:172`).
+## Known Upstream Issues (not regressions)
+K1 FCB welcome `-more-` opens terminal · K2 Heng JP binary, client `lang` translates · K3 FCB/Heng boot `{"t":"error"}` · K4 Chrome profiles in `os.tmpdir()` · K5 restart server before CDP suite · K6 Vanilla direction prompt via row-0 match.
 
 ## In-Flight (Uncommitted) Files Inventory
-None
+- `docs/plan/WS42_COMMAND_AND_MENU_UNIFICATION_PLAN.md` (new), `docs/plan/master_audit_and_execution_plan.md` (§9), `docs/plan/EXECUTOR_START_HERE.md`, `docs/plan/UNIFIED_MENU_SYSTEM_PLAN.md` (superseded banner), `docs/STATE.md`.
 
-## Queued Backlog (Next To-Do When Token Budget Available)
-- **WS-NH1..WS-NH6 — UnNetHack (5th Realm) Full Integration**: Full spec in [`docs/plan/UNNETHACK_INTEGRATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/UNNETHACK_INTEGRATION_PLAN.md).
+## Queued Backlog
+- **WS-NH1..6 UnNetHack** — [`UNNETHACK_INTEGRATION_PLAN.md`](file:///c:/Dev/angband3d/docs/plan/UNNETHACK_INTEGRATION_PLAN.md) (after WS42 W3 so it inherits ActionCatalog/Dispatcher).
 
 ## Last Gate Results
-- **WS41 (`v10.7.0`) Live Cloud & Full Gate (2026-10-21)**: `fast 19/19 PASS` | `smoke_test.py 11/11 PASS` | `dotnet build 0 warn / 0 err` | `tb_mastery.py audit 0 err / 0 warn` | `test_cloud_live.js PASS (angband3d.com v10.7.0)`.
+- **WS41 (`v10.7.0`, 2026-10-21)**: fast `19/19` · smoke `11/11` · dotnet `0/0` · mastery `0/0` · `test_cloud_live.js` PASS.
+- **WS42 planning baseline (2026-10-21)**: `test_screen_context` 144/144 · `test_menu_router` PASS · `test_realm_keys` 11/11 (synthetic; misses P0-01..05).
