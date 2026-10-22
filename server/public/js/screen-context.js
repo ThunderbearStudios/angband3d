@@ -145,6 +145,19 @@
         return playerFeat;
     }
 
+    function isDirectionalTargetingText(fullText) {
+        if (!fullText) return false;
+        return fullText.includes('direction?') ||
+               fullText.includes('target [') ||
+               fullText.includes('target:') ||
+               fullText.includes('which direction?') ||
+               fullText.includes('aim which direction?') ||
+               fullText.includes('select target') ||
+               fullText.includes('方向') ||
+               fullText.includes('どの方向') ||
+               fullText.includes('ターゲット');
+    }
+
     /**
      * View routing: should the classic terminal be shown for this frame?
      * Verbatim from app.js needsTerminal(); app-state inputs are explicit options.
@@ -191,15 +204,7 @@
                 return false;
             }
 
-            const isDirectionalTargeting = fullText.includes('direction?') ||
-                                          fullText.includes('target [') ||
-                                          fullText.includes('target:') ||
-                                          fullText.includes('which direction?') ||
-                                          fullText.includes('aim which direction?') ||
-                                          fullText.includes('select target') ||
-                                          fullText.includes('方向') ||
-                                          fullText.includes('どの方向') ||
-                                          fullText.includes('ターゲット');
+            const isDirectionalTargeting = isDirectionalTargetingText(fullText);
 
             if (isDirectionalTargeting) {
                 return false; // Stay in 3D view for rosette / crosshair aiming
@@ -581,7 +586,7 @@
 
     /**
      * Classic terminal screen mode detection for font scaling.
-     * Verbatim from terminal.js (45b67b0) lines ~312-442.
+     * Folded into ScreenModel.of / classify (WS42.3B).
      */
     function terminalDetectMode(termData, decode) {
         if (!termData || !termData.rows) return 'classic_play';
@@ -589,129 +594,34 @@
         const decodedText = typeof decode === 'function' ? termData.rows.map(r => decode(r.g || '')).join(' ').toLowerCase() : rawText;
         const fullText = rawText + ' ' + decodedText;
 
-        // 1. Birth / Character Setup / Death
-        if (fullText.includes('choose a race') ||
-            fullText.includes('choose a class') ||
-            fullText.includes('choose a sex') ||
-            fullText.includes('choose your') ||
-            fullText.includes('character creation') ||
-            fullText.includes('please select your character') ||
-            fullText.includes('select your character traits') ||
-            fullText.includes('step back through the birth process') ||
-            fullText.includes('race affects stats') ||
-            fullText.includes('class affects stats') ||
-            fullText.includes('choose how to generate') ||
-            fullText.includes('when the world is old') ||
-            fullText.includes('press any key to continue') ||
-            fullText.includes('use as is') ||
-            fullText.includes('to start over') ||
-            fullText.includes('r to reroll') ||
-            fullText.includes("'s' to start") ||
-            fullText.includes('tombstone') ||
-            fullText.includes('stat roll') ||
-            fullText.includes('point-based') ||
-            fullText.includes('roller') ||
-            fullText.includes("character's name") ||
-            fullText.includes('enter a name') ||
-            fullText.includes('enter name') ||
-            fullText.includes('accept character history') ||
-            fullText.includes('any other key to continue') ||
-            fullText.includes('enter character') ||
-            // Japanese Hengband Birth Screens
-            fullText.includes('初期オプション') ||
-            fullText.includes('smart_learn') ||
-            fullText.includes('キャラクターを作成') ||
-            fullText.includes('性別を選んで') ||
-            fullText.includes('種族を選んで') ||
-            fullText.includes('職業を選んで') ||
-            fullText.includes('性格を選んで') ||
-            fullText.includes('魔法領域') ||
-            fullText.includes('能力値を抽選') ||
-            fullText.includes('この数値に決定') ||
-            fullText.includes('生い立ち') ||
-            fullText.includes('ゲーム開始') ||
-            fullText.includes('冒険に出ますか')) {
+        const bf = birthFlags(fullText, false);
+        const isBirth = bf.isTitleScreen || bf.isChoiceMenu || bf.isNamePrompt || bf.isReviewScreen ||
+            fullText.includes('character creation') || fullText.includes('choose a race') ||
+            fullText.includes('choose a class') || fullText.includes('tombstone') ||
+            fullText.includes('stat roll');
+
+        const synthFrame = {
+            phase: isBirth ? 'birth' : 'play',
+            player: isBirth ? null : { name: 'Player', hp: 10, hp_max: 10 },
+            term: termData,
+            ui: { awaiting_command: false, more: false, overlay: 0 }
+        };
+        const model = screenModelOf(synthFrame, 'angband', { decode });
+        const legacy = model.legacy;
+        const kind = model.prompt.kind;
+
+        if (model.owner === 'birth' || isBirth || legacy.mode === 'birth' || legacy.mode === 'name' || legacy.mode === 'review') {
             return 'birth';
         }
-
-        // 2. Stores & Shops
-        if (fullText.includes('store inventory') ||
-            fullText.includes('home inventory') ||
-            fullText.includes('gold remaining') ||
-            fullText.includes('which store') ||
-            fullText.includes('storekeeper') ||
-            fullText.includes('purchase which item') ||
-            fullText.includes('sell which item') ||
-            fullText.includes('examine which item') ||
-            fullText.includes('所持金') ||
-            fullText.includes('店主') ||
-            fullText.includes('いらっしゃいませ') ||
-            fullText.includes('買いますか') ||
-            fullText.includes('売りますか')) {
+        if (kind === 'store' || legacy.isStore || legacy.mode === 'store') {
             return 'store';
         }
-
-        // 3. Targeting & Direction Prompts
-        if (fullText.includes('target [') ||
-            fullText.includes('direction?') ||
-            fullText.includes('target:') ||
-            fullText.includes('select target') ||
-            fullText.includes('target mode') ||
-            fullText.includes('choose target') ||
-            fullText.includes('どの方向') ||
-            fullText.includes('対象:') ||
-            fullText.includes('照準')) {
+        if (kind === 'target' || kind === 'direction' || legacy.isTargeting || legacy.mode === 'targeting' || legacy.isTargetingPrompt) {
             return 'targeting';
         }
-
-        // 4. Item & Spell Prompts
-        if (fullText.includes('inven:') ||
-            fullText.includes('(inventory)') ||
-            fullText.includes('(inven') ||
-            fullText.includes('inventory | equipment') ||
-            fullText.includes('inventory |') ||
-            fullText.includes('| equipment') ||
-            fullText.includes('examine which item') ||
-            fullText.includes('equip:') ||
-            fullText.includes('(equipment)') ||
-            fullText.includes('(equip') ||
-            fullText.includes('quiver:') ||
-            fullText.includes('quiver') ||
-            fullText.includes('select item:') ||
-            fullText.includes('which item?') ||
-            fullText.includes('which potion?') ||
-            fullText.includes('which scroll?') ||
-            fullText.includes('which book?') ||
-            fullText.includes('which spell?') ||
-            fullText.includes('cast which') ||
-            fullText.includes('aim which') ||
-            fullText.includes('zap which') ||
-            fullText.includes('browse which') ||
-            fullText.includes('destroy which') ||
-            fullText.includes('take off') ||
-            fullText.includes('remove which item') ||
-            fullText.includes('wear/wield') ||
-            fullText.includes('drop which') ||
-            fullText.includes('throw which') ||
-            fullText.includes('fire which') ||
-            fullText.includes('quaff which') ||
-            fullText.includes('read which') ||
-            fullText.includes('どのアイテム') ||
-            fullText.includes('どの巻物') ||
-            fullText.includes('どの薬') ||
-            fullText.includes('どの魔法') ||
-            fullText.includes('どの呪文') ||
-            fullText.includes('どの本') ||
-            fullText.includes('装備品') ||
-            fullText.includes('持ち物') ||
-            fullText.includes('どれを装備') ||
-            fullText.includes('どれを外しますか') ||
-            fullText.includes('どれを落としますか') ||
-            fullText.includes('どれを投げますか')) {
+        if (kind === 'item' || kind === 'spell' || legacy.isItemPrompt || legacy.mode === 'item-list' || legacy.isItemActions) {
             return 'item_prompt';
         }
-
-        // 5. Default: Classic Dungeon Exploration
         return 'classic_play';
     }
 
@@ -802,7 +712,7 @@
 
         const isMatch = frame && cachedClassify && !(opts && opts.forceRefresh) && realm === lastRealm &&
             optLang === lastLang && optDecode === lastDecode &&
-            (frame.seq !== undefined ? (lastSeq !== null && frame.seq === lastSeq) : (frame === lastFrameObj));
+            (frame === lastFrameObj || (frame.seq !== undefined && lastSeq !== null && frame.seq === lastSeq && (frame.term === lastFrameObj?.term || frame.term?.rows === lastFrameObj?.term?.rows)));
         if (isMatch) {
             return cachedClassify;
         }
@@ -1023,6 +933,314 @@
 
         return result;
     }
+
+    function resolveScreenModelItems(frame, legacy) {
+        const player = frame && frame.player;
+        const inv = (player && Array.isArray(player.inventory)) ? player.inventory : [];
+        const eq = (player && Array.isArray(player.equipment)) ? player.equipment : [];
+        const quiv = (player && Array.isArray(player.quiver)) ? player.quiver : [];
+        const playerItems = [...inv, ...eq, ...quiv];
+        const hasPlayerLists = Boolean(player && (Array.isArray(player.inventory) || Array.isArray(player.equipment) || Array.isArray(player.quiver)));
+
+        const itemRows = (legacy && (legacy.itemRows || legacy.items)) || [];
+        if (!itemRows.length) return [];
+
+        if (hasPlayerLists) {
+            const result = [];
+            for (const row of itemRows) {
+                const rowKey = String(row.key || '').toLowerCase();
+                const rowLabel = String(row.label || '').toLowerCase();
+                const match = playerItems.find(p => {
+                    const pLetter = String(p.letter || p.label || '').toLowerCase();
+                    if (pLetter && pLetter === rowKey) return true;
+                    if (p.name && rowLabel) {
+                        const pName = String(p.name).toLowerCase();
+                        if (rowLabel.includes(pName) || pName.includes(rowLabel)) return true;
+                    }
+                    return false;
+                });
+                if (match) {
+                    result.push(Object.assign({}, match, {
+                        key: row.key,
+                        letter: row.key,
+                        rowLabel: row.label,
+                        glyph: row.glyph || match.glyph || null,
+                        display: row.display || `[${row.key}]`
+                    }));
+                }
+            }
+            return result;
+        }
+
+        return itemRows.map(r => ({
+            key: r.key,
+            letter: r.key,
+            name: r.label,
+            label: r.label,
+            glyph: r.glyph || null,
+            display: r.display || `[${r.key}]`
+        }));
+    }
+
+    function derivePromptFromScraper(frame, realm, legacy, opts) {
+        const rows = (frame && frame.term && Array.isArray(frame.term.rows)) ? frame.term.rows : [];
+        const decode = opts && opts.decode;
+        const rawRow0 = (rows[0] && rows[0].g) ? rows[0].g : '';
+        const row0 = (typeof decode === 'function' ? decode(rawRow0) : rawRow0).trim();
+        const row0Lower = row0.toLowerCase();
+
+        const cy = (frame && frame.term && typeof frame.term.cy === 'number') ? frame.term.cy : -1;
+        const rawCyRow = (cy >= 0 && cy < rows.length && rows[cy] && rows[cy].g) ? rows[cy].g : '';
+        const cyRow = (typeof decode === 'function' ? decode(rawCyRow) : rawCyRow).trim();
+        const cyRowLower = cyRow.toLowerCase();
+
+        const isFCB = realm === 'frogcomposband';
+        const hasCyPrompt = isFCB && cy > 0 && cyRow.length > 0 && (
+            cyRowLower.includes('choice:') ||
+            cyRowLower.includes('examine which item') ||
+            cyRowLower.includes('quaff') ||
+            cyRowLower.includes('read') ||
+            cyRowLower.includes('eat') ||
+            cyRowLower.includes('wear') ||
+            cyRowLower.includes('wield') ||
+            cyRowLower.includes('take off') ||
+            cyRowLower.includes('drop') ||
+            cyRowLower.includes('destroy') ||
+            cyRowLower.includes('throw') ||
+            cyRowLower.includes('shoot') ||
+            cyRowLower.includes('zap') ||
+            cyRowLower.includes('aim') ||
+            cyRowLower.includes('use') ||
+            cyRowLower.includes('activate') ||
+            cyRowLower.includes('identify')
+        );
+        let activeText = hasCyPrompt ? cyRow : row0;
+        if (hasCyPrompt) {
+            activeText = activeText.replace(/\s{2,}[A-Z]{2,4}\s*:\s*\S.*$/i, '').trim();
+        }
+        const activeLower = activeText.toLowerCase();
+
+        const inPlay = Boolean(legacy && legacy.inPlay);
+        const ui = (frame && frame.ui) || {};
+
+        let kind = 'unknown';
+        let text = activeText;
+        let verb = legacy ? legacy.verbPrompt : null;
+
+        if (Boolean(ui.more) || (legacy && legacy.isPressAnyKey) || row0Lower.includes('-more-') || cyRowLower.includes('-more-')) {
+            kind = 'more';
+            text = row0 || '-more-';
+            verb = null;
+        } else if ((legacy && (legacy.isTargeting || legacy.isTargetingPrompt || legacy.mode === 'targeting')) ||
+                   /(?:target\s*\[|target:|select target|target mode|choose target|ターゲット|照準)/i.test(activeLower) ||
+                   activeLower.startsWith('target')) {
+            kind = 'target';
+            verb = null;
+        } else if (/(?:direction\?|which direction\?|aim which direction\?|どの方向|方向\?)/i.test(activeLower)) {
+            kind = 'direction';
+            verb = null;
+        } else if ((legacy && (legacy.isYesNoPrompt || legacy.mode === 'yesno')) ||
+                   /\[y\/n\]|\(y\/n\)|y\/n\?|really\s+(?:drop|destroy)|are you sure|よろしいですか/i.test(activeLower)) {
+            kind = 'yesno';
+            verb = null;
+        } else if (/^(?:repeat\s+count|count)\b|:\s*count\b/i.test(activeLower)) {
+            kind = 'count';
+            verb = null;
+        } else if ((legacy && (legacy.isQuantityPrompt || legacy.mode === 'quantity')) ||
+                   /(?:how\s+many|quantity|how\s+much|何個)/i.test(activeLower)) {
+            kind = 'quantity';
+            verb = null;
+        } else if ((legacy && (legacy.isItemActions || legacy.isPopupCommandMenu || legacy.isChoiceMenu || legacy.isReviewScreen || legacy.mode === 'item-actions' || legacy.mode === 'popup-menu')) ||
+                   row0Lower.includes('command for ') || row0Lower.includes('に対するコマンド')) {
+            kind = 'menu';
+            verb = null;
+        } else if (legacy && (legacy.isStore || legacy.mode === 'store')) {
+            kind = 'store';
+            verb = null;
+        } else if (isSpellOrAbilityMenu(legacy ? legacy.screenText : '') ||
+                   /(?:cast|study|browse)\s+which|(?:use|sing)\s+which|which\s+(?:spell|prayer|book|power)|どの(?:魔法|呪文|本)/i.test(activeLower)) {
+            kind = 'spell';
+            verb = verb || 'cast';
+        } else if ((legacy && legacy.mode === 'item-list' && legacy.promptKind === 'select') ||
+                   (legacy && legacy.isItemPrompt && legacy.promptKind === 'select') ||
+                   /(?:select\s+item|which\s+(?:item|potion|scroll|book|weapon|armour|wand|staff|rod)|wear\/wield\s+which|wear\s+which|wield\s+which|take\s+off|remove\s+which|drop\s+which|throw\s+which|fire\s+which|shoot\s+which|quaff\s+which|read\s+which|eat\s+which|destroy\s+which|examine\s+which|choice:)/i.test(activeLower)) {
+            kind = 'item';
+            verb = legacy ? legacy.verbPrompt : null;
+        } else if ((legacy && (legacy.isNamePrompt || legacy.mode === 'name')) ||
+                   /(?:enter\s+(?:a\s+)?name|enter\s+name|character's\s+name|inscribe\b|inscription|file\s+name|名前を入力)/i.test(activeLower)) {
+            kind = 'string';
+            verb = null;
+        } else if ((inPlay && ui.awaiting_command && !ui.more && (ui.overlay || 0) === 0) ||
+                   (legacy && legacy.promptKind === 'command') ||
+                   activeLower.includes('command:') ||
+                   activeLower.includes('コマンド:')) {
+            kind = 'command';
+            verb = null;
+        } else {
+            kind = 'unknown';
+        }
+
+        return {
+            kind,
+            text,
+            verb,
+            src: 'scraper'
+        };
+    }
+
+    let smLastSeq = null;
+    let smLastFrameObj = null;
+    let smLastRealm = null;
+    let smLastLang = null;
+    let smLastDecode = null;
+    let smLastMirror3d = null;
+    let smLastForceTerminal = null;
+    let cachedScreenModel = null;
+
+    /**
+     * ScreenModel: unified cross-realm classifier returning bridge-first modal contract (WS42.3B / §6.5).
+     * @param {object} frame Wire protocol frame
+     * @param {string} [realm='angband'] Realm name
+     * @param {object} [opts] Options (decode, lang, mirror3d, forceTerminal, forceRefresh)
+     * @returns {{ owner: string, prompt: object, mirror: string|null, needsTerminal: boolean, items: Array, regions: Array, legacy: object }}
+     */
+    function screenModelOf(frame, realm, opts) {
+        if (realm && typeof realm === 'object' && !opts) {
+            opts = realm;
+            realm = (frame && frame.realm) || 'angband';
+        }
+        realm = realm || (frame && frame.realm) || 'angband';
+        opts = opts || {};
+        const optLang = opts.lang || '';
+        const optDecode = Boolean(opts.decode);
+        const optMirror3d = Boolean(opts.mirror3d);
+        const optForceTerminal = Boolean(opts.forceTerminal);
+
+        const isMatch = frame && cachedScreenModel && !opts.forceRefresh &&
+            realm === smLastRealm &&
+            optLang === smLastLang &&
+            optDecode === smLastDecode &&
+            optMirror3d === smLastMirror3d &&
+            optForceTerminal === smLastForceTerminal &&
+            (frame === smLastFrameObj || (frame.seq !== undefined && smLastSeq !== null && frame.seq === smLastSeq && (frame.term === smLastFrameObj?.term || frame.term?.rows === smLastFrameObj?.term?.rows)));
+
+        if (isMatch) {
+            return cachedScreenModel;
+        }
+
+        const legacy = classify(frame, realm, opts);
+
+        let prompt;
+        const bp = frame && frame.ui && frame.ui.prompt;
+        if (bp && bp.kind) {
+            prompt = {
+                kind: bp.kind,
+                text: bp.text !== undefined ? bp.text : '',
+                verb: bp.verb !== undefined ? bp.verb : null,
+                src: bp.src || 'hook'
+            };
+            if (bp.slot !== undefined) prompt.slot = bp.slot;
+        } else {
+            prompt = derivePromptFromScraper(frame, realm, legacy, opts);
+        }
+
+        const inPlay = Boolean(legacy && legacy.inPlay);
+        const player = frame && frame.player;
+        const ui = (frame && frame.ui) || {};
+        const overlay = ui.overlay || 0;
+        const isDead = Boolean((legacy && legacy.mode === 'death') || (player && (player.dead || (player.hp !== undefined && player.hp <= 0 && player.hp_max > 0))));
+        const isBirth = Boolean(!frame || !player || (frame.phase && frame.phase === 'birth') || (legacy && (legacy.mode === 'birth' || legacy.mode === 'name' || legacy.mode === 'review')) || (frame.phase && frame.phase !== 'play' && !isDead));
+
+        const rows = (frame && frame.term && Array.isArray(frame.term.rows)) ? frame.term.rows : [];
+        const decode = opts && opts.decode;
+        const rawRow0 = (rows[0] && rows[0].g) ? rows[0].g : '';
+        const row0 = (typeof decode === 'function' ? decode(rawRow0) : rawRow0).trim();
+        const row0Lower = row0.toLowerCase();
+
+        const isDirTargeting = Boolean((legacy && legacy.isDirectionalTargeting) ||
+            isDirectionalTargetingText(legacy ? legacy.screenText : '') ||
+            prompt.kind === 'direction' ||
+            prompt.kind === 'target' ||
+            (legacy && (legacy.isTargeting || legacy.isTargetingPrompt)));
+
+        let mirror = null;
+        if (inPlay && !isDead && !isBirth) {
+            if (ui.more && overlay === 0) {
+                mirror = 'more';
+            } else if (isDirTargeting) {
+                mirror = 'direction';
+            } else if (optMirror3d) {
+                if (prompt.kind === 'yesno') {
+                    mirror = 'yesno';
+                } else if (prompt.kind === 'quantity') {
+                    mirror = 'quantity';
+                } else if (prompt.kind === 'count') {
+                    mirror = 'count';
+                } else if (prompt.kind === 'item' || (legacy && legacy.mode === 'item-list' && legacy.promptKind === 'select')) {
+                    mirror = 'item';
+                } else if (prompt.kind === 'menu' && (row0Lower.includes('command for ') || prompt.text.toLowerCase().includes('command for '))) {
+                    mirror = 'item-menu';
+                } else if (prompt.kind === 'spell' && (Boolean(frame && frame.spells) || Boolean(opts && opts.hasBridgeSpells))) {
+                    mirror = 'spell';
+                }
+            }
+        }
+
+        let owner;
+        if (isBirth) {
+            owner = 'birth';
+        } else if (isDead) {
+            owner = 'dead';
+        } else if (inPlay && ui.awaiting_command && !ui.more && overlay === 0 && prompt.kind === 'command') {
+            owner = 'engine-idle';
+        } else if (inPlay && mirror !== null) {
+            owner = 'engine-prompt';
+        } else {
+            owner = 'engine-screen';
+        }
+
+        let needsTerm;
+        if (optForceTerminal) {
+            needsTerm = true;
+        } else if (owner === 'birth' || owner === 'dead') {
+            needsTerm = true;
+        } else if (mirror !== null) {
+            needsTerm = false;
+        } else {
+            needsTerm = needsTerminal(frame, opts);
+        }
+
+        const items = resolveScreenModelItems(frame, legacy);
+        const isHeng = realm === 'hengband';
+        const regions = extractMultiColumnItems(rows, isHeng, decode);
+
+        const result = {
+            owner,
+            prompt,
+            mirror,
+            needsTerminal: needsTerm,
+            items,
+            regions,
+            legacy
+        };
+
+        if (frame) {
+            smLastSeq = frame.seq !== undefined ? frame.seq : null;
+            smLastFrameObj = frame;
+            smLastRealm = realm;
+            smLastLang = optLang;
+            smLastDecode = optDecode;
+            smLastMirror3d = optMirror3d;
+            smLastForceTerminal = optForceTerminal;
+            cachedScreenModel = result;
+        }
+
+        return result;
+    }
+
+    const ScreenModel = Object.freeze({
+        of: screenModelOf
+    });
 
     // Engine verbs allowlist (WS1.2 / WS10.3)
     const ENGINE_VERBS = new Set(['key', 'keys', 'frame', 'map', 'save', 'ping']);
@@ -1272,6 +1490,8 @@
         detectRealmSubmenu,
         classify,
         classifyScreen: classify,
+        ScreenModel,
+        of: screenModelOf,
         decodeSjis,
         ENGINE_VERBS,
         isAllowedEngineCommand

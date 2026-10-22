@@ -76,6 +76,10 @@ test('exports', () => {
         'isAllowedEngineCommand']) {
         assert.strictEqual(typeof SC[fn], 'function', `missing export ${fn}`);
     }
+    assert.strictEqual(typeof SC.ScreenModel, 'object', 'missing export ScreenModel');
+    assert.strictEqual(typeof SC.ScreenModel.of, 'function', 'missing export ScreenModel.of');
+    assert.strictEqual(typeof SC.of, 'function', 'missing export of');
+    assert.strictEqual(SC.of, SC.ScreenModel.of, 'SC.of should equal SC.ScreenModel.of');
 });
 
 test('isAllowedEngineCommand validation', () => {
@@ -416,6 +420,223 @@ if (UPDATE) {
     fs.writeFileSync(SNAP_FILE, JSON.stringify(nextSnapshot, null, 1) + '\n', 'utf8');
     console.log(`[test_screen_context] snapshot updated: ${Object.keys(nextSnapshot).length} fixtures`);
 }
+
+// ---------------------------------------------------------------------------
+// 4. SCREENMODEL TESTS (WS42.3B)
+// ---------------------------------------------------------------------------
+test('ScreenModel.of: contract structure', () => {
+    const m = SC.ScreenModel.of(sample, 'angband');
+    const keys = Object.keys(m).sort();
+    assert.deepStrictEqual(keys, ['items', 'legacy', 'mirror', 'needsTerminal', 'owner', 'prompt', 'regions']);
+    assert.strictEqual(typeof m.owner, 'string');
+    assert.strictEqual(typeof m.prompt, 'object');
+    assert.strictEqual(typeof m.needsTerminal, 'boolean');
+    assert(Array.isArray(m.items));
+    assert(Array.isArray(m.regions));
+    assert.strictEqual(typeof m.legacy, 'object');
+});
+
+test('ScreenModel.of: bridge-first frame.ui.prompt priority (src: hook)', () => {
+    // 1. item prompt
+    const fItem = mkFrame('', { ui: { awaiting_command: false, more: false, overlay: 0, prompt: { kind: 'item', text: 'Wear which item?', verb: 'wear' } } });
+    const mItem = SC.ScreenModel.of(fItem, 'angband');
+    assert.strictEqual(mItem.prompt.kind, 'item');
+    assert.strictEqual(mItem.prompt.src, 'hook');
+    assert.strictEqual(mItem.prompt.verb, 'wear');
+    assert.strictEqual(mItem.prompt.text, 'Wear which item?');
+
+    // 2. yesno prompt
+    const fYesNo = mkFrame('', { ui: { awaiting_command: false, more: false, overlay: 0, prompt: { kind: 'yesno', text: 'Really destroy? [y/n]' } } });
+    const mYesNo = SC.ScreenModel.of(fYesNo, 'angband');
+    assert.strictEqual(mYesNo.prompt.kind, 'yesno');
+    assert.strictEqual(mYesNo.prompt.src, 'hook');
+
+    // 3. quantity prompt
+    const fQty = mkFrame('', { ui: { awaiting_command: false, more: false, overlay: 0, prompt: { kind: 'quantity', text: 'How many?' } } });
+    const mQty = SC.ScreenModel.of(fQty, 'angband');
+    assert.strictEqual(mQty.prompt.kind, 'quantity');
+    assert.strictEqual(mQty.prompt.src, 'hook');
+
+    // 4. direction prompt
+    const fDir = mkFrame('', { ui: { awaiting_command: false, more: false, overlay: 0, prompt: { kind: 'direction', text: 'Aim which direction?' } } });
+    const mDir = SC.ScreenModel.of(fDir, 'angband');
+    assert.strictEqual(mDir.prompt.kind, 'direction');
+    assert.strictEqual(mDir.prompt.src, 'hook');
+    assert.strictEqual(mDir.mirror, 'direction');
+    assert.strictEqual(mDir.owner, 'engine-prompt');
+    assert.strictEqual(mDir.needsTerminal, false);
+
+    // 5. more prompt
+    const fMore = mkFrame('The dragon breathes fire. -more-', { ui: { awaiting_command: false, more: true, overlay: 0, prompt: { kind: 'more', text: '-more-' } } });
+    const mMore = SC.ScreenModel.of(fMore, 'angband');
+    assert.strictEqual(mMore.prompt.kind, 'more');
+    assert.strictEqual(mMore.prompt.src, 'hook');
+    assert.strictEqual(mMore.mirror, 'more');
+    assert.strictEqual(mMore.owner, 'engine-prompt');
+    assert.strictEqual(mMore.needsTerminal, false);
+
+    // 6. null prompt (idle exploration)
+    const fIdle = mkFrame('', { ui: { awaiting_command: true, more: false, overlay: 0, prompt: null } });
+    const mIdle = SC.ScreenModel.of(fIdle, 'angband');
+    assert.strictEqual(mIdle.prompt.kind, 'command');
+    assert.strictEqual(mIdle.prompt.src, 'scraper');
+    assert.strictEqual(mIdle.owner, 'engine-idle');
+    assert.strictEqual(mIdle.mirror, null);
+    assert.strictEqual(mIdle.needsTerminal, false);
+
+    // 7. explicit hook command prompt
+    const fHookCmd = mkFrame('', { ui: { awaiting_command: true, more: false, overlay: 0, prompt: { kind: 'command', text: '', verb: null } } });
+    const mHookCmd = SC.ScreenModel.of(fHookCmd, 'angband');
+    assert.strictEqual(mHookCmd.prompt.kind, 'command');
+    assert.strictEqual(mHookCmd.prompt.src, 'hook');
+    assert.strictEqual(mHookCmd.owner, 'engine-idle');
+});
+
+test('ScreenModel.of: fallback scraper classification on real fixtures', () => {
+    const fixMap = new Map(fixtures.map(f => [`${f.realm}/${f.name}`, f]));
+
+    // Angband inventory
+    const angInven = fixMap.get('angband/inventory');
+    assert(angInven, 'angband/inventory fixture missing');
+    const mAngInven = SC.ScreenModel.of(angInven.frame, 'angband');
+    assert.strictEqual(mAngInven.prompt.src, 'scraper');
+    assert.strictEqual(mAngInven.prompt.kind, 'item');
+    assert.strictEqual(mAngInven.owner, 'engine-screen');
+    assert.strictEqual(mAngInven.mirror, null);
+    assert.strictEqual(mAngInven.needsTerminal, true);
+
+    // Sil-Q inventory command loop
+    const silqInven = fixMap.get('silq/inventory_command');
+    assert(silqInven, 'silq/inventory_command fixture missing');
+    const mSilqInven = SC.ScreenModel.of(silqInven.frame, 'silq');
+    assert.strictEqual(mSilqInven.prompt.src, 'scraper');
+    assert.strictEqual(mSilqInven.prompt.kind, 'command');
+    assert.strictEqual(mSilqInven.owner, 'engine-screen');
+    assert.strictEqual(mSilqInven.needsTerminal, true);
+
+    // Sil-Q wear prompt
+    const silqWear = fixMap.get('silq/wear_prompt');
+    assert(silqWear, 'silq/wear_prompt fixture missing');
+    const mSilqWear = SC.ScreenModel.of(silqWear.frame, 'silq');
+    assert.strictEqual(mSilqWear.prompt.src, 'scraper');
+    assert.strictEqual(mSilqWear.prompt.kind, 'item');
+    assert.strictEqual(mSilqWear.prompt.verb, 'wear');
+
+    // FrogComposBand quaff select
+    const fcbQuaff = fixMap.get('frogcomposband/quaff_select');
+    assert(fcbQuaff, 'frogcomposband/quaff_select fixture missing');
+    const mFcbQuaff = SC.ScreenModel.of(fcbQuaff.frame, 'frogcomposband');
+    assert.strictEqual(mFcbQuaff.prompt.src, 'scraper');
+    assert.strictEqual(mFcbQuaff.prompt.kind, 'item');
+    assert.strictEqual(mFcbQuaff.prompt.text, 'Choice:');
+
+    // FrogComposBand world (idle)
+    const fcbWorld = fixMap.get('frogcomposband/world');
+    assert(fcbWorld, 'frogcomposband/world fixture missing');
+    const mFcbWorld = SC.ScreenModel.of(fcbWorld.frame, 'frogcomposband');
+    assert.strictEqual(mFcbWorld.prompt.kind, 'command');
+    assert.strictEqual(mFcbWorld.owner, 'engine-idle');
+    assert.strictEqual(mFcbWorld.mirror, null);
+    assert.strictEqual(mFcbWorld.needsTerminal, false);
+
+    // Hengband world (idle)
+    const hengWorld = fixMap.get('hengband/world');
+    assert(hengWorld, 'hengband/world fixture missing');
+    const mHengWorld = SC.ScreenModel.of(hengWorld.frame, 'hengband', { decode });
+    assert.strictEqual(mHengWorld.prompt.kind, 'command');
+    assert.strictEqual(mHengWorld.owner, 'engine-idle');
+    assert.strictEqual(mHengWorld.mirror, null);
+    assert.strictEqual(mHengWorld.needsTerminal, false);
+
+    // Hengband birth
+    const hengBirth = fixMap.get('hengband/birth_01');
+    assert(hengBirth, 'hengband/birth_01 fixture missing');
+    const mHengBirth = SC.ScreenModel.of(hengBirth.frame, 'hengband', { decode });
+    assert.strictEqual(mHengBirth.owner, 'birth');
+    assert.strictEqual(mHengBirth.needsTerminal, true);
+});
+
+test('ScreenModel.of: opts.mirror3d routing (default false vs true)', () => {
+    // 1. item prompt
+    const fItem = mkFrame('Wear/wield which item?', { ui: { awaiting_command: false, more: false, overlay: 0 } });
+    const mItemClassic = SC.ScreenModel.of(fItem, 'angband', { mirror3d: false });
+    assert.strictEqual(mItemClassic.mirror, null);
+    assert.strictEqual(mItemClassic.owner, 'engine-screen');
+    assert.strictEqual(mItemClassic.needsTerminal, true);
+
+    const mItem3d = SC.ScreenModel.of(fItem, 'angband', { mirror3d: true });
+    assert.strictEqual(mItem3d.mirror, 'item');
+    assert.strictEqual(mItem3d.owner, 'engine-prompt');
+    assert.strictEqual(mItem3d.needsTerminal, false);
+
+    // 2. yesno prompt
+    const fYn = mkFrame('Really destroy a torch? [y/n]', { ui: { awaiting_command: false, more: false, overlay: 0 } });
+    const mYnClassic = SC.ScreenModel.of(fYn, 'angband', { mirror3d: false });
+    assert.strictEqual(mYnClassic.mirror, null);
+    assert.strictEqual(mYnClassic.owner, 'engine-screen');
+    assert.strictEqual(mYnClassic.needsTerminal, true);
+
+    const mYn3d = SC.ScreenModel.of(fYn, 'angband', { mirror3d: true });
+    assert.strictEqual(mYn3d.mirror, 'yesno');
+    assert.strictEqual(mYn3d.owner, 'engine-prompt');
+    assert.strictEqual(mYn3d.needsTerminal, false);
+
+    // 3. quantity prompt
+    const fQty = mkFrame('How many? ', { ui: { awaiting_command: false, more: false, overlay: 0 } });
+    const mQtyClassic = SC.ScreenModel.of(fQty, 'angband', { mirror3d: false });
+    assert.strictEqual(mQtyClassic.mirror, null);
+    assert.strictEqual(mQtyClassic.owner, 'engine-screen');
+    assert.strictEqual(mQtyClassic.needsTerminal, true);
+
+    const mQty3d = SC.ScreenModel.of(fQty, 'angband', { mirror3d: true });
+    assert.strictEqual(mQty3d.mirror, 'quantity');
+    assert.strictEqual(mQty3d.owner, 'engine-prompt');
+    assert.strictEqual(mQty3d.needsTerminal, false);
+
+    // 4. item-menu (Vanilla Command for ...)
+    const fMenu = mkFrame('Command for Phial of Galadriel:', { ui: { awaiting_command: false, more: false, overlay: 0 } });
+    const mMenuClassic = SC.ScreenModel.of(fMenu, 'angband', { mirror3d: false });
+    assert.strictEqual(mMenuClassic.mirror, null);
+    assert.strictEqual(mMenuClassic.owner, 'engine-screen');
+    assert.strictEqual(mMenuClassic.needsTerminal, true);
+
+    const mMenu3d = SC.ScreenModel.of(fMenu, 'angband', { mirror3d: true });
+    assert.strictEqual(mMenu3d.mirror, 'item-menu');
+    assert.strictEqual(mMenu3d.owner, 'engine-prompt');
+    assert.strictEqual(mMenu3d.needsTerminal, false);
+
+    // 5. forceTerminal override wins even with mirror3d: true
+    const mForced = SC.ScreenModel.of(fItem, 'angband', { mirror3d: true, forceTerminal: true });
+    assert.strictEqual(mForced.needsTerminal, true);
+});
+
+test('ScreenModel.of: items intersection and memoization', () => {
+    // Inventory intersection
+    const fPack = mkFrame([
+        'Select Item: (Inven: a-b, ESC)',
+        'a) a Long Sword',
+        'b) 3 Rations of Food'
+    ], {
+        player: {
+            name: 'Hero',
+            inventory: [
+                { slot: 0, label: 'a', name: 'a Long Sword' }
+            ]
+        }
+    });
+    const mPack = SC.ScreenModel.of(fPack, 'angband');
+    assert.strictEqual(mPack.items.length, 1);
+    assert.strictEqual(mPack.items[0].key, 'a');
+    assert.strictEqual(mPack.items[0].name, 'a Long Sword');
+
+    // Memoization
+    const fSeq = mkFrame('', { seq: 42 });
+    const m1 = SC.ScreenModel.of(fSeq, 'angband');
+    const m2 = SC.ScreenModel.of(fSeq, 'angband');
+    assert.strictEqual(m1, m2);
+    const m3 = SC.ScreenModel.of(fSeq, 'angband', { mirror3d: true });
+    assert.notStrictEqual(m1, m3);
+});
 
 // ---------------------------------------------------------------------------
 console.log(`[test_screen_context] ${passed} passed, ${failures.length} failed (${fixtures.length} fixtures)`);
