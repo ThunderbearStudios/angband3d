@@ -214,4 +214,29 @@
      - `python tools/smoke_test.py`: 11/11 tests pass.
      - `dotnet build client/angband3d.csproj`: 0 warnings, 0 errors.
      - `npm test` in `server/`: 20/20 test suites pass.
-
+
+-13. **WS42: Cross-Realm Command, Action & Menu Unification (v10.8.0, 100% Operational Across All 4 Realms)**:
+   - **Unified "Mirror, Don't Puppet" Architecture**:
+     - Authoritative C/C++ engines preserved 100% intact with zero rule or RNG mutations.
+     - Additive bridge exports across all 4 realms (`ui.prompt`, `verbs`, `commands`, `letter`, `spells`).
+     - Replaced timer-paced macro pumps (`setTimeout 55ms/80ms`) with deterministic, frame-acknowledged `KeyPlan` steps compiled and dispatched via `CommandDispatcher`.
+     - Enforced Law C10 KLM Zero Redundant Prefix Keys property: idle plans start with exact classic keys.
+   - **Core Singletons & UI Surfaces**:
+     - `ActionCatalog`: Single source of truth for 54 actions across Vanilla Angband, Sil-Q, FrogComposBand, and Hengband with canonical 20-bit `VERB_BITS` mask, English and Japanese labels, synonyms, and item filters.
+     - `ScreenModel`: Memoized per-frame state classifier replacing legacy ad-hoc regex scanners.
+     - `PromptMirror`: 3D visual mirrors for modal engine prompts (`yesno`, `quantity`, `item`, `direction`, `spell`, `item-menu`, `more`).
+     - `ItemSheet`: Non-modal noun drawer with Pack, Gear, and Quiver tabs displaying valid verbs filtered by bridge bitmasks (`vm`).
+     - `CommandPalette`: `Ctrl+K` command search modal with 100% ActionCatalog coverage, categorization, and recency ranking.
+     - `EntityMenu`: Non-modal popover (`popover="manual"`, zero focus steal, `L51`) providing contextual actions for targeted monsters, items, doors, stairs, traps, and rubble.
+     - `GamepadController` & `RadialMenu`: Standard gamepad controller with 8-sector directional snapping, deadzone filtering, LT diagonal lock, and 8-wedge radial quick-action menu supporting both hold (quasimode) and toggle activation.
+   - **Accessibility & Motor Flexibility**:
+     - Hardened opt-in WASD mode (`Alt+W`, `#btn-wasd-toggle`) for one-handed navigation (`W/S` move, `A/D` turn, `Shift+A/D` strafe, relative cardinal `8/4/2/6` aim), automatically inert in item prompts, with shadowed verbs reachable via Action Dock, Palette, and `\` literal-next key prefix.
+     - Full WCAG 2.2 AA and Xbox Accessibility Guidelines (XAG 107/112) compliance documented in `docs/ACCESSIBILITY.md`.
+   - **Verification Matrix & Gate**:
+     - `tools/test_klm_paths.js`: 13/13 PASS across all realms and scenarios.
+     - `tools/check_loc_budget.js`: 17-file bloat-reduction budget gate enforced.
+     - `tools/test_capability_ledger.js`: 29/29 capability rows verified.
+     - `tools/test_cdp_command_matrix.js`: 7 channels x 14 scenarios verified offline & live.
+     - `tools/test_manifest.json`: Integrated all new verification gates into `fast` and `cdp` suites.
+   - **Queued Backlog: WS-NH (UnNetHack Integration)**:
+     - With `ActionCatalog` and `CommandDispatcher` unified across 4 disparate variants, the system is primed for **WS-NH** (`docs/plan/UNNETHACK_INTEGRATION_PLAN.md`). UnNetHack can be integrated as a 5th realm simply by registering its command map into `ActionCatalog` and connecting its bridge frame protocol to `ScreenModel` and `CommandDispatcher`.

@@ -21,7 +21,14 @@
     "test_bestiary_match_verification.js",
     "test_bridge_schema.js",
     "test_action_catalog.js",
-    "test_command_dispatcher.js"
+    "test_command_dispatcher.js",
+    "test_ws42_contracts.js",
+    "test_prompt_mirror.js",
+    "test_command_palette.js",
+    "test_gamepad_mapping.js",
+    "test_klm_paths.js",
+    "check_loc_budget.js",
+    "test_capability_ledger.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",
@@ -33,7 +40,8 @@
     "test_boot_flow.js",
     "test_heng_language_switch.js",
     "test_ui_layout.js",
-    "test_story_prompt_cdp.js"
+    "test_story_prompt_cdp.js",
+    "test_cdp_command_matrix.js"
   ],
   "cloud": [],
   "legacy": [],

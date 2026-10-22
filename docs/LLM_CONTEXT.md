@@ -208,13 +208,17 @@ Rather than rewriting game rules, each engine runs as a headless child process (
 | `DemoPlayer` | `class` | `server/public/js/demo-player.js:29-89` | `class` |
 | `DeviceProfile` | `class` | `server/public/js/device.js:7-67` | `class` |
 | `Dungeon3D` | `class` | `server/public/js/dungeon3d.js:2071-2131` | `class` |
+| `GamepadController` | `class` | `server/public/js/gamepad.js:59-119` | `class` |
+| `GrimoireDeckController` | `class` | `server/public/js/grimoire-deck.js:97-157` | `class` |
 | `WebHUD` | `class` | `server/public/js/hud.js:6-66` | `class` |
 | `InputController` | `class` | `server/public/js/input.js:6-66` | `class` |
 | `LocalSaveManager` | `class` | `server/public/js/local_bridge.js:8-68` | `class` |
 | `LocalGameBridge` | `class` | `server/public/js/local_bridge.js:145-205` | `class` |
 | `MobileOverlay` | `class` | `server/public/js/mobile-overlay.js:7-67` | `class` |
-| `GameNetwork` | `class` | `server/public/js/network.js:7-67` | `class` |
-| `WebTerminal` | `class` | `server/public/js/terminal.js:7-67` | `class` |
+| `GameNetwork` | `class` | `server/public/js/network.js:60-120` | `class` |
+| `QuickActionController` | `class` | `server/public/js/quick-actions.js:87-147` | `class` |
+| `RadialMenu` | `class` | `server/public/js/radial-menu.js:115-175` | `class` |
+| `WebTerminal` | `class` | `server/public/js/terminal.js:2-62` | `class` |
 | `MockDungeon3D` | `class` | `tools/audit_variant_monsters.js:10-70` | `class` |
 | `BridgeError` | `class` | `tools/bridge.py:19-20` | `class` |
 | `Bridge` | `class` | `tools/bridge.py:23-240` | `methods: __init__, next_frame, seq, key, keys, set_map` |
@@ -270,8 +274,4 @@ Rather than rewriting game rules, each engine runs as a headless child process (
 | `run` | `function` | `build-wasm/game/angband.js:6053-6113` | `function` |
 | `checkUnflushedContent` | `function` | `build-wasm/game/angband.js:6089-6149` | `function` |
 | `sleep` | `function` | `scratch/capture_birth_shot.js:8-68` | `function` |
-| `sendCDP` | `function` | `scratch/capture_birth_shot.js:10-70` | `function` |
-| `run` | `function` | `scratch/capture_birth_shot.js:27-82` | `function` |
-| `main` | `function` | `scratch/check_browser_runtime.js:3-19` | `function` |
-| `testErrors` | `function` | `scratch/check_console_errors.js:5-65` | `function` |
 <!-- AUTO-SYMBOL-INDEX-END -->

@@ -127,3 +127,47 @@ To immediately verify these accessibility systems in action:
 4. **Test Living Chronicle & Screen Reader Support**:
    - Open [https://angband3d.com](https://angband3d.com).
    - Expand the Living Chronicle Tome (`[📖 Tome]`) to observe live transcript delivery and auditory feedback.
+
+
+---
+
+## 8. WS42 Unified Command & Accessibility Standards Matrix (WCAG 2.2 & XAG)
+
+The WS42 unification overhaul aligns Angband 3D with modern accessibility standards, specifically **WCAG 2.2 Level AA** and **Xbox Accessibility Guidelines (XAG)**.
+
+### 8.1 WCAG 2.2 Compliance
+
+| Success Criterion | Level | Status | Implementation in Angband 3D |
+|---|---|---|---|
+| **2.1.1 Keyboard** | Level A | **Full Compliance** | 100% of game functionality is operable via keyboard with zero keyboard traps. All modal overlays (`PromptMirror`, `ItemSheet`, `CommandPalette`) trap tab focus cleanly and unwind on `Escape`. |
+| **2.1.4 Character Key Shortcuts** | Level A | **Full Compliance** | Single-character roguelike shortcuts can be mitigated or remapped via opt-in WASD mode (`Alt+W`), the `\` literal-next key prefix, or standard pointer clicks on Action Dock buttons and the Command Palette. In active item/spell prompts, character keys are scoped exclusively to item selection. |
+| **2.4.7 Focus Visible** | Level AA | **Full Compliance** | All interactive elements display prominent high-contrast outline focus rings (`2px solid var(--accent-gold, #ffd700)`) with clear inner offset when receiving keyboard focus. |
+| **2.5.8 Target Size (Minimum)** | Level AA | **Full Compliance** | All interactive touch and click targets—including the 27 Action Dock buttons, 15 Touch D-Pad controls, Prompt Mirror chips, Item Sheet verb rows, and ribbon buttons—meet or exceed `44×44 CSS px` (surpassing WCAG 2.2's `24×24 px` requirement). |
+
+### 8.2 Xbox Accessibility Guidelines (XAG) Alignment
+
+- **XAG 107 (Input & Quasimodes)**:
+  - **Hold vs. Toggle**: The `RadialMenu` and `GamepadController` support both sustained hold (quasimode flick) and toggle activation.
+  - **Run Mode**: Supports both temporary `Shift` key hold and persistent toggle via `Alt+R`, `#btn-run-toggle`, or `#dpad-run-toggle`.
+  - **WASD Mode**: Persistent toggle via `Alt+W` or touch pill `#btn-wasd-toggle`.
+- **XAG 112 (Consistent Navigation & Escape)**:
+  - Universal `Escape` behavior: `Escape` consistently steps backwards one UI layer at a time (Entity Popover → Command Palette → Item Sheet → Prompt Mirror → Terminal Overlay → Game Engine).
+  - The `CommandDispatcher` enforces a 3-strike unwind limit to prevent stuck or orphaned dialog states.
+
+### 8.3 Right-Handed WASD Mode (`D22`)
+
+For players with motor disabilities, limited right-hand mobility, or RSI requiring one-handed left-hand navigation:
+1. **Activation**: Toggled via `Alt+W` hotkey or `#btn-wasd-toggle` touch pill. Persisted in `localStorage`.
+2. **Movement**: `W`/`S` step forward and backward; `A`/`D` turn camera 90° left and right; `Shift+A`/`Shift+D` strafe left and right.
+3. **3D Directional Aiming**: In directional targeting prompts, `W/A/S/D` map directly to relative cardinal directions `8/4/2/6`.
+4. **Prompt Invariance**: Automatically inert in item selection prompts (`prompt.kind === 'item' | 'select' | 'spell'`), allowing letters `a` and `d` to select items without triggering movement.
+5. **Shadowed Verbs**: Classic verbs shadowed by WASD (`w` wield, `a` aim, `s` search, `d` drop) remain immediately reachable via:
+   - The Action Dock WASD button cluster.
+   - The Command Palette (`Ctrl+K`).
+   - The Item Sheet noun drawer (`Alt+I`).
+   - The literal-next key prefix (`\`).
+
+### 8.4 Screen Reader & Live Announcements (`aria-live="polite"`)
+
+- All turn events, combat rolls, damage notifications, and prompt descriptions are mirrored to DOM containers configured with `role="status"` and `aria-live="polite"`.
+- Announcements queue cleanly without cutting off existing speech synthesis, allowing blind and low-vision players using screen readers (NVDA, JAWS, VoiceOver, Narrator) to receive complete tactical awareness.

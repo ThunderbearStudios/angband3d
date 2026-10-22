@@ -200,6 +200,88 @@ The UI subsystem (`Overlay.cs`) decouples physical HUD window sizing from ASCII 
 3. **Tactical 2D Overlay**: `Shift-M` toggles full-level tactical view with player orientation cone and fog-of-memory rendering.
 
 
+## WS42 Unified Command, Action & Menu Architecture ("Mirror, Don't Puppet")
+
+The WS42 unification overhaul replaces disparate ad-hoc key mappings, divergent screen-scrapers, and timer-driven macro senders with a single, declarative "Mirror, don't puppet" architecture. The C engine remains 100% authoritative for all rules, prompts, and turns, while client interactions are structured, deterministic, and frame-acknowledged.
+
+```mermaid
+flowchart TD
+    subgraph EngineBridge [Authoritative C Engine Process]
+        A[C Game Core] -->|blocks for input| B[main-bridge.c]
+        B -->|JSON frame: seq, ui.prompt, verbs, commands| C[Network Relay]
+    end
+
+    subgraph CoreUnification [WS42 Core Pipeline]
+        C -->|frame seq| D[ScreenModel: memoized classifier]
+        D --> E{Engine State}
+        E -->|idle play| F[InputRouter / ActionDock]
+        E -->|modal prompt| G[PromptMirror: 3D modal]
+        E -->|passive list| H[ItemSheet: noun drawer]
+        E -->|Ctrl+K| I[CommandPalette: 100% catalog]
+        E -->|gamepad| J[GamepadController & RadialMenu]
+        E -->|entity click| K[EntityMenu popover]
+    end
+
+    subgraph Dispatch [Execution Funnel]
+        F & G & H & I & J & K -->|Intent| L[CommandDispatcher]
+        L -->|compiled KeyPlan| M[network.sendKey]
+        M -->|stdin keys| B
+        B -.->|frame ack seq+1| L
+    end
+```
+
+### Core Architecture Components
+
+1. **`ActionCatalog` (`server/public/js/action-catalog.js`)**:
+   - The single source of truth for all 54 game actions across all four supported realms (Vanilla Angband, Sil-Q, FrogComposBand, and Hengband).
+   - Defines the canonical 20-bit `VERB_BITS` mask (`quaff`, `read`, `eat`, `aim`, `use_staff`, `zap`, `activate`, `fire`, `throw`, `wield`, `takeoff`, `drop`, `inscribe`, `uninscribe`, `refill`, `browse`, `study`, `cast`, `ignore`, `examine`).
+   - Encapsulates physical keys per realm, action groups (`items`, `magic`, `action`, `info`, `manage`), localized English and Japanese labels, and searchable synonyms.
+
+2. **`ScreenModel` (`server/public/js/screen-context.js`)**:
+   - Memoized, signature-gated per-frame state classifier replacing four legacy screen scanners.
+   - Evaluates bridge `ui.prompt`, cursor positions (`term.cy` on FCB), and row texts to classify active states: `isIdle`, prompt kinds (`item`, `select`, `direction`, `quantity`, `yesno`, `spell`, `item-menu`), visible items, and active menu bounds.
+
+3. **`CommandDispatcher` (`server/public/js/command-dispatcher.js`)**:
+   - Compiles user intents into declarative, step-by-step `KeyPlan` arrays.
+   - Dispatches one key at a time via `network.sendKey`, executing subsequent steps only when the engine acknowledges the transition via a new frame (`frame.seq` increment).
+   - Enforces the KLM Zero Redundant Prefix Keys property (Law C10): compiled plans from idle never prepend superfluous `escape` or `space`.
+   - Automatically unwinds up to 3 times from unexpected overlays before safely failing, and cleanly hands off to user interaction on unexpected `-more-` pauses or item row mismatches.
+
+4. **`InputRouter` (`server/public/js/input.js`)**:
+   - A clean 6-layer input priority stack:
+     1. Layer 1: Native HTML input elements and dialogs.
+     2. Layer 2: Active 3D modal mirrors (`PromptMirror`, `ItemSheet`, `CommandPalette`).
+     3. Layer 3: Terminal view and Escape handler.
+     4. Layer 4: 3D Directional Aiming & Opt-in WASD mode (`Alt+W`).
+     5. Layer 5: Relative movement (`ArrowUp/Down`), diagonals (`Home/PgUp/End/PgDn`), and camera pitch.
+     6. Layer 6: Classic key pass-through directly to the engine.
+
+5. **`PromptMirror` (`server/public/js/prompt-mirror.js`)**:
+   - Renders 3D visual mirrors for modal engine prompts (`yesno`, `quantity`, `item`, `direction`, `spell`, `item-menu`, and `more`).
+   - Keeps the player immersed in the 3D viewport without falling back to raw CRT terminal text for standard prompts.
+   - Every interactive chip maps to exactly one physical keystroke sent via the Dispatcher.
+
+6. **`ItemSheet` (`server/public/js/item-sheet.js`)**:
+   - Non-modal, noun-first interaction drawer showing Pack, Equipment, and Quiver tabs.
+   - Displays valid action verbs derived directly from the authoritative bridge bitmask (`vm`), preventing invalid actions (e.g. attempting to quaff a weapon).
+   - Provides direct quick-slot binding and action execution.
+
+7. **`CommandPalette` (`server/public/js/command-palette.js`)**:
+   - Searchable HUD modal (`Ctrl+K`) providing 100% ActionCatalog coverage across all four realms.
+   - Features categorized browsing (`all`, `items`, `magic`, `action`, `info`, `manage`), search by English/Japanese label, key, or synonym, and recency-based command ranking.
+
+8. **`EntityMenu` (`server/public/js/entity-menu.js`)**:
+   - Non-modal popover (`popover="manual"`, zero focus stealing, Law L51) anchored to clicked 3D monsters, floor items, doors, stairs, traps, and rubble.
+   - Surfaces contextual action buttons (e.g. Look, Target, Fire, Attack, Open, Disarm, Tunnel) that route directly to the Dispatcher.
+
+9. **`GamepadController` (`server/public/js/gamepad.js`)**:
+   - Standard gamepad input controller supporting 8-sector directional snapping, deadzone thresholds, and LT diagonal lock.
+   - Maps face and shoulder buttons contextually based on active `ScreenModel` prompt state.
+
+10. **`RadialMenu` (`server/public/js/radial-menu.js`)**:
+    - 8-wedge radial quick-action menu designed for gamepad and mouse flick interactions.
+    - Supports both hold (quasimode) and toggle modes, concentric rings, and realm-specific disability semantics.
+
 ## Licensing and content
 
 The project is GPL v2, inherited from Angband. That permits commercial use and
