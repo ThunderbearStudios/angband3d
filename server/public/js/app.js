@@ -304,7 +304,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (menuPwaLabel) menuPwaLabel.textContent = 'Standalone Apps & Downloads (Android / PC)';
             if (menuPwaDesc) menuPwaDesc.textContent = 'Download standalone offline Android APK or Windows PC client, or install as an app.';
         }
-
         if (hud && hud.pingBadge) {
             if (engineMode === 'local') {
                 hud.pingBadge.textContent = '⚡ Android Standalone [Offline]';
@@ -314,21 +313,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 hud.pingBadge.style.color = '#ffd700';
             }
         }
-    };
-
-    window.__app = {
-        audio,
-        network,
-        dungeon,
-        hud,
-        terminal,
-        setEngineMode,
-        getEngineMode: () => engineMode,
-        isApk,
-        isBirthReviewActive: () => birthReviewActive,
-        rerollHero: () => rerollHero(),
-        generateHeroName: (r, l) => generateHeroName(r, l),
-        getActiveRealm: () => (typeof activeRealm !== 'undefined' && activeRealm) ? activeRealm : 'angband'
     };
 
     let birthReviewActive = false;
@@ -415,14 +399,12 @@ window.addEventListener('DOMContentLoaded', () => {
             : _sjisDecodeCache;
         const cached = cache.get(str);
         if (cached !== undefined) return cached;
-
         let res = str;
         if (/[\u3000-\u9faf]/.test(str)) {
             res = str;
         } else if (terminal && typeof terminal.decodeText === 'function') {
             res = terminal.decodeText(str);
         }
-
         if (cache.size >= 512) {
             const oldest = cache.keys().next().value;
             cache.delete(oldest);
@@ -433,19 +415,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function stepQuickBirth(frame) {
         if (!quickBirthActive || !frame) return;
-
         const rawText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '');
         const decodedText = decodeHengbandText(rawText);
         const screenText = (rawText + '\n' + decodedText).toLowerCase();
         const hasMore = screenText.includes('-more-') || (frame.ui && frame.ui.more);
-
         // Once in active play with valid map and player object,
         // birth is 100% finished: dismiss terminal and switch directly to 3D world view!
         if (frame.phase === 'play' && frame.map && frame.player && !hasMore) {
             finalizeHeroBirth();
             return;
         }
-
         if (++quickBirthStep > 40) {
             quickBirthActive = false;
             forceTerminal = false;
@@ -453,47 +432,23 @@ window.addEventListener('DOMContentLoaded', () => {
             console.warn('[QuickStart] Exceeded maximum auto-birth steps; switching to world view.');
             return;
         }
-
         // 1. Review & Confirmation Screen reached across variants!
-        const isReviewScreen = screenText.includes('to start over') ||
-                               screenText.includes("'s' to start") ||
-                               screenText.includes('accept character') ||
-                               screenText.includes('re-roll') ||
-                               screenText.includes("['r'eroll") ||
-                               screenText.includes("or enter to accept") ||
-                               screenText.includes("reroll, 'h'istory") ||
-                               screenText.includes("能力値の決定") ||
-                               screenText.includes("能力値決定") ||
-                               screenText.includes("次の数値") ||
-                               screenText.includes("前の数値") ||
-                               screenText.includes("この数値に決定") ||
+        const isReviewScreen = ['to start over', "'s' to start", 'accept character', 're-roll', "['r'eroll", 'or enter to accept', "reroll, 'h'istory", '能力値の決定', '能力値決定', '次の数値', '前の数値', 'この数値に決定'].some(k => screenText.includes(k)) ||
                                (screenText.includes('enter your starting stats') && screenText.includes('begin play')) ||
                                (screenText.includes('step back') && screenText.includes('continue'));
-
         if (isReviewScreen) {
             quickBirthActive = false;
             birthReviewActive = true;
             forceTerminal = true;
             updateViewMode(frame);
-
-            const quickBirthBtn = document.getElementById('btn-quick-birth');
-            const termRerollBtn = document.getElementById('btn-term-reroll');
-            const termCustomBtn = document.getElementById('btn-term-custom');
-            const termAdvanceBtn = document.getElementById('btn-term-advance');
-            const termEscapeBtn = document.getElementById('btn-term-escape');
-            const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
-
-            if (quickBirthBtn) quickBirthBtn.style.display = 'none';
-            if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
-            if (termCustomBtn) termCustomBtn.style.display = 'inline-flex';
-            if (termAdvanceBtn) {
-                termAdvanceBtn.style.display = 'inline-flex';
-                termAdvanceBtn.textContent = '⚔ Accept & Play (Enter)';
-            }
-            if (termEscapeBtn) {
-                termEscapeBtn.style.display = 'inline-flex';
-                termEscapeBtn.textContent = 'Back (Esc)';
-            }
+            const getEl = id => document.getElementById(id);
+            const [qbBtn, rrBtn, custBtn, advBtn, escBtn] = ['btn-quick-birth', 'btn-term-reroll', 'btn-term-custom', 'btn-term-advance', 'btn-term-escape'].map(getEl);
+            const terminalTitle = getEl('term-title') || getEl('terminal-title');
+            if (qbBtn) qbBtn.style.display = 'none';
+            if (rrBtn) rrBtn.style.display = 'inline-flex';
+            if (custBtn) custBtn.style.display = 'inline-flex';
+            if (advBtn) { advBtn.style.display = 'inline-flex'; advBtn.textContent = '⚔ Accept & Play (Enter)'; }
+            if (escBtn) { escBtn.style.display = 'inline-flex'; escBtn.textContent = 'Back (Esc)'; }
             if (terminalTitle) {
                 const hasPrev = screenText.includes('前の数値') || screenText.includes('previous roll') || screenText.includes("'p' for previous");
                 terminalTitle.textContent = hasPrev
@@ -502,40 +457,34 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-
         // 1b. Vanilla Angband Quickstart prompt: do not reuse previous character during quick birth; roll fresh with 'n'
         if (screenText.includes('use as is') || screenText.includes("'y': use as is") || screenText.includes("'n': redo")) {
             network.sendKey('n');
             return;
         }
-
         // 2. Universal Confirmation Prompts ([y/n] or are you sure or よろしいですか)
         if (screenText.includes('[y/n]') || screenText.includes('(y/n)') || screenText.includes('are you sure') || screenText.includes('よろしいですか')) {
             network.sendKey('y');
             return;
         }
-
         // 3. Hengband Birth Options screen -> escape to accept options
         if (screenText.includes('esc:accept') || screenText.includes('birth options') || screenText.includes('esc to return') ||
             screenText.includes('smart_learn') || (screenText.includes('esc:終了') && screenText.includes('初期オプション'))) {
             network.sendKey('escape');
             return;
         }
-
         // 4. Hengband Stat Roller (Set minimum stats / goto next / 能力値を抽選)
         if (screenText.includes('set minimum stats') || screenText.includes('enter for goto next') ||
             screenText.includes('能力値を抽選') || screenText.includes('この数値に決定')) {
             network.sendKey('enter');
             return;
         }
-
         // 5. Hengband Realm Selection (for spellcasting classes) -> select first realm 'a'
         if (screenText.includes('choose a realm') || screenText.includes('choose realm') || screenText.includes('realm 1:') ||
             screenText.includes('魔法領域') || screenText.includes('領域を選んで')) {
             network.sendKey('a');
             return;
         }
-
         // 6. FrogComposBand Mode Selection: 'n' is Normal Mode (never 'b' Beginner which forces pre-rolled Hobbit Rogue)
         if (screenText.includes('choose the type of game to play')) {
             network.sendKey('n');
@@ -574,13 +523,11 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             return;
         }
-
         // 7. Vanilla Angband autoroller / quick-finish
         if (screenText.includes('finish the character with random') || screenText.includes("'@' to finish") || screenText.includes("'@' finish")) {
             network.sendKey('@');
             return;
         }
-
         // 8. Sil-Q / Hengband / FrogComposBand Random Option Menu (Sex, Race, Class, Personality, House, Patron)
         if (screenText.includes('choose a sex') || screenText.includes('choose a race') ||
             screenText.includes('choose a class') || screenText.includes('choose a personality') ||
@@ -594,7 +541,6 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('*');
             return;
         }
-
         // 8b. FrogComposBand Split Personality Selection (choose 2 or more, ENTER to accept)
         if (screenText.includes('toggle personalities') || screenText.includes('choose 2 or more')) {
             network.sendKey('a');
@@ -602,7 +548,6 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             return;
         }
-
         // 9. Sil-Q Skills & Stats Allocation
         if (screenText.includes('allocate points to skills') || screenText.includes('skill increases') || screenText.includes('accept skills')) {
             network.sendKey('enter');
@@ -623,7 +568,6 @@ window.addEventListener('DOMContentLoaded', () => {
             seq.forEach(k => network.sendKey(k));
             return;
         }
-
         // 10. History, Age/Height/Weight, Name Prompts
         if (screenText.includes('accept history') || screenText.includes('reroll history') || screenText.includes('accept age/height/weight')) {
             network.sendKey('enter');
@@ -641,7 +585,6 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             return;
         }
-
         // 11. Post-review background edit & embark screens (Hengband)
         if (screenText.includes('character background') || screenText.includes('cursor key for move, enter for end') ||
             screenText.includes('生い立ち') || screenText.includes('編集モード') || screenText.includes('編集済み')) {
@@ -653,7 +596,6 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             return;
         }
-
         // 12. More prompts or splash screens
         if (hasMore || screenText.includes('press any key') || screenText.includes('press space') ||
             screenText.includes('press any other key to play') || screenText.includes('press ? for credits')) {
@@ -666,7 +608,6 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             return;
         }
-
         // 13. Fallback selection menu
         if (screenText.includes('select your character') || screenText.includes('choose a') || screenText.includes('selection')) {
             network.sendKey('@');
@@ -700,7 +641,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         quickBirthActive = true;
         quickBirthStep = 0;
-
         const terminalTitle = document.getElementById('term-title') || document.getElementById('terminal-title');
         if (terminalTitle) {
             terminalTitle.textContent = '🎲 REROLLING HERO...';
@@ -738,54 +678,20 @@ window.addEventListener('DOMContentLoaded', () => {
     if (quickBirthBtn) {
         quickBirthBtn.addEventListener('click', () => {
             if (audio) audio.unlock();
-            // If already playing in world, start a fresh random hero session
-            if (currentPhase === 'play') {
-                startNewRandomHero();
-                return;
-            }
+            if (currentPhase === 'play') { startNewRandomHero(); return; }
             cancelQuickBirth();
             quickBirthActive = true;
             quickBirthStep = 0;
-            if (lastFrame) {
-                stepQuickBirth(lastFrame);
-            } else {
-                network.sendKey('enter');
-            }
+            if (lastFrame) stepQuickBirth(lastFrame);
+            else network.sendKey('enter');
         });
     }
-
     const termRerollBtn = document.getElementById('btn-term-reroll');
-    if (termRerollBtn) {
-        termRerollBtn.addEventListener('click', (e) => {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            if (audio) audio.unlock();
-            rerollHero();
-        });
-    }
-
+    if (termRerollBtn) termRerollBtn.addEventListener('click', (e) => { if (e) { e.preventDefault(); e.stopPropagation(); } if (audio) audio.unlock(); rerollHero(); });
     const termCustomBtn = document.getElementById('btn-term-custom');
-    if (termCustomBtn) {
-        termCustomBtn.addEventListener('click', () => {
-            if (audio) audio.unlock();
-            startCustomHeroCreation();
-        });
-    }
-
+    if (termCustomBtn) termCustomBtn.addEventListener('click', () => { if (audio) audio.unlock(); startCustomHeroCreation(); });
     const termAdvanceBtn = document.getElementById('btn-term-advance');
-    if (termAdvanceBtn) {
-        termAdvanceBtn.addEventListener('click', () => {
-            if (audio) audio.unlock();
-            if (birthReviewActive) {
-                confirmHeroBirth();
-            } else {
-                if (audio) audio.playWhoosh();
-                network.sendKey('enter');
-            }
-        });
-    }
+    if (termAdvanceBtn) termAdvanceBtn.addEventListener('click', () => { if (audio) audio.unlock(); if (birthReviewActive) confirmHeroBirth(); else { if (audio) audio.playWhoosh(); network.sendKey('enter'); } });
 
     const termEscapeBtn = document.getElementById('btn-term-escape');
     if (termEscapeBtn) {
@@ -793,7 +699,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (audio) audio.unlock();
             cancelQuickBirth();
             if (audio) audio.playMenuNav();
-
             const inPlay = Boolean(lastFrame && lastFrame.phase === 'play' && (lastFrame.map || (lastFrame.player && lastFrame.player.name)));
             const screenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
                 ? lastFrame.term.rows.map(r => r.g || '').join('\n').toLowerCase()
@@ -802,7 +707,6 @@ window.addEventListener('DOMContentLoaded', () => {
                                    screenText.includes("to start over") || screenText.includes("r to reroll") ||
                                    screenText.includes("reroll") || screenText.includes("'s' to start") ||
                                    screenText.includes("step back") || screenText.includes("any other key to continue"));
-
             const isTitleScreen = !inPlay && (screenText.includes('when the world is old') ||
                                               screenText.includes('press any key to continue') ||
                                               screenText.includes('rephial.org') ||
@@ -811,7 +715,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 returnToMainMenu();
                 return;
             }
-
             if (!inPlay) {
                 if (isReviewScreen) {
                     network.sendKey('s');
@@ -821,7 +724,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
                 return;
             }
-
             const effRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
             if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
                 if (window.MenuRouter.route('escape', lastFrame, effRealm)) {
@@ -862,14 +764,12 @@ window.addEventListener('DOMContentLoaded', () => {
         let touchStartX = 0;
         let touchStartY = 0;
         let touchMoved = false;
-
         const executeTouchAction = (btn, ev) => {
             if (!btn || btn.id === 'btn-birth-name-submit' || btn.id === 'btn-birth-name-rand') return;
             if (typeof btn.blur === 'function') btn.blur();
             const now = Date.now();
             if (now - lastActionTime < 140) return; // Debounce rapid physical button jitter
             lastActionTime = now;
-
             if (ev && ev.cancelable && ev.type !== 'click') ev.preventDefault();
             if (audio) audio.unlock();
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) {
@@ -878,7 +778,6 @@ window.addEventListener('DOMContentLoaded', () => {
             const key = btn.dataset.key;
             const verb = btn.dataset.verb;
             if (!key && !verb) return;
-
             if (verb) {
                 if (verb === 'Escape' || verb === 'escape') {
                     if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
@@ -896,7 +795,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
             }
-
             // Letter Ribbon option buttons (e.g. [a], [b], [*]) must strictly pass their key directly
             if (btn.classList.contains('term-letter-btn')) {
                 if (key === '10') {
@@ -928,41 +826,15 @@ window.addEventListener('DOMContentLoaded', () => {
                 network.sendKey(key);
                 return;
             }
-
             const effRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
             const inPlay = Boolean(lastFrame && lastFrame.phase === 'play');
             const rawTouchScreenText = (lastFrame && lastFrame.term && lastFrame.term.rows)
                 ? lastFrame.term.rows.map(r => r.g || '').join('\n')
                 : '';
             const screenText = (rawTouchScreenText + '\n' + decodeHengbandText(rawTouchScreenText)).toLowerCase();
-            const isChoiceMenu = !inPlay && (
-                screenText.includes("性別") || screenText.includes("種族") ||
-                screenText.includes("職業") || screenText.includes("性格") ||
-                screenText.includes("魔法領域") || screenText.includes("領域を選んで") ||
-                screenText.includes("choose sex") || screenText.includes("choose your sex") ||
-                screenText.includes("sex affects stats") || screenText.includes("choose character sex") ||
-                screenText.includes("choose a race") || screenText.includes("choose race") ||
-                screenText.includes("race affects stats") || screenText.includes("choose character race") ||
-                screenText.includes("choose a class") || screenText.includes("choose class") ||
-                screenText.includes("class affects stats") || screenText.includes("choose character class") ||
-                screenText.includes("choose a personality") || screenText.includes("choose personality") ||
-                screenText.includes("personality affects stats") ||
-                screenText.includes("choose realm") || screenText.includes("choose a realm") ||
-                screenText.includes("choose first realm") || screenText.includes("choose second realm") ||
-                screenText.includes("first realm") || screenText.includes("second realm") ||
-                screenText.includes("choose a house") || screenText.includes("choose house") ||
-                screenText.includes("choose character background") || screenText.includes("choose background") ||
-                screenText.includes("choose subrace") || screenText.includes("choose a subrace") ||
-                screenText.includes("*でランダム") || screenText.includes("* for random") ||
-                screenText.includes("escで戻る") || screenText.includes("esc to return") ||
-                screenText.includes("esc to step back") || screenText.includes("esc:戻る") ||
-                screenText.includes("escで前へ")
-            );
-            const isNamePrompt = !inPlay && (
-                screenText.includes("名前を入力") || screenText.includes("character's name") ||
-                screenText.includes("enter a name") || screenText.includes("choose your name")
-            );
-
+            const bf = (SC && SC.birthFlags) ? SC.birthFlags(screenText, effRealm === 'hengband') : {};
+            const isChoiceMenu = !inPlay && Boolean(bf.isChoiceMenu);
+            const isNamePrompt = !inPlay && Boolean(bf.isNamePrompt);
             if ((key === 'up' || key === 'down') && terminal && typeof terminal.moveSelection === 'function') {
                 const pending = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
                     ? window.MenuRouter.getPending()
@@ -979,7 +851,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-
             if (key === 'enter' && inPlay) {
                 if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
                     if (window.MenuRouter.route('Enter', lastFrame, effRealm)) {
@@ -1004,7 +875,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-
             if (key === 'tab') {
                 // Return from Classic Mode to 3D View
                 forceTerminal = false;
@@ -1054,7 +924,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 const isPlayCommand = Boolean(lastFrame && lastFrame.phase === 'play' &&
                     (lastFrame.awaiting_command || (lastFrame.ui && lastFrame.ui.awaiting_command)) &&
                     (!lastFrame.ui || !lastFrame.ui.more) && (!lastFrame.ui || !lastFrame.ui.overlay));
-
                 if (isRunMode && isPlayCommand) {
                     const dirDigits = {
                         'up': 8, 'down': 2, 'left': 4, 'right': 6,
@@ -1074,7 +943,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 network.sendKey(key);
             }
         };
-
         // Touch handling with swipe rejection (allows scrolling ribbons and menus without false triggers)
         termTouchControls.addEventListener('touchstart', (ev) => {
             if (ev.touches && ev.touches.length === 1) {
@@ -1085,7 +953,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 touchStartBtn = ev.target.closest('[data-key], [data-verb]');
             }
         }, { passive: true });
-
         termTouchControls.addEventListener('touchmove', (ev) => {
             if (ev.touches && ev.touches.length === 1) {
                 const touch = ev.touches[0];
@@ -1096,7 +963,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }, { passive: true });
-
         termTouchControls.addEventListener('touchend', (ev) => {
             lastTouchEndTime = Date.now();
             if (!touchMoved && touchStartBtn) {
@@ -1105,13 +971,11 @@ window.addEventListener('DOMContentLoaded', () => {
             touchStartBtn = null;
             touchMoved = false;
         }, { passive: false });
-
         termTouchControls.addEventListener('touchcancel', () => {
             lastTouchEndTime = Date.now();
             touchStartBtn = null;
             touchMoved = false;
         }, { passive: true });
-
         // Click listener for desktop mouse interactions (strictly suppresses emulated touch clicks)
         termTouchControls.addEventListener('click', (ev) => {
             if (Date.now() - lastTouchEndTime < 500) {
@@ -1123,7 +987,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 executeTouchAction(btn, ev);
             }
         });
-
         // Name submission handling for character creation
         const nameSubmitBtn = document.getElementById('btn-birth-name-submit');
         const nameRandBtn = document.getElementById('btn-birth-name-rand');
@@ -1144,7 +1007,6 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('enter');
             nameInput.blur();
         };
-
         if (nameSubmitBtn) {
             nameSubmitBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -1174,7 +1036,6 @@ window.addEventListener('DOMContentLoaded', () => {
     function setupDraggableAndResizableWindows() {
         const makeWindowDraggableAndResizable = (winEl, headerEl, resizeHandleEl, storageKey, onResize) => {
             if (!winEl) return;
-
             // Restore saved position with safe screen bounds
             try {
                 const savedPos = localStorage.getItem(storageKey + '_pos');
@@ -1190,7 +1051,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             } catch (_) {}
-
             // Restore saved size with safe minimums
             try {
                 const savedSize = localStorage.getItem(storageKey + '_size');
@@ -1209,14 +1069,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             } catch (_) {}
-
             // Dragging via window header (strictly repositions window, never alters dimensions)
             if (headerEl) {
                 let isDragging = false;
                 let startX = 0, startY = 0;
                 let initialLeft = 0, initialTop = 0;
                 let fixedW = 0, fixedH = 0;
-
                 const startDrag = (clientX, clientY, e) => {
                     if (e && e.target && e.target.closest('button, input, select, a, kbd')) return;
                     if (e && e.preventDefault) e.preventDefault();
@@ -1237,7 +1095,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     winEl.style.bottom = 'auto';
                     headerEl.style.cursor = 'grabbing';
                 };
-
                 const moveDrag = (clientX, clientY) => {
                     if (!isDragging) return;
                     const dx = clientX - startX;
@@ -1249,7 +1106,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     winEl.style.width = `${fixedW}px`;
                     winEl.style.height = `${fixedH}px`;
                 };
-
                 const endDrag = () => {
                     if (isDragging) {
                         isDragging = false;
@@ -1260,7 +1116,6 @@ window.addEventListener('DOMContentLoaded', () => {
                         } catch (_) {}
                     }
                 };
-
                 headerEl.addEventListener('mousedown', (e) => {
                     startDrag(e.clientX, e.clientY, e);
                     const onMouseMove = (ev) => moveDrag(ev.clientX, ev.clientY);
@@ -1272,24 +1127,20 @@ window.addEventListener('DOMContentLoaded', () => {
                     window.addEventListener('mousemove', onMouseMove);
                     window.addEventListener('mouseup', onMouseUp);
                 });
-
                 headerEl.addEventListener('touchstart', (e) => {
                     if (e.touches.length === 1) {
                         startDrag(e.touches[0].clientX, e.touches[0].clientY, e);
                     }
                 }, { passive: false });
-
                 headerEl.addEventListener('touchmove', (e) => {
                     if (isDragging && e.touches.length === 1) {
                         e.preventDefault();
                         moveDrag(e.touches[0].clientX, e.touches[0].clientY);
                     }
                 }, { passive: false });
-
                 const onTouchEnd = () => endDrag();
                 headerEl.addEventListener('touchend', onTouchEnd, { passive: true });
                 headerEl.addEventListener('touchcancel', onTouchEnd, { passive: true });
-
                 headerEl.addEventListener('dblclick', (e) => {
                     e.stopPropagation();
                     winEl.style.position = '';
@@ -1303,13 +1154,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     } catch (_) {}
                 });
             }
-
             // Resizing via bottom-right handle
             if (resizeHandleEl) {
                 let isResizing = false;
                 let startX = 0, startY = 0;
                 let initialW = 0, initialH = 0;
-
                 resizeHandleEl.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -1319,7 +1168,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     const rect = winEl.getBoundingClientRect();
                     initialW = rect.width;
                     initialH = rect.height;
-
                     const onMouseMove = (ev) => {
                         if (!isResizing) return;
                         const dx = ev.clientX - startX;
@@ -1330,7 +1178,6 @@ window.addEventListener('DOMContentLoaded', () => {
                         winEl.style.height = `${newH}px`;
                         if (onResize) onResize(newW, newH);
                     };
-
                     const onMouseUp = () => {
                         if (isResizing) {
                             isResizing = false;
@@ -1342,13 +1189,11 @@ window.addEventListener('DOMContentLoaded', () => {
                             } catch (_) {}
                         }
                     };
-
                     window.addEventListener('mousemove', onMouseMove);
                     window.addEventListener('mouseup', onMouseUp);
                 });
             }
         };
-
         // Initialize Minimap Container Drag & Resize
         const mapWin = document.getElementById('minimap-container');
         const mapHeader = document.getElementById('minimap-header');
@@ -1358,13 +1203,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 hud.setCustomMinimapSize(w, h);
             }
         });
-
         // Initialize Message Feed Window Drag & Resize
         const msgWin = document.getElementById('message-feed-window');
         const msgHeader = document.getElementById('message-feed-header');
         const msgResize = document.getElementById('msg-resize-handle');
         makeWindowDraggableAndResizable(msgWin, msgHeader, msgResize, 'angband_msg', null);
-
         // Initialize Living Chronicle Window Drag & Resize
         const chronicleWin = document.getElementById('chronicle-window');
         const chronicleHeader = document.getElementById('chronicle-header');
@@ -1408,9 +1251,29 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const promptMirror = (typeof PromptMirror !== 'undefined') ? ((typeof PromptMirror === 'function') ? new PromptMirror() : PromptMirror) : null;
+    const itemSheet = (typeof ItemSheet !== 'undefined') ? ((typeof ItemSheet === 'function') ? new ItemSheet() : ItemSheet) : null;
+    const entityMenu = (typeof EntityMenu !== 'undefined') ? ((typeof EntityMenu === 'function') ? new EntityMenu() : EntityMenu) : null;
+    const gamepad = (typeof GamepadController !== 'undefined') ? new GamepadController() : null;
+    const radialMenu = (typeof RadialMenu !== 'undefined') ? new RadialMenu() : null;
+
+    if (typeof window !== 'undefined') {
+        window.promptMirror = promptMirror;
+        window.itemSheet = itemSheet;
+        window.entityMenu = entityMenu;
+        window.gamepad = gamepad;
+        window.radialMenu = radialMenu;
+    }
+
     window.__app = {
         network,
         dispatcher,
+        promptMirror,
+        itemSheet,
+        entityMenu,
+        gamepad,
+        radialMenu,
+        generateHeroName: (r, l) => generateHeroName(r, l),
         get realm() { return (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || 'angband'; },
         get lastScreenModel() { return lastScreenModel; },
         get lastSpells() { return lastSpells; },
@@ -1529,23 +1392,24 @@ window.addEventListener('DOMContentLoaded', () => {
         return appState;
     }
 
+    function hideModals(exceptEl = null) {
+        [splashOverlay, mainMenuOverlay, guideModal, loadModal, pauseModal, demoModal, realmModal, cmdPaletteModal, queueModal, pwaModal].forEach(m => {
+            if (m && m !== exceptEl) m.classList.add('hidden');
+        });
+        if (exceptEl !== demoModal && window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
+        if (exceptEl !== queueModal) stopQueueTipRotation();
+        if (terminalContainer && exceptEl !== terminalContainer) terminalContainer.classList.add('hidden');
+        const banner = document.getElementById('top-message-banner');
+        if (banner) banner.style.display = 'none';
+        const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
+        if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
+    }
+
     function showSplash() {
         appState = 'splash';
         updateRealmUI();
+        hideModals(splashOverlay);
         if (splashOverlay) splashOverlay.classList.remove('hidden');
-        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
-        if (guideModal) guideModal.classList.add('hidden');
-        if (loadModal) loadModal.classList.add('hidden');
-        if (pauseModal) pauseModal.classList.add('hidden');
-        if (demoModal) demoModal.classList.add('hidden');
-        if (realmModal) realmModal.classList.add('hidden');
-        if (cmdPaletteModal) cmdPaletteModal.classList.add('hidden');
-        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
-        if (queueModal) queueModal.classList.add('hidden');
-        stopQueueTipRotation();
-        if (terminalContainer) terminalContainer.classList.add('hidden');
-        const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
-        if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuNav();
     }
@@ -1553,22 +1417,8 @@ window.addEventListener('DOMContentLoaded', () => {
     function showMainMenu() {
         appState = 'mainMenu';
         updateRealmUI();
-        if (splashOverlay) splashOverlay.classList.add('hidden');
+        hideModals(mainMenuOverlay);
         if (mainMenuOverlay) mainMenuOverlay.classList.remove('hidden');
-        if (guideModal) guideModal.classList.add('hidden');
-        if (loadModal) loadModal.classList.add('hidden');
-        if (pauseModal) pauseModal.classList.add('hidden');
-        if (demoModal) demoModal.classList.add('hidden');
-        if (realmModal) realmModal.classList.add('hidden');
-        if (cmdPaletteModal) cmdPaletteModal.classList.add('hidden');
-        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
-        if (queueModal) queueModal.classList.add('hidden');
-        stopQueueTipRotation();
-        if (terminalContainer) terminalContainer.classList.add('hidden');
-        const banner = document.getElementById('top-message-banner');
-        if (banner) banner.style.display = 'none';
-        const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
-        if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuOpen();
         if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
@@ -1583,15 +1433,7 @@ window.addEventListener('DOMContentLoaded', () => {
     async function showLoadMenu(fromPause = false) {
         loadPreviousState = fromPause ? 'pauseMenu' : 'mainMenu';
         appState = 'loadMenu';
-        if (splashOverlay) splashOverlay.classList.add('hidden');
-        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
-        if (guideModal) guideModal.classList.add('hidden');
-        if (pauseModal) pauseModal.classList.add('hidden');
-        if (demoModal) demoModal.classList.add('hidden');
-        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
-        if (terminalContainer) terminalContainer.classList.add('hidden');
-        const banner = document.getElementById('top-message-banner');
-        if (banner) banner.style.display = 'none';
+        hideModals(loadModal);
         if (loadModal) loadModal.classList.remove('hidden');
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuOpen();
@@ -1640,7 +1482,6 @@ window.addEventListener('DOMContentLoaded', () => {
     function renderSaveListUI() {
         if (!loadSaveList) return;
         loadSaveList.innerHTML = '';
-
         if (loadedSaves.length === 0) {
             loadSaveList.innerHTML = `
                 <div class="save-empty-state">
@@ -1659,19 +1500,15 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-
         if (selectedSaveIndex >= loadedSaves.length) {
             selectedSaveIndex = Math.max(0, loadedSaves.length - 1);
         }
-
         loadedSaves.forEach((save, idx) => {
             const card = document.createElement('div');
             card.className = `save-item-card ${idx === selectedSaveIndex ? 'selected' : ''}`;
             card.dataset.index = idx;
-
             const modDate = save.lastModified ? new Date(save.lastModified).toLocaleString() : 'Unknown';
             const sizeKb = save.sizeBytes ? `${Math.round(save.sizeBytes / 1024)} KB` : '';
-
             card.innerHTML = `
                 <div class="save-item-left">
                     <span class="save-bullet">►</span>
@@ -1687,19 +1524,16 @@ window.addEventListener('DOMContentLoaded', () => {
                     <button class="btn-save-delete btn-danger-outline" title="Delete save file">🗑 Delete</button>
                 </div>
             `;
-
             card.addEventListener('click', (e) => {
                 if (e.target.closest('.btn-save-delete') || e.target.closest('.btn-save-download')) return;
                 selectedSaveIndex = idx;
                 updateSaveSelectionUI();
                 loadSelectedSave(save);
             });
-
             card.addEventListener('mouseenter', () => {
                 selectedSaveIndex = idx;
                 updateSaveSelectionUI();
             });
-
             const btnLoad = card.querySelector('.btn-save-load');
             if (btnLoad) {
                 btnLoad.addEventListener('click', (e) => {
@@ -1707,7 +1541,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     loadSelectedSave(save);
                 });
             }
-
             const btnDownload = card.querySelector('.btn-save-download');
             if (btnDownload) {
                 btnDownload.addEventListener('click', (e) => {
@@ -1715,7 +1548,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     downloadSave(save);
                 });
             }
-
             const btnDelete = card.querySelector('.btn-save-delete');
             if (btnDelete) {
                 btnDelete.addEventListener('click', (e) => {
@@ -1723,7 +1555,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     deleteSelectedSave(save);
                 });
             }
-
             loadSaveList.appendChild(card);
         });
         renderMainMenuSavesPanel();
@@ -1827,9 +1658,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const target = save || (loadedSaves.length > 0 ? loadedSaves[selectedSaveIndex] : null);
         if (!target || !target.filename) return;
         if (audio) audio.playMenuSelect();
-
         const outName = (target.characterName || target.filename).replace(/[^a-zA-Z0-9_-]/g, '_') + '.sav';
-
         if (engineMode === 'local' && window.LocalSaveManager) {
             const bytes = await LocalSaveManager.getSaveData(target.filename);
             if (bytes) {
@@ -1845,7 +1674,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
         }
-
         const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
         const url = `/api/saves/${encodeURIComponent(target.filename)}?realm=${encodeURIComponent(realmParam)}`;
         await triggerFileDownload(url, outName);
@@ -1859,7 +1687,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!file) return;
         const statusEl = document.getElementById('save-upload-status');
         if (statusEl) statusEl.textContent = 'Validating savefile...';
-
         try {
             const buf = await file.arrayBuffer();
             if (buf.byteLength < 36) {
@@ -1873,9 +1700,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (statusEl) statusEl.textContent = '';
                 return;
             }
-
             const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
-
             if (engineMode === 'local' && window.LocalSaveManager) {
                 if (statusEl) statusEl.textContent = 'Saving to device storage...';
                 await LocalSaveManager.putSaveData(cleanName, new Uint8Array(buf));
@@ -1888,7 +1713,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 checkSaves();
                 return;
             }
-
             if (statusEl) statusEl.textContent = 'Uploading to realm...';
             const ownerToken = localStorage.getItem(`angband3d_owner_${cleanName}`) || '';
             const res = await fetch('/api/saves/upload', {
@@ -1900,14 +1724,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 },
                 body: buf
             });
-
             if (!res.ok) {
                 const errJson = await res.json().catch(() => ({}));
                 alert(`Upload failed: ${errJson.error || res.statusText}`);
                 if (statusEl) statusEl.textContent = '';
                 return;
             }
-
             const data = await res.json();
             if (statusEl) {
                 statusEl.textContent = `✓ Uploaded '${data.metadata?.characterName || cleanName}'!`;
@@ -1934,20 +1756,16 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendCommand('save');
             network.sendKey('C-s');
         } catch (_) {}
-
         const banner = document.getElementById('message-text');
         if (banner) {
             banner.textContent = 'Saving progress and preparing export...';
         }
-
         // Allow engine time to flush authoritative savefile to disk
         await new Promise(r => setTimeout(r, 600));
-
         try {
             const currentChar = (lastFrame && lastFrame.player && lastFrame.player.name)
                 ? lastFrame.player.name.trim()
                 : (network.currentChar || 'Adventurer');
-
             const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
             const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
             let matchedSave = null;
@@ -1963,7 +1781,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     matchedSave = saves[0];
                 }
             }
-
             const outName = `${currentChar.replace(/[^a-zA-Z0-9_-]/g, '_')}.sav`;
             if (matchedSave) {
                 await downloadSave(matchedSave);
@@ -1995,7 +1812,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!window.confirm(`Are you sure you want to delete '${confirmName}' ${locationText}?`)) {
             return;
         }
-
         if (engineMode === 'local' && window.LocalSaveManager) {
             await LocalSaveManager.deleteSave(target.filename);
             if (audio) audio.playMenuNav();
@@ -2003,7 +1819,6 @@ window.addEventListener('DOMContentLoaded', () => {
             checkSaves();
             return;
         }
-
         try {
             const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
             const ownerToken = localStorage.getItem(`angband3d_owner_${target.filename}`) || '';
@@ -2030,17 +1845,9 @@ window.addEventListener('DOMContentLoaded', () => {
     // In-Game Pause Menu Handlers
     function showPauseMenu() {
         appState = 'pauseMenu';
+        hideModals(pauseModal);
         if (pauseModal) pauseModal.classList.remove('hidden');
-        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
-        if (splashOverlay) splashOverlay.classList.add('hidden');
-        if (loadModal) loadModal.classList.add('hidden');
-        if (guideModal) guideModal.classList.add('hidden');
-        if (demoModal) demoModal.classList.add('hidden');
-        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
-        const banner = document.getElementById('top-message-banner');
-        if (banner) banner.style.display = 'none';
         if (input) input.setTerminalMode(false);
-
         if (pauseCharDisplay && lastFrame && lastFrame.player) {
             const p = lastFrame.player;
             const charDesc = p.name ? `${p.name} (${p.race || ''} ${p.class || ''})` : 'Hero of Angband';
@@ -2100,53 +1907,23 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const pauseActions = [
+        resumeGame, saveGameNow, downloadCurrentSave, () => showLoadMenu(true),
+        startNewRandomHero, startNewCustomHero, () => showGuide(0, 'pauseMenu'),
+        () => input && input.toggleFullscreen(), returnToMainMenu
+    ];
     function activatePauseMenuItem() {
         if (audio) audio.playMenuSelect();
-        switch (selectedPauseIndex) {
-            case 0: // Resume Game
-                resumeGame();
-                break;
-            case 1: // Save Game Now
-                saveGameNow();
-                break;
-            case 2: // Download Current Save (.sav)
-                downloadCurrentSave();
-                break;
-            case 3: // Load Other Character...
-                showLoadMenu(true);
-                break;
-            case 4: // Start Over (Random)
-                startNewRandomHero();
-                break;
-            case 5: // Start Over (Custom)
-                startNewCustomHero();
-                break;
-            case 6: // Game Guide & Primer
-                showGuide(0, 'pauseMenu');
-                break;
-            case 7: // Toggle Fullscreen
-                if (input) input.toggleFullscreen();
-                break;
-            case 8: // Save & Quit to Main Menu
-                returnToMainMenu();
-                break;
-        }
+        const action = pauseActions[selectedPauseIndex];
+        if (action) action();
     }
 
     // Guide Modal Handlers
     function showGuide(tabIndex = 0, fromState = null) {
         guidePreviousState = fromState || appState;
         appState = 'guide';
+        hideModals(guideModal);
         if (guideModal) guideModal.classList.remove('hidden');
-        if (pauseModal) pauseModal.classList.add('hidden');
-        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
-        if (splashOverlay) splashOverlay.classList.add('hidden');
-        if (loadModal) loadModal.classList.add('hidden');
-        if (demoModal) demoModal.classList.add('hidden');
-        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
-        if (terminalContainer) terminalContainer.classList.add('hidden');
-        const banner = document.getElementById('top-message-banner');
-        if (banner) banner.style.display = 'none';
         if (input) input.setTerminalMode(false);
         switchGuideTab(tabIndex);
         if (audio) audio.playMenuOpen();
@@ -2255,77 +2032,23 @@ window.addEventListener('DOMContentLoaded', () => {
     function activateMenuItem(overrideIndex = null) {
         if (audio) audio.playMenuSelect();
         const idx = overrideIndex !== null ? overrideIndex : selectedMenuIndex;
-        switch (idx) {
-            case 0: // Continue Adventure
-                if (latestSave) {
-                    startGame({
-                        charName: latestSave.characterName || 'Adventurer',
-                        saveFile: latestSave.filename,
-                        isNew: false,
-                        autoBirth: false
-                    });
-                } else {
-                    // Fallback to random quick-start if no saves exist
-                    startNewRandomHero();
-                }
-                break;
-            case 1: // Load Saved Game...
-                showLoadMenu(false);
-                break;
-            case 2: // Start from Scratch (Random Hero)
-                startNewRandomHero();
-                break;
-            case 3: // Start from Scratch (Custom Hero)
-                startNewCustomHero();
-                break;
-            case 4: // Option [5]: Game Guide & Primer
-                showGuide(0, 'mainMenu');
-                break;
-            case 5: // Option [6]: Standalone Apps & Downloads (Android / PC)
-                showPWAModal('mainMenu');
-                break;
-            case 6: // Option [7]: 🎬 Gameplay Demo & Showcase
-                showDemoModal('mainMenu');
-                break;
-            case 7: // Option [8]: Summary & Credits
-                showGuide(6, 'mainMenu');
-                break;
-            case 8: // Option [R]: Switch Realm
-                showSplash();
-                break;
-        }
+        const menuActions = [
+            () => latestSave ? startGame({ charName: latestSave.characterName || 'Adventurer', saveFile: latestSave.filename, isNew: false, autoBirth: false }) : startNewRandomHero(),
+            () => showLoadMenu(false), startNewRandomHero, startNewCustomHero,
+            () => showGuide(0, 'mainMenu'), () => showPWAModal('mainMenu'),
+            () => showDemoModal('mainMenu'), () => showGuide(6, 'mainMenu'), () => showSplash()
+        ];
+        if (menuActions[idx]) menuActions[idx]();
     }
 
     const REALM_HERO_NAMES = {
         hengband: {
-            japanese: [
-                'Musashi', 'Kojiro', 'Nobunaga', 'Masamune', 'Yukimura',
-                'Hanzo', 'Goemon', 'Raiko', 'Kenshin', 'Shingen',
-                'Benkei', 'Yoshitsune', 'Tomoe', 'Kotaro', 'Jubei',
-                'Saizo', 'Sasuke', 'Genji', 'Kiyomori', 'Hideyoshi'
-            ],
-            amberite: [
-                'Corwin', 'Benedict', 'Eric', 'Random', 'Bleys',
-                'Brand', 'Gerard', 'Julian', 'Caine', 'Dworkin',
-                'Merlin', 'Martin', 'Jurt', 'Fiona', 'Llewella'
-            ]
+            japanese: ['Musashi', 'Kojiro', 'Nobunaga', 'Masamune', 'Yukimura', 'Hanzo', 'Goemon', 'Raiko', 'Kenshin', 'Shingen', 'Benkei', 'Yoshitsune', 'Tomoe', 'Kotaro', 'Jubei', 'Saizo', 'Sasuke', 'Genji', 'Kiyomori', 'Hideyoshi'],
+            amberite: ['Corwin', 'Benedict', 'Eric', 'Random', 'Bleys', 'Brand', 'Gerard', 'Julian', 'Caine', 'Dworkin', 'Merlin', 'Martin', 'Jurt', 'Fiona', 'Llewella']
         },
-        silq: [
-            'Beren', 'Fingolfin', 'Feanor', 'Turin', 'Tuor',
-            'Earendil', 'Hurin', 'Beleg', 'Mablung', 'Finrod',
-            'Glorfindel', 'Ecthelion', 'Voronwe', 'Daeron', 'Luthien',
-            'Idril', 'Morwen', 'Celegorm', 'Curufin', 'Maglor'
-        ],
-        frogcomposband: [
-            'Elric', 'Conan', 'Fafhrd', 'GrayMouser', 'Belgarath',
-            'Sparrowhawk', 'Corwin', 'Arthur', 'Roland', 'Gwydion',
-            'Vlad', 'Geralt', 'Locke', 'Kvothe', 'Cugel'
-        ],
-        angband: [
-            'Aragorn', 'Boromir', 'Faramir', 'Theoden', 'Eomer',
-            'Bard', 'Beren', 'Isildur', 'Elendil', 'Thorin',
-            'Gimli', 'Gloin', 'Dain', 'Frodo', 'Samwise'
-        ]
+        silq: ['Beren', 'Fingolfin', 'Feanor', 'Turin', 'Tuor', 'Earendil', 'Hurin', 'Beleg', 'Mablung', 'Finrod', 'Glorfindel', 'Ecthelion', 'Voronwe', 'Daeron', 'Luthien', 'Idril', 'Morwen', 'Celegorm', 'Curufin', 'Maglor'],
+        frogcomposband: ['Elric', 'Conan', 'Fafhrd', 'GrayMouser', 'Belgarath', 'Sparrowhawk', 'Corwin', 'Arthur', 'Roland', 'Gwydion', 'Vlad', 'Geralt', 'Locke', 'Kvothe', 'Cugel'],
+        angband: ['Aragorn', 'Boromir', 'Faramir', 'Theoden', 'Eomer', 'Bard', 'Beren', 'Isildur', 'Elendil', 'Thorin', 'Gimli', 'Gloin', 'Dain', 'Frodo', 'Samwise']
     };
 
     function generateHeroName(realmKey = 'angband', lang = 'en') {
@@ -2466,7 +2189,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (isWall) return;
         const hasMonster = Array.isArray(lastFrame.monsters) && lastFrame.monsters.some(m => m && m.x === nx && m.y === ny && m.ml !== false);
         if (hasMonster) return;
-
         lastFrame.player.x = nx;
         lastFrame.player.y = ny;
         lastFrame.seq = (lastFrame.seq || 0) + 1;
@@ -2508,18 +2230,9 @@ window.addEventListener('DOMContentLoaded', () => {
         hasEnteredPlay = false;
         lastClientSnapshotMs = 0;
         lastSnapshotDepth = null;
-        if (splashOverlay) splashOverlay.classList.add('hidden');
-        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
-        if (guideModal) guideModal.classList.add('hidden');
-        if (loadModal) loadModal.classList.add('hidden');
-        if (pauseModal) pauseModal.classList.add('hidden');
-        if (demoModal) demoModal.classList.add('hidden');
-        if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
-        if (queueModal) queueModal.classList.add('hidden');
-        stopQueueTipRotation();
+        hideModals();
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
         if (window.__startWatchdog) clearTimeout(window.__startWatchdog);
-
         quickBirthActive = !!options.autoBirth;
         quickBirthStep = 0;
         forceTerminal = false;
@@ -2527,15 +2240,12 @@ window.addEventListener('DOMContentLoaded', () => {
         if (window.__dungeonRenderer) {
             window.__dungeonRenderer.userPitchOffset = 0.0;
         }
-
         if (hud && typeof hud.resetMessages === 'function') {
             hud.resetMessages();
         }
-
         if (options.isNew && window.chronicleManager && typeof window.chronicleManager.resetForNewCharacter === 'function') {
             window.chronicleManager.resetForNewCharacter({ name: options.charName });
         }
-
         const chosenRealm = options.realm || activeRealm || 'angband';
         if (chosenRealm === 'hengband') {
             try {
@@ -2544,7 +2254,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 console.warn('[Angband3D] Failed to load Hengband language data prior to connect:', err);
             }
         }
-
         // Watchdog: If engine fails to respond or socket hangs after dictionary load, dismiss loading overlay and return to menu
         if (window.__startWatchdog) clearTimeout(window.__startWatchdog);
         window.__startWatchdog = setTimeout(() => {
@@ -2555,7 +2264,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 returnToMainMenu();
             }
         }, 20000);
-
         network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm);
     }
 
@@ -2575,12 +2283,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 network.disconnect();
             }
         } catch (_) {}
-
         // Identify which character/save to load
         const currentChar = (lastFrame && lastFrame.player && lastFrame.player.name)
             ? lastFrame.player.name
             : (network.currentChar || 'Adventurer');
-
         let targetSave = null;
         try {
             let saves = [];
@@ -2607,7 +2313,6 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             console.warn('[Angband3D] Failed to fetch save list for reload:', e);
         }
-
         if (targetSave) {
             console.log('[Angband3D] Reloading living save:', targetSave);
             startGame({
@@ -2629,7 +2334,6 @@ window.addEventListener('DOMContentLoaded', () => {
             const isDead = Boolean(hud && hud.isDeadInPlay) ||
                            Boolean(network && network.isDead) ||
                            Boolean(lastFrame && lastFrame.player && (lastFrame.player.dead || (lastFrame.player.hp !== undefined && lastFrame.player.hp <= 0 && lastFrame.player.hp_max > 0)));
-
             if (currentPhase === 'play' && !isDead) {
                 if (network && typeof network.saveAndDisconnect === 'function') {
                     await network.saveAndDisconnect();
@@ -2646,7 +2350,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch (_) {}
-
         if (hud && typeof hud.hideDeathModal === 'function') {
             hud.hideDeathModal();
         }
@@ -2671,7 +2374,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (loadModal) loadModal.classList.add('hidden');
         if (demoModal) demoModal.classList.add('hidden');
         if (window.demoPlayer && typeof window.demoPlayer.close === 'function') window.demoPlayer.close();
-
         showMainMenu();
     }
 
@@ -2681,7 +2383,6 @@ window.addEventListener('DOMContentLoaded', () => {
         let lastActionTime = 0;
         let lastTouchEndTime = 0;
         let startX = 0, startY = 0, moved = false;
-
         const trigger = (e) => {
             const now = Date.now();
             if (now - lastActionTime < 250) return;
@@ -2690,7 +2391,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
             fn(e);
         };
-
         el.addEventListener('touchstart', (e) => {
             if (e.touches && e.touches.length === 1) {
                 startX = e.touches[0].clientX;
@@ -2698,7 +2398,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 moved = false;
             }
         }, { passive: true });
-
         el.addEventListener('touchmove', (e) => {
             if (e.touches && e.touches.length === 1) {
                 const dx = Math.abs(e.touches[0].clientX - startX);
@@ -2706,7 +2405,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (dx > 10 || dy > 10) moved = true;
             }
         }, { passive: true });
-
         el.addEventListener('touchend', (e) => {
             lastTouchEndTime = Date.now();
             if (!moved) {
@@ -2714,12 +2412,10 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             moved = false;
         }, { passive: false });
-
         el.addEventListener('touchcancel', () => {
             lastTouchEndTime = Date.now();
             moved = false;
         }, { passive: true });
-
         el.addEventListener('click', (e) => {
             if (Date.now() - lastTouchEndTime < 500) return; // Suppress synthetic click from touch
             trigger(e);
@@ -2794,20 +2490,10 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const btnSplashGuide = document.getElementById('btn-splash-guide');
-    if (btnSplashGuide) bindFastTap(btnSplashGuide, () => showGuide(0, 'splash'));
-
-    const btnSplashFeatures = document.getElementById('btn-splash-features');
-    if (btnSplashFeatures) bindFastTap(btnSplashFeatures, () => showGuide(1, 'splash'));
-
-    const btnSplashChronicle = document.getElementById('btn-splash-chronicle');
-    if (btnSplashChronicle) bindFastTap(btnSplashChronicle, () => showGuide(1, 'splash'));
-
-    const btnSplashProtips = document.getElementById('btn-splash-protips');
-    if (btnSplashProtips) bindFastTap(btnSplashProtips, () => showGuide(4, 'splash'));
-
-    const btnSplashCredits = document.getElementById('btn-splash-credits');
-    if (btnSplashCredits) bindFastTap(btnSplashCredits, () => showGuide(6, 'splash'));
+    [['btn-splash-guide', 0], ['btn-splash-features', 1], ['btn-splash-chronicle', 1], ['btn-splash-protips', 4], ['btn-splash-credits', 6]].forEach(([id, tab]) => {
+        const el = document.getElementById(id);
+        if (el) bindFastTap(el, () => showGuide(tab, 'splash'));
+    });
 
     const btnSplashDemo = document.getElementById('btn-splash-demo');
     if (btnSplashDemo) {
@@ -2845,30 +2531,14 @@ window.addEventListener('DOMContentLoaded', () => {
         bindFastTap(btnMenuDemo, () => showDemoModal('mainMenu'));
     }
 
-    const btnMenuGuide = document.getElementById('btn-menu-guide');
-    if (btnMenuGuide) bindFastTap(btnMenuGuide, () => showGuide(0, 'mainMenu'));
-
-    const btnMenuCredits = document.getElementById('btn-menu-credits');
-    if (btnMenuCredits) bindFastTap(btnMenuCredits, () => showGuide(6, 'mainMenu'));
-
+    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-realms', () => showSplash()]].forEach(([id, fn]) => {
+        const el = document.getElementById(id);
+        if (el) bindFastTap(el, fn);
+    });
     const btnSplashRealms = document.getElementById('btn-splash-realms');
-    if (btnSplashRealms) {
-        bindFastTap(btnSplashRealms, (e) => {
-            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
-            showRealmSelector('splash');
-        });
-    }
-
+    if (btnSplashRealms) bindFastTap(btnSplashRealms, (e) => { if (e && e.stopPropagation) e.stopPropagation(); showRealmSelector('splash'); });
     const btnSplashCommands = document.getElementById('btn-splash-commands');
-    if (btnSplashCommands) {
-        bindFastTap(btnSplashCommands, (e) => {
-            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
-            showCommandPalette('splash');
-        });
-    }
-
-    const btnMenuRealms = document.getElementById('btn-menu-realms');
-    if (btnMenuRealms) bindFastTap(btnMenuRealms, () => showSplash());
+    if (btnSplashCommands) bindFastTap(btnSplashCommands, (e) => { if (e && e.stopPropagation) e.stopPropagation(); showCommandPalette('splash'); });
 
     // Inline 1-click realm switcher pills inside Main Menu
     const menuRealmPills = document.querySelectorAll('.realm-pill-btn[data-switch-realm]');
@@ -2896,46 +2566,10 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const btnMenuQuickStart = document.getElementById('btn-menu-quick-start');
-    if (btnMenuQuickStart) bindFastTap(btnMenuQuickStart, () => activateMenuItem(2));
-
-    const btnMenuNewGame = document.getElementById('btn-menu-new-game');
-    if (btnMenuNewGame) bindFastTap(btnMenuNewGame, () => activateMenuItem(3));
-
-    const btnMenuSwitchRealm = document.getElementById('btn-menu-switch-realm');
-    if (btnMenuSwitchRealm) bindFastTap(btnMenuSwitchRealm, () => showSplash());
-
-    const btnMenuHowToPlay = document.getElementById('btn-menu-how-to-play');
-    if (btnMenuHowToPlay) bindFastTap(btnMenuHowToPlay, () => showGuide(0, 'mainMenu'));
-
-    const btnMenuControls = document.getElementById('btn-menu-controls');
-    if (btnMenuControls) bindFastTap(btnMenuControls, () => showGuide(4, 'mainMenu'));
-
-    const btnMenuAudio = document.getElementById('btn-menu-audio');
-    if (btnMenuAudio) {
-        bindFastTap(btnMenuAudio, () => {
-            if (audio && typeof audio.toggleMute === 'function') {
-                audio.toggleMute();
-                syncAudioUI();
-            }
-        });
-    }
-
-    const btnMenuSavesClose = document.getElementById('btn-menu-saves-close');
-    if (btnMenuSavesClose) {
-        bindFastTap(btnMenuSavesClose, () => {
-            const panel = document.getElementById('main-menu-saves-panel');
-            if (panel) panel.classList.add('hidden');
-        });
-    }
-
-    const btnMenuSavesRefresh = document.getElementById('btn-menu-saves-refresh');
-    if (btnMenuSavesRefresh) {
-        bindFastTap(btnMenuSavesRefresh, () => {
-            checkSaves();
-            fetchAndRenderSaves();
-        });
-    }
+    [['btn-menu-quick-start', () => activateMenuItem(2)], ['btn-menu-new-game', () => activateMenuItem(3)], ['btn-menu-switch-realm', () => showSplash()], ['btn-menu-how-to-play', () => showGuide(0, 'mainMenu')], ['btn-menu-controls', () => showGuide(4, 'mainMenu')], ['btn-menu-audio', () => { if (audio && typeof audio.toggleMute === 'function') { audio.toggleMute(); syncAudioUI(); } }], ['btn-menu-saves-close', () => { const p = document.getElementById('main-menu-saves-panel'); if (p) p.classList.add('hidden'); }], ['btn-menu-saves-refresh', () => { checkSaves(); fetchAndRenderSaves(); }]].forEach(([id, fn]) => {
+        const el = document.getElementById(id);
+        if (el) bindFastTap(el, fn);
+    });
 
     const inputMenuUploadSave = document.getElementById('input-menu-upload-save');
     if (inputMenuUploadSave) {
@@ -2982,116 +2616,50 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!audio) return;
         const isMuted = audio.isMuted();
         const volPct = Math.round(audio.getMasterVolume() * 100);
-
+        const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
         const btnSound = document.getElementById('btn-sound');
         if (btnSound) {
             btnSound.innerHTML = `<span class="sound-icon">${isMuted ? '🔇' : '🔊'}</span><span class="sound-label">${isMuted ? 'Muted' : 'Sound'}</span>`;
             btnSound.title = isMuted ? 'Unmute Sound' : 'Mute Sound';
-            if (isMuted) {
-                btnSound.classList.add('muted');
-            } else {
-                btnSound.classList.remove('muted');
-            }
+            btnSound.classList.toggle('muted', isMuted);
         }
-
-        const volSlider = document.getElementById('volume-slider');
-        if (volSlider) volSlider.value = volPct;
-
-        const volLabel = document.getElementById('volume-label');
-        if (volLabel) volLabel.textContent = isMuted ? '0%' : `${volPct}%`;
-
-        // Mobile / Desktop Audio Configuration Popover Synchronization
-        const popoverBadge = document.getElementById('popover-vol-badge');
-        if (popoverBadge) {
-            popoverBadge.textContent = isMuted ? '🔇 Muted' : `${volPct}%`;
-        }
-
-        const popoverSlider = document.getElementById('popover-volume-slider');
-        if (popoverSlider) {
-            popoverSlider.value = volPct;
-        }
-
+        setVal('volume-slider', volPct);
+        setTxt('volume-label', isMuted ? '0%' : `${volPct}%`);
+        setTxt('popover-vol-badge', isMuted ? '🔇 Muted' : `${volPct}%`);
+        setVal('popover-volume-slider', volPct);
         const btnPopoverMute = document.getElementById('btn-popover-mute');
         if (btnPopoverMute) {
             btnPopoverMute.textContent = isMuted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
-            if (isMuted) {
-                btnPopoverMute.classList.add('muted');
-            } else {
-                btnPopoverMute.classList.remove('muted');
-            }
+            btnPopoverMute.classList.toggle('muted', isMuted);
         }
-
-        // Tome / Lorekeeper Voice Volume Synchronization
         const voiceVol = (window.chronicleManager && window.chronicleManager.audio && typeof window.chronicleManager.audio.getVoiceVolume === 'function')
             ? window.chronicleManager.audio.getVoiceVolume()
             : (parseFloat(localStorage.getItem('angband3d_tome_voice_volume')) || 1.0);
         const voicePct = Math.round(voiceVol * 100);
-
-        const popoverVoiceBadge = document.getElementById('popover-voice-badge');
-        if (popoverVoiceBadge) {
-            popoverVoiceBadge.textContent = isMuted ? '0%' : `${voicePct}%`;
-        }
-        const popoverVoiceSlider = document.getElementById('popover-voice-slider');
-        if (popoverVoiceSlider) {
-            popoverVoiceSlider.value = voicePct;
-        }
-
-        // Sound Effects (SFX) Sub-Bus Volume Synchronization
-        const sfxVol = (audio && typeof audio.getSfxVolume === 'function')
-            ? audio.getSfxVolume()
-            : 1.0;
+        setTxt('popover-voice-badge', isMuted ? '0%' : `${voicePct}%`);
+        setVal('popover-voice-slider', voicePct);
+        const sfxVol = (audio && typeof audio.getSfxVolume === 'function') ? audio.getSfxVolume() : 1.0;
         const sfxPct = Math.round(sfxVol * 100);
-
-        const popoverSfxBadge = document.getElementById('popover-sfx-badge');
-        if (popoverSfxBadge) {
-            popoverSfxBadge.textContent = isMuted ? '0%' : `${sfxPct}%`;
-        }
-        const popoverSfxSlider = document.getElementById('popover-sfx-slider');
-        if (popoverSfxSlider) {
-            popoverSfxSlider.value = sfxPct;
-        }
-
-        // Subterranean Reverb Synchronization
+        setTxt('popover-sfx-badge', isMuted ? '0%' : `${sfxPct}%`);
+        setVal('popover-sfx-slider', sfxPct);
         const revVol = (window.chronicleManager && window.chronicleManager.audio && typeof window.chronicleManager.audio.reverbWet === 'number')
             ? window.chronicleManager.audio.reverbWet
             : (parseFloat(localStorage.getItem('angband_chronicle_reverb')) || 0.10);
         const revPct = Math.round(revVol * 100);
-
-        const popoverRevBadge = document.getElementById('popover-reverb-badge');
-        if (popoverRevBadge) {
-            popoverRevBadge.textContent = `${revPct}%`;
-        }
-        const popoverRevSlider = document.getElementById('popover-reverb-slider');
-        if (popoverRevSlider) {
-            popoverRevSlider.value = revPct;
-        }
-
-        // Highlight matching preset button
-        const presetBtns = document.querySelectorAll('.vol-preset-btn');
-        presetBtns.forEach(btn => {
+        setTxt('popover-reverb-badge', `${revPct}%`);
+        setVal('popover-reverb-slider', revPct);
+        document.querySelectorAll('.vol-preset-btn').forEach(btn => {
             const bVol = parseInt(btn.dataset.vol, 10);
-            if ((isMuted && bVol === 0) || (!isMuted && bVol === volPct)) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
+            btn.classList.toggle('active', (isMuted && bVol === 0) || (!isMuted && bVol === volPct));
         });
-
         const btnPauseMute = document.getElementById('btn-pause-mute');
         if (btnPauseMute) {
             btnPauseMute.textContent = isMuted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
-            if (isMuted) {
-                btnPauseMute.classList.add('muted');
-            } else {
-                btnPauseMute.classList.remove('muted');
-            }
+            btnPauseMute.classList.toggle('muted', isMuted);
         }
-
-        const pauseVolSlider = document.getElementById('pause-volume-slider');
-        if (pauseVolSlider) pauseVolSlider.value = volPct;
-
-        const pauseVolLabel = document.getElementById('pause-volume-label');
-        if (pauseVolLabel) pauseVolLabel.textContent = isMuted ? '0%' : `${volPct}%`;
+        setVal('pause-volume-slider', volPct);
+        setTxt('pause-volume-label', isMuted ? '0%' : `${volPct}%`);
     }
     window.__syncAudioUI = syncAudioUI;
 
@@ -3193,111 +2761,38 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const popoverVolSlider = document.getElementById('popover-volume-slider');
-    if (popoverVolSlider) {
-        const handleSliderChange = (e) => {
+    function bindPopoverSlider(id, onChange, onNavSound = false) {
+        const slider = document.getElementById(id);
+        if (!slider) return;
+        const handler = (e) => {
             if (e && e.stopPropagation) e.stopPropagation();
-            if (audio) {
-                audio.unlock();
-                const val = parseInt(popoverVolSlider.value, 10) / 100;
-                audio.setMasterVolume(val);
-                if (audio.isMuted() && val > 0) audio.setMute(false);
-                syncAudioUI();
-                showQuickVolumePopover();
-            }
-        };
-        popoverVolSlider.addEventListener('input', handleSliderChange);
-        popoverVolSlider.addEventListener('change', (e) => {
-            handleSliderChange(e);
-            if (audio && !audio.isMuted() && typeof audio.playMenuNav === 'function') {
-                audio.playMenuNav();
-            }
-        });
-        popoverVolSlider.addEventListener('touchstart', (e) => {
-            e.stopPropagation();
-            clearTimeout(popoverDismissTimer);
-        }, { passive: true });
-        popoverVolSlider.addEventListener('touchend', () => {
-            showQuickVolumePopover();
-        }, { passive: true });
-        popoverVolSlider.addEventListener('click', (e) => e.stopPropagation());
-    }
-
-    // Tome Narration Voice Slider
-    const popoverVoiceSlider = document.getElementById('popover-voice-slider');
-    if (popoverVoiceSlider) {
-        const handleVoiceChange = (e) => {
-            if (e && e.stopPropagation) e.stopPropagation();
-            const val = parseInt(popoverVoiceSlider.value, 10) / 100;
-            if (window.chronicleManager && window.chronicleManager.audio) {
-                window.chronicleManager.audio.setVoiceVolume(val);
-            } else {
-                try { localStorage.setItem('angband3d_tome_voice_volume', val.toString()); } catch (_) {}
-            }
+            onChange(parseInt(slider.value, 10) / 100);
             syncAudioUI();
             showQuickVolumePopover();
         };
-        popoverVoiceSlider.addEventListener('input', handleVoiceChange);
-        popoverVoiceSlider.addEventListener('change', handleVoiceChange);
-        popoverVoiceSlider.addEventListener('click', (e) => e.stopPropagation());
-        popoverVoiceSlider.addEventListener('touchstart', (e) => {
-            e.stopPropagation();
-            clearTimeout(popoverDismissTimer);
-        }, { passive: true });
-        popoverVoiceSlider.addEventListener('touchend', () => showQuickVolumePopover(), { passive: true });
-    }
-
-    // Sound Effects (SFX) Slider
-    const popoverSfxSlider = document.getElementById('popover-sfx-slider');
-    if (popoverSfxSlider) {
-        const handleSfxChange = (e) => {
-            if (e && e.stopPropagation) e.stopPropagation();
-            if (audio) {
-                audio.unlock();
-                const val = parseInt(popoverSfxSlider.value, 10) / 100;
-                audio.setSfxVolume(val);
-                syncAudioUI();
-                showQuickVolumePopover();
-            }
-        };
-        popoverSfxSlider.addEventListener('input', handleSfxChange);
-        popoverSfxSlider.addEventListener('change', (e) => {
-            handleSfxChange(e);
-            if (audio && !audio.isMuted() && typeof audio.playMenuNav === 'function') {
-                audio.playMenuNav();
-            }
+        slider.addEventListener('input', handler);
+        slider.addEventListener('change', (e) => {
+            handler(e);
+            if (onNavSound && audio && !audio.isMuted() && typeof audio.playMenuNav === 'function') audio.playMenuNav();
         });
-        popoverSfxSlider.addEventListener('click', (e) => e.stopPropagation());
-        popoverSfxSlider.addEventListener('touchstart', (e) => {
-            e.stopPropagation();
-            clearTimeout(popoverDismissTimer);
-        }, { passive: true });
-        popoverSfxSlider.addEventListener('touchend', () => showQuickVolumePopover(), { passive: true });
+        slider.addEventListener('click', (e) => e.stopPropagation());
+        slider.addEventListener('touchstart', (e) => { e.stopPropagation(); clearTimeout(popoverDismissTimer); }, { passive: true });
+        slider.addEventListener('touchend', () => showQuickVolumePopover(), { passive: true });
     }
-
-    // Subterranean Reverb Slider
-    const popoverReverbSlider = document.getElementById('popover-reverb-slider');
-    if (popoverReverbSlider) {
-        const handleReverbChange = (e) => {
-            if (e && e.stopPropagation) e.stopPropagation();
-            const val = parseInt(popoverReverbSlider.value, 10) / 100;
-            if (window.chronicleManager && window.chronicleManager.audio) {
-                window.chronicleManager.audio.setReverbVolume(val);
-            } else {
-                try { localStorage.setItem('angband_chronicle_reverb', val.toString()); } catch (_) {}
-            }
-            syncAudioUI();
-            showQuickVolumePopover();
-        };
-        popoverReverbSlider.addEventListener('input', handleReverbChange);
-        popoverReverbSlider.addEventListener('change', handleReverbChange);
-        popoverReverbSlider.addEventListener('click', (e) => e.stopPropagation());
-        popoverReverbSlider.addEventListener('touchstart', (e) => {
-            e.stopPropagation();
-            clearTimeout(popoverDismissTimer);
-        }, { passive: true });
-        popoverReverbSlider.addEventListener('touchend', () => showQuickVolumePopover(), { passive: true });
-    }
+    bindPopoverSlider('popover-volume-slider', (val) => {
+        if (audio) { audio.unlock(); audio.setMasterVolume(val); if (audio.isMuted() && val > 0) audio.setMute(false); }
+    }, true);
+    bindPopoverSlider('popover-voice-slider', (val) => {
+        if (window.chronicleManager && window.chronicleManager.audio) window.chronicleManager.audio.setVoiceVolume(val);
+        else try { localStorage.setItem('angband3d_tome_voice_volume', val.toString()); } catch (_) {}
+    });
+    bindPopoverSlider('popover-sfx-slider', (val) => {
+        if (audio) { audio.unlock(); audio.setSfxVolume(val); }
+    }, true);
+    bindPopoverSlider('popover-reverb-slider', (val) => {
+        if (window.chronicleManager && window.chronicleManager.audio) window.chronicleManager.audio.setReverbVolume(val);
+        else try { localStorage.setItem('angband_chronicle_reverb', val.toString()); } catch (_) {}
+    });
 
     // Preset volume buttons ([Mute], [25%], [50%], [75%], [100%])
     const presetBtns = document.querySelectorAll('.vol-preset-btn');
@@ -3391,55 +2886,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     menuOptionBtns.forEach((btn, idx) => {
-        let lastActionTime = 0;
-        let lastTouchEndTime = 0;
-        let startX = 0, startY = 0, moved = false;
-
-        const trigger = (e) => {
-            const now = Date.now();
-            if (now - lastActionTime < 250) return;
-            lastActionTime = now;
-            if (e && e.cancelable && e.type !== 'click') e.preventDefault();
-            if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
+        bindFastTap(btn, () => {
             selectedMenuIndex = idx;
             updateMenuSelectionUI();
             activateMenuItem();
-        };
-
-        btn.addEventListener('touchstart', (e) => {
-            if (e.touches && e.touches.length === 1) {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-                moved = false;
-            }
-        }, { passive: true });
-
-        btn.addEventListener('touchmove', (e) => {
-            if (e.touches && e.touches.length === 1) {
-                const dx = Math.abs(e.touches[0].clientX - startX);
-                const dy = Math.abs(e.touches[0].clientY - startY);
-                if (dx > 10 || dy > 10) moved = true;
-            }
-        }, { passive: true });
-
-        btn.addEventListener('touchend', (e) => {
-            lastTouchEndTime = Date.now();
-            if (!moved) {
-                trigger(e);
-            }
-            moved = false;
-        }, { passive: false });
-
-        btn.addEventListener('touchcancel', () => {
-            lastTouchEndTime = Date.now();
-            moved = false;
-        }, { passive: true });
-
-        btn.addEventListener('click', (e) => {
-            if (Date.now() - lastTouchEndTime < 500) return; // Suppress synthetic click from touch
-            trigger(e);
         });
-
         btn.addEventListener('mouseenter', () => {
             selectedMenuIndex = idx;
             updateMenuSelectionUI();
@@ -3447,55 +2898,11 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     pauseOptionBtns.forEach((btn, idx) => {
-        let lastActionTime = 0;
-        let lastTouchEndTime = 0;
-        let startX = 0, startY = 0, moved = false;
-
-        const trigger = (e) => {
-            const now = Date.now();
-            if (now - lastActionTime < 250) return;
-            lastActionTime = now;
-            if (e && e.cancelable && e.type !== 'click') e.preventDefault();
-            if (window.DeviceProfile) window.DeviceProfile.triggerHaptic('light');
+        bindFastTap(btn, () => {
             selectedPauseIndex = idx;
             updatePauseMenuSelectionUI();
             activatePauseMenuItem();
-        };
-
-        btn.addEventListener('touchstart', (e) => {
-            if (e.touches && e.touches.length === 1) {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-                moved = false;
-            }
-        }, { passive: true });
-
-        btn.addEventListener('touchmove', (e) => {
-            if (e.touches && e.touches.length === 1) {
-                const dx = Math.abs(e.touches[0].clientX - startX);
-                const dy = Math.abs(e.touches[0].clientY - startY);
-                if (dx > 10 || dy > 10) moved = true;
-            }
-        }, { passive: true });
-
-        btn.addEventListener('touchend', (e) => {
-            lastTouchEndTime = Date.now();
-            if (!moved) {
-                trigger(e);
-            }
-            moved = false;
-        }, { passive: false });
-
-        btn.addEventListener('touchcancel', () => {
-            lastTouchEndTime = Date.now();
-            moved = false;
-        }, { passive: true });
-
-        btn.addEventListener('click', (e) => {
-            if (Date.now() - lastTouchEndTime < 500) return; // Suppress synthetic click from touch
-            trigger(e);
         });
-
         btn.addEventListener('mouseenter', () => {
             selectedPauseIndex = idx;
             updatePauseMenuSelectionUI();
@@ -3615,15 +3022,8 @@ window.addEventListener('DOMContentLoaded', () => {
         pwaPreviousState = fromState || appState || 'mainMenu';
         appState = 'pwaModal';
         updatePWAInstallUI();
+        hideModals(pwaModal);
         if (pwaModal) pwaModal.classList.remove('hidden');
-        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
-        if (splashOverlay) splashOverlay.classList.add('hidden');
-        if (guideModal) guideModal.classList.add('hidden');
-        if (loadModal) loadModal.classList.add('hidden');
-        if (pauseModal) pauseModal.classList.add('hidden');
-        if (terminalContainer) terminalContainer.classList.add('hidden');
-        const banner = document.getElementById('top-message-banner');
-        if (banner) banner.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuOpen();
     }
@@ -3723,7 +3123,6 @@ window.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('angband3d_active_realm', realmKey);
         } catch (_) {}
         updateRealmUI();
-
         // Attune living chronicle tradition and lorekeeper voice profile
         if (window.chronicleManager) {
             try {
@@ -3743,7 +3142,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (_) {}
         }
-
         if (audio) {
             if (typeof audio.playMenuSelect === 'function') {
                 audio.playMenuSelect();
@@ -3765,7 +3163,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (realmKey === 'hengband') {
             loadHengLang();
         }
-
         // Invariant: Changing realm immediately invalidates any stale saves and session ID from the previous realm
         latestSave = null;
         loadedSaves = [];
@@ -3778,12 +3175,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('angband3d_session_realm', realmKey);
             } catch (_) {}
         }
-
         const realm = REALM_DATA[realmKey];
         showRealmToast(`Realm Attuned: ${realm.name} • ${realm.tagline}`);
         updateRealmUI();
         checkSaves();
-
         if (autoClose) {
             setTimeout(() => {
                 if (appState === 'realmModal') {
@@ -3822,7 +3217,6 @@ window.addEventListener('DOMContentLoaded', () => {
         const desc = mode === 'en' ? 'English (純英語)' : (mode === 'jp' ? 'Japanese / 漢字 (Kanji)' : 'Bilingual (日本語 + English)');
         showRealmToast(`🌐 Hengband Language Mode: ${desc} [Alt+L]`);
         if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
-
         // If in setup or play, re-render terminal & HUD to reflect updated language immediately
         const effFrame = window.__lastFrame || lastFrame || (window.__app && window.__app.lastFrame);
         if (effFrame) {
@@ -3841,7 +3235,6 @@ window.addEventListener('DOMContentLoaded', () => {
             terminal.render(terminal.lastTermData);
             updateTerminalToolbar();
         }
-
         // Refresh 3D dungeon creature overhead nameplates and item caption labels immediately
         if (dungeon) {
             if (typeof dungeon.refreshMonsterNameplates === 'function') {
@@ -3873,7 +3266,6 @@ window.addEventListener('DOMContentLoaded', () => {
         const isHengband = activeRealm === 'hengband';
         const effLang = isHengband ? langMode : 'en';
         window.__langMode = effLang;
-
         if (btnLang) {
             btnLang.style.display = isHengband ? 'inline-flex' : 'none';
             btnLang.classList.toggle('lang-kanji', isHengband && langMode === 'jp');
@@ -3883,7 +3275,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (langLabel) {
             langLabel.textContent = effLang === 'en' ? 'EN' : (effLang === 'jp' ? '漢 (JP)' : 'EN/漢');
         }
-
         // Delegate to WebHUD to update all HUD widgets, stats, gauges, action bar, death screen, dpad, and minimap
         if (hud && typeof hud.updateLanguageUI === 'function') {
             hud.updateLanguageUI(activeRealm, effLang);
@@ -3897,7 +3288,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (window.QuickActionManager && typeof window.QuickActionManager.renderBar === 'function') {
             window.QuickActionManager.renderBar(lastFrame || window.__lastFrame || null, activeRealm, effLang);
         }
-
         // Main Menu / Pause Menu Localization
         const continueLabel = document.getElementById('menu-continue-label');
         if (continueLabel) {
@@ -3928,117 +3318,60 @@ window.addEventListener('DOMContentLoaded', () => {
     function updateRealmUI() {
         updateLanguageUI();
         const realm = REALM_DATA[activeRealm] || REALM_DATA.angband;
-
+        const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
         // 1. Splash Screen UI Synchronization
-        const splashName = document.getElementById('splash-active-realm-name');
-        if (splashName) splashName.textContent = realm.name;
-
-        const splashCtaName = document.getElementById('splash-cta-realm-name');
-        if (splashCtaName) splashCtaName.textContent = realm.name;
-
-        const splashLoreTitle = document.getElementById('splash-lore-title');
-        if (splashLoreTitle) splashLoreTitle.textContent = `${realm.name}:`;
-
-        const splashLoreDesc = document.getElementById('splash-lore-desc');
-        if (splashLoreDesc) splashLoreDesc.textContent = realm.desc || realm.tagline;
-
-        const splashCards = document.querySelectorAll('.splash-realm-card');
-        splashCards.forEach((card) => {
+        setTxt('splash-active-realm-name', realm.name);
+        setTxt('splash-cta-realm-name', realm.name);
+        setTxt('splash-lore-title', `${realm.name}:`);
+        setTxt('splash-lore-desc', realm.desc || realm.tagline);
+        document.querySelectorAll('.splash-realm-card').forEach((card) => {
             const isMatch = card.dataset.realm === activeRealm;
             card.classList.toggle('active', isMatch);
             card.setAttribute('aria-selected', isMatch ? 'true' : 'false');
             const badge = card.querySelector('.splash-realm-badge');
             if (badge) badge.style.display = isMatch ? 'block' : 'none';
         });
-
         const splashLangSelect = document.getElementById('splash-hengband-lang-select');
         if (splashLangSelect) {
-            try {
-                const storedLang = localStorage.getItem('angband3d_lang_mode') || 'en';
-                splashLangSelect.value = (storedLang === 'jp' ? 'jp' : 'en');
-            } catch (_) {}
+            try { const storedLang = localStorage.getItem('angband3d_lang_mode') || 'en'; splashLangSelect.value = (storedLang === 'jp' ? 'jp' : 'en'); } catch (_) {}
         }
-
         // 2. Main Menu UI Synchronization
-        const menuActiveRealmName = document.getElementById('menu-active-realm-name');
-        if (menuActiveRealmName) menuActiveRealmName.textContent = realm.name;
-
-        const menuSubtitle = document.getElementById('main-menu-subtitle');
-        if (menuSubtitle) menuSubtitle.textContent = `${realm.tagline} • ${realm.voiceAccent}`;
-
-        const menuDesc = document.getElementById('menu-realm-desc');
-        if (menuDesc) menuDesc.textContent = `Active: ${realm.name} • ${realm.tagline}`;
-
-        const menuRealmPills = document.querySelectorAll('.realm-pill-btn[data-switch-realm]');
-        menuRealmPills.forEach((pill) => {
+        setTxt('menu-active-realm-name', realm.name);
+        setTxt('main-menu-subtitle', `${realm.tagline} • ${realm.voiceAccent}`);
+        setTxt('menu-realm-desc', `Active: ${realm.name} • ${realm.tagline}`);
+        document.querySelectorAll('.realm-pill-btn[data-switch-realm]').forEach((pill) => {
             const isPillMatch = pill.dataset.switchRealm === activeRealm;
             pill.classList.toggle('active', isPillMatch);
             pill.setAttribute('aria-selected', isPillMatch ? 'true' : 'false');
         });
-
         // 3. Modals & HUD Synchronization
-        const loadActiveRealmName = document.getElementById('load-active-realm-name');
-        if (loadActiveRealmName) loadActiveRealmName.textContent = realm.name;
-
-        const hudLabel = document.getElementById('hud-realm-label');
-        if (hudLabel) hudLabel.textContent = realm.name;
-
+        setTxt('load-active-realm-name', realm.name);
+        setTxt('hud-realm-label', realm.name);
         const btnHud = document.getElementById('btn-hud-realm');
-        if (btnHud) {
-            btnHud.title = `Active Realm: ${realm.name} (Locked during gameplay. Return to Main Menu to switch).`;
-        }
-
-        const modalActiveTitle = document.getElementById('realm-modal-active-title');
-        if (modalActiveTitle) modalActiveTitle.textContent = realm.name;
-
-        const modalActiveVoice = document.getElementById('realm-modal-active-voice');
-        if (modalActiveVoice) modalActiveVoice.textContent = realm.voiceAccent;
-
+        if (btnHud) btnHud.title = `Active Realm: ${realm.name} (Locked during gameplay. Return to Main Menu to switch).`;
+        setTxt('realm-modal-active-title', realm.name);
+        setTxt('realm-modal-active-voice', realm.voiceAccent);
         const btnReturn = document.getElementById('btn-realm-modal-return');
-        if (btnReturn) {
-            btnReturn.innerHTML = `[Esc / Enter] Return with <strong>${escapeHtml(realm.name)}</strong> Attuned`;
-        }
-
-        const cards = document.querySelectorAll('.realm-card');
-        cards.forEach((card) => {
+        if (btnReturn) btnReturn.innerHTML = `[Esc / Enter] Return with <strong>${escapeHtml(realm.name)}</strong> Attuned`;
+        document.querySelectorAll('.realm-card').forEach((card) => {
             const isMatch = card.dataset.realm === activeRealm;
-            if (isMatch) {
-                card.classList.add('active');
-                const badge = card.querySelector('.realm-card-badge');
-                if (badge) badge.style.display = 'block';
-                const btn = card.querySelector('.btn-realm-select');
-                if (btn) {
-                    btn.className = 'btn-realm-select btn-gold';
-                    btn.textContent = '✓ Active Realm (Selected)';
-                }
-            } else {
-                card.classList.remove('active');
-                const badge = card.querySelector('.realm-card-badge');
-                if (badge) badge.style.display = 'none';
-                const btn = card.querySelector('.btn-realm-select');
-                if (btn) {
-                    btn.className = 'btn-realm-select btn-gold-outline';
-                    btn.textContent = 'Switch to Realm';
-                }
+            card.classList.toggle('active', isMatch);
+            const badge = card.querySelector('.realm-card-badge');
+            if (badge) badge.style.display = isMatch ? 'block' : 'none';
+            const btn = card.querySelector('.btn-realm-select');
+            if (btn) {
+                btn.className = isMatch ? 'btn-realm-select btn-gold' : 'btn-realm-select btn-gold-outline';
+                btn.textContent = isMatch ? '✓ Active Realm (Selected)' : 'Switch to Realm';
             }
         });
-
         const langSelect = document.getElementById('hengband-lang-select');
         if (langSelect) {
-            try {
-                const storedLang = localStorage.getItem('angband3d_lang_mode') || 'en';
-                langSelect.value = storedLang;
-            } catch (_) {}
+            try { const storedLang = localStorage.getItem('angband3d_lang_mode') || 'en'; langSelect.value = storedLang; } catch (_) {}
         }
-
         // 4. Action Bar Synchronization (Variant actions & bilingual labels via RealmKeys)
         if (typeof RealmKeys !== 'undefined') {
-            if (typeof RealmKeys.setActiveRealm === 'function') {
-                RealmKeys.setActiveRealm(activeRealm);
-            }
-            if (typeof RealmKeys.applyLabels === 'function') {
-                RealmKeys.applyLabels(document, activeRealm, langMode);
-            }
+            if (typeof RealmKeys.setActiveRealm === 'function') RealmKeys.setActiveRealm(activeRealm);
+            if (typeof RealmKeys.applyLabels === 'function') RealmKeys.applyLabels(document, activeRealm, langMode);
         }
     }
 
@@ -4051,13 +3384,8 @@ window.addEventListener('DOMContentLoaded', () => {
         realmPreviousState = fromState;
         appState = 'realmModal';
         updateRealmUI();
+        hideModals(realmModal);
         if (realmModal) realmModal.classList.remove('hidden');
-        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
-        if (splashOverlay) splashOverlay.classList.add('hidden');
-        if (guideModal) guideModal.classList.add('hidden');
-        if (loadModal) loadModal.classList.add('hidden');
-        if (pauseModal) pauseModal.classList.add('hidden');
-        if (cmdPaletteModal) cmdPaletteModal.classList.add('hidden');
         if (audio) audio.playMenuOpen();
     }
 
@@ -4078,13 +3406,11 @@ window.addEventListener('DOMContentLoaded', () => {
         const btnReturn = document.getElementById('btn-realm-modal-return');
         if (btnClose) bindFastTap(btnClose, () => hideRealmSelector());
         if (btnReturn) bindFastTap(btnReturn, () => hideRealmSelector());
-
         if (realmModal) {
             realmModal.addEventListener('click', (e) => {
                 if (e.target === realmModal) hideRealmSelector();
             });
         }
-
         const cards = document.querySelectorAll('.realm-card');
         cards.forEach((card) => {
             const realmKey = card.dataset.realm;
@@ -4096,7 +3422,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 });
             }
         });
-
         const langSelect = document.getElementById('hengband-lang-select');
         if (langSelect) {
             langSelect.addEventListener('change', (e) => {
@@ -4158,32 +3483,17 @@ window.addEventListener('DOMContentLoaded', () => {
     let demoPreviousState = 'mainMenu';
 
     function showDemoModal(fromState = null) {
-        // Standalone Client Invariant: The video showcase player is hosted ONLY on the website.
-        // All non-web clients (Desktop Windows WebView2, Godot, Android APK) must point to the official website link
-        // and never attempt to play video natively or open the local modal.
         if (isStandaloneApp() || (typeof document !== 'undefined' && document.body?.classList?.contains('is-standalone'))) {
             if (audio) audio.playMenuNav();
             openExternalUrl('https://angband3d.com/demo');
             return;
         }
-
         demoPreviousState = fromState || appState || 'mainMenu';
         appState = 'demoModal';
+        hideModals(demoModal);
         if (demoModal) demoModal.classList.remove('hidden');
-        if (mainMenuOverlay) mainMenuOverlay.classList.add('hidden');
-        if (splashOverlay) splashOverlay.classList.add('hidden');
-        if (guideModal) guideModal.classList.add('hidden');
-        if (loadModal) loadModal.classList.add('hidden');
-        if (pauseModal) pauseModal.classList.add('hidden');
-        if (pwaModal) pwaModal.classList.add('hidden');
-        if (queueModal) queueModal.classList.add('hidden');
-        stopQueueTipRotation();
-        if (terminalContainer) terminalContainer.classList.add('hidden');
-        const banner = document.getElementById('top-message-banner');
-        if (banner) banner.style.display = 'none';
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuOpen();
-
         if (window.demoPlayer && typeof window.demoPlayer.open === 'function') {
             window.demoPlayer.open(demoPreviousState);
         }
@@ -4324,17 +3634,15 @@ window.addEventListener('DOMContentLoaded', () => {
             effFrame, curRealm, isHeng, effLang, inPlay,
             hengLabel, hengTitle, populateLetterRibbon, setCtxActions, renderCtxButtons
         } = ctx;
-
         const legacy = (model && model.legacy) || (SC && typeof SC.classify === 'function' ? SC.classify(effFrame, curRealm, { decode: decodeHengbandText }) : {});
         const prompt = (model && model.prompt) || {};
-        const rawScreenText = (effFrame && effFrame.term && effFrame.term.rows)
-            ? effFrame.term.rows.map(r => r.g || '').join('\n')
-            : '';
+        const rawScreenText = (effFrame && effFrame.term && effFrame.term.rows) ? effFrame.term.rows.map(r => r.g || '').join('\n') : '';
         const decodedScreenText = decodeHengbandText(rawScreenText);
         const screenText = (rawScreenText + '\n' + decodedScreenText).toLowerCase();
-
+        if (termDpad) termDpad.style.display = 'none';
+        if (birthNameBar) birthNameBar.style.display = 'none';
+        if (termLetterRibbon) termLetterRibbon.style.display = 'none';
         if (!inPlay) {
-            // --- CHARACTER CREATION / BIRTH SCREENS ---
             if (termExitMenuBtn) {
                 termExitMenuBtn.style.display = 'inline-flex';
                 termExitMenuBtn.textContent = isHeng ? hengLabel('🏠 Main Menu', '🏠 Main Menu (主献立)', '🏠 メインメニュー') : 'Main Menu';
@@ -4345,114 +3653,53 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             if (termRerollBtn) termRerollBtn.style.display = 'none';
             termEscapeBtn.textContent = isHeng ? hengLabel('Back (Esc)', 'Back / 戻る (Esc)', '戻る (Esc)') : 'Back (Esc)';
-
             const bf = legacy.birthFlags || (SC.birthFlags ? SC.birthFlags(screenText, isHeng) : {});
-            if (bf.isChoiceMenu || bf.isNamePrompt) {
-                birthReviewActive = false;
-            }
-
+            if (bf.isChoiceMenu || bf.isNamePrompt) birthReviewActive = false;
+            const mmBtn = { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') };
+            const escBackBtn = { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') };
+            const escStepBtn = { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') };
             if (bf.isHengInitialOpt) {
-                terminalTitle.textContent = hengTitle(
-                    '🎴 HENGBAND — Options Setup [Esc to Accept]',
-                    '🎴 HENGBAND — 初期オプション / Options [Esc to Accept]',
-                    '🎴 HENGBAND — 初期オプション設定 [Escで終了]'
-                );
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Accept Options', '⎋ 終了 (Accept Options)', '⎋ 終了'), gold: true },
-                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                ]));
+                terminalTitle.textContent = hengTitle('🎴 HENGBAND — Options Setup [Esc to Accept]', '🎴 HENGBAND — 初期オプション / Options [Esc to Accept]', '🎴 HENGBAND — 初期オプション設定 [Escで終了]');
+                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Accept Options', '⎋ 終了 (Accept Options)', '⎋ 終了'), gold: true }, mmBtn]));
             } else if (bf.isHengStatDecide) {
-                terminalTitle.textContent = hengTitle(
-                    '🎴 HENGBAND — Review Stats [Enter]',
-                    '🎴 HENGBAND — 能力値決定 / Review Stats [Enter]',
-                    '🎴 HENGBAND — 能力値決定 [Enter]'
-                );
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                terminalTitle.textContent = hengTitle('🎴 HENGBAND — Review Stats [Enter]', '🎴 HENGBAND — 能力値決定 / Review Stats [Enter]', '🎴 HENGBAND — 能力値決定 [Enter]');
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept Stats', '✓ 決定 (Accept Stats)', '✓ 決定'), gold: true },
                     { key: 'r', badge: '[r]', label: hengLabel('🔄 Next Roll', '🔄 次の数値 (Next Roll)', '🔄 次の数値') },
                     { key: 'p', badge: '[p]', label: hengLabel('⏪ Previous Roll', '⏪ 前の数値 (Previous Roll)', '⏪ 前の数値') },
                     { key: 'S', badge: '[S]', label: hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから') },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ 戻る (Back)', '⎋ 戻る') },
-                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    escBackBtn, mmBtn
                 ]));
             } else if (bf.isTitleScreen) {
                 terminalTitle.textContent = '⚔ WELCOME TO ANGBAND';
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                setCtxActions(renderCtxButtons([
-                    { key: 'enter', badge: '⏎', label: 'Continue (Enter)', gold: true },
-                    { key: 'mainmenu', badge: '🏠', label: 'Main Menu' }
-                ]));
+                setCtxActions(renderCtxButtons([{ key: 'enter', badge: '⏎', label: 'Continue (Enter)', gold: true }, mmBtn]));
             } else if (bf.isNamePrompt) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🎴 HENGBAND — Enter Character Name', '🎴 HENGBAND — 名前入力 / Enter Name', '🎴 HENGBAND — キャラクターの名前を入力')
-                    : '⚔ NAME YOUR ADVENTURER';
-                if (termDpad) termDpad.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Enter Character Name', '🎴 HENGBAND — 名前入力 / Enter Name', '🎴 HENGBAND — キャラクターの名前を入力') : '⚔ NAME YOUR ADVENTURER';
                 if (birthNameBar) {
                     birthNameBar.style.display = 'flex';
                     if (birthNameInput && document.activeElement !== birthNameInput && !birthNameInput.value) {
-                        const nameMatch = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0])
-                            ? (effFrame.term.rows[0].g || '').match(/:\s*([A-Za-z0-9_\-]+)/)
-                            : null;
+                        const nameMatch = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0]) ? (effFrame.term.rows[0].g || '').match(/:\s*([A-Za-z0-9_\-]+)/) : null;
                         if (nameMatch) birthNameInput.value = nameMatch[1].trim();
                     }
                 }
-                setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
-                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                ]));
+                setCtxActions(renderCtxButtons([escStepBtn, mmBtn]));
             } else if (bf.isHistoryPrompt) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🎴 HENGBAND — Character Background', '🎴 HENGBAND — 生い立ち / Background', '🎴 HENGBAND — キャラクターの生い立ち')
-                    : '⚔ CHARACTER HISTORY';
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                setCtxActions(renderCtxButtons([
-                    { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
-                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                ]));
+                terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Character Background', '🎴 HENGBAND — 生い立ち / Background', '🎴 HENGBAND — キャラクターの生い立ち') : '⚔ CHARACTER HISTORY';
+                setCtxActions(renderCtxButtons([{ key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true }, escStepBtn, mmBtn]));
             } else if (bf.isStatRoller) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🎴 HENGBAND — Stat Roller', '🎴 HENGBAND — 能力値抽選 / Stat Roller', '🎴 HENGBAND — 能力値抽選')
-                    : '⚔ ATTRIBUTE ALLOCATION';
+                terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Stat Roller', '🎴 HENGBAND — 能力値抽選 / Stat Roller', '🎴 HENGBAND — 能力値抽選') : '⚔ ATTRIBUTE ALLOCATION';
                 if (termDpad) termDpad.style.display = 'grid';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('✓ Accept', '✓ Accept / 決定', '✓ 決定'), gold: true },
                     { key: 'r', badge: '[r]', label: hengLabel('🔄 Reset Stats', '🔄 Reset / 再抽選', '🔄 再抽選') },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
-                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    escStepBtn, mmBtn
                 ]));
             } else if (bf.isBackgroundEdit) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('📜 CHARACTER BACKGROUND — Enter to Continue', '📜 生い立ち / BACKGROUND — Enter', '📜 キャラクターの生い立ち — Enter')
-                    : '📜 CHARACTER BACKGROUND — Enter to Continue';
+                terminalTitle.textContent = isHeng ? hengTitle('📜 CHARACTER BACKGROUND — Enter to Continue', '📜 生い立ち / BACKGROUND — Enter', '📜 キャラクターの生い立ち — Enter') : '📜 CHARACTER BACKGROUND — Enter to Continue';
                 if (termDpad) termDpad.style.display = 'grid';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-                setCtxActions(renderCtxButtons([
-                    { key: 'enter', badge: '⏎', label: hengLabel('Continue (Enter)', 'Continue / 決定 (Enter)', '決定 (Enter)'), gold: true },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
-                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
-                ]));
+                setCtxActions(renderCtxButtons([{ key: 'enter', badge: '⏎', label: hengLabel('Continue (Enter)', 'Continue / 決定 (Enter)', '決定 (Enter)'), gold: true }, escStepBtn, mmBtn]));
             } else if (bf.isReadyPrompt) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🎴 HENGBAND — Begin Game / Embark', '🎴 HENGBAND — ゲーム開始 / Embark', '🎴 HENGBAND — ゲーム開始')
-                    : '⚔ READY TO EMBARK — Enter to Begin';
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+                terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Begin Game / Embark', '🎴 HENGBAND — ゲーム開始 / Embark', '🎴 HENGBAND — ゲーム開始') : '⚔ READY TO EMBARK — Enter to Begin';
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('⚔ Enter Realm', '⚔ ゲーム開始 (Enter Realm)', '⚔ ゲーム開始'), gold: true },
                     { key: 'S', badge: '[S]', label: hengLabel('🔄 Start Over', '🔄 初めから (Start Over)', '🔄 初めから') },
@@ -4460,93 +3707,59 @@ window.addEventListener('DOMContentLoaded', () => {
                 ]));
             } else if (bf.isReviewScreen) {
                 const hasPrevRoll = screenText.includes("previous roll") || screenText.includes("前の数値") || screenText.includes("for previous");
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🎴 HENGBAND — Review Hero', '🎴 HENGBAND — キャラクター確認 / Review Hero', '🎴 HENGBAND — キャラクター確認')
-                    : '⚔ REVIEW YOUR HERO';
+                terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND — Review Hero', '🎴 HENGBAND — キャラクター確認 / Review Hero', '🎴 HENGBAND — キャラクター確認') : '⚔ REVIEW YOUR HERO';
                 if (termRerollBtn) termRerollBtn.style.display = 'inline-flex';
                 if (termAdvanceBtn) termAdvanceBtn.textContent = hengLabel('⚔ Accept & Play (Enter)', '⚔ Accept & Play (決定)', '⚔ 決定して開始 (Enter)');
-                if (termDpad) termDpad.style.display = 'none';
-                if (birthNameBar) birthNameBar.style.display = 'none';
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
                 const reviewBtns = [
                     { key: 'enter', badge: '⏎', label: hengLabel('⚔ Accept & Play', '⚔ Accept & Play (決定)', '⚔ 決定して開始'), gold: true },
                     { key: 'r', badge: '[r]', label: hengLabel('🎲 Reroll Hero', '🎲 Reroll (再生成)', '🎲 英雄再生成') }
                 ];
-                if (hasPrevRoll) {
-                    reviewBtns.push({ key: 'p', badge: '[p]', label: hengLabel('⏪ Previous Roll', '⏪ Previous Roll (前の数値)', '⏪ 前の数値') });
-                }
+                if (hasPrevRoll) reviewBtns.push({ key: 'p', badge: '[p]', label: hengLabel('⏪ Previous Roll', '⏪ Previous Roll (前の数値)', '⏪ 前の数値') });
                 reviewBtns.push(
                     { key: 's', badge: '[s]', label: hengLabel('🛠 Custom Create', '🛠 Custom (作成)', '🛠 英雄作成') },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Step Back', '⎋ Step Back / 戻る', '⎋ 戻る') },
-                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    escStepBtn, mmBtn
                 );
                 setCtxActions(renderCtxButtons(reviewBtns));
             } else {
-                // Choice menu (Sex, Race, Class, Personality, Realm, Traits)
-                if (bf.isHengSex) {
-                    terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Sex [a-b, *]', '🎴 HENGBAND — 性別 / Choose Sex [a-b, *]', '🎴 HENGBAND — 性別を選んで下さい [a-b, *]');
-                } else if (bf.isHengRace) {
-                    terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Race [a-L, *]', '🎴 HENGBAND — 種族 / Choose Race [a-L, *]', '🎴 HENGBAND — 種族を選んで下さい [a-L, *]');
-                } else if (bf.isHengClass) {
-                    terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Class [a-C, *]', '🎴 HENGBAND — 職業 / Choose Class [a-C, *]', '🎴 HENGBAND — 職業を選んで下さい [a-C, *]');
-                } else if (bf.isHengPersonality) {
-                    terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Personality [a-m, *]', '🎴 HENGBAND — 性格 / Choose Personality [a-m, *]', '🎴 HENGBAND — 性格を選んで下さい [a-m, *]');
-                } else if (bf.isHengRealm) {
-                    terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Realm [a-j]', '🎴 HENGBAND — 魔法領域 / Choose Realm [a-j]', '🎴 HENGBAND — 魔法領域を選んで下さい [a-j]');
-                } else if (screenText.includes('race affects stats')) {
-                    terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
-                } else if (screenText.includes('class affects stats')) {
-                    terminalTitle.textContent = '⚔ CHOOSE CHARACTER CLASS';
-                } else {
-                    terminalTitle.textContent = '⚔ CHARACTER CREATION';
-                }
+                if (bf.isHengSex) terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Sex [a-b, *]', '🎴 HENGBAND — 性別 / Choose Sex [a-b, *]', '🎴 HENGBAND — 性別を選んで下さい [a-b, *]');
+                else if (bf.isHengRace) terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Race [a-L, *]', '🎴 HENGBAND — 種族 / Choose Race [a-L, *]', '🎴 HENGBAND — 種族を選んで下さい [a-L, *]');
+                else if (bf.isHengClass) terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Class [a-C, *]', '🎴 HENGBAND — 職業 / Choose Class [a-C, *]', '🎴 HENGBAND — 職業を選んで下さい [a-C, *]');
+                else if (bf.isHengPersonality) terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Personality [a-m, *]', '🎴 HENGBAND — 性格 / Choose Personality [a-m, *]', '🎴 HENGBAND — 性格を選んで下さい [a-m, *]');
+                else if (bf.isHengRealm) terminalTitle.textContent = hengTitle('🎴 HENGBAND — Choose Realm [a-j]', '🎴 HENGBAND — 魔法領域 / Choose Realm [a-j]', '🎴 HENGBAND — 魔法領域を選んで下さい [a-j]');
+                else if (screenText.includes('race affects stats')) terminalTitle.textContent = '⚔ CHOOSE CHARACTER RACE';
+                else if (screenText.includes('class affects stats')) terminalTitle.textContent = '⚔ CHOOSE CHARACTER CLASS';
+                else terminalTitle.textContent = '⚔ CHARACTER CREATION';
                 if (termDpad) termDpad.style.display = 'grid';
-                if (birthNameBar) birthNameBar.style.display = 'none';
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定'), gold: true },
                     { key: '*', badge: '[*]', label: hengLabel('🎲 Random', '🎲 Random / ランダム', '🎲 ランダム') },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') },
-                    { key: 'mainmenu', badge: '🏠', label: hengLabel('Main Menu', 'Main Menu (主献立)', 'メインメニュー') }
+                    escBackBtn, mmBtn
                 ]));
                 populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
             }
             return;
         }
-
         // --- ACTIVE GAMEPLAY ---
         if (termExitMenuBtn) termExitMenuBtn.style.display = 'none';
         if (termRerollBtn) termRerollBtn.style.display = 'none';
-        if (birthNameBar) birthNameBar.style.display = 'none';
-
-        // Check for Action Chooser (MenuRouter pending selection)
-        const pendingState = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
-            ? window.MenuRouter.getPending()
-            : null;
-
+        const pendingState = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function') ? window.MenuRouter.getPending() : null;
         if (pendingState && pendingState.step === 'chooser' && pendingState.item) {
             const pending = pendingState;
-            terminalTitle.textContent = isHeng
-                ? hengTitle(`🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`)
-                : `🎒 ${pending.item.key}) ${pending.item.label}`;
+            terminalTitle.textContent = isHeng ? hengTitle(`🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`) : `🎒 ${pending.item.key}) ${pending.item.label}`;
             if (termDpad) termDpad.style.display = 'grid';
             const chooserRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (effFrame && effFrame.realm) || 'angband';
             if (window.MenuRouter && typeof window.MenuRouter.renderChooserHtml === 'function') {
                 let chooserHtml = window.MenuRouter.renderChooserHtml(pending, chooserRealm);
                 if (typeof window.getShockboltSpriteCss === 'function') {
                     const iconStyle = window.getShockboltSpriteCss('item', pending.item.label, pending.item.glyph, 32);
-                    if (iconStyle) {
-                        chooserHtml = chooserHtml.replace(/(<div class="term-chooser-header"[^>]*>)/, `$1<span class="sb-sprite-icon term-chooser-portrait" style="${iconStyle}"></span> `);
-                    }
+                    if (iconStyle) chooserHtml = chooserHtml.replace(/(<div class="term-chooser-header"[^>]*>)/, `$1<span class="sb-sprite-icon term-chooser-portrait" style="${iconStyle}"></span> `);
                 }
                 setCtxActions(chooserHtml);
             }
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
-            if (terminal && typeof terminal.setSelectedKey === 'function') {
-                terminal.setSelectedKey(pending.item.key);
-            }
+            if (terminal && typeof terminal.setSelectedKey === 'function') terminal.setSelectedKey(pending.item.key);
             return;
         }
-
         const promptKind = prompt.kind || '';
         const mirror = model ? model.mirror : null;
         const isPressAnyKey = Boolean(legacy.isPressAnyKey || promptKind === 'more' || mirror === 'more' || (effFrame.ui && effFrame.ui.more));
@@ -4556,22 +3769,14 @@ window.addEventListener('DOMContentLoaded', () => {
         const isStore = Boolean(legacy.isStore);
         const isItemActions = Boolean(legacy.isItemActions || promptKind === 'menu' || mirror === 'item-menu');
         const isItemPrompt = Boolean(legacy.isItemPrompt || promptKind === 'item' || mirror === 'item');
-
         if (isPressAnyKey) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('📜 MESSAGE / PROMPT', '📜 MESSAGE / メッセージ', '📜 メッセージ')
-                : '📜 MESSAGE / PROMPT';
-            if (termDpad) termDpad.style.display = 'none';
+            terminalTitle.textContent = isHeng ? hengTitle('📜 MESSAGE / PROMPT', '📜 MESSAGE / メッセージ', '📜 メッセージ') : '📜 MESSAGE / PROMPT';
             setCtxActions(renderCtxButtons([
                 { key: 'space', badge: '[␣]', label: hengLabel('Continue', 'Continue / 続ける', '続ける'), gold: true },
                 { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる') }
             ]));
-            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
         } else if (isYesNoPrompt) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('🎴 CONFIRM ACTION [y/n]', '🎴 CONFIRM ACTION / 確認 [y/n]', '🎴 確認 [y/n]')
-                : '⚔ CONFIRM ACTION [y/n]';
-            if (termDpad) termDpad.style.display = 'none';
+            terminalTitle.textContent = isHeng ? hengTitle('🎴 CONFIRM ACTION [y/n]', '🎴 CONFIRM ACTION / 確認 [y/n]', '🎴 確認 [y/n]') : '⚔ CONFIRM ACTION [y/n]';
             setCtxActions(renderCtxButtons([
                 { key: 'y', badge: '[y]', label: hengLabel('✓ Yes', '✓ Yes / はい', '✓ はい'), gold: true },
                 { key: 'n', badge: '[n]', label: hengLabel('✕ No', '✕ No / いいえ', '✕ いいえ'), outline: true },
@@ -4589,16 +3794,10 @@ window.addEventListener('DOMContentLoaded', () => {
             ]));
             populateLetterRibbon(null, ['1', '2', '3', '5', '10', 'enter']);
         } else if (legacy.isPopupCommandMenu) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('📜 COMMAND MENU', '📜 COMMAND MENU / コマンド', '📜 コマンドメニュー')
-                : '📜 COMMAND MENU';
-            if (termDpad) termDpad.style.display = 'none';
-            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+            terminalTitle.textContent = isHeng ? hengTitle('📜 COMMAND MENU', '📜 COMMAND MENU / コマンド', '📜 コマンドメニュー') : '📜 COMMAND MENU';
             setCtxActions(renderCtxButtons([
-                { key: 'up', badge: '[▲]', label: '▲ Up' },
-                { key: 'down', badge: '[▼]', label: '▼ Down' },
-                { key: 'left', badge: '[◀]', label: '◀ Left' },
-                { key: 'right', badge: '[▶]', label: '▶ Right' },
+                { key: 'up', badge: '[▲]', label: '▲ Up' }, { key: 'down', badge: '[▼]', label: '▼ Down' },
+                { key: 'left', badge: '[◀]', label: '◀ Left' }, { key: 'right', badge: '[▶]', label: '▶ Right' },
                 { key: 'enter', badge: '[⏎]', label: '✓ Select (Enter)', gold: true },
                 { key: 'escape', badge: '[Esc]', label: '✕ Close (Esc)', gold: true }
             ]));
@@ -4607,128 +3806,75 @@ window.addEventListener('DOMContentLoaded', () => {
             let storeName = 'STORE';
             if (effFrame.term && effFrame.term.rows) {
                 for (let r = 0; r < Math.min(5, effFrame.term.rows.length); r++) {
-                    const line = (effFrame.term.rows[r].g || '').trim();
-                    const sm = line.match(/(General Store|Armoury|Armory|Weaponsmith|Weapon Smith|Temple|Alchemy Shop|Alchemist|Magic Shop|Magic User's|Black Market|Your Home|雑貨屋|万屋|防具屋|武器屋|寺院|錬金術の店|魔術師の店|ブラック・マーケット|我が家|博物館)/i);
+                    const sm = (effFrame.term.rows[r].g || '').trim().match(/(General Store|Armoury|Armory|Weaponsmith|Weapon Smith|Temple|Alchemy Shop|Alchemist|Magic Shop|Magic User's|Black Market|Your Home|雑貨屋|万屋|防具屋|武器屋|寺院|錬金術の店|魔術師の店|ブラック・マーケット|我が家|博物館)/i);
                     if (sm) {
-                        const matched = sm[1].trim();
-                        const jpToEn = {
-                            '雑貨屋': 'General Store', '万屋': 'General Store', '防具屋': 'Armoury', '武器屋': 'Weaponsmith',
-                            '寺院': 'Temple', '錬金術の店': 'Alchemy Shop', '魔術師の店': 'Magic Shop',
-                            'ブラック・マーケット': 'Black Market', '我が家': 'Your Home', '博物館': 'Museum'
-                        };
-                        storeName = jpToEn[matched] || matched;
+                        const jpToEn = { '雑貨屋': 'General Store', '万屋': 'General Store', '防具屋': 'Armoury', '武器屋': 'Weaponsmith', '寺院': 'Temple', '錬金術の店': 'Alchemy Shop', '魔術師の店': 'Magic Shop', 'ブラック・マーケット': 'Black Market', '我が家': 'Your Home', '博物館': 'Museum' };
+                        storeName = jpToEn[sm[1].trim()] || sm[1].trim();
                         break;
                     }
                 }
             }
             const sf = legacy.storeFlags || (SC.storeFlags ? SC.storeFlags(effFrame, screenText, isHeng) : {});
             if (termDpad) termDpad.style.display = 'grid';
-
             if (sf.isStoreContextMenu) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択')
-                    : '⚔ CHOOSE ACTION FOR ITEM';
-                const examineKey = isHeng ? 'x' : 'l';
+                terminalTitle.textContent = isHeng ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択') : '⚔ CHOOSE ACTION FOR ITEM';
+                const exKey = isHeng ? 'x' : 'l';
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
                     { key: 'p', badge: '[p]', label: hengLabel('💰 Buy All', '💰 Buy All / 全て購入', '💰 全て購入'), gold: true },
                     { key: 'o', badge: '[o]', label: hengLabel('🛒 Buy One', '🛒 Buy One / 1つ購入', '🛒 1つ購入') },
-                    { key: examineKey, badge: `[${examineKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
+                    { key: exKey, badge: `[${exKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
                     { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '⎋ 戻る') }
                 ]));
-                if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-            } else if (sf.isStoreBuy) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)', '💰 BUY WHICH ITEM? / 購入 (Tap letter or Enter)', '💰 何を買いますか？ (文字か方向キー+Enter)')
-                    : '💰 BUY WHICH ITEM? (Tap letter or D-pad + Enter)';
+            } else if (sf.isStoreBuy || sf.isStoreSell || sf.isStoreExamine) {
+                const subPrompt = sf.isStoreBuy ? { t: '💰 BUY WHICH ITEM?', l: 'Cancel Buy', j: '何を買いますか？' } :
+                    sf.isStoreSell ? { t: '🏷 SELL WHICH ITEM?', l: 'Cancel Sell', j: 'どれを売りますか？' } :
+                    { t: '🔍 EXAMINE WHICH ITEM?', l: 'Cancel Examine', j: 'どれを調べますか？' };
+                terminalTitle.textContent = isHeng ? hengTitle(`${subPrompt.t} (Tap letter or D-pad + Enter)`, `${subPrompt.t} / 選択 (Tap letter or Enter)`, `${subPrompt.j} (文字か方向キー+Enter)`) : `${subPrompt.t} (Tap letter or D-pad + Enter)`;
                 setCtxActions(renderCtxButtons([
                     { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
                     { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Buy', '⎋ Cancel / 取消', '⎋ 取消') }
-                ]));
-                populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
-            } else if (sf.isStoreSell) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)', '🏷 SELL WHICH ITEM? / 売却 (Tap letter or Enter)', '🏷 どれを売りますか？ (文字か方向キー+Enter)')
-                    : '🏷 SELL WHICH ITEM? (Tap letter or D-pad + Enter)';
-                setCtxActions(renderCtxButtons([
-                    { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
-                    { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Sell', '⎋ Cancel / 取消', '⎋ 取消') }
-                ]));
-                populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
-            } else if (sf.isStoreExamine) {
-                terminalTitle.textContent = isHeng
-                    ? hengTitle('🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)', '🔍 EXAMINE WHICH ITEM? / 調査 (Tap letter or Enter)', '🔍 どれを調べますか？ (文字か方向キー+Enter)')
-                    : '🔍 EXAMINE WHICH ITEM? (Tap letter or D-pad + Enter)';
-                setCtxActions(renderCtxButtons([
-                    { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
-                    { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
-                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel Examine', '⎋ Cancel / 取消', '⎋ 取消') }
+                    { key: 'escape', badge: '[Esc]', label: hengLabel(`⎋ ${subPrompt.l}`, `⎋ ${subPrompt.l} / 取消`, '⎋ 取消') }
                 ]));
                 populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
             } else {
-                // Top-Level Store Browsing View
-                const jpStoreNames = {
-                    'GENERAL STORE': '雑貨屋', 'ARMOURY': '防具屋', 'ARMORY': '防具屋',
-                    'WEAPONSMITH': '武器屋', 'TEMPLE': '寺院', 'ALCHEMY SHOP': '錬金術の店',
-                    'MAGIC SHOP': '魔術師の店', 'BLACK MARKET': 'ブラック・マーケット',
-                    'YOUR HOME': '我が家', 'MUSEUM': '博物館', 'STORE': '店舗'
-                };
+                const jpStoreNames = { 'GENERAL STORE': '雑貨屋', 'ARMOURY': '防具屋', 'ARMORY': '防具屋', 'WEAPONSMITH': '武器屋', 'TEMPLE': '寺院', 'ALCHEMY SHOP': '錬金術の店', 'MAGIC SHOP': '魔術師の店', 'BLACK MARKET': 'ブラック・マーケット', 'YOUR HOME': '我が家', 'MUSEUM': '博物館', 'STORE': '店舗' };
                 const jpName = jpStoreNames[storeName.toUpperCase()] || storeName;
-                terminalTitle.textContent = isHeng
-                    ? hengTitle(`⚔ ${storeName.toUpperCase()} — BROWSE INVENTORY`, `⚔ ${storeName.toUpperCase()} (${jpName}) — INVENTORY`, `⚔ ${jpName} — 店頭の品物`)
-                    : '⚔ ' + storeName.toUpperCase() + ' — BROWSE INVENTORY';
-                const examineKey = isHeng ? 'x' : 'l';
+                terminalTitle.textContent = isHeng ? hengTitle(`⚔ ${storeName.toUpperCase()} — BROWSE INVENTORY`, `⚔ ${storeName.toUpperCase()} (${jpName}) — INVENTORY`, `⚔ ${jpName} — 店頭の品物`) : '⚔ ' + storeName.toUpperCase() + ' — BROWSE INVENTORY';
+                const exKey = isHeng ? 'x' : 'l';
                 const storeBtns = [];
-                if (sf.hasMore) {
-                    storeBtns.push({ key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true });
-                }
+                if (sf.hasMore) storeBtns.push({ key: 'space', badge: '[␣]', label: hengLabel('⏩ Continue (-more-)', '⏩ Continue / 続ける', '⏩ 続ける (-more-)'), gold: true });
                 storeBtns.push(
                     { key: 'p', badge: '[p]', label: hengLabel('💰 Buy', '💰 Buy / 購入', '💰 購入'), gold: true },
                     { key: 's', badge: '[s]', label: hengLabel('🏷 Sell', '🏷 Sell / 売却', '🏷 売却') },
-                    { key: examineKey, badge: `[${examineKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
+                    { key: exKey, badge: `[${exKey}]`, label: hengLabel('🔍 Examine', '🔍 Examine / 調べる', '🔍 調べる') },
                     { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') },
                     { key: 'escape', badge: '[Esc]', label: hengLabel('🚪 Exit Store', '🚪 Exit Store / 店を出る', '🚪 店を出る') }
                 );
                 setCtxActions(renderCtxButtons(storeBtns));
                 populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
                 const promptLine = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0]) ? (effFrame.term.rows[0].g || '') : screenText;
-                if (!/which item|examine which|buy which|purchase which|sell which|how many|accept/i.test(promptLine)) {
-                    if (termLetterRibbon) {
-                        const buyCmd = (screenText.includes('g) Get') || screenText.includes('g) Purchase') || screenText.includes('g) get') || screenText.includes('g) purchase')) ? 'g' : 'p';
-                        const btns = termLetterRibbon.querySelectorAll('.term-letter-btn');
-                        btns.forEach(b => {
-                            const k = b.dataset.key;
-                            if (k && /^[a-l]$/i.test(k)) {
-                                b.dataset.storeAutoBuy = buyCmd;
-                            }
-                        });
-                    }
+                if (!/which item|examine which|buy which|purchase which|sell which|how many|accept/i.test(promptLine) && termLetterRibbon) {
+                    const buyCmd = (screenText.includes('g) Get') || screenText.includes('g) Purchase') || screenText.includes('g) get') || screenText.includes('g) purchase')) ? 'g' : 'p';
+                    termLetterRibbon.querySelectorAll('.term-letter-btn').forEach(b => {
+                        if (b.dataset.key && /^[a-l]$/i.test(b.dataset.key)) b.dataset.storeAutoBuy = buyCmd;
+                    });
                 }
             }
         } else if (isItemActions) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択')
-                : '⚔ CHOOSE ACTION FOR ITEM';
+            terminalTitle.textContent = isHeng ? hengTitle('⚔ CHOOSE ACTION FOR ITEM', '⚔ CHOOSE ACTION / 選択', '⚔ アイテムの行動を選択') : '⚔ CHOOSE ACTION FOR ITEM';
             if (termDpad) termDpad.style.display = 'grid';
             const actionRows = (effFrame.term && Array.isArray(effFrame.term.rows)) ? effFrame.term.rows : [];
-            const extractedVerbs = (SC && typeof SC.extractItems === 'function')
-                ? SC.extractItems(actionRows, isHeng, decodeHengbandText)
-                : [];
-            const actionBtns = [
+            const extractedVerbs = (SC && typeof SC.extractItems === 'function') ? SC.extractItems(actionRows, isHeng, decodeHengbandText) : [];
+            setCtxActions(renderCtxButtons([
                 { key: 'enter', badge: '⏎', label: hengLabel('Select', 'Select / 決定', '決定'), gold: true },
                 ...extractedVerbs.map(v => ({ key: v.key, badge: `[${v.key}]`, label: v.label })),
                 { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back', '⎋ Back / 戻る', '戻る') }
-            ];
-            setCtxActions(renderCtxButtons(actionBtns));
+            ]));
             populateLetterRibbon(actionRows);
         } else if (isTargeting) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('🎯 TARGETING & AIMING', '🎯 TARGETING / 照準・位置指定', '🎯 照準・位置指定')
-                : '🎯 TARGETING & AIMING';
+            terminalTitle.textContent = isHeng ? hengTitle('🎯 TARGETING & AIMING', '🎯 TARGETING / 照準・位置指定', '🎯 照準・位置指定') : '🎯 TARGETING & AIMING';
             if (termDpad) termDpad.style.display = 'grid';
-            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
             setCtxActions(renderCtxButtons([
                 { key: '5', badge: '[5/⏎]', label: hengLabel('🎯 Fire / Select', '🎯 Fire / 発射・選択', '🎯 発射・選択'), gold: true },
                 { key: '*', badge: '[*]', label: hengLabel('🔍 Next Target', '🔍 Next Target / 次の対象', '🔍 次の対象') },
@@ -4739,92 +3885,53 @@ window.addEventListener('DOMContentLoaded', () => {
             const iflags = legacy.itemFlags || (SC.itemFlags ? SC.itemFlags(screenText, activeRealm) : {});
             const isSpellPrompt = Boolean(legacy.isSpellOrAbilityMenu || promptKind === 'spell');
             const promptLine = (effFrame.term && effFrame.term.rows && effFrame.term.rows[0]) ? (effFrame.term.rows[0].g || '') : screenText;
-
-            if (iflags.isSilqInvenCmd) {
-                terminalTitle.textContent = '🎒 INVENTORY PACK (Choose action)';
-            } else if (iflags.isSilqEquipCmd) {
-                terminalTitle.textContent = '🛡 EQUIPPED GEAR (Choose action)';
-            } else if (iflags.isSilqWear || screenText.includes('wear') || screenText.includes('wield') || screenText.includes('どれを装備')) {
-                terminalTitle.textContent = isHeng ? hengTitle('⚔ WEAR / WIELD ITEM', '⚔ WEAR/WIELD / 装備', '⚔ アイテムを装備') : '⚔ WEAR / WIELD ITEM';
-            } else if (iflags.isSilqRemove || screenText.includes('take off') || screenText.includes('どれを外しますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🔄 TAKE OFF GEAR', '🔄 TAKE OFF / 装備を外す', '🔄 装備を外す') : (iflags.isSilq ? '🔄 REMOVE GEAR' : '🔄 TAKE OFF GEAR');
-            } else if (iflags.isSilqThrow || screenText.includes('throw which item?') || screenText.includes('どれを投げますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🎯 THROW ITEM', '🎯 THROW ITEM / 投擲', '🎯 アイテムを投げる') : '🎯 THROW ITEM';
-            } else if (iflags.isSilqFire || screenText.includes('fire which item?') || screenText.includes('fire') || screenText.includes('shoot') || screenText.includes('どのアイテムを発射')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🏹 FIRE / SHOOT', '🏹 FIRE / 射撃', '🏹 射撃') : '🏹 FIRE / SHOOT';
-            } else if (iflags.isSilqExamine || screenText.includes('examine which item') || screenText.includes('どれを調べますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🔍 EXAMINE ITEM', '🔍 EXAMINE / 調査', '🔍 アイテムを調べる') : '🔍 EXAMINE ITEM';
-            } else if (iflags.isSilqDrop || screenText.includes('drop which') || screenText.includes('どれを落としますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('📦 DROP ITEM', '📦 DROP / アイテムを落とす', '📦 アイテムを落とす') : '📦 DROP ITEM';
-            } else if (screenText.includes('quaff which potion?') || screenText.includes('quaff') || screenText.includes('どの薬を飲みますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('🧪 QUAFF POTION', '🧪 QUAFF POTION / 飲む', '🧪 薬を飲む') : '🧪 QUAFF POTION';
-            } else if (screenText.includes('read which scroll?') || screenText.includes('read') || screenText.includes('どの巻物を読みますか')) {
-                terminalTitle.textContent = isHeng ? hengTitle('📜 READ SCROLL', '📜 READ SCROLL / 読む', '📜 巻物を読む') : '📜 READ SCROLL';
-            } else if (screenText.includes('which spell?') || screenText.includes('which prayer?') || screenText.includes('which book?') || screenText.includes('どの呪文') || screenText.includes('どの本')) {
-                terminalTitle.textContent = isHeng ? hengTitle('✨ CAST SPELL / PRAYER', '✨ CAST SPELL / 呪文詠唱', '✨ 呪文詠唱') : '✨ CAST SPELL / PRAYER';
-            } else if (iflags.isQuiverView) {
-                terminalTitle.textContent = isHeng ? hengTitle('🏹 QUIVER MISSILES', '🏹 QUIVER / 矢筒', '🏹 矢筒') : '🏹 QUIVER MISSILES';
-            } else if (iflags.isEquipView) {
-                terminalTitle.textContent = isHeng ? hengTitle('🛡 EQUIPPED GEAR', '🛡 EQUIPPED GEAR / 装備品一覧', '🛡 装備品一覧') : '🛡 EQUIPPED GEAR';
-            } else {
-                terminalTitle.textContent = isHeng ? hengTitle('🎒 INVENTORY PACK', '🎒 INVENTORY / 所持品一覧', '🎒 所持品一覧') : '🎒 INVENTORY PACK';
-            }
-
+            const tCases = [
+                [iflags.isSilqInvenCmd, '🎒 INVENTORY PACK (Choose action)'],
+                [iflags.isSilqEquipCmd, '🛡 EQUIPPED GEAR (Choose action)'],
+                [iflags.isSilqWear || screenText.includes('wear') || screenText.includes('wield') || screenText.includes('どれを装備'), isHeng ? hengTitle('⚔ WEAR / WIELD ITEM', '⚔ WEAR/WIELD / 装備', '⚔ アイテムを装備') : '⚔ WEAR / WIELD ITEM'],
+                [iflags.isSilqRemove || screenText.includes('take off') || screenText.includes('どれを外しますか'), isHeng ? hengTitle('🔄 TAKE OFF GEAR', '🔄 TAKE OFF / 装備を外す', '🔄 装備を外す') : (iflags.isSilq ? '🔄 REMOVE GEAR' : '🔄 TAKE OFF GEAR')],
+                [iflags.isSilqThrow || screenText.includes('throw which item?') || screenText.includes('どれを投げますか'), isHeng ? hengTitle('🎯 THROW ITEM', '🎯 THROW ITEM / 投擲', '🎯 アイテムを投げる') : '🎯 THROW ITEM'],
+                [iflags.isSilqFire || screenText.includes('fire which item?') || screenText.includes('fire') || screenText.includes('shoot') || screenText.includes('どのアイテムを発射'), isHeng ? hengTitle('🏹 FIRE / SHOOT', '🏹 FIRE / 射撃', '🏹 射撃') : '🏹 FIRE / SHOOT'],
+                [iflags.isSilqExamine || screenText.includes('examine which item') || screenText.includes('どれを調べますか'), isHeng ? hengTitle('🔍 EXAMINE ITEM', '🔍 EXAMINE / 調査', '🔍 アイテムを調べる') : '🔍 EXAMINE ITEM'],
+                [iflags.isSilqDrop || screenText.includes('drop which') || screenText.includes('どれを落としますか'), isHeng ? hengTitle('📦 DROP ITEM', '📦 DROP / アイテムを落とす', '📦 アイテムを落とす') : '📦 DROP ITEM'],
+                [screenText.includes('quaff which potion?') || screenText.includes('quaff') || screenText.includes('どの薬を飲みますか'), isHeng ? hengTitle('🧪 QUAFF POTION', '🧪 QUAFF POTION / 飲む', '🧪 薬を飲む') : '🧪 QUAFF POTION'],
+                [screenText.includes('read which scroll?') || screenText.includes('read') || screenText.includes('どの巻物を読みますか'), isHeng ? hengTitle('📜 READ SCROLL', '📜 READ SCROLL / 読む', '📜 巻物を読む') : '📜 READ SCROLL'],
+                [screenText.includes('which spell?') || screenText.includes('which prayer?') || screenText.includes('which book?') || screenText.includes('どの呪文') || screenText.includes('どの本'), isHeng ? hengTitle('✨ CAST SPELL / PRAYER', '✨ CAST SPELL / 呪文詠唱', '✨ 呪文詠唱') : '✨ CAST SPELL / PRAYER'],
+                [iflags.isQuiverView, isHeng ? hengTitle('🏹 QUIVER MISSILES', '🏹 QUIVER / 矢筒', '🏹 矢筒') : '🏹 QUIVER MISSILES'],
+                [iflags.isEquipView, isHeng ? hengTitle('🛡 EQUIPPED GEAR', '🛡 EQUIPPED GEAR / 装備品一覧', '🛡 装備品一覧') : '🛡 EQUIPPED GEAR']
+            ];
+            let titleVal = isHeng ? hengTitle('🎒 INVENTORY PACK', '🎒 INVENTORY / 所持品一覧', '🎒 所持品一覧') : '🎒 INVENTORY PACK';
+            for (const [cond, t] of tCases) { if (cond) { titleVal = t; break; } }
+            terminalTitle.textContent = titleVal;
             if (termDpad) termDpad.style.display = 'grid';
-
             if (iflags.isSilqInvenCmd) {
                 setCtxActions(renderCtxButtons([
                     { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
                     { key: 'w', badge: '[w]', label: '⚔ Wear/Wield', gold: true },
-                    { key: 'e', badge: '[e]', label: '🛡 View Gear' },
-                    { key: 'x', badge: '[x]', label: '🔍 Examine' },
-                    { key: 'd', badge: '[d]', label: '📦 Drop' },
-                    { key: 'k', badge: '[k]', label: '🗑 Destroy' },
-                    { key: 'space', badge: '[␣]', label: 'Next Page' }
+                    { key: 'e', badge: '[e]', label: '🛡 View Gear' }, { key: 'x', badge: '[x]', label: '🔍 Examine' },
+                    { key: 'd', badge: '[d]', label: '📦 Drop' }, { key: 'k', badge: '[k]', label: '🗑 Destroy' }, { key: 'space', badge: '[␣]', label: 'Next Page' }
                 ]));
             } else if (iflags.isSilqEquipCmd) {
                 setCtxActions(renderCtxButtons([
                     { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
                     { key: 'r', badge: '[r]', label: '🔄 Take Off', gold: true },
-                    { key: 'i', badge: '[i]', label: '🎒 View Pack' },
-                    { key: 'x', badge: '[x]', label: '🔍 Examine' },
-                    { key: 'd', badge: '[d]', label: '📦 Drop' },
-                    { key: 'space', badge: '[␣]', label: 'Next Page' }
+                    { key: 'i', badge: '[i]', label: '🎒 View Pack' }, { key: 'x', badge: '[x]', label: '🔍 Examine' },
+                    { key: 'd', badge: '[d]', label: '📦 Drop' }, { key: 'space', badge: '[␣]', label: 'Next Page' }
                 ]));
             } else if (iflags.isSilqWear) {
-                setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
-                    { key: '/', badge: '[/]', label: '🛡 Switch to Gear' },
-                    { key: '-', badge: '[-]', label: '📍 Floor' }
-                ]));
+                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: '/', badge: '[/]', label: '🛡 Switch to Gear' }, { key: '-', badge: '[-]', label: '📍 Floor' }]));
             } else if (iflags.isSilqRemove) {
-                setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
-                    { key: '/', badge: '[/]', label: '🎒 Switch to Pack' }
-                ]));
+                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: '/', badge: '[/]', label: '🎒 Switch to Pack' }]));
             } else if (iflags.isSilq) {
-                setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
-                    { key: '/', badge: '[/]', label: 'Switch Inven/Gear' },
-                    { key: 'space', badge: '[␣]', label: 'Next Page' }
-                ]));
+                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: '/', badge: '[/]', label: 'Switch Inven/Gear' }, { key: 'space', badge: '[␣]', label: 'Next Page' }]));
             } else if (isSpellPrompt || /spell|prayer|book|magic|power|mindcraft|invocation|song/i.test(promptLine)) {
-                setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true },
-                    { key: 'space', badge: '[␣]', label: '📖 Show Choices' },
-                    { key: '?', badge: '[?]', label: '❓ Spell Help' }
-                ]));
+                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: 'space', badge: '[␣]', label: '📖 Show Choices' }, { key: '?', badge: '[?]', label: '❓ Spell Help' }]));
             } else if (isHeng) {
-                const packLabel = iflags.isEquipView
-                    ? hengLabel('🎒 View Pack', '🎒 View Pack / 所持品', '🎒 所持品')
-                    : hengLabel('🛡 View Gear', '🛡 View Gear / 装備品', '🛡 装備品');
-                const quiverLabel = iflags.isQuiverView
-                    ? hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品')
-                    : hengLabel('🏹 Quiver', '🏹 Quiver / 矢筒', '🏹 矢筒');
+                const pLabel = iflags.isEquipView ? hengLabel('🎒 View Pack', '🎒 View Pack / 所持品', '🎒 所持品') : hengLabel('🛡 View Gear', '🛡 View Gear / 装備品', '🛡 装備品');
+                const qLabel = iflags.isQuiverView ? hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品') : hengLabel('🏹 Quiver', '🏹 Quiver / 矢筒', '🏹 矢筒');
                 setCtxActions(renderCtxButtons([
                     { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる'), gold: true },
-                    { key: '/', badge: '[/]', label: packLabel },
-                    { key: '|', badge: '[|]', label: quiverLabel },
+                    { key: '/', badge: '[/]', label: pLabel }, { key: '|', badge: '[|]', label: qLabel },
                     { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') }
                 ]));
             } else {
@@ -4837,69 +3944,44 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
         } else if (legacy.isCharacterSheet || (SC && SC.isCharacterSheet(screenText))) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('📜 CHARACTER SHEET — Hero Status', '📜 CHARACTER SHEET / キャラクター情報', '📜 キャラクター情報')
-                : '📜 CHARACTER SHEET — Hero Status & Attributes';
-            if (termDpad) termDpad.style.display = 'none';
-            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
+            terminalTitle.textContent = isHeng ? hengTitle('📜 CHARACTER SHEET — Hero Status', '📜 CHARACTER SHEET / キャラクター情報', '📜 キャラクター情報') : '📜 CHARACTER SHEET — Hero Status & Attributes';
             const charBtns = [
                 { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Return to 3D', '⎋ Return / 戻る', '⎋ 戻る'), gold: true },
                 { key: 'h', badge: '[h]', label: hengLabel('📖 History / Mode', '📖 History / 履歴切替', '📖 履歴 / 画面切替'), gold: true },
                 { key: 'f', badge: '[f]', label: hengLabel('💾 Dump Char File', '💾 Dump / ファイル出力', '💾 ファイル出力') },
                 { key: activeRealm === 'silq' ? 'n' : 'c', badge: activeRealm === 'silq' ? '[n]' : '[c]', label: hengLabel('✎ Change Name', '✎ Name / 名前変更', '✎ 名前変更') }
             ];
-            if (activeRealm === 'silq') {
-                charBtns.push({ key: 'tab', badge: '[Tab]', label: '🌟 Ability Tree', gold: true });
-            }
+            if (activeRealm === 'silq') charBtns.push({ key: 'tab', badge: '[Tab]', label: '🌟 Ability Tree', gold: true });
             setCtxActions(renderCtxButtons(charBtns));
         } else if (legacy.isSpellOrAbilityMenu || promptKind === 'spell' || (SC && SC.isSpellOrAbilityMenu(screenText))) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('✨ GRIMOIRE & ABILITIES — Choose Spell or Power', '✨ GRIMOIRE / 呪文・技能の選択', '✨ 呪文・技能の選択')
-                : (activeRealm === 'silq' ? '✨ SONGS, ABILITIES & SMITHING' : '✨ GRIMOIRE & POWERS — Select Spell or Ability');
+            terminalTitle.textContent = isHeng ? hengTitle('✨ GRIMOIRE & ABILITIES — Choose Spell or Power', '✨ GRIMOIRE / 呪文・技能の選択', '✨ 呪文・技能の選択') : (activeRealm === 'silq' ? '✨ SONGS, ABILITIES & SMITHING' : '✨ GRIMOIRE & POWERS — Select Spell or Ability');
             if (termDpad) termDpad.style.display = activeRealm === 'silq' ? 'grid' : 'none';
             setCtxActions(renderCtxButtons([
                 { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 戻る', '⎋ 戻る'), gold: true },
-                { key: 'up', badge: '[↑]', label: '▲ Up' },
-                { key: 'down', badge: '[↓]', label: '▼ Down' },
-                { key: 'left', badge: '[←]', label: '◀ Prev' },
-                { key: 'right', badge: '[→]', label: '▶ Next' },
+                { key: 'up', badge: '[↑]', label: '▲ Up' }, { key: 'down', badge: '[↓]', label: '▼ Down' },
+                { key: 'left', badge: '[←]', label: '◀ Prev' }, { key: 'right', badge: '[→]', label: '▶ Next' },
                 { key: 'enter', badge: '[↵]', label: hengLabel('✓ Confirm / Select', '✓ Select / 決定', '✓ 決定'), gold: true },
                 { key: 'space', badge: '[␣]', label: hengLabel('Page / Info', 'Page / 次頁', '次頁') }
             ]));
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
         } else if (legacy.isKnowledgeOrOptions || (SC && SC.isKnowledgeOrOptions(screenText))) {
-            terminalTitle.textContent = isHeng
-                ? hengTitle('📚 KNOWLEDGE, OPTIONS & ARCHIVES', '📚 ARCHIVES / 知識・オプション', '📚 知識・オプション設定')
-                : '📚 KNOWLEDGE, OPTIONS & ARCHIVES';
-            if (termDpad) termDpad.style.display = 'none';
+            terminalTitle.textContent = isHeng ? hengTitle('📚 KNOWLEDGE, OPTIONS & ARCHIVES', '📚 ARCHIVES / 知識・オプション', '📚 知識・オプション設定') : '📚 KNOWLEDGE, OPTIONS & ARCHIVES';
             setCtxActions(renderCtxButtons([
                 { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Back / Exit', '⎋ Back / 戻る', '⎋ 戻る'), gold: true },
-                { key: 'up', badge: '[↑]', label: '▲ Up' },
-                { key: 'down', badge: '[↓]', label: '▼ Down' },
+                { key: 'up', badge: '[↑]', label: '▲ Up' }, { key: 'down', badge: '[↓]', label: '▼ Down' },
                 { key: 'enter', badge: '[↵]', label: hengLabel('✓ Select / Toggle', '✓ Select / 選択', '✓ 選択'), gold: true },
                 { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次頁') },
-                { key: 'y', badge: '[y]', label: 'Yes / On' },
-                { key: 'n', badge: '[n]', label: 'No / Off' }
+                { key: 'y', badge: '[y]', label: 'Yes / On' }, { key: 'n', badge: '[n]', label: 'No / Off' }
             ]));
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
         } else {
-            // Classic Dungeon View
-            const realmTitles = {
-                'silq': '💍 SIL-Q CLASSIC TERMINAL',
-                'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL',
-                'hengband': '🎴 HENGBAND CLASSIC TERMINAL',
-                'angband': '⚔ ANGBAND CLASSIC TERMINAL'
-            };
-            terminalTitle.textContent = isHeng
-                ? hengTitle('🎴 HENGBAND CLASSIC TERMINAL', '🎴 HENGBAND — Classic View / クラシック端末', '🎴 変愚蛮怒 — クラシック端末')
-                : (realmTitles[activeRealm] || '⚔ ANGBAND CLASSIC TERMINAL');
+            const realmTitles = { 'silq': '💍 SIL-Q CLASSIC TERMINAL', 'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL', 'hengband': '🎴 HENGBAND CLASSIC TERMINAL', 'angband': '⚔ ANGBAND CLASSIC TERMINAL' };
+            terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND CLASSIC TERMINAL', '🎴 HENGBAND — Classic View / クラシック端末', '🎴 変愚蛮怒 — クラシック端末') : (realmTitles[activeRealm] || '⚔ ANGBAND CLASSIC TERMINAL');
             if (termEscapeBtn) {
                 termEscapeBtn.style.display = 'inline-flex';
                 termEscapeBtn.textContent = isHeng ? hengLabel('🎮 3D View', '🎮 3D View / 3D画面', '🎮 3D画面') : '🎮 3D View';
             }
             if (termDpad) termDpad.style.display = 'grid';
-            if (termLetterRibbon) termLetterRibbon.style.display = 'none';
-
             const hasMore = Boolean(effFrame.ui && effFrame.ui.more) || screenText.includes('-more-');
             if (hasMore) {
                 setCtxActions(renderCtxButtons([
@@ -4908,49 +3990,26 @@ window.addEventListener('DOMContentLoaded', () => {
                 ]));
             } else {
                 const effRealm = activeRealm || 'angband';
-                const keyFor = (v) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
-                    ? RealmKeys.realmKey(v, effRealm)
-                    : null;
-
+                const keyFor = (v) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? RealmKeys.realmKey(v, effRealm) : null;
                 const btns = [
                     { key: 'tab', badge: '⛶', label: hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)'), gold: true, extraCls: 'term-action-key' },
-                    { key: 'g', badge: '[g]', label: hengLabel('🤚 Get', '🤚 Get / 拾う', '🤚 拾う'), extraCls: 'term-action-key' }
+                    { key: 'g', badge: '[g]', label: hengLabel('🤚 Get', '🤚 Get / 拾う', '🤚 拾う'), extraCls: 'term-action-key' },
+                    { key: keyFor('inven') || 'i', label: hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品'), extraCls: 'term-action-key' },
+                    { key: keyFor('equip') || 'e', label: hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備'), extraCls: 'term-action-key' },
+                    { key: '>', badge: '[>]', label: hengLabel('⬇ Stairs', '⬇ Stairs / 階段', '⬇ 階段'), extraCls: 'term-action-key' },
+                    { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー'), extraCls: 'term-action-key' }
                 ];
-                const packKey = keyFor('inven') || 'i';
-                btns.push({ key: packKey, label: hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品'), extraCls: 'term-action-key' });
-                const equipKey = keyFor('equip') || 'e';
-                btns.push({ key: equipKey, label: hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備'), extraCls: 'term-action-key' });
-                btns.push({ key: '>', badge: '[>]', label: hengLabel('⬇ Stairs', '⬇ Stairs / 階段', '⬇ 階段'), extraCls: 'term-action-key' });
-                btns.push({ key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Menu', '⎋ Menu / メニュー', '⎋ メニュー'), extraCls: 'term-action-key' });
-
                 if (effRealm === 'silq') {
-                    btns.push({ key: 'w', label: '⚔ Wield', extraCls: 'term-action-key' });
-                    btns.push({ key: 'r', label: '🔄 Take Off', extraCls: 'term-action-key' });
-                    const throwKey = keyFor('throw');
-                    if (throwKey) btns.push({ key: throwKey, label: '🎯 Throw', extraCls: 'term-action-key' });
-                    const fireKey = keyFor('fire');
-                    if (fireKey) btns.push({ key: fireKey, label: '🏹 Fire', extraCls: 'term-action-key' });
+                    btns.push({ key: 'w', label: '⚔ Wield', extraCls: 'term-action-key' }, { key: 'r', label: '🔄 Take Off', extraCls: 'term-action-key' });
+                    const thKey = keyFor('throw'); if (thKey) btns.push({ key: thKey, label: '🎯 Throw', extraCls: 'term-action-key' });
+                    const fiKey = keyFor('fire'); if (fiKey) btns.push({ key: fiKey, label: '🏹 Fire', extraCls: 'term-action-key' });
                 }
-
-                const powerKey = keyFor('power');
-                if (powerKey) btns.push({ key: powerKey, label: hengLabel('🔮 Power', '🔮 Power / 特殊能力', '🔮 特殊能力'), extraCls: 'term-action-key' });
-                const overlandKey = keyFor('overland');
-                if (overlandKey) btns.push({ key: overlandKey, label: hengLabel('🗺️ Map', '🗺️ Map / 広域', '🗺️ 広域'), extraCls: 'term-action-key' });
-                const questsKey = keyFor('quests');
-                if (questsKey) btns.push({ key: questsKey, label: hengLabel('📜 Quests', '📜 Quests / クエスト', '📜 クエスト'), extraCls: 'term-action-key' });
-                const skillsKey = keyFor('skills');
-                if (skillsKey) {
-                    const skillsDisplay = (skillsKey === 'tab') ? 'Tab' : skillsKey;
-                    btns.push({ key: skillsKey, badge: `[${skillsDisplay}]`, label: '🌳 Skills', extraCls: 'term-action-key' });
-                }
-                const castKey = keyFor('cast');
-                if (castKey) {
-                    const castName = (effRealm === 'silq') ? '🎵 Song' : hengLabel('✨ Cast', '✨ Cast / 呪文', '✨ 呪文');
-                    btns.push({ key: castKey, label: castName, extraCls: 'term-action-key' });
-                }
-                const restKey = keyFor('rest');
-                if (restKey) btns.push({ key: restKey, label: hengLabel('⏳ Rest', '⏳ Rest / 休息', '⏳ 休息'), extraCls: 'term-action-key' });
-
+                const pKey = keyFor('power'); if (pKey) btns.push({ key: pKey, label: hengLabel('🔮 Power', '🔮 Power / 特殊能力', '🔮 特殊能力'), extraCls: 'term-action-key' });
+                const oKey = keyFor('overland'); if (oKey) btns.push({ key: oKey, label: hengLabel('🗺️ Map', '🗺️ Map / 広域', '🗺️ 広域'), extraCls: 'term-action-key' });
+                const qKey = keyFor('quests'); if (qKey) btns.push({ key: qKey, label: hengLabel('📜 Quests', '📜 Quests / クエスト', '📜 クエスト'), extraCls: 'term-action-key' });
+                const skKey = keyFor('skills'); if (skKey) btns.push({ key: skKey, badge: `[${skKey === 'tab' ? 'Tab' : skKey}]`, label: '🌳 Skills', extraCls: 'term-action-key' });
+                const cKey = keyFor('cast'); if (cKey) btns.push({ key: cKey, label: (effRealm === 'silq') ? '🎵 Song' : hengLabel('✨ Cast', '✨ Cast / 呪文', '✨ 呪文'), extraCls: 'term-action-key' });
+                const rKey = keyFor('rest'); if (rKey) btns.push({ key: rKey, label: hengLabel('⏳ Rest', '⏳ Rest / 休息', '⏳ 休息'), extraCls: 'term-action-key' });
                 setCtxActions(renderCtxButtons(btns));
             }
         }
@@ -4969,9 +4028,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const birthNameBar = document.getElementById('birth-name-bar');
         const birthNameInput = document.getElementById('birth-name-input');
         const termDpad = termTouchControls ? termTouchControls.querySelector('.term-dpad, .term-dpad-grid') : null;
-
         if (!terminalTitle || !termEscapeBtn) return;
-
         const effFrame = frame || (this && this.currentFrame) || lastFrame || window.__lastFrame || (window.__app && window.__app.getLastFrame && window.__app.getLastFrame());
         if (!effFrame || !effFrame.term || !effFrame.term.rows) return;
         const ui = effFrame.ui || {};
@@ -4986,7 +4043,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if ((this && this._lastToolbarSig === toolbarSig) || _lastToolbarSig === toolbarSig) return;
         if (this && typeof this === 'object') this._lastToolbarSig = toolbarSig;
         _lastToolbarSig = toolbarSig;
-
         const inPlay = Boolean(effFrame && effFrame.phase === 'play' && effFrame.map);
         const skipScraping = !inTermView && inPlay && (ui.overlay || 0) === 0 && ui.awaiting_command && !ui.more && !mrPendObj;
         if (skipScraping) {
@@ -4996,7 +4052,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-
         const isHeng = (curRealm === 'hengband') || (activeRealm === 'hengband') || (window.activeRealm === 'hengband') || (window.__activeRealm === 'hengband');
         const effLang = isHeng ? (window.__langMode || langMode || 'en') : 'en';
         const hengLabel = (en, bilingual, jp) => {
@@ -5009,14 +4064,11 @@ window.addEventListener('DOMContentLoaded', () => {
             if (effLang === 'jp') return jp || bilingual;
             return bilingual;
         };
-
         if (termTouchControls) termTouchControls.style.display = 'flex';
-
         // Camera Facing & Direction Highlight Sync
         const cameraYaw = (dungeon && dungeon.camera)
             ? -dungeon.camera.rotation.y
             : (dungeon ? (dungeon.facing * (Math.PI / 2)) : 0);
-
         let normYaw = (cameraYaw % (Math.PI * 2));
         if (normYaw < 0) normYaw += Math.PI * 2;
         let facingName = 'NORTH';
@@ -5035,17 +4087,13 @@ window.addEventListener('DOMContentLoaded', () => {
             facingArrow = '◀';
             fwdKey = 'left';
         }
-
         terminal.setCameraFacing(cameraYaw);
-
         const model = (SC && SC.ScreenModel && typeof SC.ScreenModel.of === 'function')
             ? SC.ScreenModel.of(effFrame, curRealm, { decode: decodeHengbandText, lang: effLang, forceTerminal })
             : null;
-
         const isStore = Boolean(model && model.legacy && model.legacy.isStore);
         const isTargeting = Boolean(model && (model.mirror === 'direction' || (model.legacy && model.legacy.isTargeting)));
         terminal.setTargetingMode(isTargeting);
-
         if (termFacingBadge) {
             if (inPlay && !isStore) {
                 termFacingBadge.style.display = 'inline-flex';
@@ -5055,7 +4103,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 termFacingBadge.style.display = 'none';
             }
         }
-
         if (termDpad) {
             const allDpad = termDpad.querySelectorAll('.term-dpad-btn');
             allDpad.forEach(b => b.classList.remove('fwd-highlight'));
@@ -5064,7 +4111,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (fwdBtn) fwdBtn.classList.add('fwd-highlight');
             }
         }
-
         // Helper to populate letter ribbon
         const populateLetterRibbon = (rows, explicitLetters = null) => {
             if (!termLetterRibbon) return;
@@ -5086,66 +4132,34 @@ window.addEventListener('DOMContentLoaded', () => {
                 const suffixActionRe = /(?:^|\s{2,})(Inspect|Cast|Study|Browse|Aim|Zap|Use|Read|Quaff|Eat|Activate|Fire|Refill|Take off|Equip|Drop All|Drop|Sell|Pick up|Throw|Uninscribe|Inscribe|Unignore|Ignore)\s+\(([a-zA-Z\{\}])\)\s*$/g;
                 const isHengCur = isHeng;
                 const seenKeys = new Set();
-
                 for (let r = 0; r < rows.length; r++) {
                     const rawLine = rows[r].g || '';
                     const line = isHengCur ? decodeHengbandText(rawLine) : rawLine;
                     if (isHengCur && (line.includes('選んで下さい') || line.includes('初期オプション設定') || line.includes('注意：'))) continue;
-
                     for (const re of regexes) {
                         re.lastIndex = 0;
                         let m;
                         while ((m = re.exec(line)) !== null) {
                             const key = m[1];
-                            let label = (m[2] || '').trim();
-                            label = label.replace(/^[^:]{1,20}:\s*/, '');
-                            label = label.replace(/\s{2,}.*$/, '');
-                            label = label.replace(/\s+\d+(\.\d+)?\s*(lb|kg|g)$/i, '');
-                            label = label.replace(/[(\[\{]+$/, '').trim();
-
-                            if (!label || label === '(nothing)' || label.includes('(nothing)') || label === 'なし') {
-                                continue;
-                            }
-
+                            let label = (m[2] || '').trim().replace(/^[^:]{1,20}:\s*/, '').replace(/\s{2,}.*$/, '').replace(/\s+\d+(\.\d+)?\s*(lb|kg|g)$/i, '').replace(/[(\[\{]+$/, '').trim();
+                            if (!label || label === '(nothing)' || label.includes('(nothing)') || label === 'なし') continue;
                             if (key && !seenKeys.has(key)) {
                                 seenKeys.add(key);
                                 let display = `[${key}]`;
                                 if (label) {
-                                    if (isHengCur) {
-                                        if (window.__hengTranslatorV2 !== false && window.HengTranslate) {
-                                            const trans = window.HengTranslate.translateName(label, 1, effLang);
-                                            display = `[${key}] ${trans || label}`;
-                                        } else {
-                                            const enTrans = JP_TERM_TRANSLATIONS[label] || (window.getLocalizedItemName ? window.getLocalizedItemName(label, 'hengband', 'en') : null);
-                                            if (enTrans && enTrans !== label) {
-                                                if (effLang === 'en') {
-                                                    display = `[${key}] ${enTrans}`;
-                                                } else if (effLang === 'jp') {
-                                                    display = `[${key}] ${label}`;
-                                                } else {
-                                                    display = `[${key}] ${label} (${enTrans})`;
-                                                }
-                                            } else {
-                                                display = `[${key}] ${label}`;
-                                            }
-                                        }
+                                    if (isHengCur && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
+                                        const trans = window.HengTranslate.translateName(label, 1, effLang);
+                                        display = `[${key}] ${trans || label}`;
                                     } else {
                                         display = `[${key}] ${label}`;
                                     }
                                 } else if (key === '*') {
-                                    if (!isHengCur || effLang === 'en') {
-                                        display = `[*] Random`;
-                                    } else if (effLang === 'jp') {
-                                        display = `[*] ランダム`;
-                                    } else {
-                                        display = `[*] ランダム (Random)`;
-                                    }
+                                    display = (!isHengCur || effLang === 'en') ? `[*] Random` : (effLang === 'jp' ? `[*] ランダム` : `[*] ランダム (Random)`);
                                 }
                                 options.push({ key, display, label });
                             }
                         }
                     }
-
                     suffixActionRe.lastIndex = 0;
                     let sm;
                     while ((sm = suffixActionRe.exec(line)) !== null) {
@@ -5163,46 +4177,35 @@ window.addEventListener('DOMContentLoaded', () => {
                     if (!seenKeys.has('n')) options.push({ key: 'n', display: '[n] ✕ No', label: null });
                 }
             }
-
             const letterKey = options.map(o => o.key + ':' + o.display + ':' + (o.label || '')).join(',');
             if (letterKey === lastPopulatedLetters) {
-                if (terminal && typeof terminal.syncRibbonSelection === 'function') {
-                    terminal.syncRibbonSelection();
-                }
+                if (terminal && typeof terminal.syncRibbonSelection === 'function') terminal.syncRibbonSelection();
                 return;
             }
             lastPopulatedLetters = letterKey;
-
             if (options.length > 0) {
                 termLetterRibbon.style.display = 'flex';
                 termLetterRibbon.innerHTML = options.map(opt => {
                     let iconHtml = '';
                     if (inPlay && opt.label && typeof window.getShockboltSpriteCss === 'function') {
                         const iconStyle = window.getShockboltSpriteCss('item', opt.label, null, 22);
-                        if (iconStyle) {
-                            iconHtml = `<span class="sb-sprite-icon" style="${iconStyle}"></span> `;
-                        }
+                        if (iconStyle) iconHtml = `<span class="sb-sprite-icon" style="${iconStyle}"></span> `;
                     }
                     return `<button type="button" class="term-letter-btn" data-key="${escapeHtml(opt.key)}">${iconHtml}${escapeHtml(opt.display)}</button>`;
                 }).join('');
-                if (terminal && typeof terminal.syncRibbonSelection === 'function') {
-                    terminal.syncRibbonSelection();
-                }
+                if (terminal && typeof terminal.syncRibbonSelection === 'function') terminal.syncRibbonSelection();
             } else {
                 termLetterRibbon.style.display = 'none';
                 termLetterRibbon.innerHTML = '';
             }
         };
-
         const grimoireContainer = document.getElementById('grimoire-deck-container');
-
         renderTerminalMirrors(model, {
             terminalTitle, termFacingBadge, termAdvanceBtn, termEscapeBtn, termExitMenuBtn,
             termRerollBtn, termTouchControls, termCtxActions, termLetterRibbon, birthNameBar,
             birthNameInput, termDpad, effFrame, curRealm, isHeng, effLang, inPlay,
             hengLabel, hengTitle, populateLetterRibbon, setCtxActions, renderCtxButtons
         });
-
         // Grimoire Deck Rendering
         if (grimoireContainer && window.RealmGrimoireDeck) {
             if (skipScraping) {
@@ -5308,7 +4311,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-
     if (window.__app) {
         Object.assign(window.__app, {
             updateTerminalChoices,
@@ -5328,7 +4330,6 @@ window.addEventListener('DOMContentLoaded', () => {
             showUpdateToast
         });
     }
-
     // View routing (AGENTS.md §3.3). Logic lives in screen-context.js needsTerminal (verbatim move, WS2);
     // app state is passed explicitly so the classifier stays pure and testable in Node.
     function needsTerminal(frame) {
@@ -5339,14 +4340,11 @@ window.addEventListener('DOMContentLoaded', () => {
         if (isDead) return false;
         const isVictory = Boolean(frame.player.winner || frame.player.total_winner);
         if (isVictory) return false;
-
         if (window.MenuRouter && typeof window.MenuRouter.getPending === 'function' && window.MenuRouter.getPending()) {
             return true;
         }
         return SC.needsTerminal(frame, { forceTerminal, decode: decodeHengbandText });
     }
-
-
     function updateViewMode(frame) {
         if (appState !== 'game') {
             terminalContainer.classList.add('hidden');
@@ -5362,12 +4360,10 @@ window.addEventListener('DOMContentLoaded', () => {
         const messageFeedWindow = document.getElementById('message-feed-window');
         const topMessageBanner = document.getElementById('top-message-banner');
         const touchControls = document.getElementById('touch-controls');
-
         const btnToggleMsg = document.getElementById('btn-toggle-msg-feed');
         const btnToggleMap = document.getElementById('btn-toggle-minimap');
         const btnToggleDpad = document.getElementById('btn-toggle-dpad');
         const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
-
         if (needsTerm) {
             terminalContainer.classList.remove('hidden');
             terminalContainer.classList.remove('in-game-modal');
@@ -5386,16 +4382,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 const expBtn = document.getElementById('btn-chronicle-expand');
                 if (expBtn) expBtn.textContent = '▼ Show';
             }
-            if (hudOverlay) hudOverlay.style.display = 'none';
-            if (minimapContainer) minimapContainer.style.display = 'none';
-            if (messageFeedWindow) messageFeedWindow.style.display = 'none';
-            if (topMessageBanner) topMessageBanner.style.display = 'none';
-            if (touchControls) touchControls.style.display = 'none';
-            if (btnToggleMsg) btnToggleMsg.style.display = 'none';
-            if (btnToggleMap) btnToggleMap.style.display = 'none';
-            if (btnToggleDpad) btnToggleDpad.style.display = 'none';
-            if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
-
+            [hudOverlay, minimapContainer, messageFeedWindow, topMessageBanner, touchControls, btnToggleMsg, btnToggleMap, btnToggleDpad, btnToggleChronicle].forEach(el => { if (el) el.style.display = 'none'; });
             input.setTerminalMode(true);
             terminal.resize();
             if (currentFrame && currentFrame.term) {
@@ -5411,11 +4398,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 window.RealmGrimoireDeck.hide(gc);
             }
             if (hudOverlay) hudOverlay.style.display = 'flex';
-
             // Respect user closed preference for minimap radar
             const showMinimap = !window.__minimapClosed;
             if (minimapContainer) minimapContainer.style.display = showMinimap ? 'flex' : 'none';
-
             // Respect user closed preference for message log
             const isPhone = window.DeviceProfile && window.DeviceProfile.getTier() === 'phone';
             if (messageFeedWindow) {
@@ -5438,7 +4423,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     topMessageBanner.style.paddingRight = '';
                 }
             }
-
             // Check if player was in a store and just exited back into town
             let playerFeat = 0;
             if (currentFrame && currentFrame.map && currentFrame.map.rows && currentFrame.player) {
@@ -5460,14 +4444,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
             wasInStore = inStore;
-
             // D-Pad: Enabled by default across both desktop and mobile/touchscreens, togglable at will
             const isDesktopTier = (typeof DeviceProfile !== 'undefined' && typeof DeviceProfile.getTier === 'function')
                 ? DeviceProfile.getTier() === 'desktop'
                 : (typeof window !== 'undefined' && window.innerWidth >= 1024 && !window.matchMedia?.('(pointer: coarse)')?.matches);
             const showTouch = window.__dpadVisible !== undefined ? window.__dpadVisible : true;
             if (touchControls) touchControls.style.display = showTouch ? 'flex' : 'none';
-
             // Update top bar toggle indicators
             if (btnToggleMsg) {
                 btnToggleMsg.style.display = 'inline-flex';
@@ -5488,17 +4470,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 const isChronicleOpen = window.chronicleManager && window.chronicleManager.visible;
                 btnToggleChronicle.classList.toggle('active', Boolean(isChronicleOpen));
             }
-
             input.setTerminalMode(false);
         }
     }
-
     if (window.DeviceProfile) {
         window.DeviceProfile.addListener(() => {
             updateViewMode();
         });
     }
-
     // Minimap and Message Log Functional Toggles
     const btnToggleMap = document.getElementById('btn-toggle-minimap');
     const btnMinimapClose = document.getElementById('btn-minimap-close');
@@ -5526,7 +4505,6 @@ window.addEventListener('DOMContentLoaded', () => {
             updateViewMode();
         });
     }
-
     const btnToggleDpad = document.getElementById('btn-toggle-dpad');
     if (btnToggleDpad) {
         btnToggleDpad.addEventListener('click', () => {
@@ -5539,7 +4517,6 @@ window.addEventListener('DOMContentLoaded', () => {
             updateViewMode();
         });
     }
-
     const btnGraphicsPreset = document.getElementById('btn-graphics-preset');
     if (btnGraphicsPreset) {
         const updateGfxPresetUI = (preset) => {
@@ -5556,10 +4533,8 @@ window.addEventListener('DOMContentLoaded', () => {
             if (iconEl) iconEl.textContent = info.icon;
             return info;
         };
-
         const currentP = (window.GRAPHICS_CONFIG && window.GRAPHICS_CONFIG.preset) || 'ultra';
         updateGfxPresetUI(currentP);
-
         btnGraphicsPreset.addEventListener('click', (e) => {
             e.stopPropagation();
             const cur = (window.GRAPHICS_CONFIG && window.GRAPHICS_CONFIG.preset) || 'ultra';
@@ -5574,7 +4549,6 @@ window.addEventListener('DOMContentLoaded', () => {
             showRealmToast(info.toast);
         });
     }
-
     const btnToggleLang = document.getElementById('btn-toggle-lang');
     if (btnToggleLang) {
         btnToggleLang.addEventListener('click', (e) => {
@@ -5583,7 +4557,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
         });
     }
-
     const btnPauseResetHud = document.getElementById('btn-pause-reset-hud');
     if (btnPauseResetHud) {
         btnPauseResetHud.addEventListener('click', (e) => {
@@ -5593,12 +4566,10 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     const btnToggleMsg = document.getElementById('btn-toggle-msg-feed');
     const btnMsgClose = document.getElementById('btn-msg-close');
     const topMsgBanner = document.getElementById('top-message-banner');
     const msgFeedWin = document.getElementById('message-feed-window');
-
     if (btnToggleMsg) {
         btnToggleMsg.addEventListener('click', () => {
             const isPhone = window.DeviceProfile && window.DeviceProfile.getTier() === 'phone';
@@ -5614,7 +4585,6 @@ window.addEventListener('DOMContentLoaded', () => {
             updateViewMode();
         });
     }
-
     if (btnMsgClose) {
         btnMsgClose.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -5624,7 +4594,6 @@ window.addEventListener('DOMContentLoaded', () => {
             updateViewMode();
         });
     }
-
     // Top Message Banner Tap-to-Toggle Narrative Feed
     if (topMsgBanner && msgFeedWin) {
         topMsgBanner.addEventListener('click', () => {
@@ -5639,7 +4608,6 @@ window.addEventListener('DOMContentLoaded', () => {
             updateViewMode();
         });
     }
-
     const btnMsgClear = document.getElementById('btn-msg-clear');
     if (btnMsgClear && msgFeedWin) {
         btnMsgClear.addEventListener('click', () => {
@@ -5651,11 +4619,9 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     // 2. Network Event Handlers
     function bindNetworkEventHandlers() {
         if (!network) return;
-
         network.onHello = (msg) => {
             if (window.__startWatchdog) {
                 clearTimeout(window.__startWatchdog);
@@ -5682,7 +4648,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 returnToMainMenu();
                 return;
             }
-
             if (msg.realm && typeof setActiveRealm === 'function' && activeRealm !== msg.realm) {
                 setActiveRealm(msg.realm);
             }
@@ -5690,7 +4655,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 hud.setStatus('⚡ Session Resumed');
             }
         };
-
         network.onQueue = (queueData) => {
             if (queueData.status === 'waiting') {
                 if (loadingOverlay) loadingOverlay.classList.add('hidden');
@@ -5714,15 +4678,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
         };
-
         network.onPing = (ms) => {
             hud.setPing(ms);
         };
-
         network.onOfflineCommand = (cmd) => {
             stepOfflineClientPrediction(cmd);
         };
-
         network.onSave = () => {
             const slot = network.currentSave || network.currentChar;
             if (slot && currentPhase === 'play') {
@@ -5734,7 +4695,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }, 4000);
             }
         };
-
         network.onFrame = (frame) => {
             if (window.__startWatchdog) {
                 clearTimeout(window.__startWatchdog);
@@ -5743,7 +4703,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (loadingOverlay) {
                 loadingOverlay.classList.add('hidden');
             }
-
             // Strict Invariant: Reject any frame that belongs to a different realm than active
             if (frame.realm && activeRealm && frame.realm !== activeRealm) {
                 console.error(`[Angband3D] Strict Invariant Violation: Frame received for wrong realm "${frame.realm}" (expected "${activeRealm}"). Aborting.`);
@@ -5753,7 +4712,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 returnToMainMenu();
                 return;
             }
-
             // STRICT ANTI-REROLL GUARD: Once a session has entered active play (hasEnteredPlay === true),
             // NEVER allow a mid-game reconnect to drop into character creation / re-roll (phase === 'setup')!
             if (hasEnteredPlay && frame.phase === 'setup') {
@@ -5765,7 +4723,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 restoreClientSaveToServer(slot, activeRealm);
                 return;
             }
-
             lastFrame = frame;
             window.__lastFrame = frame;
             if (window.__dungeonRenderer && window.__dungeonRenderer.userPitchOffset) {
@@ -5777,7 +4734,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             if (window.__app) window.__app.lastFrame = frame;
             currentPhase = frame.phase || 'play';
-
             if (currentPhase === 'play' && frame.map && frame.player) {
                 const firstPlayTransition = !hasEnteredPlay;
                 hasEnteredPlay = true;
@@ -5808,7 +4764,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-
             // Synchronize active character name with network client so reconnections never default to 'Adventurer'
             if (frame.player && frame.player.name && frame.player.name !== 'PLAYER') {
                 if (network.currentChar !== frame.player.name) {
@@ -5818,12 +4773,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     } catch (_) {}
                 }
             }
-
             // Dispatch to The Living Chronicle & Voiced Lorekeeper
             if (window.chronicleManager) {
                 window.chronicleManager.onFrame(frame);
             }
-
             // Automated quick-birth advancement
             if (quickBirthActive) {
                 stepQuickBirth(frame);
@@ -5845,23 +4798,7 @@ window.addEventListener('DOMContentLoaded', () => {
                             screenText.includes('決定しますか') || screenText.includes('この数値に決定')) {
                             lastBirthConfirmSig = sig;
                             network.sendKey('y');
-                        } else if (screenText.includes("enter a name for your character") ||
-                            screenText.includes("character background") ||
-                            screenText.includes("enter start game") ||
-                            screenText.includes("start over, or enter to continue") ||
-                            screenText.includes("['q'uit, 's'tart over, or enter to continue]") ||
-                            screenText.includes("into the vast and echoing gloom") ||
-                            screenText.includes("down to the depths") ||
-                            screenText.includes("down awful corridors") ||
-                            screenText.includes("enter to continue") ||
-                            screenText.includes("begin play") ||
-                            screenText.includes("enter your starting stats") ||
-                            screenText.includes("accept character") ||
-                            screenText.includes("名前を入力") ||
-                            screenText.includes("生い立ち") ||
-                            screenText.includes("ゲーム開始") ||
-                            screenText.includes("能力値") ||
-                            screenText.includes("決定")) {
+                        } else if (['enter a name for your character', 'character background', 'enter start game', 'start over, or enter to continue', "['q'uit, 's'tart over, or enter to continue]", 'into the vast and echoing gloom', 'down to the depths', 'down awful corridors', 'enter to continue', 'begin play', 'enter your starting stats', 'accept character', '名前を入力', '生い立ち', 'ゲーム開始', '能力値', '決定'].some(p => screenText.includes(p))) {
                             lastBirthConfirmSig = sig;
                             network.sendKey('enter');
                         }
@@ -5879,26 +4816,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 // During manual character creation or saved character loading:
                 // NEVER auto-advance menu screens, stat rollers, birth options, name inputs, or review screens!
                 const screenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '').toLowerCase();
-                
-                const isMenuOrInteractive = 
-                    screenText.includes('choose a') || screenText.includes('choose the') ||
-                    screenText.includes('select a') || screenText.includes('selection') ||
-                    screenText.includes('race') || screenText.includes('class') ||
-                    screenText.includes('sex') || screenText.includes('personality') ||
-                    screenText.includes('realm') || screenText.includes('house') ||
-                    screenText.includes('options') || screenText.includes('allocate points') ||
-                    screenText.includes('set minimum stats') || screenText.includes('roller') ||
-                    screenText.includes('point-based') || screenText.includes('are you sure') ||
-                    screenText.includes('[y/n]') || screenText.includes('(y/n)') ||
-                    screenText.includes('name:') || screenText.includes('enter a name') ||
-                    screenText.includes('enter your player\'s name') ||
-                    screenText.includes('character background') ||
-                    screenText.includes('use as is') || screenText.includes("'y': use") ||
-                    screenText.includes('to start over') || screenText.includes('r to reroll') ||
-                    screenText.includes('reroll') || screenText.includes("'s' to start") ||
-                    screenText.includes('accept character') || screenText.includes("['r'eroll") ||
-                    screenText.includes('or enter to accept') || screenText.includes("['q'uit");
-
+                const isMenuOrInteractive = ['choose a', 'choose the', 'select a', 'selection', 'race', 'class', 'sex', 'personality', 'realm', 'house', 'options', 'allocate points', 'set minimum stats', 'roller', 'point-based', 'are you sure', '[y/n]', '(y/n)', 'name:', 'enter a name', "enter your player's name", 'character background', 'use as is', "'y': use", 'to start over', 'r to reroll', 'reroll', "'s' to start", 'accept character', "['r'eroll", 'or enter to accept', "['q'uit"].some(w => screenText.includes(w));
                 if (!isMenuOrInteractive) {
                     // Only auto-advance non-interactive splash screens (like title poem or saved character press space to enter)
                     if (screenText.includes('into the vast and echoing gloom') || 
@@ -5912,8 +4830,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-
-
             // Check if player died or took damage into critical HP range (never while regenerating/resting)
             if (frame.player && frame.player.dead) {
                 if (audio) audio.playDeathBell();
@@ -5925,7 +4841,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
                 window.__lastWarningHp = frame.player.hp;
             }
-
             // MenuRouter advances pending two-phase dispatch before view mode is evaluated
             if (window.MenuRouter && typeof window.MenuRouter.onFrame === 'function') {
                 try {
@@ -5935,10 +4850,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     console.error('[MenuRouter Error]', err);
                 }
             }
-
             // Update View Mode Visibility first so layouts and modes are synced
             updateViewMode(frame);
-
             // Update Smart Contextual Controls (D-Pad Center Action, Staircase, Doors, Auto-Nav)
             if (input && input.updateContextualControls) {
                 try {
@@ -5947,13 +4860,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     console.error('[InputContext Error]', err);
                 }
             }
-
             // Render Terminal if active or in setup phase
             const needsTerm = needsTerminal(frame) || forceTerminal;
             if (frame.term && (needsTerm || currentPhase !== 'play')) {
                 terminal.render(frame.term);
             }
-
             // Render 3D Dungeon World whenever in play phase with valid map
             if (currentPhase === 'play' && frame.map && frame.player) {
                 try {
@@ -5962,14 +4873,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     console.error('[Dungeon3D Error]', err);
                 }
             }
-
             // Update HUD
             try {
                 hud.update(frame);
             } catch (err) {
                 console.error('[HUD Error]', err);
             }
-
             // Update Terminal Toolbar & Context
             try {
                 updateTerminalToolbar(frame);
@@ -5977,7 +4886,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 console.error('[TerminalToolbar Error]', err);
             }
         };
-
         network.onBye = (detail) => {
             if (window.__startWatchdog) {
                 clearTimeout(window.__startWatchdog);
@@ -6019,7 +4927,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 returnToMainMenu();
             }
         };
-
         network.onError = (errMsg) => {
             if (window.__startWatchdog) {
                 clearTimeout(window.__startWatchdog);
@@ -6036,7 +4943,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 returnToMainMenu();
             }
         };
-
         network.onStatus = (status) => {
             if (hud.setStatus) {
                 if (engineMode === 'local') {
@@ -6048,7 +4954,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 hud.pingBadge.textContent = status;
             }
         };
-
         network.onSavePersisted = (charName) => {
             console.log('[Angband3D] Save persisted to IndexedDB:', charName);
             if (hud && typeof hud.setStatus === 'function') {
@@ -6057,13 +4962,11 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         };
     }
-
     bindNetworkEventHandlers();
     updateEngineModeUI();
     updateRealmUI();
     setupRealmModalEvents();
     setupCommandPaletteEvents();
-
     // Live 3D Celestial Diorama: When in Splash or Main Menu and no gameplay frame has arrived,
     // gently tilt camera pitch upward and orbit yaw so the Celestial Sky Dome & Town diorama shine through.
     function tickMenuDiorama(time) {
@@ -6079,7 +4982,6 @@ window.addEventListener('DOMContentLoaded', () => {
         requestAnimationFrame(tickMenuDiorama);
     }
     requestAnimationFrame(tickMenuDiorama);
-
     // 3. Initial Boot: Check URL query parameters
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('play') === '1' || urlParams.get('autoplay') === '1') {

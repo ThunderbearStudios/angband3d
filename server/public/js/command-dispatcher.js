@@ -1,22 +1,11 @@
-/**
- * command-dispatcher.js — Frame-Acknowledged KeyPlan State Machine
- *
- * WS42 Command & Menu Unification (Card WS42.3C, §6.6).
- * Executes multi-key UI actions ONE step at a time via injected sendKey,
- * advancing ONLY on acknowledged engine frames (frame.seq > sentSeq).
- *
- * UMD: browser -> window.CommandDispatcher; Node -> module.exports.
- */
 (function (root, factory) {
     'use strict';
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
-    } else {
+        module.exports = factory(); } else {
         root.CommandDispatcher = factory();
     }
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
-
     let ScreenContextModule = null;
     let RealmKeysModule = null;
     let QuickActionsModule = null;
@@ -25,13 +14,11 @@
         try { RealmKeysModule = require('./realm-keys'); } catch (_) {}
         try { QuickActionsModule = require('./quick-actions'); } catch (_) {}
     }
-
     const VANILLA_LETTERS = 'abcdefgimnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     function getVanillaLetter(i) {
         if (typeof i !== 'number' || i < 0) return 'a';
         return VANILLA_LETTERS[i] || String.fromCharCode(97 + i);
     }
-
     function normalizeKey(key) {
         if (typeof key !== 'string') return '';
         if (key === ' ' || key.toLowerCase() === 'space') return 'space';
@@ -55,7 +42,6 @@
         };
         return map[lower] || key;
     }
-
     const CANONICAL_KEYS = Object.freeze({
         quaff: Object.freeze({ angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q' }),
         read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r' }),
@@ -91,7 +77,6 @@
         options: Object.freeze({ angband: '=', silq: 'O', frogcomposband: '=', hengband: '=' }),
         help: Object.freeze({ angband: '?', silq: '?', frogcomposband: '?', hengband: '?' })
     });
-
     function resolveTargetKey(realm, target) {
         const r = (realm || 'angband').toLowerCase();
         if (target === 'nearest') {
@@ -101,31 +86,21 @@
         if (typeof target === 'string') return target;
         return 't';
     }
-
     function classifyFrame(frame, realm, deps) {
-        if (deps && deps.ScreenModel && typeof deps.ScreenModel.of === 'function') {
-            return deps.ScreenModel.of(frame, realm);
-        }
+        if (deps && deps.ScreenModel && typeof deps.ScreenModel.of === 'function') { return deps.ScreenModel.of(frame, realm); }
         const r = (realm || (frame && frame.realm) || 'angband').toLowerCase();
         const inPlay = Boolean(frame && frame.phase === 'play');
         const isMore = Boolean(frame && frame.ui && frame.ui.more);
         const overlay = (frame && frame.ui && typeof frame.ui.overlay === 'number') ? frame.ui.overlay : 0;
         const awaiting = Boolean(frame && frame.ui && frame.ui.awaiting_command);
         const isIdle = Boolean(inPlay && overlay === 0 && !isMore && awaiting);
-
         let owner = 'engine-prompt';
         if (!inPlay) {
-            owner = (frame && frame.phase === 'dead') ? 'dead' : 'birth';
-        } else if (isIdle) {
-            owner = 'engine-idle';
-        } else if (overlay > 0) {
-            owner = 'engine-screen';
-        }
-
+            owner = (frame && frame.phase === 'dead') ? 'dead' : 'birth'; } else if (isIdle) {
+            owner = 'engine-idle'; } else if (overlay > 0) { owner = 'engine-screen'; }
         let prompt = null;
         if (frame && frame.ui && frame.ui.prompt) {
-            prompt = { ...frame.ui.prompt };
-        } else {
+            prompt = { ...frame.ui.prompt }; } else {
             const row0 = (frame && frame.term && frame.term.rows && frame.term.rows[0] && frame.term.rows[0].g)
                 ? frame.term.rows[0].g.trim().toLowerCase()
                 : '';
@@ -134,28 +109,17 @@
                 ? frame.term.rows[cy].g.trim().toLowerCase()
                 : '';
             const combined = row0 + ' ' + cyRow;
-
             let kind = null;
             if (isMore) {
-                kind = 'more';
-            } else if (/quaff|read|wear|wield|take off|drop|throw|destroy|identify|use|item|choice:/i.test(combined)) {
-                kind = 'item';
-            } else if (/target|direction|open door/i.test(combined)) {
-                kind = 'direction';
-            } else if (/how many|count|repeat/i.test(combined)) {
-                kind = 'quantity';
-            } else if (/\(y\/n\)/i.test(combined)) {
-                kind = 'yesno';
-            } else if (/book/i.test(combined)) {
-                kind = 'book';
-            } else if (/spell|songs of power|power/i.test(combined)) {
-                kind = 'spell';
-            } else if (/rest/i.test(combined)) {
-                kind = 'rest';
-            }
+                kind = 'more'; } else if (/quaff|read|wear|wield|take off|drop|throw|destroy|identify|use|item|choice:/i.test(combined)) {
+                kind = 'item'; } else if (/target|direction|open door/i.test(combined)) {
+                kind = 'direction'; } else if (/how many|count|repeat/i.test(combined)) {
+                kind = 'quantity'; } else if (/\(y\/n\)/i.test(combined)) {
+                kind = 'yesno'; } else if (/book/i.test(combined)) {
+                kind = 'book'; } else if (/spell|songs of power|power/i.test(combined)) {
+                kind = 'spell'; } else if (/rest/i.test(combined)) { kind = 'rest'; }
             prompt = { kind, text: row0, verb: null, src: 'row0' };
         }
-
         const items = [];
         if (frame && frame.term && Array.isArray(frame.term.rows)) {
             const itemRegex = /(?:^|\s+)([a-zA-Z0-9*])[\)\.\:\-]\s+([^\n\r]{1,70})/g;
@@ -170,14 +134,9 @@
                 }
             }
         }
-
         let legacy = null;
         if (deps && deps.ScreenContext && typeof deps.ScreenContext.classify === 'function') {
-            legacy = deps.ScreenContext.classify(frame, realm);
-        } else if (ScreenContextModule && typeof ScreenContextModule.classify === 'function') {
-            legacy = ScreenContextModule.classify(frame, realm);
-        }
-
+            legacy = deps.ScreenContext.classify(frame, realm); } else if (ScreenContextModule && typeof ScreenContextModule.classify === 'function') { legacy = ScreenContextModule.classify(frame, realm); }
         return {
             isIdle,
             owner,
@@ -193,7 +152,6 @@
             }
         };
     }
-
     function CommandDispatcher(deps = {}) {
         this.deps = deps;
         this.sendKey = deps.sendKey || (() => {});
@@ -203,7 +161,6 @@
         this.onToast = deps.onToast || (() => {});
         this.onAudio = deps.onAudio || (() => {});
         this.timeoutMs = typeof deps.timeoutMs === 'number' ? deps.timeoutMs : 2000;
-
         this.state = 'Idle';
         this.lastResult = 'Idle';
         this.plan = null;
@@ -214,15 +171,12 @@
         this.unwindCount = 0;
         this.pendingIntent = null;
     }
-
     CommandDispatcher.create = function (deps) {
         return new CommandDispatcher(deps);
     };
-
     CommandDispatcher.prototype._classify = function (frame) {
         return classifyFrame(frame, this.getRealm(), this.deps);
     };
-
     CommandDispatcher.prototype.resolveVerbKey = function (verb, realm) {
         const r = (realm || this.getRealm() || 'angband').toLowerCase();
         if (this.deps.ActionCatalog) {
@@ -248,12 +202,9 @@
             if (k !== undefined) return k;
         }
         const mapped = CANONICAL_KEYS[verb];
-        if (mapped && mapped[r] !== undefined) {
-            return mapped[r];
-        }
+        if (mapped && mapped[r] !== undefined) { return mapped[r]; }
         return null;
     };
-
     CommandDispatcher.prototype._startDeadlineTimer = function () {
         this._clearDeadlineTimer();
         this.timer = setTimeout(() => {
@@ -265,22 +216,16 @@
                 this._finish('Failed', 'timeout');
             }
         }, this.timeoutMs);
-        if (this.timer && typeof this.timer.unref === 'function') {
-            this.timer.unref();
-        }
+        if (this.timer && typeof this.timer.unref === 'function') { this.timer.unref(); }
     };
-
     CommandDispatcher.prototype._clearDeadlineTimer = function () {
         if (this.timer) {
             clearTimeout(this.timer);
             this.timer = null;
         }
     };
-
     CommandDispatcher.prototype.cancel = function (reason = 'user-key') {
-        if (this.state === 'Idle') {
-            return false;
-        }
+        if (this.state === 'Idle') { return false; }
         this._clearDeadlineTimer();
         const prevState = this.state;
         this.state = 'Idle';
@@ -292,7 +237,6 @@
         this.onEvent('dispatcher:cancel', { reason, prevState });
         return true;
     };
-
     CommandDispatcher.prototype._finish = function (status, reason) {
         this._clearDeadlineTimer();
         const finalStatus = status || 'Done';
@@ -305,34 +249,28 @@
         this.sentSeq = null;
         this.pendingIntent = null;
     };
-
     CommandDispatcher.prototype._executeStep = function () {
         if (!this.plan || this.stepIndex >= this.plan.length) {
             this._finish('Done');
             return;
         }
-
         const step = this.plan[this.stepIndex];
-
         if (typeof step.verify === 'function') {
             const frame = this.lastFrame || this.getLastFrame();
             const model = this._classify(frame);
             const check = step.verify(model, frame);
             if (check === 'handoff') {
                 this._finish('Handoff', 'item-mismatch');
-                return;
-            } else if (check === false) {
+                return; } else if (check === false) {
                 this._finish('Failed', 'verification-failed');
                 return;
             }
         }
-
         if (!step.send) {
             this.stepIndex++;
             this._executeStep();
             return;
         }
-
         const key = step.send;
         this.sendKey(key);
         this.sentSeq = (this.lastFrame && this.lastFrame.seq !== undefined) ? this.lastFrame.seq : null;
@@ -340,12 +278,9 @@
         this.onEvent('dispatcher:step', { stepIndex: this.stepIndex, key, desc: step.desc });
         this._startDeadlineTimer();
     };
-
     CommandDispatcher.prototype.compilePlan = function (intent, frame, realm) {
         if (!intent) return null;
         const r = (realm || this.getRealm() || 'angband').toLowerCase();
-
-        // 1. Raw sequence of keys
         if (Array.isArray(intent.sequence || intent.keys)) {
             const seq = intent.sequence || intent.keys;
             return seq.map((k, idx) => ({
@@ -354,8 +289,6 @@
                 desc: `raw-seq-${idx}:${k}`
             }));
         }
-
-        // 2. Dismiss more
         if (intent.verb === 'more') {
             return [{
                 send: 'space',
@@ -364,8 +297,6 @@
                 desc: 'dismiss-more'
             }];
         }
-
-        // 3. Dismiss more then move
         if (intent.verb === 'more_move') {
             return [
                 {
@@ -380,8 +311,6 @@
                 }
             ];
         }
-
-        // 4. Wield from inven
         if (intent.verb === 'wield_from_i') {
             const itemLetter = typeof intent.item === 'string'
                 ? intent.item
@@ -392,8 +321,6 @@
                 { send: itemLetter, expect: (model, fr) => model.isIdle || fr.ui.more, desc: `select-item:${itemLetter}` }
             ];
         }
-
-        // 5. Vanilla Item Context Menu
         if (intent.verb === 'item_context_menu') {
             const itemLetter = typeof intent.item === 'string'
                 ? intent.item
@@ -408,8 +335,6 @@
             }
             return steps;
         }
-
-        // 6. Store buy
         if (intent.verb === 'store_buy') {
             const itemLetter = typeof intent.item === 'string'
                 ? intent.item
@@ -425,17 +350,13 @@
             steps.push({ send: 'enter', expect: () => true, desc: 'confirm-qty' });
             return steps;
         }
-
-        // 7. Direct single-key commands
         if (intent.verb === 'char_sheet' || intent.verb === 'knowledge' || intent.verb === 'options' ||
             intent.verb === 'help' || intent.verb === 'inven' || intent.verb === 'equip' ||
             intent.verb === 'command_menu' || intent.verb === 'menu' || intent.verb === 'pickup') {
             let verbKey;
             if (intent.key) {
-                verbKey = intent.key;
-            } else if (intent.verb === 'command_menu' || intent.verb === 'menu') {
-                verbKey = 'enter';
-            } else {
+                verbKey = intent.key; } else if (intent.verb === 'command_menu' || intent.verb === 'menu') {
+                verbKey = 'enter'; } else {
                 verbKey = this.resolveVerbKey(intent.verb, r);
             }
             if (!verbKey) return null;
@@ -451,8 +372,6 @@
             }
             return steps;
         }
-
-        // 8. Rest
         if (intent.verb === 'rest') {
             const restKey = this.resolveVerbKey('rest', r) || (r === 'silq' ? '%' : 'R');
             if (r === 'silq' && !intent.qty) {
@@ -477,8 +396,6 @@
                 }
             ];
         }
-
-        // 9. Song (Sil-Q)
         if (intent.verb === 'song') {
             const songLetter = intent.spell || intent.song || 'a';
             return [
@@ -486,8 +403,6 @@
                 { send: songLetter, expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: `select-song:${songLetter}` }
             ];
         }
-
-        // 10. Power (FCB / Heng)
         if (intent.verb === 'power') {
             const powerLetter = intent.spell || intent.power || 'a';
             const steps = [
@@ -500,16 +415,10 @@
             ];
             if (intent.dir || intent.target) {
                 const targetKey = intent.dir || resolveTargetKey(r, intent.target);
-                steps.push({
-                    send: targetKey,
-                    expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more),
-                    desc: `target:${targetKey}`
-                });
+                steps.push({ send: targetKey, expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: `target:${targetKey}` });
             }
             return steps;
         }
-
-        // 11. Cast spell
         if (intent.verb === 'cast') {
             const castKey = this.resolveVerbKey('cast', r) || 'm';
             const steps = [
@@ -520,33 +429,17 @@
                 }
             ];
             if (intent.book) {
-                steps.push({
-                    send: intent.book,
-                    expect: (model) => (model.prompt && model.prompt.kind === 'spell') || true,
-                    desc: `select-book:${intent.book}`
-                });
+                steps.push({ send: intent.book, expect: (model) => (model.prompt && model.prompt.kind === 'spell') || true, desc: `select-book:${intent.book}` });
             }
             if (intent.spell) {
-                steps.push({
-                    send: intent.spell,
-                    expect: (model, fr) => (intent.dir || intent.target)
-                        ? ((model.prompt && model.prompt.kind === 'direction') || true)
-                        : (model.isIdle || (fr.ui && fr.ui.more)),
-                    desc: `select-spell:${intent.spell}`
-                });
+                steps.push({ send: intent.spell, expect: (model, fr) => (intent.dir || intent.target) ? ((model.prompt && model.prompt.kind === 'direction') || true) : (model.isIdle || (fr.ui && fr.ui.more)), desc: `select-spell:${intent.spell}` });
             }
             if (intent.dir || intent.target) {
                 const targetKey = intent.dir || resolveTargetKey(r, intent.target);
-                steps.push({
-                    send: targetKey,
-                    expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more),
-                    desc: `target:${targetKey}`
-                });
+                steps.push({ send: targetKey, expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: `target:${targetKey}` });
             }
             return steps;
         }
-
-        // 12. Directional actions: open, close, disarm, tunnel, alter
         if (intent.verb === 'open' || intent.verb === 'close' || intent.verb === 'disarm' ||
             intent.verb === 'tunnel' || intent.verb === 'alter') {
             const verbKey = this.resolveVerbKey(intent.verb, r);
@@ -559,28 +452,19 @@
                 }
             ];
             if (intent.dir) {
-                steps.push({
-                    send: intent.dir,
-                    expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more),
-                    desc: `dir:${intent.dir}`
-                });
+                steps.push({ send: intent.dir, expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: `dir:${intent.dir}` });
             }
             return steps;
         }
-
-        // 13. Item actions
         let verbKey;
         if (intent.verb === 'fire') {
             if (r === 'angband' && intent.target === 'nearest') {
-                verbKey = 'h';
-            } else {
+                verbKey = 'h'; } else {
                 verbKey = 'f';
-            }
-        } else {
+            } } else {
             verbKey = this.resolveVerbKey(intent.verb, r);
         }
         if (!verbKey) return null;
-
         if (verbKey === 'h') {
             return [{
                 send: 'h',
@@ -588,109 +472,43 @@
                 desc: 'fire-nearest'
             }];
         }
-
         const steps = [];
-        steps.push({
-            send: verbKey,
-            expect: (model, fr) => (model.prompt && (model.prompt.kind === 'item' || model.prompt.kind === 'select' || model.prompt.kind === 'direction')) ||
-                                   (model.legacy && (model.legacy.promptKind === 'select' || model.legacy.isItemPrompt || model.legacy.isTargeting)) ||
-                                   model.isIdle || (fr.ui && fr.ui.more),
-            desc: `verb:${intent.verb}`
-        });
-
+        steps.push({ send: verbKey, expect: (model, fr) => (model.prompt && (model.prompt.kind === 'item' || model.prompt.kind === 'select' || model.prompt.kind === 'direction')) || (model.legacy && (model.legacy.promptKind === 'select' || model.legacy.isItemPrompt || model.legacy.isTargeting)) || model.isIdle || (fr.ui && fr.ui.more), desc: `verb:${intent.verb}` });
         if (intent.item !== undefined && intent.item !== null) {
             let targetLetter = typeof intent.item === 'string' ? intent.item : (intent.item.letter || intent.item.label);
-            if (!targetLetter && r === 'angband' && intent.item && typeof intent.item.slot === 'number') {
-                targetLetter = getVanillaLetter(intent.item.slot);
-            }
+            if (!targetLetter && r === 'angband' && intent.item && typeof intent.item.slot === 'number') { targetLetter = getVanillaLetter(intent.item.slot); }
             if (targetLetter) {
-                steps.push({
-                    send: targetLetter,
-                    itemObj: typeof intent.item === 'object' ? intent.item : null,
-                    verify: (model) => {
-                        const visible = (model.items && model.items.length) ? model.items : (model.legacy && model.legacy.items) || [];
-                        if (visible.length > 0) {
-                            const match = visible.find(it => (it.key || it.letter) === targetLetter);
-                            if (!match) return 'handoff';
-                            if (intent.item && intent.item.name) {
-                                const expectName = intent.item.name.toLowerCase();
-                                const actualName = (match.label || match.name || '').toLowerCase();
-                                if (!actualName.includes(expectName)) {
-                                    return 'handoff';
-                                }
-                            }
-                        }
-                        return true;
-                    },
-                    expect: (model, fr) => {
-                        if (intent.verb === 'drop' && intent.qty !== undefined) {
-                            return (model.prompt && model.prompt.kind === 'quantity') || (model.legacy && model.legacy.isQuantityPrompt) || true;
-                        }
-                        if ((intent.verb === 'aim' || intent.verb === 'zap' || intent.verb === 'throw' || intent.verb === 'fire') && (intent.dir || intent.target)) {
-                            return (model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || true;
-                        }
-                        return model.isIdle || (fr.ui && fr.ui.more);
-                    },
-                    desc: `item:${targetLetter}`
-                });
+                steps.push({ send: targetLetter, itemObj: typeof intent.item === 'object' ? intent.item : null, verify: (model) => { const visible = (model.items && model.items.length) ? model.items : (model.legacy && model.legacy.items) || []; if (visible.length > 0) { const match = visible.find(it => (it.key || it.letter) === targetLetter); if (!match) return 'handoff'; if (intent.item && intent.item.name) { const expectName = intent.item.name.toLowerCase(); const actualName = (match.label || match.name || '').toLowerCase(); if (!actualName.includes(expectName)) { return 'handoff'; } } } return true; }, expect: (model, fr) => { if (intent.verb === 'drop' && intent.qty !== undefined) { return (model.prompt && model.prompt.kind === 'quantity') || (model.legacy && model.legacy.isQuantityPrompt) || true; } if ((intent.verb === 'aim' || intent.verb === 'zap' || intent.verb === 'throw' || intent.verb === 'fire') && (intent.dir || intent.target)) { return (model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || true; } return model.isIdle || (fr.ui && fr.ui.more); }, desc: `item:${targetLetter}` });
             }
         }
-
         if (intent.verb === 'drop' && intent.qty !== undefined) {
             const qtyStr = String(intent.qty);
             for (const d of qtyStr) {
-                steps.push({
-                    send: d,
-                    expect: () => true,
-                    desc: `drop-qty-digit:${d}`
-                });
+                steps.push({ send: d, expect: () => true, desc: `drop-qty-digit:${d}` });
             }
-            steps.push({
-                send: 'enter',
-                expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more),
-                desc: 'drop-confirm-qty'
-            });
+            steps.push({ send: 'enter', expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: 'drop-confirm-qty' });
         }
-
         if (intent.dir || intent.target) {
             const targetKey = intent.dir || resolveTargetKey(r, intent.target);
-            steps.push({
-                send: targetKey,
-                expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more),
-                desc: `target:${targetKey}`
-            });
+            steps.push({ send: targetKey, expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: `target:${targetKey}` });
         }
-
         if (intent.verb === 'ignore' && intent.confirm) {
-            steps.push({
-                send: intent.confirm,
-                expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more),
-                desc: `confirm-ignore:${intent.confirm}`
-            });
+            steps.push({ send: intent.confirm, expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: `confirm-ignore:${intent.confirm}` });
         }
-
         return steps;
     };
-
     CommandDispatcher.prototype.run = function (intent, opts = {}) {
-        if (this.state !== 'Idle') {
-            this.cancel('new-intent');
-        }
-
+        if (this.state !== 'Idle') { this.cancel('new-intent'); }
         const frame = this.getLastFrame();
         const realm = (opts.realm || this.getRealm() || 'angband').toLowerCase();
         this.lastFrame = frame;
-
         const model = this._classify(frame);
-
         const isDirectMore = Boolean(intent && (intent.verb === 'more' || intent.verb === 'more_move'));
         const isStoreAction = Boolean(intent && (intent.verb === 'store_buy' || (frame && frame.ui && frame.ui.context === 'store')));
         const skipUnwind = isDirectMore || isStoreAction;
-
         if (!model.isIdle && !skipUnwind) {
             const inModalPrompt = Boolean(frame && frame.ui && frame.ui.overlay === 0 && !frame.ui.more && !frame.ui.awaiting_command);
             const allowPrompt = Boolean(opts.allowUnwindPrompt || (intent && intent.allowUnwindPrompt) || this.deps.allowUnwindPrompt);
-
             if (inModalPrompt && !allowPrompt) {
                 this.state = 'Failed';
                 this.lastResult = 'Failed';
@@ -699,19 +517,16 @@
                 this.state = 'Idle';
                 return false;
             }
-
             this.state = 'Unwinding';
             this.unwindCount = 0;
             this.pendingIntent = intent;
             this.onEvent('dispatcher:unwinding', { intent });
-
             const key = (frame && frame.ui && frame.ui.more) ? 'space' : 'escape';
             this.sendKey(key);
             this.sentSeq = (frame && frame.seq !== undefined) ? frame.seq : null;
             this._startDeadlineTimer();
             return true;
         }
-
         const plan = this.compilePlan(intent, frame, realm);
         if (!plan || plan.length === 0) {
             this.state = 'Failed';
@@ -721,7 +536,6 @@
             this.state = 'Idle';
             return false;
         }
-
         this.plan = plan;
         this.stepIndex = 0;
         this.state = 'Running';
@@ -729,18 +543,10 @@
         this._executeStep();
         return true;
     };
-
     CommandDispatcher.prototype.onFrame = function (frame) {
-        if (this.state === 'Idle') {
-            return;
-        }
-
-        if (this.sentSeq !== null && frame && frame.seq !== undefined && frame.seq <= this.sentSeq) {
-            return;
-        }
-
+        if (this.state === 'Idle') { return; }
+        if (this.sentSeq !== null && frame && frame.seq !== undefined && frame.seq <= this.sentSeq) { return; }
         this.lastFrame = frame;
-
         if (this.state === 'Unwinding') {
             this._clearDeadlineTimer();
             this.unwindCount++;
@@ -757,26 +563,21 @@
                 this.plan = plan;
                 this.stepIndex = 0;
                 this._executeStep();
-                return;
-            } else if (this.unwindCount < 3) {
+                return; } else if (this.unwindCount < 3) {
                 const key = (frame && frame.ui && frame.ui.more) ? 'space' : 'escape';
                 this.sendKey(key);
                 this.sentSeq = (frame && frame.seq !== undefined) ? frame.seq : null;
                 this._startDeadlineTimer();
-                return;
-            } else {
+                return; } else {
                 this._finish('Failed', 'unwind-limit-exceeded');
                 this.onToast('Engine state could not be unwound');
                 return;
             }
         }
-
         if (this.state === 'Awaiting') {
             this._clearDeadlineTimer();
             const step = this.plan[this.stepIndex];
             const model = this._classify(frame);
-
-            // Handle -more- during in-flight plans
             if (frame && frame.ui && frame.ui.more) {
                 if (step.repeatWhile && step.repeatWhile(model, frame)) {
                     this.sendKey(step.send);
@@ -784,39 +585,30 @@
                     this._startDeadlineTimer();
                     return;
                 }
-                // If not the final step, unexpected -more- hands off to banner
                 if (this.stepIndex < this.plan.length - 1) {
                     this._finish('Handoff', 'unexpected-more');
                     return;
                 }
             }
-
             let matches = false;
             if (typeof step.expect === 'function') {
-                matches = step.expect(model, frame);
-            } else {
+                matches = step.expect(model, frame); } else {
                 matches = true;
             }
-
             if (matches) {
                 this.stepIndex++;
                 if (this.stepIndex >= this.plan.length) {
-                    this._finish('Done');
-                } else {
+                    this._finish('Done'); } else {
                     this.state = 'Running';
                     this._executeStep();
-                }
-            } else {
+                } } else {
                 if (frame && frame.ui && frame.ui.more) {
-                    this._finish('Handoff', 'unexpected-more');
-                } else if (step.onMismatch === 'abort') {
-                    this._finish('Failed', 'expectation-mismatch');
-                } else {
+                    this._finish('Handoff', 'unexpected-more'); } else if (step.onMismatch === 'abort') {
+                    this._finish('Failed', 'expectation-mismatch'); } else {
                     this._finish('Handoff', 'prompt-mismatch');
                 }
             }
         }
     };
-
     return CommandDispatcher;
 });
