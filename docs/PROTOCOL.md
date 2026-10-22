@@ -66,14 +66,39 @@ Only read `map`, `monsters` and `objects` when `phase` is `"play"`.
 #### `ui`
 
 ```json
-{"overlay": 3, "awaiting_command": false, "more": false}
+{"overlay": 0, "awaiting_command": true, "more": false, "context": "play", "prompt": null, "cmd_avail": 1048575}
 ```
 
-| field | meaning |
-|---|---|
-| `overlay` | Angband's `screen_save_depth`. Non-zero means a screen has been pushed: a menu, store, character sheet or item prompt. |
-| `awaiting_command` | True when the game wants a normal game command. False when it is asking a question. |
-| `more` | A `-more-` message pause is waiting to be acknowledged. |
+| field | type | meaning |
+|---|---|---|
+| `overlay` | int | Angband's `screen_save_depth`. Non-zero means a screen has been pushed: a menu, store, character sheet or item prompt. |
+| `awaiting_command` | boolean | True when the game wants a normal game command. False when it is asking a question. |
+| `more` | boolean | A `-more-` message pause is waiting to be acknowledged. |
+| `context` | string | (Optional) Active context string (e.g. `"play"`, `"menu"`, `"store"`). |
+| `prompt` | object or null | (Protocol vNext) Structured prompt modal state. Nullable (`null`) when idle at the command prompt. Details below. |
+| `cmd_avail` | int (uint64) | (Protocol vNext, Optional in Vanilla) Integer bitmask evaluating command prerequisites (`prereq`) during `awaiting_command`. |
+
+##### `ui.prompt` Modality Structure
+
+When the engine prompts for player decisions, `ui.prompt` provides structured, non-scraped modal metadata:
+
+```json
+{
+  "kind": "item",
+  "text": "Quaff which potion?",
+  "verb": "quaff",
+  "src": "hook"
+}
+```
+
+| property | type | meaning |
+|---|---|---|
+| `kind` | string | Modality kind: `command` \| `item` \| `direction` \| `target` \| `yesno` \| `quantity` \| `count` \| `string` \| `spell` \| `menu` \| `store` \| `more` \| `unknown`. |
+| `text` | string | Prompt text string (from engine hook argument, row 0, or cursor prompt line at `term.cy`; Hengband raw JP/EN text). |
+| `verb` | string | Normalized action catalog verb id when derivable (e.g. `"quaff"`, `"cast"`, `"fire"`, etc.), or empty string. |
+| `src` | string | Modality authority origin: `"hook"` (authoritative C hook wrapper in Vanilla) or `"row0"` (heuristic regex row detector in variants). |
+
+When idle at the main dungeon command prompt (`overlay == 0 && awaiting_command && !more`), `ui.prompt` is `null`.
 
 **View Routing Rule (`needsTerminal` / `NeedsTerminal`):** Clients should show
 the terminal channel whenever `phase != "play"`, `overlay > 0`, or
@@ -116,6 +141,43 @@ prompt in the top HUD message banner (waiting for explicit player `Space`/`Enter
 | `dead` | Whether the character has died. |
 | `wizard` | Whether wizard (god) mode is currently active. |
 | `noscore` | Cheat flags. Non-zero means the game is unscored. `2` = wizard mode has been used. Persists in the savefile. |
+
+#### Item Collections: `inventory[]`, `equipment[]`, `quiver[]`
+
+Under `player`, `inventory`, `equipment`, and `quiver` are arrays of item objects. Protocol vNext specifies authoritative structured fields for noun->verb item interactions:
+
+```json
+{
+  "slot": 7,
+  "letter": "i",
+  "label": "i",
+  "name": "a Potion of Cure Serious Wounds",
+  "tval": 75,
+  "sval": 15,
+  "number": 3,
+  "weight": 4,
+  "attr": 7,
+  "vm": 1153,
+  "im": 0,
+  "inscription": "@q1"
+}
+```
+
+| field | type | meaning |
+|---|---|---|
+| `slot` | int | 0-based container slot index. |
+| `letter` | string | (Protocol vNext) Authoritative engine selection key/letter (e.g. `all_letters_nohjkl` in Vanilla: `a-g, i-z, A-Z`, equipment letter, or quiver index `'0'+i`). |
+| `label` | string | Selection label (kept equal to `letter` for backward compatibility). |
+| `vm` | int (uint32) | (Protocol vNext) 20-bit valid-verb bitmask representing valid actions for this object. Bit positions match the canonical `verbBits` order from the `commands` message. |
+| `im` | int (uint32) | (Protocol vNext, optional) Temporarily-invalid verb bitmask (reasons provided in change-only `itemx` message). |
+| `inscription` | string | (Protocol vNext, optional) Player/engine inscription or note string (omitted when empty). |
+| `name` | string | Full display name of the item. |
+| `tval`, `sval` | int | Item type and subtype values. |
+| `number` | int | Stack count. |
+| `weight` | int | Weight per unit (tenths of a pound). |
+| `attr` | int | Color attribute index. |
+| `slot_name` | string | (Equipment only) Name of the equipment slot (e.g. `"Wielding"`, `"On body"`). |
+| `mention` | string | (Equipment only) Slot mention description. |
 
 #### `map`
 
@@ -212,6 +274,57 @@ The full character grid, including the map region. Clients that render the world
 themselves should mask out the map area and draw only the surrounding text.
 `cx`/`cy` are the cursor position; `cursor` is whether it should be shown.
 
+### `commands`
+
+Sent once after the `features` handshake (and re-sent only if the realm or keyset switches). Provides the canonical command catalog and the 20-bit verb index for `vm` decoding:
+
+```json
+{
+  "t": "commands",
+  "realm": "angband",
+  "keyset": "orig",
+  "verbBits": [
+    "quaff", "read", "eat", "aim", "use_staff", "zap", "activate", "fire",
+    "throw", "wield", "takeoff", "drop", "inscribe", "uninscribe", "refill",
+    "browse", "study", "cast", "ignore", "examine"
+  ],
+  "groups": [
+    {
+      "name": "Items",
+      "cmds": [
+        { "id": "quaff", "desc": "Quaff a potion", "key": "q", "target": "item" }
+      ]
+    }
+  ]
+}
+```
+
+The 20 canonical verb bit positions in `verbBits`:
+`0:quaff`, `1:read`, `2:eat`, `3:aim`, `4:use_staff`, `5:zap`, `6:activate`, `7:fire`, `8:throw`, `9:wield`, `10:takeoff`, `11:drop`, `12:inscribe`, `13:uninscribe`, `14:refill`, `15:browse`, `16:study`, `17:cast`, `18:ignore`, `19:examine`.
+
+### `spells`
+
+Emitted in Vanilla when a spellcasting character's spell state signature changes (experience level, books carried, maximum mana, spells learned/forgotten, etc.). Not emitted per-frame:
+
+```json
+{
+  "t": "spells",
+  "list": [
+    {
+      "book": "a",
+      "idx": 0,
+      "letter": "a",
+      "name": "Magic Missile",
+      "level": 1,
+      "mana": 1,
+      "fail": 22,
+      "castable": true,
+      "aim": true
+    }
+  ]
+}
+```
+
 ### `ok` / `error` / `pong` / `bye`
 
 Acknowledgements and diagnostics, carrying an optional `detail` string. `bye` is
@@ -236,13 +349,20 @@ engine keeps waiting.
 
 ### Key specifications
 
-Named: `left` `right` `up` `down` `space` `enter` `return` `escape` `tab`
-`backspace` `delete` `home` `end`.
+Key specs sent via `key <spec>` are parsed case-insensitively and support standard DOM names:
 
-Control: `C-<letter>`, e.g. `C-s` to save, `C-w` to toggle wizard mode.
-
-Anything else uses its first character literally, so `key >` descends and
-`key @` completes character creation randomly.
+- **Named Keys (Case-Insensitive)**:
+  `escape` / `esc`, `enter` / `return`, `tab`, `space` (or literal `' '`), `backspace`, `delete`,
+  `left`, `right`, `up`, `down`, `home`, `end`, `pageup` / `pgup`, `pagedown` / `pgdn`.
+- **DOM Key Event Aliases**:
+  `Escape`, `Esc`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Enter`, `Return`, `Tab`, `Space`,
+  `Backspace`, `Delete`, `Home`, `End`, `PageUp`, `PageDown`.
+- **Control Chords**:
+  `C-<letter>` or `c-<letter>` (e.g. `C-s` or `c-s` to save, `C-w` to toggle wizard mode) and `^<letter>`.
+- **Single Character Keys**:
+  Any single character (`spec.length == 1`) is delivered verbatim (e.g. `key q`, `key >`, `key @`).
+- **Unknown Multi-Character Specs**:
+  Any unrecognized multi-character spec strictly returns `0` and is ignored by the engine (never truncated to `spec[0]`, preventing `CMD-P0-01`).
 
 ## Worked example
 
