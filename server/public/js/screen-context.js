@@ -257,26 +257,30 @@
             screenText.includes('inven:') ||
             screenText.includes('(inven') ||
             screenText.includes('(inventory)') ||
-            screenText.includes('inventory | equipment') ||
+            /inventory\s*\|\s*equipment/.test(screenText) ||
             screenText.includes('inventory |') ||
             screenText.includes('| equipment') ||
             screenText.includes('equip:') ||
             screenText.includes('(equip') ||
             screenText.includes('(equipment)') ||
             screenText.includes('quiver:') ||
-            screenText.includes('quiver') ||
+            screenText.includes('(quiver') ||
+            screenText.includes('choice:') ||
             screenText.includes('which item?') ||
             screenText.includes('which potion?') ||
             screenText.includes('which scroll?') ||
             screenText.includes('which spell?') ||
             screenText.includes('which prayer?') ||
             screenText.includes('which book?') ||
-            screenText.includes('wear/wield') ||
-            screenText.includes('take off') ||
+            screenText.includes('wear/wield which') ||
+            screenText.includes('wield which') ||
+            screenText.includes('wear which') ||
+            screenText.includes('take off which') ||
             screenText.includes('remove which item') ||
             screenText.includes('drop which') ||
             screenText.includes('throw which') ||
             screenText.includes('fire which') ||
+            screenText.includes('shoot which') ||
             screenText.includes('quaff which') ||
             screenText.includes('read which') ||
             screenText.includes('destroy which') ||
@@ -289,6 +293,7 @@
             screenText.includes('uninscribe which') ||
             screenText.includes('refill which') ||
             screenText.includes('refill with which') ||
+            screenText.includes('fuel with which') ||
             screenText.includes('cast which') ||
             screenText.includes('browse which') ||
             screenText.includes('study which') ||
@@ -713,6 +718,8 @@
     let lastSeq = null;
     let lastRealm = null;
     let lastFrameObj = null;
+    let lastLang = null;
+    let lastDecode = null;
     let cachedClassify = null;
 
     /**
@@ -790,8 +797,11 @@
         realm = realm || (frame && frame.realm) || 'angband';
         const isHeng = realm === 'hengband';
         const decode = opts && opts.decode;
+        const optLang = (opts && opts.lang) || '';
+        const optDecode = (opts && opts.decode) ? 1 : 0;
 
         const isMatch = frame && cachedClassify && !(opts && opts.forceRefresh) && realm === lastRealm &&
+            optLang === lastLang && optDecode === lastDecode &&
             (frame.seq !== undefined ? (lastSeq !== null && frame.seq === lastSeq) : (frame === lastFrameObj));
         if (isMatch) {
             return cachedClassify;
@@ -836,7 +846,7 @@
             mode = 'yesno';
         } else if (pf.isQuantityPrompt) {
             mode = 'quantity';
-        } else if (tb.isItemPrompt || (realm === 'frogcomposband' && (screenText.includes('inventory | equipment') || screenText.includes('inventory |') || screenText.includes('| equipment')))) {
+        } else if (tb.isItemPrompt || (realm === 'frogcomposband' && (/inventory\s*\|\s*equipment/.test(screenText) || screenText.includes('inventory |') || screenText.includes('| equipment')))) {
             mode = 'item-list';
         } else if (!inPlay) {
             if (bf.isReviewScreen) mode = 'review';
@@ -851,9 +861,9 @@
         // listKind determination
         let listKind = null;
         if (mode === 'item-list') {
-            if ((realm === 'hengband' || isHeng) && (screenText.includes('装備：') || screenText.includes('Equipment:') || screenText.includes('(Equipment)') || screenText.includes('equipment:') || screenText.includes('(equipment)'))) {
+            if ((realm === 'hengband' || isHeng) && (screenText.includes('装備：') || screenText.includes('equipment:') || screenText.includes('(equipment)'))) {
                 listKind = 'equip';
-            } else if ((realm === 'hengband' || isHeng) && (screenText.includes('持ち物：') || screenText.includes('Inventory:') || screenText.includes('(Inventory)') || screenText.includes('inventory:') || screenText.includes('(inventory)'))) {
+            } else if ((realm === 'hengband' || isHeng) && (screenText.includes('持ち物：') || screenText.includes('inventory:') || screenText.includes('(inventory)'))) {
                 listKind = 'inven';
             } else if (screenText.includes('(inventory)') || screenText.includes('inven:') || screenText.includes('inventory |') || (isHeng && screenText.includes('持ち物：'))) {
                 listKind = 'inven';
@@ -871,16 +881,45 @@
                 promptKind = 'command';
             } else if (realm === 'hengband' || isHeng) {
                 const hasListHeader = screenText.includes('持ち物：') || screenText.includes('装備：')
-                    || ((screenText.includes('Inventory:') || screenText.includes('Equipment:') || screenText.includes('(Inventory)') || screenText.includes('(Equipment)') || screenText.includes('inventory:') || screenText.includes('equipment:') || screenText.includes('(inventory)') || screenText.includes('(equipment)')) && (screenText.includes('Command:') || screenText.includes('command:')));
-                const hasCommandPrompt = screenText.includes('コマンド:') || screenText.includes('Command:') || screenText.includes('command:');
+                    || ((screenText.includes('inventory:') || screenText.includes('equipment:') || screenText.includes('(inventory)') || screenText.includes('(equipment)')) && screenText.includes('command:'));
+                const hasCommandPrompt = screenText.includes('コマンド:') || screenText.includes('command:');
                 if (hasListHeader) {
-                    listKind = (screenText.includes('装備：') || screenText.includes('Equipment:') || screenText.includes('(Equipment)') || screenText.includes('equipment:') || screenText.includes('(equipment)')) ? 'equip' : 'inven';
+                    listKind = (screenText.includes('装備：') || screenText.includes('equipment:') || screenText.includes('(equipment)')) ? 'equip' : 'inven';
                     promptKind = hasCommandPrompt ? 'command' : 'select';
                 } else {
                     promptKind = 'select';
                 }
-            } else if (realm === 'frogcomposband' && (screenText.includes('inventory | equipment') || screenText.includes('inventory |') || screenText.includes('| equipment'))) {
-                promptKind = 'command';
+            } else if (realm === 'frogcomposband' && (/inventory\s*\|\s*equipment/.test(screenText) || screenText.includes('inventory |') || screenText.includes('| equipment'))) {
+                const cy = (frame && frame.term && typeof frame.term.cy === 'number') ? frame.term.cy : -1;
+                const cyRowText = (cy >= 0 && frame.term.rows && frame.term.rows[cy] && frame.term.rows[cy].g) ? frame.term.rows[cy].g.toLowerCase() : '';
+                const hasExamine = screenText.includes('examine which item') || cyRowText.includes('examine which item');
+                const hasPrompt = !hasExamine && (
+                    screenText.includes('choice:') || cyRowText.includes('choice:') ||
+                    screenText.includes('quaff') || cyRowText.includes('quaff') ||
+                    screenText.includes('read') || cyRowText.includes('read') ||
+                    screenText.includes('eat') || cyRowText.includes('eat') ||
+                    screenText.includes('wear/wield') || cyRowText.includes('wear/wield') ||
+                    screenText.includes('wield') || cyRowText.includes('wield') ||
+                    screenText.includes('take off') || cyRowText.includes('take off') ||
+                    screenText.includes('drop') || cyRowText.includes('drop') ||
+                    screenText.includes('destroy') || cyRowText.includes('destroy') ||
+                    screenText.includes('throw') || cyRowText.includes('throw') ||
+                    screenText.includes('shoot') || cyRowText.includes('shoot') ||
+                    screenText.includes('zap') || cyRowText.includes('zap') ||
+                    screenText.includes('aim') || cyRowText.includes('aim') ||
+                    screenText.includes('use') || cyRowText.includes('use') ||
+                    screenText.includes('activate') || cyRowText.includes('activate') ||
+                    screenText.includes('fuel') || cyRowText.includes('fuel') ||
+                    screenText.includes('refill') || cyRowText.includes('refill') ||
+                    screenText.includes('inscribe') || cyRowText.includes('inscribe') ||
+                    screenText.includes('uninscribe') || cyRowText.includes('uninscribe') ||
+                    screenText.includes('identify') || cyRowText.includes('identify')
+                );
+                if (hasPrompt) {
+                    promptKind = 'select';
+                } else {
+                    promptKind = 'command';
+                }
             } else {
                 promptKind = 'select';
             }
@@ -889,46 +928,54 @@
         // verbPrompt determination
         let verbPrompt = null;
         if (mode === 'item-list' && promptKind === 'select') {
-            if (screenText.includes('wear/wield') || screenText.includes('wear which') || screenText.includes('wield which') || screenText.includes('どれを装備')) {
+            const cy = (frame && frame.term && typeof frame.term.cy === 'number') ? frame.term.cy : -1;
+            const cyRowText = (cy >= 0 && frame.term.rows && frame.term.rows[cy] && frame.term.rows[cy].g) ? frame.term.rows[cy].g.toLowerCase() : '';
+            const check = (s) => screenText.includes(s) || cyRowText.includes(s);
+
+            if (check('wear/wield') || check('wear which') || check('wield which') || check('どれを装備')) {
                 verbPrompt = 'wear';
-            } else if (screenText.includes('remove which') || screenText.includes('take off') || screenText.includes('どれを外しますか')) {
+            } else if (check('remove which') || check('take off') || check('どれを外しますか')) {
                 verbPrompt = 'remove';
-            } else if (screenText.includes('drop which') || screenText.includes('どれを落としますか')) {
+            } else if (check('drop which') || check('どれを落としますか') || (realm === 'frogcomposband' && check('drop'))) {
                 verbPrompt = 'drop';
-            } else if (screenText.includes('throw which') || screenText.includes('どれを投げますか')) {
+            } else if (check('throw which') || check('どれを投げますか') || (realm === 'frogcomposband' && check('throw'))) {
                 verbPrompt = 'throw';
-            } else if (screenText.includes('fire which')) {
+            } else if (check('fire which') || check('shoot which') || (realm === 'frogcomposband' && check('shoot'))) {
                 verbPrompt = 'fire';
-            } else if (screenText.includes('quaff which') || screenText.includes('どの薬')) {
+            } else if (check('quaff which') || check('どの薬') || (realm === 'frogcomposband' && check('quaff'))) {
                 verbPrompt = 'quaff';
-            } else if (screenText.includes('read which') || screenText.includes('どの巻物')) {
+            } else if (check('read which') || check('どの巻物') || (realm === 'frogcomposband' && check('read'))) {
                 verbPrompt = 'read';
-            } else if (screenText.includes('examine which') || screenText.includes('どれを調べますか')) {
+            } else if (check('examine which') || check('どれを調べますか')) {
                 verbPrompt = 'examine';
-            } else if (screenText.includes('destroy which')) {
+            } else if (check('destroy which') || (realm === 'frogcomposband' && check('destroy'))) {
                 verbPrompt = 'destroy';
-            } else if (screenText.includes('eat which') || screenText.includes('どれを食べますか')) {
+            } else if (check('eat which') || check('どれを食べますか') || (realm === 'frogcomposband' && check('eat'))) {
                 verbPrompt = 'eat';
-            } else if (screenText.includes('use which') || screenText.includes('どれを使いますか')) {
+            } else if (check('use which') || check('どれを使いますか') || (realm === 'frogcomposband' && check('use'))) {
                 verbPrompt = 'use';
-            } else if (screenText.includes('aim which') || screenText.includes('どの杖')) {
+            } else if (check('aim which') || check('どの杖') || (realm === 'frogcomposband' && check('aim'))) {
                 verbPrompt = 'aim';
-            } else if (screenText.includes('zap which') || screenText.includes('どのロッド')) {
+            } else if (check('zap which') || check('どのロッド') || (realm === 'frogcomposband' && check('zap'))) {
                 verbPrompt = 'zap';
-            } else if (screenText.includes('activate which') || screenText.includes('どれを発動')) {
+            } else if (check('activate which') || check('どれを発動') || (realm === 'frogcomposband' && check('activate'))) {
                 verbPrompt = 'activate';
-            } else if (screenText.includes('inscribe which') || screenText.includes('銘を刻み')) {
+            } else if (check('inscribe which') || check('銘を刻み') || (realm === 'frogcomposband' && check('inscribe'))) {
                 verbPrompt = 'inscribe';
-            } else if (screenText.includes('uninscribe which') || screenText.includes('銘を消')) {
+            } else if (check('uninscribe which') || check('銘を消') || (realm === 'frogcomposband' && check('uninscribe'))) {
                 verbPrompt = 'uninscribe';
-            } else if (screenText.includes('refill which') || screenText.includes('refill with which') || screenText.includes('fuel with which')) {
+            } else if (check('refill which') || check('refill with which') || check('fuel with which') || (realm === 'frogcomposband' && (check('refill') || check('fuel')))) {
                 verbPrompt = 'refill';
-            } else if (screenText.includes('cast which') || screenText.includes('use which book') || screenText.includes('どの呪文')) {
+            } else if (check('cast which') || check('use which book') || check('どの呪文')) {
                 verbPrompt = 'cast';
-            } else if (screenText.includes('browse which') || screenText.includes('どの本を')) {
+            } else if (check('browse which') || check('どの本を')) {
                 verbPrompt = 'browse';
-            } else if (screenText.includes('study which') || screenText.includes('どれを学習')) {
+            } else if (check('study which') || check('どれを学習')) {
                 verbPrompt = 'study';
+            } else if (realm === 'frogcomposband' && check('identify')) {
+                verbPrompt = 'identify';
+            } else if (realm === 'frogcomposband' && check('choice:')) {
+                verbPrompt = 'select';
             }
         }
 
@@ -969,6 +1016,8 @@
             lastSeq = frame.seq !== undefined ? frame.seq : null;
             lastFrameObj = frame;
             lastRealm = realm;
+            lastLang = optLang;
+            lastDecode = optDecode;
             cachedClassify = result;
         }
 

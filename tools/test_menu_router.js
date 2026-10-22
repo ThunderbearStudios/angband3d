@@ -147,7 +147,7 @@ function runTests() {
 
     MenuRouter.onFrame(hengWearPromptFrame, 'hengband');
     assert.strictEqual(sentKeys.length, 1, "Should send Escape to cancel ineligible prompt");
-    assert.strictEqual(sentKeys[0], 'Escape', "Sent key should be Escape");
+    assert.strictEqual(sentKeys[0], 'escape', "Sent key should be escape");
     assert.strictEqual(toasts.length, 1, "Should trigger a warning toast");
     assert.strictEqual(MenuRouter.getPending(), null, "Pending state must be cleared");
 
@@ -199,7 +199,7 @@ function runTests() {
     // never collide with item slot letters a-e or get ignored by the passive list.
     MenuRouter.chooseVerb('w');
     assert.strictEqual(sentKeys.length, 2, "Escape + Verb 'w' should be sent from passive Angband inventory");
-    assert.deepStrictEqual(sentKeys, ['Escape', 'w']);
+    assert.deepStrictEqual(sentKeys, ['escape', 'w']);
 
     // Simulate transient awaiting_command frame emitted by C engine right after Escape
     sentKeys = [];
@@ -267,7 +267,7 @@ function runTests() {
     sentKeys = [];
     assert.strictEqual(MenuRouter.route('b', fcbInvenFrame, 'frogcomposband'), true);
     MenuRouter.chooseVerb('w');
-    assert.deepStrictEqual(sentKeys, ['Escape', 'w'], "FCB Wear ('w') in gear_ui must exit passive list first");
+    assert.deepStrictEqual(sentKeys, ['escape', 'w'], "FCB Wear ('w') in gear_ui must exit passive list first");
     sentKeys = [];
     MenuRouter.onFrame({
         phase: 'play',
@@ -576,7 +576,87 @@ function runTests() {
     assert.ok(indexHtml.includes('id="edge-turn-left"') && indexHtml.includes('id="edge-turn-right"'),
         '3D HUD must include far-left and far-right viewport turn chevrons');
 
-    console.log("All MenuRouter, WS32, WS33, WS34, WS35, WS36 & WS38 unit tests passed successfully!");
+    // Test 19: WS42.1C Classifier & Router Hotfixes
+    // CMD-P0-04: Chooser precedence on letter 'd' matching visible item row
+    const multiItemFrame = {
+        phase: 'play',
+        realm: 'silq',
+        map: {},
+        term: {
+            rows: [
+                { g: "(Inventory) Command:" },
+                { g: "  a) a Wooden Torch" },
+                { g: "  b) a piece of Bread" },
+                { g: "  c) a Flask of Oil" },
+                { g: "  d) a Dagger (+0,+0)" }
+            ]
+        }
+    };
+    MenuRouter.clearPending();
+    sentKeys = [];
+    toasts = [];
+    assert.strictEqual(MenuRouter.route('a', multiItemFrame, 'silq'), true, "Must open chooser on 'a'");
+    assert.strictEqual(sentKeys.length, 0);
+    assert.strictEqual(MenuRouter.getPending().itemKey, 'a');
+
+    // Press 'd' while chooser is open: must re-select item 'd' instead of triggering Drop verb
+    assert.strictEqual(MenuRouter.route('d', multiItemFrame, 'silq'), true, "Must re-select item 'd'");
+    assert.strictEqual(sentKeys.length, 0, "No keys should be sent when re-selecting item 'd'");
+    assert.strictEqual(MenuRouter.getPending().itemKey, 'd', "Chooser must now point to itemKey 'd'");
+    assert.strictEqual(MenuRouter.getPending().itemName, "a Dagger (+0,+0)");
+
+    // CMD-P1-10: In passive command-loop lists, pressing a verb key on keyboard passes through
+    MenuRouter.clearPending();
+    const routedKbDrop = MenuRouter.route('d', multiItemFrame, 'silq', { source: 'keyboard' });
+    assert.strictEqual(routedKbDrop, false, "Native verb 'd' on keyboard must pass through to engine");
+
+    // CMD-P2-05: In Vanilla Angband, unmapped prompts pass through natively
+    const unmappedVanillaFrame = {
+        phase: 'play',
+        realm: 'angband',
+        map: {},
+        term: {
+            rows: [
+                { g: "Get which item?" },
+                { g: "  a) a Wooden Torch" }
+            ]
+        }
+    };
+    assert.strictEqual(MenuRouter.route('a', unmappedVanillaFrame, 'angband'), false, "Unmapped prompt must pass through");
+
+    // CMD-P3-03: Formatted readable toast
+    sentKeys = [];
+    toasts = [];
+    MenuRouter.clearPending();
+    MenuRouter.route('a', silqInvenFrame, 'silq');
+    MenuRouter.chooseVerb('w');
+    sentKeys = [];
+    MenuRouter.onFrame({
+        phase: 'play',
+        realm: 'silq',
+        map: {},
+        term: {
+            rows: [
+                { g: "  b) a piece of Bread" },
+                { g: "Wear/Wield which item?" }
+            ]
+        }
+    }, 'silq');
+    assert.strictEqual(sentKeys.length, 1);
+    assert.strictEqual(sentKeys[0], 'escape');
+    assert.strictEqual(toasts.length, 1);
+    assert.strictEqual(toasts[0], "Can't Wear/Wield that item.", "Toast must use readable verb label");
+
+    // CMD-P1-14: Deadline self-healing timer
+    MenuRouter.clearPending();
+    MenuRouter.route('a', silqInvenFrame, 'silq');
+    MenuRouter.chooseVerb('w');
+    assert.ok(MenuRouter.getPending());
+    MenuRouter.getPending().deadline = Date.now() - 50;
+    MenuRouter.onFrame(silqInvenFrame, 'silq');
+    assert.strictEqual(MenuRouter.getPending(), null, "Expired pending state must be self-healed");
+
+    console.log("All MenuRouter, WS32, WS33, WS34, WS35, WS36, WS38 & WS42.1C unit tests passed successfully!");
 }
 
 try {

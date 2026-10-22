@@ -117,9 +117,34 @@
         }
     };
 
-    let pending = null; // { item, listKind, step: 'chooser'|'await-prompt', verb, deadline } | null
+    let pending = null; // { item, itemKey, itemName, suggestedVerb, listKind, step: 'chooser'|'await-prompt', phase: 'choose-verb'|'await-prompt', verb, deadline } | null
+    let pendingTimeout = null;
     let customSendKey = null;
     let customToast = null;
+
+    const VERB_FROM_PROMPT = {
+        wear: 'w',
+        remove: 't',
+        drop: 'd',
+        throw: 'v',
+        fire: 'f',
+        quaff: 'q',
+        read: 'r',
+        examine: 'I',
+        destroy: 'k',
+        eat: 'E',
+        use: 'u',
+        aim: 'a',
+        zap: 'z',
+        activate: 'A',
+        inscribe: '{',
+        uninscribe: '}',
+        refill: 'F',
+        cast: 'm',
+        browse: 'b',
+        study: 'G',
+        select: 'select'
+    };
 
     function setSendKey(fn) {
         customSendKey = fn;
@@ -176,6 +201,10 @@
     }
 
     function clearPending() {
+        if (pendingTimeout) {
+            clearTimeout(pendingTimeout);
+            pendingTimeout = null;
+        }
         pending = null;
     }
 
@@ -269,8 +298,15 @@
         return html;
     }
 
-    function route(key, frame, realm) {
+    function route(key, frame, realm, optsOrSendKey, maybeOpts) {
         if (!frame || !realm) return false;
+
+        let opts = null;
+        if (typeof optsOrSendKey === 'function') {
+            opts = maybeOpts || null;
+        } else if (optsOrSendKey && typeof optsOrSendKey === 'object') {
+            opts = optsOrSendKey;
+        }
 
         const classifier = getClassifier(frame, realm);
         if (!classifier) return false;
@@ -278,17 +314,31 @@
         const isEscape = (key === 'Escape' || key === 'escape');
 
         // Case A: Chooser is currently open
-        if (pending && pending.step === 'chooser') {
+        if (pending && (pending.step === 'chooser' || pending.phase === 'choose-verb')) {
             if (isEscape) {
                 clearPending();
                 return true; // Handled client-side, do not close the underlying inventory
             }
 
             if (key === 'Enter' || key === 'enter') {
-                const sug = determineSuggestedVerb(pending.item, pending.listKind, realm);
+                const sug = pending.suggestedVerb || determineSuggestedVerb(pending.item, pending.listKind, realm);
                 if (sug) chooseVerb(sug);
                 else clearPending();
                 return true;
+            }
+
+            // CMD-P0-04: Check if key is a single lowercase letter matching an existing item row BEFORE checking VERBS
+            const items = (classifier.items && Array.isArray(classifier.items)) ? classifier.items : [];
+            const itemKeys = items.map(i => i.key);
+            if (key.length === 1 && /[a-z]/.test(key) && itemKeys.includes(key)) {
+                const row = items.find(i => i.key === key);
+                if (row) {
+                    pending.item = row;
+                    pending.itemKey = key;
+                    pending.itemName = row.label;
+                    pending.suggestedVerb = determineSuggestedVerb(row, pending.listKind, realm);
+                    return true;
+                }
             }
 
             const verbsForRealm = VERBS[realm];
@@ -302,6 +352,9 @@
                 const row = classifier.items.find(i => i.key === key);
                 if (row) {
                     pending.item = row;
+                    pending.itemKey = row.key;
+                    pending.itemName = row.label;
+                    pending.suggestedVerb = determineSuggestedVerb(row, pending.listKind, realm);
                     return true;
                 }
             }
@@ -315,24 +368,45 @@
         const isFcbGear = (realm === 'frogcomposband' && classifier.mode === 'item-list' && classifier.listKind && classifier.promptKind === 'command');
         const isAngbandSelect = (realm === 'angband' && classifier.mode === 'item-list' && !classifier.verbPrompt);
 
+        // CMD-P2-05: In isAngbandSelect, if sc.verbPrompt is unmapped (and not standard inventory/equipment list), pass through
+        if (isAngbandSelect) {
+            const hasMappedVerb = classifier.verbPrompt && VERB_FROM_PROMPT[classifier.verbPrompt];
+            const isStandardList = classifier.listKind === 'inven' || classifier.listKind === 'inventory' ||
+                                   classifier.listKind === 'equip' || classifier.listKind === 'equipment';
+            if (!hasMappedVerb && !isStandardList) {
+                return false;
+            }
+        }
+
         if (isCommandPrompt || isFcbGear || isAngbandSelect) {
             if (isEscape) {
                 clearPending();
                 return false; // Pass escape through to engine to close inventory/equipment
             }
 
+            const verbsForRealm = VERBS[realm] || {};
+            const isVerbKey = Boolean(verbsForRealm[key]);
+
+            // CMD-P1-10: In passive command-loop lists, if user presses a key that is a realm verb AND opts.source === 'keyboard',
+            // let native verb keys work cleanly
+            if (isCommandPrompt && isVerbKey && opts && opts.source === 'keyboard') {
+                return false;
+            }
+
             // Letters/digits that match a listed item row open the Action Chooser
             if (key.length === 1 && /[a-zA-Z0-9]/.test(key) && classifier.items) {
                 const isLower = /[a-z]/.test(key);
-                const verbsForRealm = VERBS[realm] || {};
-                const isVerbKey = Boolean(verbsForRealm[key]);
                 if (isLower || (!isVerbKey && realm === 'frogcomposband')) {
                     const row = classifier.items.find(i => i.key === key);
                     if (row) {
                         pending = {
                             item: row,
+                            itemKey: row.key,
+                            itemName: row.label,
+                            suggestedVerb: determineSuggestedVerb(row, classifier.listKind, realm),
                             listKind: classifier.listKind,
                             step: 'chooser',
+                            phase: 'choose-verb',
                             verb: null,
                             deadline: 0,
                             realm,
@@ -370,7 +444,26 @@
 
         pending.verb = verb;
         pending.step = 'await-prompt';
-        pending.deadline = Date.now() + 1500;
+        pending.phase = 'await-prompt';
+        const delay = 1500;
+        pending.deadline = Date.now() + delay;
+
+        // CMD-P1-14: Schedule a self-healing timer that clears pending if still in await-prompt past deadline
+        if (pendingTimeout) {
+            clearTimeout(pendingTimeout);
+            pendingTimeout = null;
+        }
+        const timer = setTimeout(() => {
+            if (pending && (pending.step === 'await-prompt' || pending.phase === 'await-prompt')) {
+                if (Date.now() >= pending.deadline) {
+                    clearPending();
+                }
+            }
+        }, delay);
+        if (timer && typeof timer.unref === 'function') {
+            timer.unref();
+        }
+        pendingTimeout = timer;
 
         // In Vanilla Angband passive `Select Item:` and FrogComposBand passive `gear_ui`,
         // lowercase verb keys ('d', 'a', 'w', 'q', 'r', etc.) collide with item slot letters a-z
@@ -378,7 +471,7 @@
         // then dispatch the verb key to open the engine's verb-specific item prompt.
         if (pending.fromPassiveAngbandList || pending.fromPassiveFcbList) {
             pending.awaitingVerbPrompt = true;
-            getSendKey()('Escape');
+            getSendKey()('escape');
             getSendKey()(verb);
             return;
         }
@@ -390,7 +483,7 @@
     function onFrame(frame, realm) {
         if (!frame || !realm) return;
 
-        if (pending && pending.step === 'chooser') {
+        if (pending && (pending.step === 'chooser' || pending.phase === 'choose-verb')) {
             const classifier = getClassifier(frame, realm);
             if (!classifier || classifier.mode !== 'item-list') {
                 clearPending();
@@ -398,7 +491,7 @@
             }
         }
 
-        if (pending && pending.step === 'await-prompt') {
+        if (pending && (pending.step === 'await-prompt' || pending.phase === 'await-prompt')) {
             const now = Date.now();
             if (now > pending.deadline) {
                 clearPending();
@@ -427,7 +520,7 @@
                     }
                     pending.sentEscapeRetry = true;
                     pending.awaitingVerbPrompt = true;
-                    getSendKey()('Escape');
+                    getSendKey()('escape');
                     getSendKey()(pending.verb);
                     return;
                 }
@@ -442,8 +535,11 @@
                     getSendKey()(pending.item.key);
                 } else {
                     // Item was filtered out by engine (e.g. tried to wear food)
-                    getSendKey()('Escape');
-                    getToast()("Can't " + (pending.verb || 'use') + " that item.");
+                    getSendKey()('escape');
+                    const verbKey = pending.verb;
+                    const verbEntry = (realm && VERBS[realm] && verbKey) ? VERBS[realm][verbKey] : null;
+                    const verbLabel = (verbEntry && verbEntry.label) ? verbEntry.label : (verbKey || 'use');
+                    getToast()("Can't " + verbLabel + " that item.");
                 }
                 clearPending();
                 return;
@@ -480,13 +576,14 @@
             return [k];
         }
         if (options && (options.fromPassiveAngbandList || options.fromPassiveFcbList)) {
-            return ['Escape', v, k];
+            return ['escape', v, k];
         }
         return [v, k];
     }
 
     // Export public API
     exports.VERBS = VERBS;
+    exports.VERB_FROM_PROMPT = VERB_FROM_PROMPT;
     exports.route = route;
     exports.onFrame = onFrame;
     exports.chooseVerb = chooseVerb;
