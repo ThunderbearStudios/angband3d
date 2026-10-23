@@ -1,10 +1,11 @@
 const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const WebSocket = require('../server/node_modules/ws');
 
-const ARTIFACT_DIR = '<USER_HOME>\\.gemini\\antigravity-ide\\brain\\0f2347f6-5301-4e25-bf9f-1ec2dc5f436e';
+const ARTIFACT_DIR = process.env.ANGBAND3D_ARTIFACT_DIR || path.join(os.tmpdir(), 'angband3d-artifacts');
 const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
 function sleep(ms) {

@@ -752,7 +752,7 @@ function resolveSavefileName(requestedSave, realmId = 'angband') {
     const saveDirs = getSaveDirsForRealm(realmId);
 
     // Check each save directory for candidate matches in order:
-    // 1. Exact match (e.g. "Player.sav" or "Brian")
+    // 1. Exact match (e.g. "Player.sav" or "Player")
     // 2. Name with .sav extension ("Player.sav")
     // 3. Name without extension ("Player")
     for (const dir of saveDirs) {

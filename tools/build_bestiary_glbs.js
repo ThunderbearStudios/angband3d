@@ -18,6 +18,7 @@
 
 const fs = require('fs');
 const https = require('https');
+const os = require('os');
 const path = require('path');
 const assert = require('assert');
 
@@ -25,7 +26,7 @@ const SERVER_BESTIARY_DIR = path.resolve(__dirname, '../server/public/assets/mod
 const CLIENT_BESTIARY_DIR = path.resolve(__dirname, '../client/assets/models/monsters/bestiary');
 const SERVER_ITEMS_DIR = path.resolve(__dirname, '../server/public/assets/models/items');
 const CLIENT_ITEMS_DIR = path.resolve(__dirname, '../client/assets/models/items');
-const SCRATCH_CANDIDATES_DIR = '<USER_HOME>\\.gemini\\antigravity\\brain\\9a3373c0-8bb3-490b-b006-c7d9c5c16e02\\scratch\\candidates';
+const SCRATCH_CANDIDATES_DIR = process.env.ANGBAND3D_CANDIDATES_DIR || path.join(os.tmpdir(), 'angband3d-candidates');
 
 const BESTIARY_SOURCES = [
     {

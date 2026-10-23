@@ -69,3 +69,10 @@ tools/temp_chamfer_profile_*/
 *.jks
 keystore.properties
 
+# Internal studio tooling & local agent rules
+/thunderbear-agentic-mastery/
+CLAUDE.md
+.cursorrules
+GEMINI.md
+.agents/
+.agent/

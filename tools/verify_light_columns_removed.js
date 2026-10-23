@@ -139,7 +139,8 @@ async function verify() {
 
                     // Capture screenshot
                     const shot = await send('Page.captureScreenshot', { format: 'png' });
-                    const artifactDir = '<USER_HOME>\\.gemini\\antigravity-ide\\brain\\0f2347f6-5301-4e25-bf9f-1ec2dc5f436e';
+                    const artifactDir = process.env.ANGBAND3D_ARTIFACT_DIR || path.join(require('os').tmpdir(), 'angband3d-artifacts');
+                    fs.mkdirSync(artifactDir, { recursive: true });
                     const outPath = path.join(artifactDir, 'vanilla_town_no_light_columns.png');
                     fs.writeFileSync(outPath, Buffer.from(shot.data, 'base64'));
                     console.log('✓ Saved screenshot to:', outPath);
