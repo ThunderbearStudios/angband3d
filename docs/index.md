@@ -9,7 +9,7 @@ description: "Four authoritative C/C++ roguelike engines (Vanilla, Sil-Q, FrogCo
 > **Four Legendary Roguelike Engines. One Living 3D World. Over Three Decades of Tactical History Preserved Through High-Performance Engine Decoupling.**
 
 [![Play Online in Browser](https://img.shields.io/badge/⚔_Play_Online-angband3d.com-gold?style=for-the-badge&logo=googlechrome)](https://angband3d.com)
-[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://github.com/ThunderbearStudios/angband3d/blob/fix/award-pass/LICENSE)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://github.com/ThunderbearStudios/angband3d/blob/main/LICENSE)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-ThunderbearStudios%2Fangband3d-blue?style=for-the-badge&logo=github)](https://github.com/ThunderbearStudios/angband3d)
 
 ---
@@ -202,7 +202,7 @@ Every asset in Angband 3D adheres strictly to permissive, open-source licensing:
 * **Photogrammetry 3D Models & PBR Textures**: CC0 1.0 Universal Public Domain Dedication (**Poly Haven**, **KayKit**, **Kenney**, **Quaternius**).
 * **Hand-Painted Creature & Item Atlases**: Master fantasy pixel art by **Raymond "Shockbolt" Gaustadnes** and the Angband Development Team (GPL-2.0).
 * **Typography**: SIL Open Font License 1.1 (*Cinzel*, *Outfit*, *Fira Code*).
-* See [CREDITS.md](file:///c:/Dev/angband3d/CREDITS.md) for full licensing details and asset citations.
+* See [CREDITS.md](../CREDITS.md) for full licensing details and asset citations.
 
 ---
 
@@ -255,8 +255,8 @@ For full native desktop compilation (Godot 4 C#) and Cloud Run Docker deployment
 * **Trademarks**: *The Lord of the Rings*, *The Hobbit*, *Middle-earth*, *Angband*, and *Moria* are trademarks or registered trademarks of **Middle-earth Enterprises, LLC** (Embracer Group AB) and/or **The Tolkien Estate**. This project is not affiliated with, endorsed by, or sponsored by Middle-earth Enterprises or The Tolkien Estate.
 * **Strict Non-Commercial Policy**: Angband 3D is 100% free software. It contains **no advertisements, no microtransactions, no paywalls, and accepts no donations or commercial sponsorship**.
 * **Open Source Licensing**:
-  * Authoritative game engines: **GNU General Public License v2** (GPL-2.0) across **Angband 4.2.6**, **Sil-Q 1.5.0**, **FrogComposBand 7.1.1**, and **Hengband 3.0.1**. Source code is included in full. Full terms in [`LICENSE`](https://github.com/ThunderbearStudios/angband3d/blob/fix/award-pass/LICENSE) and [`LEGAL.md`](https://github.com/ThunderbearStudios/angband3d/blob/fix/award-pass/LEGAL.md).
+  * Authoritative game engines: **GNU General Public License v2** (GPL-2.0) across **Angband 4.2.6**, **Sil-Q 1.5.0**, **FrogComposBand 7.1.1**, and **Hengband 3.0.1**. Source code is included in full. Full terms in [`LICENSE`](https://github.com/ThunderbearStudios/angband3d/blob/main/LICENSE) and [`LEGAL.md`](https://github.com/ThunderbearStudios/angband3d/blob/main/LEGAL.md).
   * 3D Models & PBR Textures: Permissive **CC0 1.0 Universal** public domain dedications (**Poly Haven**, **KayKit**, **Kenney**, **Quaternius**).
   * Monster & Item Pixel Art: Raymond "Shockbolt" Gaustadnes and the Angband Development Team (GPL-2.0 / Angband Open Source License).
-  * Fonts: SIL Open Font License 1.1. Full credits in [`CREDITS.md`](https://github.com/ThunderbearStudios/angband3d/blob/fix/award-pass/CREDITS.md).
+  * Fonts: SIL Open Font License 1.1. Full credits in [`CREDITS.md`](https://github.com/ThunderbearStudios/angband3d/blob/main/CREDITS.md).
 

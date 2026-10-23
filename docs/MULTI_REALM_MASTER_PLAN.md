@@ -1,9 +1,7 @@
 # Multi-Realm Master Architecture & Implementation Index
 
-> **Archive Notice**: The full historical 3,800+ line implementation dossier has been preserved and archived per WS8.1 (Decision D4) at [`docs/archive/MULTI_REALM_MASTER_PLAN_2026-10.md`](archive/MULTI_REALM_MASTER_PLAN_2026-10.md).
 > For the active implementation roadmap and live operational state, consult:
 > - [`docs/STATE.md`](STATE.md) — Live checklist, gate results, and current task
-> - [`docs/plan/EXECUTOR_START_HERE.md`](plan/EXECUTOR_START_HERE.md) — Execution rules, invariants, and success bar
 > - [`docs/LLM_CONTEXT.md`](LLM_CONTEXT.md) — Architectural invariants, file map, and symbol index
 > - [`docs/PROTOCOL.md`](PROTOCOL.md) — Wire protocol and API specifications
 

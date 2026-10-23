@@ -379,9 +379,9 @@ To evaluate Angband 3D with zero setup friction:
 
 ## 8. Summary of Accompanying Governance Documents
 
-- [PRESSKIT.md](file:///c:/Dev/angband3d/PRESSKIT.md): Standard international Press Kit & Factsheet.
-- [ACCESSIBILITY.md](file:///c:/Dev/angband3d/docs/ACCESSIBILITY.md): Complete GAG & AbleGamers accessibility compliance audit.
-- [PROTOCOL.md](file:///c:/Dev/angband3d/docs/PROTOCOL.md): Wire specification for the zero-allocation JSON streaming protocol.
-- [GENERIC_ENGINE_INTEGRATION.md](file:///c:/Dev/angband3d/docs/GENERIC_ENGINE_INTEGRATION.md): Architecture blueprint for porting NetHack, Moria, and DCSS.
-- [CODE_OF_CONDUCT.md](file:///c:/Dev/angband3d/CODE_OF_CONDUCT.md): Contributor Covenant v2.1.
-- [SECURITY.md](file:///c:/Dev/angband3d/SECURITY.md): Security vulnerability reporting and response protocol.
+- [PRESSKIT.md](../PRESSKIT.md): Standard international Press Kit & Factsheet.
+- [ACCESSIBILITY.md](ACCESSIBILITY.md): Complete GAG & AbleGamers accessibility compliance audit.
+- [PROTOCOL.md](PROTOCOL.md): Wire specification for the zero-allocation JSON streaming protocol.
+- [GENERIC_ENGINE_INTEGRATION.md](GENERIC_ENGINE_INTEGRATION.md): Architecture blueprint for porting NetHack, Moria, and DCSS.
+- [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md): Contributor Covenant v2.1.
+- [SECURITY.md](../SECURITY.md): Security vulnerability reporting and response protocol.

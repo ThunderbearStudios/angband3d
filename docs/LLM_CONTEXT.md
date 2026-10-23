@@ -179,10 +179,10 @@ Rather than rewriting game rules, each engine runs as a headless child process (
 57. **Shared Singleton 3D VFX Geometries & Asset Bloat Hygiene (`L43`)**: All 3D action/spell VFX (`slash`, `crit_slash`, `blunt`, `pierce`, `breath`, `lightning`, `fireball`, `aura`, `spawnDetonationDome`, `spawnHitSparks`) must reuse pre-allocated `_shared*Geo` singletons in `_ensureSharedVfxResources()` (tagged `_sharedGeometry = true`), never allocating per-hit `SphereGeometry`. Keep `server/public/assets/` free of unreferenced media caches and allocate browser test profiles in `os.tmpdir()`.
 58. **Bulletproof Android Release Signing Fallback (`L44`)**: In `android/app/build.gradle`, `buildTypes.release.signingConfig` must use `(signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug)` so `./gradlew assembleRelease` succeeds in CI even when custom keystore secrets are absent.
 
-> **Master Architecture & Lessons Learned Guide**: For complete historical context, architectural rationale, and deep-dive explanations of all lessons learned across the project, consult [docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md](file:///c:/Dev/angband3d/docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md) and [docs/plan/master_audit_and_execution_plan.md](file:///c:/Dev/angband3d/docs/plan/master_audit_and_execution_plan.md).
+> **Master Architecture & Lessons Learned Guide**: For complete historical context, architectural rationale, and deep-dive explanations of all lessons learned across the project, consult [docs/BEST_PRACTICES_AND_LESSONS_LEARNED.md](BEST_PRACTICES_AND_LESSONS_LEARNED.md).
 
 ## Token Efficiency & LLM Rate Limit Protocol
-1. **Zero-Discovery Startup**: Consult `AGENTS.md`, `docs/STATE.md`, and `docs/plan/master_audit_and_execution_plan.md` rather than running exploratory searches.
+1. **Zero-Discovery Startup**: Consult `AGENTS.md`, `docs/STATE.md` rather than running exploratory searches.
 2. **Windowed Reads**: Limit `view_file` to specific line ranges (30-100 lines max).
 3. **Targeted Replacements**: Use `replace_file_content` with 3 lines of context.
 4. **Check State**: Fast verify via `node tools/run_tests.js --tier fast`, `python tools/smoke_test.py` (0.5s), and `dotnet build client/angband3d.csproj` (1.3s).
