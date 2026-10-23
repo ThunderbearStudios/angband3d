@@ -27,6 +27,8 @@ variants/**/.git
 variants/**/.git/**
 variants/**/build
 variants/**/build/**
+variants/**/build-bridge
+variants/**/build-bridge/**
 variants/**/VisualStudio
 variants/**/VisualStudio/**
 variants/**/msvc2022
