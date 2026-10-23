@@ -37,7 +37,7 @@ Angband 3D is a derivative work based upon the authoritative **Angband 4.2.6** r
   - Copyright © 1997–2024 Ben Harrison, James E. Wilson, Robert Alan Koeneke, and the Angband development team.
   - Historical roots: *Moria* © 1983 Robert Alan Koeneke & Jimmey Wayne Todd Jr.; *Umoria* © 1988–1992 Alex Cutler, Andy Astrand, and David Grabiner.
 - **Angband 3D Frontend & Bridge Copyright**:
-  - Copyright © 2026 Angband 3D contributors.
+  - Copyright © 2026 [Thunderbear Studios](https://thunderbearstudios.org) and Angband 3D contributors.
 - **License Terms**:
   - This program is free software; you can redistribute it and/or modify it under the terms of the **GNU General Public License, Version 2** (GPL-2.0) as published by the Free Software Foundation.
   - The complete license text is available in [`LICENSE`](LICENSE) and upstream in `engine/docs/copying.rst`.
