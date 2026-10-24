@@ -15,3 +15,6 @@
 | `L41` | Combat Foley | Use the 78-file non-vocal foley bank + `createDungeonReverbImpulse`; keep passive regen silent (`L49`). |
 | `L45` | Server Security | Verify session ownership tokens with `crypto.timingSafeEqual` (`CWE-208`) and restrict CORS origins (`L46`). |
 | `L48` | Deterministic CI | Use `npm ci` in `server/Dockerfile` and `.github/workflows/release.yml` (`SLSA v1.0`). |
+| `L50` | License Metadata | Keep root `LICENSE` verbatim SPDX `GPL-2.0` text for GitHub Licensee detection; place derivation/asset notes in `LEGAL.md` & `CREDITS.md`. |
+| `L51` | GitHub Actions | Ensure repository Actions permission `allowed_actions` is set to `"all"` after org creation/transfer so `actions/checkout@v4` does not hit `startup_failure`. |
+| `L52` | WASM & Cloud Build | Compile offline WASM with `emcmake.exe cmake -DCMAKE_BUILD_TYPE=Release` (`2.79 MB`) and exclude `variants/**/build-bridge` in `.gcloudignore`. |
