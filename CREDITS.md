@@ -6,7 +6,8 @@ This document provides complete attribution, provenance, and licensing details f
 
 ## 1. Project Creation & Engineering
 
-- **Design, 3D Architecture & Engineering**: Developed and presented by **Thunderbear Studios** and the Angband 3D open-source contributors.
+- **Design, 3D Architecture & Engineering**: Developed and presented by **Thunderbear Studios** ([https://thunderbearstudios.org](https://thunderbearstudios.org)) and the Angband 3D open-source contributors.
+- **Brand & Logo Notice**: The **Thunderbear Studios™** name and the **Flaming Bear-Paw & Crossbones Emblem (`thunderbear_logo.png`)** are proprietary trademarks and copyrighted works (**© 2026 Thunderbear Studios. All rights reserved.**) and are excluded from the `GPL-2.0` and `CC0` open-source licenses. See [`LEGAL.md` §5](LEGAL.md) for trademark terms.
 - **Project Repository**: [https://github.com/ThunderbearStudios/angband3d](https://github.com/ThunderbearStudios/angband3d)
 
 ---

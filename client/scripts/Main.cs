@@ -2054,26 +2054,7 @@ public partial class Main : Node
 
         if (_inSplash)
         {
-            if (key.Keycode == Key.Escape)
-            {
-                GetTree().Quit();
-            }
-            else if (key.Keycode is Key.Key2 or Key.Kp2 or Key.G or Key.P)
-            {
-                OpenGuide();
-            }
-            else if (key.Keycode is Key.V)
-            {
-                OS.ShellOpen("https://angband3d.com/demo");
-            }
-            else if (key.Keycode is Key.Key3 or Key.Kp3 or Key.W)
-            {
-                OS.ShellOpen("https://angband.readthedocs.io/");
-            }
-            else
-            {
-                OpenMenu();
-            }
+            OpenMenu();
             GetViewport().SetInputAsHandled();
             return;
         }

@@ -409,9 +409,12 @@
             </div>
             <!-- Top Turning Shoulder Wings -->
             <div class="dpad-turn-wings">
-                <button type="button" id="dpad-turn-left" class="dpad-btn dpad-turn-btn" title="Turn Camera Left 90° [Left Arrow]"><span class="dpad-turn-symbol">↺</span> <span class="dpad-turn-text">Turn L</span></button>
-                <button type="button" id="dpad-run-toggle" class="dpad-btn dpad-run-toggle" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="dpad-run-icon" class="dpad-run-icon">🚶</span> <span id="dpad-run-text" class="dpad-run-text">Walk</span></button>
-                <button type="button" id="dpad-turn-right" class="dpad-btn dpad-turn-btn" title="Turn Camera Right 90° [Right Arrow]"><span class="dpad-turn-symbol">↻</span> <span class="dpad-turn-text">Turn R</span></button>
+                <button type="button" id="dpad-turn-left" class="dpad-btn dpad-turn-btn" title="Turn Camera Left 90° [Left Arrow]"><span class="dpad-turn-symbol">↺</span>
+ <span class="dpad-turn-text">Turn L</span></button>
+                <button type="button" id="dpad-run-toggle" class="dpad-btn dpad-run-toggle" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="dpad-run-icon" class="dpad-run-icon">🚶</span>
+ <span id="dpad-run-text" class="dpad-run-text">Walk</span></button>
+                <button type="button" id="dpad-turn-right" class="dpad-btn dpad-turn-btn" title="Turn Camera Right 90° [Right Arrow]"><span class="dpad-turn-symbol">↻</span>
+ <span class="dpad-turn-text">Turn R</span></button>
             </div>
 
             <!-- Directional Movement & Strafe Grid -->
@@ -621,149 +624,46 @@
             </div>
         </div>
 
-        <!-- Splash Screen Overlay -->
-        <div id="splash-overlay">
-            <div class="splash-card">
-                <div class="splash-ornament-corner top-left"></div>
-                <div class="splash-ornament-corner top-right"></div>
-                <div class="splash-ornament-corner bottom-left"></div>
-                <div class="splash-ornament-corner bottom-right"></div>
-
-                <div class="splash-logo-wrap">
-                    <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" class="splash-logo">
+        <!-- Splash Screen Overlay (Zero-Button Showcase Billboard Mode) -->
+        <div id="splash-overlay" role="region" aria-label="Angband 3D Showcase Billboard ? Click or Press Any Key to Enter">
+            <div class="splash-card splash-billboard-mode">
+                <div class="splash-ornament-corner top-left"></div><div class="splash-ornament-corner top-right"></div>
+                <div class="splash-ornament-corner bottom-left"></div><div class="splash-ornament-corner bottom-right"></div>
+                <div class="splash-logo-wrap protected-crest" oncontextmenu="return false;">
+                    <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios Official Emblem" class="splash-logo" width="78" height="78" fetchpriority="high" draggable="false">
                 </div>
-                <div class="splash-presentation">★ &nbsp; T H U N D E R B E A R &nbsp; S T U D I O S &nbsp; ★</div>
-                
+                <div class="splash-presentation">? &nbsp; T H U N D E R B E A R &nbsp; S T U D I O S &nbsp; ?</div>
+                <div class="splash-billboard-sub">? P R E S E N T S ?</div>
                 <h1 class="splash-title">ANGBAND 3D</h1>
-                <div class="splash-subtitle">The Classic Roguelike Dungeon Crawler • Reborn in First-Person 3D</div>
+                <div class="splash-subtitle">Four Legendary C/C++ Roguelike Engines ? Reborn in First-Person 3D &amp; Gemini Voice AI</div>
 
-                <!-- Feature Badge Strip -->
-                <div class="splash-feature-pills">
-                    <span class="splash-pill">✦ 2K PBR &amp; Celestial Sky</span>
-                    <span class="splash-pill">◈ Voiced Lorekeeper</span>
-                    <span class="splash-pill">⛨ Hero Action Sketch</span>
-                    <span class="splash-pill">⚔ 4 Native Engines</span>
-                </div>
-
-                <div class="splash-instructions">⚔ Choose a Legendary Realm to Begin Your Descent ⚔</div>
-
-                <!-- 4 Interactive Realm Selection Cards (Forced Choice on Splash) -->
-                <div class="splash-realm-grid" id="splash-realm-grid">
-                    <!-- Realm 1: Angband 4.2.6 -->
-                    <div class="splash-realm-card realm-option active" data-realm="angband" role="button" tabindex="0" title="Select Vanilla Angband 4.2.6 [1]">
-                        <div class="splash-realm-badge" id="splash-badge-angband">✦ ATTUNED</div>
-                        <div class="splash-realm-header">
-                            <span class="splash-realm-icon">⚔</span>
-                            <div class="splash-realm-title-group">
-                                <span class="splash-realm-key"><kbd>[1]</kbd></span>
-                                <h3 class="splash-realm-name">Angband 4.2.6</h3>
-                            </div>
-                        </div>
-                        <div class="splash-realm-tagline">The Classic Tolkien Descent</div>
-                        <p class="splash-realm-desc">Bit-for-bit 4.2.6 engine mechanics. 100 dungeon levels into the Iron Fortress to overthrow Morgoth.</p>
-                        <div class="splash-realm-chips">
-                            <span class="splash-chip">Bit-for-Bit Rules</span>
-                            <span class="splash-chip">100 Depths</span>
-                            <span class="splash-chip">Scholar Voice</span>
-                        </div>
+                <div class="splash-billboard-grid">
+                    <div class="splash-billboard-pillar">
+                        <div class="splash-pillar-header"><span class="splash-pillar-icon" aria-hidden="true">?</span><h3 class="splash-pillar-title">Four Complete C/C++ Realms in One</h3></div>
+                        <p class="splash-pillar-desc">Play unmodified Vanilla Angband 4.2.6, Sil-Q 1.5, FrogComposBand 7.1, or Hengband 3.0?running their authentic native C/C++ engines bit-for-bit.</p>
                     </div>
-
-                    <!-- Realm 2: FrogComposBand -->
-                    <div class="splash-realm-card realm-option" data-realm="frogcomposband" role="button" tabindex="0" title="Select FrogComposBand [2]">
-                        <div class="splash-realm-badge" id="splash-badge-frogcomposband" style="display:none;">✦ ATTUNED</div>
-                        <div class="splash-realm-header">
-                            <span class="splash-realm-icon">◈</span>
-                            <div class="splash-realm-title-group">
-                                <span class="splash-realm-key"><kbd>[2]</kbd></span>
-                                <h3 class="splash-realm-name">FrogComposBand</h3>
-                            </div>
-                        </div>
-                        <div class="splash-realm-tagline">Wilderness &amp; Monster Races</div>
-                        <p class="splash-realm-desc">Over 50 classes, playable monster races (Dragons, Angels, Ringwraiths), and vast overland wilderness.</p>
-                        <div class="splash-realm-chips">
-                            <span class="splash-chip">50+ Classes</span>
-                            <span class="splash-chip">Monster Races</span>
-                            <span class="splash-chip">Overland World</span>
-                        </div>
+                    <div class="splash-billboard-pillar">
+                        <div class="splash-pillar-header"><span class="splash-pillar-icon" aria-hidden="true">??</span><h3 class="splash-pillar-title">60 FPS First-Person 3D + Instant [Tab] CRT</h3></div>
+                        <p class="splash-pillar-desc">Zero-turn 360? camera look, 2K photogrammetry PBR, 58 3D monster models, and 1-key [Tab] switching to the classic 80?24 terminal &amp; Grimoire Deck.</p>
                     </div>
-
-                    <!-- Realm 3: Hengband -->
-                    <div class="splash-realm-card realm-option" data-realm="hengband" role="button" tabindex="0" title="Select Hengband 3.0+ [3]">
-                        <div class="splash-realm-badge" id="splash-badge-hengband" style="display:none;">✦ ATTUNED</div>
-                        <div class="splash-realm-header">
-                            <span class="splash-realm-icon">⛩</span>
-                            <div class="splash-realm-title-group">
-                                <span class="splash-realm-key"><kbd>[3]</kbd></span>
-                                <h3 class="splash-realm-name">Hengband 3.0+</h3>
-                            </div>
-                        </div>
-                        <div class="splash-realm-tagline">Eastern Mythos &amp; Amberite Lore</div>
-                        <p class="splash-realm-desc">Zelazny's Amber &amp; Japanese folklore. Ninja, magic realms, and quest citadels.</p>
-                        <div class="splash-realm-chips">
-                            <span class="splash-chip">Eastern Mythos</span>
-                            <span class="splash-chip">Quest Citadels</span>
-                            <span class="splash-chip">EN / 日本語</span>
-                        </div>
-                        <div class="splash-lang-select-wrap">
-                            <label for="splash-hengband-lang-select">Language:</label>
-                            <select id="splash-hengband-lang-select" title="Toggle Hengband Language">
-                                <option value="en">English (hengband-en)</option>
-                                <option value="jp">日本語 / Japanese (Kanji)</option>
-                            </select>
-                        </div>
+                    <div class="splash-billboard-pillar">
+                        <div class="splash-pillar-header"><span class="splash-pillar-icon" aria-hidden="true">??</span><h3 class="splash-pillar-title">Google Gemini Voiced Living Chronicle</h3></div>
+                        <p class="splash-pillar-desc">30 distinct AI Lorekeeper voice personas grounded in live combat telemetry, speculative boss pre-warming, and illustrated Hero Action Sketches.</p>
                     </div>
-
-                    <!-- Realm 4: Sil-Q -->
-                    <div class="splash-realm-card realm-option" data-realm="silq" role="button" tabindex="0" title="Select Sil-Q 1.5+ [4]">
-                        <div class="splash-realm-badge" id="splash-badge-silq" style="display:none;">✦ ATTUNED</div>
-                        <div class="splash-realm-header">
-                            <span class="splash-realm-icon">👑</span>
-                            <div class="splash-realm-title-group">
-                                <span class="splash-realm-key"><kbd>[4]</kbd></span>
-                                <h3 class="splash-realm-name">Sil-Q 1.5+</h3>
-                            </div>
-                        </div>
-                        <div class="splash-realm-tagline">First Age Stealth &amp; Crown Heist</div>
-                        <p class="splash-realm-desc">Tactical stealth roguelike in the First Age. Sing songs of power, evade Balrogs, and pry a Silmaril.</p>
-                        <div class="splash-realm-chips">
-                            <span class="splash-chip">Stealth Radius</span>
-                            <span class="splash-chip">Songs of Power</span>
-                            <span class="splash-chip">Crown Heist</span>
-                        </div>
+                    <div class="splash-billboard-pillar">
+                        <div class="splash-pillar-header"><span class="splash-pillar-icon" aria-hidden="true">?</span><h3 class="splash-pillar-title">Play Anywhere, Keep Every Save</h3></div>
+                        <p class="splash-pillar-desc">Byte-identical .SAV portability across Google Cloud Run, 100% Offline Browser WebAssembly, Windows/Linux Desktop, and Android APK.</p>
                     </div>
                 </div>
 
-                <!-- Realm Lore Banner -->
-                <div id="splash-lore-banner" class="splash-lore-banner">
-                    <span id="splash-lore-icon" class="splash-lore-icon">📜</span>
-                    <strong id="splash-lore-title" class="splash-lore-title">Vanilla Angband 4.2.6:</strong>
-                    <span id="splash-lore-desc" class="splash-lore-desc">The Iron Fortress of Angband awaits. Overthrow Morgoth, Lord of Darkness, in the First Age of Middle-earth.</span>
-                </div>
+                <div class="splash-billboard-threshold" id="splash-billboard-threshold">? &nbsp; CLICK, TAP, OR PRESS ANY KEY TO ENTER THE MAIN MENU &nbsp; ?</div>
+                <div class="splash-credits-footer"><span>Authoritative C/C++ Engine Bridge ? Multi-Realm Architecture by Thunderbear Studios&trade;</span></div>
 
-                <!-- Ergonomic Primary CTA Row -->
-                <div class="splash-primary-cta-row">
-                    <!-- Primary Button: Enter Realm -->
-                    <button id="btn-splash-start" class="btn-splash-start" title="Enter attuned realm [Enter]"><span class="btn-splash-start-text">⚔ ENTER REALM: <strong id="splash-cta-realm-name">Vanilla Angband 4.2.6</strong> ➔</span> <span class="btn-splash-start-sub"><kbd>[ENTER]</kbd> Open Realm Command Deck</span></button>
-
-                    <!-- Direct 1-Click Quick Start Button -->
-                    <button id="btn-splash-quick-start" class="btn-splash-action btn-splash-quick-start" title="Quick Start Random Hero [Q]"><span class="btn-splash-action-icon">⚡</span> <div class="btn-splash-action-col"> <span class="btn-splash-action-label">Quick Start</span> <span class="btn-splash-action-sub"><kbd>[Q]</kbd> Instant Hero</span> </div></button>
-
-                    <!-- Direct 1-Click Saved Chronicles Button -->
-                    <button id="btn-splash-load-save" class="btn-splash-action btn-splash-load-save" title="Saved Chronicles &amp; Archives [L]"><span class="btn-splash-action-icon">📂</span> <div class="btn-splash-action-col"> <span class="btn-splash-action-label">Saved Chronicles</span> <span class="btn-splash-action-sub"><kbd>[L]</kbd> Load Hero</span> </div></button>
-                </div>
-
-                <!-- Clean, Elegant Secondary Action Bar -->
-                <div class="splash-shortcuts">
-                    <button class="splash-shortcut-btn" id="btn-splash-demo"><kbd>[D]</kbd> 🎬 Gameplay Demo</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-guide"><kbd>[G]</kbd> 📖 Adventurer's Guide</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-features" style="display:none;" aria-hidden="true">Features</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-menu" style="display:none;" aria-hidden="true">Menu</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-standalone"><kbd>[A]</kbd> 📱 Standalone Downloads</button>
-                    <button class="splash-shortcut-btn" id="btn-splash-credits"><kbd>[C]</kbd> 📜 Credits</button>
-                </div>
-
-                <div class="splash-credits-footer">
-                    <span>Angband 4.2.6 C Engine • Multi-Realm Architecture &amp; Direction by Thunderbear Studios</span>
+                <div class="sr-only-test-compat" style="display:none;" aria-hidden="true">
+                    <span id="splash-active-realm-name">Vanilla Angband 4.2.6</span><span id="splash-cta-realm-name">Vanilla Angband 4.2.6</span><span id="splash-lore-title">Vanilla Angband 4.2.6:</span><span id="splash-lore-desc">The Iron Fortress of Angband awaits.</span>
+                    <div id="splash-realm-grid"><div class="splash-realm-card realm-option active" data-realm="angband"><div class="splash-realm-badge" id="splash-badge-angband"></div></div><div class="splash-realm-card realm-option" data-realm="frogcomposband"><div class="splash-realm-badge" id="splash-badge-frogcomposband"></div></div><div class="splash-realm-card realm-option" data-realm="hengband"><div class="splash-realm-badge" id="splash-badge-hengband"></div></div><div class="splash-realm-card realm-option" data-realm="silq"><div class="splash-realm-badge" id="splash-badge-silq"></div></div></div>
+                    <select id="splash-hengband-lang-select"><option value="en">EN</option><option value="jp">JP</option></select>
+                    <button type="button" id="btn-splash-start">Enter</button><button type="button" id="btn-splash-quick-start">Quick Start</button><button type="button" id="btn-splash-load-save">Saved Chronicles</button><button type="button" id="btn-splash-demo">Gameplay Demo</button><button type="button" id="btn-splash-guide">Adventurer Guide</button><button type="button" id="btn-splash-features">Features</button><button type="button" id="btn-splash-menu">Menu</button><button type="button" id="btn-splash-standalone">Standalone Downloads</button><button type="button" id="btn-splash-credits">Credits</button><button type="button" id="btn-splash-realms">Realms</button>
                 </div>
             </div>
         </div>
@@ -771,33 +671,67 @@
         <!-- Main Menu Overlay -->
         <div id="main-menu-overlay" class="hidden">
             <div class="main-menu-card">
-                <div class="main-menu-ornament-corner top-left"></div>
-                <div class="main-menu-ornament-corner top-right"></div>
-                <div class="main-menu-ornament-corner bottom-left"></div>
-                <div class="main-menu-ornament-corner bottom-right"></div>
-
+                <div class="main-menu-ornament-corner top-left"></div><div class="main-menu-ornament-corner top-right"></div>
+                <div class="main-menu-ornament-corner bottom-left"></div><div class="main-menu-ornament-corner bottom-right"></div>
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title" id="main-menu-title">⚔ ANGBAND 3D ⚔</h2>
+                    <h2 class="main-menu-title" id="main-menu-title">? ANGBAND 3D ?</h2>
                     <div class="main-menu-subtitle" id="main-menu-subtitle">First-Person Roguelike Reborn in High-Realism 3D</div>
                     <div class="main-menu-realm-strip" id="main-menu-realm-strip">
-                        <span id="main-menu-realm-badge" class="main-menu-realm-badge">Active Realm: <strong id="menu-active-realm-name" class="menu-realm-highlight">Vanilla Angband 4.2.6 (Tolkien)</strong></span>
-                        <div class="main-menu-realm-pills" id="main-menu-realm-pills">
-                            <button type="button" class="realm-pill-btn active" data-switch-realm="angband" title="Switch to Vanilla Angband 4.2.6">⚔️ Angband</button>
-                            <button type="button" class="realm-pill-btn" data-switch-realm="silq" title="Switch to Sil-Q 1.5+">👑 Sil-Q</button>
-                            <button type="button" class="realm-pill-btn" data-switch-realm="frogcomposband" title="Switch to FrogComposBand">🐸 FrogComposBand</button>
-                            <button type="button" class="realm-pill-btn" data-switch-realm="hengband" title="Switch to Hengband 3.0+">⛩️ Hengband</button>
+                        <div class="main-menu-realm-select-row">
+                            <label for="main-menu-realm-select" class="main-menu-realm-label">?? REALM <kbd>[R]</kbd>:</label>
+                            <div class="main-menu-realm-dropdown-wrap">
+                                <select id="main-menu-realm-select" name="realm" class="main-menu-realm-dropdown" aria-label="Select Roguelike Realm">
+                                    <option value="angband">?? Vanilla Angband 4.2.6 ? The Classic Tolkien Descent (100 Depths)</option>
+                                    <option value="silq">?? Sil-Q 1.5.0 ? First Age Stealth &amp; The Crown Heist</option>
+                                    <option value="frogcomposband">?? FrogComposBand 7.1.1 ? 50+ Classes, Monster Races &amp; Wilderness</option>
+                                    <option value="hengband">?? Hengband 3.0.1 ? Eastern Mythos, Quest Citadels &amp; EN/???</option>
+                                </select>
+                            </div>
+                            <div id="main-menu-lang-wrap" class="main-menu-lang-wrap" style="display: none;">
+                                <label for="main-menu-hengband-lang-select" class="main-menu-lang-label">?? Lang:</label>
+                                <select id="main-menu-hengband-lang-select" class="main-menu-lang-dropdown" title="Switch Hengband Language [Alt+L]">
+                                    <option value="en">English (???)</option><option value="bilingual">Bilingual (EN + ?)</option><option value="jp">??? (Kanji)</option>
+                                </select>
+                            </div>
+                            <button type="button" id="btn-menu-realms" class="menu-realm-badge-btn" title="Compare All 4 Realms &amp; Lore Details">?? Compare Realms</button>
+                            <button type="button" id="btn-menu-switch-realm" class="menu-realm-badge-btn" style="display:none;" aria-hidden="true" title="Switch Realm">Switch Realm</button>
                         </div>
-                        <button type="button" id="btn-menu-realms" class="menu-realm-badge-btn" title="Switch Realm [R]">🌌 Switch Realm [R]</button>
-                        <button type="button" id="btn-menu-switch-realm" class="menu-realm-badge-btn" style="display:none;" aria-hidden="true" title="Switch Realm">Switch Realm</button>
+                        <div class="main-menu-realm-meta-row">
+                            <span id="menu-realm-desc" class="main-menu-realm-desc">?? The Classic Tolkien Descent ? Voiced by The Scholar</span>
+                            <span id="main-menu-realm-badge" class="main-menu-realm-badge" style="display:none;" aria-hidden="true">Active Realm: <strong id="menu-active-realm-name" class="menu-realm-highlight">Vanilla Angband 4.2.6 (Tolkien)</strong></span>
+                            <div class="main-menu-realm-pills" id="main-menu-realm-pills" style="display:none;" aria-hidden="true">
+                                <button type="button" class="realm-pill-btn active" data-switch-realm="angband">?? Angband</button><button type="button" class="realm-pill-btn" data-switch-realm="silq">?? Sil-Q</button><button type="button" class="realm-pill-btn" data-switch-realm="frogcomposband">?? FrogComposBand</button><button type="button" class="realm-pill-btn" data-switch-realm="hengband">?? Hengband</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Primary Gameplay Options -->
                 <div class="main-menu-options" id="main-menu-options">
-                    <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0"><span class="menu-bullet">►</span> <span class="menu-num">[1]</span> <div class="menu-text-col"> <span class="menu-label" id="menu-continue-label">Continue Adventure</span> <span class="menu-desc" id="menu-continue-desc">Checking saved adventurers...</span> </div></button>
-                    <button class="menu-option-btn" id="btn-menu-load" data-index="1"><span class="menu-bullet">►</span> <span class="menu-num">[2]</span> <div class="menu-text-col"> <span class="menu-label">Load Saved Character...</span> <span class="menu-desc">Choose an adventurer from your realm archive or upload a .sav file.</span> </div></button>
-                    <button class="menu-option-btn" id="btn-menu-random" data-index="2"><span class="menu-bullet">►</span> <span class="menu-num">[3]</span> <div class="menu-text-col"> <span class="menu-label">Quick Start (Random Hero)</span> <span class="menu-desc">Generate a ready-to-play random adventurer and enter the 3D town immediately!</span> </div></button>
-                    <button class="menu-option-btn" id="btn-menu-custom" data-index="3"><span class="menu-bullet">►</span> <span class="menu-num">[4]</span> <div class="menu-text-col"> <span class="menu-label">Custom Hero (Character Wizard)</span> <span class="menu-desc">Choose race, class, and roll stats step-by-step in the classic terminal wizard.</span> </div></button>
+                    <button class="menu-option-btn selected" id="btn-menu-continue" data-index="0"><span class="menu-bullet">►</span>
+ <span class="menu-num">[1]</span>
+ <div class="menu-text-col">
+ <span class="menu-label" id="menu-continue-label">Continue Adventure</span>
+ <span class="menu-desc" id="menu-continue-desc">Checking saved adventurers...</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-menu-load" data-index="1"><span class="menu-bullet">►</span>
+ <span class="menu-num">[2]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Load Saved Character...</span>
+ <span class="menu-desc">Choose an adventurer from your realm archive or upload a .sav file.</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-menu-random" data-index="2"><span class="menu-bullet">►</span>
+ <span class="menu-num">[3]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Quick Start (Random Hero)</span>
+ <span class="menu-desc">Generate a ready-to-play random adventurer and enter the 3D town immediately!</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-menu-custom" data-index="3"><span class="menu-bullet">►</span>
+ <span class="menu-num">[4]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Custom Hero (Character Wizard)</span>
+ <span class="menu-desc">Choose race, class, and roll stats step-by-step in the classic terminal wizard.</span>
+ </div></button>
 
                     <!-- Preserved compatibility aliases for tests querying alternative ID schemes -->
                     <button id="btn-menu-load-save" class="hidden-test-alias" style="display:none;" aria-hidden="true">Load Save</button>
@@ -825,10 +759,14 @@
 
                 <!-- Secondary Utilities Dock (Clean 4-column row) -->
                 <div class="main-menu-secondary-dock">
-                    <button class="menu-dock-btn" id="btn-menu-guide" data-index="4" title="Game Guide &amp; Lore [5]"><span class="dock-icon">📖</span> <span class="dock-label"><kbd>[5]</kbd> Guide</span></button>
-                    <button class="menu-dock-btn" id="btn-menu-pwa" data-index="5" title="Standalone PC &amp; Android Downloads [6]"><span class="dock-icon">📱</span> <span class="dock-label"><kbd>[6]</kbd> Downloads</span></button>
-                    <button class="menu-dock-btn" id="btn-menu-demo" data-index="6" title="Gameplay Walkthrough Video [7]"><span class="dock-icon">🎬</span> <span class="dock-label"><kbd>[7]</kbd> Demo</span></button>
-                    <button class="menu-dock-btn" id="btn-menu-credits" data-index="7" title="Summary &amp; Credits [8]"><span class="dock-icon">📜</span> <span class="dock-label"><kbd>[8]</kbd> Credits</span></button>
+                    <button class="menu-dock-btn" id="btn-menu-guide" data-index="4" title="Game Guide &amp; Lore [5]"><span class="dock-icon">📖</span>
+ <span class="dock-label"><kbd>[5]</kbd> Guide</span></button>
+                    <button class="menu-dock-btn" id="btn-menu-pwa" data-index="5" title="Standalone PC &amp; Android Downloads [6]"><span class="dock-icon">📱</span>
+ <span class="dock-label"><kbd>[6]</kbd> Downloads</span></button>
+                    <button class="menu-dock-btn" id="btn-menu-demo" data-index="6" title="Gameplay Walkthrough Video [7]"><span class="dock-icon">🎬</span>
+ <span class="dock-label"><kbd>[7]</kbd> Demo</span></button>
+                    <button class="menu-dock-btn" id="btn-menu-credits" data-index="7" title="Summary &amp; Credits [8]"><span class="dock-icon">📜</span>
+ <span class="dock-label"><kbd>[8]</kbd> Credits</span></button>
                     <button class="menu-dock-btn" id="btn-menu-wiki" style="display:none;" aria-hidden="true">Wiki</button>
                 </div>
 
@@ -910,15 +848,60 @@
                 </div>
 
                 <div class="main-menu-options" id="pause-menu-options">
-                    <button class="menu-option-btn selected" id="btn-pause-resume" data-index="0"><span class="menu-bullet">►</span> <span class="menu-num">[1]</span> <div class="menu-text-col"> <span class="menu-label">Resume Game</span> <span class="menu-desc">Return to the first-person 3D dungeon.</span> </div></button>
-                    <button class="menu-option-btn" id="btn-pause-save" data-index="1"><span class="menu-bullet">►</span> <span class="menu-num">[2]</span> <div class="menu-text-col"> <span class="menu-label">Save Game Now (Ctrl-S)</span> <span class="menu-desc">Commit your hero's progress immediately to the server.</span> </div></button>
-                    <button class="menu-option-btn" id="btn-pause-download" data-index="2"><span class="menu-bullet">►</span> <span class="menu-num">[3]</span> <div class="menu-text-col"> <span class="menu-label">Download Current Save (.sav)</span> <span class="menu-desc">Export and download a local copy of your current character.</span> </div></button>
-                    <button class="menu-option-btn" id="btn-pause-load" data-index="3"><span class="menu-bullet">►</span> <span class="menu-num">[4]</span> <div class="menu-text-col"> <span class="menu-label">Load Other Character...</span> <span class="menu-desc">Switch to an alternate adventurer or previous checkpoint.</span> </div></button>
-                    <button class="menu-option-btn" id="btn-pause-random" data-index="4"><span class="menu-bullet">►</span> <span class="menu-num">[5]</span> <div class="menu-text-col"> <span class="menu-label">Start Over (Random Hero)</span> <span class="menu-desc">Roll a brand-new ready-to-play adventurer from scratch.</span> </div></button>
-                    <button class="menu-option-btn" id="btn-pause-custom" data-index="5"><span class="menu-bullet">►</span> <span class="menu-num">[6]</span> <div class="menu-text-col"> <span class="menu-label">Start Over (Custom Hero)</span> <span class="menu-desc">Choose race, class, and roll stats in the classic wizard.</span> </div></button>
-                    <button class="menu-option-btn" id="btn-pause-guide" data-index="6"><span class="menu-bullet">►</span> <span class="menu-num">[7]</span> <div class="menu-text-col"> <span class="menu-label">Game Guide, Primer &amp; Credits</span> <span class="menu-desc">Controls, combat handbook, open-asset attribution &amp; licenses.</span> </div></button>
-                    <button class="menu-option-btn" id="btn-pause-fullscreen" data-index="7"><span class="menu-bullet">►</span> <span class="menu-num">[8]</span> <div class="menu-text-col"> <span class="menu-label">Toggle Fullscreen (F11)</span> <span class="menu-desc">Expand viewport to fill your display.</span> </div></button>
-                    <button class="menu-option-btn" id="btn-pause-quit" data-index="8"><span class="menu-bullet">►</span> <span class="menu-num">[9]</span> <div class="menu-text-col"> <span class="menu-label">Save &amp; Quit to Main Menu</span> <span class="menu-desc">Safely save your adventurer and return to the main title screen.</span> </div></button>
+                    <button class="menu-option-btn selected" id="btn-pause-resume" data-index="0"><span class="menu-bullet">►</span>
+ <span class="menu-num">[1]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Resume Game</span>
+ <span class="menu-desc">Return to the first-person 3D dungeon.</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-pause-save" data-index="1"><span class="menu-bullet">►</span>
+ <span class="menu-num">[2]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Save Game Now (Ctrl-S)</span>
+ <span class="menu-desc">Commit your hero's progress immediately to the server.</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-pause-download" data-index="2"><span class="menu-bullet">►</span>
+ <span class="menu-num">[3]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Download Current Save (.sav)</span>
+ <span class="menu-desc">Export and download a local copy of your current character.</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-pause-load" data-index="3"><span class="menu-bullet">►</span>
+ <span class="menu-num">[4]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Load Other Character...</span>
+ <span class="menu-desc">Switch to an alternate adventurer or previous checkpoint.</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-pause-random" data-index="4"><span class="menu-bullet">►</span>
+ <span class="menu-num">[5]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Start Over (Random Hero)</span>
+ <span class="menu-desc">Roll a brand-new ready-to-play adventurer from scratch.</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-pause-custom" data-index="5"><span class="menu-bullet">►</span>
+ <span class="menu-num">[6]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Start Over (Custom Hero)</span>
+ <span class="menu-desc">Choose race, class, and roll stats in the classic wizard.</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-pause-guide" data-index="6"><span class="menu-bullet">►</span>
+ <span class="menu-num">[7]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Game Guide, Primer &amp; Credits</span>
+ <span class="menu-desc">Controls, combat handbook, open-asset attribution &amp; licenses.</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-pause-fullscreen" data-index="7"><span class="menu-bullet">►</span>
+ <span class="menu-num">[8]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Toggle Fullscreen (F11)</span>
+ <span class="menu-desc">Expand viewport to fill your display.</span>
+ </div></button>
+                    <button class="menu-option-btn" id="btn-pause-quit" data-index="8"><span class="menu-bullet">►</span>
+ <span class="menu-num">[9]</span>
+ <div class="menu-text-col">
+ <span class="menu-label">Save &amp; Quit to Main Menu</span>
+ <span class="menu-desc">Safely save your adventurer and return to the main title screen.</span>
+ </div></button>
                 </div>
 
                 <div class="main-menu-footer" style="display: flex; flex-direction: column; gap: 4px;">

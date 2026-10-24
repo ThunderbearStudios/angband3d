@@ -79,13 +79,14 @@ async function run() {
     console.log('Waiting 2 seconds for DOM...');
     await new Promise(r => setTimeout(r, 2000));
 
-    // 1. Initial State Check
+    // 1. Initial State Check (Zero-Button Splash Billboard)
     const initial = (await send('Runtime.evaluate', {
         expression: `({
             appState: window.__app.getAppState(),
             activeRealm: window.__app.getActiveRealm(),
             splashVisible: !document.getElementById('splash-overlay').classList.contains('hidden'),
-            menuVisible: !document.getElementById('main-menu-overlay').classList.contains('hidden')
+            menuVisible: !document.getElementById('main-menu-overlay').classList.contains('hidden'),
+            splashButtonsCount: document.querySelectorAll('#splash-overlay button').length
         })`,
         returnByValue: true
     })).result.value;
@@ -93,86 +94,20 @@ async function run() {
     if (initial.appState !== 'splash' || !initial.splashVisible) {
         throw new Error('Initial state is not splash!');
     }
-
-    // 2. Click Realm Cards on Splash Screen
-    const realms = ['frogcomposband', 'hengband', 'silq', 'angband'];
-    for (const r of realms) {
-        console.log(`2. Clicking realm card for: ${r}`);
-        const cardRes = (await send('Runtime.evaluate', {
-            expression: `(() => {
-                const card = document.querySelector('.splash-realm-card[data-realm="${r}"]');
-                if (!card) return 'card not found';
-                card.click();
-                return {
-                    activeRealm: window.__app.getActiveRealm(),
-                    cardActive: card.classList.contains('active'),
-                    ctaRealmName: document.getElementById('splash-cta-realm-name')?.textContent
-                };
-            })()`,
-            returnByValue: true
-        })).result.value;
-        console.log(`   Result:`, cardRes);
-        if (cardRes.activeRealm !== r) {
-            throw new Error(`Realm card click failed for ${r}: got ${cardRes.activeRealm}`);
-        }
+    if (initial.splashButtonsCount !== 0) {
+        throw new Error(`Expected 0 buttons on splash billboard, found ${initial.splashButtonsCount}!`);
     }
 
-    // 3. Test #btn-splash-guide -> opens Guide modal
-    console.log('3. Clicking #btn-splash-guide...');
-    const guideRes = (await send('Runtime.evaluate', {
-        expression: `(() => {
-            const btn = document.getElementById('btn-splash-guide');
-            if (!btn) return 'btn-splash-guide not found';
-            btn.click();
-            return {
-                appState: window.__app.getAppState(),
-                guideVisible: !document.getElementById('guide-modal').classList.contains('hidden')
-            };
-        })()`,
-        returnByValue: true
-    })).result.value;
-    console.log('   Result:', guideRes);
-    if (guideRes.appState !== 'guide' || !guideRes.guideVisible) {
-        throw new Error('#btn-splash-guide failed to open guide modal!');
-    }
-
-    // Close guide modal
-    await send('Runtime.evaluate', { expression: `window.__app.hideGuide()` });
-    await new Promise(r => setTimeout(r, 400));
-
-    // 4. Test #btn-splash-demo -> opens Demo modal
-    console.log('4. Clicking #btn-splash-demo...');
-    const demoRes = (await send('Runtime.evaluate', {
-        expression: `(() => {
-            const btn = document.getElementById('btn-splash-demo');
-            if (!btn) return 'btn-splash-demo not found';
-            btn.click();
-            return {
-                appState: window.__app.getAppState(),
-                demoVisible: !document.getElementById('demo-modal').classList.contains('hidden')
-            };
-        })()`,
-        returnByValue: true
-    })).result.value;
-    console.log('   Result:', demoRes);
-    if (demoRes.appState !== 'demoModal' || !demoRes.demoVisible) {
-        throw new Error('#btn-splash-demo failed to open demo modal!');
-    }
-
-    // Close demo modal
-    await send('Runtime.evaluate', { expression: `window.__app.hideDemoModal()` });
-    await new Promise(r => setTimeout(r, 400));
-
-    // 5. Test #btn-splash-start -> enters Main Menu
-    console.log('5. Clicking #btn-splash-start...');
+    // 2. Click anywhere on #splash-overlay -> transitions to Main Menu
+    console.log('2. Clicking #splash-overlay to enter Main Menu...');
     const startRes = (await send('Runtime.evaluate', {
         expression: `(() => {
-            const btn = document.getElementById('btn-splash-start');
-            if (!btn) return 'btn-splash-start not found';
-            btn.click();
+            const splash = document.getElementById('splash-overlay');
+            if (!splash) return 'splash-overlay not found';
+            splash.click();
             return {
                 appState: window.__app.getAppState(),
-                splashVisible: !document.getElementById('splash-overlay').classList.contains('hidden'),
+                splashVisible: ! splash.classList.contains('hidden'),
                 menuVisible: !document.getElementById('main-menu-overlay').classList.contains('hidden')
             };
         })()`,
@@ -180,8 +115,60 @@ async function run() {
     })).result.value;
     console.log('   Result:', startRes);
     if (startRes.appState !== 'mainMenu' || !startRes.menuVisible || startRes.splashVisible) {
-        throw new Error('#btn-splash-start failed to transition to mainMenu!');
+        throw new Error('#splash-overlay click failed to transition to mainMenu!');
     }
+
+    // 3. Test #main-menu-realm-select dropdown on Main Menu
+    const realms = ['frogcomposband', 'hengband', 'silq', 'angband'];
+    for (const r of realms) {
+        console.log(`3. Selecting realm via #main-menu-realm-select: ${r}`);
+        const selRes = (await send('Runtime.evaluate', {
+            expression: `(() => {
+                const sel = document.getElementById('main-menu-realm-select');
+                if (!sel) return 'select not found';
+                sel.value = '${r}';
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                const langWrap = document.getElementById('main-menu-hengband-lang-wrap');
+                return {
+                    activeRealm: window.__app.getActiveRealm(),
+                    selectValue: sel.value,
+                    tagline: document.getElementById('main-menu-realm-tagline')?.textContent,
+                    hengLangVisible: langWrap ? !langWrap.classList.contains('hidden') : false
+                };
+            })()`,
+            returnByValue: true
+        })).result.value;
+        console.log(`   Result:`, selRes);
+        if (selRes.activeRealm !== r) {
+            throw new Error(`Main Menu realm dropdown failed for ${r}: got ${selRes.activeRealm}`);
+        }
+        if (r === 'hengband' && !selRes.hengLangVisible) {
+            throw new Error('Expected #main-menu-hengband-lang-wrap to be visible for hengband!');
+        }
+    }
+
+    // 4. Test #btn-menu-realms -> opens Realm Comparison modal
+    console.log('4. Clicking #btn-menu-realms...');
+    const realmModalRes = (await send('Runtime.evaluate', {
+        expression: `(() => {
+            const btn = document.getElementById('btn-menu-realms');
+            if (!btn) return 'btn-menu-realms not found';
+            btn.click();
+            return {
+                appState: window.__app.getAppState(),
+                modalVisible: !document.getElementById('realm-modal').classList.contains('hidden')
+            };
+        })()`,
+        returnByValue: true
+    })).result.value;
+    console.log('   Result:', realmModalRes);
+    if (realmModalRes.appState !== 'realmSelect' || !realmModalRes.modalVisible) {
+        throw new Error('#btn-menu-realms failed to open realm comparison modal!');
+    }
+
+    // Close realm modal back to Main Menu
+    await send('Runtime.evaluate', { expression: `document.getElementById('btn-realm-modal-close')?.click()` });
+    await new Promise(r => setTimeout(r, 300));
 
     // 6. Test Quick Start from Main Menu
     console.log('6. Clicking Quick Start (Random Hero) from Main Menu...');

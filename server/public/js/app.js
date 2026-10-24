@@ -2423,7 +2423,15 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Attach DOM event listeners for splash buttons
+    // Attach DOM event listeners for splash billboard & compatibility buttons
+    if (splashOverlay) {
+        bindFastTap(splashOverlay, (e) => {
+            if (e && e.target && e.target.closest('.sr-only-test-compat')) return;
+            if (appState === 'splash') {
+                showMainMenu();
+            }
+        });
+    }
     const btnSplashStart = document.getElementById('btn-splash-start');
     if (btnSplashStart) bindFastTap(btnSplashStart, () => showMainMenu());
 
@@ -2532,10 +2540,27 @@ window.addEventListener('DOMContentLoaded', () => {
         bindFastTap(btnMenuDemo, () => showDemoModal('mainMenu'));
     }
 
-    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-realms', () => showSplash()]].forEach(([id, fn]) => {
+    [['btn-menu-guide', () => showGuide(0, 'mainMenu')], ['btn-menu-credits', () => showGuide(6, 'mainMenu')], ['btn-menu-realms', () => showRealmSelector('mainMenu')]].forEach(([id, fn]) => {
         const el = document.getElementById(id);
         if (el) bindFastTap(el, fn);
     });
+    const menuRealmSelect = document.getElementById('main-menu-realm-select');
+    if (menuRealmSelect) {
+        menuRealmSelect.addEventListener('change', (e) => {
+            if (e.target && e.target.value) {
+                selectRealm(e.target.value, false);
+                if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
+            }
+        });
+    }
+    const menuHengbandLang = document.getElementById('main-menu-hengband-lang-select');
+    if (menuHengbandLang) {
+        menuHengbandLang.addEventListener('change', (e) => {
+            if (e.target && e.target.value) {
+                setLanguageMode(e.target.value);
+            }
+        });
+    }
     const btnSplashRealms = document.getElementById('btn-splash-realms');
     if (btnSplashRealms) bindFastTap(btnSplashRealms, (e) => { if (e && e.stopPropagation) e.stopPropagation(); showRealmSelector('splash'); });
     const btnSplashCommands = document.getElementById('btn-splash-commands');
@@ -3339,7 +3364,19 @@ window.addEventListener('DOMContentLoaded', () => {
         // 2. Main Menu UI Synchronization
         setTxt('menu-active-realm-name', realm.name);
         setTxt('main-menu-subtitle', `${realm.tagline} • ${realm.voiceAccent}`);
-        setTxt('menu-realm-desc', `Active: ${realm.name} • ${realm.tagline}`);
+        setTxt('menu-realm-desc', `📜 ${realm.tagline} • ${realm.voiceAccent}`);
+        const menuRealmSelect = document.getElementById('main-menu-realm-select');
+        if (menuRealmSelect && menuRealmSelect.value !== activeRealm) {
+            menuRealmSelect.value = activeRealm;
+        }
+        const menuLangWrap = document.getElementById('main-menu-lang-wrap');
+        if (menuLangWrap) {
+            menuLangWrap.style.display = (activeRealm === 'hengband') ? 'inline-flex' : 'none';
+        }
+        const menuLangSelect = document.getElementById('main-menu-hengband-lang-select');
+        if (menuLangSelect) {
+            try { const storedLang = localStorage.getItem('angband3d_lang_mode') || 'en'; menuLangSelect.value = storedLang; } catch (_) {}
+        }
         document.querySelectorAll('.realm-pill-btn[data-switch-realm]').forEach((pill) => {
             const isPillMatch = pill.dataset.switchRealm === activeRealm;
             pill.classList.toggle('active', isPillMatch);

@@ -294,55 +294,46 @@ public partial class Overlay : Control
         }
 
         // Game Title & Subtitle
-        var titleY = logoY + logoH + 28f;
+        var titleY = logoY + logoH + 22f;
         DrawCenteredString("A N G B A N D   3 D", titleY, 32, new Color(1.0f, 0.92f, 0.62f));
-        DrawCenteredString("The Classic Roguelike Dungeon Crawler • Reborn in First-Person 3D", titleY + 28f, 14, new Color(0.82f, 0.76f, 0.62f));
-        DrawCenteredString("Angband 4.2.6 C Engine  •  Godot 4 Architecture  •  Procedural Dungeon Depths", titleY + 48f, 12, new Color(0.55f, 0.62f, 0.75f));
+        DrawCenteredString("Four Legendary C/C++ Roguelike Engines • Reborn in First-Person 3D", titleY + 26f, 14, new Color(0.82f, 0.76f, 0.62f));
 
-        // Primary Action Prompt Button
-        var btnW = 420f;
+        // 2x2 Showcase Billboard Pillars (Zero-Button Billboard Mode)
+        var gridW = Mathf.Min(760f, View.X - 80f);
+        var gridLeft = cx - gridW / 2f;
+        var colW = (gridW - 14f) / 2f;
+        var cardH = 44f;
+        var gridTop = titleY + 44f;
+        var pillars = new (string Title, string Desc)[]
+        {
+            ("⚔ 4 Authoritative C/C++ Realms", "Unmodified Angband 4.2.6, Sil-Q, FrogComposBand & Hengband"),
+            ("👁 60 FPS 3D + [Tab] Classic CRT", "Zero-turn 360° camera look, 58 3D models & instant ASCII view"),
+            ("🎙 Voiced Living Chronicle", "30 AI Lorekeeper voice personas & studio dungeon acoustics"),
+            ("☁ Universal Cross-Platform Saves", "Byte-identical .SAV files across Cloud, Web, PC & Android")
+        };
+        for (var i = 0; i < pillars.Length; i++)
+        {
+            var col = i % 2;
+            var row = i / 2;
+            var pRect = new Rect2(gridLeft + col * (colW + 14f), gridTop + row * (cardH + 8f), colW, cardH);
+            DrawRect(pRect, new Color(0.08f, 0.06f, 0.04f, 0.92f));
+            DrawRect(pRect, new Color(0.82f, 0.65f, 0.28f, 0.65f), false, 1.2f);
+            DrawString(_font, new Vector2(pRect.Position.X + 10f, pRect.Position.Y + 17f), pillars[i].Title, HorizontalAlignment.Left, -1, 13, new Color(1.0f, 0.88f, 0.52f));
+            DrawString(_font, new Vector2(pRect.Position.X + 10f, pRect.Position.Y + 35f), pillars[i].Desc, HorizontalAlignment.Left, -1, 11, new Color(0.78f, 0.82f, 0.88f));
+        }
+
+        // Illuminated Threshold Prompt (Click or Press Any Key Anywhere)
+        var btnW = Mathf.Min(560f, View.X - 80f);
         var btnH = 36f;
-        var btnY = View.Y - 102f;
+        var btnY = View.Y - 68f;
         _splashBtnRect = new Rect2(cx - btnW / 2f, btnY, btnW, btnH);
-        DrawRect(_splashBtnRect, new Color(0.24f, 0.17f, 0.07f, 0.9f));
-        DrawRect(_splashBtnRect, new Color(0.85f, 0.68f, 0.3f, 0.95f), false, 1.5f);
-        DrawCenteredString("[ PRESS SPACE / ENTER TO ENTER MAIN MENU ]", btnY + 24f, 14, new Color(1.0f, 0.96f, 0.8f));
-
-        // Quick Navigation Shortcuts (Interactive clickable buttons)
-        var footerY = View.Y - 42f;
-        var s1 = "[1] Main Menu";
-        var s2 = "[2] Game Guide & Primer";
-        var s3 = "[V] Watch Demo Video";
-        var s4 = "[W] Angband Wiki";
-        var s5 = "[Esc] Quit";
-
-        var sz1 = _font.GetStringSize(s1, HorizontalAlignment.Left, -1, 13);
-        var sz2 = _font.GetStringSize(s2, HorizontalAlignment.Left, -1, 13);
-        var sz3 = _font.GetStringSize(s3, HorizontalAlignment.Left, -1, 13);
-        var sz4 = _font.GetStringSize(s4, HorizontalAlignment.Left, -1, 13);
-        var sz5 = _font.GetStringSize(s5, HorizontalAlignment.Left, -1, 13);
-
-        var spacing = 20f;
-        var totalW = sz1.X + sz2.X + sz3.X + sz4.X + sz5.X + spacing * 4;
-        var startX = (View.X - totalW) / 2f;
-
-        var x1 = startX;
-        var x2 = x1 + sz1.X + spacing;
-        var x3 = x2 + sz2.X + spacing;
-        var x4 = x3 + sz3.X + spacing;
-        var x5 = x4 + sz4.X + spacing;
-
-        _splashBtnRect = new Rect2(cx - btnW / 2f, btnY, btnW, btnH);
-        _splashGuideRect = new Rect2(x2 - 4, footerY - 16, sz2.X + 8, 22);
-        _splashDemoRect = new Rect2(x3 - 4, footerY - 16, sz3.X + 8, 22);
-        _splashWikiRect = new Rect2(x4 - 4, footerY - 16, sz4.X + 8, 22);
-        _splashQuitRect = new Rect2(x5 - 4, footerY - 16, sz5.X + 8, 22);
-
-        DrawString(_font, new Vector2(x1, footerY), s1, HorizontalAlignment.Left, -1, 13, new Color(0.85f, 0.78f, 0.55f));
-        DrawString(_font, new Vector2(x2, footerY), s2, HorizontalAlignment.Left, -1, 13, new Color(0.62f, 0.78f, 1.0f));
-        DrawString(_font, new Vector2(x3, footerY), s3, HorizontalAlignment.Left, -1, 13, new Color(1.0f, 0.84f, 0.35f));
-        DrawString(_font, new Vector2(x4, footerY), s4, HorizontalAlignment.Left, -1, 13, new Color(0.55f, 0.88f, 0.72f));
-        DrawString(_font, new Vector2(x5, footerY), s5, HorizontalAlignment.Left, -1, 13, new Color(0.85f, 0.55f, 0.55f));
+        DrawRect(_splashBtnRect, new Color(0.24f, 0.17f, 0.07f, 0.92f));
+        DrawRect(_splashBtnRect, new Color(0.95f, 0.78f, 0.35f, 0.95f), false, 1.5f);
+        DrawCenteredString("✦  CLICK OR PRESS ANY KEY TO ENTER THE MAIN MENU  ✦", btnY + 24f, 14, new Color(1.0f, 0.96f, 0.8f));
+        _splashGuideRect = new Rect2(0, 0, 0, 0);
+        _splashDemoRect = new Rect2(0, 0, 0, 0);
+        _splashWikiRect = new Rect2(0, 0, 0, 0);
+        _splashQuitRect = new Rect2(0, 0, 0, 0);
     }
 
     private void DrawAsciiSplashLogo(float cx, float topY)

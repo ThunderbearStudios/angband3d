@@ -57,6 +57,16 @@ For full details, citations, and links to upstream asset repositories, refer to 
 
 ---
 
-## 5. Disclaimer of Warranties
+## 5. Thunderbear Studios™ Trademarks, Brand Identity & Logo Reservation
+
+While the **Angband 3D** software source code is licensed under the **GNU General Public License Version 2 (`GPL-2.0`)** and third-party 3D/audio assets are distributed under their respective open licenses (**`CC0 1.0 Universal`** / **`GPL-2.0`**), the studio brand identity is **strictly reserved**:
+
+- **Reserved Trademarks & Brand Assets**: The **Thunderbear Studios™** trade name, wordmark, domain (`thunderbearstudios.org`), and the **Flaming Bear-Paw & Crossbones Emblem (`thunderbear_logo.png`)** are proprietary trademarks and copyrighted visual works (**Copyright © 2026 Thunderbear Studios. All rights reserved.**).
+- **Exclusion from Open-Source License Grant**: In accordance with standard open-source trademark law, the `GPL-2.0` and `CC0` licenses governing this repository **do not grant any license, right, or permission** to use the **Thunderbear Studios™** name, wordmark, or `thunderbear_logo.png` emblem in derivative works, forks, commercial redistributions, or third-party websites.
+- **Requirement for Forks & Redistribution**: Anyone redistributing modified versions or forks of this repository must remove or replace `thunderbear_logo.png` and may not state or imply that their build is official, endorsed by, or affiliated with **Thunderbear Studios**.
+
+---
+
+## 6. Disclaimer of Warranties
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE.

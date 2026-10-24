@@ -1035,16 +1035,9 @@ class InputController {
         if (!app) return false;
 
         if (appState === 'splash') {
-            if (['1', '2', '3', '4'].includes(e.key)) { e.preventDefault(); app.selectRealm?.(['angband', 'frogcomposband', 'hengband', 'silq'][parseInt(e.key, 10) - 1], false); return true; }
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.code === 'Numpad4' || e.code === 'Numpad8') { e.preventDefault(); app.cycleRealm?.(-1); return true; }
-            if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.code === 'Numpad6' || e.code === 'Numpad2' || e.key === 'r' || e.key === 'R') { e.preventDefault(); app.cycleRealm?.(1); return true; }
-            if (e.key === 'l' || e.key === 'L') { e.preventDefault(); app.toggleLanguageMode?.(); return true; }
-            if (e.key === 'd' || e.key === 'D') { e.preventDefault(); app.showDemoModal?.('splash'); return true; }
-            if (e.key === 'g' || e.key === 'G') { e.preventDefault(); app.showGuide?.(0, 'splash'); return true; }
-            if (e.key === 'a' || e.key === 'A') { e.preventDefault(); app.showPWAModal?.('splash'); return true; }
-            if (e.key === 'c' || e.key === 'C') { e.preventDefault(); app.showGuide?.(6, 'splash'); return true; }
-            if (e.key === 'k' || e.key === 'K') { e.preventDefault(); app.showCommandPalette?.('splash'); return true; }
-            if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); app.showMainMenu?.(); return true; }
+            if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab'].includes(e.key)) return false;
+            e.preventDefault();
+            app.showMainMenu?.();
             return true;
         }
 
@@ -1052,7 +1045,13 @@ class InputController {
             if (e.key === 'Escape' || (e.key === '`' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); app.showSplash?.(); return true; }
             if (e.key === 'ArrowUp' || e.code === 'Numpad8') { e.preventDefault(); app.navigateMenu?.(-1); return true; }
             if (e.key === 'ArrowDown' || e.code === 'Numpad2') { e.preventDefault(); app.navigateMenu?.(1); return true; }
-            if (e.key === 'r' || e.key === 'R') { e.preventDefault(); app.showSplash?.(); return true; }
+            if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                app.cycleRealm?.(1);
+                const sel = document.getElementById('main-menu-realm-select');
+                if (sel) sel.focus();
+                return true;
+            }
             if (e.key === 'd' || e.key === 'D') { e.preventDefault(); app.showDemoModal?.('mainMenu'); return true; }
             if (e.key === 'k' || e.key === 'K') { e.preventDefault(); app.showCommandPalette?.('mainMenu'); return true; }
             if (['1', '2', '3', '4'].includes(e.key)) { e.preventDefault(); const idx = parseInt(e.key, 10) - 1; app.selectMenuItem?.(idx); app.activateMenuItem?.(idx); return true; }

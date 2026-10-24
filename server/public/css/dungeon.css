@@ -9696,3 +9696,32 @@ dialog[open], [popover]:popover-open {
         transform: none !important;
     }
 }
+
+/* Wave 9: Zero-Button Showcase Billboard Splash & Main Menu Realm Dropdown */
+.splash-card.splash-billboard-mode { cursor: pointer; user-select: none; -webkit-user-select: none; max-width: 880px; padding: clamp(18px, 3vh, 32px) clamp(20px, 3.2vw, 38px) !important; gap: clamp(8px, 1.4vh, 14px); }
+.splash-logo-wrap.protected-crest { width: 96px; height: 96px; border-radius: 14px; background: radial-gradient(circle, #140f08 0%, #050406 100%); border: 2px solid #e6b85c; box-shadow: 0 0 28px rgba(255, 215, 0, 0.35), inset 0 0 18px rgba(255, 215, 0, 0.18); padding: 8px; margin: 0 auto 4px; }
+.splash-logo-wrap.protected-crest .splash-logo { width: 78px; height: 78px; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; pointer-events: none; }
+.splash-billboard-sub { font-size: 11.5px; letter-spacing: 3px; color: #cbd5e1; text-transform: uppercase; margin-bottom: 2px; }
+.splash-billboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; margin: 8px 0 10px; text-align: left; pointer-events: none; }
+@media (max-width: 640px) { .splash-billboard-grid { grid-template-columns: 1fr; gap: 8px; } }
+.splash-billboard-pillar { background: linear-gradient(135deg, rgba(36, 25, 15, 0.90) 0%, rgba(14, 10, 6, 0.95) 100%); border: 1px solid rgba(212, 168, 83, 0.55); border-left: 3px solid #ffd700; border-radius: 4px; padding: 12px 14px; box-shadow: inset 0 1px 0 rgba(255, 230, 170, 0.18), 0 4px 12px rgba(0, 0, 0, 0.75); }
+.splash-pillar-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.splash-pillar-icon { font-size: 18px; line-height: 1; }
+.splash-pillar-title { font-family: var(--font-title, 'Cinzel', serif); font-size: 13.5px; font-weight: 700; color: #ffe28a; letter-spacing: 0.4px; margin: 0; }
+.splash-pillar-desc { font-size: 12px; color: #d1d5db; line-height: 1.45; margin: 0; }
+.splash-billboard-threshold { width: 100%; max-width: 640px; margin: 6px auto 2px; padding: 11px 18px; background: linear-gradient(180deg, rgba(68, 46, 16, 0.92) 0%, rgba(32, 20, 7, 0.96) 100%); border: 1.5px solid #ffd700; border-radius: 4px; color: #fffbeb; font-family: var(--font-title, 'Cinzel', serif); font-size: clamp(12px, 1.8vw, 14.5px); font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; box-shadow: 0 0 20px rgba(255, 215, 0, 0.38), inset 0 1px 0 rgba(255, 245, 200, 0.45); animation: billboardThresholdPulse 2.4s ease-in-out infinite alternate; }
+@keyframes billboardThresholdPulse {
+    0% { box-shadow: 0 0 14px rgba(255, 215, 0, 0.28), inset 0 1px 0 rgba(255, 245, 200, 0.3); border-color: #d4a038; }
+    100% { box-shadow: 0 0 26px rgba(255, 215, 0, 0.65), inset 0 1px 0 rgba(255, 245, 200, 0.65); border-color: #ffe885; }
+}
+.main-menu-realm-strip { display: flex; flex-direction: column; gap: 6px; background: linear-gradient(180deg, rgba(32, 22, 12, 0.92) 0%, rgba(16, 11, 6, 0.96) 100%); border: 1.5px solid rgba(212, 168, 83, 0.65); border-radius: 4px; padding: 10px 14px; margin-top: 10px; text-align: left; }
+.main-menu-realm-select-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%; }
+.main-menu-realm-label { font-family: var(--font-title, 'Cinzel', serif); font-size: 12.5px; font-weight: 700; color: #ffd700; letter-spacing: 0.8px; white-space: nowrap; }
+.main-menu-realm-dropdown-wrap { flex: 1 1 280px; display: flex; }
+.main-menu-realm-dropdown, .main-menu-lang-dropdown { width: 100%; min-height: 38px; background: linear-gradient(180deg, #1c140b 0%, #0e0a05 100%); color: #fff8e7; border: 1.5px solid #d4a038; border-radius: 4px; padding: 6px 12px; font-family: var(--font-ui, 'Outfit', sans-serif); font-size: 13.5px; font-weight: 600; cursor: pointer; box-shadow: inset 0 1px 2px rgba(255, 225, 150, 0.18), 0 2px 6px rgba(0, 0, 0, 0.7); transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.main-menu-realm-dropdown:hover, .main-menu-realm-dropdown:focus, .main-menu-lang-dropdown:hover, .main-menu-lang-dropdown:focus { border-color: #ffe270; box-shadow: 0 0 14px rgba(255, 215, 0, 0.45); outline: none; }
+.main-menu-realm-dropdown option, .main-menu-lang-dropdown option { background: #140f09; color: #fff8e7; padding: 8px; font-weight: 600; }
+.main-menu-lang-wrap { display: inline-flex; align-items: center; gap: 6px; }
+.main-menu-lang-label { font-size: 12px; color: #fde68a; font-weight: 600; white-space: nowrap; }
+.main-menu-realm-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #cbd5e1; padding-top: 2px; }
+.main-menu-realm-desc { color: #e2e8f0; font-size: 12px; }
