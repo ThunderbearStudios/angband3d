@@ -1406,6 +1406,43 @@ window.addEventListener('DOMContentLoaded', () => {
         if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
     }
 
+    function renderMenuBackdropDiorama() {
+        if (!dungeon || lastFrame || typeof dungeon.updateDungeon !== 'function') return;
+        try {
+            const w = 24, h = 24, px = 12, py = 14;
+            const rows = [];
+            for (let y = 0; y < h; y++) {
+                let f = '', l = '', g = '', a = '';
+                for (let x = 0; x < w; x++) {
+                    const isChamber = (x >= 8 && x <= 16 && y >= 6 && y <= 17);
+                    let featHex = '15', glyph = '#', attrHex = '02';
+                    if (isChamber) {
+                        if (x === 8 || x === 16 || y === 6 || y === 17) {
+                            if ((x === 8 || x === 16) && y === 10) { featHex = '12'; glyph = '%'; attrHex = '0b'; }
+                            else { featHex = '15'; glyph = '#'; attrHex = '02'; }
+                        } else if ((x === 9 || x === 15) && y >= 8 && y <= 13) {
+                            featHex = '17'; glyph = '~'; attrHex = '04';
+                        } else {
+                            featHex = '01'; glyph = '.'; attrHex = '01';
+                        }
+                    }
+                    f += featHex; l += '3'; g += glyph; a += attrHex;
+                }
+                rows.push({ y, f, l, g, a });
+            }
+            dungeon.lastPlayerHp = null;
+            dungeon.updateDungeon({
+                phase: 'play',
+                realm: activeRealm || 'angband',
+                player: { name: 'Adventurer', race: 'Dwarf', class: 'Warrior', x: px, y: py, depth: 15, hp: 200, hp_max: 200, cur_light: 4, facing: 0 },
+                map: { w, h, rows },
+                monsters: [],
+                objects: []
+            });
+            dungeon.lastFrame = null;
+        } catch (_) {}
+    }
+
     function showSplash() {
         appState = 'splash';
         updateRealmUI();
@@ -1413,6 +1450,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (splashOverlay) splashOverlay.classList.remove('hidden');
         if (input) input.setTerminalMode(false);
         if (audio) audio.playMenuNav();
+        renderMenuBackdropDiorama();
     }
 
     function showMainMenu() {
@@ -1428,6 +1466,7 @@ window.addEventListener('DOMContentLoaded', () => {
         updateEngineModeUI();
         checkSaves();
         updateMenuSelectionUI();
+        renderMenuBackdropDiorama();
     }
 
     // Load Menu Handler
@@ -2037,7 +2076,7 @@ window.addEventListener('DOMContentLoaded', () => {
             () => latestSave ? startGame({ charName: latestSave.characterName || 'Adventurer', saveFile: latestSave.filename, isNew: false, autoBirth: false }) : startNewRandomHero(),
             () => showLoadMenu(false), startNewRandomHero, startNewCustomHero,
             () => showGuide(0, 'mainMenu'), () => showPWAModal('mainMenu'),
-            () => showDemoModal('mainMenu'), () => showGuide(6, 'mainMenu'), () => showSplash()
+            () => showGuide(6, 'mainMenu'), () => showGuide(6, 'mainMenu'), () => showSplash()
         ];
         if (menuActions[idx]) menuActions[idx]();
     }
@@ -3364,13 +3403,14 @@ window.addEventListener('DOMContentLoaded', () => {
         // 2. Main Menu UI Synchronization
         setTxt('menu-active-realm-name', realm.name);
         setTxt('main-menu-subtitle', `${realm.tagline} • ${realm.voiceAccent}`);
-        setTxt('menu-realm-desc', `📜 ${realm.tagline} • ${realm.voiceAccent}`);
+        setTxt('main-menu-realm-tagline', `${realm.tagline} • ${realm.voiceAccent}`);
         const menuRealmSelect = document.getElementById('main-menu-realm-select');
         if (menuRealmSelect && menuRealmSelect.value !== activeRealm) {
             menuRealmSelect.value = activeRealm;
         }
-        const menuLangWrap = document.getElementById('main-menu-lang-wrap');
+        const menuLangWrap = document.getElementById('main-menu-hengband-lang-wrap');
         if (menuLangWrap) {
+            menuLangWrap.classList.toggle('hidden', activeRealm !== 'hengband');
             menuLangWrap.style.display = (activeRealm === 'hengband') ? 'inline-flex' : 'none';
         }
         const menuLangSelect = document.getElementById('main-menu-hengband-lang-select');
@@ -3521,20 +3561,7 @@ window.addEventListener('DOMContentLoaded', () => {
     let demoPreviousState = 'mainMenu';
 
     function showDemoModal(fromState = null) {
-        if (isStandaloneApp() || (typeof document !== 'undefined' && document.body?.classList?.contains('is-standalone'))) {
-            if (audio) audio.playMenuNav();
-            openExternalUrl('https://angband3d.com/demo');
-            return;
-        }
-        demoPreviousState = fromState || appState || 'mainMenu';
-        appState = 'demoModal';
-        hideModals(demoModal);
-        if (demoModal) demoModal.classList.remove('hidden');
-        if (input) input.setTerminalMode(false);
-        if (audio) audio.playMenuOpen();
-        if (window.demoPlayer && typeof window.demoPlayer.open === 'function') {
-            window.demoPlayer.open(demoPreviousState);
-        }
+        return;
     }
 
     function hideDemoModal() {

@@ -1052,7 +1052,6 @@ class InputController {
                 if (sel) sel.focus();
                 return true;
             }
-            if (e.key === 'd' || e.key === 'D') { e.preventDefault(); app.showDemoModal?.('mainMenu'); return true; }
             if (e.key === 'k' || e.key === 'K') { e.preventDefault(); app.showCommandPalette?.('mainMenu'); return true; }
             if (['1', '2', '3', '4'].includes(e.key)) { e.preventDefault(); const idx = parseInt(e.key, 10) - 1; app.selectMenuItem?.(idx); app.activateMenuItem?.(idx); return true; }
             if (['5', '6', '7', '8'].includes(e.key)) { e.preventDefault(); app.activateMenuItem?.(parseInt(e.key, 10) - 1); return true; }

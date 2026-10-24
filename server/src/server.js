@@ -2277,8 +2277,8 @@ const server = http.createServer((req, res) => {
     // Static Web Client Files
     let safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     if (safePath === '/' || safePath === '\\') safePath = '/index.html';
-    if (['/demo', '\\demo', '/demo/', '\\demo\\', '/watch', '\\watch', '/showcase', '\\showcase'].includes(safePath)) {
-        safePath = '/demo.html';
+    if (['/demo', '\\demo', '/demo/', '\\demo\\', '/demo.html', '\\demo.html', '/watch', '\\watch', '/showcase', '\\showcase'].includes(safePath)) {
+        safePath = '/index.html';
     }
     // Alias versioned walkthrough demo video URLs to canonical master video assets
     if (safePath.includes('angband3d_demo_') && safePath.endsWith('.mp4')) {
