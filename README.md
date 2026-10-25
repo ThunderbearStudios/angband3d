@@ -8,7 +8,7 @@
 [![Web Client: Three.js PBR](https://img.shields.io/badge/Web_Client-Three.js_WebGL_PBR-orange.svg)](server/public)
 [![Desktop Client: Godot 4 C#](https://img.shields.io/badge/Desktop_Client-Godot_4.3+_.NET_8-blueviolet.svg)](https://godotengine.org/)
 [![Mobile: Android Standalone APK](https://img.shields.io/badge/Mobile-Android_SDK_34_APK-green.svg)](#-play-instantly-cross-platform-matrix)
-[![Tests: 19/19 Fast + 11/11 Smoke](https://img.shields.io/badge/Automated_Gates-100%25_Passing-brightgreen.svg)](tools)
+[![Tests: 29/29 Fast + 11/11 Smoke](https://img.shields.io/badge/Automated_Gates-40%2F40_Passing-brightgreen.svg)](tools)
 
 ---
 
@@ -17,6 +17,7 @@
 > - 💻 **Standalone Windows PC**: **[Download Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** *(144+ FPS native offline play powered by Godot 4 C#)*
 > - 📱 **Standalone Android App**: **[Download Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** *(Offline mobile play with tactile split-thumb D-pad)*
 > - 📖 **GitHub Pages Documentation Portal**: **[https://thunderbearstudios.github.io/angband3d/](https://thunderbearstudios.github.io/angband3d/)**
+> - 🏛 **Official Studio & Architecture Overview**: **[https://thunderbearstudios.org](https://thunderbearstudios.org)** *(Thunderbear Studios frameworks & Cloud Run proving ground)*
 
 ---
 
@@ -28,7 +29,7 @@ Classic turn-based roguelikes represent some of the most mathematically deep, ta
 
 Rather than rewriting the game, Angband 3D runs **four authoritative, unmodified C/C++ roguelike engines** in headless bridge mode. Every combat roll, saving throw, item generation curve, stealth check, and monster AI pathfinding decision runs bit-for-bit canonical upstream C code. Frontends—whether our responsive Three.js WebGL client, native Godot 4 C# engine, or standalone Android APK—act purely as reactive presentation layers.
 
-The result is a breathtaking first-person dungeon crawl with real-time camera look, procedural lighting, Gothic dark-fantasy crimson life and sapphire mana orbs, 3D armored gauntlet viewmodels, a 42-model rigged 3D bestiary, and voiced narrative sagas, built upon a foundation of absolute mathematical rigor.
+The result is a breathtaking first-person dungeon crawl with real-time camera look, procedural lighting, Gothic dark-fantasy crimson life and sapphire mana orbs, 3D armored gauntlet viewmodels, a 58-model rigged 3D bestiary, and voiced narrative sagas, built upon a foundation of absolute mathematical rigor.
 
 ---
 
@@ -400,6 +401,7 @@ Check out our [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) guide and open an i
 * **Literary Inspiration**: The setting, lore, and names draw inspiration from the literary legendarium created by **J.R.R. Tolkien**.
 * **Trademarks**: *The Lord of the Rings*, *The Hobbit*, *Middle-earth*, *Angband*, and *Moria* are trademarks or registered trademarks of **Middle-earth Enterprises, LLC** (Embracer Group AB) and/or **The Tolkien Estate**. This project is not affiliated with, endorsed by, or sponsored by Middle-earth Enterprises or The Tolkien Estate.
 * **Strict Non-Commercial Policy**: Angband 3D is 100% free software. It contains **no advertisements, no microtransactions, no paywalls, and accepts no donations or commercial sponsorship**.
+* **Commercial Studio vs. Open-Source Proving Ground Scope**: While the **Angband 3D** game showcase is strictly non-commercial (`GPL-2.0`), **[Thunderbear Studios](https://thunderbearstudios.org)** is an independent commercial software and applied AI product studio. The underlying reusable studio frameworks demonstrated by this architecture—including **Thunderbear Code Guard™**, **Resonant Cloud Memory Engine™**, and the **Universal C/C++ to Cloud, 3D & Audio Bridge™**—along with our commercial SaaS and pro-audio/DMX product lines, are proprietary commercial products owned by Thunderbear Studios.
 * **Open Source Licensing**:
   * Authoritative game engines: **GNU General Public License v2** (GPL-2.0) across **Angband 4.2.6**, **Sil-Q 1.5.0**, **FrogComposBand 7.1.1**, and **Hengband 3.0.1**. Source code is included in full. Full terms in [`LICENSE`](LICENSE) and [`LEGAL.md`](LEGAL.md).
   * 3D Models & PBR Textures: Permissive **CC0 1.0 Universal** public domain dedications (**Poly Haven**, **KayKit**, **Kenney**, **Quaternius**).

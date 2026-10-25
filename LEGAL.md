@@ -57,10 +57,11 @@ For full details, citations, and links to upstream asset repositories, refer to 
 
 ---
 
-## 5. Thunderbear Studios™ Trademarks, Brand Identity & Logo Reservation
+## 5. Thunderbear Studios™ Trademarks, Brand Identity & Commercial Framework Scope
 
-While the **Angband 3D** software source code is licensed under the **GNU General Public License Version 2 (`GPL-2.0`)** and third-party 3D/audio assets are distributed under their respective open licenses (**`CC0 1.0 Universal`** / **`GPL-2.0`**), the studio brand identity is **strictly reserved**:
+While the **Angband 3D** game and showcase source code in this repository is licensed under the **GNU General Public License Version 2 (`GPL-2.0`)** and third-party 3D/audio assets are distributed under their respective open licenses (**`CC0 1.0 Universal`** / **`GPL-2.0`**), the studio brand identity and commercial studio frameworks are **strictly distinguished and reserved**:
 
+- **Open-Source Proving Ground vs. Commercial Studio Scope**: *Angband 3D* (`angband3d.com`) is published as a 100% free, non-commercial open-source (`GPL-2.0`) fan tribute and public engineering benchmark. **Thunderbear Studios** ([https://thunderbearstudios.org](https://thunderbearstudios.org)) is an independent commercial software and applied AI product studio. The non-commercial policy in Section 2 applies strictly to the *Angband 3D* game showcase and does not restrict Thunderbear Studios' commercial B2B infrastructure frameworks (**Thunderbear Code Guard™**, **Resonant Cloud Memory Engine™**, and the **Universal C/C++ to Cloud, 3D & Audio Bridge™**), SaaS platforms, or commercial pro-audio/DMX software products.
 - **Reserved Trademarks & Brand Assets**: The **Thunderbear Studios™** trade name, wordmark, domain (`thunderbearstudios.org`), and the **Flaming Bear-Paw & Crossbones Emblem (`thunderbear_logo.png`)** are proprietary trademarks and copyrighted visual works (**Copyright © 2026 Thunderbear Studios. All rights reserved.**).
 - **Exclusion from Open-Source License Grant**: In accordance with standard open-source trademark law, the `GPL-2.0` and `CC0` licenses governing this repository **do not grant any license, right, or permission** to use the **Thunderbear Studios™** name, wordmark, or `thunderbear_logo.png` emblem in derivative works, forks, commercial redistributions, or third-party websites.
 - **Requirement for Forks & Redistribution**: Anyone redistributing modified versions or forks of this repository must remove or replace `thunderbear_logo.png` and may not state or imply that their build is official, endorsed by, or affiliated with **Thunderbear Studios**.

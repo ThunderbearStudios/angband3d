@@ -9,15 +9,16 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#080b12">
     <title>Angband 3D — First-Person Roguelike Reborn</title>
-    <meta name="description" content="Experience the 35-year classic roguelike reborn in real-time first-person 3D. Bit-for-bit Angband 4.2.6 C engine, 0-turn camera yaw, instant [Tab] CRT terminal mode, universal .SAV portability, and AI-voiced chronicle. Free and open source.">
-    <meta name="keywords" content="Angband, Angband3D, Roguelike, Traditional Roguelike, First-Person Dungeon Crawler, WebGL Game, Open Source Game, 3D Roguelike, ASCII RPG, Tolkien Game">
+    <meta name="description" content="Experience four legendary C/C++ roguelike engines (Angband 4.2.6, Sil-Q 1.5, FrogComposBand 7.1, Hengband 3.0) reborn in real-time 60 FPS first-person 3D over Google Cloud Run WebSockets, 2.79 MB WebAssembly, or native stdio, with 0-turn camera yaw, instant [Tab] CRT terminal mode, universal .SAV portability, and Google Gemini Native Audio narration.">
+    <meta name="keywords" content="Angband, Angband3D, Sil-Q, FrogComposBand, Hengband, Roguelike, First-Person Dungeon Crawler, WebGL Game, WebAssembly, Google Cloud Run, Gemini API, Thunderbear Studios">
     <meta name="author" content="Thunderbear Studios">
+    <link rel="canonical" href="https://angband3d.com/">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="game">
     <meta property="og:url" content="https://angband3d.com/">
     <meta property="og:title" content="Angband 3D — First-Person Roguelike Reborn">
-    <meta property="og:description" content="Experience the 35-year classic roguelike reborn in real-time first-person 3D with bit-for-bit Angband 4.2.6 C engine mechanics, 0-turn camera yaw, instant [Tab] CRT terminal mode, universal .SAV portability, and AI-voiced chronicle.">
+    <meta property="og:description" content="Four authoritative C/C++ roguelike engines (Angband 4.2.6, Sil-Q 1.5, FrogComposBand 7.1, Hengband 3.0) in 60 FPS first-person 3D via Google Cloud Run &amp; 2.79 MB WASM, with 0-turn camera yaw, instant [Tab] CRT terminal, and Google Gemini voice narration.">
     <meta property="og:image" content="https://angband3d.com/assets/showcase/live_3d_combat_showcase.png">
     <meta property="og:image:width" content="1920">
     <meta property="og:image:height" content="1080">
@@ -27,7 +28,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://angband3d.com/">
     <meta name="twitter:title" content="Angband 3D — First-Person Roguelike Reborn">
-    <meta name="twitter:description" content="The 35-year roguelike classic reborn in first-person 3D. Bit-for-bit Angband 4.2.6 C engine, 0-turn camera yaw, instant CRT terminal toggle, and universal .SAV saves. Play free in browser.">
+    <meta name="twitter:description" content="Four legendary C/C++ roguelike engines reborn in 60 FPS first-person 3D over Google Cloud Run &amp; 2.79 MB WASM, with 0-turn camera yaw, instant CRT terminal toggle, and universal .SAV saves.">
     <meta name="twitter:image" content="https://angband3d.com/assets/showcase/live_3d_combat_showcase.png">
 
     <!-- Schema.org VideoGame Structured Data -->
@@ -36,17 +37,21 @@
       "@context": "https://schema.org",
       "@type": "VideoGame",
       "name": "Angband 3D",
-      "description": "The 35-year classic roguelike reborn in first-person 3D with bit-for-bit Angband 4.2.6 C engine mechanics, 0-turn camera yaw, and instant CRT terminal toggle.",
+      "description": "Real-time 60 FPS WebGL and Godot 4 C# 3D/CRT dual-reality bridge for 4 native C/C++ roguelike engines (Angband 4.2.6, Sil-Q 1.5, FrogComposBand 7.1, Hengband 3.0) powered by a zero-allocation C99 delta adapter, 2.79 MB WebAssembly worker, Google Cloud Run, and Google Gemini Native Audio.",
       "url": "https://angband3d.com",
       "image": "https://angband3d.com/assets/showcase/live_3d_combat_showcase.png",
       "genre": ["Roguelike", "Dungeon Crawler", "Role-playing video game", "Turn-based strategy"],
-      "gamePlatform": ["Web Browser", "Windows PC", "Android"],
+      "gamePlatform": ["Web Browser", "Windows PC", "Linux", "Android"],
       "applicationCategory": "Game",
-      "operatingSystem": "Any (Web, Windows 10/11, Android 14+)",
+      "operatingSystem": "Any (Web, Windows 10/11, Linux, Android 14+)",
       "author": {
         "@type": "Organization",
         "name": "Thunderbear Studios",
-        "url": "https://github.com/ThunderbearStudios/angband3d"
+        "url": "https://thunderbearstudios.org",
+        "sameAs": [
+          "https://github.com/ThunderbearStudios",
+          "https://github.com/ThunderbearStudios/angband3d"
+        ]
       },
       "inLanguage": "en",
       "offers": {
@@ -678,7 +683,7 @@
                 </div>
 
                 <div class="splash-credits-footer">
-                    <span>Authoritative C/C++ Engine Bridge &amp; Multi-Realm Architecture by Thunderbear Studios™</span>
+                    <span>Authoritative C/C++ Engine Bridge &amp; Multi-Realm Architecture by <a href="https://thunderbearstudios.org" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">Thunderbear Studios™</a></span>
                 </div>
             </div>
         </div>
@@ -968,7 +973,7 @@
                             <li>• <strong>Zero-Turn Camera Yaw Navigation</strong>: Looking around corners or rotating 360° is client-side and consumes 0 game turns, preserving pure tactical turn-based decisions.</li>
                             <li>• <strong>Ethereal Monster Sensing in 3D</strong>: Monsters detected through spells, telepathy, or infra-vision in pitch black corridors are depicted with a glowing misty apparition aura and sensory beacon.</li>
                             <li>• <strong>Universal Save Game Portability</strong>: 1-click downloads of your `.sav` character, drag-and-drop save uploads, in-game pause menu exports, and 100% interoperability with desktop Godot.</li>
-                            <li>• <strong>Dual-Engine Architecture (Local &amp; Cloud)</strong>: Seamlessly play locally via high-speed process stdio or connect to the Google Cloud Run WebSocket relay with live latency telemetry.</li>
+                            <li>• <strong>Tri-Mode Execution Architecture (Cloud Run, 2.79 MB WASM &amp; Local Stdio)</strong>: Seamlessly play in-browser via the Google Cloud Run WebSocket relay (with live latency telemetry) or <code>2.79 MB</code> offline Emscripten WebAssembly worker, or run locally over high-speed native process <code>stdio</code>.</li>
                             <li>• <strong>Procedural Subterranean Illumination</strong>: Dynamic torch falloff, molten lava emissive shaders with line-of-sight gating, and deterministic corridor sconces.</li>
                             <li>• <strong>Real-Time Combat Message Streaming</strong>: Top-mounted action banner and landscape HUD feed with turn-by-turn combat damage, status alerts, and full scrollback history.</li>
                             <li>• <strong>Interactive Contextual Action Bars</strong>: Dynamic touch and hotkey item selection pills for throwing, casting, quaffing potions, reading scrolls, and shop interactions.</li>
@@ -1093,9 +1098,9 @@
                     <!-- Tab 6: Credits & Legal -->
                     <div class="guide-tab-content" id="guide-tab-6">
                         <div class="guide-section-header">[ 📜 CREDITS &amp; ACKNOWLEDGMENTS ]</div>
-                        <p class="guide-p"><strong>Angband 3D</strong> is proudly developed and presented by <strong>Thunderbear Studios</strong> and open-source contributors.</p>
+                        <p class="guide-p"><strong>Angband 3D</strong> is proudly developed and presented by <a href="https://thunderbearstudios.org" target="_blank" rel="noopener noreferrer" style="color: var(--gold-bright);"><strong>Thunderbear Studios</strong></a> and open-source contributors.</p>
                         <ul class="guide-list">
-                            <li>• <strong>Production, 3D Architecture &amp; Direction</strong>: Thunderbear Studios</li>
+                            <li>• <strong>Production, 3D Architecture &amp; Direction</strong>: <a href="https://thunderbearstudios.org" target="_blank" rel="noopener noreferrer" style="color: var(--gold-bright);">Thunderbear Studios</a> (<code>thunderbearstudios.org</code>)</li>
                             <li>• <strong>Authoritative Roguelike Engines</strong>: <strong>Angband 4.2.6</strong> (The Angband Development Team), <strong>Sil-Q</strong> (Scatha, half, Hugo &quot;backwardsEric&quot; Cornelis &amp; contributors), <strong>FrogComposBand</strong> (Chris, Sideways &amp; contributors), and <strong>Hengband / 変愚蛮怒</strong> (Habu, Hourier, Deskull &amp; the Hengband Development Team).</li>
                             <li>• <strong>Historical Roguelike Pioneers</strong>: Robert Alan Koeneke &amp; Jimmey Wayne Todd Jr. (original Moria, 1983), Alex Cutler &amp; Andy Astrand (Umoria), Keith Horner, Charles Swiger, Ben Harrison, Robert Rühlmann, and the Angband community.</li>
                             <li>• <strong>Illustrated Creature &amp; Item Artwork (Shockbolt Tileset)</strong>: Master 64×64 painted fantasy tileset by <strong>Raymond &quot;Shockbolt&quot; Gaustadnes</strong> (GPL-2.0 / Angband Open Source License).</li>
@@ -1109,11 +1114,12 @@
                         </ul>
 
                         <div class="guide-section-header" style="margin-top: 18px;">[ ⚖️ LEGAL, TRADEMARKS &amp; NON-COMMERCIAL NOTICE ]</div>
-                        <p class="guide-p">Angband 3D is an independent, non-commercial, open-source fan tribute.</p>
+                        <p class="guide-p">Angband 3D is an independent, non-commercial, open-source (<code>GPL-2.0</code>) fan tribute and public engineering proving ground.</p>
                         <ul class="guide-list">
                             <li>• <strong>Middle-earth &amp; Tolkien Lore</strong>: Inspired by J.R.R. Tolkien's legendary mythology. <em>The Lord of the Rings</em>, <em>The Hobbit</em>, <em>Middle-earth</em>, <em>Angband</em>, <em>Moria</em>, and related names and places are trademarks or registered trademarks of <strong>Middle-earth Enterprises, LLC</strong> and/or <strong>The Tolkien Estate</strong>. This project is not affiliated with, endorsed by, or sponsored by Middle-earth Enterprises or The Tolkien Estate.</li>
-                            <li>• <strong>Strictly Non-Commercial</strong>: This game is 100% free with <strong>zero advertisements, zero microtransactions, no paywalls, and no donations or commercial monetization</strong>.</li>
-                            <li>• <strong>Open Source License</strong>: Core engine and derivative work released under the <strong>GNU General Public License, Version 2</strong> (GPL-2.0). Source code is available on <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" style="color: var(--gold-bright);">GitHub</a>.</li>
+                            <li>• <strong>Strictly Non-Commercial Game Showcase</strong>: This game is 100% free with <strong>zero advertisements, zero microtransactions, no paywalls, and no donations or commercial monetization</strong>.</li>
+                            <li>• <strong>Open Source License</strong>: Core engine and derivative game showcase work released under the <strong>GNU General Public License, Version 2</strong> (GPL-2.0). Source code is available on <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" style="color: var(--gold-bright);">GitHub</a>.</li>
+                            <li>• <strong>Commercial Studio &amp; Proprietary Frameworks Scope</strong>: While the <em>Angband 3D</em> game showcase is strictly non-commercial (<code>GPL-2.0</code>), <a href="https://thunderbearstudios.org" target="_blank" rel="noopener noreferrer" style="color: var(--gold-bright);"><strong>Thunderbear Studios</strong></a> (<code>thunderbearstudios.org</code>) is an independent commercial software and applied AI studio. Our proprietary reusable infrastructure frameworks—<strong>Thunderbear Code Guard&trade;</strong>, <strong>Resonant Cloud Memory Engine&trade;</strong>, and the <strong>Universal C/C++ to Cloud, 3D &amp; Audio Bridge&trade;</strong>—along with our commercial SaaS and pro-audio/DMX product lines are commercial products owned by Thunderbear Studios.</li>
                         </ul>
                     </div>
                 </div>
@@ -1273,10 +1279,11 @@
 
                 <!-- Thunderbear Studios GitHub Link Strip Underneath -->
                 <div class="demo-footer-strip">
-                    <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" class="demo-github-link" title="Open GitHub Repository">
+                    <a href="https://thunderbearstudios.org" target="_blank" rel="noopener noreferrer" class="demo-github-link" title="Visit Thunderbear Studios Official Site">
                         <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" class="demo-footer-logo">
-                        <span class="demo-github-text">Brought to you by <strong>Thunderbear Studios</strong> • View on GitHub ↗</span>
+                        <span class="demo-github-text">Brought to you by <strong>Thunderbear Studios</strong> (thunderbearstudios.org) ↗</span>
                     </a>
+                    <a href="https://github.com/ThunderbearStudios/angband3d" target="_blank" rel="noopener noreferrer" class="demo-permalink-link" style="color: var(--gold-bright); font-size: 0.85rem; text-decoration: none; margin-left: 16px;" title="Open GitHub Repository">📦 View GPL-2.0 Source on GitHub ↗</a>
                     <a href="/demo" target="_blank" rel="noopener noreferrer" class="demo-permalink-link" style="color: var(--cyan); font-size: 0.85rem; text-decoration: none; margin-left: 16px;" title="Open Dedicated Showcase Page">🔗 Standalone Page (angband3d.com/demo) ↗</a>
                 </div>
             </div>

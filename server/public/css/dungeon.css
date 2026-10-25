@@ -144,9 +144,9 @@ html, body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: rgba(4, 5, 8, 0.94);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(6, 5, 3, 0.52);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     z-index: 100;
     transition: opacity 0.15s ease;
     padding: max(8px, var(--safe-top)) max(8px, var(--safe-right)) max(8px, var(--safe-bottom)) max(8px, var(--safe-left));
