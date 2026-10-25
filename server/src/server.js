@@ -23,6 +23,9 @@ const llmLimiter = createLimiter({ perMinute: +process.env.LLM_RPM || 20, perDay
 const ttsLimiter = createLimiter({ perMinute: +process.env.TTS_RPM || 30, perDay: +process.env.TTS_RPD || 500 });
 const sketchLimiter = createLimiter({ perMinute: +process.env.SKETCH_RPM || 6, perDay: +process.env.SKETCH_RPD || 60 });
 const uploadLimiter = createLimiter({ perMinute: +process.env.UPLOAD_RPM || 20, perDay: +process.env.UPLOAD_RPD || 200 });
+const globalLlmLimiter = createLimiter({ perMinute: +process.env.GLOBAL_LLM_RPM || 120, perDay: +process.env.GLOBAL_LLM_RPD || 2500 });
+const globalTtsLimiter = createLimiter({ perMinute: +process.env.GLOBAL_TTS_RPM || 240, perDay: +process.env.GLOBAL_TTS_RPD || 5000 });
+const globalSketchLimiter = createLimiter({ perMinute: +process.env.GLOBAL_SKETCH_RPM || 30, perDay: +process.env.GLOBAL_SKETCH_RPD || 400 });
 
 const ALLOWED_MODELS = [
     'gemini-3.8-flash',
@@ -1289,7 +1292,7 @@ const server = http.createServer((req, res) => {
 
     // REST: Protected LLM Generator Proxy (Protects API key entirely on backend; zero client leakage)
     if (pathname === '/api/llm/generate' && req.method === 'POST') {
-        const wait = llmLimiter(clientIp(req));
+        const wait = llmLimiter(clientIp(req)) || globalLlmLimiter('GLOBAL');
         if (wait > 0) {
             res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
             res.end(JSON.stringify({ error: { message: 'Rate limit' } }));
@@ -1431,7 +1434,7 @@ const server = http.createServer((req, res) => {
             return;
         }
 
-        const wait = sketchLimiter(clientIp(req));
+        const wait = sketchLimiter(clientIp(req)) || globalSketchLimiter('GLOBAL');
         if (wait > 0) {
             res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
             res.end(JSON.stringify({ error: { message: 'Rate limit' } }));
@@ -1569,7 +1572,7 @@ const server = http.createServer((req, res) => {
 
     // REST: Dual-Engine Neural Text-To-Speech (/api/tts?text=...&role=...&engine=edge|gemini&emotion=...)
     if (pathname === '/api/tts' && (req.method === 'GET' || req.method === 'HEAD')) {
-        const wait = ttsLimiter(clientIp(req));
+        const wait = ttsLimiter(clientIp(req)) || globalTtsLimiter('GLOBAL');
         if (wait > 0) {
             res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': wait });
             res.end(JSON.stringify({ error: { message: 'Rate limit' } }));

@@ -16,7 +16,7 @@
 > - ⚔ **Play Now in Browser**: **[https://angband3d.com](https://angband3d.com)** *(Instant 60 FPS 3D roguelike, zero install across Desktop, iOS & Android)*
 > - 💻 **Standalone Windows PC**: **[Download Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** *(144+ FPS native offline play powered by Godot 4 C#)*
 > - 📱 **Standalone Android App**: **[Download Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** *(Offline mobile play with tactile split-thumb D-pad)*
-> - 📖 **GitHub Pages Documentation Portal**: **[https://thunderbearstudios.github.io/angband3d/](https://thunderbearstudios.github.io/angband3d/)**
+> - 📖 **System Architecture & Wire Protocol**: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** *(C99 bridge specification, 60 FPS dirty-state gating & automated test matrix)*
 > - 🏛 **Official Studio & Architecture Overview**: **[https://thunderbearstudios.org](https://thunderbearstudios.org)** *(Thunderbear Studios frameworks & Cloud Run proving ground)*
 
 ---
@@ -338,7 +338,7 @@ dotnet build client/angband3d.csproj
 ### 3. Run Automated Validation & Quality Gates
 Angband 3D maintains strict automated test suites across all layers:
 ```bash
-# Fast Contract & Invariant Gate (18/18 test suites in < 15 seconds)
+# Fast Contract & Invariant Gate (29/29 test suites in < 15 seconds)
 node tools/run_tests.js --tier fast
 
 # C Engine Bridge Smoke Test (11/11 handshake, save/load & birth tests)

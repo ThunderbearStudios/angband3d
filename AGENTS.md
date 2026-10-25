@@ -1,4 +1,4 @@
-# Angband 3D — Contributor & Engine-Bridge Invariants
+# Angband 3D — Contributor & Engine-Bridge Invariants (v2.3)
 
 ## 1. Core Architecture & Engine Authority
 1. **Engine Authority**: Game rules, RNG, and saves (`SaveVNLA` + `.realm.json` sidecars for `silq`, `frogcomposband`, `hengband`) are 100% authoritative in C/C++. Isolate upstream Angband changes to `main-bridge.c` and `bridge-json.{c,h}` (export patch via `git diff 4.2.6..HEAD --output=..\engine-patch\0001-bridge-frontend.patch`, never `>`).

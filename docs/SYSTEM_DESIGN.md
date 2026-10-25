@@ -137,7 +137,7 @@ The local packaging pipeline automates release creation for Windows x64:
 1. Multi-stage Docker build:
    - **Stage 1 (Builder)**: Compiles headless C engine with bridge patch on Ubuntu 22.04.
    - **Stage 2 (Runtime)**: Minimal `node:18-slim` container hosting Node.js WebSocket daemon and static WebGL client.
-2. Automated Google Cloud Build triggers push to Google Container Registry (`gcr.io/resonant-1679933304535/angband3d-cloud`).
+2. Automated Google Cloud Build triggers push to Google Container Registry (`gcr.io/$PROJECT_ID/angband3d-cloud`).
 3. Continuous deployment to Google Cloud Run with HTTP/2 and WebSocket streaming enabled.
 
 ---
