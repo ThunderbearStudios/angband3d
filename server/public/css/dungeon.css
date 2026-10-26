@@ -8540,6 +8540,10 @@ body.grimoire-collapsed-f10 #terminal-viewport {
     color: #ecfdf5 !important;
 }
 
+#terminal-touch-controls {
+    width: 100% !important;
+    max-width: 100% !important;
+}
 #term-contextual-actions {
     display: flex !important;
     flex-wrap: wrap !important;
