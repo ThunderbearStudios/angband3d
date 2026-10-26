@@ -1374,8 +1374,11 @@ class InputController {
                 const scClass = (window.ScreenContext && typeof window.ScreenContext.classify === 'function' && lastFrame)
                     ? window.ScreenContext.classify(lastFrame, realm)
                     : null;
-                const inNonNativeItemList = Boolean(scClass && scClass.mode === 'item-list' && realm !== 'angband');
-                if ((pending && pending.step === 'chooser') || inNonNativeItemList) {
+                const inSelectableList = Boolean(
+                    (scClass && (scClass.mode === 'item-list' || scClass.mode === 'item-actions')) ||
+                    (this.terminal.currentMode === 'item_prompt' && Array.isArray(this.terminal.selectableRegions) && this.terminal.selectableRegions.length > 0)
+                );
+                if ((pending && pending.step === 'chooser') || inSelectableList) {
                     const nextKey = this.terminal.moveSelection(keySpec === 'up' ? -1 : 1);
                     if (nextKey) {
                         if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
@@ -1394,7 +1397,11 @@ class InputController {
                 const scClass = (window.ScreenContext && typeof window.ScreenContext.classify === 'function' && lastFrame)
                     ? window.ScreenContext.classify(lastFrame, realm)
                     : null;
-                if ((!pending || pending.step !== 'chooser') && scClass && scClass.mode === 'item-list' && realm !== 'angband') {
+                const inSelectableList = Boolean(
+                    (scClass && (scClass.mode === 'item-list' || scClass.mode === 'item-actions')) ||
+                    (this.terminal.currentMode === 'item_prompt' && Array.isArray(this.terminal.selectableRegions) && this.terminal.selectableRegions.length > 0)
+                );
+                if ((!pending || pending.step !== 'chooser') && inSelectableList) {
                     const selKey = this.terminal.getSelectedKey();
                     if (selKey) keySpec = selKey;
                 }

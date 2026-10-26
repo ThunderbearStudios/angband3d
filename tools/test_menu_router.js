@@ -505,9 +505,9 @@ function runTests() {
     assert.deepStrictEqual(tabClickedTarget, { tx: 3, ty: 1 },
         'Clicking Classic View map row with sidebar "STR: 18" must route via startMinimapAutoNav instead of matching "R:"');
 
-    // Test 17: WS36 Hybrid Grimoire Cards + Always-Visible Classic Terminal default & Menu vs Map click disambiguation
-    assert.strictEqual(RealmGrimoireDeck.mode, 'hybrid', 'RealmGrimoireDeck must default to hybrid mode so Grimoire cards and #terminal-viewport are both visible');
-    assert.strictEqual(RealmGrimoireDeck.manualTerminalMode, false, 'RealmGrimoireDeck.manualTerminalMode must default to false in hybrid mode');
+    // Test 17: WS36 Classic Terminal default & Menu vs Map click disambiguation
+    assert.strictEqual(RealmGrimoireDeck.mode, 'classic', 'RealmGrimoireDeck must default to classic mode so Grimoire cards never steal terminal real estate');
+    assert.strictEqual(RealmGrimoireDeck.manualTerminalMode, true, 'RealmGrimoireDeck.manualTerminalMode must default to true in classic mode');
     let dispatchedMenuKey = null;
     termDummy.onKeyClick = (k) => { dispatchedMenuKey = k; };
     tabClickedTarget = null;
@@ -522,6 +522,24 @@ function runTests() {
     termDummy.handleRowClick(1, 20);
     assert.strictEqual(tabClickedTarget, null, 'Clicking an inventory menu row in col >= 12 must NOT trigger startMinimapAutoNav');
     assert.strictEqual(dispatchedMenuKey, 'a', 'Clicking an inventory menu row in col >= 12 must dispatch menu letter "a"');
+
+    // Verify ArrowUp/ArrowDown moveSelection preserves selection across attr=14 rows and updates chooser item + book suggested verb
+    assert.strictEqual(MenuRouter.determineSuggestedVerb({ key: 'a', label: "a Holy Book of Prayers [Novice's Handbook]", glyph: '?' }, 'inven', 'angband'), 'b',
+        'Prayer Book / Magic Book must suggest Browse (b) verb');
+    termDummy.syncRibbonSelection = () => {};
+    termDummy.render = (td) => termDummy.updateSelectableRegions(td, 'item_prompt');
+    termDummy.parseAttr = WebTerminal.prototype.parseAttr;
+    termDummy.extractRowRegions = (line) => global.ScreenContext.extractRowRegions(line);
+    termDummy.updateSelectableRegions({
+        rows: [
+            { g: 'Select Item: (Inven: a-b, / for Equip, ESC)' },
+            { g: 'a) a Holy Book of Prayers [Novice\'s Handbook]', a: '0e0e' },
+            { g: 'b) a Ration of Food', a: '0101' }
+        ]
+    }, 'item_prompt');
+    assert.strictEqual(termDummy.selectedKey, 'a');
+    assert.strictEqual(termDummy.moveSelection(1), 'b', 'moveSelection(1) must advance from a to b without resetting to attr=14 row a');
+    assert.strictEqual(termDummy.selectedKey, 'b');
 
     // Test 18: WS38 Final Polish Guard (Unstudied Spell Safety, Ranged/Door/Wall Precision, Message Log Default Expanded)
     const unstudiedCasterFrame = {

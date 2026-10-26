@@ -659,11 +659,13 @@ class WebTerminal {
         this.selectedIndex = (cur + delta + len) % len;
         const active = this.selectableRegions[this.selectedIndex];
         this.selectedKey = active ? active.key : null;
-
-        this.syncRibbonSelection();
-        if (this.lastTermData) {
-            this.render(this.lastTermData);
+        const pending = (typeof window !== 'undefined' && window.MenuRouter && typeof window.MenuRouter.getPending === 'function') ? window.MenuRouter.getPending() : null;
+        if (pending && pending.step === 'chooser' && active) {
+            pending.item = active; pending.itemKey = active.key; pending.itemName = active.label;
+            if (window.MenuRouter.determineSuggestedVerb) pending.suggestedVerb = window.MenuRouter.determineSuggestedVerb(active, pending.listKind, pending.realm || 'angband');
         }
+        this.syncRibbonSelection();
+        if (this.lastTermData) this.render(this.lastTermData);
         return this.selectedKey;
     }
 
@@ -671,78 +673,35 @@ class WebTerminal {
         this.selectableRegions = [];
         const isMenuMode = (mode === 'item_prompt' || mode === 'store' || mode === 'birth');
         if (!isMenuMode || !termData || !Array.isArray(termData.rows)) {
-            this.selectedIndex = -1;
-            this.selectedKey = null;
-            this.syncRibbonSelection();
-            return;
+            this.selectedIndex = -1; this.selectedKey = null; this.syncRibbonSelection(); return;
         }
-
         const seenKeys = new Set();
         let engineSelectedIdx = -1;
-
         for (let r = 0; r < termData.rows.length && r < this.rows; r++) {
-            const rowObj = termData.rows[r];
-            const rawLine = rowObj?.g || '';
-            const line = this.decodeText(rawLine);
-            const regions = this.extractRowRegions(line);
-            for (const reg of regions) {
+            const rowObj = termData.rows[r], line = this.decodeText(rowObj?.g || '');
+            for (const reg of this.extractRowRegions(line)) {
                 if (!reg || !reg.key || seenKeys.has(reg.key)) continue;
                 seenKeys.add(reg.key);
-                const attr0 = this.parseAttr(rowObj?.a || '', reg.startCol);
-                const attr1 = this.parseAttr(rowObj?.a || '', reg.startCol + 1);
-                const isEngineSelected = (attr0 === 14 || attr1 === 14);
-                const idx = this.selectableRegions.length;
-                if (isEngineSelected && engineSelectedIdx === -1) {
-                    engineSelectedIdx = idx;
-                }
-                this.selectableRegions.push({
-                    row: rowObj.y !== undefined ? rowObj.y : r,
-                    key: reg.key,
-                    label: reg.label,
-                    glyph: reg.glyph || null,
-                    startCol: reg.startCol,
-                    endCol: reg.endCol,
-                    isEngineSelected
-                });
+                const isEngineSelected = (this.parseAttr(rowObj?.a || '', reg.startCol) === 14 || this.parseAttr(rowObj?.a || '', reg.startCol + 1) === 14);
+                if (isEngineSelected && engineSelectedIdx === -1) engineSelectedIdx = this.selectableRegions.length;
+                this.selectableRegions.push({ row: rowObj.y !== undefined ? rowObj.y : r, key: reg.key, label: reg.label, glyph: reg.glyph || null, startCol: reg.startCol, endCol: reg.endCol, isEngineSelected });
             }
         }
-
         if (this.selectableRegions.length === 0) {
-            this.selectedIndex = -1;
-            this.selectedKey = null;
-            this.syncRibbonSelection();
-            return;
+            this.selectedIndex = -1; this.selectedKey = null; this.syncRibbonSelection(); return;
         }
-
-        const pending = (typeof window !== 'undefined' && window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
-            ? window.MenuRouter.getPending()
-            : null;
+        const pending = (typeof window !== 'undefined' && window.MenuRouter && typeof window.MenuRouter.getPending === 'function') ? window.MenuRouter.getPending() : null;
         if (pending && pending.step === 'chooser' && pending.item && pending.item.key) {
             const pIdx = this.selectableRegions.findIndex(r => r.key === pending.item.key);
-            if (pIdx >= 0) {
-                this.selectedIndex = pIdx;
-                this.selectedKey = pending.item.key;
-                this.syncRibbonSelection();
-                return;
-            }
+            if (pIdx >= 0) { this.selectedIndex = pIdx; this.selectedKey = pending.item.key; this.syncRibbonSelection(); return; }
         }
-
-        if (engineSelectedIdx >= 0) {
-            this.selectedIndex = engineSelectedIdx;
-            this.selectedKey = this.selectableRegions[engineSelectedIdx].key;
-            this.syncRibbonSelection();
-            return;
-        }
-
         if (this.selectedKey) {
             const existingIdx = this.selectableRegions.findIndex(r => r.key === this.selectedKey);
-            if (existingIdx >= 0) {
-                this.selectedIndex = existingIdx;
-                this.syncRibbonSelection();
-                return;
-            }
+            if (existingIdx >= 0) { this.selectedIndex = existingIdx; this.syncRibbonSelection(); return; }
         }
-
+        if (engineSelectedIdx >= 0) {
+            this.selectedIndex = engineSelectedIdx; this.selectedKey = this.selectableRegions[engineSelectedIdx].key; this.syncRibbonSelection(); return;
+        }
         this.selectedIndex = 0;
         this.selectedKey = this.selectableRegions[0].key;
         this.syncRibbonSelection();

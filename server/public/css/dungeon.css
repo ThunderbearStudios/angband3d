@@ -8542,11 +8542,11 @@ body.grimoire-collapsed-f10 #terminal-viewport {
 
 #term-contextual-actions {
     display: flex !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
+    flex-wrap: wrap !important;
+    overflow: visible !important;
     gap: 5px !important;
     scrollbar-width: thin !important;
-    max-height: 36px !important;
+    max-height: none !important;
     align-items: center !important;
 }
 

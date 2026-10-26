@@ -691,7 +691,43 @@ window.addEventListener('DOMContentLoaded', () => {
     const termCustomBtn = document.getElementById('btn-term-custom');
     if (termCustomBtn) termCustomBtn.addEventListener('click', () => { if (audio) audio.unlock(); startCustomHeroCreation(); });
     const termAdvanceBtn = document.getElementById('btn-term-advance');
-    if (termAdvanceBtn) termAdvanceBtn.addEventListener('click', () => { if (audio) audio.unlock(); if (birthReviewActive) confirmHeroBirth(); else { if (audio) audio.playWhoosh(); network.sendKey('enter'); } });
+    if (termAdvanceBtn) {
+        termAdvanceBtn.addEventListener('click', () => {
+            if (audio) audio.unlock();
+            if (birthReviewActive) {
+                confirmHeroBirth();
+                return;
+            }
+            if (audio) audio.playWhoosh();
+            const inPlay = Boolean(lastFrame && lastFrame.phase === 'play');
+            const effRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (lastFrame && lastFrame.realm) || 'angband';
+            if (inPlay) {
+                if (window.MenuRouter && typeof window.MenuRouter.route === 'function' && window.MenuRouter.route('Enter', lastFrame, effRealm)) {
+                    updateTerminalToolbar(lastFrame);
+                    if (lastFrame && lastFrame.term) terminal.render(lastFrame.term);
+                    return;
+                }
+                const scClass = (SC && typeof SC.classify === 'function' && lastFrame) ? SC.classify(lastFrame, effRealm, { decode: decodeHengbandText }) : null;
+                const inSelectableList = Boolean(
+                    (scClass && (scClass.mode === 'item-list' || scClass.mode === 'item-actions')) ||
+                    (terminal && terminal.currentMode === 'item_prompt' && Array.isArray(terminal.selectableRegions) && terminal.selectableRegions.length > 0)
+                );
+                if (inSelectableList && terminal && typeof terminal.getSelectedKey === 'function') {
+                    const selKey = terminal.getSelectedKey();
+                    if (selKey) {
+                        if (window.MenuRouter && typeof window.MenuRouter.route === 'function' && window.MenuRouter.route(selKey, lastFrame, effRealm)) {
+                            updateTerminalToolbar(lastFrame);
+                            if (lastFrame && lastFrame.term) terminal.render(lastFrame.term);
+                            return;
+                        }
+                        network.sendKey(selKey);
+                        return;
+                    }
+                }
+            }
+            network.sendKey('enter');
+        });
+    }
 
     const termEscapeBtn = document.getElementById('btn-term-escape');
     if (termEscapeBtn) {
@@ -842,7 +878,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 const scClass = (SC && typeof SC.classify === 'function' && lastFrame)
                     ? SC.classify(lastFrame, effRealm, { decode: decodeHengbandText })
                     : null;
-                if ((pending && pending.step === 'chooser') || (scClass && scClass.mode === 'item-list' && effRealm !== 'angband')) {
+                const inSelectableList = Boolean(
+                    (scClass && (scClass.mode === 'item-list' || scClass.mode === 'item-actions')) ||
+                    (terminal.currentMode === 'item_prompt' && Array.isArray(terminal.selectableRegions) && terminal.selectableRegions.length > 0)
+                );
+                if ((pending && pending.step === 'chooser') || inSelectableList) {
                     const nextKey = terminal.moveSelection(key === 'up' ? -1 : 1);
                     if (nextKey) {
                         if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
@@ -862,7 +902,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 const scClass = (SC && typeof SC.classify === 'function' && lastFrame)
                     ? SC.classify(lastFrame, effRealm, { decode: decodeHengbandText })
                     : null;
-                if (scClass && scClass.mode === 'item-list' && effRealm !== 'angband' && terminal && typeof terminal.getSelectedKey === 'function') {
+                const inSelectableList = Boolean(
+                    (scClass && (scClass.mode === 'item-list' || scClass.mode === 'item-actions')) ||
+                    (terminal && terminal.currentMode === 'item_prompt' && Array.isArray(terminal.selectableRegions) && terminal.selectableRegions.length > 0)
+                );
+                if (inSelectableList && terminal && typeof terminal.getSelectedKey === 'function') {
                     const selKey = terminal.getSelectedKey();
                     if (selKey) {
                         if (window.MenuRouter && typeof window.MenuRouter.route === 'function' && window.MenuRouter.route(selKey, lastFrame, effRealm)) {
@@ -3812,7 +3856,10 @@ window.addEventListener('DOMContentLoaded', () => {
         if (pendingState && pendingState.step === 'chooser' && pendingState.item) {
             const pending = pendingState;
             terminalTitle.textContent = isHeng ? hengTitle(`🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`, `🎒 ${pending.item.key}) ${pending.item.label}`) : `🎒 ${pending.item.key}) ${pending.item.label}`;
-            if (termDpad) termDpad.style.display = 'grid';
+            if (termDpad) {
+                termDpad.style.display = 'none';
+                if (termDpad.parentElement) termDpad.parentElement.style.display = 'none';
+            }
             const chooserRealm = (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || (effFrame && effFrame.realm) || 'angband';
             if (window.MenuRouter && typeof window.MenuRouter.renderChooserHtml === 'function') {
                 let chooserHtml = window.MenuRouter.renderChooserHtml(pending, chooserRealm);
@@ -3826,6 +3873,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (terminal && typeof terminal.setSelectedKey === 'function') terminal.setSelectedKey(pending.item.key);
             return;
         }
+        if (termDpad && termDpad.parentElement) termDpad.parentElement.style.display = '';
         const promptKind = prompt.kind || '';
         const mirror = model ? model.mirror : null;
         const isPressAnyKey = Boolean(legacy.isPressAnyKey || promptKind === 'more' || mirror === 'more' || (effFrame.ui && effFrame.ui.more));
@@ -3969,7 +4017,10 @@ window.addEventListener('DOMContentLoaded', () => {
             let titleVal = isHeng ? hengTitle('🎒 INVENTORY PACK', '🎒 INVENTORY / 所持品一覧', '🎒 所持品一覧') : '🎒 INVENTORY PACK';
             for (const [cond, t] of tCases) { if (cond) { titleVal = t; break; } }
             terminalTitle.textContent = titleVal;
-            if (termDpad) termDpad.style.display = 'grid';
+            if (termDpad) {
+                termDpad.style.display = 'none';
+                if (termDpad.parentElement) termDpad.parentElement.style.display = 'none';
+            }
             if (iflags.isSilqInvenCmd) {
                 setCtxActions(renderCtxButtons([
                     { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
@@ -3991,22 +4042,40 @@ window.addEventListener('DOMContentLoaded', () => {
             } else if (iflags.isSilq) {
                 setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: '/', badge: '[/]', label: 'Switch Inven/Gear' }, { key: 'space', badge: '[␣]', label: 'Next Page' }]));
             } else if (isSpellPrompt || /spell|prayer|book|magic|power|mindcraft|invocation|song/i.test(promptLine)) {
-                setCtxActions(renderCtxButtons([{ key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: 'space', badge: '[␣]', label: '📖 Show Choices' }, { key: '?', badge: '[?]', label: '❓ Spell Help' }]));
+                setCtxActions(renderCtxButtons([{ key: 'enter', badge: '[⏎]', label: '✓ Select', gold: true }, { key: 'up', badge: '[▲]', label: 'Prev' }, { key: 'down', badge: '[▼]', label: 'Next' }, { key: 'escape', badge: '[Esc]', label: '⎋ Cancel', gold: true }, { key: 'space', badge: '[␣]', label: '📖 Show Choices' }, { key: '?', badge: '[?]', label: '❓ Spell Help' }]));
             } else if (isHeng) {
                 const pLabel = iflags.isEquipView ? hengLabel('🎒 View Pack', '🎒 View Pack / 所持品', '🎒 所持品') : hengLabel('🛡 View Gear', '🛡 View Gear / 装備品', '🛡 装備品');
                 const qLabel = iflags.isQuiverView ? hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品') : hengLabel('🏹 Quiver', '🏹 Quiver / 矢筒', '🏹 矢筒');
                 setCtxActions(renderCtxButtons([
+                    { key: 'enter', badge: '[⏎]', label: hengLabel('✓ Select', '✓ Select / 決定', '✓ 決定'), gold: true },
+                    { key: 'up', badge: '[▲]', label: '▲' },
+                    { key: 'down', badge: '[▼]', label: '▼' },
                     { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Close', '⎋ Close / 閉じる', '⎋ 閉じる'), gold: true },
                     { key: '/', badge: '[/]', label: pLabel }, { key: '|', badge: '[|]', label: qLabel },
                     { key: 'space', badge: '[␣]', label: hengLabel('Next Page', 'Next Page / 次頁', '次ページ') }
                 ]));
             } else {
-                setCtxActions(renderCtxButtons([
-                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true },
+                const itemBtns = [
+                    { key: 'enter', badge: '[⏎]', label: '✓ Select', gold: true },
+                    { key: 'up', badge: '[▲]', label: 'Prev' },
+                    { key: 'down', badge: '[▼]', label: 'Next' },
                     { key: '/', badge: '[/]', label: iflags.isEquipView ? '🎒 View Pack' : '🛡 View Gear' },
                     { key: '|', badge: '[|]', label: iflags.isQuiverView ? '🎒 Pack' : '🏹 Quiver' },
-                    { key: 'space', badge: '[␣]', label: 'Next Page' }
-                ]));
+                    { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true }
+                ];
+                if (!legacy.verbPrompt && curRealm === 'angband') {
+                    itemBtns.splice(5, 0,
+                        { key: 'w', badge: '[w]', label: '⚔ Wield' },
+                        { key: 'b', badge: '[b]', label: '📖 Browse' },
+                        { key: 'm', badge: '[m]', label: '✨ Cast' },
+                        { key: 'q', badge: '[q]', label: '🧪 Quaff' },
+                        { key: 'r', badge: '[r]', label: '📜 Read' },
+                        { key: 'E', badge: '[E]', label: '🍖 Eat' },
+                        { key: 'I', badge: '[I]', label: '🔍 Inspect' },
+                        { key: 'd', badge: '[d]', label: '📦 Drop' }
+                    );
+                }
+                setCtxActions(renderCtxButtons(itemBtns));
             }
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
         } else if (legacy.isCharacterSheet || (SC && SC.isCharacterSheet(screenText))) {
@@ -4245,6 +4314,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             const letterKey = options.map(o => o.key + ':' + o.display + ':' + (o.label || '')).join(',');
             if (letterKey === lastPopulatedLetters) {
+                termLetterRibbon.style.display = options.length > 0 ? 'flex' : 'none';
                 if (terminal && typeof terminal.syncRibbonSelection === 'function') terminal.syncRibbonSelection();
                 return;
             }

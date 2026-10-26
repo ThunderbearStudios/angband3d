@@ -73,6 +73,9 @@
         hengband: {
             w: { icon: '⚔', label: 'Wear/Wield', glyphs: '|/\\}()=["~{' },
             t: { icon: '🛡', label: 'Take off', listOnly: 'equip' },
+            b: { icon: '📖', label: 'Browse', glyphs: '?' },
+            m: { icon: '✨', label: 'Cast / Pray', glyphs: '?' },
+            G: { icon: '📚', label: 'Study', glyphs: '?' },
             E: { icon: '🍖', label: 'Eat', glyphs: ',' },
             q: { icon: '🧪', label: 'Quaff', glyphs: '!' },
             r: { icon: '📜', label: 'Read', glyphs: '?' },
@@ -88,6 +91,9 @@
         frogcomposband: {
             w: { icon: '⚔', label: 'Wear/Wield', glyphs: '|/\\}()=["~{' },
             t: { icon: '🛡', label: 'Take off', listOnly: 'equip' },
+            b: { icon: '📖', label: 'Browse', glyphs: '?' },
+            m: { icon: '✨', label: 'Cast / Pray', glyphs: '?' },
+            G: { icon: '📚', label: 'Study', glyphs: '?' },
             E: { icon: '🍖', label: 'Eat', glyphs: ',' },
             q: { icon: '🧪', label: 'Quaff', glyphs: '!' },
             r: { icon: '📜', label: 'Read', glyphs: '?' },
@@ -103,6 +109,9 @@
         angband: {
             w: { icon: '⚔', label: 'Wear/Wield', glyphs: '|/\\}()=["~{' },
             t: { icon: '🛡', label: 'Take off', listOnly: 'equip' },
+            b: { icon: '📖', label: 'Browse', glyphs: '?' },
+            m: { icon: '✨', label: 'Cast / Pray', glyphs: '?' },
+            G: { icon: '📚', label: 'Study', glyphs: '?' },
             E: { icon: '🍖', label: 'Eat', glyphs: ',' },
             q: { icon: '🧪', label: 'Quaff', glyphs: '!' },
             r: { icon: '📜', label: 'Read', glyphs: '?' },
@@ -229,6 +238,13 @@
         const glyph = item.glyph || '';
         const label = (item.label || '').toLowerCase();
 
+        // Books / Tomes / Prayer Books (check before Scrolls since books also use '?' in some variants)
+        if (label.includes('book') || label.includes('handbook') || label.includes('tome') ||
+            label.includes('grimoire') || label.includes('prayer') || label.includes('魔法書') ||
+            label.includes('教本') || label.includes('経典')) {
+            return realm === 'silq' ? null : 'b';
+        }
+
         // Wearables (weapons, armor, jewelry, light)
         if ('|/\\}()=["~{'.includes(glyph)) return 'w';
         if (label.includes('torch') || label.includes('lantern') || label.includes('sword') ||
@@ -274,8 +290,8 @@
         const verbsForRealm = VERBS[realm] || VERBS.silq;
         const suggestedVerb = determineSuggestedVerb(pendingState.item, pendingState.listKind, realm);
 
-        let html = `<div class="term-chooser-header" style="padding: 4px 8px; font-weight: bold; color: #ffd700;">🎒 ${escapeHtml(pendingState.item.key)}) ${escapeHtml(pendingState.item.label)} — choose action</div>`;
-        html += `<div class="term-chooser-buttons" style="display: flex; flex-wrap: wrap; gap: 6px; padding: 4px;">`;
+        let html = `<div class="term-chooser-header" style="width: 100%; display: flex; align-items: center; gap: 6px; padding: 2px 6px; font-weight: bold; color: #ffd700; font-size: 12px;">🎒 ${escapeHtml(pendingState.item.key)}) ${escapeHtml(pendingState.item.label)} — choose action (Enter = suggested, ▲/▼ = change item)</div>`;
+        html += `<div class="term-chooser-buttons" style="display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 4px; width: 100%;">`;
 
         const entries = Object.entries(verbsForRealm);
         
@@ -287,12 +303,19 @@
             }
         }
 
+        const isBook = suggestedVerb === 'b';
+        const alwaysAllow = new Set(['w', 't', 'A', 'I', 'x', 'd', 'v', 'k']);
+        if (isBook) { alwaysAllow.add('b'); alwaysAllow.add('m'); alwaysAllow.add('G'); alwaysAllow.add('r'); }
+
         for (const [v, data] of entries) {
             if (v === suggestedVerb) continue; // Already rendered first
             if (data.listOnly && data.listOnly !== pendingState.listKind) continue;
+            if (suggestedVerb && !alwaysAllow.has(v)) continue;
             html += `<button type="button" class="term-ctx-btn" data-verb="${v}" title="${escapeHtml(data.label)} [${v}]">[${v}] ${data.icon} ${escapeHtml(data.label)}</button>`;
         }
 
+        html += `<button type="button" class="term-ctx-btn" data-key="up" title="Previous Item [↑]">[▲] Prev</button>`;
+        html += `<button type="button" class="term-ctx-btn" data-key="down" title="Next Item [↓]">[▼] Next</button>`;
         html += `<button type="button" class="term-ctx-btn" data-verb="Escape" title="Back [Esc]">[Esc] ⎋ Back</button>`;
         html += `</div>`;
         return html;
@@ -417,6 +440,15 @@
                         return true; // Intercepted! Action Chooser will render
                     }
                 }
+            }
+
+            // In Vanilla Angband passive Select Item:, if user presses a verb key not matching an item slot,
+            // exit passive Select Item: and dispatch the verb command directly.
+            if (isAngbandSelect && isVerbKey) {
+                clearPending();
+                getSendKey()('escape');
+                getSendKey()(key);
+                return true;
             }
 
             // Non-matching keys (uppercase commands, digits, space, etc.) pass through natively
