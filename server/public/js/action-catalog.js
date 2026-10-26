@@ -62,7 +62,7 @@
         { id: 'browse', group: 'magic', icon: 'book', labels: { en: 'Browse Book', jp: '閲覧' }, synonyms: ['read_book', 'peruse'], keys: { angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b' }, target: 'item', itemFilter: 'book', primaryFor: [], needsIdle: true, atomic: false },
         { id: 'study', group: 'magic', icon: 'study', labels: { en: 'Study Spells', jp: '学習' }, synonyms: ['learn', 'memorize', 'gain_spells'], keys: { angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G' }, target: 'item', itemFilter: 'book', primaryFor: [], needsIdle: true, atomic: false },
         { id: 'song', group: 'magic', icon: 'music', labels: { en: 'Sing Song', jp: '歌う' }, synonyms: ['sing', 'music', 'chant'], keys: { angband: null, silq: 's', frogcomposband: null, hengband: null }, target: 'menu', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
-        { id: 'abilities', group: 'magic', icon: 'tree', labels: { en: 'Abilities / Skills', jp: '能力/技能' }, synonyms: ['skills', 'tree', 'talents'], keys: { angband: 'S', silq: 'tab', frogcomposband: null, hengband: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'abilities', group: 'magic', icon: 'tree', labels: { en: 'Abilities / Skills', jp: '能力/技能' }, synonyms: ['skills', 'tree', 'talents'], keys: { angband: null, silq: 'tab', frogcomposband: null, hengband: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'smithing', group: 'magic', icon: 'anvil', labels: { en: 'Smithing', jp: '鍛冶' }, synonyms: ['forge', 'craft', 'smith'], keys: { angband: null, silq: '0', frogcomposband: null, hengband: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'power', group: 'magic', icon: 'power', labels: { en: 'Use Power', jp: '特殊能力' }, synonyms: ['mutation', 'racial_power', 'class_power'], keys: { angband: null, silq: null, frogcomposband: 'U', hengband: 'U' }, target: 'menu', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
         { id: 'pet', group: 'magic', icon: 'pet', labels: { en: 'Pet / Minion Command', jp: 'ペットへの指示' }, synonyms: ['minion', 'companion', 'summon'], keys: { angband: null, silq: null, frogcomposband: 'p', hengband: 'p' }, target: 'menu', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
@@ -91,7 +91,7 @@
         { id: 'stairs_up', group: 'action', icon: 'stairs-up', labels: { en: 'Go Up Stairs', jp: '階段を昇る' }, synonyms: ['ascend', 'up'], keys: { angband: '<', silq: '<', frogcomposband: '<', hengband: '<' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
         { id: 'stairs_down', group: 'action', icon: 'stairs-down', labels: { en: 'Go Down Stairs', jp: '階段を降りる' }, synonyms: ['descend', 'down'], keys: { angband: '>', silq: '>', frogcomposband: '>', hengband: '>' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
         { id: 'repeat', group: 'action', icon: 'repeat', labels: { en: 'Repeat Previous', jp: '繰り返す' }, synonyms: ['redo', 'again'], keys: { angband: 'n', silq: 'n', frogcomposband: 'n', hengband: 'n' }, target: 'none', itemFilter: null, primaryFor: [], needsIdle: true, atomic: true },
-        { id: 'count', group: 'action', icon: 'counter', labels: { en: 'Repeat Count Prefix', jp: '回数指定' }, synonyms: ['times', 'multiplier', 'repeat_count'], keys: { angband: '0', silq: '0', frogcomposband: '0', hengband: '0' }, target: 'prompt', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
+        { id: 'count', group: 'action', icon: 'counter', labels: { en: 'Repeat Count Prefix', jp: '回数指定' }, synonyms: ['times', 'multiplier', 'repeat_count'], keys: { angband: '0', silq: 'R', frogcomposband: '0', hengband: '0' }, target: 'prompt', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false },
 
         // =========================================================================
         // Information / Manage Group
@@ -225,7 +225,10 @@
 
         for (let i = 0; i < bits.length; i++) {
             if ((vm & (1 << i)) !== 0) {
-                const verbId = bits[i];
+                let verbId = bits[i];
+                if (verbId === 'activate' && r === 'silq') {
+                    verbId = 'play_horn';
+                }
                 const cmd = get(verbId);
                 if (cmd && cmd.keys[r] !== null && cmd.keys[r] !== undefined) {
                     result.push(cmd);
@@ -241,7 +244,7 @@
         const r = realm || 'angband';
 
         // 1. Authoritative bridge bitmask
-        if (typeof item.vm === 'number' && Number.isFinite(item.vm)) {
+        if (typeof item.vm === 'number' && Number.isFinite(item.vm) && item.vm > 0) {
             return decodeVerbMask(item.vm, r);
         }
 
@@ -251,16 +254,19 @@
         const equipped = Boolean(isEquipped || item.equipped || (typeof item.slot === 'number' && item.slot >= 0 && item.slot <= 30));
         const candidateIds = [];
 
-        const isPotion = tval === 75 || tval === 'potion' || name.includes('potion') || name.includes('draught') || name.includes('flask');
+        const isPotion = tval === 75 || tval === 71 || tval === 'potion' || name.includes('potion') || name.includes('draught') || name.includes('flask');
         const isScroll = tval === 70 || tval === 'scroll' || name.includes('scroll') || name.includes('parchment');
-        const isFood = tval === 80 || tval === 'food' || name.includes('ration') || name.includes('food') || name.includes('mushroom') || name.includes('bread') || name.includes('wafer');
+        const isFood = tval === 80 || tval === 'food' || name.includes('ration') || name.includes('food') || name.includes('mushroom') || name.includes('bread') || name.includes('wafer') || name.includes('jerky') || name.includes('slime mold');
+        const isHorn = tval === 'horn' || name.includes('horn');
         const isWand = tval === 65 || tval === 'wand' || name.includes('wand');
         const isStaff = tval === 55 || tval === 'staff' || name.includes('staff') || name.includes('stave');
         const isRod = tval === 66 || tval === 'rod' || name.includes('rod');
-        const isBook = (typeof tval === 'number' && tval >= 90 && tval <= 99) || tval === 'book' || name.includes('book') || name.includes('tome') || name.includes('grimoire') || name.includes('spellbook');
-        const isLight = tval === 40 || name.includes('lantern') || name.includes('torch') || name.includes('light');
+        const isBook = (typeof tval === 'number' && tval >= 90 && tval <= 115) || tval === 'book' || name.includes('book') || name.includes('tome') || name.includes('grimoire') || name.includes('spellbook') || /\[[^\]]+\]/.test(name);
+        const isLight = tval === 39 || tval === 40 || name.includes('lantern') || name.includes('torch') || name.includes('light');
 
-        if (isPotion) {
+        if (isHorn && r === 'silq') {
+            candidateIds.push('play_horn', 'throw', 'drop', 'inscribe', 'ignore', 'examine');
+        } else if (isPotion) {
             candidateIds.push('quaff', 'throw', 'drop', 'inscribe', 'ignore', 'examine');
         } else if (isScroll) {
             candidateIds.push('read', 'throw', 'drop', 'inscribe', 'ignore', 'examine');
@@ -304,6 +310,193 @@
         return results;
     }
 
+        function evaluateActionAvailability(id, frame, realm, context) {
+        const cmd = get(id);
+        const r = (realm || (frame && frame.realm) || 'angband').toLowerCase();
+        if (!cmd || cmd.keys[r] === null || cmd.keys[r] === undefined) {
+            return { supported: false, available: false, suggested: false, badge: '', itemSample: null };
+        }
+        if (runtimeAvailable.has(cmd.id) && !runtimeAvailable.get(cmd.id)) {
+            return { supported: true, available: false, suggested: false, badge: '', itemSample: null };
+        }
+        if (!frame || frame.phase !== 'play') {
+            return { supported: true, available: true, suggested: false, badge: '', itemSample: null };
+        }
+
+        const p = frame.player || {};
+        const inv = Array.isArray(frame.inventory) ? frame.inventory : [];
+        const eq = Array.isArray(frame.equipment) ? frame.equipment : [];
+        const allItems = inv.concat(eq);
+
+        const matchVerbOnItem = (it, verbId, isEq) => {
+            const verbs = validVerbsForItem(it, r, isEq);
+            return verbs.some(v => v.id === verbId);
+        };
+        const findMatchingItems = (verbId, source) => {
+            if (source === 'inv') return inv.filter(it => matchVerbOnItem(it, verbId, false));
+            if (source === 'eq') return eq.filter(it => matchVerbOnItem(it, verbId, true));
+            return inv.filter(it => matchVerbOnItem(it, verbId, false)).concat(eq.filter(it => matchVerbOnItem(it, verbId, true)));
+        };
+
+        let available = true;
+        let suggested = false;
+        let badge = '';
+        let itemSample = null;
+
+        const pClass = (p.class || '').toLowerCase();
+        const studyCount = typeof p.study_spells === 'number' ? p.study_spells : (typeof p.study === 'number' ? p.study : (typeof p.newSpells === 'number' ? p.newSpells : (typeof p.new_spells === 'number' ? p.new_spells : 0)));
+        const canStudyNow = Boolean(studyCount > 0 || p.canStudy || p.studyState === 'can_study' || (Array.isArray(p.statuses) && p.statuses.some(s => /study/i.test(String(s && s.name ? s.name : s)))) || (context && context.canStudyNow));
+        const isHungry = Boolean(
+            (typeof p.food === 'number' && p.food > 0 && p.food < 1500) ||
+            (typeof p.food === 'string' && /hungry|weak|faint|starv/i.test(p.food)) ||
+            (typeof p.hunger === 'string' && /hungry|weak|faint|starv/i.test(p.hunger)) ||
+            (Array.isArray(p.status) && p.status.some(s => /hungry|weak|faint|starv/i.test(String(s)))) ||
+            (Array.isArray(p.statuses) && p.statuses.some(s => /hungry|weak|faint|starv/i.test(String(s && s.name ? s.name : s)))) ||
+            (context && context.isHungry)
+        );
+
+        switch (cmd.id) {
+            case 'quaff':
+            case 'read':
+            case 'eat':
+            case 'aim':
+            case 'use_staff':
+            case 'zap':
+            case 'play_horn':
+            case 'wield':
+            case 'refill': {
+                const matches = findMatchingItems(cmd.id, 'inv');
+                available = matches.length > 0;
+                itemSample = matches[0] || null;
+                if (available) {
+                    const totalQty = matches.reduce((sum, it) => sum + (typeof it.qty === 'number' ? it.qty : 1), 0);
+                    badge = totalQty > 1 ? `×${totalQty}` : '';
+                }
+                if (cmd.id === 'eat' && available && isHungry) {
+                    suggested = true;
+                    badge = '✦ Hungry';
+                }
+                if (cmd.id === 'quaff' && available && typeof p.hp === 'number' && typeof p.mhp === 'number' && p.mhp > 0 && (p.hp / p.mhp) <= 0.45) {
+                    suggested = true;
+                }
+                break;
+            }
+            case 'takeoff': {
+                const matches = eq.filter(it => it && (it.name || it.dname || it.label));
+                available = matches.length > 0;
+                itemSample = matches[0] || null;
+                break;
+            }
+            case 'activate': {
+                const matches = findMatchingItems('activate', 'all');
+                available = matches.length > 0;
+                itemSample = matches[0] || null;
+                break;
+            }
+            case 'use': {
+                const usableVerbs = ['quaff', 'read', 'eat', 'aim', 'use_staff', 'zap', 'activate', 'play_horn'];
+                const matches = allItems.filter((it, idx) => {
+                    const isEq = idx >= inv.length;
+                    const verbs = validVerbsForItem(it, r, isEq);
+                    return verbs.some(v => usableVerbs.includes(v.id));
+                });
+                available = matches.length > 0;
+                itemSample = matches[0] || null;
+                break;
+            }
+            case 'drop':
+            case 'ignore':
+            case 'inscribe':
+            case 'uninscribe':
+            case 'examine':
+            case 'throw': {
+                const matches = inv.length > 0 ? inv : eq.filter(it => it && (it.name || it.dname || it.label));
+                available = matches.length > 0;
+                itemSample = matches[0] || null;
+                break;
+            }
+            case 'fire': {
+                const hasBow = eq.some(it => {
+                    if (!it) return false;
+                    const nm = (it.name || it.dname || it.label || '').toLowerCase();
+                    return it.tval === 19 || nm.includes('bow') || nm.includes('sling') || nm.includes('crossbow') || (typeof it.vm === 'number' && (it.vm & (1 << 7)) !== 0);
+                });
+                const hasAmmo = inv.some(it => {
+                    if (!it) return false;
+                    const nm = (it.name || it.dname || it.label || '').toLowerCase();
+                    return it.tval === 16 || it.tval === 17 || it.tval === 18 || nm.includes('arrow') || nm.includes('bolt') || nm.includes('shot') || nm.includes('pebble') || (typeof it.vm === 'number' && (it.vm & (1 << 7)) !== 0);
+                });
+                available = Boolean(hasBow || hasAmmo || (context && context.hasRanged));
+                break;
+            }
+            case 'browse': {
+                const books = findMatchingItems('browse', 'inv');
+                available = books.length > 0;
+                itemSample = books[0] || null;
+                break;
+            }
+            case 'study': {
+                const books = findMatchingItems('study', 'inv');
+                available = books.length > 0 || canStudyNow;
+                itemSample = books[0] || null;
+                if (available && canStudyNow) {
+                    suggested = true;
+                    badge = studyCount > 0 ? `✦ ${studyCount} Ready` : '✦ Study Ready';
+                }
+                break;
+            }
+            case 'cast': {
+                const books = findMatchingItems('cast', 'inv');
+                const isIntrinsicCaster = /mindcrafter|psion|warlock|berserker|mirror|blue[-\s]?mage|imitator|bard|monk|mystic|wild[-\s]?talent|possessor|red[-\s]?mage|samurai|ninja|force[-\s]?trainer/i.test(pClass);
+                available = books.length > 0 || isIntrinsicCaster || (typeof p.msp === 'number' && p.msp > 0 && books.length > 0);
+                itemSample = books[0] || null;
+                break;
+            }
+            case 'song': {
+                available = r === 'silq';
+                break;
+            }
+            case 'smithing': {
+                available = r === 'silq' && Boolean((context && context.onForge) || true);
+                if (context && context.onForge) {
+                    suggested = true;
+                    badge = '✦ Forge Here';
+                }
+                break;
+            }
+            case 'pickup': {
+                const hasFloorItem = Boolean((context && context.hasFloorItem) || (Array.isArray(frame.floor) && frame.floor.length > 0) || (frame.ui && frame.ui.floorItems && frame.ui.floorItems.length > 0));
+                available = hasFloorItem || inv.length >= 0;
+                if (context && context.hasFloorItem !== undefined) {
+                    available = Boolean(context.hasFloorItem);
+                }
+                if (hasFloorItem) {
+                    suggested = true;
+                    badge = '✦ On Floor';
+                }
+                break;
+            }
+            case 'open': {
+                if (context && context.hasClosedDoorOrChest !== undefined) {
+                    available = Boolean(context.hasClosedDoorOrChest);
+                    if (available) suggested = true;
+                }
+                break;
+            }
+            case 'rest': {
+                if (typeof p.hp === 'number' && typeof p.mhp === 'number' && p.mhp > 0 && (p.hp / p.mhp) < 0.75 && !(context && context.hasAdjacentMonster)) {
+                    suggested = true;
+                }
+                break;
+            }
+            default:
+                available = true;
+                break;
+        }
+
+        return { supported: true, available, suggested, badge, itemSample };
+    }
+
         function ingestBridgeCommands(msg) {
         if (!msg || typeof msg !== 'object') return false;
         if (Array.isArray(msg.verbBits)) {
@@ -344,6 +537,7 @@
         shadowedByWasd,
         decodeVerbMask,
         validVerbsForItem,
+        evaluateActionAvailability,
         ingestBridgeCommands,
         isAvailable
     });

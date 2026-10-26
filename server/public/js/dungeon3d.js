@@ -2098,7 +2098,6 @@ class Dungeon3D {
         this.particles = [];
         this.trauma = 0.0;
         this.lastPlayerHp = null;
-        this.processedMessages = new Set();
         this.attackAnimationTime = 0.0;
         this.hurtAnimationTime = 0.0;
         this.castAnimationTime = 0.0;
@@ -4754,6 +4753,17 @@ class Dungeon3D {
         this.castAnimationTime = 0.32; // 320ms magical raise
     }
 
+    triggerActionAnimation(actionKind = 'cast', duration = 0.36) {
+        this.actionAnimationKind = actionKind;
+        this.actionAnimationDuration = Math.max(0.12, Number(duration) || 0.36);
+        this.actionAnimationTime = this.actionAnimationDuration;
+        if (actionKind === 'attack' || actionKind === 'dig' || actionKind === 'shoot' || actionKind === 'throw') {
+            this.attackAnimationTime = Math.max(this.attackAnimationTime || 0, 0.22);
+        } else if (actionKind === 'cast' || actionKind === 'study' || actionKind === 'read' || actionKind === 'aim' || actionKind === 'quaff' || actionKind === 'eat' || actionKind === 'horn') {
+            this.castAnimationTime = Math.max(this.castAnimationTime || 0, this.actionAnimationDuration);
+        }
+    }
+
     spawnFloatingText(text, worldPos, colorHex = '#ffcc00', scale = 1.0) {
         const canvas = document.createElement('canvas');
         canvas.width = 384;
@@ -5586,38 +5596,61 @@ class Dungeon3D {
             return;
         }
 
-        // 5. Scrolls, Staves & Potions Quaffed
-        if (/\b(you read|you recite|you use a staff|you quaff|you drink|you pray)\b/.test(lower)) {
+        // 5. Scrolls, Staves, Potions Quaffed, Rations Eaten, Spells Studied & Horns Blown (EN/JP)
+        if (/\b(you read|you recite|you use a staff|you quaff|you drink|you pray|you eat|that tastes|you have learned|you blow|you sing|you chant)\b/.test(lower) ||
+            /読んだ|唱えた|飲んだ|食べた|学んだ|吹き鳴らした|祈った/.test(msgText)) {
             let auraColor = 0x66ccff;
             let auraKind = 'runic';
-            if (lower.includes('quaff') || lower.includes('drink')) {
+            let actionKind = 'read';
+            let floatLabel = 'INVOKE';
+            if (lower.includes('quaff') || lower.includes('drink') || msgText.includes('飲')) {
                 auraColor = 0x33ff88;
                 auraKind = 'potion';
-            } else if (lower.includes('pray') || lower.includes('bless')) {
+                actionKind = 'quaff';
+                floatLabel = 'QUAFF';
+            } else if (lower.includes('eat') || lower.includes('tastes') || msgText.includes('食')) {
+                auraColor = 0xfbbf24;
+                auraKind = 'potion';
+                actionKind = 'eat';
+                floatLabel = 'EAT';
+            } else if (lower.includes('learned') || msgText.includes('学')) {
+                auraColor = 0xf5d77f;
+                auraKind = 'holy';
+                actionKind = 'study';
+                floatLabel = 'LEARNED!';
+            } else if (lower.includes('blow') || lower.includes('sing') || lower.includes('chant') || msgText.includes('吹')) {
+                auraColor = 0x93c5fd;
+                auraKind = 'runic';
+                actionKind = 'horn';
+                floatLabel = 'RESONATE';
+            } else if (lower.includes('pray') || lower.includes('bless') || msgText.includes('祈')) {
                 auraColor = 0xffe066;
                 auraKind = 'holy';
+                actionKind = 'cast';
+                floatLabel = 'PRAYER';
             }
+            this.triggerActionAnimation(actionKind, 0.36);
             this.spawnProjectileOrSpellVfx('aura', ep.startPos, ep.startPos, auraColor);
             if (this.audio && typeof this.audio.playRunicAura === 'function') {
                 this.audio.playRunicAura(auraKind, 0);
-            } else if (lower.includes('quaff') || lower.includes('drink')) {
+            } else if (actionKind === 'quaff' || actionKind === 'eat') {
                 if (this.audio && typeof this.audio.playQuaff === 'function') this.audio.playQuaff();
             } else {
                 if (this.audio && typeof this.audio.playScroll === 'function') this.audio.playScroll();
             }
-            this.spawnFloatingText((lower.includes('quaff') || lower.includes('drink')) ? 'QUAFF' : 'INVOKE', ep.startPos, '#88ffcc', 1.10);
+            this.spawnFloatingText(floatLabel, ep.startPos, '#88ffcc', 1.10);
             return;
         }
 
         // 6. Digging / Tunneling
-        if (/\b(you tunnel|you dig|finished tunneling)\b/.test(lower)) {
+        if (/\b(you tunnel|you dig|finished tunneling)\b/.test(lower) || /掘った|掘り終えた/.test(msgText)) {
             this.spawnHitSparks(ep.endPos, 0xa89f91, 14);
             if (this.audio && typeof this.audio.playDiggingStrike === 'function') {
                 this.audio.playDiggingStrike(ep.pan);
             } else if (this.audio && typeof this.audio.playHit === 'function') {
                 this.audio.playHit(false);
             }
-            this.triggerAttackAnimation();
+            this.triggerActionAnimation('dig', 0.24);
             this.spawnFloatingText('DIG', ep.endPos, '#c2b29d', 1.0);
             return;
         }
@@ -6408,18 +6441,55 @@ class Dungeon3D {
             this.lastPlayerStatuses = currentStatuses;
         }
 
-        // Parse recent game messages for kinetic combat feedback ("Juice") (1:1 with Godot DungeonWorld.cs)
+        // Parse recent game messages for kinetic combat & action feedback ("Juice") (1:1 with Godot DungeonWorld.cs)
+        // Revision 6 (WS5.1): Use frame-to-frame message delta + msgObj.count tracking instead of a 200-entry Set
+        // that permanently suppressed repeated combat/potion/spell messages!
         if (frame.messages && Array.isArray(frame.messages)) {
+            const curEntries = [];
             for (const msgObj of frame.messages) {
-                const msgText = typeof msgObj === 'string' ? msgObj : (msgObj && msgObj.text ? msgObj.text : '');
-                if (!msgText || this.processedMessages.has(msgText)) continue;
-                this.processedMessages.add(msgText);
-                if (this.processedMessages.size > 200) {
-                    const first = this.processedMessages.values().next().value;
-                    this.processedMessages.delete(first);
+                const text = typeof msgObj === 'string' ? msgObj : (msgObj && msgObj.text ? String(msgObj.text) : '');
+                if (!text) continue;
+                const count = (msgObj && typeof msgObj === 'object' && Number.isFinite(msgObj.count)) ? msgObj.count : 1;
+                curEntries.push({ text, count });
+            }
+            if (!this._prevFrameMessageEntries) {
+                this._prevFrameMessageEntries = curEntries;
+            } else {
+                const prev = this._prevFrameMessageEntries;
+                const newTexts = [];
+                if (curEntries.length > 0) {
+                    // Find longest overlap between suffix of prev and prefix of curEntries
+                    let overlap = 0;
+                    const maxOverlap = Math.min(prev.length, curEntries.length);
+                    for (let k = maxOverlap; k >= 1; k--) {
+                        let match = true;
+                        for (let j = 0; j < k; j++) {
+                            if (prev[prev.length - k + j].text !== curEntries[j].text) {
+                                match = false;
+                                break;
+                            }
+                        }
+                        if (match) {
+                            overlap = k;
+                            break;
+                        }
+                    }
+                    // If the last overlapping message had its repeat count incremented (e.g. "You hit the Kobold. (x2)"), fire VFX!
+                    if (overlap > 0) {
+                        const prevLast = prev[prev.length - 1];
+                        const curOverlapLast = curEntries[overlap - 1];
+                        if (curOverlapLast && prevLast && curOverlapLast.text === prevLast.text && curOverlapLast.count > prevLast.count) {
+                            newTexts.push(curOverlapLast.text);
+                        }
+                    }
+                    for (let idx = overlap; idx < curEntries.length; idx++) {
+                        newTexts.push(curEntries[idx].text);
+                    }
                 }
-
-                this.triggerMessageVfx(msgText);
+                this._prevFrameMessageEntries = curEntries;
+                for (const msgText of newTexts) {
+                    this.triggerMessageVfx(msgText);
+                }
             }
         }
 
@@ -8182,10 +8252,22 @@ class Dungeon3D {
         const glyphs = this.itemAtlasData.glyphs;
         if (!items && !glyphs) return null;
 
-        const rawName = (name || '').trim();
+        const isPileOrUnknown = (entry) => {
+            if (!entry || !Array.isArray(entry.uv)) return true;
+            if (entry.category === 'none') return true;
+            return entry.uv[0] < 0.095 && entry.uv[1] > 0.968;
+        };
 
-        // 1. Direct exact name lookup
-        if (items && items[rawName]) {
+        const rawName = (name || '').trim();
+        const cleanLower = rawName
+            .toLowerCase()
+            .replace(/^(\d+\s+|a\s+|an\s+|the\s+|some\s+|pile\s+of\s+)/i, '')
+            .replace(/\s*(\([^)]*\)|\{[^}]*\})+$/g, '')
+            .replace(/-/g, ' ')
+            .trim();
+
+        // 1. Direct exact name lookup (excluding <pile> / <unknown*>)
+        if (items && items[rawName] && !isPileOrUnknown(items[rawName])) {
             return items[rawName];
         }
 
@@ -8195,30 +8277,64 @@ class Dungeon3D {
             if (!this._itemAtlasLowerMap) {
                 this._itemAtlasLowerMap = new Map();
                 for (const [k, v] of Object.entries(items)) {
+                    if (k.startsWith('<') || isPileOrUnknown(v)) continue;
                     this._itemAtlasLowerMap.set(k.toLowerCase(), v);
+                    const dehyphen = k.toLowerCase().replace(/-/g, ' ');
+                    if (!this._itemAtlasLowerMap.has(dehyphen)) {
+                        this._itemAtlasLowerMap.set(dehyphen, v);
+                    }
                 }
             }
             if (this._itemAtlasLowerMap.has(lower)) {
                 return this._itemAtlasLowerMap.get(lower);
             }
+            if (cleanLower && this._itemAtlasLowerMap.has(cleanLower)) {
+                return this._itemAtlasLowerMap.get(cleanLower);
+            }
 
-            // 3. Glyph-attuned synthesis for flavored items (e.g. "Steel" + '-' -> "Steel wand")
+            // 2b. Bracketed spellbook / prayer book / song book resolution
+            const bracketMatch = rawName.match(/\[([^\]]+)\]/);
+            if (bracketMatch) {
+                const bKey = `[${bracketMatch[1].toLowerCase().replace(/-/g, ' ').trim()}]`;
+                if (this._itemAtlasLowerMap.has(bKey)) {
+                    return this._itemAtlasLowerMap.get(bKey);
+                }
+            }
+            if (bracketMatch || /\b(book|tome|grimoire|handbook|manual|codex|prayer|spellbook|chants|songbook)\b/i.test(rawName)) {
+                if (/prayer|valar|holy|bless|piety|life|crusade|daemon/i.test(rawName)) {
+                    return items['[Beginners Handbook]'] || items['[First Spells]'];
+                }
+                if (/nature|wild|charm|craft/i.test(rawName)) {
+                    return items['[Lesser Charms]'] || items['[First Spells]'];
+                }
+                if (/shadow|death|dark|necromanc|chaos|trump/i.test(rawName)) {
+                    return items['[Into the Shadows]'] || items['[First Spells]'];
+                }
+                return items['[Magic for Beginners]'] || items['[First Spells]'];
+            }
+
+            // 3. Glyph-attuned synthesis for flavored & identified items
+            const strippedCore = cleanLower
+                .replace(/^(potions?\s+of|scrolls?\s+of|scrolls?\s+titled|wands?\s+of|rods?\s+of|staves?\s+of|staff\s+of|amulets?\s+of|rings?\s+of)\s+/i, '')
+                .replace(/^"([^"]+)"$/, '$1')
+                .trim();
+
             if (glyph) {
                 let syntheticCandidates = [];
                 if (glyph === '-') {
-                    syntheticCandidates = [`${lower} wand`, `${lower} rod`, `wand of ${lower}`, `rod of ${lower}`];
+                    syntheticCandidates = [`${strippedCore} wand`, `${strippedCore} rod`, `wand of ${strippedCore}`, `rod of ${strippedCore}`];
                 } else if (glyph === '_') {
-                    syntheticCandidates = [`${lower} staff`, `staff of ${lower}`];
+                    syntheticCandidates = [`${strippedCore} staff`, `staff of ${strippedCore}`];
                 } else if (glyph === '!') {
-                    syntheticCandidates = [`${lower} potion`, `potion of ${lower}`];
+                    syntheticCandidates = [`${strippedCore} potion`, `potion of ${strippedCore}`];
                 } else if (glyph === '?') {
-                    syntheticCandidates = [`${lower} scroll`, `scroll of ${lower}`, `scroll titled ${lower}`];
+                    syntheticCandidates = [strippedCore, `${strippedCore} scroll`, `scroll of ${strippedCore}`, `scroll titled ${strippedCore}`];
                 } else if (glyph === '=') {
-                    syntheticCandidates = [`${lower} ring`, `ring of ${lower}`];
+                    syntheticCandidates = [`${strippedCore} ring`, `ring of ${strippedCore}`];
                 } else if (glyph === '"') {
-                    syntheticCandidates = [`${lower} amulet`, `amulet of ${lower}`];
+                    syntheticCandidates = [`${strippedCore} amulet`, `amulet of ${strippedCore}`];
                 } else if (glyph === ']') {
-                    syntheticCandidates = [`pair of ${lower} boots`, `${lower} boots`, `${lower} shod boots`];
+                    syntheticCandidates = [`pair of ${strippedCore} boots`, `${strippedCore} boots`, `${strippedCore} shod boots`];
                 }
 
                 for (const cand of syntheticCandidates) {
@@ -8228,29 +8344,66 @@ class Dungeon3D {
                 }
             }
 
+            // 3b. Identified & flavored Potion semantic Shockbolt sprite mapping (never <pile>!)
+            if (glyph === '!' || /\b(potions?|draughts?|elixirs?|phials?|薬)\b/i.test(rawName)) {
+                if (/heal|curing|cure|life|vitality|blood|体力|治癒|回復/i.test(rawName)) {
+                    return items['Crimson potion'] || items['Clear potion'];
+                }
+                if (/mana|enlightenment|intellect|wisdom|restore|魔力|知能/i.test(rawName)) {
+                    return items['Azure potion'] || items['Clear potion'];
+                }
+                if (/speed|haste|heroism|berserk|resistance|strength|スピード|加速|英雄/i.test(rawName)) {
+                    return items['Bubbling potion'] || items['Azure potion'];
+                }
+                if (/poison|venom|weakness|blind|confusion|salt|毒|盲目/i.test(rawName)) {
+                    return items['Green potion'] || items['Clear potion'];
+                }
+                const potionPool = ['Azure potion', 'Crimson potion', 'Bubbling potion', 'Green potion', 'Clear potion'];
+                let h = 0;
+                for (let i = 0; i < cleanLower.length; i++) h = ((h << 5) - h + cleanLower.charCodeAt(i)) | 0;
+                const picked = items[potionPool[Math.abs(h) % potionPool.length]];
+                if (picked) return picked;
+            }
+
             // 4. Substring & prefix lookup (handles enchantments, quantities, ego suffixes: e.g. "Long Sword (1d10)" -> "Long Sword")
             for (const [k, v] of this._itemAtlasLowerMap.entries()) {
-                if (lower.startsWith(k) || lower.includes(k)) {
+                if (k.length >= 4 && (cleanLower.startsWith(k) || cleanLower.includes(k))) {
                     return v;
                 }
             }
 
             // 5. Long-form reverse containment (ONLY if name is specific, >= 8 chars, and category matches)
-            if (lower.length >= 8 && !['steel', 'iron', 'leather', 'wooden', 'copper', 'golden'].includes(lower)) {
+            if (cleanLower.length >= 8 && !['steel', 'iron', 'leather', 'wooden', 'copper', 'golden'].includes(cleanLower)) {
                 for (const [k, v] of this._itemAtlasLowerMap.entries()) {
-                    if (k.includes(lower)) {
+                    if (k.includes(cleanLower)) {
                         return v;
                     }
                 }
             }
+
+            // 5b. Painted Shockbolt fallbacks for glyphs whose raw atlas entry was <pile> ('!', '?', '"', ']', '<')
+            if (glyph === '?' || /\b(scrolls?|parchments?|巻物)\b/i.test(rawName)) {
+                return items['Phase Door'] || items['[Magic for Beginners]'];
+            }
+            if (glyph === '"' || /\b(amulets?|pendants?|necklaces?|首飾り|アミュレット)\b/i.test(rawName)) {
+                return items['Amulet'] || items['Pendant'];
+            }
+            if (glyph === ']') {
+                if (/boot|sandal|slipper|greave|靴/i.test(rawName)) return items['Pair of Leather Boots'];
+                if (/helm|cap|crown|hood|兜|冠/i.test(rawName)) return items['Iron Helm'];
+                if (/glove|gauntlet|caestus|cesti|篭手/i.test(rawName)) return items['Set of Leather Gloves'];
+                if (/cloak|mantle|外套|クローク/i.test(rawName)) return items['Cloak'];
+                if (/shield|buckler|targe|盾/i.test(rawName)) return items['Small Metal Shield'];
+                return items['Iron Helm'] || items['Pair of Leather Boots'];
+            }
         }
 
-        // 6. Canonical glyph fallback (100% coverage across all 20 Angband item symbols)
-        if (glyphs && glyph && glyphs[glyph]) {
+        // 6. Canonical glyph fallback (guarding against <pile> category: 'none')
+        if (glyphs && glyph && glyphs[glyph] && !isPileOrUnknown(glyphs[glyph])) {
             return glyphs[glyph];
         }
 
-        return null;
+        return (items && items['Wooden Torch']) || null;
     }
 
     createItemBillboardMesh(atlasEntry) {
@@ -12781,11 +12934,16 @@ class Dungeon3D {
             bobY = Math.sin(tNow * 0.0025) * 0.003;
         }
 
-        // Viewmodel Action Dynamics: Attack thrust, Hurt recoil, Spellcast surge
+        // Viewmodel Action Dynamics: Attack thrust, Hurt recoil, Spellcast/Quaff/Read/Eat/Aim choreography
+        let actX = 0;
         let actZ = 0;
         let actY = 0;
         let actRotZ = 0;
         let actRotX = 0;
+
+        if (this.actionAnimationTime > 0) {
+            this.actionAnimationTime = Math.max(0, this.actionAnimationTime - delta);
+        }
 
         if (this.attackAnimationTime > 0) {
             this.attackAnimationTime -= delta;
@@ -12803,15 +12961,30 @@ class Dungeon3D {
             actY -= sinPulse * 0.04;
         } else if (this.castAnimationTime > 0) {
             this.castAnimationTime -= delta;
-            const prog = (0.32 - this.castAnimationTime) / 0.32;
+            const dur = this.actionAnimationDuration || 0.32;
+            const prog = Math.max(0, Math.min(1, (dur - this.castAnimationTime) / dur));
             const sinPulse = Math.sin(prog * Math.PI);
-            actY += sinPulse * 0.09; // Raise hands/wand
-            actRotX -= sinPulse * 0.22;
+            const kind = this.actionAnimationKind || 'cast';
+            if (kind === 'quaff' || kind === 'eat' || kind === 'horn') {
+                actX -= sinPulse * 0.11; // Bring toward mouth/center
+                actY += sinPulse * 0.12;
+                actZ -= sinPulse * 0.05;
+                actRotX -= sinPulse * 0.42; // Tip flask/ration/horn back
+                actRotZ += sinPulse * 0.25;
+            } else if (kind === 'aim') {
+                actX -= sinPulse * 0.06;
+                actY += sinPulse * 0.06;
+                actZ += sinPulse * 0.14; // Level wand/rod forward
+                actRotX += sinPulse * 0.18;
+            } else {
+                actY += sinPulse * 0.09; // Raise hands/tome/scroll
+                actRotX -= sinPulse * 0.22;
+            }
         }
 
         // Apply to Right Hand
         if (this.rightHandGroup && this.rightRestPos) {
-            this.rightHandGroup.position.x = this.rightRestPos.x + bobX;
+            this.rightHandGroup.position.x = this.rightRestPos.x + bobX + actX;
             this.rightHandGroup.position.y = this.rightRestPos.y + bobY + actY;
             this.rightHandGroup.position.z = this.rightRestPos.z + actZ;
             this.rightHandGroup.rotation.x = this.rightRestRot.x + actRotX;

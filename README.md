@@ -8,11 +8,11 @@
 [![Web Client: Three.js PBR](https://img.shields.io/badge/Web_Client-Three.js_WebGL_PBR-orange.svg)](server/public)
 [![Desktop Client: Godot 4 C#](https://img.shields.io/badge/Desktop_Client-Godot_4.3+_.NET_8-blueviolet.svg)](https://godotengine.org/)
 [![Mobile: Android Standalone APK](https://img.shields.io/badge/Mobile-Android_SDK_34_APK-green.svg)](#-play-instantly-cross-platform-matrix)
-[![Tests: 29/29 Fast + 11/11 Smoke + 4/4 E2E](https://img.shields.io/badge/Automated_Gates-44%2F44_Passing-brightgreen.svg)](tools)
+[![Tests: 30/30 Fast + 11/11 Smoke + 4/4 E2E](https://img.shields.io/badge/Automated_Gates-45%2F45_Passing-brightgreen.svg)](tools)
 
 ---
 
-> ### 🌟 Official Live Links & Instant Play (`v11.0.0`)
+> ### 🌟 Official Live Links & Instant Play (`v11.1.0`)
 > - ⚔ **Play Now in Browser**: **[https://angband3d.com](https://angband3d.com)** *(Instant 60 FPS 3D roguelike, zero install across Desktop, iOS & Android)*
 > - 💻 **Standalone Windows PC**: **[Download Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** *(144+ FPS native offline play powered by Godot 4 C#)*
 > - 📱 **Standalone Android App**: **[Download Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** *(Offline mobile play with tactile split-thumb D-pad)*

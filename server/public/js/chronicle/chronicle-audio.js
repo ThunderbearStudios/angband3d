@@ -115,12 +115,9 @@ class ChronicleAudioRouter {
 
     setRealm(realmKey) {
         this.activeRealm = (realmKey || 'angband').toLowerCase();
-        if (typeof ChronicleGrounder !== 'undefined' && typeof ChronicleGrounder.getLorekeeperVoice === 'function') {
-            this.narratorVoice = ChronicleGrounder.getLorekeeperVoice(this.activeRealm);
-        } else {
-            const defaults = { angband: 'Enceladus', silq: 'Charon', frogcomposband: 'Fenrir', hengband: 'Gacrux' };
-            this.narratorVoice = defaults[this.activeRealm] || 'Enceladus';
-        }
+        // Always preserve the canonical British RP storyteller voice (Enceladus) across English realms
+        const defaults = { angband: 'Enceladus', silq: 'Enceladus', frogcomposband: 'Enceladus', hengband: 'Enceladus' };
+        this.narratorVoice = defaults[this.activeRealm] || 'Enceladus';
     }
 
     get isStaging() {
@@ -667,16 +664,16 @@ class ChronicleAudioRouter {
             this._activeFetchController = null;
         }
 
-        // 1. Web Audio Source: smooth 80ms fade down
+        // 1. Web Audio Source: smooth 35ms anti-pop gain fade down (Playbook 05 §1.1)
         if (this.currentSourceGain && this.ctx && this.currentSource) {
             try {
-                const fadeDuration = 0.08;
+                const fadeDuration = 0.035;
                 const now = this.ctx.currentTime || 0;
                 if (this.currentSourceGain.gain && typeof this.currentSourceGain.gain.setValueAtTime === 'function') {
                     this.currentSourceGain.gain.setValueAtTime(this.currentSourceGain.gain.value, now);
-                    this.currentSourceGain.gain.linearRampToValueAtTime(0.001, now + fadeDuration);
+                    this.currentSourceGain.gain.linearRampToValueAtTime(0.0001, now + fadeDuration);
                 }
-                await new Promise(r => setTimeout(r, (fadeDuration * 1000) + 40));
+                await new Promise(r => setTimeout(r, (fadeDuration * 1000) + 15));
             } catch (_) {}
         }
 

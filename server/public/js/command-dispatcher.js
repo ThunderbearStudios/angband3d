@@ -54,6 +54,7 @@
         zap: Object.freeze({ angband: 'z', silq: null, frogcomposband: 'z', hengband: 'z' }),
         activate: Object.freeze({ angband: 'A', silq: null, frogcomposband: 'A', hengband: 'A' }),
         use: Object.freeze({ angband: 'U', silq: 'u', frogcomposband: null, hengband: null }),
+        play_horn: Object.freeze({ angband: null, silq: 'p', frogcomposband: null, hengband: null }),
         throw: Object.freeze({ angband: 'v', silq: 't', frogcomposband: 'v', hengband: 'v' }),
         fire: Object.freeze({ angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f' }),
         examine: Object.freeze({ angband: 'I', silq: 'x', frogcomposband: 'I', hengband: 'I' }),
@@ -65,15 +66,46 @@
         browse: Object.freeze({ angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b' }),
         study: Object.freeze({ angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G' }),
         song: Object.freeze({ angband: null, silq: 's', frogcomposband: null, hengband: null }),
+        abilities: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null }),
+        skills: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null }),
+        smithing: Object.freeze({ angband: null, silq: '0', frogcomposband: null, hengband: null }),
         power: Object.freeze({ angband: null, silq: null, frogcomposband: 'U', hengband: 'U' }),
+        pet: Object.freeze({ angband: null, silq: null, frogcomposband: 'p', hengband: 'p' }),
         rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R' }),
         open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o' }),
         close: Object.freeze({ angband: 'c', silq: 'c', frogcomposband: 'c', hengband: 'c' }),
+        bash: Object.freeze({ angband: null, silq: 'b', frogcomposband: 'B', hengband: 'B' }),
+        spike: Object.freeze({ angband: null, silq: null, frogcomposband: 'j', hengband: 'j' }),
+        disarm: Object.freeze({ angband: 'D', silq: 'D', frogcomposband: 'D', hengband: 'D' }),
+        tunnel: Object.freeze({ angband: 'T', silq: 'T', frogcomposband: 'T', hengband: 'T' }),
+        alter: Object.freeze({ angband: '+', silq: '/', frogcomposband: '+', hengband: '+' }),
+        exchange: Object.freeze({ angband: null, silq: 'X', frogcomposband: null, hengband: null }),
+        steal: Object.freeze({ angband: 's', silq: null, frogcomposband: null, hengband: null }),
         pickup: Object.freeze({ angband: 'g', silq: 'g', frogcomposband: 'g', hengband: 'g' }),
+        hold: Object.freeze({ angband: ',', silq: 'z', frogcomposband: ',', hengband: ',' }),
+        walk: Object.freeze({ angband: ';', silq: ';', frogcomposband: ';', hengband: ';' }),
+        run: Object.freeze({ angband: '.', silq: '.', frogcomposband: '.', hengband: '.' }),
+        search_mode: Object.freeze({ angband: null, silq: 'S', frogcomposband: 'S', hengband: 'S' }),
+        search: Object.freeze({ angband: null, silq: null, frogcomposband: 'S', hengband: 'S' }),
+        explore: Object.freeze({ angband: 'p', silq: null, frogcomposband: null, hengband: null }),
+        travel: Object.freeze({ angband: null, silq: null, frogcomposband: '`', hengband: '`' }),
+        stairs_up: Object.freeze({ angband: '<', silq: '<', frogcomposband: '<', hengband: '<' }),
+        stairs_down: Object.freeze({ angband: '>', silq: '>', frogcomposband: '>', hengband: '>' }),
+        repeat: Object.freeze({ angband: 'n', silq: 'n', frogcomposband: 'n', hengband: 'n' }),
+        count: Object.freeze({ angband: '0', silq: 'R', frogcomposband: '0', hengband: '0' }),
         char_sheet: Object.freeze({ angband: 'C', silq: '@', frogcomposband: 'C', hengband: 'C' }),
         knowledge: Object.freeze({ angband: '~', silq: '~', frogcomposband: '~', hengband: '~' }),
         inven: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i' }),
+        inventory: Object.freeze({ angband: 'i', silq: 'i', frogcomposband: 'i', hengband: 'i' }),
         equip: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e' }),
+        equipment: Object.freeze({ angband: 'e', silq: 'e', frogcomposband: 'e', hengband: 'e' }),
+        quiver: Object.freeze({ angband: '|', silq: null, frogcomposband: null, hengband: null }),
+        look: Object.freeze({ angband: 'l', silq: 'l', frogcomposband: 'l', hengband: 'l' }),
+        target: Object.freeze({ angband: '*', silq: null, frogcomposband: '*', hengband: '*' }),
+        map: Object.freeze({ angband: 'M', silq: 'M', frogcomposband: 'M', hengband: 'M' }),
+        locate: Object.freeze({ angband: 'L', silq: 'L', frogcomposband: 'L', hengband: 'L' }),
+        messages: Object.freeze({ angband: 'C-p', silq: 'C-p', frogcomposband: 'C-p', hengband: 'C-p' }),
+        save: Object.freeze({ angband: 'C-s', silq: 'C-s', frogcomposband: 'C-s', hengband: 'C-s' }),
         options: Object.freeze({ angband: '=', silq: 'O', frogcomposband: '=', hengband: '=' }),
         help: Object.freeze({ angband: '?', silq: '?', frogcomposband: '?', hengband: '?' })
     });
@@ -358,12 +390,19 @@
             return steps;
         }
         if (intent.verb === 'char_sheet' || intent.verb === 'knowledge' || intent.verb === 'options' ||
-            intent.verb === 'help' || intent.verb === 'inven' || intent.verb === 'equip' ||
-            intent.verb === 'command_menu' || intent.verb === 'menu' || intent.verb === 'pickup') {
+            intent.verb === 'help' || intent.verb === 'inven' || intent.verb === 'inventory' ||
+            intent.verb === 'equip' || intent.verb === 'equipment' || intent.verb === 'abilities' ||
+            intent.verb === 'skills' || intent.verb === 'smithing' || intent.verb === 'quiver' ||
+            intent.verb === 'map' || intent.verb === 'messages' || intent.verb === 'command_menu' ||
+            intent.verb === 'menu' || intent.verb === 'pickup' || intent.verb === 'hold' ||
+            intent.verb === 'exchange' || intent.verb === 'search_mode' || intent.verb === 'search' ||
+            intent.verb === 'explore' || intent.verb === 'travel' || intent.verb === 'stairs_up' ||
+            intent.verb === 'stairs_down' || intent.verb === 'repeat' || intent.verb === 'look' ||
+            intent.verb === 'target' || intent.verb === 'locate' || intent.verb === 'save') {
             let verbKey;
             if (intent.key) {
                 verbKey = intent.key; } else if (intent.verb === 'command_menu' || intent.verb === 'menu') {
-                verbKey = 'enter'; } else {
+                verbKey = (r === 'silq') ? 'm' : 'enter'; } else {
                 verbKey = this.resolveVerbKey(intent.verb, r);
             }
             if (!verbKey) return null;
@@ -453,8 +492,10 @@
             return steps;
         }
         if (intent.verb === 'open' || intent.verb === 'close' || intent.verb === 'disarm' ||
-            intent.verb === 'tunnel' || intent.verb === 'alter') {
-            const verbKey = this.resolveVerbKey(intent.verb, r);
+            intent.verb === 'tunnel' || intent.verb === 'alter' || intent.verb === 'bash' ||
+            intent.verb === 'spike' || intent.verb === 'steal' || intent.verb === 'walk' ||
+            intent.verb === 'run') {
+            const verbKey = this.resolveVerbKey(intent.verb, r) || intent.key;
             if (!verbKey) return null;
             const steps = [
                 {

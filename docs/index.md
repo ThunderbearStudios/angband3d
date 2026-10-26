@@ -120,7 +120,10 @@ Your character lives wherever you want to play:
 
 The classic dungeon crawl is transformed into an epic voiced chronicle. Angband 3D on the web integrates a state-of-the-art neural storytelling suite powered by Google Gemini and a procedural Web Audio acoustic chain:
 
-* **30-Archetype Realm-Bound Voice Matrix**:
+* **30-Archetype Realm-Bound Voice Matrix & SceneEpoch Coalescing**:
+  * **Master British RP Storyteller**: Narrated by **Enceladus** (`gemini-3.1-flash-tts-preview` with non-overridable British RP storytelling direction and 35ms Web Audio anti-pop gain ramps), backed by `SceneEpoch` coalescing and 1.2s lookahead TTS pre-warming so rapid turns flow without jarring mid-sentence cutoffs.
+  * **5-Tier Deterministic KV-Cache Prefix Compiler & `NarrativeArcTracker`**: `compileStaticSystemInstruction` guarantees 100% byte-identical LLM system prefixes while `arcState` weaves Nemesis grudges, Signature Armament/Magic evolution, and Delve Scars into each realm's canonical endgame quest spine.
+  * **49-Action Availability Filtering & Adventurer's Field Compendium**: Both `#action-bar` and `#command-palette-modal` filter to currently available actions with `.is-suggested` highlights (`G` Study when spells can be learned, `E` Eat when hungry), D-Pad-only `#btn-wasd-toggle`, 8-way `w/a/s/d/q/e/z/c` direction aiming, and 100% painted Shockbolt item sprites (zero `<pile>` fallbacks).
   * **Vanilla Angband**: Narrated by **Enceladus** (a resonant, scholarly Old English Tolkienian voice) and **Zephyr**.
   * **Sil-Q**: Narrated by **Charon** (a stark, haunting First Age chronicler) and **Despina**, perfectly capturing the doomed grandeur of Beleriand.
   * **FrogComposBand**: Narrated by **Fenrir** (a mythic, boisterous skald) and **Kore**, attuned to the chaotic multiverse.

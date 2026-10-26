@@ -68,8 +68,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=11.0.0">
-    <link rel="stylesheet" href="/css/chronicle.css?v=11.0.0">
+    <link rel="stylesheet" href="/css/dungeon.css?v=11.1.0">
+    <link rel="stylesheet" href="/css/chronicle.css?v=11.1.0">
 </head>
 <body>
     <div id="app-container">
@@ -524,21 +524,21 @@
                     <button id="btn-study" class="action-btn" style="display: none;" title="Study New Spells [G]">✨ Study <kbd>G</kbd></button>
                     <button id="btn-quaff" class="action-btn" title="Drink / quaff potion [q]">🧪 Potion <kbd>q</kbd></button>
                     <button id="btn-read" class="action-btn" title="Read magical scroll [r]">📜 Scroll <kbd>r</kbd></button>
+                    <button id="btn-eat" class="action-btn" title="Eat food ration [E]">🍖 Eat <kbd>E</kbd></button>
                     <button id="btn-door" class="action-btn" title="Open closed door or chest in front [o]">🚪 Door <kbd>o</kbd></button>
                     <button id="btn-pickup" class="action-btn" title="Pick up item from dungeon floor [g]">💎 Get <kbd>g</kbd></button>
                     <button id="btn-rest" class="action-btn" title="Rest until fully healed [R]">⏳ Rest <kbd>R</kbd></button>
                     <button id="btn-inventory" class="action-btn" title="Open inventory pack [i]">🎒 Pack <kbd>i</kbd></button>
                     <button id="btn-equipment" class="action-btn" title="Inspect worn equipment [e]">🛡 Gear <kbd>e</kbd></button>
-                    <button id="btn-wield" class="act-btn act-wasd-socket action-btn" title="Wield / Equip Item (w)"><span class="act-icon">🗡</span><span class="act-label">Wield</span><span class="act-key">w</span></button>
-                    <button id="btn-drop" class="act-btn act-wasd-socket action-btn" title="Drop Item (d)"><span class="act-icon">📤</span><span class="act-label">Drop</span><span class="act-key">d</span></button>
-                    <button id="btn-aim" class="act-btn act-wasd-socket action-btn" title="Aim Wand / Use Staff (a)"><span class="act-icon">🪄</span><span class="act-label">Aim</span><span class="act-key">a</span></button>
-                    <button id="btn-search" class="act-btn act-wasd-socket action-btn" title="Search / Perception (s)"><span class="act-icon">🔍</span><span class="act-label">Search</span><span class="act-key">s</span></button>
+                    <button id="btn-wield" class="act-btn act-wasd-socket action-btn" title="Wield / Equip Item [w]"><span class="act-icon">🗡</span><span class="act-label">Wield</span><kbd class="act-key">w</kbd></button>
+                    <button id="btn-drop" class="act-btn act-wasd-socket action-btn" title="Drop Item [d]"><span class="act-icon">📤</span><span class="act-label">Drop</span><kbd class="act-key">d</kbd></button>
+                    <button id="btn-aim" class="act-btn act-wasd-socket action-btn" title="Aim Wand / Use Device [a]"><span class="act-icon">🪄</span><span class="act-label">Aim</span><kbd class="act-key">a</kbd></button>
+                    <button id="btn-search" class="act-btn act-wasd-socket action-btn" title="Search / Perception [S]"><span class="act-icon">🔍</span><span class="act-label">Search</span><kbd class="act-key">s</kbd></button>
                     <button id="btn-stair" class="action-btn stair-btn" style="display: none;" title="Use stairs [&gt; or &lt;]">⬇ Descend <kbd>&gt;</kbd></button>
                     <button id="btn-run-toggle" class="action-btn action-run-pill" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="action-run-icon">🚶</span> <span id="action-run-text">Walk</span> <kbd>Alt+R</kbd></button>
                     <button id="btn-terminal" class="action-btn" title="Toggle 80x24 classic CRT terminal view [Tab]">📜 Classic <kbd>Tab</kbd></button>
                     <button id="btn-guide-hud" class="action-btn" title="View Complete Controls &amp; Commands Guide [?]">❓ Help <kbd>?</kbd></button>
-                    <button id="btn-wasd-hud" type="button" class="action-btn wasd-hud-btn" aria-pressed="false" title="Toggle WASD Movement Mode vs Classic Roguelike Keys [Alt+W]">⌨ WASD <kbd>Alt+W</kbd></button>
-                    <button id="btn-command-palette" class="action-btn action-cmd-btn" title="Categorized Action Drawer &amp; Command Palette [Ctrl+K]"><span class="btn-icon">▤</span><span class="btn-label">Actions ▾</span><kbd>Ctrl+K</kbd></button>
+                    <button id="btn-command-palette" class="action-btn action-cmd-btn" title="Adventurer's Field Compendium &amp; Available Actions [Ctrl+K]"><span class="btn-icon">▤</span><span class="btn-label">Actions ▾</span><kbd>Ctrl+K</kbd></button>
                     <button id="btn-action-more" class="action-btn action-more-btn" title="Toggle All Action Commands">⋯ More</button>
                 </div>
 
@@ -1018,11 +1018,10 @@
 
                         <div class="guide-section-header" style="margin-top: 14px;">[ 🧝 SIL-Q 1.5+ FIRST AGE STEALTH &amp; SONGS ]</div>
                         <ul class="guide-list">
-                            <li>• <kbd>N</kbd>: <strong>Learn New Ability &amp; Skill Tree</strong>: Spend experience points to master combat, stealth, perception, smithing, or song abilities.</li>
-                            <li>• <kbd>m</kbd>: <strong>Sing Song of Power</strong>: Begin singing a Song of Power (Elbereth, Slaying, Lorien, Freedom, Staying, Sharpness).</li>
-                            <li>• <kbd>.</kbd>: <strong>Wait 1 Turn</strong>: Pass a single turn in place, preserving stealth and watching foe movements.</li>
-                            <li>• <kbd>S</kbd>: <strong>Stance &amp; Stealth Mode</strong>: Toggle between normal stance and careful stalking mode.</li>
-                            <li>• <kbd>a</kbd>: <strong>Smithing &amp; Artifact Activation</strong>: Craft weapons and armor at subterranean forges, or play magical harps.</li>
+                            <li>• <kbd>Tab</kbd>: <strong>Learn New Ability &amp; Skill Tree</strong>: Spend experience points to master combat, stealth, perception, smithing, or song abilities.</li>
+                            <li>• <kbd>s</kbd>: <strong>Sing Song of Power</strong>: Begin singing a Song of Power (Elbereth, Slaying, Lorien, Freedom, Staying, Sharpness).</li>
+                            <li>• <kbd>0</kbd>: <strong>Smithing at Forge</strong>: Craft weapons and armor at subterranean Mithril or Beleriand forges.</li>
+                            <li>• <kbd>a</kbd> / <kbd>p</kbd>: <strong>Use Staff / Play Horn</strong>: Channel a magical staff (<kbd>a</kbd>) or sound an Elven/Dwarven horn (<kbd>p</kbd>).</li>
                             <li>• <kbd>*</kbd>: <strong>Cycle Targets</strong>: Cycle target focus across visible Morgoth servants.</li>
                         </ul>
 
@@ -1436,10 +1435,14 @@
             <div class="cmd-palette-card">
                 <button id="btn-cmd-palette-close" class="btn-guide-close" title="Close Palette [Esc]">✕</button>
                 <div class="cmd-palette-header">
+                    <div class="cmd-compendium-title-row">
+                        <span class="cmd-compendium-crest">✦</span>
+                        <span class="cmd-compendium-title">Adventurer's Field Compendium</span>
+                        <span id="cmd-compendium-subtitle" class="cmd-compendium-subtitle">Available Actions &amp; Ready Gear</span>
+                    </div>
                     <div class="cmd-search-wrap">
                         <span class="cmd-search-icon">🔍</span>
-                        <input type="text" id="cmd-search-input" class="cmd-search-input" placeholder="Type a command (Tunnel, Disarm, Rest, Throw, Cast, Stairs, Door)..." autocomplete="off" spellcheck="false">
-                        <button id="btn-cmd-wasd-toggle" type="button" class="cmd-wasd-pill" title="Toggle WASD Movement Mode vs Classic Roguelike Keys [Alt+W]">⌨ Keys: Classic [Alt+W]</button>
+                        <input type="text" id="cmd-search-input" class="cmd-search-input" placeholder="Filter available actions (Study, Eat, Potion, Aim, Tunnel, Disarm, Rest)..." autocomplete="off" spellcheck="false">
                         <kbd class="cmd-esc-badge">Esc</kbd>
                     </div>
                     <div class="cmd-category-tabs">
@@ -1492,38 +1495,38 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=11.0.0"></script>
-    <script defer src="/js/screen-context.js?v=11.0.0"></script>
-    <script defer src="/js/menu-router.js?v=11.0.0"></script>
-    <script defer src="/js/grimoire-deck.js?v=11.0.0"></script>
-    <script defer src="/js/quick-actions.js?v=11.0.0"></script>
-    <script defer src="/js/device.js?v=11.0.0"></script>
-    <script defer src="/js/action-catalog.js?v=11.0.0"></script>
-    <script defer src="/js/realm-keys.js?v=11.0.0"></script>
-    <script defer src="/js/command-dispatcher.js?v=11.0.0"></script>
-    <script defer src="/js/command-palette.js?v=11.0.0"></script>
-    <script defer src="/js/prompt-mirror.js?v=11.0.0"></script>
-    <script defer src="/js/item-sheet.js?v=11.0.0"></script>
-    <script defer src="/js/entity-menu.js?v=11.0.0"></script>
-    <script defer src="/js/gamepad.js?v=11.0.0"></script>
-    <script defer src="/js/radial-menu.js?v=11.0.0"></script>
-    <script defer src="/js/mobile-overlay.js?v=11.0.0"></script>
-    <script defer src="/js/audio.js?v=11.0.0"></script>
-    <script defer src="/js/terminal.js?v=11.0.0"></script>
-    <script defer src="/js/dungeon3d.js?v=11.0.0"></script>
-    <script defer src="/js/hud.js?v=11.0.0"></script>
-    <script defer src="/js/network.js?v=11.0.0"></script>
-    <script defer src="/js/local_bridge.js?v=11.0.0"></script>
-    <script defer src="/js/input.js?v=11.0.0"></script>
-    <script defer src="/js/demo-player.js?v=11.0.0"></script>
+    <script defer src="/js/safe-html.js?v=11.1.0"></script>
+    <script defer src="/js/screen-context.js?v=11.1.0"></script>
+    <script defer src="/js/menu-router.js?v=11.1.0"></script>
+    <script defer src="/js/grimoire-deck.js?v=11.1.0"></script>
+    <script defer src="/js/quick-actions.js?v=11.1.0"></script>
+    <script defer src="/js/device.js?v=11.1.0"></script>
+    <script defer src="/js/action-catalog.js?v=11.1.0"></script>
+    <script defer src="/js/realm-keys.js?v=11.1.0"></script>
+    <script defer src="/js/command-dispatcher.js?v=11.1.0"></script>
+    <script defer src="/js/command-palette.js?v=11.1.0"></script>
+    <script defer src="/js/prompt-mirror.js?v=11.1.0"></script>
+    <script defer src="/js/item-sheet.js?v=11.1.0"></script>
+    <script defer src="/js/entity-menu.js?v=11.1.0"></script>
+    <script defer src="/js/gamepad.js?v=11.1.0"></script>
+    <script defer src="/js/radial-menu.js?v=11.1.0"></script>
+    <script defer src="/js/mobile-overlay.js?v=11.1.0"></script>
+    <script defer src="/js/audio.js?v=11.1.0"></script>
+    <script defer src="/js/terminal.js?v=11.1.0"></script>
+    <script defer src="/js/dungeon3d.js?v=11.1.0"></script>
+    <script defer src="/js/hud.js?v=11.1.0"></script>
+    <script defer src="/js/network.js?v=11.1.0"></script>
+    <script defer src="/js/local_bridge.js?v=11.1.0"></script>
+    <script defer src="/js/input.js?v=11.1.0"></script>
+    <script defer src="/js/demo-player.js?v=11.1.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=11.0.0"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.0.0"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=11.0.0"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=11.0.0"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=11.0.0"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=11.0.0"></script>
-    <script defer src="/js/app.js?v=11.0.0"></script>
-    <script defer src="/js/boot.js?v=11.0.0"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=11.1.0"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.1.0"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=11.1.0"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=11.1.0"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=11.1.0"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=11.1.0"></script>
+    <script defer src="/js/app.js?v=11.1.0"></script>
+    <script defer src="/js/boot.js?v=11.1.0"></script>
 </body>
 </html>

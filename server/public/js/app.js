@@ -1289,6 +1289,7 @@ window.addEventListener('DOMContentLoaded', () => {
             sendKey: (k) => network && network.sendKey(k),
             getRealm: () => (typeof getActiveRealm === 'function' ? getActiveRealm() : activeRealm) || 'angband',
             getLastFrame: () => lastFrame,
+            allowUnwindPrompt: true,
             ScreenModel: (typeof ScreenContext !== 'undefined' && ScreenContext.ScreenModel) || null,
             ActionCatalog: (typeof ActionCatalog !== 'undefined') ? ActionCatalog : null,
             onToast: (msg) => (typeof showRealmToast === 'function') ? showRealmToast(msg) : null
@@ -3422,6 +3423,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateRealmUI() {
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.dataset.realm = activeRealm || 'angband';
+        }
         updateLanguageUI();
         const realm = REALM_DATA[activeRealm] || REALM_DATA.angband;
         const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
@@ -4220,9 +4224,9 @@ window.addEventListener('DOMContentLoaded', () => {
             fwdKey = 'left';
         }
         terminal.setCameraFacing(cameraYaw);
-        const model = (SC && SC.ScreenModel && typeof SC.ScreenModel.of === 'function')
+        const model = (effFrame && effFrame._screenModel) || ((SC && SC.ScreenModel && typeof SC.ScreenModel.of === 'function')
             ? SC.ScreenModel.of(effFrame, curRealm, { decode: decodeHengbandText, lang: effLang, forceTerminal })
-            : null;
+            : null);
         const isStore = Boolean(model && model.legacy && model.legacy.isStore);
         const isTargeting = Boolean(model && (model.mirror === 'direction' || (model.legacy && model.legacy.isTargeting)));
         terminal.setTargetingMode(isTargeting);
@@ -4308,6 +4312,28 @@ window.addEventListener('DOMContentLoaded', () => {
                     if (!seenKeys.has('y')) options.unshift({ key: 'y', display: '[y] ✓ Yes', label: null });
                     if (!seenKeys.has('n')) options.push({ key: 'n', display: '[n] ✕ No', label: null });
                 }
+                if (options.length === 0 && inPlay && effFrame) {
+                    const row0Line = (rows[0] && rows[0].g) ? (isHengCur ? decodeHengbandText(rows[0].g) : rows[0].g) : '';
+                    const rangeMatch = row0Line.match(/\b(?:Inven|Equip|Items?|[a-z]+):\s*([a-zA-Z])-([a-zA-Z])/i) || row0Line.match(/\(([a-zA-Z])-([a-zA-Z])[,\)]/);
+                    const isEquipPrompt = /equip|take off|unwield|remove which|装備を外/i.test(row0Line);
+                    const pool = isEquipPrompt
+                        ? (Array.isArray(effFrame.equipment) ? effFrame.equipment : (effFrame.player && Array.isArray(effFrame.player.equipment) ? effFrame.player.equipment : []))
+                        : (Array.isArray(effFrame.inventory) ? effFrame.inventory : (effFrame.player && Array.isArray(effFrame.player.inventory) ? effFrame.player.inventory : []));
+                    if (pool.length > 0 && (rangeMatch || /which |book|spell|potion|scroll|food|item|wand|staff|rod|wield|wear|drop|study|browse|cast/i.test(row0Line))) {
+                        const startChar = rangeMatch ? rangeMatch[1].charCodeAt(0) : 97;
+                        const endChar = rangeMatch ? rangeMatch[2].charCodeAt(0) : 122;
+                        pool.forEach((it, idx) => {
+                            if (!it) return;
+                            const lt = it.letter || String.fromCharCode(97 + idx);
+                            const code = lt.charCodeAt(0);
+                            if (code < startChar || code > endChar) return;
+                            const lbl = (it.name || it.dname || it.label || '').trim();
+                            if (!lbl || seenKeys.has(lt)) return;
+                            seenKeys.add(lt);
+                            options.push({ key: lt, display: `[${lt}] ${lbl}`, label: lbl });
+                        });
+                    }
+                }
             }
             const letterKey = options.map(o => o.key + ':' + o.display + ':' + (o.label || '')).join(',');
             if (letterKey === lastPopulatedLetters) {
@@ -4339,13 +4365,15 @@ window.addEventListener('DOMContentLoaded', () => {
             birthNameInput, termDpad, effFrame, curRealm, isHeng, effLang, inPlay,
             hengLabel, hengTitle, populateLetterRibbon, setCtxActions, renderCtxButtons
         });
-        // Grimoire Deck Rendering
+        // Grimoire Deck Rendering (Short-circuit when gMode === 'classic' unless Grimoire toggle button needs sync)
         if (grimoireContainer && window.RealmGrimoireDeck) {
-            if (skipScraping) {
+            if (skipScraping || gMode === 'classic') {
                 if (typeof window.RealmGrimoireDeck.hide === 'function') {
                     window.RealmGrimoireDeck.hide(grimoireContainer);
-                    const gToggleBtn = document.getElementById('btn-term-grimoire-toggle');
-                    if (gToggleBtn) gToggleBtn.style.display = 'none';
+                    if (skipScraping) {
+                        const gToggleBtn = document.getElementById('btn-term-grimoire-toggle');
+                        if (gToggleBtn) gToggleBtn.style.display = 'none';
+                    }
                 }
             } else if (typeof window.RealmGrimoireDeck.render === 'function') {
                 const gClassifier = (model && model.legacy) || ((SC && typeof SC.classify === 'function')
@@ -4456,7 +4484,16 @@ window.addEventListener('DOMContentLoaded', () => {
             getActiveRealm,
             getCommandPaletteCommands,
             showToast: showRealmToast,
-            showUpdateToast
+            showUpdateToast,
+            getShockboltSpriteStyle: (item) => {
+                if (!item || !dungeon || typeof dungeon.resolveItemAtlasEntry !== 'function') return null;
+                const entry = dungeon.resolveItemAtlasEntry(item.name || item.text || '', item.char || item.glyph || '');
+                if (!entry || !Array.isArray(entry.uv) || entry.uv.length < 4) return null;
+                const [u0, v0, u1, v1] = entry.uv;
+                const col = Math.round(u0 * 32);
+                const row = Math.round((1.0 - v1) * 32);
+                return `background-image:url('/assets/sprites/items/item_atlas.png');background-size:704px 704px;background-position:-${col * 22}px -${row * 22}px;`;
+            }
         });
     }
     const _wMcp = (typeof navigator !== 'undefined' && navigator.modelContext) || (typeof document !== 'undefined' && document.modelContext);
@@ -4990,6 +5027,9 @@ window.addEventListener('DOMContentLoaded', () => {
             lastScreenModel = (SC && SC.ScreenModel && typeof SC.ScreenModel.of === 'function')
                 ? SC.ScreenModel.of(frame, realmForRouter, { lang: window.__langMode || 'en', decode: decodeHengbandText, forceTerminal })
                 : null;
+            if (frame && typeof frame === 'object') {
+                frame._screenModel = lastScreenModel;
+            }
             if (dispatcher && typeof dispatcher.onFrame === 'function') {
                 try { dispatcher.onFrame(frame); } catch (err) { console.error('[Dispatcher Error]', err); }
             }

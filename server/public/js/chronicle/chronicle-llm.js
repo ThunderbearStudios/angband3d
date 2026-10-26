@@ -31,6 +31,89 @@ const getGrounder = () => (typeof ChronicleGrounder !== 'undefined')
     ? ChronicleGrounder
     : ((typeof require === 'function') ? require('./chronicle-grounder.js') : null);
 
+const CHAPTER_RESPONSE_SCHEMA = {
+    type: 'OBJECT',
+    properties: {
+        title: { type: 'STRING' },
+        prose: { type: 'STRING' },
+        summary: { type: 'STRING' },
+        dialogue: {
+            type: 'OBJECT',
+            nullable: true,
+            properties: {
+                speaker: { type: 'STRING', nullable: true },
+                text: { type: 'STRING', nullable: true }
+            }
+        }
+    },
+    required: ['prose']
+};
+
+const CREATURE_RESPONSE_SCHEMA = {
+    type: 'OBJECT',
+    properties: {
+        prose: { type: 'STRING' },
+        dialogue: { type: 'STRING', nullable: true }
+    },
+    required: ['prose']
+};
+
+const SPIN_TALE_RESPONSE_SCHEMA = {
+    type: 'OBJECT',
+    properties: {
+        title: { type: 'STRING' },
+        prose: { type: 'STRING' },
+        summary: { type: 'STRING' }
+    },
+    required: ['title', 'prose', 'summary']
+};
+
+// 5-Tier Deterministic KV-Cache Prefix Compiler (Playbook 04 §3.1):
+// Compiles 100% byte-identical static systemInstruction per (realmKey, mode, lang)
+// so all dynamic/volatile per-turn telemetry lives strictly in userPrompt.
+const STATIC_SYSTEM_PREFIX_CACHE = new Map();
+function compileStaticSystemInstruction(realmKey, mode = 'chapter', lang = 'en', realmCtx = null, tradition = null) {
+    const rk = (realmKey || 'angband').toLowerCase();
+    const g = getGrounder();
+    const rCtx = realmCtx || (g && typeof g.getRealmContext === 'function' ? g.getRealmContext(rk) : { chronicler: 'Master Elrond', setting: 'Angband' });
+    const trad = tradition || (g && typeof g.getTraditionForRealm === 'function' ? (g.TRADITIONS[g.getTraditionForRealm(rk)] || { id: 'westmarch', name: 'The Red Book of Westmarch', style: 'Heroic Chronicle' }) : { id: 'westmarch', name: 'The Red Book of Westmarch', style: 'Heroic Chronicle' });
+    const cacheKey = `${rk}:${mode}:${lang}:${trad ? trad.id || trad.name : 'default'}`;
+    if (STATIC_SYSTEM_PREFIX_CACHE.has(cacheKey)) {
+        return STATIC_SYSTEM_PREFIX_CACHE.get(cacheKey);
+    }
+    const isJpHeng = (rk === 'hengband' && lang === 'jp');
+    const jpMandate = isJpHeng
+        ? '\nCRITICAL JAPANESE LANGUAGE MANDATE: Write all JSON text values in 100% natural, literary Japanese (時代小説・五輪書風の簡潔な日本語のみ). Do NOT use English.'
+        : '';
+    const realmEndgameLore = {
+        angband: 'Canonical Spine: 100-level delve beneath Thangorodrim to fell Sauron (L99) and Morgoth, Lord of Darkness (L100).',
+        silq: 'Canonical Spine: First-Age Beleriand stealth/song/smithing infiltration to pass Carcharoth (950ft), wrest the Knife Angrist, pry a Silmaril from Morgoth\'s Iron Crown at 1,000ft, and survive the Hunted Ascent.',
+        frogcomposband: 'Canonical Spine: Outpost of Amber & multiversal wilderness quests leading to Oberon (L99) and the Serpent of Chaos (L100).',
+        hengband: 'Canonical Spine: Castle Town & Ten Realms of Bushido/Ninjutsu/Onmyo leading to Oberon and the Serpent of Chaos (Jörmungandr).'
+    }[rk] || 'Canonical Spine: Epic subterranean delve against ancient darkness.';
+
+    let prompt = '';
+    if (mode === 'flowing') {
+        prompt = `Role: ${rCtx.chronicler} (${rCtx.setting}, tradition: "${trad.name}", style: ${trad.style}).
+${realmEndgameLore}
+Rules:
+- 1 crisp sentence (12-18 words max), mid-action, zero purple prose or filler.
+- Coalesce strikes into one clause. Honor exact combat weapon/method: Spells (elemental/arcane—never drawn steel), Devices (wands/staves/rods), Ranged (arrows/bolts/slingstones), Melee (blunt hammers/maces, cleaving axes, piercing daggers/spears, or bare fists—never generic "drawn steel" if unarmed/blunt/magic).
+- Weave active status ailments (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) and emergent arc callbacks in 3-4 words.
+- Return ONLY raw JSON: {"prose":"max 18 words","dialogue":{"speaker":"Name or null","text":"max 12 words or null"}}` + jpMandate;
+    } else if (mode === 'chapter') {
+        prompt = `Role: ${rCtx.chronicler} (${rCtx.setting}, tradition: "${trad.name}", style: ${trad.style}).
+${realmEndgameLore}
+Rules:
+- 1-2 crisp sentences (max 28 words total); mythic gravitas, zero modern slang or fourth-wall breaks.
+- Coalesce strikes into one tactical exchange. Honor exact combat weapon/method: Spells (arcane/elemental—never blades/drawn steel), Devices (wands/staves/rods), Ranged (arrows/bolts/slingstones), Melee (crushing hammers/maces, cleaving axes, impaling daggers/spears, or bare fists—never generic "drawn steel" if unarmed/blunt/magic).
+- Weave status ailments, Nemesis grudges, signature armaments, and realm quest progression naturally.
+- Return ONLY raw JSON: {"title":"3-5 words","prose":"max 28 words","summary":"8-word summary","dialogue":{"speaker":"Name or null","text":"max 12 words or null"}}` + jpMandate;
+    }
+    STATIC_SYSTEM_PREFIX_CACHE.set(cacheKey, prompt);
+    return prompt;
+}
+
 class ChronicleLLMBridge {
     constructor() {
         this.provider = 'offline';
@@ -226,23 +309,10 @@ class ChronicleLLMBridge {
             : { chronicler: 'The Master Chronicler', setting: 'the realm', lorekeeperName: 'Elder Lorekeeper' };
 
         const isJpHeng = (realmKey === 'hengband' && typeof window !== 'undefined' && window.__langMode === 'jp');
-        const jpMandate = isJpHeng ? '\nCRITICAL JAPANESE LANGUAGE MANDATE: Write all JSON text values ("title", "prose", "summary", "dialogue.text") in 100% natural, literary Japanese (時代小説・五輪書風の簡潔な日本語のみ). Do NOT use English.' : '';
         const isFlowing = (event.isChapter === false);
         const depth = (player && typeof player.depth === 'number') ? player.depth : 0;
         const isTown = (depth === 0);
-        const systemPrompt = (isFlowing
-            ? `Role: ${realmCtx.chronicler} (${realmCtx.setting}, tradition: "${tradition.name}", style: ${tradition.style}).
-Rules:
-- 1 crisp sentence (12-18 words max), mid-action, zero purple prose or filler.
-- Coalesce strikes into one clause. Honor exact combat weapon/method: Spells (elemental/arcane—never drawn steel), Devices (wands/staves/rods), Ranged (arrows/bolts/slingstones), Melee (blunt hammers/maces, cleaving axes, piercing daggers/spears, or bare fists—never generic "drawn steel" if unarmed/blunt/magic).
-- Weave active status ailments (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) in 3-4 words.
-- Return ONLY raw JSON: {"prose":"max 18 words","dialogue":{"speaker":"Name or null","text":"max 12 words or null"}}`
-            : `Role: ${realmCtx.chronicler} (${realmCtx.setting}, tradition: "${tradition.name}", style: ${tradition.style}).
-Rules:
-- 1-2 crisp sentences (max 28 words total); mythic gravitas, zero modern slang or fourth-wall breaks.
-- Coalesce strikes into one tactical exchange. Honor exact combat weapon/method: Spells (arcane/elemental—never blades/drawn steel), Devices (wands/staves/rods), Ranged (arrows/bolts/slingstones), Melee (crushing hammers/maces, cleaving axes, impaling daggers/spears, or bare fists—never generic "drawn steel" if unarmed/blunt/magic).
-- Weave status ailments (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) and moral weight.
-- Return ONLY raw JSON: {"title":"3-5 words","prose":"max 28 words","summary":"8-word summary","dialogue":{"speaker":"Name or null","text":"max 12 words or null"}}`) + jpMandate;
+        const systemPrompt = compileStaticSystemInstruction(realmKey, isFlowing ? 'flowing' : 'chapter', isJpHeng ? 'jp' : 'en', realmCtx, tradition);
 
         let locationText = isTown ? 'Town of Angband (surface streets, timber eaves, cobblestones)' : `Dungeon Depth ${depth * 50}ft (subterranean vaults, Iron Hell)`;
         if (realmKey === 'silq') {
@@ -265,6 +335,7 @@ Rules:
 
         const backstory = (grounder || ChronicleGrounder).formatBackstorySummary ? (grounder || ChronicleGrounder).formatBackstorySummary(player) : '';
         const backstoryContext = backstory ? ` Backstory: ${backstory}.` : '';
+        const arcSummary = event.arcSummary ? ` Emergent Arc: ${event.arcSummary}.` : '';
 
         let combatMediumContext = '';
         if (event.data && event.data.attackMedium) {
@@ -272,12 +343,12 @@ Rules:
             combatMediumContext = ` Tactical Medium: [Method: ${med.method || med.type}, Name: "${med.name || 'unarmed'}", Archetype: ${med.archetype || 'melee'}${med.element ? `, Element: ${med.element}` : ''}${med.ammo ? `, Ammo: "${med.ammo}"` : ''}].`;
         }
 
-        const userPrompt = `Hero: ${player ? player.name : 'Hero'}, ${player ? player.race : 'Mortal'} ${player ? player.class : 'Warrior'}.${backstoryContext} Location: ${locationText}.${combatMediumContext}
+        const userPrompt = `Hero: ${player ? player.name : 'Hero'}, ${player ? player.race : 'Mortal'} ${player ? player.class : 'Warrior'}.${backstoryContext}${arcSummary} Location: ${locationText}.${combatMediumContext}
 Event: ${event.type}. Details: ${JSON.stringify(event.data || {})}.${antiRepetition}
 Compose ${isFlowing ? 'flowing passage' : 'Chapter'}.`;
 
         try {
-            const rawText = await this.callLLM(systemPrompt, userPrompt, { expectJson: true });
+            const rawText = await this.callLLM(systemPrompt, userPrompt, { expectJson: true, responseSchema: CHAPTER_RESPONSE_SCHEMA });
             const cleaned = rawText.replace(/```json\n?|\n?```/g, '').trim();
             const parsed = JSON.parse(cleaned);
             if (parsed.prose) {
@@ -353,7 +424,7 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}.`;
 Return ONLY raw JSON (prose max 16 words using "${prSub}"/"${prPoss}", dialogue null): {"prose":"max 16 words","dialogue":null}`;
 
             try {
-                const raw = await this.callLLM(systemPrompt, `Player observes the ${name}. Query if any: "${playerMessage || ''}"`);
+                const raw = await this.callLLM(systemPrompt, `Player observes the ${name}. Query if any: "${playerMessage || ''}"`, { expectJson: true, responseSchema: CREATURE_RESPONSE_SCHEMA });
                 const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim();
                 const parsed = JSON.parse(cleaned);
                 if (parsed.prose) {
@@ -397,7 +468,7 @@ Rules: prose=1 sentence (max 15 words, "${prSub}"/"${prPoss}" gesture); dialogue
 Return ONLY raw JSON: {"prose":"max 15 words","dialogue":"max 14 words"}`;
 
         try {
-            const raw = await this.callLLM(systemPrompt, `Player says: "${playerMessage || 'Hail!'}"`);
+            const raw = await this.callLLM(systemPrompt, `Player says: "${playerMessage || 'Hail!'}"`, { expectJson: true, responseSchema: CREATURE_RESPONSE_SCHEMA });
             const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim();
             const parsed = JSON.parse(cleaned);
             if (parsed.dialogue || parsed.prose) {
@@ -575,6 +646,9 @@ Rules:
         };
         if (options && options.expectJson) {
             generationConfig.responseMimeType = 'application/json';
+            if (options.responseSchema && typeof options.responseSchema === 'object') {
+                generationConfig.responseSchema = options.responseSchema;
+            }
         }
 
         if (isGemini3) {
@@ -649,12 +723,16 @@ Rules:
         }
 
         // When thinkingConfig is enabled, some parts represent thoughts (part.thought === true).
-        // Find the actual final answer text part.
-        const answerPart = candidate.content.parts.find(p => !p.thought && p.text) || candidate.content.parts[candidate.content.parts.length - 1];
-        if (!answerPart || !answerPart.text) {
+        // Strictly filter out .thought parts per Law U5 before joining text.
+        const answerText = candidate.content.parts
+            .filter(p => p && !p.thought && typeof p.text === 'string')
+            .map(p => p.text)
+            .join('')
+            .trim();
+        if (!answerText) {
             throw new Error('Gemini returned no text content');
         }
-        return answerPart.text;
+        return answerText;
     }
 
 
@@ -713,7 +791,7 @@ Story Guidelines:
 Weave the saga reflection for this exact moment.`;
 
         try {
-            const raw = await this.callLLM(systemPrompt, userPrompt, { expectJson: true });
+            const raw = await this.callLLM(systemPrompt, userPrompt, { expectJson: true, responseSchema: SPIN_TALE_RESPONSE_SCHEMA });
             const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim();
             const parsed = JSON.parse(cleaned);
             if (parsed && parsed.prose) {
@@ -763,6 +841,11 @@ Weave the saga reflection for this exact moment.`;
         }
     }
 }
+
+ChronicleLLMBridge.compileStaticSystemInstruction = compileStaticSystemInstruction;
+ChronicleLLMBridge.CHAPTER_RESPONSE_SCHEMA = CHAPTER_RESPONSE_SCHEMA;
+ChronicleLLMBridge.CREATURE_RESPONSE_SCHEMA = CREATURE_RESPONSE_SCHEMA;
+ChronicleLLMBridge.SPIN_TALE_RESPONSE_SCHEMA = SPIN_TALE_RESPONSE_SCHEMA;
 
 if (typeof window !== 'undefined') {
     window.ChronicleLLMBridge = ChronicleLLMBridge;

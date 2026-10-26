@@ -48,13 +48,13 @@ test('Each realm has its contextually appropriate standard Gemini voice', () => 
     assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('angband', 'male'), 'Enceladus');
     assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('angband', 'female'), 'Zephyr');
 
-    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('silq', 'male'), 'Charon');
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('silq', 'male'), 'Enceladus');
     assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('silq', 'female'), 'Despina');
 
-    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('frogcomposband', 'male'), 'Fenrir');
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('frogcomposband', 'male'), 'Enceladus');
     assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('frogcomposband', 'female'), 'Kore');
 
-    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('hengband', 'male'), 'Gacrux');
+    assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('hengband', 'male'), 'Enceladus');
     assert.strictEqual(ChronicleGrounder.getLorekeeperVoice('hengband', 'female'), 'Sulafat');
 });
 

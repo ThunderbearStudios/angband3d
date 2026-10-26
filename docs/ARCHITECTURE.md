@@ -282,6 +282,12 @@ flowchart TD
     - 8-wedge radial quick-action menu designed for gamepad and mouse flick interactions.
     - Supports both hold (quasimode) and toggle modes, concentric rings, and realm-specific disability semantics.
 
+11. **`LivingChronicle` & Revision 6 Dark-Fantasy Action Matrix (`server/public/js/chronicle/`, `action-catalog.js`, `dungeon3d.js`)**:
+    - **SceneEpoch Coalescing & British RP Enceladus Narrator**: Coalesces rapid turn sequences (`SceneEpoch`, `.is-coalesced-into-epoch`) with 1.2s lookahead TTS pre-warming (`_prewarmPendingCatchUp`), mortal-peril-only preemption (`hpPct <= 0.30`), 35ms Web Audio anti-pop gain ramps (`linearRampToValueAtTime`), and non-overridable British RP storytelling (`Enceladus` + `gemini-3.1-flash-tts-preview`).
+    - **5-Tier Deterministic KV-Cache Prefix Compiler & OpenAPI `responseSchema`**: `compileStaticSystemInstruction(realmKey, mode, langMode)` emits byte-identical system instructions while `CHAPTER_RESPONSE_SCHEMA` / `CREATURE_RESPONSE_SCHEMA` enforce structured outputs and strip `.thought` parts (`Law U5`).
+    - **49-Action Availability Filtering & Shockbolt Item Atlas**: Both `#action-bar` and `#command-palette-modal` (*Adventurer's Field Compendium*) filter to currently available actions with `.is-suggested` highlights (`G` Study when `study_spells > 0`, `E` Eat when hungry) and 100% painted Shockbolt sprite resolution (`resolveItemAtlasEntry`, zero `<pile>` fallbacks).
+    - **D-Pad-Only WASD Toggle & 8-Way Aiming**: `#btn-wasd-toggle` resides exclusively on `#touch-controls`, supporting `w/a/s/d/q/e/z/c` 8-way directional aiming during `Direction?` prompts in both 3D and Terminal views.
+
 ## Licensing and content
 
 The project is GPL v2, inherited from Angband. That permits commercial use and

@@ -23,7 +23,7 @@ Rather than reimplementing Angband, Angband 3D retains the **unmodified, authori
 3. **Universal Binary Savefile Portability (`SaveVNLA`)**:
    Binary savefiles generated in the browser (via Emscripten `IDBFS`) are byte-for-byte identical to upstream Angband 4.2.6 savefiles on Windows PC and Android. A player can begin their descent in a web browser on lunch break, export their `.sav` file in one click, and continue on a native offline client without losing a single turn.
 4. **The Living Chronicle (Real-Time AI-Voiced Saga)**:
-   In-engine tactical events (slaying unique monsters, surviving dragon breath, quaffing unidentified potions) are penned in real time into an illustrated fantasy tome, dynamically narrated by dual Gemini Native Audio voices (Master Bard Enceladus & Lorekeeper Aoede).
+   In-engine tactical events (slaying unique monsters, surviving dragon breath, quaffing unidentified potions) are penned in real time into an illustrated fantasy tome, dynamically narrated by Master British RP Storyteller **Enceladus** (`gemini-3.1-flash-tts-preview`) with `SceneEpoch` beat coalescing, 1.2s lookahead TTS pre-warming, 35ms Web Audio anti-pop gain ramps, and a 5-Tier Deterministic KV-Cache Prefix Compiler.
 5. **100% Free, Permissive & Open Source**:
    Zero microtransactions, zero ads, zero telemetry, and zero paywalls. Published under GPLv2 and permissive CC0/MIT assets.
 

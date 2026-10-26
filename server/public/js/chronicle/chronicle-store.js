@@ -55,6 +55,16 @@ class ChronicleStore {
             current_protagonist_idx: 0,
             rolling_summary: rolling,
             isManuallyImported: false,
+            arcState: {
+                nemeses: {},
+                nemesisGrudges: {},
+                signatureArmament: null,
+                signatureMagic: null,
+                delveScars: [],
+                activeThreads: [],
+                deepestDepthFt: (hero && typeof hero.depth === 'number') ? hero.depth * 50 : 0,
+                questStage: 0
+            },
             chapters: [],
             epochs: [] // Compressed summaries of ancient chapters
         };

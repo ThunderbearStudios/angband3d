@@ -92,18 +92,15 @@ class ChronicleGrounder {
     }
 
     static getLorekeeperVoice(realmKey = 'angband', gender = 'male') {
-        const isFemale = (gender === 'female');
-        switch ((realmKey || 'angband').toLowerCase()) {
-            case 'silq':
-                return isFemale ? 'Despina' : 'Charon';
-            case 'hengband':
-                return isFemale ? 'Sulafat' : 'Gacrux';
-            case 'frogcomposband':
-                return isFemale ? 'Kore' : 'Fenrir';
-            case 'angband':
-            default:
-                return isFemale ? 'Zephyr' : 'Enceladus';
+        if (gender === 'female') {
+            switch ((realmKey || 'angband').toLowerCase()) {
+                case 'silq': return 'Despina';
+                case 'frogcomposband': return 'Kore';
+                case 'hengband': return 'Sulafat';
+                default: return 'Zephyr';
+            }
         }
+        return 'Enceladus';
     }
 
     static getRealmContext(realmKey = 'angband') {
@@ -120,7 +117,7 @@ class ChronicleGrounder {
                     dialogueStyle: 'Archaic First Age Beleriand tone, grim pride, songs of stealth or curses of the Iron Hell, archaic high fantasy',
                     voice: 'en-GB-RyanNeural',
                     recommendedVoice: 'en-GB-RyanNeural',
-                    geminiVoice: 'Charon'
+                    geminiVoice: 'Enceladus'
                 };
             case 'hengband':
                 return {
@@ -132,9 +129,9 @@ class ChronicleGrounder {
                     traditionKey: 'easternmythos',
                     style: 'Zen tranquility, Bushido valor, celestial court judgments, mythical deities, and the lethal grace of the sword',
                     dialogueStyle: 'Disciplined feudal Bushido honor or menacing Japanese folklore presence, stoic, terse, and respectful or fierce',
-                    voice: 'en-US-BrianNeural',
-                    recommendedVoice: 'en-US-BrianNeural',
-                    geminiVoice: 'Gacrux'
+                    voice: 'en-GB-RyanNeural',
+                    recommendedVoice: 'en-GB-RyanNeural',
+                    geminiVoice: 'Enceladus'
                 };
             case 'frogcomposband':
                 return {
@@ -146,9 +143,9 @@ class ChronicleGrounder {
                     traditionKey: 'amber',
                     style: 'Lively, cynical fencing wit, epic of overland wilderness, myriad monster folk, shadow-walking, and the eternal clash between the Pattern and Chaos',
                     dialogueStyle: 'Sharp, cynical Amber courtly wit, hard-boiled Zelazny fencing banter, caustic and observant',
-                    voice: 'en-US-ChristopherNeural',
-                    recommendedVoice: 'en-US-ChristopherNeural',
-                    geminiVoice: 'Fenrir'
+                    voice: 'en-GB-RyanNeural',
+                    recommendedVoice: 'en-GB-RyanNeural',
+                    geminiVoice: 'Enceladus'
                 };
             case 'angband':
             default:
@@ -5426,6 +5423,24 @@ class ChronicleGrounder {
                     clauses.push(`Beset by the cruel malice of ${foeDesc} deep at ${depthFt}, where Morgoth's shadow weighs heavy upon the earth, ${name} parries desperately through a storm of strikes`);
                 } else {
                     clauses.push(`Engaging ${foeDesc} in a swift dance of steel and starlight at ${depthFt}, ${name} maneuvers gracefully across the damp stones`);
+                }
+            } else if (traditionKey === 'beleriand') {
+                if (totalDamageTaken > 15 || inMortalPeril) {
+                    clauses.push(`Assailed by ${foeDesc} beneath the iron vaults of Thangorodrim at ${depthFt}, ${name} holds the shadowed stair in grim First-Age defiance`);
+                } else {
+                    clauses.push(`Crossing blades with ${foeDesc} in the silent halls of Angband at ${depthFt}, ${name} strikes with measured Noldorin precision`);
+                }
+            } else if (traditionKey === 'amber') {
+                if (totalDamageTaken > 15 || inMortalPeril) {
+                    clauses.push(`Hard-pressed by ${foeDesc} amidst the shifting probabilities of ${depthFt}, ${name} parries through a lethal flurry along the edge of the Pattern`);
+                } else {
+                    clauses.push(`Trading rapier-swift exchanges with ${foeDesc} across the shadow-vaults of ${depthFt}, ${name} holds the tactical line`);
+                }
+            } else if (traditionKey === 'easternmythos') {
+                if (totalDamageTaken > 15 || inMortalPeril) {
+                    clauses.push(`Weathering a fierce assault from ${foeDesc} in the subterranean caverns at ${depthFt}, ${name} centers breath and spirit in unyielding Bushido resolve`);
+                } else {
+                    clauses.push(`Meeting ${foeDesc} in a decisive tachiai clash at ${depthFt}, ${name} cuts through the gloom with disciplined precision`);
                 }
             } else {
                 if (totalDamageTaken > 15 || inMortalPeril) {

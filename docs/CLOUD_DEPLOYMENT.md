@@ -5,7 +5,7 @@ Angband3D implements a **decoupled, cloud-native architecture**:
 - **WebSocket Gateway (`/ws`)**: A lightweight Node.js daemon manages client sessions, spawns isolated child engine processes per player session, and pipes stdin/stdout streams to/from WebSocket JSON frames in real-time.
 - **Save Game Storage (`/data/save`)**: Persistent volume or cloud storage mount preserving binary character save files (`SaveVNLA` format). Fully cross-compatible between Web and Desktop clients.
 - **Three.js WebGL 3D Client (`server/public/`)**: Delivers an immersive, zero-install 3D dungeon crawler directly in modern desktop, tablet, and mobile browsers (iOS Safari, Android Chrome, Desktop Edge/Chrome/Firefox/Safari). Features PBR materials, dynamic character scaling, curated 3D bestiary models, first-person viewmodel, Living Chronicle & Voiced Lorekeeper, and collision-free mobile touch controls.
-- **Canonical Live Production Deployment (`v10.8.1`)**:
+- **Canonical Live Production Deployment (`v11.1.0`)**:
   - Custom Domain: [https://angband3d.com](https://angband3d.com)
   - Cloud Run Services (`Google Cloud Run Multi-Region`):
     - `angband3d` (`us-central1`): `https://angband3d-564958309282.us-central1.run.app`

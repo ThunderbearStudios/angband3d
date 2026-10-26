@@ -44,6 +44,7 @@
         throw: Object.freeze({ angband: 'v', silq: 't', frogcomposband: 'v', hengband: 'v' }),
         fire: Object.freeze({ angband: 'f', silq: 'f', frogcomposband: 'f', hengband: 'f' }),
         quaff: Object.freeze({ angband: 'q', silq: 'q', frogcomposband: 'q', hengband: 'q' }),
+        eat: Object.freeze({ angband: 'E', silq: 'E', frogcomposband: 'E', hengband: 'E' }),
         read: Object.freeze({ angband: 'r', silq: null, frogcomposband: 'r', hengband: 'r' }),
         rest: Object.freeze({ angband: 'R', silq: '%', frogcomposband: 'R', hengband: 'R' }),
         open: Object.freeze({ angband: 'o', silq: 'o', frogcomposband: 'o', hengband: 'o' }),
@@ -54,7 +55,7 @@
         use_staff: Object.freeze({ angband: 'u', silq: 'a', frogcomposband: 'u', hengband: 'u' }),
         hold: Object.freeze({ angband: ',', silq: 'z', frogcomposband: ',', hengband: ',' }),
         browse: Object.freeze({ angband: 'b', silq: null, frogcomposband: 'b', hengband: 'b' }),
-        study: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: 'G' }),
+        study: Object.freeze({ angband: 'G', silq: null, frogcomposband: 'G', hengband: 'G' }),
         power: Object.freeze({ angband: null, silq: null, frogcomposband: 'U', hengband: 'U' }),
         skills: Object.freeze({ angband: null, silq: 'tab', frogcomposband: null, hengband: null }),
         quests: Object.freeze({ angband: null, silq: null, frogcomposband: null, hengband: null }),
@@ -194,6 +195,8 @@
           labels: { hengband_jp: '✨ 学習', default: '✨ Study' } },
         { id: 'btn-quaff', verb: 'quaff', defaultTitle: 'Drink / quaff potion',
           labels: { silq: '🧪 Draught', hengband_jp: '🧪 薬', default: '🧪 Potion' } },
+        { id: 'btn-eat', verb: 'eat', defaultTitle: 'Eat food or ration',
+          labels: { hengband_jp: '🍖 食事', default: '🍖 Eat' } },
         { id: 'btn-read', verb: 'read', defaultTitle: 'Read magical scroll',
           labels: { hengband_jp: '📜 巻物', default: '📜 Scroll' } },
         { id: 'btn-door', verb: 'open', defaultTitle: 'Open closed door or chest in front',
@@ -299,7 +302,11 @@
                     ? cfg.labels.hengband_jp
                     : ((cfg.labels && cfg.labels[r]) ? cfg.labels[r] : (cfg.labels ? cfg.labels.default : ''));
 
-                if (labelText) {
+                const actLabel = btn.querySelector ? btn.querySelector('.act-label') : null;
+                if (actLabel && labelText) {
+                    const cleanLabel = labelText.replace(/^[^\w\u3000-\u9fff]+\s*/, '').trim();
+                    actLabel.textContent = cleanLabel || labelText;
+                } else if (labelText) {
                     btn.innerHTML = `${labelText} <kbd>${displayKey}</kbd>`;
                 }
                 const kbd = btn.querySelector ? btn.querySelector('kbd') : null;

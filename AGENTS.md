@@ -23,6 +23,6 @@
 8. **Version, Temp Profiles & Android (`L14/L15/L44`)**: Put browser test profiles in `os.tmpdir()`. After `server/public/` edits, run `node tools/bump_version.js <ver>` and `npm run android:sync`.
 
 ## 3. Verification Gate Commands
-- **Fast Gate (Before & after edits)**: `node tools/run_tests.js --tier fast` (`29/29 PASS`)
+- **Fast Gate (Before & after edits)**: `node tools/run_tests.js --tier fast` (`30/30 PASS`)
 - **Engine Smoke**: `python tools/smoke_test.py` (`11/11 PASS`)
 - **Godot C# Build**: `dotnet build client/angband3d.csproj` (`0 warnings / 0 errors`)

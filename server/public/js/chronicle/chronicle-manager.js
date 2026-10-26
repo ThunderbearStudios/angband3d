@@ -14,6 +14,33 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
+function snapshotHeroVitals(player) {
+    if (!player || typeof player !== 'object') return null;
+    return {
+        name: player.name,
+        race: player.race,
+        class: player.class || player.cls,
+        sex: player.sex || player.gender,
+        lev: player.lev ?? player.level ?? 1,
+        depth: player.depth ?? 0,
+        hp: player.hp ?? player.chp ?? 1,
+        chp: player.chp ?? player.hp ?? 1,
+        hp_max: player.hp_max ?? player.mhp ?? 1,
+        mhp: player.mhp ?? player.hp_max ?? 1,
+        sp: player.sp ?? player.csp ?? 0,
+        sp_max: player.sp_max ?? player.msp ?? 0,
+        au: player.au ?? player.gold ?? 0,
+        turn: player.turn ?? 0,
+        weapon_item: player.weapon_item || (player.equipped && player.equipped.weapon) || null,
+        cut: player.cut ?? 0,
+        stun: player.stun ?? 0,
+        poisoned: player.poisoned ?? 0,
+        confused: player.confused ?? 0,
+        afraid: player.afraid ?? 0,
+        blind: player.blind ?? 0
+    };
+}
+
 class ChronicleManager {
     constructor() {
         this.store = (typeof window !== 'undefined' && window.ChronicleStore) ? window.ChronicleStore : (typeof ChronicleStore !== 'undefined' ? ChronicleStore : null);
@@ -1289,7 +1316,7 @@ class ChronicleManager {
                                         frameEntries[frameEntries.length - 1];
 
                     if (bestToSpeak && bestToSpeak.entry) {
-                        this.voicingHeroSnapshot = JSON.parse(JSON.stringify(frame.player));
+                        this.voicingHeroSnapshot = snapshotHeroVitals(frame.player);
                         this.unvoicedEventLedger = [];
 
                         for (const fe of frameEntries) {
@@ -1298,7 +1325,7 @@ class ChronicleManager {
                                     event: fe.event,
                                     entry: fe.entry,
                                     turn: playerTurn,
-                                    player: JSON.parse(JSON.stringify(frame.player))
+                                    player: snapshotHeroVitals(frame.player)
                                 });
                             }
                         }
@@ -1330,7 +1357,7 @@ class ChronicleManager {
                             event: fe.event,
                             entry: fe.entry,
                             turn: playerTurn,
-                            player: JSON.parse(JSON.stringify(frame.player))
+                            player: snapshotHeroVitals(frame.player)
                         });
                     }
                 }
@@ -1517,12 +1544,19 @@ class ChronicleManager {
 
         const now = Date.now();
         if (this.audio.isSpeaking || this.audio.isStaging || this.audio.isProcessingSpeechQueue) {
-            // While audio is actively speaking, ONLY urgent high-drama events may preempt the voice!
-            // Routine actions buffer cleanly in the ledger and are voiced sequentially when playback ends.
-            if (!isUrgent) return;
-            if (this._lastStagingTime && (now - this._lastStagingTime < 2500)) return;
-            this._lastStagingTime = now;
-            this.triggerCatchUpBeat(curPlayer);
+            // While audio is actively speaking, ONLY true mortal peril (<= 30% HP) preempts the narrator mid-sentence!
+            // Routine kills, potions, and dense flurries coalesce in the SceneEpoch ledger, pre-warm in the background,
+            // and speak at the natural sentence boundary via onAudioPlaybackEnded().
+            if (inMortalPeril && hpPct <= 0.30) {
+                if (this._lastStagingTime && (now - this._lastStagingTime < 2500)) return;
+                this._lastStagingTime = now;
+                this.triggerCatchUpBeat(curPlayer);
+                return;
+            }
+            if ((isUrgent || isBacklogDense) && typeof this._prewarmPendingCatchUp === 'function') {
+                this._prewarmPendingCatchUp(curPlayer);
+            }
+            return;
         } else {
             // Audio is idle: if backlog exists, voice it now
             if (!isUrgent && !isBacklogDense) return;
@@ -1530,6 +1564,24 @@ class ChronicleManager {
             this._lastStagingTime = now;
             this.triggerCatchUpBeat(curPlayer);
         }
+    }
+
+    _prewarmPendingCatchUp(player) {
+        if (!this.audio || this._isAudioMuted() || typeof this.audio.prewarmUtterance !== 'function' || !this.grounder) return;
+        if (!this.unvoicedEventLedger || this.unvoicedEventLedger.length === 0) return;
+        try {
+            const events = this.unvoicedEventLedger.map(item => item.event).filter(Boolean);
+            if (events.length === 0) return;
+            const preview = this.grounder.generateCatchUpBeat(events, this.voicingHeroSnapshot, player, this.tradition);
+            if (preview && preview.prose) {
+                const narrProfile = this.grounder.resolveVoiceProfile(null, player, 'CATCH_UP', this.tradition);
+                this.audio.prewarmUtterance(preview.prose, 'narrator', '', null, {
+                    ...(narrProfile || {}),
+                    narrator: narrProfile,
+                    engine: this.audio.ttsEngine || 'gemini'
+                }).catch(() => {});
+            }
+        } catch (_) {}
     }
 
     triggerCatchUpBeat(player) {
@@ -1540,10 +1592,9 @@ class ChronicleManager {
         // Calculate skipped action summary before flushing ledger
         const ledgerSummary = this.getLedgerSummary();
 
-        // If audio was actively speaking or staging, mark active beat interrupted with skipped action count
+        // If audio was actively speaking or staging during a mortal-peril emergency, mark beat handoff quietly
         if (this.audio && (this.audio.isSpeaking || this.audio.isStaging || this.audio.isProcessingSpeechQueue)) {
             this.markCurrentBeatInterrupted('catchup', ledgerSummary);
-            this.showHudToast(`⚡ Speech interrupted (+${ledgerSummary})`, 3200);
         }
 
         const ledgerItems = this.unvoicedEventLedger.slice();
@@ -1562,7 +1613,7 @@ class ChronicleManager {
 
         if (!catchUpEntry || !catchUpEntry.prose) return;
 
-        // Coalesce: remove unvoiced intermediate fragment chapters that are now consolidated into catchUpEntry
+        // Coalesce: mark unvoiced intermediate fragment chapters as coalesced without deleting DOM nodes (no layout jump!)
         if (this.activeChronicle && Array.isArray(this.activeChronicle.chapters) && ledgerItems.length > 0) {
             const supersededNums = new Set(
                 ledgerItems
@@ -1575,8 +1626,8 @@ class ChronicleManager {
                     const blocks = this.listEl.querySelectorAll('.flowing-paragraph-block');
                     for (const b of blocks) {
                         const cNum = Number(b.getAttribute && b.getAttribute('data-chapter-num'));
-                        if (supersededNums.has(cNum) && typeof b.remove === 'function') {
-                            b.remove();
+                        if (supersededNums.has(cNum) && b.classList) {
+                            b.classList.add('is-coalesced-into-epoch');
                         }
                     }
                 }
@@ -1588,7 +1639,7 @@ class ChronicleManager {
         this.renderStoryEntry(catchUpEntry, true);
 
         // Update snapshot to current player state
-        this.voicingHeroSnapshot = JSON.parse(JSON.stringify(curPlayer));
+        this.voicingHeroSnapshot = snapshotHeroVitals(curPlayer);
         this._lastCatchUpTriggerTurn = curPlayer.turn || 0;
 
         // Stage for seamless playback (zero overlap guaranteed)
@@ -1649,8 +1700,87 @@ class ChronicleManager {
         }
     }
 
+    updateArcState(event, frame) {
+        if (!this.activeChronicle || !event) return null;
+        if (!this.activeChronicle.arcState) {
+            this.activeChronicle.arcState = {
+                realmQuestStage: 1,
+                nemeses: {},
+                signatureArmament: null,
+                signatureMagic: null,
+                delveScars: [],
+                maxDepthReached: 0
+            };
+        }
+        const arc = this.activeChronicle.arcState;
+        if (!arc.nemeses) arc.nemeses = {};
+        if (!Array.isArray(arc.delveScars)) arc.delveScars = [];
+        if (!Array.isArray(arc.activeThreads)) arc.activeThreads = [];
+        const player = (frame && frame.player) || this.currentHero || {};
+        const depth = typeof player.depth === 'number' ? player.depth : 0;
+        if (depth > (arc.maxDepthReached || 0)) {
+            arc.maxDepthReached = depth;
+        }
+        const realm = this.getActiveRealm();
+        if (realm === 'silq') {
+            arc.realmQuestStage = depth >= 20 ? 4 : (depth >= 12 ? 3 : (depth >= 4 ? 2 : 1));
+        } else {
+            arc.realmQuestStage = depth >= 90 ? 4 : (depth >= 50 ? 3 : (depth >= 15 ? 2 : 1));
+        }
+
+        const data = event.data || {};
+        if (data.attackMedium) {
+            if (data.attackMedium.method === 'spell' || data.attackMedium.type === 'spell') {
+                if (data.attackMedium.name) arc.signatureMagic = data.attackMedium.name;
+            } else if (data.attackMedium.name && data.attackMedium.name !== 'unarmed') {
+                arc.signatureArmament = data.attackMedium.name;
+            }
+        } else if (player.weapon_item) {
+            arc.signatureArmament = String(player.weapon_item).replace(/\s*\([^)]*\)/g, '').trim();
+        }
+
+        const mName = data.monsterName || (event.monster && event.monster.name) || '';
+        if (mName && (event.type === 'UNIQUE_SPOTTED' || event.type === 'UNIQUE_SLAIN' || event.type === 'COMBAT_EPISODE')) {
+            const entry = arc.nemeses[mName] || { encounters: 0, slain: false, lastDepth: depth };
+            entry.encounters += 1;
+            entry.lastDepth = depth;
+            if (event.type === 'UNIQUE_SLAIN') entry.slain = true;
+            arc.nemeses[mName] = entry;
+        }
+
+        const curHp = player.hp ?? player.chp ?? 1;
+        const maxHp = player.hp_max ?? player.mhp ?? 1;
+        if (maxHp > 0 && (curHp / maxHp) <= 0.25 && arc.delveScars.length < 8) {
+            const scar = `Survived mortal peril at ${depth * 50}ft`;
+            if (!arc.delveScars.includes(scar)) arc.delveScars.push(scar);
+        }
+        return arc;
+    }
+
+    formatArcSummary() {
+        const arc = this.activeChronicle && this.activeChronicle.arcState;
+        if (!arc) return '';
+        const parts = [`QuestStage ${arc.realmQuestStage}/4`];
+        if (arc.signatureArmament) parts.push(`Armament: ${arc.signatureArmament}`);
+        if (arc.signatureMagic) parts.push(`Magic: ${arc.signatureMagic}`);
+        const nemesisNames = Object.keys(arc.nemeses || {});
+        if (nemesisNames.length > 0) {
+            const latest = nemesisNames[nemesisNames.length - 1];
+            const n = arc.nemeses[latest];
+            parts.push(`Nemesis: ${latest} (${n.slain ? 'slain' : `clashed ${n.encounters}x`})`);
+        }
+        return parts.join(', ');
+    }
+
     processEvent(event, frame, shouldSpeak = true) {
         if (!event || !frame) return null;
+
+        // Update NarrativeArcTracker state across turns & attach summary
+        const arcState = this.updateArcState(event, frame);
+        if (arcState) {
+            event.arcState = arcState;
+            event.arcSummary = this.formatArcSummary();
+        }
 
         // Instant Ground-Truth Procedural Synthesis (0ms latency):
         // Generates rich, lore-accurate, race-attuned Tolkien prose matching vocals 1:1.
@@ -1892,7 +2022,10 @@ class ChronicleManager {
         }
 
         if (shouldScroll && this.scrollEl) {
-            this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
+            const distFromBottom = (this.scrollEl.scrollHeight || 0) - (this.scrollEl.scrollTop || 0) - (this.scrollEl.clientHeight || 0);
+            if (distFromBottom <= 120 || !this.scrollEl.scrollHeight) {
+                this.scrollEl.scrollTop = this.scrollEl.scrollHeight;
+            }
         }
 
         return block;

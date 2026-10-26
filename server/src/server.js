@@ -179,9 +179,9 @@ const TTS_VOICE_MAP = {
 // Realm-Contextual Casting Map for Lorekeeper Narrators (Google Gemini High-Quality Audio)
 const GEMINI_REALM_NARRATOR_MAP = {
     angband: 'Enceladus',     // Venerable, weathered Old English male storyteller (Master Elrond)
-    silq: 'Charon',           // Solemn, grave, deep First-Age mythic bard (Daeron of Doriath)
-    frogcomposband: 'Fenrir', // Bold, sharp, cynical Amber fencing wit (Corwin of Amber)
-    hengband: 'Gacrux',       // Disciplined, weathered Eastern Bushido master (Miyamoto Musashi)
+    silq: 'Enceladus',        // Venerable British First-Age mythic chronicler (Daeron of Doriath)
+    frogcomposband: 'Enceladus', // Venerable British chronicler of Amber & Chaos
+    hengband: 'Enceladus',    // Venerable British chronicler (switches to Japanese voice only when lang=jp)
     default: 'Enceladus'
 };
 
@@ -314,10 +314,10 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             return reject(new Error('No Gemini API key provided'));
         }
 
-        const ttsModels = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview'];
-        const retryIdx = typeof isRetry === 'number' ? isRetry : (isRetry ? 2 : 0);
+        const ttsModels = ['gemini-3.1-flash-tts-preview'];
+        const retryIdx = typeof isRetry === 'number' ? isRetry : (isRetry ? 1 : 0);
         const ttsModel = ttsModels[Math.min(retryIdx, ttsModels.length - 1)];
-        const isGemini38Tts = ttsModel.includes('3.8');
+        const isGemini38Tts = false;
         const cleanTranscript = String(text || '').replace(/^\s*(?:\[[^\]]+\]|\*[^*]+\*)\s*/g, '').trim() || String(text || '');
 
         let promptText = cleanTranscript;
@@ -337,15 +337,17 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             const cleanEmotion = emotion ? String(emotion).replace(/[\[\]]/g, '').trim() : '';
 
             let tagInner = '';
+            const baseAccent = (CHARACTER_ACCENT_MAP[roleKey] || (roleKey === 'narrator' ? CHARACTER_ACCENT_MAP.narrator : 'natural, noble Classical British or Mid-Atlantic cadence')).replace(/[\[\]]/g, '').trim();
             if (isJp) {
                 tagInner = 'Japanese language, dignified Sengoku samurai chronicler, calm and resonant';
             } else if (cleanGeminiTag) {
-                tagInner = isHeng ? cleanGeminiTag : cleanGeminiTag.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
+                const sanitizedTag = isHeng ? cleanGeminiTag : cleanGeminiTag.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
+                tagInner = sanitizedTag.toLowerCase().includes('standard rp british') ? sanitizedTag : `${baseAccent}, ${sanitizedTag}`;
             } else if (cleanDirectorNote) {
-                tagInner = isHeng ? cleanDirectorNote : cleanDirectorNote.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
+                const sanitizedNote = isHeng ? cleanDirectorNote : cleanDirectorNote.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
+                tagInner = sanitizedNote.toLowerCase().includes('standard rp british') ? sanitizedNote : `${baseAccent}, ${sanitizedNote}`;
             } else {
-                const accent = CHARACTER_ACCENT_MAP[roleKey] || (roleKey === 'narrator' ? CHARACTER_ACCENT_MAP.narrator : 'natural, noble Classical British or Mid-Atlantic cadence');
-                tagInner = accent.replace(/[\[\]]/g, '').trim();
+                tagInner = baseAccent;
             }
 
             if (cleanEmotion && !tagInner.toLowerCase().includes(cleanEmotion.toLowerCase())) {
@@ -363,7 +365,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                 }
                 styleInstruction = tagInner;
                 tag = `[${tagInner}]`;
-                if (!isGemini38Tts) promptText = `${tag} ${cleanTranscript}`;
+                promptText = `${tag} ${cleanTranscript}`;
             }
         }
 
@@ -409,7 +411,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             res.on('end', () => {
                 if (res.statusCode !== 200) {
                     if (retryIdx + 1 < ttsModels.length && (res.statusCode === 400 || res.statusCode === 404 || res.statusCode === 429 || res.statusCode === 503)) {
-                        return synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, isRetry: retryIdx + 1 }).then(resolve).catch(reject);
+                        return synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm, lang, isRetry: retryIdx + 1 }).then(resolve).catch(reject);
                     }
                     let errMsg = `HTTP ${res.statusCode}`;
                     try {
@@ -1002,7 +1004,7 @@ const server = http.createServer((req, res) => {
     if (reqOrigin && isAllowedOrigin(reqOrigin, host, req)) {
         res.setHeader('Access-Control-Allow-Origin', reqOrigin);
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, X-Recording-Name, X-Owner-Token');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Character-Name, X-Recording-Name, X-Owner-Token, X-Save-Slot, X-Realm, X-API-Key, x-goog-api-key, Api-Revision');
         res.setHeader('Access-Control-Expose-Headers', 'X-TTS-Engine, X-TTS-Cache, X-TTS-Fallback-Reason, Content-Type, Content-Length');
     }
     
@@ -1360,6 +1362,9 @@ const server = http.createServer((req, res) => {
             if (parsed.payload?.generationConfig?.responseMimeType === 'application/json') {
                 generationConfig.responseMimeType = 'application/json';
             }
+            if (parsed.payload?.generationConfig?.responseSchema && typeof parsed.payload.generationConfig.responseSchema === 'object') {
+                generationConfig.responseSchema = parsed.payload.generationConfig.responseSchema;
+            }
             const isGemini3 = model.includes('gemini-3') || model.includes('gemini-4') || model.includes('3.8') || model.includes('3.7') || model.includes('3.6') || model.includes('3.5') || model.includes('3.1');
             if (isGemini3) {
                 generationConfig.thinkingConfig = {
@@ -1413,8 +1418,11 @@ const server = http.createServer((req, res) => {
                         try {
                             const rb = JSON.parse(respBody);
                             const parts = rb.candidates?.[0]?.content?.parts || [];
-                            const textPart = parts.find(p => !p.thought && typeof p.text === 'string') || parts[0];
-                            const text = textPart?.text || '';
+                            const text = parts
+                                .filter(p => p && !p.thought && typeof p.text === 'string')
+                                .map(p => p.text)
+                                .join('')
+                                .trim();
                             res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }));
                         } catch(e) {
                             res.end(JSON.stringify({ error: { message: 'Upstream error parsing response' } }));

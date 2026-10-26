@@ -122,17 +122,6 @@ class InputController {
                 ? 'WASD Movement Active (Alt+W to toggle off). W/S: Move, A/D: Turn, Shift+A/D: Strafe. W/A/S/D commands available on HUD & Actions menu.'
                 : 'WASD Movement Inactive (Alt+W to toggle on). Classic Roguelike Keys active: W=Wield, A=Aim, S=Search, D=Drop.';
         }
-        const hudBtn = document.getElementById('btn-wasd-hud');
-        if (hudBtn) {
-            hudBtn.classList.toggle('wasd-active', active);
-            hudBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
-            hudBtn.innerHTML = active ? '⌨ WASD: ON <kbd>Alt+W</kbd>' : '⌨ Keys: Classic <kbd>Alt+W</kbd>';
-        }
-        const cmdBtn = document.getElementById('btn-cmd-wasd-toggle');
-        if (cmdBtn) {
-            cmdBtn.classList.toggle('wasd-active', active);
-            cmdBtn.textContent = active ? '⌨ WASD: ON [Alt+W]' : '⌨ Keys: Classic [Alt+W]';
-        }
         const cluster = document.getElementById('wasd-shadow-cluster');
         if (cluster) {
             cluster.style.display = active ? 'flex' : 'none';
@@ -199,13 +188,27 @@ class InputController {
             if (this.audio && typeof this.audio.playItemDrop === 'function') {
                 this.audio.playItemDrop();
             }
+        } else if (actionName === 'aim') {
+            const devVerb = this._adaptiveDeviceVerb || (realm === 'silq' ? 'use_staff' : 'aim');
+            if (typeof ActionCatalog !== 'undefined' && typeof ActionCatalog.keyFor === 'function') {
+                keyToSend = ActionCatalog.keyFor(devVerb, realm);
+            }
+            if (!keyToSend) {
+                keyToSend = (typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla)
+                    ? RealmKeys.fromVanilla('a', realm)
+                    : (realm === 'silq' ? 'a' : 'a');
+            }
+            if (this.audio && typeof this.audio.playMenuOpen === 'function') {
+                this.audio.playMenuOpen();
+            }
         } else if (actionName === 'search') {
-            keyToSend = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
+            keyToSend = ((typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
                 ? RealmKeys.realmKey('search', realm)
-                : null;
+                : null) || (realm === 'silq' ? 'S' : (realm === 'angband' ? 'I' : 'S'));
         }
         if (keyToSend) {
             const lastFrame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+            const dispatcher = (this.app && this.app.dispatcher) || (window.__app && window.__app.dispatcher);
             if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
                 if (window.MenuRouter.route(keyToSend, lastFrame, realm)) {
                     if (this.app && typeof this.app.updateTerminalToolbar === 'function' && lastFrame) {
@@ -213,6 +216,10 @@ class InputController {
                     }
                     return;
                 }
+            }
+            if (dispatcher && typeof dispatcher.run === 'function' && lastFrame && lastFrame.ui && !lastFrame.ui.awaiting_command) {
+                dispatcher.run({ verb: actionName === 'aim' ? (this._adaptiveDeviceVerb || 'aim') : actionName, key: keyToSend });
+                return;
             }
             this.network.sendKey(keyToSend);
         }
@@ -269,6 +276,19 @@ class InputController {
             };
         }
 
+        // 1b. Sil-Q Forge underfoot
+        const curGlyph = (frame.map.rows && frame.map.rows[py] && frame.map.rows[py].g) ? frame.map.rows[py].g[px] : '';
+        const isForgeUnderfoot = realm === 'silq' && (curGlyph === '0' || (curDef && /forge/i.test(curDef.name || '')));
+        if (isForgeUnderfoot) {
+            return {
+                id: 'smithing',
+                icon: '⚒',
+                text: 'Forge',
+                key: '0',
+                title: 'Use Enchanted Forge (Smithing) [0]'
+            };
+        }
+
         // 2. Stairs down underfoot
         const isStairDown = currentFeat === 6 || (curDef && (curDef.isStairDown || /down/i.test(curDef.name || '')));
         if (isStairDown) {
@@ -319,6 +339,17 @@ class InputController {
                 text: 'Open',
                 key: openKey,
                 title: `Open Door in Front [${openKey}]`
+            };
+        }
+
+        // 5b. Known trap in front
+        if (rayTarget && rayTarget.type === 'trap' && rayTarget.dist === 1) {
+            return {
+                id: 'disarm',
+                icon: '🖐',
+                text: 'Disarm',
+                key: 'D',
+                title: 'Disarm Trap in Front [D]'
             };
         }
 
@@ -425,16 +456,22 @@ class InputController {
         const px = player.x;
         const py = player.y;
         const map = frame.map;
-        const inv = Array.isArray(player.inventory) ? player.inventory : [];
-        const eq = Array.isArray(player.equipment) ? player.equipment : [];
+        const inv = Array.isArray(player.inventory) ? player.inventory : (Array.isArray(frame.inventory) ? frame.inventory : []);
+        const eq = Array.isArray(player.equipment) ? player.equipment : (Array.isArray(frame.equipment) ? frame.equipment : []);
         const quiv = Array.isArray(player.quiver) ? player.quiver : [];
         const monsters = Array.isArray(frame.monsters) ? frame.monsters.filter((m) => m && m.visible !== false) : [];
         const items = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
 
         let potionCount = 0;
         let scrollCount = 0;
+        let foodCount = 0;
         let tomeCount = 0;
         let matchingTomeCount = 0;
+        let wandCount = 0;
+        let staffCount = 0;
+        let rodCount = 0;
+        let hornCount = 0;
+        let activatableCount = 0;
         let deviceCount = 0;
         let rangedInPack = 0;
         let wearableInPack = 0;
@@ -446,36 +483,60 @@ class InputController {
         const isMageClass = /mage|wizard|sorcer|rogue|ranger|necromancer|魔道士|メイジ|レンジャー|盗賊/.test(pClassEarly);
 
         for (const it of inv) {
-            const name = String((it && it.name) || '');
+            const name = String((it && (it.name || it.dname || it.label)) || '');
             const lower = name.toLowerCase();
             const tval = Number(it && it.tval) || 0;
+            const vm = (it && typeof it.vm === 'number' && Number.isFinite(it.vm)) ? it.vm : 0;
             const isPotionTval = isVanilla ? (tval === 26) : (tval === 75 || tval === 71);
             const isScrollTval = isVanilla ? (tval === 25) : (tval === 70 || tval === 50);
+            const isFoodTval = isVanilla ? (tval === 27 || tval === 28) : (tval === 80);
             const isTomeTval = isVanilla ? (tval >= 30 && tval <= 34) : (tval >= 90 && tval <= 115);
-            const isDeviceTval = isVanilla ? (tval >= 22 && tval <= 24) : (tval === 55 || tval === 65 || tval === 66);
+            const isWandTval = isVanilla ? (tval === 23) : (tval === 65);
+            const isStaffTval = isVanilla ? (tval === 22) : (tval === 55);
+            const isRodTval = isVanilla ? (tval === 24) : (tval === 66);
             const isAmmoTval = isVanilla ? (tval >= 2 && tval <= 4) : (tval >= 16 && tval <= 18);
             const isWeaponTval = isVanilla ? (tval >= 6 && tval <= 9) : (tval >= 20 && tval <= 23);
             const isArmorTval = isVanilla ? (tval >= 10 && tval <= 21) : (tval >= 30 && tval <= 45);
 
-            if (/\b(potion|phial|draught|elixir)\b/.test(lower) || /(の薬|水薬|霊薬|丸薬|薬$)/.test(name) || isPotionTval) {
+            if ((vm & (1 << 0)) !== 0 || /\b(potion|phial|draught|elixir)\b/.test(lower) || /(の薬|水薬|霊薬|丸薬|薬$)/.test(name) || isPotionTval) {
                 potionCount++;
-            } else if (/\b(scroll|parchment|card|trump)\b/.test(lower) || /(の巻物|巻物|カード)/.test(name) || isScrollTval) {
+            } else if ((vm & (1 << 1)) !== 0 || /\b(scroll|parchment|card|trump)\b/.test(lower) || /(の巻物|巻物|カード)/.test(name) || isScrollTval) {
                 scrollCount++;
-            } else if (/\b(book|tome|grimoire|manual|hymnal|songbook)\b/.test(lower) || /(魔法書|仙術書|経典|教本|『[^』]+』|\[[^\]]+の魔法書\])/.test(name) || isTomeTval) {
+            } else if ((vm & (1 << 2)) !== 0 || /\b(ration|food|mushroom|bread|wafer|jerky|slime mold|waybread|hardtack|meat|pie|biscuit)\b/.test(lower) || /(食料|レーション|キノコ|パン|干し肉|ビスケット)/.test(name) || isFoodTval) {
+                foodCount++;
+            } else if ((vm & ((1 << 15) | (1 << 16) | (1 << 17))) !== 0 || /\b(book|tome|grimoire|manual|hymnal|songbook)\b/.test(lower) || /\[[a-z0-9\s\-'&:]+\]/i.test(name) || /(魔法書|仙術書|経典|教本|『[^』]+』|\[[^\]]+の魔法書\])/.test(name) || isTomeTval) {
                 tomeCount++;
                 let matchesClass = true;
-                if (isVanilla) {
+                if ((vm & ((1 << 15) | (1 << 16) | (1 << 17))) !== 0) {
+                    matchesClass = true;
+                } else if (isVanilla) {
                     if (isPriestClass && (tval === 30 || /magic|arcane|sorcery/.test(lower))) matchesClass = false;
                     if (isMageClass && (tval === 31 || /prayer|holy|piety/.test(lower))) matchesClass = false;
                 }
                 if (matchesClass) matchingTomeCount++;
-            } else if (/\b(wand|rod|staff)\b/.test(lower) || /(魔法棒|ロッド|スタッフ|の杖)/.test(name) || isDeviceTval) {
+            }
+
+            if (r === 'silq' && ((vm & (1 << 6)) !== 0 || /\bhorn\b/.test(lower))) {
+                hornCount++;
+                deviceCount++;
+            } else if ((vm & (1 << 3)) !== 0 || /\bwand\b/.test(lower) || /魔法棒/.test(name) || isWandTval) {
+                wandCount++;
+                deviceCount++;
+            } else if ((vm & (1 << 4)) !== 0 || /\b(staff|stave)\b/.test(lower) || /(スタッフ|の杖)/.test(name) || isStaffTval) {
+                staffCount++;
+                deviceCount++;
+            } else if ((vm & (1 << 5)) !== 0 || /\brod\b/.test(lower) || /ロッド/.test(name) || isRodTval) {
+                rodCount++;
+                deviceCount++;
+            } else if ((vm & (1 << 6)) !== 0) {
+                activatableCount++;
                 deviceCount++;
             }
-            if ((/\b(arrow|bolt|shot|pebble|seeker|sheaf)\b/.test(lower) && !/\b(bow|crossbow|sling)\b/.test(lower)) || /(矢|弾|丸石)/.test(name) || isAmmoTval) {
+
+            if ((vm & (1 << 7)) !== 0 || (/\b(arrow|bolt|shot|pebble|seeker|sheaf)\b/.test(lower) && !/\b(bow|crossbow|sling)\b/.test(lower)) || /(矢|弾|丸石)/.test(name) || isAmmoTval) {
                 rangedInPack++;
             }
-            if (/\b(sword|dagger|blade|rapier|sabre|katana|spear|lance|halberd|axe|mace|flail|hammer|whip|club)\b/.test(lower) ||
+            if ((vm & (1 << 9)) !== 0 || /\b(sword|dagger|blade|rapier|sabre|katana|spear|lance|halberd|axe|mace|flail|hammer|whip|club)\b/.test(lower) ||
                 /(剣|刀|脇差|ダガー|槍|斧|槌|メイス|フレイル|ハンマー|ムチ|棍棒)/.test(name) ||
                 isWeaponTval) {
                 weaponInPack++;
@@ -484,6 +545,15 @@ class InputController {
                        /(鎧|メイル|ローブ|クローク|盾|兜|冠|帽子|篭手|靴|指輪|アミュレット|松明|ランタン|ボウ|スリング|弓)/.test(name) ||
                        isArmorTval) {
                 wearableInPack++;
+            }
+        }
+        for (const eqIt of eq) {
+            if (!eqIt) continue;
+            const eqVm = (typeof eqIt.vm === 'number' && Number.isFinite(eqIt.vm)) ? eqIt.vm : 0;
+            if ((eqVm & (1 << 6)) !== 0 || eqIt.activate) {
+                if (r === 'silq') hornCount++;
+                else activatableCount++;
+                deviceCount++;
             }
         }
 
@@ -553,9 +623,39 @@ class InputController {
 
         const pClass = String(player.class || '').toLowerCase();
         const isNonCaster = /warrior|berserker|archer|cavalry|sniper|ninja|smith|weaponsmith|戦士|狂戦士|アーチャー|騎兵|鍛冶師/.test(pClass) || (pClass.includes('samurai') && maxSp === 0);
-        const canCastFromTome = !isNonCaster && maxSp > 0;
+        const isIntrinsicCaster = /mindcrafter|psion|warlock|mirror|blue[-\s]?mage|imitator|bard|monk|mystic|wild[-\s]?talent|possessor|red[-\s]?mage|samurai|force[-\s]?trainer|超能力者|青魔道師|ものまね師|吟遊詩人|修行僧|練気術師|鏡使い/.test(pClass);
+        const canCastFromTome = !isNonCaster && (maxSp > 0 || matchingTomeCount > 0 || isIntrinsicCaster);
         const hasStudyStatus = statuses.some((s) => /\bstudy\b|学習/i.test(String((s && (s.name || s)) || '')));
-        const effectiveStudyCount = studyCount || (hasStudyStatus ? 1 : 0);
+        const effectiveStudyCount = studyCount || (Number(player.newSpells || player.new_spells || 0)) || (hasStudyStatus ? 1 : 0);
+        const isHungry = Boolean(
+            (typeof player.food === 'string' && /hungry|weak|faint|starv|空腹|衰弱|飢餓/i.test(player.food)) ||
+            (typeof player.hunger === 'string' && /hungry|weak|faint|starv|空腹|衰弱|飢餓/i.test(player.hunger)) ||
+            statuses.some((s) => /hungry|weak|faint|starv|空腹|衰弱|飢餓/i.test(String((s && (s.name || s)) || '')))
+        );
+
+        let primaryDeviceVerb = r === 'silq' ? 'use_staff' : 'aim';
+        let primaryDeviceLabel = r === 'silq' ? 'Staff' : (isJp ? '魔法棒' : 'Wand');
+        let primaryDeviceKey = r === 'silq' ? 'a' : 'a';
+        if (r === 'silq') {
+            if (staffCount > 0) { primaryDeviceVerb = 'use_staff'; primaryDeviceLabel = 'Staff'; primaryDeviceKey = 'a'; }
+            else if (hornCount > 0) { primaryDeviceVerb = 'play_horn'; primaryDeviceLabel = 'Horn'; primaryDeviceKey = 'p'; }
+            else { primaryDeviceVerb = 'use'; primaryDeviceLabel = 'Use'; primaryDeviceKey = 'u'; }
+        } else {
+            if (wandCount > 0) { primaryDeviceVerb = 'aim'; primaryDeviceLabel = isJp ? '魔法棒' : 'Wand'; primaryDeviceKey = 'a'; }
+            else if (rodCount > 0) { primaryDeviceVerb = 'zap'; primaryDeviceLabel = isJp ? 'ロッド' : 'Rod'; primaryDeviceKey = 'z'; }
+            else if (staffCount > 0) { primaryDeviceVerb = 'use_staff'; primaryDeviceLabel = isJp ? '杖' : 'Staff'; primaryDeviceKey = 'u'; }
+            else if (activatableCount > 0) { primaryDeviceVerb = 'activate'; primaryDeviceLabel = isJp ? '始動' : 'Activate'; primaryDeviceKey = 'A'; }
+        }
+        this._adaptiveDeviceVerb = primaryDeviceVerb;
+        const btnAimEl = document.getElementById('btn-aim');
+        if (btnAimEl) {
+            const aimLbl = btnAimEl.querySelector('.act-label');
+            const aimKbd = btnAimEl.querySelector('kbd');
+            if (aimLbl) aimLbl.textContent = primaryDeviceLabel;
+            if (aimKbd) aimKbd.textContent = primaryDeviceKey;
+            btnAimEl.dataset.baseTitle = `${primaryDeviceLabel} [${primaryDeviceKey}]`;
+            btnAimEl.title = btnAimEl.dataset.baseTitle;
+        }
 
         if (Array.isArray(frame.messages)) {
             const hasZeroSpellsMsg = frame.messages.some(m => {
@@ -579,31 +679,42 @@ class InputController {
 
         const isFreshL1WithSlots = (player.level || 1) === 1 && effectiveStudyCount > 0 && curSp === maxSp && !this._hasCastSuccess;
         const hasKnownSpells = r === 'silq'
-            ? Boolean(this._hasCastSuccess || Number(player.songs_known || 0) > 0)
-            : (canCastFromTome && matchingTomeCount > 0 && !this._zeroSpellsFlag && !isFreshL1WithSlots);
+            ? true
+            : (canCastFromTome && (matchingTomeCount > 0 || isIntrinsicCaster) && !this._zeroSpellsFlag && !isFreshL1WithSlots);
         const isDisablingStatus = statuses.some(s => {
             const name = String((s && (s.name || s)) || '');
             return /blind|confus|paralyz|stun|hallucinat|盲目|混乱|麻痺|朦朧|幻覚/i.test(name);
         });
 
-        const hasFullData = player.inventory !== undefined || player.hp_max !== undefined;
-        const stateSig = `${r}:${lang}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${tomeCount}:${matchingTomeCount}:${deviceCount}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors}:${adjAnyDoors}:${adjHostiles}:${rangedHostilesInLOS}:${hostileMonsters.length}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${curSp}:${effectiveStudyCount}:${hasBadStatus ? 1 : 0}:${hasKnownSpells ? 1 : 0}:${isDisablingStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
+        const hasFullData = player.inventory !== undefined || frame.inventory !== undefined || player.hp_max !== undefined;
+        const stateSig = `${r}:${lang}:${this.wasdMode ? 1 : 0}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${foodCount}:${tomeCount}:${matchingTomeCount}:${deviceCount}:${primaryDeviceVerb}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors}:${adjAnyDoors}:${adjHostiles}:${rangedHostilesInLOS}:${hostileMonsters.length}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${curSp}:${effectiveStudyCount}:${isHungry ? 1 : 0}:${hasBadStatus ? 1 : 0}:${hasKnownSpells ? 1 : 0}:${isDisablingStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
 
         if (stateSig === this._lastActionBarContextSig) return;
         this._lastActionBarContextSig = stateSig;
 
-        const hasInvTelemetry = Array.isArray(player.inventory);
+        const hasInvTelemetry = Array.isArray(player.inventory) || Array.isArray(frame.inventory);
+
+        const btnStudyEl = document.getElementById('btn-study');
+        if (btnStudyEl) {
+            const stLbl = btnStudyEl.querySelector('.act-label');
+            if (stLbl) {
+                stLbl.textContent = effectiveStudyCount > 0
+                    ? (isJp ? `学習(${effectiveStudyCount})` : `Study (${effectiveStudyCount})`)
+                    : (isJp ? '学習' : 'Study');
+            }
+        }
 
         const rules = {
             'btn-attack': { show: adjHostiles > 0 && (!heroActive || heroAction.id !== 'attack'), suggest: adjHostiles > 0, reason: isJp ? '隣接する敵を攻撃！' : 'Adjacent enemy in melee range!' },
             'btn-fire': { show: (!hasInvTelemetry || (hasBowEquipped && hasAmmo)) && (!heroActive || heroAction.id !== 'shoot'), suggest: hasBowEquipped && hasAmmo && rangedHostilesInLOS > 0 && adjHostiles === 0 && !isDisablingStatus, reason: isJp ? '射程内に敵 — 射撃推奨' : 'Enemy in range — Shoot!' },
             'btn-throw': { show: !hasInvTelemetry || (inv.length > 0 && (hostileMonsters.length > 0 || r === 'silq')), suggest: r === 'silq' && rangedInPack > 0 && rangedHostilesInLOS > 0 && adjHostiles === 0, reason: 'Throw weapon at ranged target' },
-            'btn-cast': { show: maxSp > 0 && hasKnownSpells && (!hasInvTelemetry || r === 'silq' || matchingTomeCount > 0), dim: !hasKnownSpells || curSp <= 0 || isDisablingStatus, suggest: hasKnownSpells && !isDisablingStatus && maxSp > 0 && (r === 'silq' || matchingTomeCount > 0) && (adjHostiles > 0 || rangedHostilesInLOS > 0) && curSp >= Math.max(1, maxSp * 0.20), reason: isJp ? '魔力あり — 呪文詠唱' : 'Mana available — Cast spell' },
-            'btn-browse': { show: r !== 'silq' && maxSp > 0 && (!hasInvTelemetry || matchingTomeCount > 0), suggest: false },
-            'btn-study': { show: r !== 'silq' && maxSp > 0 && effectiveStudyCount > 0 && (!hasInvTelemetry || matchingTomeCount > 0), suggest: effectiveStudyCount > 0 && matchingTomeCount > 0 && adjHostiles === 0, reason: isJp ? `新しい呪文を学習可能 (${effectiveStudyCount})` : `Learn new spell (${effectiveStudyCount} ready)!` },
+            'btn-cast': { show: r === 'silq' || (!isNonCaster && (!hasInvTelemetry || matchingTomeCount > 0 || isIntrinsicCaster)), dim: r !== 'silq' && (!hasKnownSpells || (maxSp > 0 && curSp <= 0) || isDisablingStatus), suggest: hasKnownSpells && !isDisablingStatus && (r === 'silq' || matchingTomeCount > 0 || isIntrinsicCaster) && (adjHostiles > 0 || rangedHostilesInLOS > 0) && (maxSp === 0 || curSp >= Math.max(1, maxSp * 0.20)), reason: isJp ? '魔力あり — 呪文詠唱' : 'Mana available — Cast spell' },
+            'btn-browse': { show: r !== 'silq' && (!hasInvTelemetry || tomeCount > 0), suggest: false },
+            'btn-study': { show: r !== 'silq' && !isNonCaster && (effectiveStudyCount > 0 || !hasInvTelemetry || matchingTomeCount > 0), suggest: effectiveStudyCount > 0 && (!hasInvTelemetry || matchingTomeCount > 0), reason: isJp ? `新しい呪文を学習可能 (${effectiveStudyCount}) [G]` : `Can learn ${effectiveStudyCount || 'new'} spell(s) right now [G]!` },
             'btn-skills': { show: r === 'silq', suggest: r === 'silq' && Number(player.exp || 0) >= 500 && hostileMonsters.length === 0, reason: 'Spend XP on Sil-Q Abilities [Tab]' },
             'btn-power': { show: r === 'frogcomposband' || r === 'hengband', suggest: false, reason: isJp ? '特殊能力・レイシャル発動' : 'Invoke Racial/Class Power' },
             'btn-quaff': { show: !hasInvTelemetry || potionCount > 0, suggest: potionCount > 0 && (hpPct < 50 || hasBadStatus), reason: isJp ? '体力低下/状態異常 — 薬を飲む！' : 'Low HP or ailment — Drink Potion!' },
+            'btn-eat': { show: !hasInvTelemetry || foodCount > 0 || isHungry, suggest: (foodCount > 0 || !hasInvTelemetry) && isHungry, reason: isJp ? '空腹 — 食料を食べる [E]！' : 'Hungry — Eat Ration [E]!' },
             'btn-read': { show: r !== 'silq' && (!hasInvTelemetry || scrollCount > 0), suggest: scrollCount > 0 && !isDisablingStatus && ((hpPct < 35 && hostileMonsters.length > 0) || adjHostiles >= 2), reason: isJp ? '危険 — 巻物で脱出・対処！' : 'Danger — Read Scroll!' },
             'btn-door': { show: adjClosedDoors > 0 && (!heroActive || heroAction.id !== 'open-door'), suggest: adjClosedDoors > 0 && adjHostiles === 0, reason: isJp ? '隣接する扉を開ける' : 'Open adjacent closed door' },
             'btn-pickup': { show: standingOnItem && (!heroActive || heroAction.id !== 'pickup'), suggest: standingOnItem, reason: isJp ? '足元のアイテムを拾う' : 'Item underfoot — Pick up!' },
@@ -611,12 +722,12 @@ class InputController {
             'btn-rest': { show: !hasInvTelemetry || ((hpPct < 100 || (maxSp > 0 && spPct < 100) || hasBadStatus) && adjHostiles === 0), suggest: (hpPct < 75 || (maxSp > 0 && spPct < 45) || hasBadStatus) && hostileMonsters.length === 0, reason: isJp ? '周囲安全 — 休憩して回復' : 'Area clear — Rest to recover HP/Mana' },
             'btn-inventory': { show: !hasInvTelemetry || inv.length > 0 || eq.length > 0, suggest: false },
             'btn-equipment': { show: !hasInvTelemetry || eq.length > 0, suggest: false },
-            'btn-wield': { show: Boolean(this.wasdMode) || !hasInvTelemetry || wearableInPack > 0, suggest: false },
-            'btn-drop': { show: Boolean(this.wasdMode) || !hasInvTelemetry || inv.length > 0, suggest: false },
-            'btn-aim': { show: Boolean(this.wasdMode), suggest: false },
+            'btn-wield': { show: !hasInvTelemetry || wearableInPack > 0, suggest: !hasWeaponEquipped && weaponInPack > 0, reason: 'Equip weapon from pack [w]' },
+            'btn-drop': { show: !hasInvTelemetry || inv.length > 0, suggest: false },
+            'btn-aim': { show: !hasInvTelemetry || deviceCount > 0, suggest: deviceCount > 0 && (adjHostiles > 0 || rangedHostilesInLOS > 0) && hpPct < 75, reason: `Use ${primaryDeviceLabel} [${primaryDeviceKey}]` },
             'btn-search': { show: Boolean(this.wasdMode) || r === 'frogcomposband' || r === 'hengband' || r === 'silq', suggest: false },
             'btn-quests': { show: r === 'frogcomposband' || r === 'hengband', suggest: false },
-            'btn-overland': { show: r === 'frogcomposband' || r === 'hengband', suggest: false }
+            'btn-overland': { show: (r === 'frogcomposband' || r === 'hengband') && Number(player.depth || 0) === 0, suggest: false }
         };
 
         for (const [id, cfg] of Object.entries(rules)) {
@@ -684,7 +795,8 @@ class InputController {
         const btnAim = document.getElementById('btn-aim');
         if (btnAim) {
             const lbl = btnAim.querySelector('.act-label');
-            if (lbl) lbl.textContent = activeRealm === 'silq' ? 'Staff' : 'Aim';
+            const fallbackVerb = activeRealm === 'silq' ? 'Staff' : 'Aim';
+            if (lbl) lbl.textContent = this._adaptiveDeviceVerb || fallbackVerb;
             btnAim.title = activeRealm === 'silq' ? 'Use Staff [a]' : 'Aim a Wand [a]';
         }
         this.syncWasdUiState();
@@ -1275,67 +1387,41 @@ class InputController {
         if (isReviewScreen && (e.key === 'r' || e.key === 'R')) {
             e.preventDefault();
             if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
-            if (window.__app && window.__app.rerollHero) {
-                window.__app.rerollHero();
-            } else {
+            if (window.__app && window.__app.rerollHero) window.__app.rerollHero();
+            else {
                 const realm = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
                 this.network.sendKey(realm === 'silq' || realm === 'hengband' ? 'r' : 's');
             }
             return;
         }
-
         if (isReviewScreen && (e.key === 'p' || e.key === 'P')) {
             e.preventDefault();
             if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
             this.network.sendKey('p');
             return;
         }
-
         if (isReviewScreen && (e.key === 'c' || e.key === 'C' || e.key === 's' || e.key === 'S')) {
             e.preventDefault();
             if (this.audio) this.audio.playMenuNav();
-            if (window.__app && window.__app.startCustomHeroCreation) {
-                window.__app.startCustomHeroCreation();
-            } else {
-                if (window.__app && window.__app.cancelQuickBirth) window.__app.cancelQuickBirth();
-                this.network.sendKey('s');
-            }
+            if (window.__app && window.__app.startCustomHeroCreation) window.__app.startCustomHeroCreation();
+            else { if (window.__app && window.__app.cancelQuickBirth) window.__app.cancelQuickBirth(); this.network.sendKey('s'); }
             return;
         }
-
         if (isReviewScreen && (e.key === 'Enter' || e.key === 'y' || e.key === 'Y' || e.key === ' ')) {
             e.preventDefault();
             if (this.audio) this.audio.playWhoosh();
-            if (window.__app && window.__app.confirmHeroBirth) {
-                window.__app.confirmHeroBirth();
-            } else {
-                this.network.sendKey(e.key === 'y' || e.key === 'Y' ? 'y' : 'enter');
-            }
+            if (window.__app && window.__app.confirmHeroBirth) window.__app.confirmHeroBirth();
+            else this.network.sendKey(e.key === 'y' || e.key === 'Y' ? 'y' : 'enter');
             return;
         }
-
-        if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
-            e.preventDefault();
-            if (window.__app && window.__app.terminal && window.__app.terminal.zoomIn) window.__app.terminal.zoomIn();
-            return;
-        }
-        if (e.ctrlKey && (e.key === '-' || e.key === '_')) {
-            e.preventDefault();
-            if (window.__app && window.__app.terminal && window.__app.terminal.zoomOut) window.__app.terminal.zoomOut();
-            return;
-        }
-        if (e.ctrlKey && e.key === '0') {
-            e.preventDefault();
-            if (window.__app && window.__app.terminal && window.__app.terminal.resetZoom) window.__app.terminal.resetZoom();
-            return;
-        }
+        if (e.ctrlKey && (e.key === '=' || e.key === '+')) { e.preventDefault(); window.__app?.terminal?.zoomIn?.(); return; }
+        if (e.ctrlKey && (e.key === '-' || e.key === '_')) { e.preventDefault(); window.__app?.terminal?.zoomOut?.(); return; }
+        if (e.ctrlKey && e.key === '0') { e.preventDefault(); window.__app?.terminal?.resetZoom?.(); return; }
 
         const isAwaitingCmd = inPlay && Boolean(
             (lastFrame.awaiting_command || (lastFrame.ui && lastFrame.ui.awaiting_command)) &&
-            (!lastFrame.ui || !lastFrame.ui.more) &&
-            (!lastFrame.ui || !lastFrame.ui.overlay)
+            (!lastFrame.ui || !lastFrame.ui.more) && (!lastFrame.ui || !lastFrame.ui.overlay)
         );
-
         if (isAwaitingCmd && this.isRunningActive(e)) {
             let termDir = 0;
             if (e.key === 'ArrowUp' || e.code === 'Numpad8') termDir = 8;
@@ -1346,19 +1432,13 @@ class InputController {
             else if (e.key === 'PageUp' || e.code === 'Numpad9') termDir = 9;
             else if (e.key === 'End' || e.code === 'Numpad1') termDir = 1;
             else if (e.key === 'PageDown' || e.code === 'Numpad3') termDir = 3;
-
-            if (termDir > 0) {
-                e.preventDefault();
-                this.network.sendCommand(`keys .${termDir}`);
-                return;
-            }
+            if (termDir > 0) { e.preventDefault(); this.network.sendCommand(`keys .${termDir}`); return; }
         }
 
         let keySpec = null;
         const isNumpadDigit = Boolean(e.code && /^Numpad[0-9]$/.test(e.code));
-        if (isNumpadDigit && (tf.isQuantityPrompt || tf.isNamePrompt || tf.isInscriptionPrompt)) {
-            keySpec = e.code.slice(6);
-        } else if (e.key === 'ArrowUp' || e.code === 'Numpad8') keySpec = 'up';
+        if (isNumpadDigit && (tf.isQuantityPrompt || tf.isNamePrompt || tf.isInscriptionPrompt)) keySpec = e.code.slice(6);
+        else if (e.key === 'ArrowUp' || e.code === 'Numpad8') keySpec = 'up';
         else if (e.key === 'ArrowDown' || e.code === 'Numpad2') keySpec = 'down';
         else if (e.key === 'ArrowLeft' || e.code === 'Numpad4') keySpec = 'left';
         else if (e.key === 'ArrowRight' || e.code === 'Numpad6') keySpec = 'right';
@@ -1381,14 +1461,20 @@ class InputController {
             const realm = (window.__app && typeof window.__app.getActiveRealm === 'function')
                 ? window.__app.getActiveRealm()
                 : ((window.__app && window.__app.currentRealm) || (lastFrame && lastFrame.realm) || 'angband');
-
+            const isTermTargeting = Boolean(
+                (window.ScreenContext && typeof window.ScreenContext.inputTargetingPrompt === 'function' && window.ScreenContext.inputTargetingPrompt(screenText, inPlay)) ||
+                (lastFrame && lastFrame.ui && lastFrame.ui.prompt && lastFrame.ui.prompt.kind === 'direction')
+            );
+            if (isTermTargeting && this.wasdMode && keySpec.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                const mappedDir = { 'w': 8, 's': 2, 'a': 4, 'd': 6, 'q': 7, 'e': 9, 'z': 1, 'c': 3 }[keySpec.toLowerCase()];
+                if (mappedDir) {
+                    const moveKey = this.getRelativeDirectionKey(mappedDir);
+                    if (moveKey) { this.network.sendKey(moveKey); return; }
+                }
+            }
             if ((keySpec === 'up' || keySpec === 'down') && this.terminal && typeof this.terminal.moveSelection === 'function') {
-                const pending = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
-                    ? window.MenuRouter.getPending()
-                    : null;
-                const scClass = (window.ScreenContext && typeof window.ScreenContext.classify === 'function' && lastFrame)
-                    ? window.ScreenContext.classify(lastFrame, realm)
-                    : null;
+                const pending = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function') ? window.MenuRouter.getPending() : null;
+                const scClass = (window.ScreenContext && typeof window.ScreenContext.classify === 'function' && lastFrame) ? window.ScreenContext.classify(lastFrame, realm) : null;
                 const inSelectableList = Boolean(
                     (scClass && (scClass.mode === 'item-list' || scClass.mode === 'item-actions')) ||
                     (this.terminal.currentMode === 'item_prompt' && Array.isArray(this.terminal.selectableRegions) && this.terminal.selectableRegions.length > 0)
@@ -1397,21 +1483,14 @@ class InputController {
                     const nextKey = this.terminal.moveSelection(keySpec === 'up' ? -1 : 1);
                     if (nextKey) {
                         if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
-                        if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') {
-                            window.__app.updateTerminalToolbar(lastFrame);
-                        }
+                        if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') window.__app.updateTerminalToolbar(lastFrame);
                         return;
                     }
                 }
             }
-
             if (keySpec === 'enter' && this.terminal && typeof this.terminal.getSelectedKey === 'function') {
-                const pending = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function')
-                    ? window.MenuRouter.getPending()
-                    : null;
-                const scClass = (window.ScreenContext && typeof window.ScreenContext.classify === 'function' && lastFrame)
-                    ? window.ScreenContext.classify(lastFrame, realm)
-                    : null;
+                const pending = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function') ? window.MenuRouter.getPending() : null;
+                const scClass = (window.ScreenContext && typeof window.ScreenContext.classify === 'function' && lastFrame) ? window.ScreenContext.classify(lastFrame, realm) : null;
                 const inSelectableList = Boolean(
                     (scClass && (scClass.mode === 'item-list' || scClass.mode === 'item-actions')) ||
                     (this.terminal.currentMode === 'item_prompt' && Array.isArray(this.terminal.selectableRegions) && this.terminal.selectableRegions.length > 0)
@@ -1421,29 +1500,17 @@ class InputController {
                     if (selKey) keySpec = selKey;
                 }
             }
-
             if (window.MenuRouter && typeof window.MenuRouter.route === 'function') {
                 if (window.MenuRouter.route(keySpec, lastFrame, realm)) {
-                    if (this.terminal && typeof this.terminal.setSelectedKey === 'function' && keySpec.length === 1) {
-                        this.terminal.setSelectedKey(keySpec);
-                    }
-                    if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') {
-                        window.__app.updateTerminalToolbar(lastFrame);
-                    }
-                    if (this.terminal && lastFrame && lastFrame.term && typeof this.terminal.render === 'function') {
-                        this.terminal.render(lastFrame.term);
-                    }
+                    if (this.terminal && typeof this.terminal.setSelectedKey === 'function' && keySpec.length === 1) this.terminal.setSelectedKey(keySpec);
+                    if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') window.__app.updateTerminalToolbar(lastFrame);
+                    if (this.terminal && lastFrame && lastFrame.term && typeof this.terminal.render === 'function') this.terminal.render(lastFrame.term);
                     return;
                 }
             }
-
             if (keySpec === 'escape') {
-                if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') {
-                    window.MenuRouter.clearPending();
-                }
-                if (window.__app && window.__app.setForceTerminal) {
-                    window.__app.setForceTerminal(false);
-                }
+                if (window.MenuRouter && typeof window.MenuRouter.clearPending === 'function') window.MenuRouter.clearPending();
+                if (window.__app && window.__app.setForceTerminal) window.__app.setForceTerminal(false);
                 window.__manualTerminalOpen = false;
             }
             this.network.sendKey(keySpec);
@@ -1451,16 +1518,13 @@ class InputController {
     }
 
     sendMovementKey(key) {
-        if (this.dungeon && typeof this.dungeon.snapCameraToDefault === 'function') {
-            this.dungeon.snapCameraToDefault();
-        }
+        if (this.dungeon && typeof this.dungeon.snapCameraToDefault === 'function') this.dungeon.snapCameraToDefault();
         this.network.sendKey(key);
     }
 
     _playKeyAudio(key) {
         if (!this.audio || !key) return;
-        const k = key;
-        const kl = typeof k === 'string' ? k.toLowerCase() : '';
+        const k = key, kl = typeof k === 'string' ? k.toLowerCase() : '';
         if (k === 'T') {
             if (typeof this.audio.playWallBump === 'function') this.audio.playWallBump(0.9);
             else if (typeof this.audio.playWhoosh === 'function') this.audio.playWhoosh();
@@ -1479,64 +1543,37 @@ class InputController {
             else if (kl === 'r' && typeof this.audio.playScroll === 'function') this.audio.playScroll();
             else if (kl === 'g' && typeof this.audio.playItemPickup === 'function') this.audio.playItemPickup();
             else if (typeof this.audio.playMenuOpen === 'function') this.audio.playMenuOpen();
-        } else if (kl === 's') {
-            if (typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
-        } else if (kl === 'd') {
-            if (typeof this.audio.playItemDrop === 'function') this.audio.playItemDrop();
-        } else if (k === 'E') {
-            if (typeof this.audio.playEat === 'function') this.audio.playEat();
-        } else if (k === 'w') {
-            if (typeof this.audio.playEquipWeapon === 'function') this.audio.playEquipWeapon();
-        } else if (k === 'W') {
-            if (typeof this.audio.playEquipArmor === 'function') this.audio.playEquipArmor();
-        } else if (k === 't' || kl === 'f' || kl === 'v') {
+        } else if (kl === 's') { if (typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav(); }
+        else if (kl === 'd') { if (typeof this.audio.playItemDrop === 'function') this.audio.playItemDrop(); }
+        else if (k === 'E') { if (typeof this.audio.playEat === 'function') this.audio.playEat(); }
+        else if (k === 'w') { if (typeof this.audio.playEquipWeapon === 'function') this.audio.playEquipWeapon(); }
+        else if (k === 'W') { if (typeof this.audio.playEquipArmor === 'function') this.audio.playEquipArmor(); }
+        else if (k === 't' || kl === 'f' || kl === 'v') {
             if (typeof this.audio.playBowShoot === 'function') this.audio.playBowShoot();
             else if (typeof this.audio.playWhoosh === 'function') this.audio.playWhoosh();
-        } else if (kl === 'o' || kl === 'c') {
-            if (typeof this.audio.playDoor === 'function') this.audio.playDoor(kl === 'o');
-        }
+        } else if (kl === 'o' || kl === 'c') { if (typeof this.audio.playDoor === 'function') this.audio.playDoor(kl === 'o'); }
     }
 
     handleWorldKey(e) {
         if (e.altKey) return;
-
         if (window.chronicleManager && typeof window.chronicleManager.preemptForGameplay === 'function') {
             window.chronicleManager.preemptForGameplay('world_key');
         }
-
         let skipWasdRemap = false;
-        if (this._wasdLiteralNext) {
-            this._wasdLiteralNext = false;
-            skipWasdRemap = true;
-        }
-
+        if (this._wasdLiteralNext) { this._wasdLiteralNext = false; skipWasdRemap = true; }
         if (this.wasdMode && !skipWasdRemap && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === '\\') {
-            e.preventDefault();
-            this._wasdLiteralNext = true;
-            this.network.sendKey('\\');
-            return;
+            e.preventDefault(); this._wasdLiteralNext = true; this.network.sendKey('\\'); return;
         }
-
         if (e.key === '[' || e.key === ']') {
-            e.preventDefault();
-            if (window.__app && window.__app.hud) {
-                window.__app.hud.cycleMinimapSize(e.key === '[' ? -1 : 1);
-            }
-            return;
+            e.preventDefault(); window.__app?.hud?.cycleMinimapSize(e.key === '[' ? -1 : 1); return;
         }
-
         if (e.ctrlKey || e.altKey) {
             if (e.key === 'PageUp') { e.preventDefault(); if (this.dungeon) this.dungeon.userPitchOffset = Math.min(1.25, (this.dungeon.userPitchOffset || 0) + 0.12); return; }
             if (e.key === 'PageDown') { e.preventDefault(); if (this.dungeon) this.dungeon.userPitchOffset = Math.max(-0.65, (this.dungeon.userPitchOffset || 0) - 0.12); return; }
             if (e.key === 'Home') { e.preventDefault(); if (this.dungeon) this.dungeon.userPitchOffset = 0.0; return; }
         }
-
         if (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') {
-            e.preventDefault();
-            if (window.__app && window.__app.hud) {
-                window.__app.hud.adjustMinimapZoom((e.key === '+' || e.key === '=') ? 0.15 : -0.15);
-            }
-            return;
+            e.preventDefault(); window.__app?.hud?.adjustMinimapZoom((e.key === '+' || e.key === '=') ? 0.15 : -0.15); return;
         }
 
         const numpadDirMap = {
@@ -1544,15 +1581,11 @@ class InputController {
             'Numpad7': 7, 'Digit7': 7, 'Home': 7, 'Numpad9': 9, 'Digit9': 9, 'PageUp': 9, 'Numpad1': 1, 'Digit1': 1, 'End': 1,
             'Numpad3': 3, 'Digit3': 3, 'PageDown': 3, 'Numpad5': 5, 'Digit5': 5, 'NumpadClear': 5, 'Clear': 5
         };
-
         const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;
         const ui = lastFrame ? lastFrame.ui : null;
         const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
         const inPlay = Boolean(lastFrame && lastFrame.phase === 'play');
-
-        const screenText = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function')
-            ? window.ScreenContext.screenTextOf(lastFrame)
-            : '';
+        const screenText = (window.ScreenContext && typeof window.ScreenContext.screenTextOf === 'function') ? window.ScreenContext.screenTextOf(lastFrame) : '';
         const isHeng = realm === 'hengband';
         const isTargeting = Boolean(
             (window.ScreenContext && typeof window.ScreenContext.toolbarFlags === 'function' && window.ScreenContext.toolbarFlags(lastFrame, screenText, isHeng).isTargeting) ||
@@ -1563,16 +1596,9 @@ class InputController {
         // Directional targeting prompt remaps (L29, D22)
         if (isTargeting) {
             if (e.code === 'Digit5' || e.code === 'Numpad5' || e.key === '.' || e.key === 't' || e.key === 'T') {
-                e.preventDefault();
-                const targetKey = realm === 'silq' ? 'f' : 't';
-                this.network.sendKey(targetKey);
-                return;
+                e.preventDefault(); this.network.sendKey(realm === 'silq' ? 'f' : 't'); return;
             }
-            if (e.key === ' ' || e.code === 'Space') {
-                e.preventDefault();
-                this.network.sendKey('space');
-                return;
-            }
+            if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); this.network.sendKey('space'); return; }
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                 e.preventDefault();
                 const numDir = e.key === 'ArrowUp' ? 8 : (e.key === 'ArrowDown' ? 2 : (e.key === 'ArrowLeft' ? 4 : 6));
@@ -1581,19 +1607,15 @@ class InputController {
                 return;
             }
             if (this.wasdMode && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                const lowerK = e.key.toLowerCase();
-                const wasdDirMap = { 'w': 8, 's': 2, 'a': 4, 'd': 6 };
-                if (wasdDirMap[lowerK]) {
+                const mapped = { 'w': 8, 's': 2, 'a': 4, 'd': 6, 'q': 7, 'e': 9, 'z': 1, 'c': 3 }[e.key.toLowerCase()];
+                if (mapped) {
                     e.preventDefault();
-                    const moveKey = this.getRelativeDirectionKey(wasdDirMap[lowerK]);
+                    const moveKey = this.getRelativeDirectionKey(mapped);
                     if (moveKey) this.network.sendKey(moveKey);
                     return;
                 }
             }
-            if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                e.preventDefault();
-                this.network.sendKey(e.key);
-            }
+            if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); this.network.sendKey(e.key); }
             return;
         }
 
@@ -1602,51 +1624,27 @@ class InputController {
             e.preventDefault();
             const lowerMoreK = (this.wasdMode && !e.ctrlKey && !e.altKey && !e.metaKey) ? e.key.toLowerCase() : '';
             if (e.key === 'ArrowLeft' || (lowerMoreK === 'a' && !e.shiftKey)) {
-                this.network.sendKey('space');
-                this.dungeon.turn(-1);
-                this.syncCompass();
-                return;
+                this.network.sendKey('space'); this.dungeon.turn(-1); this.syncCompass(); return;
             }
             if (e.key === 'ArrowRight' || (lowerMoreK === 'd' && !e.shiftKey)) {
-                this.network.sendKey('space');
-                this.dungeon.turn(1);
-                this.syncCompass();
-                return;
+                this.network.sendKey('space'); this.dungeon.turn(1); this.syncCompass(); return;
             }
-
             const wasdMoreDir = lowerMoreK === 'w' ? 8 : (lowerMoreK === 's' ? 2 : (lowerMoreK === 'a' && e.shiftKey ? 4 : (lowerMoreK === 'd' && e.shiftKey ? 6 : 0)));
             const dir = wasdMoreDir || numpadDirMap[e.code] || numpadDirMap[e.key];
-            let moveDir = 0;
-            let isRun = false;
-            if (dir) {
-                moveDir = dir;
-                isRun = this.isRunningActive(e) && (dir !== 5 || wasdMoreDir);
-            } else if (e.key === 'ArrowUp') {
-                moveDir = 8;
-                isRun = this.isRunningActive(e);
-            } else if (e.key === 'ArrowDown') {
-                moveDir = 2;
-                isRun = this.isRunningActive(e);
-            }
-
+            let moveDir = 0, isRun = false;
+            if (dir) { moveDir = dir; isRun = this.isRunningActive(e) && (dir !== 5 || wasdMoreDir); }
+            else if (e.key === 'ArrowUp') { moveDir = 8; isRun = this.isRunningActive(e); }
+            else if (e.key === 'ArrowDown') { moveDir = 2; isRun = this.isRunningActive(e); }
             if (moveDir) {
                 const moveKey = this.getRelativeDirectionKey(moveDir);
                 const dispatcher = (this.app && this.app.dispatcher) || (window.__app && window.__app.dispatcher);
-                if (dispatcher && typeof dispatcher.run === 'function' && !isRun && moveKey) {
-                    dispatcher.run({ verb: 'more_move', dirKey: moveKey });
-                } else {
-                    this.network.sendKey('space');
-                    this._pendingMoreMove = { isRun, dir: moveDir, moveKey };
-                }
-            } else {
-                this.network.sendKey('space');
-            }
+                if (dispatcher && typeof dispatcher.run === 'function' && !isRun && moveKey) dispatcher.run({ verb: 'more_move', dirKey: moveKey });
+                else { this.network.sendKey('space'); this._pendingMoreMove = { isRun, dir: moveDir, moveKey }; }
+            } else this.network.sendKey('space');
             return;
         }
 
-        const isTopLevelCommandPrompt = Boolean(
-            ui && ui.awaiting_command && !ui.more && (ui.overlay || 0) === 0
-        );
+        const isTopLevelCommandPrompt = Boolean(ui && ui.awaiting_command && !ui.more && (ui.overlay || 0) === 0);
         let isPromptActive = false;
         if (window.ScreenContext) {
             if (typeof window.ScreenContext.promptFlags === 'function') {
@@ -1655,9 +1653,7 @@ class InputController {
             }
             if (typeof window.ScreenContext.classify === 'function') {
                 const cls = window.ScreenContext.classify(lastFrame, realm);
-                if (cls && (cls.isItemPrompt || cls.isStore || cls.isYesNoPrompt || cls.isQuantityPrompt || cls.isChoiceMenu || cls.isNamePrompt || cls.isMenuOrInteractive)) {
-                    isPromptActive = true;
-                }
+                if (cls && (cls.isItemPrompt || cls.isStore || cls.isYesNoPrompt || cls.isQuantityPrompt || cls.isChoiceMenu || cls.isNamePrompt || cls.isMenuOrInteractive)) isPromptActive = true;
             }
         }
 
@@ -1669,42 +1665,28 @@ class InputController {
                 const runActive = this.isRunningActive(e);
                 if (lowerK === 'w' || lowerK === 's') {
                     if (runActive && e.repeat) return;
-                    const dir = lowerK === 'w' ? 8 : 2;
-                    this.sendMoveOrRun(dir, runActive);
-                } else if (lowerK === 'a' || lowerK === 'd') {
-                    if (e.shiftKey) {
-                        const dir = lowerK === 'a' ? 4 : 6;
-                        this.sendMoveOrRun(dir, false);
-                    } else {
-                        this.dungeon.turn(lowerK === 'a' ? -1 : 1);
-                        this.syncCompass();
-                    }
+                    this.sendMoveOrRun(lowerK === 'w' ? 8 : 2, runActive);
+                } else if (e.shiftKey) {
+                    this.sendMoveOrRun(lowerK === 'a' ? 4 : 6, false);
+                } else {
+                    this.dungeon.turn(lowerK === 'a' ? -1 : 1);
+                    this.syncCompass();
                 }
                 return;
             }
         }
 
         const dirKey = numpadDirMap[e.code] || numpadDirMap[e.key];
-        if (dirKey) {
-            const isDigitShift = e.shiftKey && e.code && e.code.startsWith('Digit');
-            if (!isDigitShift) {
-                e.preventDefault();
-                if (dirKey === 5) {
-                    const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
-                        ? (RealmKeys.realmKey('hold', realm) || ',')
-                        : ',';
-                    this.network.sendKey(holdKey);
-                    return;
-                }
-                if (this.isRunningActive(e)) {
-                    if (e.repeat) return;
-                    this.sendRunMove(dirKey);
-                } else {
-                    const moveKey = this.getRelativeDirectionKey(dirKey);
-                    if (moveKey) this.sendMovementKey(moveKey);
-                }
+        if (dirKey && !(e.shiftKey && e.code && e.code.startsWith('Digit'))) {
+            e.preventDefault();
+            if (dirKey === 5) {
+                const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey('hold', realm) || ',') : ',';
+                this.network.sendKey(holdKey);
                 return;
             }
+            if (this.isRunningActive(e)) { if (!e.repeat) this.sendRunMove(dirKey); }
+            else { const moveKey = this.getRelativeDirectionKey(dirKey); if (moveKey) this.sendMovementKey(moveKey); }
+            return;
         }
 
         if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -2034,6 +2016,7 @@ class InputController {
         bind('btn-browse', 'browse');
         bind('btn-study', 'study');
         bind('btn-quaff', 'quaff');
+        bind('btn-eat', 'eat');
         bind('btn-read', 'read');
         bind('btn-door', 'open');
         bind('btn-pickup', 'pickup');
@@ -2047,14 +2030,16 @@ class InputController {
         bind('btn-terminal', 'terminal');
         bind('btn-run-toggle', 'toggle-run');
 
-        for (const wasdBtnId of ['btn-wasd-toggle', 'btn-wasd-hud']) {
-            const wBtn = document.getElementById(wasdBtnId);
-            if (wBtn) {
-                bindReliableAction(wBtn, (ev) => {
-                    if (ev && ev.stopPropagation) ev.stopPropagation();
-                    this.toggleWasdMode();
-                });
-            }
+        const wBtn = document.getElementById('btn-wasd-toggle');
+        if (wBtn) {
+            const stopDrag = (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); };
+            wBtn.addEventListener('pointerdown', stopDrag);
+            wBtn.addEventListener('mousedown', stopDrag);
+            wBtn.addEventListener('touchstart', stopDrag, { passive: true });
+            bindReliableAction(wBtn, (ev) => {
+                if (ev && ev.stopPropagation) ev.stopPropagation();
+                this.toggleWasdMode();
+            });
         }
 
         const btnHero = document.getElementById('btn-hero-action');
@@ -2138,7 +2123,7 @@ class InputController {
         const actionBar = document.getElementById('action-bar');
         const actionPopover = document.getElementById('action-more-popover');
 
-        const ACTION_PRIORITY = ['btn-command-palette', 'btn-wasd-hud', 'btn-hero-action', 'btn-attack', 'btn-cast', 'btn-fire', 'btn-throw', 'btn-quaff', 'btn-read', 'btn-pickup', 'btn-rest', 'btn-inventory', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-aim', 'btn-search', 'btn-door', 'btn-power', 'btn-browse', 'btn-study', 'btn-skills', 'btn-quests', 'btn-overland', 'btn-stair', 'btn-run-toggle', 'btn-terminal', 'btn-guide-hud'];
+        const ACTION_PRIORITY = ['btn-command-palette', 'btn-hero-action', 'btn-attack', 'btn-cast', 'btn-study', 'btn-browse', 'btn-fire', 'btn-throw', 'btn-quaff', 'btn-eat', 'btn-read', 'btn-pickup', 'btn-rest', 'btn-inventory', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-aim', 'btn-search', 'btn-door', 'btn-power', 'btn-skills', 'btn-quests', 'btn-overland', 'btn-stair', 'btn-run-toggle', 'btn-terminal', 'btn-guide-hud'];
 
         if (actionMoreBtn && actionBar) {
             let lastMoreTime = 0;
@@ -2171,6 +2156,7 @@ class InputController {
                         for (let i = allButtons.length - 1; i >= 0; i--) {
                             const btn = allButtons[i];
                             if (btn.dataset.realmHidden === '1' || btn.dataset.contextHidden === '1') continue;
+                            if (btn.classList && btn.classList.contains('is-suggested')) continue;
                             if (btn.parentElement === actionBar) {
                                 if (actionPopover) actionPopover.insertBefore(btn, actionPopover.firstChild);
                                 btn.setAttribute('data-overflow-hidden', '1');
@@ -2490,11 +2476,17 @@ class InputController {
 
             const feat = this.getFeatAt(frame.map, rx, ry);
             const featDef = (this.dungeon && this.dungeon.featureDefs) ? this.dungeon.featureDefs[feat] : null;
-            const isDoor = feat === 2 || (featDef && (featDef.isDoor || /door/i.test(featDef.name || '')));
+            const rowObj = (frame.map.rows && frame.map.rows[ry]) ? frame.map.rows[ry] : null;
+            const ch = (rowObj && rowObj.g && rx >= 0 && rx < rowObj.g.length) ? rowObj.g[rx] : ' ';
+            const isTrap = ch === '^' || (featDef && /trap/i.test(featDef.name || ''));
+            if (isTrap && d === 1) {
+                return { type: 'trap', feat, dist: d, x: rx, y: ry };
+            }
+            const isDoor = feat === 2 || ch === '+' || (featDef && (featDef.isDoor || /door/i.test(featDef.name || '')));
             if (isDoor) {
                 return { type: 'door', feat, dist: d, x: rx, y: ry };
             }
-            const isTunnelable = (feat === 16 || feat === 17 || feat === 18) || (featDef && (featDef.isTunnelable || /rubble|vein/i.test(featDef.name || '')));
+            const isTunnelable = (feat === 16 || feat === 17 || feat === 18) || ch === ':' || ch === '%' || (featDef && (featDef.isTunnelable || /rubble|vein/i.test(featDef.name || '')));
             if (isTunnelable) {
                 return { type: 'wall', feat, dist: d, x: rx, y: ry };
             }
@@ -2532,6 +2524,18 @@ class InputController {
                 this._pendingFollowUp = fwdKey;
                 const openKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey ? RealmKeys.realmKey('open', realm) : null) || 'o';
                 this.network.sendKey(openKey);
+            }
+        } else if (action === 'smithing') {
+            if (this.audio && typeof this.audio.playMenuOpen === 'function') this.audio.playMenuOpen();
+            this.network.sendKey('0');
+        } else if (action === 'disarm') {
+            if (this.audio && typeof this.audio.playTrapDisarm === 'function') this.audio.playTrapDisarm();
+            const fwdKey = this.getRelativeDirectionKey(8) || 'up';
+            if (dispatcher && typeof dispatcher.run === 'function') {
+                dispatcher.run({ verb: 'disarm', dir: fwdKey });
+            } else {
+                this._pendingFollowUp = fwdKey;
+                this.network.sendKey('D');
             }
         } else if (action === 'tunnel') {
             if (this.audio && typeof this.audio.playWallBump === 'function') {
@@ -2596,7 +2600,11 @@ class InputController {
     }
 
     getFacingForward() {
-        const { sector } = this.getFacingForward();
+        const rawYaw = (this.dungeon && typeof this.dungeon.yaw === 'number')
+            ? this.dungeon.yaw
+            : ((this.dungeon && typeof this.dungeon.facing === 'number') ? -(this.dungeon.facing * (Math.PI / 2)) : 0);
+        const normYaw = ((-rawYaw) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
         const offsets = [{ dx: 0, dy: -1 }, { dx: 1, dy: -1 }, { dx: 1, dy: 0 }, { dx: 1, dy: 1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: 0 }, { dx: -1, dy: -1 }];
         return { sector, normYaw, fwd: offsets[sector] || { dx: 0, dy: -1 } };
     }

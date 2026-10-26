@@ -28,7 +28,8 @@
     "test_gamepad_mapping.js",
     "test_klm_paths.js",
     "check_loc_budget.js",
-    "test_capability_ledger.js"
+    "test_capability_ledger.js",
+    "test_rev5_exemplar_contracts.js"
   ],
   "e2e": [
     "verify_cross_realm_menus.js",
