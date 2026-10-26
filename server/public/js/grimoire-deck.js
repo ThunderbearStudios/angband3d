@@ -162,8 +162,10 @@
             const lang = (realm === 'hengband') ? String(options.lang || (typeof window !== 'undefined' && window.__langMode) || 'en').toLowerCase() : 'en';
             const isJp = realm === 'hengband' && lang === 'jp', isBi = realm === 'hengband' && lang === 'bilingual';
             const promptText = String(options.promptText || (rawClassifier && rawClassifier.row0) || (model && model.prompt && model.prompt.text) || '').trim();
-            const sig = `${realm}:${lang}:${this.mode}:${submenu.kind || ''}:${isInv}:${isEq}:${isStore}:${isSpell}:${isTarget}:${promptText.slice(0, 32)}:${items.length}`;
+            const itemDigest = items.slice(0, 18).map(it => `${it.key || it.letter || ''}:${it.desc || it.rawLabel || it.label || it.name || ''}`).join('|');
+            const sig = `${realm}:${lang}:${this.mode}:${submenu.kind || ''}:${isInv}:${isEq}:${isStore}:${isSpell}:${isTarget}:${promptText.slice(0, 32)}:${items.length}:${itemDigest}`;
             if (sig === this._lastSig && container.style.display !== 'none') { this._syncPrimaryOpenClass(); return true; }
+            const wasAlreadyOpen = container.style.display !== 'none' && container.innerHTML !== '';
             this._lastSig = sig;
             let viewLabel = isJp ? '武具・所持品' : (isBi ? 'ARMORY & PACK (所持品)' : 'ARMORY & PACK');
             if (submenu.isSilqAbilityTree) viewLabel = 'SIL-Q ABILITY TAPESTRY';
@@ -201,7 +203,7 @@
             }
 
             const modeBtn = this.mode === 'classic' ? (isJp ? '📜 カード表示 [F10]' : '📜 Cards [F10]') : (isJp ? '📜 端末のみ [F10]' : '📜 Classic [F10]');
-            container.innerHTML = `<div class="grimoire-deck-shell" data-realm="${escapeHtml(realm)}" data-mode="${this.mode}"><div class="grimoire-deck-header"><div class="grimoire-crest-banner"><span class="grimoire-crest-icon">${heraldry.svgCrest}</span><span class="grimoire-crest-realm">${escapeHtml(isJp ? '五輪書・変愚蛮怒' : heraldry.crestTitle)}</span><span class="grimoire-crest-sep">·</span><span class="grimoire-crest-view">${escapeHtml(viewLabel)}</span>${promptText ? `<span class="grimoire-prompt-subtitle">${escapeHtml(promptText)}</span>` : `<span class="grimoire-crest-sub">${escapeHtml(heraldry.subtitle)}</span>`}</div><div class="grimoire-header-controls">${switcher}<button type="button" class="grimoire-mode-toggle-btn" data-grimoire-cmd="toggle-mode">${escapeHtml(modeBtn)}</button></div></div>${body}</div>`;
+            container.innerHTML = `<div class="grimoire-deck-shell${wasAlreadyOpen ? ' is-open-stable' : ''}" data-realm="${escapeHtml(realm)}" data-mode="${this.mode}"><div class="grimoire-deck-header"><div class="grimoire-crest-banner"><span class="grimoire-crest-icon">${heraldry.svgCrest}</span><span class="grimoire-crest-realm">${escapeHtml(isJp ? '五輪書・変愚蛮怒' : heraldry.crestTitle)}</span><span class="grimoire-crest-sep">·</span><span class="grimoire-crest-view">${escapeHtml(viewLabel)}</span>${promptText ? `<span class="grimoire-prompt-subtitle">${escapeHtml(promptText)}</span>` : `<span class="grimoire-crest-sub">${escapeHtml(heraldry.subtitle)}</span>`}</div><div class="grimoire-header-controls">${switcher}<button type="button" class="grimoire-mode-toggle-btn" data-grimoire-cmd="toggle-mode">${escapeHtml(modeBtn)}</button></div></div>${body}</div>`;
             container.style.display = 'block';
             this._syncPrimaryOpenClass();
 

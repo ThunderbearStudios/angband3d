@@ -196,4 +196,75 @@ test('WS6 & WS7: 4 per-realm dark-fantasy themes, 2-column Compendium, and conte
     assert(css.includes('content-visibility: auto'), 'Modern Web Guidance content-visibility required on offscreen Chronicle chapters');
 });
 
+// 8. M1–M6 Zero-Flicker Menu, Toolbar, Action-Bar & HUD Memoization Invariants
+test('M1-M6: Menu, toolbar, action-bar, and HUD memoization signatures exclude monotonic frame.seq and reconcile in-place', () => {
+    const pm = fs.readFileSync(path.join(ROOT, 'server/public/js/prompt-mirror.js'), 'utf8');
+    const is = fs.readFileSync(path.join(ROOT, 'server/public/js/item-sheet.js'), 'utf8');
+    const gd = fs.readFileSync(path.join(ROOT, 'server/public/js/grimoire-deck.js'), 'utf8');
+    const app = fs.readFileSync(path.join(ROOT, 'server/public/js/app.js'), 'utf8');
+    const inp = fs.readFileSync(path.join(ROOT, 'server/public/js/input.js'), 'utf8');
+    const hud = fs.readFileSync(path.join(ROOT, 'server/public/js/hud.js'), 'utf8');
+
+    assert(!pm.includes('frame ? frame.seq : 0'), 'prompt-mirror.js must not include frame.seq in _lastSig');
+    assert(!is.includes('frame ? frame.seq : 0'), 'item-sheet.js must not include frame.seq in _lastSig');
+    assert(gd.includes('is-open-stable'), 'grimoire-deck.js must toggle is-open-stable when already open');
+    assert(!app.includes('const toolbarSig = `${effFrame.seq || 0}_'), 'app.js toolbarSig must not include effFrame.seq');
+    assert(!inp.includes('const sig = `${frame.seq || 0}:'), 'input.js updateContextualControls sig must not include frame.seq');
+    assert(inp.includes('_lastOverflowSig'), 'input.js updateActionBarOverflow must memoize on _lastOverflowSig');
+    assert(hud.includes('_lastFooterTargetSig'), 'hud.js updateTargetInspector must memoize on _lastFooterTargetSig');
+    assert(hud.includes('reconcileDrawerGrid'), 'hud.js #char-extended-drawer must reconcile text nodes in-place');
+
+    // Behavioral 5-turn DOM identity proof: execute ItemSheet.render across 5 consecutive frame.seq ticks
+    // and assert 0 redundant DOM childList clear/rebuild mutations after turn 1.
+    const ItemSheet = require(path.join(ROOT, 'server/public/js/item-sheet.js'));
+    let clearCount = 0;
+    let appendCount = 0;
+    const mockContainer = {
+        nodeType: 1,
+        open: true,
+        hidden: false,
+        childNodes: [{ nodeType: 1 }],
+        classList: {
+            contains: () => false,
+            toggle: () => {},
+            remove: () => {},
+            add: () => {}
+        },
+        set textContent(v) {
+            if (v === '') clearCount++;
+        },
+        appendChild() {
+            appendCount++;
+        }
+    };
+    const origDoc = global.document;
+    global.document = {
+        createElement: () => ({
+            className: '',
+            textContent: '',
+            style: {},
+            setAttribute: () => {},
+            addEventListener: () => {},
+            appendChild: () => {}
+        }),
+        getElementById: () => mockContainer
+    };
+    try {
+        for (let seq = 1; seq <= 5; seq++) {
+            const frame = {
+                seq,
+                realm: 'angband',
+                inventory: [
+                    { letter: 'a', name: '2 Potions of Speed', tval: 75, count: 2 },
+                    { letter: 'b', name: 'a Scroll of Phase Door', tval: 70, count: 1 }
+                ]
+            };
+            ItemSheet.render(frame, 'angband', { container: mockContainer, tab: 'pack' });
+        }
+        assert.strictEqual(clearCount, 1, `Expected exactly 1 initial DOM clear across 5 consecutive turns, got ${clearCount} (0 redundant rebuilds on turns 2..5)`);
+    } finally {
+        global.document = origDoc;
+    }
+});
+
 console.log(`\nALL ${passed}/${passed} REVISION 6 EXEMPLAR CONTRACTS PASSED!\n`);

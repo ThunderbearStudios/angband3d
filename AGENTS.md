@@ -19,7 +19,7 @@
 4. **CommandDispatcher & MenuRouter (`L28/L59`)**: Run UI intents via `CommandDispatcher` frame-acked KeyPlans; clear pending KeyPlans/`MenuRouter.pending` and `birthReviewActive` on mode exit/Escape (`node tools/test_menu_router.js`).
 5. **Edge TTS & Pre-Warm Symmetry (`L30/L32/L34`)**: Default `'edge'` TTS (`<100ms`); unwrap `{ narrator: profile }` via `normalizeVocalOptions(options)`; no `Math.random()` in `resolveCreatureEncounter`; emit `'idle'` in `finally`.
 6. **Gemini TTS Regex (`L33`)**: `/api/tts` `tagRegex` must accept `[\[\]]`; never retry `HTTP 4xx`.
-7. **HUD & Cache Keys (`L25/L26`)**: Gate HUD DOM updates on state hashes; exclude `${depth}` from `resolveContextualTheme` `theme.id`.
+7. **HUD, Overlay Memoization & Cache Keys (`L25/L26/L58`, `UI_SEQ_IN_MEMO_SIG`)**: Gate HUD/overlay DOM updates on content digests (`itemDigest`, `screenDigest`)—NEVER include monotonic `frame.seq` in `_lastSig` / `toolbarSig` (`UI_SEQ_IN_MEMO_SIG`); reconcile `#char-extended-drawer` & `#footer-badges` child nodes in-place; exclude `${depth}` from `resolveContextualTheme` `theme.id`.
 8. **Version, Temp Profiles & Android (`L14/L15/L44`)**: Put browser test profiles in `os.tmpdir()`. After `server/public/` edits, run `node tools/bump_version.js <ver>` and `npm run android:sync`.
 
 ## 3. Verification Gate Commands

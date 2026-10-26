@@ -4173,21 +4173,22 @@ window.addEventListener('DOMContentLoaded', () => {
         const gMode = (window.RealmGrimoireDeck && window.RealmGrimoireDeck.mode) || 'classic';
         const mrPendObj = (window.MenuRouter && typeof window.MenuRouter.getPending === 'function') ? window.MenuRouter.getPending() : null;
         const mrPending = mrPendObj ? `${mrPendObj.step}:${mrPendObj.item?.key || ''}` : 'none';
-        const row0 = effFrame.term.rows[0]?.g || '';
-        const row23 = effFrame.term.rows[effFrame.term.rows.length - 1]?.g || '';
-        const toolbarSig = `${effFrame.seq || 0}_${inTermView ? 1 : 0}_${ui.overlay || 0}_${ui.awaiting_command ? 1 : 0}_${ui.more ? 1 : 0}_${curRealm}_${gMode}_${mrPending}_${row0}_${row23}`;
-        if ((this && this._lastToolbarSig === toolbarSig) || _lastToolbarSig === toolbarSig) return;
-        if (this && typeof this === 'object') this._lastToolbarSig = toolbarSig;
-        _lastToolbarSig = toolbarSig;
         const inPlay = Boolean(effFrame && effFrame.phase === 'play' && effFrame.map);
         const skipScraping = !inTermView && inPlay && (ui.overlay || 0) === 0 && ui.awaiting_command && !ui.more && !mrPendObj;
         if (skipScraping) {
             const gc = document.getElementById('grimoire-deck-container');
-            if (gc && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.hide === 'function') {
+            if (gc && gc.style.display !== 'none' && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.hide === 'function') {
                 window.RealmGrimoireDeck.hide(gc);
             }
             return;
         }
+        const row0 = effFrame.term.rows[0]?.g || '';
+        const row23 = effFrame.term.rows[effFrame.term.rows.length - 1]?.g || '';
+        const screenDigest = effFrame.term.rows.slice(1, 22).map(r => (r && r.g) ? r.g.trimEnd() : '').join('|');
+        const toolbarSig = `${inTermView ? 1 : 0}_${ui.overlay || 0}_${ui.awaiting_command ? 1 : 0}_${ui.more ? 1 : 0}_${curRealm}_${gMode}_${mrPending}_${row0}_${row23}_${screenDigest}`;
+        if ((this && this._lastToolbarSig === toolbarSig) || _lastToolbarSig === toolbarSig) return;
+        if (this && typeof this === 'object') this._lastToolbarSig = toolbarSig;
+        _lastToolbarSig = toolbarSig;
         const isHeng = (curRealm === 'hengband') || (activeRealm === 'hengband') || (window.activeRealm === 'hengband') || (window.__activeRealm === 'hengband');
         const effLang = isHeng ? (window.__langMode || langMode || 'en') : 'en';
         const hengLabel = (en, bilingual, jp) => {

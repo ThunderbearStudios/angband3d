@@ -687,7 +687,8 @@ class InputController {
         });
 
         const hasFullData = player.inventory !== undefined || frame.inventory !== undefined || player.hp_max !== undefined;
-        const stateSig = `${r}:${lang}:${this.wasdMode ? 1 : 0}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${foodCount}:${tomeCount}:${matchingTomeCount}:${deviceCount}:${primaryDeviceVerb}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors}:${adjAnyDoors}:${adjHostiles}:${rangedHostilesInLOS}:${hostileMonsters.length}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${curSp}:${effectiveStudyCount}:${isHungry ? 1 : 0}:${hasBadStatus ? 1 : 0}:${hasKnownSpells ? 1 : 0}:${isDisablingStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
+        const hasEnoughCastSp = maxSp === 0 || curSp >= Math.max(1, maxSp * 0.20);
+        const stateSig = `${r}:${lang}:${this.wasdMode ? 1 : 0}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${foodCount}:${tomeCount}:${matchingTomeCount}:${deviceCount}:${primaryDeviceVerb}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors > 0 ? 1 : 0}:${adjAnyDoors > 0 ? 1 : 0}:${adjHostiles > 0 ? (adjHostiles >= 2 ? 2 : 1) : 0}:${rangedHostilesInLOS > 0 ? 1 : 0}:${hostileMonsters.length > 0 ? 1 : 0}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${curSp > 0 ? 1 : 0}:${hasEnoughCastSp ? 1 : 0}:${effectiveStudyCount}:${isHungry ? 1 : 0}:${hasBadStatus ? 1 : 0}:${hasKnownSpells ? 1 : 0}:${isDisablingStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
 
         if (stateSig === this._lastActionBarContextSig) return;
         this._lastActionBarContextSig = stateSig;
@@ -2130,6 +2131,9 @@ class InputController {
             const updateActionBarOverflow = () => {
                 const isSmallOrCoarse = window.innerWidth <= 900 || window.matchMedia('(pointer: coarse)').matches;
                 const allButtons = ACTION_PRIORITY.map(id => document.getElementById(id)).filter(Boolean);
+                const overflowSig = `${window.innerWidth}:${isSmallOrCoarse ? 1 : 0}:` + allButtons.map(b => `${b.id}:${b.dataset.realmHidden || 0}:${b.dataset.contextHidden || 0}:${b.classList && b.classList.contains('is-suggested') ? 1 : 0}`).join('|');
+                if (actionBar._lastOverflowSig === overflowSig) return;
+                actionBar._lastOverflowSig = overflowSig;
 
                 if (isSmallOrCoarse) {
                     for (const btn of allButtons) {
@@ -2694,7 +2698,7 @@ class InputController {
             ? window.ScreenContext.inputTargetingPrompt(screenText, inPlay)
             : false;
 
-        const sig = `${frame.seq || 0}:${px},${py},${player.depth || 0}:${sector}:${smart.id}:${smart.key}:${inPlay}:${inTerminalOverlay}:${isDead}:${isTargetingPrompt}`;
+        const sig = `${px},${py},${player.depth || 0}:${sector}:${smart.id}:${smart.key}:${smart.text}:${inPlay}:${inTerminalOverlay}:${isDead}:${isTargetingPrompt}`;
         if (sig === this._lastCtxControlsSig) {
             return;
         }
@@ -2725,7 +2729,8 @@ class InputController {
 
         const btnAttack = document.getElementById('btn-attack');
         if (btnAttack) {
-            btnAttack.style.display = (btnHero && btnHero.style.display !== 'none' && smart.id === 'attack') ? 'none' : '';
+            const hideAttack = (btnHero && btnHero.style.display !== 'none' && smart.id === 'attack') || btnAttack.dataset.contextHidden === '1' || btnAttack.dataset.realmHidden === '1';
+            btnAttack.style.display = hideAttack ? 'none' : '';
         }
 
         if (typeof this.updateContextButtons === 'function') {

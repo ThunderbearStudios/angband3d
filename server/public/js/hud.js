@@ -1452,18 +1452,23 @@ class WebHUD {
                 this.footerTarget.style.overflow = 'hidden';
                 this.footerTarget.style.textOverflow = 'ellipsis';
                 this.footerTarget.style.whiteSpace = 'nowrap';
-                let portraitHtml = '';
-                if (typeof window.getShockboltSpriteCss === 'function') {
-                    const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
-                    if (iconStyle) {
-                        portraitHtml = '<span class="sb-sprite-icon hud-target-portrait" style="' + iconStyle + '"></span> ';
+                const targetSig = `${realm}:${tName}:${t.glyph || ''}:${pct}`;
+                if (this._lastFooterTargetSig !== targetSig) {
+                    this._lastFooterTargetSig = targetSig;
+                    let portraitHtml = '';
+                    if (typeof window.getShockboltSpriteCss === 'function') {
+                        const iconStyle = window.getShockboltSpriteCss('monster', t.name, t.glyph || null, 36);
+                        if (iconStyle) {
+                            portraitHtml = '<span class="sb-sprite-icon hud-target-portrait" style="' + iconStyle + '"></span> ';
+                        }
                     }
+                    this.footerTarget.innerHTML = portraitHtml + '⚔ ' + esc(tName) + ' (' + pct + '%)';
                 }
-                this.footerTarget.innerHTML = portraitHtml + '⚔ ' + esc(tName) + ' (' + pct + '%)';
             }
         } else {
             if (this.footerTarget) {
                 this.footerTarget.style.display = 'none';
+                this._lastFooterTargetSig = '';
             }
         }
     }
@@ -2467,7 +2472,7 @@ class WebHUD {
             const badgesKey = `${realm}:${lang}:${statusesKey}:${player.study || 0}:${player.resting || 0}:${player.word_recall || 0}:${player.song || ''}:${player.stealth_mode ? 1 : 0}`;
             if (this._lastBadgesKey !== badgesKey) {
                 this._lastBadgesKey = badgesKey;
-                this.footerBadges.innerHTML = '';
+                const desiredBadges = [];
                 if (player.statuses && Array.isArray(player.statuses) && player.statuses.length > 0) {
                     const statusDict = {
                         'Fast': '加速', 'Slow': '減速', 'Blind': '盲目', 'Confused': '混乱',
@@ -2487,52 +2492,49 @@ class WebHUD {
                                 displayName = `${displayName} (${statusDict[displayName]})`;
                             }
                         }
-                        const span = document.createElement('span');
-                        span.className = 'footer-badge';
-                        span.textContent = `[${displayName}]`;
-                        if (window.getAngbandColorString && st.attr !== undefined) {
-                            span.style.color = window.getAngbandColorString(st.attr);
-                        }
-                        this.footerBadges.appendChild(span);
+                        desiredBadges.push({
+                            cls: 'footer-badge',
+                            text: `[${displayName}]`,
+                            color: (window.getAngbandColorString && st.attr !== undefined) ? window.getAngbandColorString(st.attr) : ''
+                        });
                     });
                 }
 
                 const hasStatusMatching = (re) => Array.isArray(player.statuses) && player.statuses.some(st => st && st.name && re.test(st.name));
                 if (player.study && player.study > 0 && !hasStatusMatching(/^study/i)) {
-                    const span = document.createElement('span');
-                    span.className = 'footer-badge badge-study';
-                    span.textContent = `[STUDY: ${player.study}]`;
-                    this.footerBadges.appendChild(span);
+                    desiredBadges.push({ cls: 'footer-badge badge-study', text: `[STUDY: ${player.study}]`, color: '' });
                 }
 
                 if (player.resting && player.resting !== 0 && !hasStatusMatching(/^rest/i)) {
-                    const span = document.createElement('span');
-                    span.className = 'footer-badge badge-resting';
-                    span.textContent = `[RESTING${player.resting > 0 ? `: ${player.resting}` : ''}]`;
-                    this.footerBadges.appendChild(span);
+                    desiredBadges.push({ cls: 'footer-badge badge-resting', text: `[RESTING${player.resting > 0 ? `: ${player.resting}` : ''}]`, color: '' });
                 }
 
                 if (player.word_recall && player.word_recall > 0 && !hasStatusMatching(/^recall/i)) {
-                    const span = document.createElement('span');
-                    span.className = 'footer-badge badge-recall';
-                    span.textContent = `[RECALL: ${player.word_recall}t]`;
-                    this.footerBadges.appendChild(span);
+                    desiredBadges.push({ cls: 'footer-badge badge-recall', text: `[RECALL: ${player.word_recall}t]`, color: '' });
                 }
 
                 if (player.song) {
-                    const span = document.createElement('span');
-                    span.className = 'footer-badge badge-song';
-                    span.textContent = `[SONG: ${player.song}]`;
-                    span.style.color = '#70c0ff';
-                    this.footerBadges.appendChild(span);
+                    desiredBadges.push({ cls: 'footer-badge badge-song', text: `[SONG: ${player.song}]`, color: '#70c0ff' });
                 }
 
                 if (player.stealth_mode) {
-                    const span = document.createElement('span');
-                    span.className = 'footer-badge badge-stealth';
-                    span.textContent = '[STEALTH]';
-                    span.style.color = '#a0a0a0';
-                    this.footerBadges.appendChild(span);
+                    desiredBadges.push({ cls: 'footer-badge badge-stealth', text: '[STEALTH]', color: '#a0a0a0' });
+                }
+
+                const existingSpans = Array.from(this.footerBadges.children);
+                for (let i = 0; i < desiredBadges.length; i++) {
+                    const b = desiredBadges[i];
+                    let span = existingSpans[i];
+                    if (!span) {
+                        span = document.createElement('span');
+                        this.footerBadges.appendChild(span);
+                    }
+                    if (span.className !== b.cls) span.className = b.cls;
+                    if (span.textContent !== b.text) span.textContent = b.text;
+                    if (span.style.color !== b.color) span.style.color = b.color;
+                }
+                for (let i = existingSpans.length - 1; i >= desiredBadges.length; i--) {
+                    existingSpans[i].remove();
                 }
             }
         }
@@ -2573,10 +2575,30 @@ class WebHUD {
             this.currentTurn = frame.turn;
         }
 
-        // Update Extended Character Context Drawer (Wave 10 Track B)
+        // Update Extended Character Context Drawer (Wave 10 Track B — In-Place Text Reconciliation)
         const drawerEl = document.getElementById('char-extended-drawer');
         if (drawerEl) {
             const esc = typeof escapeHtml === 'function' ? escapeHtml : (s) => String(s).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+            const reconcileDrawerGrid = (sig, pairs) => {
+                if (this._lastExtendedDrawerSig === sig) return;
+                this._lastExtendedDrawerSig = sig;
+                const gridEl = drawerEl.querySelector('.char-ext-grid');
+                const existingItems = gridEl ? Array.from(gridEl.querySelectorAll('.char-ext-item')) : [];
+                if (gridEl && existingItems.length === pairs.length) {
+                    for (let i = 0; i < pairs.length; i++) {
+                        const [k, v] = pairs[i];
+                        const lbl = existingItems[i].querySelector('.char-ext-lbl');
+                        const val = existingItems[i].querySelector('.char-ext-val');
+                        if (lbl && lbl.textContent !== k) lbl.textContent = k;
+                        if (val && val.textContent !== v) {
+                            val.textContent = v;
+                            val.title = v;
+                        }
+                    }
+                } else {
+                    drawerEl.innerHTML = `<div class="char-ext-grid">${pairs.map(([k, v]) => `<div class="char-ext-item"><span class="char-ext-lbl">${esc(k)}</span><span class="char-ext-val" title="${esc(v)}">${esc(v)}</span></div>`).join('')}</div>`;
+                }
+            };
             if (isSilQ) {
                 const getSilqSkill = (sk) => {
                     if (player.skills && player.skills[sk.toLowerCase()] !== undefined) {
@@ -2604,17 +2626,13 @@ class WebHUD {
                 const voice = `${curSp}/${maxSp}`;
                 const turn = String(this.currentTurn || 0);
                 const sig = `silq:${mel}:${arc}:${eva}:${stl}:${per}:${wil}:${smi}:${sng}:${voice}:${turn}`;
-                if (this._lastExtendedDrawerSig !== sig) {
-                    this._lastExtendedDrawerSig = sig;
-                    const skills = [
-                        ['Melee', mel], ['Archery', arc],
-                        ['Evasion', eva], ['Stealth', stl],
-                        ['Perception', per], ['Will', wil],
-                        ['Smithing', smi], ['Song', sng],
-                        ['Voice', voice], ['Turn', turn]
-                    ];
-                    drawerEl.innerHTML = `<div class="char-ext-grid">${skills.map(([k, v]) => `<div class="char-ext-item"><span class="char-ext-lbl">${esc(k)}</span><span class="char-ext-val">${esc(v)}</span></div>`).join('')}</div>`;
-                }
+                reconcileDrawerGrid(sig, [
+                    ['Melee', mel], ['Archery', arc],
+                    ['Evasion', eva], ['Stealth', stl],
+                    ['Perception', per], ['Will', wil],
+                    ['Smithing', smi], ['Song', sng],
+                    ['Voice', voice], ['Turn', turn]
+                ]);
             } else {
                 const maxD = player.max_depth ? `${player.max_depth * 50}ft (DL${player.max_depth})` : (depth > 0 ? `${depth * 50}ft (DL${depth})` : 'Town');
                 const spd = this._lastSpdStr || 'Normal (0)';
@@ -2625,20 +2643,16 @@ class WebHUD {
                 const weap = _hudItemStr(player.weapon_item) || 'Bare Hands';
                 const light = _hudItemStr(player.light_item) || (player.cur_light > 0 ? `Light +${player.cur_light}` : (player.light > 0 ? `Light +${player.light}` : 'Daylight / Dark'));
                 const sig = `std:${maxD}:${spd}:${turn}:${xp}:${eqCount}:${pkCount}:${weap}:${light}`;
-                if (this._lastExtendedDrawerSig !== sig) {
-                    this._lastExtendedDrawerSig = sig;
-                    const items = [
-                        ['Max Depth', maxD],
-                        ['Speed', spd],
-                        ['Turn', turn],
-                        ['XP', xp],
-                        ['Equip Count', eqCount],
-                        ['Pack Count', pkCount],
-                        ['Weapon', weap],
-                        ['Light/Torch', light]
-                    ];
-                    drawerEl.innerHTML = `<div class="char-ext-grid">${items.map(([k, v]) => `<div class="char-ext-item"><span class="char-ext-lbl">${esc(k)}</span><span class="char-ext-val" title="${esc(v)}">${esc(v)}</span></div>`).join('')}</div>`;
-                }
+                reconcileDrawerGrid(sig, [
+                    ['Max Depth', maxD],
+                    ['Speed', spd],
+                    ['Turn', turn],
+                    ['XP', xp],
+                    ['Equip Count', eqCount],
+                    ['Pack Count', pkCount],
+                    ['Weapon', weap],
+                    ['Light/Torch', light]
+                ]);
             }
         }
 

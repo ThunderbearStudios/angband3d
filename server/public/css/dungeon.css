@@ -9799,47 +9799,14 @@ body[data-realm="hengband"] {
     margin-right: 4px;
     flex-shrink: 0;
 }
-.cmd-suggest-badge {
-    font-size: 9.5px;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    padding: 1px 5px;
-    border-radius: 3px;
-    color: #1a1204;
-    background: var(--realm-accent-bright, #f5d77f);
-    margin-left: auto;
-}
-
-/* SceneEpoch Coalesced Chronicle Beat Styling (Zero DOM Deletion Jumps) */
-.chronicle-chapter.is-coalesced-into-epoch {
-    opacity: 0.72;
-    padding-top: 4px !important;
-    padding-bottom: 4px !important;
-    border-left: 2px dashed rgba(212, 175, 55, 0.35) !important;
-    font-size: 0.92em;
-}
-
-/* Modern Web Guidance: Offscreen Rendering Virtualization, Touch Hover Isolation & 16px Mobile Focus Guard */
-.chronicle-chapter:nth-child(n+6),
-.chronicle-entry:nth-child(n+6) {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 320px auto 140px;
-}
+.cmd-suggest-badge { font-size: 9.5px; font-weight: 700; letter-spacing: 0.6px; padding: 1px 5px; border-radius: 3px; color: #1a1204; background: var(--realm-accent-bright, #f5d77f); margin-left: auto; }
+.chronicle-chapter.is-coalesced-into-epoch { opacity: 0.72; padding-top: 4px !important; padding-bottom: 4px !important; border-left: 2px dashed rgba(212, 175, 55, 0.35) !important; font-size: 0.92em; }
+.is-open-stable, .is-open-stable *, .grimoire-deck-shell.is-open-stable, .grimoire-deck-shell.is-open-stable * { animation: none !important; transition: none !important; }
+#btn-hero-action { min-width: 98px; font-variant-numeric: tabular-nums; }
+.chronicle-chapter:nth-child(n+6), .chronicle-entry:nth-child(n+6) { content-visibility: auto; contain-intrinsic-size: auto 320px auto 140px; }
 @media (hover: hover) {
-    #action-bar .action-btn:hover:not(:disabled),
-    .cmd-palette-item:hover:not(:disabled),
-    .cmd-row:hover:not(:disabled),
-    .term-choice-btn:hover:not(:disabled) {
-        border-color: var(--realm-accent-bright, #f5d77f) !important;
-        box-shadow: 0 0 12px var(--realm-accent-glow, rgba(212, 175, 55, 0.36)) !important;
-        transform: translateY(-1px);
+    #action-bar .action-btn:hover:not(:disabled), .cmd-palette-item:hover:not(:disabled), .cmd-row:hover:not(:disabled), .term-choice-btn:hover:not(:disabled) {
+        border-color: var(--realm-accent-bright, #f5d77f) !important; box-shadow: 0 0 12px var(--realm-accent-glow, rgba(212, 175, 55, 0.36)) !important; transform: translateY(-1px);
     }
 }
-@media (max-width: 768px) {
-    #command-palette-search,
-    input[type="text"],
-    input[type="search"],
-    select {
-        font-size: 16px !important;
-    }
-}
+@media (max-width: 768px) { #command-palette-search, input[type="text"], input[type="search"], select { font-size: 16px !important; } }

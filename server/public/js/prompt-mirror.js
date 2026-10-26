@@ -206,11 +206,13 @@
             return;
         }
 
-        const sig = `${spec.mirror}:${spec.title}:${spec.items.length}:${spec.actions.length}:${spec.switchChips.length}:${frame ? frame.seq : 0}`;
+        const sig = `${spec.mirror}:${spec.title}:${(spec.items || []).map(i => `${i.letter || i.key || ''}=${i.name || i.label || ''}:${i.cost !== undefined ? i.cost : ''}`).join('|')}:${(spec.actions || []).map(a => `${a.key || ''}=${a.label || ''}`).join('|')}:${(spec.switchChips || []).map(c => `${c.key || ''}=${c.label || ''}`).join('|')}`;
         if (sig === _lastSig) return;
         _lastSig = sig;
 
+        const wasAlreadyOpen = !container.hidden && !container.classList.contains('hidden') && container.childNodes.length > 0;
         container.textContent = '';
+        container.classList.toggle('is-open-stable', wasAlreadyOpen);
         container.hidden = false;
         container.classList.remove('hidden');
 

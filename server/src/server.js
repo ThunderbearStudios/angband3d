@@ -2387,7 +2387,7 @@ const server = http.createServer((req, res) => {
             // - 3D Models, Textures, Atlases, WASM: 24h immutable caching
             const posixPath = safePath.replace(/\\/g, '/');
             let cacheControl = 'no-cache, must-revalidate';
-            if (posixPath === '/index.html' || posixPath === '/' || posixPath === '/sw.js') {
+            if (posixPath === '/index.html' || posixPath === '/' || posixPath === '/sw.js' || posixPath === '/version.json') {
                 cacheControl = 'no-store, no-cache, must-revalidate, max-age=0';
             } else if (['.mp4', '.webm', '.m4a'].includes(ext)) {
                 cacheControl = 'no-cache, no-store, must-revalidate';
@@ -2415,8 +2415,8 @@ const server = http.createServer((req, res) => {
             }
 
             // Handle Conditional ETag Revalidation (HTTP 304 Not Modified)
-            // (Strictly bypass 304 for HTML shell and sw.js to ensure immediate localhost live updates)
-            if (req.headers['if-none-match'] === etag && posixPath !== '/index.html' && posixPath !== '/' && posixPath !== '/sw.js') {
+            // (Strictly bypass 304 for HTML shell, sw.js, and version.json to ensure immediate live updates)
+            if (req.headers['if-none-match'] === etag && posixPath !== '/index.html' && posixPath !== '/' && posixPath !== '/sw.js' && posixPath !== '/version.json') {
                 res.writeHead(304, headers);
                 res.end();
                 return;

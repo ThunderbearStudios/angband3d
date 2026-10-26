@@ -12,7 +12,7 @@
 
 ---
 
-> ### 🌟 Official Live Links & Instant Play (`v11.1.0`)
+> ### 🌟 Official Live Links & Instant Play (`v11.1.1`)
 > - ⚔ **Play Now in Browser**: **[https://angband3d.com](https://angband3d.com)** *(Instant 60 FPS 3D roguelike, zero install across Desktop, iOS & Android)*
 > - 💻 **Standalone Windows PC**: **[Download Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** *(144+ FPS native offline play powered by Godot 4 C#)*
 > - 📱 **Standalone Android App**: **[Download Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** *(Offline mobile play with tactile split-thumb D-pad)*

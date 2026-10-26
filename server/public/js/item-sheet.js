@@ -217,11 +217,13 @@
         const lang = (typeof window !== 'undefined' && window.__langMode) || 'en';
         const items = buildItemViewModel(frame, r, tab, lang);
 
-        const sig = `${r}:${tab}:${items.length}:${frame ? frame.seq : 0}:${items.map((i) => i.letter + i.name).join(';')}`;
+        const sig = `${r}:${tab}:${lang}:${items.length}:${items.map((i) => `${i.letter || ''}:${i.name || ''}:${i.count || i.qty || 1}:${i.inscription || ''}`).join(';')}`;
         if (sig === _lastSig) return;
         _lastSig = sig;
 
+        const wasAlreadyOpen = Boolean(container.open || (!container.hidden && !container.classList.contains('hidden') && container.childNodes.length > 0));
         container.textContent = '';
+        container.classList.toggle('is-open-stable', wasAlreadyOpen);
 
         // Header with tabs
         const header = document.createElement('div');
