@@ -323,11 +323,21 @@ class ChronicleGrounder {
 
     static instanceVoiceRegistry = new Map();
     static recentDialogueBarks = new Map();
+    static _lastNarrativeState = {
+        depth: null,
+        eventType: null,
+        turn: null
+    };
 
     static clearInstanceVoiceRegistry() {
         this.instanceVoiceRegistry.clear();
         this.recentDialogueBarks.clear();
         this.recentCombatVerbs.length = 0;
+        this._lastNarrativeState = {
+            depth: null,
+            eventType: null,
+            turn: null
+        };
     }
 
     static recentCombatVerbs = [];
@@ -5214,6 +5224,29 @@ class ChronicleGrounder {
                 break;
             }
         }
+
+        // Suppress repetitive "at 50ft" tags on consecutive turns within the same dungeon depth
+        const curTurn = (player && typeof player.turn === 'number') ? player.turn : null;
+        const prevState = this._lastNarrativeState || {};
+        if (
+            prose &&
+            depth > 0 &&
+            prevState.depth === depth &&
+            prevState.turn !== null &&
+            curTurn !== null &&
+            curTurn > prevState.turn &&
+            (curTurn - prevState.turn) <= 20 &&
+            event.type !== 'FLOOR_CHANGE' &&
+            event.type !== 'HERO_DEATH' &&
+            event.type !== 'LEVEL_FEELING'
+        ) {
+            prose = prose.replace(new RegExp(`\\s+at\\s+${depthFt}\\b`, 'i'), '');
+        }
+        this._lastNarrativeState = {
+            depth,
+            eventType: event ? event.type : null,
+            turn: curTurn
+        };
 
         return {
             title: title,

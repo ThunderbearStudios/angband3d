@@ -1077,9 +1077,10 @@ class ChronicleManager {
             this.grounder.clearInstanceVoiceRegistry();
         }
 
-        // 4. Reset LLM utterance anti-repetition buffer for new character
+        // 4. Reset LLM utterance anti-repetition buffer & story continuity thread for new character
         if (this.llm) {
             this.llm.recentUtterances = [];
+            this.llm.recentStoryThread = [];
         }
 
         // 5. Completely purge UI list, target pills, input queries and status badges
@@ -1137,7 +1138,7 @@ class ChronicleManager {
 
                     const clean = prologueEntry.prose.replace(/<[^>]*>/g, '').trim();
                     const sentences = clean.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [clean];
-                    if (sentences.length > 1 && clean.length > 40 && sentences[0].length >= 10) {
+                    if (sentences.length > 2 && clean.length > 240 && sentences[0].length >= 15) {
                         const s1 = sentences[0];
                         const remainder = sentences.slice(1).join(' ');
                         if (s1 && remainder) {
@@ -1560,6 +1561,27 @@ class ChronicleManager {
         );
 
         if (!catchUpEntry || !catchUpEntry.prose) return;
+
+        // Coalesce: remove unvoiced intermediate fragment chapters that are now consolidated into catchUpEntry
+        if (this.activeChronicle && Array.isArray(this.activeChronicle.chapters) && ledgerItems.length > 0) {
+            const supersededNums = new Set(
+                ledgerItems
+                    .map(item => item.entry && item.entry.chapter_num)
+                    .filter(num => typeof num === 'number')
+            );
+            if (supersededNums.size > 0) {
+                this.activeChronicle.chapters = this.activeChronicle.chapters.filter(ch => !supersededNums.has(ch.chapter_num));
+                if (this.listEl && typeof this.listEl.querySelectorAll === 'function') {
+                    const blocks = this.listEl.querySelectorAll('.flowing-paragraph-block');
+                    for (const b of blocks) {
+                        const cNum = Number(b.getAttribute && b.getAttribute('data-chapter-num'));
+                        if (supersededNums.has(cNum) && typeof b.remove === 'function') {
+                            b.remove();
+                        }
+                    }
+                }
+            }
+        }
 
         // Append to active chronicle store & render to UI
         this.store.appendChapter(this.activeChronicle, catchUpEntry);
@@ -2090,7 +2112,7 @@ class ChronicleManager {
                 if (beat.text) {
                     const clean = beat.text.replace(/<[^>]*>/g, '').trim();
                     const sentences = clean.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [clean];
-                    if (sentences.length > 1 && clean.length > 40 && sentences[0].length >= 10) {
+                    if (sentences.length > 2 && clean.length > 240 && sentences[0].length >= 15) {
                         const s1 = sentences[0];
                         const remainder = sentences.slice(1).join(' ');
                         if (s1 && remainder) {

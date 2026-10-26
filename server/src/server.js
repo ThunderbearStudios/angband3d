@@ -307,20 +307,26 @@ function redactSecret(val, secret = '') {
     return sanitized;
 }
 
-// Proxies text-to-speech to Gemini Native Audio (gemini-3.1-flash-tts-preview) with directorial prompting
+// Proxies text-to-speech to Gemini Native Audio (gemini-3.8-flash-lite-tts / gemini-3.8-flash-tts) with structured style metadata
 function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm = 'angband', lang = 'en', isRetry = false }) {
     return new Promise((resolve, reject) => {
         if (!apiKey) {
             return reject(new Error('No Gemini API key provided'));
         }
 
-        // Directorial Prompting: Enforce character-accurate accent and strictly forbid southern accents
-        let promptText = text;
+        const ttsModels = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview'];
+        const retryIdx = typeof isRetry === 'number' ? isRetry : (isRetry ? 2 : 0);
+        const ttsModel = ttsModels[Math.min(retryIdx, ttsModels.length - 1)];
+        const isGemini38Tts = ttsModel.includes('3.8');
+        const cleanTranscript = String(text || '').replace(/^\s*(?:\[[^\]]+\]|\*[^*]+\*)\s*/g, '').trim() || String(text || '');
+
+        let promptText = cleanTranscript;
         let tag = '';
-        if (!isRetry) {
+        let styleInstruction = '';
+        if (isRetry !== true) {
             let roleKey = role ? role.toLowerCase() : 'narrator';
             const isHeng = (realm === 'hengband');
-            const isJp = isHeng && (lang === 'jp' || /[\u3040-\u30ff\u4e00-\u9faf]/.test(String(text || '')));
+            const isJp = isHeng && (lang === 'jp' || /[\u3040-\u30ff\u4e00-\u9faf]/.test(cleanTranscript));
             if (!isHeng) {
                 if (roleKey === 'samurai') roleKey = 'veteran';
                 else if (roleKey === 'ninja') roleKey = 'rogue';
@@ -334,15 +340,9 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             if (isJp) {
                 tagInner = 'Japanese language, dignified Sengoku samurai chronicler, calm and resonant';
             } else if (cleanGeminiTag) {
-                tagInner = cleanGeminiTag;
-                if (!isHeng) {
-                    tagInner = tagInner.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
-                }
+                tagInner = isHeng ? cleanGeminiTag : cleanGeminiTag.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
             } else if (cleanDirectorNote) {
-                tagInner = cleanDirectorNote;
-                if (!isHeng) {
-                    tagInner = tagInner.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
-                }
+                tagInner = isHeng ? cleanDirectorNote : cleanDirectorNote.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
             } else {
                 const accent = CHARACTER_ACCENT_MAP[roleKey] || (roleKey === 'narrator' ? CHARACTER_ACCENT_MAP.narrator : 'natural, noble Classical British or Mid-Atlantic cadence');
                 tagInner = accent.replace(/[\[\]]/g, '').trim();
@@ -352,7 +352,6 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                 tagInner = tagInner ? `${cleanEmotion}, ${tagInner}` : cleanEmotion;
             }
 
-            // Strict Accent Invariant: Prohibit American southern drawl across all voices
             if (tagInner) {
                 const lowerInner = tagInner.toLowerCase();
                 if (!lowerInner.includes('no southern') && !lowerInner.includes('no american southern')) {
@@ -362,14 +361,20 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                 if (tagInner.length > 240) {
                     tagInner = tagInner.slice(0, 240).replace(/[,;\s]+[^\s,;]*$/, '').trim();
                 }
+                styleInstruction = tagInner;
                 tag = `[${tagInner}]`;
-                promptText = `${tag} ${text}`;
+                if (!isGemini38Tts) promptText = `${tag} ${cleanTranscript}`;
             }
+        }
+
+        const partObj = { text: promptText };
+        if (isGemini38Tts && styleInstruction && retryIdx === 0) {
+            partObj.speech_metadata = { style: styleInstruction };
         }
 
         const payload = JSON.stringify({
             contents: [{
-                parts: [{ text: promptText }]
+                parts: [partObj]
             }],
             generationConfig: {
                 responseModalities: ['AUDIO'],
@@ -389,10 +394,6 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                 { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' }
             ]
         });
-
-        const ttsModels = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview'];
-        const retryIdx = typeof isRetry === 'number' ? isRetry : (isRetry ? 2 : 0);
-        const ttsModel = ttsModels[Math.min(retryIdx, ttsModels.length - 1)];
         const req = https.request(`https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent`, {
             method: 'POST',
             agent: geminiHttpsAgent,
@@ -1356,9 +1357,14 @@ const server = http.createServer((req, res) => {
             if (userPrompt.length > 8000) userPrompt = userPrompt.substring(0, 8000);
 
             const generationConfig = { maxOutputTokens: 350 };
-            const isGemini3 = model.includes('gemini-3') || model.includes('gemini-4');
+            if (parsed.payload?.generationConfig?.responseMimeType === 'application/json') {
+                generationConfig.responseMimeType = 'application/json';
+            }
+            const isGemini3 = model.includes('gemini-3') || model.includes('gemini-4') || model.includes('3.8') || model.includes('3.7') || model.includes('3.6') || model.includes('3.5') || model.includes('3.1');
             if (isGemini3) {
-                generationConfig.thinkingConfig = { thinkingLevel: 'LOW' };
+                generationConfig.thinkingConfig = {
+                    thinkingLevel: model.includes('lite') ? 'MINIMAL' : 'LOW'
+                };
             } else {
                 generationConfig.temperature = 0.7;
                 if (model.includes('gemini-2.5-flash') && generationConfig.maxOutputTokens <= 512) {

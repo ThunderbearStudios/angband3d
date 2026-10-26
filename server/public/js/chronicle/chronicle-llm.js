@@ -8,12 +8,12 @@
 // Curated Google AI Studio Free Tier model chain for automatic failover in order of confirmed working capability
 const FREE_TIER_CHAIN = [
     'gemini-3.8-flash',      // Flagship Flash (Highest intelligence, New Stable)
-    'gemini-3.5-flash-lite', // High-throughput, ultra-cost-effective (Stable)
-    'gemini-3.1-flash-lite', // Frontier-class lightweight (Stable)
-    'gemini-4-argon',        // Next-gen frontier reasoning & narrative model
     'gemini-3.7-flash',      // High-performance agentic Flash (Stable)
     'gemini-3.6-flash',      // Balanced Flash (Stable)
     'gemini-3.5-flash',      // Foundational Flash (Stable)
+    'gemini-3.5-flash-lite', // High-throughput, ultra-cost-effective (Stable)
+    'gemini-3.1-flash-lite', // Frontier-class lightweight (Stable)
+    'gemini-4-argon',        // Next-gen frontier reasoning & narrative model
     'gemini-2.5-flash',      // Proven hybrid reasoning (Stable)
     'gemini-2.5-flash-lite'  // Ultra-fast budget multimodal (Stable)
 ];
@@ -44,12 +44,24 @@ class ChronicleLLMBridge {
 
         this.onStatusUpdate = null; // Status callback for UI transparent notification
 
-        // Anti-Repetition Rolling Utterance Buffer
+        // Anti-Repetition Rolling Utterance Buffer & Story Continuity Thread
         this.recentUtterances = [];
+        this.recentStoryThread = [];
 
         this.hasServerKey = false;
         this.loadSettings();
         this.fetchServerKeyIfEmpty();
+    }
+
+    recordStoryBeat(title, prose) {
+        if (!prose || typeof prose !== 'string') return;
+        const cleanProse = prose.replace(/<[^>]*>/g, '').trim();
+        if (!cleanProse) return;
+        const cleanTitle = (title || 'Passage').replace(/<[^>]*>/g, '').trim();
+        this.recentStoryThread.push(`${cleanTitle}: ${cleanProse.slice(0, 110)}`);
+        if (this.recentStoryThread.length > 4) {
+            this.recentStoryThread.shift();
+        }
     }
 
     async fetchServerKeyIfEmpty() {
@@ -244,7 +256,11 @@ Rules:
         let antiRepetition = '';
         if (this.recentUtterances && this.recentUtterances.length > 0) {
             const sample = this.recentUtterances.slice(-6).map(u => `"${u.slice(0, 45)}"`).join(' | ');
-            antiRepetition = `\nANTI-REPETITION: Do not repeat: ${sample}`;
+            const openings = this.recentUtterances.slice(-5).map(u => `"${u.split(/\s+/).slice(0, 3).join(' ')}"`).join(', ');
+            antiRepetition = `\nANTI-REPETITION: Do NOT repeat these phrases: ${sample}. Forbidden sentence openings: ${openings}.`;
+        }
+        if (this.recentStoryThread && this.recentStoryThread.length > 0) {
+            antiRepetition += `\nPRIOR STORY THREAD (connect smoothly to these recent beats without repeating them): ${this.recentStoryThread.slice(-3).join(' -> ')}`;
         }
 
         const backstory = (grounder || ChronicleGrounder).formatBackstorySummary ? (grounder || ChronicleGrounder).formatBackstorySummary(player) : '';
@@ -261,11 +277,12 @@ Event: ${event.type}. Details: ${JSON.stringify(event.data || {})}.${antiRepetit
 Compose ${isFlowing ? 'flowing passage' : 'Chapter'}.`;
 
         try {
-            const rawText = await this.callLLM(systemPrompt, userPrompt);
+            const rawText = await this.callLLM(systemPrompt, userPrompt, { expectJson: true });
             const cleaned = rawText.replace(/```json\n?|\n?```/g, '').trim();
             const parsed = JSON.parse(cleaned);
             if (parsed.prose) {
                 this.recordUtterance(parsed.prose);
+                this.recordStoryBeat(parsed.title || 'Passage', parsed.prose);
                 if (parsed.dialogue && parsed.dialogue.text) {
                     this.recordUtterance(parsed.dialogue.text);
                 }
@@ -283,7 +300,10 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}.`;
         }
 
         const proc = (grounder || ChronicleGrounder).generateProceduralChapter(event, player, traditionKey);
-        if (proc && proc.prose) this.recordUtterance(proc.prose);
+        if (proc && proc.prose) {
+            this.recordUtterance(proc.prose);
+            this.recordStoryBeat(proc.title || 'Passage', proc.prose);
+        }
         return proc;
     }
 
@@ -501,7 +521,7 @@ Rules:
     /**
      * Unified Provider Dispatcher with Free Tier Rate Limiting, Automatic Failover & 10s AbortController timeout
      */
-    async callLLM(systemPrompt, userPrompt) {
+    async callLLM(systemPrompt, userPrompt, options = {}) {
         // Enforce strict Free Tier rate limit with automatic model cascade
         if (this.enforceFreeTier) {
             const currentModel = this.getActiveModel();
@@ -540,24 +560,28 @@ Rules:
         const timeoutId = controller ? setTimeout(() => controller.abort(), 10000) : null;
 
         try {
-            return await this.callGemini(systemPrompt, userPrompt, signal);
+            return await this.callGemini(systemPrompt, userPrompt, signal, 0, options);
         } finally {
             if (timeoutId) clearTimeout(timeoutId);
         }
     }
 
-    async callGemini(systemPrompt, userPrompt, signal, retryCount = 0) {
+    async callGemini(systemPrompt, userPrompt, signal, retryCount = 0, options = {}) {
         const model = this.getActiveModel();
         const isGemini3 = model.includes('gemini-3') || model.includes('gemini-4') || model.includes('3.8') || model.includes('3.7') || model.includes('3.6') || model.includes('3.5') || model.includes('3.1');
 
         const generationConfig = {
             maxOutputTokens: 350
         };
+        if (options && options.expectJson) {
+            generationConfig.responseMimeType = 'application/json';
+        }
 
         if (isGemini3) {
-            // Gemini 3.x / 4-Argon models use thinkingConfig and deprecate temperature
+            // Gemini 3.x / 4-Argon models use thinkingConfig and deprecate temperature;
+            // Per Gemini Thinking Docs: MINIMAL is supported on lite models; LOW is supported on all 3.8 / 4-Argon models
             generationConfig.thinkingConfig = {
-                thinkingLevel: 'MINIMAL'
+                thinkingLevel: model.includes('lite') ? 'MINIMAL' : 'LOW'
             };
         } else {
             generationConfig.temperature = 0.7;
@@ -602,7 +626,7 @@ Rules:
                     const notifyMsg = `⚡ Auto-switched to ${nextModel} (${reason} Failover)`;
                     console.log(`[ChronicleLLM] ${notifyMsg}`);
                     this.notifyStatus(notifyMsg, false);
-                    return await this.callGemini(systemPrompt, userPrompt, signal, retryCount + 1);
+                    return await this.callGemini(systemPrompt, userPrompt, signal, retryCount + 1, options);
                 } else {
                     this.notifyStatus('🛡️ Free Tier models quota reached — seamlessly using procedural lore', true);
                     throw new Error(`All Free Tier models currently exhausted quota (${reason}). Seamless procedural fallback.`);
@@ -689,11 +713,12 @@ Story Guidelines:
 Weave the saga reflection for this exact moment.`;
 
         try {
-            const raw = await this.callLLM(systemPrompt, userPrompt);
+            const raw = await this.callLLM(systemPrompt, userPrompt, { expectJson: true });
             const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim();
             const parsed = JSON.parse(cleaned);
             if (parsed && parsed.prose) {
                 this.recordUtterance(parsed.prose);
+                this.recordStoryBeat(parsed.title || `Tale of ${name}`, parsed.prose);
                 return {
                     title: parsed.title || `🔮 Tale of ${name}`,
                     prose: parsed.prose,

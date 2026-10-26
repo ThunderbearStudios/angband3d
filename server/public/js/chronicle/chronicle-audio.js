@@ -952,9 +952,10 @@ class ChronicleAudioRouter {
             this.prewarmUtterance(dialogue.text, 'creature', dialogue.speaker, prewarmVoice, prewarmOptions).catch(() => {});
         }
 
-        // Buffer the first sentence or full utterance while old audio keeps playing!
+        // Synthesize normal 1-2 sentence Tome passages (<= 240 chars) as a single continuous neural utterance
+        // to eliminate prosodic voice seams between sentence 1 and sentence 2 while cutting TTS RPM quota in half.
         const sentences = cleanText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
-        const isMultiSentence = (sentences.length > 1 && cleanText.length > 40 && sentences[0].length >= 10);
+        const isMultiSentence = (sentences.length > 2 && cleanText.length > 240 && sentences[0].length >= 15);
         const s1 = isMultiSentence ? sentences[0] : cleanText;
         const remainder = isMultiSentence ? sentences.slice(1).join(' ') : null;
 

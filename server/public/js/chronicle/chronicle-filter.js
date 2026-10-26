@@ -462,7 +462,7 @@ class ChronicleFilter {
                     const monLower = monName.toLowerCase();
                     if (!slainMonsterNames.has(monLower)) {
                         const lastAtk = this.recentHeroAttacks.get(monLower) || 0;
-                        if (now - lastAtk >= 1500) {
+                        if (now - lastAtk >= 4500) {
                             this.recentHeroAttacks.set(monLower, now);
                             const monObj = (frame.monsters || []).find(m => (m.name || '').toLowerCase().includes(monLower));
                             frameHeroAttacks.push({
@@ -513,7 +513,7 @@ class ChronicleFilter {
                 }
                 if (!slainMonsterNames.has(monLower)) {
                     const lastAtk = this.recentHeroAttacks.get(monLower) || 0;
-                    if (now - lastAtk >= 1500) {
+                    if (now - lastAtk >= 4500) {
                         this.recentHeroAttacks.set(monLower, now);
                         const monObj = (frame.monsters || []).find(m => (m.name || '').toLowerCase().includes(monLower));
                         frameHeroAttacks.push({

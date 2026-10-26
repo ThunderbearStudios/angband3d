@@ -1,13 +1,12 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS44 — `v11.0.0` Showcase Overhaul (11 UI/HUD/3D/Gemini Upgrades + WebMCP + GeForce NOW Gamepad) — COMPLETE**
+**WS45 — `v11.0.0` Classic Terminal Menu & Living Chronicle Narration Overhaul — COMPLETE**
 
 - **Checklist** (one commit per card, red test first):
-  - [x] `WS44.1` Default `GrimoireDeckController` to `'hybrid'`, add `[Cards / Classic F10]` toolbar toggle, expand `#grimoire-deck-container` to `min(44dvh, 320px)`
-  - [x] `WS44.2` Sync `CommandPalette` `appState` via `window.__app.setAppState`, add `🎒 Items` tab, split `tactical` vs `exploration`, bound `extractRowRegions` `endCol`, close `ItemSheet` on `Escape`, wire `GamepadController` (`X`, `Start`, `Select`, `B`), wire `--hud-scale`, fix mobile `>=40x40px` touch targets, convert `#terminal-viewport` to `flex: 1 1 0`, add `@media (max-height: 820px)` compaction
-  - [x] `WS44.3` Upgrade Gemini models (`gemini-nano-banana-2.1`, `gemini-3.8-flash-lite-tts`, `gemini-3.8-flash` / `gemini-4-argon` with `thinkingLevel` + `Api-Revision: 2026-05-20`), add `8x` anisotropic PBR filtering, Adaptive 60fps Pixel-Ratio Governor, `Alt+H` HUD Immersion cycling, and Chrome `WebMCP` read-only tools
-  - [x] `WS44.4` Bump version to `v11.0.0`, sync Android assets (`npm run android:sync`), package `dist/Angband3D-Windows-x64.zip`, pass `17/17` LOC budgets, `29/29` fast, `11/11` smoke, `4/4` E2E, `6/6` UI layout viewports, and `0/0` C# builds
+  - [x] `WS44.1–WS44.4` Showcase Overhaul (`v11.0.0` bump, `8x` anisotropic PBR filtering, Adaptive 60fps Pixel-Ratio Governor, `Alt+H` HUD Immersion, Chrome `WebMCP`, GeForce NOW Gamepad, Android sync, Windows x64 package)
+  - [x] `WS45.1` Default `GrimoireDeckController` to `'classic'` mode (`0px` deck overhead), auto-hide `#term-letter-ribbon` and `#btn-term-advance` on empty prompts, fix `MenuRouter` verbs (`b`, `m`, `G`), and enhance `Terminal.updateSelectableRegions` / `moveSelection` + `#terminal-touch-controls`
+  - [x] `WS45.2` Living Chronicle Tome & Gemini 3.8 TTS Overhaul: route sustained delivery instructions via `speech_metadata: { style }` for `gemini-3.8-flash-lite-tts` / `gemini-3.8-flash-tts`, inject `recentStoryThread` anti-repetition context + `responseMimeType: 'application/json'` + `thinkingLevel` (`MINIMAL` / `LOW`), raise `_executeSeamlessSpeak` single-utterance threshold to `240` chars, suppress repetitive depth suffixes and `4500ms` melee clash spam, and coalesce superseded fragment chapters on `triggerCatchUpBeat`
 
 ## Completed Workstreams
 | WS | Scope | Status |

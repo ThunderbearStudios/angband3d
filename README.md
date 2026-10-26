@@ -194,9 +194,10 @@ Capture your legend in living ink:
 * Press `Alt+K` to generate an illuminated `800×600` canvas etching depicting your character at this exact turn.
 * Accurately reflects your equipped weaponry (broadswords, sabers, staves, bows), worn armor, physical injuries (cuts, poison), and recent chronicle deeds in a high-resolution dark-fantasy aesthetic.
 
-### 🔊 Procedural Web Audio Synthesis & Zero-Robotic Fallbacks
-* Angband 3D strictly prohibits robotic browser `window.speechSynthesis` voices.
-* All audio is routed through a dedicated Web Audio acoustic chain featuring multi-band dynamic range compression (`DynamicsCompressorNode`), spatial stereo panning, and distance attenuation for authentic dungeon reverberation.
+### 🔊 Gemini 3.8 TTS `speech_metadata`, Prosodic Continuity & Procedural Web Audio
+* **Official Gemini 3.8 TTS `speech_metadata` Architecture**: Sustained voice personas and emotional delivery instructions are routed strictly via `speech_metadata.style` on `gemini-3.8-flash-lite-tts` / `gemini-3.8-flash-tts` while keeping transcripts 100% clean, paired with single-utterance neural synthesis ($\le 240$ chars) to prevent mid-passage voice resets.
+* **Rolling Story-Thread Continuity (`recentStoryThread`)**: Every Chronicle chapter and `"🔮 Tale"` passage tracks prior chapter openings and forbids repeating 3-word sentence prefixes or redundant depth tags (`"at 50ft"`), ensuring a continuous literary saga with zero repetitive filler.
+* **Zero-Robotic Fallbacks**: Angband 3D strictly prohibits robotic browser `window.speechSynthesis` voices; all audio flows through a dedicated Web Audio chain (`DynamicsCompressorNode`, stereo panning, and distance attenuation).
 
 
 ---
