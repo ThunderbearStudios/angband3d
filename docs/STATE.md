@@ -1,16 +1,13 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS42 — Cross-Realm Command, Action & Menu Unification + Global Circuit Breakers (`v10.8.3`) — COMPLETE**
+**WS43 — `v10.9.0` Exemplar Polish (`~42%` Chronicle Prompt Diet + 1-Click `<kbd>Tab</kbd> CRT` Toggle) — COMPLETE**
 
 - **Checklist** (one commit per card, red test first):
-  - [x] `WS42.0` Recorder + fixtures + red contracts (`8/8 RED` proven, `146/146` screen-context)
-  - [x] `WS42.1A–D` Hot-fixes: key-spec case (P0-01), Escape (P0-02), FCB select (P0-03), chooser letters (P0-04), Vanilla `nohjkl` letters (P0-05), palette, quick slots (`7/7` contracts PASS)
-  - [x] `WS42.2A–E` Bridge `ui.prompt`/`letter`/`verbs`/`commands` + Protocol vNext (`21/21` schema PASS, wire `+2.66%`)
-  - [x] `WS42.3A–C` ActionCatalog (`351L`, `9/9`), ScreenModel (`811L`, `151/151`), CommandDispatcher (`615L`, `74/74` replay PASS)
-  - [x] `WS42.4A–C` InputRouter (`3,474L`), app wiring (`5,001L`), terminal fidelity (`1,149L`, `8/8` contracts PASS)
-  - [x] `WS42.5A–D` Mirrors (`70/70`), Item Sheet (`373L`), Palette (`13/13`), Entity menu (`203L`), Dock (`hud.js` `3,114L`)
-  - [x] `WS42.6` Grimoire rebase (`246L`) + AGENTS.md · [x] `WS42.7` Radial/Gamepad (`ALL PASS`) · [x] `WS42.8` KLM (`13/13`), LOC (`17/17`), Ledger (`29/29`), `v10.8.3`
+  - [x] `WS42.0–WS42.8` Cross-Realm Command, Action & Menu Unification + Global Circuit Breakers (`v10.8.3`, `29/29` fast PASS)
+  - [x] `WS43.1` Compact `chronicle-llm.js` (`generateChapter` & `chatWithCreature` prompts reduced by `~42%`, `recentUtterances` capped to `.slice(-6)`)
+  - [x] `WS43.2` Add 1-click `<kbd>Tab</kbd> CRT` (`#btn-map-toggle-crt`) to `#minimap-controls-bar` in `index.html` (`1535/1545L`) and wire to `toggleTerminalView` in `app.js`
+  - [x] `WS43.3` Bump version to `v10.9.0`, sync Android assets (`npm run android:sync`), pass `29/29` fast tests, `11/11` smoke tests, and `0/0` C# build
 
 ## Completed Workstreams
 | WS | Scope | Status |

@@ -4382,6 +4382,7 @@ window.addEventListener('DOMContentLoaded', () => {
             updateTerminalToolbar,
             needsTerminal,
             updateViewMode,
+            toggleTerminalView,
             confirmHeroBirth,
             rerollHero,
             startCustomHeroCreation,
@@ -4568,6 +4569,14 @@ window.addEventListener('DOMContentLoaded', () => {
             window.__minimapClosed = true;
             if (window.DeviceProfile && window.DeviceProfile.triggerHaptic) window.DeviceProfile.triggerHaptic('light');
             updateViewMode();
+        });
+    }
+    const btnMapToggleCrt = document.getElementById('btn-map-toggle-crt');
+    if (btnMapToggleCrt) {
+        btnMapToggleCrt.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (audio) audio.playMenuNav();
+            toggleTerminalView();
         });
     }
     const btnToggleDpad = document.getElementById('btn-toggle-dpad');

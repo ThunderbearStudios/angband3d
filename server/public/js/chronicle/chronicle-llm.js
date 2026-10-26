@@ -218,46 +218,18 @@ class ChronicleLLMBridge {
         const depth = (player && typeof player.depth === 'number') ? player.depth : 0;
         const isTown = (depth === 0);
         const systemPrompt = (isFlowing
-            ? `You are ${realmCtx.chronicler}, continuing the active saga of ${player ? player.name : 'the hero'} in ${realmCtx.setting}, in the literary tradition: "${tradition.name}".
-Perspective: ${tradition.style}.
-Tone: Serious, atmospheric, legendary, razor-sharp, immediate.
-Critical Story Guidelines:
-- Extreme Direct Brevity: Maximum 1 crisp sentence (12-18 words max). Zero purple prose, zero filler adverbs, zero repetitive openers ("In the gloom...", "Down in the dark..."). Start mid-action or on a sharp sensory detail.
-- Coalesced Combat & Blow-by-Blow: Weave multiple strikes into one swift, visceral clause.
-- Tactical Weapon & Method Accuracy: Strictly honor the exact method and weapon of combat provided in event details:
-  * Spells: Depict arcane incantations and elemental eruptions (fire, cold, lightning, acid, holy, arcane)—never swords or drawn steel!
-  * Devices: Depict aiming and channeling magical wands, staves, or rods.
-  * Ranged: Depict arrows, quarrels/bolts, or slingstones launched from bows, crossbows, or slings.
-  * Melee: Accurately match the weapon archetype (blunt impacts for hammers/maces, cleaving chops for axes, piercing thrusts for daggers/spears, or bare-knuckle blows for unarmed)—NEVER use generic "drawn steel" if the hero fights with fists, blunt clubs, staves, or spells!
-- Integrated Status Ailments: If player status effects (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) are present, weave them into a 3-4 word visceral phrase.
-- Spoken Dialogue: If included, keep spoken dialogue under 12 words, punchy and immediate.
-Length: 1 crisp sentence (max 18 words). Do NOT write a chapter title or header.
-Output: Respond with ONLY a raw JSON object (no markdown, no code blocks):
-{
-  "prose": "1 razor-sharp sentence (max 18 words) continuing the active scene.",
-  "dialogue": { "speaker": "Name or null", "text": "Short spoken line (max 12 words) or null" }
-}`
-            : `You are ${realmCtx.chronicler}, recording the saga of ${player ? player.name : 'the hero'} in ${realmCtx.setting}, in strict accordance with the literary tradition: "${tradition.name}".
-Perspective: ${tradition.style}.
-Tone: Serious, atmospheric, legendary, never modern slang, never fourth-wall breaking in chapter prose.
-Critical Story Guidelines:
-- Direct Brevity: 1 to 2 crisp, high-impact sentences (max 28 words total). Cut rambling prose; make every word count while retaining mythic gravitas.
-- Coalesced Combat & Blow-by-Blow: Synthesize concurrent strikes, counter-attacks, and lethal blows into one unified tactical exchange.
-- Tactical Weapon & Method Accuracy: Strictly honor the exact method and weapon of combat provided in event details:
-  * Spells: Depict arcane incantations and elemental forces (fire, cold, lightning, acid, holy, arcane)—never blades or drawn steel!
-  * Devices: Depict discharging runic wands, staves, or rods.
-  * Ranged: Depict arrows, bolts, or slingstones loosed from bows, crossbows, or slings.
-  * Melee: Accurately reflect the weapon archetype (crushing hammer/mace impacts, cleaving axe chops, impaling dagger/spear thrusts, or bone-cracking bare fists)—NEVER mention generic "drawn steel" if the hero fights unarmed, casts spells, or wields blunt maces!
-- Integrated Status Ailments: Weave status conditions (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) directly into the sensory peril of the scene.
-- Moral Weight: Reflect the reality of the situation (e.g. street violence vs dungeon orc slaying).
-Length: 1 to 2 tight sentences (max 28 words total).
-Output: Respond with ONLY a raw JSON object (no markdown code blocks, no backticks, no preamble) with these keys:
-{
-  "title": "Short poetic title (3-5 words)",
-  "prose": "1-2 tight sentences (max 28 words) of atmospheric, direct prose.",
-  "summary": "One short 8-word summary.",
-  "dialogue": { "speaker": "Name or null", "text": "Short spoken line (max 12 words) or null" }
-}`) + jpMandate;
+            ? `Role: ${realmCtx.chronicler} (${realmCtx.setting}, tradition: "${tradition.name}", style: ${tradition.style}).
+Rules:
+- 1 crisp sentence (12-18 words max), mid-action, zero purple prose or filler.
+- Coalesce strikes into one clause. Honor exact combat weapon/method: Spells (elemental/arcane—never drawn steel), Devices (wands/staves/rods), Ranged (arrows/bolts/slingstones), Melee (blunt hammers/maces, cleaving axes, piercing daggers/spears, or bare fists—never generic "drawn steel" if unarmed/blunt/magic).
+- Weave active status ailments (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) in 3-4 words.
+- Return ONLY raw JSON: {"prose":"max 18 words","dialogue":{"speaker":"Name or null","text":"max 12 words or null"}}`
+            : `Role: ${realmCtx.chronicler} (${realmCtx.setting}, tradition: "${tradition.name}", style: ${tradition.style}).
+Rules:
+- 1-2 crisp sentences (max 28 words total); mythic gravitas, zero modern slang or fourth-wall breaks.
+- Coalesce strikes into one tactical exchange. Honor exact combat weapon/method: Spells (arcane/elemental—never blades/drawn steel), Devices (wands/staves/rods), Ranged (arrows/bolts/slingstones), Melee (crushing hammers/maces, cleaving axes, impaling daggers/spears, or bare fists—never generic "drawn steel" if unarmed/blunt/magic).
+- Weave status ailments (confused, poisoned, blind, stunned, terrified, paralyzed, bleeding) and moral weight.
+- Return ONLY raw JSON: {"title":"3-5 words","prose":"max 28 words","summary":"8-word summary","dialogue":{"speaker":"Name or null","text":"max 12 words or null"}}`) + jpMandate;
 
         let locationText = isTown ? 'Town of Angband (surface streets, timber eaves, cobblestones)' : `Dungeon Depth ${depth * 50}ft (subterranean vaults, Iron Hell)`;
         if (realmKey === 'silq') {
@@ -270,8 +242,8 @@ Output: Respond with ONLY a raw JSON object (no markdown code blocks, no backtic
         
         let antiRepetition = '';
         if (this.recentUtterances && this.recentUtterances.length > 0) {
-            const sample = this.recentUtterances.slice(-12).map(u => `"${u.slice(0, 65)}"`).join(' | ');
-            antiRepetition = `\nCRITICAL ANTI-REPETITION MANDATE:\nNEVER repeat or paraphrase any of these recent lines or sentence structures:\n${sample}\nVary your opening verb, cadence, and imagery completely.`;
+            const sample = this.recentUtterances.slice(-6).map(u => `"${u.slice(0, 45)}"`).join(' | ');
+            antiRepetition = `\nANTI-REPETITION: Do not repeat: ${sample}`;
         }
 
         const backstory = (grounder || ChronicleGrounder).formatBackstorySummary ? (grounder || ChronicleGrounder).formatBackstorySummary(player) : '';
@@ -285,7 +257,7 @@ Output: Respond with ONLY a raw JSON object (no markdown code blocks, no backtic
 
         const userPrompt = `Hero: ${player ? player.name : 'Hero'}, ${player ? player.race : 'Mortal'} ${player ? player.class : 'Warrior'}.${backstoryContext} Location: ${locationText}.${combatMediumContext}
 Event: ${event.type}. Details: ${JSON.stringify(event.data || {})}.${antiRepetition}
-Compose ${isFlowing ? 'flowing passage' : 'Chapter'}. (For new instance starts and intros, weave the character's backstory and heritage into the scene).`;
+Compose ${isFlowing ? 'flowing passage' : 'Chapter'}.`;
 
         try {
             const rawText = await this.callLLM(systemPrompt, userPrompt);
@@ -342,38 +314,22 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}. (For new instance starts a
         // Anti-repetition context
         let antiRep = '';
         if (this.recentUtterances && this.recentUtterances.length > 0) {
-            const sample = this.recentUtterances.slice(-12).map(u => `"${u.slice(0, 60)}"`).join(' | ');
-            antiRep = `\nCRITICAL ANTI-REPETITION MANDATE:\nDo NOT reuse recent phrases, opening verbs, or static cliches:\n${sample}\nEvery line must be fresh, brief, and completely unique to this situation.`;
+            const sample = this.recentUtterances.slice(-6).map(u => `"${u.slice(0, 45)}"`).join(' | ');
+            antiRep = `\nANTI-REPETITION: Do not reuse: ${sample}`;
         }
 
         // 1. SLEEPING OR NON-VOCAL ENTITIES: Generate rich scene prose (dialogue is null)
         if (!groundTruth.isDialogue || groundTruth.text === null) {
             const stateDesc = (stateObj.state === 'sleeping')
-                ? `asleep in undisturbed slumber (${prSub} cannot converse)`
-                : `non-vocal or silent (${stateObj.observation || 'cannot speak words'})`;
+                ? `asleep in slumber (${prSub} cannot converse)`
+                : `silent (${stateObj.observation || 'cannot speak'})`;
 
             const realmKey = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
             const realmCtx = (ChronicleGrounder && typeof ChronicleGrounder.getRealmContext === 'function')
                 ? ChronicleGrounder.getRealmContext(realmKey)
                 : { chronicler: 'The Master Chronicler', setting: 'the realm' };
-            const systemPrompt = `You are ${realmCtx.chronicler} in ${realmCtx.setting}, describing a creature encountered in the realm.
-Creature: "${name}".
-CRITICAL VISUAL GENDER & 3D MODEL MANDATE:
-The 3D model rendered on screen is visually ${gender.toUpperCase()} (${gender === 'female' ? 'Woman / Female Model' : 'Man / Male Model'}).
-You MUST use ${gender === 'female' ? 'FEMALE pronouns (she, her, hers, herself)' : 'MALE pronouns (he, him, his, himself)'}.
-NEVER use ${gender === 'female' ? 'male pronouns (he/him/his)' : 'female pronouns (she/her/hers)'} under any circumstance!
-Status: ${stateDesc}.
-Hero: "${player ? player.name : 'The traveler'}", a ${player ? player.race : 'mortal'} ${player ? player.class : 'adventurer'}.
-${antiRep}
-Rules:
-- Write 1 crisp sentence (maximum 16 words) describing the creature's posture, breathing, or gear.
-- You MUST respect the creature's visual gender presentation: use "${prSub}", "${prPoss}", and "${prObj}" consistently.
-- Spoken dialogue MUST be null!
-- Return ONLY a raw JSON object (no markdown, no backticks):
-{
-  "prose": "1 crisp sentence (max 16 words) of atmospheric scene prose.",
-  "dialogue": null
-}`;
+            const systemPrompt = `Role: ${realmCtx.chronicler} (${realmCtx.setting}). Creature: "${name}" (${gender.toUpperCase()} 3D model; MUST use ${gender === 'female' ? 'she/her/hers' : 'he/him/his'} ONLY, never ${gender === 'female' ? 'he/him/his' : 'she/her/hers'}). Status: ${stateDesc}. Hero: "${player ? player.name : 'The traveler'}".${antiRep}
+Return ONLY raw JSON (prose max 16 words using "${prSub}"/"${prPoss}", dialogue null): {"prose":"max 16 words","dialogue":null}`;
 
             try {
                 const raw = await this.callLLM(systemPrompt, `Player observes the ${name}. Query if any: "${playerMessage || ''}"`);
@@ -404,15 +360,7 @@ Rules:
 
         let combatGuidance = '';
         if (inCombat) {
-            combatGuidance = `
-CRITICAL COMBAT CONTEXT:
-The player is ACTIVELY ATTACKING this creature!
-Current Health: ${monster.hp || 1} / ${monster.hp_max || monster.hp || 1}.
-Observation: ${stateObj.observation}.
-CRITICAL INSTRUCTION:
-- If townsperson or merchant: You are being brutally assaulted by the player! Scream for the town guards, yell 'Murder in the streets!', or plead for your life!
-- If monster or orc: Snarl in rage, curse the attacker's steel, or scream a combat taunt!
-- You MUST react directly to being struck! Do NOT offer peaceful greetings or shop services!`;
+            combatGuidance = `\nCOMBAT (HP ${monster.hp || 1}/${monster.hp_max || monster.hp || 1}, ${stateObj.observation}): Player is attacking! Townsperson/merchant: scream for guards or plead; Monster/orc: snarl combat taunt. Never offer peaceful greetings!`;
         }
 
         const realmKey = (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband';
@@ -423,25 +371,9 @@ CRITICAL INSTRUCTION:
             ? grounder.getRealmContext(realmKey)
             : { setting: 'Middle-earth in the Third Age' };
         const dialogueStyle = realmCtx.dialogueStyle || (realmKey === 'silq' ? 'Archaic First Age Beleriand tone' : (realmKey === 'frogcomposband' ? 'Sharp, cynical Amber courtly wit' : (realmKey === 'hengband' ? 'Disciplined feudal Bushido honor or menacing folklore cadence' : 'Vintage high fantasy cadence')));
-        const systemPrompt = `You are roleplaying a creature in ${realmCtx.setting}.
-Creature: "${name}".
-CRITICAL VISUAL GENDER & 3D MODEL MANDATE:
-The 3D model rendered on screen is visually ${gender.toUpperCase()} (${gender === 'female' ? 'Woman / Female Model' : 'Man / Male Model'}).
-You MUST use ${gender === 'female' ? 'FEMALE pronouns (she, her, hers, herself)' : 'MALE pronouns (he, him, his, himself)'}.
-NEVER use ${gender === 'female' ? 'male pronouns (he/him/his)' : 'female pronouns (she/her/hers)'} under any circumstance!
-Creature State: "${stateObj.state}".
-Creature Observation: "${stateObj.observation}".
-Player: "${player ? player.name : 'Adventurer'}", a ${player ? player.race : ''} ${player ? player.class : ''}.
-${combatGuidance}
-${antiRep}
-Guidelines:
-- Scene prose: 1 brief sentence (maximum 15 words) describing ${prPoss} immediate physical gesture matching ${gender} presentation ("${prSub}", "${prPoss}").
-- Spoken dialogue: 1 punchy, vivid sentence (maximum 14 words) in character. ${dialogueStyle}. No quotes or modern slang.${jpMandate}
-- Return ONLY a raw JSON object (no markdown, no backticks):
-{
-  "prose": "1 brief sentence (max 15 words) describing the creature's posture and gesture.",
-  "dialogue": "1 punchy spoken sentence (max 14 words) in character."
-}`;
+        const systemPrompt = `Roleplay creature "${name}" in ${realmCtx.setting}. 3D Model: ${gender.toUpperCase()} (MUST use ${gender === 'female' ? 'she/her/hers' : 'he/him/his'} ONLY, never ${gender === 'female' ? 'he/him/his' : 'she/her/hers'}). State: "${stateObj.state}" (${stateObj.observation}). Player: "${player ? player.name : 'Adventurer'}" (${player ? player.race : ''} ${player ? player.class : ''}).${combatGuidance}${antiRep}
+Rules: prose=1 sentence (max 15 words, "${prSub}"/"${prPoss}" gesture); dialogue=1 sentence (max 14 words, ${dialogueStyle}, no quotes/slang).${jpMandate}
+Return ONLY raw JSON: {"prose":"max 15 words","dialogue":"max 14 words"}`;
 
         try {
             const raw = await this.callLLM(systemPrompt, `Player says: "${playerMessage || 'Hail!'}"`);

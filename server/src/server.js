@@ -1044,7 +1044,7 @@ const server = http.createServer((req, res) => {
     }
 
     if ((pathname === '/.well-known/security.txt' || pathname === '/security.txt' || req.url === '/.well-known/security.txt' || req.url === '/security.txt') && (req.method === 'GET' || req.method === 'HEAD')) {
-        const body = 'Contact: https://github.com/erea-software/angband3d/security/advisories\nExpires: 2027-12-31T23:59:59.000Z\nPreferred-Languages: en\nCanonical: https://angband3d.com/.well-known/security.txt\n';
+        const body = 'Contact: https://github.com/ThunderbearStudios/angband3d/security/advisories\nExpires: 2027-12-31T23:59:59.000Z\nPreferred-Languages: en\nCanonical: https://angband3d.com/.well-known/security.txt\n';
         res.writeHead(200, {
             'Content-Type': 'text/plain; charset=utf-8',
             'Content-Length': Buffer.byteLength(body),
@@ -2295,10 +2295,11 @@ const server = http.createServer((req, res) => {
     } else if (safePath.replace(/\\/g, '/') === '/assets/models/monsters/Spider.obj') {
         safePath = '/assets/models/monsters/bestiary/giant_spider.glb';
     }
+    const webRoot = path.resolve(WEB_DIR);
     const filePath = path.resolve(WEB_DIR, '.' + path.sep + safePath);
 
-    // Guard against directory traversal attacks
-    if (!filePath.startsWith(path.resolve(WEB_DIR))) {
+    // Guard against directory traversal attacks (strict boundary separator check, CWE-22)
+    if (filePath !== webRoot && !filePath.startsWith(webRoot + path.sep)) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Access denied' }));
         return;
@@ -2992,7 +2993,7 @@ async function spawnGameSession(ws, request) {
     let savePath = path.join(engineInfo.saveDir || SAVE_DIR, targetSlot);
 
     let ownerToken = undefined;
-    const reqToken = urlObj.searchParams.get('owner') || '';
+    const reqToken = (request && request.headers && (request.headers['x-owner-token'] || (request.headers['authorization'] || '').replace(/^Bearer\s+/i, ''))) || urlObj.searchParams.get('owner') || '';
 
     // If we're creating a new character over an existing one, check ownership.
     // If no explicit save file was targeted (e.g. random hero name collision or default 'Adventurer'),
@@ -3002,7 +3003,7 @@ async function spawnGameSession(ws, request) {
             if (!rawSave) {
                 const baseUser = (user || 'Adventurer').replace(/_[0-9a-z]+$/i, '').slice(0, 20) || 'Hero';
                 for (let i = 0; i < 20; i++) {
-                    const candidate = `${baseUser}_${Math.floor(100 + Math.random() * 900)}`;
+                    const candidate = `${baseUser}_${crypto.randomInt(100, 1000)}`;
                     const candPath = path.join(engineInfo.saveDir || SAVE_DIR, candidate);
                     if (!fs.existsSync(candPath)) {
                         user = candidate;
@@ -3296,7 +3297,7 @@ wss.on('connection', (ws, request) => {
     const rawSave = urlObj.searchParams.get('save') || null;
     const rawSession = urlObj.searchParams.get('session') || null;
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
-    const reqToken = urlObj.searchParams.get('owner') || '';
+    const reqToken = (request && request.headers && (request.headers['x-owner-token'] || (request.headers['authorization'] || '').replace(/^Bearer\s+/i, ''))) || urlObj.searchParams.get('owner') || '';
 
     const rawRealm = urlObj.searchParams.get('realm') || 'angband';
     const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';
@@ -3471,7 +3472,7 @@ wss.on('connection', (ws, request) => {
             return;
         }
 
-        const queueId = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+        const queueId = Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
         const queueItem = {
             id: queueId,
             ws,

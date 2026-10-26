@@ -1,4 +1,6 @@
-# Angband 3D — Contributor & Engine-Bridge Invariants (v2.3)
+# Angband 3D — Contributor & Engine-Bridge Invariants (v2.4)
+
+> **`Law U0` (Epistemic Honesty)**: Tag claims `⊢ PROVED` / `⊬ HYPOTHESIS` / `⊥ REFUTED` (cite file/line or exit code `0`); separate cited external benchmarks from internal proof receipts (`HONESTY-01`).
 
 ## 1. Core Architecture & Engine Authority
 1. **Engine Authority**: Game rules, RNG, and saves (`SaveVNLA` + `.realm.json` sidecars for `silq`, `frogcomposband`, `hengband`) are 100% authoritative in C/C++. Isolate upstream Angband changes to `main-bridge.c` and `bridge-json.{c,h}` (export patch via `git diff 4.2.6..HEAD --output=..\engine-patch\0001-bridge-frontend.patch`, never `>`).

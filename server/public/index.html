@@ -68,8 +68,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
     <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=10.8.3">
-    <link rel="stylesheet" href="/css/chronicle.css?v=10.8.3">
+    <link rel="stylesheet" href="/css/dungeon.css?v=10.9.0">
+    <link rel="stylesheet" href="/css/chronicle.css?v=10.9.0">
 </head>
 <body>
     <div id="app-container">
@@ -387,6 +387,7 @@
                 <div class="map-ctrl-grp">
                     <button id="btn-map-toggle-size" class="map-ctrl-btn" title="Toggle Compact / Expanded View [ / ]"><kbd>⛶</kbd> Size</button>
                     <button id="btn-map-recenter" class="map-ctrl-btn" title="Reset Zoom to 1.0x [Home]"><kbd>●</kbd> Reset</button>
+                    <button id="btn-map-toggle-crt" class="map-ctrl-btn" title="Switch between 3D Dungeon and 1983 80x24 ASCII Terminal [Tab]"><kbd>Tab</kbd> CRT</button>
                     <button id="btn-map-close-bar" class="map-ctrl-btn map-btn-hide" title="Hide Minimap Radar [Map]"><kbd>✕</kbd> Hide</button>
                 </div>
             </div>
@@ -1496,38 +1497,38 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=10.8.3"></script>
-    <script defer src="/js/screen-context.js?v=10.8.3"></script>
-    <script defer src="/js/menu-router.js?v=10.8.3"></script>
-    <script defer src="/js/grimoire-deck.js?v=10.8.3"></script>
-    <script defer src="/js/quick-actions.js?v=10.8.3"></script>
-    <script defer src="/js/device.js?v=10.8.3"></script>
-    <script defer src="/js/action-catalog.js?v=10.8.3"></script>
-    <script defer src="/js/realm-keys.js?v=10.8.3"></script>
-    <script defer src="/js/command-dispatcher.js?v=10.8.3"></script>
-    <script defer src="/js/command-palette.js?v=10.8.3"></script>
-    <script defer src="/js/prompt-mirror.js?v=10.8.3"></script>
-    <script defer src="/js/item-sheet.js?v=10.8.3"></script>
-    <script defer src="/js/entity-menu.js?v=10.8.3"></script>
-    <script defer src="/js/gamepad.js?v=10.8.3"></script>
-    <script defer src="/js/radial-menu.js?v=10.8.3"></script>
-    <script defer src="/js/mobile-overlay.js?v=10.8.3"></script>
-    <script defer src="/js/audio.js?v=10.8.3"></script>
-    <script defer src="/js/terminal.js?v=10.8.3"></script>
-    <script defer src="/js/dungeon3d.js?v=10.8.3"></script>
-    <script defer src="/js/hud.js?v=10.8.3"></script>
-    <script defer src="/js/network.js?v=10.8.3"></script>
-    <script defer src="/js/local_bridge.js?v=10.8.3"></script>
-    <script defer src="/js/input.js?v=10.8.3"></script>
-    <script defer src="/js/demo-player.js?v=10.8.3"></script>
+    <script defer src="/js/safe-html.js?v=10.9.0"></script>
+    <script defer src="/js/screen-context.js?v=10.9.0"></script>
+    <script defer src="/js/menu-router.js?v=10.9.0"></script>
+    <script defer src="/js/grimoire-deck.js?v=10.9.0"></script>
+    <script defer src="/js/quick-actions.js?v=10.9.0"></script>
+    <script defer src="/js/device.js?v=10.9.0"></script>
+    <script defer src="/js/action-catalog.js?v=10.9.0"></script>
+    <script defer src="/js/realm-keys.js?v=10.9.0"></script>
+    <script defer src="/js/command-dispatcher.js?v=10.9.0"></script>
+    <script defer src="/js/command-palette.js?v=10.9.0"></script>
+    <script defer src="/js/prompt-mirror.js?v=10.9.0"></script>
+    <script defer src="/js/item-sheet.js?v=10.9.0"></script>
+    <script defer src="/js/entity-menu.js?v=10.9.0"></script>
+    <script defer src="/js/gamepad.js?v=10.9.0"></script>
+    <script defer src="/js/radial-menu.js?v=10.9.0"></script>
+    <script defer src="/js/mobile-overlay.js?v=10.9.0"></script>
+    <script defer src="/js/audio.js?v=10.9.0"></script>
+    <script defer src="/js/terminal.js?v=10.9.0"></script>
+    <script defer src="/js/dungeon3d.js?v=10.9.0"></script>
+    <script defer src="/js/hud.js?v=10.9.0"></script>
+    <script defer src="/js/network.js?v=10.9.0"></script>
+    <script defer src="/js/local_bridge.js?v=10.9.0"></script>
+    <script defer src="/js/input.js?v=10.9.0"></script>
+    <script defer src="/js/demo-player.js?v=10.9.0"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=10.8.3"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=10.8.3"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=10.8.3"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=10.8.3"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=10.8.3"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=10.8.3"></script>
-    <script defer src="/js/app.js?v=10.8.3"></script>
-    <script defer src="/js/boot.js?v=10.8.3"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=10.9.0"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=10.9.0"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=10.9.0"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=10.9.0"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=10.9.0"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=10.9.0"></script>
+    <script defer src="/js/app.js?v=10.9.0"></script>
+    <script defer src="/js/boot.js?v=10.9.0"></script>
 </body>
 </html>
