@@ -1310,7 +1310,7 @@ class WebHUD {
                     );
                 }
             } catch (_) {}
-            target = hasExisting ? 'full' : 'compact';
+            target = 'full';
         }
 
         this.dockPreset = target;
@@ -1332,37 +1332,15 @@ class WebHUD {
                 (typeof localStorage !== 'undefined' && localStorage.getItem('angband3d_wasd_mode') === '1')
             );
 
-            const wasdSockets = ['btn-wield', 'btn-drop', 'btn-search'];
+            const wasdSockets = ['btn-wield', 'btn-drop', 'btn-aim', 'btn-search'];
             const nonCore = ['btn-door', 'btn-pickup', 'btn-equipment', 'btn-browse', 'btn-study', 'btn-quests'];
 
-            if (target === 'full') {
-                for (const id of [...nonCore, ...wasdSockets]) {
-                    const btn = document.getElementById(id);
-                    if (btn && btn.dataset && btn.dataset.dockHidden) {
-                        delete btn.dataset.dockHidden;
-                        if (btn.style && btn.style.display === 'none' && !btn.dataset.contextHidden && !btn.dataset.realmHidden) {
-                            btn.style.display = '';
-                        }
-                    }
-                }
-            } else {
-                for (const id of nonCore) {
-                    const btn = document.getElementById(id);
-                    if (btn) {
-                        if (btn.dataset) btn.dataset.dockHidden = '1';
-                        if (btn.style) btn.style.display = 'none';
-                    }
-                }
-                for (const id of wasdSockets) {
-                    const btn = document.getElementById(id);
-                    if (btn) {
-                        if (wasdActive) {
-                            if (btn.dataset) delete btn.dataset.dockHidden;
-                            if (btn.style && !btn.dataset.contextHidden && !btn.dataset.realmHidden) btn.style.display = '';
-                        } else {
-                            if (btn.dataset) btn.dataset.dockHidden = '1';
-                            if (btn.style) btn.style.display = 'none';
-                        }
+            for (const id of [...nonCore, ...wasdSockets]) {
+                const btn = document.getElementById(id);
+                if (btn && btn.dataset && btn.dataset.dockHidden) {
+                    delete btn.dataset.dockHidden;
+                    if (btn.style && btn.style.display === 'none' && !btn.dataset.contextHidden && !btn.dataset.realmHidden) {
+                        btn.style.display = '';
                     }
                 }
             }

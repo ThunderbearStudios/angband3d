@@ -87,7 +87,14 @@
         return 't';
     }
     function classifyFrame(frame, realm, deps) {
-        if (deps && deps.ScreenModel && typeof deps.ScreenModel.of === 'function') { return deps.ScreenModel.of(frame, realm); }
+        if (deps && deps.ScreenModel && typeof deps.ScreenModel.of === 'function') {
+            const sm = deps.ScreenModel.of(frame, realm);
+            const inP = Boolean(frame && frame.phase === 'play');
+            const isM = Boolean(frame && frame.ui && frame.ui.more);
+            const ov = (frame && frame.ui && typeof frame.ui.overlay === 'number') ? frame.ui.overlay : 0;
+            const aw = Boolean(frame && frame.ui && frame.ui.awaiting_command);
+            return Object.assign({}, sm, { isIdle: Boolean(sm.owner === 'engine-idle' || (inP && ov === 0 && !isM && aw)) });
+        }
         const r = (realm || (frame && frame.realm) || 'angband').toLowerCase();
         const inPlay = Boolean(frame && frame.phase === 'play');
         const isMore = Boolean(frame && frame.ui && frame.ui.more);
@@ -397,20 +404,25 @@
             ];
         }
         if (intent.verb === 'song') {
-            const songLetter = intent.spell || intent.song || 'a';
+            const songLetter = intent.spell || intent.song;
+            if (!songLetter) return [{ send: 's', expect: () => true, desc: 'open-song-menu' }];
             return [
                 { send: 's', expect: () => true, desc: 'open-song-menu' },
                 { send: songLetter, expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more), desc: `select-song:${songLetter}` }
             ];
         }
         if (intent.verb === 'power') {
-            const powerLetter = intent.spell || intent.power || 'a';
+            const powerLetter = intent.spell || intent.power;
+            if (!powerLetter && !intent.dir && !intent.target) {
+                return [{ send: 'U', expect: () => true, desc: 'open-power-menu' }];
+            }
+            const pLetter = powerLetter || 'a';
             const steps = [
                 { send: 'U', expect: () => true, desc: 'open-power-menu' },
                 {
-                    send: powerLetter,
+                    send: pLetter,
                     expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more) || (intent.dir || intent.target),
-                    desc: `select-power:${powerLetter}`
+                    desc: `select-power:${pLetter}`
                 }
             ];
             if (intent.dir || intent.target) {
@@ -447,7 +459,7 @@
             const steps = [
                 {
                     send: verbKey,
-                    expect: (model) => (intent.dir ? ((model.prompt && model.prompt.kind === 'direction') || true) : model.isIdle),
+                    expect: (model, fr) => (intent.dir ? ((model.prompt && model.prompt.kind === 'direction') || true) : ((model.prompt && model.prompt.kind === 'direction') || (model.legacy && model.legacy.isTargeting) || model.isIdle || Boolean(fr && fr.ui && (fr.ui.more || !fr.ui.awaiting_command)))),
                     desc: `verb:${intent.verb}`
                 }
             ];
@@ -462,7 +474,7 @@
                 verbKey = 'h'; } else {
                 verbKey = 'f';
             } } else {
-            verbKey = this.resolveVerbKey(intent.verb, r);
+            verbKey = this.resolveVerbKey(intent.verb, r) || intent.key;
         }
         if (!verbKey) return null;
         if (verbKey === 'h') {
@@ -473,7 +485,8 @@
             }];
         }
         const steps = [];
-        steps.push({ send: verbKey, expect: (model, fr) => (model.prompt && (model.prompt.kind === 'item' || model.prompt.kind === 'select' || model.prompt.kind === 'direction')) || (model.legacy && (model.legacy.promptKind === 'select' || model.legacy.isItemPrompt || model.legacy.isTargeting)) || model.isIdle || (fr.ui && fr.ui.more), desc: `verb:${intent.verb}` });
+        const isSingleVerb = (intent.item === undefined || intent.item === null) && !intent.dir && !intent.target && intent.qty === undefined && !intent.confirm;
+        steps.push({ send: verbKey, expect: (model, fr) => (model.prompt && (model.prompt.kind === 'item' || model.prompt.kind === 'select' || model.prompt.kind === 'direction')) || (model.legacy && (model.legacy.promptKind === 'select' || model.legacy.isItemPrompt || model.legacy.isTargeting)) || model.isIdle || Boolean(fr && fr.ui && (fr.ui.more || (isSingleVerb && (fr.ui.overlay > 0 || !fr.ui.awaiting_command)))), desc: `verb:${intent.verb}` });
         if (intent.item !== undefined && intent.item !== null) {
             let targetLetter = typeof intent.item === 'string' ? intent.item : (intent.item.letter || intent.item.label);
             if (!targetLetter && r === 'angband' && intent.item && typeof intent.item.slot === 'number') { targetLetter = getVanillaLetter(intent.item.slot); }

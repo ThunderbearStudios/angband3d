@@ -507,6 +507,35 @@ async function runAll() {
         assert.strictEqual(dispatcher.lastFrame, null);
     });
 
+    test('ScreenContext.ScreenModel integration sets isIdle=true on idle frame and does not unwind with escape', () => {
+        const ScreenContext = require('../server/public/js/screen-context.js');
+        const sent = [];
+        const idleFrame = makeIdleFrame('angband', 100);
+        const dispatcher = new CommandDispatcher({
+            sendKey: (k) => sent.push(k),
+            getRealm: () => 'angband',
+            getLastFrame: () => idleFrame,
+            ScreenModel: ScreenContext.ScreenModel
+        });
+        const started = dispatcher.run({ verb: 'wield' });
+        assert.strictEqual(started, true);
+        assert.deepStrictEqual(sent, ['w'], 'Must send w directly without prefixing escape');
+        assert.strictEqual(dispatcher.state, 'Awaiting');
+        dispatcher.onFrame(makeIdleFrame('angband', 101));
+        assert.strictEqual(dispatcher.state, 'Idle');
+    });
+
+    test('CommandPalette single-verb song and power intents open menu without auto-selecting slot a', () => {
+        const dispatcher = new CommandDispatcher();
+        const songPlan = dispatcher.compilePlan({ verb: 'song' }, makeIdleFrame('silq', 10), 'silq');
+        assert.strictEqual(songPlan.length, 1);
+        assert.strictEqual(songPlan[0].send, 's');
+
+        const powerPlan = dispatcher.compilePlan({ verb: 'power' }, makeIdleFrame('frogcomposband', 10), 'frogcomposband');
+        assert.strictEqual(powerPlan.length, 1);
+        assert.strictEqual(powerPlan[0].send, 'U');
+    });
+
     console.log(`\nAll tests passed! (${passedTests}/${totalTests})`);
 }
 

@@ -3394,9 +3394,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (window.chronicleManager && typeof window.chronicleManager.updateLanguageUI === 'function') {
             window.chronicleManager.updateLanguageUI();
         }
-        if (window.QuickActionManager && typeof window.QuickActionManager.renderBar === 'function') {
-            window.QuickActionManager.renderBar(lastFrame || window.__lastFrame || null, activeRealm, effLang);
-        }
         // Main Menu / Pause Menu Localization
         const continueLabel = document.getElementById('menu-continue-label');
         if (continueLabel) {
@@ -4378,12 +4375,6 @@ window.addEventListener('DOMContentLoaded', () => {
                         }
                         if (act.type === 'toggle-mode') {
                             updateTerminalToolbar(effFrame);
-                            return;
-                        }
-                        if (act.type === 'bind-quick-slot') {
-                            if (window.QuickActionManager && typeof window.QuickActionManager.bindFromGrimoire === 'function') {
-                                window.QuickActionManager.bindFromGrimoire(act, effFrame, curRealm, showRealmToast);
-                            }
                             return;
                         }
                         if (act.type === 'switch-view' && act.key) {

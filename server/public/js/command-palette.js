@@ -169,6 +169,9 @@
         if (!list) return;
 
         const app = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
+        const wasdOn = Boolean(app && app.input && app.input.wasdMode);
+        const wasdPill = document.getElementById('btn-cmd-wasd-toggle');
+        if (wasdPill) { wasdPill.classList.toggle('wasd-active', wasdOn); wasdPill.textContent = wasdOn ? '⌨ WASD: ON [Alt+W]' : '⌨ Keys: Classic [Alt+W]'; }
         const curRealm = (app && typeof app.getActiveRealm === 'function' ? app.getActiveRealm() : (window.activeRealm || 'angband'));
         const curLang = (typeof window !== 'undefined' && window.__langMode) || 'en';
         const items = filterCommands(listForRealm(curRealm, curLang), activeCmdCategory, cmdPaletteFilter, _recentIds);
@@ -184,11 +187,12 @@
         items.forEach((cmd, idx) => {
             const row = document.createElement('div');
             const isAvail = cmd.available !== false;
+            const isWasdKey = wasdOn && (cmd.key === 'w' || cmd.key === 'a' || cmd.key === 's' || cmd.key === 'd');
             row.className = `cmd-row ${idx === selectedCmdIndex ? 'selected' : ''} ${!isAvail ? 'cmd-unavailable' : ''}`;
             row.style.minHeight = '44px';
             if (!isAvail) row.style.opacity = '0.45';
-
-            row.innerHTML = `<div class="cmd-row-left"><span class="cmd-row-icon">${escapeHtml(cmd.icon)}</span><div class="cmd-row-text"><span class="cmd-row-name">${escapeHtml(cmd.name)} ${cmd.badge ? `<span class="cmd-badge">${escapeHtml(cmd.badge)}</span>` : ''}</span><span class="cmd-row-desc">${escapeHtml(cmd.desc)}</span></div></div><div class="cmd-row-right"><kbd class="cmd-kbd">${escapeHtml(cmd.keyDisplay)}</kbd></div>`;
+            const badgeHtml = (cmd.badge ? `<span class="cmd-badge">${escapeHtml(cmd.badge)}</span>` : '') + (isWasdKey ? `<span class="cmd-badge" style="background:rgba(245,158,11,0.22);border:1px solid #f59e0b;color:#fde68a;">WASD Key</span>` : '');
+            row.innerHTML = `<div class="cmd-row-left"><span class="cmd-row-icon">${escapeHtml(cmd.icon)}</span><div class="cmd-row-text"><span class="cmd-row-name">${escapeHtml(cmd.name)} ${badgeHtml}</span><span class="cmd-row-desc">${escapeHtml(cmd.desc)}</span></div></div><div class="cmd-row-right"><kbd class="cmd-kbd">${escapeHtml(cmd.keyDisplay)}</kbd></div>`;
             row.addEventListener('click', () => executePaletteCommand(cmd));
             frag.appendChild(row);
         });
@@ -246,6 +250,8 @@
         const modal = document.getElementById('command-palette-modal');
         const btnClose = document.getElementById('btn-cmd-palette-close');
         if (btnClose) btnClose.addEventListener('click', () => hideCommandPalette());
+        const wasdPill = document.getElementById('btn-cmd-wasd-toggle');
+        if (wasdPill) wasdPill.addEventListener('click', () => { if (window.__app && window.__app.input && window.__app.input.toggleWasdMode) { window.__app.input.toggleWasdMode(); renderCommandPalette(); } });
         if (modal) {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) hideCommandPalette();

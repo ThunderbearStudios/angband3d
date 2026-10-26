@@ -110,14 +110,28 @@ class InputController {
 
     syncWasdUiState() {
         const active = Boolean(this.wasdMode);
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.classList.toggle('wasd-mode-active', active);
+        }
         const btn = document.getElementById('btn-wasd-toggle');
         if (btn) {
             btn.classList.toggle('wasd-active', active);
             btn.setAttribute('aria-pressed', active ? 'true' : 'false');
             btn.textContent = active ? '⌨ WASD: ON' : '⌨ WASD';
             btn.title = active
-                ? 'WASD Movement Active (Alt+W to toggle off). W/S: Move, A/D: Turn, Shift+A/D: Strafe. W/A/S/D commands locked to HUD buttons.'
-                : 'WASD Movement Inactive (Alt+W to toggle on). Roguelike Keys active: W=Wield, A=Aim, S=Search, D=Drop.';
+                ? 'WASD Movement Active (Alt+W to toggle off). W/S: Move, A/D: Turn, Shift+A/D: Strafe. W/A/S/D commands available on HUD & Actions menu.'
+                : 'WASD Movement Inactive (Alt+W to toggle on). Classic Roguelike Keys active: W=Wield, A=Aim, S=Search, D=Drop.';
+        }
+        const hudBtn = document.getElementById('btn-wasd-hud');
+        if (hudBtn) {
+            hudBtn.classList.toggle('wasd-active', active);
+            hudBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+            hudBtn.innerHTML = active ? '⌨ WASD: ON <kbd>Alt+W</kbd>' : '⌨ Keys: Classic <kbd>Alt+W</kbd>';
+        }
+        const cmdBtn = document.getElementById('btn-cmd-wasd-toggle');
+        if (cmdBtn) {
+            cmdBtn.classList.toggle('wasd-active', active);
+            cmdBtn.textContent = active ? '⌨ WASD: ON [Alt+W]' : '⌨ Keys: Classic [Alt+W]';
         }
         const cluster = document.getElementById('wasd-shadow-cluster');
         if (cluster) {
@@ -127,18 +141,13 @@ class InputController {
         badges.forEach(b => {
             b.style.display = active ? 'inline-block' : 'none';
         });
-        const wBtn = document.getElementById('btn-wield');
-        const aBtn = document.getElementById('btn-cast');
-        const sBtn = document.getElementById('btn-search');
-        const dBtn = document.getElementById('btn-drop');
-        const toggleHighlight = (el, on) => {
-            if (!el) return;
-            el.classList.toggle('wasd-shadow-active', on);
-        };
-        toggleHighlight(wBtn, active);
-        toggleHighlight(aBtn, active);
-        toggleHighlight(sBtn, active);
-        toggleHighlight(dBtn, active);
+        for (const id of ['btn-wield', 'btn-aim', 'btn-cast', 'btn-search', 'btn-drop']) {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('wasd-shadow-active', active);
+        }
+        if (typeof window !== 'undefined' && typeof window.__updateActionBarOverflow === 'function') {
+            window.__updateActionBarOverflow();
+        }
     }
 
     sendMoveOrRun(dir, isRunning) {
@@ -409,10 +418,6 @@ class InputController {
         const isJp = r === 'hengband' && lang === 'jp';
         const player = frame.player;
 
-        if (typeof window !== 'undefined' && window.QuickActionManager && typeof window.QuickActionManager.renderBar === 'function') {
-            window.QuickActionManager.renderBar(frame, r, lang);
-        }
-
         const heroAction = this.resolveHeroAction ? this.resolveHeroAction(frame) : null;
         const btnHero = document.getElementById('btn-hero-action');
         const heroActive = Boolean(btnHero && btnHero.style.display !== 'none' && heroAction && heroAction.id !== 'wait');
@@ -606,9 +611,10 @@ class InputController {
             'btn-rest': { show: !hasInvTelemetry || ((hpPct < 100 || (maxSp > 0 && spPct < 100) || hasBadStatus) && adjHostiles === 0), suggest: (hpPct < 75 || (maxSp > 0 && spPct < 45) || hasBadStatus) && hostileMonsters.length === 0, reason: isJp ? '周囲安全 — 休憩して回復' : 'Area clear — Rest to recover HP/Mana' },
             'btn-inventory': { show: !hasInvTelemetry || inv.length > 0 || eq.length > 0, suggest: false },
             'btn-equipment': { show: !hasInvTelemetry || eq.length > 0, suggest: false },
-            'btn-wield': { show: !hasInvTelemetry || wearableInPack > 0, suggest: false },
-            'btn-drop': { show: !hasInvTelemetry || inv.length > 0, suggest: false },
-            'btn-search': { show: r !== 'silq', suggest: false },
+            'btn-wield': { show: Boolean(this.wasdMode) || !hasInvTelemetry || wearableInPack > 0, suggest: false },
+            'btn-drop': { show: Boolean(this.wasdMode) || !hasInvTelemetry || inv.length > 0, suggest: false },
+            'btn-aim': { show: Boolean(this.wasdMode), suggest: false },
+            'btn-search': { show: Boolean(this.wasdMode) || r === 'frogcomposband' || r === 'hengband' || r === 'silq', suggest: false },
             'btn-quests': { show: r === 'frogcomposband' || r === 'hengband', suggest: false },
             'btn-overland': { show: r === 'frogcomposband' || r === 'hengband', suggest: false }
         };
@@ -658,8 +664,28 @@ class InputController {
 
         const btnSearch = document.getElementById('btn-search');
         if (btnSearch) {
-            const searchKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? RealmKeys.realmKey('search', activeRealm) : null;
-            btnSearch.classList.toggle('hidden', !searchKey);
+            btnSearch.classList.remove('hidden');
+            const lbl = btnSearch.querySelector('.act-label');
+            const kbd = btnSearch.querySelector('.act-key');
+            if (activeRealm === 'silq') {
+                if (lbl) lbl.textContent = 'Stealth';
+                if (kbd) kbd.textContent = 'S';
+                btnSearch.title = 'Toggle Stealth Mode [S]';
+            } else if (activeRealm === 'angband') {
+                if (lbl) lbl.textContent = 'Inspect';
+                if (kbd) kbd.textContent = 'I';
+                btnSearch.title = 'Inspect Item / Steal [I / s]';
+            } else {
+                if (lbl) lbl.textContent = 'Search';
+                if (kbd) kbd.textContent = 'S';
+                btnSearch.title = 'Toggle Search Mode [S]';
+            }
+        }
+        const btnAim = document.getElementById('btn-aim');
+        if (btnAim) {
+            const lbl = btnAim.querySelector('.act-label');
+            if (lbl) lbl.textContent = activeRealm === 'silq' ? 'Staff' : 'Aim';
+            btnAim.title = activeRealm === 'silq' ? 'Use Staff [a]' : 'Aim a Wand [a]';
         }
         this.syncWasdUiState();
     }
@@ -928,17 +954,6 @@ class InputController {
                     e.preventDefault();
                     return;
                 }
-            }
-
-            const isAltNumSlot = e.altKey && !e.ctrlKey && !e.metaKey && (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4' || e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3' || e.code === 'Digit4');
-            const isGameActive = !window.__app || (typeof window.__app.getAppState === 'function' ? window.__app.getAppState() === 'game' : (!window.__app.state || window.__app.state === 'playing' || window.__app.state === 'game'));
-            const inClassicPlay = Boolean(window.__app && window.__app.lastFrame && window.__app.lastFrame.phase === 'play' && (window.__app.lastFrame.ui?.overlay || 0) === 0 && window.__app.lastFrame.ui?.awaiting_command);
-            if (isAltNumSlot && isGameActive && (!this.inTerminal || inClassicPlay)) {
-                e.preventDefault();
-                const slotDigit = (e.code && e.code.startsWith('Digit')) ? parseInt(e.code.slice(5), 10) : parseInt(e.key, 10);
-                const slotIdx = Math.max(0, Math.min(3, (slotDigit || 1) - 1));
-                this.triggerQuickSlot(slotIdx);
-                return;
             }
 
             if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -1919,12 +1934,18 @@ class InputController {
                     } else if (verb === 'terminal') {
                         if (this.toggleTerminalView) this.toggleTerminalView();
                         return;
-                    } else if (verb === 'wield' || verb === 'drop') {
+                    } else if (verb === 'wield' || verb === 'drop' || verb === 'aim') {
                         this.openContextualMenu(verb);
                         return;
                     } else if (verb === 'search') {
-                        const sKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? RealmKeys.realmKey('search', realm) : null;
+                        const sKey = ((typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? RealmKeys.realmKey('search', realm) : null) || (realm === 'silq' ? 'S' : (realm === 'angband' ? 'I' : 'S'));
                         if (sKey) this.network.sendKey(sKey);
+                        return;
+                    } else if (verb === 'quests') {
+                        this.network.sendKey('C-q');
+                        return;
+                    } else if (verb === 'overland') {
+                        this.network.sendKey('<');
                         return;
                     }
 
@@ -2021,9 +2042,20 @@ class InputController {
         bind('btn-equipment', 'equip');
         bind('btn-wield', 'wield');
         bind('btn-drop', 'drop');
+        bind('btn-aim', 'aim');
         bind('btn-search', 'search');
         bind('btn-terminal', 'terminal');
         bind('btn-run-toggle', 'toggle-run');
+
+        for (const wasdBtnId of ['btn-wasd-toggle', 'btn-wasd-hud']) {
+            const wBtn = document.getElementById(wasdBtnId);
+            if (wBtn) {
+                bindReliableAction(wBtn, (ev) => {
+                    if (ev && ev.stopPropagation) ev.stopPropagation();
+                    this.toggleWasdMode();
+                });
+            }
+        }
 
         const btnHero = document.getElementById('btn-hero-action');
         if (btnHero) {
@@ -2106,7 +2138,7 @@ class InputController {
         const actionBar = document.getElementById('action-bar');
         const actionPopover = document.getElementById('action-more-popover');
 
-        const ACTION_PRIORITY = ['btn-hero-action', 'btn-attack', 'btn-cast', 'btn-fire', 'btn-throw', 'btn-quaff', 'btn-read', 'btn-pickup', 'btn-rest', 'btn-inventory', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-search', 'btn-door', 'btn-power', 'btn-browse', 'btn-study', 'btn-skills', 'btn-quests', 'btn-overland', 'btn-stair', 'btn-run-toggle', 'btn-terminal', 'btn-guide-hud', 'btn-command-palette'];
+        const ACTION_PRIORITY = ['btn-command-palette', 'btn-wasd-hud', 'btn-hero-action', 'btn-attack', 'btn-cast', 'btn-fire', 'btn-throw', 'btn-quaff', 'btn-read', 'btn-pickup', 'btn-rest', 'btn-inventory', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-aim', 'btn-search', 'btn-door', 'btn-power', 'btn-browse', 'btn-study', 'btn-skills', 'btn-quests', 'btn-overland', 'btn-stair', 'btn-run-toggle', 'btn-terminal', 'btn-guide-hud'];
 
         if (actionMoreBtn && actionBar) {
             let lastMoreTime = 0;
@@ -2230,10 +2262,6 @@ class InputController {
             }
             window.addEventListener('resize', updateActionBarOverflow);
             window.__updateActionBarOverflow = updateActionBarOverflow;
-            for (const initNestedId of ['btn-throw', 'btn-fire', 'btn-skills', 'btn-power', 'btn-overland', 'btn-quests', 'btn-browse', 'btn-study', 'btn-quaff', 'btn-read', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-search', 'btn-run-toggle', 'btn-guide-hud']) {
-                const nb = document.getElementById(initNestedId);
-                if (nb) nb.classList.add('is-nested-action');
-            }
         }
 
         const guideHudBtn = document.getElementById('btn-guide-hud');
@@ -2266,43 +2294,8 @@ class InputController {
         bindClick('btn-tilt-reset', () => { if (this.dungeon) this.dungeon.userPitchOffset = 0.0; });
         bindClick('btn-tilt-down', () => { if (this.dungeon) this.dungeon.userPitchOffset = Math.max(-0.65, (this.dungeon.userPitchOffset || 0) - 0.12); });
 
-        for (let i = 0; i < 4; i++) {
-            const qBtn = document.getElementById(`quick-slot-btn-${i + 1}`);
-            if (qBtn) {
-                bindReliableAction(qBtn, (ev) => {
-                    if (ev && ev.stopPropagation) ev.stopPropagation();
-                    this.triggerQuickSlot(i);
-                });
-                qBtn.addEventListener('contextmenu', (ev) => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    const curRealm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
-                    const curFrame = (window.__app && window.__app.lastFrame) || null;
-                    if (window.QuickActionManager) {
-                        window.QuickActionManager.openBinderPopover(i, curFrame, curRealm);
-                    }
-                });
-            }
-        }
-        const qsConfigBtn = document.getElementById('btn-quick-slot-config');
-        if (qsConfigBtn) {
-            bindReliableAction(qsConfigBtn, (ev) => {
-                if (ev && ev.stopPropagation) ev.stopPropagation();
-                const pop = document.getElementById('quick-slot-popover');
-                if (pop && pop.classList.contains('is-open')) {
-                    pop.classList.remove('is-open');
-                    return;
-                }
-                const curRealm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
-                const curFrame = (window.__app && window.__app.lastFrame) || null;
-                if (window.QuickActionManager) {
-                    window.QuickActionManager.openBinderPopover(0, curFrame, curRealm);
-                }
-            });
-        }
-
         window.addEventListener('click', (e) => {
-            if (e.target && e.target.closest && e.target.closest('#quick-slot-bar, #quick-slot-popover, #minimap-canvas, #grimoire-deck-container, #streetview-nav-rosette, #edge-turn-left, #edge-turn-right')) {
+            if (e.target && e.target.closest && e.target.closest('#minimap-canvas, #grimoire-deck-container, #streetview-nav-rosette, #edge-turn-left, #edge-turn-right')) {
                 return;
             }
             const lastFrame = (window.__app && window.__app.lastFrame) ? window.__app.lastFrame : null;

@@ -501,7 +501,6 @@
                 <div id="prompt-mirror" class="prompt-mirror" aria-live="polite" hidden></div>
                 <!-- Action Overflow Popover / Drawer (WS9.1) -->
                 <div id="action-more-popover" class="action-more-popover" role="region" aria-label="Additional Actions"></div>
-                <div id="quick-slot-popover" class="quick-slot-popover" role="dialog" aria-label="Bind Quick-Action Slots"></div>
 
                 <!-- 3D StreetView Ground-Perspective Directional Chevron Ring (WS34) -->
                 <div id="streetview-nav-rosette" class="streetview-nav-rosette" role="group" aria-label="3D StreetView Navigation Chevrons">
@@ -512,14 +511,6 @@
                 <!-- Quick Action Bar -->
                 <div id="action-bar" class="hud-panel" data-dock-preset="full">
                     <div id="action-bar-drag-handle" class="hud-dock-drag-handle" title="Drag to move Action Bar &amp; Status Dock • Double-click to reset">⋮⋮</div>
-                    <!-- 4-Button Cross-Realm Bindable Quick-Action Strip (WS32) -->
-                    <div id="quick-slot-bar" class="quick-slot-bar" role="group" aria-label="Bindable Quick Actions">
-                        <button type="button" id="quick-slot-btn-1" class="quick-slot-btn" data-quick-slot="0" title="Quick Slot 1 [Alt+1]"><span class="qs-hotkey">Alt+1</span><span class="qs-icon">🏹</span><span class="qs-label">Shoot</span></button>
-                        <button type="button" id="quick-slot-btn-2" class="quick-slot-btn" data-quick-slot="1" title="Quick Slot 2 [Alt+2]"><span class="qs-hotkey">Alt+2</span><span class="qs-icon">🧪</span><span class="qs-label">Heal</span></button>
-                        <button type="button" id="quick-slot-btn-3" class="quick-slot-btn" data-quick-slot="2" title="Quick Slot 3 [Alt+3]"><span class="qs-hotkey">Alt+3</span><span class="qs-icon">✨</span><span class="qs-label">Spell</span></button>
-                        <button type="button" id="quick-slot-btn-4" class="quick-slot-btn" data-quick-slot="3" title="Quick Slot 4 [Alt+4]"><span class="qs-hotkey">Alt+4</span><span class="qs-icon">📜</span><span class="qs-label">Escape</span></button>
-                        <button type="button" id="btn-quick-slot-config" class="quick-slot-config-btn" title="Configure / Bind Quick Slots [Alt+1–Alt+4]">⚙</button>
-                    </div>
                     <button id="btn-hero-action" class="action-btn action-hero-btn" title="Context Action (Attack / Open / Pickup / Tunnel / Wait)"><span id="hero-action-icon">⚔</span> <span id="hero-action-text">Attack</span> <kbd id="hero-action-key">Space</kbd></button>
                     <button id="btn-attack" class="action-btn" title="Attack adjacent monster in front [Space]">⚔ Attack <kbd>Space</kbd></button>
                     <button id="btn-throw" class="action-btn" title="Throw item at target [v]">🎯 Throw <kbd>v</kbd></button>
@@ -540,11 +531,13 @@
                     <button id="btn-equipment" class="action-btn" title="Inspect worn equipment [e]">🛡 Gear <kbd>e</kbd></button>
                     <button id="btn-wield" class="act-btn act-wasd-socket action-btn" title="Wield / Equip Item (w)"><span class="act-icon">🗡</span><span class="act-label">Wield</span><span class="act-key">w</span></button>
                     <button id="btn-drop" class="act-btn act-wasd-socket action-btn" title="Drop Item (d)"><span class="act-icon">📤</span><span class="act-label">Drop</span><span class="act-key">d</span></button>
+                    <button id="btn-aim" class="act-btn act-wasd-socket action-btn" title="Aim Wand / Use Staff (a)"><span class="act-icon">🪄</span><span class="act-label">Aim</span><span class="act-key">a</span></button>
                     <button id="btn-search" class="act-btn act-wasd-socket action-btn" title="Search / Perception (s)"><span class="act-icon">🔍</span><span class="act-label">Search</span><span class="act-key">s</span></button>
                     <button id="btn-stair" class="action-btn stair-btn" style="display: none;" title="Use stairs [&gt; or &lt;]">⬇ Descend <kbd>&gt;</kbd></button>
                     <button id="btn-run-toggle" class="action-btn action-run-pill" title="Toggle Run / Sprint Mode in Selected Direction [Alt+R]"><span id="action-run-icon">🚶</span> <span id="action-run-text">Walk</span> <kbd>Alt+R</kbd></button>
                     <button id="btn-terminal" class="action-btn" title="Toggle 80x24 classic CRT terminal view [Tab]">📜 Classic <kbd>Tab</kbd></button>
                     <button id="btn-guide-hud" class="action-btn" title="View Complete Controls &amp; Commands Guide [?]">❓ Help <kbd>?</kbd></button>
+                    <button id="btn-wasd-hud" type="button" class="action-btn wasd-hud-btn" aria-pressed="false" title="Toggle WASD Movement Mode vs Classic Roguelike Keys [Alt+W]">⌨ WASD <kbd>Alt+W</kbd></button>
                     <button id="btn-command-palette" class="action-btn action-cmd-btn" title="Categorized Action Drawer &amp; Command Palette [Ctrl+K]"><span class="btn-icon">▤</span><span class="btn-label">Actions ▾</span><kbd>Ctrl+K</kbd></button>
                     <button id="btn-action-more" class="action-btn action-more-btn" title="Toggle All Action Commands">⋯ More</button>
                 </div>
@@ -1446,6 +1439,7 @@
                     <div class="cmd-search-wrap">
                         <span class="cmd-search-icon">🔍</span>
                         <input type="text" id="cmd-search-input" class="cmd-search-input" placeholder="Type a command (Tunnel, Disarm, Rest, Throw, Cast, Stairs, Door)..." autocomplete="off" spellcheck="false">
+                        <button id="btn-cmd-wasd-toggle" type="button" class="cmd-wasd-pill" title="Toggle WASD Movement Mode vs Classic Roguelike Keys [Alt+W]">⌨ Keys: Classic [Alt+W]</button>
                         <kbd class="cmd-esc-badge">Esc</kbd>
                     </div>
                     <div class="cmd-category-tabs">
