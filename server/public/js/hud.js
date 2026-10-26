@@ -1393,14 +1393,17 @@ class WebHUD {
         if (!this.footerFacing) return;
         const normYaw = (yaw % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
         const sector = Math.round(normYaw / (Math.PI / 4)) % 8;
+        const lang = window.__langMode || 'en';
+        const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
+        const facingSig = `${sector}:${realm}:${lang}`;
+        if (this._lastFacingSig === facingSig) return;
+        this._lastFacingSig = facingSig;
         const sectorNames = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
         const sectorArrows = ['▲', '↗', '►', '↘', '▼', '↙', '◄', '↖'];
         const sectorKanji = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
         const dirName = sectorNames[sector] || 'N';
         const dirArrow = sectorArrows[sector] || '▲';
         const dirKanji = sectorKanji[sector] || '北';
-        const lang = window.__langMode || 'en';
-        const realm = (window.__app && window.__app.getActiveRealm) ? window.__app.getActiveRealm() : 'angband';
         if (realm === 'hengband' && lang === 'jp') {
             this.footerFacing.textContent = `🧭 ${dirKanji}`;
             this.footerFacing.title = `視線方向: ${dirKanji} (${dirArrow})`;
@@ -1411,6 +1414,32 @@ class WebHUD {
             this.footerFacing.textContent = `🧭 ${dirName}`;
             this.footerFacing.title = `Camera Facing: ${dirName} (${dirArrow})`;
         }
+    }
+
+    applyHudScale(scale) {
+        const clamped = Math.max(0.85, Math.min(1.3, Number(scale) || 1));
+        this._hudScale = clamped;
+        if (typeof document !== 'undefined' && document.documentElement) {
+            document.documentElement.style.setProperty('--hud-scale', String(clamped));
+        }
+        try { localStorage.setItem('angband3d_hud_scale', String(clamped)); } catch (_) {}
+        return clamped;
+    }
+
+    cycleImmersionMode() {
+        const modes = ['full', 'minimal', 'cinematic'];
+        const cur = this._immersionMode || 'full';
+        const next = modes[(modes.indexOf(cur) + 1) % modes.length];
+        this._immersionMode = next;
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.classList.toggle('hud-immersion-minimal', next === 'minimal');
+            document.body.classList.toggle('hud-immersion-cinematic', next === 'cinematic');
+        }
+        if (window.__app && typeof window.__app.showToast === 'function') {
+            const labels = { full: '🛡️ HUD: Full Tactical', minimal: '⚔️ HUD: Minimal Combat [Alt+H]', cinematic: '🎬 HUD: Cinematic 3D [Alt+H]' };
+            window.__app.showToast(labels[next] || next);
+        }
+        return next;
     }
 
     updateReticleTargetCard(frame) {

@@ -164,12 +164,37 @@
         }
 
         handleIntent(intent) {
-            if (!intent) return;
-            if (intent.id === 'radial_menu' && typeof window !== 'undefined' && window.radialMenu) {
+            if (!intent || typeof window === 'undefined') return;
+            if (intent.id === 'radial_menu' && window.radialMenu) {
                 window.radialMenu.toggle();
                 return;
             }
-            if (intent.key && typeof window !== 'undefined' && window.__app && window.__app.network && typeof window.__app.network.sendKey === 'function') {
+            if (intent.id === 'item_sheet') {
+                if (window.__app && typeof window.__app.toggleItemSheet === 'function') window.__app.toggleItemSheet();
+                else if (window.ItemSheet && typeof window.ItemSheet.toggle === 'function') window.ItemSheet.toggle();
+                return;
+            }
+            if (intent.id === 'command_palette' && window.CommandPalette) {
+                const modal = typeof document !== 'undefined' ? document.getElementById('command-palette-modal') : null;
+                if (modal && !modal.classList.contains('hidden')) window.CommandPalette.hide();
+                else window.CommandPalette.show((window.__app && window.__app.getAppState && window.__app.getAppState()) || 'game');
+                return;
+            }
+            if (intent.id === 'terminal_toggle') {
+                if (window.RealmGrimoireDeck && window.RealmGrimoireDeck._menuActive) {
+                    window.RealmGrimoireDeck.toggleMode();
+                    if (window.__app && typeof window.__app.updateTerminalToolbar === 'function') window.__app.updateTerminalToolbar();
+                } else if (window.__app && typeof window.__app.toggleTerminalView === 'function') {
+                    window.__app.toggleTerminalView();
+                }
+                return;
+            }
+            if (intent.id === 'back') {
+                if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) { window.ItemSheet.close(); return; }
+                const cmdModal = typeof document !== 'undefined' ? document.getElementById('command-palette-modal') : null;
+                if (cmdModal && !cmdModal.classList.contains('hidden') && window.CommandPalette) { window.CommandPalette.hide(); return; }
+            }
+            if (intent.key && window.__app && window.__app.network && typeof window.__app.network.sendKey === 'function') {
                 const keyToSend = intent.key === 'space' ? ' ' : (intent.key === 'enter' ? '\r' : (intent.key === 'escape' ? '\x1b' : intent.key));
                 window.__app.network.sendKey(keyToSend);
             }

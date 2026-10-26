@@ -325,12 +325,13 @@ class WebTerminal {
         const mode = this.detectMode(this.lastTermData);
         this.currentMode = mode;
 
-        // Anchor scale to stable outer #terminal-window bounds minus a fixed chrome reserve
-        // so opening/closing Grimoire cards or touch ribbons never causes the 80x24 canvas to jump in size.
+        // Anchor scale to stable outer #terminal-window bounds minus chrome + active Grimoire height
         const viewport = document.getElementById('terminal-viewport');
         const termWindow = document.getElementById('terminal-window') || document.getElementById('terminal-card');
+        const grimoireEl = document.getElementById('grimoire-deck-container');
+        const grimoireH = (grimoireEl && grimoireEl.style.display !== 'none' && grimoireEl.offsetHeight > 0) ? Math.min(grimoireEl.offsetHeight + 8, 280) : 0;
         const isLandscapePhone = window.innerHeight <= 500 && window.innerWidth > window.innerHeight;
-        const chromeReserveH = isLandscapePhone ? 112 : 136;
+        const chromeReserveH = (isLandscapePhone ? 112 : 136) + grimoireH;
         const outerW = (termWindow && termWindow.clientWidth > 0)
             ? (termWindow.clientWidth - 16)
             : (viewport && viewport.clientWidth > 0 ? viewport.clientWidth : (window.innerWidth - 16));
@@ -543,17 +544,11 @@ class WebTerminal {
         const regions = this.extractRowRegions(line);
         if (regions.length > 0) {
             if (col >= 0 && regions.length > 1) {
-                const matchedRegion = regions.find(r => col >= r.startCol && col <= r.endCol) ||
-                                      regions.reduce((best, r) => (col >= r.startCol ? r : best), regions[0]);
-                if (matchedRegion && matchedRegion.key) {
-                    sendKey(matchedRegion.key);
-                    return;
-                }
-            }
-            if (regions[0] && regions[0].key) {
-                sendKey(regions[0].key);
+                const matchedRegion = regions.find(r => col >= r.startCol - 1 && col <= Math.min(r.endCol, r.startCol + (r.rawLabel ? r.rawLabel.length : 28) + 6));
+                if (matchedRegion && matchedRegion.key) { sendKey(matchedRegion.key); return; }
                 return;
             }
+            if (regions[0] && regions[0].key) { sendKey(regions[0].key); return; }
         }
 
         const tagMatch = line.match(/(?:^|\s+)(?:\[([a-zA-Z0-9*@?])\]|\(([a-zA-Z0-9*@?])\)|([a-zA-Z0-9*@?])[\)\.\:\-])\s+\S/);

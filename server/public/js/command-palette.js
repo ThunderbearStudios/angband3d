@@ -124,13 +124,15 @@
         keyEchoTimer = setTimeout(() => { if (chip) chip.style.opacity = '0'; }, 1200);
     }
 
+    const TACTICAL_IDS = new Set(['attack', 'fire', 'throw', 'aim', 'zap', 'activate', 'target', 'look', 'run', 'walk', 'hold', 'repeat']);
     function filterCommands(commands, category, filterText, recents) {
-        const normCat = normalizeCategory(category);
-        const filter = (filterText || '').toLowerCase().trim();
-        const recentList = recents || _recentIds;
-
+        const rawCat = String(category || 'all').toLowerCase().trim(), normCat = normalizeCategory(category);
+        const filter = (filterText || '').toLowerCase().trim(), recentList = recents || _recentIds;
         const matches = commands.filter((cmd) => {
-            const matchesCat = normCat === 'all' || normalizeCategory(cmd.cat || cmd.group) === normCat;
+            const cmdCat = normalizeCategory(cmd.cat || cmd.group);
+            let matchesCat = normCat === 'all' || cmdCat === normCat;
+            if (matchesCat && rawCat === 'tactical') matchesCat = TACTICAL_IDS.has(cmd.id);
+            else if (matchesCat && rawCat === 'exploration') matchesCat = !TACTICAL_IDS.has(cmd.id);
             if (!matchesCat) return false;
             if (!filter) return true;
 
@@ -214,14 +216,11 @@
         if (typeof document === 'undefined') return;
         const modal = document.getElementById('command-palette-modal');
         cmdPalettePreviousState = fromState;
-        if (typeof window !== 'undefined' && window.__app) window.__app.appState = 'cmdPaletteModal';
+        if (typeof window !== 'undefined' && window.__app) { window.__app.appState = 'cmdPaletteModal'; if (window.__app.setAppState) window.__app.setAppState('cmdPaletteModal'); }
         cmdPaletteFilter = '';
         selectedCmdIndex = 0;
         const inputEl = document.getElementById('cmd-search-input');
-        if (inputEl) {
-            inputEl.value = '';
-            setTimeout(() => inputEl.focus(), 50);
-        }
+        if (inputEl) { inputEl.value = ''; setTimeout(() => inputEl.focus(), 50); }
         renderCommandPalette();
         if (modal) modal.classList.remove('hidden');
         const audio = (typeof window !== 'undefined' && window.__app && window.__app.audio) ? window.__app.audio : (window.audio || null);
@@ -236,13 +235,10 @@
         if (audio && typeof audio.playMenuNav === 'function') audio.playMenuNav();
 
         const app = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
-        if (cmdPalettePreviousState === 'splash' && app && typeof app.showSplash === 'function') {
-            app.showSplash();
-        } else if (cmdPalettePreviousState === 'mainMenu' && app && typeof app.showMainMenu === 'function') {
-            app.showMainMenu();
-        } else if (app) {
-            app.appState = 'game';
-        }
+        if (cmdPalettePreviousState === 'splash' && app && typeof app.showSplash === 'function') app.showSplash();
+        else if (cmdPalettePreviousState === 'mainMenu' && app && typeof app.showMainMenu === 'function') app.showMainMenu();
+        else if (cmdPalettePreviousState === 'pauseMenu' && app && typeof app.showPauseMenu === 'function') app.showPauseMenu();
+        else if (app) { app.appState = cmdPalettePreviousState || 'game'; if (app.setAppState) app.setAppState(cmdPalettePreviousState || 'game'); }
     }
 
     function setupCommandPaletteEvents() {

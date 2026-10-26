@@ -867,6 +867,11 @@ class InputController {
                 else if (typeof window.toggleItemSheet === 'function') window.toggleItemSheet();
                 return;
             }
+            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'h' || e.key === 'H')) {
+                e.preventDefault();
+                if (this.hud && typeof this.hud.cycleImmersionMode === 'function') this.hud.cycleImmersionMode();
+                return;
+            }
 
             // 2. Client modal surface open -> modal handles keys; Escape closes it
             const deathModal = document.getElementById('death-modal');
@@ -1153,6 +1158,10 @@ class InputController {
         e.preventDefault();
         if (this.audio && typeof this.audio.playMenuNav === 'function') this.audio.playMenuNav();
 
+        if (window.ItemSheet && typeof window.ItemSheet.isOpen === 'function' && window.ItemSheet.isOpen()) {
+            window.ItemSheet.close();
+            return;
+        }
         const qsPopover = document.getElementById('quick-slot-popover');
         if (qsPopover && qsPopover.classList.contains('is-open')) {
             qsPopover.classList.remove('is-open');

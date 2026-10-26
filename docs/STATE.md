@@ -1,13 +1,13 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS43 — `v10.9.0` Exemplar Polish (`~42%` Chronicle Prompt Diet + 1-Click `<kbd>Tab</kbd> CRT` Toggle) — COMPLETE**
+**WS44 — `v11.0.0` Showcase Overhaul (11 UI/HUD/3D/Gemini Upgrades + WebMCP + GeForce NOW Gamepad) — COMPLETE**
 
 - **Checklist** (one commit per card, red test first):
-  - [x] `WS42.0–WS42.8` Cross-Realm Command, Action & Menu Unification + Global Circuit Breakers (`v10.8.3`, `29/29` fast PASS)
-  - [x] `WS43.1` Compact `chronicle-llm.js` (`generateChapter` & `chatWithCreature` prompts reduced by `~42%`, `recentUtterances` capped to `.slice(-6)`)
-  - [x] `WS43.2` Add 1-click `<kbd>Tab</kbd> CRT` (`#btn-map-toggle-crt`) to `#minimap-controls-bar` in `index.html` (`1535/1545L`) and wire to `toggleTerminalView` in `app.js`
-  - [x] `WS43.3` Bump version to `v10.9.0`, sync Android assets (`npm run android:sync`), pass `29/29` fast tests, `11/11` smoke tests, and `0/0` C# build
+  - [x] `WS44.1` Default `GrimoireDeckController` to `'hybrid'`, add `[Cards / Classic F10]` toolbar toggle, expand `#grimoire-deck-container` to `min(44dvh, 320px)`
+  - [x] `WS44.2` Sync `CommandPalette` `appState` via `window.__app.setAppState`, add `🎒 Items` tab, split `tactical` vs `exploration`, bound `extractRowRegions` `endCol`, close `ItemSheet` on `Escape`, wire `GamepadController` (`X`, `Start`, `Select`, `B`), wire `--hud-scale`, fix mobile `>=40x40px` touch targets, convert `#terminal-viewport` to `flex: 1 1 0`, add `@media (max-height: 820px)` compaction
+  - [x] `WS44.3` Upgrade Gemini models (`gemini-nano-banana-2.1`, `gemini-3.8-flash-lite-tts`, `gemini-3.8-flash` / `gemini-4-argon` with `thinkingLevel` + `Api-Revision: 2026-05-20`), add `8x` anisotropic PBR filtering, Adaptive 60fps Pixel-Ratio Governor, `Alt+H` HUD Immersion cycling, and Chrome `WebMCP` read-only tools
+  - [x] `WS44.4` Bump version to `v11.0.0`, sync Android assets (`npm run android:sync`), package `dist/Angband3D-Windows-x64.zip`, pass `17/17` LOC budgets, `29/29` fast, `11/11` smoke, `4/4` E2E, `6/6` UI layout viewports, and `0/0` C# builds
 
 ## Completed Workstreams
 | WS | Scope | Status |

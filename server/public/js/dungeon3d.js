@@ -2664,6 +2664,7 @@ class Dungeon3D {
 
     initTextures() {
         const maxAniso = this.renderer.capabilities.getMaxAnisotropy();
+        const aniso = Math.min(8, maxAniso || 1);
         this.contextualTextureCache = new Map();
         this._currentThemeId = null;
 
@@ -2700,6 +2701,18 @@ class Dungeon3D {
         this.scaleNormal = procCreateScaleNormal();
         this.chitinNormal = procCreateChitinNormal();
         this.furNormal = procCreateFurNormal();
+
+        for (const tex of [
+            this.wallTex, this.wallNormal, this.floorTex, this.floorNormal, this.ceilingTex,
+            this.doorTex, this.storeTex, this.magmaTex, this.magmaEmission, this.quartzTex,
+            this.goldVeinTex, this.goldVeinEmission, this.gemVeinTex, this.gemVeinEmission,
+            this.grassTex, this.grassNormal, this.dirtTex, this.waterTex, this.deepWaterTex,
+            this.treeLeavesTex, this.treeLeavesNormal, this.treeBarkTex, this.treeBarkNormal,
+            this.permWallTex, this.permWallNormal, this.organicNormal, this.scaleNormal,
+            this.chitinNormal, this.furNormal
+        ]) {
+            if (tex) tex.anisotropy = aniso;
+        }
 
         // Materials with Authentic PBR Settings matching Godot StandardMaterial3D
         this.wallMaterial = new THREE.MeshStandardMaterial({
@@ -13453,6 +13466,23 @@ class Dungeon3D {
         }
 
         if (!this._contextLost) {
+            const nowGov = performance.now();
+            this._fpsGovFrames = (this._fpsGovFrames || 0) + 1;
+            if (!this._fpsGovStart) this._fpsGovStart = nowGov;
+            else if (this._fpsGovFrames >= 30) {
+                const avgMs = (nowGov - this._fpsGovStart) / this._fpsGovFrames;
+                this._fpsGovFrames = 0;
+                this._fpsGovStart = nowGov;
+                const maxDpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2);
+                const curDpr = this._adaptiveDpr || maxDpr;
+                if (avgMs > 20.5 && curDpr > 0.75) {
+                    this._adaptiveDpr = Math.max(0.75, +(curDpr - 0.15).toFixed(2));
+                    this.renderer.setPixelRatio(this._adaptiveDpr);
+                } else if (avgMs < 14.0 && curDpr < maxDpr) {
+                    this._adaptiveDpr = Math.min(maxDpr, +(curDpr + 0.1).toFixed(2));
+                    this.renderer.setPixelRatio(this._adaptiveDpr);
+                }
+            }
             this.renderer.render(this.scene, this.camera);
         }
     }

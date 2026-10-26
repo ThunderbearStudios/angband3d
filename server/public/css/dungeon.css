@@ -5771,10 +5771,10 @@ body.terminal-mode-active #top-right-bar { display: none !important; }
 .term-zoom-reset { font-size: 10px !important; }
 
     #terminal-viewport {
-        height: calc(100vh - 120px) !important;
-        max-height: calc(100vh - 120px) !important;
-        min-height: 200px !important;
-        flex: 1 1 auto !important;
+        height: auto !important;
+        max-height: none !important;
+        min-height: 140px !important;
+        flex: 1 1 0 !important;
     }
 
     .terminal-touch-controls {
@@ -8480,7 +8480,7 @@ body.wasd-mode-active .wasd-toggle-pill {
 #terminal-container.grimoire-primary-open #grimoire-deck-container,
 body.grimoire-primary-open #grimoire-deck-container {
     flex: 0 0 auto !important;
-    max-height: min(26vh, 175px) !important;
+    max-height: min(44dvh, 320px) !important;
     min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
@@ -9008,7 +9008,7 @@ body.grimoire-primary-open #entity-inspect-popover { display: none !important; }
    ============================================================================== */
 #hud-center-column { gap: 3px !important; }
 
-@media (min-width: 901px) {
+@media (min-width: 901px) and (pointer: fine) {
     #action-bar {
         padding: 3px 6px !important;
         gap: 3px !important;
@@ -9018,15 +9018,15 @@ body.grimoire-primary-open #entity-inspect-popover { display: none !important; }
 
     #action-bar .action-btn,
     #action-bar .act-btn {
-        height: 28px !important;
-        min-height: 28px !important;
+        height: calc(28px * var(--hud-scale, 1)) !important;
+        min-height: calc(28px * var(--hud-scale, 1)) !important;
         min-width: 0 !important;
         padding: 0 7px !important;
         flex-direction: row !important;
         align-items: center !important;
         justify-content: center !important;
         gap: 4px !important;
-        font-size: 10px !important;
+        font-size: calc(10px * var(--hud-scale, 1)) !important;
         line-height: 1 !important;
         border-radius: 4px !important;
     }
@@ -9292,13 +9292,13 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
 
     #touch-controls,
     #touch-controls.dpad-collapsed {
-        width: 136px !important;
+        width: 138px !important;
         height: auto !important;
         max-height: none !important;
-        padding: 4px !important;
+        padding: 3px !important;
         display: flex !important;
         flex-direction: column !important;
-        gap: 3px !important;
+        gap: 2px !important;
         overflow: visible !important;
     }
 
@@ -9307,35 +9307,36 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
 
     #touch-controls .dpad-turn-wings {
         display: grid !important;
-        grid-template-columns: 1fr 1.15fr 1fr !important;
-        gap: 3px !important;
+        grid-template-columns: repeat(3, minmax(40px, 1fr)) !important;
+        gap: 2px !important;
         width: 100% !important;
         margin: 0 !important;
     }
 
     #touch-controls .dpad-turn-btn,
+    #touch-controls .dpad-run-toggle,
     #touch-controls .dpad-mode-pill {
-        height: 26px !important;
-        min-height: 26px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        min-width: 40px !important;
         font-size: 9.5px !important;
         padding: 0 2px !important;
-        min-width: 0 !important;
     }
 
     #touch-controls .dpad-grid,
     #touch-controls.dpad-collapsed .dpad-grid {
         display: grid !important;
-        grid-template-columns: repeat(3, 1fr) !important;
-        grid-template-rows: repeat(3, 32px) !important;
-        gap: 3px !important;
+        grid-template-columns: repeat(3, minmax(40px, 1fr)) !important;
+        grid-template-rows: repeat(3, 40px) !important;
+        gap: 2px !important;
         width: 100% !important;
     }
 
     #touch-controls .dpad-btn {
         width: 100% !important;
-        height: 32px !important;
-        min-width: 32px !important;
-        min-height: 32px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
         padding: 0 !important;
         font-size: 13px !important;
     }
@@ -9347,7 +9348,7 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
         max-width: 46vw !important;
         padding: 4px !important;
         display: grid !important;
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(2, minmax(40px, 1fr)) !important;
         gap: 4px !important;
         overflow: visible !important;
     }
@@ -9388,9 +9389,9 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
 
     #action-bar:not(.drawer-open) .action-btn {
         width: 100% !important;
-        min-width: 0 !important;
-        height: 36px !important;
-        min-height: 36px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
         padding: 2px 3px !important;
         font-size: 9.5px !important;
         overflow: hidden !important;
@@ -9492,30 +9493,31 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
         left: max(6px, var(--safe-left)) !important;
         right: auto !important;
         top: auto !important;
-        width: 132px !important;
+        width: 136px !important;
     }
 
+    #touch-controls .dpad-turn-wings { display: none !important; }
     #touch-controls .dpad-grid,
-#touch-controls.dpad-collapsed .dpad-grid { display: grid !important; grid-template-rows: repeat(3, 27px) !important; }
+#touch-controls.dpad-collapsed .dpad-grid { display: grid !important; grid-template-columns: repeat(3, minmax(40px, 1fr)) !important; grid-template-rows: repeat(3, 40px) !important; }
 
-#touch-controls .dpad-btn { height: 27px !important; min-height: 27px !important; }
+#touch-controls .dpad-btn { height: 40px !important; min-height: 40px !important; min-width: 40px !important; }
 
     #action-bar:not(.drawer-open) {
         bottom: max(4px, var(--safe-bottom)) !important;
         right: max(6px, var(--safe-right)) !important;
         left: auto !important;
         top: auto !important;
-        width: 152px !important;
+        width: 156px !important;
     }
 
-#action-bar:not(.drawer-open) .action-btn { height: 28px !important; min-height: 28px !important; }
+#action-bar:not(.drawer-open) .action-btn { height: 40px !important; min-height: 40px !important; min-width: 40px !important; }
 
     #hud-footer,
     #hud-footer.hud-status-bar {
         position: fixed !important;
         bottom: max(4px, var(--safe-bottom)) !important;
-        left: calc(144px + var(--safe-left)) !important;
-        right: calc(164px + var(--safe-right)) !important;
+        left: calc(148px + var(--safe-left)) !important;
+        right: calc(168px + var(--safe-right)) !important;
         width: auto !important;
         max-width: none !important;
         height: 26px !important;
@@ -9677,6 +9679,33 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
         min-width: 44px;
         min-height: 44px;
     }
+    #action-bar .action-btn, #touch-controls .dpad-btn {
+        min-width: 40px !important;
+        min-height: 40px !important;
+    }
+}
+@media (min-width: 1024px) {
+    #char-panel {
+        width: clamp(188px, calc(208px * var(--hud-scale, 1)), 260px) !important;
+        min-width: clamp(188px, calc(208px * var(--hud-scale, 1)), 260px) !important;
+        max-width: clamp(188px, calc(208px * var(--hud-scale, 1)), 260px) !important;
+    }
+    #hud-footer .status-pill:not(.pill-reset-hud) { font-size: calc(10.5px * var(--hud-scale, 1)) !important; }
+}
+body.hud-immersion-minimal #message-feed-window:not(.expanded),
+body.hud-immersion-minimal #chronicle-window:not(.is-pinned),
+body.hud-immersion-minimal #touch-controls { display: none !important; }
+body.hud-immersion-cinematic #hud-overlay,
+body.hud-immersion-cinematic #top-right-bar,
+body.hud-immersion-cinematic #minimap-container,
+body.hud-immersion-cinematic #touch-controls,
+body.hud-immersion-cinematic #chronicle-window { display: none !important; }
+@media (max-height: 820px) {
+    .splash-card.splash-billboard-mode, .main-menu-card, .pause-card { max-height: 94dvh !important; padding: clamp(10px, 1.8dvh, 18px) clamp(16px, 2.4vw, 28px) !important; gap: clamp(4px, 0.8dvh, 8px) !important; overflow-y: auto !important; }
+    .splash-logo-wrap.protected-crest .splash-logo { width: 84px !important; height: 108px !important; }
+    .splash-billboard-grid { gap: 8px !important; margin: 4px 0 6px !important; }
+    .splash-billboard-pillar { padding: 8px 12px !important; }
+    .main-menu-realm-strip { padding: 8px 12px !important; margin-top: 6px !important; gap: 5px !important; }
 }
 dialog[open], [popover]:popover-open {
     opacity: 1;

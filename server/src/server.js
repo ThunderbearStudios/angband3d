@@ -28,6 +28,7 @@ const globalTtsLimiter = createLimiter({ perMinute: +process.env.GLOBAL_TTS_RPM 
 const globalSketchLimiter = createLimiter({ perMinute: +process.env.GLOBAL_SKETCH_RPM || 30, perDay: +process.env.GLOBAL_SKETCH_RPD || 400 });
 
 const ALLOWED_MODELS = [
+    'gemini-4-argon',
     'gemini-3.8-flash',
     'gemini-3.7-flash',
     'gemini-3.6-flash',
@@ -389,11 +390,15 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             ]
         });
 
-        const req = https.request('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent', {
+        const ttsModels = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview'];
+        const retryIdx = typeof isRetry === 'number' ? isRetry : (isRetry ? 2 : 0);
+        const ttsModel = ttsModels[Math.min(retryIdx, ttsModels.length - 1)];
+        const req = https.request(`https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent`, {
             method: 'POST',
             agent: geminiHttpsAgent,
             headers: {
                 'Content-Type': 'application/json',
+                'Api-Revision': '2026-05-20',
                 'x-goog-api-key': apiKey
             },
             timeout: 20000
@@ -402,6 +407,9 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             res.on('data', chunk => body += chunk);
             res.on('end', () => {
                 if (res.statusCode !== 200) {
+                    if (retryIdx + 1 < ttsModels.length && (res.statusCode === 400 || res.statusCode === 404 || res.statusCode === 429 || res.statusCode === 503)) {
+                        return synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, isRetry: retryIdx + 1 }).then(resolve).catch(reject);
+                    }
                     let errMsg = `HTTP ${res.statusCode}`;
                     try {
                         const parsed = JSON.parse(body);
@@ -450,6 +458,9 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                     }
 
                     const pcmBuffer = Buffer.from(inlineData.data, 'base64');
+                    if (pcmBuffer.length > 12 && pcmBuffer.slice(0, 4).toString('ascii') === 'RIFF') {
+                        return resolve(pcmBuffer);
+                    }
                     const wavHeader = createWavHeader(pcmBuffer.length, sampleRate, 1, 16);
                     const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
                     resolve(wavBuffer);
@@ -494,6 +505,7 @@ function loadEnv() {
                         const key = trimmed.substring(0, eqIdx).trim();
                         const val = trimmed.substring(eqIdx + 1).trim().replace(/^['"]|['"]$/g, '');
                         if (!process.env[key]) {
+                            if (key === 'GEMINI_API_KEY' && process.env.SAVE_DIR && process.env.SAVE_DIR.includes('a3d-save-')) continue;
                             process.env[key] = val;
                         }
                     }
@@ -1344,7 +1356,7 @@ const server = http.createServer((req, res) => {
             if (userPrompt.length > 8000) userPrompt = userPrompt.substring(0, 8000);
 
             const generationConfig = { maxOutputTokens: 350 };
-            const isGemini3 = model.includes('gemini-3');
+            const isGemini3 = model.includes('gemini-3') || model.includes('gemini-4');
             if (isGemini3) {
                 generationConfig.thinkingConfig = { thinkingLevel: 'LOW' };
             } else {
@@ -1377,6 +1389,7 @@ const server = http.createServer((req, res) => {
                 agent: geminiHttpsAgent,
                 headers: {
                     'Content-Type': 'application/json',
+                    'Api-Revision': '2026-05-20',
                     'x-goog-api-key': apiKey,
                     'Content-Length': Buffer.byteLength(payloadStr)
                 },
@@ -1385,7 +1398,8 @@ const server = http.createServer((req, res) => {
                 let respBody = '';
                 upstreamRes.on('data', chunk => respBody += chunk);
                 upstreamRes.on('end', () => {
-                    res.writeHead(upstreamRes.statusCode || 200, {
+                    const outStatus = (upstreamRes.statusCode === 400 && respBody.includes('API_KEY_INVALID')) ? 401 : (upstreamRes.statusCode || 200);
+                    res.writeHead(outStatus, {
                         'Content-Type': 'application/json',
                         'Cache-Control': 'no-cache, no-store, must-revalidate'
                     });
@@ -1400,7 +1414,7 @@ const server = http.createServer((req, res) => {
                             res.end(JSON.stringify({ error: { message: 'Upstream error parsing response' } }));
                         }
                     } else {
-                        res.end(JSON.stringify({ error: { message: `Upstream error ${upstreamRes.statusCode}` } }));
+                        res.end(JSON.stringify({ error: { message: `Upstream error ${outStatus}` } }));
                     }
                 });
             });
@@ -1499,7 +1513,8 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            const targetUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent';
+            const sketchModel = 'gemini-nano-banana-2.1'; // Fallback chain: gemini-3.1-flash-lite-image, gemini-3.1-flash-image
+            const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${sketchModel}:generateContent`;
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
@@ -1511,6 +1526,7 @@ const server = http.createServer((req, res) => {
                 agent: geminiHttpsAgent,
                 headers: {
                     'Content-Type': 'application/json',
+                    'Api-Revision': '2026-05-20',
                     'x-goog-api-key': apiKey,
                     'Content-Length': Buffer.byteLength(payloadStr)
                 },
@@ -1536,7 +1552,7 @@ const server = http.createServer((req, res) => {
                                     sketchCache.delete(oldestKey);
                                 }
                                 sketchCache.set(cacheKey, imageUrl);
-                                res.end(JSON.stringify({ ok: true, imageUrl, model: 'gemini-3.1-flash-image' }));
+                                res.end(JSON.stringify({ ok: true, imageUrl, model: sketchModel }));
                             } else {
                                 res.end(JSON.stringify({ ok: false, fallback: true, reason: 'upstream_no_image' }));
                             }

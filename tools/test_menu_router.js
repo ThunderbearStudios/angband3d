@@ -505,9 +505,9 @@ function runTests() {
     assert.deepStrictEqual(tabClickedTarget, { tx: 3, ty: 1 },
         'Clicking Classic View map row with sidebar "STR: 18" must route via startMinimapAutoNav instead of matching "R:"');
 
-    // Test 17: WS36 Always-Visible Classic Terminal default & Menu vs Map click disambiguation
-    assert.strictEqual(RealmGrimoireDeck.mode, 'classic', 'RealmGrimoireDeck must default to classic mode so #terminal-viewport is always visible');
-    assert.strictEqual(RealmGrimoireDeck.manualTerminalMode, true, 'RealmGrimoireDeck.manualTerminalMode must default to true');
+    // Test 17: WS36 Hybrid Grimoire Cards + Always-Visible Classic Terminal default & Menu vs Map click disambiguation
+    assert.strictEqual(RealmGrimoireDeck.mode, 'hybrid', 'RealmGrimoireDeck must default to hybrid mode so Grimoire cards and #terminal-viewport are both visible');
+    assert.strictEqual(RealmGrimoireDeck.manualTerminalMode, false, 'RealmGrimoireDeck.manualTerminalMode must default to false in hybrid mode');
     let dispatchedMenuKey = null;
     termDummy.onKeyClick = (k) => { dispatchedMenuKey = k; };
     tabClickedTarget = null;

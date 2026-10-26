@@ -3583,6 +3583,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Expose full coordinator interface to window.__app for input controller
     Object.assign(window.__app, {
         getAppState: () => appState,
+        setAppState: (s) => { appState = s; },
         showSplash,
         showMainMenu,
         showDemoModal,
@@ -4389,12 +4390,20 @@ window.addEventListener('DOMContentLoaded', () => {
             cancelQuickBirth,
             isBirthReviewActive: () => birthReviewActive,
             getAppState: () => appState,
+            setAppState: (s) => { appState = s; },
             getLastFrame: () => lastFrame,
             getActiveRealm,
             getCommandPaletteCommands,
             showToast: showRealmToast,
             showUpdateToast
         });
+    }
+    const _wMcp = (typeof navigator !== 'undefined' && navigator.modelContext) || (typeof document !== 'undefined' && document.modelContext);
+    if (_wMcp && typeof _wMcp.registerTool === 'function') {
+        try {
+            _wMcp.registerTool({ name: 'angband3d_get_hud_state', description: 'Read current realm, appState, and HUD vitals', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realm: getActiveRealm(), appState, hp: lastFrame?.player?.hp, depth: lastFrame?.player?.depth }) });
+            _wMcp.registerTool({ name: 'angband3d_list_realms', description: 'List playable roguelike realms on Angband 3D', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realms: ['angband', 'silq', 'frogcomposband', 'hengband'] }) });
+        } catch (_) {}
     }
     // View routing (AGENTS.md §3.3). Logic lives in screen-context.js needsTerminal (verbatim move, WS2);
     // app state is passed explicitly so the classifier stays pure and testable in Node.

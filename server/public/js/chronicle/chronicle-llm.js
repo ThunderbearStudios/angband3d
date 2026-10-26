@@ -8,11 +8,12 @@
 // Curated Google AI Studio Free Tier model chain for automatic failover in order of confirmed working capability
 const FREE_TIER_CHAIN = [
     'gemini-3.8-flash',      // Flagship Flash (Highest intelligence, New Stable)
+    'gemini-3.5-flash-lite', // High-throughput, ultra-cost-effective (Stable)
+    'gemini-3.1-flash-lite', // Frontier-class lightweight (Stable)
+    'gemini-4-argon',        // Next-gen frontier reasoning & narrative model
     'gemini-3.7-flash',      // High-performance agentic Flash (Stable)
     'gemini-3.6-flash',      // Balanced Flash (Stable)
     'gemini-3.5-flash',      // Foundational Flash (Stable)
-    'gemini-3.5-flash-lite', // High-throughput, ultra-cost-effective (Stable)
-    'gemini-3.1-flash-lite', // Frontier-class lightweight (Stable)
     'gemini-2.5-flash',      // Proven hybrid reasoning (Stable)
     'gemini-2.5-flash-lite'  // Ultra-fast budget multimodal (Stable)
 ];
@@ -547,16 +548,16 @@ Rules:
 
     async callGemini(systemPrompt, userPrompt, signal, retryCount = 0) {
         const model = this.getActiveModel();
-        const isGemini3 = model.includes('gemini-3') || model.includes('3.8') || model.includes('3.7') || model.includes('3.6') || model.includes('3.5') || model.includes('3.1');
+        const isGemini3 = model.includes('gemini-3') || model.includes('gemini-4') || model.includes('3.8') || model.includes('3.7') || model.includes('3.6') || model.includes('3.5') || model.includes('3.1');
 
         const generationConfig = {
             maxOutputTokens: 350
         };
 
         if (isGemini3) {
-            // Gemini 3.x models use thinkingConfig and deprecate temperature
+            // Gemini 3.x / 4-Argon models use thinkingConfig and deprecate temperature
             generationConfig.thinkingConfig = {
-                thinkingLevel: 'LOW'
+                thinkingLevel: 'MINIMAL'
             };
         } else {
             generationConfig.temperature = 0.7;
@@ -574,7 +575,7 @@ Rules:
 
         let res;
         // Route request securely through local server backend proxy.
-        const headers = { 'Content-Type': 'application/json' };
+        const headers = { 'Content-Type': 'application/json', 'Api-Revision': '2026-05-20' };
         if (this.apiKey) {
             headers['x-goog-api-key'] = this.apiKey;
         }

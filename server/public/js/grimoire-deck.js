@@ -96,8 +96,8 @@
 
     class GrimoireDeckController {
         constructor() {
-            this.mode = 'classic';
-            this.manualTerminalMode = true;
+            this.mode = 'hybrid';
+            this.manualTerminalMode = false;
             this._menuActive = false;
             this._lastSig = '';
             this._boundContainer = null;
@@ -124,8 +124,9 @@
             });
             const btn = document.getElementById('btn-term-grimoire-toggle');
             if (btn) {
+                if (!btn._gBound) { btn._gBound = true; btn.addEventListener('click', () => { this.toggleMode(); if (this._onActionCallback) this._onActionCallback({ type: 'toggle-mode', mode: this.mode }); }); }
                 btn.style.display = this._menuActive ? 'inline-flex' : 'none';
-                if (this._menuActive) btn.textContent = (this.mode === 'classic') ? '✨ Grimoire [F10]' : '📜 Classic [F10]';
+                if (this._menuActive) btn.textContent = (this.mode === 'classic') ? '🃏 Cards [F10]' : '⌨️ Classic [F10]';
             }
         }
         hide(container) {
