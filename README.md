@@ -17,7 +17,7 @@
 > - 💻 **Standalone Windows PC**: **[Download Angband3D-Windows-x64.zip](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Windows-x64.zip)** *(144+ FPS native offline play powered by Godot 4 C#)*
 > - 📱 **Standalone Android App**: **[Download Angband3D-Android.apk](https://github.com/ThunderbearStudios/angband3d/releases/latest/download/Angband3D-Android.apk)** *(Offline mobile play with tactile split-thumb D-pad)*
 > - 📖 **System Architecture & Wire Protocol**: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** *(C99 bridge specification, 60 FPS dirty-state gating & automated test matrix)*
-> - 🏛 **Official Studio & Architecture Overview**: **[https://thunderbearstudios.org](https://thunderbearstudios.org)** *(Thunderbear Studios frameworks & Cloud Run proving ground)*
+> - 🏛 **Official Studio & Architecture Overview**: **[https://thunderbearstudios.dev](https://thunderbearstudios.dev)** *(Thunderbear Studios frameworks & Cloud Run proving ground)*
 
 ---
 
@@ -402,7 +402,7 @@ Check out our [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) guide and open an i
 * **Literary Inspiration**: The setting, lore, and names draw inspiration from the literary legendarium created by **J.R.R. Tolkien**.
 * **Trademarks**: *The Lord of the Rings*, *The Hobbit*, *Middle-earth*, *Angband*, and *Moria* are trademarks or registered trademarks of **Middle-earth Enterprises, LLC** (Embracer Group AB) and/or **The Tolkien Estate**. This project is not affiliated with, endorsed by, or sponsored by Middle-earth Enterprises or The Tolkien Estate.
 * **Strict Non-Commercial Policy**: Angband 3D is 100% free software. It contains **no advertisements, no microtransactions, no paywalls, and accepts no donations or commercial sponsorship**.
-* **Commercial Studio vs. Open-Source Proving Ground Scope**: While the **Angband 3D** game showcase is strictly non-commercial (`GPL-2.0`), **[Thunderbear Studios](https://thunderbearstudios.org)** is an independent commercial software and applied AI product studio. The underlying reusable studio frameworks demonstrated by this architecture—including **Thunderbear Code Guard™**, **Resonant Cloud Memory Engine™**, and the **Universal C/C++ to Cloud, 3D & Audio Bridge™**—along with our commercial SaaS and pro-audio/DMX product lines, are proprietary commercial products owned by Thunderbear Studios.
+* **Commercial Studio vs. Open-Source Proving Ground Scope**: While the **Angband 3D** game showcase is strictly non-commercial (`GPL-2.0`), **[Thunderbear Studios](https://thunderbearstudios.dev)** is an independent commercial software and applied AI product studio. The underlying reusable studio frameworks demonstrated by this architecture—including **Thunderbear Code Guard™**, **Resonant Cloud Memory Engine™**, and the **Universal C/C++ to Cloud, 3D & Audio Bridge™**—along with our commercial SaaS and pro-audio/DMX product lines, are proprietary commercial products owned by Thunderbear Studios.
 * **Open Source Licensing**:
   * Authoritative game engines: **GNU General Public License v2** (GPL-2.0) across **Angband 4.2.6**, **Sil-Q 1.5.0**, **FrogComposBand 7.1.1**, and **Hengband 3.0.1**. Source code is included in full. Full terms in [`LICENSE`](LICENSE) and [`LEGAL.md`](LEGAL.md).
   * 3D Models & PBR Textures: Permissive **CC0 1.0 Universal** public domain dedications (**Poly Haven**, **KayKit**, **Kenney**, **Quaternius**).

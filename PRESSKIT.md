@@ -94,7 +94,7 @@ Players explore dark, atmospheric stone dungeons with first-person spatial prese
 **Thunderbear Studios** is an independent game development studio dedicated to digital preservation, open-source game architecture, and bridging classic video game heritage with cutting-edge 3D technology. 
 
 * **Mission**: Reinvigorate foundational gaming milestones by creating open-architecture frontends that respect original design philosophy while delivering modern sensory excellence.
-* **Studio Website**: [https://thunderbearstudios.org](https://thunderbearstudios.org)
+* **Studio Website**: [https://thunderbearstudios.dev](https://thunderbearstudios.dev)
 * **Game Website**: [https://angband3d.com](https://angband3d.com)
 * **GitHub**: [https://github.com/ThunderbearStudios](https://github.com/ThunderbearStudios)
 * **Press Inquiries**: `press@thunderbearstudios.org`
