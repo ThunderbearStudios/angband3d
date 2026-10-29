@@ -18,7 +18,7 @@
 * **Licence**: GNU General Public License v2 (GPLv2) & Permissive Open Source Assets
 * **Engine**: Authoritative Upstream Angband 4.2.6 C Engine + Three.js WebGL / Godot 4.3+ .NET
 * **Repository**: [https://github.com/ThunderbearStudios/angband3d](https://github.com/ThunderbearStudios/angband3d)
-* **Press & Curators Contact**: `press@thunderbearstudios.org` / GitHub Discussions
+* **Press & Curators Contact**: `press@thunderbearstudios.dev` / GitHub Discussions
 
 ---
 
@@ -97,4 +97,4 @@ Players explore dark, atmospheric stone dungeons with first-person spatial prese
 * **Studio Website**: [https://thunderbearstudios.dev](https://thunderbearstudios.dev)
 * **Game Website**: [https://angband3d.com](https://angband3d.com)
 * **GitHub**: [https://github.com/ThunderbearStudios](https://github.com/ThunderbearStudios)
-* **Press Inquiries**: `press@thunderbearstudios.org`
+* **Press Inquiries**: `press@thunderbearstudios.dev`
