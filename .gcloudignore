@@ -32,7 +32,7 @@
 !CREDITS.md
 
 # Exclude local test saves from cloud container upload
-variants/**/lib/save/*
+variants/**/lib/save/*.sav
 
 # Exclude heavy IDE/Windows intermediates from cloud upload
 variants/**/.git
