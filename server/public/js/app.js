@@ -1620,15 +1620,17 @@ window.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = `save-item-card ${idx === selectedSaveIndex ? 'selected' : ''}`;
             card.dataset.index = idx;
-            const modDate = save.lastModified ? new Date(save.lastModified).toLocaleString() : 'Unknown';
+            const activeR = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+            const realmBadge = save.realmTag || (save.realm || activeR).toUpperCase().slice(0, 4);
+            const modDate = save.timestamp || (save.lastModified ? new Date(save.lastModified).toLocaleString() : 'Unknown');
             const sizeKb = save.sizeBytes ? `${Math.round(save.sizeBytes / 1024)} KB` : '';
             card.innerHTML = `
                 <div class="save-item-left">
                     <span class="save-bullet">►</span>
                     <div class="save-item-details">
-                        <div class="save-item-name">${escapeHtml(save.characterName || save.filename)}</div>
+                        <div class="save-item-name"><span class="save-realm-tag">[${escapeHtml(realmBadge)}]</span> ${escapeHtml(save.characterName || save.filename)}</div>
                         <div class="save-item-summary">${escapeHtml(save.description || 'Saved Adventurer')}</div>
-                        <div class="save-item-meta">Saved ${escapeHtml(modDate)} • ${escapeHtml(sizeKb)}</div>
+                        <div class="save-item-meta">🕒 ${escapeHtml(modDate)}${sizeKb ? ' • ' + escapeHtml(sizeKb) : ''}</div>
                     </div>
                 </div>
                 <div class="save-item-actions">
@@ -1681,16 +1683,21 @@ window.addEventListener('DOMContentLoaded', () => {
             listEl.innerHTML = '<div style="color:#94a3b8; font-size:11.5px; padding:6px 0;">No saved adventurers in this realm archive.</div>';
             return;
         }
+        const activeR = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
         loadedSaves.forEach((save) => {
             const item = document.createElement('div');
             item.className = 'main-menu-save-item';
-            item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:rgba(14,20,32,0.6); border:1px solid rgba(212,175,55,0.2); border-radius:6px; cursor:pointer; font-size:12px; margin-bottom:4px; transition:all 0.15s ease;';
+            const realmBadge = save.realmTag || (save.realm || activeR).toUpperCase().slice(0, 4);
+            const stamp = save.timestamp || (save.lastModified ? new Date(save.lastModified).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
+            item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:rgba(14,20,32,0.6); border:1px solid rgba(212,175,55,0.2); border-radius:6px; cursor:pointer; font-size:12px; margin-bottom:4px; transition:all 0.15s ease; gap:8px;';
             item.innerHTML = `
-                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:75%;">
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">
+                    <span style="color:#38bdf8; font-weight:700; font-size:10.5px; margin-right:4px;">[${escapeHtml(realmBadge)}]</span>
                     <strong style="color:#ffd700;">${escapeHtml(save.characterName || save.filename)}</strong>
+                    <span style="color:#94a3b8; font-size:10.5px; margin-left:6px;">${escapeHtml(stamp)}</span>
                     <span style="color:#8892b0; font-size:11px; margin-left:6px;">${escapeHtml(save.description || '')}</span>
                 </div>
-                <button type="button" class="btn-panel-action" style="color:#38bdf8;">Load ➔</button>
+                <button type="button" class="btn-panel-action" style="color:#38bdf8; flex-shrink:0;">Load ➔</button>
             `;
             item.addEventListener('mouseenter', () => {
                 item.style.borderColor = '#ffd700';
@@ -1767,11 +1774,22 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function buildClientSaveExportFilename(target, fallbackRealm) {
+        if (target && target.downloadFilename) return target.downloadFilename;
+        const realmTag = ((target && (target.realmTag || target.realm)) || fallbackRealm || 'ANGB').toUpperCase().slice(0, 4);
+        const d = (target && target.lastModified) ? new Date(target.lastModified) : new Date();
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const stamp = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}`;
+        const rawBase = ((target && (target.characterName || target.filename)) || 'Adventurer').replace(/\.sav$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        return `${rawBase}_${realmTag}_${stamp}.sav`;
+    }
+
     async function downloadSave(save = null) {
         const target = save || (loadedSaves.length > 0 ? loadedSaves[selectedSaveIndex] : null);
         if (!target || !target.filename) return;
         if (audio) audio.playMenuSelect();
-        const outName = (target.characterName || target.filename).replace(/[^a-zA-Z0-9_-]/g, '_') + '.sav';
+        const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+        const outName = buildClientSaveExportFilename(target, realmParam);
         if (engineMode === 'local' && window.LocalSaveManager) {
             const bytes = await LocalSaveManager.getSaveData(target.filename);
             if (bytes) {
@@ -1787,7 +1805,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
         }
-        const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
         const url = `/api/saves/${encodeURIComponent(target.filename)}?realm=${encodeURIComponent(realmParam)}`;
         await triggerFileDownload(url, outName);
     }
@@ -1803,13 +1820,14 @@ window.addEventListener('DOMContentLoaded', () => {
         try {
             const buf = await file.arrayBuffer();
             if (buf.byteLength < 36) {
-                alert('Selected file is too small to be a valid Angband save file.');
+                alert('Selected file is too small to be a valid Yendor Engine save file.');
                 if (statusEl) statusEl.textContent = '';
                 return;
             }
             const header = new TextDecoder('ascii').decode(new Uint8Array(buf.slice(0, 8)));
-            if (header !== 'SaveVNLA') {
-                alert('Invalid savefile: Missing SaveVNLA header format.');
+            const validHeaders = new Set(['SaveVNLA', 'SaveSILQ', 'SaveFROX', 'SaveHENG', 'SaveNHCK', 'SaveDCSS', 'SaveBROG', 'SaveROGU']);
+            if (!validHeaders.has(header)) {
+                alert('Invalid savefile: Unrecognized realm magic header.');
                 if (statusEl) statusEl.textContent = '';
                 return;
             }
@@ -1827,8 +1845,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (statusEl) statusEl.textContent = 'Uploading to realm...';
+            const realmParam = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
             const ownerToken = localStorage.getItem(`angband3d_owner_${cleanName}`) || '';
-            const res = await fetch('/api/saves/upload', {
+            const res = await fetch(`/api/saves/upload?realm=${encodeURIComponent(realmParam)}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/octet-stream',
@@ -1894,15 +1913,15 @@ window.addEventListener('DOMContentLoaded', () => {
                     matchedSave = saves[0];
                 }
             }
-            const outName = `${currentChar.replace(/[^a-zA-Z0-9_-]/g, '_')}.sav`;
+            const outName = buildClientSaveExportFilename(matchedSave || { characterName: currentChar }, realmParam);
             if (matchedSave) {
                 await downloadSave(matchedSave);
-                if (banner) banner.textContent = `Exported '${matchedSave.characterName || matchedSave.filename}.sav' successfully!`;
+                if (banner) banner.textContent = `Exported '${matchedSave.downloadFilename || outName}' successfully!`;
             } else {
                 // Direct fallback: Download directly from /api/saves/latest
-                const fallbackUrl = `/api/saves/latest?char=${encodeURIComponent(currentChar)}`;
+                const fallbackUrl = `/api/saves/latest?char=${encodeURIComponent(currentChar)}&realm=${encodeURIComponent(realmParam)}`;
                 await triggerFileDownload(fallbackUrl, outName);
-                if (banner) banner.textContent = `Exported '${currentChar}.sav' successfully!`;
+                if (banner) banner.textContent = `Exported '${outName}' successfully!`;
             }
         } catch (err) {
             console.error('[DownloadCurrentSave Error]', err);
@@ -2119,11 +2138,14 @@ window.addEventListener('DOMContentLoaded', () => {
             if (saves && saves.length > 0) {
                 latestSave = saves[0];
                 loadedSaves = saves;
+                const activeR = (window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (activeRealm || 'angband');
+                const realmBadge = latestSave.realmTag || (latestSave.realm || activeR).toUpperCase().slice(0, 4);
+                const stampStr = latestSave.timestamp || (latestSave.lastModified ? new Date(latestSave.lastModified).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
                 const label = document.getElementById('menu-continue-label');
                 const desc = document.getElementById('menu-continue-desc');
                 const btn = document.getElementById('btn-menu-continue');
-                if (label) label.textContent = `Continue (${latestSave.characterName || latestSave.filename})`;
-                if (desc) desc.textContent = `${latestSave.description || 'Saved Adventurer'}${latestSave.lastModified ? ' • Modified ' + new Date(latestSave.lastModified).toLocaleTimeString() : ''}`;
+                if (label) label.textContent = `Continue ([${realmBadge}] ${latestSave.characterName || latestSave.filename})`;
+                if (desc) desc.textContent = `${latestSave.description || 'Saved Adventurer'}${stampStr ? ' • ' + stampStr : ''}`;
                 if (btn) btn.style.opacity = '1.0';
                 renderMainMenuSavesPanel();
                 return;
@@ -2162,40 +2184,57 @@ window.addEventListener('DOMContentLoaded', () => {
         silq: ['Beren', 'Fingolfin', 'Feanor', 'Turin', 'Tuor', 'Earendil', 'Hurin', 'Beleg', 'Mablung', 'Finrod', 'Glorfindel', 'Ecthelion', 'Voronwe', 'Daeron', 'Luthien', 'Idril', 'Morwen', 'Celegorm', 'Curufin', 'Maglor'],
         frogcomposband: ['Elric', 'Conan', 'Fafhrd', 'GrayMouser', 'Belgarath', 'Sparrowhawk', 'Corwin', 'Arthur', 'Roland', 'Gwydion', 'Vlad', 'Geralt', 'Locke', 'Kvothe', 'Cugel'],
         nethack: ['Rodney', 'Maud', 'Izchak', 'Croesus', 'Pelias', 'Orion', 'Shaman', 'Neferet', 'Thoth', 'Brigit', 'Crom', 'Lugh', 'Tyr', 'Hermes', 'Athena'],
+        dcss: ['Zot', 'Xom', 'Okawaru', 'Trog', 'SifMuna', 'Vehumet', 'Makhleb', 'Ashenzari', 'Nemelex', 'Cheibriados', 'Qazlal', 'Uskayaw'],
+        brogue: ['Anya', 'Kael', 'Orin', 'Rowan', 'Sylas', 'Tarin', 'Vael', 'Wren', 'Bram', 'Cora'],
+        rogue: ['Rodney', 'Kord', 'Morden', 'Gygax', 'Arneson', 'Tenser', 'Bigby', 'Melf', 'Otiluke', 'Drawmij'],
         angband: ['Aragorn', 'Boromir', 'Faramir', 'Theoden', 'Eomer', 'Bard', 'Beren', 'Isildur', 'Elendil', 'Thorin', 'Gimli', 'Gloin', 'Dain', 'Frodo', 'Samwise']
+    };
+
+    const CLIENT_REALM_TAGS = {
+        angband: 'ANGB', silq: 'SILQ', frogcomposband: 'FROG', hengband: 'HENG',
+        nethack: 'NHCK', dcss: 'DCSS', brogue: 'BROG', rogue: 'ROGU'
     };
 
     function generateHeroName(realmKey = 'angband', lang = 'en') {
         const r = (realmKey || activeRealm || 'angband').toLowerCase();
+        const tag = CLIENT_REALM_TAGS[r] || r.slice(0, 4).toUpperCase();
         let base = 'Hero';
         if (r === 'hengband') {
             const isJp = (lang === 'jp' || langMode === 'jp' || Math.random() < 0.65);
             const pool = isJp ? REALM_HERO_NAMES.hengband.japanese : REALM_HERO_NAMES.hengband.amberite;
             base = pool[Math.floor(Math.random() * pool.length)];
-        } else if (r === 'silq') {
-            base = REALM_HERO_NAMES.silq[Math.floor(Math.random() * REALM_HERO_NAMES.silq.length)];
-        } else if (r === 'frogcomposband') {
-            base = REALM_HERO_NAMES.frogcomposband[Math.floor(Math.random() * REALM_HERO_NAMES.frogcomposband.length)];
-        } else if (r === 'nethack') {
-            base = REALM_HERO_NAMES.nethack[Math.floor(Math.random() * REALM_HERO_NAMES.nethack.length)];
+        } else if (Array.isArray(REALM_HERO_NAMES[r])) {
+            base = REALM_HERO_NAMES[r][Math.floor(Math.random() * REALM_HERO_NAMES[r].length)];
         } else {
             base = REALM_HERO_NAMES.angband[Math.floor(Math.random() * REALM_HERO_NAMES.angband.length)];
         }
+        const now = new Date();
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const mmdd = `${pad2(now.getMonth() + 1)}${pad2(now.getDate())}`;
+        const hhmm = `${pad2(now.getHours())}${pad2(now.getMinutes())}`;
         const existingSet = new Set(
             Array.isArray(loadedSaves)
                 ? loadedSaves.map(s => String(s.filename || s.characterName || '').toLowerCase())
                 : []
         );
+        // Sil-Q enforces a 12-byte C buffer (<= 11 chars) for -u save slot names
+        if (r === 'silq') {
+            const primarySilq = `SLQ_${base.slice(0, 3)}${hhmm}`;
+            if (!existingSet.has(primarySilq.toLowerCase())) return primarySilq;
+            return `SLQ_${base.slice(0, 3)}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
+        }
+        const primaryCandidate = `${base.slice(0, 9)}_${tag}_${mmdd}_${hhmm}`;
+        if (!existingSet.has(primaryCandidate.toLowerCase())) {
+            return primaryCandidate;
+        }
         for (let attempt = 0; attempt < 25; attempt++) {
-            const suffix = attempt < 12
-                ? Math.floor(10 + Math.random() * 90)
-                : Math.floor(100 + Math.random() * 900);
-            const candidate = `${base}_${suffix}`;
+            const suffix = Math.floor(10 + Math.random() * 90);
+            const candidate = `${base.slice(0, 7)}_${tag}_${mmdd}_${hhmm}_${suffix}`;
             if (!existingSet.has(candidate.toLowerCase())) {
                 return candidate;
             }
         }
-        return `${base}_${Math.floor(100 + Math.random() * 900)}`;
+        return `${base.slice(0, 7)}_${tag}_${mmdd}_${hhmm}`;
     }
 
     let hasEnteredPlay = false;

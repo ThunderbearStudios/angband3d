@@ -54,10 +54,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Fira+Code:wght@400;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin="anonymous">
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/assets/thunderbear_logo.png">
-    <link rel="icon" type="image/png" href="/assets/thunderbear_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=11.3.0">
-    <link rel="stylesheet" href="/css/chronicle.css?v=11.3.0">
+    <link rel="apple-touch-icon" href="/assets/yasd3d_logo.png">
+    <link rel="icon" type="image/png" href="/assets/yasd3d_logo.png">
+    <link rel="stylesheet" href="/css/dungeon.css?v=11.3.1">
+    <link rel="stylesheet" href="/css/chronicle.css?v=11.3.1">
 </head>
 <body>
     <div id="app-container">
@@ -617,14 +617,11 @@
                 <div class="splash-ornament-corner bottom-left"></div>
                 <div class="splash-ornament-corner bottom-right"></div>
 
-                <div class="splash-logo-wrap protected-crest splash-dual-crest" oncontextmenu="return false;">
-                    <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios Official Emblem" class="splash-logo" width="96" height="124" fetchpriority="high" draggable="false">
-                    <img src="/assets/yasd3d_logo.png" alt="YASD 3D • Yendor Engine Emblem" class="splash-logo splash-logo-yasd" width="116" height="116" fetchpriority="high" draggable="false">
+                <div class="splash-logo-wrap protected-crest" oncontextmenu="return false;">
+                    <img src="/assets/yasd3d_logo.png" alt="Yet Another Stupid Death (YASD 3D) Official Emblem" class="splash-logo splash-logo-main" width="184" height="184" fetchpriority="high" draggable="false">
                 </div>
-                <div class="splash-presentation">✦ &nbsp; T H U N D E R B E A R &nbsp; S T U D I O S &nbsp; • &nbsp; Y E N D O R &nbsp; E N G I N E &trade; &nbsp; ✦</div>
-                <div class="splash-billboard-sub">— Y E T &nbsp; A N O T H E R &nbsp; S T U P I D &nbsp; D E A T H —</div>
 
-                <h1 class="splash-title">YASD 3D <span style="font-size: 0.58em; opacity: 0.85; font-weight: 600;">• ANGBAND 3D</span></h1>
+                <h1 class="splash-title">YASD 3D <span style="font-size: 0.58em; opacity: 0.85; font-weight: 600;">• YENDOR ENGINE&trade;</span></h1>
                 <div class="splash-subtitle">Eight Legendary Roguelikes &nbsp;•&nbsp; First-Person 3D &nbsp;•&nbsp; Voiced Living Chronicle</div>
 
                 <div class="splash-feature-pills" aria-label="Playable Roguelike Realms">
@@ -643,7 +640,12 @@
                 </div>
 
                 <div class="splash-credits-footer">
-                    <span><a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">Thunderbear Studios&trade;</a> &nbsp;•&nbsp; <a href="https://yasd3d.com" style="color: inherit; text-decoration: none;">yasd3d.com</a> / <a href="https://angband3d.com" style="color: inherit; text-decoration: none;">angband3d.com</a></span>
+                    <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="splash-studio-signature" title="Thunderbear Studios™">
+                        <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios Emblem" class="splash-studio-badge" width="26" height="34" draggable="false">
+                        <span>Thunderbear Studios&trade;</span>
+                    </a>
+                    <span class="splash-credits-sep">•</span>
+                    <span><a href="https://yasd3d.com" style="color: inherit; text-decoration: none;">yasd3d.com</a> / <a href="https://angband3d.com" style="color: inherit; text-decoration: none;">angband3d.com</a></span>
                 </div>
             </div>
         </div>
@@ -657,8 +659,16 @@
                 <div class="main-menu-ornament-corner bottom-right"></div>
 
                 <div class="main-menu-header">
-                    <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE ⚔</h2>
-                    <div class="main-menu-subtitle" id="main-menu-subtitle">The Classic Tolkien Descent • Old British Scholar</div>
+                    <div class="main-menu-crest-bar">
+                        <img src="/assets/yasd3d_logo.png" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="52" height="52" draggable="false">
+                        <div class="main-menu-title-group">
+                            <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE ⚔</h2>
+                            <div class="main-menu-subtitle" id="main-menu-subtitle">The Classic Tolkien Descent • Old British Scholar</div>
+                        </div>
+                        <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™">
+                            <img src="/assets/thunderbear_logo.png" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
+                        </a>
+                    </div>
                     <div class="main-menu-realm-strip" id="main-menu-realm-strip">
                         <div class="main-menu-realm-select-row">
                             <label for="main-menu-realm-select" class="main-menu-realm-label">⚔ REALM <kbd>[R]</kbd>:</label>
@@ -1445,43 +1455,43 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=11.3.0"></script>
-    <script defer src="/js/realm-cartridge.js?v=11.3.0"></script>
-    <script defer src="/js/screen-modal-coordinator.js?v=11.3.0"></script>
-    <script defer src="/js/dungeon3d-lightmap.js?v=11.3.0"></script>
-    <script defer src="/js/dungeon3d-model-governor.js?v=11.3.0"></script>
-    <script defer src="/js/screen-context.js?v=11.3.0"></script>
-    <script defer src="/js/menu-router.js?v=11.3.0"></script>
-    <script defer src="/js/grimoire-deck.js?v=11.3.0"></script>
-    <script defer src="/js/quick-actions.js?v=11.3.0"></script>
-    <script defer src="/js/device.js?v=11.3.0"></script>
-    <script defer src="/js/action-catalog.js?v=11.3.0"></script>
-    <script defer src="/js/realm-keys.js?v=11.3.0"></script>
-    <script defer src="/js/command-dispatcher.js?v=11.3.0"></script>
-    <script defer src="/js/command-palette.js?v=11.3.0"></script>
-    <script defer src="/js/prompt-mirror.js?v=11.3.0"></script>
-    <script defer src="/js/item-sheet.js?v=11.3.0"></script>
-    <script defer src="/js/entity-menu.js?v=11.3.0"></script>
-    <script defer src="/js/gamepad.js?v=11.3.0"></script>
-    <script defer src="/js/radial-menu.js?v=11.3.0"></script>
-    <script defer src="/js/mobile-overlay.js?v=11.3.0"></script>
-    <script defer src="/js/audio.js?v=11.3.0"></script>
-    <script defer src="/js/terminal.js?v=11.3.0"></script>
-    <script defer src="/js/dungeon3d.js?v=11.3.0"></script>
-    <script defer src="/js/hud.js?v=11.3.0"></script>
-    <script defer src="/js/network.js?v=11.3.0"></script>
-    <script defer src="/js/local_bridge.js?v=11.3.0"></script>
-    <script defer src="/js/input.js?v=11.3.0"></script>
-    <script defer src="/js/demo-player.js?v=11.3.0"></script>
+    <script defer src="/js/safe-html.js?v=11.3.1"></script>
+    <script defer src="/js/realm-cartridge.js?v=11.3.1"></script>
+    <script defer src="/js/screen-modal-coordinator.js?v=11.3.1"></script>
+    <script defer src="/js/dungeon3d-lightmap.js?v=11.3.1"></script>
+    <script defer src="/js/dungeon3d-model-governor.js?v=11.3.1"></script>
+    <script defer src="/js/screen-context.js?v=11.3.1"></script>
+    <script defer src="/js/menu-router.js?v=11.3.1"></script>
+    <script defer src="/js/grimoire-deck.js?v=11.3.1"></script>
+    <script defer src="/js/quick-actions.js?v=11.3.1"></script>
+    <script defer src="/js/device.js?v=11.3.1"></script>
+    <script defer src="/js/action-catalog.js?v=11.3.1"></script>
+    <script defer src="/js/realm-keys.js?v=11.3.1"></script>
+    <script defer src="/js/command-dispatcher.js?v=11.3.1"></script>
+    <script defer src="/js/command-palette.js?v=11.3.1"></script>
+    <script defer src="/js/prompt-mirror.js?v=11.3.1"></script>
+    <script defer src="/js/item-sheet.js?v=11.3.1"></script>
+    <script defer src="/js/entity-menu.js?v=11.3.1"></script>
+    <script defer src="/js/gamepad.js?v=11.3.1"></script>
+    <script defer src="/js/radial-menu.js?v=11.3.1"></script>
+    <script defer src="/js/mobile-overlay.js?v=11.3.1"></script>
+    <script defer src="/js/audio.js?v=11.3.1"></script>
+    <script defer src="/js/terminal.js?v=11.3.1"></script>
+    <script defer src="/js/dungeon3d.js?v=11.3.1"></script>
+    <script defer src="/js/hud.js?v=11.3.1"></script>
+    <script defer src="/js/network.js?v=11.3.1"></script>
+    <script defer src="/js/local_bridge.js?v=11.3.1"></script>
+    <script defer src="/js/input.js?v=11.3.1"></script>
+    <script defer src="/js/demo-player.js?v=11.3.1"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=11.3.0"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.3.0"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=11.3.0"></script>
-    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.3.0"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=11.3.0"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=11.3.0"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=11.3.0"></script>
-    <script defer src="/js/app.js?v=11.3.0"></script>
-    <script defer src="/js/boot.js?v=11.3.0"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=11.3.1"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.3.1"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=11.3.1"></script>
+    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.3.1"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=11.3.1"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=11.3.1"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=11.3.1"></script>
+    <script defer src="/js/app.js?v=11.3.1"></script>
+    <script defer src="/js/boot.js?v=11.3.1"></script>
 </body>
 </html>

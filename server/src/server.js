@@ -26,6 +26,9 @@ const {
     MAGIC_TO_REALM,
     isValidRealm,
     detectRealmFromMagic,
+    getRealmShortTag,
+    buildDefaultSaveSlotName,
+    enrichSaveMetadata,
     handleLegacyDomainRedirect,
     snapshotLivingSave,
     restoreLivingCheckpoint
@@ -1038,14 +1041,14 @@ function readSaveMetadata(filePath) {
             }
 
             const baseNameNoExt = path.basename(filePath).replace(/\.sav$/i, '');
-            return {
+            return enrichSaveMetadata({
                 filename: path.basename(filePath),
                 characterName: charName || baseNameNoExt,
                 description: description || baseNameNoExt,
                 realm: detectedRealm,
                 sizeBytes: stat.size,
                 lastModified: stat.mtime.toISOString(),
-            };
+            }, detectedRealm);
         } finally {
             try { fs.closeSync(fd); } catch (_) {}
         }
@@ -1348,14 +1351,14 @@ const server = http.createServer((req, res) => {
                                     } catch (_) {}
                                 }
                                 if (!sidecarRealm || sidecarRealm === queryRealm) {
-                                    meta = {
+                                    meta = enrichSaveMetadata({
                                         filename: file,
                                         characterName: file,
                                         description: file,
                                         realm: sidecarRealm || queryRealm,
                                         sizeBytes: stat.size,
                                         lastModified: stat.mtime.toISOString(),
-                                    };
+                                    }, sidecarRealm || queryRealm);
                                 }
                             }
                             if (meta && (!meta.realm || meta.realm === queryRealm)) {
@@ -2355,7 +2358,8 @@ const server = http.createServer((req, res) => {
         }
 
         if (match && fs.existsSync(match.fullPath)) {
-            const outName = (match.characterName || match.filename).replace(/[^a-zA-Z0-9_-]/g, '_') + '.sav';
+            const dlMeta = enrichSaveMetadata(readSaveMetadata(match.fullPath) || { filename: match.filename, characterName: match.characterName || match.filename, realm: queryRealm }, queryRealm);
+            const outName = (dlMeta && dlMeta.downloadFilename) ? dlMeta.downloadFilename : ((match.characterName || match.filename).replace(/[^a-zA-Z0-9_-]/g, '_') + '.sav');
             res.writeHead(200, {
                 'Content-Type': 'application/octet-stream',
                 'Content-Disposition': `attachment; filename="${outName}"`,
@@ -2395,7 +2399,8 @@ const server = http.createServer((req, res) => {
         }
 
         if (targetPath) {
-            const outName = saveName.endsWith('.sav') ? saveName : `${saveName}.sav`;
+            const dlMeta = enrichSaveMetadata(readSaveMetadata(targetPath) || { filename: saveName, characterName: saveName, realm: queryRealm }, queryRealm);
+            const outName = (dlMeta && dlMeta.downloadFilename) ? dlMeta.downloadFilename : (saveName.endsWith('.sav') ? saveName : `${saveName}.sav`);
             res.writeHead(200, {
                 'Content-Type': 'application/octet-stream',
                 'Content-Disposition': `attachment; filename="${outName}"`,
@@ -3310,14 +3315,14 @@ function attachWebSocketToSession(session, ws) {
 
 async function spawnGameSession(ws, request) {
     const urlObj = new URL(request.url, `http://${request.headers.host}`);
+    const rawRealm = urlObj.searchParams.get('realm') || 'angband';
+    const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';
     const rawUser = urlObj.searchParams.get('user') || urlObj.searchParams.get('char') || null;
     const rawSave = urlObj.searchParams.get('save') || null;
     let user = rawUser ? rawUser.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 28) : null;
     if (!user && !rawSave) {
-        user = 'Adventurer';
+        user = buildDefaultSaveSlotName(realm, 'Hero');
     }
-    const rawRealm = urlObj.searchParams.get('realm') || 'angband';
-    const realm = rawRealm.replace(/[^a-zA-Z0-9_-]/g, '') || 'angband';
     const rawLang = urlObj.searchParams.get('lang') || 'en';
     const lang = rawLang.toLowerCase();
     const engineInfo = resolveRealmEngine(realm, lang);

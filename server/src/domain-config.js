@@ -2,7 +2,8 @@
  * server/src/domain-config.js
  *
  * Centralized Domain Identity (YASD 3D / Yendor Engine), Legacy Domain Coexistence
- * & Retirement Controller, 8-Realm Registry, and Lazarus Checkpoint Save Helpers.
+ * & Retirement Controller, 8-Realm Registry, Save Realm+Timestamp Formatting,
+ * and Lazarus Checkpoint Save Helpers.
  */
 'use strict';
 
@@ -47,10 +48,76 @@ const MAGIC_TO_REALM = Object.freeze({
     SaveDCSS: 'dcss'
 });
 
+const REALM_SHORT_TAG = Object.freeze({
+    angband: 'ANGB',
+    silq: 'SILQ',
+    frogcomposband: 'FROG',
+    hengband: 'HENG',
+    nethack: 'NHCK',
+    rogue: 'ROGU',
+    brogue: 'BROG',
+    dcss: 'DCSS'
+});
+
 const VALID_MAGICS = Object.freeze(Object.keys(MAGIC_TO_REALM));
 
 function isValidRealm(realm) {
     return VALID_REALMS.includes(String(realm || '').toLowerCase().trim());
+}
+
+function getRealmShortTag(realmId = 'angband') {
+    const clean = String(realmId || 'angband').toLowerCase().trim();
+    return REALM_SHORT_TAG[clean] || 'ANGB';
+}
+
+function formatSaveTimestamps(dateInput) {
+    const d = dateInput ? new Date(dateInput) : new Date();
+    const validDate = Number.isNaN(d.getTime()) ? new Date() : d;
+    const yyyy = String(validDate.getFullYear());
+    const mm = String(validDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(validDate.getDate()).padStart(2, '0');
+    const hh = String(validDate.getHours()).padStart(2, '0');
+    const min = String(validDate.getMinutes()).padStart(2, '0');
+    return {
+        compact: `${yyyy}${mm}${dd}_${hh}${min}`,
+        short: `${mm}${dd}_${hh}${min}`,
+        display: `${yyyy}-${mm}-${dd} ${hh}:${min}`
+    };
+}
+
+function buildDefaultSaveSlotName(realmId = 'angband', baseHero = 'Hero') {
+    const cleanRealm = String(realmId || 'angband').toLowerCase().trim();
+    const tag = getRealmShortTag(cleanRealm);
+    const ts = formatSaveTimestamps(new Date());
+    const cleanHero = String(baseHero || 'Hero').replace(/[^a-zA-Z0-9]/g, '') || 'Hero';
+    if (cleanRealm === 'silq') {
+        // Sil-Q C engine has an 11-char op_ptr->full_name buffer
+        return `SLQ_${cleanHero.slice(0, 3)}${ts.short.slice(-4)}`.slice(0, 11);
+    }
+    return `${cleanHero.slice(0, 9)}_${tag}_${ts.short}`;
+}
+
+function enrichSaveMetadata(meta, fallbackRealm = 'angband') {
+    if (!meta || typeof meta !== 'object') return meta;
+    const realm = (meta.realm && VALID_REALMS.includes(meta.realm)) ? meta.realm : (VALID_REALMS.includes(fallbackRealm) ? fallbackRealm : 'angband');
+    const realmTag = getRealmShortTag(realm);
+    const ts = formatSaveTimestamps(meta.lastModified || new Date());
+    const rawName = String(meta.characterName || meta.filename || 'Adventurer').replace(/\.sav$/i, '');
+    const cleanBase = rawName.replace(/[^a-zA-Z0-9_-]/g, '_') || 'Adventurer';
+    const hasTagInName = new RegExp(`(^|_)${realmTag}(_|$)|^SLQ_`, 'i').test(cleanBase);
+    const hasTimeInName = /\d{4}_\d{4}|\d{8}_\d{4}/.test(cleanBase);
+    const downloadBase = hasTagInName && hasTimeInName
+        ? cleanBase
+        : (hasTagInName ? `${cleanBase}_${ts.compact}` : `${cleanBase}_${realmTag}_${ts.compact}`);
+    return {
+        ...meta,
+        realm,
+        realmTag,
+        timestamp: ts.display,
+        timestampCompact: ts.compact,
+        displayName: `[${realmTag}] ${rawName} • ${ts.display}`,
+        downloadFilename: `${downloadBase}.sav`
+    };
 }
 
 function detectRealmFromMagic(magicStr, fallbackRealm = '') {
@@ -84,7 +151,7 @@ function handleLegacyDomainRedirect(req, res, hostHeader) {
 }
 
 /**
- *Snapshots a verified living save file to `<savePath>.living.sav` so post-death
+ * Snapshots a verified living save file to `<savePath>.living.sav` so post-death
  * `[R] Load Last Saved Game` (Lazarus Checkpoint) can always restore the living hero.
  */
 function snapshotLivingSave(savePath) {
@@ -153,8 +220,13 @@ module.exports = {
     VALID_REALMS,
     REALM_TO_MAGIC,
     MAGIC_TO_REALM,
+    REALM_SHORT_TAG,
     VALID_MAGICS,
     isValidRealm,
+    getRealmShortTag,
+    formatSaveTimestamps,
+    buildDefaultSaveSlotName,
+    enrichSaveMetadata,
     detectRealmFromMagic,
     isLegacyHost,
     handleLegacyDomainRedirect,
