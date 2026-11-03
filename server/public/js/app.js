@@ -556,7 +556,7 @@ window.addEventListener('DOMContentLoaded', () => {
             network.sendKey('@');
             return;
         }
-        // 8. Sil-Q / Hengband / FrogComposBand Random Option Menu (Sex, Race, Class, Personality, House, Patron)
+        // 8. Sil-Q / Hengband / FrogComposBand / NetHack / DCSS / Brogue / Rogue Random Option Menu
         if (screenText.includes('choose a sex') || screenText.includes('choose a race') ||
             screenText.includes('choose a class') || screenText.includes('choose a personality') ||
             screenText.includes('choose patron') || screenText.includes('choose a patron') ||
@@ -565,7 +565,8 @@ window.addEventListener('DOMContentLoaded', () => {
             screenText.includes('random menu item') || screenText.includes('* random') ||
             screenText.includes('*) random') || screenText.includes('*)ランダム') ||
             screenText.includes('choose your race') || screenText.includes('choose your class') ||
-            screenText.includes('choose house') || screenText.includes('choose a house')) {
+            screenText.includes('choose house') || screenText.includes('choose a house') ||
+            screenText.includes('choose your role') || screenText.includes('choose your adventurer')) {
             network.sendKey('*');
             return;
         }
@@ -2419,7 +2420,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 returnToMainMenu();
             }
         }, 20000);
-        network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm);
+        network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm, !options.autoBirth);
     }
 
     async function reloadLastSave() {
@@ -3374,7 +3375,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function cycleRealm(delta = 1) {
         if (appState === 'game') return;
-        const realms = ['angband', 'frogcomposband', 'hengband', 'silq', 'nethack'];
+        const realms = ['angband', 'frogcomposband', 'hengband', 'silq', 'nethack', 'dcss', 'brogue', 'rogue'];
         const currentIdx = realms.indexOf(activeRealm);
         const nextIdx = (currentIdx + delta + realms.length) % realms.length;
         selectRealm(realms[nextIdx], false);
@@ -4188,7 +4189,7 @@ window.addEventListener('DOMContentLoaded', () => {
             ]));
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
         } else {
-            const realmTitles = { 'silq': '💍 SIL-Q CLASSIC TERMINAL', 'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL', 'hengband': '🎴 HENGBAND CLASSIC TERMINAL', 'nethack': '🏺 NETHACK CLASSIC TERMINAL', 'angband': '⚔ ANGBAND CLASSIC TERMINAL' };
+            const realmTitles = { 'silq': '💍 SIL-Q CLASSIC TERMINAL', 'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL', 'hengband': '🎴 HENGBAND CLASSIC TERMINAL', 'nethack': '🏺 NETHACK CLASSIC TERMINAL', 'dcss': '🗿 DCSS CLASSIC TERMINAL', 'brogue': '🔥 BROGUE CLASSIC TERMINAL', 'rogue': '🗡️ ROGUE 1980 CLASSIC TERMINAL', 'angband': '⚔ ANGBAND CLASSIC TERMINAL' };
             terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND CLASSIC TERMINAL', '🎴 HENGBAND — Classic View / クラシック端末', '🎴 変愚蛮怒 — クラシック端末') : (realmTitles[activeRealm] || '⚔ ANGBAND CLASSIC TERMINAL');
             if (termEscapeBtn) {
                 termEscapeBtn.style.display = 'inline-flex';
@@ -4653,7 +4654,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (_wMcp && typeof _wMcp.registerTool === 'function') {
         try {
             _wMcp.registerTool({ name: 'angband3d_get_hud_state', description: 'Read current realm, appState, and HUD vitals', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realm: getActiveRealm(), appState, hp: lastFrame?.player?.hp, depth: lastFrame?.player?.depth }) });
-            _wMcp.registerTool({ name: 'angband3d_list_realms', description: 'List playable roguelike realms on Angband 3D', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realms: ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack'] }) });
+            _wMcp.registerTool({ name: 'angband3d_list_realms', description: 'List playable roguelike realms on Angband 3D', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realms: ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue'] }) });
         } catch (_) {}
     }
     // View routing (AGENTS.md §3.3). Logic lives in screen-context.js needsTerminal (verbatim move, WS2);
@@ -5150,7 +5151,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 // During manual character creation or saved character loading:
                 // NEVER auto-advance menu screens, stat rollers, birth options, name inputs, or review screens!
                 const screenText = (frame.term && frame.term.rows ? frame.term.rows.map(r => r.g || '').join('\n') : '').toLowerCase();
-                const isMenuOrInteractive = ['choose a', 'choose the', 'select a', 'selection', 'race', 'class', 'sex', 'personality', 'realm', 'house', 'options', 'allocate points', 'set minimum stats', 'roller', 'point-based', 'are you sure', '[y/n]', '(y/n)', 'name:', 'enter a name', "enter your player's name", 'character background', 'use as is', "'y': use", 'to start over', 'r to reroll', 'reroll', "'s' to start", 'accept character', "['r'eroll", 'or enter to accept', "['q'uit"].some(w => screenText.includes(w));
+                const isMenuOrInteractive = ['choose a', 'choose the', 'choose your', 'select a', 'selection', 'race', 'class', 'sex', 'personality', 'realm', 'house', 'options', 'allocate points', 'set minimum stats', 'roller', 'point-based', 'are you sure', '[y/n]', '(y/n)', 'name:', 'enter a name', "enter your player's name", 'character background', 'use as is', "'y': use", 'to start over', 'r to reroll', 'reroll', "'s' to start", 'accept character', "['r'eroll", 'or enter to accept', "['q'uit"].some(w => screenText.includes(w));
                 if (!isMenuOrInteractive) {
                     // Only auto-advance non-interactive splash screens (like title poem or saved character press space to enter)
                     if (screenText.includes('into the vast and echoing gloom') || 

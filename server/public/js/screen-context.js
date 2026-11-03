@@ -202,7 +202,7 @@
             'sex affects stats', 'choose sex', 'choose your sex', 'choose character sex', 'choose character race', 'choose character class',
             'choose a personality', 'choose personality', 'personality affects stats', 'choose realm', 'choose a realm',
             'choose first realm', 'choose second realm', 'first realm', 'second realm', 'choose a house', 'choose house',
-            'choose character background', 'choose background', 'choose subrace', 'choose a subrace', '*でランダム', '* for random',
+            'choose character background', 'choose background', 'choose subrace', 'choose a subrace', 'choose your role', 'choose your adventurer', '*でランダム', '* for random',
             'escで戻る', 'esc to return', 'esc to step back', 'esc:戻る', 'escで前へ'].some(s => screenText.includes(s));
 
         const isReviewScreen = !isChoiceMenu && !isNamePrompt && !isHistoryPrompt && !isStatRoller && !isBackgroundEdit && !isReadyPrompt &&
@@ -289,7 +289,7 @@
             'choose a class', 'choose class', 'class affects stats', 'choose character class', 'choose a personality',
             'choose personality', 'personality affects stats', 'choose realm', 'choose a realm', 'choose first realm',
             'choose second realm', 'first realm', 'second realm', 'choose a house', 'choose house', 'choose character background',
-            'choose background', 'choose subrace', 'choose a subrace', '*でランダム', '* for random', 'escで戻る', 'esc to return',
+            'choose background', 'choose subrace', 'choose a subrace', 'choose your role', 'choose your adventurer', '*でランダム', '* for random', 'escで戻る', 'esc to return',
             'esc to step back', 'esc:戻る', 'escで前へ'].some(s => screenText.includes(s));
         const isNamePrompt = !inPlay && ['名前を入力', "character's name", 'enter a name', 'choose your name'].some(s => screenText.includes(s));
         const isReviewScreen = !isChoiceMenu && !isNamePrompt && !inPlay && (

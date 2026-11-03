@@ -14,6 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const readline = require('readline');
 
 const MAP_W = 66;
@@ -43,14 +44,18 @@ function parseCliArgs(argv, defaultSaveDir) {
     let user = 'Adventurer';
     let saveDir = defaultSaveDir;
     let isNew = false;
+    let customBirth = false;
+    let randomBirth = false;
     for (let i = 2; i < argv.length; i++) {
         const arg = String(argv[i] || '');
         if (arg === '-n') isNew = true;
+        else if (arg === '-c' || arg === '--custom') customBirth = true;
+        else if (arg === '-r' || arg === '--random') randomBirth = true;
         else if (arg.startsWith('-u')) user = arg.slice(2) || user;
         else if (arg.startsWith('-dsave=')) saveDir = arg.slice(7) || saveDir;
     }
     const cleanUser = user.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'Adventurer';
-    return { user: cleanUser, saveDir, isNew };
+    return { user: cleanUser, saveDir, isNew, customBirth, randomBirth };
 }
 
 function isWalkableFeat(feat) {
@@ -93,13 +98,14 @@ class UniversalCartridgeEngine {
         this.user = cliOpts.user.replace(/\.sav$/i, '');
         this.saveFile = path.join(this.saveDir, `${this.user}.sav`);
         this.seq = 0;
-        this.rngState = (Date.now() ^ 0x9e3779b9) >>> 0;
+        this.rngState = (crypto.randomBytes(4).readUInt32LE(0) || ((Date.now() ^ 0x9e3779b9) >>> 0)) >>> 0;
 
         if (!cliOpts.isNew && this.loadSave()) {
             this.addMessage(`Welcome back to ${spec.title}, ${this.state.player.name}!`, 14);
         } else {
-            this.initNewState(0);
-            if (cliOpts.isNew) {
+            const startRoleIdx = cliOpts.randomBirth ? this.rand(spec.roles.length) : 0;
+            this.initNewState(startRoleIdx);
+            if (cliOpts.isNew && !cliOpts.customBirth && (this.realm !== 'dcss' || cliOpts.randomBirth)) {
                 this.state.phase = 'play';
                 this.saveGame();
             }
@@ -107,8 +113,19 @@ class UniversalCartridgeEngine {
     }
 
     rand(max) {
-        this.rngState = (1664525 * this.rngState + 1013904223) >>> 0;
+        this.rngState = (Math.imul(this.rngState, 1664525) + 1013904223) >>> 0;
         return max > 0 ? (this.rngState % max) : 0;
+    }
+
+    shuffleArray(arr) {
+        const copy = arr.slice();
+        for (let i = copy.length - 1; i > 0; i--) {
+            const j = this.rand(i + 1);
+            const tmp = copy[i];
+            copy[i] = copy[j];
+            copy[j] = tmp;
+        }
+        return copy;
     }
 
     initNewState(roleIdx = 0) {
@@ -220,74 +237,129 @@ class UniversalCartridgeEngine {
         }
 
         const rooms = [];
-        const roomCols = 4;
-        const roomRows = 2;
+        // Rogue 1980 uses its signature 3x3 9-sector grid; Brogue & DCSS use a 4x2 8-sector grid with varied dimensions
+        const isRogue = this.realm === 'rogue';
+        const roomCols = isRogue ? 3 : 4;
+        const roomRows = isRogue ? 3 : 2;
         const cellW = Math.floor((MAP_W - 4) / roomCols);
         const cellH = Math.floor((MAP_H - 2) / roomRows);
 
         for (let ry = 0; ry < roomRows; ry++) {
             for (let rx = 0; rx < roomCols; rx++) {
-                const rw = 6 + this.rand(Math.max(2, cellW - 8));
-                const rh = 4 + this.rand(Math.max(2, cellH - 5));
+                const minW = isRogue ? 5 : 6;
+                const minH = isRogue ? 3 : 4;
+                const rw = minW + this.rand(Math.max(2, cellW - minW - 2));
+                const rh = minH + this.rand(Math.max(2, cellH - minH - 1));
                 const x0 = 2 + rx * cellW + this.rand(Math.max(1, cellW - rw - 1));
                 const y0 = 1 + ry * cellH + this.rand(Math.max(1, cellH - rh - 1));
-                const room = { x0, y0, x1: Math.min(MAP_W - 3, x0 + rw), y1: Math.min(MAP_H - 3, y0 + rh) };
+                const room = {
+                    rx,
+                    ry,
+                    x0,
+                    y0,
+                    x1: Math.min(MAP_W - 3, x0 + rw),
+                    y1: Math.min(MAP_H - 3, y0 + rh)
+                };
                 room.cx = Math.floor((room.x0 + room.x1) / 2);
                 room.cy = Math.floor((room.y0 + room.y1) / 2);
+                // Rogue deeper floors have a chance of dark rooms; Brogue/DCSS vary ambient lighting
+                const darkChance = isRogue ? Math.min(55, (depth - 1) * 10) : 20;
+                const isLit = depth === 1 ? true : (this.rand(100) >= darkChance);
+                room.lit = isLit;
                 rooms.push(room);
 
                 for (let y = room.y0; y <= room.y1; y++) {
                     for (let x = room.x0; x <= room.x1; x++) {
-                        map[y][x] = { glyph: '.', attr: 1, feat: FEAT.FLOOR, known: false, inView: false, roomLit: true };
+                        // Brogue organic cavern chambers soften extreme corners on larger rooms
+                        if (this.realm === 'brogue' && (room.x1 - room.x0 >= 7) && (room.y1 - room.y0 >= 5)) {
+                            const isCorner = (x === room.x0 || x === room.x1) && (y === room.y0 || y === room.y1);
+                            if (isCorner && this.rand(100) < 65) continue;
+                        }
+                        map[y][x] = { glyph: '.', attr: isLit ? 1 : 2, feat: FEAT.FLOOR, known: false, inView: false, roomLit: isLit };
                     }
                 }
             }
         }
 
-        // Connect rooms with corridors and occasional doors
-        for (let i = 0; i < rooms.length - 1; i++) {
-            let x = rooms[i].cx;
-            let y = rooms[i].cy;
-            const tx = rooms[i + 1].cx;
-            const ty = rooms[i + 1].cy;
-            while (x !== tx) {
-                x += Math.sign(tx - x);
-                if (map[y][x].feat === FEAT.WALL) {
-                    map[y][x] = { glyph: '.', attr: 1, feat: FEAT.FLOOR, known: false, inView: false, roomLit: false };
+        const carveCorridor = (a, b) => {
+            let x = a.cx;
+            let y = a.cy;
+            const tx = b.cx;
+            const ty = b.cy;
+            const horizFirst = this.rand(2) === 0;
+            const stepCell = (ny, nx, prevFeat) => {
+                if (map[ny][nx].feat === FEAT.WALL) {
+                    const placeDoor = prevFeat === FEAT.FLOOR && !map[ny][nx].roomLit && this.rand(100) < 35;
+                    map[ny][nx] = {
+                        glyph: placeDoor ? '+' : '.',
+                        attr: placeDoor ? 3 : 2,
+                        feat: placeDoor ? FEAT.CLOSED_DOOR : FEAT.FLOOR,
+                        known: false,
+                        inView: false,
+                        roomLit: false
+                    };
                 }
+            };
+            if (horizFirst) {
+                while (x !== tx) { const pf = map[y][x].feat; x += Math.sign(tx - x); stepCell(y, x, pf); }
+                while (y !== ty) { const pf = map[y][x].feat; y += Math.sign(ty - y); stepCell(y, x, pf); }
+            } else {
+                while (y !== ty) { const pf = map[y][x].feat; y += Math.sign(ty - y); stepCell(y, x, pf); }
+                while (x !== tx) { const pf = map[y][x].feat; x += Math.sign(tx - x); stepCell(y, x, pf); }
             }
-            while (y !== ty) {
-                y += Math.sign(ty - y);
-                if (map[y][x].feat === FEAT.WALL) {
-                    map[y][x] = { glyph: '.', attr: 1, feat: FEAT.FLOOR, known: false, inView: false, roomLit: false };
+        };
+
+        // Connect shuffled spanning order + grid cross-links so every level has non-linear loops
+        const shuffledRooms = this.shuffleArray(rooms);
+        for (let i = 0; i < shuffledRooms.length - 1; i++) {
+            carveCorridor(shuffledRooms[i], shuffledRooms[i + 1]);
+        }
+        for (let i = 0; i < rooms.length; i++) {
+            for (let j = i + 1; j < rooms.length; j++) {
+                const manhattan = Math.abs(rooms[i].rx - rooms[j].rx) + Math.abs(rooms[i].ry - rooms[j].ry);
+                if (manhattan === 1 && this.rand(100) < 55) {
+                    carveCorridor(rooms[i], rooms[j]);
                 }
             }
         }
 
-        // Place Up & Down stairs
-        const startRoom = rooms[0];
-        const endRoom = rooms[rooms.length - 1];
+        // Place Up & Down stairs in distinct randomized rooms
+        const startRoom = shuffledRooms[0];
+        const endRoom = shuffledRooms[shuffledRooms.length - 1];
         this.state.player.x = startRoom.cx;
         this.state.player.y = startRoom.cy;
         map[startRoom.cy][startRoom.cx].glyph = '<';
         map[startRoom.cy][startRoom.cx].feat = FEAT.UP_STAIR;
         map[startRoom.cy][startRoom.cx].attr = 15;
+        map[startRoom.cy][startRoom.cx].roomLit = true;
 
         map[endRoom.cy][endRoom.cx].glyph = '>';
         map[endRoom.cy][endRoom.cx].feat = FEAT.DOWN_STAIR;
         map[endRoom.cy][endRoom.cx].attr = 14;
 
-        // Realm-specific environmental features
-        if (this.realm === 'dcss' && rooms.length > 2) {
-            const altarRoom = rooms[2];
-            const god = (this.spec.gods && this.spec.gods[(depth + this.rand(this.spec.gods.length)) % this.spec.gods.length]) || 'Okawaru';
+        // Realm-specific procedural features in randomized non-endpoint rooms
+        if (this.realm === 'dcss' && shuffledRooms.length > 2) {
+            const altarRoom = shuffledRooms[1];
+            const gods = (this.spec.gods && this.spec.gods.length > 0) ? this.spec.gods : ['Okawaru', 'Trog', 'Vehumet'];
+            const god = gods[(depth + this.rand(gods.length)) % gods.length];
             map[altarRoom.cy][altarRoom.cx].glyph = '_';
             map[altarRoom.cy][altarRoom.cx].feat = FEAT.ALTAR;
             map[altarRoom.cy][altarRoom.cx].attr = 14;
             map[altarRoom.cy][altarRoom.cx].deity = god;
-        } else if (this.realm === 'brogue' && rooms.length > 3) {
-            // Brogue environmental tiles: lava/water border & captive ally
-            const envRoom = rooms[2];
+            // On Depth 4 (Ecumenical Temple), spawn multiple pantheon altars
+            if (depth === 4 && shuffledRooms.length > 4) {
+                for (let gIdx = 2; gIdx <= 3; gIdx++) {
+                    const extraRoom = shuffledRooms[gIdx];
+                    const extraGod = gods[(depth + gIdx + this.rand(gods.length)) % gods.length];
+                    map[extraRoom.cy][extraRoom.cx].glyph = '_';
+                    map[extraRoom.cy][extraRoom.cx].feat = FEAT.ALTAR;
+                    map[extraRoom.cy][extraRoom.cx].attr = 14;
+                    map[extraRoom.cy][extraRoom.cx].deity = extraGod;
+                }
+            }
+        } else if (this.realm === 'brogue' && shuffledRooms.length > 3) {
+            // Brogue environmental tiles: subterranean lake or lava pool with walkable center bridge
+            const envRoom = shuffledRooms[1];
             const isLava = depth >= 4;
             for (let x = envRoom.x0 + 1; x < envRoom.x1; x++) {
                 const ry = envRoom.y0 + 1;
@@ -297,26 +369,28 @@ class UniversalCartridgeEngine {
                     map[ry][x].attr = isLava ? 4 : 11;
                 }
             }
-        } else if (rooms.length > 2) {
-            const featRoom = rooms[2];
+        } else if (shuffledRooms.length > 2) {
+            const featRoom = shuffledRooms[1];
             map[featRoom.cy][featRoom.cx].glyph = '{';
             map[featRoom.cy][featRoom.cx].feat = FEAT.FOUNTAIN;
             map[featRoom.cy][featRoom.cx].attr = 11;
         }
 
         this.state.map = map;
+        this.sanitizeDoorPlacement();
         this.state.monsters = [];
         this.state.objects = [];
 
-        // Spawn realm monsters
+        // Spawn realm monsters in non-starting rooms
         const eligibleMons = this.spec.monsters.filter(m => (m.minDepth || 1) <= depth + 1);
         let monId = 1;
-        for (let i = 1; i < rooms.length; i++) {
-            const rm = rooms[i];
+        for (let i = 1; i < shuffledRooms.length; i++) {
+            const rm = shuffledRooms[i];
             const template = eligibleMons[this.rand(eligibleMons.length)] || this.spec.monsters[0];
             const mx = rm.x0 + 1 + this.rand(Math.max(1, rm.x1 - rm.x0 - 1));
             const my = rm.y0 + 1 + this.rand(Math.max(1, rm.y1 - rm.y0 - 1));
             if (mx === this.state.player.x && my === this.state.player.y) continue;
+            if (!map[my] || !map[my][mx] || !isWalkableFeat(map[my][mx].feat)) continue;
             this.state.monsters.push({
                 id: monId++,
                 race: template.name,
@@ -337,10 +411,10 @@ class UniversalCartridgeEngine {
             });
         }
 
-        // Brogue captive ally in room 3
-        if (this.realm === 'brogue' && rooms.length > 3 && this.spec.allies) {
-            const allyRoom = rooms[3];
-            const allyTpl = this.spec.allies[depth % this.spec.allies.length];
+        // Brogue captive ally in a randomized chamber
+        if (this.realm === 'brogue' && shuffledRooms.length > 3 && this.spec.allies) {
+            const allyRoom = shuffledRooms[2];
+            const allyTpl = this.spec.allies[(depth + this.rand(this.spec.allies.length)) % this.spec.allies.length];
             this.state.monsters.push({
                 id: monId++,
                 race: `chained ${allyTpl.name}`,
@@ -362,18 +436,20 @@ class UniversalCartridgeEngine {
             });
         }
 
-        // Spawn floor items
-        for (let i = 1; i < rooms.length; i++) {
-            const rm = rooms[i];
+        // Spawn floor items across shuffled rooms
+        for (let i = 1; i < shuffledRooms.length; i++) {
+            const rm = shuffledRooms[i];
             const tpl = this.spec.items[this.rand(this.spec.items.length)];
-            const ox = rm.x0 + this.rand(Math.max(1, rm.x1 - rm.x0));
-            const oy = rm.y0 + this.rand(Math.max(1, rm.y1 - rm.y0));
-            this.state.objects.push({
-                ...tpl,
-                x: ox,
-                y: oy,
-                count: tpl.count || 1
-            });
+            const ox = rm.x0 + 1 + this.rand(Math.max(1, rm.x1 - rm.x0 - 1));
+            const oy = rm.y0 + 1 + this.rand(Math.max(1, rm.y1 - rm.y0 - 1));
+            if (map[oy] && map[oy][ox] && isWalkableFeat(map[oy][ox].feat)) {
+                this.state.objects.push({
+                    ...tpl,
+                    x: ox,
+                    y: oy,
+                    count: tpl.count || 1
+                });
+            }
         }
 
         // Goal artifact on deep floors
@@ -393,6 +469,34 @@ class UniversalCartridgeEngine {
         }
 
         this.updateVisibility();
+    }
+
+    sanitizeDoorPlacement() {
+        const grid = this.state && this.state.map;
+        if (!Array.isArray(grid)) return;
+        const isWallCell = (cy, cx) => {
+            const c = grid[cy] && grid[cy][cx];
+            return Boolean(c && (c.feat === FEAT.WALL || c.feat === FEAT.PERM_WALL));
+        };
+        for (let y = 1; y < MAP_H - 1; y++) {
+            for (let x = 1; x < MAP_W - 1; x++) {
+                const cell = grid[y] && grid[y][x];
+                if (!cell) continue;
+                if (cell.feat === FEAT.CLOSED_DOOR || cell.feat === FEAT.OPEN_DOOR || cell.glyph === '+' || cell.glyph === "'") {
+                    const wallN = isWallCell(y - 1, x);
+                    const wallS = isWallCell(y + 1, x);
+                    const wallW = isWallCell(y, x - 1);
+                    const wallE = isWallCell(y, x + 1);
+                    const framedNS = wallN && wallS && (!wallW || !wallE);
+                    const framedEW = wallW && wallE && (!wallN || !wallS);
+                    if (!framedNS && !framedEW) {
+                        cell.feat = FEAT.FLOOR;
+                        cell.glyph = '.';
+                        cell.attr = cell.roomLit ? 1 : 2;
+                    }
+                }
+            }
+        }
     }
 
     updateVisibility() {
@@ -529,9 +633,26 @@ class UniversalCartridgeEngine {
         const p = this.state.player;
 
         if (this.state.phase === 'setup') {
-            if (lower === 'enter' || lower === 'return' || lower === 'space' || lower === '*' || lower === 'y') {
+            if (lower === '*') {
+                const randIdx = this.rand(this.spec.roles.length);
+                this.initNewState(randIdx);
                 this.state.phase = 'play';
                 this.saveGame();
+                return;
+            }
+            if (lower === 'enter' || lower === 'return' || lower === 'space' || lower === 'y') {
+                this.state.phase = 'play';
+                this.saveGame();
+                return;
+            }
+            if (lower === 'down' || lower === 'arrowdown' || lower === 'j') {
+                const next = ((this.state.selectedRoleIdx || 0) + 1) % this.spec.roles.length;
+                this.initNewState(next);
+                return;
+            }
+            if (lower === 'up' || lower === 'arrowup' || lower === 'k') {
+                const prev = ((this.state.selectedRoleIdx || 0) - 1 + this.spec.roles.length) % this.spec.roles.length;
+                this.initNewState(prev);
                 return;
             }
             const idx = this.spec.roles.findIndex(r => r.key === lower);

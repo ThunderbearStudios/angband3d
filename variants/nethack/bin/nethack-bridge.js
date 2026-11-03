@@ -22,6 +22,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const readline = require('readline');
 
 const MAP_W = 66;
@@ -176,18 +177,29 @@ class NetHackEngine {
         this.user = opts.user;
         this.saveFile = path.join(this.saveDir, this.user);
         this.seq = 0;
-        this.seed = (Date.now() ^ 0x5f3759df) >>> 0;
+        this.seed = (crypto.randomBytes(4).readUInt32LE(0) || ((Date.now() ^ 0x5f3759df) >>> 0)) >>> 0;
         this.state = null;
         if (!opts.isNew && this.loadSave()) {
             // Loaded existing character
         } else {
-            this.initNewState(false);
+            this.initNewState(false, 0);
         }
     }
 
     rand(max) {
         this.seed = (Math.imul(this.seed, 1664525) + 1013904223) >>> 0;
         return this.seed % Math.max(1, max);
+    }
+
+    shuffleArray(arr) {
+        const copy = arr.slice();
+        for (let i = copy.length - 1; i > 0; i--) {
+            const j = this.rand(i + 1);
+            const tmp = copy[i];
+            copy[i] = copy[j];
+            copy[j] = tmp;
+        }
+        return copy;
     }
 
     initNewState(quickStart = false, roleIdx = 0) {
@@ -346,35 +358,48 @@ class NetHackEngine {
             }
         }
 
-        // Carve corridors & doors between rooms
-        for (let i = 0; i < rooms.length - 1; i++) {
-            const a = rooms[i];
-            const b = rooms[i + 1];
+        // Carve corridors & doors between shuffled rooms and adjacent sectors for non-linear loops
+        const carveNhCorridor = (a, b) => {
             let x = a.cx, y = a.cy;
-            while (x !== b.cx) {
-                const prevFeat = grid[y][x].feat;
-                x += (b.cx > x) ? 1 : -1;
-                if (grid[y][x].feat === FEAT.WALL) {
-                    const isDoorEdge = prevFeat === FEAT.FLOOR && !grid[y][x].roomLit && this.rand(100) < 35;
-                    grid[y][x].feat = isDoorEdge ? FEAT.CLOSED_DOOR : FEAT.FLOOR;
-                    grid[y][x].glyph = isDoorEdge ? '+' : '.';
-                    grid[y][x].attr = isDoorEdge ? 3 : 2;
+            const horizFirst = this.rand(2) === 0;
+            const stepX = () => {
+                while (x !== b.cx) {
+                    const prevFeat = grid[y][x].feat;
+                    x += (b.cx > x) ? 1 : -1;
+                    if (grid[y][x].feat === FEAT.WALL) {
+                        const isDoorEdge = prevFeat === FEAT.FLOOR && !grid[y][x].roomLit && this.rand(100) < 35;
+                        grid[y][x].feat = isDoorEdge ? FEAT.CLOSED_DOOR : FEAT.FLOOR;
+                        grid[y][x].glyph = isDoorEdge ? '+' : '.';
+                        grid[y][x].attr = isDoorEdge ? 3 : 2;
+                    }
                 }
-            }
-            while (y !== b.cy) {
-                y += (b.cy > y) ? 1 : -1;
-                if (grid[y][x].feat === FEAT.WALL) {
-                    grid[y][x].feat = FEAT.FLOOR;
-                    grid[y][x].glyph = '.';
-                    grid[y][x].attr = 2;
+            };
+            const stepY = () => {
+                while (y !== b.cy) {
+                    y += (b.cy > y) ? 1 : -1;
+                    if (grid[y][x].feat === FEAT.WALL) {
+                        grid[y][x].feat = FEAT.FLOOR;
+                        grid[y][x].glyph = '.';
+                        grid[y][x].attr = 2;
+                    }
                 }
-            }
+            };
+            if (horizFirst) { stepX(); stepY(); } else { stepY(); stepX(); }
+        };
+
+        const shuffledRooms = this.shuffleArray(rooms);
+        for (let i = 0; i < shuffledRooms.length - 1; i++) {
+            carveNhCorridor(shuffledRooms[i], shuffledRooms[i + 1]);
+        }
+        if (rooms.length >= 8) {
+            carveNhCorridor(rooms[0], rooms[4]);
+            carveNhCorridor(rooms[3], rooms[7]);
         }
 
-        const startRoom = rooms[0];
-        const endRoom = rooms[rooms.length - 1];
-        const midRoom = rooms[Math.floor(rooms.length / 2)];
-        const altarRoom = rooms[Math.min(rooms.length - 2, 2)];
+        const startRoom = shuffledRooms[0];
+        const endRoom = shuffledRooms[shuffledRooms.length - 1];
+        const midRoom = shuffledRooms[1] || shuffledRooms[Math.floor(shuffledRooms.length / 2)];
+        const altarRoom = shuffledRooms[2] || shuffledRooms[Math.min(shuffledRooms.length - 2, 2)];
 
         // Up & Down stairs
         grid[startRoom.cy][startRoom.cx].feat = FEAT.UP_STAIR;
@@ -431,8 +456,8 @@ class NetHackEngine {
         }
 
         const eligible = MONSTER_TABLE.filter(m => m.minDepth <= depth + 2 && (!m.isBoss || depth >= 10));
-        for (let i = 1; i < rooms.length; i++) {
-            const rm = rooms[i];
+        for (let i = 1; i < shuffledRooms.length; i++) {
+            const rm = shuffledRooms[i];
             const count = 1 + (this.rand(100) < 45 ? 1 : 0);
             for (let c = 0; c < count; c++) {
                 const mx = rm.x0 + this.rand(Math.max(1, rm.x1 - rm.x0 + 1));
@@ -635,7 +660,13 @@ class NetHackEngine {
         // 1. Setup / Birth screen
         if (this.state.phase === 'setup') {
             const lower = k.toLowerCase();
-            if (lower === 'enter' || lower === 'return' || lower === 'space' || lower === '*' || lower === 'y') {
+            if (lower === '*') {
+                const randIdx = this.rand(ROLES.length);
+                this.initNewState(true, randIdx);
+                this.saveGame();
+                return;
+            }
+            if (lower === 'enter' || lower === 'return' || lower === 'space' || lower === 'y') {
                 this.state.phase = 'play';
                 this.saveGame();
                 return;

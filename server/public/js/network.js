@@ -120,7 +120,7 @@ class GameNetwork {
         }
     }
 
-    connect(charName = 'Adventurer', isNew = false, saveFile = null, realm = 'angband') {
+    connect(charName = 'Adventurer', isNew = false, saveFile = null, realm = 'angband', isCustomBirth = false) {
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
@@ -173,7 +173,7 @@ class GameNetwork {
         const host = window.location.host;
         let wsUrl = `${protocol}//${host}/ws?user=${encodeURIComponent(this.currentChar)}`;
         if (isNew) {
-            wsUrl += '&new=1';
+            wsUrl += isCustomBirth ? '&new=1&custom=1' : '&new=1';
         }
         if (effectiveSave) {
             wsUrl += `&save=${encodeURIComponent(effectiveSave)}`;

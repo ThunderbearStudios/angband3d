@@ -3347,6 +3347,7 @@ async function spawnGameSession(ws, request) {
     const save = resolvedSave || (rawSave ? rawSave.replace(/[^a-zA-Z0-9_.-]/g, '') : null);
 
     const isNew = urlObj.searchParams.get('new') === '1' || urlObj.searchParams.get('reroll') === '1';
+    const isCustomBirth = urlObj.searchParams.get('custom') === '1';
     let targetSlot = save || user || 'Adventurer';
     let savePath = path.join(engineInfo.saveDir || SAVE_DIR, targetSlot);
 
@@ -3412,6 +3413,9 @@ async function spawnGameSession(ws, request) {
     }
     if (isNew) {
         args.push(engineInfo.cli?.new_char_switch || '-n');
+        if (isCustomBirth && (realm === 'dcss' || realm === 'brogue' || realm === 'rogue' || realm === 'nethack')) {
+            args.push('-c');
+        }
     }
 
     const engineDir = engineInfo.cwd;

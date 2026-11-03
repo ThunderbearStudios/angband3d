@@ -505,10 +505,10 @@ function check(cond, msg) {
     check(bStatsHtml.includes('LUMENSTONES') && bStatsHtml.includes('NUTRITION'),
         'buildDeathStatsHtml for Brogue must render LUMENSTONES and NUTRITION cards');
 
-    // 9c. Dungeon Crawl Stone Soup (DCSS) Bridge
+    // 9c. Dungeon Crawl Stone Soup (DCSS) Bridge & Cross-Realm Custom/Random Birth + Procedural Variety
     const { DCSSEngine } = require(path.join(__dirname, '..', '..', 'variants', 'dcss', 'bin', 'dcss-bridge.js'));
-    const dcss = new DCSSEngine({ saveDir: tmpSaveDir, user: 'MiBeTest', isNew: false });
-    check(dcss.buildFrame().phase === 'setup', 'DCSSEngine must start in combo selection setup screen when isNew=false');
+    const dcss = new DCSSEngine({ saveDir: tmpSaveDir, user: 'MiBeTest', isNew: true });
+    check(dcss.buildFrame().phase === 'setup', 'DCSSEngine must start in combo selection setup screen on new game');
     dcss.handleKey('a'); // Select Minotaur Berserker (Trog)
     const dFrame = dcss.buildFrame();
     check(dFrame.phase === 'play' && dFrame.player.god === 'Trog' && dFrame.player.place_label === 'Dungeon:1',
@@ -516,6 +516,25 @@ function check(cond, msg) {
     const dSummary = RealmCartridge.formatDeathModalSummary(dFrame, 'dcss');
     check(dSummary.score.includes('Runes:') && dSummary.score.includes('Trog'),
         'formatDeathModalSummary for DCSS must display Runes of Zot and Deity');
+
+    const dcssRand = new DCSSEngine({ saveDir: tmpSaveDir, user: 'DcssRandTest', isNew: true });
+    dcssRand.handleKey('*');
+    check(dcssRand.buildFrame().phase === 'play', 'DCSSEngine must support * Quick Start random combo in setup phase');
+
+    const brogueCustom = new BrogueEngine({ saveDir: tmpSaveDir, user: 'BrogueCustomTest', isNew: true, customBirth: true });
+    check(brogueCustom.buildFrame().phase === 'setup', 'BrogueEngine with customBirth (-c) must start in setup phase for Loadout selection');
+    brogueCustom.handleKey('*');
+    check(brogueCustom.buildFrame().phase === 'play', 'BrogueEngine must transition from setup to play on * random loadout');
+
+    const rogueCustom = new RogueEngine({ saveDir: tmpSaveDir, user: 'RogueCustomTest', isNew: true, customBirth: true });
+    check(rogueCustom.buildFrame().phase === 'setup', 'RogueEngine with customBirth (-c) must start in setup phase');
+    rogueCustom.handleKey('c');
+    check(rogueCustom.buildFrame().phase === 'play' && rogueCustom.state.player.class === 'Archivist',
+        'RogueEngine setup selection c must spawn Archivist kit');
+
+    const nhRand = new NetHackEngine({ saveDir: tmpSaveDir, user: 'NhRandTest', isNew: true });
+    nhRand.handleKey('*');
+    check(nhRand.buildFrame().phase === 'play', 'NetHackEngine must support * Quick Start random role selection in setup phase');
 
     // 9d. Verify CREDITS.md & YASD 3D Emblem Asset
     const rootDir = path.resolve(__dirname, '../..');
