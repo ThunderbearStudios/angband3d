@@ -228,7 +228,7 @@ class InputController {
     resolveSmartAction(frame, facing) {
         const realm = (this.app && typeof this.app.getActiveRealm === 'function')
             ? this.app.getActiveRealm()
-            : ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (frame?.realm || 'angband'));
+            : ((typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (frame?.realm || 'angband'));
         const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
             ? (RealmKeys.realmKey('hold', realm) || ',')
             : ',';
@@ -993,6 +993,11 @@ class InputController {
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'r' || e.key === 'R')) {
                 e.preventDefault();
                 this.toggleDpadRunMode();
+                return;
+            }
+            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'e' || e.key === 'E')) {
+                e.preventDefault();
+                this.toggleAutoExplore();
                 return;
             }
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'w' || e.key === 'W')) {
@@ -1885,6 +1890,9 @@ class InputController {
                     if (verb === 'toggle-run') {
                         this.toggleDpadRunMode();
                         return;
+                    } else if (verb === 'explore' || verb === 'toggle-explore') {
+                        this.toggleAutoExplore();
+                        return;
                     } else if (verb === 'attack') {
                         this.dungeon.triggerAttackAnimation();
                         if (this.audio) this.audio.playWhoosh();
@@ -2029,6 +2037,7 @@ class InputController {
         bind('btn-aim', 'aim');
         bind('btn-search', 'search');
         bind('btn-terminal', 'terminal');
+        bind('btn-explore', 'explore');
         bind('btn-run-toggle', 'toggle-run');
 
         const wBtn = document.getElementById('btn-wasd-toggle');
@@ -2124,7 +2133,7 @@ class InputController {
         const actionBar = document.getElementById('action-bar');
         const actionPopover = document.getElementById('action-more-popover');
 
-        const ACTION_PRIORITY = ['btn-command-palette', 'btn-hero-action', 'btn-attack', 'btn-cast', 'btn-study', 'btn-browse', 'btn-fire', 'btn-throw', 'btn-quaff', 'btn-eat', 'btn-read', 'btn-pickup', 'btn-rest', 'btn-inventory', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-aim', 'btn-search', 'btn-door', 'btn-power', 'btn-skills', 'btn-quests', 'btn-overland', 'btn-stair', 'btn-run-toggle', 'btn-terminal', 'btn-guide-hud'];
+        const ACTION_PRIORITY = ['btn-command-palette', 'btn-hero-action', 'btn-attack', 'btn-cast', 'btn-study', 'btn-browse', 'btn-fire', 'btn-throw', 'btn-quaff', 'btn-eat', 'btn-read', 'btn-pickup', 'btn-rest', 'btn-inventory', 'btn-equipment', 'btn-wield', 'btn-drop', 'btn-aim', 'btn-search', 'btn-door', 'btn-power', 'btn-skills', 'btn-quests', 'btn-overland', 'btn-stair', 'btn-explore', 'btn-run-toggle', 'btn-terminal', 'btn-guide-hud'];
 
         if (actionMoreBtn && actionBar) {
             let lastMoreTime = 0;
@@ -2429,11 +2438,11 @@ class InputController {
 
     isHostileMonster(m, frame) {
         if (!m || m.visible === false || m.ml === false) return false;
-        if (m.friendly || m.pet || m.peaceful) return false;
+        if (m.friendly || m.pet || m.isPet || m.peaceful || m.isPeaceful || m.hostile === false || m.is_hostile === false || /\((?:tame|pet|friendly|peaceful)\)/i.test(m.name || m.race || '')) return false;
         const depth = frame?.player?.depth || 0;
         const realm = (this.app && typeof this.app.getActiveRealm === 'function')
             ? this.app.getActiveRealm()
-            : ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (frame?.realm || 'angband'));
+            : ((typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (frame?.realm || 'angband'));
         if (depth === 0 && realm !== 'silq') {
             const isDamaged = (typeof m.hp === 'number' && typeof m.hp_max === 'number' && m.hp < m.hp_max);
             const hasHostileFlag = Boolean(m.hostile || m.is_hostile || (m.status && /hostile|anger|alert/i.test(m.status)));
@@ -3032,145 +3041,65 @@ class InputController {
 
     computeMinimapPath(arg1, arg2, arg3, arg4, arg5) {
         let frame, startX, startY, goalX, goalY;
-        if (arg1 && typeof arg1 === 'object' && arg1.map) {
-            frame = arg1; startX = arg2; startY = arg3; goalX = arg4; goalY = arg5;
-        } else if (arg5 && typeof arg5 === 'object' && arg5.map) {
-            startX = arg1; startY = arg2; goalX = arg3; goalY = arg4; frame = arg5;
-        } else {
-            frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
-            startX = arg1; startY = arg2; goalX = arg3; goalY = arg4;
-        }
+        if (arg1 && typeof arg1 === 'object' && arg1.map) { frame = arg1; startX = arg2; startY = arg3; goalX = arg4; goalY = arg5; }
+        else if (arg5 && typeof arg5 === 'object' && arg5.map) { startX = arg1; startY = arg2; goalX = arg3; goalY = arg4; frame = arg5; }
+        else { frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null; startX = arg1; startY = arg2; goalX = arg3; goalY = arg4; }
         if (!frame || !frame.map || !Array.isArray(frame.map.rows)) return [];
-        const map = frame.map;
-        const outdoors = Boolean((frame.player && frame.player.depth === 0) || frame.is_wild_mode);
-        const sx = Math.round(Number(startX));
-        const sy = Math.round(Number(startY));
-        let gx = Math.round(Number(goalX));
-        let gy = Math.round(Number(goalY));
+        const map = frame.map, outdoors = Boolean((frame.player && frame.player.depth === 0) || frame.is_wild_mode);
+        const sx = Math.round(Number(startX)), sy = Math.round(Number(startY));
+        let gx = Math.round(Number(goalX)), gy = Math.round(Number(goalY));
         if (sx === gx && sy === gy) return [];
-
-        const w = map.w || (map.rows[0] && map.rows[0].g ? map.rows[0].g.length : 80);
-        const keyOf = (x, y) => y * w + x;
-
+        const w = map.w || (map.rows[0] && map.rows[0].g ? map.rows[0].g.length : 80), keyOf = (x, y) => y * w + x;
         const occupiedByCreature = new Set();
         if (Array.isArray(frame.monsters)) {
             for (const m of frame.monsters) {
-                if (m && m.visible !== false && typeof m.x === 'number' && typeof m.y === 'number') {
-                    if (!(m.x === sx && m.y === sy)) {
-                        occupiedByCreature.add(keyOf(m.x, m.y));
-                    }
-                }
+                if (m && m.visible !== false && typeof m.x === 'number' && typeof m.y === 'number' && !(m.x === sx && m.y === sy)) occupiedByCreature.add(keyOf(m.x, m.y));
             }
         }
-
         if (occupiedByCreature.has(keyOf(gx, gy))) return [];
-
         let goalCheck = this._isTileWalkableForNav(map, gx, gy, false, outdoors);
         if (!goalCheck.walkable) {
-            const adj = [
-                { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 },
-                { dx: 1, dy: -1 }, { dx: 1, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 }
-            ];
-            let bestNeighbor = null;
-            let bestDist = Infinity;
+            const adj = [{ dx: 0, dy: -1 }, { dx: 1, dy: 0 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: -1 }, { dx: 1, dy: 1 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 }];
+            let bestNeighbor = null, bestDist = Infinity;
             for (const d of adj) {
-                const nx = gx + d.dx;
-                const ny = gy + d.dy;
+                const nx = gx + d.dx, ny = gy + d.dy;
                 if (occupiedByCreature.has(keyOf(nx, ny))) continue;
                 const nc = this._isTileWalkableForNav(map, nx, ny, false, outdoors);
                 if (nc.walkable && !nc.isTrap && !nc.isStore) {
                     const dist = Math.hypot(nx - sx, ny - sy);
-                    if (dist < bestDist) {
-                        bestDist = dist;
-                        bestNeighbor = { x: nx, y: ny, check: nc };
-                    }
+                    if (dist < bestDist) { bestDist = dist; bestNeighbor = { x: nx, y: ny, check: nc }; }
                 }
             }
             if (!bestNeighbor) return [];
-            gx = bestNeighbor.x;
-            gy = bestNeighbor.y;
+            gx = bestNeighbor.x; gy = bestNeighbor.y;
             if (sx === gx && sy === gy) return [];
         }
-
-        const octile = (x1, y1, x2, y2) => {
-            const dx = Math.abs(x1 - x2);
-            const dy = Math.abs(y1 - y2);
-            return (dx + dy) + (1.41421356 - 2) * Math.min(dx, dy);
-        };
-
-        const open = [{ x: sx, y: sy, g: 0, f: octile(sx, sy, gx, gy) }];
-        const gScore = new Map();
-        const cameFrom = new Map();
-        const stepMeta = new Map();
+        const octile = (x1, y1, x2, y2) => { const dx = Math.abs(x1 - x2), dy = Math.abs(y1 - y2); return (dx + dy) + (1.41421356 - 2) * Math.min(dx, dy); };
+        const open = [{ x: sx, y: sy, g: 0, f: octile(sx, sy, gx, gy) }], gScore = new Map(), cameFrom = new Map(), stepMeta = new Map(), closed = new Set();
         gScore.set(keyOf(sx, sy), 0);
-        const closed = new Set();
-
-        const dirs = [
-            { dx: 0, dy: -1, w: 1.0 },
-            { dx: 1, dy: 0, w: 1.0 },
-            { dx: 0, dy: 1, w: 1.0 },
-            { dx: -1, dy: 0, w: 1.0 },
-            { dx: 1, dy: -1, w: 1.4142 },
-            { dx: 1, dy: 1, w: 1.4142 },
-            { dx: -1, dy: 1, w: 1.4142 },
-            { dx: -1, dy: -1, w: 1.4142 }
-        ];
-
+        const dirs = [{ dx: 0, dy: -1, w: 1.0 }, { dx: 1, dy: 0, w: 1.0 }, { dx: 0, dy: 1, w: 1.0 }, { dx: -1, dy: 0, w: 1.0 }, { dx: 1, dy: -1, w: 1.4142 }, { dx: 1, dy: 1, w: 1.4142 }, { dx: -1, dy: 1, w: 1.4142 }, { dx: -1, dy: -1, w: 1.4142 }];
         let iterations = 0;
-        const maxIterations = 4500;
-
-        while (open.length > 0 && iterations++ < maxIterations) {
+        while (open.length > 0 && iterations++ < 4500) {
             let bestIdx = 0;
-            for (let i = 1; i < open.length; i++) {
-                if (open[i].f < open[bestIdx].f) bestIdx = i;
-            }
-            const cur = open.splice(bestIdx, 1)[0];
-            const curKey = keyOf(cur.x, cur.y);
-
+            for (let i = 1; i < open.length; i++) { if (open[i].f < open[bestIdx].f) bestIdx = i; }
+            const cur = open.splice(bestIdx, 1)[0], curKey = keyOf(cur.x, cur.y);
             if (cur.x === gx && cur.y === gy) {
                 const path = [];
-                let k = curKey;
-                while (cameFrom.has(k)) {
-                    const meta = stepMeta.get(k);
-                    path.push(meta);
-                    k = cameFrom.get(k);
-                }
-                path.reverse();
-                return path;
+                for (let k = curKey; cameFrom.has(k); k = cameFrom.get(k)) path.push(stepMeta.get(k));
+                return path.reverse();
             }
-
             if (closed.has(curKey)) continue;
             closed.add(curKey);
-
             for (const d of dirs) {
-                const nx = cur.x + d.dx;
-                const ny = cur.y + d.dy;
-                const nKey = keyOf(nx, ny);
-                if (closed.has(nKey)) continue;
-                if (occupiedByCreature.has(nKey)) continue;
-
+                const nx = cur.x + d.dx, ny = cur.y + d.dy, nKey = keyOf(nx, ny);
+                if (closed.has(nKey) || occupiedByCreature.has(nKey)) continue;
                 const tileInfo = this._isTileWalkableForNav(map, nx, ny, false, outdoors);
-                if (!tileInfo.walkable) continue;
-                if (tileInfo.isTrap && !(nx === gx && ny === gy)) continue;
-                if (tileInfo.isStore && !(nx === gx && ny === gy)) continue;
-
-                const tentativeG = cur.g + d.w * tileInfo.cost;
-                const prevG = gScore.get(nKey);
+                if (!tileInfo.walkable || (tileInfo.isTrap && !(nx === gx && ny === gy)) || (tileInfo.isStore && !(nx === gx && ny === gy))) continue;
+                const tentativeG = cur.g + d.w * tileInfo.cost, prevG = gScore.get(nKey);
                 if (prevG === undefined || tentativeG < prevG) {
-                    gScore.set(nKey, tentativeG);
-                    cameFrom.set(nKey, curKey);
-                    stepMeta.set(nKey, {
-                        x: nx,
-                        y: ny,
-                        isClosedDoor: tileInfo.isClosedDoor,
-                        isTrap: tileInfo.isTrap
-                    });
-                    open.push({
-                        x: nx,
-                        y: ny,
-                        g: tentativeG,
-                        f: tentativeG + octile(nx, ny, gx, gy)
-                    });
+                    gScore.set(nKey, tentativeG); cameFrom.set(nKey, curKey);
+                    stepMeta.set(nKey, { x: nx, y: ny, isClosedDoor: tileInfo.isClosedDoor, isTrap: tileInfo.isTrap });
+                    open.push({ x: nx, y: ny, g: tentativeG, f: tentativeG + octile(nx, ny, gx, gy) });
                 }
             }
         }
@@ -3179,9 +3108,7 @@ class InputController {
 
     _statusSignatureOf(player) {
         if (!player) return '';
-        const st = Array.isArray(player.statuses)
-            ? player.statuses.map((s) => `${s.name || ''}:${s.val || 0}`).sort().join('|')
-            : '';
+        const st = Array.isArray(player.statuses) ? player.statuses.map((s) => `${s.name || ''}:${s.val || 0}`).sort().join('|') : '';
         return `${st}::${player.blind ? 1 : 0}:${player.confused ? 1 : 0}:${player.poisoned ? 1 : 0}:${player.afraid ? 1 : 0}:${player.cut ? 1 : 0}:${player.stun ? 1 : 0}`;
     }
 
@@ -3190,9 +3117,7 @@ class InputController {
         return items.map((it) => `${it.x},${it.y}:${it.name || it.glyph || ''}`).sort().join('|');
     }
 
-    get _minimapNavPath() {
-        return (this._autoNav && this._autoNav.active && Array.isArray(this._autoNav.path)) ? this._autoNav.path : null;
-    }
+    get _minimapNavPath() { return (this._autoNav && this._autoNav.active && Array.isArray(this._autoNav.path)) ? this._autoNav.path : null; }
 
     canEngageStreetViewNav(frame = null) {
         const effFrame = frame || (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
@@ -3200,27 +3125,14 @@ class InputController {
             this._boundDungeonCanEngage = (f) => this.canEngageStreetViewNav(f);
             this.dungeon.canEngageStreetViewNav = this._boundDungeonCanEngage;
         }
-        if (!effFrame || !effFrame.player || !effFrame.map) return false;
-        if (effFrame.phase !== 'play') return false;
-        if ((effFrame.ui?.overlay || 0) > 0) return false;
+        if (!effFrame || !effFrame.player || !effFrame.map || effFrame.phase !== 'play' || (effFrame.ui?.overlay || 0) > 0) return false;
         if (!effFrame.ui?.awaiting_command && !effFrame.ui?.more) return false;
-
-        const player = effFrame.player;
-        const statuses = Array.isArray(player.statuses) ? player.statuses : [];
-        const isDisabling = statuses.some(s => {
-            const name = typeof s === 'string' ? s : (s && s.name ? s.name : '');
-            return /blind|confus|paralyz|stun|afraid|hallucinat|盲目|混乱|麻痺|朦朧|恐怖|幻覚/i.test(name);
-        });
-        if (isDisabling) return false;
-
-        const px = player.x;
-        const py = player.y;
+        const player = effFrame.player, statuses = Array.isArray(player.statuses) ? player.statuses : [];
+        if (statuses.some(s => /blind|confus|paralyz|stun|afraid|hallucinat|盲目|混乱|麻痺|朦朧|恐怖|幻覚/i.test(typeof s === 'string' ? s : (s && s.name ? s.name : '')))) return false;
+        const px = player.x, py = player.y;
         if (px === undefined || py === undefined) return false;
-
         const monsters = Array.isArray(effFrame.monsters) ? effFrame.monsters : [];
-        const r = (this.realm || (effFrame && effFrame.realm) || 'angband').toLowerCase();
-        const depth = player.depth || 0;
-
+        const r = (this.realm || (effFrame && effFrame.realm) || 'angband').toLowerCase(), depth = player.depth || 0;
         for (const m of monsters) {
             if (!m || m.visible === false || m.ml === false || m.friendly || m.pet || m.peaceful) continue;
             if (depth === 0 && r !== 'silq') {
@@ -3228,26 +3140,131 @@ class InputController {
                 const hasHostileFlag = Boolean(m.hostile || m.is_hostile || (m.status && /hostile|anger|alert/i.test(m.status)));
                 if (!isDamaged && !hasHostileFlag) continue;
             }
-            const d = Math.max(Math.abs(m.x - px), Math.abs(m.y - py));
-            if (d <= 2) return false;
+            if (Math.max(Math.abs(m.x - px), Math.abs(m.y - py)) <= 2) return false;
         }
-
         return true;
     }
 
-    startMinimapAutoNav(goalX, goalY, frameOverride = null) {
+    _syncExploreButtonUI(active) {
+        if (typeof document === 'undefined') return;
+        const btn = document.getElementById('btn-explore');
+        if (!btn) return;
+        btn.classList.toggle('is-running', Boolean(active));
+        btn.classList.toggle('action-suggested', Boolean(active));
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        btn.innerHTML = active ? '🧭 Exploring <kbd>Alt+E</kbd>' : '🧭 Explore <kbd>Alt+E</kbd>';
+    }
+
+    _isTileUnexplored(map, x, y, outdoors = false) {
+        if (!map || !Array.isArray(map.rows)) return false;
+        const h = map.h || map.rows.length, w = map.w || (map.rows[0] && map.rows[0].g ? map.rows[0].g.length : 0);
+        if (y < 0 || y >= h || x < 0 || x >= w) return false;
+        const row = map.rows[y];
+        if (!row) return false;
+        const ch = (row.g && x < row.g.length) ? row.g[x] : ' ';
+        const feat = this.getFeatAt ? this.getFeatAt(map, x, y) : 0;
+        const flagStr = row.l || row.v;
+        if (!outdoors && flagStr && x < flagStr.length) return ((parseInt(flagStr[x], 16) || 0) & 0x3) === 0;
+        return ch === ' ' && feat === 0;
+    }
+
+    findNextAutoExploreGoal(frame, visitedGoals = null) {
+        if (!frame || !frame.player || !frame.map || !Array.isArray(frame.map.rows)) return null;
+        const map = frame.map, px = frame.player.x, py = frame.player.y;
+        const outdoors = Boolean((frame.player.depth === 0) || frame.is_wild_mode);
+        const h = map.h || map.rows.length, w = map.w || (map.rows[0] && map.rows[0].g ? map.rows[0].g.length : 80);
+        const dirs = [[0,-1],[1,0],[0,1],[-1,0],[1,-1],[1,1],[-1,1],[-1,-1]];
+        const seen = visitedGoals || new Set();
+
+        // 1. Visible unvisited floor items
+        const items = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
+        let bestItemGoal = null;
+        for (const it of items) {
+            if (!it || typeof it.x !== 'number' || typeof it.y !== 'number' || (it.x === px && it.y === py)) continue;
+            const k = `${it.x},${it.y}`;
+            if (seen.has(k)) continue;
+            const p = this.computeMinimapPath(frame, px, py, it.x, it.y);
+            if (p && p.length > 0 && (!bestItemGoal || p.length < bestItemGoal.path.length)) {
+                bestItemGoal = { x: it.x, y: it.y, path: p, reason: 'item' };
+            }
+        }
+        if (bestItemGoal) return bestItemGoal;
+
+        // 2. BFS for nearest unexplored frontier tile (or closed door bordering unexplored space)
+        const visited = new Uint8Array(w * h);
+        const queue = [{ x: px, y: py }];
+        visited[py * w + px] = 1;
+        let stairsGoal = null;
+
+        for (let head = 0; head < queue.length; head++) {
+            const cur = queue[head];
+            const isStart = (cur.x === px && cur.y === py);
+            const row = map.rows[cur.y];
+            const ch = (row && row.g && cur.x < row.g.length) ? row.g[cur.x] : ' ';
+            const tile = isStart ? { walkable: true, isClosedDoor: false, isTrap: false, isStore: false } : this._isTileWalkableForNav(map, cur.x, cur.y, false, outdoors);
+            if (!isStart && !seen.has(`${cur.x},${cur.y}`)) {
+                let bordersUnexplored = false;
+                for (let i = 0; i < 8; i++) {
+                    if (this._isTileUnexplored(map, cur.x + dirs[i][0], cur.y + dirs[i][1], outdoors)) { bordersUnexplored = true; break; }
+                }
+                if (bordersUnexplored && !tile.isTrap && !tile.isStore) {
+                    const p = this.computeMinimapPath(frame, px, py, cur.x, cur.y);
+                    if (p && p.length > 0) return { x: cur.x, y: cur.y, path: p, reason: 'frontier' };
+                }
+                if (!stairsGoal && ch === '>') {
+                    const p = this.computeMinimapPath(frame, px, py, cur.x, cur.y);
+                    if (p && p.length > 0) stairsGoal = { x: cur.x, y: cur.y, path: p, reason: 'stairs' };
+                }
+            }
+            if (tile.isClosedDoor && !isStart) continue;
+            for (let i = 0; i < 8; i++) {
+                const nx = cur.x + dirs[i][0], ny = cur.y + dirs[i][1];
+                if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                const idx = ny * w + nx;
+                if (visited[idx]) continue;
+                const nt = this._isTileWalkableForNav(map, nx, ny, false, outdoors);
+                if (!nt.walkable || nt.isTrap) continue;
+                visited[idx] = 1;
+                queue.push({ x: nx, y: ny });
+            }
+        }
+        return stairsGoal;
+    }
+
+    toggleAutoExplore(frameOverride = null) {
+        const winApp = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
+        const hud = (this.app && this.app.hud) || (winApp && winApp.hud);
+        if (this.isAutoNavigating()) {
+            this.stopMinimapAutoNav('Auto-Explore paused');
+            return false;
+        }
+        const frame = frameOverride || (this.app && this.app.lastFrame) || (winApp && winApp.lastFrame) || null;
+        if (!frame || !frame.player || !frame.map) return false;
+        const hostile = Array.isArray(frame.monsters) ? frame.monsters.find(m => m && m.visible !== false && (this.isHostileMonster ? this.isHostileMonster(m, frame) : (!m.friendly && !m.pet && !m.peaceful && m.hostile !== false))) : null;
+        if (hostile && (frame.player.depth || 0) > 0) {
+            if (hud && typeof hud.showToast === 'function') hud.showToast(`Cannot Auto-Explore: ${hostile.name || 'hostile creature'} nearby!`);
+            return false;
+        }
+        const visitedGoals = new Set([`${frame.player.x},${frame.player.y}`]);
+        const nextGoal = this.findNextAutoExploreGoal(frame, visitedGoals);
+        if (!nextGoal) {
+            if (hud && typeof hud.showToast === 'function') hud.showToast('🧭 Floor is already fully explored!');
+            return false;
+        }
+        const started = this.startMinimapAutoNav(nextGoal.x, nextGoal.y, frame, { isExplore: true, visitedGoals });
+        if (started && hud && typeof hud.showToast === 'function') hud.showToast('🧭 Auto-Explore engaged [Alt+E or any key to stop]');
+        return started;
+    }
+
+    startMinimapAutoNav(goalX, goalY, frameOverride = null, opts = null) {
         const winApp = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
         const frame = frameOverride || (this.app && this.app.lastFrame) || (winApp && winApp.lastFrame) || null;
         if (!frame || !frame.player || !frame.map) return false;
-
-        const px = frame.player.x;
-        const py = frame.player.y;
-        const rxGoal = Math.round(Number(goalX));
-        const ryGoal = Math.round(Number(goalY));
+        const px = frame.player.x, py = frame.player.y;
+        const rxGoal = Math.round(Number(goalX)), ryGoal = Math.round(Number(goalY));
 
         if (this.isAutoNavigating()) {
-            const curGoalX = this._autoNav.goalX;
-            const curGoalY = this._autoNav.goalY;
+            const curGoalX = this._autoNav.goalX, curGoalY = this._autoNav.goalY;
             if ((rxGoal === px && ryGoal === py) || (rxGoal === curGoalX && ryGoal === curGoalY)) {
                 this.stopMinimapAutoNav('Cancelled');
                 return false;
@@ -3257,56 +3274,36 @@ class InputController {
 
         const path = this.computeMinimapPath(frame, px, py, rxGoal, ryGoal);
         const hud = (this.app && this.app.hud) || (winApp && winApp.hud);
-
         if (!path || path.length === 0) {
             if (Math.abs(rxGoal - px) <= 1 && Math.abs(ryGoal - py) <= 1 && (rxGoal !== px || ryGoal !== py)) {
                 const wk = this.getWorldDirectionKey(rxGoal - px, ryGoal - py);
-                if (wk) {
-                    this.sendMovementKey(wk);
-                    return true;
-                }
+                if (wk) { this.sendMovementKey(wk); return true; }
             }
-            if (this.audio && typeof this.audio.playWallBump === 'function') {
-                this.audio.playWallBump(0.45);
-            }
-            if (hud && typeof hud.showToast === 'function') {
-                hud.showToast(`No clear explored route to (${rxGoal}, ${ryGoal})`);
-            }
+            if (this.audio && typeof this.audio.playWallBump === 'function') this.audio.playWallBump(0.45);
+            if (hud && typeof hud.showToast === 'function') hud.showToast(`No clear explored route to (${rxGoal}, ${ryGoal})`);
             return false;
         }
 
-        const visibleMonsters = Array.isArray(frame.monsters) ? frame.monsters.filter((m) => m && m.visible !== false) : [];
+        const isHostile = (m) => m && m.visible !== false && (this.isHostileMonster ? this.isHostileMonster(m, frame) : (!m.friendly && !m.pet && !m.peaceful && m.hostile !== false));
+        const visibleMonsters = Array.isArray(frame.monsters) ? frame.monsters.filter(isHostile) : [];
         const baselineMonsterKeys = new Set(visibleMonsters.map((m) => `${m.name || ''}|${m.glyph || ''}`));
         const hadAdjacentMonsterAtStart = visibleMonsters.some((m) => Math.max(Math.abs(m.x - px), Math.abs(m.y - py)) <= 1);
+        const isExplore = Boolean(opts && opts.isExplore);
 
         this._autoNav = {
-            active: true,
-            goalX: path[path.length - 1].x,
-            goalY: path[path.length - 1].y,
-            path: path.slice(),
-            lastHp: Number(frame.player.hp ?? 0),
-            startStatusesSig: this._statusSignatureOf(frame.player),
-            baselineItemSig: this._itemSignatureOf(frame),
-            baselineMonsterCount: visibleMonsters.length,
-            baselineMonsterKeys,
-            hadAdjacentMonsterAtStart,
-            startDepth: frame.player.depth,
-            lastPlayerX: px,
-            lastPlayerY: py,
-            expectedX: null,
-            expectedY: null,
-            openingDoorAt: null,
-            stepTimer: null
+            active: true, isExplore,
+            visitedGoals: (opts && opts.visitedGoals) ? opts.visitedGoals : new Set([`${px},${py}`]),
+            goalX: path[path.length - 1].x, goalY: path[path.length - 1].y, path: path.slice(),
+            lastHp: Number(frame.player.hp ?? 0), startStatusesSig: this._statusSignatureOf(frame.player),
+            baselineItemSig: this._itemSignatureOf(frame), baselineMonsterCount: visibleMonsters.length,
+            baselineMonsterKeys, hadAdjacentMonsterAtStart, startDepth: frame.player.depth,
+            lastPlayerX: px, lastPlayerY: py, expectedX: null, expectedY: null, openingDoorAt: null, stepTimer: null
         };
+        this._syncExploreButtonUI(isExplore);
 
-        if (hud && typeof hud.updateMinimap === 'function') {
-            hud._lastMinimapSig = '';
-            hud.updateMinimap(frame);
-        }
+        if (hud && typeof hud.updateMinimap === 'function') { hud._lastMinimapSig = ''; hud.updateMinimap(frame); }
         const term = this.terminal || (this.app && this.app.terminal) || (winApp && winApp.terminal);
-        if (term && typeof term.render === 'function' && frame && frame.term) {
-            term.render(frame.term);
-        }
+        if (term && typeof term.render === 'function' && frame && frame.term) term.render(frame.term);
 
         this.stepMinimapAutoNav(frame, true);
         return true;
@@ -3314,40 +3311,31 @@ class InputController {
 
     stopMinimapAutoNav(reason = '') {
         if (!this._autoNav || !this._autoNav.active) return;
-        if (this._autoNav.stepTimer) {
-            clearTimeout(this._autoNav.stepTimer);
-        }
+        const wasExplore = Boolean(this._autoNav.isExplore);
+        if (this._autoNav.stepTimer) clearTimeout(this._autoNav.stepTimer);
         this._autoNav.active = false;
         this._autoNav.path = [];
         this._autoNav = null;
+        this._syncExploreButtonUI(false);
 
         const winApp = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
         const hud = (this.app && this.app.hud) || (winApp && winApp.hud);
         const frame = (this.app && this.app.lastFrame) || (winApp && winApp.lastFrame) || null;
-        if (hud && frame && typeof hud.updateMinimap === 'function') {
-            hud._lastMinimapSig = '';
-            hud.updateMinimap(frame);
-        }
+        if (hud && frame && typeof hud.updateMinimap === 'function') { hud._lastMinimapSig = ''; hud.updateMinimap(frame); }
         const term = this.terminal || (this.app && this.app.terminal) || (winApp && winApp.terminal);
-        if (term && typeof term.render === 'function' && frame && frame.term) {
-            term.render(frame.term);
-        }
+        if (term && typeof term.render === 'function' && frame && frame.term) term.render(frame.term);
         if (reason && reason !== 'Reached destination' && reason !== 'Cancelled' && hud && typeof hud.showToast === 'function') {
-            hud.showToast(`Auto-travel stopped: ${reason}`);
+            hud.showToast(`${wasExplore ? '🧭 Auto-Explore' : 'Auto-travel'} stopped: ${reason}`);
         }
     }
 
     stepMinimapAutoNav(frame, isInitial = false) {
         if (!this._autoNav || !this._autoNav.active || !frame || !frame.player) return;
-        const nav = this._autoNav;
-        const player = frame.player;
-        const px = player.x;
-        const py = player.y;
+        const nav = this._autoNav, player = frame.player, px = player.x, py = player.y, ui = frame.ui || {};
+        if (nav.visitedGoals) nav.visitedGoals.add(`${px},${py}`);
 
-        const ui = frame.ui || {};
         if (frame.phase !== 'play' || (ui.overlay || 0) > 0 || ui.awaiting_command === false) {
-            this.stopMinimapAutoNav('Prompt requires attention');
-            return;
+            this.stopMinimapAutoNav('Prompt requires attention'); return;
         }
         if (ui.more) {
             if (isInitial && this.network && typeof this.network.sendKey === 'function') {
@@ -3355,106 +3343,95 @@ class InputController {
                 if (nav.stepTimer) clearTimeout(nav.stepTimer);
                 nav.stepTimer = setTimeout(() => {
                     const winApp = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
-                    const latest = (this.app && this.app.lastFrame) || (winApp && winApp.lastFrame) || frame;
-                    this.stepMinimapAutoNav(latest, true);
+                    this.stepMinimapAutoNav((this.app && this.app.lastFrame) || (winApp && winApp.lastFrame) || frame, true);
                 }, 48);
                 return;
             }
-            this.stopMinimapAutoNav('Prompt requires attention');
-            return;
+            this.stopMinimapAutoNav('Prompt requires attention'); return;
         }
-
-        if (player.depth !== nav.startDepth) {
-            this.stopMinimapAutoNav('Entered new level');
-            return;
-        }
+        if (player.depth !== nav.startDepth) { this.stopMinimapAutoNav('Entered new level'); return; }
 
         const curHp = Number(player.hp ?? 0);
-        if (curHp < nav.lastHp) {
-            this.stopMinimapAutoNav('Took damage!');
-            return;
-        }
+        if (curHp < nav.lastHp) { this.stopMinimapAutoNav('Took damage!'); return; }
         nav.lastHp = curHp;
 
-        const curStatusSig = this._statusSignatureOf(player);
-        if (curStatusSig !== nav.startStatusesSig) {
-            this.stopMinimapAutoNav('Status condition changed!');
-            return;
+        if (this._statusSignatureOf(player) !== nav.startStatusesSig) {
+            this.stopMinimapAutoNav('Status condition changed!'); return;
         }
 
-        const visibleMonsters = Array.isArray(frame.monsters) ? frame.monsters.filter((m) => m && m.visible !== false) : [];
+        const isHostile = (m) => m && m.visible !== false && (this.isHostileMonster ? this.isHostileMonster(m, frame) : (!m.friendly && !m.pet && !m.peaceful && m.hostile !== false));
+        const visibleMonsters = Array.isArray(frame.monsters) ? frame.monsters.filter(isHostile) : [];
         if (!isInitial && visibleMonsters.length > 0) {
             const isDungeon = (player.depth || 0) > 0;
             const newlySpotted = visibleMonsters.find((m) => !nav.baselineMonsterKeys || !nav.baselineMonsterKeys.has(`${m.name || ''}|${m.glyph || ''}`));
             const countIncreased = visibleMonsters.length > (nav.baselineMonsterCount || 0);
             const adjacentMon = visibleMonsters.find((m) => Math.max(Math.abs(m.x - px), Math.abs(m.y - py)) <= 1);
-            if (isDungeon && (newlySpotted || countIncreased || (adjacentMon && !nav.hadAdjacentMonsterAtStart))) {
+            if (isDungeon && (newlySpotted || countIncreased || (adjacentMon && !nav.hadAdjacentMonsterAtStart) || nav.isExplore)) {
                 const targetMon = newlySpotted || adjacentMon || visibleMonsters[0];
-                this.stopMinimapAutoNav(`Spotted ${targetMon.name || 'a creature'}!`);
-                return;
+                this.stopMinimapAutoNav(`Spotted ${targetMon.name || 'a hostile creature'}!`); return;
             }
         }
 
         const items = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
         const curItemSig = this._itemSignatureOf(frame);
         const steppedOnItem = !isInitial && items.some((it) => it && it.x === px && it.y === py);
-        if (steppedOnItem || (!isInitial && curItemSig !== nav.baselineItemSig && items.length > 0)) {
-            this.stopMinimapAutoNav('Discovered an item!');
-            return;
-        }
-
-        if (px === nav.goalX && py === nav.goalY) {
-            this.stopMinimapAutoNav('Reached destination');
-            return;
+        if (steppedOnItem || (!isInitial && !nav.isExplore && curItemSig !== nav.baselineItemSig && items.length > 0)) {
+            this.stopMinimapAutoNav('Discovered an item!'); return;
         }
 
         const outdoors = Boolean((player.depth === 0) || frame.is_wild_mode);
-
         if (!isInitial) {
             if (nav.openingDoorAt) {
                 const doorTile = this._isTileWalkableForNav(frame.map, nav.openingDoorAt.x, nav.openingDoorAt.y, false, outdoors);
                 nav.openingDoorAt = null;
-                if (doorTile.isClosedDoor) {
-                    this.stopMinimapAutoNav('Door is locked or blocked');
-                    return;
-                }
+                if (doorTile.isClosedDoor) { this.stopMinimapAutoNav('Door is locked or blocked'); return; }
             } else if (nav.expectedX !== null && nav.expectedY !== null) {
-                if (px === nav.expectedX && py === nav.expectedY) {
-                    nav.path.shift();
-                } else {
-                    this.stopMinimapAutoNav('Path blocked');
-                    return;
-                }
+                if (px === nav.expectedX && py === nav.expectedY) nav.path.shift();
+                else if (nav.isExplore) nav.path = [];
+                else { this.stopMinimapAutoNav('Path blocked'); return; }
             }
         }
 
-        if (nav.path.length === 0) {
-            this.stopMinimapAutoNav('Reached destination');
-            return;
+        if ((px === nav.goalX && py === nav.goalY) || nav.path.length === 0) {
+            if (nav.isExplore) {
+                if (nav.visitedGoals) nav.visitedGoals.add(`${nav.goalX},${nav.goalY}`);
+                const nextGoal = this.findNextAutoExploreGoal(frame, nav.visitedGoals);
+                if (nextGoal && nextGoal.path && nextGoal.path.length > 0) {
+                    nav.goalX = nextGoal.x; nav.goalY = nextGoal.y; nav.path = nextGoal.path.slice();
+                    nav.expectedX = null; nav.expectedY = null;
+                } else {
+                    const row = frame.map && frame.map.rows && frame.map.rows[py];
+                    const onStairs = row && row.g && row.g[px] === '>';
+                    this.stopMinimapAutoNav(onStairs ? 'Floor explored — ready at stairs [>]' : 'Floor fully explored!');
+                    return;
+                }
+            } else {
+                this.stopMinimapAutoNav('Reached destination'); return;
+            }
         }
 
         let nextStep = nav.path[0];
-        if (visibleMonsters.some((m) => m.x === nextStep.x && m.y === nextStep.y)) {
+        if (Array.isArray(frame.monsters) && frame.monsters.some((m) => m && m.visible !== false && m.x === nextStep.x && m.y === nextStep.y)) {
             const detour = this.computeMinimapPath(frame, px, py, nav.goalX, nav.goalY);
-            if (!detour || detour.length === 0) {
-                this.stopMinimapAutoNav('Path blocked');
-                return;
-            }
-            nav.path = detour;
-            nextStep = nav.path[0];
+            if (!detour || detour.length === 0) { this.stopMinimapAutoNav('Path blocked'); return; }
+            nav.path = detour; nextStep = nav.path[0];
         }
 
-        const dx = nextStep.x - px;
-        const dy = nextStep.y - py;
+        const dx = nextStep.x - px, dy = nextStep.y - py;
         if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || (dx === 0 && dy === 0)) {
-            this.stopMinimapAutoNav('Route diverged');
-            return;
+            this.stopMinimapAutoNav('Route diverged'); return;
         }
-
         const worldKey = this.getWorldDirectionKey(dx, dy);
-        if (!worldKey) {
-            this.stopMinimapAutoNav('Invalid step direction');
-            return;
+        if (!worldKey) { this.stopMinimapAutoNav('Invalid step direction'); return; }
+
+        if (nav.isExplore && this.dungeon && !this.inTerminal) {
+            const look = nav.path[Math.min(2, nav.path.length - 1)] || nextStep;
+            const lx = look.x - px, ly = look.y - py;
+            if (lx !== 0 || ly !== 0) {
+                const targetYaw = Math.atan2(lx, -ly);
+                if (typeof this.dungeon.setCameraYaw === 'function') this.dungeon.setCameraYaw(targetYaw);
+                else if (typeof this.dungeon.cameraYaw === 'number') this.dungeon.cameraYaw = targetYaw;
+            }
         }
 
         if (nav.stepTimer) clearTimeout(nav.stepTimer);
@@ -3463,24 +3440,15 @@ class InputController {
             const liveTile = this._isTileWalkableForNav(frame.map, nextStep.x, nextStep.y, false, outdoors);
             if (liveTile.isClosedDoor) {
                 nav.openingDoorAt = { x: nextStep.x, y: nextStep.y };
-                nav.expectedX = px;
-                nav.expectedY = py;
+                nav.expectedX = px; nav.expectedY = py;
             } else {
-                nav.expectedX = nextStep.x;
-                nav.expectedY = nextStep.y;
+                nav.expectedX = nextStep.x; nav.expectedY = nextStep.y;
             }
-            if (typeof this.sendMovementKey === 'function') {
-                this.sendMovementKey(worldKey);
-            } else if (this.network) {
-                this.network.sendKey(worldKey);
-            }
+            if (typeof this.sendMovementKey === 'function') this.sendMovementKey(worldKey);
+            else if (this.network) this.network.sendKey(worldKey);
         };
-
-        if (isInitial) {
-            dispatchStep();
-        } else {
-            nav.stepTimer = setTimeout(dispatchStep, 42);
-        }
+        if (isInitial) dispatchStep();
+        else nav.stepTimer = setTimeout(dispatchStep, nav.isExplore ? 85 : 42);
     }
 }
 

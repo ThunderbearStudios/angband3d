@@ -607,7 +607,17 @@
         if (options && options.fromPassiveFcbList && (v === 'I' || v === 'x')) {
             return [k];
         }
-        if (options && (options.fromPassiveAngbandList || options.fromPassiveFcbList)) {
+        const isPassive = Boolean(
+            options && (
+                options.fromPassiveAngbandList ||
+                options.fromPassiveFcbList ||
+                options.fromPassiveNethackList
+            )
+        );
+        if (v.startsWith('#')) {
+            return isPassive ? ['escape', v, k] : [v, k];
+        }
+        if (isPassive) {
             return ['escape', v, k];
         }
         return [v, k];

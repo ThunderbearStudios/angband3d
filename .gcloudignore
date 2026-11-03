@@ -21,6 +21,18 @@
 !variants/hengband-src/**
 !variants/hengband/lib
 !variants/hengband/lib/**
+!variants/nethack
+!variants/nethack/**
+!variants/rogue
+!variants/rogue/**
+!variants/brogue
+!variants/brogue/**
+!variants/dcss
+!variants/dcss/**
+!CREDITS.md
+
+# Exclude local test saves from cloud container upload
+variants/**/lib/save/*
 
 # Exclude heavy IDE/Windows intermediates from cloud upload
 variants/**/.git

@@ -205,6 +205,206 @@
         "ui_badges": ["Grim Stealth", "Songs of Power", "First Age Lore", "Cut the Silmaril"]
       },
       "lore": "Tense, deadly stealth-focused crawl in the Iron Pits of Angband during the First Age. Detailed combat mechanics and grim atmosphere."
+    },
+    "nethack": {
+      "id": "nethack",
+      "name": "NetHack 3.6.7",
+      "tagline": "The Mazes of Menace & Amulet of Yendor",
+      "version": "3.6.7",
+      "lineage": "NetHack DevTeam Canon",
+      "binary": {
+        "win_x64": "variants/nethack/bin/nethack-bridge.js",
+        "linux_x64": "variants/nethack/bin/nethack-bridge.js"
+      },
+      "cli": {
+        "frontend_switch": "-mbridge",
+        "save_token_format": "-u{name}",
+        "save_dir_switch": "-dsave={path}",
+        "panic_dir_switch": null,
+        "new_char_switch": "-n",
+        "env_vars": {
+          "NETHACKDIR": "variants/nethack/lib"
+        }
+      },
+      "save_system": {
+        "magic_signature": "SaveNHCK",
+        "directory": "variants/nethack/lib/save",
+        "extension": ".sav"
+      },
+      "capabilities": {
+        "wilderness": false,
+        "multitown": true,
+        "stealth_engine": false,
+        "songs_of_power": false,
+        "monster_races": false,
+        "quests": true,
+        "mounts": true,
+        "depth_max": 50
+      },
+      "terminal": {
+        "default_width": 80,
+        "default_height": 24,
+        "supports_dynamic_resize": false
+      },
+      "theme": {
+        "primary_color": "#f59e0b",
+        "secondary_color": "#b45309",
+        "voice_profile": "Oracle of Delphi",
+        "voice_id": "en-GB-RyanNeural",
+        "tradition": "delphic",
+        "ui_badges": ["Mazes of Menace", "Beatitude (BUC)", "High Altars & #pray", "Amulet of Yendor"]
+      },
+      "lore": "Descend through the Dungeons of Doom, Gnomish Mines, Sokoban, and Gehennom to wrest the Amulet of Yendor and ascend."
+    },
+    "dcss": {
+      "id": "dcss",
+      "name": "Dungeon Crawl Stone Soup",
+      "tagline": "Pantheon of Gods, Multi-Branch Realms & The Orb of Zot",
+      "version": "0.32.0",
+      "lineage": "Linley's Dungeon Crawl / DCSS DevTeam",
+      "binary": {
+        "win_x64": "variants/dcss/bin/dcss-bridge.js",
+        "linux_x64": "variants/dcss/bin/dcss-bridge.js"
+      },
+      "cli": {
+        "frontend_switch": "-mbridge",
+        "save_token_format": "-u{name}",
+        "save_dir_switch": "-dsave={path}",
+        "panic_dir_switch": null,
+        "new_char_switch": "-n",
+        "env_vars": {
+          "DCSSDIR": "variants/dcss/lib"
+        }
+      },
+      "save_system": {
+        "magic_signature": "SaveDCSS",
+        "directory": "variants/dcss/lib/save",
+        "extension": ".sav"
+      },
+      "capabilities": {
+        "wilderness": false,
+        "multitown": true,
+        "stealth_engine": true,
+        "songs_of_power": false,
+        "monster_races": true,
+        "quests": true,
+        "mounts": false,
+        "depth_max": 27
+      },
+      "terminal": {
+        "default_width": 80,
+        "default_height": 24,
+        "supports_dynamic_resize": false
+      },
+      "theme": {
+        "primary_color": "#a855f7",
+        "secondary_color": "#7e22ce",
+        "voice_profile": "Herald of Zot",
+        "voice_id": "en-GB-RyanNeural",
+        "tradition": "zot",
+        "ui_badges": ["25+ Gods & Altars", "Multi-Branch Depths", "Runes of Zot", "Orb Ascension"]
+      },
+      "lore": "Claim at least 3 Runes of Zot across the Lair, Orcish Mines, and Vaults, worship at Divine Altars, and ascend with the Orb of Zot."
+    },
+    "brogue": {
+      "id": "brogue",
+      "name": "Brogue (Community Edition)",
+      "tagline": "Bioluminescent Caverns, Enchantments & Liberated Allies",
+      "version": "1.14.0",
+      "lineage": "Brian Walker / Brogue CE Contributors",
+      "binary": {
+        "win_x64": "variants/brogue/bin/brogue-bridge.js",
+        "linux_x64": "variants/brogue/bin/brogue-bridge.js"
+      },
+      "cli": {
+        "frontend_switch": "-mbridge",
+        "save_token_format": "-u{name}",
+        "save_dir_switch": "-dsave={path}",
+        "panic_dir_switch": null,
+        "new_char_switch": "-n",
+        "env_vars": {
+          "BROGUEDIR": "variants/brogue/lib"
+        }
+      },
+      "save_system": {
+        "magic_signature": "SaveBROG",
+        "directory": "variants/brogue/lib/save",
+        "extension": ".sav"
+      },
+      "capabilities": {
+        "wilderness": false,
+        "multitown": false,
+        "stealth_engine": true,
+        "songs_of_power": false,
+        "monster_races": false,
+        "quests": true,
+        "mounts": false,
+        "depth_max": 40
+      },
+      "terminal": {
+        "default_width": 80,
+        "default_height": 24,
+        "supports_dynamic_resize": false
+      },
+      "theme": {
+        "primary_color": "#2dd4bf",
+        "secondary_color": "#0d9488",
+        "voice_profile": "Cavern Chronicler",
+        "voice_id": "en-GB-RyanNeural",
+        "tradition": "cavern",
+        "ui_badges": ["Zero XP Bar", "Scrolls of Enchantment", "Liberated Allies", "Lumenstones"]
+      },
+      "lore": "Pure tactical elegance across 26 bioluminescent depths where power comes from Scrolls of Enchantment, Potions of Strength, and freed allies."
+    },
+    "rogue": {
+      "id": "rogue",
+      "name": "Classic Rogue 5.4 (1980)",
+      "tagline": "The 1980 Unix Original That Named a Genre",
+      "version": "5.4.4",
+      "lineage": "Michael Toy, Glenn Wichman & Ken Arnold (BSD)",
+      "binary": {
+        "win_x64": "variants/rogue/bin/rogue-bridge.js",
+        "linux_x64": "variants/rogue/bin/rogue-bridge.js"
+      },
+      "cli": {
+        "frontend_switch": "-mbridge",
+        "save_token_format": "-u{name}",
+        "save_dir_switch": "-dsave={path}",
+        "panic_dir_switch": null,
+        "new_char_switch": "-n",
+        "env_vars": {
+          "ROGUEDIR": "variants/rogue/lib"
+        }
+      },
+      "save_system": {
+        "magic_signature": "SaveROGU",
+        "directory": "variants/rogue/lib/save",
+        "extension": ".sav"
+      },
+      "capabilities": {
+        "wilderness": false,
+        "multitown": false,
+        "stealth_engine": false,
+        "songs_of_power": false,
+        "monster_races": false,
+        "quests": false,
+        "mounts": false,
+        "depth_max": 26
+      },
+      "terminal": {
+        "default_width": 80,
+        "default_height": 24,
+        "supports_dynamic_resize": false
+      },
+      "theme": {
+        "primary_color": "#e2e8f0",
+        "secondary_color": "#64748b",
+        "voice_profile": "1980 Archivist",
+        "voice_id": "en-GB-RyanNeural",
+        "tradition": "archivist",
+        "ui_badges": ["1980 BSD Canon", "A–Z Classic Bestiary", "26 Dungeons of Doom", "Amulet of Yendor"]
+      },
+      "lore": "Step back into 1980 where the roguelike genre was born. Face all 26 classic A-Z monsters from Aquator to Dragon and claim the Amulet of Yendor."
     }
   }
 }

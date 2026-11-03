@@ -1247,6 +1247,10 @@ body.is-standalone #chronicle-window {
 }
 
 /* Interrupted Story Beat Indicators */
+.flowing-paragraph-block.is-coalesced-into-epoch {
+    display: none !important;
+}
+
 .flowing-paragraph-block.is-interrupted {
     border-left: 3px solid rgba(245, 158, 11, 0.7) !important;
     background: linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0%, transparent 100%) !important;
@@ -1317,14 +1321,16 @@ body.is-standalone #chronicle-window {
     top: 80px;
     left: 80px;
     z-index: 48;
-    width: min(244px, calc(100vw - 24px));
-    max-width: 244px;
+    width: min(350px, calc(100vw - 24px));
+    max-width: 350px;
+    max-height: calc(100vh - 76px);
     display: flex;
     flex-direction: column;
     gap: 6px;
-    overflow: hidden !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     margin: 0;
-    padding: 8px 10px;
+    padding: 10px 12px;
     background: linear-gradient(180deg, rgba(16, 21, 32, 0.96) 0%, rgba(10, 14, 22, 0.96) 100%);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -1377,9 +1383,11 @@ body.is-standalone #chronicle-window {
     font-size: 13px;
     font-weight: 700;
     color: #fef08a;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+    line-height: 1.25;
 }
 
 .inspect-popover-pill {
@@ -1435,13 +1443,15 @@ body.is-standalone #chronicle-window {
 
 .inspect-popover-hp-wrap {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 0;
+    gap: 6px 8px;
+    margin-bottom: 2px;
 }
 
 .inspect-popover-hp-track {
-    flex: 1;
+    flex: 1 1 100%;
+    min-width: 120px;
     height: 6px;
     background: rgba(15, 23, 42, 0.95);
     border: 1px solid rgba(148, 163, 184, 0.3);
@@ -1456,17 +1466,23 @@ body.is-standalone #chronicle-window {
 }
 
 .inspect-popover-hp-text {
-    font-size: 10.5px;
+    flex: 1 1 100%;
+    font-size: 11px;
+    line-height: 1.35;
     font-family: var(--font-terminal, monospace);
     color: #cbd5e1;
-    flex-shrink: 0;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .inspect-popover-prose {
-    font-size: 12px;
+    display: block;
+    font-size: 11.5px;
     line-height: 1.42;
     color: #e2e8f0;
-    margin: 0 0 6px 0;
+    margin: 0 0 4px 0;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .inspect-popover-quote {
@@ -1535,7 +1551,6 @@ body.is-standalone #chronicle-window {
     color: #f8fafc;
 }
 
-.inspect-popover-prose,
 .inspect-popover-quote,
 #inspect-popover-parley-btn,
 #inspect-popover-vow-btn,

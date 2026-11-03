@@ -17,6 +17,19 @@ const zlib = require('zlib');
 const crypto = require('crypto');
 const { guardMutation } = require('./http-guard');
 const { createLimiter, clientIp } = require('./rate-limit');
+const {
+    PRIMARY_DOMAIN,
+    LEGACY_DOMAINS,
+    LEGACY_DOMAIN_MODE,
+    VALID_REALMS,
+    VALID_MAGICS,
+    MAGIC_TO_REALM,
+    isValidRealm,
+    detectRealmFromMagic,
+    handleLegacyDomainRedirect,
+    snapshotLivingSave,
+    restoreLivingCheckpoint
+} = require('./domain-config');
 if (!globalThis.crypto) globalThis.crypto = crypto;
 
 const llmLimiter = createLimiter({ perMinute: +process.env.LLM_RPM || 20, perDay: +process.env.LLM_RPD || 500 });
@@ -177,13 +190,19 @@ const TTS_VOICE_MAP = {
 };
 
 // Realm-Contextual Casting Map for Lorekeeper Narrators (Google Gemini High-Quality Audio)
+// IMMUTABLE CONTRACT: Always preserve the canonical British RP Storyteller ('Enceladus') across all realms.
 const GEMINI_REALM_NARRATOR_MAP = {
     angband: 'Enceladus',     // Venerable, weathered Old English male storyteller (Master Elrond)
     silq: 'Enceladus',        // Venerable British First-Age mythic chronicler (Daeron of Doriath)
     frogcomposband: 'Enceladus', // Venerable British chronicler of Amber & Chaos
     hengband: 'Enceladus',    // Venerable British chronicler (switches to Japanese voice only when lang=jp)
+    nethack: 'Enceladus',     // Venerable British chronicler of the Dungeons of Doom
+    dcss: 'Enceladus',        // Venerable British chronicler of the Realm of Zot
+    brogue: 'Enceladus',      // Venerable British chronicler of the Bioluminescent Caverns
+    rogue: 'Enceladus',       // Venerable British 1980 Archivist of the Dungeons of Doom
     default: 'Enceladus'
 };
+Object.freeze(GEMINI_REALM_NARRATOR_MAP);
 
 // Curated 30 Character Archetype Casting Matrix for Gemini Native Audio (Free Tier Preview)
 const GEMINI_VOICE_MAP = {
@@ -231,8 +250,10 @@ const GEMINI_VOICE_MAP = {
     creature: 'Fenrir',
     default: 'Enceladus'
 };
+Object.freeze(GEMINI_VOICE_MAP);
 
 // Canonical Character Accent Directorial Map for Immersion (Enforces Zero Southern Accents)
+// IMMUTABLE CONTRACT: Never strip or alter the British RP storyteller accent or character accents.
 const CHARACTER_ACCENT_MAP = {
     narrator: 'expressive, older British storyteller, standard RP British accent, warm fireside gravitas',
     elf: 'regal, ethereal High-Elven RP accent, crisp consonants',
@@ -268,6 +289,7 @@ const CHARACTER_ACCENT_MAP = {
     dragon: 'ancient cavernous draconic rumble, haughty draconic wrath and immense resonant power',
     beast: 'bestial, vicious feral snarl, primal predatory growl'
 };
+Object.freeze(CHARACTER_ACCENT_MAP);
 
 // Generates a standard 44-byte RIFF WAV header for raw 16-bit linear PCM audio
 function createWavHeader(pcmLength, sampleRate = 24000, numChannels = 1, bitsPerSample = 16) {
@@ -307,16 +329,94 @@ function redactSecret(val, secret = '') {
     return sanitized;
 }
 
-// Proxies text-to-speech to Gemini Native Audio (gemini-3.8-flash-lite-tts / gemini-3.8-flash-tts) with structured style metadata
+let _gcpAuthCache = { token: '', projectId: process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || '', expiresAt: 0, inflight: null };
+let _aiStudioDepletedUntil = 0;
+
+function fetchMetadataText(metaPath) {
+    return new Promise(resolve => {
+        const metaReq = http.request(`http://metadata.google.internal/computeMetadata/v1/${metaPath}`, {
+            method: 'GET',
+            headers: { 'Metadata-Flavor': 'Google' },
+            timeout: 1500
+        }, metaRes => {
+            let b = '';
+            metaRes.on('data', c => b += c);
+            metaRes.on('end', () => resolve(metaRes.statusCode === 200 ? b.trim() : ''));
+        });
+        metaReq.on('timeout', () => { metaReq.destroy(); resolve(''); });
+        metaReq.on('error', () => resolve(''));
+        metaReq.end();
+    });
+}
+
+function runGcloudCmd(args) {
+    return new Promise(resolve => {
+        const cmd = process.platform === 'win32' ? 'gcloud.cmd' : 'gcloud';
+        let proc;
+        try {
+            proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+        } catch (_) {
+            return resolve('');
+        }
+        let out = '';
+        const t = setTimeout(() => { try { proc.kill(); } catch (_) {} resolve(''); }, 4000);
+        proc.stdout.on('data', d => out += d);
+        proc.on('error', () => { clearTimeout(t); resolve(''); });
+        proc.on('close', code => {
+            clearTimeout(t);
+            resolve(code === 0 ? out.trim() : '');
+        });
+    });
+}
+
+function getGcpAuthContext() {
+    const now = Date.now();
+    if (_gcpAuthCache.token && _gcpAuthCache.projectId && now < _gcpAuthCache.expiresAt) {
+        return Promise.resolve({ token: _gcpAuthCache.token, projectId: _gcpAuthCache.projectId });
+    }
+    if (_gcpAuthCache.inflight) return _gcpAuthCache.inflight;
+    _gcpAuthCache.inflight = Promise.all([
+        fetchMetadataText('instance/service-accounts/default/token'),
+        _gcpAuthCache.projectId ? Promise.resolve(_gcpAuthCache.projectId) : fetchMetadataText('project/project-id')
+    ]).then(async ([rawTokenJson, metaProject]) => {
+        if (metaProject) _gcpAuthCache.projectId = metaProject;
+        if (rawTokenJson) {
+            try {
+                const data = JSON.parse(rawTokenJson);
+                if (data && data.access_token && _gcpAuthCache.projectId) {
+                    const ttlSec = Math.max(60, (data.expires_in || 1800) - 120);
+                    _gcpAuthCache.token = data.access_token;
+                    _gcpAuthCache.expiresAt = Date.now() + ttlSec * 1000;
+                    _gcpAuthCache.inflight = null;
+                    return { token: _gcpAuthCache.token, projectId: _gcpAuthCache.projectId };
+                }
+            } catch (_) {}
+        }
+        const [localTok, localProj] = await Promise.all([
+            process.env.GCP_ACCESS_TOKEN ? Promise.resolve(process.env.GCP_ACCESS_TOKEN) : runGcloudCmd(['auth', 'print-access-token']),
+            _gcpAuthCache.projectId ? Promise.resolve(_gcpAuthCache.projectId) : runGcloudCmd(['config', 'get-value', 'project'])
+        ]);
+        if (localProj) _gcpAuthCache.projectId = localProj;
+        if (localTok && _gcpAuthCache.projectId) {
+            _gcpAuthCache.token = localTok;
+            _gcpAuthCache.expiresAt = Date.now() + 1500 * 1000;
+        }
+        _gcpAuthCache.inflight = null;
+        return { token: _gcpAuthCache.token, projectId: _gcpAuthCache.projectId };
+    });
+    return _gcpAuthCache.inflight;
+}
+
+// Proxies text-to-speech to Gemini Native Audio (gemini-3.1-flash-tts-preview / gemini-3.8-flash-lite-tts) with Vertex AI failover
 function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm = 'angband', lang = 'en', isRetry = false }) {
     return new Promise((resolve, reject) => {
         if (!apiKey) {
             return reject(new Error('No Gemini API key provided'));
         }
-
+        const baseReqOpts = { method: 'POST', agent: geminiHttpsAgent, timeout: 20000 };
         const ttsModels = ['gemini-3.1-flash-tts-preview'];
         const retryIdx = typeof isRetry === 'number' ? isRetry : (isRetry ? 1 : 0);
-        const ttsModel = ttsModels[Math.min(retryIdx, ttsModels.length - 1)];
+        const ttsModel = retryIdx > 0 ? 'gemini-3.8-flash-lite-tts' : ttsModels[0];
         const isGemini38Tts = false;
         const cleanTranscript = String(text || '').replace(/^\s*(?:\[[^\]]+\]|\*[^*]+\*)\s*/g, '').trim() || String(text || '');
 
@@ -339,12 +439,12 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
             let tagInner = '';
             const baseAccent = (CHARACTER_ACCENT_MAP[roleKey] || (roleKey === 'narrator' ? CHARACTER_ACCENT_MAP.narrator : 'natural, noble Classical British or Mid-Atlantic cadence')).replace(/[\[\]]/g, '').trim();
             if (isJp) {
-                tagInner = 'Japanese language, dignified Sengoku samurai chronicler, calm and resonant';
+                tagInner = 'dignified ancient chronicler, calm and resonant';
             } else if (cleanGeminiTag) {
-                const sanitizedTag = isHeng ? cleanGeminiTag : cleanGeminiTag.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
+                const sanitizedTag = isHeng ? cleanGeminiTag : cleanGeminiTag.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical');
                 tagInner = sanitizedTag.toLowerCase().includes('standard rp british') ? sanitizedTag : `${baseAccent}, ${sanitizedTag}`;
             } else if (cleanDirectorNote) {
-                const sanitizedNote = isHeng ? cleanDirectorNote : cleanDirectorNote.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical British');
+                const sanitizedNote = isHeng ? cleanDirectorNote : cleanDirectorNote.replace(/\b(japanese|samurai|ninja)\b/gi, 'classical');
                 tagInner = sanitizedNote.toLowerCase().includes('standard rp british') ? sanitizedNote : `${baseAccent}, ${sanitizedNote}`;
             } else {
                 tagInner = baseAccent;
@@ -354,18 +454,26 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                 tagInner = tagInner ? `${cleanEmotion}, ${tagInner}` : cleanEmotion;
             }
 
+            if (!isJp && tagInner && !tagInner.toLowerCase().includes('no american') && !tagInner.toLowerCase().includes('no southern')) {
+                tagInner = `${tagInner}, no American southern drawl`;
+            }
+
             if (tagInner) {
-                const lowerInner = tagInner.toLowerCase();
-                if (!lowerInner.includes('no southern') && !lowerInner.includes('no american southern')) {
-                    tagInner = `${tagInner}, no American southern drawl`;
-                }
-                tagInner = tagInner.replace(/[\[\]]/g, '').trim();
+                tagInner = tagInner
+                    .replace(/[\[\]]/g, '')
+                    .replace(/(?:\s*,\s*)+/g, ', ')
+                    .replace(/^[\s,]+|[\s,]+$/g, '')
+                    .replace(/\s{2,}/g, ' ')
+                    .trim();
                 if (tagInner.length > 240) {
                     tagInner = tagInner.slice(0, 240).replace(/[,;\s]+[^\s,;]*$/, '').trim();
                 }
-                styleInstruction = tagInner;
-                tag = `[${tagInner}]`;
-                promptText = `${tag} ${cleanTranscript}`;
+                const wordCount = cleanTranscript.split(/\s+/).filter(Boolean).length;
+                if (tagInner && wordCount > 2) {
+                    styleInstruction = tagInner;
+                    tag = `[${tagInner}]`;
+                    promptText = `${tag} ${cleanTranscript}`;
+                }
             }
         }
 
@@ -376,6 +484,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
 
         const payload = JSON.stringify({
             contents: [{
+                role: 'user',
                 parts: [partObj]
             }],
             generationConfig: {
@@ -396,6 +505,110 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
                 { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' }
             ]
         });
+
+        function sendViaVertex() {
+            getGcpAuthContext().then(({ token, projectId }) => {
+                if (!token || !projectId) {
+                    return reject(new Error('Vertex AI fallback token unavailable'));
+                }
+                const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/${ttsModel}:generateContent`;
+                const vReq = https.request(vUrl, {
+                    method: 'POST',
+                    agent: geminiHttpsAgent,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Length': Buffer.byteLength(payload)
+                    },
+                    timeout: 20000
+                }, vRes => {
+                    let vBody = '';
+                    vRes.on('data', c => vBody += c);
+                    vRes.on('end', () => handleTtsResponse(vRes, vBody, true));
+                });
+                vReq.setTimeout(20000, () => { vReq.destroy(new Error('Gemini TTS request timed out')); reject(new Error('Gemini TTS request timed out')); });
+                vReq.on('timeout', () => { vReq.destroy(new Error('Gemini TTS request timed out')); reject(new Error('Gemini TTS request timed out')); });
+                vReq.on('error', err => reject(err));
+                vReq.write(payload);
+                vReq.end();
+            }).catch(reject);
+        }
+
+        function handleTtsResponse(res, body, usedVertex) {
+            if (res.statusCode !== 200) {
+                if (!usedVertex && (res.statusCode === 402 || res.statusCode === 403 || res.statusCode === 404 || res.statusCode === 429 || res.statusCode === 500 || res.statusCode === 503)) {
+                    if (res.statusCode === 402 && apiKey === process.env.GEMINI_API_KEY) {
+                        _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000;
+                    }
+                    return sendViaVertex();
+                }
+                if (retryIdx === 0 && (res.statusCode === 400 || res.statusCode === 404 || res.statusCode === 429 || res.statusCode === 503)) {
+                    return synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm, lang, isRetry: 1 }).then(resolve).catch(reject);
+                }
+                let errMsg = `HTTP ${res.statusCode}`;
+                try {
+                    const parsed = JSON.parse(body);
+                    if (parsed.error && parsed.error.message) {
+                        errMsg = `HTTP ${res.statusCode}: ${parsed.error.message}`;
+                    }
+                } catch (_) {
+                    errMsg = `HTTP ${res.statusCode}: ${body.substring(0, 100)}`;
+                }
+                return reject(new Error(redactSecret(errMsg.replace(/[\r\n\t]+/g, ' ').substring(0, 120), apiKey)));
+            }
+            try {
+                const data = JSON.parse(body);
+                let inlineData = null;
+                const parts = data.candidates?.[0]?.content?.parts;
+                if (Array.isArray(parts)) {
+                    for (const part of parts) {
+                        if (part.inlineData && part.inlineData.data) {
+                            inlineData = part.inlineData;
+                            break;
+                        }
+                    }
+                }
+                if (!inlineData || !inlineData.data) {
+                    if (!isRetry && (tag || retryIdx === 0)) {
+                        return synthesizeGeminiTTS({
+                            text,
+                            voice,
+                            emotion: '',
+                            geminiTag: '',
+                            directorNote: '',
+                            role,
+                            apiKey,
+                            realm,
+                            lang,
+                            isRetry: true
+                        }).then(resolve).catch(reject);
+                    }
+                    const candidateErr = data.candidates?.[0]?.finishReason || data.promptFeedback?.blockReason || data.error?.message || 'Gemini TTS returned no audio data in payload';
+                    return reject(new Error(candidateErr));
+                }
+
+                let sampleRate = 24000;
+                if (inlineData.mimeType && inlineData.mimeType.includes('rate=')) {
+                    const rateMatch = inlineData.mimeType.match(/rate=(\d+)/);
+                    if (rateMatch) sampleRate = parseInt(rateMatch[1], 10);
+                }
+
+                const pcmBuffer = Buffer.from(inlineData.data, 'base64');
+                if (pcmBuffer.length > 12 && pcmBuffer.slice(0, 4).toString('ascii') === 'RIFF') {
+                    return resolve(pcmBuffer);
+                }
+                const wavHeader = createWavHeader(pcmBuffer.length, sampleRate, 1, 16);
+                const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
+                resolve(wavBuffer);
+            } catch (err) {
+                reject(err);
+            }
+        }
+
+        if (apiKey.startsWith('AQ.') || (Date.now() < _aiStudioDepletedUntil && apiKey === process.env.GEMINI_API_KEY)) {
+            return sendViaVertex();
+        }
+
         const req = https.request(`https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent`, {
             method: 'POST',
             agent: geminiHttpsAgent,
@@ -408,69 +621,7 @@ function synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, ro
         }, res => {
             let body = '';
             res.on('data', chunk => body += chunk);
-            res.on('end', () => {
-                if (res.statusCode !== 200) {
-                    if (retryIdx + 1 < ttsModels.length && (res.statusCode === 400 || res.statusCode === 404 || res.statusCode === 429 || res.statusCode === 503)) {
-                        return synthesizeGeminiTTS({ text, voice, emotion, geminiTag, directorNote, role, apiKey, realm, lang, isRetry: retryIdx + 1 }).then(resolve).catch(reject);
-                    }
-                    let errMsg = `HTTP ${res.statusCode}`;
-                    try {
-                        const parsed = JSON.parse(body);
-                        if (parsed.error && parsed.error.message) {
-                            errMsg = `HTTP ${res.statusCode}: ${parsed.error.message}`;
-                        }
-                    } catch (_) {
-                        errMsg = `HTTP ${res.statusCode}: ${body.substring(0, 100)}`;
-                    }
-                    return reject(new Error(redactSecret(errMsg.replace(/[\r\n\t]+/g, ' ').substring(0, 120), apiKey)));
-                }
-                try {
-                    const data = JSON.parse(body);
-                    let inlineData = null;
-                    const parts = data.candidates?.[0]?.content?.parts;
-                    if (Array.isArray(parts)) {
-                        for (const part of parts) {
-                            if (part.inlineData && part.inlineData.data) {
-                                inlineData = part.inlineData;
-                                break;
-                            }
-                        }
-                    }
-                    if (!inlineData || !inlineData.data) {
-                        // If prompt was rejected or blocked due to directorial brackets (e.g. single-word probes), retry cleanly ONCE with raw text
-                        if (!isRetry && tag && promptText !== text) {
-                            return synthesizeGeminiTTS({
-                                text,
-                                voice,
-                                emotion,
-                                geminiTag: '',
-                                directorNote: '',
-                                role,
-                                apiKey,
-                                isRetry: true
-                            }).then(resolve).catch(reject);
-                        }
-                        const candidateErr = data.candidates?.[0]?.finishReason || data.promptFeedback?.blockReason || data.error?.message || 'Gemini TTS returned no audio data in payload';
-                        return reject(new Error(candidateErr));
-                    }
-
-                    let sampleRate = 24000;
-                    if (inlineData.mimeType && inlineData.mimeType.includes('rate=')) {
-                        const rateMatch = inlineData.mimeType.match(/rate=(\d+)/);
-                        if (rateMatch) sampleRate = parseInt(rateMatch[1], 10);
-                    }
-
-                    const pcmBuffer = Buffer.from(inlineData.data, 'base64');
-                    if (pcmBuffer.length > 12 && pcmBuffer.slice(0, 4).toString('ascii') === 'RIFF') {
-                        return resolve(pcmBuffer);
-                    }
-                    const wavHeader = createWavHeader(pcmBuffer.length, sampleRate, 1, 16);
-                    const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
-                    resolve(wavBuffer);
-                } catch (err) {
-                    reject(err);
-                }
-            });
+            res.on('end', () => handleTtsResponse(res, body, false));
         });
 
         req.setTimeout(20000, () => {
@@ -855,11 +1006,7 @@ function readSaveMetadata(filePath) {
             fs.readSync(fd, header, 0, readLen, 0);
 
             const magic = readLen >= 8 ? header.toString('ascii', 0, 8) : '';
-            const VALID_MAGICS = ['SaveVNLA', 'SaveSILQ', 'SaveFROX', 'SaveHENG'];
-            let detectedRealm = 'angband';
-            if (magic === 'SaveSILQ') detectedRealm = 'silq';
-            else if (magic === 'SaveFROX') detectedRealm = 'frogcomposband';
-            else if (magic === 'SaveHENG') detectedRealm = 'hengband';
+            let detectedRealm = MAGIC_TO_REALM[magic] || 'angband';
 
             const sidecarPath = filePath + '.realm.json';
             if (fs.existsSync(sidecarPath)) {
@@ -918,6 +1065,10 @@ const EXTRA_ALLOWED_ORIGINS = new Set(
         'https://localhost',
         'http://localhost',
         'ionic://localhost',
+        'https://yasd3d.com',
+        'http://yasd3d.com',
+        'https://www.yasd3d.com',
+        'http://www.yasd3d.com',
         'https://angband3d.com',
         'http://angband3d.com',
         'https://www.angband3d.com',
@@ -997,6 +1148,8 @@ const server = http.createServer((req, res) => {
         res.end();
         return;
     }
+
+    if (handleLegacyDomainRedirect(req, res, host)) return;
 
     // CORS: echo the Origin only when allowed (never '*'; E17). Vary keeps caches honest.
     const reqOrigin = req.headers.origin;
@@ -1154,7 +1307,7 @@ const server = http.createServer((req, res) => {
     // REST: List saves
     if (pathname === '/api/saves' && req.method === 'GET') {
         const queryRealm = urlObj.searchParams.get('realm') || 'angband';
-        if (!['angband', 'silq', 'frogcomposband', 'hengband'].includes(queryRealm)) {
+        if (!isValidRealm(queryRealm)) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Invalid realm' }));
             return;
@@ -1180,7 +1333,7 @@ const server = http.createServer((req, res) => {
                 if (!fs.existsSync(sDir)) continue;
                 const files = fs.readdirSync(sDir);
                 for (const file of files) {
-                    if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json') || seenFiles.has(file)) continue;
+                    if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json') || file.endsWith('.living.sav') || seenFiles.has(file)) continue;
                     const fullPath = path.join(sDir, file);
                     try {
                         const stat = fs.statSync(fullPath);
@@ -1394,22 +1547,17 @@ const server = http.createServer((req, res) => {
 
             const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
             const payloadStr = JSON.stringify(payload);
+            const vertexLlmModel = isGemini3 ? 'gemini-3-flash-preview' : model;
 
-            const upstreamReq = https.request(targetUrl, {
-                method: 'POST',
-                agent: geminiHttpsAgent,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Api-Revision': '2026-05-20',
-                    'x-goog-api-key': apiKey,
-                    'Content-Length': Buffer.byteLength(payloadStr)
-                },
-                timeout: 30000
-            }, upstreamRes => {
-                let respBody = '';
-                upstreamRes.on('data', chunk => respBody += chunk);
-                upstreamRes.on('end', () => {
-                    const outStatus = (upstreamRes.statusCode === 400 && respBody.includes('API_KEY_INVALID')) ? 401 : (upstreamRes.statusCode || 200);
+            function handleLlmResponse(upstreamRes, respBody, usedVertex) {
+                if (upstreamRes.statusCode !== 200 && !usedVertex && (upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 404 || upstreamRes.statusCode === 429 || upstreamRes.statusCode === 500 || upstreamRes.statusCode === 503)) {
+                    if (upstreamRes.statusCode === 402 && apiKey === process.env.GEMINI_API_KEY) {
+                        _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000;
+                    }
+                    return sendLlmViaVertex(upstreamRes.statusCode, respBody);
+                }
+                const outStatus = (upstreamRes.statusCode === 400 && respBody.includes('API_KEY_INVALID')) ? 401 : (upstreamRes.statusCode || 200);
+                if (!res.headersSent) {
                     res.writeHead(outStatus, {
                         'Content-Type': 'application/json',
                         'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -1430,7 +1578,71 @@ const server = http.createServer((req, res) => {
                     } else {
                         res.end(JSON.stringify({ error: { message: `Upstream error ${outStatus}` } }));
                     }
+                }
+            }
+
+            function sendLlmViaVertex(fallbackStatus = 502, fallbackBody = '') {
+                getGcpAuthContext().then(({ token, projectId }) => {
+                    if (!token || !projectId) {
+                        if (!res.headersSent) {
+                            const outStatus = (fallbackStatus === 400 && fallbackBody.includes('API_KEY_INVALID')) ? 401 : fallbackStatus;
+                            res.writeHead(outStatus, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+                            res.end(JSON.stringify({ error: { message: `Upstream error ${outStatus}` } }));
+                        }
+                        return;
+                    }
+                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/${encodeURIComponent(vertexLlmModel)}:generateContent`;
+                    const vReq = https.request(vUrl, {
+                        method: 'POST',
+                        agent: geminiHttpsAgent,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Length': Buffer.byteLength(payloadStr)
+                        },
+                        timeout: 30000
+                    }, vRes => {
+                        let vBody = '';
+                        vRes.on('data', c => vBody += c);
+                        vRes.on('end', () => handleLlmResponse(vRes, vBody, true));
+                    });
+                    vReq.on('timeout', () => {
+                        vReq.destroy();
+                        if (!res.headersSent) {
+                            res.writeHead(504, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: { message: 'Gemini upstream request timed out' } }));
+                        }
+                    });
+                    vReq.on('error', err => {
+                        if (!res.headersSent) {
+                            res.writeHead(502, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: { message: redactSecret(err.message, apiKey) } }));
+                        }
+                    });
+                    vReq.write(payloadStr);
+                    vReq.end();
                 });
+            }
+
+            if (apiKey.startsWith('AQ.') || (Date.now() < _aiStudioDepletedUntil && apiKey === process.env.GEMINI_API_KEY)) {
+                sendLlmViaVertex();
+                return;
+            }
+
+            const upstreamReq = https.request(targetUrl, {
+                method: 'POST',
+                agent: geminiHttpsAgent,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Api-Revision': '2026-05-20',
+                    'x-goog-api-key': apiKey,
+                    'Content-Length': Buffer.byteLength(payloadStr)
+                },
+                timeout: 30000
+            }, upstreamRes => {
+                let respBody = '';
+                upstreamRes.on('data', chunk => respBody += chunk);
+                upstreamRes.on('end', () => handleLlmResponse(upstreamRes, respBody, false));
             });
 
             upstreamReq.on('timeout', () => {
@@ -1527,75 +1739,145 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            const sketchModel = 'gemini-nano-banana-2.1'; // Fallback chain: gemini-3.1-flash-lite-image, gemini-3.1-flash-image
-            const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${sketchModel}:generateContent`;
+            const sketchModels = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image'];
             const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
             };
             const payloadStr = JSON.stringify(payload);
 
-            const upstreamReq = https.request(targetUrl, {
-                method: 'POST',
-                agent: geminiHttpsAgent,
-                headers: {
+            function handleSketchResponse(upstreamRes, respBody, usedVertex, modelIdx = 0) {
+                if (upstreamRes.statusCode !== 200 && !usedVertex) {
+                    if (modelIdx + 1 < sketchModels.length) {
+                        return sendSketchViaAiStudio(modelIdx + 1);
+                    }
+                    if (upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 404 || upstreamRes.statusCode === 429 || upstreamRes.statusCode === 500 || upstreamRes.statusCode === 503) {
+                        if (upstreamRes.statusCode === 402 && apiKey === process.env.GEMINI_API_KEY) {
+                            _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000;
+                        }
+                        return sendSketchViaVertex(upstreamRes.statusCode);
+                    }
+                }
+                if (res.headersSent) return;
+                res.writeHead(200, {
                     'Content-Type': 'application/json',
-                    'Api-Revision': '2026-05-20',
-                    'x-goog-api-key': apiKey,
-                    'Content-Length': Buffer.byteLength(payloadStr)
-                },
-                timeout: 30000
-            }, upstreamRes => {
-                let respBody = '';
-                upstreamRes.on('data', chunk => respBody += chunk);
-                upstreamRes.on('end', () => {
-                    res.writeHead(200, {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    });
-                    if (upstreamRes.statusCode === 200) {
-                        try {
-                            const rb = JSON.parse(respBody);
-                            const parts = rb.candidates?.[0]?.content?.parts || [];
-                            const imgPart = parts.find(p => p.inlineData && p.inlineData.data);
-                            if (imgPart) {
-                                const mime = imgPart.inlineData.mimeType || 'image/png';
-                                const imageUrl = 'data:' + mime + ';base64,' + imgPart.inlineData.data;
-                                if (sketchCache.size >= MAX_SKETCH_CACHE_ITEMS) {
-                                    const oldestKey = sketchCache.keys().next().value;
-                                    sketchCache.delete(oldestKey);
-                                }
-                                sketchCache.set(cacheKey, imageUrl);
-                                res.end(JSON.stringify({ ok: true, imageUrl, model: sketchModel }));
-                            } else {
-                                res.end(JSON.stringify({ ok: false, fallback: true, reason: 'upstream_no_image' }));
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                });
+                if (upstreamRes.statusCode === 200) {
+                    try {
+                        const rb = JSON.parse(respBody);
+                        const parts = rb.candidates?.[0]?.content?.parts || [];
+                        const imgPart = parts.find(p => p.inlineData && p.inlineData.data);
+                        if (imgPart) {
+                            const mime = imgPart.inlineData.mimeType || 'image/png';
+                            const imageUrl = 'data:' + mime + ';base64,' + imgPart.inlineData.data;
+                            if (sketchCache.size >= MAX_SKETCH_CACHE_ITEMS) {
+                                const oldestKey = sketchCache.keys().next().value;
+                                sketchCache.delete(oldestKey);
                             }
-                        } catch(e) {
+                            sketchCache.set(cacheKey, imageUrl);
+                            const usedModel = usedVertex ? 'gemini-2.5-flash-image' : (sketchModels[modelIdx] || sketchModels[0]);
+                            res.end(JSON.stringify({ ok: true, imageUrl, model: usedModel }));
+                        } else if (!usedVertex && modelIdx + 1 < sketchModels.length) {
+                            return sendSketchViaAiStudio(modelIdx + 1);
+                        } else {
                             res.end(JSON.stringify({ ok: false, fallback: true, reason: 'upstream_no_image' }));
                         }
-                    } else {
-                        res.end(JSON.stringify({ ok: false, fallback: true, reason: `upstream_error_${upstreamRes.statusCode}` }));
+                    } catch(e) {
+                        res.end(JSON.stringify({ ok: false, fallback: true, reason: 'upstream_no_image' }));
+                    }
+                } else {
+                    res.end(JSON.stringify({ ok: false, fallback: true, reason: `upstream_error_${upstreamRes.statusCode}` }));
+                }
+            }
+
+            function sendSketchViaVertex(fallbackStatus = 502) {
+                getGcpAuthContext().then(({ token, projectId }) => {
+                    if (!token || !projectId) {
+                        if (!res.headersSent) {
+                            res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+                            res.end(JSON.stringify({ ok: false, fallback: true, reason: `upstream_error_${fallbackStatus}` }));
+                        }
+                        return;
+                    }
+                    const vUrl = `https://aiplatform.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}/locations/global/publishers/google/models/gemini-2.5-flash-image:generateContent`;
+                    const vReq = https.request(vUrl, {
+                        method: 'POST',
+                        agent: geminiHttpsAgent,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Length': Buffer.byteLength(payloadStr)
+                        },
+                        timeout: 30000
+                    }, vRes => {
+                        let vBody = '';
+                        vRes.on('data', c => vBody += c);
+                        vRes.on('end', () => handleSketchResponse(vRes, vBody, true));
+                    });
+                    vReq.on('timeout', () => {
+                        vReq.destroy();
+                        if (!res.headersSent) {
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: false, fallback: true, reason: 'timeout' }));
+                        }
+                    });
+                    vReq.on('error', () => {
+                        if (!res.headersSent) {
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: false, fallback: true, reason: 'network_error' }));
+                        }
+                    });
+                    vReq.write(payloadStr);
+                    vReq.end();
+                });
+            }
+
+            if (apiKey.startsWith('AQ.') || (Date.now() < _aiStudioDepletedUntil && apiKey === process.env.GEMINI_API_KEY)) {
+                sendSketchViaVertex();
+                return;
+            }
+
+            function sendSketchViaAiStudio(modelIdx = 0) {
+                const activeModel = sketchModels[modelIdx] || sketchModels[0];
+                const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent`;
+                const upstreamReq = https.request(targetUrl, {
+                    method: 'POST',
+                    agent: geminiHttpsAgent,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': apiKey,
+                        'Content-Length': Buffer.byteLength(payloadStr)
+                    },
+                    timeout: 30000
+                }, upstreamRes => {
+                    let respBody = '';
+                    upstreamRes.on('data', chunk => respBody += chunk);
+                    upstreamRes.on('end', () => handleSketchResponse(upstreamRes, respBody, false, modelIdx));
+                });
+
+                upstreamReq.on('timeout', () => {
+                    upstreamReq.destroy();
+                    if (!res.headersSent) {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: false, fallback: true, reason: 'timeout' }));
                     }
                 });
-            });
 
-            upstreamReq.on('timeout', () => {
-                upstreamReq.destroy();
-                if (!res.headersSent) {
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ ok: false, fallback: true, reason: 'timeout' }));
-                }
-            });
+                upstreamReq.on('error', err => {
+                    if (modelIdx + 1 < sketchModels.length) {
+                        sendSketchViaAiStudio(modelIdx + 1);
+                    } else if (!res.headersSent) {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: false, fallback: true, reason: 'network_error' }));
+                    }
+                });
 
-            upstreamReq.on('error', err => {
-                if (!res.headersSent) {
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ ok: false, fallback: true, reason: 'network_error' }));
-                }
-            });
+                upstreamReq.write(payloadStr);
+                upstreamReq.end();
+            }
 
-            upstreamReq.write(payloadStr);
-            upstreamReq.end();
+            sendSketchViaAiStudio(0);
         });
         return;
     }
@@ -1702,7 +1984,7 @@ const server = http.createServer((req, res) => {
                 'Laomedeia', 'Alnilam', 'Schedar', 'Pulcherrima', 'Achird', 'Zubenelgenubi', 'Sadachbia'
             ];
             const isDefaultMaleFallback = isNarrator && reqVoice && reqVoice.toLowerCase() === 'enceladus'
-                && (reqGender === 'female' || (reqRealm && reqRealm !== 'angband' && GEMINI_REALM_NARRATOR_MAP[reqRealm]));
+                && reqGender === 'female';
             if (reqVoice && validGeminiVoices.map(v => v.toLowerCase()).includes(reqVoice.toLowerCase()) && !isDefaultMaleFallback) {
                 geminiVoice = validGeminiVoices.find(v => v.toLowerCase() === reqVoice.toLowerCase());
             } else if (isNarrator) {
@@ -1943,6 +2225,36 @@ const server = http.createServer((req, res) => {
             edgePromise
                 .then(buffer => sendEdgeMp3(buffer, false))
                 .catch(err => {
+                    if (!fallbackReason && geminiApiKey && !res.headersSent) {
+                        const fallbackVoice = GEMINI_VOICE_MAP[role] || GEMINI_VOICE_MAP.default;
+                        return synthesizeGeminiTTS({
+                            text,
+                            voice: fallbackVoice,
+                            emotion,
+                            geminiTag,
+                            directorNote,
+                            role,
+                            apiKey: geminiApiKey,
+                            realm: reqRealm,
+                            lang: isJpText ? 'jp' : reqLang
+                        }).then(wavBuffer => {
+                            if (!res.headersSent) {
+                                res.writeHead(200, {
+                                    'Content-Type': 'audio/wav',
+                                    'Content-Length': wavBuffer.length,
+                                    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
+                                    'X-TTS-Engine': 'gemini',
+                                    'X-TTS-Cache': 'MISS'
+                                });
+                                res.end(wavBuffer);
+                            }
+                        }).catch(() => {
+                            if (!res.headersSent) {
+                                res.writeHead(500, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ error: 'Internal error' }));
+                            }
+                        });
+                    }
                     if (!res.headersSent) {
                         console.error('[TTS] Edge TTS error:', err);
                         res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -1953,17 +2265,40 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // REST: Restore Lazarus Living Checkpoint Save after death (all 8 realms)
+    if (pathname === '/api/saves/restore-checkpoint' && req.method === 'POST') {
+        const queryRealm = (urlObj.searchParams.get('realm') || req.headers['x-realm'] || 'angband').toLowerCase().trim();
+        const charName = urlObj.searchParams.get('char') || req.headers['x-character-name'] || 'Adventurer';
+        if (!isValidRealm(queryRealm)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Invalid realm' }));
+            return;
+        }
+        const saveDirs = getSaveDirsForRealm(queryRealm);
+        const restored = restoreLivingCheckpoint(saveDirs, charName);
+        invalidateSavesCache();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            ok: true,
+            restored: Boolean(restored && restored.restored),
+            filename: restored ? restored.filename : null,
+            realm: queryRealm
+        }));
+        return;
+    }
+
     // REST: Download latest or current save direct fallback
     if ((pathname === '/api/saves/latest' || pathname === '/api/saves-download-current') && req.method === 'GET') {
         const charName = urlObj.searchParams.get('char');
-        const saveDirs = getSaveDirs();
+        const reqRealm = urlObj.searchParams.get('realm');
+        const saveDirs = (reqRealm && isValidRealm(reqRealm)) ? getSaveDirsForRealm(reqRealm) : getSaveDirs();
         let allSaves = [];
 
         for (const sDir of saveDirs) {
             if (!fs.existsSync(sDir)) continue;
             const files = fs.readdirSync(sDir);
             for (const file of files) {
-                if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json')) continue;
+                if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json') || file.endsWith('.living.sav')) continue;
                 const fullPath = path.join(sDir, file);
                 try {
                     const stat = fs.statSync(fullPath);
@@ -2006,7 +2341,7 @@ const server = http.createServer((req, res) => {
                 if (!fs.existsSync(sDir)) continue;
                 const files = fs.readdirSync(sDir);
                 for (const file of files) {
-                    if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json')) continue;
+                    if (file.startsWith('.') || file.endsWith('.realm.json') || file.endsWith('.owner.json') || file.endsWith('.living.sav')) continue;
                     const fullPath = path.join(sDir, file);
                     try {
                         const stat = fs.statSync(fullPath);
@@ -2043,7 +2378,7 @@ const server = http.createServer((req, res) => {
             return;
         }
         const queryRealm = urlObj.searchParams.get('realm') || 'angband';
-        if (!['angband', 'silq', 'frogcomposband', 'hengband'].includes(queryRealm)) {
+        if (!isValidRealm(queryRealm)) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Invalid realm' }));
             return;
@@ -2105,20 +2440,8 @@ const server = http.createServer((req, res) => {
             }
             const reqRealm = (urlObj.searchParams.get('realm') || req.headers['x-realm'] || '').toLowerCase().trim();
             const magic = buf.length >= 8 ? buf.toString('ascii', 0, 8) : '';
-            let detectedRealm = 'angband';
-            if (magic === 'SaveVNLA') detectedRealm = 'angband';
-            else if (magic === 'SaveSILQ') detectedRealm = 'silq';
-            else if (magic === 'SaveFROX') detectedRealm = 'frogcomposband';
-            else if (magic === 'SaveHENG') detectedRealm = 'hengband';
-            else if (['silq', 'frogcomposband', 'hengband'].includes(reqRealm)) {
-                if (buf.length >= 4) {
-                    detectedRealm = reqRealm;
-                } else {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Invalid savefile: binary header too short' }));
-                    return;
-                }
-            } else {
+            const detectedRealm = detectRealmFromMagic(magic, reqRealm !== 'angband' ? reqRealm : '');
+            if (!detectedRealm) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Invalid savefile: missing or unknown magic header' }));
                 return;
@@ -2265,7 +2588,7 @@ const server = http.createServer((req, res) => {
             return;
         }
         const queryRealm = urlObj.searchParams.get('realm') || 'angband';
-        if (!['angband', 'silq', 'frogcomposband', 'hengband'].includes(queryRealm)) {
+        if (!isValidRealm(queryRealm)) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Invalid realm' }));
             return;
@@ -3122,7 +3445,10 @@ async function spawnGameSession(ws, request) {
                 HOME: process.env.HOME || '/app',
             };
             delete childEnv.GEMINI_API_KEY;
-            child = spawn(engineInfo.exe, args, {
+            const isNodeBridge = String(engineInfo.exe || '').endsWith('.js');
+            const spawnExe = isNodeBridge ? process.execPath : engineInfo.exe;
+            const spawnArgs = isNodeBridge ? [engineInfo.exe, ...args] : args;
+            child = spawn(spawnExe, spawnArgs, {
                 cwd: engineDir,
                 env: childEnv,
                 stdio: ['pipe', 'pipe', 'pipe']
@@ -3217,6 +3543,9 @@ async function spawnGameSession(ws, request) {
                                     if (!session.isDead && session.phase === 'play' && session.child && !session.child.killed && session.child.exitCode === null && session.child.stdin && session.child.stdin.writable) {
                                         session.child.stdin.write('save\n');
                                         invalidateSavesCache();
+                                        setTimeout(() => {
+                                            if (!session.isDead && session.savePath) snapshotLivingSave(session.savePath);
+                                        }, 250).unref();
                                     }
                                 } catch (_) {}
                             }, 180).unref();

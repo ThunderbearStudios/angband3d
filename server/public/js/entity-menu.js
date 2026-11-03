@@ -69,7 +69,7 @@
                 actions.push({ id: 'cast', label: 'Cast at', key: 'm' });
                 actions.push({ id: 'power', label: 'Power at', key: 'U' });
             } else {
-                actions.push({ id: 'cast', label: 'Cast at', key: 'm' });
+                actions.push({ id: 'cast', label: 'Cast at', key: keyFor('cast', 'm') });
             }
 
             actions.push({ id: 'recall', label: 'Recall', key: '/' });
@@ -110,6 +110,20 @@
             return [
                 { id: 'stairs_up', label: 'Stairs Up', key: keyFor('stairs_up', '<') },
                 { id: 'stairs_down', label: 'Stairs Down', key: keyFor('stairs_down', '>') }
+            ];
+        }
+
+        if (type === 'altar') {
+            return [
+                { id: 'pray', label: 'Pray', key: '#pray' },
+                { id: 'offer', label: 'Offer Sacrifice', key: '#offer' }
+            ];
+        }
+
+        if (type === 'fountain') {
+            return [
+                { id: 'dip', label: 'Dip Item', key: '#dip' },
+                { id: 'quaff', label: 'Drink Fountain', key: keyFor('quaff', 'q') }
             ];
         }
 

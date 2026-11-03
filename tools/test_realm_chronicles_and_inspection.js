@@ -212,6 +212,38 @@ test('Dungeon3D and InputController support afar 3D floor item click inspection'
     assert(trollInspect.hpText.includes('HP: 36 / 45 (80%)'), 'Troll core inspection must report exact core HP');
     assert(trollInspect.tactics.includes('Light') || trollInspect.tactics.includes('Fire'), 'Troll core inspection must report authentic core weaknesses');
 
+    // Non-hostile & NetHack disposition and rich telemetry checks
+    const petDogInspect = ChronicleManager.prototype._buildCoreMonsterInspection(
+        { name: 'little dog (tame)', race: 'little dog (tame)', glyph: 'd', hp: 18, hp_max: 18, ac: 6, dmg: 6, speed: 120, isPet: true, peaceful: true, asleep: false },
+        1,
+        'nethack'
+    );
+    assert.strictEqual(petDogInspect.pillText, 'Companion (Tame)', 'Tame pet dog must NEVER be labeled Hostile');
+    assert(petDogInspect.prose.includes('Type: Canine / Hound'), 'NetHack little dog (d) must be Canine / Hound, never Young Dragon');
+    assert(petDogInspect.prose.includes('AC: 6') && petDogInspect.prose.includes('Speed: Fast (+10)'), 'Creature inspect must include AC and Speed telemetry');
+
+    const shopkeeperInspect = ChronicleManager.prototype._buildCoreMonsterInspection(
+        { name: 'Shopkeeper (peaceful)', glyph: '@', hp: 40, hp_max: 40, peaceful: true, asleep: false },
+        3,
+        'nethack'
+    );
+    assert.strictEqual(shopkeeperInspect.pillText, 'Peaceful', 'Peaceful shopkeeper must NEVER be labeled Hostile');
+
+    const sleepingOrcInspect = ChronicleManager.prototype._buildCoreMonsterInspection(
+        { name: 'Hill orc', glyph: 'o', hp: 16, hp_max: 16, asleep: true },
+        3,
+        'nethack'
+    );
+    assert.strictEqual(sleepingOrcInspect.pillText, 'Asleep (Unwary)', 'Sleeping monster must be labeled Asleep (Unwary), not Hostile');
+
+    const floatingEyeInspect = ChronicleManager.prototype._buildCoreMonsterInspection(
+        { name: 'floating eye', glyph: 'e', hp: 9, hp_max: 9, ac: 9, asleep: false },
+        2,
+        'nethack'
+    );
+    assert.strictEqual(floatingEyeInspect.pillText, 'Passive (Gaze Hazard)', 'Floating eye must report Passive (Gaze Hazard)');
+    assert(floatingEyeInspect.tactics.includes('Gaze paralyzes melee attackers'), 'Floating eye tactics must warn about gaze paralysis');
+
     const swordInspect = ChronicleManager.prototype._buildCoreItemInspection(
         { name: 'a Long Sword of Westernesse (2d5) (+10,+12) (+2)', glyph: ')' },
         15,

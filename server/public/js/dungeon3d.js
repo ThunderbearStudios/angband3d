@@ -2136,12 +2136,23 @@ class Dungeon3D {
     }
 
     initThree() {
-        const tier = (window.DeviceProfile && typeof window.DeviceProfile.getTier === 'function')
-            ? window.DeviceProfile.getTier()
-            : 'desktop';
-        const dprCap = tier === 'phone' ? 1.25 : (tier === 'tablet' ? 1.5 : 2.0);
-        const farDistance = tier === 'phone' ? 85 : (tier === 'tablet' ? 110 : 140);
-        const initialFogDensity = tier === 'phone' ? 0.015 : 0.008;
+        const budget = (window.DeviceProfile && typeof window.DeviceProfile.getRenderBudget === 'function')
+            ? window.DeviceProfile.getRenderBudget()
+            : ((window.Dungeon3DLightmap && window.Dungeon3DLightmap.HardwareGpuProfile)
+                ? window.Dungeon3DLightmap.HardwareGpuProfile.detect()
+                : { gpuTier: 'integrated', dprCap: 1.0, antialias: false, farDistance: 60, fogDensity: 0.018, enableFillLight: false, proceduralTexSize: 256, nameplatePoolCap: 64 });
+        this.renderBudget = budget;
+        const dprCap = budget.dprCap;
+        const farDistance = budget.farDistance;
+        const initialFogDensity = budget.fogDensity || 0.018;
+
+        if (window.Dungeon3DLightmap) {
+            this.renderGovernor = new window.Dungeon3DLightmap.DemandRenderGovernor();
+            this.vertexLighter = new window.Dungeon3DLightmap.InstanceVertexLighter();
+            this.nameplatePool = new window.Dungeon3DLightmap.NameplateTexturePool(budget.nameplatePoolCap || 64);
+        }
+        this.modelGovernor = (typeof window !== 'undefined' && window.Dungeon3DModelGovernor) ? window.Dungeon3DModelGovernor : null;
+        this.glbPool = this.modelGovernor ? new this.modelGovernor.GlbPrototypePool(48) : null;
 
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x2d3a50); // Initial town sky
@@ -2157,7 +2168,7 @@ class Dungeon3D {
         const isRecording = typeof window !== 'undefined' && window.location.search && window.location.search.includes('record_walkthrough=1');
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            antialias: true,
+            antialias: Boolean(budget.antialias),
             powerPreference: 'high-performance',
             stencil: false,
             depth: true,
@@ -2204,8 +2215,9 @@ class Dungeon3D {
         this.torchBaseColor = new THREE.Color(0xffdc99);
         this.torchLowColor = new THREE.Color(0xffaa55);
 
-        // Secondary warm bounce fill light near player feet - ATTACHED TO CAMERA
-        this.torchFillLight = new THREE.PointLight(0xff7722, 0.35, 8.0, 0.7);
+        // Secondary warm bounce fill light near player feet - ATTACHED TO CAMERA (disabled on Intel UHD 620 / integrated / phone to halve per-pixel point-light cost)
+        this.torchFillLight = new THREE.PointLight(0xff7722, budget.enableFillLight ? 0.35 : 0.0, 8.0, 0.7);
+        this.torchFillLight.visible = Boolean(budget.enableFillLight);
         this.torchFillLight.position.set(0.20, -0.20, -0.20);
         this.camera.add(this.torchFillLight);
 
@@ -2221,17 +2233,18 @@ class Dungeon3D {
         this.scene.add(this.camera);
 
         window.addEventListener('resize', () => {
-            const currentTier = (window.DeviceProfile && typeof window.DeviceProfile.getTier === 'function')
-                ? window.DeviceProfile.getTier()
-                : 'desktop';
-            const newDprCap = currentTier === 'phone' ? 1.25 : (currentTier === 'tablet' ? 1.5 : 2.0);
-            const newFar = currentTier === 'phone' ? 85 : (currentTier === 'tablet' ? 110 : 140);
+            const nextBudget = (window.DeviceProfile && typeof window.DeviceProfile.getRenderBudget === 'function')
+                ? window.DeviceProfile.getRenderBudget()
+                : budget;
+            this.renderBudget = nextBudget;
+            const scale = (this.renderGovernor && this.renderGovernor.dynamicResolutionScale) || 1.0;
 
             this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.far = newFar;
+            this.camera.far = nextBudget.farDistance;
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
-            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, newDprCap));
+            this.renderer.setPixelRatio(Math.max(0.5, Math.min(window.devicePixelRatio || 1, nextBudget.dprCap) * scale));
+            if (this.renderGovernor) this.renderGovernor.wake(350);
         });
     }
 
@@ -3326,6 +3339,7 @@ class Dungeon3D {
                 if (b.rotZ) geo.rotateZ(b.rotZ);
                 geo.translate(b.pos[0], b.pos[1], b.pos[2]);
                 const nonIndexed = geo.toNonIndexed();
+                if (b.color) nonIndexed._boxColor = b.color;
                 geo.dispose();
                 return nonIndexed;
             });
@@ -3342,7 +3356,17 @@ class Dungeon3D {
                 posArr.set(g.attributes.position.array, vOffset * 3);
                 normArr.set(g.attributes.normal.array, vOffset * 3);
                 uvArr.set(g.attributes.uv.array, vOffset * 2);
-                vOffset += g.attributes.position.count;
+                const c = g._boxColor;
+                const vCount = g.attributes.position.count;
+                if (c) {
+                    for (let vi = 0; vi < vCount; vi++) {
+                        const base = (vOffset + vi) * 3;
+                        colArr[base] = c[0];
+                        colArr[base + 1] = c[1];
+                        colArr[base + 2] = c[2];
+                    }
+                }
+                vOffset += vCount;
                 g.dispose();
             }
 
@@ -3650,6 +3674,86 @@ class Dungeon3D {
         this.stairsUpMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.stairsUpMesh);
 
+        // 7. Consecrated High Altar (feat 43: '_') - Stepped stone dais, crimson runner, gilded mensa & sacred chalice
+        const altarGeo = createMergedBoxGeometry([
+            { pos: [0, 0.06, 0], size: [1.52, 0.12, 1.16], color: [0.76, 0.73, 0.68] },      // Lower ashlar step
+            { pos: [0, 0.18, 0], size: [1.30, 0.12, 0.96], color: [0.84, 0.81, 0.75] },      // Upper marble step
+            { pos: [0, 0.48, 0], size: [1.04, 0.48, 0.68], color: [0.90, 0.88, 0.82] },      // Sanctuary altar block
+            { pos: [0, 0.49, 0], size: [0.38, 0.50, 0.72], color: [0.82, 0.18, 0.16] },      // Crimson altar frontal cloth
+            { pos: [-0.48, 0.48, -0.30], size: [0.12, 0.50, 0.12], color: [0.95, 0.80, 0.36] }, // NW gilded corner pillar
+            { pos: [0.48, 0.48, -0.30], size: [0.12, 0.50, 0.12], color: [0.95, 0.80, 0.36] },  // NE gilded corner pillar
+            { pos: [-0.48, 0.48, 0.30], size: [0.12, 0.50, 0.12], color: [0.95, 0.80, 0.36] },  // SW gilded corner pillar
+            { pos: [0.48, 0.48, 0.30], size: [0.12, 0.50, 0.12], color: [0.95, 0.80, 0.36] },   // SE gilded corner pillar
+            { pos: [0, 0.71, 0], size: [1.18, 0.05, 0.80], color: [1.00, 0.82, 0.32] },      // Gilded cornice trim
+            { pos: [0, 0.78, 0], size: [1.24, 0.12, 0.86], color: [0.96, 0.94, 0.88] },      // Overhanging sacrificial mensa slab
+            { pos: [-0.54, 0.88, -0.35], size: [0.10, 0.12, 0.10], color: [1.00, 0.84, 0.35] }, // Sacred altar horn NW
+            { pos: [0.54, 0.88, -0.35], size: [0.10, 0.12, 0.10], color: [1.00, 0.84, 0.35] },  // Sacred altar horn NE
+            { pos: [-0.54, 0.88, 0.35], size: [0.10, 0.12, 0.10], color: [1.00, 0.84, 0.35] },  // Sacred altar horn SW
+            { pos: [0.54, 0.88, 0.35], size: [0.10, 0.12, 0.10], color: [1.00, 0.84, 0.35] },   // Sacred altar horn SE
+            { pos: [-0.36, 0.93, 0], size: [0.09, 0.18, 0.09], color: [0.95, 0.78, 0.28] },  // Left sanctuary candlestick
+            { pos: [-0.36, 1.06, 0], size: [0.08, 0.12, 0.08], rotY: 0.78, color: [1.00, 0.92, 0.45] }, // Left candle flame
+            { pos: [0.36, 0.93, 0], size: [0.09, 0.18, 0.09], color: [0.95, 0.78, 0.28] },   // Right sanctuary candlestick
+            { pos: [0.36, 1.06, 0], size: [0.08, 0.12, 0.08], rotY: 0.78, color: [1.00, 0.92, 0.45] },  // Right candle flame
+            { pos: [0, 0.89, 0], size: [0.22, 0.10, 0.22], color: [1.00, 0.84, 0.32] },      // Offering chalice pedestal
+            { pos: [0, 0.97, 0], size: [0.32, 0.08, 0.32], color: [1.00, 0.88, 0.40] },      // Golden offering bowl
+            { pos: [0, 1.06, 0], size: [0.18, 0.14, 0.18], rotY: 0.78, rotX: 0.45, color: [1.00, 0.96, 0.62] } // Sacred flame
+        ]);
+        this.altarMaterial = new THREE.MeshStandardMaterial({
+            roughness: 0.38,
+            metalness: 0.26,
+            emissive: new THREE.Color(0x2e1f08),
+            emissiveIntensity: 0.45,
+            vertexColors: true
+        });
+        this.altarMesh = new THREE.InstancedMesh(altarGeo, this.altarMaterial, 64);
+        this.altarMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.altarMesh);
+
+        // 8. Sparkling Magic Fountain (feat 44: '{') - Octagonal stone basin, tiered pedestal & cascading azure water
+        const fountainBoxes = [
+            { pos: [0, 0.05, 0], size: [1.28, 0.10, 1.28], color: [0.68, 0.72, 0.78] },                      // Octagonal base plinth A
+            { pos: [0, 0.05, 0], size: [1.28, 0.10, 1.28], rotY: Math.PI / 4, color: [0.68, 0.72, 0.78] },   // Octagonal base plinth B
+            { pos: [0, 0.33, 0], size: [0.94, 0.08, 0.94], color: [0.18, 0.76, 1.00] },                      // Lower basin azure water pool A
+            { pos: [0, 0.33, 0], size: [0.94, 0.08, 0.94], rotY: Math.PI / 4, color: [0.22, 0.80, 1.00] },   // Lower basin azure water pool B
+            { pos: [0, 0.54, 0], size: [0.28, 0.46, 0.28], color: [0.80, 0.84, 0.90] },                      // Central stone column shaft
+            { pos: [0, 0.76, 0], size: [0.58, 0.10, 0.58], color: [0.86, 0.90, 0.95] },                      // Upper catch-bowl A
+            { pos: [0, 0.76, 0], size: [0.58, 0.10, 0.58], rotY: Math.PI / 4, color: [0.86, 0.90, 0.95] },   // Upper catch-bowl B
+            { pos: [0, 0.81, 0], size: [0.46, 0.05, 0.46], color: [0.28, 0.88, 1.00] },                      // Upper catch-bowl water
+            { pos: [0, 0.90, 0], size: [0.16, 0.18, 0.16], color: [0.88, 0.92, 0.96] },                      // Fountain finial nozzle
+            { pos: [0, 1.06, 0], size: [0.22, 0.22, 0.22], rotY: 0.78, rotX: 0.60, color: [0.58, 0.96, 1.00] }, // Sparkling water plume crest
+            { pos: [0.26, 0.58, 0], size: [0.08, 0.36, 0.08], rotZ: -0.22, color: [0.45, 0.92, 1.00] },      // East cascading water stream
+            { pos: [-0.26, 0.58, 0], size: [0.08, 0.36, 0.08], rotZ: 0.22, color: [0.45, 0.92, 1.00] },      // West cascading water stream
+            { pos: [0, 0.58, 0.26], size: [0.08, 0.36, 0.08], rotX: 0.22, color: [0.45, 0.92, 1.00] },       // South cascading water stream
+            { pos: [0, 0.58, -0.26], size: [0.08, 0.36, 0.08], rotX: -0.22, color: [0.45, 0.92, 1.00] }      // North cascading water stream
+        ];
+        for (let seg = 0; seg < 8; seg++) {
+            const ang = seg * (Math.PI / 4);
+            const r = 0.56;
+            fountainBoxes.push({
+                pos: [Math.cos(ang) * r, 0.25, Math.sin(ang) * r],
+                size: [0.16, 0.34, 0.48],
+                rotY: -ang,
+                color: [0.78, 0.82, 0.88]
+            });
+            fountainBoxes.push({
+                pos: [Math.cos(ang) * r, 0.44, Math.sin(ang) * r],
+                size: [0.20, 0.06, 0.52],
+                rotY: -ang,
+                color: [0.88, 0.91, 0.95]
+            });
+        }
+        const fountainGeo = createMergedBoxGeometry(fountainBoxes);
+        this.fountainMaterial = new THREE.MeshStandardMaterial({
+            roughness: 0.26,
+            metalness: 0.16,
+            emissive: new THREE.Color(0x0a2e46),
+            emissiveIntensity: 0.50,
+            vertexColors: true
+        });
+        this.fountainMesh = new THREE.InstancedMesh(fountainGeo, this.fountainMaterial, 64);
+        this.fountainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        this.scene.add(this.fountainMesh);
+
         // FrogComposBand Bottomless Pit (feat 41: '#') - Chasm cliff-shaft & abyssal void
         if (!this.dungeonGroup) {
             this.dungeonGroup = new THREE.Group();
@@ -3698,6 +3802,8 @@ class Dungeon3D {
         initInstancedColors(this.doorBrokenMesh, 256);
         initInstancedColors(this.stairsMesh, 128);
         initInstancedColors(this.stairsUpMesh, 128);
+        initInstancedColors(this.altarMesh, 64);
+        initInstancedColors(this.fountainMesh, 64);
         initInstancedColors(this.trapMesh, 128);
         initInstancedColors(this.magmaMesh, 256);
         initInstancedColors(this.quartzMesh, 256);
@@ -5883,7 +5989,23 @@ class Dungeon3D {
             if (row.a && x * 2 + 1 < row.a.length) {
                 attr = (parseInt(row.a[x * 2], 16) << 4) | (parseInt(row.a[x * 2 + 1], 16) || 0);
             }
-            if (this.realm !== 'silq') {
+            if (this.realm === 'nethack') {
+                if (g === '_') feat = 43;      // Consecrated High Altar
+                else if (g === '{') feat = 44; // Sparkling Magic Fountain
+                else if (g === '+') feat = 2;  // Closed Door
+                else if (g === "'") feat = 3;  // Open Door
+                if (feat === 2 || feat === 3) {
+                    const isW = (ry, rx) => {
+                        const r = map.rows[ry];
+                        if (!r || !r.f || rx < 0 || rx * 2 + 1 >= r.f.length) return false;
+                        const fc = (parseInt(r.f[rx * 2], 16) << 4) | (parseInt(r.f[rx * 2 + 1], 16) || 0);
+                        return fc >= 18 && fc <= 22;
+                    };
+                    const framedNS = isW(y - 1, x) && isW(y + 1, x);
+                    const framedEW = isW(y, x - 1) && isW(y, x + 1);
+                    if (!framedNS && !framedEW) feat = 1;
+                }
+            } else if (this.realm !== 'silq') {
                 if (feat === 25 && (g === '.' || g === ',' || g === "'")) {
                     feat = 26; // Feat 26: Grass
                 } else if (feat === 26 && (g === '#' || g === '%' || g === '&' || g === 'T')) {
@@ -5939,7 +6061,7 @@ class Dungeon3D {
     }
 
     isWalkableOrPortal(feat) {
-        return feat === 1 || feat === 2 || feat === 3 || feat === 4 || feat === 5 || feat === 6 || feat === 16 || feat === 23 || feat === 24 || feat === 25 || feat === 26 || feat === 27 || feat === 28 || feat === 29 || feat === 31 || feat === 37 || feat === 41 || feat === 42 || this.isStoreKind(feat);
+        return feat === 1 || feat === 2 || feat === 3 || feat === 4 || feat === 5 || feat === 6 || feat === 16 || feat === 23 || feat === 24 || feat === 25 || feat === 26 || feat === 27 || feat === 28 || feat === 29 || feat === 31 || feat === 37 || feat === 41 || feat === 42 || feat === 43 || feat === 44 || this.isStoreKind(feat);
     }
 
     /**
@@ -6092,6 +6214,10 @@ class Dungeon3D {
         }
 
         if (inView && (outdoors || lighting === 2 || lighting === 0 || lighting === 1)) {
+            if (!outdoors && lighting === 1 && this.vertexLighter && this.renderBudget && !this.renderBudget.enableFillLight) {
+                const lit = this.vertexLighter.computeTileColor(x, y, 2, this.playerGridX || 0, this.playerGridY || 0, null, targetColor);
+                targetColor.setRGB(lit.r, lit.g, lit.b);
+            }
             return targetColor;
         } else if (inView && lighting === 3) {
             return targetColor.multiply(this._tintDark);
@@ -6271,6 +6397,9 @@ class Dungeon3D {
     }
 
     updateDungeon(frame) {
+        if (this.renderGovernor && typeof this.renderGovernor.wake === 'function') {
+            this.renderGovernor.wake(450);
+        }
         const map = frame.map;
         const w = map.w || (map.rows && map.rows[0] && map.rows[0].f ? map.rows[0].f.length / 2 : 0);
         const h = map.h || (map.rows ? map.rows.length : 0);
@@ -6547,6 +6676,8 @@ class Dungeon3D {
         let lavaCooledCount = 0;
         let stairsCount = 0;
         let stairsUpCount = 0;
+        let altarCount = 0;
+        let fountainCount = 0;
         let magmaCount = 0;
         let quartzCount = 0;
         let goldVeinCount = 0;
@@ -7375,6 +7506,43 @@ class Dungeon3D {
                     continue;
                 }
 
+                // Consecrated High Altar (feat 43) & Sparkling Magic Fountain (feat 44)
+                if (feat === 43 || feat === 44) {
+                    this.dummy.position.set(wx, -0.05, wz);
+                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.updateMatrix();
+                    this.floorMesh.setMatrixAt(floorCount, this.dummy.matrix);
+                    this.floorMesh.setColorAt(floorCount, floorShade);
+                    floorCount++;
+
+                    this.dummy.position.set(wx, 0, wz);
+                    this.dummy.rotation.set(0, 0, 0);
+                    this.dummy.updateMatrix();
+                    if (feat === 43) {
+                        if (altarCount < 64) {
+                            this.altarMesh.setMatrixAt(altarCount, this.dummy.matrix);
+                            this.altarMesh.setColorAt(altarCount, floorShade);
+                            altarCount++;
+                        }
+                    } else {
+                        if (fountainCount < 64) {
+                            this.fountainMesh.setMatrixAt(fountainCount, this.dummy.matrix);
+                            this.fountainMesh.setColorAt(fountainCount, floorShade);
+                            fountainCount++;
+                        }
+                    }
+
+                    if (!outdoors) {
+                        this.dummy.position.set(wx, this.wallHeight, wz);
+                        this.dummy.rotation.set(0, 0, 0);
+                        this.dummy.updateMatrix();
+                        this.ceilingMesh.setMatrixAt(ceilingCount, this.dummy.matrix);
+                        this.ceilingMesh.setColorAt(ceilingCount, ceilingShade);
+                        ceilingCount++;
+                    }
+                    continue;
+                }
+
                 // Impassable Rubble Piles (feat 16) — Tumbled stone masonry & jagged boulders (DungeonWorld.cs:1738-1753, 2522-2528)
                 if (feat === 16) {
                     this.dummy.position.set(wx, -0.05, wz);
@@ -7441,6 +7609,8 @@ class Dungeon3D {
         updateMesh(this.swampMesh, swampCount);
         updateMesh(this.stairsMesh, stairsCount);
         updateMesh(this.stairsUpMesh, stairsUpCount);
+        updateMesh(this.altarMesh, altarCount);
+        updateMesh(this.fountainMesh, fountainCount);
         updateMesh(this.trapMesh, trapCount);
         if (this.chasmMesh) updateMesh(this.chasmMesh, chasmIdx);
         if (this.chasmVoidMesh) {
@@ -7533,6 +7703,10 @@ class Dungeon3D {
                 } else if (feat === 6) {
                     const downText = depth === 0 ? "[>] Down to Dungeon (50')" : `[>] Down to ${(depth + 1) * 50}ft`;
                     stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.1, z: y * this.cellSize, name: downText });
+                } else if (feat === 43) {
+                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.45, z: y * this.cellSize, name: '[_] High Altar', color: '#ffd866' });
+                } else if (feat === 44) {
+                    stairsList.push({ gridX: x, gridY: y, x: x * this.cellSize, y: 1.45, z: y * this.cellSize, name: '[{] Magic Fountain', color: '#66ddff' });
                 } else if (feat === 41) {
                     const playerX = px !== undefined ? px : (this.playerGridX !== undefined ? this.playerGridX : 0);
                     const playerY = py !== undefined ? py : (this.playerGridY !== undefined ? this.playerGridY : 0);
@@ -7607,13 +7781,13 @@ class Dungeon3D {
             }
         }
 
-        // Stairs Labels
+        // Stairs, Altar & Fountain Labels
         for (const s of stairsList) {
             const key = `${s.gridX},${s.gridY},${s.name}`;
             activeLabelKeys.add(key);
 
             if (!this._terrainLabelSprites.has(key)) {
-                const sprite = createCaption(s.name, { x: s.x, y: s.y, z: s.z }, '#88ccff', false);
+                const sprite = createCaption(s.name, { x: s.x, y: s.y, z: s.z }, s.color || '#88ccff', false);
                 this.terrainLabelsGroup.add(sprite);
                 this._terrainLabelSprites.set(key, sprite);
             }
@@ -7779,8 +7953,18 @@ class Dungeon3D {
         ctx.strokeText(`${hp}/${hpMax}`, barX + barW + 6, barY + 9);
         ctx.fillText(`${hp}/${hpMax}`, barX + barW + 6, barY + 9);
 
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.minFilter = THREE.LinearFilter;
+        const poolKey = `${race}|${glyph}|${hp}/${hpMax}|${isTargeted ? 1 : 0}|${isSensed ? 1 : 0}|${m.asleep ? 1 : 0}`;
+        const tex = (this.nameplatePool && typeof this.nameplatePool.acquire === 'function')
+            ? this.nameplatePool.acquire(poolKey, () => {
+                const t = new THREE.CanvasTexture(canvas);
+                t.minFilter = THREE.LinearFilter;
+                return t;
+            })
+            : (() => {
+                const t = new THREE.CanvasTexture(canvas);
+                t.minFilter = THREE.LinearFilter;
+                return t;
+            })();
         // Godot MonsterModelResolver.cs:388 sets NoDepthTest = false (occluded by walls)
         const mat = new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false, transparent: true });
         const sprite = new THREE.Sprite(mat);
@@ -10567,6 +10751,117 @@ class Dungeon3D {
                     templateKey: 'bestiary_fox',
                     scale: 1.28,
                     tintHex: '#f5f0e6',
+                    seed
+                };
+            }
+        }
+
+        // 4. NetHack Realm Specific Glyph & Creature Archetypes
+        if (realm === 'nethack') {
+            if (g === '@' || /wizard of yendor|shopkeeper|oracle|aligned priest|watchman|watch captain/i.test(lowerName)) {
+                if (/wizard of yendor/i.test(lowerName)) {
+                    return { templateKey: 'char_male_priest', scale: 1.25, tintHex: '#7e22ce', weaponKey: 'item_staff_mage', isBoss: true, seed };
+                }
+                if (/shopkeeper/i.test(lowerName)) {
+                    return { templateKey: 'char_male_steward', scale: 1.02, weaponKey: null, seed };
+                }
+                if (/oracle/i.test(lowerName)) {
+                    return { templateKey: 'char_female_peasant', scale: 1.0, tintHex: '#38bdf8', weaponKey: null, seed };
+                }
+                if (/priest/i.test(lowerName)) {
+                    return { templateKey: 'char_male_priest', scale: 1.02, weaponKey: 'ph_mace', seed };
+                }
+                return { templateKey: 'char_male_guard', scale: 1.02, weaponKey: 'item_longsword', shieldKey: 'item_shield_wooden', seed };
+            }
+            if (g === 'd') {
+                return {
+                    templateKey: /\bfox\b/i.test(lowerName) ? 'bestiary_fox' : 'bestiary_wolf',
+                    scale: /little dog|jackal|coyote|pup/i.test(lowerName) ? 0.72 : (/hell hound|winter wolf|warg/i.test(lowerName) ? 1.18 : 0.95),
+                    tintHex: /little dog/i.test(lowerName) ? '#f8fafc' : colorHex,
+                    seed
+                };
+            }
+            if (g === 'x' || /grid bug|\bxan\b/i.test(lowerName)) {
+                return { templateKey: 'bestiary_beetle', scale: 0.78, tintHex: colorHex, seed };
+            }
+            if (g === 'b' || g === 'P' || /acid blob|gelatinous cube|quivering blob|pudding|slime/i.test(lowerName)) {
+                return { templateKey: 'env_ooze_mound', scale: /gelatinous cube|black pudding/i.test(lowerName) ? 1.12 : 0.85, tintHex: colorHex, seed };
+            }
+            if (g === 'F' || /violet fungus|shrieker|brown mold|yellow mold|green mold|red mold/i.test(lowerName)) {
+                return { templateKey: 'env_fungi_cluster', scale: 0.92, tintHex: colorHex, seed };
+            }
+            if (g === 'G' || /\bgnome\b/i.test(lowerName)) {
+                return {
+                    templateKey: 'bestiary_goblin',
+                    scale: /king|lord/i.test(lowerName) ? 0.88 : 0.76,
+                    weaponKey: /king|lord/i.test(lowerName) ? 'ph_axe' : 'ph_dagger',
+                    seed
+                };
+            }
+            if (g === 'Y') {
+                if (/owlbear/i.test(lowerName)) {
+                    return { templateKey: 'bestiary_bear', scale: 1.18, tintHex: colorHex, seed };
+                }
+                return { templateKey: 'bestiary_yeti', scale: 1.05, tintHex: colorHex, seed };
+            }
+            if (g === 'R' || /rust monster|disenchanter/i.test(lowerName)) {
+                return { templateKey: 'bestiary_scorpion', scale: 0.95, tintHex: colorHex, seed };
+            }
+            if (g === 'c' || /cockatrice|chickatrice|pyrolisk/i.test(lowerName)) {
+                return { templateKey: 'bestiary_owl', scale: 0.92, tintHex: colorHex, isFloating: false, seed };
+            }
+            if (g === 'h') {
+                if (/mind flayer/i.test(lowerName)) {
+                    return { templateKey: 'char_male_priest', scale: 1.06, tintHex: '#9333ea', isFloating: true, floatHeight: 0.22, weaponKey: null, seed };
+                }
+                if (/bugbear/i.test(lowerName)) {
+                    return { templateKey: 'bestiary_hobgoblin', scale: 1.08, weaponKey: 'item_greatclub', seed };
+                }
+                return { templateKey: 'char_male_peasant_bearded', scaleY: 0.78, scaleXZ: 1.05, weaponKey: 'ph_axe', seed };
+            }
+            if (g === 'H') {
+                if (/minotaur/i.test(lowerName)) {
+                    return { templateKey: 'bestiary_guardian', scale: 1.25, weaponKey: 'ph_axe', seed };
+                }
+                return { templateKey: 'bestiary_cyclops', scale: /titan/i.test(lowerName) ? 1.32 : 1.15, weaponKey: 'ph_sledgehammer', seed };
+            }
+            if (g === 'M' || /\bmummy\b/i.test(lowerName)) {
+                return { templateKey: 'bestiary_zombie', scale: /giant/i.test(lowerName) ? 1.22 : 1.0, tintHex: colorHex, seed };
+            }
+            if (g === 'u' || /\bunicorn\b/i.test(lowerName)) {
+                return { templateKey: 'bestiary_horse', scale: 1.05, tintHex: colorHex, seed };
+            }
+            if (g === 'i') {
+                return {
+                    templateKey: /tengu/i.test(lowerName) ? 'bestiary_owl' : 'bestiary_imp',
+                    scale: 0.76,
+                    isFloating: /tengu/i.test(lowerName),
+                    tintHex: colorHex,
+                    seed
+                };
+            }
+            if (g === '&' || /marilith|juiblex|yeenoghu|orcus|demogorgon|baalzebub|geryon|dispater/i.test(lowerName)) {
+                return { templateKey: 'bestiary_imp', scale: 1.55, weaponKey: 'ph_sledgehammer', tintHex: colorHex, isBoss: true, seed };
+            }
+            if (g === 'y' || /yellow light|black light/i.test(lowerName)) {
+                return { templateKey: 'bestiary_vortex', scale: 0.85, tintHex: colorHex, isFloating: true, floatHeight: 0.35, seed };
+            }
+            if (g === ':') {
+                return {
+                    templateKey: /newt/i.test(lowerName) ? 'obj_frog' : 'bestiary_lizard',
+                    scale: /salamander|crocodile/i.test(lowerName) ? 1.12 : 0.85,
+                    tintHex: colorHex,
+                    seed
+                };
+            }
+            if (g === ';') {
+                return { templateKey: 'bestiary_aquatic', scale: /kraken/i.test(lowerName) ? 1.35 : 0.98, tintHex: colorHex, isFloating: true, floatHeight: 0.25, seed };
+            }
+            if (g === 'q') {
+                return {
+                    templateKey: /leocrotta/i.test(lowerName) ? 'bestiary_lion' : 'bestiary_bear',
+                    scale: /mumak|mastodon|titanothere|baluchitherium/i.test(lowerName) ? 1.28 : 1.08,
+                    tintHex: colorHex,
                     seed
                 };
             }
@@ -13646,13 +13941,19 @@ class Dungeon3D {
                 const avgMs = (nowGov - this._fpsGovStart) / this._fpsGovFrames;
                 this._fpsGovFrames = 0;
                 this._fpsGovStart = nowGov;
-                const maxDpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2);
-                const curDpr = this._adaptiveDpr || maxDpr;
-                if (avgMs > 20.5 && curDpr > 0.75) {
-                    this._adaptiveDpr = Math.max(0.75, +(curDpr - 0.15).toFixed(2));
-                    this.renderer.setPixelRatio(this._adaptiveDpr);
-                } else if (avgMs < 14.0 && curDpr < maxDpr) {
-                    this._adaptiveDpr = Math.min(maxDpr, +(curDpr + 0.1).toFixed(2));
+                const budgetCap = (this.renderBudget && this.renderBudget.dprCap) ? this.renderBudget.dprCap : 1.0;
+                const maxDpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, budgetCap);
+                let targetDpr = this._adaptiveDpr || maxDpr;
+                if (this.renderGovernor && typeof this.renderGovernor.recordFrameTime === 'function') {
+                    this.renderGovernor.recordFrameTime(avgMs);
+                    targetDpr = this.renderGovernor.getEffectivePixelRatio(budgetCap, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+                } else if (avgMs > 20.5 && targetDpr > 0.75) {
+                    targetDpr = Math.max(0.75, +(targetDpr - 0.15).toFixed(2));
+                } else if (avgMs < 14.0 && targetDpr < maxDpr) {
+                    targetDpr = Math.min(maxDpr, +(targetDpr + 0.1).toFixed(2));
+                }
+                if (Math.abs((this._adaptiveDpr || maxDpr) - targetDpr) >= 0.05) {
+                    this._adaptiveDpr = targetDpr;
                     this.renderer.setPixelRatio(this._adaptiveDpr);
                 }
             }

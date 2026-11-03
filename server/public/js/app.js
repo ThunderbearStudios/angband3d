@@ -142,6 +142,34 @@ window.addEventListener('DOMContentLoaded', () => {
             desc: 'Tactical stealth roguelike in the First Age. Sing songs of power, avoid deadly Balrogs in the shadows, and pry a Silmaril from Morgoth\'s crown.',
             voiceAccent: 'Elven Skald (Melodic northern)',
             lorekeeper: 'Keeper of the Lay of Leithian'
+        },
+        nethack: {
+            name: 'NetHack 3.6.7',
+            tagline: 'The Mazes of Menace & Amulet of Yendor',
+            desc: 'Descend through the Dungeons of Doom, Gnomish Mines, Sokoban, and Gehennom. Test item beatitude at high altars and claim the Amulet of Yendor.',
+            voiceAccent: 'Oracle of Delphi (Archival sage)',
+            lorekeeper: 'Chronicler of the Mazes of Menace'
+        },
+        dcss: {
+            name: 'Dungeon Crawl Stone Soup',
+            tagline: 'Runes of Zot & The Ecumenical Pantheon',
+            desc: 'Worship ancient deities at ecumenical altars, venture into Lair, Orcish Mines, and Vaults to claim 3 Runes of Zot, and ascend with the Orb of Zot.',
+            voiceAccent: 'Herald of Zot (Tactical oracle)',
+            lorekeeper: 'Archivist of the Ecumenical Temple'
+        },
+        brogue: {
+            name: 'Brogue CE',
+            tagline: 'Potions of Strength, Captive Allies & Lumenstones',
+            desc: 'Zero experience points — empower your hero through Potions of Strength, Scrolls of Enchantment, liberated dungeon allies, and glowing Lumenstones.',
+            voiceAccent: 'Chronicler of the Deep Caverns',
+            lorekeeper: 'Keeper of the Bioluminescent Depths'
+        },
+        rogue: {
+            name: 'Classic Rogue 5.4 (1980)',
+            tagline: 'The 1980 Original Dungeons of Doom',
+            desc: 'Where the genre began in 1980. Battle all 26 classic A–Z monsters from Aquators to Dragons, manage your food rations, and retrieve the Amulet of Yendor on Level 26.',
+            voiceAccent: '1980s Dungeon Master',
+            lorekeeper: 'Master of the Original Dungeons of Doom'
         }
     };
 
@@ -2133,6 +2161,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         silq: ['Beren', 'Fingolfin', 'Feanor', 'Turin', 'Tuor', 'Earendil', 'Hurin', 'Beleg', 'Mablung', 'Finrod', 'Glorfindel', 'Ecthelion', 'Voronwe', 'Daeron', 'Luthien', 'Idril', 'Morwen', 'Celegorm', 'Curufin', 'Maglor'],
         frogcomposband: ['Elric', 'Conan', 'Fafhrd', 'GrayMouser', 'Belgarath', 'Sparrowhawk', 'Corwin', 'Arthur', 'Roland', 'Gwydion', 'Vlad', 'Geralt', 'Locke', 'Kvothe', 'Cugel'],
+        nethack: ['Rodney', 'Maud', 'Izchak', 'Croesus', 'Pelias', 'Orion', 'Shaman', 'Neferet', 'Thoth', 'Brigit', 'Crom', 'Lugh', 'Tyr', 'Hermes', 'Athena'],
         angband: ['Aragorn', 'Boromir', 'Faramir', 'Theoden', 'Eomer', 'Bard', 'Beren', 'Isildur', 'Elendil', 'Thorin', 'Gimli', 'Gloin', 'Dain', 'Frodo', 'Samwise']
     };
 
@@ -2147,6 +2176,8 @@ window.addEventListener('DOMContentLoaded', () => {
             base = REALM_HERO_NAMES.silq[Math.floor(Math.random() * REALM_HERO_NAMES.silq.length)];
         } else if (r === 'frogcomposband') {
             base = REALM_HERO_NAMES.frogcomposband[Math.floor(Math.random() * REALM_HERO_NAMES.frogcomposband.length)];
+        } else if (r === 'nethack') {
+            base = REALM_HERO_NAMES.nethack[Math.floor(Math.random() * REALM_HERO_NAMES.nethack.length)];
         } else {
             base = REALM_HERO_NAMES.angband[Math.floor(Math.random() * REALM_HERO_NAMES.angband.length)];
         }
@@ -2372,13 +2403,17 @@ window.addEventListener('DOMContentLoaded', () => {
         const currentChar = (lastFrame && lastFrame.player && lastFrame.player.name)
             ? lastFrame.player.name
             : (network.currentChar || 'Adventurer');
+        const realmParam = (network && network.currentRealm) || (window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : activeRealm) || 'angband';
         let targetSave = null;
         try {
             let saves = [];
             if (engineMode === 'local' && window.LocalSaveManager) {
                 saves = await LocalSaveManager.listSaves();
             } else {
-                const realmParam = (network && network.currentRealm) || (window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : activeRealm) || 'angband';
+                // Lazarus Checkpoint Restore: restore pre-death .living.sav before listing saves
+                try {
+                    await fetch(`/api/saves/restore-checkpoint?realm=${encodeURIComponent(realmParam)}&char=${encodeURIComponent(currentChar)}`, { method: 'POST' });
+                } catch (_) {}
                 const res = await fetch(`/api/saves?realm=${encodeURIComponent(realmParam)}`);
                 if (res.ok) {
                     const data = await res.json();
@@ -3300,7 +3335,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function cycleRealm(delta = 1) {
         if (appState === 'game') return;
-        const realms = ['angband', 'frogcomposband', 'hengband', 'silq'];
+        const realms = ['angband', 'frogcomposband', 'hengband', 'silq', 'nethack'];
         const currentIdx = realms.indexOf(activeRealm);
         const nextIdx = (currentIdx + delta + realms.length) % realms.length;
         selectRealm(realms[nextIdx], false);
@@ -3425,6 +3460,9 @@ window.addEventListener('DOMContentLoaded', () => {
     function updateRealmUI() {
         if (typeof document !== 'undefined' && document.body) {
             document.body.dataset.realm = activeRealm || 'angband';
+            if (window.RealmCartridge && typeof window.RealmCartridge.applyThemeTokens === 'function') {
+                window.RealmCartridge.applyThemeTokens(activeRealm || 'angband', document);
+            }
         }
         updateLanguageUI();
         const realm = REALM_DATA[activeRealm] || REALM_DATA.angband;
@@ -4111,7 +4149,7 @@ window.addEventListener('DOMContentLoaded', () => {
             ]));
             populateLetterRibbon(effFrame.term ? effFrame.term.rows : []);
         } else {
-            const realmTitles = { 'silq': '💍 SIL-Q CLASSIC TERMINAL', 'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL', 'hengband': '🎴 HENGBAND CLASSIC TERMINAL', 'angband': '⚔ ANGBAND CLASSIC TERMINAL' };
+            const realmTitles = { 'silq': '💍 SIL-Q CLASSIC TERMINAL', 'frogcomposband': '🐸 FROGCOMPOSBAND CLASSIC TERMINAL', 'hengband': '🎴 HENGBAND CLASSIC TERMINAL', 'nethack': '🏺 NETHACK CLASSIC TERMINAL', 'angband': '⚔ ANGBAND CLASSIC TERMINAL' };
             terminalTitle.textContent = isHeng ? hengTitle('🎴 HENGBAND CLASSIC TERMINAL', '🎴 HENGBAND — Classic View / クラシック端末', '🎴 変愚蛮怒 — クラシック端末') : (realmTitles[activeRealm] || '⚔ ANGBAND CLASSIC TERMINAL');
             if (termEscapeBtn) {
                 termEscapeBtn.style.display = 'inline-flex';
@@ -4366,15 +4404,13 @@ window.addEventListener('DOMContentLoaded', () => {
             birthNameInput, termDpad, effFrame, curRealm, isHeng, effLang, inPlay,
             hengLabel, hengTitle, populateLetterRibbon, setCtxActions, renderCtxButtons
         });
-        // Grimoire Deck Rendering (Short-circuit when gMode === 'classic' unless Grimoire toggle button needs sync)
+        // Grimoire Deck Rendering (Short-circuit when skipScraping; in classic mode sync toggle button without scraping items)
         if (grimoireContainer && window.RealmGrimoireDeck) {
-            if (skipScraping || gMode === 'classic') {
+            if (skipScraping) {
                 if (typeof window.RealmGrimoireDeck.hide === 'function') {
                     window.RealmGrimoireDeck.hide(grimoireContainer);
-                    if (skipScraping) {
-                        const gToggleBtn = document.getElementById('btn-term-grimoire-toggle');
-                        if (gToggleBtn) gToggleBtn.style.display = 'none';
-                    }
+                    const gToggleBtn = document.getElementById('btn-term-grimoire-toggle');
+                    if (gToggleBtn) gToggleBtn.style.display = 'none';
                 }
             } else if (typeof window.RealmGrimoireDeck.render === 'function') {
                 const gClassifier = (model && model.legacy) || ((SC && typeof SC.classify === 'function')
@@ -4383,10 +4419,29 @@ window.addEventListener('DOMContentLoaded', () => {
                 const gSubmenu = (SC && typeof SC.detectRealmSubmenu === 'function')
                     ? SC.detectRealmSubmenu(effFrame, curRealm, decodeHengbandText)
                     : {};
-                const gItems = (model && model.regions && model.regions.length) ? model.regions :
+                const gItems = (gMode === 'classic') ? [] : ((model && model.regions && model.regions.length) ? model.regions :
                     ((SC && typeof SC.extractMultiColumnItems === 'function' && effFrame.term && Array.isArray(effFrame.term.rows))
                     ? SC.extractMultiColumnItems(effFrame.term.rows, isHeng, decodeHengbandText)
-                    : []);
+                    : []));
+                if (window.RealmCartridge && typeof window.RealmCartridge.applyThemeTokens === 'function') {
+                    window.RealmCartridge.applyThemeTokens(curRealm, document);
+                }
+                if (!window._cachedEquippedByCategory) window._cachedEquippedByCategory = {};
+                const isEqList = Boolean(gClassifier.isEquipScreen || (gClassifier.mode === 'item-list' && gClassifier.listKind === 'equip'));
+                if (isEqList && typeof window.RealmGrimoireDeck.classifyItemCategory === 'function' && Array.isArray(gItems) && gItems.length > 0) {
+                    const nextEq = {};
+                    gItems.forEach((it) => {
+                        const d = String(it.desc || it.rawLabel || it.label || it.name || '');
+                        const c = window.RealmGrimoireDeck.classifyItemCategory(d);
+                        if (c && c.category && !nextEq[c.category]) nextEq[c.category] = d;
+                    });
+                    window._cachedEquippedByCategory[curRealm] = nextEq;
+                }
+                const pVitals = (effFrame && effFrame.player) ? {
+                    hp: effFrame.player.hp,
+                    maxHp: effFrame.player.hp_max || effFrame.player.mhp || 100,
+                    statusText: Array.isArray(effFrame.player.statuses) ? effFrame.player.statuses.map(s => (s && s.name) || s || '').join(' ') : ''
+                } : {};
                 window.RealmGrimoireDeck.render(grimoireContainer, {
                     promptText: (effFrame.term && effFrame.term.rows && effFrame.term.rows[0] && effFrame.term.rows[0].g) ? decodeHengbandText(effFrame.term.rows[0].g).trim() : '',
                     realm: curRealm,
@@ -4394,6 +4449,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     classifier: gClassifier,
                     submenu: gSubmenu,
                     items: gItems,
+                    vitals: pVitals,
+                    equippedByCategory: window._cachedEquippedByCategory[curRealm] || {},
                     onAction: (act) => {
                         if (!act) return;
                         if (audio && typeof audio.unlock === 'function') audio.unlock();
@@ -4407,11 +4464,39 @@ window.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
                         if (act.type === 'switch-view' && act.key) {
-                            network.sendKey(act.key === '|' ? '|' : '/');
+                            network.sendKey(act.key === '|' ? '|' : (act.key === 'Q' ? 'Q' : '/'));
                             return;
                         }
                         if (act.type === 'raw-key' && act.key) {
                             network.sendKey(act.key);
+                            return;
+                        }
+                        if (act.type === 'extended-cmd' && (act.verb || act.key)) {
+                            const extCmd = String(act.verb || act.key).trim();
+                            if (typeof network.sendCommand === 'function') {
+                                network.sendCommand(`keys ${extCmd}`);
+                            } else {
+                                network.sendKey(extCmd);
+                            }
+                            return;
+                        }
+                        if (act.type === 'bind-quick-slot') {
+                            let boundToast = false;
+                            if (input && input.quickActions && typeof input.quickActions.bindFromGrimoire === 'function') {
+                                input.quickActions.bindFromGrimoire(act, effFrame, curRealm, typeof showRealmToast === 'function' ? showRealmToast : null);
+                                boundToast = true;
+                            }
+                            if (window.ScreenModalCoordinator) {
+                                const bound = window.ScreenModalCoordinator.bindQuickSlot(curRealm, act.slot || 1, {
+                                    key: act.key, verb: act.verb, name: act.name, category: act.category, icon: act.icon
+                                });
+                                if (input && input.quickActions && !boundToast) {
+                                    window.ScreenModalCoordinator.syncWithQuickActions(curRealm, input.quickActions);
+                                }
+                                if (bound && !boundToast && typeof showRealmToast === 'function') {
+                                    showRealmToast(`⚡ Bound ${bound.name} (${bound.key}) to Quick Slot 1 (${bound.inscriptionTag})`);
+                                }
+                            }
                             return;
                         }
                         if (act.type === 'pillar-step') {
@@ -4419,16 +4504,35 @@ window.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
                         if ((act.type === 'item-primary' || act.type === 'item-verb') && act.key) {
+                            const hasActiveVerbPrompt = Boolean(gClassifier.verbPrompt || gClassifier.isItemTargetPrompt || gClassifier.isSpellPowerChoice);
+                            if (hasActiveVerbPrompt && (!act.verb || act.type === 'item-primary')) {
+                                network.sendKey(act.key);
+                                return;
+                            }
                             if (act.verb) {
                                 const isStoreMenu = Boolean(gClassifier.isStore || gClassifier.isStoreScreen);
                                 if (isStoreMenu) {
-                                    if (dispatcher && typeof dispatcher.run === 'function') {
-                                        dispatcher.run({ verb: 'store_buy', item: act.key, qty: 1 });
+                                    if (act.verb === 'p' || act.verb === 'g') {
+                                        if (dispatcher && typeof dispatcher.run === 'function') {
+                                            dispatcher.run({ verb: 'store_buy', item: act.key, qty: 1 });
+                                        } else {
+                                            network.sendKey(act.verb);
+                                            network.sendKey(act.key);
+                                        }
                                     } else {
                                         network.sendKey(act.verb);
                                         network.sendKey(act.key);
                                     }
                                     return;
+                                }
+                                if (window.MenuRouter && typeof window.MenuRouter.route === 'function' && typeof window.MenuRouter.chooseVerb === 'function' && curRealm !== 'nethack') {
+                                    if (typeof window.MenuRouter.clearPending === 'function') window.MenuRouter.clearPending();
+                                    if (window.MenuRouter.route(act.key, effFrame, curRealm)) {
+                                        window.MenuRouter.chooseVerb(act.verb);
+                                        updateTerminalToolbar(effFrame);
+                                        if (effFrame.term) terminal.render(effFrame.term);
+                                        return;
+                                    }
                                 }
                                 if (window.MenuRouter && typeof window.MenuRouter.buildInventoryVerbSequence === 'function') {
                                     const isInvenOrEquip = Boolean(
@@ -4438,17 +4542,26 @@ window.addEventListener('DOMContentLoaded', () => {
                                     );
                                     const fromPassiveAngband = (curRealm === 'angband') && !gClassifier.verbPrompt && isInvenOrEquip;
                                     const fromPassiveFcb = (curRealm === 'frogcomposband') && !gClassifier.verbPrompt && isInvenOrEquip;
+                                    const fromPassiveNethack = (curRealm === 'nethack') && !gClassifier.verbPrompt && isInvenOrEquip;
                                     const seq = window.MenuRouter.buildInventoryVerbSequence(act.verb, act.key, {
                                         realm: curRealm,
                                         fromPassiveAngbandList: fromPassiveAngband,
-                                        fromPassiveFcbList: fromPassiveFcb
+                                        fromPassiveFcbList: fromPassiveFcb,
+                                        fromPassiveNethackList: fromPassiveNethack
                                     });
                                     if (seq.length > 0) {
-                                        if (dispatcher && typeof dispatcher.run === 'function') {
-                                            dispatcher.run({ keys: seq });
-                                        } else {
-                                            seq.forEach(k => network.sendKey(k === 'Escape' ? 'escape' : k));
-                                        }
+                                        seq.forEach(k => network.sendKey(k === 'Escape' ? 'escape' : k));
+                                        return;
+                                    }
+                                }
+                                if (window.ScreenModalCoordinator && typeof window.ScreenModalCoordinator.buildCommandTransaction === 'function') {
+                                    const tx = window.ScreenModalCoordinator.buildCommandTransaction(
+                                        { verbKey: act.verb, slotKey: act.key, category: act.category },
+                                        gClassifier,
+                                        curRealm
+                                    );
+                                    if (tx && Array.isArray(tx.steps) && tx.steps.length > 0) {
+                                        tx.steps.forEach(k => network.sendKey(k === '\x1b' ? 'escape' : k));
                                         return;
                                     }
                                 }
@@ -4501,7 +4614,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (_wMcp && typeof _wMcp.registerTool === 'function') {
         try {
             _wMcp.registerTool({ name: 'angband3d_get_hud_state', description: 'Read current realm, appState, and HUD vitals', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realm: getActiveRealm(), appState, hp: lastFrame?.player?.hp, depth: lastFrame?.player?.depth }) });
-            _wMcp.registerTool({ name: 'angband3d_list_realms', description: 'List playable roguelike realms on Angband 3D', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realms: ['angband', 'silq', 'frogcomposband', 'hengband'] }) });
+            _wMcp.registerTool({ name: 'angband3d_list_realms', description: 'List playable roguelike realms on Angband 3D', inputSchema: { type: 'object', properties: {} }, execute: async () => ({ realms: ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack'] }) });
         } catch (_) {}
     }
     // View routing (AGENTS.md §3.3). Logic lives in screen-context.js needsTerminal (verbatim move, WS2);
@@ -5079,6 +5192,17 @@ window.addEventListener('DOMContentLoaded', () => {
                 hud.update(frame);
             } catch (err) {
                 console.error('[HUD Error]', err);
+            }
+            // Auto-acknowledge engine -more- prompts in 3D play after HUD has captured the message into the log & banner
+            if (!needsTerm && currentPhase === 'play' && frame && frame.ui && frame.ui.more && (frame.ui.overlay || 0) === 0 && network && typeof network.sendKey === 'function') {
+                const row0More = (frame.term && frame.term.rows && frame.term.rows[0] && frame.term.rows[0].g) ? frame.term.rows[0].g.trim() : '';
+                const moreAckSig = `${frame.seq || 0}:${frame.player ? frame.player.turn || 0 : 0}:${row0More}`;
+                if (window.__lastAutoMoreAckSig !== moreAckSig) {
+                    window.__lastAutoMoreAckSig = moreAckSig;
+                    network.sendKey('space');
+                }
+            } else if (frame && (!frame.ui || !frame.ui.more)) {
+                window.__lastAutoMoreAckSig = null;
             }
             // Update Terminal Toolbar & Context
             try {

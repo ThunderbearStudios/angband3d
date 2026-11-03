@@ -217,6 +217,7 @@
         recordRecent(cmd.id);
         hideCommandPalette();
         const app = (typeof window !== 'undefined' && window.__app) ? window.__app : null;
+        if (cmd.id === 'explore' && app && app.input && typeof app.input.toggleAutoExplore === 'function') { app.input.toggleAutoExplore(); return; }
         if (app && app.dispatcher && typeof app.dispatcher.run === 'function') app.dispatcher.run({ verb: cmd.id, key: cmd.key });
         else if (app && app.network && typeof app.network.sendKey === 'function') app.network.sendKey(cmd.key);
         else if (typeof window !== 'undefined' && window.network && typeof window.network.sendKey === 'function') window.network.sendKey(cmd.key);

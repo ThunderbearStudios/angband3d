@@ -1411,6 +1411,89 @@ public static class MonsterModelResolver
                 return ("res://assets/models/monsters/bestiary/aquatic.glb", 0.85f, false, false, 1.15f, EquipmentRole.Unarmed);
             }
         }
+        else if (r == "nethack")
+        {
+            if (glyph == '@')
+            {
+                if (lowerName.Contains("wizard of yendor") || lowerName.Contains("priest"))
+                    return ("res://assets/models/characters/priest.glb", lowerName.Contains("yendor") ? 1.25f : 1.00f, false, false, 1.00f, EquipmentRole.Mage);
+                if (lowerName.Contains("shopkeeper"))
+                    return ("res://assets/models/characters/steward.glb", 1.00f, false, false, 1.00f, EquipmentRole.Unarmed);
+                if (lowerName.Contains("oracle"))
+                    return ("res://assets/models/characters/npc_woman.glb", 0.98f, false, false, 1.00f, EquipmentRole.Unarmed);
+                return ("res://assets/models/characters/guard.glb", 1.00f, false, false, 1.00f, EquipmentRole.Warrior);
+            }
+            if (glyph == 'd')
+            {
+                return ("res://assets/models/monsters/bestiary/wolf.glb", lowerName.Contains("little dog") || lowerName.Contains("jackal") ? 0.72f : 0.95f, false, false, 1.15f, EquipmentRole.Unarmed);
+            }
+            if (glyph == 'x' || lowerName.Contains("grid bug") || lowerName.Contains("xan"))
+            {
+                return ("res://assets/models/monsters/bestiary/beetle.glb", 0.75f, false, false, 1.15f, EquipmentRole.Unarmed);
+            }
+            if (glyph is 'b' or 'P' || lowerName.Contains("gelatinous cube") || lowerName.Contains("acid blob"))
+            {
+                return ("res://assets/models/monsters/bestiary/jelly_ooze.glb", 0.85f, false, false, 0.80f, EquipmentRole.Unarmed);
+            }
+            if (glyph == 'F')
+            {
+                return ("res://assets/models/monsters/bestiary/mushroom_cluster.glb", 0.85f, false, false, 0.50f, EquipmentRole.Unarmed);
+            }
+            if (glyph == 'G' || lowerName.Contains("gnome"))
+            {
+                return ("res://assets/models/monsters/bestiary/goblin.glb", 0.76f, false, false, 1.05f, EquipmentRole.Rogue);
+            }
+            if (glyph == 'Y')
+            {
+                if (lowerName.Contains("owlbear"))
+                    return ("res://assets/models/monsters/bestiary/bear.glb", 1.12f, false, false, 1.05f, EquipmentRole.Unarmed);
+                return ("res://assets/models/monsters/bestiary/YetiSmall.glb", 1.05f, false, false, 1.05f, EquipmentRole.Unarmed);
+            }
+            if (glyph == 'R' || lowerName.Contains("rust monster") || lowerName.Contains("disenchanter"))
+            {
+                return ("res://assets/models/monsters/bestiary/scorpion.glb", 0.85f, false, false, 1.10f, EquipmentRole.Unarmed);
+            }
+            if (glyph == 'c' || lowerName.Contains("cockatrice") || lowerName.Contains("chickatrice"))
+            {
+                return ("res://assets/models/monsters/bestiary/Owl.glb", 0.85f, false, false, 1.10f, EquipmentRole.Unarmed);
+            }
+            if (glyph == 'h')
+            {
+                if (lowerName.Contains("mind flayer"))
+                    return ("res://assets/models/characters/priest.glb", 1.05f, false, true, 1.00f, EquipmentRole.Mage);
+                return ("res://assets/models/characters/steward.glb", 0.78f, false, false, 1.00f, EquipmentRole.Warrior);
+            }
+            if (glyph == 'H')
+            {
+                if (lowerName.Contains("minotaur"))
+                    return ("res://assets/models/monsters/bestiary/GodAnubis_Art.glb", 1.22f, false, false, 1.05f, EquipmentRole.Barbarian);
+                return ("res://assets/models/monsters/bestiary/cyclop.glb", 1.18f, false, false, 0.95f, EquipmentRole.Barbarian);
+            }
+            if (glyph == 'M' || lowerName.Contains("mummy"))
+            {
+                return ("res://assets/models/monsters/bestiary/zombie_model.glb", 1.00f, false, false, 0.90f, EquipmentRole.Unarmed);
+            }
+            if (glyph == 'u' || lowerName.Contains("unicorn"))
+            {
+                return ("res://assets/models/monsters/bestiary/horse_mount.glb", 1.00f, false, false, 1.15f, EquipmentRole.Unarmed);
+            }
+            if (glyph is 'i' or '&')
+            {
+                return ("res://assets/models/monsters/Imp.glb", glyph == '&' ? 1.45f : 0.75f, false, false, 1.10f, EquipmentRole.Unarmed);
+            }
+            if (glyph == 'y')
+            {
+                return ("res://assets/models/monsters/bestiary/vortex_elemental.glb", 0.85f, true, true, 1.15f, EquipmentRole.Unarmed);
+            }
+            if (glyph == ':')
+            {
+                return (lowerName.Contains("newt") ? "res://assets/models/monsters/bestiary/frog.glb" : "res://assets/models/monsters/bestiary/lizard.glb", 0.80f, false, false, 1.05f, EquipmentRole.Unarmed);
+            }
+            if (glyph == ';')
+            {
+                return ("res://assets/models/monsters/bestiary/aquatic.glb", 0.95f, false, true, 1.10f, EquipmentRole.Unarmed);
+            }
+        }
 
         // Townsfolk (t) - completely unarmed / bare-handed
         if (glyph == 't')

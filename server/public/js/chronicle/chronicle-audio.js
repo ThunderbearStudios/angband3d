@@ -116,7 +116,7 @@ class ChronicleAudioRouter {
     setRealm(realmKey) {
         this.activeRealm = (realmKey || 'angband').toLowerCase();
         // Always preserve the canonical British RP storyteller voice (Enceladus) across English realms
-        const defaults = { angband: 'Enceladus', silq: 'Enceladus', frogcomposband: 'Enceladus', hengband: 'Enceladus' };
+        const defaults = { angband: 'Enceladus', silq: 'Enceladus', frogcomposband: 'Enceladus', hengband: 'Enceladus', nethack: 'Enceladus' };
         this.narratorVoice = defaults[this.activeRealm] || 'Enceladus';
     }
 
@@ -1276,37 +1276,9 @@ class ChronicleAudioRouter {
                 } catch (_) {}
             }
 
-            // High-Speed Sentence Fast-Start Pipelining:
-            // For longer paragraphs (>60 chars) with multiple sentences, synthesize sentence 1
-            // immediately (~1.5s TTFA) while speculatively pre-warming the remainder in parallel.
-            const sentences = cleanText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map(s => s.trim()).filter(Boolean) || [cleanText];
-            if (sentences.length > 1 && cleanText.length > 40 && sentences[0].length >= 10) {
-                const s1 = sentences[0];
-                const remainder = sentences.slice(1).join(' ');
-                if (s1 && remainder) {
-                    // 1. Speculatively pre-warm remainder in background
-                    this.prewarmUtterance(remainder, role, speakerName, customVoice, options).catch(() => {});
-                    // 2. Synthesize and speak sentence 1 immediately
-                    const voiceToken = this._activeVoiceToken;
-                    try {
-                        const r1 = await this.playNeuralAudio(s1, role, customVoice, options);
-                        if (r1 && (r1.aborted || r1.interrupted || r1.superseded)) return { aborted: true, interrupted: true };
-                        if (this.isMuted() || this.isPaused || this._activeVoiceToken !== voiceToken) return { stopped: true };
-
-                        // 3. Sentence 1 finished playing; remainder is now ready in cache!
-                        const r2 = await this.playNeuralAudio(remainder, role, customVoice, options);
-                        if (r2 && (r2.aborted || r2.interrupted || r2.superseded)) return { aborted: true, interrupted: true };
-                        return r2 || { finished: true };
-                    } catch (pipelineErr) {
-                        if (pipelineErr.name === 'AbortError' || this._activeVoiceToken !== voiceToken || this.isMuted()) {
-                            return { aborted: true };
-                        }
-                        console.info('[ChronicleAudio] Sentence fast-start failed, falling back to full text:', pipelineErr.message);
-                    }
-                }
-            }
-
-            // Standard full utterance playback
+            // Single-Take Cohesive Playback:
+            // Synthesize the complete passage in one continuous Gemini Native Audio take so voice
+            // prosody, timbre, and British RP storyteller cadence never shift mid-paragraph.
             const voiceToken = this._activeVoiceToken;
             try {
                 const res = await this.playNeuralAudio(cleanText, role, customVoice, options);
@@ -1532,7 +1504,8 @@ class ChronicleAudioRouter {
                     director_note: directorNote,
                     pitch,
                     rate: rateParam,
-                    gender
+                    gender,
+                    v: 'rp2'
                 });
                 const url = `/api/tts?${q.toString()}`;
 
@@ -1932,7 +1905,7 @@ class ChronicleAudioRouter {
         const combinedRateNum = Math.max(-50, Math.min(100, baseRateNum + speedRatePercent));
         const rateParam = `${combinedRateNum >= 0 ? '+' : ''}${combinedRateNum}%`;
 
-        return `${engine}:${realm}:${role}:${voice}:${gender}:${pitch}:${rateParam}:${emotion}:${geminiTag}:${directorNote}:${cleanText}`;
+        return `rp2:${engine}:${realm}:${role}:${voice}:${gender}:${pitch}:${rateParam}:${emotion}:${geminiTag}:${directorNote}:${cleanText}`;
     }
 
     /**
@@ -1989,7 +1962,8 @@ class ChronicleAudioRouter {
                     director_note: directorNote,
                     pitch,
                     rate: rateParam,
-                    gender
+                    gender,
+                    v: 'rp2'
                 });
 
                 if (this.isMuted()) return null; // Abort prewarm if Tome audio is muted

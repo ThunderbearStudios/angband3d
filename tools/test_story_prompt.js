@@ -160,21 +160,93 @@ test('Server TTS uses persistent geminiHttpsAgent for sub-50ms TLS reuse', () =>
     assert(synthesizeBlock.includes('agent: geminiHttpsAgent'), 'synthesizeGeminiTTS must pass agent: geminiHttpsAgent');
 });
 
-// 8. Vanilla Angband Narrator Voice: Old English male voice (Enceladus) while preserving Zephyr elsewhere
-test('Vanilla Angband narrator defaults to original Old English male voice (Enceladus) with Zephyr preserved', () => {
+// 8. Vanilla Angband & NetHack Narrator Voice Lock: permanently codify British RP Storyteller (Enceladus)
+test('Narrator voice is permanently codified and locked to original British RP Storyteller (Enceladus)', () => {
     const maleVoice = ChronicleGrounder.getLorekeeperVoice('angband', 'male');
     const femaleVoice = ChronicleGrounder.getLorekeeperVoice('angband', 'female');
-    assert.strictEqual(maleVoice, 'Enceladus', `Vanilla narrator voice must be Enceladus, got "${maleVoice}"`);
-    assert.strictEqual(femaleVoice, 'Zephyr', `Vanilla female voice must be Zephyr, got "${femaleVoice}"`);
+    const nethackVoice = ChronicleGrounder.getLorekeeperVoice('nethack', 'male');
+    assert.strictEqual(maleVoice, 'Enceladus');
+    assert.strictEqual(femaleVoice, 'Zephyr');
+    assert.strictEqual(nethackVoice, 'Enceladus');
+
+    // High passive stealth (e.g., Elf with stealth > 5) must NEVER force narrator into whispering mode
+    const elfHero = { name: 'Dorod', race: 'High-Elf', class: 'Ranger', depth: 1, hp: 30, hp_max: 30, stealth: 8 };
+    const narrProfile = ChronicleGrounder.resolveVoiceProfile(null, elfHero, 'LEVEL_FEELING', 'noldor', false, 'angband', 'en');
+    assert.strictEqual(narrProfile.emotion, 'calm', 'High passive stealth must not force narrator into whispering mode');
+    assert.strictEqual(narrProfile.pitch, '+0Hz', 'Narrator pitch must remain steady +0Hz');
 
     const fs = require('fs');
     const path = require('path');
     const audioJs = fs.readFileSync(path.join(__dirname, '../server/public/js/chronicle/chronicle-audio.js'), 'utf8');
     assert(audioJs.includes("this.narratorVoice = 'Enceladus'"), 'chronicle-audio.js must default narratorVoice to Enceladus');
     assert(audioJs.includes("angband: 'Enceladus'"), 'chronicle-audio.js defaults map must map angband to Enceladus');
+    assert(audioJs.includes("nethack: 'Enceladus'"), 'chronicle-audio.js defaults map must map nethack to Enceladus');
+    assert(!audioJs.includes('Sentence fast-start failed'), 'chronicle-audio.js must not split paragraphs into 2 separate TTS requests');
+
+    const serverJs = fs.readFileSync(path.join(__dirname, '../server/src/server.js'), 'utf8');
+    assert(serverJs.includes('Object.freeze(GEMINI_REALM_NARRATOR_MAP)'), 'GEMINI_REALM_NARRATOR_MAP must be Object.freeze locked');
+    assert(serverJs.includes('Object.freeze(GEMINI_VOICE_MAP)'), 'GEMINI_VOICE_MAP must be Object.freeze locked');
+    assert(serverJs.includes('Object.freeze(CHARACTER_ACCENT_MAP)'), 'CHARACTER_ACCENT_MAP must be Object.freeze locked');
+    assert(serverJs.includes("narrator: 'expressive, older British storyteller, standard RP British accent, warm fireside gravitas'"), 'Narrator RP British storyteller directorial profile must remain intact');
+    assert(serverJs.includes('no American southern drawl'), 'directorTag must enforce no American southern drawl');
+    assert(!serverJs.includes('TTS_DEMOGRAPHIC_STRIP_RE'), 'server.js must NEVER strip demographic/accent tags from TTS directorial profiles');
 
     const appJs = fs.readFileSync(path.join(__dirname, '../server/public/js/app.js'), 'utf8');
-    assert(!appJs.includes("btn-story-prompt"), 'app.js must not reference removed #btn-story-prompt');
+    assert(!appJs.includes('btn-story-prompt'), 'app.js must not reference removed #btn-story-prompt');
+});
+
+// 9. NetHack & Cross-Realm Worthy Event Filtering + Coalesced Town/Dungeon Prose + Inspect Anti-Truncation
+test('ChronicleFilter and ChronicleGrounder narrate NetHack altars, combat kills, level-ups, and Town/Dungeon context cleanly', () => {
+    const ChronicleFilter = require('../server/public/js/chronicle/chronicle-filter.js');
+    const filter = new ChronicleFilter();
+    const player = { name: 'Hermes', race: 'Human', class: 'Valkyrie', depth: 1, hp: 25, hp_max: 25, turn: 12, realm: 'nethack', equipped: { weapon: 'long sword' } };
+    filter.evaluate({ phase: 'play', player, messages: [] });
+    const ev1 = filter.evaluate({
+        phase: 'play',
+        player: { ...player, turn: 15, level: 2 },
+        messages: [
+            'There is a high altar of Tyr here (_). Use #pray or #offer.',
+            'You hit the kobold with your long sword! (14 dmg)',
+            'You destroy the kobold! (+6 XP, +9$)',
+            'Welcome to experience level 2!'
+        ]
+    });
+    assert(ev1, 'Expected high-priority event from altar/kill/level-up frame');
+    const allEvents = [ev1, ...filter.eventQueue];
+    const types = allEvents.map(e => e.type);
+    assert(types.includes('SACRED_SHRINE'), 'Must detect SACRED_SHRINE from altar message');
+    assert(types.includes('LEVEL_UP'), 'Must detect LEVEL_UP from Welcome to experience level 2!');
+    assert(types.includes('COMBAT_EXCHANGE') || types.includes('COMBAT_EPISODE'), 'Must detect combat kill from You destroy the kobold! (+6 XP, +9$)');
+
+    const extracted = ChronicleGrounder.extractSlainMonsterName('You destroy the kobold! (+6 XP, +9$)');
+    assert.strictEqual(extracted, 'kobold');
+
+    const catchUp = ChronicleGrounder.generateCatchUpBeat(allEvents, player, { ...player, level: 2 }, 'delphic');
+    assert(catchUp && catchUp.prose.includes('kobold') && catchUp.prose.includes('level 2'), 'CatchUp prose must weave kobold kill and level 2: ' + (catchUp ? catchUp.prose : ''));
+
+    // Town catch-up beat must use frontier town street/cobblestones and never say "dark vaults of the surface frontier" or "dungeon floor"
+    const townPlayer = { name: 'Dorod', race: 'High-Elf', class: 'Warrior', depth: 0, hp: 30, hp_max: 30, turn: 20, equipped: { weapon: 'Tulwar' } };
+    const townCatchUp = ChronicleGrounder.generateCatchUpBeat([
+        { type: 'HERO_MOVE', data: { depth: 0 } },
+        { type: 'COMBAT_EPISODE', data: { kills: ['Mean-looking mercenary'], depth: 0 } }
+    ], townPlayer, townPlayer, 'noldor');
+    assert(!townCatchUp.prose.toLowerCase().includes('dark vaults'), 'Town catch-up must never say dark vaults: ' + townCatchUp.prose);
+    assert(!townCatchUp.prose.toLowerCase().includes('dungeon floor'), 'Town catch-up must never say dungeon floor: ' + townCatchUp.prose);
+    assert(townCatchUp.prose.toLowerCase().includes('cobblestones'), 'Town catch-up must ground in frontier cobblestones: ' + townCatchUp.prose);
+
+    // Level feeling must never produce double periods ("..")
+    const lfChapter = ChronicleGrounder.generateProceduralChapter({
+        type: 'LEVEL_FEELING',
+        data: { feelingText: 'This seems a tame, sheltered place.', depth: 1 }
+    }, { ...townPlayer, depth: 1 }, 'noldor');
+    assert(!lfChapter.prose.includes('..'), 'LEVEL_FEELING prose must not contain double periods: ' + lfChapter.prose);
+
+    const fs = require('fs');
+    const path = require('path');
+    const css = fs.readFileSync(path.join(__dirname, '../server/public/css/chronicle.css'), 'utf8');
+    assert(css.includes('max-width: 350px'), 'entity-inspect-popover must allow up to 350px width');
+    const proseIdx = css.indexOf('.inspect-popover-prose');
+    assert(proseIdx > -1 && css.slice(proseIdx, proseIdx + 300).includes('display: block'), '.inspect-popover-prose must be display: block');
 });
 
 console.log('ALL STORY PROMPT CONTRACT TESTS PASSED!');

@@ -55,6 +55,12 @@ class ChronicleGrounder {
             name: 'The Lay of Leithian & Beleriand Songs',
             badge: 'First Age Minstrel',
             style: 'Solemn First Age epic, songs of stealth and woven spells, shadows beneath Thangorodrim, and the desperate quest for Morgoth\'s Iron Crown.'
+        },
+        delphic: {
+            id: 'delphic',
+            name: 'The Chronicles of the Mazes of Menace',
+            badge: 'Oracle of Delphi',
+            style: 'Atmospheric mythic chronicler of the Dungeons of Doom, noting sacred high altars, beatitude, faithful companions, and the quest for the Amulet of Yendor.'
         }
     };
 
@@ -63,6 +69,7 @@ class ChronicleGrounder {
             case 'frogcomposband': return 'amber';
             case 'hengband': return 'easternmythos';
             case 'silq': return 'beleriand';
+            case 'nethack': return 'delphic';
             case 'angband':
             default:
                 return this.getTraditionForRace(race);
@@ -74,6 +81,7 @@ class ChronicleGrounder {
             case 'silq': return 'Daeron of Doriath';
             case 'hengband': return 'Miyamoto Musashi';
             case 'frogcomposband': return 'Corwin of Amber';
+            case 'nethack': return 'The Oracle of Delphi';
             case 'angband':
             default:
                 return 'Master Elrond';
@@ -85,6 +93,7 @@ class ChronicleGrounder {
             case 'silq': return 'Chief Minstrel of King Thingol & Maker of the Runes';
             case 'hengband': return 'Kensei of the Two Heavens & Chronicler of Bushido';
             case 'frogcomposband': return 'Prince of Amber & Master of the Pattern';
+            case 'nethack': return 'Seer of the Mazes of Menace & Chronicler of Yendor';
             case 'angband':
             default:
                 return 'Master of Rivendell & Chronicler of the Elder Days';
@@ -105,6 +114,20 @@ class ChronicleGrounder {
 
     static getRealmContext(realmKey = 'angband') {
         switch ((realmKey || 'angband').toLowerCase()) {
+            case 'nethack':
+                return {
+                    realm: 'nethack',
+                    chronicler: 'Master Chronicler of the Mazes of Menace and Keeper of the Delphic Scrolls',
+                    lorekeeperName: 'The Chronicler of Yendor',
+                    lorekeeperTitle: 'Seer of the Mazes of Menace & Chronicler of Yendor',
+                    setting: 'The Dungeons of Doom, the Gnomish Mines, Sokoban, and Gehennom, in the sacred quest to wrest the Amulet of Yendor for the high gods',
+                    traditionKey: 'delphic',
+                    style: 'Atmospheric mythic chronicler of the Dungeons of Doom, noting sacred high altars, beatitude, faithful companions, and the quest for the Amulet of Yendor',
+                    dialogueStyle: 'Classic dungeon fantasy gravity with wry observational wit, reverent of high altars, beatitude, and mortal peril',
+                    voice: 'en-GB-RyanNeural',
+                    recommendedVoice: 'en-GB-RyanNeural',
+                    geminiVoice: 'Enceladus'
+                };
             case 'silq':
                 return {
                     realm: 'silq',
@@ -786,10 +809,10 @@ class ChronicleGrounder {
 
         // 5. EMOTIONAL CONTEXT FROM LIVE GAME TELEMETRY (DYNAMIC PER UTTERANCE)
         const hpRatio = (player && player.hp_max > 0) ? (player.hp / player.hp_max) : 1.0;
-        const isPeril = hpRatio < 0.35;
+        const isPeril = hpRatio <= 0.25;
         const isBleedingOrStun = player && (player.cut > 0 || player.stun > 0 || player.poisoned > 0 || player.confused > 0);
         const isBoss = entityOrMonster && (entityOrMonster.isUnique || entityOrMonster.glyph === 'P' || entityOrMonster.glyph === 'B' || entityOrMonster.glyph === 'U' || (entityOrMonster.name && /\b(morgoth|sauron|glaurung|balrog)\b/i.test(entityOrMonster.name)));
-        const isStealth = player && (player.isSneaking || player.stealth > 5);
+        const isStealth = Boolean(player && player.isSneaking);
         const isTown = (player && player.depth === 0) || eventType === 'town' || eventType === 'shop';
 
         let emotion = 'calm';
@@ -799,7 +822,7 @@ class ChronicleGrounder {
         let rate = heroRate || '+0%';
 
         if (!entityOrMonster && !isHero) {
-            // Master Narrator is tuned to the realm and dynamically responds to situational context (peril, stealth, town, boss)
+            // Master Narrator is locked to the realm's British RP Storyteller voice (Enceladus) with steady pitch/rate
             const rk = (realmKey) || (player && player.realm) || (typeof window !== 'undefined' && window.__app && typeof window.__app.getActiveRealm === 'function' ? window.__app.getActiveRealm() : (traditionKey === 'beleriand' ? 'silq' : (traditionKey === 'easternmythos' ? 'hengband' : (traditionKey === 'amber' ? 'frogcomposband' : 'angband'))));
             geminiVoice = this.getLorekeeperVoice(rk, 'male');
             const realmCtx = this.getRealmContext(rk);
@@ -807,54 +830,22 @@ class ChronicleGrounder {
 
             if (eventType === 'HERO_DEATH') {
                 emotion = 'mournful';
-                geminiTag = '[mournfully, with profound solemnity and sorrow, expressive slightly British older storyteller]';
-                directorNote = 'An expressive, slightly British older fireside storyteller reciting a solemn funeral epitaph with deep elder grief, gravitas, and reverence for a fallen hero';
-                pitch = '-2Hz';
-                rate = '-8%';
+                geminiTag = '[mournfully, with profound solemnity and sorrow, expressive older British storyteller, standard RP British accent]';
+                directorNote = 'An expressive older British fireside storyteller reciting a solemn funeral epitaph with deep elder gravitas and reverence for a fallen hero';
+                pitch = '+0Hz';
+                rate = '+0%';
             } else if (isPeril) {
-                emotion = 'panicked';
-                geminiTag = '[panicked, expressive slightly British older storyteller]';
-                directorNote = 'An expressive, slightly British older fireside storyteller, voice tense and breathless as mortal peril tightens in the dark';
-                pitch = '+3Hz';
-                rate = '+8%';
-            } else if (isBoss) {
                 emotion = 'serious';
-                geminiTag = '[grimly, with grave dread, expressive slightly British older storyteller]';
-                directorNote = 'An expressive, slightly British older fireside storyteller recounting with solemn dread an ancient terror of the First Age';
-                pitch = '-2Hz';
-                rate = '-4%';
-            } else if (isBleedingOrStun) {
-                emotion = 'strained';
-                geminiTag = '[strained with sorrow, expressive slightly British older storyteller]';
-                directorNote = 'An expressive, slightly British older fireside storyteller recounting grievous wounds with elder sympathy and somber weight';
-                pitch = '+2Hz';
-                rate = '+4%';
-            } else if (isStealth) {
-                emotion = 'whispering';
-                geminiTag = '[whispers, expressive slightly British older storyteller]';
-                directorNote = 'An expressive, slightly British older fireside storyteller whispering softly in the dark shadows of the vaults';
-                pitch = '-1Hz';
-                rate = '-7%';
-            } else if (isTown) {
-                emotion = 'cheerful';
-                geminiTag = '[warmly, with hearty camaraderie, expressive slightly British older storyteller]';
-                directorNote = 'An expressive, slightly British older fireside storyteller with warmth and subtle dry wit recounting the bustling settlement';
-                pitch = '+1Hz';
-                rate = '+3%';
+                geminiTag = '[urgent, tense, expressive older British storyteller, standard RP British accent, warm fireside gravitas]';
+                directorNote = 'An expressive older British fireside storyteller recounting a moment of mortal peril with tense, steady gravitas';
+                pitch = '+0Hz';
+                rate = '+0%';
             } else {
                 emotion = 'calm';
                 pitch = '+0Hz';
                 rate = '+0%';
-                if (traditionKey === 'noldor') {
-                    geminiTag = '[expressive, slightly British older storyteller, poetic and noble]';
-                    directorNote = 'An expressive, slightly British older fireside storyteller reciting ancient high Elven verse with sorrowful elder gravitas';
-                } else if (traditionKey === 'khazad') {
-                    geminiTag = '[expressive, slightly British older storyteller, stern stonecraft gravitas]';
-                    directorNote = 'An expressive, slightly British older fireside storyteller chronicling deep Dwarven stone-annals with stern gravitas and subtle dry wit';
-                } else {
-                    geminiTag = '[expressive, slightly British older storyteller, warm fireside cadence]';
-                    directorNote = 'An expressive, slightly British older fireside storyteller with warmth, subtle dry wit, and deep elder gravitas recounting an ancient epic legend';
-                }
+                geminiTag = '[expressive, older British storyteller, standard RP British accent, warm fireside gravitas]';
+                directorNote = 'An expressive older British fireside storyteller with warmth, subtle dry wit, and deep elder gravitas recounting an ancient epic legend';
             }
         } else if (isHero) {
             // Hero Voice Dynamic Situation Modifiers
@@ -3083,17 +3074,18 @@ class ChronicleGrounder {
      */
     static extractSlainMonsterName(kill) {
         if (!kill) return 'foe';
-        const text = typeof kill === 'string' ? kill : (kill.monsterName || kill.message || '');
-        if (!text) return 'foe';
-        let m = text.match(/slain (?:the |a |an )?([A-Za-z0-9\-',\s]+?)(?:\.|$)/i);
+        const rawText = typeof kill === 'string' ? kill : (kill.monsterName || kill.message || '');
+        if (!rawText) return 'foe';
+        const text = rawText.replace(/\s*\([^)]*\)/g, '').trim();
+        let m = text.match(/(?:You\s+|Your\s+(?:faithful\s+)?[A-Za-z0-9\-',\s]+?\s+)?(?:have\s+slain|slain|slays?|kills?|killed|destroys?|destroyed|vanquish(?:ed)?)\s+(?:the\s+|a\s+|an\s+)?([A-Za-z0-9\-',\s]+?)(?:[.!]+|$)/i);
         if (m && m[1]) return m[1].trim();
-        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+dies(?:\.|$)/i);
+        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+dies(?:[.!]+|$)/i);
         if (m && m[1]) return m[1].trim();
-        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+is destroyed(?:\.|$)/i);
+        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+is destroyed(?:[.!]+|$)/i);
         if (m && m[1]) return m[1].trim();
-        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+perishes(?:\.|$)/i);
+        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+perishes(?:[.!]+|$)/i);
         if (m && m[1]) return m[1].trim();
-        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+crumbles into dust(?:\.|$)/i);
+        m = text.match(/(?:The |A |An )?([A-Za-z0-9\-',\s]+?)\s+crumbles into dust(?:[.!]+|$)/i);
         if (m && m[1]) return m[1].trim();
         return text.replace(/^(?:The |A |An )/i, '').replace(/[.!]+$/, '').trim() || 'foe';
     }
@@ -3807,8 +3799,15 @@ class ChronicleGrounder {
             case 'ONBOARDING_FIRST_DESCENT': {
                 title = 'Crossing the Threshold';
                 const backstory = ChronicleGrounder.formatBackstorySummary(player);
-                prose = `The iron stairs groan behind as ${name}—${backstory}—crosses the threshold into fifty feet. Ancient subterranean shadows press close against the flickering torchlight, reeking of damp stone, sulfur, and watchful eyes.`;
-                insight = "The Golden Rule: Never fight in the center of rooms. Step back into narrow 1-tile doorways!";
+                const rawFeel = (event.data && event.data.feelingText) ? String(event.data.feelingText).replace(/[.!]+$/, '').trim() : '';
+                const feelClause = rawFeel ? ` An initial premonition whispers through the stone—${rawFeel.charAt(0).toLowerCase() + rawFeel.slice(1)}.` : '';
+                if (traditionKey === 'delphic' || (player && player.realm === 'nethack')) {
+                    prose = `The cold stone steps echo beneath ${name}—${backstory}—as the descent into the Dungeons of Doom begins at fifty feet. Torchlight dances across ancient flagstones while a faithful companion trots vigilantly alongside, ready to brave the subterranean perils in pursuit of the Amulet of Yendor.${feelClause}`;
+                    insight = "Use #pray upon altars when in mortal peril, #dip or #offer at sacred shrines, and fight alongside your faithful companion!";
+                } else {
+                    prose = `The iron stairs groan behind as ${name}—${backstory}—crosses the threshold into fifty feet. Ancient subterranean shadows press close against the flickering torchlight, reeking of damp stone, sulfur, and watchful eyes.${feelClause}`;
+                    insight = "The Golden Rule: Never fight in the center of rooms. Step back into narrow 1-tile doorways!";
+                }
                 break;
             }
 
@@ -4971,11 +4970,12 @@ class ChronicleGrounder {
             }
 
             case 'LEVEL_FEELING': {
-                const fText = (event.data && event.data.feelingText) ? event.data.feelingText : 'a strange aura';
+                const rawFeel = (event.data && event.data.feelingText) ? String(event.data.feelingText) : 'a strange aura';
+                const fText = rawFeel.replace(/[.!]+$/, '').trim();
                 const fLower = fText.toLowerCase();
                 if (fLower.includes('tame') || fLower.includes('sheltered') || fLower.includes('quiet') || fLower.includes('peaceful') || fLower.includes('reasonably safe')) {
                     title = 'Sheltered Vaults';
-                    prose = `A rare, deceptive stillness hangs over the halls at ${depthFt}: ${fText}. Yet seasoned adventurers know that the deep pits of Angband never remain tranquil for long.`;
+                    prose = `A rare, deceptive stillness hangs over the halls at ${depthFt}: ${fText}. Yet seasoned adventurers know that the deep pits never remain tranquil for long.`;
                 } else if (fLower.includes('omens of death') || fLower.includes('murderous') || fLower.includes('terribly dangerous') || fLower.includes('sinister')) {
                     title = 'Dread Premonition';
                     prose = `A suffocating chill grips ${name}'s heart at ${depthFt}: ${fText}! The very stones seem steeped in ancient malice, warning that lethal horrors stalk this tier.`;
@@ -5080,6 +5080,98 @@ class ChronicleGrounder {
                 } else {
                     title = 'Vitality Restored';
                     prose = `Shaking off lingering afflictions, ${name} stands firm, ready to face the perils ahead.`;
+                }
+                break;
+            }
+
+            case 'SACRED_SHRINE': {
+                const sMsg = (event.data && event.data.message) ? event.data.message : '';
+                const sLower = sMsg.toLowerCase();
+                const deity = (event.data && event.data.deity) ? event.data.deity : 'the ancient pantheon';
+                if (sLower.includes('excalibur') || sLower.includes('hand reaches up')) {
+                    title = 'The Lady of the Fountain';
+                    prose = `As ${name} plunges the blade into the crystalline waters at ${depthFt}, the subterranean fountain boils with silver radiance! A pale, spectral hand rises from the depths to bless the steel—forging the legendary Excalibur!`;
+                    insight = "Excalibur confers level-drain resistance, automatic searching, and devastating prowess in battle.";
+                } else if (sLower.includes('golden aura') || sLower.includes('well-pleased') || sLower.includes('sacrifice is consumed')) {
+                    title = `Benediction of ${deity}`;
+                    prose = `Kneeling before the sanctified stone at ${depthFt}, ${name}'s devotion is answered—a warm golden aura descends through the dungeon gloom as ${deity} bestows divine favor upon their champion!`;
+                    insight = "Divine favor restores vitality, purges curses, and shields you in moments of mortal peril.";
+                } else if (sLower.includes('fountain')) {
+                    title = 'Waters of Fate';
+                    prose = `Amidst the dry, shadowed stonework of ${depthFt}, ${name} comes upon a subterranean fountain whose sparkling waters murmur with ancient enchantment.`;
+                    insight = "You can quaff ('q') from fountains or #dip weapons and items into their enchanted waters—though their magic is unpredictable.";
+                } else {
+                    title = `High Altar of ${deity}`;
+                    prose = `Stepping into the solemn chamber at ${depthFt}, ${name} stands before a consecrated high altar of ${deity}, its carved stone humming with quiet divine power amidst the subterranean dark.`;
+                    insight = "Stand upon an altar and use #pray or #offer to seek divine aid and consecrate your journey.";
+                }
+                break;
+            }
+
+            case 'COMPANION_ACTION': {
+                const petName = (event.data && event.data.petName) ? event.data.petName : 'faithful companion';
+                const targetMon = (event.data && event.data.monsterName) ? event.data.monsterName : 'foe';
+                const isPetKill = Boolean(event.data && event.data.isKill);
+                if (isPetKill) {
+                    title = `Loyal Fang: ${targetMon} Felled`;
+                    prose = `Darting fiercely alongside ${name} at ${depthFt}, the faithful ${petName} lunges past the ${targetMon}'s guard and drags the creature down upon the flagstones!`;
+                } else {
+                    title = `Faithful Companion`;
+                    prose = `Fighting loyally at ${name}'s side in the shadows of ${depthFt}, the faithful ${petName} harries the ${targetMon || 'lurking foe'} with fearless tenacity.`;
+                }
+                break;
+            }
+
+            case 'NOTABLE_ACTION': {
+                const actMsg = (event.data && event.data.message) ? event.data.message : '';
+                const actLower = actMsg.toLowerCase();
+                const item = (event.data && event.data.item) ? event.data.item : 'gear';
+                if (actLower.includes('amulet of yendor')) {
+                    title = 'The Amulet of Yendor Claimed';
+                    prose = `Triumph blazes in the subterranean dark at ${depthFt}! ${name} wrests the legendary Amulet of Yendor from the depths—now the harrowing ascent toward immortality begins!`;
+                } else if (actLower.includes('glows with amber') || actLower.includes('glows blue') || actLower.includes('glows silver')) {
+                    title = 'Blessing of the Arcane';
+                    prose = `A warm luminous aura ripples over ${name}'s equipment at ${depthFt}, purging dark curses and awakening latent enchantments within the steel.`;
+                } else if (actLower.includes('quaff') || actLower.includes('drink')) {
+                    title = 'Alchemical Draught';
+                    prose = `Uncorking the vial at ${depthFt}, ${name} drinks deep of the ${item || 'alchemical draught'} as its potent essence courses through weary veins.`;
+                } else if (actLower.includes('finish eating')) {
+                    title = 'Sustenance in the Deep';
+                    prose = `Pausing briefly in the quiet shadows of ${depthFt}, ${name} takes rations to restore flagging strength before pressing deeper into the labyrinth.`;
+                } else if (actLower.includes('wield') || actLower.includes('wear')) {
+                    title = 'Arms Prepared';
+                    prose = `Adjusting grip and harness at ${depthFt}, ${name} readies ${item || 'fresh steel'} to meet the perils waiting in the corridors ahead.`;
+                } else {
+                    title = 'Deliberate Action';
+                    prose = `At ${depthFt}, ${name} makes careful preparation before advancing further into the subterranean gloom.`;
+                }
+                break;
+            }
+
+            case 'ENVIRONMENTAL_NOTICE': {
+                const envMsg = (event.data && event.data.message) ? event.data.message : '';
+                const envLower = envMsg.toLowerCase();
+                if (envLower.includes('oracle')) {
+                    title = 'Whisper of the Oracle';
+                    prose = `Through the silent stone of ${depthFt}, the voice of the Delphic Oracle resonates in ${name}'s mind—offering cryptic counsel on the trials below.`;
+                } else if (envLower.includes('map coalesces') || envLower.includes('arcane sigils trace') || envLower.includes('survey')) {
+                    title = 'Vision of the Labyrinth';
+                    prose = `Arcane sight sweeps across the dark masonry of ${depthFt}, etching the hidden passages, vaults, and stairways clearly into ${name}'s mind.`;
+                } else if (envLower.includes('astral ether') || envLower.includes('teleport')) {
+                    title = 'Astral Displacement';
+                    prose = `Space folds with a sudden rush of displaced air—${name} wrenches through the astral ether and rematerializes across the stone chambers of ${depthFt}!`;
+                } else if (envLower.includes('hungry') || envLower.includes('weak')) {
+                    title = 'Gnawing Hunger';
+                    prose = `The long subterranean march takes its toll at ${depthFt}; a gnawing hunger reminds ${name} to seek sustenance before strength falters.`;
+                } else if (envLower.includes('lamp') || envLower.includes('lantern') || envLower.includes('torch')) {
+                    title = 'Flickering Light';
+                    prose = `The shadows of ${depthFt} press closer as ${name}'s light wavers against the ancient subterranean dark.`;
+                } else if (envLower.includes('hear')) {
+                    title = 'Echoes in the Stone';
+                    prose = `Pausing in the corridor at ${depthFt}, ${name} catches a telltale sound echoing down the damp passageway—${envMsg}`;
+                } else {
+                    title = 'Subterranean Omen';
+                    prose = `An eerie tremor passes through the flagstones at ${depthFt} as ${name} advances with heightened vigilance.`;
                 }
                 break;
             }
@@ -5314,6 +5406,9 @@ class ChronicleGrounder {
         let excavationDone = false;
         let uniqueSlain = null;
         let vocalCreature = null;
+        let leveledUpTo = null;
+        let shrineEncountered = null;
+        let companionKill = null;
 
         for (const ev of events) {
             const data = ev.data || {};
@@ -5324,19 +5419,29 @@ class ChronicleGrounder {
             if (ev.type === 'COMBAT_EXCHANGE' || ev.type === 'HERO_ATTACK' || ev.type === 'COMBAT_EPISODE') {
                 strikes++;
             }
+            if (ev.type === 'LEVEL_UP' && data.level) {
+                leveledUpTo = data.level;
+            }
+            if (ev.type === 'SACRED_SHRINE') {
+                shrineEncountered = data.deity || ((data.message && data.message.toLowerCase().includes('fountain')) ? 'fountain' : 'altar');
+            }
+            if (ev.type === 'COMPANION_ACTION' && data.isKill && data.monsterName) {
+                companionKill = { petName: data.petName || 'companion', monsterName: data.monsterName };
+                killSet.add(data.monsterName);
+            }
             // Kills
             if (data.kills && Array.isArray(data.kills)) {
                 for (const k of data.kills) {
-                    const kName = typeof k === 'string' ? k : (k.monsterName || k.name || '');
-                    if (kName) killSet.add(kName);
+                    const kName = ChronicleGrounder.extractSlainMonsterName(k);
+                    if (kName && kName !== 'foe') killSet.add(kName);
                 }
             }
             if (data.monsterName && (ev.type === 'MONSTER_DIES' || ev.type === 'SLAIN')) {
-                killSet.add(data.monsterName);
+                killSet.add(ChronicleGrounder.extractSlainMonsterName(data.monsterName));
             }
             if (ev.type === 'UNIQUE_SLAIN' && data.monsterName) {
-                uniqueSlain = data.monsterName;
-                killSet.add(data.monsterName);
+                uniqueSlain = ChronicleGrounder.extractSlainMonsterName(data.monsterName);
+                killSet.add(uniqueSlain);
             }
 
             // Incoming attacks / assailants
@@ -5394,10 +5499,16 @@ class ChronicleGrounder {
         let title = 'Tides of Battle';
         if (uniqueSlain) {
             title = `Bane of ${uniqueSlain}`;
+        } else if (leveledUpTo && kills.length > 0) {
+            title = `Ascent to Level ${leveledUpTo}`;
         } else if (kills.length > 1) {
             title = 'Sweeping Counter-Stroke';
         } else if (kills.length === 1) {
             title = `Felling of the ${kills[0]}`;
+        } else if (leveledUpTo) {
+            title = `Ascent to Level ${leveledUpTo}`;
+        } else if (shrineEncountered) {
+            title = shrineEncountered === 'fountain' ? 'Waters of Fate' : `Sanctuary of ${shrineEncountered}`;
         } else if (inMortalPeril) {
             title = 'Desperate Standoff';
         } else if (potionsQuaffed > 0 && assailants.length > 0) {
@@ -5408,9 +5519,25 @@ class ChronicleGrounder {
 
         // Build Multi-Clause Saga Prose
         const clauses = [];
+        const isTown = (depth === 0);
+        const turnSeed = Math.abs((player && player.turn ? player.turn : 0) + (kills.length * 7) + (name ? name.length * 13 : 0));
 
-        // Clause 1: The Ongoing Struggle / Onslaught
-        if (assailants.length > 0) {
+        // Clause 1: The Ongoing Struggle / Onslaught / Sacred Threshold
+        if (isTown) {
+            if (assailants.length > 0) {
+                const foeDesc = assailants.length === 1 ? `the ${assailants[0]}` : `the street ruffians`;
+                clauses.push(inMortalPeril
+                    ? `Hard-pressed by ${foeDesc} along the misty cobblestones of the frontier town, ${name} weathers a fierce street brawl`
+                    : `Steel rings out between the timber eaves of the frontier town as ${name} clashes with ${foeDesc}`);
+            } else {
+                const townOpeners = [
+                    `Along the lantern-lit cobblestones of the frontier town, ${name} moves swiftly through the backstreets`,
+                    `Beneath the timber eaves of the frontier settlement, ${name} stands ready amidst the bustle of the town lanes`,
+                    `Stepping across the damp paving stones of the frontier square, ${name} confronts trouble in the street`
+                ];
+                clauses.push(townOpeners[turnSeed % townOpeners.length]);
+            }
+        } else if (assailants.length > 0) {
             const foeDesc = assailants.length === 1 ? `the ferocious ${assailants[0]}` : (assailants.length === 2 ? `the ${assailants[0]} and ${assailants[1]}` : `a savage pack of foes`);
             if (traditionKey === 'khazad') {
                 if (totalDamageTaken > 15 || inMortalPeril) {
@@ -5449,10 +5576,22 @@ class ChronicleGrounder {
                     clauses.push(`Locked in fierce combat against ${foeDesc} at ${depthFt}, ${name} trades swift blows in the flickering torchlight`);
                 }
             }
+        } else if (shrineEncountered) {
+            if (shrineEncountered === 'fountain') {
+                clauses.push(`Advancing past a sparkling subterranean fountain at ${depthFt}, ${name} presses onward through the enchanted gloom`);
+            } else {
+                clauses.push(`Standing before the consecrated altar of ${shrineEncountered} at ${depthFt}, ${name} meets the encroaching shadows with resolute steel`);
+            }
         } else if (excavationDone || treasureFound > 0 || secretFound) {
             clauses.push(`Carving a determined path through the ancient subterranean chambers at ${depthFt}, ${name} sweeps aside the dust of forgotten ages`);
         } else {
-            clauses.push(`Pressing forward into the dark vaults of ${depthFt}, ${name} confronts the lurking terrors of the deep`);
+            const deepOpeners = [
+                `Advancing through the torchlit corridors at ${depthFt}, ${name} meets the perils of the labyrinth head-on`,
+                `Amidst the cold stonework of ${depthFt}, ${name} holds the narrow passage with steady resolve`,
+                `Stepping through the shadowed vaults of ${depthFt}, ${name} confronts the denizens of the deep`,
+                `Pressing deeper into the silent halls at ${depthFt}, ${name} keeps blade and lantern ready`
+            ];
+            clauses.push(deepOpeners[turnSeed % deepOpeners.length]);
         }
 
         // Clause 2: Tactical Adaptation (Potions, Spells, Statuses)
@@ -5467,13 +5606,20 @@ class ChronicleGrounder {
             clauses.push(`staggering under foul affliction yet refusing to yield a single inch of ground`);
         }
 
-        // Clause 3: Resolution / Climax (Kills, Retreat, or Resolute Stance)
+        // Clause 3: Resolution / Climax (Kills, Level Up, Retreat, or Resolute Stance)
+        const surfaceFloor = isTown ? 'cobblestones' : 'flagstones';
         if (uniqueSlain) {
             clauses.push(`before driving ${weapon} home in a legendary death-blow that silences the dread ${uniqueSlain} forever, sealing their doom in the annals of the Living Chronicle!`);
         } else if (kills.length > 1) {
-            clauses.push(`before unleashing a whirlwind counter-attack that fells ${kills[0]} and ${kills[1]} lifeless across the stones!`);
+            clauses.push(`before unleashing a whirlwind counter-attack that fells ${kills[0]} and ${kills[1]} lifeless across the ${surfaceFloor}${leveledUpTo ? ` and ascending in battle-hardened mastery to level ${leveledUpTo}` : ''}!`);
         } else if (kills.length === 1) {
-            clauses.push(`before driving ${weapon} clean through the defenses of the ${kills[0]}, sending the creature crashing dead upon the dungeon floor!`);
+            if (companionKill && companionKill.monsterName === kills[0]) {
+                clauses.push(`as the faithful ${companionKill.petName} lunges forward to drag the ${kills[0]} down upon the ${surfaceFloor}${leveledUpTo ? `, while ${name} ascends to experience level ${leveledUpTo}` : ''}!`);
+            } else {
+                clauses.push(`before driving ${weapon} clean through the defenses of the ${kills[0]}, felling the assailant upon the ${surfaceFloor}${leveledUpTo ? ` and rising in hard-won mastery to level ${leveledUpTo}` : ''}!`);
+            }
+        } else if (leveledUpTo) {
+            clauses.push(`emerging from the trial with newfound vigor and ascending to experience level ${leveledUpTo}!`);
         } else if (treasureFound > 0 && secretFound) {
             clauses.push(`uncovering a hidden seam in the masonry that yields a cache of ${treasureFound} gold pieces!`);
         } else if (treasureFound > 0) {

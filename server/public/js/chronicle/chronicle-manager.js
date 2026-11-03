@@ -1255,20 +1255,34 @@ class ChronicleManager {
             // Cache live message stream for real-time combat awareness in direct conversations
             this.lastSeenMessages = frame.messages || [];
 
-            // Drain sequential events for this frame (up to 6 events per turn to prevent story backlog)
+            // Drain sequential events for this frame (up to 6 events per turn)
             let drained = 0;
-            let event = this.filter.evaluate(frame);
-            const frameEntries = [];
-            while (event && drained < 6) {
+            let rawEv = this.filter.evaluate(frame);
+            const rawEvents = [];
+            while (rawEv && drained < 6) {
                 drained++;
-                const entry = this.processEvent(event, frame, false);
-                if (entry) frameEntries.push({ event, entry });
-                event = this.filter.evaluate(frame);
+                rawEvents.push(rawEv);
+                rawEv = this.filter.evaluate(frame);
+            }
+
+            // Same-Turn Scene Coalescing:
+            // If ONBOARDING_FIRST_DESCENT (or FLOOR_DESCEND) and LEVEL_FEELING occur in the same frame,
+            // fold feelingText into the descent event so only ONE cohesive passage is rendered and spoken!
+            const descentEv = rawEvents.find(e => e.type === 'ONBOARDING_FIRST_DESCENT' || e.type === 'FLOOR_DESCEND');
+            const feelingIdx = rawEvents.findIndex(e => e.type === 'LEVEL_FEELING');
+            if (descentEv && feelingIdx !== -1) {
+                const feelEv = rawEvents[feelingIdx];
+                descentEv.data = descentEv.data || {};
+                if (feelEv.data && feelEv.data.feelingText) {
+                    descentEv.data.feelingText = feelEv.data.feelingText;
+                }
+                rawEvents.splice(feelingIdx, 1);
             }
 
             // Hero Death: Ultimate terminal priority — immediately cuts off prior speech and speaks Requiem
-            const deathEntry = frameEntries.find(fe => fe.event.type === 'HERO_DEATH');
-            if (deathEntry) {
+            const deathEv = rawEvents.find(e => e.type === 'HERO_DEATH');
+            if (deathEv) {
+                const deathEntry = this.processEvent(deathEv, frame, false);
                 this.characterDied = true;
                 if (this.audio) {
                     this.audio.stopSpeaking();
@@ -1276,15 +1290,15 @@ class ChronicleManager {
                 this.unvoicedEventLedger = [];
                 this.voicingHeroSnapshot = null;
 
-                if (this.audio && this.audio.enabled && deathEntry.entry) {
+                if (this.audio && this.audio.enabled && deathEntry) {
                     const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, 'HERO_DEATH', this.tradition) : null;
                     const speakOpts = {
                         narrator: narrProfile,
                         engine: this.audio.ttsEngine,
                         seamless: false
                     };
-                    this.audio.speak(deathEntry.entry.prose, deathEntry.entry.dialogue, null, null, 0, speakOpts);
-                    this._highlightActiveCard(deathEntry.entry);
+                    this.audio.speak(deathEntry.prose, deathEntry.dialogue, null, null, 0, speakOpts);
+                    this._highlightActiveCard(deathEntry);
                 }
                 return;
             }
@@ -1292,70 +1306,88 @@ class ChronicleManager {
             // Cache live hero state for ongoing catch-up evaluations
             this.liveHero = frame.player;
 
-            // Audio disabled or manual story playlist active
+            // If audio is disabled or manual story playlist is active, still record primary chapter card silently
             if (!this.audio || !this.audio.enabled || this.isStoryPlaying) {
+                if (rawEvents.length > 0) {
+                    const primaryEv = rawEvents.find(e => e.isChapter !== false) || rawEvents[rawEvents.length - 1];
+                    this.processEvent(primaryEv, frame, false);
+                }
                 return;
             }
 
-            // Dynamic Voice Handoff & Story Catch-Up Gate:
+            // Dynamic Voice Handoff & Story Catch-Up Gate (Zero Duplicate Cards):
             // 1. If audio is idle (!isSpeaking && !isStaging):
-            //    - Speak the primary action of this frame immediately.
-            //    - Record snapshot of hero state when voicing starts.
-            //    - Buffer any secondary events from this frame into unvoicedEventLedger.
+            //    - If multiple events occurred in the same frame (e.g. altar + kill + level-up),
+            //      coalesce them into one unified chapter beat or pick the primary chapter and buffer the rest WITHOUT rendering duplicate cards.
             // 2. If audio IS speaking or staging:
-            //    - Current voice continues playing without interruption!
-            //    - Frame events buffer into unvoicedEventLedger.
-            //    - Constantly evaluate whether urgency (kill, mortal peril, potion) or backlog density
-            //      warrants staging a seamless catch-up beat.
+            //    - Buffer incoming events into unvoicedEventLedger WITHOUT calling processEvent() yet,
+            //      preventing duplicate cards from being rendered twice!
             if (!this.audio.isSpeaking && !this.audio.isStaging && !this.audio.isProcessingSpeechQueue) {
-                if (frameEntries.length > 0) {
-                    const bestToSpeak = frameEntries.find(fe => fe.event.isChapter !== false) ||
-                                        frameEntries.find(fe => fe.event.type === 'STORE_PURCHASE') ||
-                                        frameEntries.find(fe => fe.event.type === 'COMBAT_EPISODE' || fe.event.type === 'UNIQUE_SLAIN' || (fe.event.type === 'COMBAT_EXCHANGE' && fe.event.data?.kills?.length > 0)) ||
-                                        frameEntries.find(fe => fe.entry.dialogue && !fe.entry.dialogue.isNoise) ||
-                                        frameEntries[frameEntries.length - 1];
+                if (rawEvents.length > 0) {
+                    // Check if we have a multi-event combat/level-up/shrine combo in this single turn
+                    const hasMultipleStoryEvents = rawEvents.length >= 2 && !rawEvents.some(e => e.type === 'ONBOARDING_TOWN_ARRIVAL' || e.type === 'ONBOARDING_FIRST_DESCENT' || e.type === 'STORE_PURCHASE');
+                    if (hasMultipleStoryEvents) {
+                        for (const ev of rawEvents) {
+                            this.updateArcState(ev, frame);
+                            this.unvoicedEventLedger.push({
+                                event: ev,
+                                entry: null,
+                                turn: playerTurn,
+                                player: snapshotHeroVitals(frame.player)
+                            });
+                        }
+                        this.triggerCatchUpBeat(frame.player);
+                    } else {
+                        const bestEv = rawEvents.find(e => e.isChapter !== false) ||
+                                       rawEvents.find(e => e.type === 'STORE_PURCHASE') ||
+                                       rawEvents.find(e => e.type === 'COMBAT_EPISODE' || e.type === 'UNIQUE_SLAIN' || (e.type === 'COMBAT_EXCHANGE' && e.data?.kills?.length > 0)) ||
+                                       rawEvents[rawEvents.length - 1];
 
-                    if (bestToSpeak && bestToSpeak.entry) {
-                        this.voicingHeroSnapshot = snapshotHeroVitals(frame.player);
-                        this.unvoicedEventLedger = [];
+                        const bestEntry = this.processEvent(bestEv, frame, false);
+                        if (bestEntry) {
+                            this.voicingHeroSnapshot = snapshotHeroVitals(frame.player);
+                            this.unvoicedEventLedger = [];
 
-                        for (const fe of frameEntries) {
-                            if (fe !== bestToSpeak) {
-                                this.unvoicedEventLedger.push({
-                                    event: fe.event,
-                                    entry: fe.entry,
-                                    turn: playerTurn,
-                                    player: snapshotHeroVitals(frame.player)
-                                });
+                            for (const ev of rawEvents) {
+                                if (ev !== bestEv) {
+                                    this.updateArcState(ev, frame);
+                                    this.unvoicedEventLedger.push({
+                                        event: ev,
+                                        entry: null,
+                                        turn: playerTurn,
+                                        player: snapshotHeroVitals(frame.player)
+                                    });
+                                }
                             }
-                        }
 
-                        const eventType = bestToSpeak.event ? bestToSpeak.event.type : '';
-                        const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, eventType, this.tradition) : null;
-                        let dVoiceProfile = null;
-                        if (bestToSpeak.entry.dialogue && this.grounder) {
-                            const speakerEntity = (bestToSpeak.event && bestToSpeak.event.monster) ? bestToSpeak.event.monster : { name: bestToSpeak.entry.dialogue.speaker };
-                            dVoiceProfile = bestToSpeak.entry.dialogue.voiceProfile || this.grounder.resolveVoiceProfile(speakerEntity, frame.player, eventType, this.tradition);
-                            bestToSpeak.entry.dialogue.voiceProfile = dVoiceProfile;
+                            const eventType = bestEv.type || '';
+                            const narrProfile = this.grounder ? this.grounder.resolveVoiceProfile(null, frame.player, eventType, this.tradition) : null;
+                            let dVoiceProfile = null;
+                            if (bestEntry.dialogue && this.grounder) {
+                                const speakerEntity = bestEv.monster || { name: bestEntry.dialogue.speaker };
+                                dVoiceProfile = bestEntry.dialogue.voiceProfile || this.grounder.resolveVoiceProfile(speakerEntity, frame.player, eventType, this.tradition);
+                                bestEntry.dialogue.voiceProfile = dVoiceProfile;
+                            }
+                            const speakOpts = {
+                                narrator: narrProfile,
+                                engine: this.audio.ttsEngine,
+                                seamless: true
+                            };
+                            this.audio.speak(bestEntry.prose, bestEntry.dialogue, null, null, 0, speakOpts);
+                            this._highlightActiveCard(bestEntry);
                         }
-                        const speakOpts = {
-                            narrator: narrProfile,
-                            engine: this.audio.ttsEngine,
-                            seamless: true
-                        };
-                        this.audio.speak(bestToSpeak.entry.prose, bestToSpeak.entry.dialogue, null, null, 0, speakOpts);
-                        this._highlightActiveCard(bestToSpeak.entry);
                     }
                 } else if (this.unvoicedEventLedger && this.unvoicedEventLedger.length > 0) {
                     this.triggerCatchUpBeat(frame.player);
                 }
             } else {
-                // Audio is currently speaking or staging
-                if (frameEntries.length > 0) {
-                    for (const fe of frameEntries) {
+                // Audio is currently speaking or staging: buffer events WITHOUT rendering premature duplicate DOM cards!
+                if (rawEvents.length > 0) {
+                    for (const ev of rawEvents) {
+                        this.updateArcState(ev, frame);
                         this.unvoicedEventLedger.push({
-                            event: fe.event,
-                            entry: fe.entry,
+                            event: ev,
+                            entry: null,
                             turn: playerTurn,
                             player: snapshotHeroVitals(frame.player)
                         });
@@ -1371,12 +1403,10 @@ class ChronicleManager {
 
     /**
      * Proximity Speculative Pre-Warming:
-     * When a player steps or a monster moves within 3.5 tiles, speculatively synthesize & buffer
-     * the nearest creature's encounter bark/voice ahead of time into audioBufferCache.
-     * Guarantees 0ms latency when interacting or triggering proximate creature events.
+     * Throttled to once per 30s when audio is completely idle to prevent TTS request storms.
      */
     _speculativePrewarmProximity(frame) {
-        if (!frame || !frame.player || !this.audio || this._isAudioMuted() || typeof this.audio.prewarmUtterance !== 'function' || !this.grounder) {
+        if (!frame || !frame.player || !this.audio || this._isAudioMuted() || this.audio.isSpeaking || this.audio.isStaging || typeof this.audio.prewarmUtterance !== 'function' || !this.grounder) {
             return;
         }
         const hero = frame.player;
@@ -1385,7 +1415,7 @@ class ChronicleManager {
         // Check if player or monsters moved since last check
         const posSig = `${hero.x}_${hero.y}`;
         const now = Date.now();
-        if (this._lastPrewarmPos === posSig && (now - (this._lastProximityPrewarmTime || 0) < 6000)) {
+        if (this._lastPrewarmPos === posSig || (now - (this._lastProximityPrewarmTime || 0) < 30000)) {
             return;
         }
         this._lastPrewarmPos = posSig;
@@ -1520,11 +1550,11 @@ class ChronicleManager {
 
         // Metric extraction across unvoiced ledger: routine combat strikes must NEVER be treated as kills or speech preemption
         const events = this.unvoicedEventLedger.map(item => item.event).filter(Boolean);
-        const hasKill = events.some(ev => ev.type === 'UNIQUE_SLAIN' || ev.type === 'MONSTER_DIES' || (ev.data?.kills && ev.data.kills.length > 0));
-        const hasUniqueSpotted = events.some(ev => ev.type === 'UNIQUE_SPOTTED');
-        const hasPotionOrHeal = events.some(ev => ev.type === 'POTION_QUAFFED' || ev.type === 'HEALING_DRAUGHT' || (ev.data?.item && ev.data.item.toLowerCase().includes('potion')));
+        const hasKill = events.some(ev => ev.type === 'UNIQUE_SLAIN' || ev.type === 'MONSTER_DIES' || ev.type === 'COMBAT_EPISODE' || (ev.data?.kills && ev.data.kills.length > 0));
+        const hasUniqueSpotted = events.some(ev => ev.type === 'UNIQUE_SPOTTED' || ev.type === 'LEVEL_UP' || ev.type === 'SPELL_LEARNED' || ev.type === 'ARTIFACT_AWAKENING' || ev.type === 'SACRED_SHRINE');
+        const hasPotionOrHeal = events.some(ev => ev.type === 'POTION_QUAFFED' || ev.type === 'HEALING_DRAUGHT' || ev.type === 'NOTABLE_ACTION' || (ev.data?.item && ev.data.item.toLowerCase().includes('potion')));
         const hasSpellCast = events.some(ev => ev.data?.attackMedium && (ev.data.attackMedium.type === 'spell' || ev.data.attackMedium.method === 'spell'));
-        const hasMajorAffliction = events.some(ev => ev.type === 'PLAYER_STATUS');
+        const hasMajorAffliction = events.some(ev => ev.type === 'PLAYER_STATUS' || ev.type === 'ENVIRONMENTAL_NOTICE' || ev.type === 'COMPANION_ACTION');
         const curHp = curPlayer.hp ?? curPlayer.chp ?? 1;
         const maxHp = curPlayer.hp_max ?? curPlayer.mhp ?? 1;
         const hpPct = curHp / maxHp;
@@ -1539,27 +1569,23 @@ class ChronicleManager {
             }
         }
 
-        const isUrgent = hasKill || inMortalPeril || hasUniqueSpotted || hasPotionOrHeal || hasMajorAffliction || significantHpDrop;
+        const isUrgent = hasKill || inMortalPeril || hasUniqueSpotted || hasPotionOrHeal || hasSpellCast || hasMajorAffliction || significantHpDrop;
         const isBacklogDense = this.unvoicedEventLedger.length >= 2;
 
         const now = Date.now();
         if (this.audio.isSpeaking || this.audio.isStaging || this.audio.isProcessingSpeechQueue) {
             // While audio is actively speaking, ONLY true mortal peril (<= 30% HP) preempts the narrator mid-sentence!
-            // Routine kills, potions, and dense flurries coalesce in the SceneEpoch ledger, pre-warm in the background,
-            // and speak at the natural sentence boundary via onAudioPlaybackEnded().
+            // Do NOT fire speculative prewarm requests on every intermediate turn while speaking (prevents TTS request storms).
             if (inMortalPeril && hpPct <= 0.30) {
                 if (this._lastStagingTime && (now - this._lastStagingTime < 2500)) return;
                 this._lastStagingTime = now;
                 this.triggerCatchUpBeat(curPlayer);
                 return;
             }
-            if ((isUrgent || isBacklogDense) && typeof this._prewarmPendingCatchUp === 'function') {
-                this._prewarmPendingCatchUp(curPlayer);
-            }
             return;
         } else {
-            // Audio is idle: if backlog exists, voice it now
-            if (!isUrgent && !isBacklogDense) return;
+            // Audio is idle: if any worthy event is waiting in the ledger, voice it smoothly now
+            if (this.unvoicedEventLedger.length === 0) return;
             if (this._lastStagingTime && (now - this._lastStagingTime < 400)) return;
             this._lastStagingTime = now;
             this.triggerCatchUpBeat(curPlayer);
@@ -1897,10 +1923,8 @@ class ChronicleManager {
         }
         if (entry.isStoryPrompt) {
             headerBadge = `🔮 ${headerBadge} • Tale`;
-        } else if (entry.isCatchUp && entry.actionBreakdown && entry.actionBreakdown.summaryText) {
-            headerBadge = `⚡ ${depthLabel} • Caught Up (+${this.escapeHtml(entry.actionBreakdown.summaryText)})`;
-        } else if (entry.isCatchUp) {
-            headerBadge = `⚡ ${depthLabel} • Caught Up`;
+        } else if (entry.isCatchUp && entry.actionBreakdown && entry.actionBreakdown.total >= 3 && entry.actionBreakdown.summaryText) {
+            headerBadge = `⚡ ${headerBadge} • (+${this.escapeHtml(entry.actionBreakdown.summaryText)})`;
         }
 
         let html = `
@@ -1910,7 +1934,7 @@ class ChronicleManager {
             </div>
         `;
 
-        if (entry.isCatchUp && entry.actionBreakdown) {
+        if (entry.isCatchUp && entry.actionBreakdown && entry.actionBreakdown.total >= 3) {
             html += `
                 <div class="catchup-context-banner">
                     <span class="catchup-badge">⚡ Action Flurry</span>
@@ -2869,11 +2893,12 @@ class ChronicleManager {
         this.sketchModal.style.display = 'none';
     }
 
-    buildHeroSketchContext(overrideBeat = null) {
-        const realm = (typeof this.getActiveRealm === 'function' ? this.getActiveRealm() : 'angband') || 'angband';
-        const isSilq = (realm === 'silq');
-        const frame = this.lastFrame || {};
+    buildHeroSketchContext(overrideBeat = null, options = {}) {
+        const frame = options.frame || this.lastFrame || {};
         const p = frame.player || this.currentHero || {};
+        const realm = options.realm || frame.realm || (typeof this.getActiveRealm === 'function' ? this.getActiveRealm() : 'angband') || 'angband';
+        const isSilq = (realm === 'silq');
+        const mode = options.mode || (p.dead ? (p.winner ? 'victory' : 'death') : 'action');
 
         const name = p.name || 'Hero';
         const race = p.race || 'Human';
@@ -2881,6 +2906,7 @@ class ChronicleManager {
         const title = p.title || '';
         const level = p.lev || p.level || 1;
         const depth = frame.depth ?? p.depth ?? 0;
+        const killedBy = p.died_from || p.killed_by || (mode === 'death' ? 'mortal wounds' : '');
 
         // Vitals
         const hp = p.hp ?? p.chp ?? 10;
@@ -3101,6 +3127,15 @@ class ChronicleManager {
                 if (item) rawItems.push(item);
             }
         }
+        if (rawItems.length === 0 && Array.isArray(p.inventory)) {
+            for (const it of p.inventory) {
+                if (!it) continue;
+                const nm = typeof it === 'string' ? it : String(it.name || it.label || '');
+                if (it.equipped || /\((?:weapon in hand|being worn|wielded|alternate weapon|on left|on right|around neck|quivered|in quiver)\)/i.test(nm)) {
+                    rawItems.push(it);
+                }
+            }
+        }
         if (p.weapon_item) rawItems.push(p.weapon_item);
         if (p.bow_item) rawItems.push(p.bow_item);
         if (p.shield_item) rawItems.push(p.shield_item);
@@ -3189,9 +3224,9 @@ class ChronicleManager {
             else if (lower.includes('scroll')) icon = '📜';
             else if (lower.includes('rod') || lower.includes('wand') || lower.includes('staff')) icon = '🪄';
             else if (lower.includes('book') || lower.includes('grimoire') || lower.includes('magic') || lower.includes('incantation')) icon = '📕';
-            else if (lower.includes('ration') || lower.includes('food') || lower.includes('mushroom') || lower.includes('bread')) icon = '🍞';
+            else if (lower.includes('ration') || lower.includes('food') || lower.includes('mushroom') || lower.includes('bread') || lower.includes('mango')) icon = '🍞';
             else if (lower.includes('ring')) icon = '💍';
-            else if (lower.includes('amulet')) icon = '📿';
+            else if (lower.includes('amulet') || lower.includes('orb of zot') || lower.includes('lumenstone')) icon = '📿';
             else if (lower.includes('sword') || lower.includes('dagger') || lower.includes('blade') || lower.includes('axe') || lower.includes('mace')) icon = '⚔';
             else if (lower.includes('shield')) icon = '🛡';
 
@@ -3199,10 +3234,11 @@ class ChronicleManager {
             if (inventoryHighlights.length >= 5) break;
         }
 
-        // 4. Visible Monsters and Items
+        // 4. Visible Monsters (distinguishing loyal pets/allies from hostiles) and Items
         const visibleMonsters = [];
+        const visibleAllies = [];
         if (Array.isArray(frame.monsters)) {
-            for (const m of frame.monsters.slice(0, 4)) {
+            for (const m of frame.monsters.slice(0, 6)) {
                 if (!m) continue;
                 let mName = m.name || 'Unknown beast';
                 if (realm === 'hengband' && typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
@@ -3211,8 +3247,19 @@ class ChronicleManager {
                     } catch (_) {}
                 }
                 const glyph = m.glyph || m.char || 'm';
-                const state = m.sleep ? 'asleep' : (m.afraid ? 'afraid' : 'alert');
-                visibleMonsters.push({ name: mName, glyph, state });
+                const isAlly = Boolean(m.isPet || m.pet || m.friendly || m.tame || /\b(ally|pet|tame)\b/i.test(mName));
+                const state = isAlly ? 'loyal ally' : (m.sleep ? 'asleep' : (m.afraid ? 'afraid' : 'hostile'));
+                if (isAlly) {
+                    visibleAllies.push({ name: mName, glyph, state });
+                } else if (visibleMonsters.length < 4) {
+                    visibleMonsters.push({ name: mName, glyph, state });
+                }
+            }
+        }
+        if (mode === 'death' && killedBy && visibleMonsters.length === 0) {
+            const cleanKiller = killedBy.replace(/^(?:a|an|the)\s+/i, '').trim();
+            if (cleanKiller && !/starv|hunger|quit|lava|trap|poison|wounds/i.test(cleanKiller)) {
+                visibleMonsters.push({ name: cleanKiller, glyph: 'M', state: 'victorious slayer' });
             }
         }
 
@@ -3231,17 +3278,23 @@ class ChronicleManager {
         }
 
         let locationLabel = '';
-        if (depth === 0) {
+        if (realm === 'dcss') {
+            locationLabel = p.place_label || `${p.branch_name || 'Dungeon'}:${depth || 1}`;
+        } else if (realm === 'nethack') {
+            locationLabel = `${p.branch_name || 'Dungeons of Doom'} (DLvl ${depth || 1})`;
+        } else if (realm === 'brogue') {
+            locationLabel = `Depth ${depth || 1} of the Dungeons of Doom`;
+        } else if (realm === 'rogue') {
+            locationLabel = `Level ${depth || 1} of the Dungeons of Doom`;
+        } else if (depth === 0) {
             if (realm === 'silq') locationLabel = 'Gates of Angband';
             else if (realm === 'frogcomposband') locationLabel = 'Outpost Wilderness';
             else if (realm === 'hengband') locationLabel = 'Town of Morivant';
             else locationLabel = 'Town of Angband';
+        } else if (realm === 'angband' || realm === 'silq') {
+            locationLabel = `${depth * 50}ft (Level ${depth})`;
         } else {
-            if (realm === 'angband' || realm === 'silq') {
-                locationLabel = `${depth * 50}ft (Level ${depth})`;
-            } else {
-                locationLabel = `Dungeon Level ${depth}`;
-            }
+            locationLabel = `Dungeon Level ${depth}`;
         }
 
         // 5. Story & Chronicle History
@@ -3253,7 +3306,7 @@ class ChronicleManager {
             originSummary = this.activeChronicle.chapters[0]?.summary || this.activeChronicle.chapters[0]?.text || '';
         }
         if (!originSummary) {
-            originSummary = `A bold ${race} ${heroClass} seeking renown in ${realm === 'silq' ? 'Angband of Beleriand' : 'the ancient dungeon'}.`;
+            originSummary = `A bold ${race} ${heroClass} seeking renown in ${locationLabel}.`;
         }
 
         const notableDeeds = [];
@@ -3262,17 +3315,13 @@ class ChronicleManager {
                 if (!msg || typeof msg !== 'string') continue;
                 const clean = msg.trim();
                 if (clean.length < 5) continue;
-                if (/kill|slain|destroy|hit|cast|breathe|found|artifact|level|stair|door|quaff|read/i.test(clean)) {
+                if (/kill|slain|destroy|hit|cast|breathe|found|artifact|level|stair|door|quaff|read|pray|altar|fountain|sink|liberated|rune|amulet/i.test(clean)) {
                     notableDeeds.push(clean);
                 }
             }
         }
         if (notableDeeds.length === 0) {
-            if (depth > 0) {
-                notableDeeds.push(`Descended to ${locationLabel}`);
-            } else {
-                notableDeeds.push(`Prepared equipment in ${locationLabel}`);
-            }
+            notableDeeds.push(depth > 0 ? `Descended to ${locationLabel}` : `Prepared equipment in ${locationLabel}`);
         }
 
         const historyTimeline = [];
@@ -3292,14 +3341,21 @@ class ChronicleManager {
             }
         } else {
             historyTimeline.push(`Embarkation in ${locationLabel}`);
-            if (depth > 0) historyTimeline.push(`Deep descent to Level ${depth}`);
-            historyTimeline.push(`Standing vigilant against the darkness`);
+            if (depth > 0) historyTimeline.push(`Deep descent to ${locationLabel}`);
+            historyTimeline.push(mode === 'death' ? `Fell to ${killedBy || 'mortal wounds'}` : `Standing vigilant against the darkness`);
         }
 
         const maxDepthLabel = maxDepth > 0 ? (realm === 'angband' || realm === 'silq' ? `${maxDepth * 50}ft` : `DLvl ${maxDepth}`) : 'Surface';
-        const storyArc = `Origin: ${originSummary.slice(0, 80)} • Deepest: ${maxDepthLabel} • Deeds: ${notableDeeds.slice(0, 2).join('; ').slice(0, 80)}`;
+        const storyArc = mode === 'death'
+            ? `YASD Demise: Killed by ${killedBy || 'mortal wounds'} at ${locationLabel} • Deepest: ${maxDepthLabel}`
+            : `Origin: ${originSummary.slice(0, 75)} • Deepest: ${maxDepthLabel} • Deeds: ${notableDeeds.slice(0, 2).join('; ').slice(0, 75)}`;
 
         let narrativeText = overrideBeat?.text || overrideBeat?.prose || '';
+        if (mode === 'death' && !overrideBeat) {
+            narrativeText = `Here lies ${name} the ${race} ${heroClass} (Level ${level}), slain by ${killedBy || 'mortal wounds'} in ${locationLabel}.`;
+        } else if (mode === 'victory' && !overrideBeat) {
+            narrativeText = `Triumphant ascension! ${name} the ${race} ${heroClass} emerges victorious from ${locationLabel}!`;
+        }
         if (!narrativeText && this.activeChronicle && Array.isArray(this.activeChronicle.chapters) && this.activeChronicle.chapters.length > 0) {
             const lastCh = this.activeChronicle.chapters[this.activeChronicle.chapters.length - 1];
             narrativeText = lastCh.text || lastCh.prose || lastCh.summary || '';
@@ -3318,13 +3374,48 @@ class ChronicleManager {
             realmAtmosphere = 'Amber Multiverse and Chaos wildlands, warped stone ruins, swirling chaotic mist, eldritch shadows, surreal dungeon corridors.';
         } else if (realm === 'hengband') {
             realmAtmosphere = 'Feudal Japanese Eastern dark fantasy, mist-veiled pagoda silhouettes, stone lanterns, samurai armor styling, youkai and demon shadows.';
+        } else if (realm === 'nethack') {
+            realmAtmosphere = 'NetHack Mazes of Menace, eccentric subterranean temple and dungeon vault, glowing high altars, bubbling magic fountains, classic AD&D fantasy book illustration.';
+        } else if (realm === 'dcss') {
+            realmAtmosphere = 'Dungeon Crawl Stone Soup (DCSS), Zot multi-branch subterranean rune vaults, glowing ecumenical altars, ancient carved pillars, intense tactical fantasy combat.';
+        } else if (realm === 'brogue') {
+            realmAtmosphere = 'Brogue CE subterranean cavern, bioluminescent fungal glow, bubbling crimson lava fissures and deep subterranean lakes, iron captive cages, painterly chiaroscuro.';
+        } else if (realm === 'rogue') {
+            realmAtmosphere = '1980 Classic Rogue Dungeons of Doom, torchlit rectangular flagstone chambers and winding maze passages, vintage 1980s TSR Dungeons & Dragons fantasy module cover art style.';
         } else {
             realmAtmosphere = 'Tolkien Middle-earth Angband, deep stone dungeon vault, rough-hewn granite arches, flickering torchlight halo, ancient gothic masonry.';
         }
 
+        const alliesDesc = visibleAllies.length > 0
+            ? `Accompanied by loyal companion ally: ${visibleAllies.map(a => a.name).join(', ')}.`
+            : '';
         const monstersDesc = visibleMonsters.length > 0
-            ? `Facing nearby hostile threats in combat stance: ${visibleMonsters.map(m => `${m.name} (${m.state})`).join(', ')}.`
+            ? `Facing nearby hostile threats: ${visibleMonsters.map(m => `${m.name} (${m.state})`).join(', ')}.`
             : 'Stalking through dark dungeon corridors with drawn weapon, watchful for ambushes.';
+
+        // Situational Drama & Dark-Comedy Director (Highlights dramatic or humorous aspects!)
+        let situationalFocus = '';
+        const combinedRecent = `${notableDeeds.join(' ')} ${narrativeText}`.toLowerCase();
+        if (mode === 'death') {
+            const isHumorousKiller = /newt|grid bug|jackal|rat|kobold|bat|floating eye|mold|jelly|starv|hunger|sink|fountain|chok/i.test(killedBy);
+            situationalFocus = isHumorousKiller
+                ? `Darkly comedic "Yet Another Stupid Death" (YASD) fantasy vignette! Depict ${name} the ${race} ${heroClass} meeting an absurd, tragicomic demise caused by ${killedBy} in ${locationLabel}, with scattered loot, an expressive reaction, and a carved stone tombstone nearby.`
+                : `Dramatic dark-fantasy death scene ("Yet Another Stupid Death" / YASD)! Depict the fallen hero ${name} the ${race} ${heroClass} overcome by ${killedBy} in ${locationLabel}, with shattered shield, spilled gold coins, and a weathered stone tombstone emerging in the torchlight.`;
+        } else if (mode === 'victory') {
+            situationalFocus = `Triumphant mythic ascension! Depict ${name} the ${race} ${heroClass} raising the ultimate relic aloft in golden celestial light as dungeon shadows recoil.`;
+        } else if (/sink|fountain|quaff|drink|altar|pray/i.test(combinedRecent)) {
+            situationalFocus = `Expressive, humorous & dramatic dungeon curiosity moment! Depict ${name} interacting boldly with a dungeon feature (${notableDeeds[0] || 'ancient magic'}) with vivid facial expression and chaotic magical sparks${visibleAllies.length ? ' while their loyal pet watches in disbelief' : ''}.`;
+        } else if (isConfused || isBlind || isAfraid) {
+            situationalFocus = `Comedic & perilous status predicament! Depict ${name} staggering under ${isConfused ? 'dizzy arcane confusion' : (isBlind ? 'sudden blindness' : 'sheer terror')} with expressive body language while ${visibleMonsters.length ? `${visibleMonsters[0].name} closes in` : 'groping along the torchlit dungeon wall'}.`;
+        } else if (hpRatio < 0.35 && visibleMonsters.length > 0) {
+            situationalFocus = `High-drama desperate last stand! Depict ${name} battered and defiant in a narrow stone doorway bottleneck, parrying a ferocious strike from ${visibleMonsters[0].name} with sparks flying.`;
+        } else if (visibleAllies.length > 0 && visibleMonsters.length > 0) {
+            situationalFocus = `Heroic companion team-up! Depict ${name} and their loyal ${visibleAllies[0].name} fighting side-by-side against ${visibleMonsters.map(m => m.name).join(' and ')}.`;
+        } else if (visibleMonsters.length > 0) {
+            situationalFocus = `Dynamic fantasy combat clash! Depict ${name} mid-strike against ${visibleMonsters.map(m => m.name).join(', ')}, capturing the dramatic scale and personality of both hero and monster.`;
+        } else {
+            situationalFocus = `Atmospheric dungeon exploration! Depict ${name} advancing with expressive character personality through ${locationLabel}${visibleItems.length ? `, discovering ${visibleItems[0]} gleaming on the flagstones` : ''}.`;
+        }
 
         const gearDesc = gearBadges.length > 0
             ? `Equipped gear visibly worn or wielded: ${gearBadges.join(', ')}.`
@@ -3338,7 +3429,7 @@ class ChronicleManager {
         const statusSummary = statusBadges.join(', ');
         const deedsSummary = notableDeeds.join('; ');
 
-        const prompt = `A masterwork dark-fantasy book illustration, charcoal and graphite drawing with deep pen-and-ink crosshatching on aged vellum paper, accented with subtle gold-leaf highlights. Depict the hero ${name}, a Level ${level} ${race} ${heroClass} (${condition}). Physical form and attributes: ${statTraits} (${statsSummary}). Active conditions & aura: ${statusSummary}. Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${packDesc} ${monstersDesc} Chronicle deeds & path: ${storyArc} (Past deeds: ${deedsSummary}). Latest chronicle scene: “${narrativeText}”. Dramatic chiaroscuro lighting with warm lantern and torchlight glow casting sharp ink-wash shadows. Intricate anatomical detail, realistic armor texture, dynamic action composition, fine historic printmaking style.`;
+        const prompt = `A masterwork dark-fantasy book illustration, charcoal and graphite drawing with deep pen-and-ink crosshatching on aged vellum paper, accented with rich watercolor washes and gold-leaf highlights. ${situationalFocus} Hero: ${name}, a Level ${level} ${race} ${heroClass}${p.god ? ` (Worshipper of ${p.god})` : ''} (${condition}). Physical form: ${statTraits} (${statsSummary}). Active conditions: ${statusSummary}. Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${packDesc} ${alliesDesc} ${monstersDesc} Scene: “${narrativeText}”. Dramatic chiaroscuro lighting with warm torchlight glow. Pure fantasy artwork — DO NOT include any text, letters, words, watermarks, or HUD numbers in the image.`;
 
         const heroObj = {
             name,
@@ -3355,7 +3446,8 @@ class ChronicleManager {
             stats,
             statBadges,
             vitals,
-            statusBadges
+            statusBadges,
+            god: p.god || null
         };
 
         const heroSummary = {
@@ -3366,16 +3458,22 @@ class ChronicleManager {
             depth,
             locationLabel,
             condition,
+            mode,
+            killedBy,
             stats: statBadges,
             status: statusBadges,
             gearBadges,
             inventory: inventoryHighlights,
             history: historyTimeline,
+            allies: visibleAllies.map(a => a.name),
             monsters: visibleMonsters.map(m => m.name)
         };
 
         return {
             realm,
+            mode,
+            killedBy,
+            situationalFocus,
             hero: heroObj,
             heroSummary,
             stats,
@@ -3392,6 +3490,7 @@ class ChronicleManager {
             locationLabel,
             condition,
             gearBadges,
+            visibleAllies,
             visibleMonsters,
             visibleItems,
             narrativeText,
@@ -3471,16 +3570,24 @@ class ChronicleManager {
         // 2. Top Heraldic Banner + Status Condition Pills (y = 26..92)
         ctx.save();
         const realmTitle = realm.toUpperCase();
-        ctx.fillStyle = '#f1d08a';
+        const isDeathMode = (ctxData.mode === 'death');
+        const isVictoryMode = (ctxData.mode === 'victory');
+        ctx.fillStyle = isDeathMode ? '#fca5a5' : (isVictoryMode ? '#fde047' : '#f1d08a');
         ctx.font = 'bold 15px "Cinzel", "Times New Roman", Georgia, serif';
         ctx.textAlign = 'center';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
         ctx.shadowBlur = 6;
-        ctx.fillText(`✦  CHRONICLE OF ${realmTitle}  ✦`, 400, 42);
+        ctx.fillText(
+            isDeathMode ? `☠  Y A S D  •  CHRONICLE OF ${realmTitle}  ☠`
+                : (isVictoryMode ? `👑  IMMORTAL ASCENSION OF ${realmTitle}  👑` : `✦  CHRONICLE OF ${realmTitle}  ✦`),
+            400, 42
+        );
 
         ctx.fillStyle = '#fce7a1';
         ctx.font = 'bold 12px "Cinzel", Georgia, serif';
-        const heroLine = `${hero.name || 'Hero'} — Lv.${hero.level || 1} ${hero.race || 'Human'} ${hero.class || 'Warrior'}  •  ${ctxData.locationLabel || 'Dungeon'}`;
+        const heroLine = isDeathMode
+            ? `${hero.name || 'Hero'} (Lv.${hero.level || 1} ${hero.race || 'Human'} ${hero.class || 'Warrior'})  •  Slain by ${ctxData.killedBy || 'mortal wounds'}`
+            : `${hero.name || 'Hero'} — Lv.${hero.level || 1} ${hero.race || 'Human'} ${hero.class || 'Warrior'}  •  ${ctxData.locationLabel || 'Dungeon'}`;
         ctx.fillText(heroLine, 400, 60);
 
         // Horizontal row of colored Status Condition Pills (y = 68..88)
@@ -3867,35 +3974,83 @@ class ChronicleManager {
         }
 
         if (!drewHero) {
-            // Stylized hero silhouette fallback
+            // Stylized hero silhouette or YASD Tombstone fallback
             ctx.save();
-            ctx.fillStyle = '#1c1611';
-            ctx.strokeStyle = '#2d231b';
-            ctx.lineWidth = 2;
+            if (isDeathMode) {
+                // Carved granite tombstone in torchlight
+                ctx.fillStyle = '#2b2623';
+                ctx.strokeStyle = '#a89f91';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(285, 370);
+                ctx.lineTo(285, 255);
+                ctx.arc(335, 255, 50, Math.PI, 0, false);
+                ctx.lineTo(385, 370);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#e5dccb';
+                ctx.font = 'bold 16px "Cinzel", Georgia, serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('R. I. P.', 335, 268);
+                ctx.font = 'bold 11px Georgia, serif';
+                ctx.fillStyle = '#f5d77f';
+                ctx.fillText((hero.name || 'Hero').slice(0, 14), 335, 290);
+                ctx.font = 'italic 9px Georgia, serif';
+                ctx.fillStyle = '#fca5a5';
+                ctx.fillText((ctxData.killedBy || 'Fell in battle').slice(0, 18), 335, 308);
+            } else {
+                ctx.fillStyle = '#1c1611';
+                ctx.strokeStyle = '#2d231b';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(330, 230);
+                ctx.lineTo(310, 260);
+                ctx.lineTo(285, 370);
+                ctx.quadraticCurveTo(330, 380, 375, 370);
+                ctx.lineTo(350, 260);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#0f0c09';
+                ctx.beginPath();
+                ctx.arc(330, 240, 18, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Glowing blade
+                ctx.shadowColor = '#80d0ff';
+                ctx.shadowBlur = 15;
+                ctx.strokeStyle = '#e0f4ff';
+                ctx.lineWidth = 3.5;
+                ctx.beginPath();
+                ctx.moveTo(355, 310);
+                ctx.lineTo(415, 235);
+                ctx.stroke();
+            }
+            ctx.restore();
+        } else if (isDeathMode) {
+            // Overlay chiseled stone tombstone badge beside fallen hero sprite
+            ctx.save();
+            ctx.fillStyle = 'rgba(32, 28, 24, 0.92)';
+            ctx.strokeStyle = '#c9a050';
+            ctx.lineWidth = 1.6;
             ctx.beginPath();
-            ctx.moveTo(330, 230);
-            ctx.lineTo(310, 260);
-            ctx.lineTo(285, 370);
-            ctx.quadraticCurveTo(330, 380, 375, 370);
-            ctx.lineTo(350, 260);
+            ctx.moveTo(205, 368);
+            ctx.lineTo(205, 292);
+            ctx.arc(237, 292, 32, Math.PI, 0, false);
+            ctx.lineTo(269, 368);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
-
-            ctx.fillStyle = '#0f0c09';
-            ctx.beginPath();
-            ctx.arc(330, 240, 18, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Glowing blade
-            ctx.shadowColor = '#80d0ff';
-            ctx.shadowBlur = 15;
-            ctx.strokeStyle = '#e0f4ff';
-            ctx.lineWidth = 3.5;
-            ctx.beginPath();
-            ctx.moveTo(355, 310);
-            ctx.lineTo(415, 235);
-            ctx.stroke();
+            ctx.fillStyle = '#f5d77f';
+            ctx.font = 'bold 11px "Cinzel", Georgia, serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('R.I.P.', 237, 302);
+            ctx.fillStyle = '#fca5a5';
+            ctx.font = '9px sans-serif';
+            ctx.fillText((hero.name || 'Hero').slice(0, 10), 237, 320);
             ctx.restore();
         }
 
@@ -4049,13 +4204,196 @@ class ChronicleManager {
         // Line 6: Inscribed timestamp & turn footer
         ctx.fillStyle = '#7a6e5d';
         ctx.font = '9px monospace';
-        const footerNote = `✦ Living Chronicle of ${realmTitle} • Location: ${ctxData.locationLabel} • Turn ${vitals.turn ?? 1} ✦`;
+        const footerNote = `✦ YASD 3D (yasd3d.com) • Living Chronicle of ${realmTitle} • ${ctxData.locationLabel} • Turn ${vitals.turn ?? 1} ✦`;
         ctx.textAlign = 'center';
         ctx.fillText(footerNote, 400, 560);
 
         ctx.restore();
 
         return canvas.toDataURL('image/png');
+    }
+
+    async renderDeathSketchIntoModal(frame) {
+        try {
+            const p = (frame && frame.player) || {};
+            const mode = p.winner ? 'victory' : 'death';
+            const ctxData = this.buildHeroSketchContext(null, { mode, frame });
+            const fallbackUrl = this.renderMasterworkCanvasSketch(ctxData);
+            this._lastDeathSketchUrl = fallbackUrl;
+            this._lastDeathCtx = ctxData;
+
+            const imgEl = typeof document !== 'undefined' && document.getElementById('death-sketch-img');
+            const statusEl = typeof document !== 'undefined' && document.getElementById('death-sketch-status');
+            if (imgEl) {
+                imgEl.src = fallbackUrl;
+                imgEl.style.cursor = 'pointer';
+                imgEl.onclick = () => {
+                    this.openSketchLightbox(
+                        this._lastDeathSketchUrl || fallbackUrl,
+                        `${mode === 'victory' ? '👑 Ascension' : '☠ YASD Sketch'}: ${ctxData.hero.name} — ${ctxData.locationLabel}`,
+                        ctxData.narrativeText,
+                        ctxData.gearBadges,
+                        ctxData.statBadges,
+                        ctxData.statusBadges,
+                        ctxData.historyTimeline
+                    );
+                };
+            }
+            if (statusEl) {
+                statusEl.textContent = mode === 'victory' ? '✨ Painting Ascension Masterwork...' : '🎨 Illustrating YASD Scene...';
+            }
+
+            const res = await fetch('/api/chronicle/sketch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    realm: ctxData.realm,
+                    prompt: ctxData.prompt,
+                    heroSummary: ctxData.heroSummary
+                })
+            });
+            if (res.ok) {
+                const json = await res.json();
+                if (json && json.ok && json.imageUrl) {
+                    this._lastDeathSketchUrl = json.imageUrl;
+                    if (imgEl) imgEl.src = json.imageUrl;
+                    if (statusEl) statusEl.textContent = `🎨 Illustrated by ${json.model || 'Gemini'} (Click to Expand)`;
+                    return json.imageUrl;
+                }
+            }
+            if (statusEl) statusEl.textContent = '🎨 Chronicle Folio Sketch (Click to Expand)';
+            return fallbackUrl;
+        } catch (_) {
+            return this._lastDeathSketchUrl || null;
+        }
+    }
+
+    async downloadYasdShareCard(frame) {
+        if (typeof document === 'undefined') return;
+        const activeFrame = frame || this.lastFrame || {};
+        const p = activeFrame.player || {};
+        const ctxData = this._lastDeathCtx || this.buildHeroSketchContext(null, { mode: p.winner ? 'victory' : 'death', frame: activeFrame });
+        const sketchSrc = this._lastDeathSketchUrl || this.renderMasterworkCanvasSketch(ctxData);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 1200;
+        canvas.height = 630;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // 1. Obsidian & Gold Memorial Card Backdrop
+        const bg = ctx.createLinearGradient(0, 0, 1200, 630);
+        bg.addColorStop(0, '#140f0a');
+        bg.addColorStop(0.5, '#0b0805');
+        bg.addColorStop(1, '#18110a');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, 1200, 630);
+
+        ctx.strokeStyle = '#d4af37';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(16, 16, 1168, 598);
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(24, 24, 1152, 582);
+
+        // 2. Top Platform Header
+        ctx.fillStyle = '#f5d77f';
+        ctx.font = 'bold 16px "Cinzel", Georgia, serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('⚔ YASD 3D • YET ANOTHER STUPID DEATH (yasd3d.com)', 44, 56);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#c9a050';
+        ctx.font = 'bold 13px "Cinzel", Georgia, serif';
+        ctx.fillText('POWERED BY YENDOR ENGINE™ • THUNDERBEAR STUDIOS™', 1156, 56);
+
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
+        ctx.beginPath();
+        ctx.moveTo(44, 68);
+        ctx.lineTo(1156, 68);
+        ctx.stroke();
+
+        // 3. Left Panel: Illustrated Death Sketch
+        try {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            await new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve;
+                img.src = sketchSrc;
+            });
+            if (img.width > 0) {
+                ctx.save();
+                ctx.strokeStyle = '#d4af37';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(44, 86, 540, 480);
+                ctx.drawImage(img, 46, 88, 536, 476);
+                ctx.restore();
+            }
+        } catch (_) {}
+
+        // 4. Right Panel: Epitaph, Cause of Death, Vitals & Gear
+        const rx = 610;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = p.winner ? '#fde047' : '#f87171';
+        ctx.font = 'bold 26px "Cinzel", Georgia, serif';
+        ctx.fillText(p.winner ? '👑 IMMORTAL ASCENSION' : '☠ YOU HAVE PERISHED', rx, 120);
+
+        ctx.fillStyle = '#fff8e1';
+        ctx.font = 'bold 22px "Cinzel", Georgia, serif';
+        ctx.fillText(`${ctxData.hero.name} — Lv.${ctxData.hero.level} ${ctxData.hero.race} ${ctxData.hero.class}`, rx, 156);
+
+        ctx.fillStyle = '#fca5a5';
+        ctx.font = 'italic 17px Georgia, serif';
+        const causeStr = p.winner
+            ? `Ascended triumphantly from ${ctxData.locationLabel}!`
+            : `Killed by ${ctxData.killedBy || 'mortal wounds'} at ${ctxData.locationLabel}.`;
+        ctx.fillText(causeStr.slice(0, 62), rx, 188);
+
+        // Realm & Telemetry Box
+        ctx.fillStyle = 'rgba(28, 21, 12, 0.9)';
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.5)';
+        ctx.fillRect(rx, 210, 546, 88);
+        ctx.strokeRect(rx, 210, 546, 88);
+
+        ctx.fillStyle = '#f5d77f';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText(`REALM: ${ctxData.realm.toUpperCase()}   •   LOCATION: ${ctxData.locationLabel}`, rx + 16, 236);
+        ctx.fillStyle = '#e2d9c5';
+        ctx.font = '13px monospace';
+        ctx.fillText(`Gold: ${(ctxData.vitals.gold || 0).toLocaleString()} AU   •   EXP: ${(ctxData.vitals.exp || 0).toLocaleString()}   •   Turns: ${ctxData.vitals.turn || 1}`, rx + 16, 260);
+        ctx.fillText((ctxData.statBadges || []).slice(0, 6).join('  |  '), rx + 16, 284);
+
+        // Equipped Loadout
+        ctx.fillStyle = '#f5d77f';
+        ctx.font = 'bold 14px "Cinzel", Georgia, serif';
+        ctx.fillText('⚔ EQUIPPED ARMS & RELICS AT DEMISE', rx, 330);
+        ctx.fillStyle = '#e2d2b5';
+        ctx.font = '13px sans-serif';
+        const gearList = (ctxData.gearBadges && ctxData.gearBadges.length > 0) ? ctxData.gearBadges.slice(0, 5) : ['Basic adventurer attire'];
+        gearList.forEach((g, idx) => {
+            ctx.fillText(`• ${g.slice(0, 58)}`, rx + 8, 354 + idx * 22);
+        });
+
+        // Chronicle Quote
+        ctx.fillStyle = '#d4c2a0';
+        ctx.font = 'italic 14px Georgia, serif';
+        const q = `“${(ctxData.narrativeText || '').replace(/\s+/g, ' ').trim().slice(0, 115)}”`;
+        ctx.fillText(q, rx, 505);
+
+        // Footer
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('Play 8 classic roguelikes in first-person 3D at https://yasd3d.com • https://angband3d.com', rx, 555);
+
+        const dataUrl = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        const cleanName = (ctxData.hero.name || 'hero').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        a.href = dataUrl;
+        a.download = `${cleanName}-${ctxData.realm}-yasd-card.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        this.showHudToast('🪦 Downloaded Shareable YASD Memorial Card (.PNG)!');
     }
 
     async promptHeroActionSketch(overrideBeat = null) {
@@ -4359,9 +4697,10 @@ class ChronicleManager {
      * Builds 100% pure core-game monster inspection data (zero Lorekeeper/Chronicle fiction).
      */
     _buildCoreMonsterInspection(entity, depth = 0, realm = 'angband') {
-        const name = (entity && entity.name) ? String(entity.name).trim() : 'Creature';
+        const name = (entity && (entity.name || entity.race)) ? String(entity.name || entity.race).trim() : 'Creature';
         const lower = name.toLowerCase();
         const g = (entity && entity.glyph) ? String(entity.glyph).charAt(0) : 'm';
+        const r = String(realm || 'angband').toLowerCase();
 
         const stateObj = this.grounder
             ? this.grounder.resolveCreatureState(entity, this.lastSeenMessages)
@@ -4389,31 +4728,84 @@ class ChronicleManager {
             'y': 'Yeek', 'Y': 'Yeti / Ape', 'z': 'Zombie / Mummy (Undead)',
             'Z': 'Zephyr Hound', ',': 'Mushroom Patch', '$': 'Creeping Coins'
         };
-        let coreType = GLYPH_TYPE_MAP[g] || 'Dungeon Creature';
-        if (/snake|viper|cobra|asp|python|boa|mamba|adder|serpent/i.test(lower)) coreType = 'Snake / Serpent';
+        const NETHACK_GLYPH_TYPE_MAP = {
+            'a': 'Ant / Insectoid', 'b': 'Acidic Blob / Cube', 'c': 'Cockatrice (Petrifying)',
+            'd': 'Canine / Hound', 'e': 'Eye / Floating Sphere', 'f': 'Feline',
+            'g': 'Gremlin / Gargoyle', 'h': 'Humanoid / Mind Flayer', 'i': 'Imp / Minor Demon',
+            'j': 'Jelly / Ooze', 'k': 'Kobold', 'l': 'Leprechaun', 'm': 'Mimic',
+            'n': 'Nymph', 'o': 'Orc', 'p': 'Piercer', 'q': 'Quadruped / Leocrotta',
+            'r': 'Rodent', 's': 'Arachnid / Scorpion', 't': 'Trapper / Lurker',
+            'u': 'Unicorn / Equine', 'v': 'Vortex / Cloud', 'w': 'Worm',
+            'x': 'Grid Bug / Xan', 'y': 'Floating Light', 'z': 'Zruty',
+            'A': 'Angel / Archon', 'B': 'Bat / Bird', 'C': 'Centaur', 'D': 'Dragon',
+            'E': 'Elemental', 'F': 'Fungus / Mold', 'G': 'Gnome (Humanoid)',
+            'H': 'Giant / Minotaur', 'J': 'Jabberwock', 'K': 'Keystone Kop',
+            'L': 'Lich (Undead)', 'M': 'Mummy (Undead)', 'N': 'Naga', 'O': 'Ogre',
+            'P': 'Pudding / Ooze', 'Q': 'Quantum Mechanic', 'R': 'Rust Monster / Disenchanter',
+            'S': 'Snake / Serpent', 'T': 'Troll', 'U': 'Umber Hulk',
+            'V': 'Vampire (Undead)', 'W': 'Wraith (Undead)', 'X': 'Xorn',
+            'Y': 'Owlbear / Ape', 'Z': 'Zombie (Undead)', '@': 'Human / NPC',
+            '&': 'Major Demon', ';': 'Sea Monster', ':': 'Lizard / Reptile'
+        };
+        let coreType = (r === 'nethack' ? NETHACK_GLYPH_TYPE_MAP[g] : GLYPH_TYPE_MAP[g]) || GLYPH_TYPE_MAP[g] || 'Dungeon Creature';
+        if (/grid bug|xan/i.test(lower)) coreType = 'Grid Bug / Insect';
+        else if (/gelatinous cube|acid blob|quivering blob/i.test(lower)) coreType = 'Acidic Blob / Cube';
+        else if (/rust monster|disenchanter/i.test(lower)) coreType = 'Rust Monster';
+        else if (/cockatrice|chickatrice|pyrolisk/i.test(lower)) coreType = 'Cockatrice (Petrifying)';
+        else if (/mind flayer/i.test(lower)) coreType = 'Mind Flayer (Illithid)';
+        else if (/owlbear/i.test(lower)) coreType = 'Owlbear (Hybrid Beast)';
+        else if (/minotaur/i.test(lower)) coreType = 'Minotaur';
+        else if (/\bgnome\b/i.test(lower)) coreType = 'Gnome (Humanoid)';
+        else if (/little dog|large dog|jackal|dingo|wolf|hound|puppy/i.test(lower)) coreType = 'Canine / Hound';
+        else if (/kitten|housecat|jaguar|lynx|panther|tiger|cat\b/i.test(lower)) coreType = 'Feline';
+        else if (/snake|viper|cobra|asp|python|boa|mamba|adder|serpent/i.test(lower)) coreType = 'Snake / Serpent';
         else if (/spider|tarantula|scorpion|arachnid|ungoliant|shelob/i.test(lower)) coreType = 'Spider / Arachnid';
         else if (/skeleton|zombie|mummy|lich|wraith|wight|vampire|ghost|spectre|phantom|shade|undead/i.test(lower)) coreType = 'Undead';
-        else if (/demon|balrog|fiend|imp|quasit|marilith|pit fiend/i.test(lower)) coreType = 'Demon';
+        else if (/demon|balrog|fiend|imp|quasit|marilith|pit fiend|juiblex/i.test(lower)) coreType = 'Demon';
         else if (/dragon|drake|wyrm/i.test(lower)) coreType = 'Dragon';
-        else if (/towns|citizen|urchin|mercenary|drunk|idiot|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran|tamer|bard/i.test(lower) && depth === 0) coreType = 'Townsperson';
+        else if (/towns|citizen|urchin|mercenary|drunk|idiot|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran|tamer|bard|farmer maggot|woodsman|hobo/i.test(lower) && depth === 0) coreType = 'Townsperson';
 
-        const isTownNpc = coreType === 'Townsperson' || (depth === 0 && realm !== 'silq' && (g === 't' || /towns|citizen|urchin|mercenary|drunk|idiot|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran/i.test(lower)) && curHp >= maxHp);
-        const isUndead = /Undead/.test(coreType) || ['s', 'z', 'G', 'W', 'V', 'L'].includes(g);
-        const isDemon = /Demon/.test(coreType) || ['u', 'U'].includes(g);
-        const isNaturalAnimal = ['a', 'b', 'B', 'c', 'C', 'f', 'F', 'I', 'J', 'K', 'l', 'q', 'r', 'R', 'S', 'w', 'Z'].includes(g);
-        const isMindless = ['e', 'g', 'i', 'j', 'm', 'Q', 'v', ',', '$'].includes(g);
+        const isPet = Boolean(
+            entity.isPet || entity.pet || entity.friendly ||
+            /\((?:tame|pet|friendly|companion)\)/i.test(name) ||
+            (r === 'nethack' && /\b(little dog|large dog|kitten|housecat|pony|warhorse)\b/i.test(lower) && entity.hostile !== true && entity.is_hostile !== true)
+        );
+        const isTownNpc = coreType === 'Townsperson' || (depth === 0 && r !== 'silq' && curHp >= maxHp && !entity.hostile && !entity.is_hostile && (g === 't' || /towns|citizen|urchin|mercenary|drunk|idiot|beggar|mayor|agent|shopkeeper|villager|peasant|sailor|veteran|tamer|bard|farmer maggot|scrawny cat|scruffy little dog|sparrow|chaffinch|wild rabbit|woodsman|hobo|grip|wolf, farmer|fang, farmer/i.test(lower)));
+        const isPeacefulNpc = Boolean(
+            !isPet && (
+                isTownNpc || entity.peaceful || entity.isPeaceful ||
+                entity.hostile === false || entity.is_hostile === false ||
+                /\((?:peaceful|unhostile|ally)\)/i.test(name) ||
+                /\b(shopkeeper|aligned priest|temple priest|oracle|watchman|watch captain|guard)\b/i.test(lower)
+            )
+        );
+        const isPassiveOrganism = Boolean(
+            !isPet && !isPeacefulNpc && (
+                g === ',' || (g === 'm' && r !== 'nethack') || (g === 'F' && r === 'nethack') ||
+                /\b(mushroom patch|mold|shrieker|violet fungus|lichen|floating eye|quylthulg)\b/i.test(lower)
+            )
+        );
+
+        const isUndead = /Undead/.test(coreType) || (r === 'nethack' ? ['L', 'M', 'V', 'W', 'Z'].includes(g) : ['s', 'z', 'G', 'W', 'V', 'L'].includes(g));
+        const isDemon = /Demon/.test(coreType) || (r === 'nethack' ? ['i', '&'].includes(g) : ['u', 'U'].includes(g));
+        const isNaturalAnimal = /Canine|Feline|Bat|Bird|Rodent|Snake|Spider|Ant|Centipede|Quadruped|Beetle|Aquatic|Reptile|Worm|Grid Bug|Cockatrice|Owlbear/.test(coreType);
+        const isMindless = /Eye|Golem|Jelly|Ooze|Blob|Mold|Mushroom|Vortex|Quylthulg|Coins|Mimic|Fungus/.test(coreType);
 
         let alignment = 'Evil';
-        if (isTownNpc) alignment = 'Neutral (Town)';
+        if (isPet) alignment = 'Loyal Companion';
+        else if (isTownNpc) alignment = 'Neutral (Town)';
+        else if (isPeacefulNpc) alignment = 'Peaceful / Co-Aligned';
         else if (g === 'A' || /angel|archon|seraph|cherub|unicorn|gold dragon|silver dragon|bronze dragon/i.test(lower)) alignment = 'Good';
-        else if (isNaturalAnimal || isMindless) alignment = 'Neutral';
-        else if (isUndead || isDemon || ['o', 'O', 'T', 'P', 'k', 'n', 'd', 'D'].includes(g) || /orc|troll|ogre|goblin|kobold|uruk|thief|bandit|brigand|necromancer|warlock|dark elf|easterling|cultist/i.test(lower)) {
+        else if (isNaturalAnimal || isMindless || /gnome|leprechaun|nymph|rust monster/i.test(lower)) alignment = 'Neutral';
+        else if (isUndead || isDemon || ['o', 'O', 'T', 'P', 'k', 'n', 'd', 'D'].includes(g) || /orc|troll|ogre|goblin|kobold|uruk|thief|bandit|brigand|necromancer|warlock|dark elf|easterling|cultist|mind flayer|wizard of yendor/i.test(lower)) {
             alignment = 'Evil';
         } else {
-            alignment = 'Neutral / Hostile';
+            alignment = 'Neutral';
         }
 
         const activeStatuses = [];
+        if (isPet) activeStatuses.push('Tame Companion');
+        else if (isPeacefulNpc) activeStatuses.push('Peaceful');
         if (entity.asleep || stateObj.state === 'sleeping') activeStatuses.push('Asleep');
         if (entity.afraid || stateObj.state === 'fleeing') activeStatuses.push('Afraid / Fleeing');
         if (entity.stunned || stateObj.state === 'stunned') activeStatuses.push('Stunned');
@@ -4422,7 +4814,7 @@ class ChronicleManager {
         if (entity.slowed) activeStatuses.push('Slowed');
         if (entity.fast || entity.hasted) activeStatuses.push('Fast');
         if (activeStatuses.length === 0) {
-            activeStatuses.push(isTownNpc ? 'Peaceful' : 'Awake');
+            activeStatuses.push(isPassiveOrganism ? 'Passive' : 'Awake');
         }
 
         let condLabel = 'Uninjured';
@@ -4439,19 +4831,55 @@ class ChronicleManager {
 
         let pillText = 'Hostile';
         let pillClass = 'inspect-popover-pill hostile';
-        if (activeStatuses.includes('Asleep')) {
-            pillText = 'Asleep';
+        if (isPet) {
+            pillText = 'Companion (Tame)';
+            pillClass = 'inspect-popover-pill friendly';
+        } else if (isPeacefulNpc) {
+            pillText = 'Peaceful';
+            pillClass = 'inspect-popover-pill friendly';
+        } else if (activeStatuses.includes('Asleep')) {
+            pillText = 'Asleep (Unwary)';
             pillClass = 'inspect-popover-pill sleeping';
         } else if (activeStatuses.includes('Afraid / Fleeing')) {
             pillText = 'Afraid';
             pillClass = 'inspect-popover-pill';
-        } else if (isTownNpc || entity.friendly || entity.pet || entity.peaceful) {
-            pillText = 'Peaceful';
+        } else if (isPassiveOrganism) {
+            pillText = /floating eye/i.test(lower) ? 'Passive (Gaze Hazard)' : 'Passive';
             pillClass = 'inspect-popover-pill';
+        } else if (entity.unaware || entity.unwary || stateObj.state === 'unwary') {
+            pillText = 'Unwary';
+            pillClass = 'inspect-popover-pill sleeping';
         }
 
-        // Known core affinities, resistances & weaknesses based strictly on core Angband monster flags
+        // Core combat telemetry (Level, AC, Speed, Damage, XP)
+        const monLvl = typeof entity.race_level === 'number' ? entity.race_level : (typeof entity.level === 'number' ? entity.level : Math.max(1, depth || 1));
+        const monAc = typeof entity.ac === 'number' ? entity.ac : (r === 'nethack' ? Math.max(-6, 10 - monLvl) : Math.min(120, 8 + monLvl * 3));
+        const rawSpeed = typeof entity.speed === 'number' ? entity.speed : ((isPassiveOrganism && !/floating eye/i.test(lower)) ? 0 : (entity.fast || entity.hasted ? 120 : (entity.slowed ? 100 : 110)));
+        const speedLabel = rawSpeed === 0 ? 'Stationary' : (rawSpeed > 110 ? `Fast (+${rawSpeed - 110})` : (rawSpeed < 110 ? `Slow (${rawSpeed - 110})` : 'Normal'));
+        const estDmg = entity.dmg !== undefined ? `${entity.dmg} dmg` : `${Math.max(2, Math.round(monLvl * 2.5))} dmg`;
+        const monExp = (isPet || isPeacefulNpc) ? 0 : (typeof entity.exp === 'number' ? entity.exp : Math.max(2, monLvl * monLvl * 2));
+
+        // Known core affinities, resistances & special attack hazards
         const coreAffinities = [];
+        if (isPet) {
+            coreAffinities.push('Loyal Companion: Fights alongside you and swaps places when bumped • Do not attack!');
+        } else if (isPeacefulNpc) {
+            coreAffinities.push('Peaceful NPC • Harmless unless provoked; attacking angers guards/deity');
+        }
+        if (/floating eye/i.test(lower)) {
+            coreAffinities.push('Hazard: Gaze paralyzes melee attackers — use ranged attacks, spells, or wands!');
+        } else if (/rust monster/i.test(lower)) {
+            coreAffinities.push('Hazard: Corrodes metal weapons and iron armor on contact — use magic or wood/silver!');
+        } else if (/cockatrice|chickatrice/i.test(lower)) {
+            coreAffinities.push('Hazard: Petrifying touch/hiss turns flesh to stone — wear gloves & avoid bare contact!');
+        } else if (/mind flayer/i.test(lower)) {
+            coreAffinities.push('Hazard: Psionic tentacles drain Intelligence and amnesia in melee!');
+        } else if (/gelatinous cube|acid blob/i.test(lower)) {
+            coreAffinities.push('Hazard: Acidic engulf corrodes gear • Immune to Electricity & Acid');
+        } else if (/grid bug/i.test(lower)) {
+            coreAffinities.push('Tactics: Can only move or attack orthogonally (N/S/E/W) — step diagonally to outflank!');
+        }
+
         if (isUndead) {
             coreAffinities.push('Vulnerable: Slay Undead, Slay Evil, Light/Fire');
             coreAffinities.push('Resists: Poison, Cold, Nether, Sleep, Fear');
@@ -4462,9 +4890,9 @@ class ChronicleManager {
             coreAffinities.push('Vulnerable: Slay Orc, Slay Evil, Bright Light');
         } else if (g === 'T') {
             coreAffinities.push('Vulnerable: Slay Troll, Slay Evil, Fire/Acid • Regenerates HP');
-        } else if (g === 'P' || g === 'O') {
+        } else if (g === 'P' || g === 'O' || (r === 'nethack' && g === 'H')) {
             coreAffinities.push('Vulnerable: Slay Giant, Slay Evil');
-        } else if (g === 'd' || g === 'D') {
+        } else if (g === 'D' || (g === 'd' && r !== 'nethack')) {
             coreAffinities.push('Vulnerable: Slay Dragon, Slay Evil');
         } else if (isNaturalAnimal) {
             coreAffinities.push('Vulnerable: Slay Animal');
@@ -4474,7 +4902,7 @@ class ChronicleManager {
             coreAffinities.push('Affinity: Cold (Resists Cold • Weak to Fire)');
         } else if (/red|fire|flame|lava|hell|magma/i.test(lower)) {
             coreAffinities.push('Affinity: Fire (Resists Fire • Weak to Cold)');
-        } else if (/blue|lightning|storm|electric|volt/i.test(lower)) {
+        } else if (/blue|lightning|storm|electric|volt|grid bug/i.test(lower)) {
             coreAffinities.push('Affinity: Lightning (Resists Lightning)');
         } else if (/green|poison|venom|viper|cobra|adder|mamba|acid/i.test(lower)) {
             coreAffinities.push('Affinity: Poison / Acid (Resists Poison)');
@@ -4482,22 +4910,19 @@ class ChronicleManager {
             coreAffinities.push('Affinity: Acid (Resists Acid)');
         }
 
-        if (g === 'J' || g === 'b' || g === 'F') {
+        if (g === 'J' || (g === 'b' && r !== 'nethack') || (g === 'B' && r === 'nethack') || g === 'F') {
             coreAffinities.push('Movement: Erratic');
-        } else if (g === 'm' || g === ',' || g === 'Q') {
+        } else if (rawSpeed === 0) {
             coreAffinities.push('Movement: Stationary (0 speed)');
         }
         if (isMindless) {
             coreAffinities.push('Mindless: Immune to Fear, Confusion & Sleep');
         }
-        if (isTownNpc) {
-            coreAffinities.push('Town NPC (Depth 0) • Harmless unless provoked; yields 0 XP');
-        }
 
-        const primarySummary = `Type: ${coreType} • Align: ${alignment} • Status: ${activeStatuses.join(', ')}`;
+        const primarySummary = `Type: ${coreType} • Align: ${alignment} • Status: ${activeStatuses.join(', ')} • Lvl: ${monLvl} • AC: ${monAc} • Speed: ${speedLabel} • Atk: ~${estDmg} • XP: ${monExp}`;
         const detailSummary = coreAffinities.length > 0
             ? coreAffinities.join(' • ')
-            : `Core Symbol: '${g}' (${coreType}) • Press [l] in-game to recall full Monster Memory.`;
+            : `Core Symbol: '${g}' (${coreType}) • Level ${monLvl} • AC ${monAc} • Speed: ${speedLabel}`;
 
         return {
             type: 'monster',
@@ -4507,7 +4932,7 @@ class ChronicleManager {
             pillClass,
             showHp: true,
             hpPct,
-            hpText: `HP: ${curHp} / ${maxHp} (${hpPct}%) • ${condLabel}${distSuffix}`,
+            hpText: `HP: ${curHp} / ${maxHp} (${hpPct}%) • ${condLabel} • Lvl ${monLvl} • AC ${monAc}${distSuffix}`,
             prose: primarySummary,
             quote: '',
             tactics: detailSummary,
@@ -4681,15 +5106,15 @@ class ChronicleManager {
         if (this.inspectTactics) {
             this.inspectTactics.textContent = details.tactics;
             if (this.inspectTactics.classList) {
-                this.inspectTactics.classList.remove('is-expanded');
-                this.inspectTactics.classList.add('hidden');
+                this.inspectTactics.classList.add('is-expanded');
+                this.inspectTactics.classList.remove('hidden');
             }
         }
         const detailBtn = (typeof document !== 'undefined' && typeof document.getElementById === 'function')
             ? document.getElementById('inspect-popover-detail-btn')
             : null;
         if (detailBtn) {
-            detailBtn.textContent = '🔍 More Info';
+            detailBtn.textContent = '▴ Hide Info';
             detailBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -4749,8 +5174,8 @@ class ChronicleManager {
         if (typeof window !== 'undefined') {
             const vw = window.innerWidth || 1280;
             const vh = window.innerHeight || 720;
-            const popW = 244;
-            const popH = 128;
+            const popW = (this.inspectPopover && this.inspectPopover.offsetWidth) ? this.inspectPopover.offsetWidth : 350;
+            const popH = (this.inspectPopover && this.inspectPopover.offsetHeight) ? this.inspectPopover.offsetHeight : 240;
 
             const rawX = (typeof clientX === 'number' && clientX > 0) ? (clientX + 16) : Math.round((vw - popW) * 0.5);
             const rawY = (typeof clientY === 'number' && clientY > 0) ? (clientY - 24) : 90;

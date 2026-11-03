@@ -1,95 +1,62 @@
-# Angband 3D — Acknowledgments & Asset Credits
+# YASD 3D (`yasd3d.com`) & The Yendor Engine™ — Open-Source Credits & Attribution
 
-This document provides complete attribution, provenance, and licensing details for all software, 3D art, typography, audio synthesis, and design resources utilized in **Angband 3D**.
+**YASD 3D** (*"Yet Another Stupid Death"*) is an open-source first-person 3D WebGL, CRT terminal, and AI-voiced frontend harness powered by the **Yendor Engine™**, created by **Thunderbear Studios™** (`https://thunderbearstudios.dev` / `https://yasd3d.com` / `https://angband3d.com`).
 
----
+## 1. Process Isolation & License Architecture ("Mere Aggregation")
 
-## 1. Project Creation & Engineering
-
-- **Design, 3D Architecture & Engineering**: Developed and presented by **Thunderbear Studios** ([https://thunderbearstudios.dev](https://thunderbearstudios.dev)) and the Angband 3D open-source contributors.
-- **Brand & Logo Notice**: The **Thunderbear Studios™** name and the **Flaming Bear-Paw & Crossbones Emblem (`thunderbear_logo.png`)** are proprietary trademarks and copyrighted works (**© 2026 Thunderbear Studios. All rights reserved.**) and are excluded from the `GPL-2.0` and `CC0` open-source licenses. See [`LEGAL.md` §5](LEGAL.md) for trademark terms.
-- **Project Repository**: [https://github.com/ThunderbearStudios/angband3d](https://github.com/ThunderbearStudios/angband3d)
+The **Yendor Engine™** executes each classical roguelike realm as an **independent OS subprocess** communicating strictly over standard `stdin` / `stdout` JSON-lines and `80×24` VT100 terminal pipes (`-mbridge`). No source code from incompatible licenses (`GPL-2.0-only`, `AGPL-3.0`, `NetHack General Public License`, `BSD-3-Clause`) is statically or dynamically linked into a single binary. Each engine remains an independent work governed by its respective upstream license.
 
 ---
 
-## 2. Core Game Engines & Multi-Realm Roguelike Lineage
+## 2. Upstream Roguelike Engines & Creators
 
-Angband 3D is powered by **four authoritative, unmodified C/C++ roguelike engines**, operating as headless subprocesses (or WebAssembly workers) via a high-speed, zero-allocation JSON IPC bridge:
+We gratefully credit the original authors, maintainers, and contributors of the 8 legendary roguelike realms supported by the Yendor Engine™:
 
-- **Upstream Angband 4.2.6**: [https://angband.github.io/](https://angband.github.io/) — Ben Harrison, James E. Wilson, Robert Alan Koeneke, Alex Cutler, Andy Astrand, David Grabiner, Robert Rühlmann, Nick McConway, Peter Denison, and the global Angband open-source community.
-- **Sil-Q (First Age of Beleriand)**: [https://github.com/sil-quirk/sil-q](https://github.com/sil-quirk/sil-q) — Original *Sil* by Scatha and half; *Sil-Q* maintained by Hugo "backwardsEric" Cornelis and contributors.
-- **FrogComposBand (Chaos & Wilderness Realm)**: [https://github.com/sulkasormi/frogcomposband](https://github.com/sulkasormi/frogcomposband) — Built upon *PosChengband* (Chris) and *Chengband* / *Hengband* / *Zangband*; maintained by Sideways (sulkasormi) and the FrogComposBand community.
-- **Hengband / 変愚蛮怒 (Eastern & Chaos Realm)**: [https://hengband.github.io/](https://hengband.github.io/) — Maintained by the Hengband Development Team (Habu, Hourier, Deskull, and contributors).
-- **Historical Lineage**:
-  - *Moria* (1983) — Robert Alan Koeneke and Jimmey Wayne Todd Jr.
-  - *Umoria* (1988–1992) — Alex Cutler, Andy Astrand, and David Grabiner.
-  - *Angband* (1990–present) — Alex Cutler, Andy Astrand, Keith Horner, Charles Swiger, Ben Harrison, and successive maintainers.
-- **Engine Licenses**: GNU General Public License Version 2 (GPL-2.0) and the historical Angband Open Source License.
+1. **Vanilla Angband 4.2.6 (`angband`)**
+   - **Authors**: Robert Alan Koeneke, James E. Wilson, Ben Harrison, Andrew Sidwell, Nick McConnell, and the Angband DevTeam.
+   - **License**: GNU General Public License v2.0 (`GPL-2.0`).
+   - **Upstream**: `https://rephial.org` / `https://github.com/angband/angband`
 
----
+2. **Sil-Q 1.5.0 (`silq`)**
+   - **Authors**: half, Scatha, and the Sil / Sil-Q Contributors (built upon the Angband / NPPAngband lineage).
+   - **License**: GNU General Public License v2.0 (`GPL-2.0`).
+   - **Upstream**: `https://github.com/sil-quirk/sil-q`
 
-## 3. Illustrated Creature & Item Artwork, PBR Photogrammetry & 3D Assets
+3. **FrogComposBand 7.1.1 (`frogcomposband`)**
+   - **Authors**: Chris, Sideways, and the PosChengband / Composband / Hengband / ZAngband Contributors.
+   - **License**: GNU General Public License v2.0 (`GPL-2.0`).
+   - **Upstream**: `https://github.com/sulkasormi/frogcomposband`
 
-All third-party 2D/3D art and photogrammetry textures utilized in Angband 3D are used under their respective open-source licenses or permissive public domain dedications (**CC0 1.0 Universal**):
+4. **Hengband 3.0.1 (`hengband`)**
+   - **Authors**: Hengband DevTeam.
+   - **License**: GNU General Public License v2.0 (`GPL-2.0`) / JAngband Open Source License.
+   - **Upstream**: `https://hengband.github.io` / `https://github.com/hengband/hengband`
 
-| Asset Collection | Author / Source | License | Usage in Angband 3D |
-|---|---|---|---|
-| **Shockbolt 64×64 Fantasy Tileset** | **Raymond "Shockbolt" Gaustadnes** ([Upstream Angband Graphic Tiles](https://github.com/angband/angband/tree/master/lib/tiles/shockbolt)) | **GPL-2.0 / Angband Open Source License** | Master illustrated 64×64 painted fantasy creature & item tileset (`4096×4096` HD creature & item atlases, 2.5D volumetric normal-mapped billboards, GUI item/creature portraits, and Chronicle Hero Action Sketch sprites). |
-| **Poly Haven 2K Photogrammetry PBR** | **[Poly Haven](https://polyhaven.com/)** (Rob Tuytel, Rico Cilliers, Charlotte Baglioni, Dimitrios Savva, Greg Zaal & contributors) | **CC0 1.0 Universal** (Public Domain) | 2K photogrammetry PBR stone, brick, cobble, dirt, plaster, and timber diffuse, normal (`nor_gl`), and roughness/AO (`arm`) texture sets across dungeon and wilderness biomes. |
-| **KayKit Dungeon Remastered** | [Kay Lousberg](https://kaylousberg.com/) / [GitHub](https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0) | **CC0** (Public Domain) | Dungeon stone walls, flagstone floors, arched portals, wooden doors, stone stairs, iron-bound chests, columns, and sconces. |
-| **KayKit Character Pack: Skeletons** | [Kay Lousberg](https://kaylousberg.com/) / [GitHub](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0) | **CC0** (Public Domain) | Skeletons, liches, necromancers, and crypt horrors. |
-| **KayKit Character Pack: Adventures** | [Kay Lousberg](https://kaylousberg.com/) / [GitHub](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0) | **CC0** (Public Domain) | Rogue, warrior, mage, and humanoid adventurers and townspeople. |
-| **KayKit Halloween & Crypt Bits** | [Kay Lousberg](https://kaylousberg.com/) / [GitHub](https://github.com/KayKit-Game-Assets/KayKit-Halloween-Bits-1.0) | **CC0** (Public Domain) | Tombs, stone coffins, sacrificial altars, skulls, and dungeon clutter. |
-| **KayKit Medieval & City Builder Bits** | [Kay Lousberg](https://kaylousberg.com/) / [GitHub](https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0) | **CC0** (Public Domain) | Town shop fronts, timber houses, market stalls, and signage. |
-| **Modular Dungeon & Monsters** | [Quaternius](https://quaternius.com/) | **CC0** (Public Domain) | Bestiary variety, beasts, vermin, and supplemental dungeon props. |
-| **Modular Dungeon & Monsters** | [Quaternius](https://quaternius.com/) | **CC0 1.0 Universal** | Rigged bestiary creatures (`hydra.glb` Dragon Evolved, `jelly_ooze.glb` Slime, `quylthulg.glb` Spiky Blob, `aquatic.glb` Goblin Shark, `snake.glb`, `frog.glb`, `wasp.glb`, `giant_spider.glb`). |
-| **Poly by Google & Poly Pizza 3D Bestiary & Arcane Props** | **[Poly by Google](https://poly.pizza/u/Poly%20by%20Google)**, **jeremy** (`naga.glb` Cobra), **Karl Channell** (`wand.glb` Summoner's Wand), **Jakob Hippe** (`rod.glb` Magick Wand), **Zsky** (`staff.glb` Staff), **Jarlan Perez** (`mushroom_cluster.glb` Mushrooms), **Minh Nguyen Tri** (`floating_eye.glb` Eye) via [Poly Pizza](https://poly.pizza/) | **CC-BY 3.0** | Bestiary 3D models (`centipede.glb`, `beetle.glb`, `ant.glb`, `scorpion.glb`, `worm_mass.glb`, `vortex_elemental.glb`, `bat.glb`, `bear.glb`, `lizard.glb`, `naga.glb`, `mushroom_cluster.glb`, `floating_eye.glb`) and arcane 3D items (`wand.glb`, `rod.glb`, `staff.glb`). |
-| **Kenney Game Assets** | [Kenney (Asset Jesus)](https://kenney.nl/) | **CC0 1.0 Universal** | Supplemental UI primitives and environmental textures. |
+5. **NetHack 3.6.7 (`nethack`)**
+   - **Authors**: Mike Stephenson, Izchak Miller, Ken Arnold, Jay Fenlason, and the NetHack DevTeam.
+   - **License**: NetHack General Public License (`NGPL`).
+   - **Upstream**: `https://www.nethack.org` / `https://github.com/NetHack/NetHack`
 
-### Procedural 3D Models & Shaders (Custom Authored)
-The following 3D models and shader systems were created specifically for Angband 3D under the project's open-source license:
-- **Procedural Braided Bullwhip**: Multi-knot braided leather lash with curved `CatmullRomCurve3` spline, brass pommel, wrist strap, and tapered cracker tip.
-- **Footwear & Boots**: Layered leather sole, contour toe cap, and buckle strap geometry for sandals, boots, and shoes (`]`).
-- **Magical Jewelry**: Faceted floating gem pendants (`"`) and toroid metallic rings (`=`).
-- **Potions & Reagents**: Glass vials with cork stoppers and bubbling procedural liquid shader (`!`).
-- **Dynamic Shaders**: Line-of-sight modulated lava emission, molten floor displacement, ethereal sensory mist auras for detected monsters, and first-person viewmodel bobbing and weapon swaying.
+6. **Dungeon Crawl Stone Soup (`dcss`)**
+   - **Authors**: Linley Henzell and the Dungeon Crawl Stone Soup (`DCSS`) DevTeam.
+   - **License**: GNU General Public License v2.0 or later (`GPL-2.0+`).
+   - **Upstream**: `https://crawl.develz.org` / `https://github.com/crawl/crawl`
 
----
+7. **Brogue (Community Edition) (`brogue`)**
+   - **Authors**: Brian Walker (original Brogue 1.7.5) and the Brogue Community Edition Contributors (flend et al.).
+   - **License**: GNU Affero General Public License v3.0 (`AGPL-3.0`).
+   - **Upstream**: `https://sites.google.com/site/broguegame/` / `https://github.com/flend/BrogueCE`
 
-## 4. Audio Systems, Studio Foley & Open-Source Sound Libraries
-
-Angband 3D combines **high-fidelity open-source studio foley & combat recordings** with **real-time Web Audio convolution reverb and physical acoustic modeling**:
-
-| Audio Collection | Author / Source | License | Usage in Angband 3D |
-|---|---|---|---|
-| **Kenney RPG Audio & Impact Sounds** | **[Kenney (Kenney Vleugels)](https://kenney.nl/assets)** | **CC0 1.0 Universal** (Public Domain) | Recorded stone, cobblestone, grass, and timber footsteps, steel blade draws/slices, heavy plate/metal/wood/mining impacts, door latches/creaks, coin jingles, parchment/tome page flips, and glass shatter foley (`server/public/assets/audio/sfx/`, `client/assets/audio/sfx/`). |
-| **The Battle for Wesnoth Core Sound Library** | **[The Battle for Wesnoth Project](https://github.com/wesnoth/wesnoth/tree/master/data/core/sounds)** (West, LordBob, Espreon, and Wesnoth sound contributors) | **GNU GPL v2.0+** (compatible with Angband GPL-2.0) | Studio-recorded medieval melee weapons (sword, axe, mace, flail, spear), bows & crossbows, elemental spells & dragon breaths (fireball, explosion, lightning bolt, arcane missiles, holy chimes, frost/petrify, water blast), and creature vocalizations (orc, goblin, troll, dragon/drake, wolf, serpent, undead skeleton/zombie/lich/wraith, bat, insect pincers/claws). |
-| **Web Audio API Studio Sampler & Convolution Reverb (`server/public/js/audio.js`)** | **Thunderbear Studios** | **GPL-2.0** | Multi-sample round-robin variation engine with stereo stone-dungeon `ConvolverNode` impulse response reverb, `DynamicsCompressorNode` mastering bus, 3D stereo panning, and physical transient synthesis fallbacks. |
-| **Godot C# Studio Stream & PCM Audio Engine (`client/scripts/AudioManager.cs`)** | **Thunderbear Studios** | **GPL-2.0** | Native `.ogg`/`.wav` studio sample pool loader with in-memory 16-bit PCM acoustic fallback modeling. |
+8. **Classic Rogue 5.4 (`rogue` — 1980)**
+   - **Authors**: Michael Toy, Glenn Wichman, Ken Arnold (UC Berkeley), and the Roguelike Restoration Project.
+   - **License**: 3-Clause BSD License (`BSD-3-Clause`).
+   - **Upstream**: `https://github.com/RoguelikeRestorationProject/rogue5.4`
 
 ---
 
-## 5. Typography & Fonts
+## 3. 3D Models, 2D Tilesets & Audio Assets
 
-All interface fonts are open-source and served via Google Fonts under the **SIL Open Font License 1.1**:
-
-- **Cinzel**: Designed by **Natanael Gama**. Used for title typography, classical fantasy headers, and shop signboards. (SIL OFL 1.1)
-- **Outfit**: Designed by **Outfit.io** / Brand New Media. Used for modern ergonomic UI labels, vital badges, and controls. (SIL OFL 1.1)
-- **Fira Code**: Designed by **Nikita Prokopov**. Used for classic 80x24 monospace terminal rendering, stats grids, and coordinate telemetry. (SIL OFL 1.1)
-
----
-
-## 6. Open-Source Libraries & Frameworks
-
-- **Three.js** — [https://threejs.org/](https://threejs.org/) (MIT License, © Ricardo Cabello and Three.js authors)
-- **Godot Engine** — [https://godotengine.org/](https://godotengine.org/) (MIT License, © Juan Linietsky, Ariel Manzur, and Godot Engine contributors)
-- **Node.js** — [https://nodejs.org/](https://nodejs.org/) (MIT License, © OpenJS Foundation)
-- **ws (WebSocket Library)** — [https://github.com/websockets/ws](https://github.com/websockets/ws) (MIT License, © Einar Otto Stangvik)
-- **Express / Compression** — [https://expressjs.com/](https://expressjs.com/) (MIT License)
-
----
-
-## 7. Literary Inspiration
-
-- **J.R.R. Tolkien** (*The Silmarillion*, *The Hobbit*, *The Lord of the Rings*): The names, lore, and subterranean depths of Angband and the Iron Hell of Morgoth draw eternal inspiration from Tolkien's literary mythology.
-- Please review [`LEGAL.md`](LEGAL.md) for full trademark disclaimers and non-commercial fan project terms.
+- **Shockbolt 64×64 Fantasy Tileset**: Artwork by Raymond "Shockbolt" Gaustadnes (`GPL-2.0` / Angband distribution license).
+- **3D Dungeon & Bestiary Meshes**: Quaternius, KayKit, and Poly Haven (`CC0 1.0 Universal` Public Domain).
+- **Three.js 3D WebGL Renderer**: Mr.doob & Three.js Contributors (`MIT License`).
+- **Yendor Engine™ 3D Harness, Universal Cartridge Bridge, Living Chronicle & YASD 3D Emblem**: © 2026 **Thunderbear Studios™** (`https://thunderbearstudios.dev`).

@@ -89,7 +89,8 @@ function compileStaticSystemInstruction(realmKey, mode = 'chapter', lang = 'en',
         angband: 'Canonical Spine: 100-level delve beneath Thangorodrim to fell Sauron (L99) and Morgoth, Lord of Darkness (L100).',
         silq: 'Canonical Spine: First-Age Beleriand stealth/song/smithing infiltration to pass Carcharoth (950ft), wrest the Knife Angrist, pry a Silmaril from Morgoth\'s Iron Crown at 1,000ft, and survive the Hunted Ascent.',
         frogcomposband: 'Canonical Spine: Outpost of Amber & multiversal wilderness quests leading to Oberon (L99) and the Serpent of Chaos (L100).',
-        hengband: 'Canonical Spine: Castle Town & Ten Realms of Bushido/Ninjutsu/Onmyo leading to Oberon and the Serpent of Chaos (Jörmungandr).'
+        hengband: 'Canonical Spine: Castle Town & Ten Realms of Bushido/Ninjutsu/Onmyo leading to Oberon and the Serpent of Chaos (Jörmungandr).',
+        nethack: 'Canonical Spine: Mazes of Menace delve through Gnomish Mines, Sokoban, Medusa, the Castle, and Gehennom to wrest the Amulet of Yendor from the Wizard of Yendor and ascend to the Astral Plane.'
     }[rk] || 'Canonical Spine: Epic subterranean delve against ancient darkness.';
 
     let prompt = '';
@@ -321,6 +322,31 @@ class ChronicleLLMBridge {
             locationText = isTown ? 'Castle Town (cobbled avenues, pagodas, timber eaves)' : `Subterranean Caverns Depth ${depth * 50}ft`;
         } else if (realmKey === 'frogcomposband') {
             locationText = isTown ? 'Outpost of Amber (shifting shadows, multiversal haven)' : `Chaotic Deep Depth ${depth * 50}ft (shifting vaults, wild corridors)`;
+        } else if (realmKey === 'nethack') {
+            locationText = (depth <= 1) ? 'Upper Dungeons of Doom (torchlit flagstone corridors)' : `Mazes of Menace Dlvl ${depth} (subterranean altars, Gehennom approaches)`;
+        }
+        const weaver = (typeof window !== 'undefined' && window.ChronicleStoryWeaver) ? window.ChronicleStoryWeaver : (typeof ChronicleStoryWeaver !== 'undefined' ? ChronicleStoryWeaver : null);
+        let weaverSupplement = '';
+        if (weaver) {
+            const actFn = weaver.getActMetadata || weaver.resolveMythicAct;
+            if (typeof actFn === 'function') {
+                const actMeta = actFn(depth, realmKey, { hasRelic: Boolean(player && player.winner) });
+                if (actMeta && actMeta.title) {
+                    locationText += ` [Mythic Act ${actMeta.act}: ${actMeta.title}]`;
+                }
+            }
+            if (typeof weaver.composeStoryDirective === 'function') {
+                const hpRatio = (player && player.hp_max > 0) ? (player.hp / player.hp_max) : 1.0;
+                const dir = weaver.composeStoryDirective({
+                    turn: (player && player.turn) || 0,
+                    depth,
+                    hpRatio,
+                    realm: realmKey,
+                    monster: (event && event.data && (event.data.monster || event.data.killer)) || '',
+                    wieldedWeapon: (player && player.weapon_item && player.weapon_item.name) || ''
+                });
+                if (dir && dir.promptSupplement) weaverSupplement = `\n${dir.promptSupplement}`;
+            }
         }
         
         let antiRepetition = '';
@@ -331,6 +357,9 @@ class ChronicleLLMBridge {
         }
         if (this.recentStoryThread && this.recentStoryThread.length > 0) {
             antiRepetition += `\nPRIOR STORY THREAD (connect smoothly to these recent beats without repeating them): ${this.recentStoryThread.slice(-3).join(' -> ')}`;
+        }
+        if (weaverSupplement) {
+            antiRepetition += weaverSupplement;
         }
 
         const backstory = (grounder || ChronicleGrounder).formatBackstorySummary ? (grounder || ChronicleGrounder).formatBackstorySummary(player) : '';
@@ -352,6 +381,9 @@ Compose ${isFlowing ? 'flowing passage' : 'Chapter'}.`;
             const cleaned = rawText.replace(/```json\n?|\n?```/g, '').trim();
             const parsed = JSON.parse(cleaned);
             if (parsed.prose) {
+                if (weaver && typeof weaver.diversifyUtterance === 'function') {
+                    parsed.prose = weaver.diversifyUtterance(parsed.prose, realmKey);
+                }
                 this.recordUtterance(parsed.prose);
                 this.recordStoryBeat(parsed.title || 'Passage', parsed.prose);
                 if (parsed.dialogue && parsed.dialogue.text) {

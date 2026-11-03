@@ -201,7 +201,7 @@
         attachDelegatedListener(container);
 
         const spec = buildSpec(model, frame, realm);
-        if (!spec) {
+        if (!spec || (spec.mirror === 'more' && !opts.allowMoreBanner)) {
             hide(container);
             return;
         }

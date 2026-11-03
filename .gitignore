@@ -1,6 +1,26 @@
 # The Angband fork and variant repos have their own history and build outputs.
 /engine/
-/variants/
+/variants/*
+!/variants/nethack/
+/variants/nethack/*
+!/variants/nethack/bin/
+/variants/nethack/bin/*
+!/variants/nethack/bin/*.js
+!/variants/rogue/
+/variants/rogue/*
+!/variants/rogue/bin/
+/variants/rogue/bin/*
+!/variants/rogue/bin/*.js
+!/variants/brogue/
+/variants/brogue/*
+!/variants/brogue/bin/
+/variants/brogue/bin/*
+!/variants/brogue/bin/*.js
+!/variants/dcss/
+/variants/dcss/*
+!/variants/dcss/bin/
+/variants/dcss/bin/*
+!/variants/dcss/bin/*.js
 /client/tools/
 
 # Python

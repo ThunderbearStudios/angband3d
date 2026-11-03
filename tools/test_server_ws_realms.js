@@ -171,6 +171,8 @@ function testRealm(realmName) {
                     } else {
                         ws.send('key enter');
                     }
+                } else {
+                    ws.send('key a');
                 }
             }
         });
@@ -183,7 +185,7 @@ function testRealm(realmName) {
 }
 
 async function runAll() {
-    const realms = ['angband', 'silq', 'frogcomposband', 'hengband'];
+    const realms = ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack', 'dcss', 'brogue', 'rogue'];
     const results = {};
     for (const realm of realms) {
         try {

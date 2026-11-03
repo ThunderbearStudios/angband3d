@@ -185,6 +185,8 @@ function runSession(realm, sessionName, timeoutMs = 25000) {
                             } else {
                                 sendKey('enter');
                             }
+                        } else if (realm === 'nethack') {
+                            sendKey('enter');
                         }
                     }
 
@@ -656,6 +658,70 @@ async function testHengbandMenuParity() {
     }
 }
 
+async function testNetHackMenuAndActionsFlow() {
+    console.log('\n>>> RUNNING TEST: NetHack 3.6.7 Menu, Actions, Spells, Eat & Companion Disposition <<<');
+    const session = await runSession('nethack', 'NetHackTester');
+    const { sendKey, lastFrame, cleanup } = session;
+
+    try {
+        let frame = lastFrame();
+        assert(frame.monsters && frame.monsters.length > 0, 'NetHack must spawn visible creatures/companion');
+        const pet = frame.monsters.find(m => m.isPet);
+        assert(pet && pet.friendly === true && pet.peaceful === true, 'NetHack faithful pet must carry isPet, friendly, and peaceful flags in frame.monsters');
+
+        // 1. Open Inventory ('i')
+        sendKey('i');
+        await delay(150);
+        frame = lastFrame();
+        assert(frame.ui.overlay > 0, 'NetHack inventory must set overlay > 0');
+        assert.strictEqual(evalNeedsTerminal(frame), true, 'NetHack inventory must evaluate needsTerminal === true');
+
+        sendKey('escape');
+        await delay(150);
+        frame = lastFrame();
+        assert.strictEqual(frame.ui.overlay, 0, 'Must return to overlay 0 after escape');
+
+        // 2. Eat Food ('e' -> food slot, matching Grimoire Eat ['escape','e',slotKey])
+        const foodItem = (frame.player.inventory || []).find(it => /ration|wafer|food/i.test(it.name));
+        if (foodItem) {
+            const beforeCount = foodItem.number;
+            sendKey('e');
+            await delay(100);
+            sendKey(foodItem.letter);
+            await delay(150);
+            frame = lastFrame();
+            assert.strictEqual(frame.ui.overlay, 0, 'Eating food must close menu and return to play');
+            assert((frame.messages || []).some(m => /finish eating|delicious/i.test(m.text)), 'Eating food must emit eating confirmation message');
+            const afterFood = (frame.player.inventory || []).find(it => /ration|wafer|food/i.test(it.name));
+            assert(!afterFood || afterFood.number === beforeCount - 1, 'Eating food must decrement ration count');
+        }
+
+        // 3. Cast Spell ('Z' -> 'b' healing or 'c' magic mapping)
+        sendKey('Z');
+        await delay(120);
+        frame = lastFrame();
+        assert(frame.ui.overlay > 0, 'Pressing Z in NetHack must open spell menu overlay');
+        sendKey('b');
+        await delay(150);
+        frame = lastFrame();
+        assert.strictEqual(frame.ui.overlay, 0, 'Casting healing spell must return to play');
+
+        // 4. Extended Ritual ('#' -> 'p' or 'keys #pray')
+        sendKey('#');
+        await delay(100);
+        sendKey('p');
+        await delay(150);
+        frame = lastFrame();
+        assert((frame.messages || []).some(m => /pleased|golden/i.test(m.text)), '#pray must invoke deity blessing');
+
+        cleanup();
+        console.log('>>> NETHACK MENU & ACTIONS PARITY PASSED 100%! <<<\n');
+    } catch (e) {
+        cleanup();
+        throw e;
+    }
+}
+
 async function main() {
     console.log('================================================================');
     console.log('CROSS-REALM MENU AUDIT & AUTOMATED VERIFICATION SUITE');
@@ -666,9 +732,10 @@ async function main() {
         await testSilQMenuAndEquipmentFlow();
         await testFrogComposBandMenuParity();
         await testHengbandMenuParity();
+        await testNetHackMenuAndActionsFlow();
 
         console.log('\n================================================================');
-        console.log('ALL 4 REALMS PASSED 100% WITH ZERO ERRORS AND ZERO REGRESSIONS!');
+        console.log('ALL 5 REALMS PASSED 100% WITH ZERO ERRORS AND ZERO REGRESSIONS!');
         console.log('================================================================');
         process.exit(0);
     } catch (err) {

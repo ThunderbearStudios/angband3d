@@ -32,7 +32,8 @@
         angband: { id: 'angband', title: 'Angband 4.2.6', hasTown: true, hasShops: true, statCount: 6, invenMode: 'select', hasPopupCommandMenu: false },
         silq: { id: 'silq', title: 'Sil-Q', hasTown: false, hasShops: false, statCount: 4, invenMode: 'command', hasPopupCommandMenu: false, features: { smithing: true, songs: true, abilityTree: true } },
         frogcomposband: { id: 'frogcomposband', title: 'FrogComposBand', hasTown: true, hasShops: true, statCount: 6, invenMode: 'command', hasPopupCommandMenu: true, features: { wilderness: true, unifiedGearUi: true, powers: true, quests: true } },
-        hengband: { id: 'hengband', title: 'Hengband', hasTown: true, hasShops: true, statCount: 6, invenMode: 'command', hasPopupCommandMenu: true, isBilingual: true, features: { wilderness: true, riding: true, magicRealms: true } }
+        hengband: { id: 'hengband', title: 'Hengband', hasTown: true, hasShops: true, statCount: 6, invenMode: 'command', hasPopupCommandMenu: true, isBilingual: true, features: { wilderness: true, riding: true, magicRealms: true } },
+        nethack: { id: 'nethack', title: 'NetHack 3.6.7', hasTown: false, hasShops: true, statCount: 6, invenMode: 'select', hasPopupCommandMenu: false, features: { beatitudeBUC: true, extendedHashCommands: true, diagonalDoorwayBlocked: true, multiBranchGraph: true } }
     };
 
     function registerVariant(id, spec) {

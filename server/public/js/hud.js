@@ -2045,12 +2045,16 @@ class WebHUD {
             }
             const crestEl = document.getElementById('char-realm-crest');
             if (crestEl) {
-                const crestIcons = { angband: '⚔', silq: '👑', frogcomposband: '◈', hengband: '⛩' };
+                const crestIcons = { angband: '⚔', silq: '👑', frogcomposband: '◈', hengband: '⛩', nethack: '🏺', dcss: '🐙', brogue: '🔥', rogue: '🗝' };
                 const crestTitles = {
                     angband: 'Iron Crown of Morgoth (Angband 4.2.6)',
                     silq: 'Silmaril & Lay of Leithian (Sil-Q)',
                     frogcomposband: 'Courts of Chaos & Amber (FrogComposband)',
-                    hengband: 'Scrolls of the Five Rings (Hengband)'
+                    hengband: 'Scrolls of the Five Rings (Hengband)',
+                    nethack: 'Amulet of Yendor (NetHack 3.6.7)',
+                    dcss: 'Orb of Zot & Pantheon (DCSS)',
+                    brogue: 'Lumenstones & Amulet (Brogue CE)',
+                    rogue: 'Dungeons of Doom 1980 (Classic Rogue)'
                 };
                 crestEl.textContent = crestIcons[realm] || '⚔';
                 crestEl.title = crestTitles[realm] || crestTitles.angband;
@@ -2116,9 +2120,10 @@ class WebHUD {
             this.hpText.textContent = `${curHp} / ${maxHp}`;
         }
 
-        // SP / Voice Bar
-        const curSp = player.sp !== undefined ? player.sp : (player.csp !== undefined ? player.csp : 0);
-        const maxSp = player.sp_max !== undefined ? player.sp_max : (player.max_sp !== undefined ? player.max_sp : (player.msp !== undefined ? player.msp : 0));
+        // SP / Voice / Nutrition Bar (Brogue & Classic Rogue use Nutrition in the second crystal vial)
+        const isNutritionVial = (realm === 'brogue' || realm === 'rogue');
+        const curSp = isNutritionVial ? (player.nutrition ?? 100) : (player.sp !== undefined ? player.sp : (player.csp !== undefined ? player.csp : 0));
+        const maxSp = isNutritionVial ? (player.nutrition_max ?? (realm === 'brogue' ? 100 : 1300)) : (player.sp_max !== undefined ? player.sp_max : (player.max_sp !== undefined ? player.max_sp : (player.msp !== undefined ? player.msp : 0)));
         const spSig = `${curSp}/${maxSp}:${realm}:${window.__langMode || 'en'}:${isSilQ}`;
         if (this._lastSpSig !== spSig) {
             this._lastSpSig = spSig;
@@ -2129,7 +2134,7 @@ class WebHUD {
                 } else if (realm === 'hengband' && lang === 'bilingual') {
                     this.spLabel.textContent = 'MANA (魔力)';
                 } else {
-                    this.spLabel.textContent = isSilQ ? 'VOICE' : 'MANA';
+                    this.spLabel.textContent = isNutritionVial ? 'NUTRITION' : (isSilQ ? 'VOICE' : 'MANA');
                 }
             }
             const spPct = maxSp > 0 ? Math.max(0, Math.min(100, (curSp / maxSp) * 100)) : 0;
@@ -2146,7 +2151,7 @@ class WebHUD {
                     this.spGhostFill.style.setProperty('--vial-pct', `${spPct}%`);
                 }
             }
-            this.spText.textContent = `${curSp} / ${maxSp}`;
+            this.spText.textContent = isNutritionVial ? `${Math.round(spPct)}%` : `${curSp} / ${maxSp}`;
         }
 
         // Left Panel Stats
@@ -2206,14 +2211,15 @@ class WebHUD {
         }
         if (this.depthVal) this.depthVal.textContent = locStr;
 
-        // Sub-meta: Level, Race, Class & Depth (Wave 10 Track B)
-        const depthLabel = depth === 0 ? (player.wilderness ? 'Wilderness' : 'Town') : `${depth * 50}ft`;
+        // Sub-meta: Level, Race, Class, Deity & Depth (Wave 10 Track B + 8-Realm Support)
+        const depthLabel = player.place_label || (realm === 'brogue' ? `Depth ${depth}` : (realm === 'rogue' ? `Lvl ${depth}` : (realm === 'nethack' ? `DLvl ${depth}` : (depth === 0 ? (player.wilderness ? 'Wilderness' : 'Town') : `${depth * 50}ft`))));
         const charSubMetaEl = this._charSubMetaEl || (this._charSubMetaEl = document.getElementById('char-sub-meta'));
         if (charSubMetaEl) {
             const pLev = player.lev || player.level || 1;
             const pRace = player.race || '';
             const pClass = player.class || player.cls || '';
-            const subMetaStr = `Lv.${pLev} ${pRace}${pClass ? ` ${pClass}` : ''} • ${depthLabel}`;
+            const godSuffix = player.god && player.god !== 'No God' ? ` • ⛩ ${player.god}` : '';
+            const subMetaStr = `Lv.${pLev} ${pRace}${pClass ? ` ${pClass}` : ''} • ${depthLabel}${godSuffix}`;
             if (this._lastCharSubMeta !== subMetaStr) {
                 this._lastCharSubMeta = subMetaStr;
                 charSubMetaEl.textContent = subMetaStr;
@@ -3007,125 +3013,78 @@ class WebHUD {
         this.deathModal.classList.remove('hidden');
         this.lastDeathFrame = frame;
 
-        const player = frame.player || {};
-        const name = player.name || 'Hero';
-        const race = player.race || 'Human';
-        const pClass = player.class || 'Warrior';
-        const level = player.level || 1;
-        const depth = player.depth || 0;
-        const maxDepth = player.max_depth || depth;
-        const gold = player.gold || 0;
-        const exp = player.exp || 0;
-        const diedFrom = player.died_from || 'mortal wounds';
+        const realm = (frame && frame.realm) || window.__activeRealm || 'angband';
+        const rc = window.RealmCartridge;
+        const summary = (rc && typeof rc.formatDeathModalSummary === 'function')
+            ? rc.formatDeathModalSummary(frame, realm)
+            : { titleText: '☠ YOU HAVE PERISHED ☠', epitaph: 'Hero', cause: 'Killed in the dungeon.', score: '', eq: [], inv: [], quiv: [] };
 
-        if (this.deathEpitaph) {
-            this.deathEpitaph.textContent = `${name} the ${race} ${pClass} (Level ${level})`;
-        }
-        if (this.deathCause) {
-            const depthStr = depth === 0 ? 'in the Town' : `on Dungeon Level ${depth} (${depth * 50} ft)`;
-            this.deathCause.textContent = `Killed by ${diedFrom} ${depthStr}.`;
-        }
-        if (this.deathScore) {
-            this.deathScore.textContent = `Gold: ${gold.toLocaleString()} AU  •  Experience: ${exp.toLocaleString()}  •  Deepest Level: ${maxDepth} (${maxDepth * 50} ft)`;
-        }
+        this._deathSummary = summary;
+        const titleEl = this.deathModal.querySelector('.death-title');
+        if (titleEl && summary.titleText) titleEl.textContent = summary.titleText;
+        if (this.deathEpitaph) this.deathEpitaph.textContent = summary.epitaph;
+        if (this.deathCause) this.deathCause.textContent = summary.cause;
+        if (this.deathScore) this.deathScore.textContent = summary.score;
 
-        // Update tab header badge counts
-        const eqCount = (player.equipment && Array.isArray(player.equipment)) ? player.equipment.length : 0;
-        const invCount = (player.inventory && Array.isArray(player.inventory)) ? player.inventory.length : 0;
-        const quivCount = (player.quiver && Array.isArray(player.quiver)) ? player.quiver.length : 0;
-
-        if (this.deathTabs[1]) this.deathTabs[1].textContent = `2. Equipment (${eqCount})`;
-        if (this.deathTabs[2]) this.deathTabs[2].textContent = `3. Inventory (${invCount})`;
-        if (this.deathTabs[3]) this.deathTabs[3].textContent = `4. Quiver (${quivCount})`;
+        if (this.deathTabs[1]) this.deathTabs[1].textContent = `2. Equipment (${summary.eq.length})`;
+        if (this.deathTabs[2]) this.deathTabs[2].textContent = `3. Inventory (${summary.inv.length})`;
+        if (this.deathTabs[3]) this.deathTabs[3].textContent = `4. Quiver (${summary.quiv.length})`;
 
         this.renderDeathTabContent(this.activeDeathTab, frame);
+
+        if (window.chronicleManager && typeof window.chronicleManager.renderDeathSketchIntoModal === 'function') {
+            window.chronicleManager.renderDeathSketchIntoModal(frame);
+        }
+        const shareBtn = document.getElementById('btn-death-share-yasd');
+        if (shareBtn && !shareBtn._boundYasd) {
+            shareBtn._boundYasd = true;
+            shareBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (window.chronicleManager && typeof window.chronicleManager.downloadYasdShareCard === 'function') {
+                    window.chronicleManager.downloadYasdShareCard(this.lastDeathFrame || this.lastFrame);
+                }
+            });
+        }
     }
 
     renderDeathTabContent(tabIdx, frame) {
         const player = frame.player || {};
+        const realm = (frame && frame.realm) || window.__activeRealm || 'angband';
+        const summary = this._deathSummary || (window.RealmCartridge && window.RealmCartridge.formatDeathModalSummary ? window.RealmCartridge.formatDeathModalSummary(frame, realm) : { eq: player.equipment || [], inv: player.inventory || [], quiv: player.quiver || [] });
 
         if (tabIdx === 0) {
-            // Tab 0: Tombstone Terminal Canvas
             const termCanvas = document.getElementById('death-terminal-canvas');
             if (termCanvas && frame.term) {
                 if (!this.deathTerminal) {
                     this.deathTerminal = new WebTerminal('death-terminal-canvas', (key) => {
-                        if (window.__app && window.__app.network) {
-                            window.__app.network.sendKey(key);
-                        }
+                        if (window.__app && window.__app.network) window.__app.network.sendKey(key);
                     });
                 }
                 this.deathTerminal.render(frame.term);
             }
-        } else if (tabIdx === 1) {
-            // Tab 1: Equipment List
-            const list = document.getElementById('death-equipment-list');
+        } else if (tabIdx === 1 || tabIdx === 2 || tabIdx === 3) {
+            const listIds = [null, 'death-equipment-list', 'death-inventory-list', 'death-quiver-list'];
+            const emptyMsgs = [null, '(No equipment worn at death)', '(Inventory was empty)', '(Quiver was empty)'];
+            const items = tabIdx === 1 ? summary.eq : (tabIdx === 2 ? summary.inv : summary.quiv);
+            const list = document.getElementById(listIds[tabIdx]);
             if (list) {
                 list.innerHTML = '';
-                const eq = player.equipment || [];
-                if (eq.length === 0) {
-                    list.innerHTML = '<li class="death-list-empty">(No equipment worn at death)</li>';
+                if (!items || items.length === 0) {
+                    list.innerHTML = `<li class="death-list-empty">${emptyMsgs[tabIdx]}</li>`;
                 } else {
-                    eq.forEach(item => {
+                    items.forEach((item, idx) => {
                         const li = document.createElement('li');
                         li.className = 'death-list-item';
-                        const prefix = item.mention || item.slot_name || '';
-                        li.innerHTML = `<span class="item-slot">${escapeHtml(prefix)}</span><span class="item-name">${escapeHtml(item.name || '')}</span><span class="item-weight">${item.weight ? (item.weight / 10).toFixed(1) + ' lbs' : ''}</span>`;
-                        list.appendChild(li);
-                    });
-                }
-            }
-        } else if (tabIdx === 2) {
-            // Tab 2: Inventory List
-            const list = document.getElementById('death-inventory-list');
-            if (list) {
-                list.innerHTML = '';
-                const inv = player.inventory || [];
-                if (inv.length === 0) {
-                    list.innerHTML = '<li class="death-list-empty">(Inventory was empty)</li>';
-                } else {
-                    inv.forEach((item, idx) => {
-                        const li = document.createElement('li');
-                        li.className = 'death-list-item';
-                        const letter = String.fromCharCode(97 + idx); // a, b, c...
-                        li.innerHTML = `<span class="item-slot">${escapeHtml(letter)})</span><span class="item-name">${escapeHtml(item.name || '')}</span><span class="item-weight">${item.weight ? (item.weight / 10).toFixed(1) + ' lbs' : ''}</span>`;
-                        list.appendChild(li);
-                    });
-                }
-            }
-        } else if (tabIdx === 3) {
-            // Tab 3: Quiver List
-            const list = document.getElementById('death-quiver-list');
-            if (list) {
-                list.innerHTML = '';
-                const quiv = player.quiver || [];
-                if (quiv.length === 0) {
-                    list.innerHTML = '<li class="death-list-empty">(Quiver was empty)</li>';
-                } else {
-                    quiv.forEach((item, idx) => {
-                        const li = document.createElement('li');
-                        li.className = 'death-list-item';
-                        li.innerHTML = `<span class="item-slot">${idx})</span><span class="item-name">${escapeHtml(item.name || '')}</span><span class="item-weight">${item.weight ? (item.weight / 10).toFixed(1) + ' lbs' : ''}</span>`;
+                        const slotTxt = tabIdx === 1 ? (item.mention || item.slot_name || `${item.slot || '•'})`) : (tabIdx === 2 ? `${item.slot || String.fromCharCode(97 + idx)})` : `${idx})`);
+                        li.innerHTML = `<span class="item-slot">${escapeHtml(slotTxt)}</span><span class="item-name">${escapeHtml(item.name || item.label || '')}</span><span class="item-weight">${item.weight ? (item.weight / 10).toFixed(1) + ' lbs' : ''}</span>`;
                         list.appendChild(li);
                     });
                 }
             }
         } else if (tabIdx === 4) {
-            // Tab 4: Character Attributes & Statistics Grid
             const container = document.getElementById('death-stats-container');
-            if (container) {
-                const getStat = s => (s && typeof s === 'object') ? (s.use || s.top || '10') : (s || '10');
-                const stats = player.stats || {};
-                container.innerHTML = `
-                    <div class="death-stat-card"><div class="stat-name">STRENGTH</div><div class="stat-num">${escapeHtml(String(getStat(stats.str)))}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">INTELLIGENCE</div><div class="stat-num">${escapeHtml(String(getStat(stats.int)))}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">WISDOM</div><div class="stat-num">${escapeHtml(String(getStat(stats.wis)))}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">DEXTERITY</div><div class="stat-num">${escapeHtml(String(getStat(stats.dex)))}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">CONSTITUTION</div><div class="stat-num">${escapeHtml(String(getStat(stats.con)))}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">ARMOR CLASS</div><div class="stat-num">${player.ac || 0}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">SPEED</div><div class="stat-num">${player.speed || 110}</div></div>
-                    <div class="death-stat-card"><div class="stat-name">DEEP LEVEL</div><div class="stat-num">${player.max_depth || player.depth || 0} (${(player.max_depth || player.depth || 0) * 50}ft)</div></div>
-                `;
+            if (container && window.RealmCartridge && typeof window.RealmCartridge.buildDeathStatsHtml === 'function') {
+                container.innerHTML = window.RealmCartridge.buildDeathStatsHtml(player, realm, escapeHtml);
             }
         }
     }

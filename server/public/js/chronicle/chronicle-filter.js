@@ -9,12 +9,12 @@ const RE_ATTACK = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(hits|bites|claws|crushes
 const RE_THEFT = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(steals|tries to steal)\b/i;
 const RE_BEG = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:begs you for money|asks you for money|begs for money)\b/i;
 const RE_INSULT = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:insults you|mocks you|jeers at you)\b/i;
-const RE_HERO_ATTACK = /^(?:You\s+)(hit|slash|crush|smite|strike|pierce|shoot|bash|missed|miss)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
+const RE_HERO_ATTACK = /^(?:You\s+)(hit|slash|crush|smite|strike|pierce|shoot|bash|missed|miss)\s+(?:the\s+|a\s+|an\s+)?([A-Za-z0-9\-',\s]+?)(?:\s+with\s+your\s+[A-Za-z0-9\-',\s]+?)?(?:\.|\!|$)/i;
 const RE_SPELL_CAST = /^(?:You\s+)(?:cast|pray|chant|recite|channel|invoke|weave|conjure)\b/i;
 const RE_SPELL_PROJECTION = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:catches fire|is badly frozen|dissolves|cringes from the light|shrivels away in the light|disintegrates|freezes and shatters|is electrocuted|is blasted|is enveloped in flames?|burns in|crumbles into ash|turns into mud)/i;
 const RE_SPELL_EFFECT = /\b(?:magic missile|fire ball|frost ball|lightning bolt|acid bolt|ice storm|flame strike|mana storm|orb of draining|holy word|sunlight|starlight|fire bolt|frost bolt|acid ball|lightning ball)\b/i;
 const RE_DEVICE_USE = /^(?:You\s+)(?:aim|zap|use|read)\s+(?:a\s+|an\s+|the\s+)?(wand|rod|staff|scroll)\b/i;
-const RE_MISSILE_HIT = /^Your\s+([A-Za-z0-9\-',\s]+?)\s+(?:hits|strikes|pierces|fails to harm)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
+const RE_MISSILE_HIT = /^Your\s+([A-Za-z0-9\-',\s]+?)\s+(?:hits|strikes|pierces|fails to harm)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?)(?:\s+for\s+\d+\s+damage)?(?:\.|\!|$)/i;
 const RE_MISSILE_FIRE = /^(?:You\s+)(?:shoot|fire|loose|throw|hurl)\b/i;
 const RE_MON_PAIN = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:screams? in (?:agony|pain)|shrieks? in (?:agony|pain)|cr(?:ies|y) out in pain|howls? in (?:agony|pain)|writhes? in agony|grunts? with pain|flinches?|quivers? in pain|squelches?|hisses? in (?:pain|agony)|jerks? in (?:agony|pain)|twitches? in pain|yelps? in pain|squeals? in pain)(?:\.|\!|$)/i;
 const RE_FLEE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(flees in terror|runs away in panic|turns and runs|flees|panics)(?:\.|\!|$)/i;
@@ -22,18 +22,22 @@ const RE_BIZARRE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(drools on you|vomits on
 const RE_STATE = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(wakes up|falls asleep|is confused|recovers|blinks|appears unaffected)(?:\.|\!|$)/i;
 const RE_RITUAL = /(?:You can learn (\d+) more (?:ritual|spell|prayer)s?|You feel your knowledge of (?:the arcane|rituals|prayers) expand)/i;
 const RE_SPELL_LEARNED = /(?:You have learned the|You master the|You study the)\s+(prayer|spell|ritual|rune|incantation|hymn)\s+of\s+([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
-const RE_LEVEL_UP = /(?:Welcome to level\s+(\d+)|You are now level\s+(\d+))/i;
+const RE_LEVEL_UP = /(?:Welcome to (?:experience )?level\s+(\d+)|You (?:are now|rise to) (?:experience )?level\s+(\d+))/i;
 const RE_LEVEL_FEELING = /(?:Omens of death haunt this place|This place seems (?:murderous|terribly dangerous|reasonably safe)|This place does not seem too risky|This seems a (?:tame,?\s*sheltered place|quiet,?\s*peaceful place)|You are still uncertain about this place|You feel (?:anxious|nervous) about this place|Looks like any other level|You feel that (?:you sense|there are|there may|there is naught)|a sinister presence|like you are being watched|a chill run down your spine|a sense of dread)/i;
 const RE_STORE = /(?:Welcome to|You enter)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?(?:Store|Armoury|Armory|Weaponsmith|Weapon Smith|Magic Shop|Alchemist|Temple|Black Market|Guild))(?:\.|\!|$)/i;
 const RE_STORE_BUY = /^You bought\s+(?:(\d+)\s+)?(?:a\s+|an\s+|the\s+)?(.+?)\s+for\s+(\d+)\s+gold(?:\.|\!|$)/i;
 const RE_STATUS = /^(?:You\s+)(are\s+(?:confused|poisoned|blind|blinded|stunned|heavily stunned|knocked out|paralyzed|terrified|bleeding|mortally wounded)|feel\s+(?:confused|very sick|unreal|strange|sluggish|fast|your life draining away|very weak|clumsy)|cannot\s+(?:see|move)|panic)\b/i;
-const RE_STATUS_RECOVERY = /(?:You are no longer (?:confused|poisoned|blind|stunned|terrified)|You can see again|You feel your strength returning)/i;
-const RE_SLAIN = /You have slain (?:the )?([A-Za-z0-9\-',\s]+?)(?:\s*\([x0-9]+\))?\./i;
+const RE_STATUS_RECOVERY = /(?:You are no longer (?:confused|poisoned|blind|stunned|terrified)|You can see again|You feel your strength returning|Pure astral light purges|Your afflictions vanish)/i;
+const RE_SLAIN = /You (?:have slain|slay|kill|destroy|vanquish) (?:the |a |an )?([A-Za-z0-9\-',\s]+?)(?:\s*\([x0-9]+\))?(?:\.|\!|$)/i;
 const RE_MON_DIES = /^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:dies|is destroyed|crumbles into dust|dissolves|perishes)(?:\.|\!|$)/i;
-const RE_EXCAVATE = /(?:You have removed the rubble|You have cleared a path through the rubble|You have finished digging a tunnel|You tunnel into the (?:granite wall|magma vein|quartz vein)|You dig in the (?:rubble|granite wall|magma vein|quartz vein))/i;
-const RE_TREASURE = /(?:You have found|You find|You pick up)\s+(\d+)\s+gold pieces worth of\s+([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i;
+const RE_EXCAVATE = /(?:You have removed the rubble|You have cleared a path through the rubble|You have finished digging a tunnel|You tunnel into the (?:granite wall|magma vein|quartz vein)|You dig in the (?:rubble|granite wall|magma vein|quartz vein)|You swing your pick-axe and shatter the dungeon rock)/i;
+const RE_TREASURE = /(?:You have found|You find|You pick up|uncover)\s+(\d+)\s+(?:gold pieces worth of\s+([A-Za-z0-9\-',\s]+?)|(gold(?:\s+pieces)?|zorkmids))(?:\.|\!|$)/i;
 const RE_CHEST = /(?:You have found|You see)\s+(?:a\s+|an\s+)?([A-Za-z0-9\-',\s]+?chest)(?:\.|\!|$)/i;
-const RE_DUNGEON_FEATURE = /(?:You have found a (?:trap|secret door)|You have disarmed the trap|You pick the lock|The door is locked|You bash open the door|You kick open the door|You bash the door open|You kick the door open)/i;
+const RE_DUNGEON_FEATURE = /(?:You have found a (?:trap|secret door)|You have disarmed the trap|You carefully inspect and disarm|You check and disarm|You pick the lock|You strike the lock with your weapon|The door is locked|You bash open the door|You kick open the door|You bash the door open|You kick the door open|You push open the heavy oak door)/i;
+const RE_SACRED_SHRINE = /(?:There is a (?:high )?altar(?:\s+of\s+([A-Za-z0-9\-'\s]+?))?\s+here|There is a (?:sparkling\s+|magic\s+)*fountain\s+here|A golden aura surrounds you on the high altar|You feel that ([A-Za-z0-9\-'\s]+?) is well-pleased|Your sacrifice is consumed|You drink from the (?:sparkling\s+|magic\s+)*fountain|You dip your .+ into the (?:sparkling\s+|magic\s+)*fountain|From the murky depths, a hand reaches up to bless your blade)/i;
+const RE_PET_ACTION = /^Your\s+(?:faithful\s+)?([A-Za-z0-9\-',\s]+?)\s+(bites|claws|hits|strikes|kills|destroys|slays|wags its tail|yips)\b(?:\s+(?:the\s+|a\s+|an\s+)?([A-Za-z0-9\-',\s]+?))?(?:\.|\!|$)/i;
+const RE_ENVIRONMENTAL_NOTICE = /(?:You hear (?:a\s+|the\s+)?([^.!]+)|You feel a strange vibration|A mysterious force prevents you|The Oracle whispers from afar|You are beginning to feel (?:hungry|weak)|You are getting hungry|You feel weak from hunger|Your (?:lamp|lantern|torch) (?:is getting dim|flickers|goes out|shines brightly)|You survey the .+|You wrench through the astral ether|A map coalesces in your mind|Arcane sigils trace the entire dungeon layout)/i;
+const RE_NOTABLE_ACTION = /^(?:You\s+)(?:quaff|drink|finish eating|now wield|swap weapons and now wield|wear|wrest the legendary)\s+(.+?)|^Your\s+(?:pack|hands|[A-Za-z0-9\-'\s]+)\s+glows\s+(?:with\s+amber|blue|silver|incandescently)/i;
 const RE_CLEAN_PARENS = /\s*\([^)]*\)/g;
 const RE_CLEAN_BRACKETS = /\s*\[[^\]]*\]/g;
 const RE_SPELL_NAME_EXTRACT = /^(?:You\s+)(?:cast|pray|chant|recite|channel|invoke|weave|conjure)\s+(?:a\s+|an\s+|the\s+)?([A-Za-z0-9\-'\s]+?)(?:\.|\!|$)/i;
@@ -198,6 +202,10 @@ class ChronicleFilter {
         this._lastTreasureTime = 0;
         this._lastLevelFeelingTime = 0;
         this._lastFeatureTime = 0;
+        this._lastShrineTime = 0;
+        this._lastNoticeTime = 0;
+        this._lastNotableActionTime = 0;
+        this._lastPetActionTime = 0;
         this.resetEpisodeAccumulator();
     }
 
@@ -351,22 +359,25 @@ class ChronicleFilter {
         const framePlayerStatuses = [];
         const slainMonsterNames = new Set();
 
-        // Expand compound Angband messages (e.g. "The small kobold screams in agony. The small kobold flees in terror!")
+        // Expand compound Angband & NetHack messages while stripping inline stat/glyph parentheticals
+        // (e.g., "You hit the kobold with your long sword! (14 dmg)", "You destroy the kobold! (+6 XP, +9$)", "There is a high altar of Tyr here (_).")
         const expandedMsgs = [];
         for (const rawMsg of newMsgs) {
-            if (rawMsg.includes('. ') || rawMsg.includes('! ')) {
-                const parts = rawMsg.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+            const strippedMsg = rawMsg.replace(/\s*\((?:\+?\d+\s*XP[^)]*|[-+]?\d+\s*(?:dmg|HP)[^)]*|[_~#{?![\]*%$]|x\d+)\)/gi, '').trim();
+            if (!strippedMsg) continue;
+            if (strippedMsg.includes('. ') || strippedMsg.includes('! ')) {
+                const parts = strippedMsg.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
                 expandedMsgs.push(...parts);
             } else {
-                expandedMsgs.push(rawMsg);
+                expandedMsgs.push(strippedMsg);
             }
         }
 
         for (const msg of expandedMsgs) {
-            // 1. Kills & Slayings (Dies, destroyed, dissolved, crumbled, slain)
+            // 1. Kills & Slayings (Dies, destroyed, dissolved, crumbled, slain, NetHack kill/destroy)
             const diesMatch = msg.match(RE_MON_DIES);
             const slainMatch = msg.match(RE_SLAIN);
-            const isKill = diesMatch || slainMatch || msg.includes('You have slain') || msg.includes('destroyed') || /\bdies(?:\.|\!|$)/i.test(msg);
+            const isKill = diesMatch || slainMatch || /\b(?:You\s+(?:have\s+slain|slay|kill|destroy|vanquish)|destroyed)\b/i.test(msg) || /\bdies(?:\.|\!|$)/i.test(msg);
             if (isKill) {
                 this.episodeAccumulator.monstersSlain++;
                 frameKills.push(msg);
@@ -376,7 +387,7 @@ class ChronicleFilter {
                 if (diesMatch && diesMatch[1]) mName = diesMatch[1].trim();
                 else if (slainMatch && slainMatch[1]) mName = slainMatch[1].trim();
                 else {
-                    const fallback = msg.match(/(?:slain|destroyed|dies)\s+(?:the\s+)?([A-Za-z0-9\-',\s]+?)(?:\.|$)/i) ||
+                    const fallback = msg.match(/(?:slain|slay|kill|destroy|destroyed|dies)\s+(?:the\s+|a\s+|an\s+)?([A-Za-z0-9\-',\s]+?)(?:\.|\!|$)/i) ||
                                      msg.match(/^(?:The\s+)?([A-Za-z0-9\-',\s]+?)\s+(?:dies|is destroyed)/i);
                     if (fallback && fallback[1]) mName = fallback[1].trim();
                 }
@@ -462,7 +473,7 @@ class ChronicleFilter {
                     const monLower = monName.toLowerCase();
                     if (!slainMonsterNames.has(monLower)) {
                         const lastAtk = this.recentHeroAttacks.get(monLower) || 0;
-                        if (now - lastAtk >= 4500) {
+                        if (now - lastAtk >= 12000) {
                             this.recentHeroAttacks.set(monLower, now);
                             const monObj = (frame.monsters || []).find(m => (m.name || '').toLowerCase().includes(monLower));
                             frameHeroAttacks.push({
@@ -513,7 +524,7 @@ class ChronicleFilter {
                 }
                 if (!slainMonsterNames.has(monLower)) {
                     const lastAtk = this.recentHeroAttacks.get(monLower) || 0;
-                    if (now - lastAtk >= 4500) {
+                    if (now - lastAtk >= 12000) {
                         this.recentHeroAttacks.set(monLower, now);
                         const monObj = (frame.monsters || []).find(m => (m.name || '').toLowerCase().includes(monLower));
                         frameHeroAttacks.push({
@@ -754,7 +765,7 @@ class ChronicleFilter {
                         isChapter: false,
                         data: {
                             amount: trMatch ? parseInt(trMatch[1], 10) : 0,
-                            metal: trMatch ? trMatch[2].trim() : (chMatch ? chMatch[1].trim() : 'gold'),
+                            metal: trMatch ? (trMatch[2] || trMatch[3] || 'gold').trim() : (chMatch ? chMatch[1].trim() : 'gold'),
                             message: msg,
                             depth: depth
                         }
@@ -796,6 +807,95 @@ class ChronicleFilter {
 
             if (msg.includes('You feel very good') || msg.includes('You quaff')) {
                 this.episodeAccumulator.potionsQuaffed++;
+            }
+
+            // 8f. Sacred Shrines, Altars, Divine Prayers, Sacrifices & Magic Fountains
+            const shrineMatch = msg.match(RE_SACRED_SHRINE);
+            if (shrineMatch) {
+                const lastShrine = this._lastShrineTime || 0;
+                const isMajorBlessing = /golden aura|well-pleased|sacrifice is consumed|hand reaches up|Excalibur/i.test(msg);
+                if (isMajorBlessing || (now - lastShrine >= 4500)) {
+                    this._lastShrineTime = now;
+                    this.eventQueue.push({
+                        type: 'SACRED_SHRINE',
+                        priority: 'high',
+                        isChapter: isMajorBlessing,
+                        data: {
+                            deity: (shrineMatch[1] || shrineMatch[2] || '').trim(),
+                            message: msg,
+                            depth: depth
+                        }
+                    });
+                }
+            }
+
+            // 8g. Faithful Companion / Pet Actions & Kills
+            const petMatch = msg.match(RE_PET_ACTION);
+            if (petMatch) {
+                const petName = petMatch[1].trim();
+                const petVerb = petMatch[2].toLowerCase();
+                const targetMon = petMatch[3] ? petMatch[3].trim() : '';
+                const isPetKill = (petVerb === 'kills' || petVerb === 'destroys' || petVerb === 'slays');
+                if (isPetKill) {
+                    this.episodeAccumulator.monstersSlain++;
+                    if (targetMon) slainMonsterNames.add(targetMon.toLowerCase());
+                }
+                const lastPet = this._lastPetActionTime || 0;
+                if (isPetKill || (now - lastPet >= 6000)) {
+                    this._lastPetActionTime = now;
+                    this.eventQueue.push({
+                        type: 'COMPANION_ACTION',
+                        priority: isPetKill ? 'high' : 'normal',
+                        isChapter: false,
+                        data: {
+                            petName,
+                            action: petVerb,
+                            monsterName: targetMon,
+                            isKill: isPetKill,
+                            message: msg,
+                            depth: depth
+                        }
+                    });
+                }
+            }
+
+            // 8h. Notable Hero Actions (Quaffing, Reading Scrolls, Eating, Wielding, Wearing, Claiming Artifacts)
+            const actMatch = !isKill && !devMatch && !spCastMatch ? msg.match(RE_NOTABLE_ACTION) : null;
+            if (actMatch) {
+                const isAmulet = /Amulet of Yendor|Excalibur/i.test(msg);
+                const lastAct = this._lastNotableActionTime || 0;
+                if (isAmulet || (now - lastAct >= 5000)) {
+                    this._lastNotableActionTime = now;
+                    this.eventQueue.push({
+                        type: 'NOTABLE_ACTION',
+                        priority: isAmulet ? 'high' : 'normal',
+                        isChapter: isAmulet,
+                        data: {
+                            item: actMatch[1] ? cleanItemName(actMatch[1]) : '',
+                            message: msg,
+                            depth: depth
+                        }
+                    });
+                }
+            }
+
+            // 8i. Environmental Notices (Oracle Whispers, Distant Sounds, Astral Teleport, Magic Mapping, Torchlight, Hunger)
+            const envMatch = msg.match(RE_ENVIRONMENTAL_NOTICE);
+            if (envMatch) {
+                const lastNotice = this._lastNoticeTime || 0;
+                if (now - lastNotice >= 7000) {
+                    this._lastNoticeTime = now;
+                    this.eventQueue.push({
+                        type: 'ENVIRONMENTAL_NOTICE',
+                        priority: 'normal',
+                        isChapter: false,
+                        data: {
+                            sound: envMatch[1] ? envMatch[1].trim() : '',
+                            message: msg,
+                            depth: depth
+                        }
+                    });
+                }
             }
 
             // 9. Detect creature interactions and assaults on the player
@@ -1189,4 +1289,7 @@ ChronicleFilter.detectSpellElement = detectSpellElement;
 
 if (typeof window !== 'undefined') {
     window.ChronicleFilter = ChronicleFilter;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ChronicleFilter;
 }
