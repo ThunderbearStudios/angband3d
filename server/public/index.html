@@ -56,8 +56,8 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/assets/yasd3d_logo.png">
     <link rel="icon" type="image/png" href="/assets/yasd3d_logo.png">
-    <link rel="stylesheet" href="/css/dungeon.css?v=11.3.4">
-    <link rel="stylesheet" href="/css/chronicle.css?v=11.3.4">
+    <link rel="stylesheet" href="/css/dungeon.css?v=11.3.5">
+    <link rel="stylesheet" href="/css/chronicle.css?v=11.3.5">
 </head>
 <body>
     <div id="app-container">
@@ -603,7 +603,7 @@
                 <div class="death-actions">
                     <button id="btn-death-reload" class="death-btn btn-reload"><kbd>[R]</kbd> Load Last Saved Game</button>
                     <button id="btn-death-reroll" class="death-btn btn-reroll"><kbd>[N]</kbd> Re-Roll / New Character</button>
-                    <button id="btn-death-share-yasd" class="death-btn btn-share-yasd" title="Download Shareable YASD Memorial Card (.PNG)">🪦 Share YASD Card</button>
+                    <button id="btn-death-share-yasd" class="death-btn btn-share-yasd" title="Download Shareable YASD Memorial Card (.PNG)">⚔ Share YASD Card</button>
                     <button id="btn-death-menu" class="death-btn btn-menu"><kbd>[M / Esc]</kbd> Main Menu</button>
                 </div>
             </div>
@@ -618,7 +618,7 @@
                 <div class="splash-ornament-corner bottom-right"></div>
 
                 <div class="splash-logo-wrap protected-crest" oncontextmenu="return false;">
-                    <img src="/assets/yasd3d_logo.png?v=11.3.4" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" draggable="false">
+                    <img src="/assets/yasd3d_logo.png?v=11.3.5" alt="Yet Another Stupid Death Official Crest — yasd3d.com • Thunderbear Studios" class="splash-logo splash-logo-main" width="520" height="520" fetchpriority="high" draggable="false">
                 </div>
 
                 <div class="splash-subtitle">
@@ -632,7 +632,7 @@
 
                 <div class="splash-credits-footer">
                     <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="splash-studio-signature" title="Thunderbear Studios™ — Official Studio Portal (thunderbearstudios.dev)">
-                        <img src="/assets/thunderbear_logo.png?v=11.3.4" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
+                        <img src="/assets/thunderbear_logo.png?v=11.3.5" alt="Thunderbear Studios Official Emblem" class="splash-studio-badge" width="28" height="36" draggable="false">
                         <span class="splash-studio-detail">
                             <strong>Thunderbear Studios&trade;</strong>
                             <small>&copy; 2026 Thunderbear Studios &bull; All Rights Reserved</small>
@@ -652,13 +652,13 @@
 
                 <div class="main-menu-header">
                     <div class="main-menu-crest-bar">
-                        <img src="/assets/yasd3d_logo.png?v=11.3.4" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" draggable="false">
+                        <img src="/assets/yasd3d_logo.png?v=11.3.5" alt="YASD 3D Emblem" class="main-menu-logo-primary" width="56" height="56" draggable="false">
                         <div class="main-menu-title-group">
                             <h2 class="main-menu-title" id="main-menu-title">⚔ YASD 3D • YENDOR ENGINE ⚔</h2>
                             <div class="main-menu-subtitle" id="main-menu-subtitle">The Classic Tolkien Descent • Old British Scholar</div>
                         </div>
                         <a href="https://thunderbearstudios.dev" target="_blank" rel="noopener noreferrer" class="main-menu-studio-link" title="Thunderbear Studios™">
-                            <img src="/assets/thunderbear_logo.png?v=11.3.4" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
+                            <img src="/assets/thunderbear_logo.png?v=11.3.5" alt="Thunderbear Studios" class="main-menu-logo-secondary" width="28" height="36" draggable="false">
                         </a>
                     </div>
                     <div class="main-menu-realm-strip" id="main-menu-realm-strip">
@@ -666,14 +666,14 @@
                             <label for="main-menu-realm-select" class="main-menu-realm-label">⚔ REALM <kbd>[R]</kbd>:</label>
                             <div class="main-menu-realm-dropdown-wrap">
                                 <select id="main-menu-realm-select" name="realm" class="main-menu-realm-dropdown" aria-label="Select Roguelike Realm">
-                                    <option value="angband">Vanilla Angband 4.2.6 — The Classic Tolkien Descent (100 Depths)</option>
+                                    <option value="nethack">NetHack 3.6.7 — The Mazes of Menace &amp; Amulet of Yendor</option>
+                                    <option value="dcss">Dungeon Crawl Stone Soup — Runes of Zot, Altars &amp; Pantheon</option>
+                                    <option value="angband" selected>Vanilla Angband 4.2.6 — The Classic Tolkien Descent (100 Depths)</option>
+                                    <option value="brogue">Brogue CE — Potions of Strength, Captive Allies &amp; Lumenstones</option>
+                                    <option value="rogue">Classic Rogue 5.4 (1980) — The Original 26-Level Amulet Quest</option>
                                     <option value="silq">Sil-Q 1.5.0 — First Age Stealth &amp; Silmaril Heist (Songs of Power)</option>
                                     <option value="frogcomposband">FrogComposBand 7.1.1 — 50+ Classes, Monster Races &amp; Overland</option>
                                     <option value="hengband">Hengband 3.0.1 — Eastern Mythos &amp; Quest Citadels (EN / JP)</option>
-                                    <option value="nethack">NetHack 3.6.7 — The Mazes of Menace &amp; Amulet of Yendor</option>
-                                    <option value="dcss">Dungeon Crawl Stone Soup — Runes of Zot, Altars &amp; Pantheon</option>
-                                    <option value="brogue">Brogue CE — Potions of Strength, Captive Allies &amp; Lumenstones</option>
-                                    <option value="rogue">Classic Rogue 5.4 (1980) — The Original 26-Level Amulet Quest</option>
                                 </select>
                             </div>
                             <div id="main-menu-hengband-lang-wrap" class="main-menu-lang-wrap hidden">
@@ -688,14 +688,14 @@
                         </div>
                         <div class="main-menu-realm-meta-row">
                             <div class="main-menu-realm-pills" id="main-menu-realm-pills">
+                                <button type="button" class="realm-pill-btn" data-switch-realm="nethack" title="Switch to NetHack 3.6.7">🏺 NetHack</button>
+                                <button type="button" class="realm-pill-btn" data-switch-realm="dcss" title="Switch to Dungeon Crawl Stone Soup">🐙 DCSS</button>
                                 <button type="button" class="realm-pill-btn active" data-switch-realm="angband" title="Switch to Vanilla Angband 4.2.6">⚔ Angband</button>
+                                <button type="button" class="realm-pill-btn" data-switch-realm="brogue" title="Switch to Brogue CE">🔥 Brogue</button>
+                                <button type="button" class="realm-pill-btn" data-switch-realm="rogue" title="Switch to Classic Rogue 5.4 (1980)">🗝 Rogue</button>
                                 <button type="button" class="realm-pill-btn" data-switch-realm="silq" title="Switch to Sil-Q 1.5.0">👑 Sil-Q</button>
                                 <button type="button" class="realm-pill-btn" data-switch-realm="frogcomposband" title="Switch to FrogComposBand 7.1.1">◈ FrogComposBand</button>
                                 <button type="button" class="realm-pill-btn" data-switch-realm="hengband" title="Switch to Hengband 3.0.1">⛩ Hengband</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="nethack" title="Switch to NetHack 3.6.7">🏺 NetHack</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="dcss" title="Switch to Dungeon Crawl Stone Soup">🐙 DCSS</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="brogue" title="Switch to Brogue CE">🔥 Brogue</button>
-                                <button type="button" class="realm-pill-btn" data-switch-realm="rogue" title="Switch to Classic Rogue 5.4 (1980)">🗝 Rogue</button>
                             </div>
                             <span id="main-menu-realm-badge" class="main-menu-realm-badge"><strong id="menu-active-realm-name" class="menu-realm-highlight" style="display:none;">Vanilla Angband 4.2.6</strong><span id="main-menu-realm-tagline" class="main-menu-realm-desc">100 Dungeon Levels • Bit-for-Bit 4.2.6 Rules</span></span>
                         </div>
@@ -1325,12 +1325,47 @@
                 </div>
 
                 <div class="realm-grid" id="realm-grid">
+                    <div class="realm-card" data-realm="nethack">
+                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">🏺</div><h3 class="realm-card-title">NetHack 3.6.7</h3>
+                        <div class="realm-card-tagline">The Mazes of Menace &amp; Amulet of Yendor</div>
+                        <p class="realm-card-desc">Descend through the Dungeons of Doom, Gnomish Mines, and Sokoban. Test item beatitude at altars and claim the Amulet of Yendor.</p>
+                        <div class="realm-card-features"><span class="realm-feat-chip">52-Slot BUC Beatitude</span><span class="realm-feat-chip">Altar &amp; Fountain Rituals</span><span class="realm-feat-chip">Loyal Pet Companion</span></div>
+                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="nethack">Switch to Realm</button>
+                    </div>
+                    <div class="realm-card" data-realm="dcss">
+                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">🐙</div><h3 class="realm-card-title">Dungeon Crawl Stone Soup</h3>
+                        <div class="realm-card-tagline">Runes of Zot &amp; The Ecumenical Pantheon</div>
+                        <p class="realm-card-desc">Worship Okawaru, Vehumet, Trog, or Xom at ecumenical altars, conquer Lair, Orc, and Vaults for 3 Runes, and seize the Orb of Zot.</p>
+                        <div class="realm-card-features"><span class="realm-feat-chip">Pantheon &amp; Piety</span><span class="realm-feat-chip">Multi-Branch Runes</span><span class="realm-feat-chip">5 Iconic Species</span></div>
+                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="dcss">Switch to Realm</button>
+                    </div>
                     <div class="realm-card active" data-realm="angband">
                         <div class="realm-card-badge">ACTIVE REALM</div><div class="realm-card-icon">⚔️</div><h3 class="realm-card-title">Angband 4.2.6</h3>
                         <div class="realm-card-tagline">The Classic Tolkien Descent</div>
                         <p class="realm-card-desc">The purest, bit-for-bit roguelike dungeon crawl. 100 dungeon levels descending into Angband to overthrow Morgoth.</p>
                         <div class="realm-card-features"><span class="realm-feat-chip">Bit-for-Bit 4.2.6 Engine</span><span class="realm-feat-chip">Dual CRT Terminal</span><span class="realm-feat-chip">Scholar Narrator</span></div>
                         <button type="button" class="btn-realm-select btn-gold" data-realm="angband">✓ Selected</button>
+                    </div>
+                    <div class="realm-card" data-realm="brogue">
+                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">🔥</div><h3 class="realm-card-title">Brogue CE</h3>
+                        <div class="realm-card-tagline">Potions of Strength, Allies &amp; Lumenstones</div>
+                        <p class="realm-card-desc">Zero XP grinding — empower your gear with Scrolls of Enchantment, liberate chained monster allies, and brave lava caverns for Lumenstones.</p>
+                        <div class="realm-card-features"><span class="realm-feat-chip">Item-Driven Power</span><span class="realm-feat-chip">Captive Monster Allies</span><span class="realm-feat-chip">Lava &amp; Lake Terrain</span></div>
+                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="brogue">Switch to Realm</button>
+                    </div>
+                    <div class="realm-card" data-realm="rogue">
+                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">🗝️</div><h3 class="realm-card-title">Classic Rogue 5.4 (1980)</h3>
+                        <div class="realm-card-tagline">The 1980 Original Dungeons of Doom</div>
+                        <p class="realm-card-desc">Where the entire genre began in 1980. Face all 26 original A–Z monsters from Aquators to Dragons and retrieve the Amulet of Yendor on Level 26.</p>
+                        <div class="realm-card-features"><span class="realm-feat-chip">26 Classic A–Z Foes</span><span class="realm-feat-chip">1980 Status Bar</span><span class="realm-feat-chip">3x3 Room Grid</span></div>
+                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="rogue">Switch to Realm</button>
+                    </div>
+                    <div class="realm-card" data-realm="silq">
+                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">👑</div><h3 class="realm-card-title">Sil-Q 1.5+</h3>
+                        <div class="realm-card-tagline">First Age Stealth &amp; The Crown Heist</div>
+                        <p class="realm-card-desc">Tactical stealth roguelike in the First Age. Sing songs of power, evade Balrogs, and pry a Silmaril from Morgoth's crown.</p>
+                        <div class="realm-card-features"><span class="realm-feat-chip">Stealth Light Radius</span><span class="realm-feat-chip">Songs of the Edain</span><span class="realm-feat-chip">Elven Skald Voice</span></div>
+                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="silq">Switch to Realm</button>
                     </div>
                     <div class="realm-card" data-realm="frogcomposband">
                         <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">🐸</div><h3 class="realm-card-title">FrogComposBand</h3>
@@ -1349,41 +1384,6 @@
                             <select id="hengband-lang-select" style="background: rgba(15,18,28,0.9); color: #ffd700; border: 1px solid #c8a858; border-radius: 4px; padding: 2px 6px; font-size: 0.8rem; cursor: pointer;"><option value="en">English (EN)</option><option value="jp">日本語 (JP)</option></select>
                         </div>
                         <button type="button" class="btn-realm-select btn-gold-outline" data-realm="hengband">Switch to Realm</button>
-                    </div>
-                    <div class="realm-card" data-realm="silq">
-                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">👑</div><h3 class="realm-card-title">Sil-Q 1.5+</h3>
-                        <div class="realm-card-tagline">First Age Stealth &amp; The Crown Heist</div>
-                        <p class="realm-card-desc">Tactical stealth roguelike in the First Age. Sing songs of power, evade Balrogs, and pry a Silmaril from Morgoth's crown.</p>
-                        <div class="realm-card-features"><span class="realm-feat-chip">Stealth Light Radius</span><span class="realm-feat-chip">Songs of the Edain</span><span class="realm-feat-chip">Elven Skald Voice</span></div>
-                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="silq">Switch to Realm</button>
-                    </div>
-                    <div class="realm-card" data-realm="nethack">
-                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">🏺</div><h3 class="realm-card-title">NetHack 3.6.7</h3>
-                        <div class="realm-card-tagline">The Mazes of Menace &amp; Amulet of Yendor</div>
-                        <p class="realm-card-desc">Descend through the Dungeons of Doom, Gnomish Mines, and Sokoban. Test item beatitude at altars and claim the Amulet of Yendor.</p>
-                        <div class="realm-card-features"><span class="realm-feat-chip">52-Slot BUC Beatitude</span><span class="realm-feat-chip">Altar &amp; Fountain Rituals</span><span class="realm-feat-chip">Loyal Pet Companion</span></div>
-                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="nethack">Switch to Realm</button>
-                    </div>
-                    <div class="realm-card" data-realm="dcss">
-                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">🐙</div><h3 class="realm-card-title">Dungeon Crawl Stone Soup</h3>
-                        <div class="realm-card-tagline">Runes of Zot &amp; The Ecumenical Pantheon</div>
-                        <p class="realm-card-desc">Worship Okawaru, Vehumet, Trog, or Xom at ecumenical altars, conquer Lair, Orc, and Vaults for 3 Runes, and seize the Orb of Zot.</p>
-                        <div class="realm-card-features"><span class="realm-feat-chip">Pantheon &amp; Piety</span><span class="realm-feat-chip">Multi-Branch Runes</span><span class="realm-feat-chip">5 Iconic Species</span></div>
-                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="dcss">Switch to Realm</button>
-                    </div>
-                    <div class="realm-card" data-realm="brogue">
-                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">🔥</div><h3 class="realm-card-title">Brogue CE</h3>
-                        <div class="realm-card-tagline">Potions of Strength, Allies &amp; Lumenstones</div>
-                        <p class="realm-card-desc">Zero XP grinding — empower your gear with Scrolls of Enchantment, liberate chained monster allies, and brave lava caverns for Lumenstones.</p>
-                        <div class="realm-card-features"><span class="realm-feat-chip">Item-Driven Power</span><span class="realm-feat-chip">Captive Monster Allies</span><span class="realm-feat-chip">Lava &amp; Lake Terrain</span></div>
-                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="brogue">Switch to Realm</button>
-                    </div>
-                    <div class="realm-card" data-realm="rogue">
-                        <div class="realm-card-badge" style="display:none;">ACTIVE REALM</div><div class="realm-card-icon">🗝️</div><h3 class="realm-card-title">Classic Rogue 5.4 (1980)</h3>
-                        <div class="realm-card-tagline">The 1980 Original Dungeons of Doom</div>
-                        <p class="realm-card-desc">Where the entire genre began in 1980. Face all 26 original A–Z monsters from Aquators to Dragons and retrieve the Amulet of Yendor on Level 26.</p>
-                        <div class="realm-card-features"><span class="realm-feat-chip">26 Classic A–Z Foes</span><span class="realm-feat-chip">1980 Status Bar</span><span class="realm-feat-chip">3x3 Room Grid</span></div>
-                        <button type="button" class="btn-realm-select btn-gold-outline" data-realm="rogue">Switch to Realm</button>
                     </div>
                 </div>
 
@@ -1447,43 +1447,43 @@
     <script defer src="/js/vendor/GLTFLoader.js"></script>
 
     <!-- Client Subsystems -->
-    <script defer src="/js/safe-html.js?v=11.3.4"></script>
-    <script defer src="/js/realm-cartridge.js?v=11.3.4"></script>
-    <script defer src="/js/screen-modal-coordinator.js?v=11.3.4"></script>
-    <script defer src="/js/dungeon3d-lightmap.js?v=11.3.4"></script>
-    <script defer src="/js/dungeon3d-model-governor.js?v=11.3.4"></script>
-    <script defer src="/js/screen-context.js?v=11.3.4"></script>
-    <script defer src="/js/menu-router.js?v=11.3.4"></script>
-    <script defer src="/js/grimoire-deck.js?v=11.3.4"></script>
-    <script defer src="/js/quick-actions.js?v=11.3.4"></script>
-    <script defer src="/js/device.js?v=11.3.4"></script>
-    <script defer src="/js/action-catalog.js?v=11.3.4"></script>
-    <script defer src="/js/realm-keys.js?v=11.3.4"></script>
-    <script defer src="/js/command-dispatcher.js?v=11.3.4"></script>
-    <script defer src="/js/command-palette.js?v=11.3.4"></script>
-    <script defer src="/js/prompt-mirror.js?v=11.3.4"></script>
-    <script defer src="/js/item-sheet.js?v=11.3.4"></script>
-    <script defer src="/js/entity-menu.js?v=11.3.4"></script>
-    <script defer src="/js/gamepad.js?v=11.3.4"></script>
-    <script defer src="/js/radial-menu.js?v=11.3.4"></script>
-    <script defer src="/js/mobile-overlay.js?v=11.3.4"></script>
-    <script defer src="/js/audio.js?v=11.3.4"></script>
-    <script defer src="/js/terminal.js?v=11.3.4"></script>
-    <script defer src="/js/dungeon3d.js?v=11.3.4"></script>
-    <script defer src="/js/hud.js?v=11.3.4"></script>
-    <script defer src="/js/network.js?v=11.3.4"></script>
-    <script defer src="/js/local_bridge.js?v=11.3.4"></script>
-    <script defer src="/js/input.js?v=11.3.4"></script>
-    <script defer src="/js/demo-player.js?v=11.3.4"></script>
+    <script defer src="/js/safe-html.js?v=11.3.5"></script>
+    <script defer src="/js/realm-cartridge.js?v=11.3.5"></script>
+    <script defer src="/js/screen-modal-coordinator.js?v=11.3.5"></script>
+    <script defer src="/js/dungeon3d-lightmap.js?v=11.3.5"></script>
+    <script defer src="/js/dungeon3d-model-governor.js?v=11.3.5"></script>
+    <script defer src="/js/screen-context.js?v=11.3.5"></script>
+    <script defer src="/js/menu-router.js?v=11.3.5"></script>
+    <script defer src="/js/grimoire-deck.js?v=11.3.5"></script>
+    <script defer src="/js/quick-actions.js?v=11.3.5"></script>
+    <script defer src="/js/device.js?v=11.3.5"></script>
+    <script defer src="/js/action-catalog.js?v=11.3.5"></script>
+    <script defer src="/js/realm-keys.js?v=11.3.5"></script>
+    <script defer src="/js/command-dispatcher.js?v=11.3.5"></script>
+    <script defer src="/js/command-palette.js?v=11.3.5"></script>
+    <script defer src="/js/prompt-mirror.js?v=11.3.5"></script>
+    <script defer src="/js/item-sheet.js?v=11.3.5"></script>
+    <script defer src="/js/entity-menu.js?v=11.3.5"></script>
+    <script defer src="/js/gamepad.js?v=11.3.5"></script>
+    <script defer src="/js/radial-menu.js?v=11.3.5"></script>
+    <script defer src="/js/mobile-overlay.js?v=11.3.5"></script>
+    <script defer src="/js/audio.js?v=11.3.5"></script>
+    <script defer src="/js/terminal.js?v=11.3.5"></script>
+    <script defer src="/js/dungeon3d.js?v=11.3.5"></script>
+    <script defer src="/js/hud.js?v=11.3.5"></script>
+    <script defer src="/js/network.js?v=11.3.5"></script>
+    <script defer src="/js/local_bridge.js?v=11.3.5"></script>
+    <script defer src="/js/input.js?v=11.3.5"></script>
+    <script defer src="/js/demo-player.js?v=11.3.5"></script>
     <!-- Living Chronicle & Voiced Lorekeeper Modules -->
-    <script defer src="/js/chronicle/chronicle-store.js?v=11.3.4"></script>
-    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.3.4"></script>
-    <script defer src="/js/chronicle/chronicle-filter.js?v=11.3.4"></script>
-    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.3.4"></script>
-    <script defer src="/js/chronicle/chronicle-audio.js?v=11.3.4"></script>
-    <script defer src="/js/chronicle/chronicle-llm.js?v=11.3.4"></script>
-    <script defer src="/js/chronicle/chronicle-manager.js?v=11.3.4"></script>
-    <script defer src="/js/app.js?v=11.3.4"></script>
-    <script defer src="/js/boot.js?v=11.3.4"></script>
+    <script defer src="/js/chronicle/chronicle-store.js?v=11.3.5"></script>
+    <script defer src="/js/chronicle/chronicle-grounder.js?v=11.3.5"></script>
+    <script defer src="/js/chronicle/chronicle-filter.js?v=11.3.5"></script>
+    <script defer src="/js/chronicle/chronicle-story-weaver.js?v=11.3.5"></script>
+    <script defer src="/js/chronicle/chronicle-audio.js?v=11.3.5"></script>
+    <script defer src="/js/chronicle/chronicle-llm.js?v=11.3.5"></script>
+    <script defer src="/js/chronicle/chronicle-manager.js?v=11.3.5"></script>
+    <script defer src="/js/app.js?v=11.3.5"></script>
+    <script defer src="/js/boot.js?v=11.3.5"></script>
 </body>
 </html>

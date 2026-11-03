@@ -9777,13 +9777,19 @@ body[data-realm="dcss"] { --realm-surface-top: #131620; --realm-surface-bot: #07
 body[data-realm="brogue"] { --realm-surface-top: #1d120e; --realm-surface-bot: #0c0705; --realm-border-outer: rgba(249, 115, 22, 0.56); --realm-border-inner: rgba(254, 215, 170, 0.18); --realm-accent-bright: #fdba74; --realm-accent-glow: rgba(249, 115, 22, 0.34); --realm-socket-bg: linear-gradient(180deg, #261610 0%, #100906 100%); }
 body[data-realm="rogue"] { --realm-surface-top: #16130d; --realm-surface-bot: #090805; --realm-border-outer: rgba(245, 158, 11, 0.58); --realm-border-inner: rgba(253, 230, 138, 0.18); --realm-accent-bright: #fcd34d; --realm-accent-glow: rgba(245, 158, 11, 0.34); --realm-socket-bg: linear-gradient(180deg, #1f1a10 0%, #0d0b06 100%); }
 #action-bar .action-cluster-sep { display: inline-block; width: 1px; height: 22px; background: linear-gradient(180deg, transparent 0%, rgba(212, 175, 55, 0.48) 50%, transparent 100%); margin: 0 3px; align-self: center; flex-shrink: 0; pointer-events: none; }
-.death-tombstone-split { display: grid; grid-template-columns: minmax(240px, 340px) 1fr; gap: 14px; align-items: stretch; width: 100%; }
+.death-panel { width: min(1060px, 96vw) !important; max-width: min(1060px, 96vw) !important; max-height: min(94dvh, 880px) !important; } .death-body { max-height: 520px !important; overflow-x: hidden !important; overflow-y: auto !important; }
+.death-tombstone-split { display: grid; grid-template-columns: minmax(280px, 370px) minmax(0, 1fr); gap: 16px; align-items: stretch; width: 100%; }
 @media (max-width: 860px) { .death-tombstone-split { grid-template-columns: 1fr; } }
-.death-sketch-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(14, 10, 7, 0.92); border: 1.5px solid rgba(212, 175, 55, 0.55); border-radius: 8px; padding: 8px; box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.85); }
-.death-sketch-img { width: 100%; max-height: 270px; object-fit: contain; border-radius: 5px; border: 1px solid rgba(212, 175, 55, 0.35); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+#death-terminal-container { min-width: 0; overflow: hidden; border: 1px solid rgba(212, 175, 55, 0.32); box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.9); } #death-terminal-canvas { width: 100% !important; height: auto !important; max-width: 100% !important; max-height: 360px !important; object-fit: contain !important; }
+.death-sketch-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(14, 10, 7, 0.94); border: 1.5px solid rgba(212, 175, 55, 0.65); border-radius: 8px; padding: 10px; box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.85), 0 6px 20px rgba(0, 0, 0, 0.7); }
+.death-sketch-img { width: 100%; max-height: 310px; aspect-ratio: 1 / 1; object-fit: contain; border-radius: 6px; border: 1px solid rgba(212, 175, 55, 0.45); background: #090705; transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .death-sketch-img:hover { transform: scale(1.015); box-shadow: 0 0 16px rgba(245, 215, 127, 0.45); }
 .death-sketch-status { font-size: 11px; color: #f5d77f; margin-top: 6px; text-align: center; font-family: var(--font-title, 'Cinzel', serif); letter-spacing: 0.4px; }
 .death-btn.btn-share-yasd { background: linear-gradient(180deg, #3b280c 0%, #1c1205 100%); border: 1.5px solid #f5d77f; color: #fff8e1; font-weight: 700; }
+#chronicle-sketch-modal { position: fixed; inset: 0; background: rgba(4, 3, 2, 0.94); z-index: 1200; align-items: center; justify-content: center; padding: 16px; } #chronicle-sketch-modal .chronicle-sketch-lightbox-card { width: min(860px, 95vw); max-height: min(92dvh, 880px); display: flex; flex-direction: column; background: linear-gradient(180deg, #16110b 0%, #0a0805 100%); border: 2px solid #d4af37; border-radius: 10px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 235, 175, 0.25); overflow: hidden; }
+#chronicle-sketch-modal .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid rgba(212, 175, 55, 0.35); background: rgba(24, 17, 9, 0.92); } #chronicle-sketch-modal-title { margin: 0; font-family: var(--font-title, 'Cinzel', serif); font-size: clamp(15px, 2.2vw, 20px); color: #f5d77f; letter-spacing: 0.8px; } #btn-close-sketch-modal { background: rgba(40, 24, 12, 0.85); border: 1px solid rgba(212, 175, 55, 0.55); color: #f5d77f; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+#chronicle-sketch-modal .chronicle-sketch-modal-body { padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: 12px; } #chronicle-sketch-modal-img { max-width: 100%; max-height: min(58dvh, 520px); width: auto; height: auto; object-fit: contain; border-radius: 8px; border: 1.5px solid rgba(212, 175, 55, 0.65); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85); background: #070503; } #chronicle-sketch-modal-caption { font-family: Georgia, serif; font-style: italic; font-size: 14px; color: #f3e5ab; text-align: center; max-width: 720px; line-height: 1.45; } #chronicle-sketch-modal-gear { justify-content: center; max-width: 760px; }
+#chronicle-sketch-modal .modal-footer { display: flex; justify-content: center; padding: 12px 18px; border-top: 1px solid rgba(212, 175, 55, 0.3); background: rgba(16, 11, 6, 0.95); } #btn-download-sketch-png { display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 6px; background: linear-gradient(180deg, #3b280c 0%, #1c1205 100%); border: 1.5px solid #f5d77f; color: #fff8e1; font-family: var(--font-title, 'Cinzel', serif); font-size: 13px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6); }
 /* Unified Dark-Fantasy Action Bar & Suggested Candlelit Highlighting */
 #action-bar { background: linear-gradient(180deg, var(--realm-surface-top, #141210) 0%, var(--realm-surface-bot, #090806) 100%); border: 1px solid var(--realm-border-outer, rgba(212, 175, 55, 0.56)); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.88), inset 0 1px 0 var(--realm-border-inner, rgba(255, 232, 170, 0.16)); }
 #action-bar .action-btn { background: var(--realm-socket-bg, linear-gradient(180deg, #1b1610 0%, #0d0a06 100%)); border: 1px solid rgba(212, 175, 55, 0.32); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.72); transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease; }
@@ -9806,21 +9812,22 @@ body[data-realm="rogue"] { --realm-surface-top: #16130d; --realm-surface-bot: #0
     }
 }
 /* Universal Cross-Device & Cross-Orientation Responsive Scaling (Mobile Portrait, Landscape, Tablet, Desktop) */
-.load-card, .guide-card, .pause-card, .death-card, .realm-selector-card { max-width: min(920px, calc(100vw - 16px)) !important; max-height: calc(100dvh - 16px) !important; overflow-y: auto !important; }
-.save-item-card, .save-item-actions, .death-actions, .load-modal-toolbar { flex-wrap: wrap !important; }
+.load-card, .guide-card, .pause-card, .death-card, .realm-selector-card, .main-menu-card { max-width: min(920px, calc(100vw - 16px)) !important; max-height: calc(100dvh - 16px) !important; overflow-x: hidden !important; overflow-y: auto !important; box-sizing: border-box !important; }
+.main-menu-header, .main-menu-realm-strip, .main-menu-realm-select-row, .main-menu-realm-meta-row, .main-menu-options, .main-menu-secondary-dock, .save-item-card, .save-item-actions, .death-actions, .load-modal-toolbar { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; flex-wrap: wrap !important; }
 @media (max-width: 768px) {
     #command-palette-search, input[type="text"], input[type="search"], select { font-size: 16px !important; }
-    .splash-title, .main-menu-title { white-space: normal !important; line-height: 1.18 !important; font-size: clamp(18px, 5.2vw, 26px) !important; letter-spacing: clamp(1px, 0.6vw, 3px) !important; }
+    .splash-title, .main-menu-title { white-space: normal !important; line-height: 1.18 !important; font-size: clamp(17px, 4.8vw, 24px) !important; letter-spacing: clamp(1px, 0.5vw, 2.5px) !important; }
     .splash-subtitle, .main-menu-subtitle { font-size: clamp(11px, 3vw, 12.5px) !important; line-height: 1.35 !important; }
     .splash-logo-wrap.protected-crest .splash-logo-main { width: clamp(250px, 80vw, 400px) !important; height: clamp(250px, 80vw, 400px) !important; }
-    .main-menu-card { width: calc(100vw - 12px) !important; max-height: calc(100dvh - 12px) !important; padding: 12px 12px !important; }
-    .main-menu-crest-bar { gap: 8px; }
-    .main-menu-logo-primary { width: 42px; height: 42px; }
+    .main-menu-card { width: calc(100vw - 12px) !important; max-height: calc(100dvh - 12px) !important; padding: 10px 10px !important; overflow-x: hidden !important; }
+    .main-menu-crest-bar { gap: 8px; width: 100%; min-width: 0; }
+    .main-menu-logo-primary { width: 40px; height: 40px; }
     .main-menu-logo-secondary { width: 22px; height: 28px; }
-    .main-menu-realm-pills { flex-wrap: nowrap !important; overflow-x: auto !important; max-width: 100%; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
-    .realm-pill-btn { flex-shrink: 0; }
+    .main-menu-realm-select-row { gap: 6px !important; } .main-menu-realm-dropdown-wrap { flex: 1 1 100% !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; } .main-menu-realm-dropdown { width: 100% !important; max-width: 100% !important; min-width: 0 !important; font-size: 13px !important; padding: 6px 28px 6px 8px !important; } #btn-menu-realms { width: 100% !important; text-align: center !important; }
+    .main-menu-realm-pills { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 4px !important; width: 100% !important; max-width: 100% !important; overflow: hidden !important; }
+    .realm-pill-btn { width: 100% !important; min-width: 0 !important; padding: 5px 2px !important; font-size: 10.5px !important; text-align: center !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
     .main-menu-secondary-dock { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
-    .menu-dock-btn { padding: 6px 4px !important; }
+    .menu-dock-btn { padding: 6px 4px !important; min-width: 0 !important; }
     .save-item-card { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
     .save-item-actions { width: 100%; justify-content: flex-end; }
 }

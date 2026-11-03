@@ -1755,7 +1755,7 @@ const server = http.createServer((req, res) => {
                         return sendSketchViaAiStudio(modelIdx + 1);
                     }
                     if (upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 404 || upstreamRes.statusCode === 429 || upstreamRes.statusCode === 500 || upstreamRes.statusCode === 503) {
-                        if (upstreamRes.statusCode === 402 && apiKey === process.env.GEMINI_API_KEY) {
+                        if ((upstreamRes.statusCode === 402 || upstreamRes.statusCode === 403 || upstreamRes.statusCode === 429) && apiKey === process.env.GEMINI_API_KEY) {
                             _aiStudioDepletedUntil = Date.now() + 15 * 60 * 1000;
                         }
                         return sendSketchViaVertex(upstreamRes.statusCode);

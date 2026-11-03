@@ -1255,7 +1255,10 @@
         const gold = p.gold || 0;
         const exp = p.exp || 0;
         const turns = p.turns || f.turn || 1;
-        const diedFrom = p.died_from || p.killed_by || 'mortal wounds';
+        const rawDiedFrom = String(p.died_from || p.killed_by || 'mortal wounds').trim();
+        const diedFrom = rawDiedFrom
+            .replace(/^a\s+([A-Z][a-zA-Z]+)/, '$1')
+            .replace(/^a\s+([aeiouAEIOU][a-z]+)/, 'an $1');
         const isWinner = Boolean(p.winner);
 
         let depthStr = depth === 0 ? 'in the Town' : `on Dungeon Level ${depth} (${depth * 50} ft)`;
@@ -1290,7 +1293,8 @@
         if (r === 'dcss') {
             score = `Runes: ${p.runes || 0}/3 ${p.rune_list && p.rune_list.length ? `(${p.rune_list.join(', ')})` : ''}  •  God: ${p.god || 'No God'}  •  Gold: ${gold.toLocaleString()}  •  Deepest: ${maxDepthStr}`;
         } else if (r === 'brogue') {
-            score = `Lumenstones: ${p.lumenstones || 0}  •  Gold: ${gold.toLocaleString()}  •  Strength: ${(p.stats && p.stats.str) || 12}  •  Deepest: ${maxDepthStr}`;
+            const brogueStr = (p.stats && typeof p.stats.str === 'object') ? (p.stats.str.use ?? p.stats.str.top ?? 12) : ((p.stats && p.stats.str) || p.str || 12);
+            score = `Lumenstones: ${p.lumenstones || 0}  •  Gold: ${gold.toLocaleString()}  •  Strength: ${brogueStr}  •  Deepest: ${maxDepthStr}`;
         } else if (r === 'nethack') {
             score = `Score: ${(gold + exp + depth * 50).toLocaleString()}  •  Gold: ${gold.toLocaleString()} zorkmids  •  Turns: ${turns.toLocaleString()}  •  Deepest: ${maxDepthStr}`;
         } else if (r === 'silq') {

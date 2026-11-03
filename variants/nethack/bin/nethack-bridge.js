@@ -1572,8 +1572,9 @@ class NetHackEngine {
                     } else {
                         p.hp = 0;
                         p.dead = true;
-                        p.diedFrom = `a ${mon.race} on Dlvl ${this.state.depth}`;
-                        this.addMessage(`You die... Killed by ${p.diedFrom}. Press [R] or [Enter] to start anew.`, 4);
+                        const isProper = Boolean(mon.isBoss || /^[A-Z]/.test(mon.race || ''));
+                        p.diedFrom = isProper ? mon.race : (/^[aeiou]/i.test(mon.race || '') ? `an ${mon.race}` : `a ${mon.race}`);
+                        this.addMessage(`You die... Killed by ${p.diedFrom} on Dlvl ${this.state.depth}. Press [R] or [Enter] to start anew.`, 4);
                         return;
                     }
                 }

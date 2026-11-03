@@ -161,5 +161,21 @@ test('hud.js, dungeon.css, CREDITS.md, and index.html enforce minimap hover insp
     assert(!/skyrim|daggerfall/i.test(readme), 'README.md must not reference third-party Elder Scrolls trademarks');
 });
 
+// 8. YASD Death Modal & Sketch Lightbox Scaling, Deduplication, and Stat Unwrapping
+test('YASD Death Modal and Chronicle Sketch unwrap stat objects, deduplicate death sketch requests, and scale #death-terminal-canvas responsively', () => {
+    const chronSrc = read('server/public/js/chronicle/chronicle-manager.js');
+    assert(chronSrc.includes('unwrapStatVal'), 'chronicle-manager.js must unwrap stat objects ({ use, cur, val, max }) to prevent [object Object]');
+    assert(chronSrc.includes('drawSlayerSilhouette'), 'chronicle-manager.js must render a distinct slayer silhouette and tombstone memorial in death mode');
+
+    const hudSrc = read('server/public/js/hud.js');
+    assert(hudSrc.includes('_lastDeathSketchSig'), 'hud.js must guard renderDeathSketchIntoModal with _lastDeathSketchSig so frame updates do not reset AI sketches');
+
+    const termSrc = read('server/public/js/terminal.js');
+    assert(termSrc.includes("this.canvas.id === 'death-terminal-canvas'"), 'terminal.js resize() must keep #death-terminal-canvas responsive inside .death-tombstone-split');
+
+    const cssSrc = read('server/public/css/dungeon.css');
+    assert(cssSrc.includes('.chronicle-sketch-lightbox-card'), 'dungeon.css must style #chronicle-sketch-modal .chronicle-sketch-lightbox-card');
+});
+
 console.log('test_hero_sketch_and_gui.js: ALL PASS');
 

@@ -366,11 +366,22 @@ class WebTerminal {
             this.canvas.height = targetH;
         }
 
-        this.canvas.style.width = `${cssW}px`;
-        this.canvas.style.height = `${cssH}px`;
-        this.canvas.style.maxWidth = 'none'; // Allow viewport horizontal scrolling
-        this.canvas.style.flexShrink = '0';
-        this.canvas.style.objectFit = 'contain';
+        if (this.canvas.id === 'death-terminal-canvas') {
+            this.canvas.style.width = '100%';
+            this.canvas.style.height = 'auto';
+            this.canvas.style.maxWidth = '100%';
+            this.canvas.style.maxHeight = '100%';
+            this.canvas.style.aspectRatio = `${this.cols} / ${this.rows}`;
+            this.canvas.style.flexShrink = '1';
+            this.canvas.style.objectFit = 'contain';
+            this.canvas.style.margin = 'auto';
+        } else {
+            this.canvas.style.width = `${cssW}px`;
+            this.canvas.style.height = `${cssH}px`;
+            this.canvas.style.maxWidth = 'none'; // Allow viewport horizontal scrolling
+            this.canvas.style.flexShrink = '0';
+            this.canvas.style.objectFit = 'contain';
+        }
 
         const needsScrollX = cssW > availW;
         const needsScrollY = cssH > availH;

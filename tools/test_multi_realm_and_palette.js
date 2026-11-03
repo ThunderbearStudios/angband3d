@@ -161,7 +161,7 @@ async function run() {
         await evalExpr('window.__app.cycleRealm(1)');
         newRealm = await evalExpr('window.__app.getActiveRealm()');
         console.log('[Test] Cycled Realm (+1):', newRealm);
-        if (newRealm !== 'silq') throw new Error('Cycle realm +1 did not move from hengband to silq');
+        if (newRealm !== 'nethack') throw new Error('Cycle realm +1 did not move from hengband to nethack');
 
         console.log('[Test] Closing Realm Selector modal...');
         await evalExpr('window.__app.hideRealmSelector()');

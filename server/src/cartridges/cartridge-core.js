@@ -1060,11 +1060,14 @@ class UniversalCartridgeEngine {
             if (dist <= 1.5) {
                 const dmg = Math.max(1, (mon.dmg || 4) - this.rand(2));
                 p.hp -= dmg;
-                this.addMessage(`The ${mon.race} hits you! (-${dmg} HP)`, 4);
+                const isProperName = Boolean(mon.isBoss || /^[A-Z]/.test(mon.race || ''));
+                const subjName = isProperName ? mon.race : `The ${mon.race}`;
+                const killerArticle = isProperName ? mon.race : (/^[aeiou]/i.test(mon.race || '') ? `an ${mon.race}` : `a ${mon.race}`);
+                this.addMessage(`${subjName} hits you! (-${dmg} HP)`, 4);
                 if (p.hp <= 0) {
                     p.hp = 0;
                     p.dead = true;
-                    p.diedFrom = `a ${mon.race}`;
+                    p.diedFrom = killerArticle;
                     this.addMessage(`You die... Killed by ${p.diedFrom} on ${this.state.branchName} ${this.state.depth}.`, 4);
                     return;
                 }

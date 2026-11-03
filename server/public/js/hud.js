@@ -2926,6 +2926,7 @@ class WebHUD {
         if (!this.deathModal) return;
         this.deathModal.classList.add('hidden');
         this.isDeadInPlay = false;
+        this._lastDeathSketchSig = null;
     }
 
     rerollCharacter() {
@@ -3010,6 +3011,7 @@ class WebHUD {
 
     showDeathModal(frame) {
         if (!this.deathModal) return;
+        const wasHidden = this.deathModal.classList.contains('hidden');
         this.deathModal.classList.remove('hidden');
         this.lastDeathFrame = frame;
 
@@ -3030,9 +3032,16 @@ class WebHUD {
         if (this.deathTabs[2]) this.deathTabs[2].textContent = `3. Inventory (${summary.inv.length})`;
         if (this.deathTabs[3]) this.deathTabs[3].textContent = `4. Quiver (${summary.quiv.length})`;
 
-        this.renderDeathTabContent(this.activeDeathTab, frame);
+        if (wasHidden) {
+            this.switchDeathTab(0);
+        } else {
+            this.renderDeathTabContent(this.activeDeathTab, frame);
+        }
 
-        if (window.chronicleManager && typeof window.chronicleManager.renderDeathSketchIntoModal === 'function') {
+        const p = (frame && frame.player) || {};
+        const sketchSig = `${realm}:${p.name || 'Hero'}:${p.level || 1}:${p.depth || 0}:${summary.cause || ''}`;
+        if (this._lastDeathSketchSig !== sketchSig && window.chronicleManager && typeof window.chronicleManager.renderDeathSketchIntoModal === 'function') {
+            this._lastDeathSketchSig = sketchSig;
             window.chronicleManager.renderDeathSketchIntoModal(frame);
         }
         const shareBtn = document.getElementById('btn-death-share-yasd');
@@ -3061,6 +3070,10 @@ class WebHUD {
                     });
                 }
                 this.deathTerminal.render(frame.term);
+                termCanvas.style.width = '100%';
+                termCanvas.style.height = 'auto';
+                termCanvas.style.maxWidth = '100%';
+                termCanvas.style.maxHeight = '100%';
             }
         } else if (tabIdx === 1 || tabIdx === 2 || tabIdx === 3) {
             const listIds = [null, 'death-equipment-list', 'death-inventory-list', 'death-quiver-list'];

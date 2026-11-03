@@ -1,13 +1,16 @@
 # Execution State (Read First, Update Last)
 
 ## Active Task
-**WS47 — `v11.1.1` Zero-Flicker Menu/HUD/Action-Bar Stabilization (`M1–M6`) & Resonant MCP `v2.5` Guardrail Evolution — COMPLETE**
+**WS48 — `v11.3.5` YASD 3D Showcase Splash, Cross-Realm Procedural Birth & YASD Death Sketch/Modal Overhaul — COMPLETE**
 
 - **Checklist** (one commit per card, red test first):
-  - [x] `M1 & M2` Zero-Flicker Overlay Memoization (`prompt-mirror.js`, `item-sheet.js`, `grimoire-deck.js`, `app.js`, `dungeon.css`): Removed monotonic `frame.seq` from `_lastSig` & `toolbarSig` (`UI_SEQ_IN_MEMO_SIG`), replaced with content digests (`itemDigest`, `actDigest`, `chipDigest`, `screenDigest`), moved `skipScraping` $O(1)$ early return above `toolbarSig`, and added `.is-open-stable`.
-  - [x] `M3 & M4` Action Bar & Contextual Controls Stability (`input.js`, `dungeon.css`): Replaced raw `curSp` & `hostileMonsters.length` in `evaluateActionBarContext` `stateSig` with threshold buckets, memoized `updateActionBarOverflow` on `_lastOverflowSig`, removed `frame.seq` from `updateContextualControls` `sig`, fixed `btnAttack` visibility (`contextHidden` / `realmHidden`), and locked `#btn-hero-action` `min-width: 98px`.
-  - [x] `M5 & M6` In-Place HUD Drawer & Footer Reconciliation (`hud.js`, `server.js`): Reconciled `#char-extended-drawer` & `#footer-badges` child nodes in-place, memoized `footerTarget.innerHTML` on `_lastFooterTargetSig`, and added `/version.json` to `no-store` headers.
-  - [x] Version bump to `11.1.1` (`node tools/bump_version.js 11.1.1` + `npm run android:sync`), packaged `dist/Angband3D-Windows-x64.zip`, and verified `test_rev5_exemplar_contracts.js` (`8/8 PASS`).
+  - [x] `M1–M4` Zero-Flicker Overlay Memoization, Action Bar Stability & In-Place HUD Reconciliation (`v11.1.1`).
+  - [x] `v11.3.3–v11.3.4` Official YASD 3D Splash Billboard (`yasd3d_logo.png`), Realm Popularity Strip (`NetHack • DCSS • Angband • Brogue • Rogue • Sil-Q • FrogComposBand • Hengband`), and Cross-Realm Procedural Dungeon & Birth Audit.
+  - [x] `v11.3.5` YASD Death Modal & On-Demand Sketch Overhaul (`chronicle-manager.js`, `hud.js`, `terminal.js`, `server.js`, `cartridge-core.js`, `nethack-bridge.js`, `realm-cartridge.js`, `dungeon.css`, `index.html`):
+    - Responsive `#death-terminal-canvas` scaling inside `.death-tombstone-split` (eliminating `1120px` overflow scrollbars that hid `#death-sketch-wrap`).
+    - Guarded `renderDeathSketchIntoModal` with `_lastDeathSketchSig` so subsequent frames while dead do not overwrite Gemini illustrations or trip rate limits.
+    - Unwrapped stat objects (`{ use, cur, val, top, max }`) across all 8 realms (zero `[object Object]` badges) and fixed unique boss kill grammar (`Killed by Sigmund`, not `Killed by a Sigmund`).
+    - Overhauled `renderMasterworkCanvasSketch` death mode to render a chiseled tombstone memorial + slayer silhouette, styled `#chronicle-sketch-modal` lightbox, and cached AI Studio `429` cooldown (`_aiStudioDepletedUntil`) for instant Vertex AI `gemini-2.5-flash-image` routing.
 
 ## Completed Workstreams
 | WS | Scope | Status |

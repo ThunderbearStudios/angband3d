@@ -2420,7 +2420,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 returnToMainMenu();
             }
         }, 20000);
-        network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm, !options.autoBirth);
+        network.connect(options.charName || 'Adventurer', !!options.isNew, options.saveFile || null, chosenRealm, Boolean(options.isNew && !options.autoBirth));
     }
 
     async function reloadLastSave() {
@@ -3375,7 +3375,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function cycleRealm(delta = 1) {
         if (appState === 'game') return;
-        const realms = ['angband', 'frogcomposband', 'hengband', 'silq', 'nethack', 'dcss', 'brogue', 'rogue'];
+        const realms = ['nethack', 'dcss', 'angband', 'brogue', 'rogue', 'silq', 'frogcomposband', 'hengband'];
         const currentIdx = realms.indexOf(activeRealm);
         const nextIdx = (currentIdx + delta + realms.length) % realms.length;
         selectRealm(realms[nextIdx], false);

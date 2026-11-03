@@ -2906,7 +2906,10 @@ class ChronicleManager {
         const title = p.title || '';
         const level = p.lev || p.level || 1;
         const depth = frame.depth ?? p.depth ?? 0;
-        const killedBy = p.died_from || p.killed_by || (mode === 'death' ? 'mortal wounds' : '');
+        const rawKilledBy = String(p.died_from || p.killed_by || (mode === 'death' ? 'mortal wounds' : '')).trim();
+        const killedBy = rawKilledBy
+            .replace(/^a\s+([A-Z][a-zA-Z]+)/, '$1')
+            .replace(/^a\s+([aeiouAEIOU][a-z]+)/, 'an $1');
 
         // Vitals
         const hp = p.hp ?? p.chp ?? 10;
@@ -2925,7 +2928,7 @@ class ChronicleManager {
         const termRows = (frame.term && Array.isArray(frame.term.rows)) ? frame.term.rows : [];
         const parsedSidebarStats = {};
         for (let r = 0; r < Math.min(termRows.length, 23); r++) {
-            const row = typeof termRows[r] === 'string' ? termRows[r] : '';
+            const row = typeof termRows[r] === 'string' ? termRows[r] : (termRows[r] && typeof termRows[r].g === 'string' ? termRows[r].g : '');
             if (!row) continue;
             // Match attributes / skills: STR, INT, WIS, DEX, CON, CHR, GRA, Mel, Arc, Eva, Stl, Per, Wil, Smt, Sng
             const statRegex = /\b(STR|INT|WIS|DEX|CON|CHR|GRA|Mel|Arc|Eva|Stl|Per|Wil|Smt|Sng)[\s:]+([0-9\/!+]+(?:\s*\([+-]?\d+\))?)/gi;
@@ -2952,21 +2955,37 @@ class ChronicleManager {
         if (acVal === null) acVal = isSilq ? 2 : 14;
         if (speedVal === null) speedVal = 0;
 
-        // Build stats object
+        // Build stats object (unwrapping { use, cur, val, top, max } objects cleanly)
         const stats = {};
         const statBadges = [];
         const pStats = p.stats || p.stat_cur || p.abilities || null;
+
+        const unwrapStatVal = (v) => {
+            if (v === undefined || v === null) return null;
+            if (typeof v === 'object') {
+                const u = v.use ?? v.cur ?? v.val ?? v.top ?? v.max ?? v.base;
+                return (u !== undefined && u !== null && typeof u !== 'object') ? String(u) : null;
+            }
+            const s = String(v);
+            return s.includes('[object') ? null : s;
+        };
 
         const resolveStat = (key, idx, defaultVal) => {
             const upper = key.toUpperCase();
             const lower = key.toLowerCase();
             if (parsedSidebarStats[upper]) return parsedSidebarStats[upper];
-            if (p[lower] !== undefined && p[lower] !== null) return String(p[lower]);
+            const directVal = unwrapStatVal(p[lower]);
+            if (directVal !== null) return directVal;
             if (pStats) {
-                if (Array.isArray(pStats) && pStats[idx] !== undefined) return String(pStats[idx]);
+                if (Array.isArray(pStats) && pStats[idx] !== undefined) {
+                    const arrVal = unwrapStatVal(pStats[idx]);
+                    if (arrVal !== null) return arrVal;
+                }
                 if (typeof pStats === 'object') {
-                    if (pStats[upper] !== undefined) return String(pStats[upper]);
-                    if (pStats[lower] !== undefined) return String(pStats[lower]);
+                    const upVal = unwrapStatVal(pStats[upper]);
+                    if (upVal !== null) return upVal;
+                    const loVal = unwrapStatVal(pStats[lower]);
+                    if (loVal !== null) return loVal;
                 }
             }
             return String(defaultVal);
@@ -2988,6 +3007,30 @@ class ChronicleManager {
                     statBadges.push(`${sk} ${parsedSidebarStats[upper]}`);
                 }
             }
+        } else if (realm === 'dcss') {
+            stats.STR = resolveStat('STR', 0, 15);
+            stats.INT = resolveStat('INT', 1, 12);
+            stats.DEX = resolveStat('DEX', 3, 14);
+            statBadges.push(
+                `STR ${stats.STR}`,
+                `INT ${stats.INT}`,
+                `DEX ${stats.DEX}`,
+                `AC ${acVal}`,
+                `EV ${p.ev ?? 10}`,
+                `SH ${p.sh ?? 0}`,
+                `HP ${hp}/${hp_max}`,
+                `MP ${mp}/${mp_max}`,
+                `AU ${goldVal}`
+            );
+        } else if (realm === 'brogue') {
+            stats.STR = resolveStat('STR', 0, 12);
+            statBadges.push(
+                `STR ${stats.STR}`,
+                `AC ${acVal}`,
+                `HP ${hp}/${hp_max}`,
+                `AU ${goldVal}`,
+                `LUMEN ${p.lumenstones || 0}`
+            );
         } else {
             stats.STR = resolveStat('STR', 0, 16);
             stats.INT = resolveStat('INT', 1, 12);
@@ -3893,18 +3936,81 @@ class ChronicleManager {
         const heroX = 275;
         const heroY = 220;
 
-        // Ground shadow beneath hero
+        // Ground shadow beneath center stage
         ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
         ctx.beginPath();
-        ctx.ellipse(heroX + 50, 375, 55, 14, 0, 0, Math.PI * 2);
+        ctx.ellipse(heroX + 60, 375, 68, 15, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        if (dungeon && typeof dungeon.getMonsterAtlasUV === 'function' && monsterAtlasImg && monsterAtlasImg.complete && monsterAtlasImg.width > 0) {
+        const heroUvObj = (dungeon && typeof dungeon.getMonsterAtlasUV === 'function')
+            ? (dungeon.getMonsterAtlasUV(hero.class || '<player>', '@') || dungeon.getMonsterAtlasUV('<player>', '@'))
+            : null;
+        const heroUvArr = heroUvObj && (Array.isArray(heroUvObj) ? heroUvObj : heroUvObj.uv);
+
+        // Helper to draw a menacing horned slayer silhouette when monster atlas UV is unavailable or collides with hero default UV
+        const drawSlayerSilhouette = (mx, my) => {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+            ctx.beginPath();
+            ctx.ellipse(mx + 50, 375, 52, 13, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.shadowColor = '#ef4444';
+            ctx.shadowBlur = 22;
+            ctx.fillStyle = '#12080a';
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.65)';
+            ctx.lineWidth = 2;
+            // Cloak & torso
+            ctx.beginPath();
+            ctx.moveTo(mx + 50, my + 18);
+            ctx.lineTo(mx + 88, my + 55);
+            ctx.lineTo(mx + 98, my + 148);
+            ctx.lineTo(mx + 4, my + 148);
+            ctx.lineTo(mx + 14, my + 55);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            // Horns
+            ctx.beginPath();
+            ctx.moveTo(mx + 34, my + 24);
+            ctx.quadraticCurveTo(mx + 12, my - 4, mx + 22, my - 12);
+            ctx.quadraticCurveTo(mx + 28, my + 8, mx + 44, my + 20);
+            ctx.moveTo(mx + 66, my + 24);
+            ctx.quadraticCurveTo(mx + 88, my - 4, mx + 78, my - 12);
+            ctx.quadraticCurveTo(mx + 72, my + 8, mx + 56, my + 20);
+            ctx.fill();
+            ctx.stroke();
+            // Glowing crimson eyes
+            ctx.fillStyle = '#ff3b30';
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(mx + 42, my + 34, 3.5, 0, Math.PI * 2);
+            ctx.arc(mx + 58, my + 34, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            // Reaper scythe / jagged polearm
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.shadowColor = '#f87171';
+            ctx.shadowBlur = 8;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(mx + 12, my + 145);
+            ctx.lineTo(mx + 82, my + 5);
+            ctx.stroke();
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.moveTo(mx + 82, my + 5);
+            ctx.quadraticCurveTo(mx + 30, my - 8, mx + 14, my + 28);
+            ctx.quadraticCurveTo(mx + 46, my + 12, mx + 76, my + 18);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        };
+
+        if (!isDeathMode && dungeon && typeof dungeon.getMonsterAtlasUV === 'function' && monsterAtlasImg && monsterAtlasImg.complete && monsterAtlasImg.width > 0) {
             try {
-                const heroUv = dungeon.getMonsterAtlasUV(hero.class || '<player>', '@') || dungeon.getMonsterAtlasUV('<player>', '@');
-                const uvArr = heroUv && (Array.isArray(heroUv) ? heroUv : heroUv.uv);
-                if (uvArr && uvArr.length >= 4) {
-                    const [u0, v0, u1, v1] = uvArr;
+                if (heroUvArr && heroUvArr.length >= 4) {
+                    const [u0, v0, u1, v1] = heroUvArr;
                     const sx = u0 * monsterAtlasImg.width;
                     const sy = (1 - v1) * monsterAtlasImg.height;
                     const sw = (u1 - u0) * monsterAtlasImg.width;
@@ -3945,12 +4051,13 @@ class ChronicleManager {
                         });
                     }
 
-                    // Visible monster sprite
+                    // Visible monster sprite (never duplicate the hero sprite UV!)
                     if (Array.isArray(ctxData.visibleMonsters) && ctxData.visibleMonsters.length > 0) {
                         const m = ctxData.visibleMonsters[0];
                         const mUv = dungeon.getMonsterAtlasUV(m.name, m.glyph);
                         const mArr = mUv && (Array.isArray(mUv) ? mUv : mUv.uv);
-                        if (mArr && mArr.length >= 4) {
+                        const isDistinctUv = mArr && mArr.length >= 4 && (Math.abs(mArr[0] - u0) > 0.001 || Math.abs(mArr[1] - v0) > 0.001);
+                        if (isDistinctUv) {
                             const [mu0, mv0, mu1, mv1] = mArr;
                             const msx = mu0 * monsterAtlasImg.width;
                             const msy = (1 - mv1) * monsterAtlasImg.height;
@@ -3967,90 +4074,154 @@ class ChronicleManager {
                             ctx.shadowBlur = 18;
                             ctx.drawImage(monsterAtlasImg, msx, msy, msw, msh, 420, 225, 110, 140);
                             ctx.restore();
+                        } else {
+                            drawSlayerSilhouette(425, 225);
                         }
                     }
                 }
             } catch (_) {}
         }
 
-        if (!drewHero) {
-            // Stylized hero silhouette or YASD Tombstone fallback
-            ctx.save();
-            if (isDeathMode) {
-                // Carved granite tombstone in torchlight
-                ctx.fillStyle = '#2b2623';
-                ctx.strokeStyle = '#a89f91';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(285, 370);
-                ctx.lineTo(285, 255);
-                ctx.arc(335, 255, 50, Math.PI, 0, false);
-                ctx.lineTo(385, 370);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-
-                ctx.fillStyle = '#e5dccb';
-                ctx.font = 'bold 16px "Cinzel", Georgia, serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('R. I. P.', 335, 268);
-                ctx.font = 'bold 11px Georgia, serif';
-                ctx.fillStyle = '#f5d77f';
-                ctx.fillText((hero.name || 'Hero').slice(0, 14), 335, 290);
-                ctx.font = 'italic 9px Georgia, serif';
-                ctx.fillStyle = '#fca5a5';
-                ctx.fillText((ctxData.killedBy || 'Fell in battle').slice(0, 18), 335, 308);
-            } else {
-                ctx.fillStyle = '#1c1611';
-                ctx.strokeStyle = '#2d231b';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(330, 230);
-                ctx.lineTo(310, 260);
-                ctx.lineTo(285, 370);
-                ctx.quadraticCurveTo(330, 380, 375, 370);
-                ctx.lineTo(350, 260);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-
-                ctx.fillStyle = '#0f0c09';
-                ctx.beginPath();
-                ctx.arc(330, 240, 18, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Glowing blade
-                ctx.shadowColor = '#80d0ff';
-                ctx.shadowBlur = 15;
-                ctx.strokeStyle = '#e0f4ff';
-                ctx.lineWidth = 3.5;
-                ctx.beginPath();
-                ctx.moveTo(355, 310);
-                ctx.lineTo(415, 235);
-                ctx.stroke();
+        if (isDeathMode) {
+            // Showcase Dark-Fantasy YASD Memorial Scene: Looming Slayer + Grand Chiseled Tombstone + Fallen Arms & Gold
+            let drewKillerSprite = false;
+            if (dungeon && typeof dungeon.getMonsterAtlasUV === 'function' && monsterAtlasImg && monsterAtlasImg.complete && monsterAtlasImg.width > 0 && Array.isArray(ctxData.visibleMonsters) && ctxData.visibleMonsters.length > 0) {
+                try {
+                    const m = ctxData.visibleMonsters[0];
+                    const mUv = dungeon.getMonsterAtlasUV(m.name, m.glyph);
+                    const mArr = mUv && (Array.isArray(mUv) ? mUv : mUv.uv);
+                    const isDistinctUv = mArr && mArr.length >= 4 && (!heroUvArr || Math.abs(mArr[0] - heroUvArr[0]) > 0.001 || Math.abs(mArr[1] - heroUvArr[1]) > 0.001);
+                    if (isDistinctUv) {
+                        const [mu0, mv0, mu1, mv1] = mArr;
+                        ctx.save();
+                        ctx.shadowColor = '#ef4444';
+                        ctx.shadowBlur = 22;
+                        ctx.drawImage(
+                            monsterAtlasImg,
+                            mu0 * monsterAtlasImg.width,
+                            (1 - mv1) * monsterAtlasImg.height,
+                            (mu1 - mu0) * monsterAtlasImg.width,
+                            (mv1 - mv0) * monsterAtlasImg.height,
+                            430, 215, 115, 150
+                        );
+                        ctx.restore();
+                        drewKillerSprite = true;
+                    }
+                } catch (_) {}
             }
-            ctx.restore();
-        } else if (isDeathMode) {
-            // Overlay chiseled stone tombstone badge beside fallen hero sprite
+            if (!drewKillerSprite) {
+                drawSlayerSilhouette(432, 218);
+            }
+
+            // Crossed broadsword driven into the flagstones beside the grave
             ctx.save();
-            ctx.fillStyle = 'rgba(32, 28, 24, 0.92)';
-            ctx.strokeStyle = '#c9a050';
-            ctx.lineWidth = 1.6;
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 4;
             ctx.beginPath();
-            ctx.moveTo(205, 368);
-            ctx.lineTo(205, 292);
-            ctx.arc(237, 292, 32, Math.PI, 0, false);
-            ctx.lineTo(269, 368);
+            ctx.moveTo(235, 372);
+            ctx.lineTo(272, 232);
+            ctx.stroke();
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(254, 255);
+            ctx.lineTo(284, 263);
+            ctx.stroke();
+
+            // Grand Chiseled Granite Tombstone (x = 262..418, y = 175..374)
+            const tombGrad = ctx.createLinearGradient(262, 175, 418, 374);
+            tombGrad.addColorStop(0, '#3a3532');
+            tombGrad.addColorStop(0.5, '#262220');
+            tombGrad.addColorStop(1, '#171412');
+            ctx.fillStyle = tombGrad;
+            ctx.strokeStyle = '#c9a050';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(262, 374);
+            ctx.lineTo(262, 248);
+            ctx.arc(340, 248, 78, Math.PI, 0, false);
+            ctx.lineTo(418, 374);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
-            ctx.fillStyle = '#f5d77f';
-            ctx.font = 'bold 11px "Cinzel", Georgia, serif';
+
+            // Inner chiseled stone bevel
+            ctx.strokeStyle = 'rgba(201, 160, 80, 0.38)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(270, 368);
+            ctx.lineTo(270, 248);
+            ctx.arc(340, 248, 70, Math.PI, 0, false);
+            ctx.lineTo(410, 368);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Skull & Inscription on Tombstone
             ctx.textAlign = 'center';
-            ctx.fillText('R.I.P.', 237, 302);
+            ctx.fillStyle = '#f5d77f';
+            ctx.font = 'bold 18px "Cinzel", Georgia, serif';
+            ctx.fillText('☠  R. I. P.  ☠', 340, 222);
+
+            ctx.fillStyle = '#fff8e1';
+            ctx.font = 'bold 13px "Cinzel", Georgia, serif';
+            ctx.fillText((hero.name || 'Hero').slice(0, 16), 340, 252);
+
+            ctx.fillStyle = '#d8be82';
+            ctx.font = '11px Georgia, serif';
+            ctx.fillText(`Lv.${hero.level || 1} ${hero.race || ''} ${hero.class || ''}`.trim().slice(0, 22), 340, 272);
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'italic 10px Georgia, serif';
+            ctx.fillText('Slain by', 340, 294);
+
             ctx.fillStyle = '#fca5a5';
-            ctx.font = '9px sans-serif';
-            ctx.fillText((hero.name || 'Hero').slice(0, 10), 237, 320);
+            ctx.font = 'bold 12px "Cinzel", Georgia, serif';
+            ctx.fillText((ctxData.killedBy || 'mortal wounds').slice(0, 20), 340, 314);
+
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '10px monospace';
+            ctx.fillText((ctxData.locationLabel || 'Dungeon').slice(0, 22), 340, 336);
+
+            // Spilled gold coins & fallen shield at the base of the tombstone
+            const coins = [[248, 374], [258, 378], [272, 376], [408, 376], [420, 373], [428, 378]];
+            ctx.fillStyle = '#fbbf24';
+            ctx.strokeStyle = '#92400e';
+            ctx.lineWidth = 1;
+            for (const [cx, cy] of coins) {
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 5, 2.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+            ctx.restore();
+        } else if (!drewHero) {
+            ctx.save();
+            ctx.fillStyle = '#1c1611';
+            ctx.strokeStyle = '#2d231b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(330, 230);
+            ctx.lineTo(310, 260);
+            ctx.lineTo(285, 370);
+            ctx.quadraticCurveTo(330, 380, 375, 370);
+            ctx.lineTo(350, 260);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f0c09';
+            ctx.beginPath();
+            ctx.arc(330, 240, 18, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.shadowColor = '#80d0ff';
+            ctx.shadowBlur = 15;
+            ctx.strokeStyle = '#e0f4ff';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(355, 310);
+            ctx.lineTo(415, 235);
+            ctx.stroke();
             ctx.restore();
         }
 
@@ -4257,6 +4428,10 @@ class ChronicleManager {
                 if (json && json.ok && json.imageUrl) {
                     this._lastDeathSketchUrl = json.imageUrl;
                     if (imgEl) imgEl.src = json.imageUrl;
+                    if (this.sketchModal && !this.sketchModal.classList.contains('hidden')) {
+                        if (this.sketchModalImg) this.sketchModalImg.src = json.imageUrl;
+                        if (this.btnDownloadSketchPng) this.btnDownloadSketchPng.href = json.imageUrl;
+                    }
                     if (statusEl) statusEl.textContent = `🎨 Illustrated by ${json.model || 'Gemini'} (Click to Expand)`;
                     return json.imageUrl;
                 }
@@ -4393,7 +4568,7 @@ class ChronicleManager {
         document.body.appendChild(a);
         a.click();
         a.remove();
-        this.showHudToast('🪦 Downloaded Shareable YASD Memorial Card (.PNG)!');
+        this.showHudToast('⚔ Downloaded Shareable YASD Memorial Card (.PNG)!');
     }
 
     async promptHeroActionSketch(overrideBeat = null) {
@@ -4501,6 +4676,10 @@ class ChronicleManager {
                     if (json && json.ok && json.imageUrl) {
                         if (cardImg) cardImg.src = json.imageUrl;
                         if (saveLink) saveLink.href = json.imageUrl;
+                        if (this.sketchModal && !this.sketchModal.classList.contains('hidden')) {
+                            if (this.sketchModalImg) this.sketchModalImg.src = json.imageUrl;
+                            if (this.btnDownloadSketchPng) this.btnDownloadSketchPng.href = json.imageUrl;
+                        }
                         if (this.statusTextEl) {
                             this.statusTextEl.textContent = `🎨 Masterwork Sketch Rendered (${json.model || 'gemini'})`;
                         }
