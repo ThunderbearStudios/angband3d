@@ -4,6 +4,7 @@
    ========================================================================== */
 
 :root {
+  color-scheme: dark;
   --yasd-slate-deep: #15181d;
   --yasd-slate-canvas: #1a1d23;
   --yasd-slate-card: #22262e;
@@ -15,6 +16,7 @@
   --yasd-ruby-glow: rgba(168, 43, 53, 0.35);
   --yasd-sapphire-vial: #22588c;
   --yasd-sapphire-glow: rgba(34, 88, 140, 0.35);
+  --yasd-emerald-vial: #1f7246;
   --yasd-border-iron: #4a505e;
   --yasd-border-control: #687082;
   --yasd-bone-highlight: #8d95a5;
@@ -300,5 +302,269 @@
   }
   #char-panel {
     max-width: 320px !important;
+  }
+}
+
+
+/* ==========================================================================
+   Main Menu System, Splash Billboard & Modal Dialogs — Scotopic Dark Fantasy
+   Overrides legacy #010308 / #04060b obsidian defaults in dungeon.css
+   ========================================================================== */
+
+#splash-overlay,
+#main-menu-overlay {
+  background: radial-gradient(
+    ellipse at 50% 28%,
+    rgba(34, 38, 46, 0.72) 0%,
+    rgba(21, 24, 29, 0.94) 75%
+  ) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+#load-modal,
+#pause-modal,
+#guide-modal,
+#pwa-modal,
+#queue-modal,
+#realm-selector-modal,
+#command-palette-modal {
+  background: rgba(15, 17, 21, 0.84) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+.splash-card.splash-billboard-mode,
+.main-menu-card,
+.load-card,
+.pause-card,
+.guide-card,
+.pwa-card,
+.queue-card,
+.realm-selector-card,
+.cmd-palette-card,
+#terminal-container .terminal-card {
+  background: linear-gradient(
+    175deg,
+    var(--yasd-slate-card) 0%,
+    var(--yasd-slate-canvas) 55%,
+    var(--yasd-slate-deep) 100%
+  ) !important;
+  border: 1px solid var(--yasd-border-iron) !important;
+  border-top: 1.5px solid var(--yasd-bone-highlight) !important;
+  border-radius: 10px !important;
+  box-shadow:
+    0 20px 55px rgba(0, 0, 0, 0.85),
+    0 0 24px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(220, 224, 232, 0.14) !important;
+  color: var(--yasd-text-prose) !important;
+}
+
+.main-menu-header,
+.guide-header,
+.cmd-palette-header,
+.terminal-toolbar {
+  background: linear-gradient(
+    180deg,
+    rgba(42, 47, 58, 0.75) 0%,
+    rgba(21, 24, 29, 0.85) 100%
+  ) !important;
+  border-bottom: 1px solid var(--yasd-border-iron) !important;
+}
+
+.main-menu-title,
+.guide-title,
+.cmd-compendium-title,
+.splash-title {
+  color: var(--yasd-text-heading) !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85), 0 0 18px rgba(241, 196, 15, 0.18) !important;
+  text-wrap: balance;
+}
+
+.main-menu-subtitle,
+.splash-features-line,
+.splash-subtitle {
+  color: var(--yasd-text-muted) !important;
+}
+
+/* --- Realm Strip, Dropdowns & Search Controls --- */
+.main-menu-realm-strip {
+  background: var(--yasd-slate-deep) !important;
+  border: 1px solid var(--yasd-border-iron) !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.65) !important;
+}
+
+.main-menu-realm-dropdown,
+.main-menu-lang-dropdown,
+#cmd-search-input,
+#realm-search-input {
+  background-color: var(--yasd-slate-canvas) !important;
+  border: 1px solid var(--yasd-border-control) !important;
+  border-radius: 6px !important;
+  color: var(--yasd-text-heading) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+.main-menu-realm-dropdown:hover,
+.main-menu-lang-dropdown:hover,
+.main-menu-realm-dropdown:focus-visible,
+.main-menu-lang-dropdown:focus-visible,
+#cmd-search-input:focus-visible,
+#realm-search-input:focus-visible {
+  border-color: var(--yasd-bone-highlight) !important;
+  outline: 1px solid var(--yasd-gold-accent) !important;
+}
+
+.realm-pill-btn,
+.menu-realm-badge-btn,
+.cmd-cat-pill,
+.guide-tab {
+  background: var(--yasd-slate-card) !important;
+  border: 1px solid var(--yasd-border-iron) !important;
+  border-radius: 6px !important;
+  color: var(--yasd-text-prose) !important;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease !important;
+}
+
+.realm-pill-btn:hover,
+.menu-realm-badge-btn:hover,
+.cmd-cat-pill:hover,
+.guide-tab:hover {
+  background: var(--yasd-slate-card-hover) !important;
+  border-color: var(--yasd-bone-highlight) !important;
+  color: var(--yasd-text-heading) !important;
+}
+
+.realm-pill-btn.active,
+.realm-pill-btn[aria-pressed="true"],
+.cmd-cat-pill.active,
+.guide-tab.active,
+.guide-tab[aria-selected="true"] {
+  background: linear-gradient(180deg, #2f3542 0%, #22262e 100%) !important;
+  border-color: var(--yasd-gold-accent) !important;
+  color: var(--yasd-text-heading) !important;
+  box-shadow: 0 0 10px rgba(241, 196, 15, 0.2), inset 0 1px 0 var(--yasd-bone-highlight) !important;
+}
+
+/* --- Main Menu Primary Option Buttons ([1]-[4]) --- */
+.menu-option-btn {
+  background: linear-gradient(
+    90deg,
+    var(--yasd-slate-card) 0%,
+    var(--yasd-slate-canvas) 100%
+  ) !important;
+  border: 1px solid var(--yasd-border-iron) !important;
+  border-left: 3px solid var(--yasd-border-control) !important;
+  border-radius: 7px !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(220, 224, 232, 0.08) !important;
+  color: var(--yasd-text-prose) !important;
+  transition: background 140ms ease, border-color 140ms ease, transform 80ms ease, box-shadow 140ms ease !important;
+}
+
+.menu-option-btn:hover,
+.menu-option-btn:focus-visible,
+.menu-option-btn.selected {
+  background: linear-gradient(
+    90deg,
+    var(--yasd-slate-card-hover) 0%,
+    var(--yasd-slate-card) 100%
+  ) !important;
+  border-color: var(--yasd-bone-highlight) !important;
+  border-left-color: var(--yasd-gold-accent) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(220, 224, 232, 0.18) !important;
+}
+
+.menu-option-btn:active {
+  background: var(--yasd-slate-deep) !important;
+  transform: translateY(1px) !important;
+}
+
+.menu-option-btn .option-key {
+  background: linear-gradient(180deg, #2f3542 0%, #1e222a 100%) !important;
+  border: 1px solid var(--yasd-border-control) !important;
+  border-radius: 5px !important;
+  color: var(--yasd-gold-accent) !important;
+  font-family: monospace !important;
+  font-weight: 700 !important;
+  padding: 2px 7px !important;
+  box-shadow: inset 0 1px 0 rgba(220, 224, 232, 0.15) !important;
+}
+
+.menu-option-btn .option-label {
+  color: var(--yasd-text-heading) !important;
+  font-weight: 700 !important;
+}
+
+.menu-option-btn .option-desc {
+  color: var(--yasd-text-muted) !important;
+}
+
+/* --- Utility Dock Buttons, Modal Cards & Footers --- */
+.menu-dock-btn,
+.btn-gold-outline,
+.btn-panel-action,
+.pause-btn {
+  background: var(--yasd-slate-card) !important;
+  border: 1px solid var(--yasd-border-control) !important;
+  border-radius: 6px !important;
+  color: var(--yasd-text-prose) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(220, 224, 232, 0.1) !important;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease !important;
+}
+
+.menu-dock-btn:hover,
+.btn-gold-outline:hover,
+.btn-panel-action:hover,
+.pause-btn:hover {
+  background: var(--yasd-slate-card-hover) !important;
+  border-color: var(--yasd-bone-highlight) !important;
+  color: var(--yasd-text-heading) !important;
+}
+
+.realm-card,
+.save-item-card,
+.cmd-row-item {
+  background: var(--yasd-slate-card) !important;
+  border: 1px solid var(--yasd-border-iron) !important;
+  border-radius: 7px !important;
+  color: var(--yasd-text-prose) !important;
+}
+
+.realm-card:hover,
+.save-item-card:hover,
+.cmd-row-item:hover {
+  background: var(--yasd-slate-card-hover) !important;
+  border-color: var(--yasd-bone-highlight) !important;
+}
+
+.splash-billboard-threshold {
+  background: linear-gradient(
+    180deg,
+    rgba(21, 24, 29, 0.25) 0%,
+    rgba(21, 24, 29, 0.92) 45%,
+    var(--yasd-slate-deep) 100%
+  ) !important;
+  border-top: 1px solid var(--yasd-border-iron) !important;
+}
+
+.main-menu-footer,
+.load-footer,
+.guide-footer,
+.cmd-palette-footer {
+  background: rgba(21, 24, 29, 0.75) !important;
+  border-top: 1px solid var(--yasd-border-iron) !important;
+  color: var(--yasd-text-muted) !important;
+}
+
+@media (pointer: coarse) {
+  .menu-option-btn {
+    min-height: 54px !important;
+  }
+  .menu-dock-btn,
+  .realm-pill-btn,
+  .main-menu-realm-dropdown,
+  .main-menu-lang-dropdown {
+    min-height: 44px !important;
   }
 }
