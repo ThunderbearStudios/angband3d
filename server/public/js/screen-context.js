@@ -227,7 +227,7 @@
 
     function promptFlags(screenText) {
         screenText = screenText || '';
-        const isYesNoPrompt = ['[y/n]', '(y/n)', 'are you sure', 'really drop', 'really destroy'].some(s => screenText.includes(s));
+        const isYesNoPrompt = ['[y/n]', '(y/n)', '[yn]', '(yn)', '[ynq]', '(ynq)', '[ynaq]', 'drink from the fountain', 'are you sure', 'really drop', 'really destroy'].some(s => screenText.includes(s));
         const isQuantityPrompt = ['how many', 'quantity', 'how much'].some(s => screenText.includes(s));
         return { isYesNoPrompt, isQuantityPrompt };
     }
@@ -565,7 +565,7 @@
         } else if (/(?:direction\?|which direction\?|aim which direction\?|どの方向|方向\?)/i.test(activeLower)) {
             kind = 'direction'; verb = null;
         } else if ((legacy && (legacy.isYesNoPrompt || legacy.mode === 'yesno')) ||
-                   /\[y\/n\]|\(y\/n\)|y\/n\?|really\s+(?:drop|destroy)|are you sure|よろしいですか/i.test(activeLower)) {
+                   /\[y\/n\]|\(y\/n\)|\[ynq?\]|\(ynq?\)|\[ynaq\]|y\/n\?|\bdrink from the fountain\b|really\s+(?:drop|destroy)|are you sure|よろしいですか/i.test(activeLower)) {
             kind = 'yesno'; verb = null;
         } else if (/^(?:repeat\s+count|count)\b|:\s*count\b/i.test(activeLower)) {
             kind = 'count'; verb = null;

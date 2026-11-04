@@ -537,6 +537,32 @@ function check(cond, msg) {
     nhRand.handleKey('*');
     check(nhRand.buildFrame().phase === 'play', 'NetHackEngine must support * Quick Start random role selection in setup phase');
 
+    // 9c-fountain. Verify NetHack Fountain Quaff [y/n] Confirmation & Mobile Sub-Prompt Classification
+    const pCell = nhRand.state.map[nhRand.state.player.y][nhRand.state.player.x];
+    pCell.feat = 44; // FEAT.FOUNTAIN
+    if (!nhRand.state.player.inventory.some(it => it.kind === 'potion')) {
+        nhRand.state.player.inventory.push({ letter: 'd', kind: 'potion', name: 'potion of healing', count: 1, buc: 'blessed', weight: 20, tval: 71, sval: 38, heal: 14 });
+    }
+    nhRand.handleKey('q');
+    const fPromptFrame = nhRand.buildFrame();
+    const fMsg = nhRand.state.pendingPrompt || (fPromptFrame.ui && fPromptFrame.ui.prompt && fPromptFrame.ui.prompt.text) || '';
+    check(nhRand.state.pendingVerb === 'q' && /Drink from the fountain\? \[y\/n\]/i.test(fMsg),
+        'Pressing q on a NetHack fountain must prompt Drink from the fountain? [y/n]');
+    const fSub = ScreenModalCoordinator.classifySubPrompt(fMsg, 'nethack');
+    check(fSub.kind === 'confirm-yn' && Array.isArray(fSub.options) && fSub.options.length === 2,
+        'ScreenModalCoordinator.classifySubPrompt must classify fountain prompt as confirm-yn for mobile [y]/[n] buttons');
+    nhRand.handleKey('n');
+    const afterNoMsg = nhRand.state.pendingPrompt;
+    check(nhRand.state.pendingVerb === 'q' && /What do you want to drink\?/i.test(afterNoMsg),
+        'Pressing n on a NetHack fountain prompt must switch to potion inventory selection instead of drinking from fountain');
+    nhRand.handleKey('escape');
+    nhRand.handleKey('q');
+    nhRand.handleKey('y');
+    const afterYesMsg = nhRand.state.messages[nhRand.state.messages.length - 1];
+    const afterYesText = typeof afterYesMsg === 'string' ? afterYesMsg : (afterYesMsg && afterYesMsg.text) || '';
+    check(!nhRand.state.pendingVerb && /cool draught refreshes your spirit/i.test(afterYesText),
+        'Pressing y on a NetHack fountain prompt must drink from the fountain and close pendingVerb');
+
     // 9d. Verify CREDITS.md & YASD 3D Emblem Asset
     const rootDir = path.resolve(__dirname, '../..');
     check(fs.existsSync(path.join(rootDir, 'CREDITS.md')), 'CREDITS.md must exist at repo root');

@@ -252,7 +252,7 @@
                 };
             }
 
-            if (/\[y\/n\]|\(y\/n\)|\breally\b|\bare you sure\b/i.test(p)) {
+            if (/\[y\/n\]|\(y\/n\)|\[ynq?\]|\(ynq?\)|\[ynaq\]|\bdrink from the fountain\b|\breally\b|\bare you sure\b/i.test(p)) {
                 return {
                     kind: 'confirm-yn',
                     realm: this._normalizeRealm(realm),

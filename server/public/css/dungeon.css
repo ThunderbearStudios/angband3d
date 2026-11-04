@@ -9365,39 +9365,40 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
    WS39: Mobile Portrait & Landscape Scaling Overhaul (Zero Collision, Full D-Pad)
    ============================================================================== */
 @media (max-width: 600px) and (orientation: portrait) {
+    #top-right-bar { top: calc(2px + var(--safe-top)) !important; right: max(4px, var(--safe-right)) !important; gap: 3px !important; padding: 2px 4px !important; }
+    #top-right-bar .hud-icon-btn { width: 32px !important; height: 32px !important; min-width: 32px !important; min-height: 32px !important; padding: 4px !important; }
+    .top-message-banner { top: calc(38px + var(--safe-top)) !important; left: max(6px, var(--safe-left)) !important; right: max(6px, var(--safe-right)) !important; height: 26px !important; min-height: 26px !important; padding: 0 8px !important; font-size: 11px !important; }
     #char-panel {
         position: fixed !important;
-        top: calc(78px + var(--safe-top)) !important;
+        top: calc(68px + var(--safe-top)) !important;
         left: max(6px, var(--safe-left)) !important;
         right: auto !important;
         bottom: auto !important;
-        width: calc(100vw - 134px) !important;
-        max-width: calc(100vw - 134px) !important;
-        padding: 4px 6px !important;
+        width: calc(100vw - 116px) !important;
+        max-width: calc(100vw - 116px) !important;
+        padding: 3px 6px !important;
         z-index: 42 !important;
     }
-
-#char-panel:not(.char-details-open) #stats-strip { display: none !important; }
-
-    #char-panel .vitals-vials-row {
-        margin: 2px 0 !important;
-        padding: 3px 4px !important;
-        gap: 3px !important;
-    }
-
+    #char-panel:not(.char-details-open) #stats-strip { display: none !important; }
+    #char-panel .char-header { gap: 4px !important; padding-bottom: 2px !important; margin-bottom: 2px !important; }
+    #char-panel .char-crest-badge { width: 20px !important; height: 20px !important; min-width: 20px !important; font-size: 11px !important; }
+    #char-panel .char-name { font-size: 11px !important; line-height: 1.15 !important; }
+    #char-panel .char-subtitle { font-size: 9.5px !important; line-height: 1.1 !important; }
+    #char-panel .char-mini-btn { width: 22px !important; height: 20px !important; min-width: 22px !important; min-height: 20px !important; padding: 0 !important; font-size: 10px !important; }
+    #char-panel .vitals-vials-row { margin: 1px 0 !important; padding: 2px 3px !important; gap: 2px !important; }
+    #char-panel .gauge-hp, #char-panel .gauge-sp { height: 14px !important; min-height: 14px !important; }
+    #char-panel .gauge-label, #char-panel .gauge-val { font-size: 9.5px !important; }
     #minimap-container {
-        top: calc(78px + var(--safe-top)) !important;
+        top: calc(68px + var(--safe-top)) !important;
         right: max(6px, var(--safe-right)) !important;
         left: auto !important;
-        width: 108px !important;
-        height: 108px !important;
+        width: 96px !important;
+        height: 96px !important;
     }
-
-#minimap-canvas { width: 108px !important; height: 108px !important; }
-
+    #minimap-canvas { width: 96px !important; height: 96px !important; }
     .mobile-map-zoom-group {
         top: auto !important;
-        bottom: -14px !important;
+        bottom: -9px !important;
         left: 50% !important;
         right: auto !important;
         transform: translateX(-50%) !important;
@@ -9405,40 +9406,26 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
         gap: 6px !important;
         z-index: 56 !important;
     }
-
-    .mobile-map-zoom-btn {
-        width: 24px !important;
-        height: 24px !important;
-        min-width: 24px !important;
-        min-height: 24px !important;
+    .mobile-map-btn, .mobile-map-zoom-btn {
+        width: 22px !important;
+        height: 22px !important;
+        min-width: 22px !important;
+        min-height: 22px !important;
+        padding: 0 !important;
         font-size: 13px !important;
     }
-
-    #hud-footer,
-    #hud-footer.hud-status-bar {
+    #touch-controls .dpad-turn-btn, #touch-controls .dpad-run-toggle { height: 30px !important; min-height: 30px !important; }
+    #prompt-mirror { position: fixed !important; top: calc(144px + var(--safe-top)) !important; left: 8px !important; right: 8px !important; width: auto !important; z-index: 65 !important; }
+    #hud-footer, #hud-footer.hud-status-bar {
         max-width: 100vw !important;
         padding: 2px 4px !important;
         gap: 3px !important;
         overflow-x: auto !important;
     }
-
-    #hud-footer #btn-hud-reset-layout,
-    #hud-footer .pill-reset-hud,
-#hud-footer #footer-gear { display: none !important; }
-
-    #hud-footer .status-pill:not(.pill-reset-hud) {
-        padding: 0 4px 0 0 !important;
-        margin-right: 2px !important;
-        font-size: 9px !important;
-    }
-
-.streetview-nav-rosette { display: none !important; }
-
-    .viewport-edge-turn {
-        width: 24px !important;
-        height: 84px !important;
-        opacity: 0.12;
-    }
+    #hud-footer #btn-hud-reset-layout, #hud-footer .pill-reset-hud, #hud-footer #footer-gear { display: none !important; }
+    #hud-footer .status-pill:not(.pill-reset-hud) { padding: 0 4px 0 0 !important; margin-right: 2px !important; font-size: 9px !important; }
+    .streetview-nav-rosette { display: none !important; }
+    .viewport-edge-turn { width: 24px !important; height: 84px !important; opacity: 0.12; }
 }
 
 @media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
@@ -9702,7 +9689,7 @@ body.grimoire-primary-open .viewport-edge-turn { display: none !important; }
 #action-bar[data-dock-preset="wasd"] .act-wasd-socket { display: inline-flex !important; }
 :focus-visible { outline: 2px solid var(--gold-bright, #ffd700); outline-offset: 2px; }
 @media (forced-colors: active) { :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; } }
-@media (pointer: coarse) { button, [role="button"], .action-btn, .quick-slot-btn, .menu-dock-btn, .sv-turn-btn { min-width: 44px; min-height: 44px; } #action-bar .action-btn, #touch-controls .dpad-btn { min-width: 40px !important; min-height: 40px !important; } }
+@media (pointer: coarse) { button:not(.char-mini-btn):not(.mobile-map-btn):not(.mobile-map-zoom-btn):not(.hud-icon-btn), [role="button"]:not(.char-mini-btn):not(.mobile-map-btn), .action-btn, .quick-slot-btn, .menu-dock-btn, .sv-turn-btn { min-width: 44px; min-height: 44px; } #action-bar .action-btn, #touch-controls .dpad-btn { min-width: 40px !important; min-height: 40px !important; } }
 @media (min-width: 1024px) { #char-panel { width: clamp(188px, calc(208px * var(--hud-scale, 1)), 260px) !important; min-width: clamp(188px, calc(208px * var(--hud-scale, 1)), 260px) !important; max-width: clamp(188px, calc(208px * var(--hud-scale, 1)), 260px) !important; } #hud-footer .status-pill:not(.pill-reset-hud) { font-size: calc(10.5px * var(--hud-scale, 1)) !important; } }
 body.hud-immersion-minimal #message-feed-window:not(.expanded), body.hud-immersion-minimal #chronicle-window:not(.is-pinned), body.hud-immersion-minimal #touch-controls { display: none !important; }
 body.hud-immersion-cinematic #hud-overlay, body.hud-immersion-cinematic #top-right-bar, body.hud-immersion-cinematic #minimap-container, body.hud-immersion-cinematic #touch-controls, body.hud-immersion-cinematic #chronicle-window { display: none !important; }

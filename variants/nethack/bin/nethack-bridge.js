@@ -966,12 +966,13 @@ class NetHackEngine {
         return null;
     }
 
-    openVerbPrompt(verb) {
+    openVerbPrompt(verb, skipFountain = false) {
         const p = this.state.player;
-        const onFountain = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x] && this.state.map[p.y][p.x].feat === FEAT.FOUNTAIN;
+        const cell = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x];
+        const onFountain = !skipFountain && Boolean(cell && (cell.feat === FEAT.FOUNTAIN || cell.glyph === '{'));
         const prompts = {
             'q': onFountain
-                ? 'Drink from the fountain [y/f/.] or quaff which potion? [a-z or ?*]'
+                ? 'Drink from the fountain? [y/n] (or select potion [a-z])'
                 : 'What do you want to drink? [a-z or ?*]',
             'r': 'What do you want to read? [a-z or ?*]',
             'e': 'What do you want to eat? [a-z or ?*]',
@@ -992,6 +993,7 @@ class NetHackEngine {
         this.state.menuMode = verb === 'Z' ? 'spell' : 'verb';
         this.state.pendingVerb = verb;
         this.state.pendingPrompt = prompts[verb] || 'Select an item: [a-z]';
+        this.state.fountainPromptActive = Boolean(verb === 'q' && onFountain);
     }
 
     executeSpellCast(spellKey) {
@@ -1055,19 +1057,37 @@ class NetHackEngine {
     executeItemVerb(verb, slotKey) {
         const p = this.state.player;
         const item = p.inventory.find(it => it.letter === slotKey);
+        const wasFountainPrompt = Boolean(this.state.fountainPromptActive);
         this.state.menuMode = 'none';
         this.state.pendingVerb = '';
         this.state.pendingPrompt = '';
+        this.state.fountainPromptActive = false;
 
         const cell = this.state.map && this.state.map[p.y] && this.state.map[p.y][p.x];
-        if (verb === 'q' && cell && cell.feat === FEAT.FOUNTAIN && (/^[yf.{q ]$/i.test(slotKey) || !item)) {
-            const heal = 8 + p.level * 2;
-            p.hp = Math.min(p.hpMax, p.hp + heal);
-            p.pw = Math.min(p.pwMax, p.pw + 2);
-            p.poisoned = 0; p.confused = 0;
-            this.addMessage(`You drink from the sparkling magic fountain! The cool draught refreshes your spirit (+${heal} HP, +2 Pw)!`, 11);
-            this.advanceWorldTurn();
-            return;
+        const onFountain = Boolean(cell && (cell.feat === FEAT.FOUNTAIN || cell.glyph === '{'));
+        if (verb === 'q' && onFountain) {
+            const sk = String(slotKey || '').toLowerCase();
+            if (sk === 'y' || sk === 'f' || sk === '.' || sk === '{' || sk === 'q' || sk === 'enter' || sk === 'return') {
+                const heal = 8 + p.level * 2;
+                p.hp = Math.min(p.hpMax, p.hp + heal);
+                p.pw = Math.min(p.pwMax, p.pw + 2);
+                p.poisoned = 0; p.confused = 0;
+                this.addMessage(`You drink from the sparkling magic fountain! The cool draught refreshes your spirit (+${heal} HP, +2 Pw)!`, 11);
+                this.advanceWorldTurn();
+                return;
+            }
+            if (sk === 'n' && (wasFountainPrompt || !item || item.kind !== 'potion')) {
+                if (p.inventory.some(it => it.kind === 'potion')) {
+                    this.openVerbPrompt('q', true);
+                } else {
+                    this.addMessage('Never mind.', 1);
+                }
+                return;
+            }
+            if (!item) {
+                this.addMessage('Never mind.', 1);
+                return;
+            }
         }
 
         if (!item) {

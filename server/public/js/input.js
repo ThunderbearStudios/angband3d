@@ -575,6 +575,8 @@ class InputController {
         let adjAnyDoors = 0;
         const standingOnItem = Boolean(px !== undefined && py !== undefined && items.some((it) => it && it.x === px && it.y === py));
         const currentFeat = (this.getFeatAt && map && px !== undefined) ? this.getFeatAt(map, px, py) : 0;
+        const curTileGlyph = (map && map.rows && map.rows[py] && map.rows[py].g && px !== undefined) ? map.rows[py].g[px] : ' ';
+        const standingFountain = Boolean(currentFeat === 44 || curTileGlyph === '{');
         const standingStair = (currentFeat === 5 || currentFeat === 6 || (currentFeat >= 7 && currentFeat <= 14) || (currentFeat >= 32 && currentFeat <= 40));
 
         if (map && px !== undefined && py !== undefined) {
@@ -694,7 +696,7 @@ class InputController {
 
         const hasFullData = player.inventory !== undefined || frame.inventory !== undefined || player.hp_max !== undefined;
         const hasEnoughCastSp = maxSp === 0 || curSp >= Math.max(1, maxSp * 0.20);
-        const stateSig = `${r}:${lang}:${this.wasdMode ? 1 : 0}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${foodCount}:${tomeCount}:${matchingTomeCount}:${deviceCount}:${primaryDeviceVerb}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors > 0 ? 1 : 0}:${adjAnyDoors > 0 ? 1 : 0}:${adjHostiles > 0 ? (adjHostiles >= 2 ? 2 : 1) : 0}:${rangedHostilesInLOS > 0 ? 1 : 0}:${hostileMonsters.length > 0 ? 1 : 0}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${curSp > 0 ? 1 : 0}:${hasEnoughCastSp ? 1 : 0}:${effectiveStudyCount}:${isHungry ? 1 : 0}:${hasBadStatus ? 1 : 0}:${hasKnownSpells ? 1 : 0}:${isDisablingStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
+        const stateSig = `${r}:${lang}:${this.wasdMode ? 1 : 0}:${hasFullData ? 1 : 0}:${inv.length}:${eq.length}:${potionCount}:${scrollCount}:${foodCount}:${tomeCount}:${matchingTomeCount}:${deviceCount}:${primaryDeviceVerb}:${hasBowEquipped ? 1 : 0}:${hasAmmo ? 1 : 0}:${wearableInPack}:${weaponInPack}:${hasWeaponEquipped ? 1 : 0}:${adjClosedDoors > 0 ? 1 : 0}:${adjAnyDoors > 0 ? 1 : 0}:${adjHostiles > 0 ? (adjHostiles >= 2 ? 2 : 1) : 0}:${rangedHostilesInLOS > 0 ? 1 : 0}:${hostileMonsters.length > 0 ? 1 : 0}:${standingOnItem ? 1 : 0}:${standingStair ? 1 : 0}:${standingFountain ? 1 : 0}:${Math.floor(hpPct / 10)}:${Math.floor(spPct / 15)}:${maxSp > 0 ? 1 : 0}:${curSp > 0 ? 1 : 0}:${hasEnoughCastSp ? 1 : 0}:${effectiveStudyCount}:${isHungry ? 1 : 0}:${hasBadStatus ? 1 : 0}:${hasKnownSpells ? 1 : 0}:${isDisablingStatus ? 1 : 0}:${heroActive ? heroAction.id : 'none'}`;
 
         if (stateSig === this._lastActionBarContextSig) return;
         this._lastActionBarContextSig = stateSig;
@@ -720,7 +722,7 @@ class InputController {
             'btn-study': { show: r !== 'silq' && r !== 'brogue' && r !== 'rogue' && !isNonCaster && (effectiveStudyCount > 0 || !hasInvTelemetry || matchingTomeCount > 0 || r === 'dcss'), suggest: effectiveStudyCount > 0 && (!hasInvTelemetry || matchingTomeCount > 0), reason: isJp ? `新しい呪文を学習可能 (${effectiveStudyCount}) [G]` : `Can learn ${effectiveStudyCount || 'new'} spell(s) right now!` },
             'btn-skills': { show: r === 'silq' || r === 'dcss', suggest: r === 'silq' && Number(player.exp || 0) >= 500 && hostileMonsters.length === 0, reason: r === 'dcss' ? 'Manage Skills & Aptitudes [m]' : 'Spend XP on Sil-Q Abilities [Tab]' },
             'btn-power': { show: r === 'frogcomposband' || r === 'hengband' || r === 'nethack' || r === 'dcss', suggest: false, reason: r === 'nethack' ? 'Extended Command [#]' : (r === 'dcss' ? 'Invoke Divine/Evoke Ability [a]' : (isJp ? '特殊能力・レイシャル発動' : 'Invoke Racial/Class Power')) },
-            'btn-quaff': { show: !hasInvTelemetry || potionCount > 0, suggest: potionCount > 0 && (hpPct < 50 || hasBadStatus), reason: isJp ? '体力低下/状態異常 — 薬を飲む！' : 'Low HP or ailment — Drink Potion!' },
+            'btn-quaff': { show: !hasInvTelemetry || potionCount > 0 || standingFountain, suggest: standingFountain || (potionCount > 0 && (hpPct < 50 || hasBadStatus)), reason: standingFountain ? 'Magic Fountain underfoot — Quaff [q]!' : (isJp ? '体力低下/状態異常 — 薬を飲む！' : 'Low HP or ailment — Drink Potion!') },
             'btn-eat': { show: !hasInvTelemetry || foodCount > 0 || isHungry, suggest: (foodCount > 0 || !hasInvTelemetry) && isHungry, reason: isJp ? '空腹 — 食料を食べる [E]！' : 'Hungry — Eat Ration!' },
             'btn-read': { show: r !== 'silq' && (!hasInvTelemetry || scrollCount > 0), suggest: scrollCount > 0 && !isDisablingStatus && ((hpPct < 35 && hostileMonsters.length > 0) || adjHostiles >= 2), reason: isJp ? '危険 — 巻物で脱出・対処！' : 'Danger — Read Scroll!' },
             'btn-door': { show: adjClosedDoors > 0 && (!heroActive || heroAction.id !== 'open-door'), suggest: adjClosedDoors > 0 && adjHostiles === 0, reason: isJp ? '隣接する扉を開ける' : 'Open adjacent closed door' },

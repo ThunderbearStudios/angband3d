@@ -3975,7 +3975,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 { key: 'n', badge: '[n]', label: hengLabel('✕ No', '✕ No / いいえ', '✕ いいえ'), outline: true },
                 { key: 'escape', badge: '[Esc]', label: hengLabel('⎋ Cancel', '⎋ Cancel / 取消', '⎋ 取消') }
             ]));
-            populateLetterRibbon(null, ['y', 'n']);
+            populateLetterRibbon(effFrame.term ? effFrame.term.rows : null, ['y', 'n']);
         } else if (isQuantityPrompt) {
             terminalTitle.textContent = '📦 ENTER QUANTITY';
             if (termDpad) termDpad.style.display = 'grid';
@@ -4142,6 +4142,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     { key: '|', badge: '[|]', label: iflags.isQuiverView ? '🎒 Pack' : '🏹 Quiver' },
                     { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true }
                 ];
+                if (/\[y\/n\]|\(y\/n\)|\[ynq?\]|\(ynq?\)|drink from the fountain/i.test(promptLine || screenText || '')) {
+                    itemBtns.unshift(
+                        { key: 'y', badge: '[y]', label: '⛲ Yes (Drink)', gold: true },
+                        { key: 'n', badge: '[n]', label: '✕ No (Potions)', outline: true }
+                    );
+                }
                 if (!legacy.verbPrompt && (curRealm === 'angband' || curRealm === 'nethack' || curRealm === 'dcss' || curRealm === 'brogue' || curRealm === 'rogue')) {
                     const rk = (v, fb) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey(v, curRealm) || fb) : fb;
                     itemBtns.splice(5, 0,
@@ -4343,9 +4349,18 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             let options = [];
-            if (explicitLetters && Array.isArray(explicitLetters)) {
-                options = explicitLetters.map(lt => ({ key: lt, display: `[${lt}]`, label: null }));
+            if (explicitLetters && Array.isArray(explicitLetters) && !rows) {
+                options = explicitLetters.map(lt => ({ key: lt, display: lt === 'y' ? '[y] ✓ Yes' : (lt === 'n' ? '[n] ✕ No' : `[${lt}]`), label: null }));
             } else if (rows) {
+                const seenKeys = new Set();
+                if (explicitLetters && Array.isArray(explicitLetters)) {
+                    for (const lt of explicitLetters) {
+                        if (!seenKeys.has(lt)) {
+                            seenKeys.add(lt);
+                            options.push({ key: lt, display: lt === 'y' ? '[y] ✓ Yes' : (lt === 'n' ? '[n] ✕ No' : `[${lt}]`), label: null });
+                        }
+                    }
+                }
                 const regexes = [
                     /(?:^|\s+)\(([a-zA-Z0-9*@?])\)\s+([^\n\r]{1,70})/g,
                     /(?:^|\s+)\[([a-zA-Z0-9*@?])\]\s+([^\n\r]{1,70})/g,
@@ -4354,7 +4369,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 ];
                 const suffixActionRe = /(?:^|\s{2,})(Inspect|Cast|Study|Browse|Aim|Zap|Use|Read|Quaff|Eat|Activate|Fire|Refill|Take off|Equip|Drop All|Drop|Sell|Pick up|Throw|Uninscribe|Inscribe|Unignore|Ignore)\s+\(([a-zA-Z\{\}])\)\s*$/g;
                 const isHengCur = isHeng;
-                const seenKeys = new Set();
                 for (let r = 0; r < rows.length; r++) {
                     const rawLine = rows[r].g || '';
                     const line = isHengCur ? decodeHengbandText(rawLine) : rawLine;
@@ -4395,9 +4409,9 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 const screenText = (rawLine => decodeHengbandText(rawLine).toLowerCase())(rows.map(r => r.g || '').join('\n'));
-                if (screenText.includes('[y/n]') || screenText.includes('(y/n)') || (isHengCur && screenText.includes('よろしいですか'))) {
+                if (/\[y\/n\]|\(y\/n\)|\[ynq?\]|\(ynq?\)|\[ynaq\]|drink from the fountain/.test(screenText) || (isHengCur && screenText.includes('よろしいですか'))) {
+                    if (!seenKeys.has('n')) options.unshift({ key: 'n', display: '[n] ✕ No', label: null });
                     if (!seenKeys.has('y')) options.unshift({ key: 'y', display: '[y] ✓ Yes', label: null });
-                    if (!seenKeys.has('n')) options.push({ key: 'n', display: '[n] ✕ No', label: null });
                 }
                 if (options.length === 0 && inPlay && effFrame) {
                     const row0Line = (rows[0] && rows[0].g) ? (isHengCur ? decodeHengbandText(rows[0].g) : rows[0].g) : '';
