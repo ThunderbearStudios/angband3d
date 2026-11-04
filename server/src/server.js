@@ -1742,7 +1742,7 @@ const server = http.createServer((req, res) => {
                 return;
             }
 
-            const sketchModels = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image'];
+            const sketchModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image'];
             const payload = {
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 generationConfig: { responseModalities: ["TEXT", "IMAGE"] }

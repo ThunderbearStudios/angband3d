@@ -568,3 +568,60 @@
     min-height: 44px !important;
   }
 }
+
+
+/* ==========================================================================
+   Living Chronicle & Tome Sketch Lightbox — Humor & Horror Scene Styling
+   ========================================================================== */
+
+#chronicle-sketch-modal {
+  background: rgba(15, 17, 21, 0.88) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+#chronicle-sketch-modal .chronicle-sketch-lightbox-card {
+  background: linear-gradient(
+    175deg,
+    var(--yasd-slate-card) 0%,
+    var(--yasd-slate-canvas) 55%,
+    var(--yasd-slate-deep) 100%
+  ) !important;
+  border: 1.5px solid var(--yasd-border-control) !important;
+  border-top: 2px solid var(--yasd-gold-accent) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.9), inset 0 1px 0 var(--yasd-bone-highlight) !important;
+}
+
+.chronicle-sketch-card-status {
+  font-family: var(--font-terminal, monospace);
+  font-size: 11px;
+  color: var(--yasd-gold-accent);
+  background: rgba(21, 24, 29, 0.92);
+  border-top: 1px solid var(--yasd-border-iron);
+  padding: 5px 8px;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+.flowing-paragraph-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.flow-sketch-btn {
+  background: var(--yasd-slate-card);
+  border: 1px solid var(--yasd-border-control);
+  border-radius: 4px;
+  color: var(--yasd-gold-accent);
+  font-size: 11px;
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+
+.flow-sketch-btn:hover {
+  background: var(--yasd-slate-card-hover);
+  border-color: var(--yasd-gold-accent);
+  transform: translateY(-1px);
+}

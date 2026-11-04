@@ -87,14 +87,17 @@ test('app.js, terminal.js, and hud.js implement Shockbolt GUI icons, birthConfir
     assert(hudSrc.includes('getShockboltSpriteCss') || hudSrc.includes('hud-target-portrait'), 'Missing Shockbolt portrait in hud.js Target Inspector');
 });
 
-// 4. Pillar III: Living Chronicle Lore-Correct Hero Action Sketch
-test('Chronicle Hero Action Sketch is wired across index.html, server.js, and chronicle-manager.js', () => {
+// 4. Pillar III: Living Chronicle Lore-Correct Hero Action Sketch (Humor & Horror Scene Director)
+test('Chronicle Hero Action Sketch is wired across index.html, server.js, and chronicle-manager.js with Humor & Horror Scene Director', () => {
     const html = read('server/public/index.html');
     assert(html.includes('id="chronicle-sketch-btn"'), 'Missing #chronicle-sketch-btn in index.html');
     assert(html.includes('id="chronicle-sketch-modal"'), 'Missing #chronicle-sketch-modal in index.html');
+    assert(html.includes('id="chronicle-sketch-modal-status"'), 'Missing #chronicle-sketch-modal-status in index.html');
+    assert(html.includes('id="btn-share-sketch-card"'), 'Missing #btn-share-sketch-card in index.html');
 
     const serverSrc = read('server/src/server.js');
     assert(serverSrc.includes("'/api/chronicle/sketch'"), 'Missing POST /api/chronicle/sketch route in server/src/server.js');
+    assert(serverSrc.includes('gemini-2.5-flash-image'), 'Missing gemini-2.5-flash-image primary model in server/src/server.js');
     assert(serverSrc.includes('gemini-3.1-flash-image'), 'Missing gemini-3.1-flash-image model in server/src/server.js');
     assert(serverSrc.includes('sketchCache'), 'Missing bounded sketchCache in server/src/server.js');
 
@@ -102,6 +105,9 @@ test('Chronicle Hero Action Sketch is wired across index.html, server.js, and ch
     assert(chronSrc.includes('buildHeroSketchContext'), 'Missing buildHeroSketchContext in chronicle-manager.js');
     assert(chronSrc.includes('renderMasterworkCanvasSketch'), 'Missing renderMasterworkCanvasSketch in chronicle-manager.js');
     assert(chronSrc.includes('promptHeroActionSketch'), 'Missing promptHeroActionSketch in chronicle-manager.js');
+    assert(chronSrc.includes('maybeAutoTriggerSceneSketch'), 'Missing maybeAutoTriggerSceneSketch in chronicle-manager.js');
+    assert(chronSrc.includes('sceneTone') && chronSrc.includes('toneBadge'), 'Missing sceneTone / toneBadge Humor & Horror Scene Director in chronicle-manager.js');
+    assert(chronSrc.includes('flow-sketch-btn'), 'Missing per-beat .flow-sketch-btn in chronicle-manager.js');
 });
 
 // 5. Pillar IV: Godot 4 C# Cross-Platform Parity

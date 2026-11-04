@@ -1801,6 +1801,8 @@ class ChronicleManager {
     processEvent(event, frame, shouldSpeak = true) {
         if (!event || !frame) return null;
 
+        this.lastTriggeredEvent = event;
+
         // Update NarrativeArcTracker state across turns & attach summary
         const arcState = this.updateArcState(event, frame);
         if (arcState) {
@@ -1812,10 +1814,14 @@ class ChronicleManager {
         // Generates rich, lore-accurate, race-attuned Tolkien prose matching vocals 1:1.
         const entry = this.grounder.generateProceduralChapter(event, frame.player, this.tradition);
         if (!entry) return null;
+        entry.event = event;
 
         // Append to rolling story & render
         this.store.appendChapter(this.activeChronicle, entry);
         this.renderStoryEntry(entry, true);
+
+        // Automatically trigger a Tome Sketch on peak Humor, Horror, or Humor+Horror scenes
+        this.maybeAutoTriggerSceneSketch(event, entry, frame);
 
         // Speak aloud if audio is unmuted (respects isNoise for non-vocal creatures)
         if (shouldSpeak && this.audio && !this._isAudioMuted()) {
@@ -1844,6 +1850,51 @@ class ChronicleManager {
         }
 
         return entry;
+    }
+
+    maybeAutoTriggerSceneSketch(event, entry, frame) {
+        if (!event || !entry) return;
+        const type = event.type || '';
+        if (type === 'HERO_DEATH') return; // Handled by dedicated Death Modal & renderDeathSketchIntoModal
+
+        const d = event.data || {};
+        const monsterName = (d.monster?.name || d.attacker || d.victim || d.dominantFoe?.name || '').toLowerCase();
+        const isClassicQuirkyFoe = /newt|grid bug|floating eye|kobold|rat|mold|jelly|mushroom|urchin|beggar|mimic|chicken|worm|bat/i.test(monsterName);
+
+        let shouldSketch = false;
+        if (
+            type === 'MORTAL_PERIL' ||
+            type === 'UNIQUE_SPOTTED' ||
+            type === 'UNIQUE_SLAIN' ||
+            type === 'CREATURE_BIZARRE_ACTION' ||
+            type === 'CREATURE_THEFT' ||
+            type === 'CREATURE_INSULT' ||
+            type === 'CREATURE_BEG' ||
+            type === 'SACRED_SHRINE'
+        ) {
+            shouldSketch = true;
+        } else if (type === 'PLAYER_STATUS' && /blind|paralyzed|terrified|confused|hallucinat/i.test(d.status || '')) {
+            shouldSketch = true;
+        } else if (type === 'LEVEL_FEELING' && /omens of death|murderous|terribly dangerous|chills you to the bone|very bad feeling/i.test(d.message || '')) {
+            shouldSketch = true;
+        } else if ((type === 'COMBAT_EPISODE' || type === 'COMBAT_EXCHANGE') && (d.isPeril || d.monster?.isUnique || d.dominantFoe?.isUnique || (isClassicQuirkyFoe && (d.kills > 0 || d.subtype === 'KILL' || d.isPeril)))) {
+            shouldSketch = true;
+        }
+
+        if (!shouldSketch) return;
+
+        const now = Date.now();
+        const sig = `${type}:${monsterName}:${d.action || d.status || d.shrineKind || frame?.player?.depth || 0}`;
+        if (this._lastAutoSketchSig === sig && this._lastAutoSketchTime && (now - this._lastAutoSketchTime < 90000)) {
+            return;
+        }
+        if (this._lastAutoSketchTime && (now - this._lastAutoSketchTime < 35000)) {
+            return;
+        }
+        this._lastAutoSketchTime = now;
+        this._lastAutoSketchSig = sig;
+
+        this.promptHeroActionSketch(entry, { autoTriggered: true, event, frame });
     }
 
     renderAllChapters() {
@@ -1930,7 +1981,10 @@ class ChronicleManager {
         let html = `
             <div class="flowing-paragraph-header ${isDeath ? 'death-header' : ''}">
                 <span class="entry-meta-depth ${isDeath ? 'death-badge' : ''}">${headerBadge}</span>
-                <button class="flow-play-btn" data-beat-id="${beatId}" data-beat-index="${playlistIndex}" title="${isDeath ? 'Hear the Requiem' : 'Play story from here'}">▶</button>
+                <div class="flowing-paragraph-actions">
+                    <button type="button" class="flow-sketch-btn" data-beat-id="${beatId}" data-beat-index="${playlistIndex}" title="Sketch the humor or horror of this scene">🎨</button>
+                    <button type="button" class="flow-play-btn" data-beat-id="${beatId}" data-beat-index="${playlistIndex}" title="${isDeath ? 'Hear the Requiem' : 'Play story from here'}">▶</button>
+                </div>
             </div>
         `;
 
@@ -1998,6 +2052,14 @@ class ChronicleManager {
                     const vowId = btn.getAttribute('data-vow-id');
                     if (vowId) this.swearMythicVow(vowId);
                 });
+            });
+        }
+
+        const sketchBeatBtn = block.querySelector('.flow-sketch-btn');
+        if (sketchBeatBtn) {
+            sketchBeatBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.promptHeroActionSketch(entry, { event: entry.event || this.lastTriggeredEvent, autoTriggered: false });
             });
         }
 
@@ -2825,20 +2887,43 @@ class ChronicleManager {
         return escapeHtml(str);
     }
 
-    openSketchLightbox(imageUrl, title, caption, gearBadges = [], statBadges = [], statusBadges = [], historyTimeline = []) {
+    openSketchLightbox(imageUrl, title, caption, gearBadges = [], statBadges = [], statusBadges = [], historyTimeline = [], statusText = '') {
         if (!this.sketchModal) {
             this.sketchModal = document.getElementById('chronicle-sketch-modal');
             this.sketchModalImg = document.getElementById('chronicle-sketch-modal-img');
+            this.sketchModalStatus = document.getElementById('chronicle-sketch-modal-status');
             this.sketchModalCaption = document.getElementById('chronicle-sketch-modal-caption');
             this.sketchModalGear = document.getElementById('chronicle-sketch-modal-gear');
             this.sketchModalTitle = document.getElementById('chronicle-sketch-modal-title');
             this.btnDownloadSketchPng = document.getElementById('btn-download-sketch-png');
+            this.btnShareSketchCard = document.getElementById('btn-share-sketch-card');
             this.btnCloseSketchModal = document.getElementById('btn-close-sketch-modal');
         }
         if (!this.sketchModal) return;
 
+        if (!this.sketchModalStatus) {
+            this.sketchModalStatus = document.getElementById('chronicle-sketch-modal-status');
+        }
+        if (!this.btnShareSketchCard) {
+            this.btnShareSketchCard = document.getElementById('btn-share-sketch-card');
+        }
+        if (this.btnShareSketchCard && !this._shareSketchCardBound) {
+            this._shareSketchCardBound = true;
+            this.btnShareSketchCard.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.downloadYasdShareCard(
+                    this.lastFrame,
+                    this._lastActiveSketchCtx || this._lastDeathCtx,
+                    (this.sketchModalImg && this.sketchModalImg.src) || this._lastActiveSketchUrl || this._lastDeathSketchUrl
+                );
+            });
+        }
+
         if (this.sketchModalTitle && title) {
             this.sketchModalTitle.textContent = title;
+        }
+        if (this.sketchModalStatus) {
+            this.sketchModalStatus.textContent = statusText || '✨ Illustrated Scene';
         }
         if (this.sketchModalImg) {
             this.sketchModalImg.src = imageUrl || '';
@@ -3280,23 +3365,57 @@ class ChronicleManager {
         // 4. Visible Monsters (distinguishing loyal pets/allies from hostiles) and Items
         const visibleMonsters = [];
         const visibleAllies = [];
+        const seenMonNames = new Set();
+        const pushMonsterCandidate = (rawM, fallbackState = 'hostile') => {
+            if (!rawM) return;
+            let mName = typeof rawM === 'string' ? rawM : (rawM.name || rawM.monsterName || 'Unknown beast');
+            if (realm === 'hengband' && typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
+                try {
+                    mName = window.HengTranslate.translateName(mName, 1, effLang) || mName;
+                } catch (_) {}
+            }
+            mName = String(mName).replace(/^(?:a|an|the)\s+/i, '').trim();
+            if (!mName) return;
+            const key = mName.toLowerCase();
+            if (seenMonNames.has(key)) return;
+            seenMonNames.add(key);
+
+            const glyph = (typeof rawM === 'object' && (rawM.glyph || rawM.char)) || 'm';
+            const isAlly = Boolean((typeof rawM === 'object' && (rawM.isPet || rawM.pet || rawM.friendly || rawM.tame)) || /\b(ally|pet|tame)\b/i.test(mName));
+            const state = isAlly ? 'loyal ally' : ((typeof rawM === 'object' && rawM.sleep) ? 'asleep' : ((typeof rawM === 'object' && rawM.afraid) ? 'fleeing in terror' : fallbackState));
+            if (isAlly) {
+                visibleAllies.push({ name: mName, glyph, state });
+            } else if (visibleMonsters.length < 4) {
+                visibleMonsters.push({ name: mName, glyph, state });
+            }
+        };
+
         if (Array.isArray(frame.monsters)) {
             for (const m of frame.monsters.slice(0, 6)) {
-                if (!m) continue;
-                let mName = m.name || 'Unknown beast';
-                if (realm === 'hengband' && typeof window !== 'undefined' && window.HengTranslate && typeof window.HengTranslate.translateName === 'function') {
-                    try {
-                        mName = window.HengTranslate.translateName(mName, 1, effLang) || mName;
-                    } catch (_) {}
-                }
-                const glyph = m.glyph || m.char || 'm';
-                const isAlly = Boolean(m.isPet || m.pet || m.friendly || m.tame || /\b(ally|pet|tame)\b/i.test(mName));
-                const state = isAlly ? 'loyal ally' : (m.sleep ? 'asleep' : (m.afraid ? 'afraid' : 'hostile'));
-                if (isAlly) {
-                    visibleAllies.push({ name: mName, glyph, state });
-                } else if (visibleMonsters.length < 4) {
-                    visibleMonsters.push({ name: mName, glyph, state });
-                }
+                pushMonsterCandidate(m, 'hostile');
+            }
+        }
+        // Recover targeted/inspected or recently active monsters (assailants, bizarre actors, fleeing foes, or event monster)
+        if (this.targetedCreature) pushMonsterCandidate(this.targetedCreature, 'engaged');
+        if (this.inspectedEntity && !this.inspectedEntity.tval) pushMonsterCandidate(this.inspectedEntity, 'prowling');
+        const activeEv = options.event || overrideBeat?.event || this.lastTriggeredEvent || null;
+        if (activeEv && activeEv.data) {
+            if (activeEv.data.monster) pushMonsterCandidate(activeEv.data.monster, 'menacing');
+            if (activeEv.data.monsterName) pushMonsterCandidate({ name: activeEv.data.monsterName, glyph: activeEv.data.glyph || 'm' }, activeEv.type === 'CREATURE_FLEEING' ? 'fleeing in panic' : 'engaged');
+            if (activeEv.data.name && activeEv.type === 'UNIQUE_SLAIN') pushMonsterCandidate({ name: activeEv.data.name, glyph: 'U' }, 'vanquished boss');
+        }
+        if (this.filter && visibleMonsters.length === 0) {
+            if (this.filter.recentBizarreActions && this.filter.recentBizarreActions.size > 0) {
+                const lastBz = Array.from(this.filter.recentBizarreActions.keys()).pop();
+                if (lastBz) pushMonsterCandidate(lastBz, 'acting bizarrely');
+            }
+            if (this.filter.recentAssailants && this.filter.recentAssailants.size > 0) {
+                const lastAsl = Array.from(this.filter.recentAssailants.keys()).pop();
+                if (lastAsl) pushMonsterCandidate(lastAsl, 'attacking');
+            }
+            if (this.filter.recentFleeings && this.filter.recentFleeings.size > 0) {
+                const lastFl = Array.from(this.filter.recentFleeings.keys()).pop();
+                if (lastFl) pushMonsterCandidate(lastFl, 'fleeing in terror');
             }
         }
         if (mode === 'death' && killedBy && visibleMonsters.length === 0) {
@@ -3340,7 +3459,7 @@ class ChronicleManager {
             locationLabel = `Dungeon Level ${depth}`;
         }
 
-        // 5. Story & Chronicle History
+        // 5. Story & Chronicle History (Merge frame.messages + lastSeenMessages + filter buffer so idle frames never lose context!)
         let originSummary = '';
         if (Array.isArray(this.entries) && this.entries.length > 0) {
             originSummary = this.entries[0]?.text || this.entries[0]?.prose || '';
@@ -3352,19 +3471,30 @@ class ChronicleManager {
             originSummary = `A bold ${race} ${heroClass} seeking renown in ${locationLabel}.`;
         }
 
+        const rawMsgPool = [
+            ...(Array.isArray(this.filter?.lastSeenMessages) ? this.filter.lastSeenMessages.slice(-10) : []),
+            ...(Array.isArray(this.lastSeenMessages) ? this.lastSeenMessages.slice(-10) : []),
+            ...(Array.isArray(frame.messages) ? frame.messages.slice(-10) : [])
+        ];
+        if (activeEv && activeEv.data && typeof activeEv.data.message === 'string') {
+            rawMsgPool.push(activeEv.data.message);
+        }
         const notableDeeds = [];
-        if (Array.isArray(frame.messages)) {
-            for (const msg of frame.messages.slice(-8)) {
-                if (!msg || typeof msg !== 'string') continue;
-                const clean = msg.trim();
-                if (clean.length < 5) continue;
-                if (/kill|slain|destroy|hit|cast|breathe|found|artifact|level|stair|door|quaff|read|pray|altar|fountain|sink|liberated|rune|amulet/i.test(clean)) {
-                    notableDeeds.push(clean);
-                }
+        const seenDeedSet = new Set();
+        for (const msgObj of rawMsgPool.slice(-14)) {
+            const msg = typeof msgObj === 'string' ? msgObj : (msgObj && msgObj.text ? msgObj.text : '');
+            if (!msg || typeof msg !== 'string') continue;
+            const clean = msg.trim();
+            if (clean.length < 5) continue;
+            const lKey = clean.toLowerCase();
+            if (seenDeedSet.has(lKey)) continue;
+            if (/kill|slain|destroy|hit|slash|crush|cast|breathe|found|artifact|level|stair|door|quaff|drink|read|pray|altar|fountain|sink|liberated|rune|amulet|vomit|drool|giggle|babble|beg|insult|mock|jeer|steal|stolen|purse|flee|panic|scream|shriek|trap|paralyz|blind|confus|terrifi|omens/i.test(clean)) {
+                seenDeedSet.add(lKey);
+                notableDeeds.push(clean);
             }
         }
         if (notableDeeds.length === 0) {
-            notableDeeds.push(depth > 0 ? `Descended to ${locationLabel}` : `Prepared equipment in ${locationLabel}`);
+            notableDeeds.push(depth > 0 ? `Delving through ${locationLabel}` : `Preparing for the delve in ${locationLabel}`);
         }
 
         const historyTimeline = [];
@@ -3391,7 +3521,7 @@ class ChronicleManager {
         const maxDepthLabel = maxDepth > 0 ? (realm === 'angband' || realm === 'silq' ? `${maxDepth * 50}ft` : `DLvl ${maxDepth}`) : 'Surface';
         const storyArc = mode === 'death'
             ? `YASD Demise: Killed by ${killedBy || 'mortal wounds'} at ${locationLabel} • Deepest: ${maxDepthLabel}`
-            : `Origin: ${originSummary.slice(0, 75)} • Deepest: ${maxDepthLabel} • Deeds: ${notableDeeds.slice(0, 2).join('; ').slice(0, 75)}`;
+            : `Origin: ${originSummary.slice(0, 75)} • Deepest: ${maxDepthLabel} • Deeds: ${notableDeeds.slice(-2).join('; ').slice(0, 75)}`;
 
         let narrativeText = overrideBeat?.text || overrideBeat?.prose || '';
         if (mode === 'death' && !overrideBeat) {
@@ -3407,7 +3537,7 @@ class ChronicleManager {
             narrativeText = this.entries[this.entries.length - 1]?.text || '';
         }
         if (!narrativeText) {
-            narrativeText = 'Exploring the perilous depths.';
+            narrativeText = notableDeeds[notableDeeds.length - 1] || 'Exploring the perilous depths.';
         }
 
         let realmAtmosphere = '';
@@ -3433,31 +3563,66 @@ class ChronicleManager {
             ? `Accompanied by loyal companion ally: ${visibleAllies.map(a => a.name).join(', ')}.`
             : '';
         const monstersDesc = visibleMonsters.length > 0
-            ? `Facing nearby hostile threats: ${visibleMonsters.map(m => `${m.name} (${m.state})`).join(', ')}.`
-            : 'Stalking through dark dungeon corridors with drawn weapon, watchful for ambushes.';
+            ? `Facing nearby threats: ${visibleMonsters.map(m => `${m.name} (${m.state})`).join(', ')}.`
+            : 'Surrounded by claustrophobic dungeon shadows, skeletal remains of past delvers, and flickering torchlight.';
 
-        // Situational Drama & Dark-Comedy Director (Highlights dramatic or humorous aspects!)
+        // =====================================================================
+        // Humor & Horror Scene Director (Matches Death Sketch Intensity!)
+        // Every Tome Sketch highlights the Humor, Horror, or Both of the scene!
+        // =====================================================================
         let situationalFocus = '';
-        const combinedRecent = `${notableDeeds.join(' ')} ${narrativeText}`.toLowerCase();
+        let sceneTone = 'horror'; // 'humor' | 'horror' | 'humor_horror' | 'victory'
+        let toneBadge = '😱 Dungeon Horror';
+        const monsterNamesStr = visibleMonsters.map(m => m.name).join(', ');
+        const combinedRecent = `${notableDeeds.join(' ')} ${narrativeText} ${monsterNamesStr} ${killedBy}`.toLowerCase();
+
+        const hasHumorousFoe = /\b(newt|grid bug|jackal|rat|kobold|bat|floating eye|mold|jelly|mushroom|urchin|beggar|drunk|squint-eyed|thief|cutpurse|vagabond|idiot|drool|filthy|hobbit|chicken|worm|cockroach|gecko|toad|frog|squirrel|kitten|puppy|leprechaun|nymph|monkey|imp|quasit|homunculus)\b/i.test(combinedRecent);
+        const hasBizarreOrTheft = /\b(vomit|drool|giggle|babble|weep|begs|insult|mock|jeer|steal|stolen|purse feels lighter|fountain|sink|quaff|stub|squeaky|hallucinat|unreal)\b/i.test(combinedRecent) ||
+            (activeEv && ['CREATURE_BIZARRE_ACTION', 'CREATURE_THEFT', 'CREATURE_INSULT', 'CREATURE_BEG', 'SACRED_SHRINE'].includes(activeEv.type));
+        const hasEldritchOrBossHorror = /\b(dragon|balrog|lich|nazgul|ringwraith|demon|vampire|wraith|phantom|ghost|horror|mind flayer|illithid|beholder|hydra|troll|ogre|giant|hound|sauron|morgoth|carcharoth|serpent|cyberdemon|arch-vile|yendor|ancient|greater|lord|prince|queen|king|unique|omens of death|murderous)\b/i.test(combinedRecent) ||
+            (activeEv && ['MORTAL_PERIL', 'UNIQUE_SPOTTED', 'UNIQUE_SLAIN'].includes(activeEv.type));
+        const hasSeverePerilOrAffliction = hpRatio < 0.40 || isCut || isPoisoned || isBlind || isConfused || isAfraid || isStunned;
+
         if (mode === 'death') {
-            const isHumorousKiller = /newt|grid bug|jackal|rat|kobold|bat|floating eye|mold|jelly|starv|hunger|sink|fountain|chok/i.test(killedBy);
+            const isHumorousKiller = /newt|grid bug|jackal|rat|kobold|bat|floating eye|mold|jelly|mushroom|urchin|beggar|starv|hunger|sink|fountain|chok/i.test(killedBy);
+            sceneTone = isHumorousKiller ? 'humor_horror' : 'horror';
+            toneBadge = isHumorousKiller ? '🎭 Tragicomic YASD Demise' : '☠ YASD Horror Demise';
             situationalFocus = isHumorousKiller
-                ? `Darkly comedic "Yet Another Stupid Death" (YASD) fantasy vignette! Depict ${name} the ${race} ${heroClass} meeting an absurd, tragicomic demise caused by ${killedBy} in ${locationLabel}, with scattered loot, an expressive reaction, and a carved stone tombstone nearby.`
-                : `Dramatic dark-fantasy death scene ("Yet Another Stupid Death" / YASD)! Depict the fallen hero ${name} the ${race} ${heroClass} overcome by ${killedBy} in ${locationLabel}, with shattered shield, spilled gold coins, and a weathered stone tombstone emerging in the torchlight.`;
+                ? `Darkly comedic & horrifying "Yet Another Stupid Death" (YASD) fantasy vignette! Depict ${name} the ${race} ${heroClass} meeting an absurd, tragicomic demise caused by ${killedBy} in ${locationLabel}, blending slapstick dungeon absurdity with grim roguelike consequence, scattered loot, an expressive reaction, and a carved stone tombstone nearby.`
+                : `Visceral dark-fantasy horror death scene ("Yet Another Stupid Death" / YASD)! Depict the fallen hero ${name} the ${race} ${heroClass} overcome by the terrifying ${killedBy} in ${locationLabel}, with shattered shield, spilled gold coins, ominous shadows, and a weathered stone tombstone emerging in the dying torchlight.`;
         } else if (mode === 'victory') {
-            situationalFocus = `Triumphant mythic ascension! Depict ${name} the ${race} ${heroClass} raising the ultimate relic aloft in golden celestial light as dungeon shadows recoil.`;
-        } else if (/sink|fountain|quaff|drink|altar|pray/i.test(combinedRecent)) {
-            situationalFocus = `Expressive, humorous & dramatic dungeon curiosity moment! Depict ${name} interacting boldly with a dungeon feature (${notableDeeds[0] || 'ancient magic'}) with vivid facial expression and chaotic magical sparks${visibleAllies.length ? ' while their loyal pet watches in disbelief' : ''}.`;
-        } else if (isConfused || isBlind || isAfraid) {
-            situationalFocus = `Comedic & perilous status predicament! Depict ${name} staggering under ${isConfused ? 'dizzy arcane confusion' : (isBlind ? 'sudden blindness' : 'sheer terror')} with expressive body language while ${visibleMonsters.length ? `${visibleMonsters[0].name} closes in` : 'groping along the torchlit dungeon wall'}.`;
-        } else if (hpRatio < 0.35 && visibleMonsters.length > 0) {
-            situationalFocus = `High-drama desperate last stand! Depict ${name} battered and defiant in a narrow stone doorway bottleneck, parrying a ferocious strike from ${visibleMonsters[0].name} with sparks flying.`;
-        } else if (visibleAllies.length > 0 && visibleMonsters.length > 0) {
-            situationalFocus = `Heroic companion team-up! Depict ${name} and their loyal ${visibleAllies[0].name} fighting side-by-side against ${visibleMonsters.map(m => m.name).join(' and ')}.`;
+            sceneTone = 'victory';
+            toneBadge = '👑 Immortal Ascension';
+            situationalFocus = `Triumphant mythic ascension! Depict ${name} the ${race} ${heroClass} raising the ultimate relic aloft in golden celestial light as dungeon horrors recoil into the abyss.`;
+        } else if ((hasHumorousFoe || hasBizarreOrTheft) && (hasSeverePerilOrAffliction || hasEldritchOrBossHorror)) {
+            sceneTone = 'humor_horror';
+            toneBadge = '🎭 Horror & Dark Comedy';
+            const foeDesc = visibleMonsters.length ? visibleMonsters[0].name : 'dungeon menaces';
+            situationalFocus = `Grotesque tragicomic fantasy scene blending visceral dungeon horror AND dark slapstick comedy! Depict ${name} the ${race} ${heroClass} (${condition}, ${statusBadges.join(', ')}) caught in an absurd yet life-threatening predicament with ${foeDesc} (${notableDeeds[notableDeeds.length - 1] || 'chaos in the dark'}), with wide-eyed panicked expression, flying potions/coins, and menacing shadows closing in.`;
+        } else if (hasBizarreOrTheft || hasHumorousFoe) {
+            sceneTone = 'humor';
+            toneBadge = '🃏 Dungeon Comedy';
+            const foeDesc = visibleMonsters.length ? visibleMonsters[0].name : 'an eccentric dungeon denizen';
+            situationalFocus = `Witty, darkly comedic roguelike fantasy vignette! Depict the heavily armed ${name} the ${race} ${heroClass} in an absurd, expressive encounter with ${foeDesc} (${notableDeeds[notableDeeds.length - 1] || 'dungeon shenanigans'}), highlighting the hilarious scale contrast, exaggerated facial expressions, and chaotic tabletop RPG humor.`;
+        } else if (isConfused || isBlind || isAfraid || isStunned) {
+            sceneTone = 'humor_horror';
+            toneBadge = '🎭 Peril & Panic';
+            situationalFocus = `Harrowing yet darkly comical dungeon predicament! Depict ${name} staggering under ${isConfused ? 'dizzy arcane confusion' : (isBlind ? 'sudden terrifying blindness' : (isAfraid ? 'heart-pounding terror' : 'reeling concussive stun'))} with expressive panicked body language while ${visibleMonsters.length ? `the monstrous ${visibleMonsters[0].name} looms inches away in the torchlight` : 'clawing along the cold stone wall as unseen eyes gleam in the dark'}.`;
+        } else if (hpRatio < 0.40 || isCut || isPoisoned || hasEldritchOrBossHorror) {
+            sceneTone = 'horror';
+            toneBadge = '😱 Dungeon Horror';
+            const threatName = visibleMonsters.length ? visibleMonsters[0].name : 'lurking abyssal horrors';
+            situationalFocus = `Visceral dark-fantasy horror & survival dread! Depict ${name} the ${race} ${heroClass} bloodied and defiant in a claustrophobic stone vault, facing the nightmare terror of ${threatName} as flickering torchlight casts monstrous shadows across blood-stained flagstones.`;
         } else if (visibleMonsters.length > 0) {
-            situationalFocus = `Dynamic fantasy combat clash! Depict ${name} mid-strike against ${visibleMonsters.map(m => m.name).join(', ')}, capturing the dramatic scale and personality of both hero and monster.`;
+            sceneTone = 'humor_horror';
+            toneBadge = '🎭 Grim Clash & Quirk';
+            situationalFocus = `Dramatic dark-fantasy clash with roguelike personality & grim humor! Depict ${name} the ${race} ${heroClass} mid-battle against ${visibleMonsters.map(m => m.name).join(' and ')}${visibleAllies.length ? ` alongside loyal ${visibleAllies[0].name}` : ''}, capturing both the terrifying subterranean monster anatomy and the frantic, gritty reality of dungeon survival.`;
         } else {
-            situationalFocus = `Atmospheric dungeon exploration! Depict ${name} advancing with expressive character personality through ${locationLabel}${visibleItems.length ? `, discovering ${visibleItems[0]} gleaming on the flagstones` : ''}.`;
+            sceneTone = depth === 0 ? 'humor' : 'humor_horror';
+            toneBadge = depth === 0 ? '🃏 Town Shenanigans' : '🎭 Dungeon Dread & Humor';
+            situationalFocus = depth === 0
+                ? `Wry dark-fantasy town vignette! Depict ${name} the ${race} ${heroClass} in ${locationLabel}, weighed down by an absurd assortment of dungeon gear and clutching their gold purse tightly while eyeing suspicious street urchins and eccentric shopkeepers.`
+                : `Atmospheric blend of subterranean horror and dark roguelike humor! Depict ${name} the ${race} ${heroClass} creeping cautiously through ${locationLabel} past a skeleton of an unlucky predecessor${visibleItems.length ? ` while eyeing ${visibleItems[0]} suspiciously for mimics or traps` : ''}, as glowing eyes watch from the oppressive darkness.`;
         }
 
         const gearDesc = gearBadges.length > 0
@@ -3470,9 +3635,9 @@ class ChronicleManager {
 
         const statsSummary = statBadges.join(', ');
         const statusSummary = statusBadges.join(', ');
-        const deedsSummary = notableDeeds.join('; ');
+        const deedsSummary = notableDeeds.slice(-3).join('; ');
 
-        const prompt = `A masterwork dark-fantasy book illustration, charcoal and graphite drawing with deep pen-and-ink crosshatching on aged vellum paper, accented with rich watercolor washes and gold-leaf highlights. ${situationalFocus} Hero: ${name}, a Level ${level} ${race} ${heroClass}${p.god ? ` (Worshipper of ${p.god})` : ''} (${condition}). Physical form: ${statTraits} (${statsSummary}). Active conditions: ${statusSummary}. Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${packDesc} ${alliesDesc} ${monstersDesc} Scene: “${narrativeText}”. Dramatic chiaroscuro lighting with warm torchlight glow. Pure fantasy artwork — DO NOT include any text, letters, words, watermarks, or HUD numbers in the image.`;
+        const prompt = `A masterwork dark-fantasy book illustration, charcoal and graphite drawing with deep pen-and-ink crosshatching on aged vellum paper, accented with rich watercolor washes and gold-leaf highlights. Tone: ${toneBadge}. ${situationalFocus} Hero: ${name}, a Level ${level} ${race} ${heroClass}${p.god ? ` (Worshipper of ${p.god})` : ''} (${condition}). Physical form: ${statTraits} (${statsSummary}). Active conditions: ${statusSummary}. Recent deeds: ${deedsSummary}. Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${packDesc} ${alliesDesc} ${monstersDesc} Scene: “${narrativeText}”. Dramatic chiaroscuro lighting with warm torchlight glow. Pure fantasy artwork — DO NOT include any text, letters, words, watermarks, or HUD numbers in the image.`;
 
         const heroObj = {
             name,
@@ -3502,6 +3667,8 @@ class ChronicleManager {
             locationLabel,
             condition,
             mode,
+            sceneTone,
+            toneBadge,
             killedBy,
             stats: statBadges,
             status: statusBadges,
@@ -3515,6 +3682,8 @@ class ChronicleManager {
         return {
             realm,
             mode,
+            sceneTone,
+            toneBadge,
             killedBy,
             situationalFocus,
             hero: heroObj,
@@ -3615,14 +3784,20 @@ class ChronicleManager {
         const realmTitle = realm.toUpperCase();
         const isDeathMode = (ctxData.mode === 'death');
         const isVictoryMode = (ctxData.mode === 'victory');
-        ctx.fillStyle = isDeathMode ? '#fca5a5' : (isVictoryMode ? '#fde047' : '#f1d08a');
+        const sceneTone = ctxData.sceneTone || 'horror';
+        ctx.fillStyle = isDeathMode ? '#fca5a5' : (isVictoryMode ? '#fde047' : (sceneTone === 'horror' ? '#fca5a5' : (sceneTone === 'humor' ? '#fde68a' : '#f1d08a')));
         ctx.font = 'bold 15px "Cinzel", "Times New Roman", Georgia, serif';
         ctx.textAlign = 'center';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
         ctx.shadowBlur = 6;
+        const actionBanner = sceneTone === 'humor_horror'
+            ? `🎭  HORROR & DARK COMEDY  •  CHRONICLE OF ${realmTitle}  🎭`
+            : (sceneTone === 'humor'
+                ? `🃏  DUNGEON COMEDY  •  CHRONICLE OF ${realmTitle}  🃏`
+                : `😱  DUNGEON HORROR  •  CHRONICLE OF ${realmTitle}  😱`);
         ctx.fillText(
             isDeathMode ? `☠  Y A S D  •  CHRONICLE OF ${realmTitle}  ☠`
-                : (isVictoryMode ? `👑  IMMORTAL ASCENSION OF ${realmTitle}  👑` : `✦  CHRONICLE OF ${realmTitle}  ✦`),
+                : (isVictoryMode ? `👑  IMMORTAL ASCENSION OF ${realmTitle}  👑` : actionBanner),
             400, 42
         );
 
@@ -4443,12 +4618,13 @@ class ChronicleManager {
         }
     }
 
-    async downloadYasdShareCard(frame) {
+    async downloadYasdShareCard(frame, customCtx = null, customSketchSrc = null) {
         if (typeof document === 'undefined') return;
         const activeFrame = frame || this.lastFrame || {};
         const p = activeFrame.player || {};
-        const ctxData = this._lastDeathCtx || this.buildHeroSketchContext(null, { mode: p.winner ? 'victory' : 'death', frame: activeFrame });
-        const sketchSrc = this._lastDeathSketchUrl || this.renderMasterworkCanvasSketch(ctxData);
+        const ctxData = customCtx || this._lastDeathCtx || this._lastActiveSketchCtx || this.buildHeroSketchContext(null, { mode: p.winner ? 'victory' : (p.dead ? 'death' : 'action'), frame: activeFrame });
+        const sketchSrc = customSketchSrc || (ctxData.mode === 'action' ? this._lastActiveSketchUrl : this._lastDeathSketchUrl) || this.renderMasterworkCanvasSketch(ctxData);
+        const isActionScene = (ctxData.mode === 'action');
 
         const canvas = document.createElement('canvas');
         canvas.width = 1200;
@@ -4456,7 +4632,7 @@ class ChronicleManager {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // 1. Obsidian & Gold Memorial Card Backdrop
+        // 1. Obsidian & Gold Memorial / Scene Card Backdrop
         const bg = ctx.createLinearGradient(0, 0, 1200, 630);
         bg.addColorStop(0, '#140f0a');
         bg.addColorStop(0.5, '#0b0805');
@@ -4475,7 +4651,7 @@ class ChronicleManager {
         ctx.fillStyle = '#f5d77f';
         ctx.font = 'bold 16px "Cinzel", Georgia, serif';
         ctx.textAlign = 'left';
-        ctx.fillText('⚔ YASD 3D • YET ANOTHER STUPID DEATH (yasd3d.com)', 44, 56);
+        ctx.fillText(isActionScene ? '⚔ YASD 3D • LIVING CHRONICLE SCENE (angband3d.com)' : '⚔ YASD 3D • YET ANOTHER STUPID DEATH (yasd3d.com)', 44, 56);
         ctx.textAlign = 'right';
         ctx.fillStyle = '#c9a050';
         ctx.font = 'bold 13px "Cinzel", Georgia, serif';
@@ -4487,7 +4663,7 @@ class ChronicleManager {
         ctx.lineTo(1156, 68);
         ctx.stroke();
 
-        // 3. Left Panel: Illustrated Death Sketch
+        // 3. Left Panel: Illustrated Sketch
         try {
             const img = new Image();
             img.crossOrigin = 'anonymous';
@@ -4506,22 +4682,30 @@ class ChronicleManager {
             }
         } catch (_) {}
 
-        // 4. Right Panel: Epitaph, Cause of Death, Vitals & Gear
+        // 4. Right Panel: Scene Tone / Epitaph, Vitals & Gear
         const rx = 610;
         ctx.textAlign = 'left';
-        ctx.fillStyle = p.winner ? '#fde047' : '#f87171';
-        ctx.font = 'bold 26px "Cinzel", Georgia, serif';
-        ctx.fillText(p.winner ? '👑 IMMORTAL ASCENSION' : '☠ YOU HAVE PERISHED', rx, 120);
+        if (isActionScene) {
+            ctx.fillStyle = ctxData.sceneTone === 'humor' ? '#fbbf24' : (ctxData.sceneTone === 'humor_horror' ? '#c084fc' : '#f87171');
+            ctx.font = 'bold 24px "Cinzel", Georgia, serif';
+            ctx.fillText((ctxData.toneBadge || '🎭 DUNGEON CHRONICLE SCENE').toUpperCase(), rx, 120);
+        } else {
+            ctx.fillStyle = p.winner ? '#fde047' : '#f87171';
+            ctx.font = 'bold 26px "Cinzel", Georgia, serif';
+            ctx.fillText(p.winner ? '👑 IMMORTAL ASCENSION' : '☠ YOU HAVE PERISHED', rx, 120);
+        }
 
         ctx.fillStyle = '#fff8e1';
         ctx.font = 'bold 22px "Cinzel", Georgia, serif';
         ctx.fillText(`${ctxData.hero.name} — Lv.${ctxData.hero.level} ${ctxData.hero.race} ${ctxData.hero.class}`, rx, 156);
 
-        ctx.fillStyle = '#fca5a5';
+        ctx.fillStyle = isActionScene ? '#fde68a' : '#fca5a5';
         ctx.font = 'italic 17px Georgia, serif';
-        const causeStr = p.winner
-            ? `Ascended triumphantly from ${ctxData.locationLabel}!`
-            : `Killed by ${ctxData.killedBy || 'mortal wounds'} at ${ctxData.locationLabel}.`;
+        const causeStr = isActionScene
+            ? ((ctxData.notableDeeds && ctxData.notableDeeds[0]) || ctxData.storyArc || `Chronicled at ${ctxData.locationLabel}.`)
+            : (p.winner
+                ? `Ascended triumphantly from ${ctxData.locationLabel}!`
+                : `Killed by ${ctxData.killedBy || 'mortal wounds'} at ${ctxData.locationLabel}.`);
         ctx.fillText(causeStr.slice(0, 62), rx, 188);
 
         // Realm & Telemetry Box
@@ -4541,7 +4725,7 @@ class ChronicleManager {
         // Equipped Loadout
         ctx.fillStyle = '#f5d77f';
         ctx.font = 'bold 14px "Cinzel", Georgia, serif';
-        ctx.fillText('⚔ EQUIPPED ARMS & RELICS AT DEMISE', rx, 330);
+        ctx.fillText(isActionScene ? '⚔ EQUIPPED ARMS & RELICS IN SCENE' : '⚔ EQUIPPED ARMS & RELICS AT DEMISE', rx, 330);
         ctx.fillStyle = '#e2d2b5';
         ctx.font = '13px sans-serif';
         const gearList = (ctxData.gearBadges && ctxData.gearBadges.length > 0) ? ctxData.gearBadges.slice(0, 5) : ['Basic adventurer attire'];
@@ -4564,27 +4748,32 @@ class ChronicleManager {
         const a = document.createElement('a');
         const cleanName = (ctxData.hero.name || 'hero').toLowerCase().replace(/[^a-z0-9]+/g, '-');
         a.href = dataUrl;
-        a.download = `${cleanName}-${ctxData.realm}-yasd-card.png`;
+        a.download = isActionScene
+            ? `${cleanName}-${ctxData.realm}-${ctxData.sceneTone || 'scene'}-card.png`
+            : `${cleanName}-${ctxData.realm}-yasd-card.png`;
         document.body.appendChild(a);
         a.click();
         a.remove();
-        this.showHudToast('⚔ Downloaded Shareable YASD Memorial Card (.PNG)!');
+        this.showHudToast(isActionScene ? '⚔ Downloaded Shareable Scene Card (.PNG)!' : '⚔ Downloaded Shareable YASD Memorial Card (.PNG)!');
     }
 
-    async promptHeroActionSketch(overrideBeat = null) {
+    async promptHeroActionSketch(overrideBeat = null, options = {}) {
         const now = Date.now();
-        if (this._lastHeroSketchTime && (now - this._lastHeroSketchTime < 2500)) {
+        const isAuto = Boolean(options && options.autoTriggered);
+        if (!isAuto && this._lastHeroSketchTime && (now - this._lastHeroSketchTime < 2500)) {
             return;
         }
         this._lastHeroSketchTime = now;
 
-        const ctxData = this.buildHeroSketchContext(overrideBeat);
+        const ctxData = this.buildHeroSketchContext(overrideBeat, options);
         const dataUrl = this.renderMasterworkCanvasSketch(ctxData);
+        this._lastActiveSketchCtx = ctxData;
+        this._lastActiveSketchUrl = dataUrl;
 
         const sketchBtn = this.btnSketch || document.getElementById('chronicle-sketch-btn');
         if (sketchBtn) sketchBtn.classList.add('is-voicing');
 
-        if (!this.visible) {
+        if (!this.visible && !isAuto) {
             this.showWindow();
         }
 
@@ -4594,6 +4783,7 @@ class ChronicleManager {
         const cleanFilename = (ctxData.hero.name || 'angband3d-hero-sketch').toLowerCase().replace(/[^a-z0-9]+/g, '-');
         const quoteSnippet = (ctxData.narrativeText || '').replace(/\s+/g, ' ').trim();
         const displayQuote = quoteSnippet.length > 120 ? quoteSnippet.slice(0, 117) + '...' : quoteSnippet;
+        const toneTitle = ctxData.toneBadge || '🎨 Hero Action Sketch';
 
         const statPillsHtml = (ctxData.statBadges || []).slice(0, 8).map(b => `<span class="chronicle-sketch-gear-tag chronicle-sketch-stat-tag chronicle-sketch-gear-pill">${this.escapeHtml(b)}</span>`).join('');
         const statusPillsHtml = (ctxData.statusBadges || []).map(b => `<span class="chronicle-sketch-gear-tag chronicle-sketch-status-tag chronicle-sketch-gear-pill">${this.escapeHtml(b)}</span>`).join('');
@@ -4604,7 +4794,7 @@ class ChronicleManager {
 
         cardEl.innerHTML = `
             <div class="chronicle-sketch-card-header">
-                <span class="chronicle-sketch-title">🎨 Hero Action Sketch — ${this.escapeHtml(ctxData.hero.name)}</span>
+                <span class="chronicle-sketch-title">${this.escapeHtml(toneTitle)} — ${this.escapeHtml(ctxData.hero.name)}</span>
                 <span class="chronicle-sketch-badge">${this.escapeHtml(ctxData.locationLabel)}</span>
             </div>
             <div class="chronicle-sketch-img-wrap">
@@ -4614,6 +4804,7 @@ class ChronicleManager {
                     <a class="btn-sketch-save chronicle-ctrl-btn" download="${this.escapeHtml(cleanFilename)}.png" href="${dataUrl}">⬇ Save PNG</a>
                 </div>
             </div>
+            <div class="chronicle-sketch-card-status">🎨 Illustrating ${this.escapeHtml(toneTitle)} with Gemini...</div>
             <div class="chronicle-sketch-caption">
                 <p class="chronicle-sketch-quote">“${this.escapeHtml(displayQuote)}”</p>
                 ${ctxData.storyArc ? `<p class="chronicle-sketch-history-summary" style="font-size: 0.85em; opacity: 0.85; margin-top: 4px;">📜 ${this.escapeHtml(ctxData.storyArc)}</p>` : ''}
@@ -4629,19 +4820,24 @@ class ChronicleManager {
         `;
 
         const cardImg = cardEl.querySelector('.chronicle-sketch-card-img');
+        const cardStatusEl = cardEl.querySelector('.chronicle-sketch-card-status');
         const expandBtn = cardEl.querySelector('.btn-sketch-expand');
         const saveLink = cardEl.querySelector('.btn-sketch-save');
 
-        const openLightboxForCard = () => {
+        const openLightboxForCard = (statusOverride = '') => {
             const currentSrc = (cardImg && cardImg.src) || dataUrl;
+            const currentStatus = statusOverride || (cardStatusEl && cardStatusEl.textContent) || `✨ ${toneTitle}`;
+            this._lastActiveSketchCtx = ctxData;
+            this._lastActiveSketchUrl = currentSrc;
             this.openSketchLightbox(
                 currentSrc,
-                `🎨 ${ctxData.hero.name} — ${ctxData.locationLabel}`,
+                `${toneTitle} — ${ctxData.hero.name} (${ctxData.locationLabel})`,
                 displayQuote,
                 ctxData.gearBadges,
                 ctxData.statBadges,
                 ctxData.statusBadges,
-                ctxData.historyTimeline
+                ctxData.historyTimeline,
+                currentStatus
             );
         };
 
@@ -4655,10 +4851,14 @@ class ChronicleManager {
             }
         }
 
-        if (this.statusTextEl) {
-            this.statusTextEl.textContent = `🎨 Sketched ${ctxData.hero.name}`;
+        if (!isAuto) {
+            openLightboxForCard(`🎨 Illustrating ${toneTitle} with Gemini...`);
         }
-        this.showHudToast(`🎨 Sketched ${this.escapeHtml(ctxData.hero.name || 'Hero')} at ${this.escapeHtml(ctxData.locationLabel || 'Dungeon')}`);
+
+        if (this.statusTextEl) {
+            this.statusTextEl.textContent = `${toneTitle}: Sketching ${ctxData.hero.name}...`;
+        }
+        this.showHudToast(`${toneTitle}: Sketching ${this.escapeHtml(ctxData.hero.name || 'Hero')} at ${this.escapeHtml(ctxData.locationLabel || 'Dungeon')}`);
 
         (async () => {
             try {
@@ -4674,19 +4874,28 @@ class ChronicleManager {
                 if (res.ok) {
                     const json = await res.json();
                     if (json && json.ok && json.imageUrl) {
+                        this._lastActiveSketchUrl = json.imageUrl;
                         if (cardImg) cardImg.src = json.imageUrl;
                         if (saveLink) saveLink.href = json.imageUrl;
+                        const doneStatus = `🎨 Illustrated by ${json.model || 'Gemini'} (Click to Expand)`;
+                        if (cardStatusEl) cardStatusEl.textContent = doneStatus;
                         if (this.sketchModal && !this.sketchModal.classList.contains('hidden')) {
                             if (this.sketchModalImg) this.sketchModalImg.src = json.imageUrl;
                             if (this.btnDownloadSketchPng) this.btnDownloadSketchPng.href = json.imageUrl;
+                            if (this.sketchModalStatus) this.sketchModalStatus.textContent = doneStatus;
                         }
                         if (this.statusTextEl) {
-                            this.statusTextEl.textContent = `🎨 Masterwork Sketch Rendered (${json.model || 'gemini'})`;
+                            this.statusTextEl.textContent = `🎨 ${toneTitle} Rendered (${json.model || 'gemini'})`;
                         }
+                        return;
                     }
                 }
+                if (cardStatusEl) cardStatusEl.textContent = '🎨 Chronicle Folio Sketch (Click to Expand)';
+                if (this.sketchModal && !this.sketchModal.classList.contains('hidden') && this.sketchModalStatus) {
+                    this.sketchModalStatus.textContent = '🎨 Chronicle Folio Sketch';
+                }
             } catch (_) {
-                // Keep the deterministic Masterwork Canvas Sketch
+                if (cardStatusEl) cardStatusEl.textContent = '🎨 Chronicle Folio Sketch (Click to Expand)';
             } finally {
                 if (sketchBtn) sketchBtn.classList.remove('is-voicing');
             }
@@ -4773,9 +4982,9 @@ class ChronicleManager {
             const extra = skippedSummary ? ` (+${skippedSummary})` : '';
             badge.textContent = `⚡ Interrupted${extra}`;
             badge.title = 'Dialogue/narration cut short by rapid combat or movement';
-            const playBtn = headerEl.querySelector('.flow-play-btn');
-            if (playBtn) {
-                headerEl.insertBefore(badge, playBtn);
+            const actionsEl = headerEl.querySelector('.flowing-paragraph-actions') || headerEl.querySelector('.flow-play-btn');
+            if (actionsEl && actionsEl.parentNode === headerEl) {
+                headerEl.insertBefore(badge, actionsEl);
             } else {
                 headerEl.appendChild(badge);
             }
