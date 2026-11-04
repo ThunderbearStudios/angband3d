@@ -3083,7 +3083,10 @@ class WebHUD {
             if (list) {
                 list.innerHTML = '';
                 if (!items || items.length === 0) {
-                    list.innerHTML = `<li class="death-list-empty">${emptyMsgs[tabIdx]}</li>`;
+                    const emptyLi = document.createElement('li');
+                    emptyLi.className = 'death-list-empty';
+                    emptyLi.textContent = emptyMsgs[tabIdx] || '';
+                    list.appendChild(emptyLi);
                 } else {
                     items.forEach((item, idx) => {
                         const li = document.createElement('li');

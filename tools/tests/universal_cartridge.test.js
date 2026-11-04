@@ -76,16 +76,17 @@ function check(cond, msg) {
     }
 }
 
-// 1. RealmCartridge Schema v2 & 5-Realm Verification
+// 1. RealmCartridge Schema v2 & 8-Realm Verification
 {
     const realms = RealmCartridge.listRealms();
-    ['angband', 'silq', 'frogcomposband', 'hengband', 'nethack'].forEach(r => {
+    ['nethack', 'dcss', 'angband', 'brogue', 'rogue', 'silq', 'frogcomposband', 'hengband'].forEach(r => {
         check(realms.includes(r), `RealmCartridge must include ${r}`);
         const cart = RealmCartridge.getCartridge(r);
         check(cart && cart.id === r, `Cartridge descriptor id must match ${r}`);
         check(cart.heraldry && cart.heraldry.crestTitle, `Cartridge ${r} must define heraldry`);
         check(cart.themeTokens && cart.themeTokens.surfaceBg, `Cartridge ${r} must define themeTokens`);
         check(RealmCartridge.getEquipmentSlots(r).length >= 12, `Cartridge ${r} must define equipment paperdoll slots`);
+        check(cart.verbs && cart.verbs.wield && cart.verbs.quaff && cart.verbs.drop && cart.verbs.inspect, `Cartridge ${r} must define core verbs`);
     });
 
     // Theme tokens DOM application check

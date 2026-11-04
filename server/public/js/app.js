@@ -4142,17 +4142,24 @@ window.addEventListener('DOMContentLoaded', () => {
                     { key: '|', badge: '[|]', label: iflags.isQuiverView ? '🎒 Pack' : '🏹 Quiver' },
                     { key: 'escape', badge: '[Esc]', label: '⎋ Close', gold: true }
                 ];
-                if (!legacy.verbPrompt && curRealm === 'angband') {
+                if (!legacy.verbPrompt && (curRealm === 'angband' || curRealm === 'nethack' || curRealm === 'dcss' || curRealm === 'brogue' || curRealm === 'rogue')) {
+                    const rk = (v, fb) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey(v, curRealm) || fb) : fb;
                     itemBtns.splice(5, 0,
-                        { key: 'w', badge: '[w]', label: '⚔ Wield' },
-                        { key: 'b', badge: '[b]', label: '📖 Browse' },
-                        { key: 'm', badge: '[m]', label: '✨ Cast' },
-                        { key: 'q', badge: '[q]', label: '🧪 Quaff' },
-                        { key: 'r', badge: '[r]', label: '📜 Read' },
-                        { key: 'E', badge: '[E]', label: '🍖 Eat' },
-                        { key: 'I', badge: '[I]', label: '🔍 Inspect' },
-                        { key: 'd', badge: '[d]', label: '📦 Drop' }
+                        { key: rk('wield', 'w'), badge: `[${rk('wield', 'w')}]`, label: '⚔ Wield' },
+                        { key: rk('quaff', 'q'), badge: `[${rk('quaff', 'q')}]`, label: '🧪 Quaff' },
+                        { key: rk('read', 'r'), badge: `[${rk('read', 'r')}]`, label: '📜 Read' },
+                        { key: rk('eat', 'E'), badge: `[${rk('eat', 'E')}]`, label: '🍖 Eat' },
+                        { key: rk('inspect', 'I'), badge: `[${rk('inspect', 'I')}]`, label: '🔍 Inspect' },
+                        { key: rk('drop', 'd'), badge: `[${rk('drop', 'd')}]`, label: '📦 Drop' }
                     );
+                    if (curRealm === 'angband' || curRealm === 'dcss' || curRealm === 'nethack') {
+                        const cKey = rk('cast', 'm');
+                        if (cKey) itemBtns.splice(7, 0, { key: cKey, badge: `[${cKey}]`, label: '✨ Cast' });
+                    }
+                    if (curRealm === 'angband' || curRealm === 'dcss') {
+                        const bKey = rk('browse', 'b');
+                        if (bKey) itemBtns.splice(7, 0, { key: bKey, badge: `[${bKey}]`, label: '📖 Browse' });
+                    }
                 }
                 setCtxActions(renderCtxButtons(itemBtns));
             }
@@ -4205,9 +4212,10 @@ window.addEventListener('DOMContentLoaded', () => {
             } else {
                 const effRealm = activeRealm || 'angband';
                 const keyFor = (v) => (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? RealmKeys.realmKey(v, effRealm) : null;
+                const getKey = keyFor('pickup') || 'g';
                 const btns = [
                     { key: 'tab', badge: '⛶', label: hengLabel('3D View (Tab)', '3D View / 3D画面 (Tab)', '3D画面 (Tab)'), gold: true, extraCls: 'term-action-key' },
-                    { key: 'g', badge: '[g]', label: hengLabel('🤚 Get', '🤚 Get / 拾う', '🤚 拾う'), extraCls: 'term-action-key' },
+                    { key: getKey, badge: `[${getKey}]`, label: hengLabel('🤚 Get', '🤚 Get / 拾う', '🤚 拾う'), extraCls: 'term-action-key' },
                     { key: keyFor('inven') || 'i', label: hengLabel('🎒 Pack', '🎒 Pack / 所持品', '🎒 所持品'), extraCls: 'term-action-key' },
                     { key: keyFor('equip') || 'e', label: hengLabel('🛡 Gear', '🛡 Gear / 装備', '🛡 装備'), extraCls: 'term-action-key' },
                     { key: '>', badge: '[>]', label: hengLabel('⬇ Stairs', '⬇ Stairs / 階段', '⬇ 階段'), extraCls: 'term-action-key' },

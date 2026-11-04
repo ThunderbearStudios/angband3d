@@ -314,4 +314,56 @@ test('ingestBridgeCommands updates runtime availability without mutating catalog
     assert.strictEqual(ActionCatalog.VERB_BITS.length, 20, 'Defaults must remain immutable');
 });
 
+test('all 8 realms define accurate keybindings and never swallow native keys in fromVanillaKey', () => {
+    const allRealms = ['nethack', 'dcss', 'angband', 'brogue', 'rogue', 'silq', 'frogcomposband', 'hengband'];
+    for (const r of allRealms) {
+        const list = ActionCatalog.listForRealm(r);
+        assert(list.length >= 25, `Realm '${r}' must define >= 25 commands (got ${list.length})`);
+    }
+    // DCSS pins
+    assert.strictEqual(ActionCatalog.keyFor('eat', 'dcss'), 'e');
+    assert.strictEqual(ActionCatalog.keyFor('cast', 'dcss'), 'z');
+    assert.strictEqual(ActionCatalog.keyFor('aim', 'dcss'), 'V');
+    assert.strictEqual(ActionCatalog.keyFor('power', 'dcss'), 'a');
+    assert.strictEqual(ActionCatalog.keyFor('pray', 'dcss'), 'p');
+    assert.strictEqual(ActionCatalog.keyFor('abilities', 'dcss'), 'm');
+    assert.strictEqual(ActionCatalog.keyFor('rest', 'dcss'), '5');
+
+    // Brogue pins
+    assert.strictEqual(ActionCatalog.keyFor('eat', 'brogue'), 'E');
+    assert.strictEqual(ActionCatalog.keyFor('aim', 'brogue'), 'a');
+    assert.strictEqual(ActionCatalog.keyFor('throw', 'brogue'), 't');
+    assert.strictEqual(ActionCatalog.keyFor('takeoff', 'brogue'), 'T');
+    assert.strictEqual(ActionCatalog.keyFor('rest', 'brogue'), 'z');
+    assert.strictEqual(ActionCatalog.keyFor('cast', 'brogue'), null);
+
+    // Rogue pins
+    assert.strictEqual(ActionCatalog.keyFor('eat', 'rogue'), 'e');
+    assert.strictEqual(ActionCatalog.keyFor('aim', 'rogue'), 'z');
+    assert.strictEqual(ActionCatalog.keyFor('throw', 'rogue'), 't');
+    assert.strictEqual(ActionCatalog.keyFor('takeoff', 'rogue'), 'T');
+    assert.strictEqual(ActionCatalog.keyFor('pickup', 'rogue'), ',');
+    assert.strictEqual(ActionCatalog.keyFor('rest', 'rogue'), '.');
+    assert.strictEqual(ActionCatalog.keyFor('cast', 'rogue'), null);
+
+    // Native cartridge keys must never be hijacked or return null in fromVanillaKey
+    assert.strictEqual(ActionCatalog.fromVanillaKey('e', 'dcss'), 'e');
+    assert.strictEqual(ActionCatalog.fromVanillaKey('V', 'dcss'), 'V');
+    assert.strictEqual(ActionCatalog.fromVanillaKey('m', 'dcss'), 'm');
+    assert.strictEqual(ActionCatalog.fromVanillaKey('z', 'brogue'), 'z');
+    assert.strictEqual(ActionCatalog.fromVanillaKey('r', 'brogue'), 'r');
+    assert.strictEqual(ActionCatalog.fromVanillaKey('t', 'rogue'), 't');
+    assert.strictEqual(ActionCatalog.fromVanillaKey('#', 'nethack'), '#');
+
+    // validVerbsForItem category fallback and evaluateActionAvailability player.inventory fallback
+    const catPotion = { category: 'potion', name: 'Potion of Life' };
+    assert(ActionCatalog.validVerbsForItem(catPotion, 'brogue').some(v => v.id === 'quaff'));
+    const mockFrame = {
+        phase: 'play',
+        player: { inventory: [{ category: 'potion', name: 'Potion of Healing' }], equipment: [] }
+    };
+    assert.strictEqual(ActionCatalog.evaluateActionAvailability('quaff', mockFrame, 'dcss').available, true);
+    assert.strictEqual(ActionCatalog.evaluateActionAvailability('read', mockFrame, 'dcss').available, false);
+});
+
 console.log('All action catalog unit tests passed!');

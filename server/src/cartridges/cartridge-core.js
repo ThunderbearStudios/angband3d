@@ -675,32 +675,6 @@ class UniversalCartridgeEngine {
             return;
         }
 
-        if (this.state.menuMode !== 'none') {
-            if (lower === 'escape' || lower === 'esc' || lower === ' ') {
-                this.state.menuMode = 'none';
-                this.state.pendingVerb = null;
-                this.state.pendingPrompt = '';
-                return;
-            }
-            if (this.state.menuMode === 'inven' && k === '/') {
-                this.state.menuMode = 'equip';
-                return;
-            }
-            if (this.state.menuMode === 'equip' && k === '/') {
-                this.state.menuMode = 'inven';
-                return;
-            }
-            if (this.state.menuMode === 'verb' && /^[a-z]$/i.test(k)) {
-                const item = p.inventory.find(it => it.letter === lower);
-                this.state.menuMode = 'none';
-                if (item) this.applyVerbToItem(this.state.pendingVerb, item);
-                this.state.pendingVerb = null;
-                return;
-            }
-            this.state.menuMode = 'none';
-            return;
-        }
-
         // Direction mapping
         const dirMap = {
             up: [0, -1], k: [0, -1], '8': [0, -1],
@@ -712,6 +686,96 @@ class UniversalCartridgeEngine {
             b: [-1, 1], '1': [-1, 1], end: [-1, 1],
             n: [1, 1], '3': [1, 1], pagedown: [1, 1]
         };
+
+        if (this.state.menuMode !== 'none') {
+            if (lower === 'escape' || lower === 'esc' || lower === ' ' || lower === 'space') {
+                this.state.menuMode = 'none';
+                this.state.pendingVerb = null;
+                this.state.pendingPrompt = '';
+                this.state.selectedItem = null;
+                return;
+            }
+            if (this.state.menuMode === 'inven' || this.state.menuMode === 'equip') {
+                if (k === '/' || k === '|' || (this.state.menuMode === 'inven' && k === 'e' && this.realm !== 'rogue') || (this.state.menuMode === 'equip' && k === 'i')) {
+                    this.state.menuMode = this.state.menuMode === 'inven' ? 'equip' : 'inven';
+                    return;
+                }
+                if (this.state.menuMode === 'equip' && (k === 'r' || k === 't' || k === 'T')) {
+                    this.openVerbPrompt('takeoff', 'Remove which item? [a-z or ESC]');
+                    return;
+                }
+                if (/^[a-z]$/i.test(k)) {
+                    const item = p.inventory.find(it => it.letter === lower);
+                    if (item) {
+                        if (this.state.menuMode === 'equip' && item.kind === 'food') {
+                            this.state.menuMode = 'none';
+                            this.applyVerbToItem('eat', item);
+                            return;
+                        }
+                        this.state.selectedItem = item;
+                        this.state.menuMode = 'item_action';
+                        this.state.pendingPrompt = `${item.letter}) ${formatItemDesc(item)} — [Enter] Use/Equip [d]rop [t]hrow [x]Examine [ESC]`;
+                        return;
+                    }
+                }
+                this.state.menuMode = 'none';
+                return;
+            }
+            if (this.state.menuMode === 'item_action') {
+                const item = this.state.selectedItem;
+                this.state.menuMode = 'none';
+                this.state.selectedItem = null;
+                this.state.pendingPrompt = '';
+                if (!item) return;
+                if (k === 'd') { this.applyVerbToItem('drop', item); return; }
+                if (k === 't' || k === 'f' || k === 'v') { this.fireOrThrowItem(item); return; }
+                if (k === 'T' || (k === 'r' && item.equipped)) { this.applyVerbToItem('takeoff', item); return; }
+                if (k === 'x' || k === 'I' || k === ';') { this.inspectItem(item); return; }
+                if (lower === 'enter' || /^[wWqreEazuU]$/.test(k)) {
+                    const primaryVerb = item.kind === 'potion' ? 'quaff'
+                        : (item.kind === 'scroll' ? 'read'
+                        : (item.kind === 'food' ? 'eat'
+                        : ((item.kind === 'weapon' || item.kind === 'ranged' || item.kind === 'armor')
+                            ? (item.equipped ? 'takeoff' : 'wield') : 'use')));
+                    this.applyVerbToItem(primaryVerb, item);
+                }
+                return;
+            }
+            if (this.state.menuMode === 'verb' && /^[a-z]$/i.test(k)) {
+                const item = p.inventory.find(it => it.letter === lower);
+                const verb = this.state.pendingVerb;
+                this.state.menuMode = 'none';
+                this.state.pendingVerb = null;
+                this.state.pendingPrompt = '';
+                if (!item) {
+                    this.addMessage('You do not have that item.');
+                    return;
+                }
+                if (verb === 'inspect') this.inspectItem(item);
+                else if (verb === 'throw' || verb === 'fire') this.fireOrThrowItem(item);
+                else this.applyVerbToItem(verb, item);
+                return;
+            }
+            if (this.state.menuMode === 'direction') {
+                const verb = this.state.pendingVerb || 'fire';
+                this.state.menuMode = 'none';
+                this.state.pendingVerb = null;
+                this.state.pendingPrompt = '';
+                const d = dirMap[lower] || dirMap[k];
+                if (d) {
+                    this.executeDirectedAction(verb, d[0], d[1]);
+                } else if (lower === 't' || k === '5' || k === '.' || lower === 'enter') {
+                    this.executeDirectedAction(verb, 0, 0);
+                } else {
+                    this.addMessage('Cancelled.');
+                }
+                return;
+            }
+            this.state.menuMode = 'none';
+            this.state.pendingVerb = null;
+            this.state.pendingPrompt = '';
+            return;
+        }
 
         if (dirMap[lower] || dirMap[k]) {
             const [dx, dy] = dirMap[lower] || dirMap[k];
@@ -735,17 +799,67 @@ class UniversalCartridgeEngine {
         if (k === 'q') { this.openVerbPrompt('quaff', 'Drink which potion? [a-z or ESC]'); return; }
         if (k === 'r') { this.openVerbPrompt('read', 'Read which scroll? [a-z or ESC]'); return; }
         if (k === 'w' || k === 'W') { this.openVerbPrompt('wield', 'Equip which item? [a-z or ESC]'); return; }
-        if (k === 't' || k === 'T') { this.openVerbPrompt('takeoff', 'Remove which item? [a-z or ESC]'); return; }
+        if (k === 'T') { this.openVerbPrompt('takeoff', 'Remove which item? [a-z or ESC]'); return; }
+        if (k === 't' || k === 'f' || k === 'v') {
+            this.state.menuMode = 'direction';
+            this.state.pendingVerb = 'fire';
+            this.state.pendingPrompt = 'Direction to fire/throw? [dir or t/Enter for nearest, ESC]';
+            return;
+        }
         if (k === 'd') { this.openVerbPrompt('drop', 'Drop which item? [a-z or ESC]'); return; }
-        if (k === 'a' || k === 'z' || k === 'Z' || k === 'm') {
-            if (this.realm === 'dcss' && (k === 'p' || k === 'a')) {
+        if (k === 'I' || k === 'x') { this.openVerbPrompt('inspect', 'Examine which item? [a-z or ESC]'); return; }
+        if (k === 'z' && this.realm === 'brogue') {
+            if (p.hp < p.hpMax) p.hp = Math.min(p.hpMax, p.hp + 1);
+            if (p.pw < p.pwMax && this.state.turn % 2 === 0) p.pw++;
+            this.advanceTurn();
+            return;
+        }
+        if (k === 'a' || k === 'V' || k === 'z' || k === 'Z' || k === 'u' || k === 'U') {
+            if (this.realm === 'dcss' && k === 'a' && (p.piety || 0) >= 1) {
                 this.invokeDeityPower();
                 return;
             }
-            this.openVerbPrompt('use', 'Use or invoke which item/spell? [a-z or ESC]');
+            this.openVerbPrompt('use', 'Use, zap, or evoke which item/spell? [a-z or ESC]');
             return;
         }
-        if (k === 'p' && this.realm === 'dcss') {
+        if (k === 'm') {
+            if (this.realm === 'dcss') {
+                this.state.menuMode = 'skills';
+                this.state.pendingPrompt = 'Skills & Training (Press ESC or Space to return)';
+            } else {
+                this.openVerbPrompt('use', 'Use or invoke which item/spell? [a-z or ESC]');
+            }
+            return;
+        }
+        if (k === 'M' || k === 'b') {
+            this.state.menuMode = 'spells';
+            this.state.pendingPrompt = 'Spell Library & Abilities (Press ESC or Space to return)';
+            return;
+        }
+        if (k === 'C' || k === '@' || k === '%') {
+            this.state.menuMode = 'char';
+            this.state.pendingPrompt = 'Character Overview (Press ESC or Space to return)';
+            return;
+        }
+        if (k === '?') {
+            this.state.menuMode = 'help';
+            this.state.pendingPrompt = 'Realm Commands & Help (Press ESC or Space to return)';
+            return;
+        }
+        if (k === '~' || k === '\\') {
+            this.state.menuMode = 'knowledge';
+            this.state.pendingPrompt = 'Discovered Lore & Knowledge (Press ESC or Space to return)';
+            return;
+        }
+        if (k === ';' || k === ':') {
+            const vis = this.state.monsters.filter(m => this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+            this.addMessage(vis.length ? `Visible: ${vis.map(m => `${m.race} (${m.hp}/${m.hp_max} HP)`).join(', ')}.` : `You survey ${this.state.branchName} ${this.state.depth}: no monsters in sight.`, 11);
+            return;
+        }
+        if (k === 'o' || k === 'O') { this.openOrCloseDoor(true); return; }
+        if (k === 'c') { this.openOrCloseDoor(false); return; }
+        if (k === 'D') { this.disarmAdjacentTrap(); return; }
+        if (k === 'p' || k === 'P') {
             this.prayAtAltar();
             return;
         }
@@ -785,11 +899,131 @@ class UniversalCartridgeEngine {
             }
             return;
         }
-        if (k === '.' || k === '5' || k === 's' || k === 'R' || lower === 'space') {
+        if (k === 's' || k === 'S') {
+            this.searchAround();
+            return;
+        }
+        if (k === '.' || k === '5' || k === 'R' || lower === 'space') {
             if (p.hp < p.hpMax) p.hp = Math.min(p.hpMax, p.hp + 1);
             if (p.pw < p.pwMax && this.state.turn % 2 === 0) p.pw++;
             this.advanceTurn();
         }
+    }
+
+    inspectItem(item) {
+        const desc = formatItemDesc(item);
+        const cat = item.kind || 'item';
+        const wt = ((item.weight || 10) / 10).toFixed(1);
+        this.addMessage(`${item.letter}) ${desc} [${cat}, ${wt} lb] — ${item.equipped ? 'Currently equipped' : 'Carried in pack'}.`, 11);
+    }
+
+    fireOrThrowItem(item) {
+        const target = this.state.monsters.find(m => !m.isPet && !m.peaceful && !m.captive && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+        const dmg = 5 + this.rand(7) + (item.bonus || 0);
+        if (target) {
+            target.hp -= dmg;
+            this.addMessage(`You hurl ${item.name} at the ${target.race} for ${dmg} damage!`, 14);
+            if (target.hp <= 0) this.handleMonsterKilled(target);
+        } else {
+            this.addMessage(`You hurl ${item.name} into the shadows.`);
+        }
+        if (item.kind !== 'weapon' || !item.equipped) {
+            item.count = (item.count || 1) - 1;
+            this.reindexInventory();
+        }
+        this.advanceTurn();
+    }
+
+    executeDirectedAction(verb, dx, dy) {
+        const p = this.state.player;
+        if (verb === 'open' || verb === 'close') {
+            this.openOrCloseDoor(verb === 'open', dx, dy);
+            return;
+        }
+        if (verb === 'disarm') {
+            this.disarmAdjacentTrap(dx, dy);
+            return;
+        }
+        let target = null;
+        if (dx !== 0 || dy !== 0) {
+            for (let step = 1; step <= 8; step++) {
+                const tx = p.x + dx * step, ty = p.y + dy * step;
+                if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) break;
+                if (!isWalkableFeat(this.state.map[ty][tx].feat)) break;
+                const mon = this.state.monsters.find(m => m.x === tx && m.y === ty && !m.isPet && !m.peaceful && !m.captive);
+                if (mon) { target = mon; break; }
+            }
+        } else {
+            target = this.state.monsters.find(m => !m.isPet && !m.peaceful && !m.captive && this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
+        }
+        const ranged = p.inventory.find(it => it.kind === 'ranged' || it.kind === 'ammo') || p.inventory.find(it => it.equipped === 'weapon');
+        const dmg = 5 + this.rand(7) + (ranged && ranged.bonus ? ranged.bonus : 1);
+        if (target) {
+            target.hp -= dmg;
+            this.addMessage(`Your ranged attack strikes the ${target.race} for ${dmg} damage!`, 14);
+            if (target.hp <= 0) this.handleMonsterKilled(target);
+        } else {
+            this.addMessage('Your shot whistles into the darkness and hits nothing.');
+        }
+        this.advanceTurn();
+    }
+
+    openOrCloseDoor(open, dx = 0, dy = 0) {
+        const p = this.state.player;
+        const targetFeat = open ? FEAT.CLOSED_DOOR : FEAT.OPEN_DOOR;
+        const dirs = (dx !== 0 || dy !== 0) ? [[dx, dy]] : [[0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+        for (const [ox, oy] of dirs) {
+            const tx = p.x + ox, ty = p.y + oy;
+            if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) continue;
+            if (!open && this.state.monsters.some(m => m.x === tx && m.y === ty)) {
+                this.addMessage('There is a creature blocking the doorway!');
+                return;
+            }
+            const cell = this.state.map[ty][tx];
+            if (cell.feat === targetFeat) {
+                cell.feat = open ? FEAT.OPEN_DOOR : FEAT.CLOSED_DOOR;
+                cell.glyph = open ? "'" : '+';
+                this.addMessage(open ? 'You open the door.' : 'You close the door.');
+                this.updateVisibility();
+                this.advanceTurn();
+                return;
+            }
+        }
+        this.addMessage(open ? 'There is no closed door nearby to open.' : 'There is no open door nearby to close.');
+    }
+
+    disarmAdjacentTrap(dx = 0, dy = 0) {
+        const p = this.state.player;
+        const dirs = (dx !== 0 || dy !== 0) ? [[dx, dy]] : [[0, 0], [0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+        for (const [ox, oy] of dirs) {
+            const tx = p.x + ox, ty = p.y + oy;
+            if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) continue;
+            const cell = this.state.map[ty][tx];
+            if (cell.feat === FEAT.TRAP || cell.glyph === '^') {
+                cell.feat = FEAT.FLOOR;
+                cell.glyph = '.';
+                this.addMessage('You carefully disarm the dungeon trap!', 10);
+                this.advanceTurn();
+                return;
+            }
+        }
+        this.addMessage('You find no trap nearby to disarm.');
+    }
+
+    searchAround() {
+        const p = this.state.player;
+        let found = 0;
+        for (let oy = -1; oy <= 1; oy++) {
+            for (let ox = -1; ox <= 1; ox++) {
+                const tx = p.x + ox, ty = p.y + oy;
+                if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) continue;
+                const cell = this.state.map[ty][tx];
+                if (!cell.known) { cell.known = true; found++; }
+            }
+        }
+        if (p.hp < p.hpMax) p.hp = Math.min(p.hpMax, p.hp + 1);
+        this.addMessage(found > 0 ? 'You search the surrounding stonework and spot hidden detail!' : 'You search the surrounding area carefully.');
+        this.advanceTurn();
     }
 
     openVerbPrompt(verb, promptText) {
@@ -1143,11 +1377,11 @@ class UniversalCartridgeEngine {
             return rows;
         }
 
-        if (this.state.menuMode === 'inven' || this.state.menuMode === 'equip' || this.state.menuMode === 'verb') {
+        if (this.state.menuMode === 'inven' || this.state.menuMode === 'equip' || this.state.menuMode === 'verb' || this.state.menuMode === 'item_action') {
             const rows = [];
             const isEq = this.state.menuMode === 'equip';
             const list = isEq ? p.inventory.filter(it => Boolean(it.equipped)) : p.inventory;
-            const hdr = this.state.menuMode === 'verb'
+            const hdr = (this.state.menuMode === 'verb' || this.state.menuMode === 'item_action')
                 ? (this.state.pendingPrompt || 'Select an item: [a-z or ESC]')
                 : (isEq ? `Equipped Gear (${list.length} worn — press [/] for Pack or [ESC])` : `Inventory Pack (${list.length} items — press [/] for Gear or [ESC])`);
             rows.push({ g: pad80(hdr), a: attr80('0e') });
@@ -1159,8 +1393,43 @@ class UniversalCartridgeEngine {
             return rows;
         }
 
+        if (this.state.menuMode === 'char' || this.state.menuMode === 'help' || this.state.menuMode === 'knowledge' || this.state.menuMode === 'skills' || this.state.menuMode === 'spells') {
+            const rows = [];
+            rows.push({ g: pad80(this.state.pendingPrompt || 'Character Overview (Press ESC or Space to return)'), a: attr80('0e') });
+            rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
+            if (this.state.menuMode === 'char') {
+                rows.push({ g: pad80(`  Name:  ${p.name.padEnd(22, ' ')} Race:  ${p.race}`), a: attr80('01') });
+                rows.push({ g: pad80(`  Class: ${p.class.padEnd(22, ' ')} Level: ${p.level} (XP: ${p.exp}/${p.expNext})`), a: attr80('01') });
+                rows.push({ g: pad80(`  Place: ${this.state.branchName} ${this.state.depth} (Deepest: ${this.state.maxDepth})   Turn:  ${this.state.turn}`), a: attr80('01') });
+                rows.push({ g: pad80(`  STR: ${p.str}   DEX: ${p.dex}   INT: ${p.int}   WIS: ${p.wis}   CON: ${p.con}   AC: ${p.ac}`), a: attr80('0b') });
+                rows.push({ g: pad80(`  HP:  ${p.hp}/${p.hpMax}   Power/MP: ${p.pw}/${p.pwMax}   Gold: ${p.gold}`), a: attr80('0a') });
+                if (this.realm === 'dcss') rows.push({ g: pad80(`  Deity: ${p.deity} (Piety: ${'★'.repeat(Math.max(0, p.piety || 0))})   Runes: ${p.runes || 0}/3`), a: attr80('0e') });
+                if (this.realm === 'brogue') rows.push({ g: pad80(`  Enchantments: +${p.enchantments || 0}   Lumenstones: ${p.lumenstones || 0}`), a: attr80('0e') });
+            } else if (this.state.menuMode === 'skills' || this.state.menuMode === 'spells') {
+                rows.push({ g: pad80(`  a) Fighting & Melee Mastery       Lv ${p.level + 2}   (Active)`), a: attr80('01') });
+                rows.push({ g: pad80(`  b) Dodging & Armour Defense       Lv ${p.level + 1}   (Active)`), a: attr80('01') });
+                rows.push({ g: pad80(`  c) Arcane Evocations & Wands      Lv ${p.level}     (Active)`), a: attr80('01') });
+                if (this.realm === 'dcss') rows.push({ g: pad80(`  d) Invocations (${p.deity})       Piety ${p.piety || 1}/6`), a: attr80('0e') });
+            } else if (this.state.menuMode === 'knowledge') {
+                rows.push({ g: pad80(`  Discovered Items (${p.inventory.length} in pack) • Branch: ${this.state.branchName} ${this.state.depth}`), a: attr80('0b') });
+                p.inventory.slice(0, 14).forEach((it) => {
+                    rows.push({ g: pad80(`    ${it.letter}) ${formatItemDesc(it)}`), a: attr80('01') });
+                });
+            } else {
+                rows.push({ g: pad80('  Movement: Arrow Keys / WASD / Vi-keys (hjklyubn) / Click Minimap'), a: attr80('01') });
+                rows.push({ g: pad80('  [i] Inventory   [e] Equipment   [g/,] Pick Up   [>/<] Stairs'), a: attr80('01') });
+                rows.push({ g: pad80('  [q] Quaff       [r] Read        [w/W] Equip     [T] Take Off'), a: attr80('01') });
+                rows.push({ g: pad80('  [f/t] Fire/Throw [a/z/V] Use/Zap [o/c] Door     [s/.] Search/Rest'), a: attr80('01') });
+                rows.push({ g: pad80('  [Space] Smart Action            [Alt+E] Auto-Explore'), a: attr80('0b') });
+            }
+            while (rows.length < TERM_H) rows.push({ g: pad80(''), a: attr80('01') });
+            return rows;
+        }
+
         const rows = [];
-        const lastMsg = (this.state.messages[this.state.messages.length - 1] && this.state.messages[this.state.messages.length - 1].text) || '';
+        const lastMsg = this.state.menuMode === 'direction'
+            ? (this.state.pendingPrompt || 'In which direction?')
+            : ((this.state.messages[this.state.messages.length - 1] && this.state.messages[this.state.messages.length - 1].text) || '');
         rows.push({ g: pad80(lastMsg), a: attr80('01') });
 
         for (let y = 0; y < 21; y++) {
@@ -1239,6 +1508,57 @@ class UniversalCartridgeEngine {
             statuses.push({ name: `Str ${p.str} • +${p.enchantments || 0} Ench`, attr: 11, val: p.str });
         }
 
+        const equipmentList = p.inventory.filter(it => Boolean(it.equipped)).map((it, idx) => ({
+            slot: idx,
+            letter: it.letter,
+            slot_name: it.equipped,
+            mention: it.equipped === 'weapon' ? 'Wielding' : 'Wearing',
+            name: formatItemDesc(it),
+            category: it.kind || 'misc',
+            tval: it.tval || 23,
+            sval: it.sval || 1,
+            number: it.count || 1,
+            weight: it.weight || 20,
+            vm: computeVerbMask(it),
+            attr: 1
+        }));
+        const inventoryList = p.inventory.map((it) => ({
+            slot: it.slot,
+            label: it.letter,
+            letter: it.letter,
+            name: formatItemDesc(it),
+            category: it.kind || 'misc',
+            tval: it.tval || 70,
+            sval: it.sval || 1,
+            number: it.count || 1,
+            weight: it.weight || 10,
+            vm: computeVerbMask(it),
+            attr: 1
+        }));
+        const quiverList = p.inventory.filter(it => it.kind === 'ranged' || it.kind === 'ammo').map((it, idx) => ({
+            slot: idx,
+            letter: it.letter,
+            name: formatItemDesc(it),
+            category: it.kind || 'ranged',
+            tval: it.tval || 16,
+            number: it.count || 1,
+            weight: it.weight || 5,
+            vm: computeVerbMask(it)
+        }));
+        const floorList = this.state.objects.filter(o => o.x === p.x && o.y === p.y).map((o, idx) => ({
+            slot: idx,
+            letter: String.fromCharCode(97 + (idx % 26)),
+            name: formatItemDesc(o),
+            category: o.kind || 'misc',
+            tval: o.tval || 70,
+            sval: o.sval || 1,
+            number: o.count || 1,
+            vm: computeVerbMask(o)
+        }));
+        const promptKind = this.state.menuMode === 'direction'
+            ? 'direction'
+            : (this.state.menuMode === 'spells' || this.state.menuMode === 'skills' ? 'spell' : 'item');
+
         return {
             t: 'frame',
             realm: this.realm,
@@ -1249,8 +1569,12 @@ class UniversalCartridgeEngine {
                 awaiting_command: !isOverlay,
                 more: false,
                 context: isOverlay ? 'menu' : 'play',
-                prompt: this.state.menuMode !== 'none' ? { kind: 'item', text: this.state.pendingPrompt || 'Inventory' } : null
+                prompt: this.state.menuMode !== 'none' ? { kind: promptKind, text: this.state.pendingPrompt || 'Inventory' } : null
             },
+            inventory: inventoryList,
+            equipment: equipmentList,
+            quiver: quiverList,
+            floor: floorList,
             player: {
                 name: p.name,
                 race: p.race,
@@ -1302,44 +1626,15 @@ class UniversalCartridgeEngine {
                 turn: this.state.turn,
                 stats: {
                     str: { use: p.str, max: p.str, top: p.str, reduced: false },
-                    int: { use: p.int, max: p.int, top: p.int, reduced: false },
+                    int: { use: p.int, max: p.int, top: p.str, reduced: false },
                     wis: { use: p.wis, max: p.wis, top: p.wis, reduced: false },
                     dex: { use: p.dex, max: p.dex, top: p.dex, reduced: false },
                     con: { use: p.con, max: p.con, top: p.con, reduced: false }
                 },
                 statuses,
-                equipment: p.inventory.filter(it => Boolean(it.equipped)).map((it, idx) => ({
-                    slot: idx,
-                    letter: it.letter,
-                    slot_name: it.equipped,
-                    mention: it.equipped === 'weapon' ? 'Wielding' : 'Wearing',
-                    name: formatItemDesc(it),
-                    tval: it.tval || 23,
-                    sval: it.sval || 1,
-                    number: it.count || 1,
-                    weight: it.weight || 20,
-                    vm: computeVerbMask(it),
-                    attr: 1
-                })),
-                inventory: p.inventory.map((it) => ({
-                    slot: it.slot,
-                    label: it.letter,
-                    letter: it.letter,
-                    name: formatItemDesc(it),
-                    tval: it.tval || 70,
-                    sval: it.sval || 1,
-                    number: it.count || 1,
-                    weight: it.weight || 10,
-                    vm: computeVerbMask(it),
-                    attr: 1
-                })),
-                quiver: p.inventory.filter(it => it.kind === 'ranged' || it.kind === 'ammo').map((it, idx) => ({
-                    slot: idx,
-                    letter: it.letter,
-                    name: formatItemDesc(it),
-                    number: it.count || 1,
-                    weight: it.weight || 5
-                }))
+                equipment: equipmentList,
+                inventory: inventoryList,
+                quiver: quiverList
             },
             map: { h: MAP_H, w: MAP_W, height: MAP_H, width: MAP_W, rows: mapRows },
             monsters: this.state.monsters

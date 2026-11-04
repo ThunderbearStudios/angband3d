@@ -276,17 +276,23 @@ class InputController {
             };
         }
 
-        // 1b. Sil-Q Forge underfoot
+        // 1b. Chained Captive Ally in front (Brogue / Dungeon Rescue)
+        const captiveAhead = Array.isArray(frame.monsters) ? frame.monsters.find(m => m && m.captive && m.x === px + fwd.dx && m.y === py + fwd.dy) : null;
+        if (captiveAhead) {
+            return { id: 'free-ally', icon: '⛓️', text: 'Free Ally', key: 'Space', title: `Shatter Chains & Free ${captiveAhead.name || 'Captive Ally'} [Space]` };
+        }
+
+        // 1c. Sil-Q Forge, Altar, or Magic Fountain underfoot
         const curGlyph = (frame.map.rows && frame.map.rows[py] && frame.map.rows[py].g) ? frame.map.rows[py].g[px] : '';
         const isForgeUnderfoot = realm === 'silq' && (curGlyph === '0' || (curDef && /forge/i.test(curDef.name || '')));
         if (isForgeUnderfoot) {
-            return {
-                id: 'smithing',
-                icon: '⚒',
-                text: 'Forge',
-                key: '0',
-                title: 'Use Enchanted Forge (Smithing) [0]'
-            };
+            return { id: 'smithing', icon: '⚒', text: 'Forge', key: '0', title: 'Use Enchanted Forge (Smithing) [0]' };
+        }
+        if (currentFeat === 43 || curGlyph === '_' || (curDef && /altar/i.test(curDef.name || ''))) {
+            return { id: 'pray', icon: '⛩️', text: 'Pray', key: 'p', title: `Pray at Sacred Altar [p]` };
+        }
+        if (currentFeat === 44 || curGlyph === '{' || (curDef && /fountain/i.test(curDef.name || ''))) {
+            return { id: 'fountain', icon: '⛲', text: 'Quaff', key: 'q', title: 'Drink from Magic Fountain [q]' };
         }
 
         // 2. Stairs down underfoot
@@ -708,14 +714,14 @@ class InputController {
         const rules = {
             'btn-attack': { show: adjHostiles > 0 && (!heroActive || heroAction.id !== 'attack'), suggest: adjHostiles > 0, reason: isJp ? '隣接する敵を攻撃！' : 'Adjacent enemy in melee range!' },
             'btn-fire': { show: (!hasInvTelemetry || (hasBowEquipped && hasAmmo)) && (!heroActive || heroAction.id !== 'shoot'), suggest: hasBowEquipped && hasAmmo && rangedHostilesInLOS > 0 && adjHostiles === 0 && !isDisablingStatus, reason: isJp ? '射程内に敵 — 射撃推奨' : 'Enemy in range — Shoot!' },
-            'btn-throw': { show: !hasInvTelemetry || (inv.length > 0 && (hostileMonsters.length > 0 || r === 'silq')), suggest: r === 'silq' && rangedInPack > 0 && rangedHostilesInLOS > 0 && adjHostiles === 0, reason: 'Throw weapon at ranged target' },
-            'btn-cast': { show: r === 'silq' || (!isNonCaster && (!hasInvTelemetry || matchingTomeCount > 0 || isIntrinsicCaster)), dim: r !== 'silq' && (!hasKnownSpells || (maxSp > 0 && curSp <= 0) || isDisablingStatus), suggest: hasKnownSpells && !isDisablingStatus && (r === 'silq' || matchingTomeCount > 0 || isIntrinsicCaster) && (adjHostiles > 0 || rangedHostilesInLOS > 0) && (maxSp === 0 || curSp >= Math.max(1, maxSp * 0.20)), reason: isJp ? '魔力あり — 呪文詠唱' : 'Mana available — Cast spell' },
-            'btn-browse': { show: r !== 'silq' && (!hasInvTelemetry || tomeCount > 0), suggest: false },
-            'btn-study': { show: r !== 'silq' && !isNonCaster && (effectiveStudyCount > 0 || !hasInvTelemetry || matchingTomeCount > 0), suggest: effectiveStudyCount > 0 && (!hasInvTelemetry || matchingTomeCount > 0), reason: isJp ? `新しい呪文を学習可能 (${effectiveStudyCount}) [G]` : `Can learn ${effectiveStudyCount || 'new'} spell(s) right now [G]!` },
-            'btn-skills': { show: r === 'silq', suggest: r === 'silq' && Number(player.exp || 0) >= 500 && hostileMonsters.length === 0, reason: 'Spend XP on Sil-Q Abilities [Tab]' },
-            'btn-power': { show: r === 'frogcomposband' || r === 'hengband', suggest: false, reason: isJp ? '特殊能力・レイシャル発動' : 'Invoke Racial/Class Power' },
+            'btn-throw': { show: !hasInvTelemetry || (inv.length > 0 && (hostileMonsters.length > 0 || r === 'silq' || r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack')), suggest: (r === 'silq' || r === 'brogue' || r === 'rogue') && rangedInPack > 0 && rangedHostilesInLOS > 0 && adjHostiles === 0, reason: 'Throw weapon at ranged target' },
+            'btn-cast': { show: r === 'silq' || r === 'dcss' || r === 'nethack' || (!isNonCaster && r !== 'brogue' && r !== 'rogue' && (!hasInvTelemetry || matchingTomeCount > 0 || isIntrinsicCaster)), dim: r !== 'silq' && r !== 'dcss' && r !== 'nethack' && (!hasKnownSpells || (maxSp > 0 && curSp <= 0) || isDisablingStatus), suggest: hasKnownSpells && !isDisablingStatus && (r === 'silq' || r === 'dcss' || r === 'nethack' || matchingTomeCount > 0 || isIntrinsicCaster) && (adjHostiles > 0 || rangedHostilesInLOS > 0) && (maxSp === 0 || curSp >= Math.max(1, maxSp * 0.20)), reason: isJp ? '魔力あり — 呪文詠唱' : 'Mana available — Cast spell' },
+            'btn-browse': { show: r !== 'silq' && r !== 'brogue' && r !== 'rogue' && (!hasInvTelemetry || tomeCount > 0 || r === 'dcss'), suggest: false },
+            'btn-study': { show: r !== 'silq' && r !== 'brogue' && r !== 'rogue' && !isNonCaster && (effectiveStudyCount > 0 || !hasInvTelemetry || matchingTomeCount > 0 || r === 'dcss'), suggest: effectiveStudyCount > 0 && (!hasInvTelemetry || matchingTomeCount > 0), reason: isJp ? `新しい呪文を学習可能 (${effectiveStudyCount}) [G]` : `Can learn ${effectiveStudyCount || 'new'} spell(s) right now!` },
+            'btn-skills': { show: r === 'silq' || r === 'dcss', suggest: r === 'silq' && Number(player.exp || 0) >= 500 && hostileMonsters.length === 0, reason: r === 'dcss' ? 'Manage Skills & Aptitudes [m]' : 'Spend XP on Sil-Q Abilities [Tab]' },
+            'btn-power': { show: r === 'frogcomposband' || r === 'hengband' || r === 'nethack' || r === 'dcss', suggest: false, reason: r === 'nethack' ? 'Extended Command [#]' : (r === 'dcss' ? 'Invoke Divine/Evoke Ability [a]' : (isJp ? '特殊能力・レイシャル発動' : 'Invoke Racial/Class Power')) },
             'btn-quaff': { show: !hasInvTelemetry || potionCount > 0, suggest: potionCount > 0 && (hpPct < 50 || hasBadStatus), reason: isJp ? '体力低下/状態異常 — 薬を飲む！' : 'Low HP or ailment — Drink Potion!' },
-            'btn-eat': { show: !hasInvTelemetry || foodCount > 0 || isHungry, suggest: (foodCount > 0 || !hasInvTelemetry) && isHungry, reason: isJp ? '空腹 — 食料を食べる [E]！' : 'Hungry — Eat Ration [E]!' },
+            'btn-eat': { show: !hasInvTelemetry || foodCount > 0 || isHungry, suggest: (foodCount > 0 || !hasInvTelemetry) && isHungry, reason: isJp ? '空腹 — 食料を食べる [E]！' : 'Hungry — Eat Ration!' },
             'btn-read': { show: r !== 'silq' && (!hasInvTelemetry || scrollCount > 0), suggest: scrollCount > 0 && !isDisablingStatus && ((hpPct < 35 && hostileMonsters.length > 0) || adjHostiles >= 2), reason: isJp ? '危険 — 巻物で脱出・対処！' : 'Danger — Read Scroll!' },
             'btn-door': { show: adjClosedDoors > 0 && (!heroActive || heroAction.id !== 'open-door'), suggest: adjClosedDoors > 0 && adjHostiles === 0, reason: isJp ? '隣接する扉を開ける' : 'Open adjacent closed door' },
             'btn-pickup': { show: standingOnItem && (!heroActive || heroAction.id !== 'pickup'), suggest: standingOnItem, reason: isJp ? '足元のアイテムを拾う' : 'Item underfoot — Pick up!' },
@@ -726,7 +732,7 @@ class InputController {
             'btn-wield': { show: !hasInvTelemetry || wearableInPack > 0, suggest: !hasWeaponEquipped && weaponInPack > 0, reason: 'Equip weapon from pack [w]' },
             'btn-drop': { show: !hasInvTelemetry || inv.length > 0, suggest: false },
             'btn-aim': { show: !hasInvTelemetry || deviceCount > 0, suggest: deviceCount > 0 && (adjHostiles > 0 || rangedHostilesInLOS > 0) && hpPct < 75, reason: `Use ${primaryDeviceLabel} [${primaryDeviceKey}]` },
-            'btn-search': { show: Boolean(this.wasdMode) || r === 'frogcomposband' || r === 'hengband' || r === 'silq', suggest: false },
+            'btn-search': { show: Boolean(this.wasdMode) || r !== 'angband', suggest: false },
             'btn-quests': { show: r === 'frogcomposband' || r === 'hengband', suggest: false },
             'btn-overland': { show: (r === 'frogcomposband' || r === 'hengband') && Number(player.depth || 0) === 0, suggest: false }
         };
@@ -766,13 +772,7 @@ class InputController {
                 ? window.__app.getActiveRealm()
                 : 'angband'));
 
-        if (activeRealm !== this._lastRealm) {
-            this._lastRealm = activeRealm;
-            const qa = this.quickActions || (this.app && this.app.quickActions) || (typeof window !== 'undefined' && window.__app && window.__app.quickActions);
-            if (qa && typeof qa.resetForCharacter === 'function') {
-                qa.resetForCharacter(activeRealm, this._lastCharName || '');
-            }
-        }
+        this._lastRealm = activeRealm;
 
         const btnSearch = document.getElementById('btn-search');
         if (btnSearch) {
@@ -788,17 +788,21 @@ class InputController {
                 if (kbd) kbd.textContent = 'I';
                 btnSearch.title = 'Inspect Item / Steal [I / s]';
             } else {
+                const sKey = ((typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? RealmKeys.realmKey('search', activeRealm) : null) || 'S';
                 if (lbl) lbl.textContent = 'Search';
-                if (kbd) kbd.textContent = 'S';
-                btnSearch.title = 'Toggle Search Mode [S]';
+                if (kbd) kbd.textContent = sKey;
+                btnSearch.title = `Search Surroundings [${sKey}]`;
             }
         }
         const btnAim = document.getElementById('btn-aim');
         if (btnAim) {
             const lbl = btnAim.querySelector('.act-label');
-            const fallbackVerb = activeRealm === 'silq' ? 'Staff' : 'Aim';
+            const kbd = btnAim.querySelector('.act-key');
+            const aimKey = ((typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey('aim', activeRealm) || RealmKeys.realmKey('use_staff', activeRealm)) : null) || 'a';
+            const fallbackVerb = activeRealm === 'silq' || activeRealm === 'brogue' ? 'Staff' : 'Aim';
             if (lbl) lbl.textContent = this._adaptiveDeviceVerb || fallbackVerb;
-            btnAim.title = activeRealm === 'silq' ? 'Use Staff [a]' : 'Aim a Wand [a]';
+            if (kbd) kbd.textContent = aimKey;
+            btnAim.title = `${fallbackVerb} [${aimKey}]`;
         }
         this.syncWasdUiState();
     }
@@ -1226,8 +1230,8 @@ class InputController {
 
         if (appState === 'realmModal') {
             if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); app.hideRealmSelector?.(); return true; }
-            const realms = ['angband', 'frogcomposband', 'hengband', 'silq'];
-            if (['1', '2', '3', '4'].includes(e.key)) {
+            const realms = ['nethack', 'dcss', 'angband', 'brogue', 'rogue', 'silq', 'frogcomposband', 'hengband'];
+            if (e.key >= '1' && e.key <= '8') {
                 e.preventDefault();
                 const chosen = realms[parseInt(e.key, 10) - 1];
                 if (chosen) (app.selectRealm ? app.selectRealm(chosen, false) : app.setActiveRealm?.(chosen));
@@ -1756,6 +1760,12 @@ class InputController {
 
         if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
             e.preventDefault();
+            if (isTopLevelCommandPrompt && realm === 'dcss' && e.key === 'o') {
+                const lf = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
+                const px = lf?.player?.x, py = lf?.player?.y;
+                const hasAdjDoor = px !== undefined && py !== undefined && [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]].some(([dx, dy]) => this.getFeatAt(lf.map, px + dx, py + dy) === 2);
+                if (!hasAdjDoor) { this.toggleAutoExplore(lf); return; }
+            }
             let keyToSend = e.key;
             if (isTopLevelCommandPrompt && typeof RealmKeys !== 'undefined' && RealmKeys.fromVanilla) {
                 const mapped = RealmKeys.fromVanilla(e.key, realm);
@@ -1763,12 +1773,8 @@ class InputController {
                     this.network.sendKey(e.key);
                     return;
                 }
-                if (mapped === null) {
-                    return;
-                }
-                if (mapped !== undefined) {
-                    keyToSend = mapped;
-                }
+                if (mapped === null) return;
+                if (mapped !== undefined) keyToSend = mapped;
             }
             this._playKeyAudio(keyToSend);
             this.network.sendKey(keyToSend);
@@ -2438,7 +2444,7 @@ class InputController {
 
     isHostileMonster(m, frame) {
         if (!m || m.visible === false || m.ml === false) return false;
-        if (m.friendly || m.pet || m.isPet || m.peaceful || m.isPeaceful || m.hostile === false || m.is_hostile === false || /\((?:tame|pet|friendly|peaceful)\)/i.test(m.name || m.race || '')) return false;
+        if (m.captive || m.friendly || m.pet || m.isPet || m.peaceful || m.isPeaceful || m.hostile === false || m.is_hostile === false || /\((?:tame|pet|friendly|peaceful|chained)\)/i.test(m.name || m.race || '')) return false;
         const depth = frame?.player?.depth || 0;
         const realm = (this.app && typeof this.app.getActiveRealm === 'function')
             ? this.app.getActiveRealm()
@@ -2457,12 +2463,13 @@ class InputController {
         const realm = (this.app && typeof this.app.getActiveRealm === 'function')
             ? this.app.getActiveRealm()
             : ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : (frame.realm || 'angband'));
+        const quiv = Array.isArray(player.quiver) ? player.quiver : [];
+        if ((realm === 'brogue' || realm === 'rogue' || realm === 'dcss' || realm === 'nethack') && quiv.length > 0) return true;
         const isVanilla = realm === 'angband';
         const eq = Array.isArray(player.equipment) ? player.equipment : [];
         const hasBowEquipped = Boolean(player.bow_item) || eq.some((it) => /\b(bow|longbow|shortbow|crossbow|sling)\b/i.test(String((it && it.name) || '')) || /(ボウ|スリング|弓)/.test(String((it && it.name) || '')) || Number(it && it.tval) === (isVanilla ? 5 : 19));
         if (!hasBowEquipped) return false;
 
-        const quiv = Array.isArray(player.quiver) ? player.quiver : [];
         const hasEquipAmmo = eq.some((it) => /\b(arrow|bolt|shot|pebble|seeker|sheaf)\b/i.test(String((it && it.name) || '')) || (!isVanilla && (Number(it && it.tval) >= 16 && Number(it && it.tval) <= 18)));
         const inv = Array.isArray(player.inventory) ? player.inventory : [];
         const hasInvAmmo = inv.some((it) => {
@@ -2499,7 +2506,7 @@ class InputController {
             if (isDoor) {
                 return { type: 'door', feat, dist: d, x: rx, y: ry };
             }
-            const isTunnelable = (feat === 16 || feat === 17 || feat === 18) || ch === ':' || ch === '%' || (featDef && (featDef.isTunnelable || /rubble|vein/i.test(featDef.name || '')));
+            const isTunnelable = (feat === 17 || feat === 18) || (ch === ':' && feat !== 32) || ch === '%' || (featDef && (featDef.isTunnelable || /rubble|vein/i.test(featDef.name || '')));
             if (isTunnelable) {
                 return { type: 'wall', feat, dist: d, x: rx, y: ry };
             }
@@ -2516,18 +2523,12 @@ class InputController {
 
         if (action === 'descend') {
             if (this.audio) this.audio.playStairs(true);
-            if (dispatcher && typeof dispatcher.run === 'function') {
-                dispatcher.run({ sequence: ['>'] });
-            } else {
-                this.network.sendKey('>');
-            }
+            if (dispatcher && typeof dispatcher.run === 'function') dispatcher.run({ sequence: ['>'] });
+            else this.network.sendKey('>');
         } else if (action === 'ascend') {
             if (this.audio) this.audio.playStairs(false);
-            if (dispatcher && typeof dispatcher.run === 'function') {
-                dispatcher.run({ sequence: ['<'] });
-            } else {
-                this.network.sendKey('<');
-            }
+            if (dispatcher && typeof dispatcher.run === 'function') dispatcher.run({ sequence: ['<'] });
+            else this.network.sendKey('<');
         } else if (action === 'door' || action === 'open-door') {
             if (this.audio) this.audio.playDoor();
             const fwdKey = this.getRelativeDirectionKey(8) || 'up';
@@ -2541,23 +2542,26 @@ class InputController {
         } else if (action === 'smithing') {
             if (this.audio && typeof this.audio.playMenuOpen === 'function') this.audio.playMenuOpen();
             this.network.sendKey('0');
+        } else if (action === 'pray') {
+            if (this.audio && typeof this.audio.playMenuOpen === 'function') this.audio.playMenuOpen();
+            this.network.sendKey('p');
+        } else if (action === 'fountain') {
+            if (this.audio && typeof this.audio.playQuaff === 'function') this.audio.playQuaff();
+            this.network.sendKey('q');
+        } else if (action === 'free-ally') {
+            if (this.audio) this.audio.playWhoosh();
+            const fwdKey = this.getRelativeDirectionKey(8) || 'up';
+            this.network.sendKey(fwdKey);
         } else if (action === 'disarm') {
             if (this.audio && typeof this.audio.playTrapDisarm === 'function') this.audio.playTrapDisarm();
             const fwdKey = this.getRelativeDirectionKey(8) || 'up';
-            if (dispatcher && typeof dispatcher.run === 'function') {
-                dispatcher.run({ verb: 'disarm', dir: fwdKey });
-            } else {
-                this._pendingFollowUp = fwdKey;
-                this.network.sendKey('D');
-            }
+            if (dispatcher && typeof dispatcher.run === 'function') dispatcher.run({ verb: 'disarm', dir: fwdKey });
+            else { this._pendingFollowUp = fwdKey; this.network.sendKey('D'); }
         } else if (action === 'tunnel') {
-            if (this.audio && typeof this.audio.playWallBump === 'function') {
-                this.audio.playWallBump(0.9);
-            }
+            if (this.audio && typeof this.audio.playWallBump === 'function') this.audio.playWallBump(0.9);
             const fwdKey = this.getRelativeDirectionKey(8) || 'up';
-            if (dispatcher && typeof dispatcher.run === 'function') {
-                dispatcher.run({ verb: 'tunnel', dir: fwdKey });
-            } else {
+            if (dispatcher && typeof dispatcher.run === 'function') dispatcher.run({ verb: 'tunnel', dir: fwdKey });
+            else {
                 this._pendingFollowUp = fwdKey;
                 const tunnelKey = (typeof ActionCatalog !== 'undefined' && ActionCatalog.getKey ? ActionCatalog.getKey('tunnel', realm) : null) || 'T';
                 this.network.sendKey(tunnelKey);
@@ -2565,30 +2569,20 @@ class InputController {
         } else if (action === 'pickup') {
             if (this.audio) this.audio.playItemPickup();
             const pickupKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey ? RealmKeys.realmKey('pickup', realm) : null) || 'g';
-            if (dispatcher && typeof dispatcher.run === 'function') {
-                dispatcher.run({ verb: 'pickup' });
-            } else {
-                this.network.sendKey(pickupKey);
-            }
+            if (dispatcher && typeof dispatcher.run === 'function') dispatcher.run({ verb: 'pickup' });
+            else this.network.sendKey(pickupKey);
         } else if (action === 'shoot') {
             if (this.audio) this.audio.playWhoosh();
             const fireKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey ? RealmKeys.realmKey('fire', realm) : null) || 'f';
-            if (dispatcher && typeof dispatcher.run === 'function') {
-                dispatcher.run({ verb: 'fire', target: 'nearest' });
-            } else {
-                this.network.sendKey(fireKey);
-            }
+            if (dispatcher && typeof dispatcher.run === 'function') dispatcher.run({ verb: 'fire', target: 'nearest' });
+            else this.network.sendKey(fireKey);
         } else if (action === 'attack') {
-            if (this.dungeon && typeof this.dungeon.triggerAttackAnimation === 'function') {
-                this.dungeon.triggerAttackAnimation();
-            }
+            if (this.dungeon && typeof this.dungeon.triggerAttackAnimation === 'function') this.dungeon.triggerAttackAnimation();
             if (this.audio) this.audio.playWhoosh();
             const fwdKey = this.getRelativeDirectionKey(8) || 'up';
             this.network.sendKey(fwdKey);
         } else {
-            const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey)
-                ? (RealmKeys.realmKey('hold', realm) || ',')
-                : ',';
+            const holdKey = (typeof RealmKeys !== 'undefined' && RealmKeys.realmKey) ? (RealmKeys.realmKey('hold', realm) || ',') : ',';
             this.network.sendKey(holdKey);
         }
     }
@@ -2963,27 +2957,6 @@ class InputController {
         } catch (err) { console.warn('[Input] Fullscreen toggle error:', err); }
     }
 
-    triggerQuickSlot(slotIdx) {
-        if (!window.QuickActionManager) return false;
-        const realm = (this.app && typeof this.app.getActiveRealm === 'function')
-            ? this.app.getActiveRealm()
-            : ((window.__app && typeof window.__app.getActiveRealm === 'function') ? window.__app.getActiveRealm() : 'angband');
-        const frame = (this.app && this.app.lastFrame) || (window.__app && window.__app.lastFrame) || null;
-        if (this.audio && typeof this.audio.playMenuSelect === 'function') {
-            this.audio.playMenuSelect();
-        }
-        const toastFn = (msg) => {
-            const hud = (this.app && this.app.hud) || (window.__app && window.__app.hud);
-            if (hud && typeof hud.showToast === 'function') hud.showToast(msg);
-            else if (window.__app && typeof window.__app.showRealmToast === 'function') window.__app.showRealmToast(msg);
-        };
-        return window.QuickActionManager.executeSlot(slotIdx, frame, realm, (k) => {
-            if (this.network && typeof this.network.sendKey === 'function') {
-                this.network.sendKey(k);
-            }
-        }, toastFn);
-    }
-
     isAutoNavigating() {
         return Boolean(this._autoNav && this._autoNav.active);
     }
@@ -3024,13 +2997,13 @@ class InputController {
             return { walkable: false, cost: Infinity, isClosedDoor: false, isTrap: false, isStore: false };
         }
 
-        if (ch === '#' || ch === '%' || ch === '*' || feat === 0 || (feat >= 15 && feat <= 23) || (feat === 25 && ch !== '.' && ch !== ',' && ch !== '\'') || feat === 29 || feat === 30 || feat === 41) {
+        if (ch === '#' || ch === '%' || ch === '*' || ch === ':' || (!outdoors && ch === '~') || feat === 0 || (feat >= 15 && feat <= 23) || (feat === 25 && ch !== '.' && ch !== ',' && ch !== '\'') || feat === 29 || feat === 30 || (!outdoors && (feat === 31 || feat === 32)) || feat === 41) {
             return { walkable: false, cost: Infinity, isClosedDoor: false, isTrap: false, isStore: false };
         }
         if (ch === '^') {
             return { walkable: true, cost: 12.0, isClosedDoor: false, isTrap: true, isStore: false };
         }
-        if ((feat >= 7 && feat <= 14) || (feat >= 32 && feat <= 40)) {
+        if ((feat >= 7 && feat <= 14) || (outdoors && feat >= 32 && feat <= 40) || (ch >= '1' && ch <= '9')) {
             return { walkable: true, cost: 8.0, isClosedDoor: false, isTrap: false, isStore: true };
         }
         if (ch === '+' || feat === 2) {
@@ -3053,7 +3026,9 @@ class InputController {
         const occupiedByCreature = new Set();
         if (Array.isArray(frame.monsters)) {
             for (const m of frame.monsters) {
-                if (m && m.visible !== false && typeof m.x === 'number' && typeof m.y === 'number' && !(m.x === sx && m.y === sy)) occupiedByCreature.add(keyOf(m.x, m.y));
+                if (m && m.visible !== false && typeof m.x === 'number' && typeof m.y === 'number' && !(m.x === sx && m.y === sy)) {
+                    if (m.captive || !(m.isPet || m.pet)) occupiedByCreature.add(keyOf(m.x, m.y));
+                }
             }
         }
         if (occupiedByCreature.has(keyOf(gx, gy))) return [];
@@ -3134,7 +3109,7 @@ class InputController {
         const monsters = Array.isArray(effFrame.monsters) ? effFrame.monsters : [];
         const r = (this.realm || (effFrame && effFrame.realm) || 'angband').toLowerCase(), depth = player.depth || 0;
         for (const m of monsters) {
-            if (!m || m.visible === false || m.ml === false || m.friendly || m.pet || m.peaceful) continue;
+            if (!m || m.visible === false || m.ml === false || m.captive || m.friendly || m.pet || m.peaceful) continue;
             if (depth === 0 && r !== 'silq') {
                 const isDamaged = (typeof m.hp === 'number' && typeof m.hp_max === 'number' && m.hp < m.hp_max);
                 const hasHostileFlag = Boolean(m.hostile || m.is_hostile || (m.status && /hostile|anger|alert/i.test(m.status)));
@@ -3176,7 +3151,7 @@ class InputController {
         const dirs = [[0,-1],[1,0],[0,1],[-1,0],[1,-1],[1,1],[-1,1],[-1,-1]];
         const seen = visitedGoals || new Set();
 
-        // 1. Visible unvisited floor items
+        // 1. Visible unvisited floor items or chained captive allies
         const items = Array.isArray(frame.items) ? frame.items : (Array.isArray(frame.objects) ? frame.objects : []);
         let bestItemGoal = null;
         for (const it of items) {
@@ -3188,9 +3163,22 @@ class InputController {
                 bestItemGoal = { x: it.x, y: it.y, path: p, reason: 'item' };
             }
         }
+        if (Array.isArray(frame.monsters)) {
+            for (const m of frame.monsters) {
+                if (!m || !m.captive || seen.has(`${m.x},${m.y}`)) continue;
+                for (const [dx, dy] of dirs) {
+                    const ax = m.x + dx, ay = m.y + dy;
+                    if (seen.has(`${ax},${ay}`)) continue;
+                    const p = this.computeMinimapPath(frame, px, py, ax, ay);
+                    if (p && p.length > 0 && (!bestItemGoal || p.length < bestItemGoal.path.length)) {
+                        bestItemGoal = { x: ax, y: ay, path: p, reason: 'captive' };
+                    }
+                }
+            }
+        }
         if (bestItemGoal) return bestItemGoal;
 
-        // 2. BFS for nearest unexplored frontier tile (or closed door bordering unexplored space)
+        // 2. BFS for nearest unexplored frontier tile, unvisited altar/fountain, or stairs
         const visited = new Uint8Array(w * h);
         const queue = [{ x: px, y: py }];
         visited[py * w + px] = 1;
@@ -3207,9 +3195,9 @@ class InputController {
                 for (let i = 0; i < 8; i++) {
                     if (this._isTileUnexplored(map, cur.x + dirs[i][0], cur.y + dirs[i][1], outdoors)) { bordersUnexplored = true; break; }
                 }
-                if (bordersUnexplored && !tile.isTrap && !tile.isStore) {
+                if ((bordersUnexplored || ch === '_' || ch === '{') && !tile.isTrap && !tile.isStore) {
                     const p = this.computeMinimapPath(frame, px, py, cur.x, cur.y);
-                    if (p && p.length > 0) return { x: cur.x, y: cur.y, path: p, reason: 'frontier' };
+                    if (p && p.length > 0) return { x: cur.x, y: cur.y, path: p, reason: (ch === '_' || ch === '{') ? 'poi' : 'frontier' };
                 }
                 if (!stairsGoal && ch === '>') {
                     const p = this.computeMinimapPath(frame, px, py, cur.x, cur.y);
@@ -3240,7 +3228,7 @@ class InputController {
         }
         const frame = frameOverride || (this.app && this.app.lastFrame) || (winApp && winApp.lastFrame) || null;
         if (!frame || !frame.player || !frame.map) return false;
-        const hostile = Array.isArray(frame.monsters) ? frame.monsters.find(m => m && m.visible !== false && (this.isHostileMonster ? this.isHostileMonster(m, frame) : (!m.friendly && !m.pet && !m.peaceful && m.hostile !== false))) : null;
+        const hostile = Array.isArray(frame.monsters) ? frame.monsters.find(m => m && m.visible !== false && (this.isHostileMonster ? this.isHostileMonster(m, frame) : (!m.captive && !m.friendly && !m.pet && !m.peaceful && m.hostile !== false))) : null;
         if (hostile && (frame.player.depth || 0) > 0) {
             if (hud && typeof hud.showToast === 'function') hud.showToast(`Cannot Auto-Explore: ${hostile.name || 'hostile creature'} nearby!`);
             return false;
@@ -3284,7 +3272,7 @@ class InputController {
             return false;
         }
 
-        const isHostile = (m) => m && m.visible !== false && (this.isHostileMonster ? this.isHostileMonster(m, frame) : (!m.friendly && !m.pet && !m.peaceful && m.hostile !== false));
+        const isHostile = (m) => m && m.visible !== false && (this.isHostileMonster ? this.isHostileMonster(m, frame) : (!m.captive && !m.friendly && !m.pet && !m.peaceful && m.hostile !== false));
         const visibleMonsters = Array.isArray(frame.monsters) ? frame.monsters.filter(isHostile) : [];
         const baselineMonsterKeys = new Set(visibleMonsters.map((m) => `${m.name || ''}|${m.glyph || ''}`));
         const hadAdjacentMonsterAtStart = visibleMonsters.some((m) => Math.max(Math.abs(m.x - px), Math.abs(m.y - py)) <= 1);
@@ -3359,7 +3347,7 @@ class InputController {
             this.stopMinimapAutoNav('Status condition changed!'); return;
         }
 
-        const isHostile = (m) => m && m.visible !== false && (this.isHostileMonster ? this.isHostileMonster(m, frame) : (!m.friendly && !m.pet && !m.peaceful && m.hostile !== false));
+        const isHostile = (m) => m && m.visible !== false && (this.isHostileMonster ? this.isHostileMonster(m, frame) : (!m.captive && !m.friendly && !m.pet && !m.peaceful && m.hostile !== false));
         const visibleMonsters = Array.isArray(frame.monsters) ? frame.monsters.filter(isHostile) : [];
         if (!isInitial && visibleMonsters.length > 0) {
             const isDungeon = (player.depth || 0) > 0;
@@ -3411,7 +3399,7 @@ class InputController {
         }
 
         let nextStep = nav.path[0];
-        if (Array.isArray(frame.monsters) && frame.monsters.some((m) => m && m.visible !== false && m.x === nextStep.x && m.y === nextStep.y)) {
+        if (Array.isArray(frame.monsters) && frame.monsters.some((m) => m && m.visible !== false && m.x === nextStep.x && m.y === nextStep.y && (m.captive || !(m.isPet || m.pet)))) {
             const detour = this.computeMinimapPath(frame, px, py, nav.goalX, nav.goalY);
             if (!detour || detour.length === 0) { this.stopMinimapAutoNav('Path blocked'); return; }
             nav.path = detour; nextStep = nav.path[0];

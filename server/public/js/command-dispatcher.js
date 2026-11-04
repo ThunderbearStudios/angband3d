@@ -402,7 +402,7 @@
             let verbKey;
             if (intent.key) {
                 verbKey = intent.key; } else if (intent.verb === 'command_menu' || intent.verb === 'menu') {
-                verbKey = (r === 'silq') ? 'm' : 'enter'; } else {
+                verbKey = this.resolveVerbKey('command_menu', r) || (r === 'silq' ? 'm' : 'enter'); } else {
                 verbKey = this.resolveVerbKey(intent.verb, r);
             }
             if (!verbKey) return null;
@@ -420,11 +420,12 @@
         }
         if (intent.verb === 'rest') {
             const restKey = this.resolveVerbKey('rest', r) || (r === 'silq' ? '%' : 'R');
-            if (r === 'silq' && !intent.qty) {
+            const isAtomicRest = (r === 'silq' || r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue');
+            if (isAtomicRest && !intent.qty) {
                 return [{
                     send: restKey,
                     expect: (model, fr) => model.isIdle || (fr.player && fr.player.resting) || (fr.ui && fr.ui.more),
-                    desc: 'silq-rest'
+                    desc: `${r}-rest`
                 }];
             }
             const qtyKey = normalizeKey(intent.qty || 'enter');
@@ -451,13 +452,14 @@
             ];
         }
         if (intent.verb === 'power') {
+            const pKey = this.resolveVerbKey('power', r) || 'U';
             const powerLetter = intent.spell || intent.power;
             if (!powerLetter && !intent.dir && !intent.target) {
-                return [{ send: 'U', expect: () => true, desc: 'open-power-menu' }];
+                return [{ send: pKey, expect: () => true, desc: 'open-power-menu' }];
             }
             const pLetter = powerLetter || 'a';
             const steps = [
-                { send: 'U', expect: () => true, desc: 'open-power-menu' },
+                { send: pKey, expect: () => true, desc: 'open-power-menu' },
                 {
                     send: pLetter,
                     expect: (model, fr) => model.isIdle || (fr.ui && fr.ui.more) || (intent.dir || intent.target),
@@ -513,7 +515,7 @@
         if (intent.verb === 'fire') {
             if (r === 'angband' && intent.target === 'nearest') {
                 verbKey = 'h'; } else {
-                verbKey = 'f';
+                verbKey = this.resolveVerbKey('fire', r) || 'f';
             } } else {
             verbKey = this.resolveVerbKey(intent.verb, r) || intent.key;
         }

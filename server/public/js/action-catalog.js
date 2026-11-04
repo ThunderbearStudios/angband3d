@@ -114,12 +114,54 @@
         { id: 'quests', group: 'info', icon: 'quest', labels: { en: 'Quests & Bounties', jp: '任務/賞金首' }, synonyms: ['bounties', 'missions', 'tasks'], keys: { angband: null, silq: null, frogcomposband: null, hengband: null, nethack: null }, target: 'screen', itemFilter: null, primaryFor: [], needsIdle: true, atomic: false }
     ];
 
-    // Deep freeze command definitions with automatic fallback for dcss, brogue, and rogue
+        // Deep freeze command definitions with authoritative 8-realm key overrides
+    const REALM_KEY_OVERRIDES = {
+        dcss: {
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: 'k', quaff: 'q', read: 'r', eat: 'e',
+            aim: 'V', use_staff: 'V', zap: 'V', activate: 'a', use: 'a', play_horn: 'V',
+            fire: 'f', throw: 'f', inscribe: '{', uninscribe: '}', refill: null, examine: 'v',
+            cast: 'z', browse: 'I', study: 'M', song: null, abilities: 'm', smithing: null,
+            power: 'a', pet: 't', tunnel: 'T', open: 'O', close: 'c', bash: 'O', spike: null,
+            disarm: 'D', alter: '+', exchange: "'", steal: null, rest: '5', pickup: 'g',
+            hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'o',
+            travel: 'G', stairs_up: '<', stairs_down: '>', repeat: '`', count: '0',
+            inventory: 'i', equipment: 'e', quiver: 'Q', look: 'x', target: 'x', map: 'X',
+            locate: '@', char_sheet: '%', knowledge: '\\', messages: 'C-p', save: 'S',
+            options: '=', help: '?', command_menu: 'a', overland: null, quests: null
+        },
+        brogue: {
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'E',
+            aim: 'a', use_staff: 'a', zap: 'a', activate: 'a', use: 'a', play_horn: null,
+            fire: 't', throw: 't', inscribe: '{', uninscribe: '}', refill: null, examine: 'x',
+            cast: null, browse: null, study: null, song: null, abilities: null, smithing: null,
+            power: null, pet: null, tunnel: 'T', open: 'o', close: 'c', bash: null, spike: null,
+            disarm: 'D', alter: null, exchange: null, steal: null, rest: 'z', pickup: 'g',
+            hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
+            travel: '_', stairs_up: '<', stairs_down: '>', repeat: 'n', count: '0',
+            inventory: 'i', equipment: 'e', quiver: null, look: 'x', target: 'x', map: 'M',
+            locate: 'L', char_sheet: 'C', knowledge: '~', messages: 'C-p', save: 'S',
+            options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
+        },
+        rogue: {
+            wield: 'w', takeoff: 'T', drop: 'd', ignore: null, quaff: 'q', read: 'r', eat: 'e',
+            aim: 'z', use_staff: 'z', zap: 'z', activate: 'z', use: 'z', play_horn: null,
+            fire: 't', throw: 't', inscribe: '{', uninscribe: '}', refill: null, examine: 'I',
+            cast: null, browse: null, study: null, song: null, abilities: null, smithing: null,
+            power: null, pet: null, tunnel: 'T', open: 'o', close: 'c', bash: null, spike: null,
+            disarm: 'D', alter: null, exchange: null, steal: null, rest: '.', pickup: ',',
+            hold: '.', walk: ';', run: '.', search_mode: 's', search: 's', explore: 'Alt+E',
+            travel: '_', stairs_up: '<', stairs_down: '>', repeat: 'n', count: '0',
+            inventory: 'i', equipment: 'e', quiver: null, look: ';', target: ';', map: 'M',
+            locate: '@', char_sheet: 'C', knowledge: '\\', messages: 'C-p', save: 'S',
+            options: '=', help: '?', command_menu: 'enter', overland: null, quests: null
+        }
+    };
+
     const COMMANDS = Object.freeze(RAW_COMMANDS.map(c => {
         const k = { ...c.keys };
-        if (k.dcss === undefined) k.dcss = k.nethack !== undefined ? k.nethack : k.angband;
-        if (k.brogue === undefined) k.brogue = k.silq !== undefined ? k.silq : k.angband;
-        if (k.rogue === undefined) k.rogue = k.nethack !== undefined ? k.nethack : k.angband;
+        if (k.dcss === undefined) k.dcss = (c.id in REALM_KEY_OVERRIDES.dcss) ? REALM_KEY_OVERRIDES.dcss[c.id] : (k.nethack !== undefined ? k.nethack : k.angband);
+        if (k.brogue === undefined) k.brogue = (c.id in REALM_KEY_OVERRIDES.brogue) ? REALM_KEY_OVERRIDES.brogue[c.id] : k.angband;
+        if (k.rogue === undefined) k.rogue = (c.id in REALM_KEY_OVERRIDES.rogue) ? REALM_KEY_OVERRIDES.rogue[c.id] : (k.nethack !== undefined ? k.nethack : k.angband);
         return Object.freeze({
             ...c,
             labels: Object.freeze({ ...c.labels }),
@@ -170,9 +212,10 @@
     }
 
         function keyFor(id, realm) {
+        const r = (realm || 'angband').toLowerCase();
+        if (typeof id === 'string' && id.trim().toLowerCase() === 'pray' && (r === 'dcss' || r === 'nethack')) return 'p';
         const cmd = get(id);
         if (!cmd) return null;
-        const r = realm || 'angband';
         return cmd.keys[r] !== undefined ? cmd.keys[r] : null;
     }
 
@@ -195,10 +238,17 @@
             if (vanillaKey === 't') return 'r';
         }
 
+        // In cartridge & NetHack realms, preserve any key that is already a native command in this realm
+        const isCartridgeRealm = (r === 'nethack' || r === 'dcss' || r === 'brogue' || r === 'rogue');
+        if (isCartridgeRealm && COMMANDS.some(c => c.keys[r] === vanillaKey)) {
+            return vanillaKey;
+        }
+
         // Search catalog for a command where keys.angband === vanillaKey
         for (const cmd of COMMANDS) {
             if (cmd.keys.angband === vanillaKey) {
                 if (cmd.keys[r] !== undefined) {
+                    if (cmd.keys[r] === null && isCartridgeRealm) return vanillaKey;
                     return cmd.keys[r];
                 }
             }
@@ -254,13 +304,13 @@
 
         // 2. Client-side heuristic fallback
         const name = (item.name || item.dname || item.label || '').toLowerCase();
-        const tval = item.tval || item.type || '';
-        const equipped = Boolean(isEquipped || item.equipped || (typeof item.slot === 'number' && item.slot >= 0 && item.slot <= 30));
+        const tval = item.tval || item.category || item.kind || item.type || '';
+        const equipped = Boolean(isEquipped || item.equipped || (typeof item.slot === 'number' && item.slot >= 0 && item.slot <= 30 && item.slot_name));
         const candidateIds = [];
 
         const isPotion = tval === 75 || tval === 71 || tval === 'potion' || name.includes('potion') || name.includes('draught') || name.includes('flask');
         const isScroll = tval === 70 || tval === 'scroll' || name.includes('scroll') || name.includes('parchment');
-        const isFood = tval === 80 || tval === 'food' || name.includes('ration') || name.includes('food') || name.includes('mushroom') || name.includes('bread') || name.includes('wafer') || name.includes('jerky') || name.includes('slime mold');
+        const isFood = tval === 80 || tval === 'food' || name.includes('ration') || name.includes('food') || name.includes('mushroom') || name.includes('bread') || name.includes('wafer') || name.includes('jerky') || name.includes('slime mold') || name.includes('mango');
         const isHorn = tval === 'horn' || name.includes('horn');
         const isWand = tval === 65 || tval === 'wand' || name.includes('wand');
         const isStaff = tval === 55 || tval === 'staff' || name.includes('staff') || name.includes('stave');
@@ -328,8 +378,8 @@
         }
 
         const p = frame.player || {};
-        const inv = Array.isArray(frame.inventory) ? frame.inventory : [];
-        const eq = Array.isArray(frame.equipment) ? frame.equipment : [];
+        const inv = Array.isArray(frame.inventory) ? frame.inventory : (Array.isArray(p.inventory) ? p.inventory : []);
+        const eq = Array.isArray(frame.equipment) ? frame.equipment : (Array.isArray(p.equipment) ? p.equipment : []);
         const allItems = inv.concat(eq);
 
         const matchVerbOnItem = (it, verbId, isEq) => {

@@ -715,10 +715,11 @@ class NetHackEngine {
 
         // 3. Active Menu / Sub-Prompt Modes
         if (this.state.menuMode !== 'none') {
-            if (k.toLowerCase() === 'escape') {
+            if (k.toLowerCase() === 'escape' || k.toLowerCase() === 'esc' || (k === ' ' && (this.state.menuMode === 'char' || this.state.menuMode === 'help' || this.state.menuMode === 'knowledge'))) {
                 this.state.menuMode = 'none';
                 this.state.pendingVerb = '';
                 this.state.pendingPrompt = '';
+                this.state.selectedItem = null;
                 return;
             }
             if (this.state.menuMode === 'extended') {
@@ -727,6 +728,33 @@ class NetHackEngine {
                 this.state.menuMode = 'none';
                 this.state.pendingPrompt = '';
                 if (mapped) this.executeExtendedCommand(mapped);
+                return;
+            }
+            if (this.state.menuMode === 'item_action') {
+                const item = this.state.selectedItem;
+                this.state.menuMode = 'none';
+                this.state.selectedItem = null;
+                this.state.pendingPrompt = '';
+                if (!item) return;
+                if (k === 'd') { this.executeItemVerb('d', item.letter); return; }
+                if (k === 't' || k === 'f') {
+                    this.state.menuMode = 'direction';
+                    this.state.pendingVerb = 'throw';
+                    this.state.pendingPrompt = 'In what direction do you want to throw/fire?';
+                    return;
+                }
+                if (k === 'x' || k === 'I' || k === ';' || k === ':') {
+                    this.addMessage(`${item.letter}) ${formatItemDesc(item)} [${item.buc || 'uncursed'}].`, 11);
+                    return;
+                }
+                if (k === 'T' || k === 'R') { this.executeItemVerb(k, item.letter); return; }
+                const verb = item.kind === 'potion' ? 'q'
+                    : (item.kind === 'scroll' ? 'r'
+                    : (item.kind === 'food' ? 'e'
+                    : (item.kind === 'wand' ? 'z'
+                    : (item.kind === 'armor' ? (item.equipped ? 'T' : 'W')
+                    : ((item.kind === 'weapon' || item.kind === 'ranged') ? 'w' : 'a')))));
+                this.executeItemVerb(verb, item.letter);
                 return;
             }
             if (this.state.menuMode === 'inven' || this.state.menuMode === 'equip') {
@@ -751,8 +779,9 @@ class NetHackEngine {
                         this.executeItemVerb('e', k);
                         return;
                     }
-                    this.addMessage(`${item.letter}) ${formatItemDesc(item)}.`, 11);
-                    this.state.menuMode = 'none';
+                    this.state.selectedItem = item;
+                    this.state.menuMode = 'item_action';
+                    this.state.pendingPrompt = `${item.letter}) ${formatItemDesc(item)} — [Enter] Use/Equip [d]rop [t]hrow [x]Examine (ESC)`;
                     return;
                 }
                 if (/^[qrwzda]$/.test(k)) {
@@ -782,6 +811,9 @@ class NetHackEngine {
                 this.state.pendingPrompt = '';
                 return;
             }
+            this.state.menuMode = 'none';
+            this.state.pendingPrompt = '';
+            return;
         }
 
         // 4. Top-level Dungeon Commands
@@ -793,7 +825,11 @@ class NetHackEngine {
             this.state.menuMode = 'equip';
             return;
         }
-        if (k === 'Z') {
+        if (k === 'p') {
+            this.executeExtendedCommand('#pray');
+            return;
+        }
+        if (k === 'Z' || k === '+') {
             this.state.menuMode = 'spell';
             this.state.pendingPrompt = 'Cast which spell? [a] force bolt [b] healing [c] magic mapping [d] haste self [e] cure ailment (ESC)';
             return;
@@ -829,7 +865,7 @@ class NetHackEngine {
             this.state.pendingPrompt = 'In what direction?';
             return;
         }
-        if (k === ';' || k === '/' || k === ':') {
+        if (k === ';' || k === '/') {
             const visibleMons = this.state.monsters.filter(m => this.state.map[m.y] && this.state.map[m.y][m.x] && this.state.map[m.y][m.x].inView);
             const listStr = visibleMons.length > 0
                 ? visibleMons.map(m => `${m.race} [${m.glyph}] (${m.hp}/${m.hp_max} HP)`).join(', ')
@@ -838,16 +874,18 @@ class NetHackEngine {
             return;
         }
         if (k === 'C' || k === '@') {
-            const p = this.state.player;
-            this.addMessage(`${p.name} the ${p.align} ${p.race} ${p.class} (Lvl ${p.level}, XP ${p.exp}/${p.expNext}) — HP:${p.hp}/${p.hpMax} Pw:${p.pw}/${p.pwMax} AC:${p.ac} Gold:${p.gold}$ Deity:${p.deity}.`, 14);
+            this.state.menuMode = 'char';
+            this.state.pendingPrompt = 'Character Sheet (Press ESC or Space to return)';
             return;
         }
         if (k === '\\' || k === '~') {
-            this.addMessage(`Discovered Knowledge: ${this.state.player.inventory.length} carried items identified across ${this.state.branchName}.`, 11);
+            this.state.menuMode = 'knowledge';
+            this.state.pendingPrompt = 'Discovered Lore & Knowledge (Press ESC or Space to return)';
             return;
         }
         if (k === '?' || k === 'O' || k === '=') {
-            this.addMessage('NetHack 3.6.7 Controls: [i]nventory [e]quipment [E]at [q]uaff [r]ead [w]ield [W]ear [T]akeoff [z]ap [Z]cast [a]pply [t/f]ire [o]pen [c]lose [#]rituals.', 11);
+            this.state.menuMode = 'help';
+            this.state.pendingPrompt = 'NetHack Commands & Options (Press ESC or Space to return)';
             return;
         }
         if (k === 'S' || k === 'C-s') {
@@ -1678,13 +1716,36 @@ class NetHackEngine {
             return rows;
         }
 
-        if (this.state.menuMode === 'verb') {
+        if (this.state.menuMode === 'verb' || this.state.menuMode === 'item_action') {
             rows.push({ g: pad80(this.state.pendingPrompt || 'Select an item: [a-z or ESC]'), a: attr80('0e') });
             for (let i = 0; i < Math.min(21, p.inventory.length); i++) {
                 const it = p.inventory[i];
                 const wt = `${((it.weight || 10) * (it.count || 1) / 10).toFixed(1)} lb`;
                 const desc = `  ${it.letter}) ${formatItemDesc(it)}`;
                 rows.push({ g: pad80(desc.padEnd(68, ' ') + wt.padStart(10, ' ')), a: attr80('01') });
+            }
+            while (rows.length < TERM_H) rows.push({ g: pad80(''), a: attr80('01') });
+            return rows;
+        }
+
+        if (this.state.menuMode === 'char' || this.state.menuMode === 'help' || this.state.menuMode === 'knowledge') {
+            rows.push({ g: pad80(this.state.pendingPrompt || 'NetHack 3.6.7 Overview (Press ESC or Space to return)'), a: attr80('0e') });
+            rows.push({ g: pad80('=============================================================================='), a: attr80('02') });
+            if (this.state.menuMode === 'char') {
+                rows.push({ g: pad80(`  Name:  ${p.name.padEnd(20, ' ')} Role:  ${p.class} (${p.race}, ${p.align})`), a: attr80('01') });
+                rows.push({ g: pad80(`  Deity: ${p.deity.padEnd(20, ' ')} Dlvl:  ${this.state.depth} (${this.state.branchName})`), a: attr80('01') });
+                rows.push({ g: pad80(`  STR: ${p.str}  INT: ${p.int}  WIS: ${p.wis}  DEX: ${p.dex}  CON: ${p.con}  AC: ${p.ac}`), a: attr80('0b') });
+                rows.push({ g: pad80(`  HP: ${p.hp}/${p.hpMax}   Pw: ${p.pw}/${p.pwMax}   Gold: ${p.gold}zm   Turns: ${this.state.turn}`), a: attr80('0a') });
+            } else if (this.state.menuMode === 'knowledge') {
+                rows.push({ g: pad80(`  Discovered Knowledge (${p.inventory.length} items carried in ${this.state.branchName}):`), a: attr80('0b') });
+                p.inventory.slice(0, 15).forEach((it) => {
+                    rows.push({ g: pad80(`    ${it.letter}) ${formatItemDesc(it)} [${it.buc || 'uncursed'}]`), a: attr80('01') });
+                });
+            } else {
+                rows.push({ g: pad80('  NetHack 3.6.7 Commands:'), a: attr80('0b') });
+                rows.push({ g: pad80('  [i] Inventory  [e] Equipment  [,] Pick Up   [e/E] Eat   [q] Quaff   [r] Read'), a: attr80('01') });
+                rows.push({ g: pad80('  [w] Wield      [W] Wear       [T] Take Off  [P] Put On  [R] Remove  [z] Zap'), a: attr80('01') });
+                rows.push({ g: pad80('  [Z] Cast Spell [a] Apply Tool [t/f] Throw   [o/c] Door  [p/#] Pray & Rituals'), a: attr80('01') });
             }
             while (rows.length < TERM_H) rows.push({ g: pad80(''), a: attr80('01') });
             return rows;
@@ -1769,6 +1830,46 @@ class NetHackEngine {
         if (p.speedBoost > 0) statuses.push({ name: 'Fast', attr: 10, val: p.speedBoost });
         if (p.hasAmulet) statuses.push({ name: 'Amulet', attr: 14, val: 1 });
 
+        const equipmentList = p.inventory.filter(it => Boolean(it.equipped)).map((it, idx) => ({
+            slot: idx,
+            letter: it.letter,
+            slot_name: it.equipped,
+            mention: it.equipped === 'weapon' ? 'Wielding' : 'Wearing',
+            name: formatItemDesc(it),
+            category: it.kind || 'misc',
+            tval: it.tval || 23,
+            sval: it.sval || 1,
+            number: it.count || 1,
+            weight: it.weight || 20,
+            buc: it.buc || 'uncursed',
+            vm: computeVerbMask(it),
+            attr: 1
+        }));
+        const inventoryList = p.inventory.map((it) => ({
+            slot: it.slot,
+            label: it.letter,
+            letter: it.letter,
+            name: formatItemDesc(it),
+            category: it.kind || 'misc',
+            tval: it.tval || 70,
+            sval: it.sval || 1,
+            number: it.count || 1,
+            weight: it.weight || 10,
+            buc: it.buc || 'uncursed',
+            vm: computeVerbMask(it),
+            attr: 1
+        }));
+        const floorList = this.state.objects.filter(o => o.x === p.x && o.y === p.y).map((o, idx) => ({
+            slot: idx,
+            letter: String.fromCharCode(97 + (idx % 26)),
+            name: formatItemDesc(o),
+            category: o.kind || 'misc',
+            tval: o.tval || 70,
+            sval: o.sval || 1,
+            number: o.count || 1,
+            vm: computeVerbMask(o)
+        }));
+
         return {
             t: 'frame',
             realm: 'nethack',
@@ -1781,6 +1882,10 @@ class NetHackEngine {
                 context: isOverlay ? 'menu' : 'play',
                 prompt: promptObj
             },
+            inventory: inventoryList,
+            equipment: equipmentList,
+            quiver: [],
+            floor: floorList,
             player: {
                 name: p.name,
                 race: p.race,
@@ -1822,33 +1927,8 @@ class NetHackEngine {
                     con: { use: p.con, max: p.con, top: p.con, reduced: false }
                 },
                 statuses,
-                equipment: p.inventory.filter(it => Boolean(it.equipped)).map((it, idx) => ({
-                    slot: idx,
-                    letter: it.letter,
-                    slot_name: it.equipped,
-                    mention: it.equipped === 'weapon' ? 'Wielding' : 'Wearing',
-                    name: formatItemDesc(it),
-                    tval: it.tval || 23,
-                    sval: it.sval || 1,
-                    number: it.count || 1,
-                    weight: it.weight || 20,
-                    buc: it.buc || 'uncursed',
-                    vm: computeVerbMask(it),
-                    attr: 1
-                })),
-                inventory: p.inventory.map((it) => ({
-                    slot: it.slot,
-                    label: it.letter,
-                    letter: it.letter,
-                    name: formatItemDesc(it),
-                    tval: it.tval || 70,
-                    sval: it.sval || 1,
-                    number: it.count || 1,
-                    weight: it.weight || 10,
-                    buc: it.buc || 'uncursed',
-                    vm: computeVerbMask(it),
-                    attr: 1
-                })),
+                equipment: equipmentList,
+                inventory: inventoryList,
                 quiver: []
             },
             map: {

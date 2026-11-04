@@ -33,7 +33,10 @@
         silq: { id: 'silq', title: 'Sil-Q', hasTown: false, hasShops: false, statCount: 4, invenMode: 'command', hasPopupCommandMenu: false, features: { smithing: true, songs: true, abilityTree: true } },
         frogcomposband: { id: 'frogcomposband', title: 'FrogComposBand', hasTown: true, hasShops: true, statCount: 6, invenMode: 'command', hasPopupCommandMenu: true, features: { wilderness: true, unifiedGearUi: true, powers: true, quests: true } },
         hengband: { id: 'hengband', title: 'Hengband', hasTown: true, hasShops: true, statCount: 6, invenMode: 'command', hasPopupCommandMenu: true, isBilingual: true, features: { wilderness: true, riding: true, magicRealms: true } },
-        nethack: { id: 'nethack', title: 'NetHack 3.6.7', hasTown: false, hasShops: true, statCount: 6, invenMode: 'select', hasPopupCommandMenu: false, features: { beatitudeBUC: true, extendedHashCommands: true, diagonalDoorwayBlocked: true, multiBranchGraph: true } }
+        nethack: { id: 'nethack', title: 'NetHack 3.6.7', hasTown: false, hasShops: true, statCount: 6, invenMode: 'select', hasPopupCommandMenu: false, features: { beatitudeBUC: true, extendedHashCommands: true, diagonalDoorwayBlocked: true, multiBranchGraph: true } },
+        dcss: { id: 'dcss', title: 'Dungeon Crawl Stone Soup', hasTown: false, hasShops: true, statCount: 3, invenMode: 'select', hasPopupCommandMenu: false, features: { pantheonGods: true, skillTraining: true, multiBranchGraph: true } },
+        brogue: { id: 'brogue', title: 'Brogue CE', hasTown: false, hasShops: false, statCount: 2, invenMode: 'select', hasPopupCommandMenu: false, features: { captiveAllies: true, lumenstones: true } },
+        rogue: { id: 'rogue', title: 'Classic Rogue 5.4', hasTown: false, hasShops: false, statCount: 2, invenMode: 'select', hasPopupCommandMenu: false, features: { diagonalDoorwayBlocked: true } }
     };
 
     function registerVariant(id, spec) {
@@ -47,7 +50,7 @@
 
     function isCharacterSheet(screenText) {
         if (!screenText) return false;
-        if (screenText.includes('(character sheet)') || screenText.includes('キャラクター情報') || screenText.includes('character sheet')) return true;
+        if (screenText.includes('(character sheet)') || screenText.includes('キャラクター情報') || screenText.includes('character sheet') || screenText.includes('character overview')) return true;
         const hasIdentity = (screenText.includes('name') && (screenText.includes('race') || screenText.includes('house')) && (screenText.includes('sex') || screenText.includes('age') || screenText.includes('house') || screenText.includes('class'))) ||
                             (screenText.includes('名前') && screenText.includes('種族') && screenText.includes('職業'));
         const hasStats = (screenText.includes('str') && screenText.includes('dex') && screenText.includes('con')) ||
@@ -58,6 +61,7 @@
 
     function isSpellOrAbilityMenu(screenText) {
         if (!screenText) return false;
+        if (screenText.includes('skills & training') || screenText.includes('spell library & abilities')) return true;
         if (/\bname\s+(?:lv|level)\s+(?:mana|cost|sp)\s+fail/i.test(screenText)) return true;
         if (/名前\s+lv\s+(?:mp|魔力)/i.test(screenText)) return true;
         if (/(?:cast|study|browse)\s+which\s+(?:spell|prayer|power|technique|incantation)/i.test(screenText)) return true;
@@ -70,6 +74,7 @@
 
     function isKnowledgeOrOptions(screenText) {
         if (!screenText) return false;
+        if (screenText.includes('discovered lore & knowledge') || screenText.includes('realm commands & help') || screenText.includes('nethack commands & options')) return true;
         if (/display\s+current\s+knowledge|knowledge\s+menu|known\s+artifacts|known\s+uniques|known\s+objects|現在の知識|既知の/i.test(screenText)) return true;
         if (/options?\s+menu|game[\s-]*play\s+options|interface\s+options|disturbance\s+options|set\s+options|オプション設定/i.test(screenText)) return true;
         if (/please\s+choose\s+one\s+of\s+the\s+following\s+online\s+help|angband\s+help|help\s+system|ヘルプ/i.test(screenText)) return true;
@@ -106,7 +111,7 @@
 
     function isDirectionalTargetingText(fullText) {
         if (!fullText) return false;
-        return ['direction?', 'which direction?', 'aim which direction?', 'target [', 'target:', 'select target',
+        return ['direction?', 'which direction?', 'in what direction', 'direction to fire', 'aim which direction?', 'target [', 'target:', 'select target',
             '方向?', 'どの方向', 'どちらの方向', '標的:', '照準:', 'ターゲット:'].some(s => fullText.includes(s));
     }
 
@@ -145,13 +150,13 @@
         const hasStoreText = ['store inventory', 'home inventory', 'gold remaining', 'purchase which item', 'sell which item',
             'examine which item', '商品の一覧', '雑貨屋', '万屋', '防具屋', '武器屋', '寺院', '錬金術の店', '魔術師の店',
             'ブラック・マーケット', '我が家', '博物館'].some(s => screenText.includes(s)) || (screenText.includes('重さ') && screenText.includes('価格'));
-        const isTargeting = inPlay && ['target [', 'target:', 'direction?', 'which direction?', 'select target', 'aim which direction?'].some(s => screenText.includes(s));
+        const isTargeting = inPlay && ['target [', 'target:', 'direction?', 'which direction?', 'in what direction', 'direction to fire', 'select target', 'aim which direction?'].some(s => screenText.includes(s));
         const isItemPrompt = inPlay && !isTargeting && (
             /inventory\s*\|\s*equipment/.test(screenText) ||
-            ['select item:', 'inven:', '(inven', '(inventory)', 'inventory |', '| equipment', 'equip:', '(equip', '(equipment)',
-            'quiver:', '(quiver', 'choice:', 'which item?', 'which potion?', 'which scroll?', 'which spell?', 'which prayer?',
-            'which book?', 'wear/wield which', 'wield which', 'wear which', 'take off which', 'remove which item', 'drop which',
-            'throw which', 'fire which', 'shoot which', 'quaff which', 'read which', 'destroy which', 'eat which', 'use which',
+            ['select item:', 'inven:', '(inven', '(inventory)', 'inventory pack (', 'inventory |', '| equipment', 'equip:', '(equip', '(equipment)', 'equipped gear (',
+            'quiver:', '(quiver', 'choice:', 'what do you want to ', 'which item?', 'which potion?', 'drink which', 'which scroll?', 'which spell?', 'which prayer?',
+            'which book?', 'wear/wield which', 'wield which', 'wear which', 'equip which', 'take off which', 'remove which item', 'remove which', 'drop which',
+            'throw which', 'fire which', 'shoot which', 'quaff which', 'read which', 'destroy which', 'eat which', 'use which', 'use or invoke which', 'use, zap, or evoke which',
             'aim which', 'zap which', 'activate which', 'inscribe which', 'uninscribe which', 'refill which', 'refill with which',
             'fuel with which', 'fuel which', 'browse which', 'cast which', 'study which'].some(s => screenText.includes(s)) ||
             (!hasStoreText && screenText.includes('examine which item')) ||
@@ -411,8 +416,8 @@
         if (mode === 'item-list') {
             if ((realm === 'hengband' || isHeng) && ['装備：', 'equipment:', '(equipment)'].some(s => screenText.includes(s))) listKind = 'equip';
             else if ((realm === 'hengband' || isHeng) && ['持ち物：', 'inventory:', '(inventory)'].some(s => screenText.includes(s))) listKind = 'inven';
-            else if (['(inventory)', 'inven:', 'inventory |'].some(s => screenText.includes(s)) || (isHeng && screenText.includes('持ち物：'))) listKind = 'inven';
-            else if (['(equipment)', 'equip:', '| equipment'].some(s => screenText.includes(s)) || (isHeng && screenText.includes('装備：'))) listKind = 'equip';
+            else if (['(inventory)', 'inven:', 'inventory pack (', 'inventory |'].some(s => screenText.includes(s)) || (isHeng && screenText.includes('持ち物：'))) listKind = 'inven';
+            else if (['(equipment)', 'equip:', 'equipped gear (', '| equipment'].some(s => screenText.includes(s)) || (isHeng && screenText.includes('装備：'))) listKind = 'equip';
             else if (screenText.includes('quiver:') || screenText.includes('quiver')) listKind = 'quiver';
         }
 
@@ -787,12 +792,12 @@
             if (extractRowRegions(line).length >= 2) multiColRows++;
         }
         const isMultiColumnMenu = multiColRows >= 2;
-        const isInven = screenText.includes('(inventory)') || screenText.includes('inven:') || screenText.includes('inventory |') || screenText.includes('持ち物：');
-        const isEquip = screenText.includes('(equipment)') || screenText.includes('equip:') || screenText.includes('| equipment') || screenText.includes('装備：');
+        const isInven = screenText.includes('(inventory)') || screenText.includes('inven:') || screenText.includes('inventory pack (') || screenText.includes('inventory |') || screenText.includes('持ち物：');
+        const isEquip = screenText.includes('(equipment)') || screenText.includes('equip:') || screenText.includes('equipped gear (') || screenText.includes('| equipment') || screenText.includes('装備：');
         const isQuiver = screenText.includes('quiver:') || screenText.includes('| quiver');
         const hasGearModeTabs = Boolean(isInven || isEquip || isQuiver);
         const gearActiveTab = isEquip ? 'equip' : (isQuiver ? 'quiver' : (isInven ? 'inven' : null));
-        const gearSwitchKey = (realm === 'frogcomposband' || realm === 'silq' || realm === 'hengband') ? '/' : (isEquip ? 'i' : 'e');
+        const gearSwitchKey = (realm === 'frogcomposband' || realm === 'silq' || realm === 'hengband' || realm === 'nethack' || realm === 'dcss' || realm === 'brogue' || realm === 'rogue') ? '/' : (isEquip ? 'i' : 'e');
 
         return {
             realm, isSilqAbilityTree, silqSkillColumns, activeSilqSkillCol, isSilqSmithing, isSilqSongMenu,
