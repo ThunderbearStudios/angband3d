@@ -117,6 +117,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const REALM_DATA = {
         angband: {
             name: 'Vanilla Angband 4.2.6',
+            shortName: 'Angband 4.2.6',
             tagline: 'The Classic Tolkien Descent',
             desc: 'The purest, bit-for-bit roguelike dungeon crawl. 100 dungeon levels descending into the iron fortress of Angband to overthrow Morgoth, Lord of Darkness.',
             voiceAccent: 'Old British Scholar',
@@ -124,6 +125,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         frogcomposband: {
             name: 'FrogComposBand',
+            shortName: 'FrogComposBand',
             tagline: 'Wilderness Overland & Unlimited Monster Races',
             desc: 'Over 50 diverse classes, procedural overland wilderness, monster races (Dragons, Ringwraiths, Angels), and endless high-fantasy chaos.',
             voiceAccent: 'Mythic Bard (Rich neutral epic)',
@@ -131,6 +133,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         hengband: {
             name: 'Hengband 3.0+',
+            shortName: 'Hengband 3.0+',
             tagline: 'Eastern Mythos & Amberite Chronicles',
             desc: 'Inspired by Zelazny\'s Amber and Japanese folklore. Unique magic realms, quest towers, mythical deities, and legendary samurai combat.',
             voiceAccent: 'Eastern Mystic (Refined chronicle)',
@@ -138,6 +141,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         silq: {
             name: 'Sil-Q 1.5+',
+            shortName: 'Sil-Q 1.5+',
             tagline: 'First Age Stealth & The Crown Heist',
             desc: 'Tactical stealth roguelike in the First Age. Sing songs of power, avoid deadly Balrogs in the shadows, and pry a Silmaril from Morgoth\'s crown.',
             voiceAccent: 'Elven Skald (Melodic northern)',
@@ -145,6 +149,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         nethack: {
             name: 'NetHack 3.6.7',
+            shortName: 'NetHack 3.6.7',
             tagline: 'The Mazes of Menace & Amulet of Yendor',
             desc: 'Descend through the Dungeons of Doom, Gnomish Mines, Sokoban, and Gehennom. Test item beatitude at high altars and claim the Amulet of Yendor.',
             voiceAccent: 'Oracle of Delphi (Archival sage)',
@@ -152,6 +157,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         dcss: {
             name: 'Dungeon Crawl Stone Soup',
+            shortName: 'DCSS',
             tagline: 'Runes of Zot & The Ecumenical Pantheon',
             desc: 'Worship ancient deities at ecumenical altars, venture into Lair, Orcish Mines, and Vaults to claim 3 Runes of Zot, and ascend with the Orb of Zot.',
             voiceAccent: 'Herald of Zot (Tactical oracle)',
@@ -159,6 +165,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         brogue: {
             name: 'Brogue CE',
+            shortName: 'Brogue CE',
             tagline: 'Potions of Strength, Captive Allies & Lumenstones',
             desc: 'Zero experience points — empower your hero through Potions of Strength, Scrolls of Enchantment, liberated dungeon allies, and glowing Lumenstones.',
             voiceAccent: 'Chronicler of the Deep Caverns',
@@ -166,6 +173,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         rogue: {
             name: 'Classic Rogue 5.4 (1980)',
+            shortName: 'Rogue 5.4',
             tagline: 'The 1980 Original Dungeons of Doom',
             desc: 'Where the genre began in 1980. Battle all 26 classic A–Z monsters from Aquators to Dragons, manage your food rations, and retrieve the Amulet of Yendor on Level 26.',
             voiceAccent: '1980s Dungeon Master',
@@ -1666,6 +1674,10 @@ window.addEventListener('DOMContentLoaded', () => {
         if (banner) banner.style.display = 'none';
         const btnToggleChronicle = document.getElementById('btn-toggle-chronicle');
         if (btnToggleChronicle) btnToggleChronicle.style.display = 'none';
+        const globalAudioBar = document.getElementById('global-audio-bar');
+        if (globalAudioBar) {
+            globalAudioBar.style.display = (appState === 'game' && !exceptEl) ? 'none' : 'flex';
+        }
     }
 
     function renderMenuBackdropDiorama() {
@@ -1715,7 +1727,7 @@ window.addEventListener('DOMContentLoaded', () => {
             audio.playMenuNav();
             if (typeof audio.startMenuMusic === 'function') audio.startMenuMusic();
         }
-        renderMenuBackdropDiorama();
+        setTimeout(() => renderMenuBackdropDiorama(), 160);
     }
 
     function showMainMenu() {
@@ -2632,7 +2644,8 @@ window.addEventListener('DOMContentLoaded', () => {
         const key = (realmKey && REALM_SURVIVAL_GUIDES[realmKey]) ? realmKey : (activeRealm && REALM_SURVIVAL_GUIDES[activeRealm] ? activeRealm : 'angband');
         guideActiveRealm = key;
         const g = REALM_SURVIVAL_GUIDES[key];
-        const realmMeta = REALM_DATA[key] || REALM_DATA.angband;
+        const realmMeta = REALM_DATA[key] || REALM_DATA.angband || { name: 'Vanilla Angband 4.2.6', shortName: 'Angband 4.2.6' };
+        const shortName = realmMeta.shortName || realmMeta.name || key;
 
         // Sync realm selector pill bar in #guide-modal
         document.querySelectorAll('.guide-realm-pill[data-guide-realm]').forEach((btn) => {
@@ -2643,7 +2656,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const titleEl = document.getElementById('guide-modal-title');
         if (titleEl) {
-            titleEl.textContent = `📖 ADVENTURER'S GUIDE — ${realmMeta.shortName.toUpperCase()}`;
+            titleEl.textContent = `📖 ADVENTURER'S GUIDE — ${shortName.toUpperCase()}`;
         }
 
         // Tab 0: Overview & Victory Goal
@@ -3725,6 +3738,14 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         setVal('pause-volume-slider', volPct);
         setTxt('pause-volume-label', isMuted ? '0%' : `${volPct}%`);
+        const btnGlobalSound = document.getElementById('btn-global-sound');
+        if (btnGlobalSound) {
+            btnGlobalSound.innerHTML = `<span class="sound-icon">${isMuted ? '🔇' : '🔊'}</span><span class="sound-label">${isMuted ? 'Muted' : 'Sound'}</span>`;
+            btnGlobalSound.title = isMuted ? 'Unmute Sound (M)' : 'Mute Sound (M)';
+            btnGlobalSound.classList.toggle('muted', isMuted);
+        }
+        setVal('global-volume-slider', volPct);
+        setTxt('global-volume-label', isMuted ? '0%' : `${volPct}%`);
     }
     window.__syncAudioUI = syncAudioUI;
 
@@ -3797,6 +3818,51 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
         volSlider.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // Global Persistent Audio Bar Controls (#global-audio-bar — Splash, Main Menu, Modals, Death Screen)
+    const globalAudioBar = document.getElementById('global-audio-bar');
+    if (globalAudioBar) {
+        ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach((evt) => {
+            globalAudioBar.addEventListener(evt, (e) => e.stopPropagation());
+        });
+    }
+    const btnGlobalSound = document.getElementById('btn-global-sound');
+    if (btnGlobalSound) {
+        btnGlobalSound.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (audio) {
+                audio.unlock(true);
+                const isMuted = audio.toggleMute();
+                if (!isMuted) {
+                    if (typeof audio._ensureThemePlayback === 'function') audio._ensureThemePlayback();
+                    if (typeof audio.playMenuSelect === 'function') audio.playMenuSelect();
+                }
+                syncAudioUI();
+            }
+        });
+    }
+    const globalVolSlider = document.getElementById('global-volume-slider');
+    if (globalVolSlider) {
+        globalVolSlider.addEventListener('input', (e) => {
+            e.stopPropagation();
+            if (audio) {
+                audio.unlock(true);
+                const val = parseInt(globalVolSlider.value, 10) / 100;
+                audio.setMasterVolume(val);
+                if (audio.isMuted() && val > 0) audio.setMute(false);
+                if (!audio.isMuted() && typeof audio._ensureThemePlayback === 'function') {
+                    audio._ensureThemePlayback();
+                }
+                syncAudioUI();
+            }
+        });
+        globalVolSlider.addEventListener('change', (e) => {
+            e.stopPropagation();
+            if (audio && !audio.isMuted() && typeof audio.playMenuNav === 'function') {
+                audio.playMenuNav();
+            }
+        });
     }
 
     // Quick Volume Popover Controls Wiring
@@ -4455,7 +4521,9 @@ window.addEventListener('DOMContentLoaded', () => {
             if (typeof RealmKeys.applyLabels === 'function') RealmKeys.applyLabels(document, activeRealm, langMode);
         }
         // 5. Per-Realm Survival Guide & Chronicle Quick-Topic Chips Synchronization
-        renderRealmSurvivalGuide(activeRealm);
+        if (guideModal && !guideModal.classList.contains('hidden')) {
+            renderRealmSurvivalGuide(activeRealm);
+        }
         const chipsContainer = document.querySelector('.chronicle-quick-topics');
         if (chipsContainer && REALM_CHRONICLE_CHIPS) {
             const chips = REALM_CHRONICLE_CHIPS[activeRealm] || REALM_CHRONICLE_CHIPS.angband || [];

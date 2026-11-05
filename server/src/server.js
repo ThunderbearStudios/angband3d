@@ -2838,7 +2838,7 @@ const server = http.createServer((req, res) => {
                             const stream = fs.createReadStream(filePath, { start, end: actualEnd });
                             res.writeHead(206, {
                                 ...headers,
-                                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                'Cache-Control': filePath.includes('yasd_theme.mp3') ? 'public, max-age=86400' : 'no-cache, no-store, must-revalidate',
                                 'Content-Range': `bytes ${start}-${actualEnd}/${total}`,
                                 'Content-Length': chunksize,
                             });
@@ -2916,6 +2916,7 @@ const server = http.createServer((req, res) => {
             return;
         }
 
+        headers['Content-Length'] = fileStat.size;
         res.writeHead(200, headers);
         const stream = fs.createReadStream(filePath);
         stream.on('error', () => { if (!res.headersSent) { res.writeHead(500); } res.end(); });

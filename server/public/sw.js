@@ -1,5 +1,5 @@
 // Angband3D Service Worker — v9.1.0 PWA & Multi-Realm Standalone Client Caching
-const CACHE_NAME = 'angband3d-v11.4.2';
+const CACHE_NAME = 'angband3d-v11.4.3';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -75,6 +75,7 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/health') ||
     url.pathname.startsWith('/assets/video/') ||
+    url.pathname.endsWith('.mp3') ||
     url.pathname.endsWith('.mp4') ||
     url.pathname.endsWith('.webm') ||
     event.request.headers.has('range') ||

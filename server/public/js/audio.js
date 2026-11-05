@@ -114,8 +114,8 @@ class SoundEngine {
                 this.unlock(true);
                 this._ensureThemePlayback();
             };
-            ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(evt => {
-                window.addEventListener(evt, unlockHandler, { passive: true });
+            ['click', 'pointerdown', 'mousedown', 'keydown', 'touchstart'].forEach(evt => {
+                window.addEventListener(evt, unlockHandler, { capture: true, passive: true });
             });
         }
     }
@@ -123,15 +123,17 @@ class SoundEngine {
     _initThemeDecks() {
         if (this._themeDeckA || typeof window === 'undefined' || typeof Audio === 'undefined') return;
         try {
-            const createDeck = () => {
+            const createDeck = (preloadMode) => {
                 const a = new Audio('/assets/audio/yasd_theme.mp3');
-                a.preload = 'auto';
+                a.preload = preloadMode;
                 a.loop = false;
                 a.volume = 0;
                 return a;
             };
-            this._themeDeckA = createDeck();
-            this._themeDeckB = createDeck();
+            // Preload Deck A immediately; keep Deck B on 'none' until Deck A is playing (>= 4s)
+            // so initial splash load never downloads two 5MB audio streams simultaneously.
+            this._themeDeckA = createDeck('auto');
+            this._themeDeckB = createDeck('none');
             this._activeThemeDeck = this._themeDeckA;
             this._standbyThemeDeck = this._themeDeckB;
         } catch (e) {
@@ -189,6 +191,12 @@ class SoundEngine {
             const loopEnd = this._themeLoopEnd; // 65.0s (1:05)
             const fadeStart = loopEnd - this._themeCrossfadeSec; // 63.2s
             const targetVol = this._getThemeTargetVolume();
+
+            // Warm up standby deck once active deck is playing smoothly (avoids double initial fetch on splash load)
+            if (t >= 4.0 && standby.preload === 'none') {
+                standby.preload = 'auto';
+                try { standby.load(); } catch (_) {}
+            }
 
             if (t >= fadeStart && t < loopEnd) {
                 if (!this._themeCrossfading) {
