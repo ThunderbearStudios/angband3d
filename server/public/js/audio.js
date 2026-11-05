@@ -63,6 +63,8 @@ class SoundEngine {
         this.masterGain = null;
         this.sfxGain = null;
         this.sfxVolume = 1.0;
+        this.musicEnabled = true;
+        this.musicVolume = 0.85;
 
         // Throttles for status warnings and repetitive cues
         this.lastLowHpTime = 0;
@@ -86,9 +88,20 @@ class SoundEngine {
                             this.sfxVolume = parsedSfx;
                         }
                     }
+                    const savedMusicVol = localStorage.getItem('angband3d_music_volume');
+                    if (savedMusicVol !== null) {
+                        const parsedMusic = parseFloat(savedMusicVol);
+                        if (!isNaN(parsedMusic) && parsedMusic >= 0 && parsedMusic <= 1.0) {
+                            this.musicVolume = parsedMusic;
+                        }
+                    }
                     const savedMuted = localStorage.getItem('angband3d_muted');
                     if (savedMuted !== null) {
                         this.enabled = (savedMuted !== 'true');
+                    }
+                    const savedMusicMuted = localStorage.getItem('angband3d_music_muted');
+                    if (savedMusicMuted !== null) {
+                        this.musicEnabled = (savedMusicMuted !== 'true');
                     }
                 }
             } catch (_) {}
@@ -101,20 +114,23 @@ class SoundEngine {
         this._activeThemeDeck = null;
         this._standbyThemeDeck = null;
         this._themeCrossfading = false;
+        this._themeActuallyPlaying = false;
         this._themeTimer = null;
         this._themeFadeTimer = null;
         this._deathThemeActive = false;
         this._themeLoopEnd = 65.0; // 1:05s
         this._themeCrossfadeSec = 1.8;
 
-        // Seamlessly initialize audio graph on the first trusted user gesture (click/key/touch),
-        // preventing modern browser autoplay policy warnings on initial page load.
+        // Pre-initialize theme decks immediately at SoundEngine construction so buffering starts at t=0ms
+        this._initThemeDecks();
+
+        // Seamlessly initialize audio graph and retry theme playback on any user interaction
         if (typeof window !== 'undefined') {
             const unlockHandler = () => {
                 this.unlock(true);
                 this._ensureThemePlayback();
             };
-            ['click', 'pointerdown', 'mousedown', 'keydown', 'touchstart'].forEach(evt => {
+            ['click', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'keydown', 'keyup', 'touchstart', 'touchend'].forEach(evt => {
                 window.addEventListener(evt, unlockHandler, { capture: true, passive: true });
             });
         }
@@ -123,17 +139,44 @@ class SoundEngine {
     _initThemeDecks() {
         if (this._themeDeckA || typeof window === 'undefined' || typeof Audio === 'undefined') return;
         try {
-            const createDeck = (preloadMode) => {
-                const a = new Audio('/assets/audio/yasd_theme.mp3');
-                a.preload = preloadMode;
+            const bindDeckEvents = (a, isPrimary) => {
                 a.loop = false;
-                a.volume = 0;
+                a.addEventListener('playing', () => {
+                    this._themeActuallyPlaying = true;
+                });
+                a.addEventListener('timeupdate', () => {
+                    if (!a.paused && a.currentTime > 0.01) {
+                        this._themeActuallyPlaying = true;
+                    }
+                });
+                a.addEventListener('pause', () => {
+                    if (a === this._activeThemeDeck) {
+                        this._themeActuallyPlaying = false;
+                    }
+                });
+                if (isPrimary) {
+                    const tryAutoStart = () => {
+                        if ((this._themeMode === 'menu' || this._themeMode === 'death') && this.enabled && this.musicEnabled && !this._themeActuallyPlaying) {
+                            this._ensureThemePlayback();
+                        }
+                    };
+                    a.addEventListener('loadeddata', tryAutoStart);
+                    a.addEventListener('canplay', tryAutoStart);
+                }
                 return a;
+            };
+            const domDeckA = (typeof document !== 'undefined') ? document.getElementById('yasd-theme-deck-a') : null;
+            const domDeckB = (typeof document !== 'undefined') ? document.getElementById('yasd-theme-deck-b') : null;
+            const createDeck = (existingEl, preloadMode, isPrimary) => {
+                const a = existingEl || new Audio('/assets/audio/yasd_theme.mp3');
+                a.preload = preloadMode;
+                a.volume = this._getThemeTargetVolume();
+                return bindDeckEvents(a, isPrimary);
             };
             // Preload Deck A immediately; keep Deck B on 'none' until Deck A is playing (>= 4s)
             // so initial splash load never downloads two 5MB audio streams simultaneously.
-            this._themeDeckA = createDeck('auto');
-            this._themeDeckB = createDeck('none');
+            this._themeDeckA = createDeck(domDeckA, 'auto', true);
+            this._themeDeckB = createDeck(domDeckB, 'none', false);
             this._activeThemeDeck = this._themeDeckA;
             this._standbyThemeDeck = this._themeDeckB;
         } catch (e) {
@@ -142,8 +185,8 @@ class SoundEngine {
     }
 
     _getThemeTargetVolume() {
-        if (!this.enabled) return 0.0;
-        return Math.max(0.0, Math.min(1.0, this.masterVolume * 0.70));
+        if (!this.enabled || !this.musicEnabled) return 0.0;
+        return Math.max(0.0, Math.min(1.0, this.masterVolume * this.musicVolume));
     }
 
     _syncThemeVolume() {
@@ -156,25 +199,32 @@ class SoundEngine {
         if (!this._themeCrossfading && this._activeThemeDeck) {
             try { this._activeThemeDeck.volume = target; } catch (_) {}
         }
-        if (!this.enabled) {
+        if (!this.enabled || !this.musicEnabled) {
             if (this._themeDeckA) { try { this._themeDeckA.volume = 0; } catch (_) {} }
             if (this._themeDeckB) { try { this._themeDeckB.volume = 0; } catch (_) {} }
-        } else if (this._activeThemeDeck && this._activeThemeDeck.paused && (this._themeMode === 'menu' || this._themeMode === 'death')) {
+        } else if (this._activeThemeDeck && (this._activeThemeDeck.paused || !this._themeActuallyPlaying) && (this._themeMode === 'menu' || this._themeMode === 'death')) {
             this._ensureThemePlayback();
         }
     }
 
     _ensureThemePlayback() {
-        if (this._themeMode === 'none' || !this.enabled) return;
+        if (this._themeMode === 'none' || !this.enabled || !this.musicEnabled) return;
         this._initThemeDecks();
         const active = this._activeThemeDeck;
         if (!active) return;
-        if (active.paused) {
+        if (active.paused || !this._themeActuallyPlaying) {
             if (this._themeMode === 'death' && this._deathThemeFinished) return;
             try {
+                active.muted = false;
                 active.volume = this._getThemeTargetVolume();
                 const p = active.play();
-                if (p && typeof p.catch === 'function') p.catch(() => {});
+                if (p && typeof p.then === 'function') {
+                    p.then(() => {
+                        this._themeActuallyPlaying = true;
+                    }).catch(() => {
+                        this._themeActuallyPlaying = false;
+                    });
+                }
             } catch (_) {}
         }
     }
@@ -241,7 +291,7 @@ class SoundEngine {
         this._initThemeDecks();
         this._deathThemeActive = false;
         this._deathThemeFinished = false;
-        if (this._themeMode === 'menu' && this._activeThemeDeck && !this._activeThemeDeck.paused) {
+        if (this._themeMode === 'menu' && this._activeThemeDeck && !this._activeThemeDeck.paused && this._themeActuallyPlaying) {
             this._syncThemeVolume();
             return;
         }
@@ -260,10 +310,17 @@ class SoundEngine {
                     this._activeThemeDeck.currentTime = 0;
                 }
                 this._activeThemeDeck.onended = null;
+                this._activeThemeDeck.muted = false;
                 this._activeThemeDeck.volume = this._getThemeTargetVolume();
-                if (this.enabled) {
+                if (this.enabled && this.musicEnabled) {
                     const p = this._activeThemeDeck.play();
-                    if (p && typeof p.catch === 'function') p.catch(() => {});
+                    if (p && typeof p.then === 'function') {
+                        p.then(() => {
+                            this._themeActuallyPlaying = true;
+                        }).catch(() => {
+                            this._themeActuallyPlaying = false;
+                        });
+                    }
                 }
             } catch (_) {}
         }
@@ -273,8 +330,14 @@ class SoundEngine {
     stopThemeMusic(fadeOutSec = 0.85) {
         this._themeMode = 'none';
         this._themeCrossfading = false;
+        this._themeActuallyPlaying = false;
         this._deathThemeActive = false;
         this._deathThemeFinished = false;
+        // Now that menu/character-creation is finished and active gameplay is starting,
+        // lazily warm the studio combat SFX bank without competing with menu theme streaming.
+        if (this.ctx && !this._studioBankLoaded && !this._studioBankLoading) {
+            this.loadStudioSfxBank();
+        }
         if (this._themeTimer) {
             clearInterval(this._themeTimer);
             this._themeTimer = null;
@@ -341,13 +404,21 @@ class SoundEngine {
                 active.pause();
                 active.currentTime = 0;
                 active.loop = false;
+                active.muted = false;
                 active.volume = this._getThemeTargetVolume();
                 active.onended = () => {
                     this._deathThemeFinished = true;
+                    this._themeActuallyPlaying = false;
                 };
-                if (this.enabled) {
+                if (this.enabled && this.musicEnabled) {
                     const p = active.play();
-                    if (p && typeof p.catch === 'function') p.catch(() => {});
+                    if (p && typeof p.then === 'function') {
+                        p.then(() => {
+                            this._themeActuallyPlaying = true;
+                        }).catch(() => {
+                            this._themeActuallyPlaying = false;
+                        });
+                    }
                 }
             } catch (_) {}
         }
@@ -370,6 +441,42 @@ class SoundEngine {
             }
         }
         return this.masterVolume;
+    }
+
+    setMusicVolume(volume) {
+        this.musicVolume = Math.max(0.0, Math.min(1.0, parseFloat(volume) || 0.0));
+        if (typeof window !== 'undefined') {
+            try { if (window.localStorage) localStorage.setItem('angband3d_music_volume', this.musicVolume.toString()); } catch (_) {}
+        }
+        if (this.musicVolume > 0 && !this.musicEnabled) {
+            this.musicEnabled = true;
+            if (typeof window !== 'undefined') {
+                try { if (window.localStorage) localStorage.setItem('angband3d_music_muted', 'false'); } catch (_) {}
+            }
+        }
+        this._syncThemeVolume();
+        return this.musicVolume;
+    }
+
+    getMusicVolume() {
+        return this.musicVolume;
+    }
+
+    setMusicMute(isMuted) {
+        this.musicEnabled = !isMuted;
+        if (typeof window !== 'undefined') {
+            try { if (window.localStorage) localStorage.setItem('angband3d_music_muted', (!this.musicEnabled).toString()); } catch (_) {}
+        }
+        this._syncThemeVolume();
+        return !this.musicEnabled;
+    }
+
+    toggleMusicMute() {
+        return this.setMusicMute(this.musicEnabled);
+    }
+
+    isMusicMuted() {
+        return !this.musicEnabled;
     }
 
     setSfxVolume(volume) {
@@ -464,9 +571,6 @@ class SoundEngine {
             this.reverbConvolver = null;
             this.reverbWetGain = null;
         }
-
-        // SFX library generated lazily on first audio interaction
-        this.loadStudioSfxBank();
     }
 
     unlock(forceFromGesture = false) {

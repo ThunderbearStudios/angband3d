@@ -398,6 +398,9 @@ window.addEventListener('DOMContentLoaded', () => {
         lastBirthConfirmSig = '';
         forceTerminal = false;
         window.__manualTerminalOpen = false;
+        if (audio && audio._themeMode === 'menu' && typeof audio.stopThemeMusic === 'function') {
+            audio.stopThemeMusic(0.9);
+        }
         if (terminalContainer) {
             terminalContainer.classList.add('hidden');
             terminalContainer.classList.remove('in-game-modal');
@@ -3276,8 +3279,10 @@ window.addEventListener('DOMContentLoaded', () => {
         hasEnteredPlay = false;
         lastClientSnapshotMs = 0;
         lastSnapshotDepth = null;
-        if (audio && typeof audio.stopThemeMusic === 'function') {
-            audio.stopThemeMusic(0.85);
+        // Keep the 0:00 -> 1:05 menu theme looping seamlessly through character creation / setup!
+        // It will fade out automatically in network.onFrame once active 3D gameplay (phase === 'play') begins.
+        if (audio && typeof audio.startMenuMusic === 'function') {
+            audio.startMenuMusic();
         }
         hideModals();
         if (loadingOverlay) loadingOverlay.classList.remove('hidden');
@@ -3702,6 +3707,15 @@ window.addEventListener('DOMContentLoaded', () => {
             btnSound.title = isMuted ? 'Unmute Sound' : 'Mute Sound';
             btnSound.classList.toggle('muted', isMuted);
         }
+        const isMusicMuted = (typeof audio.isMusicMuted === 'function') ? audio.isMusicMuted() : false;
+        const musicPct = Math.round(((typeof audio.getMusicVolume === 'function') ? audio.getMusicVolume() : 0.85) * 100);
+        const effMusicMuted = isMuted || isMusicMuted;
+        const btnTopMusic = document.getElementById('btn-top-music');
+        if (btnTopMusic) {
+            btnTopMusic.innerHTML = `<span class="music-icon">${effMusicMuted ? '🔇' : '🎵'}</span><span class="music-label">${effMusicMuted ? 'No Music' : 'Music'}</span>`;
+            btnTopMusic.title = effMusicMuted ? 'Unmute Music' : 'Mute Music';
+            btnTopMusic.classList.toggle('muted', effMusicMuted);
+        }
         setVal('volume-slider', volPct);
         setTxt('volume-label', isMuted ? '0%' : `${volPct}%`);
         setTxt('popover-vol-badge', isMuted ? '🔇 Muted' : `${volPct}%`);
@@ -3711,6 +3725,13 @@ window.addEventListener('DOMContentLoaded', () => {
             btnPopoverMute.textContent = isMuted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
             btnPopoverMute.classList.toggle('muted', isMuted);
         }
+        const btnPopoverMusicMute = document.getElementById('btn-popover-music-mute');
+        if (btnPopoverMusicMute) {
+            btnPopoverMusicMute.textContent = effMusicMuted ? '🔇 Music: OFF' : '🎵 Music: ON';
+            btnPopoverMusicMute.classList.toggle('muted', effMusicMuted);
+        }
+        setTxt('popover-music-badge', effMusicMuted ? '🔇 Muted' : `${musicPct}%`);
+        setVal('popover-music-slider', musicPct);
         const voiceVol = (window.chronicleManager && window.chronicleManager.audio && typeof window.chronicleManager.audio.getVoiceVolume === 'function')
             ? window.chronicleManager.audio.getVoiceVolume()
             : (parseFloat(localStorage.getItem('angband3d_tome_voice_volume')) || 1.0);
@@ -3738,14 +3759,29 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         setVal('pause-volume-slider', volPct);
         setTxt('pause-volume-label', isMuted ? '0%' : `${volPct}%`);
+        const btnPauseMusicMute = document.getElementById('btn-pause-music-mute');
+        if (btnPauseMusicMute) {
+            btnPauseMusicMute.textContent = effMusicMuted ? '🔇 Music: OFF' : '🎵 Music: ON';
+            btnPauseMusicMute.classList.toggle('muted', effMusicMuted);
+        }
+        setVal('pause-music-slider', musicPct);
+        setTxt('pause-music-label', effMusicMuted ? '0%' : `${musicPct}%`);
         const btnGlobalSound = document.getElementById('btn-global-sound');
         if (btnGlobalSound) {
             btnGlobalSound.innerHTML = `<span class="sound-icon">${isMuted ? '🔇' : '🔊'}</span><span class="sound-label">${isMuted ? 'Muted' : 'Sound'}</span>`;
-            btnGlobalSound.title = isMuted ? 'Unmute Sound (M)' : 'Mute Sound (M)';
+            btnGlobalSound.title = isMuted ? 'Unmute All Sound (M)' : 'Mute All Sound (M)';
             btnGlobalSound.classList.toggle('muted', isMuted);
         }
         setVal('global-volume-slider', volPct);
         setTxt('global-volume-label', isMuted ? '0%' : `${volPct}%`);
+        const btnGlobalMusic = document.getElementById('btn-global-music');
+        if (btnGlobalMusic) {
+            btnGlobalMusic.innerHTML = `<span class="music-icon">${effMusicMuted ? '🔇' : '🎵'}</span><span class="music-label">${effMusicMuted ? 'Music Off' : 'Music'}</span>`;
+            btnGlobalMusic.title = effMusicMuted ? 'Unmute Music' : 'Mute Music';
+            btnGlobalMusic.classList.toggle('muted', effMusicMuted);
+        }
+        setVal('global-music-slider', musicPct);
+        setTxt('global-music-label', effMusicMuted ? '0%' : `${musicPct}%`);
     }
     window.__syncAudioUI = syncAudioUI;
 
@@ -3864,6 +3900,49 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    const btnGlobalMusic = document.getElementById('btn-global-music');
+    if (btnGlobalMusic) {
+        btnGlobalMusic.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (audio && typeof audio.toggleMusicMute === 'function') {
+                audio.unlock(true);
+                const isMusicMuted = audio.toggleMusicMute();
+                if (!isMusicMuted) {
+                    if (audio.isMuted()) audio.setMute(false);
+                    if (typeof audio._ensureThemePlayback === 'function') audio._ensureThemePlayback();
+                }
+                syncAudioUI();
+            }
+        });
+    }
+    const globalMusicSlider = document.getElementById('global-music-slider');
+    if (globalMusicSlider) {
+        globalMusicSlider.addEventListener('input', (e) => {
+            e.stopPropagation();
+            if (audio && typeof audio.setMusicVolume === 'function') {
+                audio.unlock(true);
+                const val = parseInt(globalMusicSlider.value, 10) / 100;
+                audio.setMusicVolume(val);
+                if (val > 0 && audio.isMuted()) audio.setMute(false);
+                if (val > 0 && typeof audio._ensureThemePlayback === 'function') {
+                    audio._ensureThemePlayback();
+                }
+                syncAudioUI();
+            }
+        });
+    }
+    const btnTopMusic = document.getElementById('btn-top-music');
+    if (btnTopMusic) {
+        bindFastTap(btnTopMusic, () => {
+            if (audio && typeof audio.toggleMusicMute === 'function') {
+                audio.unlock(true);
+                const isMusicMuted = audio.toggleMusicMute();
+                if (!isMusicMuted && audio.isMuted()) audio.setMute(false);
+                syncAudioUI();
+                showQuickVolumePopover();
+            }
+        });
+    }
 
     // Quick Volume Popover Controls Wiring
     const quickVolPop = document.getElementById('quick-volume-popover');
@@ -3892,6 +3971,19 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const btnPopoverMusicMute = document.getElementById('btn-popover-music-mute');
+    if (btnPopoverMusicMute) {
+        bindFastTap(btnPopoverMusicMute, () => {
+            if (audio && typeof audio.toggleMusicMute === 'function') {
+                audio.unlock(true);
+                const isMusicMuted = audio.toggleMusicMute();
+                if (!isMusicMuted && audio.isMuted()) audio.setMute(false);
+                syncAudioUI();
+                showQuickVolumePopover();
+            }
+        });
+    }
+
     function bindPopoverSlider(id, onChange, onNavSound = false) {
         const slider = document.getElementById(id);
         if (!slider) return;
@@ -3913,6 +4005,13 @@ window.addEventListener('DOMContentLoaded', () => {
     bindPopoverSlider('popover-volume-slider', (val) => {
         if (audio) { audio.unlock(); audio.setMasterVolume(val); if (audio.isMuted() && val > 0) audio.setMute(false); }
     }, true);
+    bindPopoverSlider('popover-music-slider', (val) => {
+        if (audio && typeof audio.setMusicVolume === 'function') {
+            audio.unlock(true);
+            audio.setMusicVolume(val);
+            if (val > 0 && audio.isMuted()) audio.setMute(false);
+        }
+    });
     bindPopoverSlider('popover-voice-slider', (val) => {
         if (window.chronicleManager && window.chronicleManager.audio) window.chronicleManager.audio.setVoiceVolume(val);
         else try { localStorage.setItem('angband3d_tome_voice_volume', val.toString()); } catch (_) {}
@@ -3949,12 +4048,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Dismiss popover on touch outside
     window.addEventListener('click', (e) => {
-        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-sound-config')) {
+        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-top-music, #btn-sound-config')) {
             hideQuickVolumePopover();
         }
     });
     window.addEventListener('touchstart', (e) => {
-        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-sound-config')) {
+        if (!e.target.closest('#sound-control-group, #quick-volume-popover, #btn-sound, #btn-top-music, #btn-sound-config')) {
             hideQuickVolumePopover();
         }
     }, { passive: true });
@@ -3993,6 +4092,33 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
         pauseVolSlider.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    const btnPauseMusicMute = document.getElementById('btn-pause-music-mute');
+    if (btnPauseMusicMute) {
+        bindFastTap(btnPauseMusicMute, () => {
+            if (audio && typeof audio.toggleMusicMute === 'function') {
+                audio.unlock(true);
+                const isMusicMuted = audio.toggleMusicMute();
+                if (!isMusicMuted && audio.isMuted()) audio.setMute(false);
+                syncAudioUI();
+            }
+        });
+    }
+
+    const pauseMusicSlider = document.getElementById('pause-music-slider');
+    if (pauseMusicSlider) {
+        pauseMusicSlider.addEventListener('input', (e) => {
+            e.stopPropagation();
+            if (audio && typeof audio.setMusicVolume === 'function') {
+                audio.unlock(true);
+                const val = parseInt(pauseMusicSlider.value, 10) / 100;
+                audio.setMusicVolume(val);
+                if (val > 0 && audio.isMuted()) audio.setMute(false);
+                syncAudioUI();
+            }
+        });
+        pauseMusicSlider.addEventListener('click', (e) => e.stopPropagation());
     }
 
     syncAudioUI();
@@ -5700,6 +5826,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (expBtn) expBtn.textContent = '▼ Show';
             }
             [hudOverlay, minimapContainer, messageFeedWindow, topMessageBanner, touchControls, btnToggleMsg, btnToggleMap, btnToggleDpad, btnToggleChronicle].forEach(el => { if (el) el.style.display = 'none'; });
+            const globalAudioBarTerm = document.getElementById('global-audio-bar');
+            if (globalAudioBarTerm) globalAudioBarTerm.style.display = 'flex';
             input.setTerminalMode(true);
             terminal.resize();
             if (currentFrame && currentFrame.term) {
@@ -5710,6 +5838,8 @@ window.addEventListener('DOMContentLoaded', () => {
             terminalContainer.classList.add('hidden');
             terminalContainer.classList.remove('in-game-modal');
             document.body.classList.remove('terminal-mode-active', 'terminal-active', 'grimoire-primary-open');
+            const globalAudioBarPlay = document.getElementById('global-audio-bar');
+            if (globalAudioBarPlay) globalAudioBarPlay.style.display = 'none';
             const gc = document.getElementById('grimoire-deck-container');
             if (gc && window.RealmGrimoireDeck && typeof window.RealmGrimoireDeck.hide === 'function') {
                 window.RealmGrimoireDeck.hide(gc);
@@ -6063,6 +6193,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 const firstPlayTransition = !hasEnteredPlay;
                 hasEnteredPlay = true;
                 quickBirthActive = false;
+                // Stop menu/character-creation loop once full gameplay begins outside of character creation!
+                if (!birthReviewActive && !birthConfirming && audio && audio._themeMode === 'menu' && typeof audio.stopThemeMusic === 'function') {
+                    audio.stopThemeMusic(0.9);
+                }
                 const curDepth = typeof frame.player.depth === 'number' ? frame.player.depth : 0;
                 const depthChanged = lastSnapshotDepth !== null && curDepth !== lastSnapshotDepth;
                 lastSnapshotDepth = curDepth;
