@@ -1227,12 +1227,15 @@ class WebHUD {
             localStorage.removeItem('angband_msg_size');
             localStorage.removeItem('angband_chronicle_pos');
             localStorage.removeItem('angband_chronicle_size');
+            localStorage.removeItem('angband_char_size');
+            localStorage.removeItem('angband_deck_size');
         } catch (_) {}
 
         const allWidgets = [
             'touch-controls',
             'char-panel',
             'hud-center-column',
+            'action-bar',
             'compass-container',
             'minimap-container',
             'message-feed-window',
@@ -1250,7 +1253,15 @@ class WebHUD {
             el.style.width = '';
             el.style.height = '';
             el.style.margin = '';
-            el.classList.remove('hud-widget-dragging');
+            el.classList.remove('hud-widget-dragging', 'window-minimized', 'hud-panel-hidden');
+        }
+        for (const bId of ['btn-minimap-minimize', 'btn-msg-minimize', 'btn-char-minimize', 'btn-action-bar-minimize']) {
+            const b = document.getElementById(bId);
+            if (b) b.textContent = '−';
+        }
+        for (const tId of ['btn-toggle-hero', 'btn-toggle-actions']) {
+            const t = document.getElementById(tId);
+            if (t) { t.classList.remove('panel-off'); t.setAttribute('aria-pressed', 'true'); }
         }
 
         const touchControls = document.getElementById('touch-controls');

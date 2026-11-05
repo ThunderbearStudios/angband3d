@@ -22,8 +22,8 @@
     'use strict';
 
     const MOBILE_SAVER_GPU_REGEX = /(Mali-G[35]\d|Mali-4\d\d|Mali-T\d+|Adreno\s*\(TM\)\s*[3456]1\d|PowerVR|SwiftShader|llvmpipe|Microsoft\s*Basic\s*Render)/i;
-    const INTEGRATED_GPU_REGEX = /(Intel\(R\)\s*(UHD|HD|Iris)|Intel\s*(UHD|HD|Iris)|Radeon\(TM\)\s*Vega|AMD\s*Radeon\(TM\)\s*Graphics|Mali-|Adreno|Apple\s*A\d+|Mesa\s*DRI\s*Intel)/i;
-    const PERFORMANCE_GPU_REGEX = /(Apple\s*M[1-9]|Apple\s*GPU|GeForce\s*GTX|Radeon\s*Pro|Intel\(R\)\s*Arc)/i;
+    const INTEGRATED_GPU_REGEX = /(Intel\(R\)\s*(UHD|HD)\s*Graphics|Intel\s*(UHD|HD)\s*Graphics|Radeon\(TM\)\s*Vega|Mali-|Adreno|Apple\s*A1[012]|Mesa\s*DRI\s*Intel)/i;
+    const PERFORMANCE_GPU_REGEX = /(Apple\s*M[1-9]|Apple\s*GPU|GeForce\s*GTX|Radeon\s*(Pro|RX)|Intel\(R\)\s*(Arc|Iris)|AMD\s*Radeon)/i;
     const ULTRA_GPU_REGEX = /(GeForce\s*RTX|NVIDIA\s*RTX|Quadro\s*RTX|Radeon\s*RX\s*[6789]\d{3})/i;
 
     const GPU_TIER_PRESETS = Object.freeze({

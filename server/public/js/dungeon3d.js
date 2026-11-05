@@ -2142,9 +2142,10 @@ class Dungeon3D {
                 ? window.Dungeon3DLightmap.HardwareGpuProfile.detect()
                 : { gpuTier: 'integrated', dprCap: 1.0, antialias: false, farDistance: 60, fogDensity: 0.018, enableFillLight: false, proceduralTexSize: 256, nameplatePoolCap: 64 });
         this.renderBudget = budget;
-        const dprCap = budget.dprCap;
-        const farDistance = budget.farDistance;
-        const initialFogDensity = budget.fogDensity || 0.018;
+        const isPhoneTier = budget.tier === 'phone';
+        const dprCap = isPhoneTier ? Math.max(1.25, budget.dprCap || 1.25) : Math.max(1.5, budget.dprCap || 1.5);
+        const farDistance = Math.max(110, budget.farDistance || 110);
+        const initialFogDensity = budget.fogDensity || 0.014;
 
         if (window.Dungeon3DLightmap) {
             this.renderGovernor = new window.Dungeon3DLightmap.DemandRenderGovernor();
@@ -2155,8 +2156,8 @@ class Dungeon3D {
         this.glbPool = this.modelGovernor ? new this.modelGovernor.GlbPrototypePool(48) : null;
 
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x2d3a50); // Initial town sky
-        this.scene.fog = new THREE.FogExp2(0x2d3a50, initialFogDensity);
+        this.scene.background = new THREE.Color(0x121b2d); // Initial town sky matching skyDome horizon
+        this.scene.fog = new THREE.FogExp2(0x121b2d, initialFogDensity);
 
         this.camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, farDistance);
         this.camera.position.set(0, this.eyeHeight, 0);
@@ -2168,7 +2169,7 @@ class Dungeon3D {
         const isRecording = typeof window !== 'undefined' && window.location.search && window.location.search.includes('record_walkthrough=1');
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            antialias: Boolean(budget.antialias),
+            antialias: !isPhoneTier,
             powerPreference: 'high-performance',
             stencil: false,
             depth: true,
@@ -2240,10 +2241,12 @@ class Dungeon3D {
             const scale = (this.renderGovernor && this.renderGovernor.dynamicResolutionScale) || 1.0;
 
             this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.far = nextBudget.farDistance;
+            this.camera.far = Math.max(110, nextBudget.farDistance || 110);
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
-            this.renderer.setPixelRatio(Math.max(0.5, Math.min(window.devicePixelRatio || 1, nextBudget.dprCap) * scale));
+            const dprFloor = nextBudget.tier === 'phone' ? 0.85 : 1.15;
+            const dprCap = nextBudget.tier === 'phone' ? Math.max(1.25, nextBudget.dprCap || 1.25) : Math.max(1.5, nextBudget.dprCap || 1.5);
+            this.renderer.setPixelRatio(Math.max(dprFloor, Math.min(window.devicePixelRatio || 1, dprCap) * Math.max(0.9, scale)));
             if (this.renderGovernor) this.renderGovernor.wake(350);
         });
     }
@@ -2676,7 +2679,7 @@ class Dungeon3D {
 
     initTextures() {
         const maxAniso = this.renderer.capabilities.getMaxAnisotropy();
-        const aniso = Math.min(8, maxAniso || 1);
+        const aniso = Math.min(16, maxAniso || 1);
         this.contextualTextureCache = new Map();
         this._currentThemeId = null;
 
@@ -3006,7 +3009,7 @@ class Dungeon3D {
                 tex.wrapT = THREE.RepeatWrapping;
                 tex.repeat.set(repX, repY);
                 if (isSRGB && typeof THREE.sRGBEncoding !== 'undefined') tex.encoding = THREE.sRGBEncoding;
-                tex.anisotropy = Math.min(4, maxAniso || 1);
+                tex.anisotropy = Math.min(16, maxAniso || 1);
             };
             const notify = () => {
                 if (onReady) onReady(entry);
@@ -3031,7 +3034,7 @@ class Dungeon3D {
         });
 
         // Town cobblestone floors
-        this.loadPolyHavenSet('cobblestone_floor_08', 2, 2, (e) => {
+        this.loadPolyHavenSet('cobblestone_floor_08', 1, 1, (e) => {
             this.townFloorTex = e.diff || this.townFloorTex;
             this.townFloorNormal = e.nor || this.townFloorNormal;
             this.townFloorRoughness = e.arm || this.townFloorRoughness;
@@ -3204,19 +3207,24 @@ class Dungeon3D {
             return this.contextualTextureCache.get(cacheKey);
         }
 
-        const wallTex = procCreateContextualWallTexture(theme, 256);
-        const wallNormal = procCreateContextualWallNormal(theme, 256);
-        const wallRoughness = procCreateContextualWallRoughness(theme, 256);
+        const texSz = Math.max(512, (this.renderBudget && this.renderBudget.proceduralTexSize) || 512);
+        const maxAniso = (this.renderer && this.renderer.capabilities && typeof this.renderer.capabilities.getMaxAnisotropy === 'function')
+            ? Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 1)
+            : 8;
 
-        const floorTex = procCreateContextualFloorTexture(theme, 256);
-        const floorNormal = procCreateContextualFloorNormal(theme, 256);
-        const floorRoughness = procCreateContextualFloorRoughness(theme, 256);
+        const wallTex = procCreateContextualWallTexture(theme, texSz);
+        const wallNormal = procCreateContextualWallNormal(theme, texSz);
+        const wallRoughness = procCreateContextualWallRoughness(theme, texSz);
 
-        const permWallTex = procCreateContextualPermWallTexture(theme, 256);
-        const permWallNormal = procCreateContextualPermWallNormal(theme, 256);
+        const floorTex = procCreateContextualFloorTexture(theme, texSz);
+        const floorNormal = procCreateContextualFloorNormal(theme, texSz);
+        const floorRoughness = procCreateContextualFloorRoughness(theme, texSz);
 
-        const ceilingTex = procCreateContextualCeilingTexture(theme, 256);
-        const ceilingNormal = procCreateContextualCeilingNormal(theme, 256);
+        const permWallTex = procCreateContextualPermWallTexture(theme, texSz);
+        const permWallNormal = procCreateContextualPermWallNormal(theme, texSz);
+
+        const ceilingTex = procCreateContextualCeilingTexture(theme, texSz);
+        const ceilingNormal = procCreateContextualCeilingNormal(theme, texSz);
 
         const set = {
             wallTex,
@@ -3231,6 +3239,9 @@ class Dungeon3D {
             ceilingTex,
             ceilingNormal
         };
+        for (const t of Object.values(set)) {
+            if (t && typeof t === 'object') t.anisotropy = maxAniso;
+        }
 
         this.contextualTextureCache.set(cacheKey, set);
         return set;
@@ -4134,7 +4145,7 @@ class Dungeon3D {
         const sizes = new Float32Array(starCount);
         const phases = new Float32Array(starCount);
 
-        const radius = 70.0; // Inside camera far clipping plane (85-140m)
+        const radius = 40.0; // Well inside camera far clipping plane; rendered at renderOrder -9 with depthTest: false
 
         // Authentic Stellar Spectral Classes (Normalized sRGB)
         const spectralColors = [
@@ -4285,19 +4296,22 @@ class Dungeon3D {
             `,
             transparent: true,
             depthWrite: false,
-            depthTest: true,
+            depthTest: false,
             blending: THREE.AdditiveBlending,
             vertexColors: true
         });
 
         this.starPoints = new THREE.Points(starGeo, this.starMaterial);
         this.starPoints.frustumCulled = false;
+        this.starPoints.renderOrder = -9;
 
         // Dedicated Celestial Sky Dome: Deep gradient, Milky Way dust lanes, aurora ribbons, crescent moon
-        const skyDomeGeo = new THREE.SphereGeometry(84, 32, 20);
+        // Radius 42m + depthTest: false + renderOrder: -10 guarantees zero far-plane clipping ("sky bubble")
+        const skyDomeGeo = new THREE.SphereGeometry(42, 40, 24);
         this.skyDomeMaterial = new THREE.ShaderMaterial({
             side: THREE.BackSide,
             depthWrite: false,
+            depthTest: false,
             transparent: false,
             fog: false,
             uniforms: {
@@ -4344,11 +4358,9 @@ class Dungeon3D {
                 }
 
                 float fbm4(vec3 p) {
-                    float v = 0.0;
-                    v += 0.5000 * noise(p); p *= 2.02;
-                    v += 0.2500 * noise(p); p *= 2.03;
-                    v += 0.1250 * noise(p); p *= 2.01;
-                    v += 0.0625 * noise(p);
+                    float v = 0.65 * noise(p);
+                    p *= 2.03;
+                    v += 0.35 * noise(p);
                     return v;
                 }
 
@@ -4362,7 +4374,7 @@ class Dungeon3D {
                     // 2. Tilted Milky Way Galactic River & Dark Dust Lanes
                     vec3 g = vec3(d.x * 0.82 - d.y * 0.57, d.x * 0.57 + d.y * 0.82, d.z);
                     float fbm = fbm4(g * 4.8);
-                    float dustFbm = fbm4(g * 9.2 + vec3(1.2, 3.4, 5.6));
+                    float dustFbm = noise(g * 9.2 + vec3(1.2, 3.4, 5.6));
                     float mwBand = exp(-pow(g.x * 3.1 + (fbm - 0.5) * 0.45, 2.0));
                     float dustRift = smoothstep(0.40, 0.68, dustFbm) * exp(-pow(g.x * 3.8, 2.0)) * 0.70;
                     float mwIntensity = clamp((mwBand * 0.90 - dustRift) * smoothstep(0.02, 0.18, elev), 0.0, 1.0);
@@ -4405,6 +4417,7 @@ class Dungeon3D {
         });
         this.skyDomeMesh = new THREE.Mesh(skyDomeGeo, this.skyDomeMaterial);
         this.skyDomeMesh.frustumCulled = false;
+        this.skyDomeMesh.renderOrder = -10;
 
         this.starGroup = new THREE.Group();
         this.starGroup.name = "StarCanopy";
@@ -13941,15 +13954,19 @@ class Dungeon3D {
                 const avgMs = (nowGov - this._fpsGovStart) / this._fpsGovFrames;
                 this._fpsGovFrames = 0;
                 this._fpsGovStart = nowGov;
-                const budgetCap = (this.renderBudget && this.renderBudget.dprCap) ? this.renderBudget.dprCap : 1.0;
+                const isPhoneGov = this.renderBudget && this.renderBudget.tier === 'phone';
+                const budgetCap = isPhoneGov
+                    ? Math.max(1.25, (this.renderBudget && this.renderBudget.dprCap) || 1.25)
+                    : Math.max(1.5, (this.renderBudget && this.renderBudget.dprCap) || 1.5);
+                const minDprFloor = isPhoneGov ? 0.85 : Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 1.25);
                 const maxDpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, budgetCap);
                 let targetDpr = this._adaptiveDpr || maxDpr;
                 if (this.renderGovernor && typeof this.renderGovernor.recordFrameTime === 'function') {
                     this.renderGovernor.recordFrameTime(avgMs);
-                    targetDpr = this.renderGovernor.getEffectivePixelRatio(budgetCap, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
-                } else if (avgMs > 20.5 && targetDpr > 0.75) {
-                    targetDpr = Math.max(0.75, +(targetDpr - 0.15).toFixed(2));
-                } else if (avgMs < 14.0 && targetDpr < maxDpr) {
+                    targetDpr = Math.max(minDprFloor, this.renderGovernor.getEffectivePixelRatio(budgetCap, (typeof window !== 'undefined' && window.devicePixelRatio) || 1));
+                } else if (avgMs > 22.5 && targetDpr > minDprFloor) {
+                    targetDpr = Math.max(minDprFloor, +(targetDpr - 0.1).toFixed(2));
+                } else if (avgMs < 15.0 && targetDpr < maxDpr) {
                     targetDpr = Math.min(maxDpr, +(targetDpr + 0.1).toFixed(2));
                 }
                 if (Math.abs((this._adaptiveDpr || maxDpr) - targetDpr) >= 0.05) {
@@ -14269,7 +14286,7 @@ class Dungeon3D {
         this.navCursorGroup.visible = false;
         this.scene.add(this.navCursorGroup);
 
-        const ringGeo = new THREE.RingGeometry(0.40, 0.54, 16);
+        const ringGeo = new THREE.RingGeometry(0.42, 0.52, 48);
         ringGeo.rotateX(-Math.PI / 2);
         ringGeo._sharedGeometry = true;
         const ringMat = new THREE.MeshBasicMaterial({

@@ -30,10 +30,10 @@ class DeviceProfile {
                     }
                 }
             } catch (_) {}
-            const isIntegrated = /(Intel\(R\)\s*(UHD|HD|Iris)|Intel\s*(UHD|HD|Iris)|Radeon\(TM\)\s*Vega|Mali-|Adreno|PowerVR|Apple\s*GPU|SwiftShader|Basic\s*Render)/i.test(rendererName);
+            const isIntegrated = /(Intel\(R\)\s*(UHD|HD)\s*Graphics\s*(6[012]\d|5\d\d|4\d\d)|Radeon\(TM\)\s*Vega\s*[368]|Mali-|Adreno|PowerVR|SwiftShader|Basic\s*Render)/i.test(rendererName);
             this._gpuProfile = isIntegrated
-                ? { gpuTier: 'integrated', rendererName, dprCap: 1.0, antialias: false, farDistance: 60, fogDensity: 0.018, maxPointLights: 1, enableFillLight: false, proceduralTexSize: 256, nameplatePoolCap: 64 }
-                : { gpuTier: 'discrete', rendererName, dprCap: 1.5, antialias: true, farDistance: 105, fogDensity: 0.009, maxPointLights: 2, enableFillLight: true, proceduralTexSize: 512, nameplatePoolCap: 64 };
+                ? { gpuTier: 'integrated', rendererName, dprCap: 1.5, antialias: true, farDistance: 120, fogDensity: 0.014, maxPointLights: 1, enableFillLight: false, proceduralTexSize: 512, anisotropy: 8, fullPbrMaps: true, nameplatePoolCap: 64 }
+                : { gpuTier: 'discrete', rendererName, dprCap: 2.0, antialias: true, farDistance: 135, fogDensity: 0.009, maxPointLights: 2, enableFillLight: true, proceduralTexSize: 512, anisotropy: 12, fullPbrMaps: true, nameplatePoolCap: 96 };
         }
         try {
             if (typeof document !== 'undefined' && document.documentElement) {
@@ -49,18 +49,20 @@ class DeviceProfile {
         const gpu = (glOrCanvasOrString || !this._gpuProfile)
             ? this.detectGpuProfile(glOrCanvasOrString)
             : this._gpuProfile;
-        if (gpu.gpuTier === 'integrated' || tier === 'phone') {
+        if (tier === 'phone') {
             return {
                 tier,
                 gpuTier: gpu.gpuTier,
                 rendererName: gpu.rendererName,
-                dprCap: 1.0,
+                dprCap: 1.25,
                 antialias: false,
-                farDistance: 60,
-                fogDensity: 0.018,
+                farDistance: 95,
+                fogDensity: 0.016,
                 maxPointLights: 1,
                 enableFillLight: false,
                 proceduralTexSize: 256,
+                anisotropy: 4,
+                fullPbrMaps: false,
                 nameplatePoolCap: 64
             };
         }
@@ -68,15 +70,15 @@ class DeviceProfile {
             tier,
             gpuTier: gpu.gpuTier,
             rendererName: gpu.rendererName,
-            dprCap: tier === 'tablet' ? Math.min(1.5, gpu.dprCap) : gpu.dprCap,
-            antialias: gpu.antialias,
-            farDistance: tier === 'tablet' ? Math.min(95, gpu.farDistance) : gpu.farDistance,
-            fogDensity: tier === 'tablet' ? 0.012 : gpu.fogDensity,
-            maxPointLights: gpu.maxPointLights,
-            enableFillLight: gpu.enableFillLight,
-            proceduralTexSize: gpu.proceduralTexSize,
-            anisotropy: gpu.anisotropy || 4,
-            fullPbrMaps: Boolean(gpu.fullPbrMaps),
+            dprCap: tier === 'tablet' ? Math.min(1.5, gpu.dprCap || 1.5) : (gpu.dprCap || 1.75),
+            antialias: gpu.antialias !== false,
+            farDistance: Math.max(115, gpu.farDistance || 120),
+            fogDensity: tier === 'tablet' ? 0.012 : (gpu.fogDensity || 0.010),
+            maxPointLights: gpu.maxPointLights || 2,
+            enableFillLight: Boolean(gpu.enableFillLight),
+            proceduralTexSize: gpu.proceduralTexSize || 512,
+            anisotropy: gpu.anisotropy || 8,
+            fullPbrMaps: gpu.fullPbrMaps !== false,
             nameplatePoolCap: gpu.nameplatePoolCap || 96
         };
     }

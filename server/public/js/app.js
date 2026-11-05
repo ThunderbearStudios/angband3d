@@ -1286,6 +1286,98 @@ window.addEventListener('DOMContentLoaded', () => {
         const chronicleHeader = document.getElementById('chronicle-header');
         const chronicleResize = document.getElementById('chronicle-resize-handle');
         makeWindowDraggableAndResizable(chronicleWin, chronicleHeader, chronicleResize, 'angband_chronicle', null);
+
+        // Universal Minimize / Shade, Hide & Resize for All HUD Components (v11.4.0)
+        const wireShadeToggle = (btnId, winEl) => {
+            const btn = document.getElementById(btnId);
+            if (!btn || !winEl) return;
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const shaded = winEl.classList.toggle('window-minimized');
+                btn.textContent = shaded ? '+' : '−';
+                btn.title = shaded ? 'Expand Panel' : 'Minimize / Shade Panel';
+            });
+        };
+        wireShadeToggle('btn-minimap-minimize', mapWin);
+        wireShadeToggle('btn-msg-minimize', msgWin);
+        const charWin = document.getElementById('char-panel');
+        const deckWin = document.getElementById('hud-center-column');
+        const actionBarEl = document.getElementById('action-bar');
+        const dpadWin = document.getElementById('touch-controls');
+        wireShadeToggle('btn-char-minimize', charWin);
+        wireShadeToggle('btn-action-bar-minimize', deckWin);
+
+        const wireHideAndRestore = (closeBtnId, topBtnId, winEl) => {
+            const closeBtn = document.getElementById(closeBtnId);
+            const topBtn = topBtnId ? document.getElementById(topBtnId) : null;
+            const syncTopBtn = () => {
+                if (!topBtn || !winEl) return;
+                const hidden = winEl.classList.contains('hud-panel-hidden');
+                topBtn.classList.toggle('panel-off', hidden);
+                topBtn.setAttribute('aria-pressed', String(!hidden));
+            };
+            if (closeBtn && winEl) {
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    winEl.classList.add('hud-panel-hidden');
+                    syncTopBtn();
+                });
+            }
+            if (topBtn && winEl) {
+                topBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const hidden = winEl.classList.toggle('hud-panel-hidden');
+                    if (!hidden) winEl.classList.remove('window-minimized');
+                    syncTopBtn();
+                });
+                syncTopBtn();
+            }
+        };
+        wireHideAndRestore('btn-char-close', 'btn-toggle-hero', charWin);
+        wireHideAndRestore('btn-action-bar-close', 'btn-toggle-actions', deckWin);
+        wireHideAndRestore('btn-dpad-close', null, dpadWin);
+
+        // Wire Resize Handles for Hero Vault & Action Deck
+        const wireSimpleResize = (handleId, targetEl, minW, maxW, minH, maxH, storageKey) => {
+            const handle = document.getElementById(handleId);
+            if (!handle || !targetEl) return;
+            try {
+                const saved = localStorage.getItem(storageKey);
+                if (saved) {
+                    const sz = JSON.parse(saved);
+                    if (sz.w) targetEl.style.width = `${Math.max(minW, Math.min(maxW, sz.w))}px`;
+                    if (sz.h && minH) targetEl.style.height = `${Math.max(minH, Math.min(maxH, sz.h))}px`;
+                }
+            } catch (_) {}
+            let startX = 0, startY = 0, startW = 0, startH = 0, active = false;
+            handle.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                active = true;
+                const rect = targetEl.getBoundingClientRect();
+                startX = e.clientX;
+                startY = e.clientY;
+                startW = rect.width;
+                startH = rect.height;
+                try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+            });
+            handle.addEventListener('pointermove', (e) => {
+                if (!active) return;
+                const nw = Math.round(Math.max(minW, Math.min(maxW, startW + (e.clientX - startX))));
+                targetEl.style.width = `${nw}px`;
+                let nh = null;
+                if (minH) {
+                    nh = Math.round(Math.max(minH, Math.min(maxH, startH + (e.clientY - startY))));
+                    targetEl.style.height = `${nh}px`;
+                }
+                try { localStorage.setItem(storageKey, JSON.stringify({ w: nw, h: nh })); } catch (_) {}
+            });
+            const endResize = () => { active = false; };
+            handle.addEventListener('pointerup', endResize);
+            handle.addEventListener('pointercancel', endResize);
+        };
+        wireSimpleResize('char-resize-handle', charWin, 210, 420, 140, 440, 'angband_char_size');
+        wireSimpleResize('action-bar-resize-handle', actionBarEl, 380, 1360, 0, 0, 'angband_deck_size');
     }
     setupDraggableAndResizableWindows();
 

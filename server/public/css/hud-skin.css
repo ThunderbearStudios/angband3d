@@ -1,26 +1,46 @@
 /* ==========================================================================
-   YASD 3D / Angband3D HUD Facelift: Scotopic Dark Fantasy Skin
-   Preserves all existing DOM IDs (#hud-overlay, #char-panel, etc.)
+   YASD 3D / Angband3D HUD & Menu Overhaul (v11.4.0)
+   "Goonies / YASD 3D" Dark-Fantasy Treasure-Vault, Carved Bone & Sparkling Jewels
+   Zero-Blur 60fps Compositing • Universal Relocate / Minimize / Hide / Resize
    ========================================================================== */
 
 :root {
-  color-scheme: dark;
-  --yasd-slate-deep: #15181d;
-  --yasd-slate-canvas: #1a1d23;
-  --yasd-slate-card: #22262e;
-  --yasd-slate-card-hover: #2a2f3a;
-  --yasd-text-heading: #dce0e8;
-  --yasd-text-prose: #c8cdd6;
-  --yasd-text-muted: #8a92a3;
-  --yasd-ruby-vial: #a82b35;
-  --yasd-ruby-glow: rgba(168, 43, 53, 0.35);
-  --yasd-sapphire-vial: #22588c;
-  --yasd-sapphire-glow: rgba(34, 88, 140, 0.35);
-  --yasd-emerald-vial: #1f7246;
-  --yasd-border-iron: #4a505e;
-  --yasd-border-control: #687082;
-  --yasd-bone-highlight: #8d95a5;
-  --yasd-gold-accent: #f1c40f;
+  /* Torchlit Vault Obsidian, Aged Leather & Warm Parchment Surfaces */
+  --yasd-vault-deep: #120e0a;
+  --yasd-vault-leather: #1b140e;
+  --yasd-vault-card: #241b13;
+  --yasd-vault-card-hi: #2f2318;
+  --yasd-vault-header: linear-gradient(180deg, #35271a 0%, #1d150e 100%);
+  --yasd-vault-surface: radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.12) 0%, rgba(28, 21, 14, 0.96) 72%), linear-gradient(180deg, #261c14 0%, #15100b 100%);
+
+  /* Pirate Gold, Burnished Bronze & Carved Bone Accents */
+  --yasd-gold-bright: #ffe066;
+  --yasd-gold-coin: #f5c542;
+  --yasd-gold-forged: #d4af37;
+  --yasd-bronze-bevel: #8b6520;
+  --yasd-bronze-deep: #543b10;
+  --yasd-bone-ivory: #e8dcc4;
+  --yasd-bone-aged: #cbb894;
+  --yasd-bone-muted: #9e8c6c;
+
+  /* Sparkling Faceted Gemstone Sockets */
+  --yasd-ruby-core: #ff2a55;
+  --yasd-ruby-deep: #9e0b28;
+  --yasd-ruby-glow: rgba(255, 42, 85, 0.45);
+  --yasd-sapphire-core: #2ea8ff;
+  --yasd-sapphire-deep: #0d4785;
+  --yasd-sapphire-glow: rgba(46, 168, 255, 0.45);
+  --yasd-emerald-core: #10e898;
+  --yasd-emerald-deep: #086644;
+  --yasd-topaz-core: #ffae19;
+
+  /* Inline SVG Carved Bone Skull & Faceted Jewel Corner Filigree */
+  --yasd-svg-jewel-ruby: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpolygon points='8,1 15,8 8,15 1,8' fill='%23d4af37' stroke='%23543b10' stroke-width='1'/%3E%3Cpolygon points='8,3 13,8 8,13 3,8' fill='%23c81038'/%3E%3Cpolygon points='8,3 11,8 8,8 5,6' fill='%23ff7a95'/%3E%3Ccircle cx='7' cy='6' r='1.1' fill='%23ffffff'/%3E%3C/svg%3E");
+  --yasd-svg-jewel-emerald: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpolygon points='8,1 15,8 8,15 1,8' fill='%23d4af37' stroke='%23543b10' stroke-width='1'/%3E%3Cpolygon points='8,3 13,8 8,13 3,8' fill='%230b8a5a'/%3E%3Cpolygon points='8,3 11,8 8,8 5,6' fill='%235ff5be'/%3E%3Ccircle cx='7' cy='6' r='1.1' fill='%23ffffff'/%3E%3C/svg%3E");
+  --yasd-svg-jewel-sapphire: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpolygon points='8,1 15,8 8,15 1,8' fill='%23d4af37' stroke='%23543b10' stroke-width='1'/%3E%3Cpolygon points='8,3 13,8 8,13 3,8' fill='%23125bb8'/%3E%3Cpolygon points='8,3 11,8 8,8 5,6' fill='%2378c8ff'/%3E%3Ccircle cx='7' cy='6' r='1.1' fill='%23ffffff'/%3E%3C/svg%3E");
+  --yasd-svg-bone-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Cpath d='M1,21 L1,5 Q1,1 5,1 L21,1' fill='none' stroke='%23f5c542' stroke-width='2.2'/%3E%3Ccircle cx='5' cy='5' r='3.5' fill='%23e8dcc4' stroke='%23543b10' stroke-width='1'/%3E%3Ccircle cx='4.1' cy='4.5' r='0.8' fill='%23ff2a55'/%3E%3Ccircle cx='6.0' cy='4.5' r='0.8' fill='%23ff2a55'/%3E%3C/svg%3E");
+
+  /* Safe-area insets */
   --yasd-safe-top: env(safe-area-inset-top, 0px);
   --yasd-safe-bottom: env(safe-area-inset-bottom, 0px);
   --yasd-safe-left: env(safe-area-inset-left, 0px);
@@ -31,597 +51,558 @@
   container-type: size;
 }
 
-/* --- Character Status Panel & Jeweled Vitals --- */
-#char-panel {
-  background: var(--yasd-slate-card) !important;
-  border: 1px solid var(--yasd-border-iron) !important;
-  border-radius: 6px !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), inset 0 1px 0 var(--yasd-bone-highlight) !important;
-  padding: 8px 12px !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+/* ==========================================================================
+   1. UNIVERSAL MINIMIZE / SHADE, HIDE & RESIZE CONTROLS
+   ========================================================================== */
+
+.hud-panel-hidden {
+  display: none !important;
 }
 
-#hp-bar-container, .vial-container-hp {
-  background: #0f1115 !important;
-  border: 1px solid #7c2229 !important;
-  border-radius: 4px !important;
-  overflow: hidden !important;
+#top-right-bar .icon-btn.panel-off {
+  opacity: 0.52 !important;
+  border-color: rgba(139, 101, 32, 0.45) !important;
+  filter: saturate(0.4);
 }
 
-#hp-fill {
-  background: linear-gradient(180deg, #d94350 0%, var(--yasd-ruby-vial) 60%, #6e1c22 100%) !important;
-  box-shadow: 0 0 10px var(--yasd-ruby-glow) !important;
-  transition: width 180ms ease-out !important;
+/* Shaded / Minimized state for every HUD window */
+#minimap-container.window-minimized {
+  height: auto !important;
+  min-height: 0 !important;
+  padding-bottom: 0 !important;
+}
+#minimap-container.window-minimized #minimap-canvas,
+#minimap-container.window-minimized #mobile-map-zoom-group,
+#minimap-container.window-minimized #minimap-controls-bar,
+#minimap-container.window-minimized #camera-tilt-bar,
+#minimap-container.window-minimized #map-resize-handle {
+  display: none !important;
 }
 
-#sp-bar-container, .vial-container-sp {
-  background: #0f1115 !important;
-  border: 1px solid #1a4a75 !important;
-  border-radius: 4px !important;
-  overflow: hidden !important;
+#message-feed-window.window-minimized {
+  height: auto !important;
+  min-height: 0 !important;
+}
+#message-feed-window.window-minimized #message-feed-scroll,
+#message-feed-window.window-minimized #msg-resize-handle {
+  display: none !important;
 }
 
-#sp-fill {
-  background: linear-gradient(180deg, #3b88d4 0%, var(--yasd-sapphire-vial) 60%, #153859 100%) !important;
-  box-shadow: 0 0 10px var(--yasd-sapphire-glow) !important;
-  transition: width 180ms ease-out !important;
+#char-panel.window-minimized {
+  height: auto !important;
+  min-height: 0 !important;
+  padding-bottom: 6px !important;
+}
+#char-panel.window-minimized .vitals-vials-row,
+#char-panel.window-minimized #char-extended-drawer,
+#char-panel.window-minimized #stats-strip,
+#char-panel.window-minimized #char-resize-handle {
+  display: none !important;
 }
 
-#char-panel .stat-label {
-  color: var(--yasd-text-muted) !important;
-  font-size: 0.72rem !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
+#hud-center-column.window-minimized #action-bar > .action-btn,
+#hud-center-column.window-minimized #action-bar > .action-group-tag,
+#hud-center-column.window-minimized #action-bar > .action-cluster-sep,
+#hud-center-column.window-minimized #action-bar > #action-bar-resize-handle,
+#hud-center-column.window-minimized #hud-footer {
+  display: none !important;
+}
+#hud-center-column.window-minimized #action-bar {
+  min-height: 30px !important;
+  padding: 4px 10px !important;
+}
+#hud-center-column.window-minimized #action-bar::after {
+  content: "⚔ ACTION COMMAND DECK (SHADED — CLICK + TO EXPAND)";
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--yasd-gold-coin);
+  letter-spacing: 0.08em;
+  margin-right: 8px;
 }
 
-#char-panel .stat-val {
-  color: var(--yasd-text-heading) !important;
-  font-weight: 600 !important;
+.char-window-actions,
+.action-bar-win-ctrls {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
-/* --- Minimap Radar Bezel --- */
-#minimap-container {
-  background: var(--yasd-slate-deep) !important;
-  border: 2px solid var(--yasd-border-iron) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75), inset 0 0 14px rgba(0, 0, 0, 0.85) !important;
-  overflow: hidden !important;
-}
-
-#minimap-container::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border: 1px solid rgba(141, 149, 165, 0.25);
-  border-radius: 6px;
-}
-
-#minimap-canvas {
-  display: block !important;
-  border-radius: 4px !important;
-}
-
-/* --- Action Command Bar --- */
-#action-bar {
-  background: rgba(21, 24, 29, 0.9) !important;
-  border: 1px solid var(--yasd-border-iron) !important;
-  border-radius: 6px !important;
-  padding: 4px 6px !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-}
-
-.action-btn, #action-bar button {
-  background: var(--yasd-slate-card) !important;
-  border: 1px solid var(--yasd-border-control) !important;
-  border-radius: 4px !important;
-  color: var(--yasd-text-prose) !important;
-  font-family: inherit !important;
-  font-weight: 600 !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
-  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease !important;
-}
-
-.action-btn:hover, #action-bar button:hover {
-  background: var(--yasd-slate-card-hover) !important;
-  border-color: var(--yasd-bone-highlight) !important;
-  color: var(--yasd-text-heading) !important;
-}
-
-.action-btn:active, #action-bar button:active {
-  background: #181b21 !important;
-  transform: translateY(1px) !important;
-}
-
-/* --- Prompt Mirror & Contextual Soft-Key Deck --- */
-#prompt-mirror {
-  background: var(--yasd-slate-deep) !important;
-  border: 1px solid var(--yasd-border-control) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(141, 149, 165, 0.25) !important;
-  padding: 8px 12px !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  max-width: min(92vw, 560px) !important;
-  margin: 0 auto !important;
-}
-
-.prompt-mirror-title {
-  color: var(--yasd-text-heading) !important;
-  font-size: 0.88rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.04em !important;
-  text-transform: uppercase !important;
-  border-bottom: 1px solid var(--yasd-border-iron) !important;
-  padding-bottom: 4px !important;
-  margin-bottom: 6px !important;
-}
-
-.prompt-mirror-chips {
-  display: flex !important;
-  gap: 6px !important;
-  overflow-x: auto !important;
-  padding: 2px 0 6px 0 !important;
-  scrollbar-width: none !important;
-}
-.prompt-mirror-chips::-webkit-scrollbar { display: none; }
-
-.prompt-mirror-chip-btn {
-  background: var(--yasd-slate-card) !important;
-  border: 1px solid var(--yasd-border-iron) !important;
-  border-radius: 4px !important;
-  color: var(--yasd-text-prose) !important;
-  font-size: 0.78rem !important;
-  font-weight: 600 !important;
-  padding: 4px 8px !important;
-  white-space: nowrap !important;
-  cursor: pointer !important;
-}
-
-.prompt-mirror-item-list {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 4px !important;
-  max-height: min(42vh, 320px) !important;
-  overflow-y: auto !important;
-  padding-right: 4px !important;
-  margin: 6px 0 !important;
-}
-
-.prompt-mirror-item-row {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  width: 100% !important;
-  background: rgba(34, 38, 46, 0.85) !important;
-  border: 1px solid var(--yasd-border-iron) !important;
-  border-radius: 5px !important;
-  padding: 6px 10px !important;
-  text-align: left !important;
-  cursor: pointer !important;
-}
-.prompt-mirror-item-row:hover {
-  background: var(--yasd-slate-card-hover) !important;
-  border-color: var(--yasd-bone-highlight) !important;
-}
-
-.prompt-mirror-item-badge {
+.char-mini-btn {
+  width: 20px !important;
+  height: 20px !important;
+  padding: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  min-width: 24px !important;
-  height: 24px !important;
-  background: linear-gradient(180deg, #2f3542 0%, #1e222a 100%) !important;
-  border: 1px solid #7c8599 !important;
+  background: linear-gradient(180deg, #3a2a19 0%, #1c140c 100%) !important;
+  border: 1px solid var(--yasd-gold-forged) !important;
   border-radius: 4px !important;
-  color: var(--yasd-gold-accent) !important;
-  font-family: monospace !important;
-  font-size: 0.85rem !important;
+  color: var(--yasd-gold-bright) !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  line-height: 1 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 160, 0.35) !important;
+}
+.char-mini-btn:hover {
+  background: linear-gradient(180deg, #543d24 0%, #2a1e12 100%) !important;
+  border-color: var(--yasd-gold-bright) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 8px rgba(245, 197, 66, 0.55) !important;
+}
+
+/* Visible Forged Gold Corner Resize Grips on All Windows */
+.window-resize-handle {
+  width: 15px !important;
+  height: 15px !important;
+  right: 2px !important;
+  bottom: 2px !important;
+  cursor: nwse-resize !important;
+  z-index: 40 !important;
+  background:
+    linear-gradient(135deg, transparent 45%, var(--yasd-gold-forged) 46%, var(--yasd-gold-forged) 56%, transparent 57%),
+    linear-gradient(135deg, transparent 65%, var(--yasd-gold-bright) 66%, var(--yasd-gold-bright) 76%, transparent 77%),
+    linear-gradient(135deg, transparent 83%, var(--yasd-ruby-core) 84%, var(--yasd-ruby-core) 100%) !important;
+  opacity: 0.85 !important;
+  border-bottom-right-radius: 4px;
+}
+.window-resize-handle:hover {
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 4px var(--yasd-gold-bright));
+}
+
+/* ==========================================================================
+   2. TREASURE-VAULT, CARVED BONE & SPARKLING JEWEL FRAMES (ALL HUD PANELS)
+   ========================================================================== */
+
+#char-panel,
+#minimap-container,
+#message-feed-window,
+#chronicle-window,
+#touch-controls,
+#action-bar,
+#hud-footer {
+  background: var(--yasd-vault-surface) !important;
+  border: 2px solid var(--yasd-gold-forged) !important;
+  outline: 1px solid var(--yasd-bronze-deep) !important;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.82),
+    inset 0 0 0 1px rgba(255, 224, 102, 0.25),
+    inset 0 2px 10px rgba(0, 0, 0, 0.65) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Carved Bone & Ruby-Eyed Skull Filigree Corners on Major Vault Panels */
+#char-panel,
+#minimap-container,
+#message-feed-window,
+#chronicle-window {
+  position: relative;
+  border-radius: 8px !important;
+}
+
+#char-panel::before,
+#minimap-container::before,
+#message-feed-window::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 20px;
+  height: 20px;
+  background-image: var(--yasd-svg-bone-corner);
+  background-size: contain;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 25;
+}
+
+/* Headers Styled Like Embossed Pirate-Gold & Hammered Bronze Chest Bands */
+.minimap-header,
+.message-feed-header,
+.chronicle-header,
+.char-panel-header,
+.dpad-header-bar {
+  background:
+    var(--yasd-svg-jewel-ruby) no-repeat 6px center / 13px 13px,
+    linear-gradient(180deg, #3c2c1b 0%, #24190f 55%, #17100a 100%) !important;
+  padding-left: 24px !important;
+  border-bottom: 1.5px solid var(--yasd-gold-forged) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 230, 140, 0.35), 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+}
+
+#minimap-title-text,
+.message-feed-title,
+.chronicle-title,
+#char-title,
+.dpad-grip-label {
+  font-family: 'Cinzel', serif !important;
+  color: var(--yasd-gold-bright) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(245, 197, 66, 0.35) !important;
+  letter-spacing: 0.06em !important;
+  font-weight: 800 !important;
+}
+
+/* ==========================================================================
+   3. HERO STATUS VAULT, ALCHEMICAL GEM VIALS & GOLD COIN STAT BADGES
+   ========================================================================== */
+
+#char-panel {
+  padding: 8px 10px 10px 10px !important;
+}
+
+#char-realm-crest {
+  background: radial-gradient(circle at 35% 30%, #ffe066 0%, #b8860b 65%, #4a3208 100%) !important;
+  border: 1.5px solid var(--yasd-gold-bright) !important;
+  color: #1a1105 !important;
+  box-shadow: 0 0 10px rgba(245, 197, 66, 0.5), inset 0 1px 2px #ffffff !important;
+}
+
+#char-sub-meta {
+  color: var(--yasd-bone-aged) !important;
+  font-weight: 600 !important;
+}
+
+/* Sparkling Faceted Ruby (Health) & Sapphire (Mana) Vials */
+#char-panel .gauge-track {
+  height: 15px !important;
+  background: linear-gradient(180deg, #0b0806 0%, #1a130e 60%, #0e0a07 100%) !important;
+  border: 1.5px solid var(--yasd-gold-forged) !important;
+  border-radius: 999px !important;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 224, 102, 0.25) !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+#hp-fill,
+#char-panel .gauge-hp .gauge-fill {
+  background:
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.16) 0px, rgba(255, 255, 255, 0.16) 6px, transparent 6px, transparent 14px),
+    linear-gradient(180deg, #ff6b8b 0%, var(--yasd-ruby-core) 38%, var(--yasd-ruby-deep) 85%, #590414 100%) !important;
+  box-shadow: 0 0 12px var(--yasd-ruby-glow), inset 0 1px 1px rgba(255, 255, 255, 0.65) !important;
+}
+
+#sp-fill,
+#char-panel .gauge-sp .gauge-fill {
+  background:
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.16) 0px, rgba(255, 255, 255, 0.16) 6px, transparent 6px, transparent 14px),
+    linear-gradient(180deg, #85d1ff 0%, var(--yasd-sapphire-core) 38%, var(--yasd-sapphire-deep) 85%, #062347 100%) !important;
+  box-shadow: 0 0 12px var(--yasd-sapphire-glow), inset 0 1px 1px rgba(255, 255, 255, 0.65) !important;
+}
+
+#hp-label, #sp-label {
+  color: var(--yasd-bone-ivory) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.06em !important;
+}
+
+#hp-text, #sp-text {
+  color: var(--yasd-gold-bright) !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px #000 !important;
+}
+
+/* Embossed Treasure-Coin Stat Strip */
+#stats-strip .stat-item {
+  background: linear-gradient(180deg, #2b2015 0%, #17110b 100%) !important;
+  border: 1px solid rgba(212, 175, 55, 0.55) !important;
+  border-radius: 5px !important;
+  padding: 2px 4px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 224, 102, 0.2) !important;
+}
+
+#stats-strip .stat-label {
+  color: var(--yasd-gold-coin) !important;
   font-weight: 700 !important;
 }
 
-.prompt-mirror-item-name {
-  flex: 1 !important;
-  color: var(--yasd-text-prose) !important;
-  font-size: 0.86rem !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+#stats-strip .stat-value {
+  color: var(--yasd-bone-ivory) !important;
+  font-weight: 800 !important;
 }
-
-.prompt-mirror-actions {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 6px !important;
-  justify-content: center !important;
-  margin-top: 6px !important;
-}
-
-.prompt-mirror-action-btn {
-  background: var(--yasd-slate-card) !important;
-  border: 1px solid var(--yasd-border-control) !important;
-  border-radius: 5px !important;
-  color: var(--yasd-text-heading) !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
-}
-.prompt-mirror-action-btn:hover {
-  background: var(--yasd-slate-card-hover) !important;
-  border-color: var(--yasd-bone-highlight) !important;
-}
-
-/* --- Touch vs Pointer Density Floors --- */
-@media (pointer: coarse) {
-  .action-btn, #action-bar button, .prompt-mirror-action-btn, .prompt-mirror-item-row {
-    min-height: 48px !important;
-    font-size: 0.95rem !important;
-  }
-  .prompt-mirror-action-btn {
-    min-width: 48px !important;
-    padding: 10px 16px !important;
-  }
-  .prompt-mirror-item-badge {
-    min-width: 30px !important;
-    height: 30px !important;
-  }
-}
-
-@media (pointer: fine) {
-  .action-btn, #action-bar button {
-    min-width: 34px !important;
-    min-height: 32px !important;
-    font-size: 0.82rem !important;
-  }
-}
-
-/* --- Container Queries for Portrait vs Landscape HUD --- */
-@container (max-aspect-ratio: 1/1) {
-  #hud-overlay {
-    flex-direction: column !important;
-    align-items: center !important;
-  }
-  #char-panel {
-    width: 95% !important;
-    margin-bottom: 4px !important;
-  }
-  #action-bar {
-    width: 95% !important;
-    display: flex !important;
-    overflow-x: auto !important;
-  }
-}
-
-@container (min-aspect-ratio: 1/1) {
-  #hud-overlay {
-    flex-direction: row !important;
-    justify-content: space-between !important;
-    align-items: flex-end !important;
-  }
-  #char-panel {
-    max-width: 320px !important;
-  }
-}
-
 
 /* ==========================================================================
-   Main Menu System, Splash Billboard & Modal Dialogs — Scotopic Dark Fantasy
-   Overrides legacy #010308 / #04060b obsidian defaults in dungeon.css
+   4. GROUPED ACTION COMMAND DECK & JEWEL-SOCKETED COMMAND BUTTONS
+   ========================================================================== */
+
+#action-bar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 7px 12px !important;
+  border-radius: 8px !important;
+  position: relative !important;
+}
+
+/* Ornamental Group Cluster Badges (Combat, Pack, Delve, Tome) */
+.action-group-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-family: 'Cinzel', serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--yasd-gold-bright);
+  background: linear-gradient(180deg, #3d2b16 0%, #1f150a 100%);
+  border: 1px solid var(--yasd-gold-forged);
+  box-shadow: inset 0 1px 0 rgba(255, 224, 102, 0.35), 0 1px 3px rgba(0, 0, 0, 0.6);
+  user-select: none;
+}
+.action-group-tag[data-group="combat"] {
+  border-left: 3px solid var(--yasd-ruby-core);
+}
+.action-group-tag[data-group="pack"] {
+  border-left: 3px solid var(--yasd-emerald-core);
+}
+.action-group-tag[data-group="delve"] {
+  border-left: 3px solid var(--yasd-sapphire-core);
+}
+.action-group-tag[data-group="tome"] {
+  border-left: 3px solid var(--yasd-topaz-core);
+}
+
+.action-cluster-sep {
+  width: 2px !important;
+  height: 24px !important;
+  background: linear-gradient(180deg, transparent, var(--yasd-gold-forged), transparent) !important;
+  margin: 0 3px !important;
+}
+
+#action-bar .action-btn,
+#action-more-popover .action-btn {
+  background: linear-gradient(180deg, #332518 0%, #1d150d 100%) !important;
+  border: 1px solid var(--yasd-bronze-bevel) !important;
+  border-top-color: var(--yasd-gold-forged) !important;
+  border-radius: 6px !important;
+  color: var(--yasd-bone-ivory) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 224, 102, 0.28) !important;
+  transition: transform 0.08s ease, border-color 0.12s ease, box-shadow 0.12s ease !important;
+}
+
+#action-bar .action-btn:hover,
+#action-more-popover .action-btn:hover {
+  background: linear-gradient(180deg, #4a3520 0%, #2a1e12 100%) !important;
+  border-color: var(--yasd-gold-bright) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.75), 0 0 10px rgba(245, 197, 66, 0.35), inset 0 1px 0 rgba(255, 240, 170, 0.5) !important;
+}
+
+/* Primary Hero Context Button (Ruby & Pirate Gold Crest) */
+#action-bar .action-hero-btn {
+  background: linear-gradient(180deg, #6b1d2f 0%, #3d0e19 100%) !important;
+  border: 1.5px solid var(--yasd-gold-bright) !important;
+  color: #fff6d6 !important;
+  box-shadow: 0 0 12px rgba(255, 42, 85, 0.35), inset 0 1px 0 rgba(255, 224, 102, 0.5) !important;
+}
+
+#action-bar .action-btn kbd,
+#action-more-popover .action-btn kbd {
+  background: #120d08 !important;
+  border: 1px solid var(--yasd-bronze-bevel) !important;
+  color: var(--yasd-gold-coin) !important;
+  font-weight: 700 !important;
+  border-radius: 3px !important;
+}
+
+/* Top-Right Bar & Telemetry Footer */
+#top-right-bar .icon-btn {
+  background: linear-gradient(180deg, #312316 0%, #19120b 100%) !important;
+  border: 1px solid var(--yasd-gold-forged) !important;
+  color: var(--yasd-bone-ivory) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 224, 102, 0.28) !important;
+}
+#top-right-bar .icon-btn:hover {
+  background: linear-gradient(180deg, #493420 0%, #261b10 100%) !important;
+  border-color: var(--yasd-gold-bright) !important;
+  color: var(--yasd-gold-bright) !important;
+  box-shadow: 0 0 10px rgba(245, 197, 66, 0.4) !important;
+}
+
+/* ==========================================================================
+   5. MINIMAP COMPASS VAULT & TOUCH D-PAD ROSETTE
+   ========================================================================== */
+
+#minimap-canvas {
+  background: #0d0a07 !important;
+  border: 1px solid rgba(212, 175, 55, 0.45) !important;
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.9) !important;
+}
+
+#minimap-controls-bar,
+#camera-tilt-bar {
+  background: linear-gradient(180deg, #211810 0%, #140e09 100%) !important;
+  border-top: 1px solid rgba(212, 175, 55, 0.35) !important;
+}
+
+.map-ctrl-btn,
+.tilt-btn {
+  background: linear-gradient(180deg, #332518 0%, #1c140d 100%) !important;
+  border: 1px solid var(--yasd-bronze-bevel) !important;
+  color: var(--yasd-bone-ivory) !important;
+}
+.map-ctrl-btn:hover,
+.tilt-btn:hover {
+  border-color: var(--yasd-gold-bright) !important;
+  color: var(--yasd-gold-bright) !important;
+}
+
+#touch-controls .dpad-btn {
+  background: linear-gradient(180deg, #332518 0%, #1b130c 100%) !important;
+  border: 1px solid var(--yasd-gold-forged) !important;
+  color: var(--yasd-bone-ivory) !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 224, 102, 0.25) !important;
+}
+#touch-controls .dpad-center {
+  background: radial-gradient(circle, #6b1d2f 0%, #330c15 100%) !important;
+  border-color: var(--yasd-gold-bright) !important;
+  color: var(--yasd-gold-bright) !important;
+}
+
+/* ==========================================================================
+   6. SPLASH SCREEN, MAIN MENU, MODALS & CLASSIC TERMINAL INTEGRATION
    ========================================================================== */
 
 #splash-overlay,
 #main-menu-overlay {
-  background: radial-gradient(
-    ellipse at 50% 28%,
-    rgba(34, 38, 46, 0.72) 0%,
-    rgba(21, 24, 29, 0.94) 75%
-  ) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  background: radial-gradient(circle at 50% 42%, rgba(28, 20, 12, 0.58) 0%, rgba(10, 7, 5, 0.88) 100%) !important;
 }
 
-#load-modal,
-#pause-modal,
-#guide-modal,
-#pwa-modal,
-#queue-modal,
-#realm-selector-modal,
-#command-palette-modal {
-  background: rgba(15, 17, 21, 0.84) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-}
-
-.splash-card.splash-billboard-mode,
-.main-menu-card,
-.load-card,
-.pause-card,
-.guide-card,
-.pwa-card,
-.queue-card,
-.realm-selector-card,
-.cmd-palette-card,
+#splash-overlay .splash-card,
+#main-menu-overlay .main-menu-card,
+#pause-modal .modal-card,
+#load-modal .modal-card,
+#guide-modal .modal-card,
+#demo-modal .modal-card,
+#realm-selector-modal .modal-card,
+#command-palette-modal .modal-card,
+#item-sheet-modal .modal-card,
 #terminal-container .terminal-card {
-  background: linear-gradient(
-    175deg,
-    var(--yasd-slate-card) 0%,
-    var(--yasd-slate-canvas) 55%,
-    var(--yasd-slate-deep) 100%
-  ) !important;
-  border: 1px solid var(--yasd-border-iron) !important;
-  border-top: 1.5px solid var(--yasd-bone-highlight) !important;
-  border-radius: 10px !important;
+  background:
+    var(--yasd-svg-jewel-ruby) no-repeat 10px 10px / 16px 16px,
+    var(--yasd-svg-jewel-emerald) no-repeat calc(100% - 10px) 10px / 16px 16px,
+    var(--yasd-svg-jewel-sapphire) no-repeat 10px calc(100% - 10px) / 16px 16px,
+    var(--yasd-svg-jewel-ruby) no-repeat calc(100% - 10px) calc(100% - 10px) / 16px 16px,
+    radial-gradient(circle at 50% 0%, rgba(245, 197, 66, 0.16) 0%, rgba(28, 20, 13, 0.97) 68%),
+    linear-gradient(180deg, #281d13 0%, #140e09 100%) !important;
+  border: 2.5px solid var(--yasd-gold-forged) !important;
+  outline: 2px solid var(--yasd-bronze-deep) !important;
+  border-radius: 12px !important;
   box-shadow:
-    0 20px 55px rgba(0, 0, 0, 0.85),
-    0 0 24px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(220, 224, 232, 0.14) !important;
-  color: var(--yasd-text-prose) !important;
+    0 20px 55px rgba(0, 0, 0, 0.92),
+    0 0 28px rgba(212, 175, 55, 0.22),
+    inset 0 0 0 2px rgba(255, 224, 102, 0.22) !important;
+  color: var(--yasd-bone-ivory) !important;
 }
 
-.main-menu-header,
-.guide-header,
-.cmd-palette-header,
-.terminal-toolbar {
-  background: linear-gradient(
-    180deg,
-    rgba(42, 47, 58, 0.75) 0%,
-    rgba(21, 24, 29, 0.85) 100%
-  ) !important;
-  border-bottom: 1px solid var(--yasd-border-iron) !important;
+#main-menu-overlay .main-menu-title,
+#splash-overlay .splash-title,
+.modal-card .modal-title {
+  font-family: 'Cinzel', serif !important;
+  color: var(--yasd-gold-bright) !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 14px rgba(245, 197, 66, 0.4) !important;
+  letter-spacing: 0.08em !important;
 }
 
-.main-menu-title,
-.guide-title,
-.cmd-compendium-title,
-.splash-title {
-  color: var(--yasd-text-heading) !important;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85), 0 0 18px rgba(241, 196, 15, 0.18) !important;
-  text-wrap: balance;
-}
-
-.main-menu-subtitle,
-.splash-features-line,
-.splash-subtitle {
-  color: var(--yasd-text-muted) !important;
-}
-
-/* --- Realm Strip, Dropdowns & Search Controls --- */
-.main-menu-realm-strip {
-  background: var(--yasd-slate-deep) !important;
-  border: 1px solid var(--yasd-border-iron) !important;
+/* Treasure-Chest Menu Option Cards */
+#main-menu-overlay .menu-option-btn,
+#pause-modal .menu-option-btn,
+#splash-overlay .splash-prompt-box {
+  background:
+    var(--yasd-svg-jewel-ruby) no-repeat calc(100% - 12px) center / 13px 13px,
+    linear-gradient(180deg, #332417 0%, #1c140c 100%) !important;
+  border: 1.5px solid var(--yasd-bronze-bevel) !important;
+  border-top-color: var(--yasd-gold-forged) !important;
   border-radius: 8px !important;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.65) !important;
+  color: var(--yasd-bone-ivory) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 224, 102, 0.22) !important;
+  transition: transform 0.1s ease, border-color 0.14s ease, box-shadow 0.14s ease !important;
 }
 
-.main-menu-realm-dropdown,
-.main-menu-lang-dropdown,
-#cmd-search-input,
-#realm-search-input {
-  background-color: var(--yasd-slate-canvas) !important;
-  border: 1px solid var(--yasd-border-control) !important;
-  border-radius: 6px !important;
-  color: var(--yasd-text-heading) !important;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+#main-menu-overlay .menu-option-btn:hover,
+#main-menu-overlay .menu-option-btn.selected,
+#pause-modal .menu-option-btn:hover,
+#pause-modal .menu-option-btn.selected,
+#splash-overlay .splash-prompt-box:hover {
+  background:
+    var(--yasd-svg-jewel-emerald) no-repeat calc(100% - 12px) center / 14px 14px,
+    linear-gradient(180deg, #4a341f 0%, #281c10 100%) !important;
+  border-color: var(--yasd-gold-bright) !important;
+  border-left: 4px solid var(--yasd-gold-bright) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.8), 0 0 14px rgba(245, 197, 66, 0.35), inset 0 1px 0 rgba(255, 240, 170, 0.45) !important;
+  transform: translateY(-1px);
 }
 
-.main-menu-realm-dropdown:hover,
-.main-menu-lang-dropdown:hover,
-.main-menu-realm-dropdown:focus-visible,
-.main-menu-lang-dropdown:focus-visible,
-#cmd-search-input:focus-visible,
-#realm-search-input:focus-visible {
-  border-color: var(--yasd-bone-highlight) !important;
-  outline: 1px solid var(--yasd-gold-accent) !important;
+#main-menu-overlay .opt-title,
+#pause-modal .opt-title {
+  font-family: 'Cinzel', serif !important;
+  color: var(--yasd-gold-bright) !important;
+  font-weight: 800 !important;
 }
 
-.realm-pill-btn,
-.menu-realm-badge-btn,
-.cmd-cat-pill,
-.guide-tab {
-  background: var(--yasd-slate-card) !important;
-  border: 1px solid var(--yasd-border-iron) !important;
-  border-radius: 6px !important;
-  color: var(--yasd-text-prose) !important;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease !important;
+#main-menu-overlay .opt-desc,
+#pause-modal .opt-desc {
+  color: var(--yasd-bone-aged) !important;
 }
 
-.realm-pill-btn:hover,
-.menu-realm-badge-btn:hover,
-.cmd-cat-pill:hover,
-.guide-tab:hover {
-  background: var(--yasd-slate-card-hover) !important;
-  border-color: var(--yasd-bone-highlight) !important;
-  color: var(--yasd-text-heading) !important;
+#main-menu-overlay .realm-chip {
+  background: linear-gradient(180deg, #2d2014 0%, #18110a 100%) !important;
+  border: 1px solid var(--yasd-bronze-bevel) !important;
+  color: var(--yasd-bone-aged) !important;
+}
+#main-menu-overlay .realm-chip.active,
+#main-menu-overlay .realm-chip:hover {
+  background: linear-gradient(180deg, #4d361e 0%, #2a1d10 100%) !important;
+  border-color: var(--yasd-gold-bright) !important;
+  color: var(--yasd-gold-bright) !important;
+  box-shadow: 0 0 10px rgba(245, 197, 66, 0.35) !important;
 }
 
-.realm-pill-btn.active,
-.realm-pill-btn[aria-pressed="true"],
-.cmd-cat-pill.active,
-.guide-tab.active,
-.guide-tab[aria-selected="true"] {
-  background: linear-gradient(180deg, #2f3542 0%, #22262e 100%) !important;
-  border-color: var(--yasd-gold-accent) !important;
-  color: var(--yasd-text-heading) !important;
-  box-shadow: 0 0 10px rgba(241, 196, 15, 0.2), inset 0 1px 0 var(--yasd-bone-highlight) !important;
+/* Prompt Mirror & Soft-Key Pills */
+#prompt-mirror {
+  background: linear-gradient(180deg, #382818 0%, #1d140c 100%) !important;
+  border: 1.5px solid var(--yasd-gold-bright) !important;
+  color: var(--yasd-bone-ivory) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85), 0 0 14px rgba(245, 197, 66, 0.3) !important;
 }
 
-/* --- Main Menu Primary Option Buttons ([1]-[4]) --- */
-.menu-option-btn {
-  background: linear-gradient(
-    90deg,
-    var(--yasd-slate-card) 0%,
-    var(--yasd-slate-canvas) 100%
-  ) !important;
-  border: 1px solid var(--yasd-border-iron) !important;
-  border-left: 3px solid var(--yasd-border-control) !important;
-  border-radius: 7px !important;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(220, 224, 232, 0.08) !important;
-  color: var(--yasd-text-prose) !important;
-  transition: background 140ms ease, border-color 140ms ease, transform 80ms ease, box-shadow 140ms ease !important;
-}
-
-.menu-option-btn:hover,
-.menu-option-btn:focus-visible,
-.menu-option-btn.selected {
-  background: linear-gradient(
-    90deg,
-    var(--yasd-slate-card-hover) 0%,
-    var(--yasd-slate-card) 100%
-  ) !important;
-  border-color: var(--yasd-bone-highlight) !important;
-  border-left-color: var(--yasd-gold-accent) !important;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(220, 224, 232, 0.18) !important;
-}
-
-.menu-option-btn:active {
-  background: var(--yasd-slate-deep) !important;
-  transform: translateY(1px) !important;
-}
-
-.menu-option-btn .option-key {
-  background: linear-gradient(180deg, #2f3542 0%, #1e222a 100%) !important;
-  border: 1px solid var(--yasd-border-control) !important;
-  border-radius: 5px !important;
-  color: var(--yasd-gold-accent) !important;
-  font-family: monospace !important;
-  font-weight: 700 !important;
-  padding: 2px 7px !important;
-  box-shadow: inset 0 1px 0 rgba(220, 224, 232, 0.15) !important;
-}
-
-.menu-option-btn .option-label {
-  color: var(--yasd-text-heading) !important;
-  font-weight: 700 !important;
-}
-
-.menu-option-btn .option-desc {
-  color: var(--yasd-text-muted) !important;
-}
-
-/* --- Utility Dock Buttons, Modal Cards & Footers --- */
-.menu-dock-btn,
-.btn-gold-outline,
-.btn-panel-action,
-.pause-btn {
-  background: var(--yasd-slate-card) !important;
-  border: 1px solid var(--yasd-border-control) !important;
-  border-radius: 6px !important;
-  color: var(--yasd-text-prose) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(220, 224, 232, 0.1) !important;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease !important;
-}
-
-.menu-dock-btn:hover,
-.btn-gold-outline:hover,
-.btn-panel-action:hover,
-.pause-btn:hover {
-  background: var(--yasd-slate-card-hover) !important;
-  border-color: var(--yasd-bone-highlight) !important;
-  color: var(--yasd-text-heading) !important;
-}
-
-.realm-card,
-.save-item-card,
-.cmd-row-item {
-  background: var(--yasd-slate-card) !important;
-  border: 1px solid var(--yasd-border-iron) !important;
-  border-radius: 7px !important;
-  color: var(--yasd-text-prose) !important;
-}
-
-.realm-card:hover,
-.save-item-card:hover,
-.cmd-row-item:hover {
-  background: var(--yasd-slate-card-hover) !important;
-  border-color: var(--yasd-bone-highlight) !important;
-}
-
-.splash-billboard-threshold {
-  background: linear-gradient(
-    180deg,
-    rgba(21, 24, 29, 0.25) 0%,
-    rgba(21, 24, 29, 0.92) 45%,
-    var(--yasd-slate-deep) 100%
-  ) !important;
-  border-top: 1px solid var(--yasd-border-iron) !important;
-}
-
-.main-menu-footer,
-.load-footer,
-.guide-footer,
-.cmd-palette-footer {
-  background: rgba(21, 24, 29, 0.75) !important;
-  border-top: 1px solid var(--yasd-border-iron) !important;
-  color: var(--yasd-text-muted) !important;
-}
-
-@media (pointer: coarse) {
-  .menu-option-btn {
-    min-height: 54px !important;
-  }
-  .menu-dock-btn,
-  .realm-pill-btn,
-  .main-menu-realm-dropdown,
-  .main-menu-lang-dropdown {
-    min-height: 44px !important;
-  }
-}
-
-
-/* ==========================================================================
-   Living Chronicle & Tome Sketch Lightbox — Humor & Horror Scene Styling
-   ========================================================================== */
-
-#chronicle-sketch-modal {
-  background: rgba(15, 17, 21, 0.88) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-}
-
-#chronicle-sketch-modal .chronicle-sketch-lightbox-card {
-  background: linear-gradient(
-    175deg,
-    var(--yasd-slate-card) 0%,
-    var(--yasd-slate-canvas) 55%,
-    var(--yasd-slate-deep) 100%
-  ) !important;
-  border: 1.5px solid var(--yasd-border-control) !important;
-  border-top: 2px solid var(--yasd-gold-accent) !important;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.9), inset 0 1px 0 var(--yasd-bone-highlight) !important;
-}
-
-.chronicle-sketch-card-status {
-  font-family: var(--font-terminal, monospace);
-  font-size: 11px;
-  color: var(--yasd-gold-accent);
-  background: rgba(21, 24, 29, 0.92);
-  border-top: 1px solid var(--yasd-border-iron);
-  padding: 5px 8px;
-  text-align: center;
-  letter-spacing: 0.03em;
-}
-
-.flowing-paragraph-actions {
+.prompt-soft-key {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-}
-
-.flow-sketch-btn {
-  background: var(--yasd-slate-card);
-  border: 1px solid var(--yasd-border-control);
-  border-radius: 4px;
-  color: var(--yasd-gold-accent);
-  font-size: 11px;
-  padding: 1px 6px;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 30px;
+  padding: 3px 10px;
+  margin: 2px 4px;
+  background: linear-gradient(180deg, #49341e 0%, #261b0f 100%);
+  border: 1px solid var(--yasd-gold-forged);
+  border-radius: 5px;
+  color: var(--yasd-gold-bright);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+  user-select: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 224, 102, 0.35);
+}
+.prompt-soft-key:hover {
+  background: linear-gradient(180deg, #634729 0%, #382716 100%);
+  border-color: var(--yasd-gold-bright);
+  color: #ffffff;
 }
 
-.flow-sketch-btn:hover {
-  background: var(--yasd-slate-card-hover);
-  border-color: var(--yasd-gold-accent);
-  transform: translateY(-1px);
+/* Container-Query Responsive Adaptation */
+@container (max-width: 820px) {
+  .action-group-tag {
+    display: none !important;
+  }
 }
