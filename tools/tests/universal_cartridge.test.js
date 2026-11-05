@@ -648,13 +648,12 @@ function check(cond, msg) {
         'Sil-Q Birth Planner must allocate point-buy stats before pressing enter');
 
     const brogueEnch = new BrogueEngine({ saveDir: tmpSaveDir, user: 'BrogueEnchTest', isNew: true });
-    brogueEnch.handleKey('a');
     const enchScroll = brogueEnch.state.player.inventory.find(it => /enchant/i.test(it.name));
     if (enchScroll) {
-        const prevEnch = brogueEnch.state.player.inventory[0].enchant || 0;
-        brogueEnch.executeItemVerb('r', enchScroll.letter);
-        const totalEnch = brogueEnch.state.player.inventory.reduce((s, it) => s + (it.enchant || 0), 0);
-        check(totalEnch > prevEnch, 'Brogue Scroll of Enchantment must increase item enchantment');
+        const prevBonus = brogueEnch.state.player.inventory.reduce((s, it) => s + (it.bonus || 0), 0);
+        brogueEnch.applyVerbToItem('read', enchScroll);
+        const totalBonus = brogueEnch.state.player.inventory.reduce((s, it) => s + (it.bonus || 0), 0);
+        check(totalBonus > prevBonus, 'Brogue Scroll of Enchantment must increase item bonus');
     }
 
     try { fs.rmSync(tmpSaveDir, { recursive: true, force: true }); } catch (_) {}
