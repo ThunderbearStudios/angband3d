@@ -3230,22 +3230,13 @@ class Dungeon3D {
         this.loadLocalPbrSet('local_brick', 'T_Brick', 2, 3);
         this.loadLocalPbrSet('local_uneven_brick', 'T_UnevenBrick', 2, 3);
         this.loadLocalPbrSet('local_plaster', 'T_Plaster', 2, 2);
-        this.loadLocalPbrSet('local_rock_trim', 'T_RockTrim', 2, 2);
-        this.loadLocalPbrSet('local_wood_trim', 'T_WoodTrim', 2, 2, (e) => {
-            if (this.shopFrameMaterial) {
-                if (e.diff) this.shopFrameMaterial.map = e.diff;
-                if (e.nor) this.shopFrameMaterial.normalMap = e.nor;
-                if (e.arm) this.shopFrameMaterial.roughnessMap = e.arm;
-                this.shopFrameMaterial.needsUpdate = true;
-            }
+        this.loadLocalPbrSet('local_rock_trim', 'T_RockTrim', 2, 2, (e) => {
             if (this.townTimberMaterial) {
                 if (e.diff) this.townTimberMaterial.map = e.diff;
                 if (e.nor) this.townTimberMaterial.normalMap = e.nor;
                 if (e.arm) this.townTimberMaterial.roughnessMap = e.arm;
                 this.townTimberMaterial.needsUpdate = true;
             }
-        });
-        this.loadLocalPbrSet('local_round_tiles', 'T_RoundTiles', 2, 2, (e) => {
             if (this.townRoofMaterial) {
                 if (e.diff) this.townRoofMaterial.map = e.diff;
                 if (e.nor) this.townRoofMaterial.normalMap = e.nor;
@@ -3253,6 +3244,15 @@ class Dungeon3D {
                 this.townRoofMaterial.needsUpdate = true;
             }
         });
+        this.loadLocalPbrSet('local_wood_trim', 'T_WoodTrim', 2, 2, (e) => {
+            if (this.shopFrameMaterial) {
+                if (e.diff) this.shopFrameMaterial.map = e.diff;
+                if (e.nor) this.shopFrameMaterial.normalMap = e.nor;
+                if (e.arm) this.shopFrameMaterial.roughnessMap = e.arm;
+                this.shopFrameMaterial.needsUpdate = true;
+            }
+        });
+        this.loadLocalPbrSet('local_round_tiles', 'T_RoundTiles', 2, 2);
         this.loadLocalPbrSet('local_red_brick', 'T_RedBrick', 2, 3);
         loader.load('/assets/textures/T_BrushedNoise.png', (tex) => {
             tex.wrapS = THREE.RepeatWrapping;
@@ -3610,22 +3610,21 @@ class Dungeon3D {
             { pos: [0.82, 2.18, 0.46], size: [0.10, 0.72, 0.10], rotX: -0.68, color: [0.36, 0.23, 0.13] }   // Right timber awning strut
         ]);
 
-        // 1d. Medieval Half-Timbered Framing & Pitched Shingle Roof for Town Buildings
+        // 1d. Medieval Dressed Stone & Dark Timber Framing + Flat Architectural Slate Cornice for Town Buildings
         const townTimberGeo = createMergedBoxGeometry([
-            { pos: [0, 0.12, 0], size: [2.04, 0.24, 2.04], color: [0.55, 0.50, 0.45] },        // Dressed stone foundation plinth
-            { pos: [0, 1.58, 0], size: [2.05, 0.16, 2.05], color: [0.36, 0.23, 0.13] },        // Mid-wall horizontal oak bressummer beam
-            { pos: [0, 2.96, 0], size: [2.08, 0.20, 2.08], color: [0.34, 0.21, 0.12] },        // Upper overhanging timber eaves cornice
-            { pos: [-0.94, 1.55, -0.94], size: [0.18, 3.00, 0.18], color: [0.34, 0.21, 0.12] }, // NW vertical oak corner post
-            { pos: [0.94, 1.55, -0.94], size: [0.18, 3.00, 0.18], color: [0.34, 0.21, 0.12] },  // NE vertical oak corner post
-            { pos: [-0.94, 1.55, 0.94], size: [0.18, 3.00, 0.18], color: [0.34, 0.21, 0.12] },  // SW vertical oak corner post
-            { pos: [0.94, 1.55, 0.94], size: [0.18, 3.00, 0.18], color: [0.34, 0.21, 0.12] }    // SE vertical oak corner post
+            { pos: [0, 0.12, 0], size: [2.04, 0.24, 2.04], color: [0.44, 0.42, 0.40] },         // Dressed dark stone foundation plinth
+            { pos: [0, 1.58, 0], size: [2.04, 0.14, 2.04], color: [0.28, 0.26, 0.25] },         // Mid-wall horizontal dark stone/charred oak band
+            { pos: [0, 2.96, 0], size: [2.06, 0.18, 2.06], color: [0.26, 0.25, 0.24] },         // Upper overhanging dark stone eaves cornice
+            { pos: [-0.94, 1.55, -0.94], size: [0.16, 3.00, 0.16], color: [0.25, 0.24, 0.23] }, // NW dark stone quoin / corner post
+            { pos: [0.94, 1.55, -0.94], size: [0.16, 3.00, 0.16], color: [0.25, 0.24, 0.23] },  // NE dark stone quoin / corner post
+            { pos: [-0.94, 1.55, 0.94], size: [0.16, 3.00, 0.16], color: [0.25, 0.24, 0.23] },  // SW dark stone quoin / corner post
+            { pos: [0.94, 1.55, 0.94], size: [0.16, 3.00, 0.16], color: [0.25, 0.24, 0.23] }   // SE dark stone quoin / corner post
         ]);
 
+        // Continuous flat/beveled dark weathered slate & stone parapet cap (zero stepped red Minecraft pyramids)
         const townRoofGeo = createMergedBoxGeometry([
-            { pos: [0, 3.16, 0], size: [2.18, 0.28, 2.18], color: [0.72, 0.42, 0.30] },        // Overhanging lower shingle eaves tier
-            { pos: [0, 3.44, 0], size: [1.82, 0.30, 1.82], color: [0.76, 0.45, 0.32] },        // Middle pitched roof tier
-            { pos: [0, 3.72, 0], size: [1.36, 0.28, 1.36], color: [0.80, 0.48, 0.34] },        // Upper pitched roof tier
-            { pos: [0, 3.96, 0], size: [0.84, 0.24, 0.84], color: [0.52, 0.32, 0.22] }         // Timbered roof ridge cap
+            { pos: [0, 3.06, 0], size: [2.04, 0.12, 2.04], color: [0.34, 0.35, 0.38] },         // Flush dark slate cornice coping
+            { pos: [0, 3.15, 0], size: [1.96, 0.08, 1.96], color: [0.24, 0.25, 0.28] }          // Low-profile dark stone parapet cap
         ]);
 
         // 2. Closed Wooden Door Panel with Horizontal Iron Straps (DungeonWorld.cs:1581-1593)
@@ -3777,14 +3776,15 @@ class Dungeon3D {
         this.shopAwningMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.shopAwningMesh);
 
-        // Town Building Half-Timbered Framing & Pitched Terracotta/Slate Roofs
+        // Town Building Dressed Stone & Dark Timber Framing + Flat Architectural Slate Cornice
+        const rockTrimPbr = this.polyHavenSets && this.polyHavenSets.get('local_rock_trim');
         this.townTimberMaterial = new THREE.MeshStandardMaterial({
-            map: (woodPbr && woodPbr.diff) || this.treeBarkTex || this.doorTex,
-            normalMap: (woodPbr && woodPbr.nor) || this.treeBarkNormal || this.wallNormal,
-            roughnessMap: (woodPbr && woodPbr.arm) || null,
-            normalScale: new THREE.Vector2(1.40, 1.40),
-            roughness: 0.82,
-            metalness: 0.04,
+            map: (rockTrimPbr && rockTrimPbr.diff) || this.wallTex,
+            normalMap: (rockTrimPbr && rockTrimPbr.nor) || this.wallNormal,
+            roughnessMap: (rockTrimPbr && rockTrimPbr.arm) || null,
+            normalScale: new THREE.Vector2(1.35, 1.35),
+            roughness: 0.84,
+            metalness: 0.06,
             vertexColors: true
         });
         this.townTimberMesh = new THREE.InstancedMesh(townTimberGeo, this.townTimberMaterial, this.maxInstances);
@@ -3792,12 +3792,12 @@ class Dungeon3D {
         this.scene.add(this.townTimberMesh);
 
         this.townRoofMaterial = new THREE.MeshStandardMaterial({
-            map: (roofPbr && roofPbr.diff) || this.wallTex,
-            normalMap: (roofPbr && roofPbr.nor) || this.wallNormal,
-            roughnessMap: (roofPbr && roofPbr.arm) || null,
-            normalScale: new THREE.Vector2(1.50, 1.50),
-            roughness: 0.78,
-            metalness: 0.05,
+            map: (rockTrimPbr && rockTrimPbr.diff) || this.wallTex,
+            normalMap: (rockTrimPbr && rockTrimPbr.nor) || this.wallNormal,
+            roughnessMap: (rockTrimPbr && rockTrimPbr.arm) || null,
+            normalScale: new THREE.Vector2(1.40, 1.40),
+            roughness: 0.82,
+            metalness: 0.08,
             vertexColors: true
         });
         this.townRoofMesh = new THREE.InstancedMesh(townRoofGeo, this.townRoofMaterial, this.maxInstances);
@@ -8639,6 +8639,8 @@ class Dungeon3D {
             if (this._terrainLabelSprites) {
                 for (const sprite of this._terrainLabelSprites.values()) {
                     if (sprite.parent) sprite.parent.remove(sprite);
+                    if (sprite._ownedSignTexture) sprite._ownedSignTexture.dispose();
+                    if (sprite._ownedSignMaterial) sprite._ownedSignMaterial.dispose();
                     if (sprite.material) {
                         if (sprite.material.map) sprite.material.map.dispose();
                         sprite.material.dispose();
@@ -8821,12 +8823,66 @@ class Dungeon3D {
 
             const tex = new THREE.CanvasTexture(canvas);
             tex.minFilter = THREE.LinearFilter;
+            if (isStore) {
+                const signGroup = new THREE.Group();
+                signGroup.position.set(pos.x, 0, pos.z);
+                signGroup.rotation.set(0, pos.yaw || 0, 0);
+                signGroup.maxDist = 64.0;
+
+                if (!this._storeSignSharedGeos) {
+                    const fasciaBackGeo = new THREE.BoxGeometry(1.94, 0.50, 0.05);
+                    fasciaBackGeo._sharedGeometry = true;
+                    const fasciaFaceGeo = new THREE.PlaneGeometry(1.90, 0.46);
+                    fasciaFaceGeo._sharedGeometry = true;
+                    const bladeBackGeo = new THREE.BoxGeometry(0.05, 0.40, 0.96);
+                    bladeBackGeo._sharedGeometry = true;
+                    const bladeFaceGeo = new THREE.PlaneGeometry(0.92, 0.36);
+                    bladeFaceGeo._sharedGeometry = true;
+                    const armGeo = new THREE.BoxGeometry(0.06, 0.06, 1.04);
+                    armGeo._sharedGeometry = true;
+                    const woodMat = new THREE.MeshStandardMaterial({ color: 0x26170c, roughness: 0.82, metalness: 0.12 });
+                    woodMat._sharedMaterial = true;
+                    const ironMat = new THREE.MeshStandardMaterial({ color: 0x22201d, roughness: 0.55, metalness: 0.78 });
+                    ironMat._sharedMaterial = true;
+                    this._storeSignSharedGeos = { fasciaBackGeo, fasciaFaceGeo, bladeBackGeo, bladeFaceGeo, armGeo, woodMat, ironMat };
+                }
+                const { fasciaBackGeo, fasciaFaceGeo, bladeBackGeo, bladeFaceGeo, armGeo, woodMat, ironMat } = this._storeSignSharedGeos;
+                const signFaceMat = new THREE.MeshBasicMaterial({
+                    map: tex,
+                    transparent: true,
+                    depthTest: true,
+                    depthWrite: true
+                });
+                signGroup._ownedSignMaterial = signFaceMat;
+                signGroup._ownedSignTexture = tex;
+
+                // 1. Front Storefront Fascia Guild Plaque mounted parallel in front of the lintel (z = 1.04m, never clips into wall)
+                const fasciaBack = new THREE.Mesh(fasciaBackGeo, woodMat);
+                fasciaBack.position.set(0, 2.78, 1.03);
+                const fasciaFace = new THREE.Mesh(fasciaFaceGeo, signFaceMat);
+                fasciaFace.position.set(0, 2.78, 1.058);
+
+                // 2. Projecting Double-Sided Tavern Blade Sign (z = 1.05m .. 2.01m) readable from both directions down narrow streets
+                const armMesh = new THREE.Mesh(armGeo, ironMat);
+                armMesh.position.set(0, 3.04, 1.52);
+                const bladeBack = new THREE.Mesh(bladeBackGeo, woodMat);
+                bladeBack.position.set(0, 2.80, 1.53);
+                const bladeRight = new THREE.Mesh(bladeFaceGeo, signFaceMat);
+                bladeRight.position.set(0.028, 2.80, 1.53);
+                bladeRight.rotation.y = Math.PI / 2;
+                const bladeLeft = new THREE.Mesh(bladeFaceGeo, signFaceMat);
+                bladeLeft.position.set(-0.028, 2.80, 1.53);
+                bladeLeft.rotation.y = -Math.PI / 2;
+
+                signGroup.add(fasciaBack, fasciaFace, armMesh, bladeBack, bladeRight, bladeLeft);
+                return signGroup;
+            }
             // depthTest = true so buildings, walls, and pillars properly occlude labels
             const mat = new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false, transparent: true });
             const sprite = new THREE.Sprite(mat);
-            sprite.scale.set(isStore ? 2.55 : 2.0, isStore ? 0.65 : 0.38, 1.0);
+            sprite.scale.set(2.0, 0.38, 1.0);
             sprite.position.set(pos.x, pos.y, pos.z);
-            sprite.maxDist = isStore ? 56.0 : 25.0; // Distance culling threshold
+            sprite.maxDist = 25.0; // Distance culling threshold
             return sprite;
         };
 
@@ -8877,27 +8933,13 @@ class Dungeon3D {
             const gx = Math.round(avgX / this.cellSize);
             const gy = Math.round(avgZ / this.cellSize);
             const doorYaw = this.determineShopDoorOrientation(map, gx, gy, w, h);
-            // Project hanging guild sign 1.32m outward from doorway so roof eaves & awnings never occlude it
-            const signX = avgX + Math.sin(doorYaw) * 1.32;
-            const signZ = avgZ + Math.cos(doorYaw) * 1.32;
             const key = `${gx},${gy},${labelText}`;
             activeLabelKeys.add(key);
 
             if (!this._terrainLabelSprites.has(key)) {
-                const sprite = createCaption(labelText, { x: signX, y: 2.84, z: signZ }, col, true, storeIdx);
-                this.terrainLabelsGroup.add(sprite);
-                this._terrainLabelSprites.set(key, sprite);
-            }
-
-            // Elevated Rooftop Wayfinder Crest above the 4.2m gable peak for cross-plaza visibility
-            const roofKey = `${gx},${gy},roof_${labelText}`;
-            activeLabelKeys.add(roofKey);
-            if (!this._terrainLabelSprites.has(roofKey)) {
-                const roofSprite = createCaption(labelText, { x: avgX + Math.sin(doorYaw) * 0.45, y: 4.55, z: avgZ + Math.cos(doorYaw) * 0.45 }, col, false, storeIdx);
-                roofSprite.scale.set(2.25, 0.42, 1.0);
-                roofSprite.maxDist = 64.0;
-                this.terrainLabelsGroup.add(roofSprite);
-                this._terrainLabelSprites.set(roofKey, roofSprite);
+                const signObj = createCaption(labelText, { x: avgX, y: 2.78, z: avgZ, yaw: doorYaw }, col, true, storeIdx);
+                this.terrainLabelsGroup.add(signObj);
+                this._terrainLabelSprites.set(key, signObj);
             }
 
             if (outdoors && rebuildStorefrontProps && this.storefrontPropsGroup) {
@@ -8905,32 +8947,6 @@ class Dungeon3D {
                 shopPropAnchor.position.set(avgX, 0, avgZ);
                 shopPropAnchor.rotation.set(0, doorYaw, 0);
                 this.storefrontPropsGroup.add(shopPropAnchor);
-
-                // 3D Wrought-Iron & Carved-Timber Hanging Signboard Bracket over shop entrance
-                if (!this._signBracketParts) {
-                    const armMat = new THREE.MeshStandardMaterial({ color: 0x22201d, roughness: 0.55, metalness: 0.75 });
-                    armMat._sharedMaterial = true;
-                    const boardMat = new THREE.MeshStandardMaterial({ color: 0x3b2414, roughness: 0.82, metalness: 0.12 });
-                    boardMat._sharedMaterial = true;
-                    const armGeo = new THREE.BoxGeometry(0.06, 0.06, 0.92);
-                    armGeo._sharedGeometry = true;
-                    const braceGeo = new THREE.BoxGeometry(0.04, 0.36, 0.04);
-                    braceGeo._sharedGeometry = true;
-                    const boardGeo = new THREE.BoxGeometry(0.06, 0.38, 0.68);
-                    boardGeo._sharedGeometry = true;
-                    this._signBracketParts = { armMat, boardMat, armGeo, braceGeo, boardGeo };
-                }
-                if (this._signBracketParts) {
-                    const { armMat, boardMat, armGeo, braceGeo, boardGeo } = this._signBracketParts;
-                    const armMesh = new THREE.Mesh(armGeo, armMat);
-                    armMesh.position.set(0, 3.24, 0.86);
-                    const braceMesh = new THREE.Mesh(braceGeo, armMat);
-                    braceMesh.position.set(0, 3.36, 0.56);
-                    braceMesh.rotation.x = 0.68;
-                    const boardMesh = new THREE.Mesh(boardGeo, boardMat);
-                    boardMesh.position.set(0, 2.98, 0.96);
-                    shopPropAnchor.add(armMesh, braceMesh, boardMesh);
-                }
 
                 // Zero-PointLight warm golden storefront light pool decal (avoids full-scene WebGL shader recompilation)
                 if (this.shadowGeo && this.shadowTex) {
@@ -9027,6 +9043,8 @@ class Dungeon3D {
         for (const [key, sprite] of this._terrainLabelSprites.entries()) {
             if (!activeLabelKeys.has(key)) {
                 this.terrainLabelsGroup.remove(sprite);
+                if (sprite._ownedSignTexture) sprite._ownedSignTexture.dispose();
+                if (sprite._ownedSignMaterial) sprite._ownedSignMaterial.dispose();
                 if (sprite.material) {
                     if (sprite.material.map) sprite.material.map.dispose();
                     sprite.material.dispose();

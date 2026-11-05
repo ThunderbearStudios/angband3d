@@ -3833,13 +3833,21 @@ window.addEventListener('DOMContentLoaded', () => {
             const mState = audio.getMusicState();
             const npEl = document.getElementById('popover-music-now-playing');
             if (npEl) {
-                const modeBadge = mState.mode === 'auto' ? 'Auto' : (mState.mode === 'shuffle' ? 'Shuffle' : 'Track');
+                const modeBadge = mState.mode === 'auto' ? 'Auto' : (mState.mode === 'shuffle' ? 'Shuffle' : 'Manual');
                 npEl.textContent = effMusicMuted ? '🔇 Music Muted' : `🎶 ${modeBadge}: ${mState.trackTitle || 'YASD Theme Song'}`;
             }
             const playBtn = document.getElementById('btn-music-playpause');
             if (playBtn) playBtn.textContent = (mState.playing && !effMusicMuted) ? '⏸' : '▶';
             const shufBtn = document.getElementById('btn-music-shuffle');
             if (shufBtn) shufBtn.classList.toggle('active', Boolean(mState.shuffle));
+            const resumeDefaultBtn = document.getElementById('btn-music-resume-default');
+            if (resumeDefaultBtn) {
+                const isAutoDefault = (mState.mode === 'auto' && !mState.shuffle);
+                resumeDefaultBtn.classList.toggle('active', isAutoDefault);
+                resumeDefaultBtn.textContent = isAutoDefault
+                    ? '✓ Default Auto Music Active'
+                    : '🎭 Resume Default Music (Auto)';
+            }
             const selEl = document.getElementById('popover-music-track-select');
             if (selEl) {
                 if (!selEl.dataset.populated && typeof audio.getMusicCatalog === 'function') {
@@ -3849,7 +3857,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     cat.forEach((tr) => {
                         const opt = document.createElement('option');
                         opt.value = tr.id;
-                        opt.textContent = `${tr.title} [${tr.mood}]`;
+                        opt.textContent = `${tr.title} [${tr.category || tr.mood || 'realm'}]`;
                         optGroup.appendChild(opt);
                     });
                     selEl.appendChild(optGroup);
@@ -3902,6 +3910,21 @@ window.addEventListener('DOMContentLoaded', () => {
             if (audio && typeof audio.toggleMusicShuffle === 'function') {
                 audio.unlock(true);
                 audio.toggleMusicShuffle();
+                syncAudioUI();
+                showQuickVolumePopover();
+            }
+        });
+    }
+    const btnMusicResumeDefault = document.getElementById('btn-music-resume-default');
+    if (btnMusicResumeDefault) {
+        bindFastTap(btnMusicResumeDefault, () => {
+            if (audio) {
+                audio.unlock(true);
+                if (typeof audio.resumeDefaultMusic === 'function') {
+                    audio.resumeDefaultMusic();
+                } else if (typeof audio.setMusicMode === 'function') {
+                    audio.setMusicMode('auto');
+                }
                 syncAudioUI();
                 showQuickVolumePopover();
             }
@@ -4074,12 +4097,24 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnTopMusic = document.getElementById('btn-top-music');
     if (btnTopMusic) {
         bindFastTap(btnTopMusic, () => {
-            if (audio && typeof audio.toggleMusicMute === 'function') {
+            if (audio) {
                 audio.unlock(true);
-                const isMusicMuted = audio.toggleMusicMute();
-                if (!isMusicMuted && audio.isMuted()) audio.setMute(false);
-                syncAudioUI();
-                showQuickVolumePopover();
+                if (typeof audio.isMusicMuted === 'function' && audio.isMusicMuted()) {
+                    audio.setMusicMute(false);
+                }
+                if (audio.isMuted && audio.isMuted()) {
+                    audio.setMute(false);
+                }
+                if (typeof audio._ensureThemePlayback === 'function') {
+                    audio._ensureThemePlayback();
+                }
+                const pop = document.getElementById('quick-volume-popover');
+                if (pop && !pop.classList.contains('hidden')) {
+                    hideQuickVolumePopover();
+                } else {
+                    syncAudioUI();
+                    showQuickVolumePopover();
+                }
             }
         });
     }
@@ -6352,19 +6387,14 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             if (window.__app) window.__app.lastFrame = frame;
             currentPhase = frame.phase || 'play';
+            if (currentPhase === 'play' && frame.player && !birthReviewActive && !birthConfirming && audio && typeof audio.updateContextualMusic === 'function') {
+                audio.updateContextualMusic(frame, activeRealm);
+                syncAudioUI();
+            }
             if (currentPhase === 'play' && frame.map && frame.player) {
                 const firstPlayTransition = !hasEnteredPlay;
                 hasEnteredPlay = true;
                 quickBirthActive = false;
-                // Transition from menu loop into contextual realm/biome music (or honor explicit user Jukebox selection)
-                if (!birthReviewActive && !birthConfirming && audio) {
-                    if (typeof audio.updateContextualMusic === 'function') {
-                        audio.updateContextualMusic(frame, activeRealm);
-                        syncAudioUI();
-                    } else if (audio._themeMode === 'menu' && typeof audio.stopThemeMusic === 'function') {
-                        audio.stopThemeMusic(0.9);
-                    }
-                }
                 const curDepth = typeof frame.player.depth === 'number' ? frame.player.depth : 0;
                 const depthChanged = lastSnapshotDepth !== null && curDepth !== lastSnapshotDepth;
                 lastSnapshotDepth = curDepth;

@@ -99,7 +99,7 @@ class SoundEngine {
                     if (savedMuted !== null) {
                         this.enabled = (savedMuted !== 'true');
                     }
-                    const savedMusicMuted = localStorage.getItem('angband3d_music_muted');
+                    const savedMusicMuted = localStorage.getItem('angband3d_music_muted_v2');
                     if (savedMusicMuted !== null) {
                         this.musicEnabled = (savedMusicMuted !== 'true');
                     }
@@ -111,14 +111,22 @@ class SoundEngine {
         this._themeMode = 'none'; // 'none' | 'menu' | 'death' | 'jukebox'
         this.musicMode = 'auto'; // 'auto' | 'theme_full' | 'shuffle' | 'playlist:town' | 'playlist:dungeon' | 'playlist:boss' | trackId
         this.musicShuffle = false;
+        this._manualMusicOverride = false;
         this._currentMusicTrackId = 'yasd_theme';
         this._contextualMood = '';
         if (typeof window !== 'undefined') {
             try {
                 const savedMode = window.localStorage && localStorage.getItem('angband3d_music_mode');
-                if (savedMode) this.musicMode = savedMode;
+                const validModes = new Set(['auto', 'theme_full', 'shuffle', 'playlist:town', 'playlist:dungeon', 'playlist:boss']);
+                const catalog = SoundEngine.MUSIC_CATALOG || [];
+                if (savedMode && (validModes.has(savedMode) || catalog.some(t => t.id === savedMode))) {
+                    this.musicMode = savedMode;
+                    this._manualMusicOverride = (savedMode !== 'auto');
+                } else {
+                    this.musicMode = 'auto';
+                }
                 const savedShuf = window.localStorage && localStorage.getItem('angband3d_music_shuffle');
-                if (savedShuf === 'true') this.musicShuffle = true;
+                if (savedShuf === 'true' && this.musicMode !== 'auto') this.musicShuffle = true;
             } catch (_) {}
         }
         this._themeDeckA = null;
@@ -168,7 +176,7 @@ class SoundEngine {
                 });
                 if (isPrimary) {
                     const tryAutoStart = () => {
-                        if ((this._themeMode === 'menu' || this._themeMode === 'death') && this.enabled && this.musicEnabled && !this._themeActuallyPlaying) {
+                        if (this._themeMode !== 'none' && this.enabled && this.musicEnabled && !this._themeActuallyPlaying) {
                             this._ensureThemePlayback();
                         }
                     };
@@ -214,7 +222,7 @@ class SoundEngine {
         if (!this.enabled || !this.musicEnabled) {
             if (this._themeDeckA) { try { this._themeDeckA.volume = 0; } catch (_) {} }
             if (this._themeDeckB) { try { this._themeDeckB.volume = 0; } catch (_) {} }
-        } else if (this._activeThemeDeck && (this._activeThemeDeck.paused || !this._themeActuallyPlaying) && (this._themeMode === 'menu' || this._themeMode === 'death')) {
+        } else if (this._activeThemeDeck && (this._activeThemeDeck.paused || !this._themeActuallyPlaying) && this._themeMode !== 'none') {
             this._ensureThemePlayback();
         }
     }
@@ -550,10 +558,67 @@ class SoundEngine {
         return entry;
     }
 
+    resumeDefaultMusic() {
+        this.musicShuffle = false;
+        this._manualMusicOverride = false;
+        this._contextualMood = '';
+        if (typeof window !== 'undefined') {
+            try {
+                if (window.localStorage) {
+                    localStorage.setItem('angband3d_music_shuffle', 'false');
+                    localStorage.setItem('angband3d_music_mode', 'auto');
+                }
+            } catch (_) {}
+        }
+        if (!this.musicEnabled) {
+            this.setMusicMute(false);
+        }
+        return this.setMusicMode('auto');
+    }
+
+    resolveProgrammaticMusicTrack(cue) {
+        if (!cue) return null;
+        const raw = String(typeof cue === 'object' ? (cue.track || cue.id || cue.music || cue.bgm || '') : cue).trim();
+        if (!raw) return null;
+        const cat = this.getMusicCatalog();
+        const exact = cat.find(t => t.id === raw);
+        if (exact) return exact.id;
+        const lower = raw.toLowerCase().replace(/\.(mp3|ogg|wav)$/i, '');
+        const bySrc = cat.find(t => t.src.toLowerCase().endsWith(`/${lower}.mp3`) || t.id.toLowerCase() === lower);
+        if (bySrc) return bySrc.id;
+        if (/^town0*1|town_default/i.test(lower)) return 'town_cloudancer';
+        if (/^town0*2/i.test(lower)) return 'town_snowland';
+        if (/^town0*3/i.test(lower)) return 'town_theme';
+        if (/^town0*4/i.test(lower)) return 'town_no_place';
+        if (/^town0*5/i.test(lower)) return 'town_pleasant';
+        if (/^build|store|shop/i.test(lower)) return 'store_tavern';
+        if (/^arena/i.test(lower)) return 'arena_fanfare';
+        if (/^battle/i.test(lower)) return 'boss_1';
+        if (/^ambush/i.test(lower)) return 'boss_final';
+        if (/serpent|morgoth|final_boss/i.test(lower)) return 'boss_special';
+        if (/^quest_clear/i.test(lower)) return 'quest_complete';
+        if (/^quest/i.test(lower)) return 'quest_active_1';
+        if (/^feel1/i.test(lower)) return 'dungeon_special';
+        if (/^feel2/i.test(lower)) return 'boss_3';
+        if (/^wild/i.test(lower)) return 'wilderness_day';
+        if (/^winner|victory/i.test(lower)) return 'victory_royal';
+        if (/^gameover|death/i.test(lower)) return 'gameover_dirge';
+        return null;
+    }
+
     setMusicMode(modeOrTrackId) {
         this.musicMode = modeOrTrackId || 'auto';
+        this._manualMusicOverride = (this.musicMode !== 'auto');
+        if (this.musicMode === 'auto') {
+            this.musicShuffle = false;
+        }
         if (typeof window !== 'undefined') {
-            try { if (window.localStorage) localStorage.setItem('angband3d_music_mode', this.musicMode); } catch (_) {}
+            try {
+                if (window.localStorage) {
+                    localStorage.setItem('angband3d_music_mode', this.musicMode);
+                    if (this.musicMode === 'auto') localStorage.setItem('angband3d_music_shuffle', 'false');
+                }
+            } catch (_) {}
         }
         if (this.musicMode === 'theme_full') {
             this.musicShuffle = false;
@@ -564,9 +629,10 @@ class SoundEngine {
         } else if (this.musicMode.startsWith('playlist:')) {
             this.nextMusicTrack();
         } else if (this.musicMode === 'auto') {
-            if (typeof window !== 'undefined' && window.__lastFrame && window.__lastFrame.phase === 'play') {
-                this._contextualMood = '';
-                this.updateContextualMusic(window.__lastFrame, window.activeRealm || 'angband');
+            this._contextualMood = '';
+            const lastFrame = (typeof window !== 'undefined') && (window.__lastFrame || (window.__app && window.__app.lastFrame));
+            if (lastFrame && (lastFrame.phase === 'play' || lastFrame.player)) {
+                this.updateContextualMusic(lastFrame, (typeof window !== 'undefined' && (window.activeRealm || window.__activeRealm)) || lastFrame.realm || 'angband');
             } else {
                 this._contextualMood = 'menu';
                 this.startMenuMusic();
@@ -574,6 +640,7 @@ class SoundEngine {
         } else {
             this.playMusicTrack(this.musicMode, true);
         }
+        if (typeof window !== 'undefined' && typeof window.__syncAudioUI === 'function') window.__syncAudioUI();
         return this.getMusicState();
     }
 
@@ -583,9 +650,9 @@ class SoundEngine {
         if (this.musicMode === 'playlist:town') pool = cat.filter(t => t.category === 'town');
         else if (this.musicMode === 'playlist:dungeon') pool = cat.filter(t => t.category.startsWith('dungeon_'));
         else if (this.musicMode === 'playlist:boss') pool = cat.filter(t => t.category === 'boss' || t.category === 'quest');
-        else if (this.musicMode === 'auto' && fromAutoAdvance && this._contextualMood) {
-            pool = cat.filter(t => t.category === this._contextualMood);
-            if (!pool.length) pool = cat;
+        else if (this.musicMode === 'auto' && fromAutoAdvance && this._contextualCategory) {
+            pool = cat.filter(t => t.category === this._contextualCategory && t.id !== 'yasd_theme');
+            if (!pool.length) pool = cat.filter(t => t.id !== 'yasd_theme');
         }
         if (this.musicShuffle || this.musicMode === 'shuffle' || (this.musicMode === 'auto' && fromAutoAdvance)) {
             const others = pool.filter(t => t.id !== this._currentMusicTrackId);
@@ -638,7 +705,6 @@ class SoundEngine {
 
     updateContextualMusic(frame, activeRealm = 'angband') {
         if (!frame || !frame.player) return;
-        if (this.musicMode && this.musicMode !== 'auto') return;
         const p = frame.player;
         if (p.dead) {
             if (this._contextualMood !== 'death') {
@@ -647,42 +713,100 @@ class SoundEngine {
             }
             return;
         }
+        // Respect manual player override in Jukebox unless in 'auto' mode
+        if ((this.musicMode && this.musicMode !== 'auto') || this.musicShuffle) return;
+
+        // 1. Programmatic Realm Music Hooks take top priority when in 'auto' mode
+        const progCue = frame.music || frame.bgm || frame.musicTrack || frame.musicCue ||
+            (Array.isArray(frame.events) && frame.events.find(e => e && (e.music || e.bgm || e.musicTrack)));
+        const progTrack = this.resolveProgrammaticMusicTrack(progCue);
+        if (progTrack) {
+            const progSig = `prog:${progTrack}`;
+            if (this._contextualMood !== progSig || this._currentMusicTrackId !== progTrack || !this._themeActuallyPlaying) {
+                this._contextualMood = progSig;
+                this._contextualCategory = 'quest';
+                this.playMusicTrack(progTrack, false);
+            }
+            return;
+        }
+
         if (p.winner || p.total_winner) {
             if (this._contextualMood !== 'victory') {
                 this._contextualMood = 'victory';
+                this._contextualCategory = 'victory';
                 this.playMusicTrack('victory_royal', true);
             }
             return;
         }
+
+        // 2. Store / Building / Arena / Boss / Level Feeling hooks (matching music.cfg)
+        const inStore = Boolean(frame.store || frame.inStore || (typeof window !== 'undefined' && window.ScreenContext && typeof window.ScreenContext.isStore === 'function' && frame.screenText && window.ScreenContext.isStore(frame.screenText)));
+        const inArena = Boolean(p.arena || /arena/i.test(p.location || ''));
         const mons = Array.isArray(frame.monsters) ? frame.monsters : [];
-        const hasBoss = mons.some(m => m && !m.isPet && !m.peaceful && (m.unique || m.isBoss || /morgoth|sauron|oberon|serpent of chaos|yendor|arch-lich|tiamat|glaurung|gothmog|carcharoth/i.test(m.name || m.race || '')));
+        const bossMon = mons.find(m => m && !m.isPet && !m.peaceful && (m.unique || m.isBoss || /morgoth|sauron|oberon|serpent of chaos|yendor|arch-lich|tiamat|glaurung|gothmog|carcharoth/i.test(m.name || m.race || '')));
         const depth = Number(p.depth || 0);
         const r = String(activeRealm || frame.realm || 'angband').toLowerCase();
-        let nextMood = 'dungeon_low';
+        let realmHash = 0;
+        for (let i = 0; i < r.length; i++) realmHash = (realmHash * 31 + r.charCodeAt(i)) >>> 0;
+
+        let nextCategory = 'dungeon_low';
         let defaultTrack = 'dungeon_low_1';
-        if (hasBoss) {
-            nextMood = 'boss';
-            defaultTrack = /morgoth|serpent|yendor/i.test(mons.map(m => m.name || m.race || '').join(' ')) ? 'boss_final' : 'boss_special';
+        if (inStore) {
+            nextCategory = 'town';
+            defaultTrack = 'store_tavern';
+        } else if (inArena) {
+            nextCategory = 'boss';
+            defaultTrack = 'arena_fanfare';
+        } else if (bossMon) {
+            nextCategory = 'boss';
+            const bName = String(bossMon.name || bossMon.race || '');
+            defaultTrack = /morgoth|serpent|yendor|oberon|sauron/i.test(bName) ? 'boss_special' : 'boss_1';
         } else if (depth === 0) {
-            nextMood = 'town';
-            defaultTrack = r === 'hengband' ? 'town_snowland' : (r === 'frogcomposband' ? 'wilderness_day' : 'town_cloudancer');
-        } else {
-            const deepThresh = (r === 'silq') ? 14 : ((r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack') ? 16 : 45);
-            const midThresh = (r === 'silq') ? 7 : ((r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack') ? 7 : 18);
-            if (depth >= deepThresh) {
-                nextMood = 'dungeon_high';
-                defaultTrack = r === 'silq' ? 'dungeon_high_3' : 'dungeon_high_1';
-            } else if (depth >= midThresh) {
-                nextMood = 'dungeon_med';
-                defaultTrack = r === 'brogue' ? 'extra_mysterious' : 'dungeon_med_1';
+            nextCategory = 'town';
+            const isWild = Boolean(frame.wilderness || /wilderness|outskirts|grassland/i.test(p.location || ''));
+            if (isWild) {
+                const wildTracks = ['wilderness_day', 'wilderness_night', 'extra_journey'];
+                defaultTrack = wildTracks[realmHash % wildTracks.length];
+            } else if (r === 'hengband') {
+                defaultTrack = 'town_snowland';
+            } else if (r === 'frogcomposband') {
+                defaultTrack = 'town_pleasant';
+            } else if (r === 'silq') {
+                defaultTrack = 'extra_Edge_of_Night';
+            } else if (r === 'nethack' || r === 'rogue') {
+                defaultTrack = 'town_no_place';
+            } else if (r === 'dcss') {
+                defaultTrack = 'town_theme';
+            } else if (r === 'brogue') {
+                defaultTrack = 'extra_lullaby';
             } else {
-                nextMood = 'dungeon_low';
-                defaultTrack = r === 'silq' ? 'dungeon_low_3' : (r === 'nethack' ? 'extra_arabesque' : 'dungeon_low_1');
+                defaultTrack = 'town_cloudancer';
+            }
+        } else {
+            const deepThresh = (r === 'silq') ? 12 : ((r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack') ? 15 : 50);
+            const midThresh = (r === 'silq') ? 6 : ((r === 'brogue' || r === 'rogue' || r === 'dcss' || r === 'nethack') ? 7 : 20);
+            const lowTracks = ['dungeon_low_1', 'dungeon_low_2', 'dungeon_low_3', 'dungeon_low_feel1', 'dungeon_low_feel2', 'extra_underground', 'extra_depths'];
+            const medTracks = ['dungeon_med_1', 'dungeon_med_2', 'dungeon_med_3', 'dungeon_med_feel1', 'dungeon_med_feel2', 'extra_mysterious', 'extra_catacombs'];
+            const highTracks = ['dungeon_high_1', 'dungeon_high_2', 'dungeon_high_3', 'dungeon_high_feel1', 'dungeon_high_feel2', 'extra_Inferno', 'extra_Shadow_Realms'];
+            const pickIdx = (Math.max(1, depth) + realmHash);
+            if (depth >= deepThresh) {
+                nextCategory = 'dungeon_high';
+                defaultTrack = highTracks[pickIdx % highTracks.length];
+            } else if (depth >= midThresh) {
+                nextCategory = 'dungeon_med';
+                defaultTrack = medTracks[pickIdx % medTracks.length];
+            } else {
+                nextCategory = 'dungeon_low';
+                defaultTrack = lowTracks[pickIdx % lowTracks.length];
             }
         }
-        if (this._contextualMood !== nextMood || this._themeMode === 'none' || this._themeMode === 'menu') {
-            this._contextualMood = nextMood;
+        const nextMoodSig = `${nextCategory}:${r}:${depth}:${defaultTrack}`;
+        this._contextualCategory = nextCategory;
+        if (this._contextualMood !== nextMoodSig || this._themeMode === 'none' || this._themeMode === 'menu') {
+            this._contextualMood = nextMoodSig;
             this.playMusicTrack(defaultTrack, false);
+        } else if (this.enabled && this.musicEnabled && !this._themeActuallyPlaying) {
+            this._ensureThemePlayback();
         }
     }
 
@@ -713,7 +837,7 @@ class SoundEngine {
         if (this.musicVolume > 0 && !this.musicEnabled) {
             this.musicEnabled = true;
             if (typeof window !== 'undefined') {
-                try { if (window.localStorage) localStorage.setItem('angband3d_music_muted', 'false'); } catch (_) {}
+                try { if (window.localStorage) localStorage.setItem('angband3d_music_muted_v2', 'false'); } catch (_) {}
             }
         }
         this._syncThemeVolume();
@@ -727,7 +851,7 @@ class SoundEngine {
     setMusicMute(isMuted) {
         this.musicEnabled = !isMuted;
         if (typeof window !== 'undefined') {
-            try { if (window.localStorage) localStorage.setItem('angband3d_music_muted', (!this.musicEnabled).toString()); } catch (_) {}
+            try { if (window.localStorage) localStorage.setItem('angband3d_music_muted_v2', (!this.musicEnabled).toString()); } catch (_) {}
         }
         this._syncThemeVolume();
         return !this.musicEnabled;
