@@ -37,11 +37,11 @@ if (!globalThis.crypto) globalThis.crypto = crypto;
 
 const llmLimiter = createLimiter({ perMinute: +process.env.LLM_RPM || 20, perDay: +process.env.LLM_RPD || 500 });
 const ttsLimiter = createLimiter({ perMinute: +process.env.TTS_RPM || 30, perDay: +process.env.TTS_RPD || 500 });
-const sketchLimiter = createLimiter({ perMinute: +process.env.SKETCH_RPM || 6, perDay: +process.env.SKETCH_RPD || 60 });
+const sketchLimiter = createLimiter({ perMinute: +process.env.SKETCH_RPM || 15, perDay: +process.env.SKETCH_RPD || 120 });
 const uploadLimiter = createLimiter({ perMinute: +process.env.UPLOAD_RPM || 20, perDay: +process.env.UPLOAD_RPD || 200 });
 const globalLlmLimiter = createLimiter({ perMinute: +process.env.GLOBAL_LLM_RPM || 120, perDay: +process.env.GLOBAL_LLM_RPD || 2500 });
 const globalTtsLimiter = createLimiter({ perMinute: +process.env.GLOBAL_TTS_RPM || 240, perDay: +process.env.GLOBAL_TTS_RPD || 5000 });
-const globalSketchLimiter = createLimiter({ perMinute: +process.env.GLOBAL_SKETCH_RPM || 30, perDay: +process.env.GLOBAL_SKETCH_RPD || 400 });
+const globalSketchLimiter = createLimiter({ perMinute: +process.env.GLOBAL_SKETCH_RPM || 60, perDay: +process.env.GLOBAL_SKETCH_RPD || 800 });
 
 const ALLOWED_MODELS = [
     'gemini-4-argon',

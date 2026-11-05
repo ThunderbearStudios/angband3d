@@ -1853,48 +1853,19 @@ class ChronicleManager {
     }
 
     maybeAutoTriggerSceneSketch(event, entry, frame) {
-        if (!event || !entry) return;
-        const type = event.type || '';
-        if (type === 'HERO_DEATH') return; // Handled by dedicated Death Modal & renderDeathSketchIntoModal
-
-        const d = event.data || {};
-        const monsterName = (d.monster?.name || d.attacker || d.victim || d.dominantFoe?.name || '').toLowerCase();
-        const isClassicQuirkyFoe = /newt|grid bug|floating eye|kobold|rat|mold|jelly|mushroom|urchin|beggar|mimic|chicken|worm|bat/i.test(monsterName);
-
-        let shouldSketch = false;
-        if (
-            type === 'MORTAL_PERIL' ||
-            type === 'UNIQUE_SPOTTED' ||
-            type === 'UNIQUE_SLAIN' ||
-            type === 'CREATURE_BIZARRE_ACTION' ||
-            type === 'CREATURE_THEFT' ||
-            type === 'CREATURE_INSULT' ||
-            type === 'CREATURE_BEG' ||
-            type === 'SACRED_SHRINE'
-        ) {
-            shouldSketch = true;
-        } else if (type === 'PLAYER_STATUS' && /blind|paralyzed|terrified|confused|hallucinat/i.test(d.status || '')) {
-            shouldSketch = true;
-        } else if (type === 'LEVEL_FEELING' && /omens of death|murderous|terribly dangerous|chills you to the bone|very bad feeling/i.test(d.message || '')) {
-            shouldSketch = true;
-        } else if ((type === 'COMBAT_EPISODE' || type === 'COMBAT_EXCHANGE') && (d.isPeril || d.monster?.isUnique || d.dominantFoe?.isUnique || (isClassicQuirkyFoe && (d.kills > 0 || d.subtype === 'KILL' || d.isPeril)))) {
-            shouldSketch = true;
+        if (!event || !frame || !frame.player) return;
+        const p = frame.player;
+        if (p.dead || p.winner) return;
+        const hp = Number(p.hp ?? 0);
+        const mhp = Math.max(1, Number(p.hp_max ?? p.mhp ?? 1));
+        const hpRatio = hp / mhp;
+        if (hp > 0 && hpRatio <= 0.20) {
+            const now = Date.now();
+            if (!this._lastPerilPreWarmTime || (now - this._lastPerilPreWarmTime > 180000)) {
+                this._lastPerilPreWarmTime = now;
+                this.preWarmDeathSketch(frame, event || entry);
+            }
         }
-
-        if (!shouldSketch) return;
-
-        const now = Date.now();
-        const sig = `${type}:${monsterName}:${d.action || d.status || d.shrineKind || frame?.player?.depth || 0}`;
-        if (this._lastAutoSketchSig === sig && this._lastAutoSketchTime && (now - this._lastAutoSketchTime < 90000)) {
-            return;
-        }
-        if (this._lastAutoSketchTime && (now - this._lastAutoSketchTime < 35000)) {
-            return;
-        }
-        this._lastAutoSketchTime = now;
-        this._lastAutoSketchSig = sig;
-
-        this.promptHeroActionSketch(entry, { autoTriggered: true, event, frame });
     }
 
     renderAllChapters() {
@@ -3610,7 +3581,15 @@ class ChronicleManager {
             ? `Wielding and wearing: ${cleanGearNames.slice(0, 4).join(', ')}.`
             : 'Clad in worn adventurer robes and carrying a weathered blade.';
 
-        const prompt = `A masterwork dark-fantasy oil and ink illustration in the style of classic grimdark tabletop RPG artwork, deep chiaroscuro shadows, warm flickering torchlight, and expressive cinematic storytelling. ${situationalFocus} Character: a ${race} ${heroClass} (${condition}, ${statTraits}). Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${alliesDesc} ${monstersDesc} Narrative moment: “${narrativeText}”. Full-bleed dark-fantasy painting ONLY — strictly NO text, NO words, NO letters, NO numbers, NO stat sheets, NO UI frames, NO banners, and NO watermarks anywhere in the image.`;
+        const isIronicLowDepthDeath = (mode === 'death') && (
+            depth <= 5 ||
+            /crow|raven|urchin|beggar|idiot|newt|grid bug|floating eye|kobold|rat|mouse|mold|jelly|mushroom|chicken|worm|bat|maggot|bullroarer|dog|puppy|cat|bee|ant|centipede|frog|toad|starv|trap|poison|chok/i.test(killedBy || '')
+        );
+        const artDirection = isIronicLowDepthDeath
+            ? `A darkly comedic, richly detailed grimdark fantasy oil painting and Gustave Doré woodcut crosshatch illustration capturing the classic roguelike "Yet Another Stupid Death" (YASD) tragicomedy: depict the humiliating, ironic physical chaos of ${name} the Level ${level} ${race} ${heroClass} meeting an absurdly undignified demise at the hands of ${killedBy || 'a lowly nuisance'} in ${locationLabel}. Show exaggerated medieval dark-fantasy slapstick, scattered gear, dramatic chiaroscuro torchlight, and expressive faces/creatures.`
+            : `A masterwork dark-fantasy oil and ink illustration in the style of Frank Frazetta and Gustave Doré tabletop RPG artwork, deep chiaroscuro shadows, warm flickering torchlight, and visceral heroic storytelling. ${situationalFocus}`;
+
+        const prompt = `${artDirection} Character: a ${race} ${heroClass} (${condition}, ${statTraits}). Setting: ${locationLabel}, ${realmAtmosphere} ${gearDesc} ${alliesDesc} ${monstersDesc} Narrative moment: “${narrativeText}”. Full-bleed dark-fantasy painting ONLY — strictly NO text, NO words, NO letters, NO numbers, NO stat sheets, NO UI frames, NO banners, and NO watermarks anywhere in the image.`;
 
         const heroObj = {
             name,
@@ -3684,201 +3663,45 @@ class ChronicleManager {
     }
 
     renderMasterworkCanvasSketch(ctxData) {
-        if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
-            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+        // Never render procedural geometric cone/circle stick silhouettes; return 1x1 transparent pixel while Gemini illustrates
+        void ctxData;
+        return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    }
+
+    async preWarmDeathSketch(frame, event = null) {
+        void event;
+        if (this._preWarmedDeathPromise || this._preWarmedDeathUrl) {
+            return this._preWarmedDeathPromise || Promise.resolve(this._preWarmedDeathUrl);
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = 800;
-        canvas.height = 600;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+        const ctxData = this.buildHeroSketchContext(null, { mode: 'death', frame: frame || this.lastFrame });
+        this._preWarmedDeathCtx = ctxData;
+        this._preWarmedDeathPromise = (async () => {
+            try {
+                const res = await fetch('/api/chronicle/sketch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        realm: ctxData.realm,
+                        prompt: ctxData.prompt,
+                        heroSummary: ctxData.heroSummary
+                    })
+                });
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json && json.ok && json.imageUrl) {
+                        this._preWarmedDeathUrl = json.imageUrl;
+                        this._preWarmedDeathModel = json.model || 'gemini-2.5-flash-image';
+                        return json.imageUrl;
+                    }
+                }
+            } catch (_) {}
+            return null;
+        })();
+        const result = await this._preWarmedDeathPromise;
+        if (!result) {
+            this._preWarmedDeathPromise = null;
         }
-
-        const realm = ctxData.realm || 'angband';
-        const hero = ctxData.hero || {};
-        const statBadges = Array.isArray(ctxData.statBadges) ? ctxData.statBadges : [];
-        const statusBadges = Array.isArray(ctxData.statusBadges) ? ctxData.statusBadges : [];
-        const gearBadges = Array.isArray(ctxData.gearBadges) ? ctxData.gearBadges : [];
-        const inventoryHighlights = Array.isArray(ctxData.inventoryHighlights) ? ctxData.inventoryHighlights : [];
-        const historyTimeline = Array.isArray(ctxData.historyTimeline) ? ctxData.historyTimeline : [];
-        const statusVisuals = ctxData.statusVisuals || {};
-        const vitals = ctxData.vitals || {};
-
-        // 1. Full-bleed dark-fantasy chiaroscuro canvas backdrop (zero sidebars or stat tables)
-        const isDeathMode = (ctxData.mode === 'death');
-        const isVictoryMode = (ctxData.mode === 'victory');
-        const sceneTone = ctxData.sceneTone || 'horror';
-
-        const grad = ctx.createRadialGradient(400, 260, 40, 400, 300, 480);
-        grad.addColorStop(0, isDeathMode ? '#2e1616' : (sceneTone === 'humor' ? '#362919' : '#2b2118'));
-        grad.addColorStop(0.45, '#19130e');
-        grad.addColorStop(0.85, '#0e0b08');
-        grad.addColorStop(1, '#060504');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 800, 600);
-
-        // Procedural fine charcoal crosshatching across full canvas
-        ctx.save();
-        ctx.strokeStyle = 'rgba(200, 180, 140, 0.035)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for (let x = -600; x < 1400; x += 18) {
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x + 600, 600);
-        }
-        ctx.stroke();
-
-        ctx.strokeStyle = 'rgba(10, 8, 6, 0.25)';
-        ctx.beginPath();
-        for (let x = 1400; x > -600; x -= 22) {
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x - 600, 600);
-        }
-        ctx.stroke();
-        ctx.restore();
-
-        // Full-frame gothic stone vault & torchlight stage (x = 24..776, y = 24..576)
-        ctx.save();
-        const floorGrad = ctx.createLinearGradient(0, 410, 0, 576);
-        floorGrad.addColorStop(0, '#1e1610');
-        floorGrad.addColorStop(1, '#090705');
-        ctx.fillStyle = floorGrad;
-        ctx.fillRect(24, 410, 752, 166);
-
-        // Vault pillars & warm chiaroscuro torchlight
-        ctx.fillStyle = '#120d09';
-        ctx.fillRect(48, 40, 56, 400);
-        ctx.fillRect(696, 40, 56, 400);
-
-        const torchLeft = ctx.createRadialGradient(145, 190, 6, 145, 190, 170);
-        torchLeft.addColorStop(0, 'rgba(255, 175, 70, 0.45)');
-        torchLeft.addColorStop(0.5, 'rgba(220, 100, 30, 0.15)');
-        torchLeft.addColorStop(1, 'rgba(255, 160, 60, 0)');
-        ctx.fillStyle = torchLeft;
-        ctx.beginPath();
-        ctx.arc(145, 190, 170, 0, Math.PI * 2);
-        ctx.fill();
-
-        const torchRight = ctx.createRadialGradient(655, 190, 6, 655, 190, 170);
-        torchRight.addColorStop(0, isDeathMode ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 175, 70, 0.35)');
-        torchRight.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = torchRight;
-        ctx.beginPath();
-        ctx.arc(655, 190, 170, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Helper to draw a menacing horned slayer silhouette in full-frame chiaroscuro
-        const drawSlayerSilhouette = (mx, my) => {
-            ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.beginPath();
-            ctx.ellipse(mx + 70, 435, 78, 18, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.shadowColor = '#ef4444';
-            ctx.shadowBlur = 28;
-            ctx.fillStyle = '#12080a';
-            ctx.strokeStyle = 'rgba(239, 68, 68, 0.65)';
-            ctx.lineWidth = 2.2;
-            ctx.beginPath();
-            ctx.moveTo(mx + 70, my + 10);
-            ctx.lineTo(mx + 125, my + 65);
-            ctx.lineTo(mx + 142, my + 210);
-            ctx.lineTo(mx + 2, my + 210);
-            ctx.lineTo(mx + 18, my + 65);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // Horns
-            ctx.beginPath();
-            ctx.moveTo(mx + 48, my + 20);
-            ctx.quadraticCurveTo(mx + 14, my - 18, mx + 28, my - 30);
-            ctx.quadraticCurveTo(mx + 38, my + 2, mx + 62, my + 16);
-            ctx.moveTo(mx + 92, my + 20);
-            ctx.quadraticCurveTo(mx + 126, my - 18, mx + 112, my - 30);
-            ctx.quadraticCurveTo(mx + 102, my + 2, mx + 78, my + 16);
-            ctx.fill();
-            ctx.stroke();
-
-            // Glowing crimson eyes
-            ctx.fillStyle = '#ff3b30';
-            ctx.shadowColor = '#ff0000';
-            ctx.shadowBlur = 14;
-            ctx.beginPath();
-            ctx.arc(mx + 58, my + 38, 4.5, 0, Math.PI * 2);
-            ctx.arc(mx + 82, my + 38, 4.5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        };
-
-        // Hero silhouette on left/center + Slayer/Threat silhouette on right
-        ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.beginPath();
-        ctx.ellipse(290, 435, 75, 18, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Cloaked adventurer silhouette in chiaroscuro
-        ctx.fillStyle = '#18120d';
-        ctx.strokeStyle = isDeathMode ? 'rgba(248, 113, 113, 0.5)' : 'rgba(245, 201, 122, 0.55)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(290, 215);
-        ctx.lineTo(255, 260);
-        ctx.lineTo(230, 430);
-        ctx.quadraticCurveTo(290, 442, 350, 430);
-        ctx.lineTo(325, 260);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#0e0a07';
-        ctx.beginPath();
-        ctx.arc(290, 228, 22, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Gleaming steel blade catching the torchlight
-        ctx.shadowColor = isVictoryMode ? '#fde047' : '#93c5fd';
-        ctx.shadowBlur = 16;
-        ctx.strokeStyle = '#e2e8f0';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(320, 325);
-        ctx.lineTo(405, 225);
-        ctx.stroke();
-        ctx.restore();
-
-        drawSlayerSilhouette(445, 225);
-        ctx.restore();
-
-        // Subtle gold-leaf border frame + single clean narrative caption at bottom
-        ctx.save();
-        ctx.strokeStyle = 'rgba(201, 160, 80, 0.7)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(18, 18, 764, 564);
-        ctx.strokeStyle = 'rgba(201, 160, 80, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(24, 24, 752, 552);
-
-        ctx.fillStyle = 'rgba(245, 215, 127, 0.85)';
-        ctx.font = 'bold 14px "Cinzel", Georgia, serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(
-            isDeathMode
-                ? `☠ ${hero.name || 'Hero'} — Slain by ${ctxData.killedBy || 'mortal wounds'} in ${ctxData.locationLabel || 'Dungeon'} ☠`
-                : `${ctxData.toneBadge || '🎭 Dungeon Scene'} — ${hero.name || 'Hero'} (${ctxData.locationLabel || 'Dungeon'})`,
-            400, 520
-        );
-
-        ctx.fillStyle = 'rgba(212, 194, 160, 0.85)';
-        ctx.font = 'italic 13px Georgia, serif';
-        const shortQuote = (ctxData.narrativeText || 'Painting dark-fantasy scene...').replace(/\s+/g, ' ').trim().slice(0, 96);
-        ctx.fillText(`“${shortQuote}”`, 400, 548);
-        ctx.restore();
-
-        return canvas.toDataURL('image/png');
+        return result;
     }
 
     async renderDeathSketchIntoModal(frame) {
@@ -3886,31 +3709,68 @@ class ChronicleManager {
             const p = (frame && frame.player) || {};
             const mode = p.winner ? 'victory' : 'death';
             const ctxData = this.buildHeroSketchContext(null, { mode, frame });
-            const fallbackUrl = this.renderMasterworkCanvasSketch(ctxData);
-            this._lastDeathSketchUrl = fallbackUrl;
             this._lastDeathCtx = ctxData;
 
             const imgEl = typeof document !== 'undefined' && document.getElementById('death-sketch-img');
             const statusEl = typeof document !== 'undefined' && document.getElementById('death-sketch-status');
-            if (imgEl) {
-                imgEl.src = fallbackUrl;
-                imgEl.style.cursor = 'pointer';
-                imgEl.onclick = () => {
-                    this.openSketchLightbox(
-                        this._lastDeathSketchUrl || fallbackUrl,
-                        `${mode === 'victory' ? '👑 Ascension' : '☠ YASD Sketch'}: ${ctxData.hero.name} — ${ctxData.locationLabel}`,
-                        ctxData.narrativeText,
-                        ctxData.gearBadges,
-                        ctxData.statBadges,
-                        ctxData.statusBadges,
-                        ctxData.historyTimeline
-                    );
-                };
-            }
-            if (statusEl) {
-                statusEl.textContent = mode === 'victory' ? '✨ Painting Ascension Masterwork...' : '🎨 Illustrating YASD Scene...';
+
+            const bindDeathImage = (imageUrl, modelLabel = 'Gemini') => {
+                this._lastDeathSketchUrl = imageUrl;
+                if (imgEl) {
+                    imgEl.src = imageUrl;
+                    imgEl.style.display = 'block';
+                    imgEl.style.opacity = '1';
+                    imgEl.style.cursor = 'pointer';
+                    imgEl.onclick = () => {
+                        this.openSketchLightbox(
+                            this._lastDeathSketchUrl || imageUrl,
+                            `${mode === 'victory' ? '👑 Ascension' : '☠ YASD Sketch'}: ${ctxData.hero.name} — ${ctxData.locationLabel}`,
+                            ctxData.narrativeText,
+                            ctxData.gearBadges,
+                            ctxData.statBadges,
+                            ctxData.statusBadges,
+                            ctxData.historyTimeline
+                        );
+                    };
+                }
+                if (this.sketchModal && !this.sketchModal.classList.contains('hidden')) {
+                    if (this.sketchModalImg) this.sketchModalImg.src = imageUrl;
+                    if (this.btnDownloadSketchPng) this.btnDownloadSketchPng.href = imageUrl;
+                }
+                if (statusEl) {
+                    statusEl.style.cursor = 'default';
+                    statusEl.onclick = null;
+                    statusEl.textContent = `🎨 Illustrated by ${modelLabel} (Click Image to Expand)`;
+                }
+            };
+
+            // 1. Instant 0ms render if Critical-Peril Pre-Warm already completed!
+            if (mode === 'death' && this._preWarmedDeathUrl) {
+                bindDeathImage(this._preWarmedDeathUrl, this._preWarmedDeathModel || 'Gemini');
+                return this._preWarmedDeathUrl;
             }
 
+            if (imgEl) {
+                imgEl.style.opacity = '0.15';
+            }
+            if (statusEl) {
+                statusEl.style.cursor = 'default';
+                statusEl.onclick = null;
+                statusEl.textContent = mode === 'victory'
+                    ? '✨ Painting Immortal Ascension Masterwork with Gemini...'
+                    : '🎨 Painting Dark-Fantasy YASD Scene with Gemini...';
+            }
+
+            // 2. If Critical-Peril Pre-Warm is currently in flight, await it first
+            if (mode === 'death' && this._preWarmedDeathPromise) {
+                const preWarmedUrl = await this._preWarmedDeathPromise;
+                if (preWarmedUrl) {
+                    bindDeathImage(preWarmedUrl, this._preWarmedDeathModel || 'Gemini');
+                    return preWarmedUrl;
+                }
+            }
+
+            // 3. Direct Gemini illustration request
             const res = await fetch('/api/chronicle/sketch', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -3923,18 +3783,19 @@ class ChronicleManager {
             if (res.ok) {
                 const json = await res.json();
                 if (json && json.ok && json.imageUrl) {
-                    this._lastDeathSketchUrl = json.imageUrl;
-                    if (imgEl) imgEl.src = json.imageUrl;
-                    if (this.sketchModal && !this.sketchModal.classList.contains('hidden')) {
-                        if (this.sketchModalImg) this.sketchModalImg.src = json.imageUrl;
-                        if (this.btnDownloadSketchPng) this.btnDownloadSketchPng.href = json.imageUrl;
-                    }
-                    if (statusEl) statusEl.textContent = `🎨 Illustrated by ${json.model || 'Gemini'} (Click to Expand)`;
+                    bindDeathImage(json.imageUrl, json.model || 'Gemini');
                     return json.imageUrl;
                 }
             }
-            if (statusEl) statusEl.textContent = '🎨 Chronicle Folio Sketch (Click to Expand)';
-            return fallbackUrl;
+
+            if (statusEl) {
+                statusEl.textContent = '⚠ AI Illustrator busy — Click here to retry YASD Painting';
+                statusEl.style.cursor = 'pointer';
+                statusEl.onclick = () => {
+                    this.renderDeathSketchIntoModal(frame);
+                };
+            }
+            return null;
         } catch (_) {
             return this._lastDeathSketchUrl || null;
         }
@@ -3945,7 +3806,7 @@ class ChronicleManager {
         const activeFrame = frame || this.lastFrame || {};
         const p = activeFrame.player || {};
         const ctxData = customCtx || this._lastDeathCtx || this._lastActiveSketchCtx || this.buildHeroSketchContext(null, { mode: p.winner ? 'victory' : (p.dead ? 'death' : 'action'), frame: activeFrame });
-        const sketchSrc = customSketchSrc || (ctxData.mode === 'action' ? this._lastActiveSketchUrl : this._lastDeathSketchUrl) || this.renderMasterworkCanvasSketch(ctxData);
+        const sketchSrc = customSketchSrc || (ctxData.mode === 'action' ? this._lastActiveSketchUrl : (this._lastDeathSketchUrl || this._preWarmedDeathUrl)) || null;
         const isActionScene = (ctxData.mode === 'action');
 
         const canvas = document.createElement('canvas');
@@ -3986,23 +3847,25 @@ class ChronicleManager {
         ctx.stroke();
 
         // 3. Left Panel: Illustrated Sketch
-        try {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            await new Promise((resolve) => {
-                img.onload = resolve;
-                img.onerror = resolve;
-                img.src = sketchSrc;
-            });
-            if (img.width > 0) {
-                ctx.save();
-                ctx.strokeStyle = '#d4af37';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(44, 86, 540, 480);
-                ctx.drawImage(img, 46, 88, 536, 476);
-                ctx.restore();
-            }
-        } catch (_) {}
+        if (sketchSrc) {
+            try {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                    img.src = sketchSrc;
+                });
+                if (img.width > 1) {
+                    ctx.save();
+                    ctx.strokeStyle = '#d4af37';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(44, 86, 540, 480);
+                    ctx.drawImage(img, 46, 88, 536, 476);
+                    ctx.restore();
+                }
+            } catch (_) {}
+        }
 
         // 4. Right Panel: Scene Tone / Epitaph, Vitals & Gear
         const rx = 610;
@@ -4082,20 +3945,22 @@ class ChronicleManager {
     async promptHeroActionSketch(overrideBeat = null, options = {}) {
         const now = Date.now();
         const isAuto = Boolean(options && options.autoTriggered);
-        if (!isAuto && this._lastHeroSketchTime && (now - this._lastHeroSketchTime < 2500)) {
+        if (isAuto) {
+            return;
+        }
+        if (this._lastHeroSketchTime && (now - this._lastHeroSketchTime < 2500)) {
             return;
         }
         this._lastHeroSketchTime = now;
 
         const ctxData = this.buildHeroSketchContext(overrideBeat, options);
-        const dataUrl = this.renderMasterworkCanvasSketch(ctxData);
+        const placeholderUrl = this.renderMasterworkCanvasSketch(ctxData);
         this._lastActiveSketchCtx = ctxData;
-        this._lastActiveSketchUrl = dataUrl;
 
         const sketchBtn = this.btnSketch || document.getElementById('chronicle-sketch-btn');
         if (sketchBtn) sketchBtn.classList.add('is-voicing');
 
-        if (!this.visible && !isAuto) {
+        if (!this.visible) {
             this.showWindow();
         }
 
@@ -4113,13 +3978,13 @@ class ChronicleManager {
                 <span class="chronicle-sketch-badge">${this.escapeHtml(ctxData.locationLabel)}</span>
             </div>
             <div class="chronicle-sketch-img-wrap">
-                <img class="chronicle-sketch-card-img chronicle-sketch-img" src="${dataUrl}" alt="Hero Action Sketch" />
+                <img class="chronicle-sketch-card-img chronicle-sketch-img" src="${placeholderUrl}" style="min-height:180px;opacity:0.2;" alt="Hero Action Sketch" />
                 <div class="chronicle-sketch-overlay-actions">
                     <button type="button" class="btn-sketch-expand chronicle-sketch-expand-btn chronicle-ctrl-btn" title="Expand Fullscreen Lightbox">🔍 Expand</button>
-                    <a class="btn-sketch-save chronicle-ctrl-btn" download="${this.escapeHtml(cleanFilename)}.png" href="${dataUrl}">⬇ Save PNG</a>
+                    <a class="btn-sketch-save chronicle-ctrl-btn" download="${this.escapeHtml(cleanFilename)}.png" href="${placeholderUrl}">⬇ Save PNG</a>
                 </div>
             </div>
-            <div class="chronicle-sketch-card-status">🎨 Illustrating ${this.escapeHtml(toneTitle)} with Gemini...</div>
+            <div class="chronicle-sketch-card-status">🎨 Painting ${this.escapeHtml(toneTitle)} with Gemini...</div>
             <div class="chronicle-sketch-caption">
                 <p class="chronicle-sketch-quote">“${this.escapeHtml(displayQuote)}”</p>
             </div>
@@ -4131,7 +3996,7 @@ class ChronicleManager {
         const saveLink = cardEl.querySelector('.btn-sketch-save');
 
         const openLightboxForCard = (statusOverride = '') => {
-            const currentSrc = (cardImg && cardImg.src) || dataUrl;
+            const currentSrc = (cardImg && cardImg.src) || this._lastActiveSketchUrl || placeholderUrl;
             const currentStatus = statusOverride || (cardStatusEl && cardStatusEl.textContent) || `✨ ${toneTitle}`;
             this._lastActiveSketchCtx = ctxData;
             this._lastActiveSketchUrl = currentSrc;
@@ -4157,14 +4022,10 @@ class ChronicleManager {
             }
         }
 
-        if (!isAuto) {
-            openLightboxForCard(`🎨 Illustrating ${toneTitle} with Gemini...`);
-        }
-
         if (this.statusTextEl) {
             this.statusTextEl.textContent = `${toneTitle}: Sketching ${ctxData.hero.name}...`;
         }
-        this.showHudToast(`${toneTitle}: Sketching ${this.escapeHtml(ctxData.hero.name || 'Hero')} at ${this.escapeHtml(ctxData.locationLabel || 'Dungeon')}`);
+        this.showHudToast(`${toneTitle}: Painting ${this.escapeHtml(ctxData.hero.name || 'Hero')} at ${this.escapeHtml(ctxData.locationLabel || 'Dungeon')}...`);
 
         (async () => {
             try {
@@ -4181,27 +4042,23 @@ class ChronicleManager {
                     const json = await res.json();
                     if (json && json.ok && json.imageUrl) {
                         this._lastActiveSketchUrl = json.imageUrl;
-                        if (cardImg) cardImg.src = json.imageUrl;
+                        if (cardImg) {
+                            cardImg.src = json.imageUrl;
+                            cardImg.style.opacity = '1';
+                        }
                         if (saveLink) saveLink.href = json.imageUrl;
                         const doneStatus = `🎨 Illustrated by ${json.model || 'Gemini'} (Click to Expand)`;
                         if (cardStatusEl) cardStatusEl.textContent = doneStatus;
-                        if (this.sketchModal && !this.sketchModal.classList.contains('hidden')) {
-                            if (this.sketchModalImg) this.sketchModalImg.src = json.imageUrl;
-                            if (this.btnDownloadSketchPng) this.btnDownloadSketchPng.href = json.imageUrl;
-                            if (this.sketchModalStatus) this.sketchModalStatus.textContent = doneStatus;
-                        }
+                        openLightboxForCard(doneStatus);
                         if (this.statusTextEl) {
                             this.statusTextEl.textContent = `🎨 ${toneTitle} Rendered (${json.model || 'gemini'})`;
                         }
                         return;
                     }
                 }
-                if (cardStatusEl) cardStatusEl.textContent = '🎨 Chronicle Folio Sketch (Click to Expand)';
-                if (this.sketchModal && !this.sketchModal.classList.contains('hidden') && this.sketchModalStatus) {
-                    this.sketchModalStatus.textContent = '🎨 Chronicle Folio Sketch';
-                }
+                if (cardStatusEl) cardStatusEl.textContent = '⚠ AI Illustrator busy — Click Sketch button to retry';
             } catch (_) {
-                if (cardStatusEl) cardStatusEl.textContent = '🎨 Chronicle Folio Sketch (Click to Expand)';
+                if (cardStatusEl) cardStatusEl.textContent = '⚠ AI Illustrator busy — Click Sketch button to retry';
             } finally {
                 if (sketchBtn) sketchBtn.classList.remove('is-voicing');
             }

@@ -1684,13 +1684,15 @@ function procCreateDirtTexture() {
 function procCreateWaterTexture() {
     const size = 512;
     return procCreateTexture(size, (x, y) => {
-        const wave1 = Math.sin(x * 0.08 + y * 0.04) * 0.06;
-        const wave2 = Math.cos(x * 0.04 - y * 0.08) * 0.06;
-        const ripple = (procSmoothNoise(x * 0.15, y * 0.15, 81) - 0.5) * 0.05;
+        const n1 = procSmoothNoise(x * 0.05, y * 0.05, 81);
+        const n2 = procSmoothNoise(x * 0.11 + n1 * 2.2, y * 0.11 - n1 * 2.2, 82);
+        const n3 = procSmoothNoise(x * 0.24 - n2 * 1.5, y * 0.24 + n2 * 1.5, 83);
+        const caustic = Math.pow(Math.max(0, 1.0 - Math.abs(n2 - 0.5) * 3.2), 2.2) * 0.22;
+        const ripple = (n1 * 0.45 + n2 * 0.35 + n3 * 0.20 - 0.5) * 0.14;
 
-        const r = 0.14 + wave1 * 0.3;
-        const g = 0.44 + wave1 + wave2 + ripple;
-        const b = 0.74 + wave2 * 0.5 + ripple * 0.5;
+        const r = 0.09 + ripple * 0.4 + caustic * 0.75;
+        const g = 0.34 + ripple * 0.8 + caustic * 0.95;
+        const b = 0.52 + ripple * 1.0 + caustic * 1.05;
         return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
     });
 }
@@ -1698,11 +1700,34 @@ function procCreateWaterTexture() {
 function procCreateDeepWaterTexture() {
     const size = 512;
     return procCreateTexture(size, (x, y) => {
-        const wave = Math.sin(x * 0.05 + y * 0.05) * 0.04;
-        const r = 0.06 + wave * 0.2;
-        const g = 0.20 + wave * 0.5;
-        const b = 0.48 + wave;
+        const n1 = procSmoothNoise(x * 0.04, y * 0.04, 84);
+        const n2 = procSmoothNoise(x * 0.09 + n1 * 2.0, y * 0.09 - n1 * 2.0, 85);
+        const swell = (n1 * 0.6 + n2 * 0.4 - 0.5) * 0.12;
+        const crest = Math.pow(Math.max(0, 1.0 - Math.abs(n2 - 0.5) * 3.4), 2.4) * 0.14;
+        const r = 0.05 + swell * 0.3 + crest * 0.5;
+        const g = 0.18 + swell * 0.6 + crest * 0.7;
+        const b = 0.36 + swell * 0.9 + crest * 0.9;
         return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))];
+    });
+}
+
+function procCreateWaterNormal() {
+    const size = 256;
+    return procCreateTexture(size, (x, y) => {
+        const h = (u, v) => {
+            const n1 = procSmoothNoise(u * 0.06, v * 0.06, 86);
+            const n2 = procSmoothNoise(u * 0.14 + n1 * 1.8, v * 0.14 - n1 * 1.8, 87);
+            return n1 * 0.6 + n2 * 0.4;
+        };
+        const h0 = h(x, y);
+        const dx = (h(x + 1, y) - h0) * 3.2;
+        const dy = (h(x, y + 1) - h0) * 3.2;
+        const len = Math.sqrt(dx * dx + dy * dy + 1.0);
+        return [
+            Math.max(0, Math.min(1, (dx / len) * 0.5 + 0.5)),
+            Math.max(0, Math.min(1, (-dy / len) * 0.5 + 0.5)),
+            Math.max(0, Math.min(1, (1.0 / len) * 0.5 + 0.5))
+        ];
     });
 }
 
@@ -2011,7 +2036,7 @@ const POLYHAVEN_ITEM_GLTF_PATHS = {
     ph_goblet: '/assets/polyhaven/models/brass_goblets/brass_goblets.gltf',
     ph_lantern: '/assets/polyhaven/models/wooden_lantern_01/wooden_lantern_01.gltf',
     ph_candle: '/assets/polyhaven/models/brass_candleholders/brass_candleholders.gltf',
-    ph_chest: '/assets/polyhaven/models/treasure_chest/treasure_chest.gltf',
+    ph_chest: '/assets/models/items/Chest_Wood.gltf',
     item_bow: '/assets/models/items/bow.glb',
     item_spear: '/assets/models/items/spear.glb',
     item_torch: '/assets/models/items/torch.glb',
@@ -2708,6 +2733,7 @@ class Dungeon3D {
         this.dirtTex = procCreateDirtTexture();
         this.waterTex = procCreateWaterTexture();
         this.deepWaterTex = procCreateDeepWaterTexture();
+        this.waterNormal = procCreateWaterNormal();
         this.treeLeavesTex = procCreateTreeLeavesTexture();
         this.treeLeavesNormal = procCreateTreeLeavesNormal();
         this.treeBarkTex = procCreateTreeBarkTexture();
@@ -2726,12 +2752,43 @@ class Dungeon3D {
             this.wallTex, this.wallNormal, this.floorTex, this.floorNormal, this.ceilingTex,
             this.doorTex, this.storeTex, this.magmaTex, this.magmaEmission, this.quartzTex,
             this.goldVeinTex, this.goldVeinEmission, this.gemVeinTex, this.gemVeinEmission,
-            this.grassTex, this.grassNormal, this.dirtTex, this.waterTex, this.deepWaterTex,
+            this.grassTex, this.grassNormal, this.dirtTex, this.waterTex, this.deepWaterTex, this.waterNormal,
             this.treeLeavesTex, this.treeLeavesNormal, this.treeBarkTex, this.treeBarkNormal,
             this.permWallTex, this.permWallNormal, this.organicNormal, this.scaleNormal,
             this.chitinNormal, this.furNormal
         ]) {
             if (tex) tex.anisotropy = aniso;
+        }
+
+        // Procedural PMREM Metallic Environment Reflection Map for 3D Weapons, Armor, Shields & Water
+        if (this.scene && this.renderer && typeof THREE.PMREMGenerator !== 'undefined') {
+            try {
+                const ew = 64, eh = 32;
+                const envData = new Uint8Array(ew * eh * 4);
+                for (let y = 0; y < eh; y++) {
+                    const v = y / (eh - 1);
+                    for (let x = 0; x < ew; x++) {
+                        const u = x / ew;
+                        const torchGlow = Math.exp(-Math.pow((v - 0.52) * 3.8, 2)) * (0.65 + 0.35 * Math.cos(u * Math.PI * 4.0));
+                        const skyGlow = Math.max(0, 1.0 - v * 1.8);
+                        const idx = (y * ew + x) * 4;
+                        envData[idx]     = Math.min(255, Math.round((0.18 + skyGlow * 0.25 + torchGlow * 0.95) * 255));
+                        envData[idx + 1] = Math.min(255, Math.round((0.20 + skyGlow * 0.32 + torchGlow * 0.68) * 255));
+                        envData[idx + 2] = Math.min(255, Math.round((0.26 + skyGlow * 0.52 + torchGlow * 0.35) * 255));
+                        envData[idx + 3] = 255;
+                    }
+                }
+                const eqTex = new THREE.DataTexture(envData, ew, eh, THREE.RGBAFormat);
+                eqTex.mapping = THREE.EquirectangularReflectionMapping;
+                if (typeof THREE.sRGBEncoding !== 'undefined') eqTex.encoding = THREE.sRGBEncoding;
+                eqTex.needsUpdate = true;
+                const pmremGen = new THREE.PMREMGenerator(this.renderer);
+                pmremGen.compileEquirectangularShader();
+                const envRT = pmremGen.fromEquirectangular(eqTex);
+                this.scene.environment = envRT.texture;
+                eqTex.dispose();
+                pmremGen.dispose();
+            } catch (_) {}
         }
 
         // Materials with Authentic PBR Settings matching Godot StandardMaterial3D
@@ -2852,19 +2909,23 @@ class Dungeon3D {
         // Shallow Sparkling Water (feat 28: SHALLOW_WATER)
         this.waterMaterial = new THREE.MeshStandardMaterial({
             map: this.waterTex,
-            roughness: 0.12,
-            metalness: 0.15,
+            normalMap: this.waterNormal,
+            normalScale: new THREE.Vector2(0.85, 0.85),
+            roughness: 0.14,
+            metalness: 0.22,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.86,
+            opacity: 0.88,
             vertexColors: true
         });
 
         // Deep Oceanic Water (feat 29: DEEP_WATER)
         this.deepWaterMaterial = new THREE.MeshStandardMaterial({
             map: this.deepWaterTex,
+            normalMap: this.waterNormal,
+            normalScale: new THREE.Vector2(0.95, 0.95),
             roughness: 0.16,
-            metalness: 0.18,
+            metalness: 0.25,
             side: THREE.DoubleSide,
             transparent: true,
             opacity: 0.94,
@@ -3255,14 +3316,14 @@ class Dungeon3D {
             // Town Shop Building Facades use plastered stone / limewashed masonry; Outer Ramparts use broken castle stone
             wallPhId = isHeng ? 'japanese_stone_wall' : (ph.get('plastered_stone_wall')?.diff ? 'plastered_stone_wall' : 'local_plaster');
             const isWild = tid.includes('wild') || (this.currentBiome && (this.currentBiome.id === 'wilderness' || this.currentBiome.id === 'grassland'));
-            floorPhId = isWild ? 'aerial_grass_rock' : (curRealm === 'hengband' ? 'local_round_tiles' : 'cobblestone_floor_08');
+            floorPhId = isWild ? 'aerial_grass_rock' : 'cobblestone_floor_08';
             permPhId = isHeng ? 'japanese_stone_wall' : (ph.get('castle_brick_broken_06')?.diff ? 'castle_brick_broken_06' : 'medieval_blocks_05');
             ceilPhId = 'rock_wall_10';
         } else {
             // Dungeon depths > 0 across all 8 realms
             if (isHeng || tid.includes('heng') || tid.includes('eastern')) {
                 wallPhId = 'japanese_stone_wall';
-                floorPhId = 'local_round_tiles';
+                floorPhId = 'monastery_stone_floor';
                 ceilPhId = 'japanese_stone_wall';
             } else if (curRealm === 'silq') {
                 wallPhId = 'local_rock_trim';
@@ -3278,7 +3339,7 @@ class Dungeon3D {
                 ceilPhId = 'plastered_stone_wall';
             } else if (curRealm === 'dcss') {
                 wallPhId = 'local_red_brick';
-                floorPhId = 'local_round_tiles';
+                floorPhId = 'monastery_stone_floor';
                 ceilPhId = 'medieval_blocks_05';
             } else if (curRealm === 'rogue') {
                 wallPhId = 'local_brick';
@@ -3712,7 +3773,7 @@ class Dungeon3D {
             metalness: 0.05,
             vertexColors: true
         });
-        this.shopAwningMesh = new THREE.InstancedMesh(shopAwningGeo, this.shopAwningMaterial, 64);
+        this.shopAwningMesh = new THREE.InstancedMesh(shopAwningGeo, this.shopAwningMaterial, 256);
         this.shopAwningMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.shopAwningMesh);
 
@@ -3726,7 +3787,7 @@ class Dungeon3D {
             metalness: 0.04,
             vertexColors: true
         });
-        this.townTimberMesh = new THREE.InstancedMesh(townTimberGeo, this.townTimberMaterial, 2048);
+        this.townTimberMesh = new THREE.InstancedMesh(townTimberGeo, this.townTimberMaterial, this.maxInstances);
         this.townTimberMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.townTimberMesh);
 
@@ -3739,7 +3800,7 @@ class Dungeon3D {
             metalness: 0.05,
             vertexColors: true
         });
-        this.townRoofMesh = new THREE.InstancedMesh(townRoofGeo, this.townRoofMaterial, 2048);
+        this.townRoofMesh = new THREE.InstancedMesh(townRoofGeo, this.townRoofMaterial, this.maxInstances);
         this.townRoofMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.townRoofMesh);
 
@@ -3802,7 +3863,7 @@ class Dungeon3D {
         treeTrunkGeo.translate(0, 1.1, 0);
         this.treeTrunkMesh = new THREE.InstancedMesh(treeTrunkGeo, this.treeTrunkMat, this.maxInstances);
         this.treeTrunkMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        this.treeTrunkMesh.castShadow = true;
+        this.treeTrunkMesh.castShadow = false;
         this.treeTrunkMesh.receiveShadow = true;
         this.scene.add(this.treeTrunkMesh);
 
@@ -3925,7 +3986,8 @@ class Dungeon3D {
         this.altarMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.altarMesh);
 
-        this.forgeMesh = new THREE.InstancedMesh(altarGeo.clone(), this.altarMaterial, 32);
+        this.forgeMaterial = this.altarMaterial.clone();
+        this.forgeMesh = new THREE.InstancedMesh(altarGeo.clone(), this.forgeMaterial, 32);
         this.forgeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.scene.add(this.forgeMesh);
 
@@ -4016,6 +4078,9 @@ class Dungeon3D {
         initInstancedColors(this.ceilingMesh, this.maxInstances);
         initInstancedColors(this.doorFrameMesh, 512);
         initInstancedColors(this.shopFrameMesh, 64);
+        initInstancedColors(this.shopAwningMesh, 256);
+        initInstancedColors(this.townTimberMesh, this.maxInstances);
+        initInstancedColors(this.townRoofMesh, this.maxInstances);
         initInstancedColors(this.rubbleMesh, 256);
         initInstancedColors(this.doorMesh, 512);
         initInstancedColors(this.doorOpenMesh, 256);
@@ -4040,8 +4105,9 @@ class Dungeon3D {
         initInstancedColors(this.mountainMesh, this.maxInstances);
         initInstancedColors(this.swampMesh, this.maxInstances);
         initInstancedColors(this.chasmMesh, this.maxInstances);
-        this.lavaMesh.count = 0;
-        this.lavaCooledMesh.count = 0;
+        initInstancedColors(this.chasmVoidMesh, this.maxInstances);
+        initInstancedColors(this.lavaMesh, 512);
+        initInstancedColors(this.lavaCooledMesh, 512);
         for (let i = 0; i < 8; i++) initInstancedColors(this.shopMeshes[i], 64);
 
         this.dummy = new THREE.Object3D();
@@ -4094,6 +4160,17 @@ class Dungeon3D {
             }
             if (g.attributes.uv) {
                 uvArr.set(g.attributes.uv.array, vOffset * 2);
+            }
+            if (g.attributes.color && g.attributes.color.array) {
+                const cArr = g.attributes.color.array;
+                const itemSize = g.attributes.color.itemSize || 3;
+                for (let vi = 0; vi < vCount; vi++) {
+                    const dst = (vOffset + vi) * 3;
+                    const src = vi * itemSize;
+                    colArr[dst] = cArr[src];
+                    colArr[dst + 1] = cArr[src + 1];
+                    colArr[dst + 2] = cArr[src + 2];
+                }
             }
             if (g.index) {
                 const idx = g.index.array;
@@ -4187,6 +4264,14 @@ class Dungeon3D {
                     } else if (isLeavesB) {
                         bushParts.push(g);
                     } else if (isLeavesC) {
+                        if (g.index && g.index.count > 1800) {
+                            const srcIdx = g.index.array;
+                            const decimated = [];
+                            for (let ti = 0; ti + 2 < srcIdx.length; ti += 15) {
+                                decimated.push(srcIdx[ti], srcIdx[ti + 1], srcIdx[ti + 2]);
+                            }
+                            g.setIndex(decimated);
+                        }
                         leafParts.push(g);
                     }
                 }
@@ -4350,14 +4435,16 @@ class Dungeon3D {
             if (!gltf || !gltf.scene || !this.forgeMesh) return;
             gltf.scene.updateMatrixWorld(true);
             const geos = [];
+            let firstMap = null;
             gltf.scene.traverse((c) => {
                 if (c.isMesh && c.geometry) {
                     const g = c.geometry.clone();
                     g.applyMatrix4(c.matrixWorld);
+                    if (c.material && c.material.map && !firstMap) firstMap = c.material.map;
                     const vCount = g.attributes.position ? g.attributes.position.count : 0;
                     if (vCount > 0 && !g.attributes.color) {
                         const colors = new Float32Array(vCount * 3);
-                        const mc = (c.material && c.material.color) ? c.material.color : { r: 0.45, g: 0.42, b: 0.40 };
+                        const mc = (c.material && c.material.color) ? c.material.color : { r: 0.72, g: 0.68, b: 0.64 };
                         for (let i = 0; i < vCount; i++) {
                             colors[i * 3] = mc.r;
                             colors[i * 3 + 1] = mc.g;
@@ -4376,10 +4463,262 @@ class Dungeon3D {
                 const cz = (bbox.min.z + bbox.max.z) * 0.5;
                 const span = Math.max(bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y, bbox.max.z - bbox.min.z) || 1.0;
                 merged.translate(-cx, -bbox.min.y, -cz);
-                merged.scale(0.95 / span, 0.95 / span, 0.95 / span);
+                merged.scale(1.10 / span, 1.10 / span, 1.10 / span);
                 merged.computeVertexNormals();
                 if (this.forgeMesh.geometry) this.forgeMesh.geometry.dispose();
                 this.forgeMesh.geometry = merged;
+                if (firstMap && this.forgeMaterial) {
+                    if (typeof THREE.sRGBEncoding !== 'undefined') firstMap.encoding = THREE.sRGBEncoding;
+                    this.forgeMaterial.map = firstMap;
+                    this.forgeMaterial.needsUpdate = true;
+                }
+                this._lastTerrainSig = null;
+                if (this.lastFrame) this.updateDungeon(this.lastFrame);
+            }
+        }, undefined, () => {});
+
+        // 4. Sculpted Stone Shrine + Votive Candles for High Altars (feat 43: '_')
+        loader.load('/assets/models/items/shrine.gltf', (gltf) => {
+            if (!gltf || !gltf.scene || !this.altarMesh) return;
+            gltf.scene.updateMatrixWorld(true);
+            const geos = [];
+            let shrineTex = null;
+            gltf.scene.traverse((c) => {
+                if (c.isMesh && c.geometry) {
+                    const g = c.geometry.clone();
+                    g.applyMatrix4(c.matrixWorld);
+                    if (c.material && c.material.map && !shrineTex) shrineTex = c.material.map;
+                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
+                    if (vCount > 0) {
+                        const colors = new Float32Array(vCount * 3).fill(1.0);
+                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    }
+                    geos.push(g);
+                }
+            });
+            const finalizeAltar = () => {
+                if (geos.length === 0) return;
+                const merged = this._mergeBufferGeometries(geos);
+                merged.computeBoundingBox();
+                const bbox = merged.boundingBox;
+                const cx = (bbox.min.x + bbox.max.x) * 0.5;
+                const cz = (bbox.min.z + bbox.max.z) * 0.5;
+                const spanY = (bbox.max.y - bbox.min.y) || 1.0;
+                const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
+                merged.translate(-cx, -bbox.min.y, -cz);
+                merged.scale(1.38 / spanXZ, 1.58 / spanY, 1.38 / spanXZ);
+                merged.computeVertexNormals();
+                if (this.altarMesh.geometry) this.altarMesh.geometry.dispose();
+                this.altarMesh.geometry = merged;
+                if (shrineTex && this.altarMaterial) {
+                    if (typeof THREE.sRGBEncoding !== 'undefined') shrineTex.encoding = THREE.sRGBEncoding;
+                    this.altarMaterial.map = shrineTex;
+                    this.altarMaterial.color.setHex(0xffffff);
+                    this.altarMaterial.roughness = 0.65;
+                    this.altarMaterial.metalness = 0.12;
+                    this.altarMaterial.emissive.setHex(0x241808);
+                    this.altarMaterial.emissiveIntensity = 0.35;
+                    this.altarMaterial.needsUpdate = true;
+                }
+                this._lastTerrainSig = null;
+                if (this.lastFrame) this.updateDungeon(this.lastFrame);
+            };
+            loader.load('/assets/models/items/shrine_candles.gltf', (cGltf) => {
+                if (cGltf && cGltf.scene) {
+                    cGltf.scene.updateMatrixWorld(true);
+                    cGltf.scene.traverse((c) => {
+                        if (c.isMesh && c.geometry) {
+                            const g = c.geometry.clone();
+                            g.applyMatrix4(c.matrixWorld);
+                            g.scale(0.85, 0.85, 0.85);
+                            g.translate(0, 0.02, 0.42);
+                            const vCount = g.attributes.position ? g.attributes.position.count : 0;
+                            if (vCount > 0) {
+                                const colors = new Float32Array(vCount * 3).fill(1.0);
+                                g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                            }
+                            geos.push(g);
+                        }
+                    });
+                }
+                finalizeAltar();
+            }, undefined, finalizeAltar);
+        }, undefined, () => {});
+
+        // 5. Sculpted Medieval Stone Well / Fountain (feat 44: '{')
+        loader.load('/assets/models/items/building_well_blue.gltf', (gltf) => {
+            if (!gltf || !gltf.scene || !this.fountainMesh) return;
+            gltf.scene.updateMatrixWorld(true);
+            const geos = [];
+            let wellTex = null;
+            gltf.scene.traverse((c) => {
+                if (c.isMesh && c.geometry) {
+                    const g = c.geometry.clone();
+                    g.applyMatrix4(c.matrixWorld);
+                    if (c.material && c.material.map && !wellTex) wellTex = c.material.map;
+                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
+                    if (vCount > 0) {
+                        const colors = new Float32Array(vCount * 3).fill(1.0);
+                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    }
+                    geos.push(g);
+                }
+            });
+            if (geos.length > 0) {
+                const merged = this._mergeBufferGeometries(geos);
+                merged.computeBoundingBox();
+                const bbox = merged.boundingBox;
+                const cx = (bbox.min.x + bbox.max.x) * 0.5;
+                const cz = (bbox.min.z + bbox.max.z) * 0.5;
+                const spanXZ = Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) || 1.0;
+                const spanY = (bbox.max.y - bbox.min.y) || 1.0;
+                merged.translate(-cx, -bbox.min.y, -cz);
+                merged.scale(1.36 / spanXZ, 1.32 / spanY, 1.36 / spanXZ);
+                merged.computeVertexNormals();
+                if (this.fountainMesh.geometry) this.fountainMesh.geometry.dispose();
+                this.fountainMesh.geometry = merged;
+                if (wellTex && this.fountainMaterial) {
+                    if (typeof THREE.sRGBEncoding !== 'undefined') wellTex.encoding = THREE.sRGBEncoding;
+                    this.fountainMaterial.map = wellTex;
+                    this.fountainMaterial.color.setHex(0xffffff);
+                    this.fountainMaterial.emissive.setHex(0x082238);
+                    this.fountainMaterial.emissiveIntensity = 0.35;
+                    this.fountainMaterial.needsUpdate = true;
+                }
+                this._lastTerrainSig = null;
+                if (this.lastFrame) this.updateDungeon(this.lastFrame);
+            }
+        }, undefined, () => {});
+
+        // 6. Sculpted Iron-Strapped Wooden Doors, Stone Arch Frames & Stepped Stone Staircases
+        loader.load('/assets/models/items/Door_4_Flat.gltf', (gltf) => {
+            if (!gltf || !gltf.scene || !this.doorMesh) return;
+            gltf.scene.updateMatrixWorld(true);
+            const geos = [];
+            gltf.scene.traverse((c) => {
+                if (c.isMesh && c.geometry) {
+                    const g = c.geometry.clone();
+                    g.applyMatrix4(c.matrixWorld);
+                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
+                    const isMetal = c.material && /metal/i.test(c.material.name || '');
+                    if (vCount > 0) {
+                        const colors = new Float32Array(vCount * 3);
+                        const r = isMetal ? 0.36 : 0.88;
+                        const gr = isMetal ? 0.36 : 0.82;
+                        const b = isMetal ? 0.38 : 0.76;
+                        for (let i = 0; i < vCount; i++) {
+                            colors[i * 3] = r;
+                            colors[i * 3 + 1] = gr;
+                            colors[i * 3 + 2] = b;
+                        }
+                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    }
+                    geos.push(g);
+                }
+            });
+            if (geos.length > 0) {
+                const closedGeo = this._mergeBufferGeometries(geos);
+                closedGeo.computeBoundingBox();
+                const bbox = closedGeo.boundingBox;
+                const cx = (bbox.min.x + bbox.max.x) * 0.5;
+                const cz = (bbox.min.z + bbox.max.z) * 0.5;
+                const sx = (bbox.max.x - bbox.min.x) || 1.0;
+                const sy = (bbox.max.y - bbox.min.y) || 1.0;
+                const sz = (bbox.max.z - bbox.min.z) || 0.2;
+                closedGeo.translate(-cx, -bbox.min.y, -cz);
+                closedGeo.scale(1.42 / sx, 2.26 / sy, 0.22 / sz);
+                closedGeo.computeVertexNormals();
+                if (this.doorMaterial) {
+                    this.doorMaterial.vertexColors = true;
+                    this.doorMaterial.needsUpdate = true;
+                }
+                if (this.doorMesh.geometry) this.doorMesh.geometry.dispose();
+                this.doorMesh.geometry = closedGeo;
+
+                if (this.doorOpenMesh) {
+                    const openGeo = closedGeo.clone();
+                    openGeo.translate(0.68, 0, 0);
+                    openGeo.rotateY(-70 * Math.PI / 180);
+                    openGeo.translate(-0.68, 0, 0);
+                    openGeo.computeVertexNormals();
+                    if (this.doorOpenMesh.geometry) this.doorOpenMesh.geometry.dispose();
+                    this.doorOpenMesh.geometry = openGeo;
+                }
+                this._lastTerrainSig = null;
+                if (this.lastFrame) this.updateDungeon(this.lastFrame);
+            }
+        }, undefined, () => {});
+
+        loader.load('/assets/models/items/DoorFrame_Flat_Brick.gltf', (gltf) => {
+            if (!gltf || !gltf.scene || !this.doorFrameMesh) return;
+            gltf.scene.updateMatrixWorld(true);
+            const geos = [];
+            gltf.scene.traverse((c) => {
+                if (c.isMesh && c.geometry) {
+                    const g = c.geometry.clone();
+                    g.applyMatrix4(c.matrixWorld);
+                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
+                    if (vCount > 0) {
+                        const colors = new Float32Array(vCount * 3).fill(0.92);
+                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    }
+                    geos.push(g);
+                }
+            });
+            if (geos.length > 0) {
+                const frameGeo = this._mergeBufferGeometries(geos);
+                frameGeo.computeBoundingBox();
+                const bbox = frameGeo.boundingBox;
+                const cx = (bbox.min.x + bbox.max.x) * 0.5;
+                const cz = (bbox.min.z + bbox.max.z) * 0.5;
+                const sx = (bbox.max.x - bbox.min.x) || 1.5;
+                const sy = (bbox.max.y - bbox.min.y) || 2.4;
+                const sz = (bbox.max.z - bbox.min.z) || 0.4;
+                frameGeo.translate(-cx, -bbox.min.y, -cz);
+                frameGeo.scale(1.98 / sx, 2.88 / sy, 0.46 / sz);
+                frameGeo.computeVertexNormals();
+                if (this.doorFrameMesh.geometry) this.doorFrameMesh.geometry.dispose();
+                this.doorFrameMesh.geometry = frameGeo;
+                this._lastTerrainSig = null;
+                if (this.lastFrame) this.updateDungeon(this.lastFrame);
+            }
+        }, undefined, () => {});
+
+        loader.load('/assets/models/items/Stairs_Exterior_Straight.gltf', (gltf) => {
+            if (!gltf || !gltf.scene || !this.stairsMesh) return;
+            gltf.scene.updateMatrixWorld(true);
+            const geos = [];
+            gltf.scene.traverse((c) => {
+                if (c.isMesh && c.geometry) {
+                    const g = c.geometry.clone();
+                    g.applyMatrix4(c.matrixWorld);
+                    const vCount = g.attributes.position ? g.attributes.position.count : 0;
+                    if (vCount > 0) {
+                        const colors = new Float32Array(vCount * 3).fill(0.94);
+                        g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    }
+                    geos.push(g);
+                }
+            });
+            if (geos.length > 0) {
+                const upGeo = this._mergeBufferGeometries(geos);
+                upGeo.computeBoundingBox();
+                const bbox = upGeo.boundingBox;
+                const cx = (bbox.min.x + bbox.max.x) * 0.5;
+                const cz = (bbox.min.z + bbox.max.z) * 0.5;
+                const sx = (bbox.max.x - bbox.min.x) || 1.8;
+                const sy = (bbox.max.y - bbox.min.y) || 1.0;
+                const sz = (bbox.max.z - bbox.min.z) || 2.0;
+                upGeo.translate(-cx, -bbox.min.y, -cz);
+                upGeo.scale(1.76 / sx, 0.62 / sy, 1.94 / sz);
+                upGeo.computeVertexNormals();
+                const downGeo = upGeo.clone();
+                downGeo.rotateY(Math.PI);
+                downGeo.computeVertexNormals();
+                if (this.stairsUpMesh && this.stairsUpMesh.geometry) this.stairsUpMesh.geometry.dispose();
+                if (this.stairsUpMesh) this.stairsUpMesh.geometry = upGeo;
+                if (this.stairsMesh && this.stairsMesh.geometry) this.stairsMesh.geometry.dispose();
+                if (this.stairsMesh) this.stairsMesh.geometry = downGeo;
                 this._lastTerrainSig = null;
                 if (this.lastFrame) this.updateDungeon(this.lastFrame);
             }
@@ -4394,7 +4733,7 @@ class Dungeon3D {
         const sizes = new Float32Array(starCount);
         const phases = new Float32Array(starCount);
 
-        const radius = 40.0; // Well inside camera far clipping plane; rendered at renderOrder -9 with depthTest: false
+        const radius = 40.0; // Positioned at clip-space far depth so opaque buildings/trees occlude stars
 
         // Authentic Stellar Spectral Classes (Normalized sRGB)
         const spectralColors = [
@@ -4529,7 +4868,9 @@ class Dungeon3D {
 
                     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
                     gl_PointSize = aSize * (150.0 / -mvPosition.z) * (0.94 + 0.06 * twinkle);
-                    gl_Position = projectionMatrix * mvPosition;
+                    vec4 clipPos = projectionMatrix * mvPosition;
+                    clipPos.z = clipPos.w * 0.9998;
+                    gl_Position = clipPos;
                 }
             `,
             fragmentShader: `
@@ -4545,14 +4886,14 @@ class Dungeon3D {
             `,
             transparent: true,
             depthWrite: false,
-            depthTest: false,
+            depthTest: true,
             blending: THREE.AdditiveBlending,
             vertexColors: true
         });
 
         this.starPoints = new THREE.Points(starGeo, this.starMaterial);
         this.starPoints.frustumCulled = false;
-        this.starPoints.renderOrder = -9;
+        this.starPoints.renderOrder = 1;
 
         // Dedicated Celestial Sky Dome: Deep gradient, Milky Way dust lanes, aurora ribbons, crescent moon
         // Radius 42m + depthTest: false + renderOrder: -10 guarantees zero far-plane clipping ("sky bubble")
@@ -8281,6 +8622,17 @@ class Dungeon3D {
             'Black Market',
             'Home'
         ];
+        const specialStoreNames = {
+            32: 'Town Hall',
+            33: 'Inn & Tavern',
+            34: 'Fighters Guild',
+            35: 'Arcane Tower',
+            36: 'Grand Cathedral',
+            37: 'Thieves Guild',
+            38: 'Rangers Lodge',
+            39: 'Bounty Office',
+            40: 'Gladiator Arena'
+        };
 
         if (this._lastTerrainLabelsDepth !== depth) {
             this._lastTerrainLabelsDepth = depth;
@@ -8328,7 +8680,7 @@ class Dungeon3D {
                     feat = 41;
                 }
 
-                if (feat >= 7 && feat <= 14 && outdoors) {
+                if (((feat >= 7 && feat <= 14) || (feat >= 32 && feat <= 40)) && outdoors) {
                     if (!storePositions.has(feat)) {
                         storePositions.set(feat, []);
                     }
@@ -8472,9 +8824,9 @@ class Dungeon3D {
             // depthTest = true so buildings, walls, and pillars properly occlude labels
             const mat = new THREE.SpriteMaterial({ map: tex, depthTest: true, depthWrite: false, transparent: true });
             const sprite = new THREE.Sprite(mat);
-            sprite.scale.set(isStore ? 2.45 : 2.0, isStore ? 0.62 : 0.38, 1.0);
+            sprite.scale.set(isStore ? 2.55 : 2.0, isStore ? 0.65 : 0.38, 1.0);
             sprite.position.set(pos.x, pos.y, pos.z);
-            sprite.maxDist = isStore ? 45.0 : 25.0; // Distance culling threshold
+            sprite.maxDist = isStore ? 56.0 : 25.0; // Distance culling threshold
             return sprite;
         };
 
@@ -8500,18 +8852,19 @@ class Dungeon3D {
             ['item_anvil', 'item_greatsword'],
             ['ph_book', 'item_shrine_candles'],
             ['ph_potion_urn', 'item_healing_potion'],
-            ['ph_candle', 'item_wand'],
+            ['item_shrine_candles', 'item_wand'],
             ['ph_chest', 'item_gold'],
             ['ph_goblet', 'ph_book']
         ];
 
-        // Shop Labels at Centroid (1:1 with Godot DungeonWorld.cs:2648-2670)
+        // Shop Labels at Centroid (1:1 with Godot DungeonWorld.cs:2648-2670 + Hengband/FrogComposBand Special Guilds)
         for (const [feat, points] of storePositions.entries()) {
-            const storeIdx = feat - 7;
-            const storeNum = storeIdx + 1;
-            const storeName = storeNames[storeIdx] || `Store ${storeNum}`;
-            const labelText = `[${storeNum}] ${storeName}`;
-            const col = getStoreColorHex(storeNum);
+            const isSpecialBuilding = feat >= 32;
+            const storeIdx = isSpecialBuilding ? ((feat - 32) % 8) : (feat - 7);
+            const storeNum = isSpecialBuilding ? (feat - 31) : (storeIdx + 1);
+            const storeName = isSpecialBuilding ? (specialStoreNames[feat] || 'Guild Hall') : (storeNames[storeIdx] || `Store ${storeNum}`);
+            const labelText = isSpecialBuilding ? `[+] ${storeName}` : `[${storeNum}] ${storeName}`;
+            const col = getStoreColorHex(storeIdx + 1);
 
             let avgX = 0, avgZ = 0;
             for (const pt of points) {
@@ -8524,15 +8877,27 @@ class Dungeon3D {
             const gx = Math.round(avgX / this.cellSize);
             const gy = Math.round(avgZ / this.cellSize);
             const doorYaw = this.determineShopDoorOrientation(map, gx, gy, w, h);
-            const signX = avgX + Math.sin(doorYaw) * 0.88;
-            const signZ = avgZ + Math.cos(doorYaw) * 0.88;
+            // Project hanging guild sign 1.32m outward from doorway so roof eaves & awnings never occlude it
+            const signX = avgX + Math.sin(doorYaw) * 1.32;
+            const signZ = avgZ + Math.cos(doorYaw) * 1.32;
             const key = `${gx},${gy},${labelText}`;
             activeLabelKeys.add(key);
 
             if (!this._terrainLabelSprites.has(key)) {
-                const sprite = createCaption(labelText, { x: signX, y: 2.96, z: signZ }, col, true, storeIdx);
+                const sprite = createCaption(labelText, { x: signX, y: 2.84, z: signZ }, col, true, storeIdx);
                 this.terrainLabelsGroup.add(sprite);
                 this._terrainLabelSprites.set(key, sprite);
+            }
+
+            // Elevated Rooftop Wayfinder Crest above the 4.2m gable peak for cross-plaza visibility
+            const roofKey = `${gx},${gy},roof_${labelText}`;
+            activeLabelKeys.add(roofKey);
+            if (!this._terrainLabelSprites.has(roofKey)) {
+                const roofSprite = createCaption(labelText, { x: avgX + Math.sin(doorYaw) * 0.45, y: 4.55, z: avgZ + Math.cos(doorYaw) * 0.45 }, col, false, storeIdx);
+                roofSprite.scale.set(2.25, 0.42, 1.0);
+                roofSprite.maxDist = 64.0;
+                this.terrainLabelsGroup.add(roofSprite);
+                this._terrainLabelSprites.set(roofKey, roofSprite);
             }
 
             if (outdoors && rebuildStorefrontProps && this.storefrontPropsGroup) {
@@ -8540,6 +8905,32 @@ class Dungeon3D {
                 shopPropAnchor.position.set(avgX, 0, avgZ);
                 shopPropAnchor.rotation.set(0, doorYaw, 0);
                 this.storefrontPropsGroup.add(shopPropAnchor);
+
+                // 3D Wrought-Iron & Carved-Timber Hanging Signboard Bracket over shop entrance
+                if (!this._signBracketParts) {
+                    const armMat = new THREE.MeshStandardMaterial({ color: 0x22201d, roughness: 0.55, metalness: 0.75 });
+                    armMat._sharedMaterial = true;
+                    const boardMat = new THREE.MeshStandardMaterial({ color: 0x3b2414, roughness: 0.82, metalness: 0.12 });
+                    boardMat._sharedMaterial = true;
+                    const armGeo = new THREE.BoxGeometry(0.06, 0.06, 0.92);
+                    armGeo._sharedGeometry = true;
+                    const braceGeo = new THREE.BoxGeometry(0.04, 0.36, 0.04);
+                    braceGeo._sharedGeometry = true;
+                    const boardGeo = new THREE.BoxGeometry(0.06, 0.38, 0.68);
+                    boardGeo._sharedGeometry = true;
+                    this._signBracketParts = { armMat, boardMat, armGeo, braceGeo, boardGeo };
+                }
+                if (this._signBracketParts) {
+                    const { armMat, boardMat, armGeo, braceGeo, boardGeo } = this._signBracketParts;
+                    const armMesh = new THREE.Mesh(armGeo, armMat);
+                    armMesh.position.set(0, 3.24, 0.86);
+                    const braceMesh = new THREE.Mesh(braceGeo, armMat);
+                    braceMesh.position.set(0, 3.36, 0.56);
+                    braceMesh.rotation.x = 0.68;
+                    const boardMesh = new THREE.Mesh(boardGeo, boardMat);
+                    boardMesh.position.set(0, 2.98, 0.96);
+                    shopPropAnchor.add(armMesh, braceMesh, boardMesh);
+                }
 
                 // Zero-PointLight warm golden storefront light pool decal (avoids full-scene WebGL shader recompilation)
                 if (this.shadowGeo && this.shadowTex) {
@@ -10506,11 +10897,8 @@ class Dungeon3D {
                                         if (m.normalMap) m.normalMap._sharedTexture = true;
                                         if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
                                         if (m.metalnessMap) m.metalnessMap._sharedTexture = true;
-                                        if (m.metalness !== undefined && m.metalness > 0.32) {
-                                            m.metalness = 0.32;
-                                        }
-                                        if (m.roughness !== undefined && m.roughness < 0.28) {
-                                            m.roughness = 0.42;
+                                        if (m.roughness !== undefined && m.roughness < 0.24) {
+                                            m.roughness = 0.28;
                                         }
                                     }
                                 }
@@ -11031,7 +11419,7 @@ class Dungeon3D {
                 return normalizeWrapper(scene, 0.52, true, 0, 1.10);
             });
         } else if (templateKey === 'bestiary_skull') {
-            loadPromise = this._loadSingleGltfScene('/assets/models/monsters/bestiary/Skull.glb').then(scene => {
+            loadPromise = loadGltf('/assets/models/items/skull.gltf', '/assets/models/monsters/bestiary/Skull.glb').then(scene => {
                 scene.traverse(c => {
                     if (c.isMesh || c.isSkinnedMesh) {
                         const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
@@ -12111,7 +12499,7 @@ class Dungeon3D {
                 : /\b(phoenix|fire)\b/.test(lower) ? '#f97316'
                 : colorHex;
             return {
-                templateKey: /owl|raven|crow/.test(lower) ? 'bestiary_owl' : (/flamingo/.test(lower) ? 'bestiary_flamingo' : (/stork|swan|water/.test(lower) ? 'bestiary_stork' : 'bestiary_bird')),
+                templateKey: /\bowl\b/.test(lower) ? 'bestiary_owl' : (/flamingo/.test(lower) ? 'bestiary_flamingo' : (/stork|swan|water/.test(lower) ? 'bestiary_stork' : 'bestiary_bird')),
                 scale: /\b(great|giant|lord|thorondor|gwaihir|phoenix)\b/.test(lower) ? 1.25 : 0.95,
                 tintHex: birdTint,
                 floating: true,
@@ -12858,13 +13246,13 @@ class Dungeon3D {
             const tintCol = cfg.tintHex ? new THREE.Color(cfg.tintHex) : null;
             const emissiveCol = cfg.emissiveHex ? new THREE.Color(cfg.emissiveHex) : null;
             const armorDarkCol = new THREE.Color(0x2e2a24);
-            const tintSingleMat = (oldMat, meshName, isSkinned) => {
+            const tintSingleMat = (oldMat, meshName, isSkinned, hasVColor = false) => {
                 if (!oldMat) return oldMat;
                 const singleName = (oldMat.name || '').toLowerCase();
                 if (/eye|pupil|iris|teeth|tooth|fang|maw|bone|spore|core|pustule|snout|material\.001|^red$|superhero|regular/i.test(singleName + '_' + meshName)) {
                     return oldMat;
                 }
-                const poolKey = `${oldMat.uuid}_${cfg.tintHex || ''}_${cfg.emissiveHex || ''}_${Boolean(cfg.isOrcish)}_${Boolean(cfg.tunicOnlyTint)}`;
+                const poolKey = `${oldMat.uuid}_${cfg.tintHex || ''}_${cfg.emissiveHex || ''}_${Boolean(cfg.isOrcish)}_${Boolean(cfg.tunicOnlyTint)}_${Boolean(hasVColor)}`;
                 let pooledMat = this._tintedMatPool.get(poolKey);
                 if (!pooledMat) {
                     if (this._tintedMatPool.size >= 256) {
@@ -12882,6 +13270,8 @@ class Dungeon3D {
                         if (cfg.isOrcish) {
                             const isSkin = meshName.includes('sphere.005') || meshName.includes('retopology') || meshName.includes('superhero');
                             pooledMat.color.lerp(isSkin ? tintCol : armorDarkCol, isSkin ? 0.68 : 0.58);
+                        } else if (hasVColor) {
+                            pooledMat.color.lerp(tintCol, 0.88);
                         } else {
                             pooledMat.color.lerp(tintCol, cfg.tunicOnlyTint ? 0.45 : 0.55);
                         }
@@ -12900,10 +13290,36 @@ class Dungeon3D {
                     if (cfg.tunicOnlyTint && !meshName.includes('peasant_body')) {
                         return;
                     }
+                    const hasVColor = Boolean(c.geometry && c.geometry.attributes && c.geometry.attributes.color);
+                    if (hasVColor && cfg.tintHex && c.geometry) {
+                        // Normalize vibrant multi-hue COLOR_0 (e.g., Parrot.glb red/blue/yellow) to luminance shading so tintHex applies cleanly
+                        if (!c.geometry._grayColorClone) {
+                            const gClone = c.geometry.clone();
+                            gClone._sharedGeometry = true;
+                            const colAttr = gClone.attributes.color;
+                            if (colAttr) {
+                                const itemSz = colAttr.itemSize || 3;
+                                for (let vi = 0; vi < colAttr.count; vi++) {
+                                    const r = colAttr.getX(vi);
+                                    const g = colAttr.getY(vi);
+                                    const b = colAttr.getZ(vi);
+                                    const lum = Math.min(1.0, Math.max(0.42, (0.299 * r + 0.587 * g + 0.114 * b) * 0.85 + 0.32));
+                                    if (itemSz >= 4) {
+                                        colAttr.setXYZW(vi, lum, lum, lum, colAttr.getW(vi));
+                                    } else {
+                                        colAttr.setXYZ(vi, lum, lum, lum);
+                                    }
+                                }
+                                colAttr.needsUpdate = true;
+                            }
+                            c.geometry._grayColorClone = gClone;
+                        }
+                        c.geometry = c.geometry._grayColorClone;
+                    }
                     if (Array.isArray(c.material)) {
-                        c.material = c.material.map(m => tintSingleMat(m, meshName, c.isSkinnedMesh));
+                        c.material = c.material.map(m => tintSingleMat(m, meshName, c.isSkinnedMesh, hasVColor));
                     } else {
-                        c.material = tintSingleMat(c.material, meshName, c.isSkinnedMesh);
+                        c.material = tintSingleMat(c.material, meshName, c.isSkinnedMesh, hasVColor);
                     }
                 }
             });
@@ -13334,7 +13750,7 @@ class Dungeon3D {
 
             // In Angband, all monsters emitted in frame.monsters are detected / sensed by the player
             entity.visible = true;
-            if (isSensed) {
+            if (m.invisible) {
                 if (entity.creatureMesh) entity.creatureMesh.visible = false;
                 if (entity.foggyAura) entity.foggyAura.visible = true;
             } else {
@@ -13612,11 +14028,8 @@ class Dungeon3D {
                                     if (m.normalMap) m.normalMap._sharedTexture = true;
                                     if (m.roughnessMap) m.roughnessMap._sharedTexture = true;
                                     if (m.metalnessMap) m.metalnessMap._sharedTexture = true;
-                                    if (m.metalness !== undefined && m.metalness > 0.32) {
-                                        m.metalness = 0.32;
-                                    }
-                                    if (m.roughness !== undefined && m.roughness < 0.28) {
-                                        m.roughness = 0.42;
+                                    if (m.roughness !== undefined && m.roughness < 0.24) {
+                                        m.roughness = 0.28;
                                     }
                                 }
                             }
