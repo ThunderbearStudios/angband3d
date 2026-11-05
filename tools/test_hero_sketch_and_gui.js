@@ -171,7 +171,7 @@ test('hud.js, dungeon.css, CREDITS.md, and index.html enforce minimap hover insp
 test('YASD Death Modal and Chronicle Sketch unwrap stat objects, deduplicate death sketch requests, and scale #death-terminal-canvas responsively', () => {
     const chronSrc = read('server/public/js/chronicle/chronicle-manager.js');
     assert(chronSrc.includes('unwrapStatVal'), 'chronicle-manager.js must unwrap stat objects ({ use, cur, val, max }) to prevent [object Object]');
-    assert(chronSrc.includes('drawSlayerSilhouette'), 'chronicle-manager.js must render a distinct slayer silhouette and tombstone memorial in death mode');
+    assert(chronSrc.includes('preWarmDeathSketch'), 'chronicle-manager.js must pre-warm AI death sketches in critical peril without stick-figure silhouette fallbacks');
 
     const hudSrc = read('server/public/js/hud.js');
     assert(hudSrc.includes('_lastDeathSketchSig'), 'hud.js must guard renderDeathSketchIntoModal with _lastDeathSketchSig so frame updates do not reset AI sketches');
